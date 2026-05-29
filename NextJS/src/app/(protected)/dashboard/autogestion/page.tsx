@@ -57,9 +57,9 @@ export default function AutogestionPage() {
   const [estadoId, setEstadoId] = useState<string>();
   const [municipioId, setMunicipioId] = useState<string>();
 
-  const { data: cedula } = useSWR("session-cedula", getSessionCedula);
+  const { data: cedula, isLoading: isLoadingCedula } = useSWR("session-cedula", getSessionCedula);
 
-  const { data: censoData, isLoading: isLoadingCenso } = useSWR(
+  const { data: censoData, isLoading: isLoadingCenso, mutate: mutateCenso } = useSWR(
     cedula ? ["censo-consulta", cedula] : null,
     () => consultarCensoEmpleado(cedula!),
   );
@@ -91,7 +91,7 @@ export default function AutogestionPage() {
   const yaRespondio =
     Array.isArray(censoData?.data) && censoData.data.length > 0 && censoData.data[0]?.preguntas?.length > 0;
   const miCenso = Array.isArray(censoData?.data) ? censoData.data[0] : null;
-  const isLoading = isLoadingCenso || isLoadingPreguntas;
+  const isLoading = isLoadingCedula || isLoadingCenso || isLoadingPreguntas;
 
   const onSubmit = (values: DynamicFormValues) => {
     startTransition(async () => {
@@ -137,6 +137,7 @@ export default function AutogestionPage() {
       if (response.success) {
         toast.success(response.message || "Formulario enviado exitosamente.");
         form.reset();
+        mutateCenso();
       } else {
         toast.error(response.message || "Error al enviar el formulario.");
       }

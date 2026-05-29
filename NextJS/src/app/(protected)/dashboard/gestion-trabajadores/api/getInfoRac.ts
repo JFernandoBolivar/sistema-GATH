@@ -147,7 +147,6 @@ export const getEmployeeDataSearch = async ({
 }): Promise<ApiResponse<EmployeeData[]>> => {
   const url = searchParams ? `Employee/cargos/?${searchParams}` : `Employee/cargos/`;
   const getEmployee = await apiFetchGet<EmployeeData[]>(url, { cache: "no-cache" });
-  console.log("[getEmployeeDataSearch] first employee contrato:", JSON.stringify(getEmployee?.data?.[0]?.contrato));
   return getEmployee;
 };
 export const getHistoryMoveEmploye = async (

@@ -39,8 +39,7 @@ export async function registerEmployee(
         body: JSON.stringify({ ...payload, usuario_id: user_id }),
       },
     );
-    console.log("[registerEmployee] payload:", JSON.stringify({ ...payload, usuario_id: user_id }, null, 2));
-    console.log("[registerEmployee] response:", JSON.stringify(message, null, 2));
+
     if (message.status !== "success") {
       return {
         success: false,
