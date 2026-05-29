@@ -39,7 +39,6 @@ export default async function updateInfoEmployee(
           let processed = { ...item };
 
           if (item.carrera_id === -1 && typeof item.nueva_carrera_nombre === "string" && item.nueva_carrera_nombre.trim()) {
-            console.log("[updateInfoEmployee pasivo] creating carrera:", item.nueva_carrera_nombre.trim(), "level:", item.nivel_Academico_id);
             const result = await createCarrera(
               item.nueva_carrera_nombre.trim(),
               item.nivel_Academico_id as number,

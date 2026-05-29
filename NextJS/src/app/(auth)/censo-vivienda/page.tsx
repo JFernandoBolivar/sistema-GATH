@@ -159,7 +159,6 @@ export default function CensoViviendaPage() {
   function onSubmit(values: CensoViviendaValues) {
     startTransition(async () => {
       try {
-        console.log(values)
         toast.success(
           "Formulario enviado exitosamente. Gracias por completar el censo."
         )
