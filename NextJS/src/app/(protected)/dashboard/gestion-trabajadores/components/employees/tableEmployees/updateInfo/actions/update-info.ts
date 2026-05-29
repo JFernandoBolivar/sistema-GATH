@@ -43,43 +43,31 @@ export default async function updateInfoEmployee(
           let processed = { ...item };
 
           if (item.carrera_id === -1 && typeof item.nueva_carrera_nombre === "string" && item.nueva_carrera_nombre.trim()) {
-            console.log("[updateInfoEmployee] creating carrera:", item.nueva_carrera_nombre.trim(), "level:", item.nivel_Academico_id);
             const result = await createCarrera(
               item.nueva_carrera_nombre.trim(),
               item.nivel_Academico_id as number,
             );
-            console.log("[updateInfoEmployee] createCarrera result:", JSON.stringify(result));
             if (result.status === "success" && result.data?.id) {
-              console.log("[updateInfoEmployee] carrera created with id:", result.data.id);
               processed = { ...processed, carrera_id: result.data.id, nueva_carrera_nombre: undefined };
             } else {
-              console.log("[updateInfoEmployee] createCarrera FAILED, removing carrera fields");
               processed = { ...processed, carrera_id: undefined, nueva_carrera_nombre: undefined };
             }
           }
 
           if (item.institucion_id === -1 && typeof item.nueva_institucion_nombre === "string" && item.nueva_institucion_nombre.trim()) {
-            console.log("[updateInfoEmployee] creating institucion:", item.nueva_institucion_nombre.trim());
             const result = await createInstitucion(item.nueva_institucion_nombre.trim());
-            console.log("[updateInfoEmployee] createInstitucion result:", JSON.stringify(result));
             if (result.status === "success" && result.data?.id) {
-              console.log("[updateInfoEmployee] institucion created with id:", result.data.id);
               processed = { ...processed, institucion_id: result.data.id, nueva_institucion_nombre: undefined };
             } else {
-              console.log("[updateInfoEmployee] createInstitucion FAILED, removing institucion fields");
               processed = { ...processed, institucion_id: undefined, nueva_institucion_nombre: undefined };
             }
           }
 
           if (item.mencion_id === -1 && typeof item.nueva_mencion_nombre === "string" && item.nueva_mencion_nombre.trim() && typeof processed.carrera_id === "number" && processed.carrera_id > 0) {
-            console.log("[updateInfoEmployee] creating mencion:", item.nueva_mencion_nombre.trim(), "carrera:", processed.carrera_id);
             const result = await createMencion(item.nueva_mencion_nombre.trim(), processed.carrera_id as number);
-            console.log("[updateInfoEmployee] createMencion result:", JSON.stringify(result));
             if (result.status === "success" && result.data?.[0]?.id) {
-              console.log("[updateInfoEmployee] mencion created with id:", result.data[0].id);
               processed = { ...processed, mencion_id: result.data[0].id, nueva_mencion_nombre: undefined };
             } else {
-              console.log("[updateInfoEmployee] createMencion FAILED, removing mencion fields");
               processed = { ...processed, mencion_id: undefined, nueva_mencion_nombre: undefined };
             }
           }
@@ -141,8 +129,7 @@ export default async function updateInfoEmployee(
         }),
       },
     );
-    console.log("[updateInfoEmployee] payload:", JSON.stringify({ ...payload, usuario_id: userId }, null, 2));
-    console.log("[updateInfoEmployee] response:", JSON.stringify(getResponse, null, 2));
+
     if ("file" in data && data.file !== null && data.file !== undefined) {
       const formData = new FormData();
       formData.append("file", data.file!);

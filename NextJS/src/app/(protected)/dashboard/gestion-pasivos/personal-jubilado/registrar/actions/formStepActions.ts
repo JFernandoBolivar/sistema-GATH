@@ -49,12 +49,10 @@ export async function registerEmployeeSteps(
             let processed = { ...item };
 
             if (item.carrera_id === -1 && item.nueva_carrera_nombre?.trim()) {
-              console.log("[registerEmployeeSteps pasivo] creating carrera:", item.nueva_carrera_nombre.trim(), "level:", item.nivel_Academico_id);
               const result = await createCarrera(
                 item.nueva_carrera_nombre.trim(),
                 item.nivel_Academico_id,
               );
-              console.log("[registerEmployeeSteps pasivo] createCarrera result:", JSON.stringify(result));
               if (result.status === "success" && result.data?.id) {
                 processed = { ...processed, carrera_id: result.data.id, nueva_carrera_nombre: undefined };
               } else {
