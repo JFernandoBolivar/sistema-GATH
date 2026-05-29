@@ -1,0 +1,7 @@
+/public/uploads
+.next/
+node_modules/
+/backend-oac/
+backend-oac/
+.env.local
+.env

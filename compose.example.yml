@@ -1,0 +1,109 @@
+services:
+  postgres:
+    container_name: postgres-DB
+    image: postgres:18
+    networks:
+      postgres:
+        aliases:
+          - postgresdb
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+    volumes:
+      - "/var/www/backup/pgdata:/var/lib/postgresql"
+    ports:
+      - "5400:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d SIGEP"]
+      interval: 5s
+      timeout: 5s
+      retries: 9
+      start_period: 10s
+    restart: always
+  django:
+    container_name: django-App
+    build:
+      context: ./BACKEND
+
+      dockerfile: django.dockerfile
+    env_file:
+      - ./BACKEND/.env
+    networks:
+      backend:
+        aliases:
+          - djangoapp
+      postgres:
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  nestjs:
+    container_name: NestFS
+    build:
+      context: ./NestJS-Files
+      dockerfile: nestjs.dockerfile
+    env_file:
+      - ./NestJS-Files/.env
+    volumes:
+      - "/var/www/backup/uploadsNestFS:/app/NestFS-Files/src/uploads"
+    networks:
+      file_manager:
+        aliases:
+          - file_managerapp
+    ports:
+      - "5000:5000"
+    restart: always
+  nextjs:
+    container_name: nextjs-App
+    build:
+      context: ./NextJS
+      dockerfile: nextjs.dockerfile
+    env_file:
+      - ./NextJS/.env
+    ports:
+      - "3000:3000"
+    networks:
+      backend:
+      file_manager:
+    depends_on:
+      - django
+      - nestjs
+    restart: always
+  pgadmin4:
+    container_name: pgadmin4
+    image: dpage/pgadmin4
+    ports:
+      - "8080:80"
+    networks:
+      postgres:
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
+    depends_on:
+      - postgres
+    restart: always
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - 9443:9443
+volumes:
+  portainer_data:
+    name: portainer_data
+networks:
+  default:
+    name: portainer_network
+  backend:
+    driver: bridge
+  file_manager:
+    driver: bridge
+  postgres:
+    driver: bridge
