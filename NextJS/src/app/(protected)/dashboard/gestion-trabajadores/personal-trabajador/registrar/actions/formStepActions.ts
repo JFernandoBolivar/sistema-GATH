@@ -144,9 +144,6 @@ export async function registerEmployeeSteps(
         body: JSON.stringify(payloadEmployee),
       },
     );
-    console.log("[formStepActions] payload:", JSON.stringify(payloadEmployee, null, 2));
-    console.log("[formStepActions] response:", JSON.stringify(getEmployee, null, 2));
-
     let nestjsOk = true;
     if (data.file) {
       const formData = new FormData();

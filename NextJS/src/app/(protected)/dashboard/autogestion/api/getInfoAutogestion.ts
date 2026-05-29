@@ -28,7 +28,7 @@ export interface CensoEmpleadoItem {
 
 export const consultarCensoEmpleado = async (cedula?: string) => {
   const url = cedula
-    ? `autogestion/censo-vivienda/consultar/?cedula=${encodeURIComponent(cedula)}`
+    ? `autogestion/censo-vivienda/consultar/${encodeURIComponent(cedula)}/`
     : `autogestion/censo-vivienda/consultar/`;
   return apiFetchGet<CensoEmpleadoItem[]>(url);
 };

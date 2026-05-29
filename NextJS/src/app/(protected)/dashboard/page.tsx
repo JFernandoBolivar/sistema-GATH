@@ -100,7 +100,7 @@ export default function Dashboard() {
     startChangePass(async () => {
       const response = await changePasswordAction(userId, values.new_password);
       if (response.success) {
-        await updateSession();
+        await updateSession({ debeCambiarPassword: false });
         setShowChangePassword(false);
       } else {
         changeForm.setError("new_password", {
