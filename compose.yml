@@ -1,0 +1,69 @@
+services:
+  django:
+    container_name: django-App
+    build:
+      context: ./BACKEND
+      dockerfile: django.dockerfile
+    env_file:
+      - ./BACKEND/.env
+    networks:
+      backend:
+        aliases:
+          - djangoapp
+    ports:
+      - "8000:8000"
+    restart: always
+
+  nestjs:
+    container_name: NestFS
+    build:
+      context: ./NestJS-Files
+      dockerfile: nestjs.dockerfile
+    env_file:
+      - ./NestJS-Files/.env
+    volumes:
+      - "/var/www/backup/uploadsNestFS:/app/NestFS/uploads"
+    networks:
+      file_manager:
+        aliases:
+          - file_managerapp
+    ports:
+      - "5000:5000"
+    restart: always
+  nextjs:
+    container_name: nextjs-App
+    build:
+      context: ./NextJS
+      dockerfile: nextjs.dockerfile
+    env_file:
+      - ./NextJS/.env
+    ports:
+      - "3000:3000"
+    networks:
+      backend:
+      file_manager:
+    depends_on:
+      - django
+      - nestjs
+    restart: always
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    ports:
+      - "9443:9443"
+volumes:
+  portainer_data:
+    name: portainer_data
+networks:
+  default:
+    name: portainer_network
+  backend:
+    driver: bridge
+  file_manager:
+    driver: bridge
+  postgres:
+    driver: bridge

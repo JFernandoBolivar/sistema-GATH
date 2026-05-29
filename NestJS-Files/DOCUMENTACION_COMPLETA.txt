@@ -1,0 +1,584 @@
+================================================================================
+                        FILE MANAGER - DOCUMENTACIÓN COMPLETA
+================================================================================
+
+INFORMACIÓN GENERAL DEL PROYECTO
+===============================
+
+Nombre del Proyecto: File Manager
+Versión: 0.0.1
+Framework: NestJS v11.0.1
+Lenguaje: TypeScript
+Runtime: Node.js
+Puerto por defecto: 4000
+Manejo de archivos: Multer + Express
+Licencia: UNLICENSED
+Autor: [No especificado]
+
+DESCRIPCIÓN DEL PROYECTO
+========================
+
+File Manager es una API REST desarrollada con NestJS que permite la gestión 
+completa de archivos (subida, almacenamiento y descarga) organizados por carpetas. 
+El sistema está especialmente diseñado para manejar archivos PDF, imágenes 
+(PNG, JPEG) y recetas múltiples.
+
+Características principales:
+- Subida de archivos individuales
+- Subida de múltiples archivos (recetas)
+- Descarga y visualización de archivos
+- Organización por carpetas con ID único
+- Validación de tipos de archivo
+- Streaming de archivos para optimización
+
+ARQUITECTURA DEL PROYECTO
+=========================
+
+Estructura del código fuente (src/):
+├── app.controller.ts          # Controlador principal de la aplicación
+├── app.service.ts            # Servicio principal de la aplicación
+├── app.module.ts             # Módulo raíz que integra todos los módulos
+├── main.ts                   # Punto de entrada de la aplicación
+├── file-save/                # Módulo completo para guardar archivos
+│   ├── file-save.controller.ts      # Controlador para endpoints de subida
+│   ├── file-save.service.ts         # Lógica de negocio para guardado
+│   ├── file-save.module.ts          # Configuración del módulo
+│   ├── file-save.controller.spec.ts # Tests del controlador
+│   ├── file-save.service.spec.ts    # Tests del servicio
+│   └── file-validation-pipe/        # Validación personalizada
+│       ├── file-validation-pipe.pipe.ts      # Pipe de validación
+│       └── file-validation-pipe.pipe.spec.ts # Tests del pipe
+└── read-file/                # Módulo completo para leer archivos
+    ├── read-file.controller.ts       # Controlador para endpoints de lectura
+    ├── read-file.service.ts          # Lógica de negocio para lectura
+    ├── read-file.module.ts           # Configuración del módulo
+    ├── read-file.controller.spec.ts  # Tests del controlador
+    └── read-file.service.spec.ts     # Tests del servicio
+
+Estructura del sistema de archivos (uploads/):
+uploads/
+├── temp/                     # Carpeta temporal para archivos individuales
+│   ├── {archivo_temporal}    # Archivos subidos temporalmente
+│   └── arrayFiles/           # Subcarpeta para archivos múltiples temporales
+│       └── {archivo_temporal}
+└── {folderId}/               # Carpetas organizadas por ID único
+    ├── {archivo_principal}   # Archivo principal (PDF/imagen)
+    └── recipes/              # Subcarpeta específica de recetas
+        └── {archivos_receta} # Archivos de recetas individuales
+
+CONFIGURACIÓN DE LA APLICACIÓN
+==============================
+
+Configuración en main.ts:
+- Puerto de escucha: 4000
+- CORS habilitado para: http://172.16.26.48:3000
+- Métodos HTTP permitidos: POST, GET
+- Headers permitidos: automático
+- Middleware: Express estándar + Multer
+
+Configuración CORS detallada:
+```
+app.enableCors({
+  origin: 'http://172.16.26.48:3000',
+  methods: 'POST,GET'
+});
+```
+
+DEPENDENCIAS DEL PROYECTO
+=========================
+
+Dependencias principales (dependencies):
+- @nestjs/common: ^11.0.1          # Funcionalidades core de NestJS
+- @nestjs/core: ^11.0.1            # Motor principal del framework
+- @nestjs/platform-express: ^11.0.1 # Adaptador para Express
+- @nestjs/serve-static: ^5.0.3     # Servir archivos estáticos
+- date-fns: ^4.1.0                 # Manejo de fechas
+- helmet: ^8.1.0                   # Seguridad HTTP
+- reflect-metadata: ^0.2.2         # Metadatos para decoradores
+- rxjs: ^7.8.1                     # Programación reactiva
+
+Dependencias de desarrollo (devDependencies):
+- @nestjs/cli: ^11.0.0             # CLI para desarrollo
+- @nestjs/schematics: ^11.0.0      # Generadores de código
+- @nestjs/testing: ^11.0.1         # Utilidades de testing
+- @types/express: ^5.0.0           # Tipos TypeScript para Express
+- @types/multer: ^2.0.0            # Tipos TypeScript para Multer
+- jest: ^29.7.0                    # Framework de testing
+- typescript: ^5.7.3               # Compilador TypeScript
+- eslint: ^9.18.0                  # Linter de código
+- prettier: ^3.4.2                 # Formateador de código
+
+API ENDPOINTS DETALLADOS
+========================
+
+1. ENDPOINT PRINCIPAL
+-------------------
+
+GET /
+Descripción: Endpoint de bienvenida y verificación de estado
+Método: GET
+Parámetros: Ninguno
+Respuesta exitosa: "Hello World!" (string)
+Código HTTP: 200
+Uso: Verificar que la API está funcionando
+
+2. MÓDULO FILE-SAVE (Guardado de Archivos)
+=========================================
+
+2.1 Subir Archivo Único
+----------------------
+
+POST /file-save/upload/:folderId
+
+Descripción: Sube un archivo individual a una carpeta específica identificada por folderId
+Content-Type: multipart/form-data
+Método: POST
+
+Parámetros:
+- folderId (path parameter): Identificador único de la carpeta destino
+- file (form-data): Archivo a subir (campo requerido)
+
+Proceso de ejecución:
+1. Recibe el archivo via Multer
+2. Guarda temporalmente en ./uploads/temp/
+3. Valida el tipo MIME del archivo
+4. Crea la carpeta destino ./uploads/{folderId}/ si no existe
+5. Mueve el archivo desde temp a la carpeta final
+6. Elimina el archivo temporal
+
+Validaciones:
+- Tipos MIME permitidos: application/pdf, image/jpeg, image/png
+- Archivo requerido (no puede estar vacío)
+
+Respuestas:
+- 200 OK: "Archivo Guardado" (archivo subido exitosamente)
+- 300 Multiple Choices: "Error Al Mover El Archivo" (error en movimiento)
+- 422 Unprocessable Entity: "Tipo de archivo no permitido" (validación fallida)
+
+2.2 Subir Múltiples Archivos (Recetas)
+-------------------------------------
+
+POST /file-save/upload/:folderId/recipe
+
+Descripción: Sube hasta 5 archivos como recetas asociadas a una carpeta
+Content-Type: multipart/form-data
+Método: POST
+
+Parámetros:
+- folderId (path parameter): Identificador único de la carpeta destino
+- recipe (form-data array): Hasta 5 archivos para subir como recetas
+
+Proceso de ejecución:
+1. Recibe múltiples archivos via Multer
+2. Guarda temporalmente en ./uploads/temp/arrayFiles/
+3. Crea estructura de carpeta ./uploads/{folderId}/recipes/
+4. Mueve todos los archivos a la carpeta de recetas
+5. Limpia archivos temporales
+
+Limitaciones:
+- Máximo 5 archivos por petición
+- Mismas validaciones de tipo MIME que archivo único
+
+Respuestas:
+- 200 OK: "Archivos de receta guardados exitosamente"
+- 300 Multiple Choices: "Error al procesar archivos de receta"
+- 422 Unprocessable Entity: "Tipo de archivo no permitido"
+
+3. MÓDULO READ-FILE (Lectura de Archivos)
+========================================
+
+3.1 Obtener Archivo Principal
+----------------------------
+
+GET /read-file/:folderId
+
+Descripción: Retorna el primer archivo PDF/imagen encontrado en la carpeta principal
+Método: GET
+
+Parámetros:
+- folderId (path parameter): Identificador de la carpeta
+
+Proceso de búsqueda:
+1. Busca en la ruta ./uploads/{folderId}/
+2. Filtra archivos con extensiones: .pdf, .png, .jpg, .jpeg
+3. Retorna el primer archivo encontrado
+
+Respuesta exitosa:
+- Tipo: StreamableFile
+- Content-Type: MIME type automático según extensión
+- Content-Disposition: inline (para mostrar en navegador)
+- Streaming: Optimizado para archivos grandes
+
+Respuestas de error:
+- 404 Not Found: "Archivo no encontrado" (carpeta vacía o sin archivos válidos)
+
+3.2 Obtener Lista de Recetas
+---------------------------
+
+GET /read-file/:folderId/recipes
+
+Descripción: Lista todos los archivos en la carpeta de recetas con metadatos
+Método: GET
+
+Parámetros:
+- folderId (path parameter): Identificador de la carpeta
+
+Búsqueda: ./uploads/{folderId}/recipes/
+
+Estructura de respuesta exitosa:
+```
+{
+  "success": true,
+  "files": [
+    {
+      "name": "archivo.pdf",        // Nombre original del archivo
+      "size": 1024,                 // Tamaño en bytes
+      "createdAt": "2024-01-01T00:00:00.000Z",  // Fecha de creación
+      "updatedAt": "2024-01-01T00:00:00.000Z"   // Fecha de modificación
+    }
+  ]
+}
+```
+
+Respuestas de error:
+- 404 Not Found: "No se encontró la carpeta de recetas"
+
+3.3 Obtener Archivo de Receta Específico
+---------------------------------------
+
+GET /read-file/:folderId/recipes/:fileName
+
+Descripción: Retorna un archivo específico de la carpeta de recetas
+Método: GET
+
+Parámetros:
+- folderId (path parameter): Identificador de la carpeta
+- fileName (path parameter): Nombre exacto del archivo incluyendo extensión
+
+Proceso:
+1. Construye la ruta: ./uploads/{folderId}/recipes/{fileName}
+2. Verifica existencia del archivo
+3. Retorna el archivo como stream
+
+Respuesta exitosa: StreamableFile con el archivo solicitado
+Respuesta de error: 404 Not Found si el archivo no existe
+
+VALIDACIONES DE ARCHIVOS
+========================
+
+Tipos MIME Permitidos:
+```
+const ALLOWED_TYPES = [
+  'application/pdf',    # Documentos PDF
+  'image/jpeg',         # Imágenes JPEG
+  'image/png'           # Imágenes PNG
+];
+```
+
+FileValidationPipe:
+- Ubicación: src/file-save/file-validation-pipe/file-validation-pipe.pipe.ts
+- Función: Intercepta archivos antes del procesamiento
+- Validación: Verifica tipo MIME contra lista permitida
+- Error: HTTP 422 "Tipo de archivo no permitido"
+- Implementación: Custom Pipe con decorador @Injectable()
+
+Proceso de validación:
+1. Intercepta el archivo subido
+2. Extrae el MIME type del archivo
+3. Compara contra ALLOWED_TYPES
+4. Permite o rechaza según el resultado
+
+CONFIGURACIÓN MULTER
+====================
+
+Configuración para Archivo Individual:
+```
+{
+  storage: diskStorage({
+    destination: './uploads/temp',                    # Carpeta temporal
+    filename: (req, file, callback) => {
+      callback(null, file.originalname);              # Mantiene nombre original
+    }
+  })
+}
+```
+
+Configuración para Múltiples Archivos:
+```
+{
+  storage: diskStorage({
+    destination: './uploads/temp/arrayFiles',         # Carpeta temporal específica
+    filename: (req, file, callback) => {
+      callback(null, file.originalname);              # Mantiene nombre original
+    }
+  }),
+  limits: { 
+    files: 5                                          # Máximo 5 archivos
+  }
+}
+```
+
+Características de Multer:
+- Almacenamiento en disco (no memoria)
+- Preserva nombres originales de archivos
+- Manejo automático de multipart/form-data
+- Integración nativa con NestJS
+
+CÓDIGOS DE ESTADO HTTP
+======================
+
+| Código | Descripción        | Mensaje                                    | Contexto                    |
+|--------|-------------------|--------------------------------------------|-----------------------------|
+| 200    | OK                | "Archivo Guardado"                         | Subida exitosa              |
+| 200    | OK                | StreamableFile                             | Descarga exitosa            |
+| 200    | OK                | JSON con lista de archivos                 | Listado exitoso             |
+| 300    | Multiple Choices  | "Error Al Mover El Archivo"                | Falla en movimiento         |
+| 404    | Not Found         | "Archivo no encontrado"                    | Archivo no existe           |
+| 404    | Not Found         | "No se encontró la carpeta de recetas"     | Carpeta recipes no existe   |
+| 422    | Unprocessable     | "Tipo de archivo no permitido"             | Validación de tipo fallida  |
+
+CARACTERÍSTICAS TÉCNICAS AVANZADAS
+==================================
+
+Manejo de Archivos:
+- Asíncrono: Todas las operaciones usan fs/promises para no bloquear el event loop
+- Creación automática: Las carpetas se crean recursivamente si no existen
+- Nombres originales: Se preservan completamente los nombres de archivo originales
+- Movimiento eficiente: Los archivos se mueven (no se copian) desde carpetas temporales
+- Limpieza automática: Eliminación de archivos temporales después del movimiento
+
+Streaming de Archivos:
+- Método: fs.createReadStream() para manejo eficiente de memoria
+- Disposición: 'inline' para mostrar directamente en navegador
+- MIME Types: Detección automática basada en extensión de archivo
+- Buffer: Streaming sin cargar archivo completo en memoria
+
+Patrones de Diseño Implementados:
+- Module Pattern: Separación clara de responsabilidades por módulos
+- Dependency Injection: Inyección automática de servicios
+- Pipe Pattern: Validación en cadena con pipes personalizados
+- Repository Pattern: Abstracción de operaciones de archivo
+
+Manejo de Errores:
+- Excepciones específicas de NestJS
+- Propagación automática de errores HTTP
+- Logging implícito de errores
+- Respuestas consistentes al cliente
+
+SCRIPTS DE NPM DISPONIBLES
+==========================
+
+Scripts de desarrollo:
+- npm start              # Inicia la aplicación en modo producción
+- npm run start:dev      # Inicia con auto-reload para desarrollo
+- npm run start:debug    # Inicia con debugger habilitado
+- npm run start:prod     # Inicia desde código compilado (dist/)
+
+Scripts de construcción:
+- npm run build          # Compila TypeScript a JavaScript en dist/
+- npm run format         # Formatea código con Prettier
+- npm run lint           # Analiza y corrige código con ESLint
+
+Scripts de testing:
+- npm test               # Ejecuta tests unitarios con Jest
+- npm run test:watch     # Ejecuta tests en modo watch
+- npm run test:cov       # Ejecuta tests con reporte de cobertura
+- npm run test:debug     # Ejecuta tests con debugger
+- npm run test:e2e       # Ejecuta tests end-to-end
+
+Configuración de Jest:
+- Archivos de test: *.spec.ts
+- Directorio raíz: src/
+- Transformador: ts-jest para TypeScript
+- Entorno: node
+- Cobertura: habilitada para todos los archivos .ts y .js
+
+INSTALACIÓN Y CONFIGURACIÓN
+===========================
+
+Prerrequisitos del sistema:
+- Node.js v18+ (compatible con NestJS 11)
+- NPM v8+ o Yarn v1.22+
+- Sistema operativo: Windows, macOS, Linux
+- Espacio en disco: mínimo 100MB para node_modules
+
+Proceso de instalación:
+
+1. Clonar o descargar el proyecto:
+```bash
+cd C:\Users\HitlerSh-Creator\Documents\proyecto-oac\file-manager
+```
+
+2. Instalar dependencias:
+```bash
+npm install
+```
+
+3. Ejecutar en desarrollo:
+```bash
+npm run start:dev
+```
+La aplicación estará disponible en: http://172.16.26.48:4000
+
+4. Para producción:
+```bash
+npm run build
+npm run start:prod
+```
+
+Estructura después de la instalación:
+- node_modules/          # Dependencias instaladas
+- dist/                  # Código compilado (después de build)
+- uploads/               # Carpeta de archivos (creada automáticamente)
+  ├── temp/              # Archivos temporales
+  └── {folderId}/        # Carpetas organizadas
+
+CONFIGURACIÓN DE TESTING
+========================
+
+Estructura de pruebas:
+- Unit tests: Cada módulo tiene archivos *.spec.ts
+- Integration tests: En carpeta test/ con configuración jest-e2e.json
+- Coverage reports: Generados en carpeta coverage/
+
+Comandos de testing importantes:
+```bash
+npm test                 # Tests básicos
+npm run test:cov         # Con reporte de cobertura
+npm run test:e2e         # Tests de integración completa
+```
+
+Archivos de configuración de testing:
+- jest.config.js (en package.json)
+- test/jest-e2e.json para tests e2e
+- tsconfig.json para compilación de tests
+
+CONSIDERACIONES DE SEGURIDAD
+============================
+
+Validaciones implementadas:
+1. Tipos de archivo estrictamente controlados (solo PDF, JPEG, PNG)
+2. Límite de archivos en recetas (máximo 5 por petición)
+3. CORS restrictivo (solo permite 172.16.26.48:3000)
+4. Validación de rutas para prevenir directory traversal
+5. Nombres de archivo preservados pero controlados
+
+Medidas de seguridad recomendadas para producción:
+- Implementar autenticación y autorización
+- Añadir límites de tamaño de archivo
+- Configurar rate limiting
+- Implementar logging de auditoría
+- Usar HTTPS en producción
+- Validar y sanitizar nombres de archivo
+- Implementar antivirus scanning
+
+Vulnerabilidades potenciales:
+- Sin autenticación (cualquiera puede subir archivos)
+- Sin límites de tamaño de archivo
+- Sin validación de contenido real del archivo
+- Posible saturación de disco sin límites
+
+OPTIMIZACIONES DE RENDIMIENTO
+=============================
+
+Optimizaciones implementadas:
+- Streaming de archivos (no carga completa en memoria)
+- Operaciones asíncronas no bloqueantes
+- Movimiento de archivos en lugar de copia
+- Limpieza automática de archivos temporales
+
+Optimizaciones recomendadas:
+- Implementar caché para archivos frecuentemente accedidos
+- Compresión automática de imágenes
+- CDN para servir archivos estáticos
+- Base de datos para metadatos en lugar de filesystem
+- Implementar lazy loading para listados grandes
+
+MONITOREO Y LOGS
+================
+
+Logs automáticos de NestJS:
+- Inicio de aplicación
+- Errores HTTP automáticos
+- Excepciones no manejadas
+
+Logs recomendados para implementar:
+- Operaciones de archivo (subida, descarga, eliminación)
+- Intentos de acceso a archivos no existentes
+- Validaciones fallidas
+- Métricas de uso de espacio en disco
+- Tiempos de respuesta de endpoints
+
+Herramientas de monitoreo recomendadas:
+- Winston para logging estructurado
+- Prometheus para métricas
+- Health checks para disponibilidad
+- Monitoring de espacio en disco
+
+ROADMAP Y MEJORAS FUTURAS
+=========================
+
+Mejoras de corto plazo:
+1. Autenticación básica con JWT
+2. Límites configurables de tamaño de archivo
+3. API para eliminación de archivos
+4. Compresión automática de imágenes
+5. Validación de contenido real (no solo extensión)
+
+Mejoras de mediano plazo:
+6. Base de datos para metadatos de archivos
+7. Versionado de archivos
+8. Sistema de permisos granulares
+9. API de búsqueda de archivos
+10. Integración con servicios de almacenamiento cloud
+
+Mejoras de largo plazo:
+11. Interfaz web de administración
+12. Sistema de backup automático
+13. Replicación y alta disponibilidad
+14. Analytics de uso de archivos
+15. Integración con sistemas externos
+
+TROUBLESHOOTING COMÚN
+=====================
+
+Problemas frecuentes y soluciones:
+
+1. Error "Puerto 4000 en uso":
+   Solución: Cambiar puerto en main.ts o matar proceso existente
+
+2. Error "Cannot create directory":
+   Solución: Verificar permisos de escritura en carpeta uploads/
+
+3. Error "File type not allowed":
+   Solución: Verificar que el archivo sea PDF, JPEG o PNG válido
+
+4. Error "CORS policy":
+   Solución: Verificar que el frontend esté en 172.16.26.48:3000
+
+5. Archivos no aparecen después de subir:
+   Solución: Verificar que la carpeta {folderId} se creó correctamente
+
+6. Tests fallan:
+   Solución: Ejecutar npm install y verificar versiones de dependencias
+
+INFORMACIÓN ADICIONAL DE CONTACTO Y SOPORTE
+===========================================
+
+Recursos de NestJS:
+- Documentación oficial: https://docs.nestjs.com
+- Comunidad Discord: https://discord.gg/G7Qnnhy
+- Cursos oficiales: https://courses.nestjs.com/
+- Soporte empresarial: https://enterprise.nestjs.com
+
+Herramientas de desarrollo recomendadas:
+- Visual Studio Code con extensiones TypeScript
+- Postman para testing de API
+- Git para control de versiones
+- Docker para containerización (futuro)
+
+================================================================================
+FINAL DE LA DOCUMENTACIÓN - File Manager v0.0.1
+Generado el: 2025-07-19
+Última actualización del proyecto: Según package.json v0.0.1
+================================================================================
