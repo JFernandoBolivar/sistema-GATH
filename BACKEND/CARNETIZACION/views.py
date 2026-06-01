@@ -360,4 +360,7 @@ def api_activar_plantilla(request, plantilla_id):
     plantilla.activo = True
     plantilla.save(update_fields=['activo'])
     serializer = CarnetTemplateSerializer(plantilla)
-    return Response(serializer.data)
+    return Response({
+        "success":True,
+        "data":serializer.data
+        })
