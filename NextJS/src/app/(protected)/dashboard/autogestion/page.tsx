@@ -147,18 +147,18 @@ export default function AutogestionPage() {
   return (
     <div className="p-6">
       {isLoading ? (
-          <div className="space-y-4 max-w-3xl mx-auto">
+          <div className="gap-4 max-w-3xl mx-auto">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-20 w-full" />
             ))}
           </div>
         ) : yaRespondio && !isDev ? (
-          <div className="max-w-3xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto gap-6">
             <Card className="border-2 border-emerald-200 bg-emerald-50/50">
-              <CardContent className="p-8 text-center space-y-4">
+              <CardContent className="p-8 text-center gap-4">
                 <div className="flex justify-center">
                   <div className="rounded-full bg-emerald-100 p-4">
-                    <ClipboardCheck className="h-12 w-12 text-emerald-600" />
+                    <ClipboardCheck className="size-12 text-emerald-600" />
                   </div>
                 </div>
                 <h2 className="text-2xl font-bold text-emerald-800">
@@ -172,19 +172,19 @@ export default function AutogestionPage() {
 
             {miCenso && (
               <Card>
-                <CardContent className="p-6 space-y-4">
+                <CardContent className="p-6 gap-4">
                   <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
+                    <FileText className="size-5" />
                     Resumen de su Autogestión
                   </h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2 text-gray-600">
-                      <IdCard className="h-4 w-4 text-gray-400" />
+                      <IdCard className="size-4 text-gray-400" />
                       <span className="font-medium">Cédula:</span>
                       <span>{miCenso.cedula}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-600">
-                      <Badge className="h-4 w-4 text-gray-400" />
+                      <Badge className="size-4 text-gray-400" />
                       <span className="font-medium">Carnet Patria:</span>
                       <span>{miCenso.carnet_patria || "No registrado"}</span>
                     </div>
@@ -194,12 +194,12 @@ export default function AutogestionPage() {
 
                   <div>
                     <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
-                      <ClipboardCheck className="h-4 w-4" />
+                      <ClipboardCheck className="size-4" />
                       <span className="font-medium">
                         Respuestas registradas ({miCenso.preguntas?.length || 0})
                       </span>
                     </div>
-                    <div className="max-h-64 overflow-y-auto space-y-2">
+                    <div className="max-h-64 overflow-y-auto gap-2">
                       {miCenso.preguntas?.map((r, i) => (
                         <div
                           key={i}

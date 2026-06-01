@@ -18,7 +18,7 @@ const PDFDownloadLink = dynamic(
     ssr: false,
     loading: () => (
       <Button className={`bg-blue-600 opacity-50`} disabled>
-        Preparando...
+        Preparando…
       </Button>
     ),
   },
@@ -38,7 +38,7 @@ export default function ExportButton({
           disabled={loading}
           type="button"
         >
-          {loading ? "Generando archivo..." : buttonText}
+          {loading ? "Generando archivo…" : buttonText}
         </Button>
       )}
     </PDFDownloadLink>

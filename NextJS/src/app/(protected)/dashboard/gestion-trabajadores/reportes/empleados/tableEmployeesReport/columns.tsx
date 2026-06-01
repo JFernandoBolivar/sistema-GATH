@@ -127,9 +127,9 @@ export const columsReport: ColumnDef<EmployeeData>[] = [
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button variant="ghost" className="size-8 p-0">
               <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="size-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -159,7 +159,7 @@ export const columsReport: ColumnDef<EmployeeData>[] = [
                       </SheetTitleUI>
                     </SheetHeaderUI>
                     <div className="flex flex-col m-auto justify-between h-full w-full gap-2">
-                      <div className="w-60 h-60 m-auto rounded-sm flex flex-col">
+                      <div className="size-60 m-auto rounded-sm flex flex-col">
                         <Image
                           height={64}
                           width={64}

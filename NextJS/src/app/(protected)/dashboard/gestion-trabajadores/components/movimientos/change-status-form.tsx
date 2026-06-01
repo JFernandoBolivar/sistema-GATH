@@ -85,7 +85,7 @@ export function ChangeStatusForm() {
     <>
       <Card>
         <CardHeader></CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="gap-5">
           <EmployeeSearchForm onSearch={search} />
 
           <EmployeeInfoBanner
@@ -99,7 +99,7 @@ export function ChangeStatusForm() {
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-5"
+                  className="gap-5"
                 >
                   {employee !== null &&
                       employee.asignaciones != undefined &&

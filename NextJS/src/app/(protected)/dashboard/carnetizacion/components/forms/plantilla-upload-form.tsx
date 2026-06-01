@@ -43,7 +43,7 @@ export default function PlantillaUploadForm({
 }: Props) {
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="gap-4">
         <InputForm<PlantillaValues>
           form={form}
           nameInput="nombre"
@@ -79,7 +79,7 @@ export default function PlantillaUploadForm({
                       size="sm"
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <FileImage className="h-4 w-4 mr-1" />
+                      <FileImage className="size-4 mr-1" />
                       Seleccionar Imagen
                     </Button>
                     {fileName && (
@@ -111,9 +111,9 @@ export default function PlantillaUploadForm({
           disabled={isPending}
         >
           {isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="size-4 animate-spin mr-2" />
           ) : (
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="size-4 mr-2" />
           )}
           {isPending ? "Subiendo..." : "Subir Plantilla"}
         </Button>

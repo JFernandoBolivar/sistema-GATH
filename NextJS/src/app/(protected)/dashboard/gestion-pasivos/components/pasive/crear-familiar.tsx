@@ -342,7 +342,7 @@ export function CreateFamilyPasiveForm() {
   return (
     <>
       <Card>
-        <CardContent className="space-y-5">
+        <CardContent className="gap-5">
           <div className="flex flex-col gap-2">
             <Form {...formSearch}>
               <form
@@ -368,7 +368,7 @@ export function CreateFamilyPasiveForm() {
                   )}
                 />
                 <Button className="self-baseline-last cursor-pointer">
-                  <Search className="h-4 w-4" />
+                  <Search className="size-4" />
                 </Button>
               </form>
             </Form>
@@ -400,9 +400,9 @@ export function CreateFamilyPasiveForm() {
                         <div dir="ltr">
                           <div>
                             <div
-                              className={`grid grid-cols-2 gap-2 space-y-4 `}
+                              className={`grid grid-cols-2 gap-4 `}
                             >
-                              <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2 border-green-600 rounded-sm">
+                              <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-green-600 rounded-sm">
                                 <legend className="flex gap-2 text-green-700 font-bold">
                                   Datos Personales <Database />
                                 </legend>
@@ -564,7 +564,7 @@ export function CreateFamilyPasiveForm() {
                                                   Selecciona una fecha
                                                 </span>
                                               )}
-                                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                              <CalendarIcon className="ml-auto size-4 opacity-50" />
                                             </Button>
                                           </FormControl>
                                         </PopoverTrigger>
@@ -635,7 +635,7 @@ export function CreateFamilyPasiveForm() {
                                   )}
                                 />
                               </fieldset>
-                              <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2 border-amber-700 rounded-sm">
+                              <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-amber-700 rounded-sm">
                                 <legend className="flex gap-2 text-amber-700 font-bold">
                                   {" "}
                                   Relación Y Parentesco <Contact />{" "}
@@ -847,7 +847,7 @@ export function CreateFamilyPasiveForm() {
                                   )}
                                 />
                               </fieldset>
-                              <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2  border-blue-700 rounded-sm">
+                              <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2  border-blue-700 rounded-sm">
                                 <legend className="flex gap-2 text-blue-700 font-bold">
                                   Información Academica <BookAIcon />
                                 </legend>
@@ -1212,7 +1212,7 @@ export function CreateFamilyPasiveForm() {
                                   </>
                                 )}
                               </fieldset>
-                              <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2 border-purple-900 rounded-sm">
+                              <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-purple-900 rounded-sm">
                                 <legend className="flex flex-row gap-2 text-purple-900 font-bold">
                                   Información de Vestimenta <Shirt />
                                 </legend>
@@ -1354,7 +1354,7 @@ export function CreateFamilyPasiveForm() {
                                   )}
                                 />
                               </fieldset>
-                              <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2 border-red-700 rounded-sm">
+                              <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-red-700 rounded-sm">
                                 <legend className="flex gap-2 text-red-700 font-bold">
                                   Datos De Salud <HeartPulse />
                                 </legend>
@@ -1431,7 +1431,7 @@ export function CreateFamilyPasiveForm() {
                                                         return <Loading />;
                                                       }
                                                       return (
-                                                        <FormItem className="flex flex-row items-center space-y-2 ">
+                                                        <FormItem className="flex flex-row items-center gap-2 ">
                                                           <FormControl>
                                                             <Checkbox
                                                               className="border-black"
@@ -1510,7 +1510,7 @@ export function CreateFamilyPasiveForm() {
                                                         return <Loading />;
                                                       }
                                                       return (
-                                                        <FormItem className="flex flex-row space-y-2">
+                                                        <FormItem className="flex flex-row gap-2">
                                                           <FormLabel className="order-2">
                                                             {
                                                               disabilityItem.discapacidad
@@ -1583,7 +1583,7 @@ export function CreateFamilyPasiveForm() {
                                                         return <Loading />;
                                                       }
                                                       return (
-                                                        <FormItem className="flex flex-row space-y-2">
+                                                        <FormItem className="flex flex-row gap-2">
                                                           <FormLabel className="order-2">
                                                             {
                                                               disabilityItem.alergia

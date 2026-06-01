@@ -141,7 +141,7 @@ export function AsigCode() {
       }
     })();
     return () => { cancelled = true; };
-  }, [employee]);
+  }, [employee, politicas]);
   const schemaSearch = z.object({
     tipo_nomina: z.coerce.number().optional(),
     codigo: z.string().optional(),
@@ -195,7 +195,7 @@ export function AsigCode() {
         <Loading promiseMessage="Asigando Cargo" />
       ) : (
         <Card>
-          <CardContent className="space-y-5">
+          <CardContent className="gap-5">
             <EmployeeSearchForm onSearch={search} />
 
             <EmployeeInfoBanner
@@ -205,7 +205,7 @@ export function AsigCode() {
             />
 
             {showContratoForm && !hasActiveContrato && employee && (
-              <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm space-y-3">
+              <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3">
                 <Label className="text-lg font-bold">El trabajador no tiene contrato activo</Label>
                 <p className="text-sm">Debe registrar un contrato antes de asignar el cargo.</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -244,7 +244,7 @@ export function AsigCode() {
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-between font-normal">
                           {contratoData.fecha_ingreso ? formatInTimeZone(contratoData.fecha_ingreso, "UTC", "dd/MM/yyyy") : "..."}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <CalendarIcon className="ml-auto size-4 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -258,7 +258,7 @@ export function AsigCode() {
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-between font-normal">
                           {contratoData.fecha_culminacion ? formatInTimeZone(contratoData.fecha_culminacion, "UTC", "dd/MM/yyyy") : "Seleccionar..."}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          <CalendarIcon className="ml-auto size-4 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -304,7 +304,7 @@ export function AsigCode() {
               </div>
             )}
             {employee && hasActiveContrato && (
-              <div className="space-y-5">
+              <div className="gap-5">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSearch)}>
                     <div className="flex flex-row items-center gap-2 w-full flex-1">

@@ -82,7 +82,7 @@ export default function FormDwelling({
         <CardHeader>
           <CardTitle>Datos Socio-economicos</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="gap-3">
           <CardAction className="text-gray-500">
             Paso 6: Datos De Vivienda
           </CardAction>
@@ -90,7 +90,7 @@ export default function FormDwelling({
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmitFormity)}
-                className="grid grid-cols-2 gap-3 space-y-3"
+                className="grid grid-cols-2 gap-3"
               >
                 <FormField
                   control={form.control}

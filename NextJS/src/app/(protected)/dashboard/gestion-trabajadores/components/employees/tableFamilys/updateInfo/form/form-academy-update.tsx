@@ -93,7 +93,7 @@ export default function UpdateFormAcademy({ id, mutate }: Props) {
         <Loading />
       ) : (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
             <div className="grid grid-cols-2 gap-2">
               <SelectForm
                 Formlabel="Selecciona Un Nivel Academico"

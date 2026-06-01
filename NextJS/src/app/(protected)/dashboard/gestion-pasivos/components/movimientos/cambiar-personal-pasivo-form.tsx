@@ -110,7 +110,7 @@ export function PasivoPasiveForm() {
   return (
     <>
       <Card>
-        <CardContent className="space-y-5">
+        <CardContent className="gap-5">
           <Form {...formSearch}>
             <form
               className="flex flex-row justify-between  gap-2"
@@ -129,7 +129,7 @@ export function PasivoPasiveForm() {
                 )}
               />
               <Button className="self-baseline-last cursor-pointer">
-                <Search className="h-4 w-4" />
+                <Search className="size-4" />
               </Button>
             </form>
           </Form>
@@ -154,7 +154,7 @@ export function PasivoPasiveForm() {
                 <Form {...form}>
                   <form
                     onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-2"
+                    className="gap-2"
                   >
                     <FormField
                       control={form.control}

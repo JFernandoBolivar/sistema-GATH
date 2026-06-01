@@ -1,10 +1,15 @@
 "use server"
 import { cookies } from "next/headers";
+import { auth } from "#/auth";
 
 export async function apiFetch<T>(
   url: string,
   options?: RequestInit,
 ): Promise<T> {
+  const session = await auth();
+  if (!session || !session.user) {
+    throw new Error("Unauthorized");
+  }
   const cookieStore = await cookies();
   let accessToken = cookieStore.get("dj_access")?.value;
 
@@ -86,6 +91,10 @@ export async function apiFetchFormData<T>(
   formData: FormData,
   method: "POST" | "PUT" | "PATCH" = "POST",
 ): Promise<T> {
+  const session = await auth();
+  if (!session || !session.user) {
+    throw new Error("Unauthorized");
+  }
   const cookieStore = await cookies();
   let accessToken = cookieStore.get("dj_access")?.value;
 
@@ -164,6 +173,10 @@ export async function apiFetchBlob(
   url: string,
   options?: RequestInit,
 ): Promise<globalThis.Blob> {
+  const session = await auth();
+  if (!session || !session.user) {
+    throw new Error("Unauthorized");
+  }
   const cookieStore = await cookies();
   let accessToken = cookieStore.get("dj_access")?.value;
 

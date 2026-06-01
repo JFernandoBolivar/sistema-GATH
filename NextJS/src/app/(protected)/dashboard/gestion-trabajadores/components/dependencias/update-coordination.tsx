@@ -88,7 +88,7 @@ export default function UpdateCoord() {
         <Loading />
       ) : (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
             <FormField
               control={form.control}
               name="dependenciaId"

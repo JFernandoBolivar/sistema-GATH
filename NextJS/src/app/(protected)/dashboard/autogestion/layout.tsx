@@ -42,7 +42,7 @@ function MiniSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <Link href="/dashboard">
-                    <Home className="h-4 w-4" />
+                    <Home className="size-4" />
                     <span>Inicio</span>
                   </Link>
                 </SidebarMenuButton>

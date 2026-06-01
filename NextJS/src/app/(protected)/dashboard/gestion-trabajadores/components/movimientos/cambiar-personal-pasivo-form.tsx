@@ -100,7 +100,7 @@ export function PasivoForm() {
   return (
     <>
       <Card>
-        <CardContent className="space-y-5">
+        <CardContent className="gap-5">
           <EmployeeSearchForm onSearch={search} />
 
           <EmployeeInfoBanner
@@ -114,7 +114,7 @@ export function PasivoForm() {
                 <Form {...form}>
                   <form
                     onSubmit={form.handleSubmit(onSubmit)}
-                    className="space-y-2"
+                    className="gap-2"
                   >
                     <FormField
                       control={form.control}

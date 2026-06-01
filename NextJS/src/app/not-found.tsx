@@ -32,11 +32,11 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Partículas animadas de fondo */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden" suppressHydrationWarning>
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-2 h-2 bg-white/10 rounded-full animate-float"
+            className="absolute size-2 bg-white/10 rounded-full animate-float"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -69,9 +69,9 @@ export default function NotFound() {
           </div>
         </div>
 
-        <CardContent className="p-8 text-center space-y-6">
+        <CardContent className="p-8 text-center gap-6">
           {/* Mensaje principal con animaciones */}
-          <div className="space-y-3">
+          <div className="gap-3">
             <h1
               className={`text-4xl font-bold text-blue-900 transform transition-all duration-1000 delay-300 ${
                 isVisible
@@ -148,7 +148,7 @@ export default function NotFound() {
               className="bg-blue-800 hover:bg-blue-900 text-white flex-1 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
             >
               <Link href="/">
-                <Home className="w-4 h-4 mr-2 animate-bounce" />
+                <Home className="size-4 mr-2 " />
                 Ir al inicio
               </Link>
             </Button>
@@ -157,13 +157,14 @@ export default function NotFound() {
               onClick={() => window.history.back()}
               className="border-blue-200 text-blue-800 hover:bg-blue-50 flex-1 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
             >
-              <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
+              <ArrowLeft className="size-4 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
               Volver atrás
             </Button>
           </div>
 
           {/* Pie de página con animación */}
           <div
+            suppressHydrationWarning
             className={`pt-6 text-xs text-gray-500 border-t border-gray-200 mt-6 transform transition-all duration-1000 delay-1400 ${
               isVisible
                 ? "translate-y-0 opacity-100"

@@ -317,6 +317,13 @@ export function FormFamilyEmployee({
                         onClick={() =>
                           setExpandedIndex(isExpanded ? -1 : index)
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setExpandedIndex(isExpanded ? -1 : index);
+                          }
+                        }}
+                        tabIndex={0}
                       >
                         <div className="flex items-center gap-4">
                           <span className="font-bold text-slate-500">
@@ -348,7 +355,7 @@ export function FormFamilyEmployee({
                       <div
                         className={`p-4 ${isExpanded ? "block" : "hidden"}`}
                       >
-                        <div className="grid grid-cols-2 gap-2 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
                           <div className="col-span-2 flex gap-2 justify-end mb-4">
                             <Button
                               type="button"
@@ -368,10 +375,10 @@ export function FormFamilyEmployee({
                         </div>
                       </div>
                       <div
-                        className={`grid grid-cols-2 gap-2 space-y-4 ${isExpanded ? "" : "hidden"}`}
+                        className={`grid grid-cols-2 gap-4 ${isExpanded ? "" : "hidden"}`}
                         key={field.id}
                       >
-                        <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2">
+                        <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2">
                           <legend className="flex gap-2">
                             Datos Personales <Database />
                           </legend>
@@ -519,7 +526,7 @@ export function FormFamilyEmployee({
                                         ) : (
                                           <span>Selecciona una fecha</span>
                                         )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        <CalendarIcon className="ml-auto size-4 opacity-50" />
                                       </Button>
                                     </FormControl>
                                   </PopoverTrigger>
@@ -582,7 +589,7 @@ export function FormFamilyEmployee({
                             )}
                           />
                         </fieldset>
-                        <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2">
+                        <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2">
                           <legend className="flex gap-2">
                             Relacion Y Parentesco <Contact />{" "}
                           </legend>
@@ -708,7 +715,7 @@ export function FormFamilyEmployee({
                             )}
                           />
                         </fieldset>
-                        <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2">
+                        <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2">
                           <legend className="flex gap-2">
                             Información Academica <BookAIcon />
                           </legend>
@@ -869,7 +876,7 @@ export function FormFamilyEmployee({
                             </>
                           )}
                         </fieldset>
-                        <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2">
+                        <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2">
                           <legend className="flex flex-row gap-2">
                             Información de Vestimenta <Shirt />
                           </legend>
@@ -987,7 +994,7 @@ export function FormFamilyEmployee({
                             )}
                           />
                         </fieldset>
-                        <fieldset className="border grid grid-cols-2 gap-2 space-y-4 col-span-2 p-2">
+                        <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2">
                           <legend className="flex gap-2">
                             Datos De Salud <HeartPulse />
                           </legend>
@@ -1055,7 +1062,7 @@ export function FormFamilyEmployee({
                                               return <Loading />
                                             }
                                             return (
-                                              <FormItem className="flex flex-row items-center space-y-2 ">
+                                              <FormItem className="flex flex-row items-center gap-2 ">
                                                 <FormControl>
                                                   <Checkbox
                                                     className="border-black"
@@ -1123,7 +1130,7 @@ export function FormFamilyEmployee({
                                                   return <Loading />
                                                 }
                                                 return (
-                                                  <FormItem className="flex flex-row space-y-2">
+                                                  <FormItem className="flex flex-row gap-2">
                                                     <FormLabel className="order-2">
                                                       {
                                                         disabilityItem.discapacidad
@@ -1191,7 +1198,7 @@ export function FormFamilyEmployee({
                                                 return <Loading />
                                               }
                                               return (
-                                                <FormItem className="flex flex-row space-y-2">
+                                                <FormItem className="flex flex-row gap-2">
                                                   <FormLabel className="order-2">
                                                     {disabilityItem.alergia}
                                                   </FormLabel>

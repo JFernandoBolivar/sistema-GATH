@@ -170,7 +170,7 @@ export function ChangeCodeForm() {
         <Loading promiseMessage="Cambiando Cargo..." />
       ) : (
         <Card>
-          <CardContent className="space-y-5">
+          <CardContent className="gap-5">
             <EmployeeSearchForm onSearch={search} />
 
             <EmployeeInfoBanner
@@ -180,7 +180,7 @@ export function ChangeCodeForm() {
             />
 
             {employee && (
-              <div className="space-y-5">
+              <div className="gap-5">
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSearch)}>
                     <div className="flex flex-row items-center gap-2 w-full flex-1">
@@ -404,7 +404,7 @@ export function ChangeCodeForm() {
                 <Form {...formChangeCode}>
                   <form
                     onSubmit={formChangeCode.handleSubmit(onSubmit)}
-                    className="space-y-5"
+                    className="gap-5"
                   >
                     <FormField
                       control={formChangeCode.control}

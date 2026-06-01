@@ -29,7 +29,7 @@ export function EmployeeInfoBanner({
   if (!employee) {
     return (
       <div className="border-2 border-red-400/45 bg-red-200/40 rounded-sm p-2 flex items-center gap-2">
-        <CircleAlert className="h-4 w-4 text-red-600" />
+        <CircleAlert className="size-4 text-red-600" />
         <span className="text-red-700">Cédula Inválida</span>
       </div>
     );

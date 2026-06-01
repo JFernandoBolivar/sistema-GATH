@@ -26,7 +26,7 @@ export default function EstadisticasPage() {
     return (
       <PageLayout title="Estadísticas">
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <Loader2 className="size-10 animate-spin text-blue-600" />
         </div>
       </PageLayout>
     );
@@ -50,7 +50,7 @@ export default function EstadisticasPage() {
                 </p>
               </div>
               <div className="bg-blue-100 rounded-full p-3">
-                <FileText className="h-6 w-6 text-blue-600" />
+                <FileText className="size-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
@@ -68,7 +68,7 @@ export default function EstadisticasPage() {
                 </p>
               </div>
               <div className="bg-emerald-100 rounded-full p-3">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+                <CheckCircle2 className="size-6 text-emerald-600" />
               </div>
             </div>
           </CardContent>
@@ -86,7 +86,7 @@ export default function EstadisticasPage() {
                 </p>
               </div>
               <div className="bg-amber-100 rounded-full p-3">
-                <CalendarDays className="h-6 w-6 text-amber-600" />
+                <CalendarDays className="size-6 text-amber-600" />
               </div>
             </div>
           </CardContent>
@@ -104,7 +104,7 @@ export default function EstadisticasPage() {
                 </p>
               </div>
               <div className="bg-purple-100 rounded-full p-3">
-                <TrendingUp className="h-6 w-6 text-purple-600" />
+                <TrendingUp className="size-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
@@ -114,7 +114,7 @@ export default function EstadisticasPage() {
       <Card className="mt-6 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
+            <Clock className="size-5" />
             Últimos Carnets Generados
           </CardTitle>
         </CardHeader>
@@ -143,12 +143,12 @@ export default function EstadisticasPage() {
                       <td className="py-3">
                         {carnet.activo ? (
                           <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            <CheckCircle2 className="size-3 mr-1" />
                             Activo
                           </Badge>
                         ) : (
                           <Badge variant="secondary">
-                            <XCircle className="h-3 w-3 mr-1" />
+                            <XCircle className="size-3 mr-1" />
                             Inactivo
                           </Badge>
                         )}
@@ -160,7 +160,7 @@ export default function EstadisticasPage() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <IdCard className="h-12 w-12 mx-auto text-gray-300" />
+              <IdCard className="size-12 mx-auto text-gray-300" />
               <p className="text-muted-foreground mt-4">
                 No hay carnets generados aún
               </p>

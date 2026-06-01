@@ -1,4 +1,5 @@
 import { formatInTimeZone } from "date-fns-tz";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import {
   FormControl,
@@ -24,6 +25,8 @@ export default function FormDate<T extends FieldValues>({
   label,
   className,
 }: Props<T>) {
+  const [today, setToday] = useState<Date | null>(null);
+  useEffect(() => { setToday(new Date()); }, []);
   return (
     <FormField
       control={form.control}
@@ -40,7 +43,7 @@ export default function FormDate<T extends FieldValues>({
                   ) : (
                     <span>Selecciona una fecha</span>
                   )}
-                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                  <CalendarIcon className="ml-auto size-4 opacity-50" />
                 </Button>
               </FormControl>
             </PopoverTrigger>
@@ -50,7 +53,7 @@ export default function FormDate<T extends FieldValues>({
                 mode="single"
                 onSelect={(date) => field.onChange(date)}
                 disabled={(date: Date) =>
-                  date > new Date() || date < new Date("1900-01-01")
+                  today ? date > today : false || date < new Date("1900-01-01")
                 }
                 captionLayout="dropdown"
               />

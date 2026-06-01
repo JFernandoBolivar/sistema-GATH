@@ -210,7 +210,7 @@ export default function FormUpdateContrato({ employee, mutate, mutateKey = "api/
                                     ) : (
                                       <span>Seleccione</span>
                                     )}
-                                    <ChevronDownIcon className="h-3 w-3" />
+                                    <ChevronDownIcon className="size-3" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -251,7 +251,7 @@ export default function FormUpdateContrato({ employee, mutate, mutateKey = "api/
                                     ) : (
                                       <span>Seleccione</span>
                                     )}
-                                    <ChevronDownIcon className="h-3 w-3" />
+                                    <ChevronDownIcon className="size-3" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -309,7 +309,7 @@ export default function FormUpdateContrato({ employee, mutate, mutateKey = "api/
                           className="cursor-pointer mt-4"
                           onClick={() => remove(index)}
                         >
-                          <X className="h-3 w-3" />
+                          <X className="size-3" />
                         </Button>
                       )}
                     </div>
