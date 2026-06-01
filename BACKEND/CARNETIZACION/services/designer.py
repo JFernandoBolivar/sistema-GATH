@@ -22,7 +22,7 @@ django_engine = engines["django"]
 
 class CarnetDesigner:
 
-    CARNET_WIDTH = 6.0 * cm
+    CARNET_WIDTH = 5.5* cm
     CARNET_HEIGHT = 8.56 * cm
 
     CARNET_WIDTH_PT = CARNET_WIDTH
@@ -259,11 +259,11 @@ class CarnetDesigner:
 
         self._colocar_texto_ajustado(c, personal.cargo_ref.nombre.upper(), center_x,
                                      text_start_y - 2 * line_spacing, bold=True,
-                                     max_ancho=max_text_width, tamano_inicial=7)
+                                     max_ancho=max_text_width, tamano_inicial=6)
 
         self._colocar_texto_ajustado(c, personal.departamento_ref.nombre.upper(), center_x,
                                      text_start_y - 3.3  * line_spacing, bold=True,
-                                     max_ancho=max_text_width, tamano_inicial=7)
+                                     max_ancho=max_text_width, tamano_inicial=6)
 
         c.save()
         pdf_buffer = buffer.getvalue()
