@@ -137,15 +137,30 @@ class CarnetDesigner:
         c.drawCentredString(self.CARNET_WIDTH / 2, self.CARNET_HEIGHT / 2, "USANDO PLANTILLA OFICIAL")
 
     def _dibujar_qr(self, c, carnet_id, security_hash, personal, x, y, tamaño=1.5 * cm):
-        qr_content = f"VALIDO|{carnet_id}|{security_hash}"
+
+
+        nombre_corto = personal.nombre_completo[:25] # Truncar si es muy largo
+
+        cargo_corto = personal.cargo_ref.nombre[:33] if personal.cargo_ref.nombre else ""
+
+        depto_corto = personal.departamento_ref.nombre[:50] if personal.departamento_ref.nombre else ""
+        
+        gr_content = ( 
+            
+            f"ID: {carnet_id}\n" 
+            f"Nombre: {nombre_corto}\n" 
+            f"CI: {personal.cedula}\n" 
+            f"Cargo: {cargo_corto}\n" 
+            f"Depto: {depto_corto}" 
+         )
 
         qr = qrcode.QRCode(
-            version=4,
+            version=10,
             box_size=2,
             border=1,
             error_correction=qrcode.constants.ERROR_CORRECT_M,
         )
-        qr.add_data(qr_content)
+        qr.add_data(gr_content)
         qr.make(fit=True)
 
         qr_image = qr.make_image(fill_color="black", back_color="white")
@@ -203,7 +218,7 @@ class CarnetDesigner:
             try:
                 template_img = ImageReader(template_path)
                 c.drawImage(template_img, 0, 0, self.CARNET_WIDTH, self.CARNET_HEIGHT,
-                            preserveAspectRatio=True, anchor="c")
+                            preserveAspectRatio=False, anchor="c")
             except Exception:
                 self._dibujar_fondo_emergencia(c)
         else:
@@ -211,7 +226,7 @@ class CarnetDesigner:
 
         qr_tamaño = 1.2 * cm
         x_qr = 0.4 * cm
-        y_qr = 1.1 * cm
+        y_qr = 0.8 * cm
 
         c.setFillColorRGB(1, 1, 1)
         c.rect(x_qr - 0.1 * cm, y_qr - 0.1 * cm,
@@ -242,18 +257,12 @@ class CarnetDesigner:
                                      text_start_y - 1 * line_spacing, bold=False,
                                      max_ancho=max_text_width, tamano_inicial=7)
 
-        codigo_text = f"Código: {personal.codigo}" if getattr(personal, 'codigo', None) else ""
-        if codigo_text:
-            self._colocar_texto_ajustado(c, codigo_text, center_x,
-                                         text_start_y - 2 * line_spacing, bold=False,
-                                         max_ancho=max_text_width, tamano_inicial=6)
-
         self._colocar_texto_ajustado(c, personal.cargo_ref.nombre.upper(), center_x,
-                                     text_start_y - 3 * line_spacing, bold=True,
+                                     text_start_y - 2 * line_spacing, bold=True,
                                      max_ancho=max_text_width, tamano_inicial=7)
 
         self._colocar_texto_ajustado(c, personal.departamento_ref.nombre.upper(), center_x,
-                                     text_start_y - 4  * line_spacing, bold=True,
+                                     text_start_y - 3.3  * line_spacing, bold=True,
                                      max_ancho=max_text_width, tamano_inicial=7)
 
         c.save()
