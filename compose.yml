@@ -12,6 +12,10 @@ services:
           - djangoapp
     ports:
       - "8000:8000"
+    volumes:
+      - staticfiles:/app/Django/staticfiles
+      - "/opt/gath/BACKEND/media:/app/Django/media"
+      - "/opt/gath/BACKEND/staticfiles:/app/Django/staticfiles"
     restart: always
 
   nestjs:
@@ -58,6 +62,8 @@ services:
 volumes:
   portainer_data:
     name: portainer_data
+  staticfiles:
+    name: staticfiles
 networks:
   default:
     name: portainer_network
