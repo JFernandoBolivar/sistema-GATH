@@ -204,7 +204,7 @@ export function CodigoCatalogEspecialForm({
       }
     })();
     return () => { cancelled = true; };
-  }, [employee]);
+  }, [employee, politicas]);
   const generateNContrato = (cedula: string, politicaId: number) => {
     const selectedPolitica = politicas?.data?.find(p => p.id === politicaId);
     const initials = selectedPolitica?.tipo_politica?.charAt(0)?.toUpperCase() || 'C';
@@ -237,7 +237,7 @@ export function CodigoCatalogEspecialForm({
         </div>
 
         {showContratoForm && !hasActiveContrato && employee && (
-          <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm space-y-3 mt-3">
+          <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3 mt-3">
             <Label className="text-lg font-bold">El trabajador no tiene contrato activo</Label>
             <p className="text-sm">Debe registrar un contrato antes de asignar el cargo.</p>
             <div className="grid grid-cols-2 gap-3">
@@ -275,8 +275,8 @@ export function CodigoCatalogEspecialForm({
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between font-normal">
-                      {contratoData.fecha_ingreso ? formatInTimeZone(contratoData.fecha_ingreso, "UTC", "dd/MM/yyyy") : "..."}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      {contratoData.fecha_ingreso ? formatInTimeZone(contratoData.fecha_ingreso, "UTC", "dd/MM/yyyy") : "…"}
+                      <CalendarIcon className="ml-auto size-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -289,8 +289,8 @@ export function CodigoCatalogEspecialForm({
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between font-normal">
-                      {contratoData.fecha_culminacion ? formatInTimeZone(contratoData.fecha_culminacion, "UTC", "dd/MM/yyyy") : "Seleccionar..."}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      {contratoData.fecha_culminacion ? formatInTimeZone(contratoData.fecha_culminacion, "UTC", "dd/MM/yyyy") : "Seleccionar…"}
+                      <CalendarIcon className="ml-auto size-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -331,7 +331,7 @@ export function CodigoCatalogEspecialForm({
               disabled={savingContrato}
               className="w-full cursor-pointer"
             >
-              {savingContrato ? "Guardando..." : "Guardar Contrato"}
+              {savingContrato ? "Guardando…" : "Guardar Contrato"}
             </Button>
           </div>
         )}
@@ -339,9 +339,9 @@ export function CodigoCatalogEspecialForm({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6 mt-3"
+            className="gap-6 mt-3"
           >
-            <div className="space-y-2 grid grid-cols-2 items-baseline gap-6 place-content-center">
+            <div className="grid grid-cols-2 items-baseline gap-6 place-content-center">
               <FormField
                 control={form.control}
                 name="denominacioncargoid"
@@ -747,7 +747,7 @@ export function CodigoCatalogEspecialForm({
                 {isPending ? (
                   <>
                     <Spinner />
-                    Asignando Código Especial...
+                    Asignando Código Especial…
                   </>
                 ) : (
                   "Asignar Código Especial"

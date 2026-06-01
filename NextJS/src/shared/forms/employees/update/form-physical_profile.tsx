@@ -113,7 +113,7 @@ export default function FormUpdatePhysical({
           <Loading promiseMessage="Actualizando Información" />
         ) : (
           <Form {...form}>
-            <form className="grid grid-cols-2 gap-2 space-y-2" onSubmit={form.handleSubmit(onSubmitFormity)}>
+            <form className="grid grid-cols-2 gap-2" onSubmit={form.handleSubmit(onSubmitFormity)}>
               <FormField
                 control={form.control}
                 name="perfil_fisico.tallaCamisa"

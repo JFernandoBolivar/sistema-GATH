@@ -34,7 +34,7 @@ export default function CheckboxForm<T extends FieldValues>({
       render={({ field }) => (
         <FormItem
           className={cn(
-            "flex flex-row items-start gap-2 space-y-0",
+            "flex flex-row items-start gap-2",
             className
           )}
         >

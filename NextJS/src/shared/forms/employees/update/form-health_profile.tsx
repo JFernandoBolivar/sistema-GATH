@@ -162,7 +162,7 @@ export default function FormUpdateHealth({
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmitFormity)}
-                  className="space-y-8"
+                  className="gap-8"
                 >
                   <FormField
                     control={form.control}
@@ -221,7 +221,7 @@ export default function FormUpdateHealth({
                                       return <Loading />;
                                     }
                                     return (
-                                      <FormItem className="flex flex-row items-center space-y-2 ">
+                                      <FormItem className="flex flex-row items-center gap-2 ">
                                         <FormControl>
                                           <Checkbox
                                             className="border-black"
@@ -283,7 +283,7 @@ export default function FormUpdateHealth({
                                       return <Loading />;
                                     }
                                     return (
-                                      <FormItem className="flex flex-row space-y-2">
+                                      <FormItem className="flex flex-row gap-2">
                                         <FormLabel className="order-2">
                                           {disabilityItem.discapacidad}
                                         </FormLabel>
@@ -339,7 +339,7 @@ export default function FormUpdateHealth({
                                       return <Loading />;
                                     }
                                     return (
-                                      <FormItem className="flex flex-row space-y-2">
+                                      <FormItem className="flex flex-row gap-2">
                                         <FormLabel className="order-2">
                                           {disabilityItem.alergia}
                                         </FormLabel>

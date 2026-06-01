@@ -268,7 +268,7 @@ export default function FeedBack() {
                 <Form {...formAds}>
                   <form
                     onSubmit={formAds.handleSubmit(onSubmitAds)}
-                    className="space-y-3"
+                    className="gap-3"
                   >
                     <InputForm
                       form={formAds}
@@ -293,7 +293,7 @@ export default function FeedBack() {
                 <Form {...formAdsUpdate}>
                   <form
                     onSubmit={formAdsUpdate.handleSubmit(onSubmitUpdateAds)}
-                    className="space-y-3"
+                    className="gap-3"
                   >
                     <SelectForm
                       Formlabel="Organismo Adscrito"
@@ -335,7 +335,7 @@ export default function FeedBack() {
                     onSubmit={formDisabilityGroup.handleSubmit(
                       onSubmitDisabilityGroup,
                     )}
-                    className="space-y-3 flex flex-col justify-between"
+                    className="gap-3 flex flex-col justify-between"
                   >
                     <InputForm
                       form={formDisabilityGroup}
@@ -360,7 +360,7 @@ export default function FeedBack() {
                 <Form {...formDisability}>
                   <form
                     onSubmit={formDisability.handleSubmit(onSubmitDisability)}
-                    className="space-y-3"
+                    className="gap-3"
                   >
                     <SelectForm
                       Formlabel="Categoria"
@@ -403,7 +403,7 @@ export default function FeedBack() {
                     onSubmit={formPatologyGroup.handleSubmit(
                       onSubmitPatologyGroup,
                     )}
-                    className="space-y-3 "
+                    className="gap-3 "
                   >
                     <InputForm
                       form={formPatologyGroup}
@@ -428,7 +428,7 @@ export default function FeedBack() {
                 <Form {...formPatology}>
                   <form
                     onSubmit={formPatology.handleSubmit(onSubmitPatology)}
-                    className="space-y-3"
+                    className="gap-3"
                   >
                     <SelectForm
                       Formlabel="Categoria"
@@ -471,7 +471,7 @@ export default function FeedBack() {
                     onSubmit={formAllergiesGroup.handleSubmit(
                       onSubmitAllergiesGroup,
                     )}
-                    className="space-y-3 "
+                    className="gap-3 "
                   >
                     <InputForm
                       form={formAllergiesGroup}
@@ -494,7 +494,7 @@ export default function FeedBack() {
                 <Form {...formAllergies}>
                   <form
                     onSubmit={formAllergies.handleSubmit(onSubmitAllergies)}
-                    className="space-y-3"
+                    className="gap-3"
                   >
                     <SelectForm
                       Formlabel="Categoria"
@@ -533,7 +533,7 @@ export default function FeedBack() {
                 <Form {...formRegionTalla}>
                   <form
                     onSubmit={formRegionTalla.handleSubmit(onSubmitRegionTalla)}
-                    className="space-y-3"
+                    className="gap-3"
                   >
                     <InputForm
                       form={formRegionTalla}
@@ -556,7 +556,7 @@ export default function FeedBack() {
                 <Form {...formTalla}>
                   <form
                     onSubmit={formTalla.handleSubmit(onSubmitTalla)}
-                    className="space-y-3"
+                    className="gap-3"
                   >
                     <SelectForm
                       Formlabel="Tipo De Prenda"
@@ -598,7 +598,7 @@ export default function FeedBack() {
         <TabsContent value="retro-beneficio">
           <div className="flex flex-row gap-2">
             <Card className="grow">
-              <CardContent className="flex flex-col justify-center space-y-5">
+              <CardContent className="flex flex-col justify-center gap-5">
                 <div className="flex gap-2">
                   {isPending ? (
                     <Loading promiseMessage="Generando Excel" />

@@ -40,7 +40,7 @@ export default function SearchForm({
             <FormItem className="relative flex-1">
               <FormControl>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
                     placeholder="Ingrese cédula o nombre del trabajador..."
                     className="pl-10 flex-1"
@@ -56,9 +56,9 @@ export default function SearchForm({
         />
         <Button type="submit" disabled={isLoading || queryLength < 2}>
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
           ) : (
-            <Search className="h-4 w-4" />
+            <Search className="size-4" />
           )}
           Buscar
         </Button>

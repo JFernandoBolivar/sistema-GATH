@@ -274,14 +274,14 @@ export function PrestamoCargoForm() {
     });
   };
 
-  const formatDate = (d: string | Date) => {
-    try {
-      const date = typeof d === "string" ? new Date(d) : d;
-      return formatInTimeZone(date, "UTC", "dd/MM/yyyy");
-    } catch {
-      return String(d);
-    }
-  };
+const formatDate = (d: string | Date) => {
+  try {
+    const date = typeof d === "string" ? new Date(d) : d;
+    return formatInTimeZone(date, "UTC", "dd/MM/yyyy");
+  } catch {
+    return String(d);
+  }
+};
 
   const generateNContrato = (cedula: string, politicaId: number) => {
     const selectedPolitica = politicas?.data?.find((p: Politica) => p.id === politicaId);
@@ -297,12 +297,12 @@ export function PrestamoCargoForm() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Registrar Encargaduría</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="gap-5">
           <EmployeeSearchForm
             onSearch={handleSearchEmployee}
             label="Buscar Trabajador (Encargado)"
@@ -321,7 +321,7 @@ export function PrestamoCargoForm() {
           )}
 
           {employee && !Array.isArray(employee.data) && showContratoForm && !hasActiveContrato && (
-            <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm space-y-3">
+            <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3">
               <Label className="text-lg font-bold">El trabajador no tiene contrato activo</Label>
               <p className="text-sm">Debe registrar un contrato antes de asignar el cargo.</p>
               <div className="grid grid-cols-2 gap-3">
@@ -360,7 +360,7 @@ export function PrestamoCargoForm() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-between font-normal">
                         {contratoData.fecha_ingreso ? formatDate(contratoData.fecha_ingreso) : "..."}
-                        <ChevronDownIcon className="ml-auto h-4 w-4 opacity-50" />
+                        <ChevronDownIcon className="ml-auto size-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -374,7 +374,7 @@ export function PrestamoCargoForm() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-between font-normal">
                         {contratoData.fecha_culminacion ? formatDate(contratoData.fecha_culminacion) : "Seleccionar..."}
-                        <ChevronDownIcon className="ml-auto h-4 w-4 opacity-50" />
+                        <ChevronDownIcon className="ml-auto size-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -577,7 +577,7 @@ export function PrestamoCargoForm() {
 
               {selectedCargo && (
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                  <form onSubmit={form.handleSubmit(handleSubmit)} className="gap-4">
                     <div className="flex gap-2 items-start">
                       <FormField
                         control={form.control}

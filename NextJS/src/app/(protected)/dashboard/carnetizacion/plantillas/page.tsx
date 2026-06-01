@@ -85,7 +85,7 @@ export default function PlantillasPage() {
     return (
       <PageLayout title="Plantillas">
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <Loader2 className="size-10 animate-spin text-blue-600" />
         </div>
       </PageLayout>
     );
@@ -100,11 +100,11 @@ export default function PlantillasPage() {
         <Card className="shadow-sm lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <ImagePlus className="h-5 w-5" />
+              <ImagePlus className="size-5" />
               Subir Nueva Plantilla
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="gap-4">
             <PlantillaUploadForm
               form={form}
               isPending={isPendingUpload}
@@ -118,11 +118,11 @@ export default function PlantillasPage() {
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-3">
+        <div className="lg:col-span-2 gap-3">
           {!plantillas || plantillas.length === 0 ? (
             <Card className="shadow-sm">
               <CardContent className="text-center py-12">
-                <Palette className="h-14 w-14 mx-auto text-gray-300" />
+                <Palette className="size-14 mx-auto text-gray-300" />
                 <p className="text-lg font-medium text-gray-500 mt-4">
                   Sin plantillas
                 </p>
@@ -150,7 +150,7 @@ export default function PlantillasPage() {
                         />
                       ) : (
                         <div className="flex items-center justify-center h-full text-gray-300">
-                          <Palette className="h-6 w-6" />
+                          <Palette className="size-6" />
                         </div>
                       )}
                     </div>
@@ -159,12 +159,12 @@ export default function PlantillasPage() {
                         <h3 className="font-semibold truncate">{p.nombre}</h3>
                         {p.activo ? (
                           <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200 flex-shrink-0">
-                            <Star className="h-3 w-3 mr-1" />
+                            <Star className="size-3 mr-1" />
                             Activa
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="flex-shrink-0">
-                            <XCircle className="h-3 w-3 mr-1" />
+                            <XCircle className="size-3 mr-1" />
                             Inactiva
                           </Badge>
                         )}
@@ -184,7 +184,7 @@ export default function PlantillasPage() {
                           variant="outline"
                           onClick={() => activarPlantilla(p.id)}
                         >
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          <CheckCircle2 className="size-4 mr-1" />
                           Activar
                         </Button>
                       )}

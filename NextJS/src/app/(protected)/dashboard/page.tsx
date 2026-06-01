@@ -186,7 +186,7 @@ export default function Dashboard() {
           <Form {...changeForm}>
             <form
               onSubmit={changeForm.handleSubmit(onChangePassword)}
-              className="space-y-4"
+              className="gap-4"
             >
               <FormField
                 control={changeForm.control}

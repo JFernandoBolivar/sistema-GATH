@@ -41,9 +41,9 @@ export default function FormRegister() {
   }
   return (
     <>
-      <div className="w-full max-w-sm space-y-8 rounded-lg border p-4 text-white bg-blue-600">
+      <div className="w-full max-w-sm gap-8 rounded-lg border p-4 text-white bg-blue-600">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="gap-8">
             <FormField
               control={form.control}
               name="email"

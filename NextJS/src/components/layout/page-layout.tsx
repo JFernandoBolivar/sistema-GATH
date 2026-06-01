@@ -12,7 +12,7 @@ export default function PageLayout({
   return (
     <Card className="flex h-full border-none rounded-none ">
       <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-auto bg-muted/30 p-6 space-y-2">
+        <main className="flex-1 overflow-auto bg-muted/30 p-6 gap-2">
           <div>
             <div>
               <h1 className="text-3xl font-bold text-foreground">{title}</h1>

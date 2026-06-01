@@ -75,7 +75,7 @@ export default function CreateUbication() {
       <Card className="text-black">
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 ">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="gap-5 ">
               <div className="grid grid-cols-2  place-content-stretch place-items-start gap-3 w-full ">
                 <FormField
                   name="dependency.Codigo"

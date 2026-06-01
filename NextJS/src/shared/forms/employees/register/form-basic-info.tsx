@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatInTimeZone } from "date-fns-tz";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getEmployeeInfo,
@@ -64,7 +64,6 @@ export function FormBasicInfo({
   const [photoPreview, setPhotoPreview] = useState<string | null | undefined>(
     null,
   );
-  const [validateCedula, setValidateCedula] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const { data: maritalStatus, isLoading: isLoadingMaritalStatus } = useSWR(
     "maritalStatus",
@@ -93,27 +92,27 @@ export function FormBasicInfo({
     name: "cedulaidentidad",
   });
 
-  const validateEmployee = employee.trim() && employee.length >= 6;
-
   const { data: searchEmployee } = useSWR(
     employee?.trim().length >= 6 ? `employee-${employee}` : null,
     () => getEmployeeInfo(employee),
   );
-  useEffect(() => {
-    if (!searchEmployee || searchEmployee.data === undefined) return;
-    if (
+
+  const validateCedula = useMemo(() => {
+    if (!searchEmployee || searchEmployee.data === undefined) return false;
+    return (
       !Array.isArray(searchEmployee.data) &&
       typeof searchEmployee.data === "object"
-    ) {
-      toast.error(`Ya existe un ${employeeType} con esa cédula de identidad`);
-      setValidateCedula(true);
-    } else if (
-      Array.isArray(searchEmployee.data) &&
-      searchEmployee.data.length === 0
-    ) {
-      setValidateCedula(false);
-    }
+    );
   }, [searchEmployee]);
+
+  const lastCedulaToast = useRef<string>("");
+  useEffect(() => {
+    const cedula = employee.trim();
+    if (validateCedula && cedula && cedula !== lastCedulaToast.current) {
+      lastCedulaToast.current = cedula;
+      toast.error(`Ya existe un ${employeeType} con esa cédula de identidad`);
+    }
+  }, [validateCedula, employee, employeeType]);
   return (
     <Card>
       <CardHeader>
@@ -129,8 +128,8 @@ export function FormBasicInfo({
             onSubmit={form.handleSubmit(onSubmitFormity)}
             autoComplete="off"
           >
-            <div className="space-y-4">
-              <div className="border rounded-lg p-4 space-y-3">
+            <div className="gap-4">
+              <div className="border rounded-lg p-4 gap-3">
                 <Label>Foto del Trabajador</Label>
                 {photoPreview ? (
                   <div className="relative w-full h-40 p-2">
@@ -145,7 +144,7 @@ export function FormBasicInfo({
                       onClick={handleRemovePhoto}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="size-4" />
                     </Button>
                     <div className="text-center w-full">
                       {
@@ -165,8 +164,8 @@ export function FormBasicInfo({
                         field: { value, onChange, ...fieldProps },
                       }) => (
                         <FormItem className="w-full h-full text-center flex flex-col justify-center items-center">
-                          <Upload className="h-8 w-8 text-gray-400" />
-                          <FormLabel className="text-center p-1.5 bg-gray-300 text-black rounded-2xl animate-bounce cursor-pointer">
+                          <Upload className="size-8 text-gray-400" />
+                          <FormLabel className="text-center p-1.5 bg-gray-300 text-black rounded-2xl  cursor-pointer">
                             Haz clic aqui para seleccionar foto
                           </FormLabel>
                           <FormControl>
@@ -255,7 +254,7 @@ export function FormBasicInfo({
                               ) : (
                                 <span>Selecciona una fecha</span>
                               )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              <CalendarIcon className="ml-auto size-4 opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>

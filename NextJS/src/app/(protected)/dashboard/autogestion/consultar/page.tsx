@@ -48,7 +48,7 @@ const schemaSearch = z.object({
 
 function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
   return (
-    <div className="space-y-4">
+    <div className="gap-4">
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div className="font-medium">Cedula:</div>
         <div>{empleado.cedula}</div>
@@ -88,7 +88,7 @@ function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
         Respuestas ({empleado.preguntas?.length || 0})
       </h4>
       <ScrollArea className="h-64 rounded-md border p-2">
-        <div className="space-y-2">
+        <div className="gap-2">
           {empleado.preguntas?.map((p) => (
             <Card key={p.id} className="p-2">
               <p className="text-xs font-medium text-gray-700">{p.pregunta}</p>
@@ -228,13 +228,13 @@ export default function ConsultarCensoPage() {
                       <SheetUI>
                         <SheetTriggerUI asChild>
                           <Button variant="outline" size="sm" className="cursor-pointer">
-                            <Eye className="h-4 w-4 mr-1" /> Ver
+                            <Eye className="size-4 mr-1" /> Ver
                           </Button>
                         </SheetTriggerUI>
                         <SheetContentUI>
                           <SheetHeaderUI>
                             <SheetTitleUI>
-                              Detalle del Censo — {emp.nombres} {emp.apellidos}
+                              Detalle del Censo: {emp.nombres} {emp.apellidos}
                             </SheetTitleUI>
                           </SheetHeaderUI>
                           <ScrollArea className="h-[80vh] px-4 pb-4">

@@ -220,7 +220,7 @@ export default function ReportPasivo() {
           ) : (
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4 grid grid-cols-3 min-h-max gap-2"
+              className="grid grid-cols-3 min-h-max gap-4"
             >
               <div className="flex flex-col gap-2 col-span-3">
                 <ScrollArea className="h-100 ">
@@ -779,7 +779,7 @@ export default function ReportPasivo() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -832,7 +832,7 @@ export default function ReportPasivo() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -885,7 +885,7 @@ export default function ReportPasivo() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -938,7 +938,7 @@ export default function ReportPasivo() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>

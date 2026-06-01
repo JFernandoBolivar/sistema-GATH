@@ -1,7 +1,6 @@
-
 ## 1. Descripción General
 
-**SAGP** es una aplicación full-stack para la gestión integral de personal del Organismo de Comisión Nacional de Telecomunicación  (CONATEL). El sistema permite administrar información de empleados, asignaciones de trabajo, datos familiares, perfil de salud, formación académica, y más.
+**GATH** es una aplicación full-stack para la gestión integral de personal del Organismo de Comisión Nacional de Telecomunicación (CONATEL). El sistema permite administrar información de empleados, asignaciones de trabajo, datos familiares, perfil de salud, formación académica, y más.
 
 ---
 
@@ -45,12 +44,12 @@
 
 ### 2.3 Redes Docker
 
-| Red | Driver | Propósito |
-|-----|--------|----------|
-| `default` | bridge | Red principal de Portainer |
-| `backend` | bridge | Comunicación Frontend ↔ Backend |
-| `postgres` | bridge | Conexión a base de datos |
-| `file_manager` | bridge | Gestión de archivos |
+| Red            | Driver | Propósito                       |
+| -------------- | ------ | ------------------------------- |
+| `default`      | bridge | Red principal de Portainer      |
+| `backend`      | bridge | Comunicación Frontend ↔ Backend |
+| `postgres`     | bridge | Conexión a base de datos        |
+| `file_manager` | bridge | Gestión de archivos             |
 
 ---
 
@@ -59,7 +58,7 @@
 ```
 SISTEMA/
 ├── BACKEND/                 # Aplicación Django
-│   ├── SAGP/              # Configuración principal Django
+│   ├── GATH/              # Configuración principal Django
 │   │   ├── settings.py     # Configuraciones
 │   │   ├── urls.py         # Rutas principales
 │   │   ├── wsgi.py         # Entry point WSGI
@@ -118,6 +117,7 @@ SISTEMA/
 ### 4.1 Modelos Principales (RAC App)
 
 #### Empleados
+
 | Modelo                        | Descripción                   |
 | ----------------------------- | ----------------------------- |
 | `Employee`                    | Datos personales del empleado |
@@ -126,60 +126,65 @@ SISTEMA/
 | `Denominacioncargoespecifico` | Cargos específicos            |
 
 #### Estructura Organizacional
-| Modelo | Descripción |
-|--------|-------------|
-| `Dependencias` | Dependencias organizacionales |
-| `DireccionGeneral` | Direcciones generales |
-| `DireccionLinea` | Direcciones de línea |
-| `Coordinaciones` | Coordinaciones |
-| `OrganismoAdscrito` | Organismos adsueltos |
+
+| Modelo              | Descripción                   |
+| ------------------- | ----------------------------- |
+| `Dependencias`      | Dependencias organizacionales |
+| `DireccionGeneral`  | Direcciones generales         |
+| `DireccionLinea`    | Direcciones de línea          |
+| `Coordinaciones`    | Coordinaciones                |
+| `OrganismoAdscrito` | Organismos adsueltos          |
 
 #### Datos Complementarios
-| Modelo | Descripción |
-|--------|-------------|
-| `Sexo` | Sexo del empleado |
-| `EstadoCivil` | Estado civil |
-| `NivelAcademico` | Niveles académicos |
-| `Grado` | Grados militares |
-| `TipoNomina` | Tipos de nómina |
-| `Estatus` | Estados del empleado |
-| `TipoPersonal` | Tipo (Activo/Pasivo) |
+
+| Modelo           | Descripción          |
+| ---------------- | -------------------- |
+| `Sexo`           | Sexo del empleado    |
+| `EstadoCivil`    | Estado civil         |
+| `NivelAcademico` | Niveles académicos   |
+| `Grado`          | Grados militares     |
+| `TipoNomina`     | Tipos de nómina      |
+| `Estatus`        | Estados del empleado |
+| `TipoPersonal`   | Tipo (Activo/Pasivo) |
 
 #### Perfil del Empleado
-| Modelo | Descripción |
-|--------|-------------|
-| `PerfilSalud` | Salud (alergias, patologías, sangre) |
-| `PerfilFisico` | Tallas (camisa, pantalón, zapatos) |
-| `DatosVivienda` | Información de vivienda |
-| `FormacionAcademica` | Estudios realizados |
-| `AntecedentesServicio` | Historial laboral |
-| `ContactoEmergencia` | Contactos de emergencia |
+
+| Modelo                 | Descripción                          |
+| ---------------------- | ------------------------------------ |
+| `PerfilSalud`          | Salud (alergias, patologías, sangre) |
+| `PerfilFisico`         | Tallas (camisa, pantalón, zapatos)   |
+| `DatosVivienda`        | Información de vivienda              |
+| `FormacionAcademica`   | Estudios realizados                  |
+| `AntecedentesServicio` | Historial laboral                    |
+| `ContactoEmergencia`   | Contactos de emergencia              |
 
 #### Catalogos
-| Modelo | Descripción |
-|--------|-------------|
-| `TallaCamisas` | Tallas de camisas |
-| `TallaPantalones` | Tallas de pantalones |
-| `TallaZapatos` | Tallas de zapatos |
-| `GrupoSanguineo` | Grupos sanguíneos |
-| `Alergias` | Catálogo de alergias |
+
+| Modelo               | Descripción           |
+| -------------------- | --------------------- |
+| `TallaCamisas`       | Tallas de camisas     |
+| `TallaPantalones`    | Tallas de pantalones  |
+| `TallaZapatos`       | Tallas de zapatos     |
+| `GrupoSanguineo`     | Grupos sanguíneos     |
+| `Alergias`           | Catálogo de alergias  |
 | `PatologiasCronicas` | Enfermedades crónicas |
-| `Discapacidades` | Tipos de discapacidad |
+| `Discapacidades`     | Tipos de discapacidad |
 
 #### Familiares
-| Modelo | Descripción |
-|--------|-------------|
-| `Parentesco` | Tipos de parentesco |
-| `Employeefamily` | Datos familiares |
+
+| Modelo           | Descripción         |
+| ---------------- | ------------------- |
+| `Parentesco`     | Tipos de parentesco |
+| `Employeefamily` | Datos familiares    |
 
 ### 4.2 Modelo de Usuario (USER App)
 
-| Campo         | Tipo          | Descripción        |
-| ------------- | ------------- | ------------------ |
-| `password`    | CharField     | Contraseña         |
-| `is_active`   | BooleanField  | Estado activo      |
-| `is_staff`    | BooleanField  | Es administrador   |
-| `date_joined` | DateTimeField | Fecha de registro  |
+| Campo         | Tipo          | Descripción       |
+| ------------- | ------------- | ----------------- |
+| `password`    | CharField     | Contraseña        |
+| `is_active`   | BooleanField  | Estado activo     |
+| `is_staff`    | BooleanField  | Es administrador  |
+| `date_joined` | DateTimeField | Fecha de registro |
 
 ---
 
@@ -301,6 +306,7 @@ SISTEMA/
 ### 7.1 Servicios
 
 #### PostgreSQL
+
 ```yaml
 postgres:
   image: postgres:18
@@ -317,6 +323,7 @@ postgres:
 ```
 
 #### Django (Backend)
+
 ```yaml
 django:
   build: ./BACKEND
@@ -334,6 +341,7 @@ django:
 ```
 
 #### Next.js (Frontend)
+
 ```yaml
 nextjs:
   build: ./NextJS
@@ -346,6 +354,7 @@ nextjs:
 ```
 
 #### NestJS (File Manager)
+
 ```yaml
 nestjs:
   build: ./NestJS-Files
@@ -356,6 +365,7 @@ nestjs:
 ```
 
 #### pgAdmin
+
 ```yaml
 pgadmin4:
   image: dpage/pgadmin4
@@ -367,6 +377,7 @@ pgadmin4:
 ```
 
 #### Portainer
+
 ```yaml
 portainer:
   image: portainer/portainer-ce:latest
@@ -381,6 +392,7 @@ portainer:
 ## 8. Variables de Entorno
 
 ### 8.1 Backend (.env)
+
 ```env
 DJANGO_SECRET_KEY=your-secret-key-here
 DJANGO_DEBUG=True
@@ -392,6 +404,7 @@ DJANGO_DB_PORT=5432
 ```
 
 ### 8.2 Frontend (.env)
+
 ```env
 # Desarrollo local
 NEXT_PUBLIC_DJANGO_API_URL=http://localhost:8000/api/
@@ -459,13 +472,13 @@ docker compose down -v
 
 ### 10.3 URLs de Acceso
 
-| Servicio | URL |
-|----------|-----|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8000/api/ |
-| pgAdmin | http://localhost:8080 |
-| Portainer | https://localhost:9443 |
-| File Manager | http://localhost:5000 |
+| Servicio     | URL                        |
+| ------------ | -------------------------- |
+| Frontend     | http://localhost:3000      |
+| Backend API  | http://localhost:8000/api/ |
+| pgAdmin      | http://localhost:8080      |
+| Portainer    | https://localhost:9443     |
+| File Manager | http://localhost:5000      |
 
 ---
 
@@ -499,14 +512,14 @@ docker compose down -v
 
 ### 12.1 Medidas Implementadas
 
-| Medida | Descripción |
-|--------|-------------|
-| CORS | Configurado para orígenes específicos |
-| CSRF | Middleware habilitado en Django |
-| JWT | Tokens para autenticación |
-| HTTPS | Recomendado para producción |
-| Sanitización | Validación de inputs con Zod |
-| Historial | Registro de cambios con django-simple-history |
+| Medida       | Descripción                                   |
+| ------------ | --------------------------------------------- |
+| CORS         | Configurado para orígenes específicos         |
+| CSRF         | Middleware habilitado en Django               |
+| JWT          | Tokens para autenticación                     |
+| HTTPS        | Recomendado para producción                   |
+| Sanitización | Validación de inputs con Zod                  |
+| Historial    | Registro de cambios con django-simple-history |
 
 ### 12.2 Recomendaciones para Producción
 
@@ -546,7 +559,7 @@ docker compose logs postgres
 | Término | Descripción                                 |
 | ------- | ------------------------------------------- |
 | RAC     | Registro de Administrativo y Control        |
-| SAGP    | Sistema Automatizado de Gestión de Personal |
+| GATH    | Sistema Automatizado de Gestión de Personal |
 | FANB    | Fuerza Armada Nacional Bolivariana          |
 | DRF     | Django REST Framework                       |
 | SSR     | Server-Side Rendering                       |
@@ -558,4 +571,4 @@ docker compose logs postgres
 
 ## 15. Contacto y Soporte
 
-Para soporte técnico, contactar al equipo de desarrollo del proyecto SAGP.
+Para soporte técnico, contactar al equipo de desarrollo del proyecto GATH.

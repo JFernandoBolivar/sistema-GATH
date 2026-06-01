@@ -142,7 +142,7 @@ export function EmployeeEditModal({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSave)}>
-            <div className="space-y-6">
+            <div className="gap-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <FormField
@@ -402,7 +402,7 @@ export function EmployeeEditModal({
                             ) : (
                               <span>Selecciona una fecha</span>
                             )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            <CalendarIcon className="ml-auto size-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>

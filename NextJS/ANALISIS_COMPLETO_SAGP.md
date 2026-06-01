@@ -1,4 +1,4 @@
-# SAGP - Sistema Automatizado de Gestión de Personal
+# GATH - Sistema Automatizado de Gestión de Personal
 
 **Análisis completo de la arquitectura, componentes y funcionamiento del sistema.**
 
@@ -37,12 +37,12 @@
                  file_manager (NestJS↔NextJS)
 ```
 
-| Componente | Tecnología | Puerto | Rol |
-|---|---|---|---|
-| **Django** | Django 5.2 + DRF 3.16 | `:8000` | API REST principal, lógica de negocio, BD |
-| **NestJS** | NestJS 11 + Express | `:5000` | Microservicio de archivos (subida/lectura) |
-| **NextJS** | Next.js 16.1 + Tailwind v4 | `:3000` | Frontend SPA, Server Actions, SSR |
-| **Portainer** | Portainer CE | `:9443` | Panel de gestión Docker |
+| Componente    | Tecnología                 | Puerto  | Rol                                        |
+| ------------- | -------------------------- | ------- | ------------------------------------------ |
+| **Django**    | Django 5.2 + DRF 3.16      | `:8000` | API REST principal, lógica de negocio, BD  |
+| **NestJS**    | NestJS 11 + Express        | `:5000` | Microservicio de archivos (subida/lectura) |
+| **NextJS**    | Next.js 16.1 + Tailwind v4 | `:3000` | Frontend SPA, Server Actions, SSR          |
+| **Portainer** | Portainer CE               | `:9443` | Panel de gestión Docker                    |
 
 ---
 
@@ -57,7 +57,7 @@ BACKEND/
 ├── .env / .env.example                 # Config BD PostgreSQL
 ├── django.dockerfile
 ├── wait-for-db.sh / wait-for-postgres.py
-├── SAGP_CONATEL.sql                    # Dump PostgreSQL (326 KB)
+├── GATH_CONATEL.sql                    # Dump PostgreSQL (326 KB)
 ├── SIGEP_MINISTERIO.sql                # Dump PostgreSQL (1.1 MB)
 ├── SIGEP/                              # Proyecto Django
 │   ├── settings.py                     # Django 6.0.1 (generated)
@@ -84,64 +84,65 @@ BACKEND/
 
 ### 2.2 Configuración (`settings.py`)
 
-| Aspecto | Valor |
-|---|---|
-| Framework | Django 5.2 (settings generado como 6.0.1) |
-| Debug | `True` |
-| Timezone | `America/Caracas` |
-| DB | PostgreSQL vía `python-decouple` |
-| Default Auth | Custom (NO `AbstractUser`, comparación directa de password) |
-| REST Framework | PageNumberPagination (page_size=10), drf-spectacular schema |
-| CORS | Múltiples orígenes en :3000, credentials=True |
+| Aspecto         | Valor                                                                   |
+| --------------- | ----------------------------------------------------------------------- |
+| Framework       | Django 5.2 (settings generado como 6.0.1)                               |
+| Debug           | `True`                                                                  |
+| Timezone        | `America/Caracas`                                                       |
+| DB              | PostgreSQL vía `python-decouple`                                        |
+| Default Auth    | Custom (NO `AbstractUser`, comparación directa de password)             |
+| REST Framework  | PageNumberPagination (page_size=10), drf-spectacular schema             |
+| CORS            | Múltiples orígenes en :3000, credentials=True                           |
 | Apps instaladas | corsheaders, rest_framework, drf_spectacular, django_filters, RAC, USER |
 
 ### 2.3 Dependencias Clave (`requirements.txt`)
 
-| Paquete | Versión | Propósito |
-|---|---|---|
-| Django | 5.2.7 | Framework web |
-| djangorestframework | 3.16.1 | API REST |
-| django-cors-headers | 4.9.0 | CORS |
-| djangorestframework_simplejwt | 5.5.1 | JWT **(instalado pero NO configurado)** |
-| drf-spectacular | 0.28.0 | OpenAPI/Swagger |
-| django-filter | 25.1 | Filtros de consultas |
-| django-simple-history | 3.10.1 | Historial de cambios en modelos |
-| psycopg2 | — | Conector PostgreSQL |
-| reportlab | 4.4.9 | Generación PDF |
-| openpyxl / pandas | 3.1.5 / 2.3.3 | Lectura Excel |
-| celery | 5.3.4 | Tareas asíncronas **(instalado pero NO configurado)** |
-| gunicorn | 23.0.0 | Servidor WSGI |
+| Paquete                       | Versión       | Propósito                                             |
+| ----------------------------- | ------------- | ----------------------------------------------------- |
+| Django                        | 5.2.7         | Framework web                                         |
+| djangorestframework           | 3.16.1        | API REST                                              |
+| django-cors-headers           | 4.9.0         | CORS                                                  |
+| djangorestframework_simplejwt | 5.5.1         | JWT **(instalado pero NO configurado)**               |
+| drf-spectacular               | 0.28.0        | OpenAPI/Swagger                                       |
+| django-filter                 | 25.1          | Filtros de consultas                                  |
+| django-simple-history         | 3.10.1        | Historial de cambios en modelos                       |
+| psycopg2                      | —             | Conector PostgreSQL                                   |
+| reportlab                     | 4.4.9         | Generación PDF                                        |
+| openpyxl / pandas             | 3.1.5 / 2.3.3 | Lectura Excel                                         |
+| celery                        | 5.3.4         | Tareas asíncronas **(instalado pero NO configurado)** |
+| gunicorn                      | 23.0.0        | Servidor WSGI                                         |
 
 ### 2.4 Modelos de Datos
 
 #### 2.4.1 Catálogos (RAC)
 
-| Modelo | Tabla | Campos clave |
-|---|---|---|
-| Denominacioncargo | DenominacionCargo | cargo (unique), orden_by_cargo |
-| Denominacioncargoespecifico | DenominacionCargoEspecifico | cargo (unique) |
-| TipoComision | TipoComision | tipo_comision |
-| OrganismoAdscrito | OrganismoAdscrito | Organismoadscrito, FK parent (jerarquía) |
-| NivelAcademico | NivelAcademico | nivelacademico |
-| Grado | Grado | grado |
-| Tiponomina | TipoNomina | nomina, requiere_codig, es_activo |
-| Dependencias | Dependencias | Codigo (unique), dependencia |
-| DireccionGeneral | DireccionGeneral | Codigo, direccion_general, FK Dependencias |
-| DireccionLinea | DireccionLinea | Codigo, direccion_linea, FK DireccionGeneral |
-| Coordinaciones | Coordinaciones | Codigo, coordinacion, FK DireccionLinea |
-| Estatus | Estatus | estatus |
-| Tipo_personal | TipoPersonal | tipo_personal (ACTIVO/PASIVO) |
-| Sexo | Sexo | sexo |
-| estado_civil | (auto) | estadoCivil |
-| Talla_Camisas / Pantalones / Zapatos | (auto) | talla |
-| GrupoSanguineo | GrupoSanguineo | GrupoSanguineo |
-| categorias_discapacidad / patologias / alergias | (auto) | nombre_categoria |
-| Discapacidades / patologias_Cronicas / Alergias | (auto) | nombre + FK categoria |
-| carreras / Menciones / Instituciones / Capacitaciones | (auto) | nombre + FKs |
+| Modelo                                                | Tabla                       | Campos clave                                 |
+| ----------------------------------------------------- | --------------------------- | -------------------------------------------- |
+| Denominacioncargo                                     | DenominacionCargo           | cargo (unique), orden_by_cargo               |
+| Denominacioncargoespecifico                           | DenominacionCargoEspecifico | cargo (unique)                               |
+| TipoComision                                          | TipoComision                | tipo_comision                                |
+| OrganismoAdscrito                                     | OrganismoAdscrito           | Organismoadscrito, FK parent (jerarquía)     |
+| NivelAcademico                                        | NivelAcademico              | nivelacademico                               |
+| Grado                                                 | Grado                       | grado                                        |
+| Tiponomina                                            | TipoNomina                  | nomina, requiere_codig, es_activo            |
+| Dependencias                                          | Dependencias                | Codigo (unique), dependencia                 |
+| DireccionGeneral                                      | DireccionGeneral            | Codigo, direccion_general, FK Dependencias   |
+| DireccionLinea                                        | DireccionLinea              | Codigo, direccion_linea, FK DireccionGeneral |
+| Coordinaciones                                        | Coordinaciones              | Codigo, coordinacion, FK DireccionLinea      |
+| Estatus                                               | Estatus                     | estatus                                      |
+| Tipo_personal                                         | TipoPersonal                | tipo_personal (ACTIVO/PASIVO)                |
+| Sexo                                                  | Sexo                        | sexo                                         |
+| estado_civil                                          | (auto)                      | estadoCivil                                  |
+| Talla_Camisas / Pantalones / Zapatos                  | (auto)                      | talla                                        |
+| GrupoSanguineo                                        | GrupoSanguineo              | GrupoSanguineo                               |
+| categorias_discapacidad / patologias / alergias       | (auto)                      | nombre_categoria                             |
+| Discapacidades / patologias_Cronicas / Alergias       | (auto)                      | nombre + FK categoria                        |
+| carreras / Menciones / Instituciones / Capacitaciones | (auto)                      | nombre + FKs                                 |
 
 #### 2.4.2 Modelos de Negocio (RAC)
 
 **Employee**
+
 - `cedulaidentidad` (PK, unique), `nombres`, `apellidos`, `fecha_nacimiento`
 - `fechaingresoorganismo`, `total_anos_apn`, `n_contrato`, `correo`
 - `telefono_*`, `fecha_actualizacion`
@@ -149,6 +150,7 @@ BACKEND/
 - Historial vía `django-simple-history`
 
 **AsigTrabajo** (asignación de puesto)
+
 - `codigo`, `encargaduria`, `observaciones`
 - FK: `employee → Employee`, `denominacioncargoid/especificoid`
 - FK: `OrganismoAdscritoid`, `gradoid`, `tiponominaid`
@@ -158,6 +160,7 @@ BACKEND/
 - Historial vía `django-simple-history`
 
 **Employeefamily** (familiares)
+
 - `cedulaFamiliar`, `primer_nombre`, `segundo_nombre`, `primer_apellido`, `segundo_apellido`
 - `fechanacimiento`, `mismo_ente`, `heredero` (solo 1 por empleado), `observaciones`
 - FK: `employeecedula → Employee`, `parentesco → Parentesco`, `sexo → Sexo`, `estadoCivil`
@@ -165,6 +168,7 @@ BACKEND/
 - Historial vía `django-simple-history`
 
 **EmployeeMovementHistory** (historial de movimientos)
+
 - `codigo_puesto`, `tipo_movimiento` (INGRESO/TRASLADO/EGRESO/CAMBIO DE ESTATUS)
 - `fecha_movimiento`
 - FK: `empleado → Employee`, denomación/específico/grado/nómina/estatus/tipo_personal
@@ -172,10 +176,12 @@ BACKEND/
 - FK: `motivo → Tipo_movimiento`, `ejecutado_por → cuenta`
 
 **EmployeeEgresado** / **CargoEgresado** (personal retirado)
+
 - EmployeeEgresado: `n_contrato`, `fechas`, FK `employee`, FK `motivo_egreso`
 - CargoEgresado: `codigo` (unique), FK `egreso`, más FKs de puesto
 
 **Perfiles complementarios** (todo con FK a Employee o Employeefamily):
+
 - `contacto_emergencia` — nombre, teléfono, FK Parentesco
 - `datos_vivienda` — dirección, FK Estado/Municipio/Parroquia/condición_vivienda
 - `perfil_salud` — M2M alergias/patologías/discapacidades, FK GrupoSanguineo
@@ -186,33 +192,33 @@ BACKEND/
 
 #### 2.4.3 Ubicación (RAC)
 
-| Modelo | FK |
-|---|---|
-| Region | — |
-| Estado | FK Region |
-| Municipio | FK Estado |
+| Modelo    | FK           |
+| --------- | ------------ |
+| Region    | —            |
+| Estado    | FK Region    |
+| Municipio | FK Estado    |
 | Parroquia | FK Municipio |
 
 #### 2.4.4 Usuarios (USER)
 
-| Modelo | Campos |
-|---|---|
-| departaments | nombre_departamento (unique), descripcion |
-| Rol | nombre_rol (unique), descripcion |
-| cuenta | password, is_active, O2O `cedula → RAC.Employee`, FK `departamento`, FK `rol` |
+| Modelo       | Campos                                                                        |
+| ------------ | ----------------------------------------------------------------------------- |
+| departaments | nombre_departamento (unique), descripcion                                     |
+| Rol          | nombre_rol (unique), descripcion                                              |
+| cuenta       | password, is_active, O2O `cedula → RAC.Employee`, FK `departamento`, FK `rol` |
 
 ### 2.5 Endpoints REST (~68 total)
 
 #### Rutas raíz (`SIGEP/urls.py`)
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| — | `/admin/` | Django Admin |
-| — | `/api/` | App RAC |
-| — | `/api/accounts/` | App USER |
-| GET | `/api/schema/` | OpenAPI schema (drf-spectacular) |
-| GET | `/api/docs/` | Swagger UI |
-| GET | `/api/redoc/` | ReDoc |
+| Método | Ruta             | Descripción                      |
+| ------ | ---------------- | -------------------------------- |
+| —      | `/admin/`        | Django Admin                     |
+| —      | `/api/`          | App RAC                          |
+| —      | `/api/accounts/` | App USER                         |
+| GET    | `/api/schema/`   | OpenAPI schema (drf-spectacular) |
+| GET    | `/api/docs/`     | Swagger UI                       |
+| GET    | `/api/redoc/`    | ReDoc                            |
 
 #### Endpoints RAC (`RAC/urls.py`)
 
@@ -322,15 +328,15 @@ BACKEND/
 
 #### Endpoints USER (`USER/urls.py`)
 
-| Método | Ruta | Función |
-|---|---|---|
-| POST | `api/accounts/login/` | Iniciar sesión |
-| POST | `api/accounts/registro/` | Registrar usuario |
-| GET | `api/accounts/usuarios/` | Listar usuarios |
-| GET | `api/accounts/roles/` | Listar roles |
-| GET | `api/accounts/departamentos/` | Listar departamentos |
-| PATCH/PUT | `api/accounts/usuarios/<int:id>/` | Editar usuario |
-| PATCH | `api/accounts/usuarios/estado/<int:id>/` | Activar/suspender usuario |
+| Método    | Ruta                                     | Función                   |
+| --------- | ---------------------------------------- | ------------------------- |
+| POST      | `api/accounts/login/`                    | Iniciar sesión            |
+| POST      | `api/accounts/registro/`                 | Registrar usuario         |
+| GET       | `api/accounts/usuarios/`                 | Listar usuarios           |
+| GET       | `api/accounts/roles/`                    | Listar roles              |
+| GET       | `api/accounts/departamentos/`            | Listar departamentos      |
+| PATCH/PUT | `api/accounts/usuarios/<int:id>/`        | Editar usuario            |
+| PATCH     | `api/accounts/usuarios/estado/<int:id>/` | Activar/suspender usuario |
 
 ### 2.6 Generación de PDF (ReportLab)
 
@@ -351,12 +357,14 @@ services/pdf/
 ```
 
 **Categorías:**
+
 1. `empleados` — empleados activos (13+ columnas)
 2. `familiares` — empleados con familiares (11 columnas)
 3. `asignaciones` — códigos/puestos (10 columnas)
 4. `egresados` — empleados egresados (7+ columnas)
 
 **Request:**
+
 ```json
 {
   "categoria": "empleados|familiares|asignaciones|egresados",
@@ -410,37 +418,39 @@ NestJS-Files/
 
 ### 3.2 Endpoints
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/` | Health check ("Hello World!") |
-| POST | `/file-save/upload/:folderId` | Subir archivo (reemplaza contenido de la carpeta) |
-| POST | `/file-save/upload/profile/:folderId` | Subir foto de perfil (subcarpeta `profile/`) |
-| GET | `/read-file/:folderId` | Stream primer PDF/imagen de la carpeta |
-| GET | `/read-file/profile/:folderId` | Stream primera imagen de `profile/` |
+| Método | Ruta                                  | Descripción                                       |
+| ------ | ------------------------------------- | ------------------------------------------------- |
+| GET    | `/`                                   | Health check ("Hello World!")                     |
+| POST   | `/file-save/upload/:folderId`         | Subir archivo (reemplaza contenido de la carpeta) |
+| POST   | `/file-save/upload/profile/:folderId` | Subir foto de perfil (subcarpeta `profile/`)      |
+| GET    | `/read-file/:folderId`                | Stream primer PDF/imagen de la carpeta            |
+| GET    | `/read-file/profile/:folderId`        | Stream primera imagen de `profile/`               |
 
 ### 3.3 Procesamiento de Archivos
 
 **Subida (Multer):**
+
 - Almacenamiento temporal en `./uploads/temp/`
 - `FileInterceptor('file')` captura el archivo
 - `FileValidationPipePipe` valida MIME y procesa con **Sharp**
 - Servicio mueve el archivo a destino final, eliminando archivos previos
 
 **Sharp (FileValidationPipePipe):**
+
 - MIME permitidos: `image/jpeg`, `image/jpg`, `image/png`
 - Redimensiona: 1024×768, `fit: contain`, `position: center`
 - **Bug:** llama `.png({force:true})` luego `.jpeg({force:true})` — el último gana, por lo que **todas las imágenes se convierten a JPEG**
 
 ### 3.4 Dependencias Clave
 
-| Paquete | Versión | Propósito |
-|---|---|---|
-| @nestjs/common/core/platform-express | ^11.0.1 | Framework |
-| @nestjs/serve-static | ^5.0.3 | Archivos estáticos |
-| sharp | ^0.34.4 | Procesamiento de imágenes |
-| helmet | ^8.1.0 | **(instalado pero NO usado)** |
-| date-fns | ^4.1.0 | **(instalado pero NO usado)** |
-| uuid | ^11.1.0 | **(instalado pero NO usado)** |
+| Paquete                              | Versión | Propósito                     |
+| ------------------------------------ | ------- | ----------------------------- |
+| @nestjs/common/core/platform-express | ^11.0.1 | Framework                     |
+| @nestjs/serve-static                 | ^5.0.3  | Archivos estáticos            |
+| sharp                                | ^0.34.4 | Procesamiento de imágenes     |
+| helmet                               | ^8.1.0  | **(instalado pero NO usado)** |
+| date-fns                             | ^4.1.0  | **(instalado pero NO usado)** |
+| uuid                                 | ^11.1.0 | **(instalado pero NO usado)** |
 
 ### 3.5 Observaciones del Módulo NestJS
 
@@ -519,6 +529,7 @@ NextJS/
 ### 4.2 Autenticación (NextAuth v5 beta)
 
 **Flujo de login:**
+
 1. Usuario ingresa cédula + password en `LoginForm`
 2. Client llama `loginAction()` → `signIn("credentials", {...})`
 3. NextAuth ejecuta `authorize()` en `auth.config.ts`:
@@ -529,12 +540,14 @@ NextJS/
 6. Redirige a `/dashboard`
 
 **Protección de rutas (`src/proxy.ts`):**
+
 - Rutas públicas: `/`, `/login`, `/register`
 - Usuario no logueado → redirige a `/login`
 - Usuario logueado → redirige a `/dashboard`
 - Excluye archivos estáticos vía matcher
 
 **Timeout de inactividad (`auth-timer.tsx`):**
+
 - 10 minutos total, avisa a los 5
 - Escucha eventos mouse/teclado/touch
 - Cierra sesión al expirar
@@ -543,30 +556,30 @@ NextJS/
 
 #### Seguridad
 
-| Ruta | Descripción |
-|---|---|
+| Ruta                                                | Descripción                                             |
+| --------------------------------------------------- | ------------------------------------------------------- |
 | `/dashboard/seguridad/gestionar-usuarios/registrar` | Registrar usuario (cédula, password, rol, departamento) |
-| `/dashboard/seguridad/gestionar-usuarios/modificar` | Buscar/editar usuarios, activar/suspender |
+| `/dashboard/seguridad/gestionar-usuarios/modificar` | Buscar/editar usuarios, activar/suspender               |
 
 #### Gestión de Trabajadores
 
-| Sección | Rutas |
-|---|---|
-| **Personal** | `registrar` (formulario multi-step 7 pasos), `consultar` (búsqueda + tabla detalle), `familiares/agregar-familiar`, `familiares/consultar` |
-| **Ubicación Administrativa** | `crear-ubicacion`, `crear-ubicacion-administrativa-direccion`, `actualizar-ubicacion`, `listado-ubicacion-administrativa` |
-| **Movimientos** | `asignar-codigo`, `asignar-codigo-especial`, `cambiar-codigo`, `cambiar-estatus`, `cambiar-pasivo`, `consultar` |
-| **Reportes** | Dashboard, `empleados`, `familiares`, `egresados`, `codigos` |
-| **Retroalimentación** | Gestión de organismos adscritos, discapacidades, patologías, alergias + generación Excel |
-| **Cargos** | `crear-codigo`, `listado-codigo` |
+| Sección                      | Rutas                                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Personal**                 | `registrar` (formulario multi-step 7 pasos), `consultar` (búsqueda + tabla detalle), `familiares/agregar-familiar`, `familiares/consultar` |
+| **Ubicación Administrativa** | `crear-ubicacion`, `crear-ubicacion-administrativa-direccion`, `actualizar-ubicacion`, `listado-ubicacion-administrativa`                  |
+| **Movimientos**              | `asignar-codigo`, `asignar-codigo-especial`, `cambiar-codigo`, `cambiar-estatus`, `cambiar-pasivo`, `consultar`                            |
+| **Reportes**                 | Dashboard, `empleados`, `familiares`, `egresados`, `codigos`                                                                               |
+| **Retroalimentación**        | Gestión de organismos adscritos, discapacidades, patologías, alergias + generación Excel                                                   |
+| **Cargos**                   | `crear-codigo`, `listado-codigo`                                                                                                           |
 
 #### Gestión de Pasivos
 
-| Sección | Rutas |
-|---|---|
+| Sección               | Rutas                                                                                        |
+| --------------------- | -------------------------------------------------------------------------------------------- |
 | **Personal Jubilado** | `registrar` (multi-step), `consultar`, `familiares/agregar-familiar`, `familiares/consultar` |
-| **Cargos** | `crear-codigo`, `listado-codigo` |
-| **Movimientos** | `cambiar-estatus`, `cambiar-pasivo` |
-| **Reportes** | `pasivos` |
+| **Cargos**            | `crear-codigo`, `listado-codigo`                                                             |
+| **Movimientos**       | `cambiar-estatus`, `cambiar-pasivo`                                                          |
+| **Reportes**          | `pasivos`                                                                                    |
 
 ### 4.4 Integración con Backends
 
@@ -578,17 +591,19 @@ NEXT_PUBLIC_DJANGO_API_URL        = "http://localhost:8000/api/"    # Cliente
 ```
 
 **Patrón de datos:**
+
 ```
 Server Action ("use server") → fetch(DJANGO_API_URL_SERVER + endpoint) → Django
 Cliente: useSWR("key", action) → cachea y revalida
 ```
 
 **Endpoint genérico (`apiFetchGet`):**
+
 ```typescript
 export const apiFetchGet = async <T>(url: string) => {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}${url}`,
-    { headers: { "Content-Type": "application/json" } }
+    { headers: { "Content-Type": "application/json" } },
   );
   return (await response.json()) as ApiResponse<T>;
 };
@@ -601,6 +616,7 @@ NEXT_PUBLIC_NEST_API_URL_SERVER = "http://localhost:5000/"
 ```
 
 **Uso exclusivo para:**
+
 - Subir foto de perfil: `POST file-save/upload/profile/{cedula}` (FormData)
 - Leer foto de perfil: `GET read-file/profile/{cedula}`
 
@@ -608,30 +624,30 @@ NEXT_PUBLIC_NEST_API_URL_SERVER = "http://localhost:5000/"
 
 Todas las operaciones CRUD se realizan mediante Server Actions (`"use server"`):
 
-| Módulo | Archivo | Acciones |
-|---|---|---|
-| Auth | `actions/auth-actions.ts` | loginAction |
-| Seguridad | `registrar/action/register-action.ts` | registerAction |
-| Seguridad | `modificar/action/update-user-action.ts` | updateAction, blockUserAction |
-| Trabajadores | `registrar/actions/registerEmployeesActions.ts` | registerEmployee |
-| Trabajadores | `registrar/actions/formStepActions.ts` | registerEmployeeSteps (multi-step) |
-| Trabajadores | `actions/updateEmployee.ts` | updateEmployee |
-| Trabajadores | `familiares/.../create-family-actions.ts` | createFamilyMember |
-| Trabajadores | `movimientos/*/actions/` | changeCode, changeStatus, gestionPasivo |
-| Trabajadores | `ubicacion-administrativa/*/actions/` | create/update dependencies, directions, coordinations |
-| Trabajadores | `retroalimentacion/actions/` | CRUD organismos, alergias, discapacidades, patologías |
-| Trabajadores | `cargos/*/actions/` | createCode, updateCode |
-| Pasivos | (paralelo a trabajadores) | Acciones para pasivos |
+| Módulo       | Archivo                                         | Acciones                                              |
+| ------------ | ----------------------------------------------- | ----------------------------------------------------- |
+| Auth         | `actions/auth-actions.ts`                       | loginAction                                           |
+| Seguridad    | `registrar/action/register-action.ts`           | registerAction                                        |
+| Seguridad    | `modificar/action/update-user-action.ts`        | updateAction, blockUserAction                         |
+| Trabajadores | `registrar/actions/registerEmployeesActions.ts` | registerEmployee                                      |
+| Trabajadores | `registrar/actions/formStepActions.ts`          | registerEmployeeSteps (multi-step)                    |
+| Trabajadores | `actions/updateEmployee.ts`                     | updateEmployee                                        |
+| Trabajadores | `familiares/.../create-family-actions.ts`       | createFamilyMember                                    |
+| Trabajadores | `movimientos/*/actions/`                        | changeCode, changeStatus, gestionPasivo               |
+| Trabajadores | `ubicacion-administrativa/*/actions/`           | create/update dependencies, directions, coordinations |
+| Trabajadores | `retroalimentacion/actions/`                    | CRUD organismos, alergias, discapacidades, patologías |
+| Trabajadores | `cargos/*/actions/`                             | createCode, updateCode                                |
+| Pasivos      | (paralelo a trabajadores)                       | Acciones para pasivos                                 |
 
 ### 4.6 Estado y Data Fetching
 
-| Librería | Propósito |
-|---|---|
-| **SWR** | Caching y revalidación de datos del servidor |
-| **Zustand** | Estado local mínimo (`searchParams` para búsquedas entre componentes) |
-| **React Hook Form + Zod** | Validación de formularios |
-| **@formity/react** | Formularios multi-paso (registro empleado 7 pasos) |
-| **TanStack React Table** | Tablas de datos con ordenamiento y paginación |
+| Librería                  | Propósito                                                             |
+| ------------------------- | --------------------------------------------------------------------- |
+| **SWR**                   | Caching y revalidación de datos del servidor                          |
+| **Zustand**               | Estado local mínimo (`searchParams` para búsquedas entre componentes) |
+| **React Hook Form + Zod** | Validación de formularios                                             |
+| **@formity/react**        | Formularios multi-paso (registro empleado 7 pasos)                    |
+| **TanStack React Table**  | Tablas de datos con ordenamiento y paginación                         |
 
 ### 4.7 UI Components (shadcn/ui + Radix)
 
@@ -639,14 +655,14 @@ Componentes base: Button, Card, Dialog, Sheet, Sidebar, DropdownMenu, Select, Ta
 
 ### 4.8 Variables de Entorno
 
-| Variable | Dev (localhost) | Docker (172.16.10.209) |
-|---|---|---|
+| Variable                            | Dev (localhost)              | Docker (172.16.10.209)           |
+| ----------------------------------- | ---------------------------- | -------------------------------- |
 | `NEXT_PUBLIC_DJANGO_API_URL_SERVER` | `http://localhost:8000/api/` | `http://172.16.10.209:8000/api/` |
-| `NEXT_PUBLIC_DJANGO_API_URL` | `http://localhost:8000/api/` | `http://172.16.10.209:8000/api/` |
-| `NEXT_PUBLIC_NEST_API_URL_SERVER` | `http://localhost:5000/` | `http://172.16.10.209:5000/` |
-| `NEXT_PUBLIC_NEST_API_URL` | `http://localhost:5000/` | `http://172.16.10.209:5000/` |
-| `NEXTAUTH_URL` | `http://localhost:3000` | `http://172.16.10.209:3000` |
-| `AUTH_SECRET` | (hardcodeada) | (hardcodeada) |
+| `NEXT_PUBLIC_DJANGO_API_URL`        | `http://localhost:8000/api/` | `http://172.16.10.209:8000/api/` |
+| `NEXT_PUBLIC_NEST_API_URL_SERVER`   | `http://localhost:5000/`     | `http://172.16.10.209:5000/`     |
+| `NEXT_PUBLIC_NEST_API_URL`          | `http://localhost:5000/`     | `http://172.16.10.209:5000/`     |
+| `NEXTAUTH_URL`                      | `http://localhost:3000`      | `http://172.16.10.209:3000`      |
+| `AUTH_SECRET`                       | (hardcodeada)                | (hardcodeada)                    |
 
 ---
 
@@ -743,39 +759,39 @@ Volúmenes: portainer_data
 
 ### 7.1 Seguridad
 
-| Riesgo | Detalle |
-|---|---|
-| **Secret Key hardcodeada** | Django `SECRET_KEY` visible en `settings.py` |
-| **DEBUG=True** | En lo que parece configuración de producción |
-| **Password en .env** | BD: `admin`, script wait: `3054=HitM` |
-| **JWT no activo** | `djangorestframework_simplejwt` instalado pero no configurado |
-| **Sin autenticación NestJS** | No hay guards, cualquier cliente puede subir/leer archivos |
-| **Directory traversal** | NestJS usa `folderId` directamente en rutas del FS |
-| **AUTH_SECRET hardcodeada** | NextJS `.env` contiene secretos de autenticación |
+| Riesgo                       | Detalle                                                       |
+| ---------------------------- | ------------------------------------------------------------- |
+| **Secret Key hardcodeada**   | Django `SECRET_KEY` visible en `settings.py`                  |
+| **DEBUG=True**               | En lo que parece configuración de producción                  |
+| **Password en .env**         | BD: `admin`, script wait: `3054=HitM`                         |
+| **JWT no activo**            | `djangorestframework_simplejwt` instalado pero no configurado |
+| **Sin autenticación NestJS** | No hay guards, cualquier cliente puede subir/leer archivos    |
+| **Directory traversal**      | NestJS usa `folderId` directamente en rutas del FS            |
+| **AUTH_SECRET hardcodeada**  | NextJS `.env` contiene secretos de autenticación              |
 
 ### 7.2 Calidad de Código
 
-| Issue | Detalle |
-|---|---|
-| **Sin tests Django** | No hay archivos de test en ninguna app |
-| **Tests NestJS mínimos** | Solo verifican que el componente existe |
-| **Naming inconsistente** | Mezcla de español e inglés en vistas y URLs |
-| **Código no usado** | helmet, date-fns, uuid (NestJS); celery, simplejwt (Django) |
-| **Bug Sharp** | PNG→JPEG inconsistente, el último `force:true` gana |
+| Issue                    | Detalle                                                     |
+| ------------------------ | ----------------------------------------------------------- |
+| **Sin tests Django**     | No hay archivos de test en ninguna app                      |
+| **Tests NestJS mínimos** | Solo verifican que el componente existe                     |
+| **Naming inconsistente** | Mezcla de español e inglés en vistas y URLs                 |
+| **Código no usado**      | helmet, date-fns, uuid (NestJS); celery, simplejwt (Django) |
+| **Bug Sharp**            | PNG→JPEG inconsistente, el último `force:true` gana         |
 
 ### 7.3 Configuración
 
-| Issue | Detalle |
-|---|---|
-| **PORT vs NEST_PORT** | `.env.example` define `NEST_PORT=5000`, pero `main.ts` lee `process.env.PORT` |
-| **Documentación desactualizada** | NestJS DOCUMENTATION.md describe endpoints que no existen |
-| **BD no containerizada** | PostgreSQL no está en compose.yml, asume instancia externa |
+| Issue                            | Detalle                                                                       |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| **PORT vs NEST_PORT**            | `.env.example` define `NEST_PORT=5000`, pero `main.ts` lee `process.env.PORT` |
+| **Documentación desactualizada** | NestJS DOCUMENTATION.md describe endpoints que no existen                     |
+| **BD no containerizada**         | PostgreSQL no está en compose.yml, asume instancia externa                    |
 
 ### 7.4 Operacional
 
-| Issue | Detalle |
-|---|---|
+| Issue                    | Detalle                                                           |
+| ------------------------ | ----------------------------------------------------------------- |
 | **Condición de carrera** | NestJS elimina archivos antes de mover, riesgoso con concurrencia |
-| **Sin rate limiting** | No hay límite de peticiones en ningún servicio |
-| **Sin límite de tamaño** | bodySizeLimit 250MB en NextJS, sin límite en NestJS |
-| **CORS permisivo** | Múltiples orígenes permitidos en Django |
+| **Sin rate limiting**    | No hay límite de peticiones en ningún servicio                    |
+| **Sin límite de tamaño** | bodySizeLimit 250MB en NextJS, sin límite en NestJS               |
+| **CORS permisivo**       | Múltiples orígenes permitidos en Django                           |
