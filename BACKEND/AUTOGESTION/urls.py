@@ -8,4 +8,5 @@ urlpatterns = [
     path("censo-vivienda/exportar-excel/", views.exportar_censo_excel, name="exportar-censo-excel"),
     path("censo-vivienda/<str:cedula_empleado>/", views.registrar_censo_vivienda, name="registrar-censo-vivienda"),
     path("preguntas/", views.listar_preguntas_censo, name="listar-preguntas-censo"),
+    path("censo-vivienda/reporte-dependencias/", views.reporte_censo_por_dependencias, name="reporte-censo-dependencias"),
 ]
