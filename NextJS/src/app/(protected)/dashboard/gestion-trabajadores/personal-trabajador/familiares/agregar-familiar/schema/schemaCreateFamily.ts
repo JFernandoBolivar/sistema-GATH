@@ -36,8 +36,8 @@ export const schemaFamilyEmployeeOne = z.object({
     .optional(),
   mismo_ente: z.boolean(),
   heredero: z.boolean().default(false),
-  file_cedula: z.any().optional(),
-  file_partida_nacimiento: z.any().optional(),
+  file_cedula: z.instanceof(File).optional(),
+  file_partida_nacimiento: z.instanceof(File).optional(),
   perfil_salud_familiar: z
     .object({
       grupoSanguineo: z.number({

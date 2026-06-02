@@ -433,7 +433,7 @@ export function AppSidebarEmployees() {
                           </div>
                         </SidebarMenuButton>
                         {openSubmenu === item.title && (
-                          <div className="pl-8 py-1 space-y-1 text-sm">
+                          <div className="pl-8 py-1 gap-1 text-sm">
                             {item.subMenu.map((subItem) => (
                               <SidebarMenuButton
                                 key={subItem.title}

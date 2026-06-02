@@ -31,7 +31,7 @@ export function EmployeeDetailDrawer({
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClose(); } }} tabIndex={0} />
 
       {/* Drawer */}
       <div className="relative ml-auto h-full w-full max-w-2xl bg-background shadow-lg overflow-y-auto">
@@ -43,11 +43,11 @@ export function EmployeeDetailDrawer({
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
           >
-            <X className="h-6 w-6" />
+            <X className="size-6" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 gap-6">
           {employee ? (
             <div className="flex justify-center">
               <Image
@@ -61,7 +61,7 @@ export function EmployeeDetailDrawer({
           ) : (
             <div className="flex justify-center">
               <div className="w-36 h-40 bg-muted rounded-2xl border border-border flex items-center justify-center">
-                <User className="h-16 w-16 text-muted-foreground" />
+                <User className="size-16 text-muted-foreground" />
               </div>
             </div>
           )}
@@ -282,7 +282,7 @@ export function EmployeeDetailDrawer({
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <div className={`h-3 w-3 rounded-full bg-green-500`} />
+                <div className={`size-3 rounded-full bg-green-500`} />
                 <p className="font-semibold text-foreground">
                   {formatInTimeZone(
                     employee.fecha_actualizacion,

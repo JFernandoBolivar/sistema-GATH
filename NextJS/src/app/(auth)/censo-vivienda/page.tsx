@@ -65,7 +65,7 @@ const InfoRow = ({
 }) =>
   value ? (
     <div className="flex items-center gap-2 text-sm">
-      <Icon className="h-4 w-4 shrink-0 text-gray-500" />
+      <Icon className="size-4 shrink-0 text-gray-500" />
       <span className="text-gray-600">{label}:</span>
       <span className="font-medium text-gray-900">{value}</span>
     </div>
@@ -148,7 +148,7 @@ export default function CensoViviendaPage() {
       }
     })()
     return () => { cancelled = true }
-  }, [employee])
+  }, [employee, form]);
 
   const handle_search = () => {
     if (!search_cedula) return
@@ -190,10 +190,11 @@ export default function CensoViviendaPage() {
 
           <div className="flex gap-2 mb-6">
             <div className="flex-1">
-              <label className="text-sm font-medium text-gray-700 mb-1 block">
+              <label htmlFor="input-buscar-cedula" className="text-sm font-medium text-gray-700 mb-1 block">
                 Buscar Trabajador por Cédula
               </label>
               <Input
+                id="input-buscar-cedula"
                 type="text"
                 placeholder="Ingrese número de cédula sin puntos"
                 value={search_cedula}
@@ -212,7 +213,7 @@ export default function CensoViviendaPage() {
                 "Buscando..."
               ) : (
                 <>
-                  <Search className="h-4 w-4 mr-1" />
+                  <Search className="size-4 mr-1" />
                   Buscar
                 </>
               )}
@@ -226,7 +227,7 @@ export default function CensoViviendaPage() {
           />
 
           {employee && (
-            <div className="border-2 border-blue-200 bg-blue-50 rounded-md p-4 mb-6 space-y-2">
+            <div className="border-2 border-blue-200 bg-blue-50 rounded-md p-4 mb-6 gap-2">
               <h3 className="font-bold text-sm text-blue-900 border-b border-blue-200 pb-1 mb-2">
                 DATOS DEL TRABAJADOR
               </h3>

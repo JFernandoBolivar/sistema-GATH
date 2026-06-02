@@ -47,13 +47,14 @@ import {
 } from "@/shared/schemas/employees/update/schema-academic_training";
 import { useSearchStore } from "@/hooks/use-search-params";
 import { Badge } from "@/components/ui/badge";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 
 type Props = {
   defaultValues: AcademyType;
   idEmployee: string;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
 };
 export default function FormUpdateAcademyLevel({
   defaultValues,

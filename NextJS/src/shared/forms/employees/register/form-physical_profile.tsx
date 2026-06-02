@@ -99,7 +99,7 @@ export default function FormPhysical({ onSubmit, defaultValues }: Props) {
         </CardAction>
         <Form {...form}>
           <form
-            className="grid grid-cols-2 gap-2 space-y-2"
+            className="grid grid-cols-2 gap-2"
             onSubmit={form.handleSubmit(onSubmitFormity)}
           >
             <FormField

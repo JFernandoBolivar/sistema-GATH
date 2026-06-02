@@ -18,7 +18,6 @@ export interface SessionType {
   email: string;
   phone: string;
   status: string;
-  debe_cambiar_password: boolean;
   direccion_general: {
     id: string;
     nombre: string;
@@ -32,6 +31,7 @@ export interface SessionType {
     id: string;
     nombre: string;
   };
+  debe_cambiar_password?: boolean;
 }
 export default {
   providers: [

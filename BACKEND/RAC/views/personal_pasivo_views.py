@@ -90,7 +90,7 @@ def work_codes_passive(request):
             serializer = ListerCodigosPassiveSerializer(codigos, many=True)
             
             return Response({
-                'status': "OK",
+                'status': "success",
                 'message': "Códigos de trabajo listados correctamente",
                 'data': serializer.data
             }, status=status.HTTP_200_OK)

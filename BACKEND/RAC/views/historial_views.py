@@ -41,7 +41,7 @@ def cambiar_cargo(request, cargo_id):
         try:
             puesto_nuevo = serializer.save()
             return Response({
-                "status": "Ok",
+                "status": "success",
                 "message": "Movimiento registrado correctamente",
                 "data": {
                     "nuevo_puesto": puesto_nuevo.codigo,
@@ -88,7 +88,7 @@ def gestionar_estatus_puesto(request, cargo_id):
         try:
             serializer.save()
             return Response({
-                "status": "Ok",
+                "status": "success",
                 "message": "El estatus ha sido actualizado exitosamente",
                 "data": {
                     "codigo": puesto.codigo,
@@ -132,7 +132,7 @@ def gestion_egreso_pasivo(request, cedulaidentidad):
         try:
             serializer.save()
             return Response({
-                "status": "Ok",
+                "status": "success",
                 "message": "Gestion realizada exitosamente",
                 "data": {
                     "empleado_id": empleado.id,
@@ -189,12 +189,12 @@ def listar_historial_cargo(request, cedulaidentidad):
     serializer = EmployeeCargoHistorySerializer(movimientos, many=True)
     if not serializer.data:
         return Response({
-            "status": "Ok",
+            "status": "success",
             "message": "El empleado no posee historial de movimientos o cambios de estatus",
             "data": []
         }, status=status.HTTP_200_OK)
     return Response({
-        "status": "Ok",
+        "status": "success",
         "message": "Historial listado correctamente",
         "data": serializer.data
     }, status=status.HTTP_200_OK)
@@ -225,7 +225,7 @@ def reporte_movimientos(request):
         
         return Response(
             { 
-                'status':'OK',
+                'status':'success',
                 'message': 'Reporte de movimientos generado correctamente',
                 'data': data_final, 
             },
@@ -256,7 +256,7 @@ def listar_motivos_fallecimiento(request):
         serializer = TipoMovimientoSerializer(queryset, many=True)
         
         return Response({
-            "status": "Ok",
+            "status": "success",
             "message": "Motivos de egreso listados correctamente",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
@@ -284,7 +284,7 @@ def listar_motivos_egreso(request):
         serializer = TipoMovimientoSerializer(queryset, many=True)
         
         return Response({
-            "status": "Ok",
+            "status": "success",
             "message": "Motivos de egreso listados correctamente",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
@@ -312,7 +312,7 @@ def listar_motivos_internos(request):
         serializer = TipoMovimientoSerializer(queryset, many=True)
         
         return Response({
-            "status": "Ok",
+            "status": "success",
             "message": "Motivos para realizar moviminetos listados correctamente",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
@@ -338,7 +338,7 @@ def listar_suspendido(request):
         serializer = TipoMovimientoSerializer(queryset, many=True)
         
         return Response({
-            "status": "Ok",
+            "status": "success",
             "message": "Motivos para cambiar estatus listados correctamente",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
@@ -364,7 +364,7 @@ def listar_suspendido_pasivo(request):
         serializer = TipoMovimientoSerializer(queryset, many=True)
         
         return Response({
-            "status": "Ok",
+            "status": "success",
             "message": "Motivos para cambiar estatus listados correctamente",
             "data": serializer.data
         }, status=status.HTTP_200_OK)

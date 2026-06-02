@@ -8,7 +8,7 @@ import { HealthType } from "@/shared/schemas/employees/register/schema-health_pr
 import { PhysicalProfileType } from "@/shared/schemas/employees/register/schema-physical_profile";
 import { DwellingType } from "@/shared/schemas/employees/register/schema-dwelling";
 import { ApiResponse } from "@/app/types/types";
-import { createCarrera, createInstitucion, createOrganismoAdscrito } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+import { createCarrera, createInstitucion, createMencion, createOrganismoAdscrito } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 export async function registerEmployeeSteps(
   data: BasicInfoType &
     AcademyType &
@@ -66,6 +66,15 @@ export async function registerEmployeeSteps(
                 processed = { ...processed, institucion_id: result.data.id, nueva_institucion_nombre: undefined };
               } else {
                 processed = { ...processed, institucion_id: undefined, nueva_institucion_nombre: undefined };
+              }
+            }
+
+            if (item.mencion_id === -1 && item.nueva_mencion_nombre?.trim() && typeof processed.carrera_id === "number" && processed.carrera_id > 0) {
+              const result = await createMencion(item.nueva_mencion_nombre.trim(), processed.carrera_id);
+              if (result.status === "success" && result.data?.[0]?.id) {
+                processed = { ...processed, mencion_id: result.data[0].id, nueva_mencion_nombre: undefined };
+              } else {
+                processed = { ...processed, mencion_id: undefined, nueva_mencion_nombre: undefined };
               }
             }
 

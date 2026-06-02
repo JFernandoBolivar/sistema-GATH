@@ -186,7 +186,18 @@ class FamilyDocumentSerializer(serializers.ModelSerializer):
 
 
 class FamilyDocumentReadSerializer(serializers.ModelSerializer):
+    file = serializers.SerializerMethodField()
+
     class Meta:
         model = FamilyDocument
         fields = ['id', 'document_type', 'file', 'uploaded_at']
+
+    def get_file(self, obj):
+        request = self.context.get('request')
+        if obj.file:
+            download_path = f"/api/Employeefamily/documentos/{obj.id}/descargar/"
+            if request:
+                return request.build_absolute_uri(download_path)
+            return download_path
+        return None
    

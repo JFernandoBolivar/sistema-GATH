@@ -137,7 +137,7 @@ function GenerarCarnetContent() {
       <PageLayout title="Generar Carnet" description="Seleccione un trabajador desde la búsqueda">
         <Card className="max-w-md mx-auto mt-10">
           <CardContent className="text-center py-12">
-            <IdCard className="h-16 w-16 mx-auto text-gray-300" />
+            <IdCard className="size-16 mx-auto text-gray-300" />
             <p className="text-muted-foreground mt-4">No se ha seleccionado un trabajador.</p>
             <Button className="mt-4" onClick={() => router.push("/dashboard/carnetizacion/buscar")}>
               Ir a Búsqueda
@@ -152,8 +152,8 @@ function GenerarCarnetContent() {
     return (
       <PageLayout title="Generar Carnet">
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-          <span className="ml-3 text-lg">Cargando datos del empleado...</span>
+          <Loader2 className="size-10 animate-spin text-blue-600" />
+          <span className="ml-3 text-lg">Cargando datos del empleado…</span>
         </div>
       </PageLayout>
     );
@@ -168,17 +168,17 @@ function GenerarCarnetContent() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <IdCard className="h-5 w-5" />
+              <IdCard className="size-5" />
               Datos del Personal
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="gap-4">
             <Form {...form}>
               <div>
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> Cédula (no modificable)
+                <label htmlFor="input-cedula" className="text-sm font-medium flex items-center gap-1">
+                  <Lock className="size-3" /> Cédula (no modificable)
                 </label>
-                <Input value={cedula} disabled className="mt-1 bg-gray-100" />
+                <Input id="input-cedula" value={cedula} disabled className="mt-1 bg-gray-100" />
               </div>
 
               <InputForm<GenerarValues>
@@ -190,29 +190,29 @@ function GenerarCarnetContent() {
               />
 
               <div>
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> Código
+                <label htmlFor="input-codigo" className="text-sm font-medium flex items-center gap-1">
+                  <Lock className="size-3" /> Código
                 </label>
-                <Input value={employee?.codigo || ""} disabled className="mt-1 bg-gray-100" />
+                <Input id="input-codigo" value={employee?.codigo || ""} disabled className="mt-1 bg-gray-100" />
               </div>
 
               <div>
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> Cargo
+                <label htmlFor="input-cargo" className="text-sm font-medium flex items-center gap-1">
+                  <Lock className="size-3" /> Cargo
                 </label>
-                <Input value={employee?.cargo || ""} disabled className="mt-1 bg-gray-100" />
+                <Input id="input-cargo" value={employee?.cargo || ""} disabled className="mt-1 bg-gray-100" />
               </div>
 
               <div>
-                <label className="text-sm font-medium flex items-center gap-1">
-                  <Lock className="h-3 w-3" /> Dirección General / Oficina
+                <label htmlFor="input-dgo" className="text-sm font-medium flex items-center gap-1">
+                  <Lock className="size-3" /> Dirección General / Oficina
                 </label>
-                <Input value={employee?.departamento || ""} disabled className="mt-1 bg-gray-100" />
+                <Input id="input-dgo" value={employee?.departamento || ""} disabled className="mt-1 bg-gray-100" />
               </div>
 
               <div className="flex items-center justify-between">
                 <Badge variant="secondary">
-                  <Printer className="h-3 w-3 mr-1" />
+                  <Printer className="size-3 mr-1" />
                   {totalSolicitudes} carnets emitidos
                 </Badge>
               </div>
@@ -224,7 +224,7 @@ function GenerarCarnetContent() {
                 nameSalect="motivo_id"
                 Formlabel="Motivo"
                 SelectLabelItem="Seleccione un motivo"
-                placeholder="Seleccione..."
+                placeholder="Seleccione…"
                 options={motivos || []}
                 isLoading={!motivos}
                 valueKey="id"
@@ -232,9 +232,10 @@ function GenerarCarnetContent() {
               />
 
               <div>
-                <label className="text-sm font-medium">Foto</label>
+                <label htmlFor="input-foto" className="text-sm font-medium">Foto</label>
                 <div className="flex gap-2 mt-1">
                   <input
+                    id="input-foto"
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
@@ -251,9 +252,9 @@ function GenerarCarnetContent() {
                     disabled={isPendingFoto}
                   >
                     {isPendingFoto ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      <Loader2 className="size-4 animate-spin mr-1" />
                     ) : (
-                      <Upload className="h-4 w-4 mr-1" />
+                      <Upload className="size-4 mr-1" />
                     )}
                     Subir Foto
                   </Button>
@@ -267,11 +268,11 @@ function GenerarCarnetContent() {
                 disabled={isPendingGenerar}
               >
                 {isPendingGenerar ? (
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  <Loader2 className="size-5 animate-spin mr-2" />
                 ) : (
-                  <Download className="h-5 w-5 mr-2" />
+                  <Download className="size-5 mr-2" />
                 )}
-                {isPendingGenerar ? "Generando..." : "Generar Carnet"}
+                {isPendingGenerar ? "Generando…" : "Generar Carnet"}
               </Button>
             </Form>
           </CardContent>
@@ -286,7 +287,7 @@ function GenerarCarnetContent() {
               <div className="flex justify-center" dangerouslySetInnerHTML={{ __html: vistaPrevia }} />
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                <Camera className="h-20 w-20" />
+                <Camera className="size-20" />
                 <p className="mt-4">La vista previa se cargará aquí</p>
               </div>
             )}
@@ -305,7 +306,7 @@ export default function GenerarCarnetPage() {
     <Suspense
       fallback={
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <Loader2 className="size-10 animate-spin text-blue-600" />
         </div>
       }
     >

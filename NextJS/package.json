@@ -6,13 +6,12 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:any": "eslint . --rule '@typescript-eslint/no-explicit-any: error' --no-warn-ignored"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.8.0",
     "@formity/react": "^1.0.0",
     "@hookform/resolvers": "^4.1.3",
-    "@prisma/client": "^6.5.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -68,7 +67,6 @@
     "react-hook-form": "^7.61.1",
     "react-resizable-panels": "^4.4.1",
     "recharts": "^2.15.3",
-    "resend": "^4.2.0",
     "sonner": "^2.0.5",
     "swr": "^2.3.8",
     "tailwind-merge": "^3.1.0",

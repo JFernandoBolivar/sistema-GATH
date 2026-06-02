@@ -323,8 +323,8 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     </DialogTrigger>
                     <DialogContent>
                       <FormUpdateAcademyLevel
-                        mutate={mutate} updateInfoEmployee={updateInfoEmployee} mutateKey="api/pasivos"
                         idEmployee={employee.id.toString()}
+                        mutate={mutate} updateInfoEmployee={updateInfoEmployee} mutateKey="api/pasivos"
                         defaultValues={{
                           formacion_academica:
                             employee.formacion_academica?.length
@@ -343,32 +343,43 @@ export default function DetailInfoEmployee({ employee }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 place-content-center">
-                  <div>Nivel Academico:</div>
-                  <div>
-                    {employee.formacion_academica?.[0]?.nivelAcademico
-                      ?.nivelacademico ?? "N/A"}
+                {employee.formacion_academica?.length ? (
+                  <Table className="table-fixed w-full">
+                    <TableCaption>
+                      Lista De Formaciones Academicas.
+                    </TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nivel Academico</TableHead>
+                        <TableHead>Carrera</TableHead>
+                        <TableHead>Mención</TableHead>
+                        <TableHead>Institución</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {employee.formacion_academica.map((v, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">
+                            {v.nivelAcademico?.nivelacademico ?? "N/A"}
+                          </TableCell>
+                          <TableCell className="truncate max-w-[150px]">
+                            {v.carrera?.nombre_carrera ?? "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            {v.mencion?.nombre_mencion ?? "N/A"}
+                          </TableCell>
+                          <TableCell className="truncate max-w-[200px]">
+                            {v.institucion?.nombre_institucion ?? "N/A"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    Sin formación académica registrada
                   </div>
-                  <div>Carrera:</div>
-                  <div>
-                    {employee.formacion_academica?.[0]?.carrera?.nombre_carrera ??
-                      "N/A"}
-                  </div>
-                  <div>Mención:</div>
-                  <div>
-                    {employee.formacion_academica?.[0]?.mencion?.nombre_mencion ??
-                      "N/A"}
-                  </div>
-                  <div>Institución:</div>
-                  <div>
-                    {employee.formacion_academica?.[0]?.institucion?.nombre_institucion ?? "N/A"}
-                  </div>
-
-                  <div>Capacitación</div>
-                  <div>
-                    {employee.formacion_academica?.[0]?.capacitacion?.nombre_capacitacion ?? "N/A"}
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
