@@ -146,7 +146,7 @@ export default function UpdateCode({ code }: Props) {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="flex flex-col space-y-4"
+                className="flex flex-col gap-4"
               >
                 <div className="grid grid-cols-2 gap-2">
                   <FormField

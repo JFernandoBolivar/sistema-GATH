@@ -51,7 +51,7 @@ export default function RegisterForm() {
       <CardContent>
         <CardAction>Registrar Como Usuario A Un Trabajador</CardAction>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
             <div className="grid grid-cols-2 gap-2">
               <InputForm
                 form={form}

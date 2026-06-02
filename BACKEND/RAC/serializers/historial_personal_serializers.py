@@ -14,7 +14,6 @@ from ..services.constants_historial import *
 
 from ..utils.constants import *
 
-from RAC.serializers.personal_activo_serializers import *
 from ..services.egreso_services import (
     generar_codigo_nomina,
     validar_y_preparar_sobrevivientes,
@@ -107,10 +106,16 @@ class GestionStatusSerializer(BaseActionInputSerializer):
     motivo = serializers.PrimaryKeyRelatedField(queryset=Tipo_movimiento.objects.all())
 
     def validate_estatus_id(self, value):
- 
         if value.estatus.upper() not in ESTATUS_PERMITIDOS:
             raise serializers.ValidationError("Gestión de estatus no permitido")
         return value
+
+    def validate(self, attrs):
+        if self.instance and self.instance.estatusid == attrs.get('estatus'):
+            raise serializers.ValidationError(
+                {"estatus_id": f"El cargo ya se encuentra en estatus '{self.instance.estatusid.estatus}'"}
+            )
+        return attrs
 
     @transaction.atomic
     def update(self, instance, validated_data):
@@ -312,7 +317,7 @@ class EmployeeCargoHistorySerializer(serializers.ModelSerializer):
 
 
 class PrestamoCargoSerializer(serializers.ModelSerializer):
-    cargo_info = ListerCodigosSerializer(source='cargo_encargado', read_only=True)
+    cargo_info = serializers.SerializerMethodField()
     motivo_nombre = serializers.CharField(source='motivo.movimiento', read_only=True)
     estatus_nombre = serializers.CharField(source='estatus.estatus', read_only=True)
     empleado_nombre = serializers.SerializerMethodField()
@@ -323,6 +328,10 @@ class PrestamoCargoSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrestamoCargo
         fields = '__all__'
+
+    def get_cargo_info(self, obj):
+        from RAC.serializers.personal_activo_serializers import ListerCodigosSerializer
+        return ListerCodigosSerializer(obj.cargo_encargado).data if obj.cargo_encargado else None
 
     def get_empleado_nombre(self, obj):
         emp = obj.empleado_encargado

@@ -31,7 +31,6 @@ declare module "next-auth" {
         nombre: string;
       };
       debeCambiarPassword: boolean;
-      debeCambiarPassword: boolean;
     } & DefaultSession["user"];
   }
   interface User {
@@ -61,7 +60,9 @@ declare module "next-auth" {
       id: string;
       nombre: string;
     };
-    debeCambiarPassword: boolean;
+    debeCambiarPassword?: boolean;
+    djAccess: string;
+    djRefresh: string;
   }
 }
 
@@ -93,6 +94,6 @@ declare module "next-auth/jwt" {
       id: string;
       nombre: string;
     };
-    debeCambiarPassword: boolean;
+    debeCambiarPassword?: boolean;
   }
 }

@@ -1,6 +1,13 @@
 import { apiFetchGet } from "@/lib/utils";
 import { apiFetchBlob, apiFetch } from "@/lib/api-client";
-import type { ApiResponse, Pregunta } from "@/app/types/types";
+import type {
+  ApiResponse,
+  Pregunta,
+  InfoCode,
+  DewllingInfo,
+  ReporteCensoData,
+} from "@/app/types/types";
+import { SchemaCensoExcelType } from "../schema/schema-autogestion-excel";
 
 export const getPreguntas = async (): Promise<ApiResponse<Pregunta[]>> => {
   return apiFetchGet<Pregunta[]>("autogestion/preguntas/");
@@ -13,8 +20,8 @@ export interface CensoEmpleadoItem {
   apellidos: string;
   fecha_nacimiento: string;
   carnet_patria: string | null;
-  cargos: any[];
-  datos_vivienda: any;
+  cargos: InfoCode[];
+  datos_vivienda: DewllingInfo | null;
   total_apn: { years: number; months: number; days: number };
   fecha_ingreso_organismo: string | null;
   preguntas: {
@@ -34,7 +41,18 @@ export const consultarCensoEmpleado = async (cedula?: string) => {
 };
 
 export const exportarCensoExcel = async () => {
-  return apiFetchBlob("autogestion/censo-vivienda/exportar-excel/");
+  return apiFetchBlob("autogestion/censo-vivienda/exportar-excel/", {
+    method: "POST",
+  });
+};
+
+export const exportarCensoExcelConFiltros = async (
+  payload: SchemaCensoExcelType,
+): Promise<globalThis.Blob> => {
+  return apiFetchBlob("autogestion/censo-vivienda/exportar-excel/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 };
 
 interface RespuestaItem {
@@ -57,6 +75,15 @@ interface SubmitPayload {
   datos_vivienda: ViviendaData;
   respuestas: RespuestaItem[];
 }
+
+export const getReporteCensoDependencias = async (
+  searchParams: string | undefined,
+): Promise<ApiResponse<ReporteCensoData>> => {
+  const url = searchParams
+    ? `autogestion/censo-vivienda/reporte-dependencias/?${searchParams}`
+    : `autogestion/censo-vivienda/reporte-dependencias/`;
+  return apiFetchGet<ReporteCensoData>(url);
+};
 
 export const submitCensoVivienda = async (
   cedula: string,

@@ -165,7 +165,7 @@ export default function ReportLeaving() {
           ) : (
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4 grid grid-cols-3  gap-2"
+              className="grid grid-cols-3 gap-4"
             >
               <div className="flex flex-col gap-2 col-span-3 ">
                 <ScrollArea className="h-100 w-full ">

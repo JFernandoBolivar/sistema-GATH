@@ -62,13 +62,14 @@ import {
   getTiposProcedencia,
   getInstituciones,
 } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 
 type Props = {
   defaultValues: SupplementaryTrainingUpdateType;
   idEmployee: string;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+  updateInfoEmployee: UpdateEmployeeFn;
 };
 export default function FormUpdateSupplementaryTraining({
   defaultValues,
@@ -168,7 +169,7 @@ export default function FormUpdateSupplementaryTraining({
                             horas_completadas: undefined,
                           },
                         ],
-                      } as any);
+                      } satisfies Partial<SupplementaryTrainingUpdateType>);
                     }}
                   >
                     <Trash />
@@ -209,7 +210,8 @@ export default function FormUpdateSupplementaryTraining({
                   const watchedCapacitacionId = form.watch(
                     `formacion_complementaria.${index}.capacitacion_id`,
                   );
-                  const hasCapacitacion = watchedCapacitacionId != null && watchedCapacitacionId > 0;
+                  const hasCapacitacion =
+                    watchedCapacitacionId != null && watchedCapacitacionId > 0;
                   const watchedProcedencia = form.watch(
                     `formacion_complementaria.${index}.procedencia_id`,
                   );
@@ -351,7 +353,7 @@ export default function FormUpdateSupplementaryTraining({
                                 value={
                                   field.value === -1
                                     ? "-1"
-                                    : field.value?.toString() ?? ""
+                                    : (field.value?.toString() ?? "")
                                 }
                               >
                                 <FormControl>
@@ -404,81 +406,86 @@ export default function FormUpdateSupplementaryTraining({
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`formacion_complementaria.${index}.institucion_id`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Institución {hasCapacitacion ? <span className="text-red-500">*</span> : ""}
-                            </FormLabel>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === "-1") {
-                                  field.onChange(-1);
-                                } else {
-                                  const numV = Number(v);
-                                  field.onChange(numV);
-                                  form.setValue(
-                                    `formacion_complementaria.${index}.nueva_institucion_nombre` as never,
-                                    "" as never,
-                                  );
-                                }
-                              }}
-                              value={
-                                field.value === -1
-                                  ? "-1"
-                                  : field.value?.toString() ?? ""
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-48">
-                                  <SelectValue placeholder="Seleccione" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {instituciones?.data?.map((i) => (
-                                  <SelectItem
-                                    key={i.id}
-                                    value={i.id.toString()}
-                                  >
-                                    {i.nombre_institucion}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value="-1">Otra</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div
-                        className={
-                          form.watch(
-                            `formacion_complementaria.${index}.institucion_id`,
-                        ) === -1
-                          ? ""
-                          : "hidden"
-                        }
-                      >
                         <FormField
                           control={form.control}
-                          name={`formacion_complementaria.${index}.nueva_institucion_nombre`}
+                          name={`formacion_complementaria.${index}.institucion_id`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>&nbsp;</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Nueva institución..."
-                                  {...field}
-                                  value={field.value ?? ""}
-                                />
-                              </FormControl>
+                              <FormLabel>
+                                Institución{" "}
+                                {hasCapacitacion ? (
+                                  <span className="text-red-500">*</span>
+                                ) : (
+                                  ""
+                                )}
+                              </FormLabel>
+                              <Select
+                                onValueChange={(v) => {
+                                  if (v === "-1") {
+                                    field.onChange(-1);
+                                  } else {
+                                    const numV = Number(v);
+                                    field.onChange(numV);
+                                    form.setValue(
+                                      `formacion_complementaria.${index}.nueva_institucion_nombre` as never,
+                                      "" as never,
+                                    );
+                                  }
+                                }}
+                                value={
+                                  field.value === -1
+                                    ? "-1"
+                                    : (field.value?.toString() ?? "")
+                                }
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-48">
+                                    <SelectValue placeholder="Seleccione" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {instituciones?.data?.map((i) => (
+                                    <SelectItem
+                                      key={i.id}
+                                      value={i.id.toString()}
+                                    >
+                                      {i.nombre_institucion}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value="-1">Otra</SelectItem>
+                                </SelectContent>
+                              </Select>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-                      </div>
+                        <div
+                          className={
+                            form.watch(
+                              `formacion_complementaria.${index}.institucion_id`,
+                            ) === -1
+                              ? ""
+                              : "hidden"
+                          }
+                        >
+                          <FormField
+                            control={form.control}
+                            name={`formacion_complementaria.${index}.nueva_institucion_nombre`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>&nbsp;</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Nueva institución..."
+                                    {...field}
+                                    value={field.value ?? ""}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
                       <FormField
                         control={form.control}
@@ -566,7 +573,9 @@ export default function FormUpdateSupplementaryTraining({
                         )}
                       />
                       <div className="flex flex-col items-center gap-2">
-                        <span className="text-sm font-medium leading-none invisible">X</span>
+                        <span className="text-sm font-medium leading-none invisible">
+                          X
+                        </span>
                         <Button
                           type="button"
                           variant={"destructive"}
@@ -575,7 +584,7 @@ export default function FormUpdateSupplementaryTraining({
                           onClick={() => remove(index)}
                         >
                           <X />
-                      </Button>
+                        </Button>
                       </div>
                     </div>
                   );

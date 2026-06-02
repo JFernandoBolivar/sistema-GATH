@@ -42,11 +42,12 @@ import {
   schemaDwellingUpdate,
 } from "@/shared/schemas/employees/update/schema-dwelling";
 import { useSearchStore } from "@/hooks/use-search-params";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 export type Props = {
   idEmployee: string;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
 };
 
 export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "api/empleados", updateInfoEmployee }: Props) {
@@ -100,7 +101,7 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
         <CardHeader>
           <CardTitle>Datos Socio-economicos</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="gap-3">
           <CardAction className="text-gray-500">Datos De Vivienda</CardAction>
           <div>
             {isPending ? (
@@ -109,7 +110,7 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmitFormity)}
-                  className="grid grid-cols-2 gap-3 space-y-3"
+                  className="grid grid-cols-2 gap-3"
                 >
                   <FormField
                     control={form.control}

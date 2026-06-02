@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-2vg*3_2nukjc_#ey_ufy_@xkyp5(pkpq34c@fsed28q!3uzxzs
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# Dentro de Docker, otros servicios llegan a este contenedor pohttp://gitlab.conatel.int/desarrollo/gath.gitr el hostname del servicio (por ej. "django").
+# Dentro de Docker, otros servicios llegan a este contenedor por el hostname del servicio (por ej. "django").
 
 
 
@@ -69,8 +69,8 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'SIGEP.urls'
 
 CORS_ALLOWED_ORIGINS = [
-     "http://localhost:3000",
-     "http://172.16.26.48:3000", 
+    "http://localhost:3000",
+    "http://172.16.26.48:3000", 
     "http://djangoapp:3000",
     "http://192.168.1.5:3000", 
     "http://172.16.10.209:3000",

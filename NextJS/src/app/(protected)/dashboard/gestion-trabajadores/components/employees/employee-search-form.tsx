@@ -50,7 +50,7 @@ export default function EmployeeSearchForm({
           )}
         />
         <Button type="submit" className="self-end cursor-pointer" disabled={disabled}>
-          <Search className="h-4 w-4" />
+          <Search className="size-4" />
         </Button>
       </form>
     </Form>
