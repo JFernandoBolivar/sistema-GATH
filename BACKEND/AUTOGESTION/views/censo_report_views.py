@@ -19,17 +19,57 @@ from RAC.utils.data_formatters import extract_first_error
     summary="Generar datos de gráficos de censo por dependencias",
     description=(
         "Recibe IDs de dependencias, direcciones generales, "
-        "direcciones de línea y/o coordinaciones. "
+        "direcciones de línea y/o coordinaciones como parámetros de consulta (query params). "
         "Devuelve datos agregados para un gráfico de torta "
         "(respondidos vs no respondidos) y un gráfico de barras "
         "(desglose por sub-nivel organizacional)."
     ),
-    request=ReporteCensoDependenciasSerializer,
+    parameters=[ReporteCensoDependenciasSerializer],
     responses={200: ReporteCensoResponseSerializer},
 )
-@api_view(["POST"])
+@api_view(["GET"])
 def reporte_censo_por_dependencias(request):
-    serializer = ReporteCensoDependenciasSerializer(data=request.data)
+    # Obtener y formatear parámetros de consulta (query params)
+    query_data = {
+        "dependencia_id": [
+            int(x) for x in (
+                request.query_params.getlist("dependencia_id") +
+                request.query_params.getlist("dependencia_id[]") +
+                request.query_params.getlist("dependencia_ids") +
+                request.query_params.getlist("dependencia_ids[]")
+            )
+            if str(x).isdigit()
+        ],
+        "direccion_general_id": [
+            int(x) for x in (
+                request.query_params.getlist("direccion_general_id") +
+                request.query_params.getlist("direccion_general_id[]") +
+                request.query_params.getlist("direccion_general_ids") +
+                request.query_params.getlist("direccion_general_ids[]")
+            )
+            if str(x).isdigit()
+        ],
+        "direccion_linea_id": [
+            int(x) for x in (
+                request.query_params.getlist("direccion_linea_id") +
+                request.query_params.getlist("direccion_linea_id[]") +
+                request.query_params.getlist("direccion_linea_ids") +
+                request.query_params.getlist("direccion_linea_ids[]")
+            )
+            if str(x).isdigit()
+        ],
+        "coordinacion_id": [
+            int(x) for x in (
+                request.query_params.getlist("coordinacion_id") +
+                request.query_params.getlist("coordinacion_id[]") +
+                request.query_params.getlist("coordinacion_ids") +
+                request.query_params.getlist("coordinacion_ids[]")
+            )
+            if str(x).isdigit()
+        ],
+    }
+
+    serializer = ReporteCensoDependenciasSerializer(data=query_data)
 
     if not serializer.is_valid():
         clean_message = extract_first_error(serializer.errors)
@@ -44,10 +84,10 @@ def reporte_censo_por_dependencias(request):
 
     try:
         data = serializer.validated_data
-        dep = data.get("dependencia_ids", [])
-        dg = data.get("direccion_general_ids", [])
-        dl = data.get("direccion_linea_ids", [])
-        coord = data.get("coordinacion_ids", [])
+        dep = data.get("dependencia_id", [])
+        dg = data.get("direccion_general_id", [])
+        dl = data.get("direccion_linea_id", [])
+        coord = data.get("coordinacion_id", [])
 
         pie_chart = construir_grafico_torta(dep, dg, dl, coord)
         bar_chart = construir_grafico_barras(dep, dg, dl, coord)
