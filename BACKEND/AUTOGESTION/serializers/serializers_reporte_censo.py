@@ -11,25 +11,25 @@ from RAC.models.personal_models import (
 # ── Serializer de entrada (validación del POST) ─────────────────────────
 
 class ReporteCensoDependenciasSerializer(serializers.Serializer):
-    dependencia_ids = serializers.ListField(
+    dependencia_id = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
         default=list,
         help_text="IDs de Dependencias a consultar.",
     )
-    direccion_general_ids = serializers.ListField(
+    direccion_general_id = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
         default=list,
         help_text="IDs de Direcciones Generales a consultar.",
     )
-    direccion_linea_ids = serializers.ListField(
+    direccion_linea_id = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
         default=list,
         help_text="IDs de Direcciones de Línea a consultar.",
     )
-    coordinacion_ids = serializers.ListField(
+    coordinacion_id = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
         default=list,
@@ -37,10 +37,10 @@ class ReporteCensoDependenciasSerializer(serializers.Serializer):
     )
 
     def validate(self, data):
-        dep = data.get("dependencia_ids", [])
-        dg = data.get("direccion_general_ids", [])
-        dl = data.get("direccion_linea_ids", [])
-        coord = data.get("coordinacion_ids", [])
+        dep = data.get("dependencia_id", [])
+        dg = data.get("direccion_general_id", [])
+        dl = data.get("direccion_linea_id", [])
+        coord = data.get("coordinacion_id", [])
 
         # Si no se envía ningún ID, se genera un reporte general
         # de todas las dependencias.
