@@ -141,7 +141,7 @@ export default function FormSupplementaryTraining({
                           horas_completadas: undefined,
                         },
                       ],
-                    } as any);
+                    } satisfies Partial<SupplementaryTrainingType>);
                   }}
                 >
                   <Trash />

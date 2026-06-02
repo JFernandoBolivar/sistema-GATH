@@ -58,12 +58,13 @@ import { schemaBackgroundUpdate } from "@/shared/schemas/employees/update/schema
 import { useSearchStore } from "@/hooks/use-search-params";
 import { Badge } from "@/components/ui/badge";
 import { getOrganismosAds } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 type Props = {
   defaultValues: BackgroundType;
   idEmployee: string;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
 };
 export default function FormUpdateBackground({
   defaultValues,

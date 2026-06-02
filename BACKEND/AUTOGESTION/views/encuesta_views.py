@@ -1,18 +1,18 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import serializers
+from django.http import HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
-from AUTOGESTION.models.models_encuestas import PreguntasEncuestas, RespuestasEncuesta
+from AUTOGESTION.models.models_encuestas import PreguntasEncuestas
 from AUTOGESTION.serializers.serializers_encuestas import (
     CensoEmpleadoSerializer,
     CensoViviendaSubmitSerializer,
     PreguntasEncuestasSerializer,
+    CensoExcelFiltrosSerializer,
 )
-from AUTOGESTION.services.censo_service import build_censo_queryset
-from AUTOGESTION.utils.mapa_reporte import MAPA_REPORTES
+from AUTOGESTION.services.excel_service import generar_excel_censo
 from RAC.models.personal_models import Employee
 from RAC.utils.data_formatters import extract_first_error
 
@@ -166,21 +166,6 @@ def consultar_todos_censos(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-
-class CensoExcelFiltrosSerializer(serializers.Serializer):
-    filtros = serializers.JSONField(required=False, default=dict)
-
-    def validate_filtros(self, value):
-        config = MAPA_REPORTES.get("censo_vivienda", {})
-        filtros_permitidos = config.get("filtros_permitidos", {})
-        for key in value:
-            if key not in filtros_permitidos:
-                raise serializers.ValidationError(
-                    f"El filtro '{key}' no esta permitido. Filtros disponibles: {list(filtros_permitidos.keys())}"
-                )
-        return value
-
-
 @extend_schema(
     tags=["AUTOGESTION - Censo Vivienda"],
     summary="Exportar censos a Excel con filtros",
@@ -190,10 +175,6 @@ class CensoExcelFiltrosSerializer(serializers.Serializer):
 @api_view(["POST"])
 def exportar_censo_excel(request):
     try:
-        import io
-        from openpyxl import Workbook
-        from django.http import HttpResponse
-
         serializer = CensoExcelFiltrosSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
@@ -206,82 +187,7 @@ def exportar_censo_excel(request):
             )
 
         filtros = serializer.validated_data.get("filtros", {})
-
-        empleados = build_censo_queryset(filtros)
-
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Censo Vivienda"
-
-        preguntas = PreguntasEncuestas.objects.filter(activo=True).order_by("orden")
-        pregunta_ids = list(preguntas.values_list("id", flat=True))
-
-        headers = [
-            "Cédula", "Nombres", "Apellidos", "Fecha Nacimiento",
-            "Carnet Patria", "APN (años)", "APN (meses)", "APN (días)",
-            "F. Ingreso Organismo", "Dirección General", "Tipo de Nómina",
-            "Dirección Vivienda", "Código Postal",
-        ]
-        for p in preguntas:
-            headers.append(p.enunciado)
-
-        ws.append(headers)
-
-        for emp in empleados:
-            respuestas = RespuestasEncuesta.objects.filter(
-                empleado=emp
-            ).select_related("pregunta", "opcion")
-
-            respuestas_map = {}
-            for r in respuestas:
-                respuestas_map[r.pregunta_id] = r.opcion.tipo_opcion if r.opcion else r.respuesta
-
-            from RAC.utils.tiempo_servicio import calcular_total_apn
-            cerrados = emp.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
-            total_apn = calcular_total_apn(cerrados)
-
-            fecha_ingreso_org = ""
-            primera = emp.antecedentes_servicio_set.order_by("fecha_ingreso").first()
-            if primera and primera.fecha_ingreso:
-                fecha_ingreso_org = primera.fecha_ingreso.isoformat()
-
-            vivienda = emp.datos_vivienda_set.first()
-            direccion = vivienda.direccion_exacta if vivienda else ""
-            codigo_postal = vivienda.codigo_postal if vivienda else ""
-
-            asignaciones = getattr(emp, "filtered_assignments", [])
-            dg_nombre = ""
-            nomina_nombre = ""
-            if asignaciones:
-                dg = asignaciones[0].DireccionGeneral
-                dg_nombre = dg.direccion_general if dg else ""
-                nomina = asignaciones[0].tiponominaid
-                nomina_nombre = nomina.nomina if nomina else ""
-
-            row = [
-                emp.cedulaidentidad,
-                emp.nombres,
-                emp.apellidos,
-                emp.fecha_nacimiento.isoformat() if emp.fecha_nacimiento else "",
-                emp.carnet_patria or "",
-                total_apn["years"],
-                total_apn["months"],
-                total_apn["days"],
-                fecha_ingreso_org,
-                dg_nombre,
-                nomina_nombre,
-                direccion,
-                codigo_postal,
-            ]
-
-            for pid in pregunta_ids:
-                row.append(respuestas_map.get(pid, ""))
-
-            ws.append(row)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
+        output = generar_excel_censo(filtros)
 
         response = HttpResponse(
             output.read(),

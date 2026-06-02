@@ -322,6 +322,7 @@ export interface InfoCode {
   tipo_procedencia: TipoProcedencia | null;
   observaciones: string | null;
   fecha_actualizacion: string;
+  encargaduria?: boolean;
 }
 export interface Depart {
   id: number;

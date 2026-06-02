@@ -42,11 +42,12 @@ import {
   schemaDwellingUpdate,
 } from "@/shared/schemas/employees/update/schema-dwelling";
 import { useSearchStore } from "@/hooks/use-search-params";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 export type Props = {
   idEmployee: string;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
 };
 
 export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "api/empleados", updateInfoEmployee }: Props) {

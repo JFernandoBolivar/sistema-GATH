@@ -39,6 +39,7 @@ import {
   schemaPhysicalProfileUpdate,
 } from "@/shared/schemas/employees/update/schema-physical_profile";
 import { useSearchStore } from "@/hooks/use-search-params";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 
 function groupByRegion(tallas: TallaItem[]) {
   return tallas.reduce(
@@ -56,7 +57,7 @@ type Props = {
   defaultValues: PhysicalProfileType;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
   idEmployee: string;
 };
 export default function FormUpdatePhysical({

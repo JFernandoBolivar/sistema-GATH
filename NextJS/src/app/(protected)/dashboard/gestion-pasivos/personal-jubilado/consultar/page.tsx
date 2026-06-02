@@ -74,9 +74,9 @@ export default function PersonalPage() {
     setSearchParams(params.toString());
   };
   const setSearchGlobal = useSearchStore((state) => state.setSearchParams);
-  setSearchGlobal(searchParams);
+  setSearchGlobal(searchParams || "");
   const { data: pasiveData, isLoading } = useSWR(
-    ["api/pasivos", searchParams],
+    ["api/pasivos", searchParams || ""],
     () => getPasiveSearch<EmployeeData[]>({ searchParams }),
   );
   const cleanFields = () => {

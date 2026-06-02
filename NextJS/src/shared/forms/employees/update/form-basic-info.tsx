@@ -53,13 +53,14 @@ import {
   BasicInfoUpdateType,
   schemaBasicUpdateInfo,
 } from "@/shared/schemas/employees/update/schemaEmployeeUpdate";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 type Props = {
   defaultValues: BasicInfoUpdateType;
   idEmployee: string;
   cedulaidentidad?: string;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
 };
 export function FormBasicUpdateInfo({
   defaultValues,

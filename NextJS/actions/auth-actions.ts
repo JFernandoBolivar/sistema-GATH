@@ -1,7 +1,7 @@
 "use server";
 import { registerInSchema, signInSchema } from "@/lib/zod";
 import { z } from "zod";
-import { signIn, signOut, auth } from "#/auth";
+import { signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { cookies } from "next/headers";
 
@@ -60,10 +60,6 @@ export const changePasswordAction = async (
   userId: number,
   newPassword: string,
 ) => {
-  const session = await auth();
-  if (!session || !session.user) {
-    return { error: "Unauthorized" };
-  }
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}accounts/cambiar-password/`,

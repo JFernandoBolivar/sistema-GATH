@@ -4,14 +4,14 @@ import authConfig from "#/auth.config";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
-    maxAge: 5 * 60,
+    maxAge: 30 * 60,
   },
 
   trustHost: true,
   ...authConfig,
 
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -22,19 +22,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.direccionLine = user.direccionLine;
         token.coordination = user.coordination;
         token.dependency = user.dependency;
-        token.debeCambiarPassword = user.debeCambiarPassword;
 
-        token.djAccess = (user as any).djAccess;
-        token.djRefresh = (user as any).djRefresh;
-        token.debeCambiarPassword = (user as any).debeCambiarPassword || false;
+        token.djAccess = user.djAccess;
+        token.djRefresh = user.djRefresh;
+        token.debeCambiarPassword = user.debeCambiarPassword || false;
       }
-
-      if (trigger === "update" && session) {
-        if ("debeCambiarPassword" in session) {
-          token.debeCambiarPassword = session.debeCambiarPassword as boolean;
-        }
-      }
-
       return token;
     },
     async session({ session, token }) {
@@ -48,7 +40,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.direccionLine = token.direccionLine;
         session.user.coordination = token.coordination;
         session.user.dependency = token.dependency;
-        session.user.debeCambiarPassword = token.debeCambiarPassword;
+        session.user.debeCambiarPassword = token.debeCambiarPassword as boolean;
       }
       return session;
     },

@@ -203,6 +203,7 @@ urlpatterns = [
     path('Parentesco/', views.listar_parentesco, name="listar-parentesco"),
     path('Employeefamily/<int:familiar_id>/documentos/', views.subir_documento_familiar, name='subir-documento-familiar'),
     path('Employeefamily/<int:familiar_id>/documentos/list/', views.listar_documentos_familiar, name='listar-documentos-familiar'),
+    path('Employeefamily/documentos/<int:id>/descargar/', views.descargar_documento_familiar, name='descargar-documento-familiar'),
     
     
     

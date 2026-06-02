@@ -11,6 +11,7 @@ from RAC.serializers.catalogs_serializers import DatosViviendaSerializer
 from RAC.serializers.personal_activo_serializers import ListerCodigosSerializer
 from RAC.services.profile_services import upsert_vivienda
 from RAC.utils.tiempo_servicio import calcular_total_apn
+from AUTOGESTION.utils.mapa_reporte import MAPA_REPORTES
 
 
 class TipoPreguntaSerializer(serializers.ModelSerializer):
@@ -161,3 +162,68 @@ class CensoViviendaSubmitSerializer(serializers.Serializer):
             )
 
         return validated_data
+
+
+class CensoExcelFiltrosSerializer(serializers.Serializer):
+    filtros = serializers.JSONField(required=False, default=dict)
+
+    def validate_filtros(self, value):
+        config = MAPA_REPORTES.get("censo_vivienda", {})
+        filtros_permitidos = config.get("filtros_permitidos", {})
+        for key in value:
+            if key not in filtros_permitidos:
+                raise serializers.ValidationError(
+                    f"El filtro '{key}' no esta permitido. Filtros disponibles: {list(filtros_permitidos.keys())}"
+                )
+        return value
+
+
+class CensoExcelRowSerializer(serializers.Serializer):
+    cedula = serializers.CharField(source="cedulaidentidad")
+    nombres = serializers.CharField()
+    apellidos = serializers.CharField()
+    fecha_nacimiento = serializers.SerializerMethodField()
+    carnet_patria = serializers.CharField()
+    apn = serializers.SerializerMethodField()
+    fecha_ingreso_organismo = serializers.SerializerMethodField()
+    direccion_general = serializers.SerializerMethodField()
+    tipo_nomina = serializers.SerializerMethodField()
+    direccion_vivienda = serializers.SerializerMethodField()
+    codigo_postal = serializers.SerializerMethodField()
+
+    def get_fecha_nacimiento(self, obj):
+        return obj.fecha_nacimiento.isoformat() if obj.fecha_nacimiento else ""
+
+    def get_apn(self, obj):
+        cerrados = obj.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
+        apn = calcular_total_apn(cerrados)
+        y, m, d = apn["years"], apn["months"], apn["days"]
+        if y == 0 and m == 0 and d == 0:
+            return "0"
+        return f"{y} años, {m} meses, {d} días"
+
+    def get_fecha_ingreso_organismo(self, obj):
+        primera = obj.antecedentes_servicio_set.order_by("fecha_ingreso").first()
+        if primera and primera.fecha_ingreso:
+            return primera.fecha_ingreso.isoformat()
+        return ""
+
+    def get_direccion_general(self, obj):
+        asignaciones = getattr(obj, "filtered_assignments", [])
+        if asignaciones and asignaciones[0].DireccionGeneral:
+            return asignaciones[0].DireccionGeneral.direccion_general
+        return ""
+
+    def get_tipo_nomina(self, obj):
+        asignaciones = getattr(obj, "filtered_assignments", [])
+        if asignaciones and asignaciones[0].tiponominaid:
+            return asignaciones[0].tiponominaid.nomina
+        return ""
+
+    def get_direccion_vivienda(self, obj):
+        vivienda = obj.datos_vivienda_set.first()
+        return vivienda.direccion_exacta if vivienda else ""
+
+    def get_codigo_postal(self, obj):
+        vivienda = obj.datos_vivienda_set.first()
+        return vivienda.codigo_postal if vivienda else ""

@@ -24,7 +24,12 @@ from ..models.historial_personal_models import PrestamoCargo, categoria_movimien
 from ..serializers.historial_personal_serializers import (
     PrestamoCargoSerializer, PrestamoCargoCreateSerializer, PrestamoCargoUpdateSerializer, TipoMovimientoSerializer
 )
-from ..services.prestamo_cargo_services import verificar_estatus_prestamo, validar_encargaduria_unica, validar_encargado_unico
+from ..services.prestamo_cargo_services import (
+    verificar_estatus_prestamo,
+    validar_encargaduria_unica,
+    validar_encargado_unico,
+    sincronizar_estatus_cargos,
+)
 
 from USER.models.user_models import cuenta as User  
 
@@ -486,12 +491,48 @@ class ImportFullEmployeeDataView(APIView):
                             # --- 8. CONTRATO (CONATEL) ---
                             if n_contrato_excel and fecha_ingreso_org:
                                 politica_obj = cache['politicas'].get(politica_excel)
-                                upsert_contrato(emp_instance, {
-                                    'n_contrato': n_contrato_excel,
-                                    'fecha_ingreso': fecha_ingreso_org,
-                                    'politica_id': politica_obj,
-                                    'fecha_culminacion': fecha_culminacion_excel,
-                                })
+
+                                # Validaciones de negocio (espejo de validate_contrato)
+                                contratos_emp = contratos.objects.filter(
+                                    antecedente_id__empleado_id=emp_instance
+                                )
+                                cantidad_contratos = contratos_emp.count()
+
+                                if contratos_emp.filter(es_fijo=True).exists():
+                                    errores.append(
+                                        f"Línea {linea}: El empleado {cedula} tiene contrato FIJO. "
+                                        "No se puede registrar otro contrato."
+                                    )
+                                elif cantidad_contratos >= 3:
+                                    errores.append(
+                                        f"Línea {linea}: El empleado {cedula} ya tiene 3 contratos registrados."
+                                    )
+                                else:
+                                    # Solo verificar contrato activo para el 1ro y 2do contrato
+                                    es_nuevo = not contratos.objects.filter(
+                                        n_contrato=n_contrato_excel
+                                    ).exists()
+                                    if es_nuevo and cantidad_contratos < 2:
+                                        hoy_bulk = date.today()
+                                        activo_exist = contratos_emp.filter(
+                                            fecha_culminacion__isnull=True
+                                        ).first() or contratos_emp.filter(
+                                            fecha_culminacion__gte=hoy_bulk
+                                        ).first()
+                                        if activo_exist:
+                                            errores.append(
+                                                f"Línea {linea}: El empleado {cedula} ya tiene "
+                                                f"un contrato activo ({activo_exist.n_contrato})."
+                                            )
+                                            continue
+
+                                    upsert_contrato(emp_instance, {
+                                        'n_contrato': n_contrato_excel,
+                                        'fecha_ingreso': fecha_ingreso_org,
+                                        'politica_id': politica_obj,
+                                        'fecha_culminacion': fecha_culminacion_excel,
+                                    })
+
 
                         except Exception as e:
                             errores.append(f"Línea {linea}: {str(e)}")
@@ -790,7 +831,7 @@ def update_employee(request, id):
         serializer.save()
         
         return Response({
-            'status': "OK",
+            'status': "success",
             'message': "Empleado actualizado correctamente",
             'data': serializer.data            
         }, status=status.HTTP_200_OK)
@@ -2053,7 +2094,7 @@ def list_pathology_categories(request):
             queryset = categorias_patologias.objects.all()
             serializer = categoriasPatologiasSerializer(queryset, many=True)
             return Response({
-                'status': "OK",
+                'status': "success",
                 'message': "Categorías listadas correctamente",
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
@@ -2107,7 +2148,7 @@ def list_chronic_pathologies(request):
             queryset = patologias_Cronicas.objects.all()
             serializer = PatologiasSerializer(queryset, many=True)
             return Response({
-                'status': "OK",
+                'status': "success",
                 'message': "Patologías listadas correctamente",
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
@@ -2164,7 +2205,7 @@ def list_disability_categories(request):
             queryset = categorias_discapacidad.objects.all()
             serializer = categoriasDiscapacidadesSerializer(queryset, many=True)
             return Response({
-                'status': "OK",
+                'status': "success",
                 'message': "Categorías listadas correctamente",
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
@@ -2222,7 +2263,7 @@ def list_disabilities(request):
             queryset = Discapacidades.objects.all()
             serializer = DiscapacidadSerializer(queryset, many=True)
             return Response({
-                'status': "OK",
+                'status': "success",
                 'message': "Discapacidades listadas correctamente",
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
@@ -2280,7 +2321,7 @@ def list_allergies_categories(request):
             queryset = categorias_alergias.objects.all()
             serializer = categoriaAlergiaSerializers(queryset, many=True)
             return Response({
-                'status': "OK",
+                'status': "success",
                 'message': "Categorías de alergias listadas correctamente",
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
@@ -2336,7 +2377,7 @@ def list_allergies(request):
             queryset = Alergias.objects.all()
             serializer = AlergiasSerializer(queryset, many=True)
             return Response({
-                'status': "OK",
+                'status': "success",
                 'message': "Alergias listadas correctamente",
                 'data': serializer.data
             }, status=status.HTTP_200_OK)
@@ -3047,6 +3088,7 @@ def update_prestamo_cargo(request, id):
             if 'fecha_fin' in request.data:
                 prestamo.estatus, _ = Estatus.objects.get_or_create(estatus__iexact="FINALIZADA", defaults={"estatus": "FINALIZADA"})
                 prestamo.save()
+                sincronizar_estatus_cargos(prestamo)
             else:
                 verificar_estatus_prestamo(prestamo)
             return Response({

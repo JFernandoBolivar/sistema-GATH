@@ -3,7 +3,10 @@ from .serializers_encuestas import (
     OpcionesPreguntaSerializer,
     PreguntasEncuestasSerializer,
     RespuestaEncuestaSerializer,
+    CensoEmpleadoSerializer,
     CensoViviendaSubmitSerializer,
+    CensoExcelFiltrosSerializer,
+    CensoExcelRowSerializer,
 )
 
 __all__ = [
@@ -11,5 +14,8 @@ __all__ = [
     "OpcionesPreguntaSerializer",
     "PreguntasEncuestasSerializer",
     "RespuestaEncuestaSerializer",
+    "CensoEmpleadoSerializer",
     "CensoViviendaSubmitSerializer",
+    "CensoExcelFiltrosSerializer",
+    "CensoExcelRowSerializer",
 ]

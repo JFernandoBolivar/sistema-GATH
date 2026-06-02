@@ -44,12 +44,13 @@ import {
 } from "@/shared/schemas/employees/update/schema-health_profile";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useSearchStore } from "@/hooks/use-search-params";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 
 type Props = {
   defaultValues: HealthType;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
   idEmployee: string;
 };
 

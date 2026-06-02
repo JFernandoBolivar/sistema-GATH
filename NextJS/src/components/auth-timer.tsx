@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
+const TOTAL_TIME = 10 * 60 * 1000;
+const WARNING_TIME = 5 * 60 * 1000;
+
 export function AuthController() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -14,26 +17,25 @@ export function AuthController() {
   const logoutTimerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const TOTAL_TIME = 10 * 60 * 1000; // 5m
-  const WARNING_TIME = 5 * 60 * 1000; // 5m antes
-
   const handleLogout = useCallback(async () => {
     await logoutAction();
     router.push("/login");
   }, [router]);
 
+  const resetTimer = useCallback(() => {
+    if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+    if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+    setShowAlert(false);
+    warningTimerRef.current = setTimeout(() => {
+      setShowAlert(true);
+    }, TOTAL_TIME - WARNING_TIME);
+    logoutTimerRef.current = setTimeout(() => {
+      handleLogout();
+    }, TOTAL_TIME);
+  }, [handleLogout]);
+
   useEffect(() => {
     if (!session) return;
-    const resetTimer = () => {
-      if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
-      if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
-      warningTimerRef.current = setTimeout(() => {
-        setShowAlert(true);
-      }, TOTAL_TIME - WARNING_TIME);
-      logoutTimerRef.current = setTimeout(() => {
-        handleLogout();
-      }, TOTAL_TIME);
-    };
     const events = [
       "mousedown",
       "mousemove",
@@ -50,7 +52,7 @@ export function AuthController() {
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     };
-  }, [session, handleLogout, TOTAL_TIME, WARNING_TIME]);
+  }, [session, resetTimer]);
 
   if (!session) return null;
 

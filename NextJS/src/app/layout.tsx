@@ -26,12 +26,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="w-full h-full ">
-      <title>GAP</title>
+      <title>Gath</title>
       <body
         className={` antialiased  bg-no-repeat  bg-[url('/bg.jpg')] backdrop-blur-[8px] bg-cover object-center overflow-hidden  h-full`}
       >
         <SessionProvider>
-          {/* <AuthController /> */}
+          <AuthController />
           <ScrollArea className="h-full w-full rounded-md">
             {children}
           </ScrollArea>

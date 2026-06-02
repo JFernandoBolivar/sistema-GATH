@@ -18,9 +18,7 @@ def calcular_total_apn(antecedentes_qs):
     total_dias = 0
     for ant in antecedentes_qs:
         if ant.fecha_ingreso and ant.fecha_egreso:
-            total_dias += (ant.fecha_egreso.year - ant.fecha_ingreso.year) * 360 \
-                        + (ant.fecha_egreso.month - ant.fecha_ingreso.month) * 30 \
-                        + (ant.fecha_egreso.day - ant.fecha_ingreso.day)
+            total_dias += calcular_tiempo_comercial(ant.fecha_ingreso, ant.fecha_egreso)["total_dias"]
     years = total_dias // 360
     resto = total_dias % 360
     months = resto // 30

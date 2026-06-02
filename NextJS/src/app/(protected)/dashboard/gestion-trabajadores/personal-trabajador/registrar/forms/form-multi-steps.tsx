@@ -93,16 +93,7 @@ const schema: SchemaFormity<Values> = [
     form: {
       values: () => ({
         formacion_complementaria: [
-          [
-            {
-              fecha_inicio: undefined,
-              fecha_fin: undefined,
-              institucion_id: 0,
-              capacitacion_id: 0,
-              procedencia_id: 0,
-              horas_completadas: undefined,
-            },
-          ],
+          [],
           [],
         ],
       }),

@@ -1,20 +1,17 @@
 "use client";
 
-import { apiFetch } from "@/lib/api-client";
 import {
   getCodeListSearchFree,
   getCoordination,
   getDependency,
   getDirectionGeneralById,
   getDirectionLine,
-  getEmployeeById,
   getEmployeeInfo,
   getNomina,
-  getPoliticas,
 } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import { AsignCode } from "@/app/(protected)/dashboard/gestion-trabajadores/movimientos/asignar-codigo/actions/asign-code";
 import { schemaAsignCode } from "@/app/(protected)/dashboard/gestion-trabajadores/movimientos/asignar-codigo/schema/schema-asign-code";
-import { EmployeeInfo, Politica } from "@/app/types/types";
+import { EmployeeInfo } from "@/app/types/types";
 import {
   Select,
   SelectContent,
@@ -23,11 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarIcon, Eraser, Search } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatInTimeZone } from "date-fns-tz";
-import { useState, useTransition, useEffect } from "react";
+import { Eraser, Search } from "lucide-react";
+import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import useSWR from "swr";
@@ -43,11 +37,11 @@ import {
   FormMessage,
 } from "../../../../../../components/ui/form";
 import { Input } from "../../../../../../components/ui/input";
-import { Label } from "../../../../../../components/ui/label";
 import Error from "../error/error";
 import Loading from "../loading/loading";
 import EmployeeSearchForm from "../employees/employee-search-form";
 import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner";
+import { ContratoInlineForm } from "@/shared/components/contrato-inline-form";
 import { useEmployeeSearch } from "@/shared/hooks/useEmployeeSearch";
 export function AsigCode() {
   const [selectedCodeId, setSelectedCodeId] = useState<number>();
@@ -56,11 +50,8 @@ export function AsigCode() {
   const [selecteIdDirectionLine, setSelecteIdDirectionLine] =
     useState<string>();
   const [isPending, startTransition] = useTransition();
+  const [employeeReady, setEmployeeReady] = useState(false);
   const [dependencyId, setDependencyId] = useState<number>(0);
-  const [showContratoForm, setShowContratoForm] = useState(false);
-  const [contratoData, setContratoData] = useState({ n_contrato: "", politica_id: 0, fecha_ingreso: new Date(), fecha_culminacion: undefined as Date | undefined });
-  const [savingContrato, setSavingContrato] = useState(false);
-  const [hasActiveContrato, setHasActiveContrato] = useState(false);
 
   const { data: directionGeneral, isLoading: isLoadingDirectionGeneral } =
     useSWR(
@@ -90,58 +81,7 @@ export function AsigCode() {
     "nominaGeneral",
     async () => await getNomina(),
   );
-  const { data: politicas } = useSWR("politicas", getPoliticas);
 
-  const formAsig = useForm({
-    resolver: zodResolver(schemaAsignCode),
-    defaultValues: {
-      code: 0,
-      employee: "",
-    },
-  });
-
-  const onSubmit = (data: z.infer<typeof schemaAsignCode>) => {
-    startTransition(async () => {
-      const response = await AsignCode(data);
-      if (response.success) {
-        toast.success(response.message);
-        clear();
-      } else {
-        toast.error(response.message);
-      }
-    });
-  };
-
-  const { employee, isLoading: isLoadingSearch, hasSearched, search, clear } =
-    useEmployeeSearch<EmployeeInfo>({
-      searchFn: getEmployeeInfo,
-      onFound: (emp) => {
-        formAsig.setValue("employee", emp.cedulaidentidad, {
-          shouldValidate: true,
-          shouldDirty: true,
-        });
-      },
-    });
-
-  useEffect(() => {
-    if (!employee) return;
-    let cancelled = false;
-    (async () => {
-      const fullEmployee = await getEmployeeById(employee.cedulaidentidad);
-      if (cancelled) return;
-      if (fullEmployee.data && !Array.isArray(fullEmployee.data)) {
-        const hasActive = fullEmployee.data.contrato?.some(c => c.estatus?.estatus !== 'VENCIDO');
-        setHasActiveContrato(!!hasActive);
-        if (!hasActive) {
-          setShowContratoForm(true);
-          const initials = politicas?.data?.[0]?.tipo_politica?.charAt(0)?.toUpperCase() || 'C';
-          const count = (fullEmployee.data.contrato?.length || 0) + 1;
-          setContratoData(prev => ({ ...prev, n_contrato: `${initials}-${fullEmployee.data.cedulaidentidad}-${String(count).padStart(2, '0')}` }));
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [employee, politicas]);
   const schemaSearch = z.object({
     tipo_nomina: z.coerce.number().optional(),
     codigo: z.string().optional(),
@@ -182,13 +122,38 @@ export function AsigCode() {
       direccion_linea_id: undefined,
     });
   };
-  const generateNContrato = (cedula: string, politicaId: number) => {
-    const selectedPolitica = politicas?.data?.find(p => p.id === politicaId);
-    const initials = selectedPolitica?.tipo_politica?.charAt(0)?.toUpperCase() || 'C';
-    const existingCount = (employee ? (employee as any).contrato?.length || 0 : 0);
-    const count = existingCount + 1;
-    return `${initials}-${cedula}-${String(count).padStart(2, '0')}`;
+
+  const formAsig = useForm({
+    resolver: zodResolver(schemaAsignCode),
+    defaultValues: {
+      code: 0,
+      employee: "",
+    },
+  });
+
+  const onSubmit = (data: z.infer<typeof schemaAsignCode>) => {
+    startTransition(async () => {
+      const response = await AsignCode(data);
+      if (response.success) {
+        toast.success(response.message);
+        clear();
+      } else {
+        toast.error(response.message);
+      }
+    });
   };
+
+  const { employee, isLoading: isLoadingSearch, hasSearched, search, clear } =
+    useEmployeeSearch<EmployeeInfo>({
+      searchFn: getEmployeeInfo,
+      onFound: (emp) => {
+        formAsig.setValue("employee", emp.cedulaidentidad, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+      },
+    });
+
   return (
     <>
       {isPending ? (
@@ -204,326 +169,12 @@ export function AsigCode() {
               isLoading={isLoadingSearch}
             />
 
-            {showContratoForm && !hasActiveContrato && employee && (
-              <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3">
-                <Label className="text-lg font-bold">El trabajador no tiene contrato activo</Label>
-                <p className="text-sm">Debe registrar un contrato antes de asignar el cargo.</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>N° Contrato</Label>
-                    <Input
-                      placeholder="Auto-generado si se deja vacío"
-                      value={contratoData.n_contrato}
-                      onChange={(e) => setContratoData(prev => ({ ...prev, n_contrato: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <Label>Tipo de Política</Label>
-                    <Select
-                      onValueChange={(v) => {
-                        const politicaId = Number(v);
-                        setContratoData(prev => ({
-                          ...prev,
-                          politica_id: politicaId,
-                          n_contrato: prev.n_contrato || generateNContrato((employee as any).cedulaidentidad, politicaId)
-                        }));
-                      }}
-                      value={contratoData.politica_id ? contratoData.politica_id.toString() : ""}
-                    >
-                      <SelectTrigger className="w-full truncate"><SelectValue placeholder="Seleccione" /></SelectTrigger>
-                      <SelectContent>
-                        {politicas?.data?.map((p: Politica) => (
-                          <SelectItem key={p.id} value={p.id.toString()}>{p.tipo_politica}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Fecha de Ingreso</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between font-normal">
-                          {contratoData.fecha_ingreso ? formatInTimeZone(contratoData.fecha_ingreso, "UTC", "dd/MM/yyyy") : "..."}
-                          <CalendarIcon className="ml-auto size-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={contratoData.fecha_ingreso} onSelect={(d) => d && setContratoData(prev => ({ ...prev, fecha_ingreso: d }))} disabled={(d) => d > new Date() || d < new Date("1900-01-01")} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div>
-                    <Label>Fecha de Culminación (opcional)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between font-normal">
-                          {contratoData.fecha_culminacion ? formatInTimeZone(contratoData.fecha_culminacion, "UTC", "dd/MM/yyyy") : "Seleccionar..."}
-                          <CalendarIcon className="ml-auto size-4 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={contratoData.fecha_culminacion} onSelect={(d) => d && setContratoData(prev => ({ ...prev, fecha_culminacion: d }))} disabled={(d) => d < new Date("1900-01-01")} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-                <Button
-                  onClick={async () => {
-                    if (!contratoData.politica_id) { toast.error("Seleccione una política"); return; }
-                    if (!contratoData.fecha_ingreso) { toast.error("Seleccione fecha de ingreso"); return; }
-                    setSavingContrato(true);
-                    const n_contrato = contratoData.n_contrato || generateNContrato((employee as any).cedulaidentidad, contratoData.politica_id);
-                    const session = await fetch('/api/auth/session').then(r => r.json());
-                    const userId = session?.user?.id;
-                    const payload = {
-                      usuario_id: Number(userId),
-                      contrato: [{
-                        n_contrato,
-                        fecha_ingreso: contratoData.fecha_ingreso.toISOString().split('T')[0],
-                        politica_id: contratoData.politica_id,
-                        fecha_culminacion: contratoData.fecha_culminacion ? contratoData.fecha_culminacion.toISOString().split('T')[0] : null,
-                      }]
-                    };
-                    const data = await apiFetch<{ status: string; message?: string }>(`Employee/${(employee as any).id}/`, {
-                      method: 'PATCH', body: JSON.stringify(payload)
-                    });
-                    setSavingContrato(false);
-                    if (data.status === "success") {
-                      toast.success("Contrato registrado correctamente");
-                      setHasActiveContrato(true);
-                      setShowContratoForm(false);
-                    } else {
-                      toast.error(data.message || "Error al registrar contrato");
-                    }
-                  }}
-                  disabled={savingContrato}
-                  className="w-full cursor-pointer"
-                >
-                  {savingContrato ? "Guardando..." : "Guardar Contrato"}
-                </Button>
-              </div>
-            )}
-            {employee && hasActiveContrato && (
-              <div className="gap-5">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSearch)}>
-                    <div className="flex flex-row items-center gap-2 w-full flex-1">
-                      <div className="grid grid-cols-2 gap-2 w-full">
-                        <FormField
-                          name="codigo"
-                          control={form.control}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Buscar Código </FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="text"
-                                  placeholder="buscar codigo..."
-                                  {...field}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="tipo_nomina"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Tipo de Nomina</FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingNomina
-                                          ? "Cargando Nominas"
-                                          : "Seleccione un Tipo de Nomina"
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="0">Ninguno</SelectItem>
-                                  {nomina?.data.map((nomina, i) => (
-                                    <SelectItem key={i} value={`${nomina.id}`}>
-                                      {nomina.nomina}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />{" "}
-                        <FormField
-                          control={form.control}
-                          name="dependencia_id"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel>Nivel</FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                  setDependencyId(Number.parseInt(values));
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingDependency
-                                          ? "Cargando Niveles"
-                                          : "Seleccione un Nivel"
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {dependency?.data.map((dependencia, i) => (
-                                    <SelectItem
-                                      key={i}
-                                      value={`${dependencia.id}`}
-                                    >
-                                      {dependencia.dependencia}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="direccion_general_id"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>
-                                Dirección / Gerencia / Oficina
-                              </FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                  setSelecteIdDirectionGeneral(values);
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingDirectionGeneral
-                                          ? "Cargando Direcciones"
-                                          : "Seleccione una Dirección"
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {directionGeneral?.data.map((general, i) => (
-                                    <SelectItem key={i} value={`${general.id}`}>
-                                      {general.Codigo}-
-                                      {general.direccion_general}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="direccion_linea_id"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>División / Coordinación</FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                  setSelecteIdDirectionLine(values);
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingDirectionLine
-                                          ? "Cargando División / Coordinación "
-                                          : "Seleccione una División / Coordinación "
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {directionLine?.data.map((line, i) => (
-                                    <SelectItem key={i} value={`${line.id}`}>
-                                      {line.Codigo}-{line.direccion_linea}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="coordinacion_id"
-                          render={({ field }) => (
-                            <FormItem className="col-span-2">
-                              <FormLabel>Coordinación</FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingCoordination
-                                          ? "Cargando Coordinaciones"
-                                          : "Seleccione una Coordinación"
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {coordination?.data.map((coord, i) => (
-                                    <SelectItem key={i} value={`${coord.id}`}>
-                                      {coord.Codigo}-{coord.coordinacion}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+            <ContratoInlineForm
+              employee={employee ? { id: employee.id, cedulaidentidad: employee.cedulaidentidad } : undefined}
+              onSuccess={() => setEmployeeReady(true)}
+            />
 
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button className="cursor-pointer self-baseline-last">
-                          Buscar <Search />
-                        </Button>
-                        <Button
-                          variant={"outline"}
-                          className="cursor-pointer self-baseline-last"
-                          type="button"
-                          onClick={cleanFields}
-                        >
-                          Limpiar <Eraser />
-                        </Button>
-                      </div>
-                    </div>
-                  </form>
-                </Form>
-              </div>
-            )}
-            {employee && hasActiveContrato && (
+            {employee && employeeReady && (
               <div>
                 <Form {...formAsig}>
                   <form onSubmit={formAsig.handleSubmit(onSubmit)}>

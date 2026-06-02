@@ -1,5 +1,4 @@
 "use client";
-import { apiFetch } from "@/lib/api-client";
 import {
   getCargo,
   getCargoEspecifico,
@@ -8,17 +7,15 @@ import {
   getDirectionGeneral,
   getDirectionGeneralById,
   getDirectionLine,
-  getEmployeeById,
   getEmployeeInfo,
   getGrado,
   getNominaEspecial,
   getOrganismosAds,
-  getPoliticas,
   getTiposProcedencia,
 } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import { AsignSpecialCode } from "@/app/(protected)/dashboard/gestion-trabajadores/movimientos/asignar-codigo-especial/actions/asign-special-code";
 import { schemaCodeEspecial } from "@/app/(protected)/dashboard/gestion-trabajadores/movimientos/asignar-codigo-especial/schema/schemaCodeEspecial";
-import { EmployeeInfo, Politica } from "@/app/types/types";
+import { EmployeeInfo } from "@/app/types/types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,10 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarIcon, Search } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatInTimeZone } from "date-fns-tz";
+import { Search } from "lucide-react";
 import { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -62,6 +56,7 @@ import { Switch } from "../../../../../../components/ui/switch";
 import Error from "../error/error";
 import EmployeeSearchForm from "../employees/employee-search-form";
 import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner";
+import { ContratoInlineForm } from "@/shared/components/contrato-inline-form";
 import { useEmployeeSearch } from "@/shared/hooks/useEmployeeSearch";
 
 interface CodigoCatalogFormProps {
@@ -83,10 +78,7 @@ export function CodigoCatalogEspecialForm({
     useState<boolean>(false);
   const [activeCoordination, setActiveCoordination] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
-  const [showContratoForm, setShowContratoForm] = useState(false);
-  const [contratoData, setContratoData] = useState({ n_contrato: "", politica_id: 0, fecha_ingreso: new Date(), fecha_culminacion: undefined as Date | undefined });
-  const [savingContrato, setSavingContrato] = useState(false);
-  const [hasActiveContrato, setHasActiveContrato] = useState(false);
+  const [employeeReady, setEmployeeReady] = useState(false);
 
   const validateDirectionGeneral = () => {
     if (!activeDirectionGeneral) form.setValue("DireccionGeneral", 0);
@@ -147,7 +139,6 @@ export function CodigoCatalogEspecialForm({
     "tiposProcedencia",
     async () => await getTiposProcedencia(),
   );
-  const { data: politicas } = useSWR("politicas", getPoliticas);
   const form = useForm({
     resolver: zodResolver(schemaCodeEspecial),
     defaultValues: {
@@ -187,31 +178,9 @@ export function CodigoCatalogEspecialForm({
     });
 
   useEffect(() => {
-    if (!employee) return;
-    let cancelled = false;
-    (async () => {
-      const fullEmployee = await getEmployeeById(employee.cedulaidentidad);
-      if (cancelled) return;
-      if (fullEmployee.data) {
-        const hasActive = fullEmployee.data.contrato?.some(c => c.estatus?.estatus !== 'VENCIDO');
-        setHasActiveContrato(!!hasActive);
-        if (!hasActive) {
-          setShowContratoForm(true);
-          const initials = politicas?.data?.[0]?.tipo_politica?.charAt(0)?.toUpperCase() || 'C';
-          const count = (fullEmployee.data.contrato?.length || 0) + 1;
-          setContratoData(prev => ({ ...prev, n_contrato: `${initials}-${fullEmployee.data.cedulaidentidad}-${String(count).padStart(2, '0')}` }));
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [employee, politicas]);
-  const generateNContrato = (cedula: string, politicaId: number) => {
-    const selectedPolitica = politicas?.data?.find(p => p.id === politicaId);
-    const initials = selectedPolitica?.tipo_politica?.charAt(0)?.toUpperCase() || 'C';
-    const existingCount = (employee ? (employee as any).contrato?.length || 0 : 0);
-    const count = existingCount + 1;
-    return `${initials}-${cedula}-${String(count).padStart(2, '0')}`;
-  };
+    if (!employee) setEmployeeReady(false);
+  }, [employee]);
+
   return (
     <Card>
       <CardHeader>
@@ -236,106 +205,12 @@ export function CodigoCatalogEspecialForm({
           />
         </div>
 
-        {showContratoForm && !hasActiveContrato && employee && (
-          <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3 mt-3">
-            <Label className="text-lg font-bold">El trabajador no tiene contrato activo</Label>
-            <p className="text-sm">Debe registrar un contrato antes de asignar el cargo.</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>N° Contrato</Label>
-                <Input
-                  placeholder="Auto-generado si se deja vacío"
-                  value={contratoData.n_contrato}
-                  onChange={(e) => setContratoData(prev => ({ ...prev, n_contrato: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Tipo de Política</Label>
-                <Select
-                  onValueChange={(v) => {
-                    const politicaId = Number(v);
-                    setContratoData(prev => ({
-                      ...prev,
-                      politica_id: politicaId,
-                      n_contrato: prev.n_contrato || generateNContrato((employee as any).cedulaidentidad, politicaId)
-                    }));
-                  }}
-                  value={contratoData.politica_id ? contratoData.politica_id.toString() : ""}
-                >
-                  <SelectTrigger className="w-full truncate"><SelectValue placeholder="Seleccione" /></SelectTrigger>
-                  <SelectContent>
-                    {politicas?.data?.map((p: Politica) => (
-                      <SelectItem key={p.id} value={p.id.toString()}>{p.tipo_politica}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Fecha de Ingreso</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between font-normal">
-                      {contratoData.fecha_ingreso ? formatInTimeZone(contratoData.fecha_ingreso, "UTC", "dd/MM/yyyy") : "…"}
-                      <CalendarIcon className="ml-auto size-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={contratoData.fecha_ingreso} onSelect={(d) => d && setContratoData(prev => ({ ...prev, fecha_ingreso: d }))} disabled={(d) => d > new Date() || d < new Date("1900-01-01")} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label>Fecha de Culminación (opcional)</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between font-normal">
-                      {contratoData.fecha_culminacion ? formatInTimeZone(contratoData.fecha_culminacion, "UTC", "dd/MM/yyyy") : "Seleccionar…"}
-                      <CalendarIcon className="ml-auto size-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={contratoData.fecha_culminacion} onSelect={(d) => d && setContratoData(prev => ({ ...prev, fecha_culminacion: d }))} disabled={(d) => d < new Date("1900-01-01")} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <Button
-              onClick={async () => {
-                if (!contratoData.politica_id) { toast.error("Seleccione una política"); return; }
-                if (!contratoData.fecha_ingreso) { toast.error("Seleccione fecha de ingreso"); return; }
-                setSavingContrato(true);
-                const n_contrato = contratoData.n_contrato || generateNContrato((employee as any).cedulaidentidad, contratoData.politica_id);
-                const session = await fetch('/api/auth/session').then(r => r.json());
-                const userId = session?.user?.id;
-                const payload = {
-                  usuario_id: Number(userId),
-                  contrato: [{
-                    n_contrato,
-                    fecha_ingreso: contratoData.fecha_ingreso.toISOString().split('T')[0],
-                    politica_id: contratoData.politica_id,
-                    fecha_culminacion: contratoData.fecha_culminacion ? contratoData.fecha_culminacion.toISOString().split('T')[0] : null,
-                  }]
-                };
-                const data = await apiFetch<{ status: string; message?: string }>(`Employee/${(employee as any).id}/`, {
-                  method: 'PATCH', body: JSON.stringify(payload)
-                });
-                setSavingContrato(false);
-                if (data.status === "success") {
-                  toast.success("Contrato registrado correctamente");
-                  setHasActiveContrato(true);
-                  setShowContratoForm(false);
-                } else {
-                  toast.error(data.message || "Error al registrar contrato");
-                }
-              }}
-              disabled={savingContrato}
-              className="w-full cursor-pointer"
-            >
-              {savingContrato ? "Guardando…" : "Guardar Contrato"}
-            </Button>
-          </div>
-        )}
-        {employee && hasActiveContrato && (
+        <ContratoInlineForm
+          employee={employee ? { id: employee.id, cedulaidentidad: employee.cedulaidentidad } : undefined}
+          onSuccess={() => setEmployeeReady(true)}
+          className="mt-3"
+        />
+        {employee && employeeReady && (
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}

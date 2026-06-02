@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatInTimeZone } from "date-fns-tz";
 import { toast } from "sonner";
-import { apiFetch } from "@/lib/api-client";
 import useSWR from "swr";
 import { Search, ChevronDownIcon, Eraser } from "lucide-react";
 import z from "zod";
@@ -21,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ApiResponse, EmployeeData, Politica } from "@/app/types/types";
+import { ApiResponse, EmployeeData } from "@/app/types/types";
 
 import {
   getMotivosEncargaduria,
@@ -33,10 +32,10 @@ import {
   getCoordination,
   getEmployeeById,
   getNomina,
-  getPoliticas,
 } from "../../api/getInfoRac";
 
 import { MotivoEncargaduria, PrestamoCargoData, Code } from "@/app/types/types";
+import { ContratoInlineForm } from "@/shared/components/contrato-inline-form";
 import { schemaPrestamoCargo, PrestamoCargoFormType } from "./schema";
 import { createPrestamoCargoAction, finalizarPrestamoCargoAction } from "./actions";
 import EmployeeSearchForm from "../../components/employees/employee-search-form";
@@ -67,14 +66,10 @@ export function PrestamoCargoForm() {
   const [fechaFinEdit, setFechaFinEdit] = useState<Date>(new Date());
   const [searchParams, setSearchParams] = useState<string>();
   const [filterCedula, setFilterCedula] = useState("");
-  const [showContratoForm, setShowContratoForm] = useState(false);
-  const [hasActiveContrato, setHasActiveContrato] = useState(false);
-  const [contratoData, setContratoData] = useState({ n_contrato: "", politica_id: 0, fecha_ingreso: new Date(), fecha_culminacion: undefined as Date | undefined });
-  const [savingContrato, setSavingContrato] = useState(false);
+  const [employeeReady, setEmployeeReady] = useState(false);
 
   const { data: dependency } = useSWR("dependency", getDependency);
   const { data: nomina } = useSWR("nominaGeneral", getNomina);
-  const { data: politicas } = useSWR("politicas", getPoliticas);
 
   const filterForm = useForm({
     resolver: zodResolver(schemaFilterForm),
@@ -132,29 +127,8 @@ export function PrestamoCargoForm() {
   const isOtherMotivo = watchedMotivo === -1;
 
   useEffect(() => {
-    if (!employee || Array.isArray(employee.data)) return;
-    let cancelled = false;
-    (async () => {
-      const fullEmployee = await getEmployeeById(employee.data.cedulaidentidad);
-      if (cancelled) return;
-      if (fullEmployee.data && !Array.isArray(fullEmployee.data)) {
-        const hasActive = fullEmployee.data.contrato?.some(
-          (c) => c.estatus?.estatus !== "VENCIDO",
-        );
-        setHasActiveContrato(!!hasActive);
-        if (!hasActive) {
-          setShowContratoForm(true);
-          const initials = politicas?.data?.[0]?.tipo_politica?.charAt(0)?.toUpperCase() || "C";
-          const count = (fullEmployee.data.contrato?.length || 0) + 1;
-          setContratoData((prev) => ({
-            ...prev,
-            n_contrato: `${initials}-${fullEmployee.data.cedulaidentidad}-${String(count).padStart(2, "0")}`,
-          }));
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [employee, politicas]);
+    if (!employee || Array.isArray(employee.data)) setEmployeeReady(false);
+  }, [employee]);
 
   const handleSearchEmployee = async (cedula: string) => {
     const response = await getEmployeeById(cedula);
@@ -209,55 +183,13 @@ export function PrestamoCargoForm() {
         setSelectedCargo(null);
         setSelectedCodeId(undefined);
         setEmployee(undefined);
-        setShowContratoForm(false);
-        setHasActiveContrato(false);
+        setEmployeeReady(false);
         form.reset();
         mutate();
       } else {
         toast.error(result.message);
       }
     });
-  };
-
-  const handleSaveContrato = async () => {
-    if (!contratoData.politica_id) {
-      toast.error("Seleccione una política");
-      return;
-    }
-    if (!employee?.data || Array.isArray(employee.data)) return;
-    setSavingContrato(true);
-    try {
-      const json = await apiFetch<{ status: string; message?: string }>(
-        `Employee/${employee.data.id}/`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            usuario_id: employee.data.id,
-            contrato: [
-              {
-                n_contrato: contratoData.n_contrato,
-                fecha_ingreso: contratoData.fecha_ingreso.toISOString().split("T")[0],
-                politica_id: contratoData.politica_id,
-                fecha_culminacion: contratoData.fecha_culminacion
-                  ? contratoData.fecha_culminacion.toISOString().split("T")[0]
-                  : undefined,
-              },
-            ],
-          }),
-        },
-      );
-      if (json.status === "success") {
-        toast.success("Contrato registrado correctamente");
-        setHasActiveContrato(true);
-        setShowContratoForm(false);
-      } else {
-        toast.error(json.message || "Error al registrar contrato");
-      }
-    } catch {
-      toast.error("Error de conexión");
-    } finally {
-      setSavingContrato(false);
-    }
   };
 
   const handleFinalizar = (id: number) => {
@@ -282,13 +214,6 @@ const formatDate = (d: string | Date) => {
     return String(d);
   }
 };
-
-  const generateNContrato = (cedula: string, politicaId: number) => {
-    const selectedPolitica = politicas?.data?.find((p: Politica) => p.id === politicaId);
-    const initials = selectedPolitica?.tipo_politica?.charAt(0)?.toUpperCase() || "C";
-    const existingCount = employee && !Array.isArray(employee.data) ? (employee.data as any).contrato?.length || 0 : 0;
-    return `${initials}-${cedula}-${String(existingCount + 1).padStart(2, "0")}`;
-  };
 
   const selectedCode = codeList?.data?.find((v) => v.id === selectedCodeId);
 
@@ -320,76 +245,12 @@ const formatDate = (d: string | Date) => {
             <Error errorMessage="Trabajador no encontrado" />
           )}
 
-          {employee && !Array.isArray(employee.data) && showContratoForm && !hasActiveContrato && (
-            <div className="border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3">
-              <Label className="text-lg font-bold">El trabajador no tiene contrato activo</Label>
-              <p className="text-sm">Debe registrar un contrato antes de asignar el cargo.</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>N° Contrato</Label>
-                  <Input
-                    placeholder="Auto-generado si se deja vacío"
-                    value={contratoData.n_contrato}
-                    onChange={(e) => setContratoData((prev) => ({ ...prev, n_contrato: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label>Tipo de Política</Label>
-                  <Select
-                    onValueChange={(v) => {
-                      const politicaId = Number(v);
-                      setContratoData((prev) => ({
-                        ...prev,
-                        politica_id: politicaId,
-                        n_contrato: prev.n_contrato || generateNContrato(employee.data.cedulaidentidad, politicaId),
-                      }));
-                    }}
-                    value={contratoData.politica_id ? contratoData.politica_id.toString() : ""}
-                  >
-                    <SelectTrigger className="w-full truncate"><SelectValue placeholder="Seleccione" /></SelectTrigger>
-                    <SelectContent>
-                      {politicas?.data?.map((p: Politica) => (
-                        <SelectItem key={p.id} value={p.id.toString()}>{p.tipo_politica}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Fecha de Ingreso</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between font-normal">
-                        {contratoData.fecha_ingreso ? formatDate(contratoData.fecha_ingreso) : "..."}
-                        <ChevronDownIcon className="ml-auto size-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={contratoData.fecha_ingreso} onSelect={(d) => d && setContratoData((prev) => ({ ...prev, fecha_ingreso: d }))} disabled={(d) => d > new Date() || d < new Date("1900-01-01")} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label>Fecha de Culminación (opcional)</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between font-normal">
-                        {contratoData.fecha_culminacion ? formatDate(contratoData.fecha_culminacion) : "Seleccionar..."}
-                        <ChevronDownIcon className="ml-auto size-4 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={contratoData.fecha_culminacion} onSelect={(d) => d && setContratoData((prev) => ({ ...prev, fecha_culminacion: d }))} disabled={(d) => d < new Date("1900-01-01")} />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-              <Button onClick={handleSaveContrato} disabled={savingContrato} className="cursor-pointer">
-                {savingContrato ? "Guardando..." : "Guardar Contrato"}
-              </Button>
-            </div>
-          )}
+          <ContratoInlineForm
+            employee={employee && !Array.isArray(employee.data) ? { id: employee.data.id, cedulaidentidad: employee.data.cedulaidentidad } : undefined}
+            onSuccess={() => setEmployeeReady(true)}
+          />
 
-          {employee && !Array.isArray(employee.data) && hasActiveContrato && (
+          {employee && !Array.isArray(employee.data) && employeeReady && (
             <>
               <Form {...filterForm}>
                 <form onSubmit={filterForm.handleSubmit(handleSearchCargo)}>
