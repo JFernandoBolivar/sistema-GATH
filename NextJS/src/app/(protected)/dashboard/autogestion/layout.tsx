@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Home } from "lucide-react";
+import { BarChart3, BookCheck, ChevronDown, ChevronRight, FileSpreadsheet, Home } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -23,6 +24,15 @@ import { HeaderLayout } from "@/components/layout/header";
 
 function MiniSidebar() {
   const { data: session } = useSession();
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+  const toggleSubmenu = (title: string) => {
+    setOpenSubmenu(openSubmenu === title ? null : title);
+  };
+
+  const isRacAdmin =
+    (session?.user.role.nombre_rol === "ADMINISTRADOR" ||
+      session?.user.role.nombre_rol === "PRESUPUESTO") &&
+    session?.user.department.nombre_departamento === "RAC";
 
   return (
     <Sidebar>
@@ -47,6 +57,55 @@ function MiniSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {isRacAdmin && (
+                <SidebarMenuItem className="mt-5">
+                  <SidebarMenuButton
+                    onClick={() => toggleSubmenu("Autogestión")}
+                    className="text-sm h-fit"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center">
+                        <BookCheck className="h-[16px]" />
+                        <span className="ml-2 text-sm">Autogestión</span>
+                      </div>
+                      {openSubmenu === "Autogestión" ? (
+                        <ChevronDown size={20} />
+                      ) : (
+                        <ChevronRight size={20} />
+                      )}
+                    </div>
+                  </SidebarMenuButton>
+                  {openSubmenu === "Autogestión" && (
+                    <div className="pl-8 py-1 gap-1 text-sm">
+                      <SidebarMenuButton asChild className="mt-2 text-sm">
+                        <Link href="/dashboard/autogestion" className="text-sm">
+                          <BookCheck className="h-[32px]" />
+                          Formulario
+                        </Link>
+                      </SidebarMenuButton>
+                      <SidebarMenuButton asChild className="mt-2 text-sm">
+                        <Link
+                          href="/dashboard/autogestion/consultar"
+                          className="text-sm"
+                        >
+                          <FileSpreadsheet className="h-[32px]" />
+                          Respuestas Encuesta
+                        </Link>
+                      </SidebarMenuButton>
+                      <SidebarMenuButton asChild className="mt-2 text-sm">
+                        <Link
+                          href="/dashboard/autogestion/metricas"
+                          className="text-sm"
+                        >
+                          <BarChart3 className="h-[32px]" />
+                          Métricas
+                        </Link>
+                      </SidebarMenuButton>
+                    </div>
+                  )}
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

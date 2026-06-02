@@ -5,6 +5,7 @@ import type {
   Pregunta,
   InfoCode,
   DewllingInfo,
+  ReporteCensoData,
 } from "@/app/types/types";
 import { SchemaCensoExcelType } from "../schema/schema-autogestion-excel";
 
@@ -74,6 +75,15 @@ interface SubmitPayload {
   datos_vivienda: ViviendaData;
   respuestas: RespuestaItem[];
 }
+
+export const getReporteCensoDependencias = async (
+  searchParams: string | undefined,
+): Promise<ApiResponse<ReporteCensoData>> => {
+  const url = searchParams
+    ? `autogestion/censo-vivienda/reporte-dependencias/?${searchParams}`
+    : `autogestion/censo-vivienda/reporte-dependencias/`;
+  return apiFetchGet<ReporteCensoData>(url);
+};
 
 export const submitCensoVivienda = async (
   cedula: string,

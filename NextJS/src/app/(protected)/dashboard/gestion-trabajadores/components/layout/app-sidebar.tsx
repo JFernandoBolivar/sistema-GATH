@@ -1,5 +1,6 @@
 "use client";
 import {
+  ArrowRightFromLine,
   ArrowRightLeft,
   Badge,
   BadgePlus,
@@ -75,7 +76,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
       departmentAccept: ["RAC"],
     },
     title: "Personal Trabajador",
@@ -96,7 +97,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/consultar",
         icon: ListCheck,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -114,7 +115,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
         icon: BookUser,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -122,75 +123,75 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR"],
+      roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
       departmentAccept: ["RAC"],
     },
     title: "Ub. Administrativas",
     url: "#",
     icon: SignpostBig,
     subMenu: [
-      // {
-      //   title: "Crear Ub. Administrativa",
-      //   url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion",
-      //   icon: ArrowRightFromLine,
-      //   permission: {
-      //     roleAccept: ["ADMINISTRADOR"],
-      //     departmentAccept: ["RAC"],
-      //   },
-      // },
-      // {
-      //   title: "Crear Direcciones",
-      //   url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion-administrativa-direccion",
-      //   icon: MoveDownRight,
-      //   permission: {
-      //     roleAccept: ["ADMINISTRADOR"],
-      //     departmentAccept: ["RAC"],
-      //   },
-      // },
+      {
+        title: "Crear Ub. Administrativa",
+        url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion",
+        icon: ArrowRightFromLine,
+        permission: {
+          roleAccept: ["PRESUPUESTO"],
+          departmentAccept: ["RAC"],
+        },
+      },
+      {
+        title: "Crear Direcciones",
+        url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion-administrativa-direccion",
+        icon: MoveDownRight,
+        permission: {
+          roleAccept: ["PRESUPUESTO"],
+          departmentAccept: ["RAC"],
+        },
+      },
       {
         title: "Consultar Ub. Admnistrativas",
         url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/listado-ubicacion-administrativa",
         icon: List,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
-      // {
-      //   title: "Actualizar Ub. Admnistrativas",
-      //   url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/actualizar-ubicacion",
-      //   icon: Boxes,
-      //   permission: {
-      //     roleAccept: ["ADMINISTRADOR"],
-      //     departmentAccept: ["RAC"],
-      //   },
-      // },
+      {
+        title: "Actualizar Ub. Admnistrativas",
+        url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/actualizar-ubicacion",
+        icon: Boxes,
+        permission: {
+          roleAccept: ["PRESUPUESTO"],
+          departmentAccept: ["RAC"],
+        },
+      },
     ],
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR"],
+      roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
       departmentAccept: ["RAC"],
     },
     title: "Gestión De Codigos",
     url: "#",
     icon: Badge,
     subMenu: [
-      // {
-      //   title: "Crear Nuevo Código",
-      //   url: "/dashboard/gestion-trabajadores/cargos/crear-codigo",
-      //   icon: BadgePlus,
-      //   permission: {
-      //     roleAccept: ["ADMINISTRADOR"],
-      //     departmentAccept: ["RAC"],
-      //   },
-      // },
+      {
+        title: "Crear Nuevo Código",
+        url: "/dashboard/gestion-trabajadores/cargos/crear-codigo",
+        icon: BadgePlus,
+        permission: {
+          roleAccept: ["PRESUPUESTO"],
+          departmentAccept: ["RAC"],
+        },
+      },
       {
         title: "Consultar/Actualizar",
         url: "/dashboard/gestion-trabajadores/cargos/listado-codigo",
         icon: List,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -272,7 +273,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
       departmentAccept: ["RAC"],
     },
     icon: BarChart3,
@@ -284,7 +285,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/reportes/empleados",
         icon: IdCard,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -293,7 +294,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/reportes/familiares",
         icon: NotebookTabs,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -302,7 +303,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/reportes/egresados",
         icon: DoorOpen,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -311,7 +312,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/reportes/codigos",
         icon: BookKey,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -327,6 +328,10 @@ const items: MenuItem[] = [
     url: "/dashboard/gestion-trabajadores/retroalimentacion",
   },
   {
+    permission: {
+      roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
+      departmentAccept: ["RAC"],
+    },
     icon: BookCheck,
     title: "Autogestión",
     url: "#",
@@ -340,6 +345,19 @@ const items: MenuItem[] = [
         title: "Respuestas Encuesta",
         url: "/dashboard/autogestion/consultar",
         icon: FileSpreadsheet,
+        permission: {
+          roleAccept: ["ADMINISTRADOR"],
+          departmentAccept: ["RAC"],
+        },
+      },
+      {
+        title: "Métricas",
+        url: "/dashboard/autogestion/metricas",
+        icon: BarChart3,
+        permission: {
+          roleAccept: ["ADMINISTRADOR"],
+          departmentAccept: ["RAC"],
+        },
       },
     ],
   },

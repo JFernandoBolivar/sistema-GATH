@@ -560,3 +560,13 @@ export interface Pregunta {
   tipo: TipoPregunta;
   opciones: Opcion[];
 }
+
+export type PieChartItem = { name: string; value: number };
+export type BarChartItem = { key: string; total: number; respondidos: number; no_respondidos: number };
+export type ReporteCensoData = { pie_chart: PieChartItem[]; bar_chart: BarChartItem[] };
+export type ReporteCensoPayload = {
+  dependencia_ids?: number[];
+  direccion_general_ids?: number[];
+  direccion_linea_ids?: number[];
+  coordinacion_ids?: number[];
+};

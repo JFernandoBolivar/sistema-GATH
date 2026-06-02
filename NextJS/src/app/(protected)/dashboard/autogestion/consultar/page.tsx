@@ -47,9 +47,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 import { consultarCensoEmpleado, exportarCensoExcel, exportarCensoExcelConFiltros, type CensoEmpleadoItem } from "../api/getInfoAutogestion";
-import {
-  schemaCensoExcel,
-} from "../schema/schema-autogestion-excel";
+import { schemaCensoExcel } from "../schema/schema-autogestion-excel";
 import {
   getDependency,
   getDirectionGeneralById,
