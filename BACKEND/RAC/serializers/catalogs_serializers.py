@@ -135,9 +135,18 @@ class MencionSerializer(serializers.ModelSerializer):
 
 
 class CapacitacionSerializer(serializers.ModelSerializer):
+    nombre_capacitacion = serializers.CharField(validators=[
+            UniqueValidator(
+                queryset=Capacitaciones.objects.all(),
+                message="La Capacitacion '{value}' ya se encuentra registrada"
+            )
+        ])
     class Meta:
         model = Capacitaciones
         fields = '__all__'
+        
+    def validate_nombre_capacitacion(self, value):
+        return value.strip().upper() 
 
 
 class GrupoCapacitacionSerializer(serializers.ModelSerializer):
@@ -622,8 +631,10 @@ class ContratoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'n_contrato', 'fecha_ingreso',
             'fecha_culminacion', 'fecha_egreso', 'politica_id',
-            'politica', 'estatus',
+            'politica', 'estatus', 'es_fijo',
         ]
+        # es_fijo es siempre controlado por el backend
+        read_only_fields = ['es_fijo']
     
  
 

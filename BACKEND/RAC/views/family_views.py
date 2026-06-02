@@ -1,5 +1,7 @@
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view, parser_classes
+from django.http import FileResponse, Http404
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 from django.db import transaction
@@ -419,3 +421,23 @@ def listar_documentos_familiar(request, familiar_id):
         "status": "Ok",
         "data": serializer.data
     }, status=status.HTTP_200_OK) 
+
+
+@extend_schema(
+    tags=["Familiares de Empleados"],
+    summary="Descargar documento de un familiar",
+    description="Descarga el archivo físico del documento de un familiar forzando su descarga (attachment).",
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def descargar_documento_familiar(request, id):
+    documento = get_object_or_404(FamilyDocument, id=id)
+    if not documento.file:
+        raise Http404("El documento no tiene un archivo físico asociado.")
+    
+    try:
+        response = FileResponse(documento.file.open('rb'), as_attachment=True)
+        return response
+    except FileNotFoundError:
+        raise Http404("El archivo físico no fue encontrado en el servidor.")
+

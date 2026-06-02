@@ -4,6 +4,7 @@ from django.utils import timezone
 from .catalogs_serializers import *
 from ..models.personal_models import *
 from RAC.serializers.personal_activo_serializers import *
+from .mixins import ContratoMixin
 
 
 class CodigosCreateUpdatePassiveSerializer(CleanZerosMixin, serializers.ModelSerializer):
@@ -105,7 +106,7 @@ class ListerCodigosPassiveSerializer(serializers.ModelSerializer):
             'observaciones',
             'fecha_actualizacion',
         ]
-class EmployeePasiveDetailSerializer(serializers.ModelSerializer):
+class EmployeePasiveDetailSerializer(ContratoMixin, serializers.ModelSerializer):
 
     sexo = SexoSerializer(source='sexoid', read_only=True)
     estadoCivil = EstadoCivilSerializer(read_only=True)
@@ -175,11 +176,8 @@ class EmployeePasiveDetailSerializer(serializers.ModelSerializer):
         cerrados = obj.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
         return AntecedentesServicioSerializer(cerrados, many=True).data
 
-    def get_contrato(self, obj):
-        contratos_qs = contratos.objects.filter(
-            antecedente_id__empleado_id=obj
-        ).select_related('antecedente_id', 'politica_id', 'estatus_id')
-        return ContratoSerializer(contratos_qs, many=True).data
+    # get_contrato viene del ContratoMixin
+
 
     def get_encargadurias(self, obj):
         from datetime import date

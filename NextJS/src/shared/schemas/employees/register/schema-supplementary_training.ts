@@ -4,11 +4,11 @@ export const schemaFormacionComplementaria = z
   .object({
     capacitacion_id: z
       .number({ message: "Debe seleccionar una capacitación" })
-      .min(1, { message: "Debe seleccionar una capacitación" }),
+      .refine((val) => val === -1 || val >= 1, { message: "Debe seleccionar una capacitación" }),
     nueva_capacitacion_nombre: z.string().optional(),
     institucion_id: z
       .number({ message: "Debe seleccionar una institución" })
-      .min(1, { message: "Debe seleccionar una institución" }),
+      .refine((val) => val === -1 || val >= 1, { message: "Debe seleccionar una institución" }),
     nueva_institucion_nombre: z.string().optional(),
     procedencia_id: z
       .number({ message: "Debe seleccionar una procedencia" })

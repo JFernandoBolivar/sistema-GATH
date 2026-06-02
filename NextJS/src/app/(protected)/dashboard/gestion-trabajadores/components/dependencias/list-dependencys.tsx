@@ -71,8 +71,8 @@ export default function TableDependencys() {
     <>
       <Card>
         <CardContent>
-          <div className={`grid grid-cols-2 w-full gap-4 space-y-5`}>
-            <div className={`col-span-2 space-y-2`}>
+          <div className={`grid grid-cols-2 w-full gap-5`}>
+            <div className={`col-span-2 gap-2`}>
               <Label>Nivel</Label>
               <Select
                 onValueChange={(value) => {
@@ -98,7 +98,7 @@ export default function TableDependencys() {
               </Select>
             </div>
 
-            <div className={`space-y-2 `}>
+            <div className={`gap-2 `}>
               <Label>Dirección / Gerencia / Oficina</Label>
               <Select
                 onValueChange={(value) => {
@@ -124,7 +124,7 @@ export default function TableDependencys() {
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="gap-2">
               <Label>División / Coordinación</Label>
 
               <Select

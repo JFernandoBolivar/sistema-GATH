@@ -12,7 +12,7 @@ export default function Error({
     <>
       <Card className={cn(className)}>
         <CardContent>
-          <div className="relative w-60 h-60 m-auto flex items-center justify-center">
+          <div className="relative size-60 m-auto flex items-center justify-center">
             <div className="absolute inset-2 rounded-full border-b-2 border-red-500 animate-spin"></div>
 
             <div
@@ -24,7 +24,7 @@ export default function Error({
             ></div>
 
             <div className="relative z-10 animate-float-error">
-              <div className="w-24 h-24 rounded-full bg-red-100 border-2 border-red-500 flex items-center justify-center animate-pulse-red">
+              <div className="size-24 rounded-full bg-red-100 border-2 border-red-500 flex items-center justify-center animate-pulse-red">
                 <div className="text-4xl font-bold text-red-600 animate-shake">
                   !
                 </div>

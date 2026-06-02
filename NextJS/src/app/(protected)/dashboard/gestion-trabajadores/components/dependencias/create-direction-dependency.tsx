@@ -160,11 +160,11 @@ export default function FormCreateDirectionDependency() {
       ) : (
         <>
           <Card>
-            <CardContent className="space-y-6">
+            <CardContent className="gap-6">
               <div className={"flex flex-col gap-2"}>
                 <div className={`grid grid-cols-2 w-full gap-4`}>
                   <div
-                    className={`space-y-2 ${
+                    className={`gap-2 ${
                       (create === "create-coordination" ||
                         "create-direction-line") &&
                       ""
@@ -201,7 +201,7 @@ export default function FormCreateDirectionDependency() {
                     </Select>
                   </div>
                   {create === "create-direction-line" && (
-                    <div className="space-y-2">
+                    <div className="gap-2">
                       <Label>Dirección / Gerencia / Oficina</Label>
                       <Select
                         onValueChange={(value) => {
@@ -232,7 +232,7 @@ export default function FormCreateDirectionDependency() {
                   )}
                   {create === "create-coordination" && (
                     <>
-                      <div className="space-y-2">
+                      <div className="gap-2">
                         <Label>Dirección / Gerencia / Oficina</Label>
                         <Select
                           onValueChange={(value) => {
@@ -261,7 +261,7 @@ export default function FormCreateDirectionDependency() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-2 col-span-2">
+                      <div className="gap-2 col-span-2">
                         <Label>División / Coordinación</Label>
 
                         <Select
@@ -337,7 +337,7 @@ export default function FormCreateDirectionDependency() {
                       onSubmit={formDirectionGeneral.handleSubmit(
                         onSubmitDirectionGeneral,
                       )}
-                      className="space-y-5"
+                      className="gap-5"
                     >
                       <div className="grid grid-cols-2  place-content-stretch place-items-start gap-3 w-full  ">
                         <FormField
@@ -381,7 +381,7 @@ export default function FormCreateDirectionDependency() {
                   <Form {...formDirection}>
                     <form
                       onSubmit={formDirection.handleSubmit(onSubmitDirection)}
-                      className="space-y-5"
+                      className="gap-5"
                     >
                       <div className="grid grid-cols-2  place-content-stretch place-items-start gap-3 w-full  ">
                         <FormField
@@ -427,7 +427,7 @@ export default function FormCreateDirectionDependency() {
                       onSubmit={formCordination.handleSubmit(
                         onSubmitCordination,
                       )}
-                      className="space-y-5"
+                      className="gap-5"
                     >
                       <div className="grid grid-cols-2  place-content-stretch place-items-start gap-3 w-full ">
                         <FormField

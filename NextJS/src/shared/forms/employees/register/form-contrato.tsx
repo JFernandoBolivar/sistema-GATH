@@ -142,7 +142,7 @@ export default function FormContrato({ onSubmit, defaultValues }: Props) {
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="flex flex-row gap-5 space-y-5 items-center justify-around w-full"
+                  className="flex flex-row gap-5 items-center justify-around w-full"
                 >
                   <FormField
                     control={form.control}

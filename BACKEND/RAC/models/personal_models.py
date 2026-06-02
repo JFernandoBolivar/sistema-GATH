@@ -434,11 +434,12 @@ class antecedentes_servicio(models.Model):
 
 
 class contratos(models.Model):
-    n_contrato = models.CharField(max_length=20, unique=True)
+    n_contrato        = models.CharField(max_length=20, unique=True)
     fecha_culminacion = models.DateField(blank=True, null=True)
-    politica_id = models.ForeignKey(politicas, models.PROTECT, db_column='politica_id')
-    estatus_id = models.ForeignKey(Estatus, models.PROTECT, db_column='estatus_id')
-    antecedente_id = models.ForeignKey(antecedentes_servicio, models.PROTECT, null=True,blank=True)
+    politica_id       = models.ForeignKey(politicas, models.PROTECT, db_column='politica_id')
+    estatus_id        = models.ForeignKey(Estatus, models.PROTECT, db_column='estatus_id')
+    antecedente_id    = models.ForeignKey(antecedentes_servicio, models.PROTECT, null=True, blank=True)
+    es_fijo           = models.BooleanField(default=False, db_column='es_fijo')
 
 
     class Meta:

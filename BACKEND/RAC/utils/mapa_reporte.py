@@ -61,6 +61,9 @@ MAPA_REPORTES = {
             "municipio_id": "datos_vivienda__municipio_id",
             "parroquia_id": "datos_vivienda__parroquia_id",
             "condicion_vivienda_id": "datos_vivienda__condicion_vivienda_id",
+            "capacitacion_id": "formacion_complementaria__capacitacion_id",
+            "procedencia_id": "formacion_complementaria__procedencia_id",
+            "grupo_id": "formacion_complementaria__grupo_id",
             
         }
     },

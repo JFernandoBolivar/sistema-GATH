@@ -73,7 +73,7 @@ export default function PersonalPage() {
   const setSearchGlobal = useSearchStore((state) => state.setSearchParams);
   setSearchGlobal(searchParams || "");
   const { data: employeeData, isLoading } = useSWR(
-    ["api/empleados", searchParams],
+    ["api/empleados", searchParams || ""],
     () => getEmployeeDataSearch({ searchParams }),
   );
   const cleanFields = () => {

@@ -1,8 +1,13 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { auth } from "#/auth";
 
 export async function uploadFamilyDocument(formData: FormData) {
+  const session = await auth();
+  if (!session || !session.user) {
+    return { success: false, message: "Unauthorized" };
+  }
   const familiarId = formData.get("familiarId") as string;
   const documentType = formData.get("document_type") as string;
   const file = formData.get("file") as File;
@@ -35,7 +40,7 @@ export async function uploadFamilyDocument(formData: FormData) {
 
     const data = await res.json();
     return { success: data.status === "Ok", message: data.message };
-  } catch (e: any) {
-    return { success: false, message: e.message || "Error de conexion" };
+  } catch (e: unknown) {
+    return { success: false, message: e instanceof Error ? e.message : "Error de conexion" };
   }
 }

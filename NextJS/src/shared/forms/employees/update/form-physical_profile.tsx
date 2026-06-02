@@ -39,6 +39,7 @@ import {
   schemaPhysicalProfileUpdate,
 } from "@/shared/schemas/employees/update/schema-physical_profile";
 import { useSearchStore } from "@/hooks/use-search-params";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 
 function groupByRegion(tallas: TallaItem[]) {
   return tallas.reduce(
@@ -56,7 +57,7 @@ type Props = {
   defaultValues: PhysicalProfileType;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
   idEmployee: string;
 };
 export default function FormUpdatePhysical({
@@ -113,7 +114,7 @@ export default function FormUpdatePhysical({
           <Loading promiseMessage="Actualizando Información" />
         ) : (
           <Form {...form}>
-            <form className="grid grid-cols-2 gap-2 space-y-2" onSubmit={form.handleSubmit(onSubmitFormity)}>
+            <form className="grid grid-cols-2 gap-2" onSubmit={form.handleSubmit(onSubmitFormity)}>
               <FormField
                 control={form.control}
                 name="perfil_fisico.tallaCamisa"
