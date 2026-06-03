@@ -2,9 +2,13 @@ import { REGEX_NUMBERS } from "@/lib/regex";
 import z from "zod";
 
 export const schemaCode = z.object({
-  codigo: z.string().regex(REGEX_NUMBERS, {
-    message: "Solo Se Permiten Numeros",
-  }),
+  codigo: z
+    .string()
+    .regex(REGEX_NUMBERS, {
+      message: "Solo Se Permiten Numeros",
+    })
+    .optional()
+    .or(z.literal("")),
   denominacioncargoid: z.number().min(1, {
     message: "Debe Seleccionar Una D. Cargo",
   }),
