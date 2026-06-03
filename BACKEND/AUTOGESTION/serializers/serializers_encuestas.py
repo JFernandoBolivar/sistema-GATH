@@ -34,7 +34,7 @@ class PreguntasEncuestasSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PreguntasEncuestas
-        fields = ["id", "enunciado", "tipo", "opciones"]
+        fields = ["id", "enunciado", "tipo","validacion" "opciones"]
 
 
 class RespuestaEncuestaSerializer(serializers.ModelSerializer):
