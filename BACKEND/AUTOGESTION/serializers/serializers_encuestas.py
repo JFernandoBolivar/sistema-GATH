@@ -188,6 +188,8 @@ class CensoExcelRowSerializer(serializers.Serializer):
     fecha_ingreso_organismo = serializers.SerializerMethodField()
     direccion_general = serializers.SerializerMethodField()
     tipo_nomina = serializers.SerializerMethodField()
+    cargo = serializers.SerializerMethodField()
+    cargo_especifico = serializers.SerializerMethodField()
     direccion_vivienda = serializers.SerializerMethodField()
     codigo_postal = serializers.SerializerMethodField()
 
@@ -218,6 +220,18 @@ class CensoExcelRowSerializer(serializers.Serializer):
         asignaciones = getattr(obj, "filtered_assignments", [])
         if asignaciones and asignaciones[0].tiponominaid:
             return asignaciones[0].tiponominaid.nomina
+        return ""
+
+    def get_cargo(self, obj):
+        asignaciones = getattr(obj, "filtered_assignments", [])
+        if asignaciones and asignaciones[0].denominacioncargoid:
+            return asignaciones[0].denominacioncargoid.cargo
+        return ""
+
+    def get_cargo_especifico(self, obj):
+        asignaciones = getattr(obj, "filtered_assignments", [])
+        if asignaciones and asignaciones[0].denominacioncargoespecificoid:
+            return asignaciones[0].denominacioncargoespecificoid.cargo
         return ""
 
     def get_direccion_vivienda(self, obj):

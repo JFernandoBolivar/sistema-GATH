@@ -18,6 +18,7 @@ def generar_excel_censo(filtros: dict) -> io.BytesIO:
         "Cédula", "Nombres", "Apellidos", "Fecha Nacimiento",
         "Carnet Patria", "APN",
         "F. Ingreso Organismo", "Dirección General", "Tipo de Nómina",
+        "Cargo", "Cargo Específico",
         "Dirección Vivienda", "Código Postal",
     ]
     for p in preguntas:
