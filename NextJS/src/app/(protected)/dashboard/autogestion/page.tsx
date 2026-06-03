@@ -86,11 +86,24 @@ export default function AutogestionPage() {
   );
 
   const preguntas: Pregunta[] = preguntasData?.data ?? [];
+  const { preguntasPrincipales, preguntasDeclaracion } = useMemo(() => {
+    const principales: Pregunta[] = [];
+    const declaracion: Pregunta[] = [];
+    for (const p of preguntas) {
+      if (p.id === 11 || p.id === 12) {
+        declaracion.push(p);
+      } else {
+        principales.push(p);
+      }
+    }
+    return { preguntasPrincipales: principales, preguntasDeclaracion: declaracion };
+  }, [preguntas]);
   const schema = useMemo(() => buildSchema(preguntas), [preguntas]);
 
   const form = useForm<DynamicFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {},
+    mode: "onChange",
   });
 
   const yaRespondio =
@@ -105,15 +118,13 @@ export default function AutogestionPage() {
       const respuestas = preguntas.map((pregunta) => {
         const key = String(pregunta.id);
         const value = values[key];
+        const tipo = pregunta.tipo.nombre;
 
         if (pregunta.id === 1) {
-          carnetPatria = (value as string) || "";
+          carnetPatria = String(value ?? "");
         }
 
-        if (
-          pregunta.tipo.nombre === "cerrada" &&
-          pregunta.opciones.length === 1
-        ) {
+        if (tipo === "cerrada" && pregunta.opciones.length === 1) {
           return {
             pregunta: pregunta.id,
             opcion: value ? pregunta.opciones[0].id : null,
@@ -121,7 +132,7 @@ export default function AutogestionPage() {
           };
         }
 
-        if (pregunta.tipo.nombre === "cerrada") {
+        if (tipo === "cerrada") {
           return {
             pregunta: pregunta.id,
             opcion: value ? Number(value) : null,
@@ -132,7 +143,7 @@ export default function AutogestionPage() {
         return {
           pregunta: pregunta.id,
           opcion: null,
-          respuesta: (value as string) || "",
+          respuesta: String(value ?? ""),
         };
       });
 
@@ -302,9 +313,53 @@ export default function AutogestionPage() {
 
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
-                  {preguntas.map((pregunta) => (
-                    <div key={pregunta.id}>
-                      {pregunta.tipo.nombre === "abierta" ? (
+                  {preguntasPrincipales.map((pregunta) => {
+                    const tipo = pregunta.tipo.nombre;
+
+                    if (tipo === "cerrada" && pregunta.opciones.length === 1) {
+                      return (
+                        <div key={pregunta.id}>
+                          <CheckboxForm
+                            form={form}
+                            nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
+                            label={`${pregunta.enunciado} *`}
+                          />
+                        </div>
+                      );
+                    }
+
+                    if (tipo === "cerrada") {
+                      return (
+                        <div key={pregunta.id}>
+                          <RadioGroupForm
+                            form={form}
+                            nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
+                            label={`${pregunta.enunciado} *`}
+                            options={pregunta.opciones.map((op: Opcion) => ({
+                              value: String(op.id),
+                              label: op.tipo_opcion,
+                            }))}
+                          />
+                        </div>
+                      );
+                    }
+
+                    if (tipo === "number" || tipo === "float") {
+                      return (
+                        <div key={pregunta.id}>
+                          <InputForm
+                            form={form}
+                            nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
+                            label={`${pregunta.enunciado} *`}
+                            type="number"
+                            placeholder="Escriba un número"
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={pregunta.id}>
                         <InputForm
                           form={form}
                           nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
@@ -312,26 +367,9 @@ export default function AutogestionPage() {
                           type="text"
                           placeholder="Escriba su respuesta"
                         />
-                      ) : pregunta.tipo.nombre === "cerrada" &&
-                        pregunta.opciones.length === 1 ? (
-                        <CheckboxForm
-                          form={form}
-                          nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
-                          label={`${pregunta.enunciado} *`}
-                        />
-                      ) : (
-                        <RadioGroupForm
-                          form={form}
-                          nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
-                          label={`${pregunta.enunciado} *`}
-                          options={pregunta.opciones.map((op: Opcion) => ({
-                            value: String(op.id),
-                            label: op.tipo_opcion,
-                          }))}
-                        />
-                      )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
 
                   <Separator />
 
@@ -535,6 +573,15 @@ export default function AutogestionPage() {
                   </div>
 
                   <Separator />
+
+                  {preguntasDeclaracion.map((pregunta) => (
+                    <CheckboxForm
+                      key={pregunta.id}
+                      form={form}
+                      nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
+                      label={`${pregunta.enunciado} *`}
+                    />
+                  ))}
 
                   <p className="text-xs text-gray-600 text-justify">
                     La información suministrada es estrictamente confidencial y de uso
