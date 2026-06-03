@@ -25,9 +25,9 @@ export function buildSchema(preguntas: Pregunta[]) {
         .string()
         .min(1, "Este campo es obligatorio");
     } else if (tipo === "number" || tipo === "float") {
-      let field: z.ZodTypeAny = z.coerce.number({
-        invalid_type_error: "Debe ingresar un número",
-      });
+      let field: z.ZodTypeAny = z.coerce
+        .number({ invalid_type_error: "Debe ingresar un número" })
+        .refine((val) => val >= 0, "Solo se permiten valores positivos");
 
       if (tipo === "float") {
         field = field.refine(
@@ -42,9 +42,17 @@ export function buildSchema(preguntas: Pregunta[]) {
       if (pregunta.validacion) {
         const digitos = parseInt(pregunta.validacion, 10);
         if (!isNaN(digitos)) {
+          const minDigitos = digitos;
+          const maxDigitos = digitos === 1 ? 2 : digitos;
+
           field = field.refine(
-            (val) => String(Math.abs(val)).length >= digitos,
-            `Debe tener al menos ${digitos} dígitos`,
+            (val) => {
+              const len = String(Math.abs(val)).length;
+              return len >= minDigitos && len <= maxDigitos;
+            },
+            minDigitos === maxDigitos
+              ? `Debe tener máximo ${digitos} dígitos`
+              : `Debe tener entre ${minDigitos} y ${maxDigitos} dígitos`,
           );
         }
       }
