@@ -15,6 +15,7 @@ class TipoPregunta(models.Model):
 
 
 class PreguntasEncuestas(models.Model):
+    validacion = models.CharField(max_length=500, null=True, blank=True)
     enunciado = models.CharField(max_length=200, unique=True)
     tipo = models.ForeignKey(
         TipoPregunta,
@@ -22,6 +23,7 @@ class PreguntasEncuestas(models.Model):
         db_column="tipo_id",
         related_name="preguntas",
     )
+
     orden = models.PositiveSmallIntegerField(default=0)
     activo = models.BooleanField(default=True)
 

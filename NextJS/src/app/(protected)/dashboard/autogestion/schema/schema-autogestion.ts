@@ -18,11 +18,47 @@ export function buildSchema(preguntas: Pregunta[]) {
   const shape: Record<string, z.ZodTypeAny> = {};
 
   for (const pregunta of preguntas) {
-    if (pregunta.tipo.nombre === "abierta") {
+    const tipo = pregunta.tipo.nombre;
+
+    if (tipo === "abierta" || tipo === "string") {
       shape[String(pregunta.id)] = z
         .string()
         .min(1, "Este campo es obligatorio");
-    } else if (pregunta.tipo.nombre === "cerrada") {
+    } else if (tipo === "number" || tipo === "float") {
+      let field: z.ZodTypeAny = z.coerce
+        .number({ invalid_type_error: "Debe ingresar un número" })
+        .refine((val) => val >= 0, "Solo se permiten valores positivos");
+
+      if (tipo === "float") {
+        field = field.refine(
+          (val) => {
+            const decimals = String(val).split(".")[1];
+            return !decimals || decimals.length <= 2;
+          },
+          "Máximo 2 decimales permitidos",
+        );
+      }
+
+      if (pregunta.validacion) {
+        const digitos = parseInt(pregunta.validacion, 10);
+        if (!isNaN(digitos)) {
+          const minDigitos = digitos;
+          const maxDigitos = digitos === 1 ? 2 : digitos;
+
+          field = field.refine(
+            (val) => {
+              const len = String(Math.abs(val)).length;
+              return len >= minDigitos && len <= maxDigitos;
+            },
+            minDigitos === maxDigitos
+              ? `Debe tener máximo ${digitos} dígitos`
+              : `Debe tener entre ${minDigitos} y ${maxDigitos} dígitos`,
+          );
+        }
+      }
+
+      shape[String(pregunta.id)] = field;
+    } else if (tipo === "cerrada") {
       if (pregunta.opciones.length === 1) {
         shape[String(pregunta.id)] = z
           .boolean()
