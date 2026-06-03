@@ -301,7 +301,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                   </div>
                   <div>Código Postal:</div>
                   <div>
-                    {employee.datos_vivienda?.codigo_postal ?? "N/A"}
+                    {employee.datos_vivienda?.codigo_postal?.codigo ?? "N/A"}
                   </div>
                 </div>
               </CardContent>

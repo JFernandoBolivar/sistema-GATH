@@ -226,4 +226,4 @@ class CensoExcelRowSerializer(serializers.Serializer):
 
     def get_codigo_postal(self, obj):
         vivienda = obj.datos_vivienda_set.first()
-        return vivienda.codigo_postal if vivienda else ""
+        return vivienda.codigo_postal_id.codigo if vivienda and vivienda.codigo_postal_id else ""

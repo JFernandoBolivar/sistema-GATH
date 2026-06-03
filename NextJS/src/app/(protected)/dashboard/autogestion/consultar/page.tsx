@@ -112,7 +112,7 @@ function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
             </div>
             <div>
               <span className="font-semibold text-blue-800">Código Postal:</span>
-              <span className="ml-2 text-blue-900 font-medium">{empleado.datos_vivienda.codigo_postal || "N/A"}</span>
+              <span className="ml-2 text-blue-900 font-medium">{empleado.datos_vivienda.codigo_postal?.codigo || "N/A"}</span>
             </div>
           </div>
         </div>

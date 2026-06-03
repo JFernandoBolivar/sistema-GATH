@@ -340,6 +340,7 @@ class ImportFullEmployeeDataView(APIView):
                 'estados': {normalize(obj.estado): obj for obj in direccion_models.Estado.objects.all()}, # Ajusta 'nombre' si tu campo se llama distinto
                 'municipios': {normalize(obj.municipio): obj for obj in direccion_models.Municipio.objects.all()},
                 'parroquias': {normalize(obj.parroquia): obj for obj in direccion_models.Parroquia.objects.all()},
+                'codigos_postales': {normalize(obj.codigo): obj for obj in codigo_postal.objects.all()},
                 
                 # Contactos
                 'parentescos': {normalize(obj.descripcion_parentesco): obj for obj in Parentesco.objects.all()}, # Ajusta al nombre real de tu campo en Parentesco
@@ -417,6 +418,7 @@ class ImportFullEmployeeDataView(APIView):
                                         'parroquia': get_obj('parroquias', 'parroquia'),
                                         'direccion_exacta': row.get('direccion_exacta'),
                                         'condicion_vivienda_id': get_obj('vivienda_cond', 'condicion_vivienda'),
+                                        'codigo_postal_id': get_obj('codigos_postales', 'codigo_postal'),
                                     }
                                 )
 
@@ -597,6 +599,7 @@ class ImportFullFamilyDataView(APIView):
                 'estados': {normalize(obj.estado): obj for obj in direccion_models.Estado.objects.all()}, 
                 'municipios': {normalize(obj.municipio): obj for obj in direccion_models.Municipio.objects.all()},
                 'parroquias': {normalize(obj.parroquia): obj for obj in direccion_models.Parroquia.objects.all()},
+                'codigos_postales': {normalize(obj.codigo): obj for obj in codigo_postal.objects.all()},
                 
                 # Parentesco
                 'parentescos': {normalize(obj.descripcion_parentesco): obj for obj in Parentesco.objects.all()},
@@ -710,6 +713,7 @@ class ImportFullFamilyDataView(APIView):
                                         'parroquia': get_obj('parroquias', 'parroquia'),
                                         'direccion_exacta': row.get('direccion_exacta'),
                                         'condicion_vivienda_id': get_obj('vivienda_cond', 'condicion_vivienda'),
+                                        'codigo_postal_id': get_obj('codigos_postales', 'codigo_postal'),
                                     }
                                 )
 

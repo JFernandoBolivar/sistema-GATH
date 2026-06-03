@@ -183,7 +183,10 @@ export function CodigoCatalogForm({ onSuccess }: CodigoCatalogFormProps) {
                         <FormControl>
                           <Input placeholder="000" {...field} />
                         </FormControl>
-
+                        <FormDescription>
+                          Opcional. Si se deja vacío, el código se generará
+                          automáticamente.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

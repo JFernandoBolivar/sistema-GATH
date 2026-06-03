@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Opcion, Pregunta } from "@/app/types/types";
 import {
+  getCodigosPostales,
   getConditionDwelling,
   getMunicipalitys,
   getParish,
@@ -79,6 +80,10 @@ export default function AutogestionPage() {
   );
   const { data: conditionDwelling, isLoading: isLoadingConditionDwelling } =
     useSWR("conditionDwelling", getConditionDwelling);
+  const { data: codigosPostales, isLoading: isLoadingCodigosPostales } = useSWR(
+    estadoId ? ["codigosPostales", estadoId] : null,
+    () => getCodigosPostales(estadoId!),
+  );
 
   const preguntas: Pregunta[] = preguntasData?.data ?? [];
   const schema = useMemo(() => buildSchema(preguntas), [preguntas]);
@@ -345,6 +350,7 @@ export default function AutogestionPage() {
                               setEstadoId(value);
                               form.setValue("datos_vivienda.municipio_id" as FieldPath<DynamicFormValues>, 0);
                               form.setValue("datos_vivienda.parroquia" as FieldPath<DynamicFormValues>, 0);
+                              form.setValue("datos_vivienda.codigo_postal_id" as FieldPath<DynamicFormValues>, 0);
                             }}
                           >
                             <FormControl>
@@ -493,17 +499,35 @@ export default function AutogestionPage() {
                     />
                     <FormField
                       control={form.control}
-                      name={"datos_vivienda.codigo_postal" as FieldPath<DynamicFormValues>}
+                      name={"datos_vivienda.codigo_postal_id" as FieldPath<DynamicFormValues>}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Código Postal</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="1010"
-                              {...field}
-                              value={(field.value as string) ?? ""}
-                            />
-                          </FormControl>
+                          <Select
+                            onValueChange={(value) => {
+                              field.onChange(Number(value));
+                            }}
+                            value={field.value ? `${field.value}` : undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="w-full truncate">
+                                <SelectValue
+                                  placeholder={
+                                    isLoadingCodigosPostales
+                                      ? "Cargando Códigos Postales"
+                                      : "Seleccione un Código Postal"
+                                  }
+                                />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {codigosPostales?.data.map((cp) => (
+                                <SelectItem key={cp.id} value={`${cp.id}`}>
+                                  {cp.codigo}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
