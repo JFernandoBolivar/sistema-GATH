@@ -96,7 +96,7 @@ export function ChangeStatusPasiveForm() {
   return (
     <>
       <Card>
-        <CardContent className="space-y-5">
+        <CardContent className="gap-5">
           <Form {...formSearch}>
             <form
               className="flex flex-row justify-between  gap-2"
@@ -115,7 +115,7 @@ export function ChangeStatusPasiveForm() {
                 )}
               />
               <Button className="self-baseline-last cursor-pointer">
-                <Search className="h-4 w-4" />
+                <Search className="size-4" />
               </Button>
             </form>
           </Form>
@@ -136,7 +136,7 @@ export function ChangeStatusPasiveForm() {
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-5"
+                  className="gap-5"
                 >
                   {employee !== null &&
                   employee.asignaciones != undefined &&

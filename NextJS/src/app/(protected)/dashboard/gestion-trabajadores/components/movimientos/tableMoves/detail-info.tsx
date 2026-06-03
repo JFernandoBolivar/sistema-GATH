@@ -15,48 +15,51 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Eye, Briefcase, Building2, FileText } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 
+interface ComparisonFieldProps {
+  label: string;
+  prevValue: string | null;
+  newValue: string | null;
+}
+
+function ComparisonField({
+  label,
+  prevValue,
+  newValue,
+}: ComparisonFieldProps) {
+  const hasChanged = prevValue !== newValue;
+
+  return (
+    <>
+      <span className="text-sm font-medium">{label}</span>
+      <div className="col-span-1 gap-2">
+        <div className="text-xs text-muted-foreground">Anterior:</div>
+        <div className="text-sm bg-red-50 dark:bg-red-950 p-2 rounded border border-red-200 dark:border-red-800">
+          {prevValue || (
+            <span className="text-muted-foreground italic">N/A</span>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground mt-2">Nuevo:</div>
+        <div
+          className={`text-sm p-2 rounded border ${
+            hasChanged
+              ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+              : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+          }`}
+        >
+          {newValue || (
+            <span className="text-muted-foreground italic">N/A</span>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 interface DetailInfoMovesProps {
   movement: EmployeeCargoHistory;
 }
 
 export function DetailInfoMoves({ movement }: DetailInfoMovesProps) {
-  const ComparisonField = ({
-    label,
-    prevValue,
-    newValue,
-  }: {
-    label: string;
-    prevValue: string | null;
-    newValue: string | null;
-  }) => {
-    const hasChanged = prevValue !== newValue;
-
-    return (
-      <>
-        <span className="text-sm font-medium">{label}</span>
-        <div className="col-span-1 space-y-2">
-          <div className="text-xs text-muted-foreground">Anterior:</div>
-          <div className="text-sm bg-red-50 dark:bg-red-950 p-2 rounded border border-red-200 dark:border-red-800">
-            {prevValue || (
-              <span className="text-muted-foreground italic">N/A</span>
-            )}
-          </div>
-          <div className="text-xs text-muted-foreground mt-2">Nuevo:</div>
-          <div
-            className={`text-sm p-2 rounded border ${
-              hasChanged
-                ? "bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
-                : "bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
-            }`}
-          >
-            {newValue || (
-              <span className="text-muted-foreground italic">N/A</span>
-            )}
-          </div>
-        </div>
-      </>
-    );
-  };
 
   return (
     <Sheet>
@@ -70,11 +73,11 @@ export function DetailInfoMoves({ movement }: DetailInfoMovesProps) {
           <SheetTitle>Detalles del Movimiento de Cargo</SheetTitle>
         </SheetHeader>
         <ScrollArea className="h-[90%] pr-4">
-          <div className="space-y-5 mt-6">
+          <div className="gap-5 mt-6">
             {/* Información General */}
             <Card>
               <CardHeader className="flex flex-row items-center gap-2">
-                <FileText className="h-4 w-4" />
+                <FileText className="size-4" />
                 <span>Información General</span>
               </CardHeader>
               <CardContent>
@@ -102,7 +105,7 @@ export function DetailInfoMoves({ movement }: DetailInfoMovesProps) {
             {/* Cambios de Cargo */}
             <Card>
               <CardHeader className="flex flex-row items-center gap-2">
-                <Briefcase className="h-4 w-4" />
+                <Briefcase className="size-4" />
                 <span>Cambios de Cargo</span>
               </CardHeader>
               <CardContent>
@@ -139,7 +142,7 @@ export function DetailInfoMoves({ movement }: DetailInfoMovesProps) {
             {/* Cambios de Estructura Organizacional */}
             <Card>
               <CardHeader className="flex flex-row items-center gap-2">
-                <Building2 className="h-4 w-4" />
+                <Building2 className="size-4" />
                 <span>Estructura Organizacional</span>
               </CardHeader>
               <CardContent>

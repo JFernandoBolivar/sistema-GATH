@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "./data-table-column-header";
@@ -22,6 +22,59 @@ import useSWR from "swr";
 import { imageProfileFn } from "../../../api/getInfoRac";
 import { ReportPDFEmployee } from "../../../reportes/empleados/pdf/reportEmployeePDF";
 import DetailInfoEmployee from "./detail-info";
+
+function EmployeeActionsCell({ row }: { row: Row<EmployeeData> }) {
+  const searchParams = useSearchStore((state) => state.searchParams);
+  const employee = row.original;
+  const { data: profileBlob } = useSWR(["profile", searchParams], () =>
+    imageProfileFn(employee.cedulaidentidad),
+  );
+  const imageURL = profileBlob
+    ? URL.createObjectURL(profileBlob)
+    : "/bg.png";
+  const session = useSession();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="size-8 p-0">
+          <span className="sr-only">Abrir Menu</span>
+          <MoreHorizontal className="size-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+        <DropdownMenuItem
+          onClick={() =>
+            navigator.clipboard.writeText(employee.cedulaidentidad)
+          }
+        >
+          Copiar Cédula De Identidad
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Extras</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <ExportButton
+            className="w-full"
+            fileName={`${employee.nombres}-${employee.apellidos}-expediente.pdf`}
+            document={
+              <ReportPDFEmployee
+                employeeData={[employee]}
+                photoUrl={imageURL}
+                id="Sistema"
+                session={session}
+              />
+            }
+          />
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <DetailInfoEmployee employee={employee} />
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export const columns: ColumnDef<EmployeeData>[] = [
   {
     accessorKey: "cedulaidentidad",
@@ -90,54 +143,6 @@ export const columns: ColumnDef<EmployeeData>[] = [
   {
     accessorKey: "actions",
     header: "Acciones",
-    cell: ({ row }) => {
-      const searchParams = useSearchStore((state) => state.searchParams);
-      const employee = row.original;
-      const { data: profileBlob } = useSWR(["profile", searchParams], () =>
-        imageProfileFn(employee.cedulaidentidad),
-      );
-      const imageURL = profileBlob
-        ? URL.createObjectURL(profileBlob)
-        : "/bg.png";
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Abrir Menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-            <DropdownMenuItem
-              onClick={() =>
-                navigator.clipboard.writeText(employee.cedulaidentidad)
-              }
-            >
-              Copiar Cédula De Identidad
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Extras</DropdownMenuLabel>
-            <DropdownMenuItem asChild>
-              <ExportButton
-                className="w-full"
-                fileName={`${employee.nombres}-${employee.apellidos}-expediente.pdf`}
-                document={
-                  <ReportPDFEmployee
-                    employeeData={[employee]}
-                    photoUrl={imageURL}
-                    id="Sistema"
-                    session={useSession()}
-                  />
-                }
-              />
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <DetailInfoEmployee employee={employee} />
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
+    cell: ({ row }) => <EmployeeActionsCell row={row} />,
   },
 ];

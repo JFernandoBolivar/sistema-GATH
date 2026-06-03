@@ -74,7 +74,7 @@ export default function UpdateBasicInfoFamily({ id, mutate }: Props) {
             </h2>
           </CardHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="gap-5">
               <div className="grid grid-cols-2 gap-2">
                 <InputForm
                   form={form}

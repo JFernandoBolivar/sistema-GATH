@@ -8,7 +8,7 @@ from datetime import date
 from ..models.personal_models import *
 from ..models.historial_personal_models import Tipo_movimiento
 #importacion de servicios
-from ..services.generacion_codigo import generador_codigos, generar_prefijo_nomina 
+from ..services.generacion_codigo import generador_codigos, generar_prefijo_nomina, generar_codigo_asig_trabajo
 from ..serializers.catalogs_serializers import *
 from ..utils.constants import * 
 from datetime import date as date_type
@@ -21,6 +21,7 @@ from ..services.profile_services import (
     replace_contacto_emergencia, replace_antecedentes,
     upsert_contrato,
 )
+from ..serializers.mixins import ContratoMixin
 from ..services.dependency_validators import validate_dependency_hierarchy
 
 
@@ -119,12 +120,75 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
     def validate_contrato(self, value):
         if not value or not self.instance:
             return value
-        
+
         empleado = self.instance
+
+        contratos_existentes = contratos.objects.filter(
+            antecedente_id__empleado_id=empleado
+        )
+        cantidad_actual = contratos_existentes.count()
+
+        # Regla FIJO: si ya tiene contrato fijo, bloquear cualquier cambio de contrato
+        if contratos_existentes.filter(es_fijo=True).exists():
+            raise serializers.ValidationError(
+                "El empleado tiene contrato FIJO (3er contrato). "
+                "No se pueden registrar ni modificar contratos hasta un egreso formal."
+            )
+
         for item in value:
-            inicio = item.get('fecha_ingreso')
-            fin = item.get('fecha_culminacion')
+            inicio          = item.get('fecha_ingreso')
+            fin             = item.get('fecha_culminacion')
             n_contrato_item = item.get('n_contrato')
+            politica_id     = item.get('politica_id')
+
+            # Resolver el objeto politica para usar en validaciones y auto-generación
+            if politica_id:
+                politica_obj = politicas.objects.filter(
+                    id=politica_id if isinstance(politica_id, int) else politica_id.pk
+                ).first()
+            else:
+                politica_obj = None
+
+            # Determinar si el contrato ya existe en BD (actualización vs creación)
+            es_nuevo = not contratos.objects.filter(
+                n_contrato=n_contrato_item,
+                antecedente_id__empleado_id=empleado
+            ).exists() if n_contrato_item else True
+
+            if es_nuevo:
+                if cantidad_actual >= 3:
+                    raise serializers.ValidationError(
+                        "El trabajador ya tiene 3 contratos registrados. No se pueden crear más contratos."
+                    )
+
+                if not politica_obj:
+                    raise serializers.ValidationError(
+                        "La política es obligatoria para registrar un contrato."
+                    )
+
+                # Verificar contrato activo solo para el 1ro y 2do contrato
+                if cantidad_actual < 2:
+                    hoy = date_type.today()
+                    contrato_activo = contratos_existentes.filter(
+                        fecha_culminacion__isnull=True
+                    ).first() or contratos_existentes.filter(
+                        fecha_culminacion__gt=hoy
+                    ).first()
+                    if contrato_activo:
+                        raise serializers.ValidationError(
+                            f"El trabajador ya tiene un contrato activo ({contrato_activo.n_contrato}). "
+                            "No se puede crear otro hasta que finalice."
+                        )
+
+                # Si el frontend no envió n_contrato, auto-generar con la nomenclatura
+                if not n_contrato_item:
+                    n_contrato_item = f"{politica_obj.tipo_politica[0].upper()}-{empleado.cedulaidentidad}-{str(cantidad_actual + 1).zfill(2)}"
+                    item['n_contrato'] = n_contrato_item
+
+            # El 3er contrato no necesita validación de fechas (siempre fijo)
+            if cantidad_actual == 2 and es_nuevo:
+                continue
+
             if not inicio:
                 continue
             fin = fin or date_type.today()
@@ -140,7 +204,8 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
                 other_fin = other.fecha_culminacion or date_type.today()
                 if other_inicio and inicio <= other_fin and fin >= other_inicio:
                     raise serializers.ValidationError(
-                        f"El contrato {n_contrato_item} ({inicio} - {fin}) se solapa con el contrato {other.n_contrato} ({other_inicio} - {other_fin})."
+                        f"El contrato {n_contrato_item} ({inicio} - {fin}) se solapa con el contrato "
+                        f"{other.n_contrato} ({other_inicio} - {other_fin})."
                     )
         return value
 
@@ -172,7 +237,7 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
 # -------------------------------------------------------------
 # serializers para listar datos personales 
 # -------------------------------------------------------------  
-class EmployeeListSerializer(serializers.ModelSerializer):
+class EmployeeListSerializer(ContratoMixin, serializers.ModelSerializer):
     sexo = SexoSerializer(source='sexoid', read_only=True)
     estadoCivil = EstadoCivilSerializer(read_only=True)
 
@@ -234,11 +299,8 @@ class EmployeeListSerializer(serializers.ModelSerializer):
         cerrados = obj.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
         return AntecedentesServicioSerializer(cerrados, many=True).data
 
-    def get_contrato(self, obj):
-        contratos_qs = contratos.objects.filter(
-            antecedente_id__empleado_id=obj
-        ).select_related('antecedente_id', 'politica_id', 'estatus_id')
-        return ContratoSerializer(contratos_qs, many=True).data
+    # get_contrato viene del ContratoMixin
+
     
 
 # -------------------------------------------------------------
@@ -260,9 +322,13 @@ class CodigosCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerializer
         if self.instance:
             self.fields['codigo'].read_only = True
         else:
+            # En creación el frontend puede omitir el código (el backend lo genera)
+            self.fields['codigo'].required = False
+            self.fields['codigo'].allow_blank = True
+            self.fields['codigo'].allow_null = True
             self.fields['OrganismoAdscritoid'].read_only = True
             self.fields['tipo_procedencia'].read_only = True
-             
+
     def validate_tiponominaid(self, value):
         if not self.instance or self.instance.tiponominaid != value:
             if value.requiere_codig:
@@ -311,7 +377,68 @@ class CodigosCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerializer
             
             if nueva_nomina is not None and nueva_nomina != self.instance.tiponominaid:
                 raise serializers.ValidationError("No se permite actualizar el tipo de nómina cuando es un cargo especial")
-     
+
+        # ----------------------------------------------------------------
+        # Autogeneración / Actualización de código según la ubicación y el cargo
+        # ----------------------------------------------------------------
+        if not self.instance:
+            codigo = attrs.get('codigo') or ''
+            if not codigo.strip():
+                try:
+                    attrs['codigo'] = generar_codigo_asig_trabajo(
+                        direccion_general=attrs.get('DireccionGeneral'),
+                        direccion_linea=attrs.get('DireccionLinea'),
+                        coordinacion=attrs.get('Coordinacion'),
+                        dependencia=attrs.get('Dependencia'),
+                        denominacion_cargo=attrs.get('denominacioncargoid'),
+                    )
+                except ValueError as e:
+                    raise serializers.ValidationError({'codigo': str(e)})
+
+                # Verificar unicidad global del código autogenerado
+                if AsigTrabajo.objects.filter(codigo=attrs['codigo']).exists():
+                    raise serializers.ValidationError({
+                        'codigo': (
+                            f"El código autogenerado {attrs['codigo']} ya existe en el sistema. "
+                            "Contacte al administrador."
+                        )
+                    })
+        else:
+            # En actualización: si cambia la ubicación o el cargo, se recalcula el código de forma automática
+            dg_nueva = attrs.get('DireccionGeneral', self.instance.DireccionGeneral)
+            dl_nueva = attrs.get('DireccionLinea', self.instance.DireccionLinea)
+            co_nueva = attrs.get('Coordinacion', self.instance.Coordinacion)
+            dep_nueva = attrs.get('Dependencia', self.instance.Dependencia)
+            cargo_nuevo = attrs.get('denominacioncargoid', self.instance.denominacioncargoid)
+
+            cambio_ubicacion_o_cargo = (
+                dg_nueva != self.instance.DireccionGeneral or
+                dl_nueva != self.instance.DireccionLinea or
+                co_nueva != self.instance.Coordinacion or
+                dep_nueva != self.instance.Dependencia or
+                cargo_nuevo != self.instance.denominacioncargoid
+            )
+
+            if cambio_ubicacion_o_cargo:
+                try:
+                    attrs['codigo'] = generar_codigo_asig_trabajo(
+                        direccion_general=dg_nueva,
+                        direccion_linea=dl_nueva,
+                        coordinacion=co_nueva,
+                        dependencia=dep_nueva,
+                        denominacion_cargo=cargo_nuevo,
+                    )
+                except ValueError as e:
+                    raise serializers.ValidationError({'codigo': str(e)})
+
+                # Verificar unicidad global del código autogenerado (excluyendo el registro actual)
+                if AsigTrabajo.objects.filter(codigo=attrs['codigo']).exclude(pk=self.instance.pk).exists():
+                    raise serializers.ValidationError({
+                        'codigo': (
+                            f"El código autogenerado {attrs['codigo']} ya existe en el sistema. "
+                            "Contacte al administrador."
+                        )
+                    })
 
         return attrs
 
@@ -496,7 +623,7 @@ class SpecialPositionAutoCreateSerializer(CleanZerosMixin, serializers.ModelSeri
 # -------------------------------------------------------------
 # serializers para listar datos de cargo y personales
 # ------------------------------------------------------------- 
-class EmployeeDetailSerializer(serializers.ModelSerializer):
+class EmployeeDetailSerializer(ContratoMixin, serializers.ModelSerializer):
 
     sexo = SexoSerializer(source='sexoid', read_only=True)
     estadoCivil = EstadoCivilSerializer(read_only=True)
@@ -568,11 +695,8 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
         cerrados = obj.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
         return AntecedentesServicioSerializer(cerrados, many=True).data
 
-    def get_contrato(self, obj):
-        contratos_qs = contratos.objects.filter(
-            antecedente_id__empleado_id=obj
-        ).select_related('antecedente_id', 'politica_id', 'estatus_id')
-        return ContratoSerializer(contratos_qs, many=True).data
+    # get_contrato viene del ContratoMixin
+
 
     def get_encargadurias(self, obj):
         from datetime import date

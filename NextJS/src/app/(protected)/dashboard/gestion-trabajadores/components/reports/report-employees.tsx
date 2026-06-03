@@ -150,10 +150,8 @@ export default function ReportEmployee() {
     "capacitaciones",
     async () => await getCapacitaciones(),
   );
-  const { data: tiposProcedencia, isLoading: isLoadingTiposProcedencia } = useSWR(
-    "tiposProcedencia",
-    async () => await getTiposProcedencia(),
-  );
+  const { data: tiposProcedencia, isLoading: isLoadingTiposProcedencia } =
+    useSWR("tiposProcedencia", async () => await getTiposProcedencia());
   const { data: gruposCapacitacion, isLoading: isLoadingGrupos } = useSWR(
     "gruposCapacitacion",
     async () => await getGruposCapacitacion(),
@@ -273,7 +271,7 @@ export default function ReportEmployee() {
           ) : (
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-4 grid grid-cols-3 min-h-max gap-2"
+              className="grid grid-cols-3 min-h-max gap-4"
             >
               <div className="flex flex-col gap-2 col-span-3">
                 <ScrollArea className="h-100 ">
@@ -847,12 +845,18 @@ export default function ReportEmployee() {
                           <FormItem>
                             <FormLabel>Capacitación</FormLabel>
                             <Select
-                              onValueChange={(v) => field.onChange(Number.parseInt(v))}
+                              onValueChange={(v) =>
+                                field.onChange(Number.parseInt(v))
+                              }
                             >
                               <FormControl>
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
-                                    placeholder={isLoadingCapacitaciones ? "Cargando..." : "Seleccione"}
+                                    placeholder={
+                                      isLoadingCapacitaciones
+                                        ? "Cargando..."
+                                        : "Seleccione"
+                                    }
                                   />
                                 </SelectTrigger>
                               </FormControl>
@@ -875,12 +879,18 @@ export default function ReportEmployee() {
                           <FormItem>
                             <FormLabel>Procedencia</FormLabel>
                             <Select
-                              onValueChange={(v) => field.onChange(Number.parseInt(v))}
+                              onValueChange={(v) =>
+                                field.onChange(Number.parseInt(v))
+                              }
                             >
                               <FormControl>
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
-                                    placeholder={isLoadingTiposProcedencia ? "Cargando..." : "Seleccione"}
+                                    placeholder={
+                                      isLoadingTiposProcedencia
+                                        ? "Cargando..."
+                                        : "Seleccione"
+                                    }
                                   />
                                 </SelectTrigger>
                               </FormControl>
@@ -903,12 +913,18 @@ export default function ReportEmployee() {
                           <FormItem>
                             <FormLabel>Grupo</FormLabel>
                             <Select
-                              onValueChange={(v) => field.onChange(Number.parseInt(v))}
+                              onValueChange={(v) =>
+                                field.onChange(Number.parseInt(v))
+                              }
                             >
                               <FormControl>
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
-                                    placeholder={isLoadingGrupos ? "Cargando..." : "Seleccione"}
+                                    placeholder={
+                                      isLoadingGrupos
+                                        ? "Cargando..."
+                                        : "Seleccione"
+                                    }
                                   />
                                 </SelectTrigger>
                               </FormControl>
@@ -1061,7 +1077,7 @@ export default function ReportEmployee() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -1112,7 +1128,7 @@ export default function ReportEmployee() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -1163,7 +1179,7 @@ export default function ReportEmployee() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>
@@ -1214,7 +1230,7 @@ export default function ReportEmployee() {
                                     ) : (
                                       <span>Selecciona una fecha</span>
                                     )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    <CalendarIcon className="ml-auto size-4 opacity-50" />
                                   </Button>
                                 </FormControl>
                               </PopoverTrigger>

@@ -70,8 +70,8 @@ export function DetailInfoFamily({ family }: Props) {
         <SheetHeaderUI>
           <SheetTitleUI>Información Detallada Del Familiar</SheetTitleUI>
         </SheetHeaderUI>
-        <ScrollArea className="space-y-5 h-[90%]">
-          <div className="space-y-5">
+        <ScrollArea className="gap-5 h-[90%]">
+          <div className="gap-5">
             <Card>
               <CardHeader className="flex justify-between">
                 <div className="flex flex-row justify-between gap-2">
@@ -371,7 +371,7 @@ export function DetailInfoFamily({ family }: Props) {
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-blue-600 hover:underline"
                     >
-                      <FileDown className="h-4 w-4" />
+                      <FileDown className="size-4" />
                       {doc.document_type === "cedula"
                         ? "Ver Cédula del Familiar"
                         : "Ver Partida de Nacimiento"}

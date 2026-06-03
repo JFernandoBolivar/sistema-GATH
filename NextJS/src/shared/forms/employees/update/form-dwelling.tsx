@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  getCodigosPostales,
   getConditionDwelling,
   getMunicipalitys,
   getParish,
@@ -42,11 +43,12 @@ import {
   schemaDwellingUpdate,
 } from "@/shared/schemas/employees/update/schema-dwelling";
 import { useSearchStore } from "@/hooks/use-search-params";
+import type { UpdateEmployeeFn } from "@/shared/types/actions";
 export type Props = {
   idEmployee: string;
   mutate: (key: string[]) => void;
   mutateKey?: string;
-    updateInfoEmployee: (...args: any[]) => Promise<{ success: boolean; message: string }>;
+    updateInfoEmployee: UpdateEmployeeFn;
 };
 
 export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "api/empleados", updateInfoEmployee }: Props) {
@@ -70,6 +72,11 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
     data: conditionDwelling,
     isLoading: isLoadingStatesConditionDwelling,
   } = useSWR("conditionDwelling", async () => await getConditionDwelling());
+  const { data: codigosPostales, isLoading: isLoadingCodigosPostales } =
+    useSWR(
+      stateId ? ["codigosPostales", stateId] : null,
+      async () => await getCodigosPostales(stateId!),
+    );
   const form = useForm({
     resolver: zodResolver(schemaDwellingUpdate),
     defaultValues: {
@@ -78,7 +85,7 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
         direccion_exacta: "",
         estado_id: 0,
         municipio_id: 0,
-        parroquia: 0,
+        codigo_postal_id: 0,
       },
     },
   });
@@ -100,7 +107,7 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
         <CardHeader>
           <CardTitle>Datos Socio-economicos</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="gap-3">
           <CardAction className="text-gray-500">Datos De Vivienda</CardAction>
           <div>
             {isPending ? (
@@ -109,7 +116,7 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
               <Form {...form}>
                 <form
                   onSubmit={form.handleSubmit(onSubmitFormity)}
-                  className="grid grid-cols-2 gap-3 space-y-3"
+                  className="grid grid-cols-2 gap-3"
                 >
                   <FormField
                     control={form.control}
@@ -268,13 +275,31 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
                   />
                   <FormField
                     control={form.control}
-                    name="datos_vivienda.codigo_postal"
+                    name="datos_vivienda.codigo_postal_id"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Código Postal</FormLabel>
-                        <FormControl>
-                          <Input placeholder="1010" {...field} value={field.value ?? ""} />
-                        </FormControl>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(Number.parseInt(value));
+                          }}
+                          value={field.value ? `${field.value}` : undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full truncate">
+                              <SelectValue
+                                placeholder={isLoadingCodigosPostales ? "Cargando Códigos Postales" : "Seleccione un Código Postal"}
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {codigosPostales?.data.map((cp, i) => (
+                              <SelectItem key={i} value={`${cp.id}`}>
+                                {cp.codigo}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

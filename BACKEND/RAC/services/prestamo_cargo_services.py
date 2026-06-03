@@ -1,7 +1,51 @@
 from datetime import date
 from rest_framework import serializers
 from ..models.historial_personal_models import PrestamoCargo
-from ..models.personal_models import Estatus
+from ..models.personal_models import Estatus, AsigTrabajo
+
+
+def sincronizar_estatus_cargos(prestamo):
+    """
+    Sincroniza los estatus de los cargos de AsigTrabajo según el estado del préstamo.
+
+    - ACTIVO / POR VENCER:
+        * Cargo original del encargado -> SUSPENDIDO
+        * Cargo prestado (del titular) -> SUSPENDIDO
+    - FINALIZADA:
+        * Cargo original del encargado -> ACTIVO
+        * Cargo prestado (del titular) -> ACTIVO
+    """
+    # Obtener estatus necesarios
+    activo_asig, _ = Estatus.objects.get_or_create(estatus__iexact="ACTIVO", defaults={"estatus": "ACTIVO"})
+    suspendido, _ = Estatus.objects.get_or_create(estatus__iexact="SUSPENDIDO", defaults={"estatus": "SUSPENDIDO"})
+
+    estatus_prestamo = prestamo.estatus.estatus.upper()
+
+    if estatus_prestamo in ["ACTIVO", "POR VENCER"]:
+        # 1. Suspender cargos originales del empleado encargado (quien toma prestado el cargo)
+        AsigTrabajo.objects.filter(
+            employee=prestamo.empleado_encargado,
+            estatusid__estatus__iexact="ACTIVO"
+        ).update(estatusid=suspendido)
+
+        # 2. Suspender el cargo prestado (para que el titular quede suspendido del mismo)
+        cargo = prestamo.cargo_encargado
+        if cargo:
+            cargo.estatusid = suspendido
+            cargo.save()
+
+    elif estatus_prestamo == "FINALIZADA":
+        # 1. Reactivar cargos originales del empleado encargado
+        AsigTrabajo.objects.filter(
+            employee=prestamo.empleado_encargado,
+            estatusid__estatus__iexact="SUSPENDIDO"
+        ).update(estatusid=activo_asig)
+
+        # 2. Reactivar el cargo prestado
+        cargo = prestamo.cargo_encargado
+        if cargo:
+            cargo.estatusid = activo_asig
+            cargo.save()
 
 
 def verificar_estatus_prestamo(prestamo):
@@ -17,6 +61,9 @@ def verificar_estatus_prestamo(prestamo):
     else:
         prestamo.estatus = activo
     prestamo.save()
+
+    # Sincronizar los estatus de los cargos involucrados
+    sincronizar_estatus_cargos(prestamo)
 
 
 def validar_encargaduria_unica(cargo, exclude_id=None):

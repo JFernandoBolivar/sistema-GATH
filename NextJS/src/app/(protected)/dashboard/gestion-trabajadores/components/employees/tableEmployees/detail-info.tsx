@@ -32,7 +32,7 @@ import {
   Shirt,
 } from "lucide-react";
 import Image from "next/image";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { imageProfileFn } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import FormUpdateContrato from "@/shared/forms/employees/update/form-update-contrato";
@@ -71,6 +71,8 @@ export default function DetailInfoEmployee({ employee }: Props) {
     const fakeEnd = new Date(totalMs);
     return intervalToDuration({ start: fakeStart, end: fakeEnd });
   }, [employee.antecedentes]);
+
+  const [contratoDialogOpen, setContratoDialogOpen] = useState(false);
 
   return (
     <SheetUI>
@@ -197,10 +199,10 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         <div>
                           <Badge
                             variant={
-                              (v as any).encargaduria ? "default" : "destructive"
+                              employee.encargadurias?.some(e => e.cargo_encargado === v.id && e.estatus_nombre !== "FINALIZADA") ? "default" : "destructive"
                             }
                           >
-                            {(v as any).encargaduria ? "SÍ" : "NO"}
+                            {employee.encargadurias?.some(e => e.cargo_encargado === v.id && e.estatus_nombre !== "FINALIZADA") ? "SÍ" : "NO"}
                           </Badge>
                         </div>
                         <Separator
@@ -336,7 +338,92 @@ export default function DetailInfoEmployee({ employee }: Props) {
               </Dialog>
             )}
 
-
+            {employee.contrato && employee.contrato.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex flex-row justify-between items-center gap-3">
+                    <div>Contratos</div>
+                    <Dialog open={contratoDialogOpen} onOpenChange={setContratoDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button type="button" className="cursor-pointer">
+                          Agregar Contratos
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <FormUpdateContrato
+                          employee={employee}
+                          mutate={mutate}
+                          updateInfoEmployee={updateInfoEmployee}
+                          onSuccess={() => setContratoDialogOpen(false)}
+                        />
+                      </DialogContent>
+                    </Dialog>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table className="table-fixed w-full">
+                    <TableCaption>
+                      Lista De Contratos.
+                    </TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>N° Contrato</TableHead>
+                        <TableHead>Fecha Ingreso</TableHead>
+                        <TableHead>Fecha Culminación</TableHead>
+                        <TableHead>Política</TableHead>
+                        <TableHead>Estatus</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {employee.contrato.map((c, i) => (
+                        <TableRow key={c.id || i}>
+                          <TableCell className="font-medium">
+                            {c.n_contrato}
+                          </TableCell>
+                          <TableCell>
+                            {c.fecha_ingreso
+                              ? formatInTimeZone(new Date(c.fecha_ingreso), "UTC", "dd/MM/yyyy")
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            {c.fecha_culminacion
+                              ? formatInTimeZone(new Date(c.fecha_culminacion), "UTC", "dd/MM/yyyy")
+                              : "—"}
+                          </TableCell>
+                          <TableCell>
+                            {c.politica?.tipo_politica ?? "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={c.estatus?.estatus === "VENCIDO" ? "destructive" : "default"}>
+                              {c.estatus?.estatus ?? "N/A"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ) : (
+              <Dialog open={contratoDialogOpen} onOpenChange={setContratoDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    className="cursor-pointer bg-red-700 hover:bg-red-900"
+                  >
+                    Agregar Contratos
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <FormUpdateContrato
+                    employee={employee}
+                    mutate={mutate}
+                    updateInfoEmployee={updateInfoEmployee}
+                    onSuccess={() => setContratoDialogOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
 
             <Card>
               <CardHeader>
@@ -384,7 +471,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                   </div>
                   <div>Código Postal:</div>
                   <div>
-                    {employee.datos_vivienda?.codigo_postal ?? "N/A"}
+                    {employee.datos_vivienda?.codigo_postal?.codigo ?? "N/A"}
                   </div>
                 </div>
               </CardContent>

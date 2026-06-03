@@ -54,7 +54,7 @@ export default function RadioGroupForm<T extends FieldValues>({
               {options.map((option) => (
                 <FormItem
                   key={option.value}
-                  className="flex items-center gap-2 space-y-0"
+                  className="flex items-center gap-2"
                 >
                   <FormControl>
                     <RadioGroupItem value={option.value} />

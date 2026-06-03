@@ -171,9 +171,9 @@ export function CodigoCatalogForm({ onSuccess }: CodigoCatalogFormProps) {
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-6"
+                className="gap-6"
               >
-                <div className="space-y-2 grid grid-cols-2 items-baseline gap-6 place-content-center">
+                <div className="grid grid-cols-2 items-baseline gap-6 place-content-center">
                   <FormField
                     control={form.control}
                     name="codigo"
@@ -183,7 +183,10 @@ export function CodigoCatalogForm({ onSuccess }: CodigoCatalogFormProps) {
                         <FormControl>
                           <Input placeholder="000" {...field} />
                         </FormControl>
-
+                        <FormDescription>
+                          Opcional. Si se deja vacío, el código se generará
+                          automáticamente.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -529,7 +532,7 @@ export function CodigoCatalogForm({ onSuccess }: CodigoCatalogFormProps) {
                     {isPending ? (
                       <>
                         <Spinner />
-                        Creando Nuevo Código...
+                        Creando Nuevo Código…
                       </>
                     ) : (
                       "Crear Nuevo Código"

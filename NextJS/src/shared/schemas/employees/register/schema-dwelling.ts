@@ -32,7 +32,7 @@ export const schemaDwelling = z.object({
         required_error: "Este Campo Es Requerido",
       })
       .min(1, "Debe Seleccionar Una Parroquia"),
-    codigo_postal: z.string().max(10, "Máximo 10 caracteres").optional(),
+    codigo_postal_id: z.coerce.number().min(1, "Seleccione un código postal").optional(),
   }),
 });
 export type DwellingType = z.infer<typeof schemaDwelling>;

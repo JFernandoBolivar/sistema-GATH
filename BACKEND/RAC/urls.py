@@ -70,6 +70,7 @@ urlpatterns = [
     path('direccion/estados/', views.list_estados, name='estados'),    
     path('direccion/municipios/<int:estadoid>/', views.list_municipios, name='municipios_por_estado'),
     path('direccion/parroquias/<int:municipioid>/', views.list_parroquias, name='parroquias'),
+    path('direccion/codigos_postales/<int:estadoid>/', views.list_codigos_postales, name='codigos_postales_por_estado'),
     path('condicion_vivienda/', views.list_housing_conditions, name='listar-condiciones-vivienda'),
     
     
@@ -203,6 +204,7 @@ urlpatterns = [
     path('Parentesco/', views.listar_parentesco, name="listar-parentesco"),
     path('Employeefamily/<int:familiar_id>/documentos/', views.subir_documento_familiar, name='subir-documento-familiar'),
     path('Employeefamily/<int:familiar_id>/documentos/list/', views.listar_documentos_familiar, name='listar-documentos-familiar'),
+    path('Employeefamily/documentos/<int:id>/descargar/', views.descargar_documento_familiar, name='descargar-documento-familiar'),
     
     
     

@@ -1,15 +1,18 @@
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 from rest_framework.decorators import api_view
-from rest_framework.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 
-from AUTOGESTION.models.models_encuestas import PreguntasEncuestas, RespuestasEncuesta
+from AUTOGESTION.models.models_encuestas import PreguntasEncuestas
 from AUTOGESTION.serializers.serializers_encuestas import (
-    PreguntasEncuestasSerializer,
+    CensoEmpleadoSerializer,
     CensoViviendaSubmitSerializer,
+    PreguntasEncuestasSerializer,
+    CensoExcelFiltrosSerializer,
 )
+from AUTOGESTION.services.excel_service import generar_excel_censo
 from RAC.models.personal_models import Employee
 from RAC.utils.data_formatters import extract_first_error
 
@@ -59,91 +62,36 @@ def registrar_censo_vivienda(request, cedula_empleado):
         context={"empleado": empleado, "request": request},
     )
 
-    try:
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+    if serializer.is_valid():
+        try:
+            serializer.save()
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Censo de vivienda registrado correctamente",
+                    "data": serializer.data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "status": "error",
+                    "message": str(e),
+                    "data": None,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        return Response(
-            {
-                "status": "success",
-                "message": "Censo de vivienda registrado correctamente",
-                "data": serializer.data,
-            },
-            status=status.HTTP_201_CREATED,
-        )
-    except ValidationError:
-        clean_message = extract_first_error(serializer.errors)
-        return Response(
-            {
-                "status": "error",
-                "message": clean_message,
-                "data": None,
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except Exception as e:
-        return Response(
-            {
-                "status": "error",
-                "message": str(e),
-                "data": None,
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-
-def _build_censo_empleado_data(empleado):
-    respuestas = RespuestasEncuesta.objects.filter(
-        empleado=empleado
-    ).select_related("pregunta__tipo", "opcion")
-
-    from RAC.utils.tiempo_servicio import calcular_total_apn
-    cerrados = empleado.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
-
-    fecha_ingreso_org = None
-    primera = empleado.antecedentes_servicio_set.order_by("fecha_ingreso").first()
-    if primera:
-        fecha_ingreso_org = primera.fecha_ingreso.isoformat() if primera.fecha_ingreso else None
-
-    cargos_data = []
-    for asignacion in empleado.assignments.select_related(
-        "denominacioncargoid", "OrganismoAdscritoid"
-    ):
-        cargos_data.append({
-            "id": asignacion.id,
-            "codigo": asignacion.codigo,
-            "cargo": asignacion.denominacioncargoid.cargo if asignacion.denominacioncargoid else None,
-            "organismo": asignacion.OrganismoAdscritoid.Organismoadscrito if asignacion.OrganismoAdscritoid else None,
-        })
-
-    vivienda = empleado.datos_vivienda_set.first()
-    datos_vivienda = None
-    if vivienda:
-        from RAC.serializers.catalogs_serializers import DatosViviendaSerializer
-        datos_vivienda = DatosViviendaSerializer(vivienda).data
-
-    return {
-        "id": empleado.id,
-        "cedula": empleado.cedulaidentidad,
-        "nombres": empleado.nombres,
-        "apellidos": empleado.apellidos,
-        "fecha_nacimiento": empleado.fecha_nacimiento.isoformat() if empleado.fecha_nacimiento else None,
-        "carnet_patria": empleado.carnet_patria,
-        "cargos": cargos_data,
-        "datos_vivienda": datos_vivienda,
-        "total_apn": calcular_total_apn(cerrados),
-        "fecha_ingreso_organismo": fecha_ingreso_org,
-        "preguntas": [
-            {
-                "id": r.pregunta_id,
-                "pregunta": r.pregunta.enunciado,
-                "tipo": r.pregunta.tipo.nombre,
-                "opcion": {"id": r.opcion_id, "opcion": r.opcion.tipo_opcion} if r.opcion else None,
-                "respuesta": r.respuesta,
-            }
-            for r in respuestas
-        ],
-    }
+    clean_message = extract_first_error(serializer.errors)
+    return Response(
+        {
+            "status": "error",
+            "message": clean_message,
+            "data": None,
+        },
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 @extend_schema(
@@ -166,11 +114,12 @@ def consultar_censo_empleado(request, cedula):
         )
 
     try:
+        serializer = CensoEmpleadoSerializer(empleado)
         return Response(
             {
                 "status": "success",
                 "message": "Respuestas obtenidas correctamente",
-                "data": [_build_censo_empleado_data(empleado)],
+                "data": [serializer.data],
             },
             status=status.HTTP_200_OK,
         )
@@ -197,13 +146,13 @@ def consultar_todos_censos(request):
             respuestas_encuesta__isnull=False
         ).distinct().order_by("cedulaidentidad")
 
-        data = [_build_censo_empleado_data(emp) for emp in empleados]
+        serializer = CensoEmpleadoSerializer(empleados, many=True)
 
         return Response(
             {
                 "status": "success",
                 "message": "Respuestas obtenidas correctamente",
-                "data": data,
+                "data": serializer.data,
             },
             status=status.HTTP_200_OK,
         )
@@ -217,84 +166,28 @@ def consultar_todos_censos(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-
 @extend_schema(
     tags=["AUTOGESTION - Censo Vivienda"],
-    summary="Exportar censos a Excel",
-    description="Genera y descarga un archivo Excel con todas las respuestas del censo de vivienda.",
+    summary="Exportar censos a Excel con filtros",
+    description="Genera y descarga un archivo Excel con las respuestas del censo de vivienda, aplicando filtros opcionales por direccion general, direccion de linea, dependencia, coordinacion o tipo de nomina.",
+    request=CensoExcelFiltrosSerializer,
 )
-@api_view(["GET"])
+@api_view(["POST"])
 def exportar_censo_excel(request):
     try:
-        import io
-        from openpyxl import Workbook
-        from django.http import HttpResponse
+        serializer = CensoExcelFiltrosSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "status": "error",
+                    "message": serializer.errors,
+                    "data": [],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        empleados = Employee.objects.filter(
-            respuestas_encuesta__isnull=False
-        ).distinct().order_by("cedulaidentidad")
-
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Censo Vivienda"
-
-        preguntas = PreguntasEncuestas.objects.filter(activo=True).order_by("orden")
-        pregunta_ids = list(preguntas.values_list("id", flat=True))
-
-        headers = [
-            "Cédula", "Nombres", "Apellidos", "Fecha Nacimiento",
-            "Carnet Patria", "APN (años)", "APN (meses)", "APN (días)",
-            "F. Ingreso Organismo", "Dirección Vivienda", "Código Postal",
-        ]
-        for p in preguntas:
-            headers.append(p.enunciado)
-
-        ws.append(headers)
-
-        for emp in empleados:
-            respuestas = RespuestasEncuesta.objects.filter(
-                empleado=emp
-            ).select_related("pregunta", "opcion")
-
-            respuestas_map = {}
-            for r in respuestas:
-                respuestas_map[r.pregunta_id] = r.opcion.tipo_opcion if r.opcion else r.respuesta
-
-            from RAC.utils.tiempo_servicio import calcular_total_apn
-            cerrados = emp.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
-            total_apn = calcular_total_apn(cerrados)
-
-            fecha_ingreso_org = ""
-            primera = emp.antecedentes_servicio_set.order_by("fecha_ingreso").first()
-            if primera and primera.fecha_ingreso:
-                fecha_ingreso_org = primera.fecha_ingreso.isoformat()
-
-            vivienda = emp.datos_vivienda_set.first()
-            direccion = vivienda.direccion_exacta if vivienda else ""
-            codigo_postal = vivienda.codigo_postal if vivienda else ""
-
-            row = [
-                emp.cedulaidentidad,
-                emp.nombres,
-                emp.apellidos,
-                emp.fecha_nacimiento.isoformat() if emp.fecha_nacimiento else "",
-                emp.carnet_patria or "",
-                total_apn["years"],
-                total_apn["months"],
-                total_apn["days"],
-                fecha_ingreso_org,
-                direccion,
-                codigo_postal,
-            ]
-
-            for pid in pregunta_ids:
-                row.append(respuestas_map.get(pid, ""))
-
-            ws.append(row)
-
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
+        filtros = serializer.validated_data.get("filtros", {})
+        output = generar_excel_censo(filtros)
 
         response = HttpResponse(
             output.read(),

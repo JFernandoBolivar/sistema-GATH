@@ -11,7 +11,7 @@ const viviendaSchema = z.object({
   condicion_vivienda_id: z
     .number()
     .min(1, "Seleccione una condición de vivienda"),
-  codigo_postal: z.string().max(10).optional(),
+  codigo_postal_id: z.coerce.number().optional(),
 });
 
 export function buildSchema(preguntas: Pregunta[]) {
