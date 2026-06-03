@@ -37,7 +37,7 @@ export const schemaDwellingUpdate = z.object({
       .refine((v) => v > 0, {
         message: "Debe Seleccionar Un Valor",
       }),
-    codigo_postal: z.string().max(10).optional(),
+    codigo_postal_id: z.coerce.number().optional(),
   }),
 })
 export type DwellingUpdateType = z.infer<typeof schemaDwellingUpdate>

@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  getCodigosPostales,
   getConditionDwelling,
   getMunicipalitys,
   getParish,
@@ -65,6 +66,11 @@ export default function FormDwelling({
     municipalityId ? ["parish", municipalityId] : null,
     async () => await getParish(municipalityId!),
   )
+  const { data: codigosPostales, isLoading: isLoadingCodigosPostales } =
+    useSWR(
+      stateId ? ["codigosPostales", stateId] : null,
+      async () => await getCodigosPostales(stateId!),
+    )
   const {
     data: conditionDwelling,
     isLoading: isLoadingStatesConditionDwelling,
@@ -250,17 +256,31 @@ export default function FormDwelling({
                 {showCodigoPostal && (
                   <FormField
                     control={form.control}
-                    name="datos_vivienda.codigo_postal"
+                    name="datos_vivienda.codigo_postal_id"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Código Postal</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="1010"
-                            {...field}
-                            value={field.value ?? ""}
-                          />
-                        </FormControl>
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(Number.parseInt(value))
+                          }}
+                          value={field.value ? `${field.value}` : undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full truncate">
+                              <SelectValue
+                                placeholder={isLoadingCodigosPostales ? "Cargando Códigos Postales" : "Seleccione un Código Postal"}
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {codigosPostales?.data.map((cp, i) => (
+                              <SelectItem key={i} value={`${cp.id}`}>
+                                {cp.codigo}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

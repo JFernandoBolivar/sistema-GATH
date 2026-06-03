@@ -8,6 +8,7 @@ import {
   Carrera,
   Category,
   Code,
+  CodigoPostal,
   ConditionDwelling,
   Coordination,
   Dependency,
@@ -436,6 +437,12 @@ export const postReportPasivo = async <T>(
 };
 export const getRegion = async (): Promise<ApiResponse<Region[]>> => {
   return await apiFetchGet<Region[]>(`direccion/regiones/`);
+};
+
+export const getCodigosPostales = async (
+  id: string,
+): Promise<ApiResponse<CodigoPostal[]>> => {
+  return await apiFetchGet<CodigoPostal[]>(`direccion/codigos_postales/${id}/`);
 };
 
 export const getStateByRegion = async (

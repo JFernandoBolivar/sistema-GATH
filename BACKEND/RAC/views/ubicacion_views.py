@@ -4,6 +4,7 @@ from rest_framework import  status
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from ..models.ubicacion_models import *
+from ..models.personal_models import codigo_postal
 from ..serializers.catalogs_serializers import *
 
 
@@ -120,4 +121,25 @@ def list_parroquias(request, municipioid):
     }, status=status.HTTP_200_OK)
 
 
-
+@extend_schema(
+    tags=["Recursos Humanos - Datos Vivienda"],
+    summary="Listar Códigos Postales por Estado",
+    description="Devuelve una lista de códigos postales para un estado específico.",
+    responses=CodigoPostalSerializer,
+)
+@api_view(['GET'])
+def list_codigos_postales(request, estadoid):
+    try:
+        estado = Estado.objects.get(pk=estadoid)
+    except Estado.DoesNotExist:
+        return Response({
+            "status": "Error",
+            "message": "Estado no encontrado"
+        }, status=status.HTTP_404_NOT_FOUND)
+    codigos = codigo_postal.objects.filter(estado_id=estadoid)
+    serializer = CodigoPostalSerializer(codigos, many=True)
+    return Response({
+        "status": "Ok",
+        "message": f"Códigos postales del estado {estado.estado}",
+        "data": serializer.data
+    }, status=status.HTTP_200_OK)

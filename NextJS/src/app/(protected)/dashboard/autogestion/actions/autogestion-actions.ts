@@ -15,7 +15,7 @@ interface ViviendaData {
   municipio_id?: number;
   parroquia?: number;
   condicion_vivienda_id?: number;
-  codigo_postal?: string;
+  codigo_postal_id?: number;
 }
 
 interface ActionResponse {
