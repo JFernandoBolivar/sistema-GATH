@@ -293,18 +293,25 @@ class CondicionViviendaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class CodigoPostalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = codigo_postal
+        fields = ['id', 'codigo', 'estado_id']
+
+
 class DatosViviendaSerializer(serializers.ModelSerializer):
     estado_id = serializers.PrimaryKeyRelatedField(queryset=direccion_models.Estado.objects.all(), write_only=True)
     municipio_id = serializers.PrimaryKeyRelatedField(queryset=direccion_models.Municipio.objects.all(), write_only=True)
     parroquia = serializers.PrimaryKeyRelatedField(queryset=direccion_models.Parroquia.objects.all()) 
     condicion_vivienda_id = serializers.PrimaryKeyRelatedField(queryset=condicion_vivienda.objects.all(), write_only=True)
+    codigo_postal_id = serializers.PrimaryKeyRelatedField(queryset=codigo_postal.objects.all(), write_only=True)
     
 
     class Meta:
         model = datos_vivienda
         fields = [
             'id', 'direccion_exacta', 'parroquia',
-            'estado_id', 'municipio_id', 'condicion_vivienda_id','codigo_postal' 
+            'estado_id', 'municipio_id', 'condicion_vivienda_id', 'codigo_postal_id'
         ]
 
     def to_representation(self, instance):
@@ -329,6 +336,11 @@ class DatosViviendaSerializer(serializers.ModelSerializer):
             ret['condicion'] = CondicionViviendaSerializer(instance.condicion_vivienda_id).data if instance.condicion_vivienda_id is not None else None
         except Exception:
             ret['condicion'] = None
+
+        try:
+            ret['codigo_postal'] = CodigoPostalSerializer(instance.codigo_postal_id).data if instance.codigo_postal_id is not None else None
+        except Exception:
+            ret['codigo_postal'] = None
 
         return ret
         

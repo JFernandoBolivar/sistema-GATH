@@ -98,7 +98,7 @@ class Dependencias(models.Model):
 class DireccionGeneral(models.Model):
     Codigo = models.CharField(max_length=20, unique=True)
     direccion_general = models.CharField(max_length=200, unique=True)
-    dependenciaId = models.ForeignKey('Dependencias', models.PROTECT,null=True, default=1, db_column='dependenciaId')
+    dependenciaId = models.ForeignKey('Dependencias', models.PROTECT,null=True,  db_column='dependenciaId')
 
     class Meta:
         managed = True
@@ -318,6 +318,7 @@ class GruposCapacitacion(models.Model):
 
     class Meta:
         managed = True
+        ordering = ['nombre_grupo']
         db_table = 'grupos_capacitacion'
         app_label = 'RAC'
         
@@ -336,6 +337,19 @@ class contacto_emergencia(models.Model):
         managed = True
         db_table ='contacto_emergencia'
 
+class codigo_postal(models.Model):
+    codigo = models.CharField(max_length=5)
+    estado_id = models.ForeignKey(direccion_models.Estado, models.PROTECT, db_column='estado_id')
+    
+    
+    class Meta:
+        managed = True
+        db_table = 'codigo_postal'
+        unique_together = ('codigo','estado_id')
+        ordering = ['codigo']
+        app_label = 'RAC'
+    
+    
 class datos_vivienda(models.Model):
     empleado_id = models.ForeignKey('Employee', models.PROTECT, db_column='empleadoId', null=True, blank=True)
     familiar_id = models.ForeignKey(Employeefamily, models.PROTECT, db_column='familiarId', null=True, blank=True)
@@ -344,8 +358,7 @@ class datos_vivienda(models.Model):
     parroquia = models.ForeignKey(direccion_models.Parroquia, models.PROTECT, db_column='parroquiaId')
     direccion_exacta = models.TextField(db_column='direccionExacta')
     condicion_vivienda_id = models.ForeignKey(condicion_vivienda, models.PROTECT, db_column='condicionViviendaId')
-    codigo_postal = models.CharField(max_length=4, db_column='codigo_postal', null=True, blank=True)
-
+    codigo_postal_id = models.ForeignKey(codigo_postal,db_column='codigo_postal_id', on_delete=models.CASCADE)
     class Meta:
         managed = True
         db_table = 'datos_vivienda'
