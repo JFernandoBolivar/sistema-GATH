@@ -226,12 +226,18 @@ export interface Municipality {
   id: number;
   municipio: string;
 }
+export interface CodigoPostal {
+  id: number;
+  codigo: string;
+  estado_id: number;
+}
+
 export interface DewllingInfo {
   estado: States;
   municipio: Municipality;
   parroquia: Parish;
   direccion_exacta: string;
-  codigo_postal: string | null;
+  codigo_postal: CodigoPostal | null;
   condicion: {
     id: number;
     condicion: string;
