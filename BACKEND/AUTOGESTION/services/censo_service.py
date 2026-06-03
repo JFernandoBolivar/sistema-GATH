@@ -37,6 +37,8 @@ def build_censo_queryset(filtros):
                 "Coordinacion",
                 "tiponominaid",
                 "Tipo_personal",
+                "denominacioncargoid",
+                "denominacioncargoespecificoid",
             ).order_by("-fecha_actualizacion"),
             to_attr="filtered_assignments",
         )
