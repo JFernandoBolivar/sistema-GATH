@@ -565,6 +565,7 @@ export interface Pregunta {
   enunciado: string;
   tipo: TipoPregunta;
   opciones: Opcion[];
+  validacion: string | null;
 }
 
 export type PieChartItem = { name: string; value: number };
