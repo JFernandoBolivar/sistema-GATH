@@ -15,7 +15,7 @@ class TipoPregunta(models.Model):
 
 
 class PreguntasEncuestas(models.Model):
-    validacion = models.CharField(null=True, blank=True,)
+    validacion = models.CharField(max_length=500, null=True, blank=True)
     enunciado = models.CharField(max_length=200, unique=True)
     tipo = models.ForeignKey(
         TipoPregunta,
