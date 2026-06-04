@@ -88,7 +88,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/registrar",
         icon: UserPlus,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -106,7 +106,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/agregar-familiar",
         icon: ContactRound,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -115,7 +115,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
         icon: BookUser,
         permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -123,7 +123,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
+      roleAccept: ["ANALISTA","ADMINISTRADOR", "PRESUPUESTO"],
       departmentAccept: ["RAC"],
     },
     title: "Ub. Administrativas",
@@ -153,7 +153,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/listado-ubicacion-administrativa",
         icon: List,
         permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -170,7 +170,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
+      roleAccept: ["ANALISTA","ADMINISTRADOR", "PRESUPUESTO"],
       departmentAccept: ["RAC"],
     },
     title: "Gestión De Codigos",
@@ -199,7 +199,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR"],
+      roleAccept: ["ANALISTA","ADMINISTRADOR"],
       departmentAccept: ["RAC"],
     },
     title: "Movimientos",
@@ -211,7 +211,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/movimientos/asignar-codigo",
         icon: BriefcaseBusiness,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -220,7 +220,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/movimientos/asignar-codigo-especial",
         icon: Briefcase,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -229,7 +229,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/movimientos/prestamo-cargo",
         icon: ArrowRightLeft,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -247,7 +247,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/movimientos/cambiar-estatus",
         icon: FileChartLine,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -256,7 +256,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/movimientos/cambiar-pasivo",
         icon: BookCheck,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -329,7 +329,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
+      roleAccept: ["ANALISTA","ADMINISTRADOR", "PRESUPUESTO"],
       departmentAccept: ["RAC"],
     },
     icon: BookCheck,
@@ -346,7 +346,7 @@ const items: MenuItem[] = [
         url: "/dashboard/autogestion/consultar",
         icon: FileSpreadsheet,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },

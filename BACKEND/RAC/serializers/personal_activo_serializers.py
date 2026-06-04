@@ -212,7 +212,7 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
     def validate_antecedentes(self, value):
         if not value or not isinstance(value, list):
             return value
-        hoy = date_type.today()
+        hoy = date.today()
         for i, item in enumerate(value):
             inicio = item.get('fecha_ingreso')
             fin = item.get('fecha_egreso')
@@ -232,8 +232,49 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
                     raise serializers.ValidationError(
                         f"El antecedente {i+1} ({inicio} - {fin}) se solapa con el antecedente {j+1} ({other_inicio} - {other_fin})."
                     )
+        if self.instance and self.instance.pk:
+            existing_qs = antecedentes_servicio.objects.filter(empleado_id=self.instance)
+            for i, item in enumerate(value):
+                inicio = item.get('fecha_ingreso')
+                if not inicio:
+                    continue
+                fin = item.get('fecha_egreso') or hoy
+                item_id = item.get('id')
+                for rec in existing_qs:
+                    if item_id and rec.id == item_id:
+                        continue
+                    rec_fin = rec.fecha_egreso or hoy
+                    if rec.fecha_ingreso and inicio <= rec_fin and fin >= rec.fecha_ingreso:
+                        raise serializers.ValidationError(
+                            f"El antecedente {i+1} ({inicio} - {fin}) se solapa con un antecedente existente ID {rec.id} ({rec.fecha_ingreso} - {rec_fin})."
+                        )
         return value
-                          
+
+    def validate_formacion_complementaria(self, value):
+        if not value or not isinstance(value, list):
+            return value
+        hoy = date.today()
+        for i, item in enumerate(value):
+            inicio = item.get('fecha_inicio')
+            fin = item.get('fecha_fin')
+            if not inicio:
+                continue
+            fin = fin or hoy
+            if fin < inicio:
+                raise serializers.ValidationError(
+                    f"La fecha de culminacion no puede ser anterior a la fecha de inicio en la formacion complementaria {i+1}."
+                )
+            for j, other in enumerate(value):
+                if i == j:
+                    continue
+                other_inicio = other.get('fecha_inicio')
+                other_fin = other.get('fecha_fin') or hoy
+                if other_inicio and inicio <= other_fin and fin >= other_inicio:
+                    raise serializers.ValidationError(
+                        f"La formacion complementaria {i+1} ({inicio} - {fin}) se solapa con la formacion {j+1} ({other_inicio} - {other_fin})."
+                    )
+        return value
+
 # -------------------------------------------------------------
 # serializers para listar datos personales 
 # -------------------------------------------------------------  
