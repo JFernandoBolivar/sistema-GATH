@@ -95,21 +95,8 @@ export function CodeListPage() {
     async () => await getNominaGeneral(),
   );
   const onSearch = (values: z.infer<typeof schemaSearch>) => {
-    const isNotAdmin = session?.user?.role.nombre_rol !== "ADMINISTRADOR";
     const payload = {
       ...values,
-      dependencia_id: isNotAdmin
-        ? Number(session?.user.dependency?.id)
-        : values.dependencia_id,
-      direccion_general_id: isNotAdmin
-        ? Number(session?.user.directionGeneral?.id)
-        : (values.direccion_general_id ?? ""),
-      direccion_linea_id: isNotAdmin
-        ? Number(session?.user.direccionLine?.id) || null
-        : (values.direccion_linea_id ?? ""),
-      coordinacion_id: isNotAdmin
-        ? Number(session?.user.coordination?.id) || null
-        : (values.coordinacion_id ?? ""),
     };
     const filteredEntries = Object.entries(payload).filter(
       ([_, v]) => v !== "" && v !== undefined && v !== null,

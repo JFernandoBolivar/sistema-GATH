@@ -43,24 +43,13 @@ export default function FamilyConsultPasive() {
   );
 
   const onSearch = (values: z.infer<typeof schemaSearch>) => {
-    const isNotAdmin = session?.user?.role.nombre_rol !== "ADMINISTRADOR";
     const payload = {
       ...values,
-      dependencia_id: isNotAdmin ? Number(session?.user.dependency?.id) : "",
-      direccion_general_id: isNotAdmin
-        ? Number(session?.user.directionGeneral?.id)
-        : "",
-      direccion_linea_id: isNotAdmin
-        ? Number(session?.user.direccionLine?.id) || null
-        : "",
-      coordinacion_id: isNotAdmin
-        ? Number(session?.user.coordination?.id) || null
-        : "",
     };
     const filteredEntries = Object.entries(payload).filter(
       ([_, v]) =>
         v !== "" &&
-        v !== 0 &&
+        Number(v) !== 0 &&
         v !== undefined &&
         v !== null &&
         !Number.isNaN(v),
