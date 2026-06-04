@@ -49,7 +49,7 @@ export default function FamilyConsultPasive() {
     const filteredEntries = Object.entries(payload).filter(
       ([_, v]) =>
         v !== "" &&
-        v !== 0 &&
+        Number(v) !== 0 &&
         v !== undefined &&
         v !== null &&
         !Number.isNaN(v),
