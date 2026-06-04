@@ -247,7 +247,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/movimientos/cambiar-estatus",
         icon: FileChartLine,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
