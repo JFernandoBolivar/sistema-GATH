@@ -85,7 +85,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/personal-jubilado/consultar",
         icon: ListCheck,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -94,7 +94,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/personal-jubilado/familiares/agregar-familiar",
         icon: ContactRound,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -103,7 +103,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/personal-jubilado/familiares/consultar",
         icon: BookUser,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -111,28 +111,28 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR"],
       departmentAccept: ["RAC"],
     },
     title: "Gestión De Codigos",
     url: "#",
     icon: Badge,
     subMenu: [
-      // {
-      //   title: "Crear Nuevo Código",
-      //   url: "/dashboard/gestion-pasivos/cargos/crear-codigo",
-      //   icon: BadgePlus,
-      //   permission: {
-      //     roleAccept: ["ADMINISTRADOR"],
-      //     departmentAccept: ["RAC"],
-      //   },
-      // },
+      {
+        title: "Crear Nuevo Código",
+        url: "/dashboard/gestion-pasivos/cargos/crear-codigo",
+        icon: BadgePlus,
+        permission: {
+          roleAccept: ["PRESUPUESTO"],
+          departmentAccept: ["RAC"],
+        },
+      },
       {
         title: "Consultar/Actualizar",
         url: "/dashboard/gestion-pasivos/cargos/listado-codigo",
         icon: List,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -140,7 +140,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ADMINISTRADOR"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR"],
       departmentAccept: ["RAC"],
     },
     title: "Movimientos",
@@ -152,7 +152,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/movimientos/cambiar-estatus",
         icon: FileChartLine,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
@@ -161,7 +161,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/movimientos/cambiar-pasivo",
         icon: BookCheck,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
           departmentAccept: ["RAC"],
         },
       },
