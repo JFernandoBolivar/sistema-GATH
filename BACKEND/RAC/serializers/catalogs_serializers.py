@@ -254,6 +254,13 @@ class FormacionComplementariaSerializer(serializers.ModelSerializer):
                     {'grupo_id': 'Debe seleccionar un grupo para procedencias internas'}
                 )
 
+        fecha_inicio = attrs.get('fecha_inicio')
+        fecha_fin = attrs.get('fecha_fin')
+        if fecha_inicio and fecha_fin and fecha_fin < fecha_inicio:
+            raise serializers.ValidationError(
+                {'fecha_fin': 'La fecha de culminacion no puede ser anterior a la fecha de inicio.'}
+            )
+
         return attrs
 
 # ////////////////////////
@@ -617,6 +624,15 @@ class AntecedentesServicioSerializer(serializers.ModelSerializer):
            
             return calcular_tiempo_comercial(obj.fecha_ingreso, obj.fecha_egreso)
         return None
+
+    def validate(self, attrs):
+        inicio = attrs.get('fecha_ingreso')
+        fin = attrs.get('fecha_egreso')
+        if inicio and fin and fin < inicio:
+            raise serializers.ValidationError(
+                {'fecha_egreso': 'La fecha de egreso no puede ser anterior a la fecha de ingreso.'}
+            )
+        return attrs
 
 
 
