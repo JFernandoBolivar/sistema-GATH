@@ -54,7 +54,15 @@ import { schemaContratoItem } from "@/shared/schemas/employees/register/schema-c
 import type { UpdateEmployeeFn } from "@/shared/types/actions";
 
 const schemaUpdateContrato = z.object({
-  contrato: z.array(schemaContratoItem).optional(),
+  contrato: z.array(
+    schemaContratoItem.extend({
+      n_contrato: z
+        .string()
+        .min(3, { message: "Debe Ingresar Al Menos 3 Caracteres" })
+        .optional()
+        .or(z.literal("")),
+    })
+  ).optional(),
 });
 
 type Props = {
@@ -97,7 +105,7 @@ export default function FormUpdateContrato({ employee, mutate, mutateKey = "api/
     startTransition(async () => {
       const response = await updateInfoEmployee(
         { contrato: data.contrato?.map((c) => ({
-          n_contrato: c.n_contrato,
+          n_contrato: c.n_contrato ?? "",
           fecha_ingreso: c.fecha_ingreso,
           politica_id: c.politica_id,
           fecha_culminacion: c.fecha_culminacion ?? null,

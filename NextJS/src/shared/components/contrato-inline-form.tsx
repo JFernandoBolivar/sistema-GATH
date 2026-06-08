@@ -68,6 +68,7 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
           }));
         } else {
           setShowContratoForm(false);
+          onSuccess?.();
         }
       }
     })();

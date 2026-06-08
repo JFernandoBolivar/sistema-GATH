@@ -742,7 +742,9 @@ class EmployeeDetailSerializer(ContratoMixin, serializers.ModelSerializer):
     def get_encargadurias(self, obj):
         from datetime import date
         from ..serializers.historial_personal_serializers import PrestamoCargoSerializer
-        prestamos = obj.encargadurias_asignadas.filter(
+        from ..models.historial_personal_models import PrestamoCargo
+        prestamos = PrestamoCargo.objects.filter(
+            cargo_encargado__employee=obj,
             fecha_fin__gte=date.today()
         ).select_related('cargo_encargado', 'motivo', 'estatus')
         return PrestamoCargoSerializer(prestamos, many=True).data

@@ -195,7 +195,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         <div>
                           {v.tipo_procedencia?.tipo_procedencia ?? "N/A"}
                         </div>
-                        <div>Encargaduría</div>
+                        <div>Cargo Cubierto por una Encargaduría</div>
                         <div>
                           <Badge
                             variant={

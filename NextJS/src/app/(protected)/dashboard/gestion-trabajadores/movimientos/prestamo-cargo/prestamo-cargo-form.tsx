@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { formatInTimeZone } from "date-fns-tz";
 import { toast } from "sonner";
 import useSWR from "swr";
-import { Search, ChevronDownIcon, Eraser } from "lucide-react";
+import { Search, ChevronDownIcon } from "lucide-react";
 import z from "zod";
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -36,6 +36,7 @@ import {
 
 import { MotivoEncargaduria, PrestamoCargoData, Code } from "@/app/types/types";
 import { ContratoInlineForm } from "@/shared/components/contrato-inline-form";
+import { CodeFilterForm } from "../../components/movimientos/code-filter-form";
 import { schemaPrestamoCargo, PrestamoCargoFormType } from "./schema";
 import { createPrestamoCargoAction, finalizarPrestamoCargoAction } from "./actions";
 import EmployeeSearchForm from "../../components/employees/employee-search-form";
@@ -222,12 +223,12 @@ const formatDate = (d: string | Date) => {
   }
 
   return (
-    <div className="gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Registrar Encargaduría</CardTitle>
         </CardHeader>
-        <CardContent className="gap-5">
+        <CardContent className="flex flex-col gap-5">
           <EmployeeSearchForm
             onSearch={handleSearchEmployee}
             label="Buscar Trabajador (Encargado)"
@@ -252,161 +253,16 @@ const formatDate = (d: string | Date) => {
 
           {employee && !Array.isArray(employee.data) && employeeReady && (
             <>
-              <Form {...filterForm}>
-                <form onSubmit={filterForm.handleSubmit(handleSearchCargo)}>
-                  <div className="grid grid-cols-2 gap-2 w-full mb-2">
-                    <FormField
-                      control={filterForm.control}
-                      name="codigo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Buscar Código</FormLabel>
-                          <FormControl>
-                            <Input placeholder="buscar código..." {...field} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={filterForm.control}
-                      name="tipo_nomina"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tipo de Nómina</FormLabel>
-                          <Select
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={field.value?.toString() ?? ""}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full truncate">
-                                <SelectValue placeholder="Seleccione un Tipo de Nómina" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="0">Ninguno</SelectItem>
-                              {nomina?.data?.map((n) => (
-                                <SelectItem key={n.id} value={n.id.toString()}>{n.nomina}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={filterForm.control}
-                      name="dependencia_id"
-                      render={({ field }) => (
-                        <FormItem className="col-span-2">
-                          <FormLabel>Nivel</FormLabel>
-                          <Select
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={field.value?.toString() ?? ""}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full truncate">
-                                <SelectValue placeholder="Seleccione un Nivel" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {dependency?.data?.map((d) => (
-                                <SelectItem key={d.id} value={d.id.toString()}>{d.dependencia}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={filterForm.control}
-                      name="direccion_general_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
-                          <Select
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={field.value?.toString() ?? ""}
-                            disabled={!watchedDependencia}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full truncate">
-                                <SelectValue placeholder="Seleccione una Dirección" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {directionGeneral?.data?.map((d) => (
-                                <SelectItem key={d.id} value={d.id.toString()}>{d.direccion_general}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={filterForm.control}
-                      name="direccion_linea_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>División / Coordinación</FormLabel>
-                          <Select
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={field.value?.toString() ?? ""}
-                            disabled={!watchedDireccionGeneral}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full truncate">
-                                <SelectValue placeholder="Seleccione una División / Coordinación" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {directionLine?.data?.map((d) => (
-                                <SelectItem key={d.id} value={d.id.toString()}>{d.direccion_linea}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={filterForm.control}
-                      name="coordinacion_id"
-                      render={({ field }) => (
-                        <FormItem className="col-span-2">
-                          <FormLabel>Coordinación</FormLabel>
-                          <Select
-                            onValueChange={(v) => field.onChange(Number(v))}
-                            value={field.value?.toString() ?? ""}
-                            disabled={!watchedDireccionLinea}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full truncate">
-                                <SelectValue placeholder="Seleccione una Coordinación" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {coordination?.data?.map((d) => (
-                                <SelectItem key={d.id} value={d.id.toString()}>{d.coordinacion}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="flex gap-2 mb-2">
-                    <Button type="submit" className="cursor-pointer flex-1">
-                      <Search className="mr-2" size={16} /> Buscar Cargos
-                    </Button>
-                    <Button type="button" variant="outline" onClick={handleCleanFilters} className="cursor-pointer">
-                      <Eraser className="mr-2" size={16} /> Limpiar
-                    </Button>
-                  </div>
-                </form>
-              </Form>
+              <CodeFilterForm
+                form={filterForm}
+                dependencyData={dependency?.data}
+                directionGeneralData={directionGeneral?.data}
+                directionLineData={directionLine?.data}
+                coordinationData={coordination?.data}
+                nominaData={nomina?.data}
+                onSearch={handleSearchCargo}
+                onClean={handleCleanFilters}
+              />
 
               {codeList?.data && codeList.data.length > 0 && (
                 <div>
@@ -438,13 +294,13 @@ const formatDate = (d: string | Date) => {
 
               {selectedCargo && (
                 <Form {...form}>
-                  <form onSubmit={form.handleSubmit(handleSubmit)} className="gap-4">
+                  <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
                     <div className="flex gap-2 items-start">
                       <FormField
                         control={form.control}
                         name="motivo"
                         render={({ field }) => (
-                          <FormItem className="w-60 shrink-0">
+                          <FormItem className="w-72 shrink-0">
                             <FormLabel>Motivo (ENCARGADURIA)</FormLabel>
                             <Select
                               onValueChange={(v) => {
@@ -458,7 +314,7 @@ const formatDate = (d: string | Date) => {
                               value={field.value === -1 ? "-1" : field.value?.toString() ?? ""}
                             >
                               <FormControl>
-                                <SelectTrigger className="truncate">
+                                <SelectTrigger>
                                   <SelectValue placeholder="Seleccione un motivo" />
                                 </SelectTrigger>
                               </FormControl>
