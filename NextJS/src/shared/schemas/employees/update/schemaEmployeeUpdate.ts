@@ -1,4 +1,4 @@
-import { REGEX_PHONE_VENEZUELA, REGEX_PHONE_VENEZUELA_FIJO } from "@/lib/regex"
+import { REGEX_PHONE_VENEZUELA, REGEX_PHONE_VENEZUELA_FIJO,  REGEX_NUMBERS, } from "@/lib/regex"
 import { z } from "zod"
 
 export const schemaBasicUpdateInfo = z.object({
@@ -56,6 +56,12 @@ export const schemaBasicUpdateInfo = z.object({
     })
     .optional(),
   correo: z.string().optional(),
+  carnet_patria: z
+    .string().regex(REGEX_NUMBERS, {
+          message: "Solo Se Permiten Números",
+        }).min(10, { message: "Debe Ingresar 10 Digitos" })
+        .max(10, { message: "Debe Maximo 10 Digitos" }).optional(),
+        
   telefono_habitacion: z
     .string()
     .regex(REGEX_PHONE_VENEZUELA_FIJO, {

@@ -168,7 +168,7 @@ export function EmployeeEditModal({
                         <FormLabel>Carnet de la Patria</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="00000000000000000000"
+                            placeholder="0000000000"
                             {...field}
                           />
                         </FormControl>

@@ -4,6 +4,17 @@ import { auth } from "#/auth";
 
 let refreshPromise: Promise<string | null> | null = null;
 
+function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  cookieStore.delete("dj_access");
+  cookieStore.delete("dj_refresh");
+  const allCookies = cookieStore.getAll();
+  for (const c of allCookies) {
+    if (c.name.startsWith("authjs.session-token") || c.name.startsWith("__Secure-authjs.session-token") || c.name.startsWith("next-auth.session-token")) {
+      cookieStore.delete(c.name);
+    }
+  }
+}
+
 async function getValidAccessToken(): Promise<string | null> {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("dj_access")?.value;
@@ -31,8 +42,7 @@ async function refreshTokens(): Promise<string | null> {
       );
 
       if (!refreshResponse.ok) {
-        cookieStore.delete("dj_access");
-        cookieStore.delete("dj_refresh");
+        deleteAuthCookies(cookieStore);
         return null;
       }
 

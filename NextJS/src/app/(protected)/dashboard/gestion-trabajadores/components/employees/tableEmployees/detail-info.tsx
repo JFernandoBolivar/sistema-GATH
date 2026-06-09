@@ -3,7 +3,7 @@ import { EmployeeData } from "@/app/types/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -108,6 +108,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
+                  <DialogTitle className="sr-only">Actualizar Información Básica</DialogTitle>
                   <FormBasicUpdateInfo
                     mutate={mutate} updateInfoEmployee={updateInfoEmployee}
                     idEmployee={employee.id.toString()}
@@ -227,6 +228,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
+                        <DialogTitle className="sr-only">Agregar Antecedentes</DialogTitle>
                         <FormUpdateBackground
                           mutate={mutate} updateInfoEmployee={updateInfoEmployee}
                           idEmployee={employee.id.toString()}
@@ -316,6 +318,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
+                  <DialogTitle className="sr-only">Agregar Antecedentes</DialogTitle>
                   <FormUpdateBackground
                     mutate={mutate} updateInfoEmployee={updateInfoEmployee}
                     idEmployee={employee.id.toString()}
@@ -350,6 +353,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
+                        <DialogTitle className="sr-only">Agregar Contratos</DialogTitle>
                         <FormUpdateContrato
                           employee={employee}
                           mutate={mutate}
@@ -415,6 +419,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
+                  <DialogTitle className="sr-only">Agregar Contratos</DialogTitle>
                   <FormUpdateContrato
                     employee={employee}
                     mutate={mutate}
@@ -441,6 +446,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
+                      <DialogTitle className="sr-only">Actualizar Datos de Vivienda</DialogTitle>
                       <FormUpdateDwelling
                         idEmployee={employee.id.toString()}
                         mutate={mutate} updateInfoEmployee={updateInfoEmployee}
@@ -492,6 +498,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
+                      <DialogTitle className="sr-only">Actualizar Formación Académica</DialogTitle>
                       <FormUpdateAcademyLevel
                         idEmployee={employee.id.toString()}
                         mutate={mutate} updateInfoEmployee={updateInfoEmployee}
@@ -568,6 +575,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         </Button>
                       </DialogTrigger>
                       <DialogContent>
+                        <DialogTitle className="sr-only">Actualizar Formación Complementaria</DialogTitle>
                         <FormUpdateSupplementaryTraining
                           idEmployee={employee.id.toString()}
                           mutate={mutate} updateInfoEmployee={updateInfoEmployee}
@@ -666,6 +674,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
+                  <DialogTitle className="sr-only">Agregar Formación Complementaria</DialogTitle>
                   <FormUpdateSupplementaryTraining
                     idEmployee={employee.id.toString()}
                     mutate={mutate} updateInfoEmployee={updateInfoEmployee}
@@ -702,6 +711,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
+                      <DialogTitle className="sr-only">Actualizar Información de Vestimenta</DialogTitle>
                       <FormUpdatePhysical
                         idEmployee={employee.id.toString()}
                         mutate={mutate} updateInfoEmployee={updateInfoEmployee}
@@ -763,6 +773,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
+                      <DialogTitle className="sr-only">Actualizar Información de Salud</DialogTitle>
                       <FormUpdateHealth
                         idEmployee={employee.id.toString()}
                         mutate={mutate} updateInfoEmployee={updateInfoEmployee}

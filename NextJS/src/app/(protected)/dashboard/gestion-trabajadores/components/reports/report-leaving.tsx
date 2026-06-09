@@ -33,6 +33,7 @@ import {
   postReport,
 } from "../../api/getInfoRac";
 
+import FormDate from "@/components/form-date";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -112,6 +113,8 @@ export default function ReportLeaving() {
         grado_id: undefined,
         cargo_id: undefined,
         cargo_especifico_id: undefined,
+        fecha_egreso_Desde: undefined,
+        fecha_egreso_Hasta: undefined,
       },
     },
   });
@@ -526,6 +529,20 @@ export default function ReportLeaving() {
                             <FormMessage />
                           </FormItem>
                         )}
+                      />
+                    </fieldset>
+
+                    <fieldset className="flex flex-col gap-3 border-2 p-2 rounded-sm border-gray-600">
+                      <legend className="text-gray-800 font-semibold">Fecha De Egreso</legend>
+                      <FormDate
+                        form={form}
+                        label="Fecha De Egreso Desde"
+                        nameInput="filtros.fecha_egreso_Desde"
+                      />
+                      <FormDate
+                        form={form}
+                        label="Fecha De Egreso Hasta"
+                        nameInput="filtros.fecha_egreso_Hasta"
                       />
                     </fieldset>
                   </div>
