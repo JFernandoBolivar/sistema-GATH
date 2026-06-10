@@ -371,11 +371,11 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     </TableCaption>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>N° Contrato</TableHead>
-                        <TableHead>Fecha Ingreso</TableHead>
-                        <TableHead>Fecha Culminación</TableHead>
-                        <TableHead>Política</TableHead>
-                        <TableHead>Estatus</TableHead>
+                        <TableHead className="w-[120px] truncate">N° Contrato</TableHead>
+                        <TableHead className="w-[100px] truncate">Fecha Ingreso</TableHead>
+                        <TableHead className="w-[120px] truncate">Fecha Culminación</TableHead>
+                        <TableHead className="truncate">Política</TableHead>
+                        <TableHead className="w-[100px] truncate">Estatus</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -394,7 +394,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                               ? formatInTimeZone(new Date(c.fecha_culminacion), "UTC", "dd/MM/yyyy")
                               : "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="truncate max-w-[150px]">
                             {c.politica?.tipo_politica ?? "N/A"}
                           </TableCell>
                           <TableCell>
@@ -607,7 +607,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     </TableCaption>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Capacitación</TableHead>
+                        <TableHead className="truncate">Capacitación</TableHead>
                         <TableHead className="w-[120px]">
                           Fecha De Inicio
                         </TableHead>
@@ -623,7 +623,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     <TableBody>
                       {employee.formacion_complementaria.map((v, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-medium">
+                          <TableCell className="font-medium truncate max-w-[180px]">
                             {v.capacitacion?.nombre_capacitacion ?? "N/A"}
                           </TableCell>
                           <TableCell>

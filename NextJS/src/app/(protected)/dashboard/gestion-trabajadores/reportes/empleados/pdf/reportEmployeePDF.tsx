@@ -277,7 +277,7 @@ export function ReportPDFEmployee({
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Teléfono De Habitación:</Text>
                   <Text style={styles.infoValue}>
-                    {employee.telefono_habitacion ?? "N/A"}
+                    {employee.telefono_habitacion || "N/A"}
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
