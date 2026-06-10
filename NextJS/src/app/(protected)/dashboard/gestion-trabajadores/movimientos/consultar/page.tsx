@@ -66,7 +66,7 @@ export default function TableMovesPage() {
       title="Consulta De Movimientos De Trabajadores"
       description="Verifique El Movimiento Del Personal"
     >
-      <Card className="flex bg-background border-none rounded-none shadow-none ">
+      <Card className="flex border-none rounded-none shadow-none ">
         <div className="flex flex-1 flex-col overflow-hidden">
           <main className="flex-1 overflow-auto bg-muted/30 p-6 ">
             <Form {...form}>

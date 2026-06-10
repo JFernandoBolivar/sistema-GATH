@@ -325,8 +325,8 @@ export function CreateFamilyForm() {
 
   return (
     <>
-      <Card>
-        <CardContent className="gap-5">
+      <Card className="bg-white">
+        <CardContent className="gap-5 bg-white">
           <div className="flex flex-col gap-2">
             <EmployeeSearchForm onSearch={search} />
 
