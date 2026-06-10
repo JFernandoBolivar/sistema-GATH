@@ -35,8 +35,8 @@ export default function EmployeeSearchForm({
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSearch)} className="flex flex-row gap-2 w-full">
+    <Form {...form} >
+      <form onSubmit={form.handleSubmit(handleSearch)} className="flex flex-row gap-2 w-full ">
         <FormField
           control={form.control}
           name="searchEmployeeForm"

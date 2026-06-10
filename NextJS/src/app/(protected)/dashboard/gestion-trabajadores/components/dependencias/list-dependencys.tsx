@@ -69,8 +69,8 @@ export default function TableDependencys() {
 
   return (
     <>
-      <Card>
-        <CardContent>
+      <Card className="bg-white">
+        <CardContent >
           <div className={`grid grid-cols-2 w-full gap-5`}>
             <div className={`col-span-2 gap-2`}>
               <Label>Nivel</Label>
