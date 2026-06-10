@@ -2,10 +2,15 @@ from datetime import date
 
 
 def calcular_tiempo_comercial(fecha_inicio: date, fecha_fin: date):
-    """Retorna dict con years, months, days usando metodo comercial 30/360"""
+    """
+    Retorna dict con years, months, days usando metodo comercial 30/360
+    Incluye 1 día adicional por el período (día de inicio + día de fin)
+    """
+    # Suma 1 día al cálculo base para incluir el día de inicio en el cómputo
     dias_totales = (fecha_fin.year - fecha_inicio.year) * 360 \
                  + (fecha_fin.month - fecha_inicio.month) * 30 \
-                 + (fecha_fin.day - fecha_inicio.day)
+                 + (fecha_fin.day - fecha_inicio.day) + 1
+    
     years = dias_totales // 360
     resto = dias_totales % 360
     months = resto // 30
@@ -14,11 +19,15 @@ def calcular_tiempo_comercial(fecha_inicio: date, fecha_fin: date):
 
 
 def calcular_total_apn(antecedentes_qs):
-    """Suma todos los antecedentes cerrados y retorna el total"""
+    """
+    Suma todos los antecedentes cerrados y retorna el total
+    Cada antecedente ya incluye el día adicional en calcular_tiempo_comercial
+    """
     total_dias = 0
     for ant in antecedentes_qs:
         if ant.fecha_ingreso and ant.fecha_egreso:
             total_dias += calcular_tiempo_comercial(ant.fecha_ingreso, ant.fecha_egreso)["total_dias"]
+    
     years = total_dias // 360
     resto = total_dias % 360
     months = resto // 30

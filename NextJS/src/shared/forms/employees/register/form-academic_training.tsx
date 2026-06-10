@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, useWatch, useFormContext } from "react-hook-form";
 import {
   AcademyType,
   schemaAcademy,
@@ -40,7 +40,6 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Cross, Trash, X } from "lucide-react";
-import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { Badge } from "@/components/ui/badge";
 
@@ -48,25 +47,348 @@ type Props = {
   onSubmit: (values: AcademyType) => void;
   defaultValues: AcademyType;
 };
+function AcademicRow({
+  index,
+  remove,
+  academyLevel,
+  isLoadingAcademyLevel,
+  instituciones,
+  isLoadingInstituciones,
+}: {
+  index: number;
+  remove: (index: number) => void;
+  academyLevel?: { data: { id: number; nivelacademico: string }[] };
+  isLoadingAcademyLevel: boolean;
+  instituciones?: { data: { id: number; nombre_institucion: string }[] };
+  isLoadingInstituciones: boolean;
+}) {
+  const { control, setValue } = useFormContext();
+
+  const watchedCarreraId = useWatch({
+    control,
+    name: `formacion_academica.${index}.carrera_id`,
+  });
+  const watchedInstitucionId = useWatch({
+    control,
+    name: `formacion_academica.${index}.institucion_id`,
+  });
+  const watchedMencionId = useWatch({
+    control,
+    name: `formacion_academica.${index}.mencion_id`,
+  });
+  const watchedNivelAcademicoId = useWatch({
+    control,
+    name: `formacion_academica.${index}.nivel_Academico_id`,
+  });
+
+  const { data: carrera, isLoading: isLoadingCarrera } = useSWR(
+    watchedNivelAcademicoId ? ["carrera", watchedNivelAcademicoId] : null,
+    async () => await getCarrera(watchedNivelAcademicoId!),
+  );
+  const { data: mencion, isLoading: isLoadingMencion } = useSWR(
+    watchedCarreraId ? ["mencion", watchedCarreraId] : null,
+    async () => await getMencion(watchedCarreraId!),
+  );
+
+  const isOtherCareer = watchedCarreraId === -1;
+  const isOtherInstitucion = watchedInstitucionId === -1;
+  const isOtherMencion = watchedMencionId === -1;
+  const hasCarrera = watchedCarreraId != null && watchedCarreraId > 0;
+  const nivelSeleccionado = academyLevel?.data?.find(n => n.id === watchedNivelAcademicoId);
+  const esNoPosee = nivelSeleccionado?.nivelacademico?.toLowerCase().includes("no posee") || nivelSeleccionado?.nivelacademico?.toLowerCase() === "n/p";
+
+  return (
+    <div className="flex flex-row gap-5 items-start w-full">
+      <FormField
+        control={control}
+        name={`formacion_academica.${index}.nivel_Academico_id`}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {index + 1}. Nivel Academico
+            </FormLabel>
+            <Select
+              onValueChange={(v) => {
+                field.onChange(Number.parseInt(v));
+              }}
+              value={field.value?.toString() ?? ""}
+            >
+              <FormControl>
+                <SelectTrigger className="w-80">
+                  <SelectValue
+                    placeholder={
+                      isLoadingAcademyLevel
+                        ? "Cargando..."
+                        : "Seleccione"
+                    }
+                  />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {academyLevel?.data.map((nivel, i) => (
+                  <SelectItem key={i} value={`${nivel.id}`}>
+                    {nivel.nivelacademico}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <div className="flex items-start gap-2">
+        <FormField
+          control={control}
+          name={`formacion_academica.${index}.carrera_id`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Carrera (Opcional)</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  if (v === "-1") {
+                    field.onChange(-1);
+                    setValue(
+                      `formacion_academica.${index}.mencion_id` as never,
+                      undefined as never,
+                    );
+                  } else {
+                    const numV = Number(v);
+                    field.onChange(numV);
+                    setValue(
+                      `formacion_academica.${index}.nueva_carrera_nombre` as never,
+                      "" as never,
+                    );
+                  }
+                }}
+                value={
+                  field.value === -1
+                    ? "-1"
+                    : field.value?.toString() ?? ""
+                }
+              >
+                <FormControl>
+                  <SelectTrigger className="w-80">
+                    <SelectValue
+                      placeholder={
+                        isLoadingCarrera
+                          ? "Cargando..."
+                          : "Seleccione"
+                      }
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {carrera?.data.map((c, i) => (
+                    <SelectItem key={i} value={`${c.id}`}>
+                      {c.nombre_carrera}
+                    </SelectItem>
+                  ))}
+                  {!!watchedNivelAcademicoId && watchedNivelAcademicoId > 0 && !esNoPosee && (
+                    <SelectItem value="-1">Otra</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className={!isOtherCareer ? "hidden" : ""}>
+          <FormField
+            control={control}
+            name={`formacion_academica.${index}.nueva_carrera_nombre`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>&nbsp;</FormLabel>
+                <FormControl>
+                  <Input
+                    className="w-44"
+                    placeholder="Nueva carrera..."
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  Se asociará al nivel académico seleccionado.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+      <div className="flex items-start gap-2">
+        <FormField
+          control={control}
+          name={`formacion_academica.${index}.mencion_id`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Mención (Opcional)</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  if (v === "-1") {
+                    field.onChange(-1);
+                  } else {
+                    field.onChange(Number.parseInt(v));
+                    setValue(
+                      `formacion_academica.${index}.nueva_mencion_nombre` as never,
+                      "" as never,
+                    );
+                  }
+                }}
+                value={
+                  field.value === -1
+                    ? "-1"
+                    : field.value?.toString() ?? ""
+                }
+              >
+                <FormControl>
+                  <SelectTrigger className="w-80">
+                    <SelectValue
+                      placeholder={
+                        isLoadingMencion
+                          ? "Cargando..."
+                          : "Seleccione"
+                      }
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {mencion?.data.map((m, i) => (
+                    <SelectItem key={i} value={`${m.id}`}>
+                      {m.nombre_mencion}
+                    </SelectItem>
+                  ))}
+                  {hasCarrera && (
+                    <SelectItem value="-1">Otra</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className={!isOtherMencion ? "hidden" : ""}>
+          <FormField
+            control={control}
+            name={`formacion_academica.${index}.nueva_mencion_nombre`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>&nbsp;</FormLabel>
+                <FormControl>
+                  <Input
+                    className="w-44"
+                    placeholder="Nueva mención..."
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+      <div className="flex items-start gap-2">
+        <FormField
+          control={control}
+          name={`formacion_academica.${index}.institucion_id`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Institución {hasCarrera ? <span className="text-red-500">*</span> : "(Opcional)"}
+              </FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  if (v === "-1") {
+                    field.onChange(-1);
+                  } else {
+                    const numV = Number(v);
+                    field.onChange(numV);
+                    setValue(
+                      `formacion_academica.${index}.nueva_institucion_nombre` as never,
+                      "" as never,
+                    );
+                  }
+                }}
+                value={
+                  field.value === -1
+                    ? "-1"
+                    : field.value?.toString() ?? ""
+                }
+              >
+                <FormControl>
+                  <SelectTrigger className="w-80">
+                    <SelectValue
+                      placeholder={
+                        isLoadingInstituciones
+                          ? "Cargando..."
+                          : "Seleccione"
+                      }
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {instituciones?.data?.map((i) => (
+                    <SelectItem
+                      key={i.id}
+                      value={i.id.toString()}
+                    >
+                      {i.nombre_institucion}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="-1">Otra</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className={!isOtherInstitucion ? "hidden" : ""}>
+          <FormField
+            control={control}
+            name={`formacion_academica.${index}.nueva_institucion_nombre`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>&nbsp;</FormLabel>
+                <FormControl>
+                  <Input
+                    className="w-44"
+                    placeholder="Nueva institución..."
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 invisible">X</span>
+        <Button
+          type="button"
+          variant={"destructive"}
+          size="icon"
+          className={`${index === 0 ? "invisible" : ""} cursor-pointer`}
+          onClick={() => remove(index)}
+        >
+          <X />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function FormAcademyLevel({
   onSubmit,
   defaultValues,
 }: Props) {
-  const [mencionId, setMencionId] = useState<string>();
-  const [nivelAcademicoId, setNivelAcademicoId] = useState<number>();
-
   const form = useForm({
     resolver: zodResolver(schemaAcademy),
     values: defaultValues,
     mode: "onChange",
   });
-
-  useEffect(() => {
-    const firstNivel = defaultValues.formacion_academica?.[0]?.nivel_Academico_id;
-    if (firstNivel && firstNivel > 0) {
-      setNivelAcademicoId(firstNivel);
-    }
-  }, [defaultValues]);
 
   const { fields, append, remove } = useFieldArray({
     name: "formacion_academica",
@@ -76,14 +398,6 @@ export default function FormAcademyLevel({
   const { data: academyLevel, isLoading: isLoadingAcademyLevel } = useSWR(
     "academyLevel",
     async () => await getAcademyLevel(),
-  );
-  const { data: carrera, isLoading: isLoadingCarrera } = useSWR(
-    nivelAcademicoId ? ["carrera", nivelAcademicoId] : null,
-    async () => await getCarrera(nivelAcademicoId),
-  );
-  const { data: mencion, isLoading: isLoadingMencion } = useSWR(
-    mencionId ? ["mencion", mencionId] : null,
-    async () => await getMencion(mencionId!),
   );
   const { data: instituciones, isLoading: isLoadingInstituciones } = useSWR(
     "instituciones",
@@ -175,315 +489,17 @@ export default function FormAcademyLevel({
               <h1 className="text-gray-600">
                 Opcional si no posee formación académica
               </h1>
-              {fields.map((field, index) => {
-                const watchedCarreraId = form.watch(
-                  `formacion_academica.${index}.carrera_id`,
-                );
-                const watchedInstitucionId = form.watch(
-                  `formacion_academica.${index}.institucion_id`,
-                );
-                const watchedMencionId = form.watch(
-                  `formacion_academica.${index}.mencion_id`,
-                );
-                const watchedNivelAcademicoId = form.watch(
-                  `formacion_academica.${index}.nivel_Academico_id`,
-                );
-                const isOtherCareer = watchedCarreraId === -1;
-                const isOtherInstitucion = watchedInstitucionId === -1;
-                const isOtherMencion = watchedMencionId === -1;
-                const hasCarrera = watchedCarreraId != null && watchedCarreraId > 0;
-                const nivelSeleccionado = academyLevel?.data?.find(n => n.id === watchedNivelAcademicoId);
-                const esNoPosee = nivelSeleccionado?.nivelacademico?.toLowerCase().includes("no posee") || nivelSeleccionado?.nivelacademico?.toLowerCase() === "n/p";
-
-                return (
-                  <div
-                    key={field.id}
-                    className="flex flex-row gap-5 items-start w-full"
-                  >
-                    <FormField
-                      control={form.control}
-                      name={`formacion_academica.${index}.nivel_Academico_id`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            {index + 1}. Nivel Academico
-                          </FormLabel>
-                          <Select
-                            onValueChange={(v) => {
-                              const id = Number.parseInt(v);
-                              field.onChange(id);
-                              setNivelAcademicoId(id);
-                            }}
-                            value={field.value?.toString() ?? ""}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-80">
-                                <SelectValue
-                                  placeholder={
-                                    isLoadingAcademyLevel
-                                      ? "Cargando..."
-                                      : "Seleccione"
-                                  }
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {academyLevel?.data.map((nivel, i) => (
-                                <SelectItem key={i} value={`${nivel.id}`}>
-                                  {nivel.nivelacademico}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <div className="flex items-start gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`formacion_academica.${index}.carrera_id`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Carrera (Opcional)</FormLabel>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === "-1") {
-                                  field.onChange(-1);
-                                  form.setValue(
-                                    `formacion_academica.${index}.mencion_id` as never,
-                                    undefined as never,
-                                  );
-                                  setMencionId(undefined);
-                                } else {
-                                  const numV = Number(v);
-                                  field.onChange(numV);
-                                  form.setValue(
-                                    `formacion_academica.${index}.nueva_carrera_nombre` as never,
-                                    "" as never,
-                                  );
-                                  setMencionId(v);
-                                }
-                              }}
-                              value={
-                                field.value === -1
-                                  ? "-1"
-                                  : field.value?.toString() ?? ""
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-80">
-                                  <SelectValue
-                                    placeholder={
-                                      isLoadingCarrera
-                                        ? "Cargando..."
-                                        : "Seleccione"
-                                    }
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {carrera?.data.map((c, i) => (
-                                  <SelectItem key={i} value={`${c.id}`}>
-                                    {c.nombre_carrera}
-                                  </SelectItem>
-                                ))}
-                                {!!watchedNivelAcademicoId && watchedNivelAcademicoId > 0 && !esNoPosee && (
-                                  <SelectItem value="-1">Otra</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className={!isOtherCareer ? "hidden" : ""}>
-                        <FormField
-                          control={form.control}
-                          name={`formacion_academica.${index}.nueva_carrera_nombre`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>&nbsp;</FormLabel>
-                              <FormControl>
-                                <Input
-                                  className="w-44"
-                                  placeholder="Nueva carrera..."
-                                  {...field}
-                                  value={field.value ?? ""}
-                                />
-                              </FormControl>
-                              <FormDescription className="text-xs">
-                                Se asociará al nivel académico seleccionado.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`formacion_academica.${index}.mencion_id`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Mención (Opcional)</FormLabel>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === "-1") {
-                                  field.onChange(-1);
-                                } else {
-                                  field.onChange(Number.parseInt(v));
-                                  form.setValue(
-                                    `formacion_academica.${index}.nueva_mencion_nombre` as never,
-                                    "" as never,
-                                  );
-                                }
-                              }}
-                              value={
-                                field.value === -1
-                                  ? "-1"
-                                  : field.value?.toString() ?? ""
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-80">
-                                  <SelectValue
-                                    placeholder={
-                                      isLoadingMencion
-                                        ? "Cargando..."
-                                        : "Seleccione"
-                                    }
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {mencion?.data.map((m, i) => (
-                                  <SelectItem key={i} value={`${m.id}`}>
-                                    {m.nombre_mencion}
-                                  </SelectItem>
-                                ))}
-                                {hasCarrera && (
-                                  <SelectItem value="-1">Otra</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className={!isOtherMencion ? "hidden" : ""}>
-                        <FormField
-                          control={form.control}
-                          name={`formacion_academica.${index}.nueva_mencion_nombre`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>&nbsp;</FormLabel>
-                              <FormControl>
-                                <Input
-                                  className="w-44"
-                                  placeholder="Nueva mención..."
-                                  {...field}
-                                  value={field.value ?? ""}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <FormField
-                        control={form.control}
-                        name={`formacion_academica.${index}.institucion_id`}
-                        render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>
-                                Institución {hasCarrera ? <span className="text-red-500">*</span> : "(Opcional)"}
-                              </FormLabel>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === "-1") {
-                                  field.onChange(-1);
-                                } else {
-                                  const numV = Number(v);
-                                  field.onChange(numV);
-                                  form.setValue(
-                                    `formacion_academica.${index}.nueva_institucion_nombre` as never,
-                                    "" as never,
-                                  );
-                                }
-                              }}
-                              value={
-                                field.value === -1
-                                  ? "-1"
-                                  : field.value?.toString() ?? ""
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-80">
-                                  <SelectValue
-                                    placeholder={
-                                      isLoadingInstituciones
-                                        ? "Cargando..."
-                                        : "Seleccione"
-                                    }
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {instituciones?.data?.map((i) => (
-                                  <SelectItem
-                                    key={i.id}
-                                    value={i.id.toString()}
-                                  >
-                                    {i.nombre_institucion}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value="-1">Otra</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className={!isOtherInstitucion ? "hidden" : ""}>
-                        <FormField
-                          control={form.control}
-                          name={`formacion_academica.${index}.nueva_institucion_nombre`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>&nbsp;</FormLabel>
-                              <FormControl>
-                                <Input
-                                  className="w-44"
-                                  placeholder="Nueva institución..."
-                                  {...field}
-                                  value={field.value ?? ""}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-center gap-2">
-                      <span className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 invisible">X</span>
-                      <Button
-                        type="button"
-                        variant={"destructive"}
-                        size="icon"
-                        className={`${index === 0 ? "invisible" : ""} cursor-pointer`}
-                        onClick={() => remove(index)}
-                      >
-                        <X />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+              {fields.map((field, index) => (
+                <AcademicRow
+                  key={field.id}
+                  index={index}
+                  remove={remove}
+                  academyLevel={academyLevel}
+                  isLoadingAcademyLevel={isLoadingAcademyLevel}
+                  instituciones={instituciones}
+                  isLoadingInstituciones={isLoadingInstituciones}
+                />
+              ))}
             </ScrollArea>
             {!isError && (
               <Badge

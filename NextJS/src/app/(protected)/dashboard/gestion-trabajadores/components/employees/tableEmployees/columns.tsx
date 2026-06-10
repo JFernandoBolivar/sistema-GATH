@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef, Row } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "./data-table-column-header";
@@ -29,10 +30,25 @@ function EmployeeActionsCell({ row }: { row: Row<EmployeeData> }) {
   const { data: profileBlob } = useSWR(["profile", searchParams], () =>
     imageProfileFn(employee.cedulaidentidad),
   );
-  const imageURL = profileBlob
-    ? URL.createObjectURL(profileBlob)
-    : "/bg.png";
+  const imageURL = useMemo(
+    () => profileBlob
+      ? URL.createObjectURL(profileBlob)
+      : "/bg.png",
+    [profileBlob],
+  );
   const session = useSession();
+
+  const pdfDocument = useMemo(
+    () => (
+      <ReportPDFEmployee
+        employeeData={[employee]}
+        photoUrl={imageURL}
+        id="Sistema"
+        session={session}
+      />
+    ),
+    [employee, imageURL],
+  );
 
   return (
     <DropdownMenu>
@@ -53,18 +69,11 @@ function EmployeeActionsCell({ row }: { row: Row<EmployeeData> }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Extras</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem>
           <ExportButton
             className="w-full"
             fileName={`${employee.nombres}-${employee.apellidos}-expediente.pdf`}
-            document={
-              <ReportPDFEmployee
-                employeeData={[employee]}
-                photoUrl={imageURL}
-                id="Sistema"
-                session={session}
-              />
-            }
+            document={pdfDocument}
           />
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -130,8 +139,10 @@ export const columns: ColumnDef<EmployeeData>[] = [
     id: "fecha_ingreso_org",
     cell: ({ getValue }) => {
       const contratos = getValue() as { fecha_ingreso?: string; estatus?: { estatus: string } }[] | null;
-      const activo = contratos?.find(c => c.estatus?.estatus === 'ACTIVO' || c.estatus?.estatus === 'POR VENCER');
-      const fecha = activo?.fecha_ingreso;
+      const sorted = contratos
+        ?.filter(c => c.fecha_ingreso)
+        .sort((a, b) => new Date(a.fecha_ingreso!).getTime() - new Date(b.fecha_ingreso!).getTime());
+      const fecha = sorted?.[0]?.fecha_ingreso;
       return (
         <span>
           {fecha ? formatInTimeZone(fecha, "UTC", "dd/MM/yyy") : "N/A"}

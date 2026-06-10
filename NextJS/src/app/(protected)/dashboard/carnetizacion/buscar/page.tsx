@@ -74,23 +74,25 @@ export default function BuscarPersonalPage() {
       description="Busca un trabajador por cédula o nombre para generar su carnet"
     >
       <div className="max-w-3xl mx-auto mt-6 gap-6">
-        <Card className="shadow-md border-0">
-          <CardHeader className=" to-indigo-50 rounded-t-lg">
-            <CardTitle className="flex items-center gap-2 ">
-              <Search className="size-5" />
-              Búsqueda de Personal
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <SearchForm
-              form={form}
-              isLoading={isLoading}
-              queryLength={query.length}
-              onInputChange={handleInputChange}
-              onSubmit={onSubmit}
-            />
-          </CardContent>
-        </Card>
+        <Card className="bg-white rounded-2xl shadow-2xl shadow-indigo-500/20 border border-indigo-100 overflow-hidden">
+  <CardHeader className="bg-gradient-to-br from-indigo-50/70 to-white rounded-t-2xl border-b border-indigo-100/50">
+    <CardTitle className="flex items-center gap-3 text-lg font-semibold text-indigo-950">
+      <Search className="size-6 text-indigo-600" />
+      Búsqueda de Personal
+    </CardTitle>
+  </CardHeader>
+  <CardContent className="pt-6 pb-8 bg-transparent">
+    <SearchForm
+      form={form}
+      isLoading={isLoading}
+      queryLength={query.length}
+      onInputChange={handleInputChange}
+      onSubmit={onSubmit}
+    />
+    {/* Ejemplo visual de filtros como en la imagen, si tu formulario los incluye */}
+    
+  </CardContent>
+</Card>
 
         <div className="gap-3">
           {isLoading && (
