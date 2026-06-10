@@ -25,8 +25,7 @@ import { HealthType } from "@/shared/schemas/employees/register/schema-health_pr
 import { PhysicalProfileType } from "@/shared/schemas/employees/register/schema-physical_profile";
 import { DwellingType } from "@/shared/schemas/employees/register/schema-dwelling";
 import { registerEmployeeSteps } from "../actions/formStepActions";
-import { FamilyEmployeeType } from "@/shared/schemas/employees/register/schema-family_employee";
-import { FormFamilyEmployee } from "@/shared/forms/employees/register/form-family";
+
 import Loading from "../../../components/loading/loading";
 type Values = [
   FormFormity<BasicInfoType>,

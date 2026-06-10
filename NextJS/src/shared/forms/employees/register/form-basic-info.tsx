@@ -210,7 +210,7 @@ export function FormBasicInfo({
                       form={form}
                       label="Carnet de la Patria"
                       nameInput="carnet_patria"
-                      placeholder="00000000000000000000"
+                      placeholder="0000000000"
                       type="text"
                     />
                   </div>

@@ -124,7 +124,7 @@ def procesar_egreso_total(empleado, motivo, usuario, estatus_vacante):
             OrganismoAdscritoid=asig.OrganismoAdscritoid,
         )
 
-        asig.estatusid = estatus_egresado
+        asig.estatusid = estatus_vacante
         registrar_historial_movimiento(empleado, asig, "EGRESO", motivo, usuario)
         asig.employee = None
         asig.save()

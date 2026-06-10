@@ -133,7 +133,7 @@ class EmployeePassivePDFGenerator(BasePDFGenerator):
                         coord_nom = getattr(coord, 'coordinacion', str(coord))
                         
                         headers = ['#', 'Codigo','Cédula', 'Nombres', 'Apellidos', 'F. Ingreso',  'Sexo', 'Tipo de Nómina', 'Organismo Adscrito']
-                        col_widths = [10*mm,15*mm, 22*mm, 30*mm, 30*mm, 22*mm, 15*mm, 45*mm, 45*mm]
+                        col_widths = [10*mm,17*mm, 22*mm, 30*mm, 30*mm, 22*mm, 15*mm, 45*mm, 45*mm]
                         
                         def sort_cedula_desc(e):
                             c = self._get_cedula(e)
@@ -191,7 +191,14 @@ class EmployeePassivePDFGenerator(BasePDFGenerator):
     def _get_cedula(self, employee): return str(getattr(employee, 'cedulaidentidad', 'N/A'))
     def _get_nombres(self, employee): return getattr(employee, 'nombres', 'N/A')
     def _get_apellidos(self, employee): return getattr(employee, 'apellidos', 'N/A')
-    def _get_fecha_ingreso(self, employee): return format_date(getattr(employee, 'fechaingresoorganismo', None))
+    def _get_fecha_ingreso(self, employee):
+        from RAC.models.personal_models import contratos
+        primer_contrato = contratos.objects.filter(
+            antecedente_id__empleado_id=employee,
+        ).select_related("antecedente_id").order_by("antecedente_id__fecha_ingreso").first()
+        if primer_contrato and primer_contrato.fecha_ingreso:
+            return format_date(primer_contrato.fecha_ingreso)
+        return "N/A"
     def _get_anos_apn(self, employee):
         anos = getattr(employee, 'total_anos_apn', 'N/A') 
         try: return str(int(anos)) if anos not in [None, 'N/A'] else 'N/A'

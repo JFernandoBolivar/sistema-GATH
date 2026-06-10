@@ -92,7 +92,7 @@ class CargoEgresado(models.Model):
         related_name='cargos_historial', 
         on_delete=models.CASCADE
     )
-    codigo = models.TextField(unique=True)
+    codigo = models.TextField()
     denominacioncargoid = models.ForeignKey(Denominacioncargo, models.DO_NOTHING, db_column='denominacionCargoId')
     denominacioncargoespecificoid = models.ForeignKey(Denominacioncargoespecifico, models.DO_NOTHING, db_column='denominacionCargoEspecificoId')
     gradoid = models.ForeignKey(Grado, models.DO_NOTHING, db_column='gradoId', blank=True, null=True)

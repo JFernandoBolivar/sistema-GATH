@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eraser, Search } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import useSWR from "swr";
 import z from "zod";
@@ -19,8 +19,12 @@ import { getHistoryMoveEmploye } from "../../api/getInfoRac";
 import PageLayout from "../../../../../../components/layout/page-layout";
 import Loading from "../../components/loading/loading";
 import TableMoves from "../../components/movimientos/tableMoves/page";
+import ExportButton from "@/components/ui/ExportButtonPDF";
+import { useSession } from "next-auth/react";
+import { ReportMovementsPDF } from "../../components/movimientos/pdf/reportMovementsPDF";
 
 export default function TableMovesPage() {
+  const session = useSession();
   const [isPending, startTransition] = useTransition();
   const [employee, setEmployee] = useState<string | null>(null);
   const schemaSearch = z.object({
@@ -45,6 +49,18 @@ export default function TableMovesPage() {
     employee ? ["history", employee] : null,
     async () => await getHistoryMoveEmploye(employee!),
   );
+
+  const pdfDocument = useMemo(
+    () => (
+      <ReportMovementsPDF
+        moves={history?.data ?? []}
+        cedula={employee ?? ""}
+        session={session}
+      />
+    ),
+    [history?.data, employee],
+  );
+
   return (
     <PageLayout
       title="Consulta De Movimientos De Trabajadores"
@@ -90,6 +106,15 @@ export default function TableMovesPage() {
                 </div>
               </form>
             </Form>
+            {history?.data && history.data.length > 0 && (
+              <div className="flex justify-end mb-2">
+                <ExportButton
+                  document={pdfDocument}
+                  fileName={`historial-movimientos-${employee}.pdf`}
+                  buttonText="Descargar PDF"
+                />
+              </div>
+            )}
             {isLoading || isPending ? (
               <Loading promiseMessage="Cargando Información"></Loading>
             ) : (

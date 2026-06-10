@@ -49,6 +49,8 @@ export const schemaReportLeaving = z.object({
       fecha_ingreso_Hasta: z.date().optional(),
       fecha_apn_Desde: z.date().optional(),
       fecha_apn_Hasta: z.date().optional(),
+      fecha_egreso_Desde: z.date().optional(),
+      fecha_egreso_Hasta: z.date().optional(),
       region_id: z.number().optional(),
       estado_id: z.number().optional(),
       municipio_id: z.number().optional(),

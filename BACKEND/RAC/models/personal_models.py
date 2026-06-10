@@ -428,7 +428,12 @@ class formacion_complementaria(models.Model):
 
 
 class politicas(models.Model):
-    tipo_politica = models.CharField(max_length=20,unique=True)
+    tipo_politica = models.CharField(max_length=40,unique=True)
+
+    class Meta:
+        managed = True
+        db_table = 'politicas'
+        ordering = ['tipo_politica']
 
 
 class antecedentes_servicio(models.Model):

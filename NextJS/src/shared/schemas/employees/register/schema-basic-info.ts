@@ -103,6 +103,10 @@ export const schemaBasicInfo = z.object({
         "Número inválido. Debe iniciar con un prefijo válido y tener 11 dígitos en total",
     })
     .optional(),
-  carnet_patria: z.string().optional(),
+  carnet_patria: z.string().regex(REGEX_NUMBERS, {
+      message: "Solo Se Permiten Números",
+    }).min(10, { message: "Debe Ingresar 10 Digitos" })
+    .max(10, { message: "Debe Maximo 10 Digitos" }).optional()
+    
 })
 export type BasicInfoType = z.infer<typeof schemaBasicInfo>

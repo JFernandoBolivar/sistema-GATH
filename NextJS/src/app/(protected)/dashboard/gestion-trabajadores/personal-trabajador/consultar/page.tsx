@@ -19,7 +19,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import useSWR from "swr";
 import z from "zod";
@@ -50,19 +50,8 @@ export default function PersonalPage() {
     async () => await getNomina(),
   );
   const onSearch = (values: z.infer<typeof schemaSearch>) => {
-    const isNotAdmin = session?.user?.role.nombre_rol !== "ADMINISTRADOR";
     const payload = {
       ...values,
-      dependencia_id: isNotAdmin ? Number(session?.user.dependency?.id) : "",
-      direccion_general_id: isNotAdmin
-        ? Number(session?.user.directionGeneral?.id)
-        : "",
-      direccion_linea_id: isNotAdmin
-        ? Number(session?.user.direccionLine?.id) || null
-        : "",
-      coordinacion_id: isNotAdmin
-        ? Number(session?.user.coordination?.id) || null
-        : "",
     };
     const filteredEntries = Object.entries(payload).filter(
       ([_, v]) => v !== "" && v !== 0 && v !== undefined && v !== null,
@@ -71,7 +60,9 @@ export default function PersonalPage() {
     setSearchParams(params.toString());
   };
   const setSearchGlobal = useSearchStore((state) => state.setSearchParams);
-  setSearchGlobal(searchParams || "");
+  useEffect(() => {
+    setSearchGlobal(searchParams || "");
+  }, [searchParams, setSearchGlobal]);
   const { data: employeeData, isLoading } = useSWR(
     ["api/empleados", searchParams || ""],
     () => getEmployeeDataSearch({ searchParams }),

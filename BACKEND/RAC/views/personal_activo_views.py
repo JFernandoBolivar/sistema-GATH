@@ -801,7 +801,7 @@ def create_employee(request):
         try:
             serializer.save()
             return Response({
-                'status': "Created",
+                'status': "success",
                 "message": "Datos de empleado registrados correctamente",
                 "data": serializer.data
             }, status=status.HTTP_201_CREATED)

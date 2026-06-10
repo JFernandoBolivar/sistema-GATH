@@ -160,6 +160,18 @@ export const columnsCode: ColumnDef<Code>[] = [
             {status}
           </Badge>
         );
+      if (status == "ACTIVO")
+        return (
+          <Badge variant={"default"} className="bg-[#ffc523]">
+            {status}
+          </Badge>
+        );
+      if (status == "SUSPENDIDO")
+        return (
+          <Badge variant={"default"} className="bg-gray-500">
+            {status}
+          </Badge>
+        );
       return <Badge variant={"destructive"}>{status}</Badge>;
     },
   },

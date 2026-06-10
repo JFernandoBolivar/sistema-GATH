@@ -131,24 +131,8 @@ export default function ReportCode() {
   }
   const onSubmit = (data: SchemaReportCodeType) => {
     startTransition(async () => {
-      const isNotAdmin = session?.user?.role.nombre_rol !== "ADMINISTRADOR";
       const payload: SchemaReportCodeType = {
         ...data,
-        filtros: {
-          ...data.filtros,
-          dependencia_id: isNotAdmin
-            ? Number(session.user.dependency?.id)
-            : data?.filtros?.dependencia_id,
-          general_id: isNotAdmin
-            ? Number(session.user.directionGeneral?.id)
-            : data?.filtros?.general_id,
-          linea_id: isNotAdmin
-            ? Number(session.user.direccionLine?.id) || null
-            : data?.filtros?.linea_id,
-          coordinacion_id: isNotAdmin
-            ? Number(session.user.coordination?.id) || null
-            : data?.filtros?.coordinacion_id,
-        },
       };
       const reponse = await postReport<SchemaReportCodeType>(payload);
       const urlBlob = URL.createObjectURL(reponse);

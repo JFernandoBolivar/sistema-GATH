@@ -49,6 +49,20 @@ export default function MetricasPage() {
               value: pieTotal > 0 ? (d.value / pieTotal) * 100 : 0,
             }));
 
+            const respondidos = displayReportData.pie_chart.find(
+              (d) => d.name === "Respondido",
+            )?.value ?? 0;
+            const noRespondidos = displayReportData.pie_chart.find(
+              (d) => d.name === "No Respondido",
+            )?.value ?? 0;
+
+            const totalRespondidos = displayReportData.bar_chart.reduce(
+              (acc, b) => acc + b.respondidos, 0,
+            );
+            const totalNoRespondidos = displayReportData.bar_chart.reduce(
+              (acc, b) => acc + b.no_respondidos, 0,
+            );
+
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
@@ -57,11 +71,21 @@ export default function MetricasPage() {
                       Progreso del Censo
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex justify-center">
+                  <CardContent className="flex flex-col items-center">
                     <DonutChartCenterText
                       data={pieChartData}
                       total={pieTotal}
                     />
+                    <div className="flex gap-6 mt-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-[#7e4cfe]" />
+                        <span>Respondido: <strong>{respondidos}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-[#b597ff]" />
+                        <span>No Respondido: <strong>{noRespondidos}</strong></span>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -78,6 +102,16 @@ export default function MetricasPage() {
                         metric2: b.no_respondidos,
                       }))}
                     />
+                    <div className="flex gap-6 mt-4 text-sm justify-center">
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-violet-300" />
+                        <span>Respondido: <strong>{totalRespondidos}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-full bg-rose-400" />
+                        <span>No Respondido: <strong>{totalNoRespondidos}</strong></span>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

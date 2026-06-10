@@ -329,6 +329,13 @@ export function FormBasicUpdateInfo({
                       placeholder="02390000000"
                       type="number"
                     />
+                    <InputForm
+                      form={form}
+                      label="Carnet de la Patria"
+                      nameInput="carnet_patria"
+                      placeholder="000-0000000-00"
+                      type="text"
+                    />
                     <FormField
                       control={form.control}
                       name="estadoCivil"
