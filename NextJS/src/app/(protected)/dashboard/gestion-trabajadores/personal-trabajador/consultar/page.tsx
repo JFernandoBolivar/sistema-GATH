@@ -19,7 +19,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import useSWR from "swr";
 import z from "zod";
@@ -60,7 +60,9 @@ export default function PersonalPage() {
     setSearchParams(params.toString());
   };
   const setSearchGlobal = useSearchStore((state) => state.setSearchParams);
-  setSearchGlobal(searchParams || "");
+  useEffect(() => {
+    setSearchGlobal(searchParams || "");
+  }, [searchParams, setSearchGlobal]);
   const { data: employeeData, isLoading } = useSWR(
     ["api/empleados", searchParams || ""],
     () => getEmployeeDataSearch({ searchParams }),

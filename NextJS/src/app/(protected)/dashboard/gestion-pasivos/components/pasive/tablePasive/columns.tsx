@@ -54,7 +54,7 @@ function PasiveActionsCell({ row }: { row: Row<EmployeeData> }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Extras</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem>
           <ExportButton
             className="w-full"
             fileName={`${employee.nombres}-${employee.apellidos}-expediente.pdf`}

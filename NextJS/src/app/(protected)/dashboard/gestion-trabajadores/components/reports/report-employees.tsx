@@ -274,7 +274,7 @@ export default function ReportEmployee() {
                               onValueChange={(values) => {
                                 const id = Number.parseInt(values);
                                 field.onChange(id);
-                                setNivelAcademicoId(id);
+                                setDependencyId(id);
                               }}
                             >
                               <FormControl>

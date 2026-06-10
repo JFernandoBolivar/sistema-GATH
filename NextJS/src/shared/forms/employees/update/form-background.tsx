@@ -48,7 +48,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatInTimeZone } from "date-fns-tz";
-import { useTransition } from "react";
+import { useTransition, Fragment } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import useSWR from "swr";
@@ -175,9 +175,8 @@ export default function FormUpdateBackground({
                   Opcional si no posee antecedentes
                 </h1>
                 {fields.map((field, index) => (
-                  <>
+                  <Fragment key={field.id}>
                     <div
-                      key={field.id}
                       className="flex flex-row gap-5 items-center justify-around w-full"
                     >
                       <FormField
@@ -368,7 +367,7 @@ export default function FormUpdateBackground({
                         </Button>
                       </div>
                     </div>
-                  </>
+                  </Fragment>
                 ))}
               </ScrollArea>
               {!isError && (

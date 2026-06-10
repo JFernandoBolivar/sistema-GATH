@@ -20,7 +20,7 @@ def build_censo_queryset(filtros):
             if "assignments__" in campo:
                 asignacion_filtros[campo.replace("assignments__", "")] = v
 
-    query_filtros["assignments__Tipo_personal__tipo_personal"] = PERSONAL_ACTIVO
+
     asignacion_filtros["Tipo_personal__tipo_personal"] = PERSONAL_ACTIVO
 
     AsigTrabajo = apps.get_model("RAC", "AsigTrabajo")

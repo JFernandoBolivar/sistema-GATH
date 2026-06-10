@@ -637,7 +637,7 @@ class AntecedentesServicioSerializer(serializers.ModelSerializer):
 
 
 class ContratoSerializer(serializers.ModelSerializer):
-    n_contrato = serializers.CharField()
+    n_contrato = serializers.CharField(allow_null=True, required=False)
     fecha_ingreso = serializers.DateField(
         input_formats=['iso-8601', '%Y-%m-%d', '%Y-%m-%dT%H:%M:%S.%fZ'],
         required=False

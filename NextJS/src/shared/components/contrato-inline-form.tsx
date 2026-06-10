@@ -68,6 +68,7 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
           }));
         } else {
           setShowContratoForm(false);
+          onSuccess?.();
         }
       }
     })();
@@ -215,7 +216,7 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
           </Popover>
         </div>
       </div>
-      <Button onClick={handleSaveContrato} disabled={savingContrato} className="w-full cursor-pointer">
+      <Button onClick={handleSaveContrato} disabled={savingContrato} className="w-full cursor-pointer mt-3">
         {savingContrato ? "Guardando..." : "Guardar Contrato"}
       </Button>
     </div>

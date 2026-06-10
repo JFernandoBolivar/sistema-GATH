@@ -6,7 +6,7 @@ from rest_framework import serializers
 from django.db import transaction
 from datetime import date
 from ..models.personal_models import *
-from ..models.historial_personal_models import Tipo_movimiento
+from ..models.historial_personal_models import Tipo_movimiento, EmployeeEgresado
 #importacion de servicios
 from ..services.generacion_codigo import generador_codigos, generar_prefijo_nomina, generar_codigo_asig_trabajo
 from ..serializers.catalogs_serializers import *
@@ -128,6 +128,10 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
         )
         cantidad_actual = contratos_existentes.count()
 
+        # Si el empleado ya fue egresado formalmente, permitir cambios de contrato
+        if EmployeeEgresado.objects.filter(employee=empleado).exists():
+            return value
+
         # Regla FIJO: si ya tiene contrato fijo, bloquear cualquier cambio de contrato
         if contratos_existentes.filter(es_fijo=True).exists():
             raise serializers.ValidationError(
@@ -166,28 +170,23 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
                         "La política es obligatoria para registrar un contrato."
                     )
 
-                # Verificar contrato activo solo para el 1ro y 2do contrato
-                if cantidad_actual < 2:
-                    hoy = date_type.today()
-                    contrato_activo = contratos_existentes.filter(
-                        fecha_culminacion__isnull=True
-                    ).first() or contratos_existentes.filter(
-                        fecha_culminacion__gt=hoy
-                    ).first()
-                    if contrato_activo:
-                        raise serializers.ValidationError(
-                            f"El trabajador ya tiene un contrato activo ({contrato_activo.n_contrato}). "
-                            "No se puede crear otro hasta que finalice."
-                        )
+                # Verificar contrato activo
+                hoy = date_type.today()
+                contrato_activo = contratos_existentes.filter(
+                    fecha_culminacion__isnull=True
+                ).first() or contratos_existentes.filter(
+                    fecha_culminacion__gt=hoy
+                ).first()
+                if contrato_activo:
+                    raise serializers.ValidationError(
+                        f"El trabajador ya tiene un contrato activo ({contrato_activo.n_contrato}). "
+                        "No se puede crear otro hasta que finalice."
+                    )
 
                 # Si el frontend no envió n_contrato, auto-generar con la nomenclatura
                 if not n_contrato_item:
                     n_contrato_item = f"{politica_obj.tipo_politica[0].upper()}-{empleado.cedulaidentidad}-{str(cantidad_actual + 1).zfill(2)}"
                     item['n_contrato'] = n_contrato_item
-
-            # El 3er contrato no necesita validación de fechas (siempre fijo)
-            if cantidad_actual == 2 and es_nuevo:
-                continue
 
             if not inicio:
                 continue
@@ -742,7 +741,9 @@ class EmployeeDetailSerializer(ContratoMixin, serializers.ModelSerializer):
     def get_encargadurias(self, obj):
         from datetime import date
         from ..serializers.historial_personal_serializers import PrestamoCargoSerializer
-        prestamos = obj.encargadurias_asignadas.filter(
+        from ..models.historial_personal_models import PrestamoCargo
+        prestamos = PrestamoCargo.objects.filter(
+            cargo_encargado__employee=obj,
             fecha_fin__gte=date.today()
         ).select_related('cargo_encargado', 'motivo', 'estatus')
         return PrestamoCargoSerializer(prestamos, many=True).data

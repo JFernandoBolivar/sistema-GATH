@@ -174,7 +174,7 @@ class AssignmentPDFGenerator(BasePDFGenerator):
                                 for idx, a in enumerate(assignments_sorted, start=1)]
 
                         headers = ['#', 'Código', 'Cédula', 'Empleado', 'Cargo', 'Cargo Esp.', 'Grado', 'Nómina', 'Organismo Adscrito','Estatus']
-                        col_widths = [10*mm, 15*mm, 22*mm, 40*mm, 33*mm, 35*mm, 13*mm, 25*mm, 36*mm, 25*mm]
+                        col_widths = [10*mm, 17*mm, 22*mm, 40*mm, 33*mm, 35*mm, 13*mm, 25*mm, 36*mm, 25*mm]
                         
                         # CREACIÓN DE LA TABLA COMPLETA
                         tabla_completa = create_data_table(headers, rows, col_widths, with_alternating_rows=True)

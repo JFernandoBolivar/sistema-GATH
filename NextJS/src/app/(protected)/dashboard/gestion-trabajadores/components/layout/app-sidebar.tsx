@@ -76,7 +76,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL"],
       departmentAccept: ["RAC"],
     },
     title: "Personal Trabajador",
@@ -97,7 +97,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/consultar",
         icon: ListCheck,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL"],
           departmentAccept: ["RAC"],
         },
       },
@@ -106,7 +106,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/agregar-familiar",
         icon: ContactRound,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL"],
           departmentAccept: ["RAC"],
         },
       },
@@ -115,7 +115,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
         icon: BookUser,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL"],
           departmentAccept: ["RAC"],
         },
       },
@@ -199,7 +199,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA","ADMINISTRADOR"],
+      roleAccept: ["ANALISTA","ADMINISTRADOR","BIENSTAR SOCIAL"],
       departmentAccept: ["RAC"],
     },
     title: "Movimientos",
@@ -265,7 +265,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/movimientos/consultar",
         icon: ListCheck,
         permission: {
-          roleAccept: ["ADMINISTRADOR"],
+          roleAccept: ["ADMINISTRADOR","BIENSTAR SOCIAL"],
           departmentAccept: ["RAC"],
         },
       },
@@ -329,7 +329,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA","ADMINISTRADOR", "PRESUPUESTO"],
+      roleAccept: ["ANALISTA","ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL"],
       departmentAccept: ["RAC"],
     },
     icon: BookCheck,
@@ -346,7 +346,7 @@ const items: MenuItem[] = [
         url: "/dashboard/autogestion/consultar",
         icon: FileSpreadsheet,
         permission: {
-          roleAccept: ["ANALISTA","ADMINISTRADOR"],
+          roleAccept: ["ANALISTA","ADMINISTRADOR","BIENSTAR SOCIAL"],
           departmentAccept: ["RAC"],
         },
       },
