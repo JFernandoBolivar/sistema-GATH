@@ -10,6 +10,7 @@ from AUTOGESTION.models.models_encuestas import (
 from RAC.serializers.catalogs_serializers import DatosViviendaSerializer
 from RAC.serializers.personal_activo_serializers import ListerCodigosSerializer
 from RAC.services.profile_services import upsert_vivienda
+from RAC.models.personal_models import contratos
 from RAC.utils.tiempo_servicio import calcular_total_apn
 from AUTOGESTION.utils.mapa_reporte import MAPA_REPORTES
 
@@ -73,9 +74,11 @@ class CensoEmpleadoSerializer(serializers.Serializer):
         return calcular_total_apn(cerrados)
 
     def get_fecha_ingreso_organismo(self, obj):
-        primera = obj.antecedentes_servicio_set.order_by("fecha_ingreso").first()
-        if primera and primera.fecha_ingreso:
-            return primera.fecha_ingreso.isoformat()
+        primer_contrato = contratos.objects.filter(
+            antecedente_id__empleado_id=obj,
+        ).select_related("antecedente_id").order_by("antecedente_id__fecha_ingreso").first()
+        if primer_contrato and primer_contrato.fecha_ingreso:
+            return primer_contrato.fecha_ingreso.isoformat()
         return None
 
     def get_preguntas(self, obj):
@@ -205,9 +208,11 @@ class CensoExcelRowSerializer(serializers.Serializer):
         return f"{y} años, {m} meses, {d} días"
 
     def get_fecha_ingreso_organismo(self, obj):
-        primera = obj.antecedentes_servicio_set.order_by("fecha_ingreso").first()
-        if primera and primera.fecha_ingreso:
-            return primera.fecha_ingreso.isoformat()
+        primer_contrato = contratos.objects.filter(
+            antecedente_id__empleado_id=obj,
+        ).select_related("antecedente_id").order_by("antecedente_id__fecha_ingreso").first()
+        if primer_contrato and primer_contrato.fecha_ingreso:
+            return primer_contrato.fecha_ingreso.isoformat()
         return ""
 
     def get_direccion_general(self, obj):

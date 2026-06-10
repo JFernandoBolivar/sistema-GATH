@@ -1,4 +1,5 @@
 "use server"
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { auth } from "#/auth";
 
@@ -13,6 +14,12 @@ function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
       cookieStore.delete(c.name);
     }
   }
+}
+
+async function redirectToLogin(): Promise<never> {
+  const cookieStore = await cookies();
+  deleteAuthCookies(cookieStore);
+  redirect("/login");
 }
 
 async function getValidAccessToken(): Promise<string | null> {
@@ -92,7 +99,7 @@ export async function apiFetch<T>(
   options?: RequestInit,
 ): Promise<T> {
   const headers = await getAuthHeaders();
-  if (!headers) throw new Error("No valid session. Please log in again.");
+  if (!headers) await redirectToLogin();
 
   const requestOptions: RequestInit = {
     ...options,
@@ -109,7 +116,7 @@ export async function apiFetch<T>(
   }
 
   const newAccessToken = await refreshTokens();
-  if (!newAccessToken) throw new Error("No valid session. Please log in again.");
+  if (!newAccessToken) await redirectToLogin();
 
   const retryOptions: RequestInit = {
     ...options,
@@ -134,9 +141,9 @@ export async function apiFetchFormData<T>(
   method: "POST" | "PUT" | "PATCH" = "POST",
 ): Promise<T> {
   const headers = await getAuthHeaders();
-  if (!headers) throw new Error("No valid session. Please log in again.");
+  if (!headers) await redirectToLogin();
 
-  const { "Content-Type": _, ...restHeaders } = headers;
+  const { "Content-Type": _, ...restHeaders } = headers!;
 
   const requestOptions: RequestInit = {
     method,
@@ -154,7 +161,7 @@ export async function apiFetchFormData<T>(
   }
 
   const newAccessToken = await refreshTokens();
-  if (!newAccessToken) throw new Error("No valid session. Please log in again.");
+  if (!newAccessToken) await redirectToLogin();
 
   const retryOptions: RequestInit = {
     method,
@@ -177,7 +184,7 @@ export async function apiFetchBlob(
   options?: RequestInit,
 ): Promise<globalThis.Blob> {
   const headers = await getAuthHeaders();
-  if (!headers) throw new Error("No valid session. Please log in again.");
+  if (!headers) await redirectToLogin();
 
   const requestOptions: RequestInit = {
     ...options,
@@ -194,7 +201,7 @@ export async function apiFetchBlob(
   }
 
   const newAccessToken = await refreshTokens();
-  if (!newAccessToken) throw new Error("No valid session. Please log in again.");
+  if (!newAccessToken) await redirectToLogin();
 
   const retryOptions: RequestInit = {
     ...options,

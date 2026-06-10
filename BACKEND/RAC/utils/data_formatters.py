@@ -4,7 +4,7 @@
 
 def extract_first_error(errors):
     if isinstance(errors, dict):
-        return extract_first_error(next(iter(errors.values())))
+        return extract_first_error(next(iter(errors.values()), ""))
     if isinstance(errors, list):
         return extract_first_error(errors[0])
     return str(errors)
@@ -22,7 +22,7 @@ class CleanZerosMixin:
                 return nuevo_dict
             
             elif isinstance(item, list):
-                return [limpiar_recursivo(i) for i in item if i not in [0, "0", "None", None, "undefined", "null", ""]]
+                return [limpiar_recursivo(i) for i in item if i]
             
             return item
             

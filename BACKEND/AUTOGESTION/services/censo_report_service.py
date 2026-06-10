@@ -5,17 +5,14 @@ from RAC.models.personal_models import (
     AsigTrabajo,
 )
 from AUTOGESTION.models.models_encuestas import RespuestasEncuesta
-from RAC.utils.constants import PERSONAL_ACTIVO
 
 
 def _build_employee_filter(dep_ids, dg_ids, dl_ids, coord_ids):
     """
     Construye un Q() para filtrar Employee a través de sus
-    asignaciones activas según el nivel jerárquico más granular.
+    asignaciones según el nivel jerárquico más granular.
     """
-    filtro = Q(
-        assignments__Tipo_personal__tipo_personal__iexact=PERSONAL_ACTIVO
-    )
+    filtro = Q()
 
     if coord_ids:
         filtro &= Q(assignments__Coordinacion__in=coord_ids)
@@ -68,7 +65,6 @@ def construir_grafico_barras(dep_ids, dg_ids, dl_ids, coord_ids):
       - metric2: total de empleados
     """
     base_filter = Q(
-        Tipo_personal__tipo_personal__iexact=PERSONAL_ACTIVO,
         employee__isnull=False,
     )
 

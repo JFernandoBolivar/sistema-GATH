@@ -19,6 +19,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     backgroundColor: "#FFFFFF",
     padding: 30,
+    paddingBottom: 100,
     fontFamily: "Helvetica",
     position: "relative",
   },
@@ -88,8 +89,14 @@ const styles = StyleSheet.create({
     width: "20%",
   },
   col6: {
-    width: "22%",
+    width: "22%"
   },
+  colEnc1: { width: "8%" },
+  colEnc2: { width: "22%" },
+  colEnc3: { width: "25%" },
+  colEnc4: { width: "18%" },
+  colEnc5: { width: "12%" },
+  colEnc6: { width: "15%" },
   footer: {
     position: "absolute",
     bottom: 0,
@@ -162,7 +169,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   infoLabel: {
-    width: 150,
+    width: 130,
     fontSize: 10,
     fontWeight: "bold",
   },
@@ -205,7 +212,7 @@ export function ReportPDFEmployee({
           </View>
 
           {/* Información básica del empleado con imagen */}
-          <View>
+          <View wrap={false}>
             <Text style={styles.sectionTitle}>DATOS PERSONALES</Text>
 
             <View style={styles.personalInfoContainer}>
@@ -256,6 +263,12 @@ export function ReportPDFEmployee({
                   </Text>
                 </View>
                 <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Código Postal:</Text>
+                  <Text style={styles.infoValue}>
+                    {employee.datos_vivienda?.codigo_postal?.codigo ?? "N/A"}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Correo:</Text>
                   <Text style={styles.infoValue}>
                     {employee.correo ?? "N/A"}
@@ -296,43 +309,46 @@ export function ReportPDFEmployee({
 
           {/* Resto del código permanece igual */}
           {/* Información de formación académica */}
-          <View>
+          <View wrap={false}>
             <Text style={styles.sectionTitle}>FORMACIÓN ACADÉMICA</Text>
 
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nivel Académico:</Text>
-              <Text style={styles.infoValue}>
-                {employee.formacion_academica?.[0]?.nivelAcademico?.nivelacademico ??
-                  "No especificado"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Institución:</Text>
-              <Text style={styles.infoValue}>
-                {employee.formacion_academica?.[0]?.institucion?.nombre_institucion?? "No especificado"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Carrera:</Text>
-              <Text style={styles.infoValue}>
-                {employee.formacion_academica?.[0]?.carrera?.nombre_carrera ??
-                  "No especificado"}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Mención:</Text>
-              <Text style={styles.infoValue}>
-                {employee.formacion_academica?.[0]?.mencion?.nombre_mencion ??
-                  "No especificado"}
-              </Text>
-            </View>
+            {employee.formacion_academica && employee.formacion_academica.length > 0 ? (
+              <View style={styles.table}>
+                <View style={[styles.tableRow, styles.tableRowHeader]}>
+                  <Text style={[styles.tableCol, { width: "8%" }]}>#</Text>
+                  <Text style={[styles.tableCol, { width: "27%" }]}>Nivel Académico</Text>
+                  <Text style={[styles.tableCol, { width: "25%" }]}>Carrera</Text>
+                  <Text style={[styles.tableCol, { width: "20%" }]}>Mención</Text>
+                  <Text style={[styles.tableCol, { width: "20%" }]}>Institución</Text>
+                </View>
+                {employee.formacion_academica.map((fa, idx) => (
+                  <View key={fa.nivel_Academico_id ?? idx} style={styles.tableRow} wrap={false}>
+                    <Text style={[styles.tableCol, { width: "8%" }]}>{idx + 1}</Text>
+                    <Text style={[styles.tableCol, { width: "27%" }]}>
+                      {fa.nivelAcademico?.nivelacademico ?? "N/A"}
+                    </Text>
+                    <Text style={[styles.tableCol, { width: "25%" }]}>
+                      {fa.carrera?.nombre_carrera ?? "N/A"}
+                    </Text>
+                    <Text style={[styles.tableCol, { width: "20%" }]}>
+                      {fa.mencion?.nombre_mencion ?? "N/A"}
+                    </Text>
+                    <Text style={[styles.tableCol, { width: "20%" }]}>
+                      {fa.institucion?.nombre_institucion ?? "N/A"}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Nivel Académico:</Text>
+                <Text style={styles.infoValue}>No especificado</Text>
+              </View>
+            )}
           </View>
 
           {/* Tabla de asignaciones */}
-          <View>
+          <View wrap={false}>
             <Text style={styles.sectionTitle}>DATOS LABORALES</Text>
 
             <View style={styles.table}>
@@ -350,7 +366,7 @@ export function ReportPDFEmployee({
 
               {/* Filas de datos */}
               {employee.asignaciones.map((asignacion, idx) => (
-                <View key={asignacion.id} style={styles.tableRow}>
+                <View key={asignacion.id} style={styles.tableRow} wrap={false}>
                   <Text style={[styles.tableCol, styles.col1]}>{idx + 1}</Text>
                   <Text style={[styles.tableCol, styles.col2]}>
                     {asignacion.codigo}
@@ -377,27 +393,110 @@ export function ReportPDFEmployee({
               <Text style={styles.infoLabel}>Fecha de ingreso:</Text>
               <Text style={styles.infoValue}>
                 {(() => {
-                  const activo = employee?.contrato?.find(
-                    (c) => c.estatus?.estatus === 'ACTIVO' || c.estatus?.estatus === 'POR VENCER'
-                  );
-                  return activo?.fecha_ingreso
-                    ? formatInTimeZone(activo.fecha_ingreso, "UTC", "dd/MM/yyyy")
+                  const sorted = employee?.contrato
+                    ?.filter(c => c.fecha_ingreso)
+                    .sort((a, b) => new Date(a.fecha_ingreso!).getTime() - new Date(b.fecha_ingreso!).getTime());
+                  const fecha = sorted?.[0]?.fecha_ingreso;
+                  return fecha
+                    ? formatInTimeZone(fecha, "UTC", "dd/MM/yyyy")
                     : "N/A";
                 })()}
               </Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Antecedentes:</Text>
-              <Text style={styles.infoValue}>
-                {(employee.total_apn
-                  ? `Total: ${employee.total_apn.years} años, ${employee.total_apn.months} meses, ${employee.total_apn.days} días`
-                  : "Sin antecedentes")}
-              </Text>
-            </View>
           </View>
 
+          {/* Antecedentes Laborales */}
+          <View wrap={false}>
+            <Text style={styles.sectionTitle}>ANTECEDENTES LABORALES</Text>
+
+            {employee.antecedentes && employee.antecedentes.length > 0 ? (
+              <>
+                <View style={styles.table}>
+                  <View style={[styles.tableRow, styles.tableRowHeader]}>
+                    <Text style={[styles.tableCol, { width: "8%" }]}>#</Text>
+                    <Text style={[styles.tableCol, { width: "25%" }]}>Fecha Ingreso</Text>
+                    <Text style={[styles.tableCol, { width: "25%" }]}>Fecha Egreso</Text>
+                    <Text style={[styles.tableCol, { width: "42%" }]}>Organismo</Text>
+                  </View>
+                  {employee.antecedentes.map((ant, idx) => (
+                    <View key={ant.id} style={styles.tableRow} wrap={false}>
+                      <Text style={[styles.tableCol, { width: "8%" }]}>{idx + 1}</Text>
+                      <Text style={[styles.tableCol, { width: "25%" }]}>
+                        {ant.fecha_ingreso
+                          ? formatInTimeZone(ant.fecha_ingreso, "UTC", "dd/MM/yyyy")
+                          : "N/A"}
+                      </Text>
+                      <Text style={[styles.tableCol, { width: "25%" }]}>
+                        {ant.fecha_egreso
+                          ? formatInTimeZone(ant.fecha_egreso, "UTC", "dd/MM/yyyy")
+                          : "Activo"}
+                      </Text>
+                      <Text style={[styles.tableCol, { width: "42%" }]}>
+                        {ant.organismo?.Organismoadscrito ?? "N/A"}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Total APN:</Text>
+                  <Text style={styles.infoValue}>
+                    {employee.total_apn
+                      ? `${employee.total_apn.years} años, ${employee.total_apn.months} meses, ${employee.total_apn.days} días`
+                      : "0 años, 0 meses, 0 días"}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Antecedentes:</Text>
+                <Text style={styles.infoValue}>Sin antecedentes registrados</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Encargadurías */}
+          {employee.encargadurias && employee.encargadurias.length > 0 && (
+            <View wrap={false}>
+              <Text style={styles.sectionTitle}>ENCARGADURÍAS</Text>
+              <View style={styles.table}>
+                <View style={[styles.tableRow, styles.tableRowHeader]}>
+                  <Text style={[styles.tableCol, styles.colEnc1]}>#</Text>
+                  <Text style={[styles.tableCol, styles.colEnc2]}>Cargo Encargado</Text>
+                  <Text style={[styles.tableCol, styles.colEnc3]}>Titular</Text>
+                  <Text style={[styles.tableCol, styles.colEnc4]}>Fecha Inicio</Text>
+                  <Text style={[styles.tableCol, styles.colEnc5]}>Fecha Fin</Text>
+                  <Text style={[styles.tableCol, styles.colEnc6]}>Estatus</Text>
+                </View>
+                {employee.encargadurias.map((enc, idx) => (
+                  <View key={enc.id} style={styles.tableRow} wrap={false}>
+                    <Text style={[styles.tableCol, styles.colEnc1]}>{idx + 1}</Text>
+                    <Text style={[styles.tableCol, styles.colEnc2]}>
+                      {enc.cargo_info?.denominacioncargoespecifico?.cargo ?? "N/A"}
+                    </Text>
+                    <Text style={[styles.tableCol, styles.colEnc3]}>
+                      {enc.empleado_nombre ?? ""} ({enc.empleado_cedula ?? "N/A"})
+                    </Text>
+                    <Text style={[styles.tableCol, styles.colEnc4]}>
+                      {enc.fecha_inicio
+                        ? formatInTimeZone(enc.fecha_inicio, "UTC", "dd/MM/yyyy")
+                        : "N/A"}
+                    </Text>
+                    <Text style={[styles.tableCol, styles.colEnc5]}>
+                      {enc.fecha_fin
+                        ? formatInTimeZone(enc.fecha_fin, "UTC", "dd/MM/yyyy")
+                        : "N/A"}
+                    </Text>
+                    <Text style={[styles.tableCol, styles.colEnc6]}>
+                      {enc.estatus_nombre ?? "N/A"}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Información de salud */}
-          <View>
+          <View wrap={false}>
             <Text style={styles.sectionTitle}>SALUD Y BIENESTAR</Text>
 
             <View style={styles.infoRow}>
