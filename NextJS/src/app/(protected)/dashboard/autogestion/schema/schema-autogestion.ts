@@ -24,41 +24,49 @@ export function buildSchema(preguntas: Pregunta[]) {
       shape[String(pregunta.id)] = z
         .string()
         .min(1, "Este campo es obligatorio");
-    } else if (tipo === "number" || tipo === "float") {
-      let field: z.ZodTypeAny = z.coerce
-        .number({ invalid_type_error: "Debe ingresar un número" })
-        .refine((val) => val >= 0, "Solo se permiten valores positivos");
+} else if (tipo === "number" || tipo === "float") {
+  // Usamos z.ZodTypeAny para que TypeScript permita los cambios de tipo internos de Zod
+  let stringField: z.ZodTypeAny = z
+    .string()
+    .min(1, "Este campo es obligatorio")
+    .regex(/^\d+(\.\d+)?$/, "Debe ingresar un número");
 
-      if (tipo === "float") {
-        field = field.refine(
-          (val) => {
-            const decimals = String(val).split(".")[1];
-            return !decimals || decimals.length <= 2;
-          },
-          "Máximo 2 decimales permitidos",
-        );
-      }
+  if (pregunta.validacion) {
+    const digitos = parseInt(pregunta.validacion, 10);
+    if (!isNaN(digitos)) {
+      const minDigitos = digitos;
+      const maxDigitos = digitos === 1 ? 2 : digitos;
 
-      if (pregunta.validacion) {
-        const digitos = parseInt(pregunta.validacion, 10);
-        if (!isNaN(digitos)) {
-          const minDigitos = digitos;
-          const maxDigitos = digitos === 1 ? 2 : digitos;
+      stringField = stringField.refine(
+        (val) => {
+          const len = val.replace(".", "").length;
+          return len >= minDigitos && len <= maxDigitos;
+        },
+        minDigitos === maxDigitos
+          ? `Debe tener máximo ${digitos} dígitos`
+          : `Debe tener entre ${minDigitos} y ${maxDigitos} dígitos`,
+      );
+    }
+  }
 
-          field = field.refine(
-            (val) => {
-              const len = String(Math.abs(val)).length;
-              return len >= minDigitos && len <= maxDigitos;
-            },
-            minDigitos === maxDigitos
-              ? `Debe tener máximo ${digitos} dígitos`
-              : `Debe tener entre ${minDigitos} y ${maxDigitos} dígitos`,
-          );
-        }
-      }
+  // Transformamos a número. Aquí 'field' también debe ser ZodTypeAny
+  let field: z.ZodTypeAny = stringField.transform((val) => Number(val));
 
-      shape[String(pregunta.id)] = field;
-    } else if (tipo === "cerrada") {
+  // Aplicamos las validaciones numéricas sobre el valor transformado
+  field = field.refine((val) => val >= 0, "Solo se permiten valores positivos");
+
+  if (tipo === "float") {
+    field = field.refine(
+      (val) => {
+        const decimals = String(val).split(".")[1];
+        return !decimals || decimals.length <= 2;
+      },
+      "Máximo 2 decimales permitidos",
+    );
+  }
+
+  shape[String(pregunta.id)] = field;
+}else if (tipo === "cerrada") {
       if (pregunta.opciones.length === 1) {
         shape[String(pregunta.id)] = z
           .boolean()
