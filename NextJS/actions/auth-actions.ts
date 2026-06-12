@@ -5,6 +5,22 @@ import { signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { cookies } from "next/headers";
 
+function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  cookieStore.delete("dj_access");
+  cookieStore.delete("dj_refresh");
+  const allCookies = cookieStore.getAll();
+  for (const c of allCookies) {
+    if (
+      c.name.startsWith("authjs.session-token") ||
+      c.name.startsWith("__Secure-authjs.session-token") ||
+      c.name.startsWith("next-auth.session-token") ||
+      c.name.startsWith("__Secure-next-auth.session-token")
+    ) {
+      cookieStore.delete(c.name);
+    }
+  }
+}
+
 export const loginAction = async (values: z.infer<typeof signInSchema>) => {
   try {
     const loginResponse = await fetch(
@@ -42,11 +58,16 @@ export const loginAction = async (values: z.infer<typeof signInSchema>) => {
       });
     }
 
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
       email: values.email,
       password: values.password,
       redirect: false,
     });
+
+    if (result?.error) {
+      return { error: "Credenciales Invalidas o Usuario Bloqueado" };
+    }
+
     return { success: "Login successful" };
   } catch (error) {
     if (error instanceof AuthError) {
@@ -82,13 +103,20 @@ export const changePasswordAction = async (
 };
 
 export const logoutAction = async () => {
+  const cookieStore = await cookies();
+  deleteAuthCookies(cookieStore);
   try {
     await fetch(
       `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}accounts/logout/`,
       { method: "POST" },
     );
   } catch {
-    // Silenciar error de red, igual cerramos sesion local
   }
   await signOut({ redirect: false });
+};
+
+export const clearAuthCookies = async () => {
+  const cookieStore = await cookies();
+  deleteAuthCookies(cookieStore);
+  return { success: true };
 };

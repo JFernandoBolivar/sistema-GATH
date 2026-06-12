@@ -145,7 +145,7 @@ export default function ReportCode() {
     setReportListCodeBlob(undefined);
   };
   return (
-    <Card>
+    <Card className="bg-white">
       <CardContent>
         <Form {...form}>
           {isPending ? (

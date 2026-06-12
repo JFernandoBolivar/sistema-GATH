@@ -93,7 +93,7 @@ export default function PersonalPage() {
                 <FormItem>
                   <FormLabel>Buscar Cédula</FormLabel>
                   <FormControl>
-                    <Input
+                    <Input className="bg-white"
                       type="text"
                       placeholder="buscar cedula..."
                       {...field}
@@ -109,7 +109,7 @@ export default function PersonalPage() {
                 <FormItem>
                   <FormLabel>Buscar Código De Trabajador</FormLabel>
                   <FormControl>
-                    <Input
+                    <Input className="bg-white"
                       type="text"
                       placeholder="buscar codigo de trabajador..."
                       {...field}
@@ -130,7 +130,7 @@ export default function PersonalPage() {
                     }}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full truncate">
+                      <SelectTrigger className="w-full truncate bg-white">
                         <SelectValue
                           placeholder={`${isLoadingNomina ? "Cargando Nominas" : "Seleccione un Tipo de Nomina"}`}
                         />

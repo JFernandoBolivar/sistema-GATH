@@ -341,9 +341,9 @@ export function CreateFamilyPasiveForm() {
   });
   return (
     <>
-      <Card>
+      <Card className="bg-white">
         <CardContent className="gap-5">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 bg-white">
             <Form {...formSearch}>
               <form
                 className="flex flex-row justify-between  gap-2"

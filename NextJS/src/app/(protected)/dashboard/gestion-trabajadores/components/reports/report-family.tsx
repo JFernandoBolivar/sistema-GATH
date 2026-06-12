@@ -194,7 +194,7 @@ export default function ReportEmployee() {
     setReportListFamilysBlob(undefined);
   };
   return (
-    <Card>
+    <Card className="bg-white">
       <CardContent>
         <Form {...form}>
           {isPending ? (

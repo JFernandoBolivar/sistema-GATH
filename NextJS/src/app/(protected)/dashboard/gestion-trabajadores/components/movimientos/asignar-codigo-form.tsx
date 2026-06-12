@@ -165,8 +165,8 @@ export function AsigCode() {
       {isPending ? (
         <Loading promiseMessage="Asigando Cargo" />
       ) : (
-        <Card>
-          <CardContent className="gap-5">
+        <Card className="bg-white">
+          <CardContent className="gap-5 ">
             <EmployeeSearchForm onSearch={search} />
 
             <EmployeeInfoBanner

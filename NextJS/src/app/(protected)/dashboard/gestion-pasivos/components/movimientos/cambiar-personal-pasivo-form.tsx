@@ -109,7 +109,7 @@ export function PasivoPasiveForm() {
   }, [surivor, fields.length, remove]);
   return (
     <>
-      <Card>
+      <Card className="bg-white">
         <CardContent className="gap-5">
           <Form {...formSearch}>
             <form

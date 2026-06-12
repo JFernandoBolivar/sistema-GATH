@@ -11,7 +11,17 @@ const WARNING_TIME = 5 * 60 * 1000;
 
 export function AuthController() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const [hasError, setHasError] = useState(false);
+
+  let sessionHookResult: { data: ReturnType<typeof useSession>["data"] };
+  try {
+    sessionHookResult = { data: useSession().data };
+  } catch {
+    sessionHookResult = { data: null };
+    if (!hasError) setHasError(true);
+  }
+
+  const session = sessionHookResult.data;
   const [showAlert, setShowAlert] = useState(false);
 
   const logoutTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -35,6 +45,10 @@ export function AuthController() {
   }, [handleLogout]);
 
   useEffect(() => {
+    if (hasError) {
+      logoutAction().then(() => router.push("/login"));
+      return;
+    }
     if (!session) return;
     const events = [
       "mousedown",
@@ -52,8 +66,9 @@ export function AuthController() {
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     };
-  }, [session, resetTimer]);
+  }, [session, resetTimer, hasError, router]);
 
+  if (hasError) return null;
   if (!session) return null;
 
   return (
