@@ -83,7 +83,7 @@ export function ChangeStatusForm() {
 
   return (
     <>
-      <Card>
+      <Card className="bg-white">
         <CardHeader></CardHeader>
         <CardContent className="gap-5">
           <EmployeeSearchForm onSearch={search} />

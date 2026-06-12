@@ -257,8 +257,8 @@ export default function FeedBack() {
           </TabsTrigger>*/}
         </TabsList>
         <TabsContent value="ads">
-          <div className="flex flex-row gap-2">
-            <Card className="grow">
+          <div className="flex flex-row gap-2 ">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevo Organismo Adscrito
@@ -283,7 +283,7 @@ export default function FeedBack() {
                 </Form>
               </CardContent>
             </Card>
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Actualizar Organismo Adscrito
@@ -323,7 +323,7 @@ export default function FeedBack() {
         </TabsContent>
         <TabsContent value="dis">
           <div className=" flex gap-2">
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Discapidades
@@ -350,7 +350,7 @@ export default function FeedBack() {
                 </Form>
               </CardContent>
             </Card>
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Dispacidades
@@ -391,7 +391,7 @@ export default function FeedBack() {
         </TabsContent>
         <TabsContent value="pat">
           <div className=" flex gap-2">
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Patologias
@@ -418,7 +418,7 @@ export default function FeedBack() {
                 </Form>
               </CardContent>
             </Card>
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Patologias
@@ -459,7 +459,7 @@ export default function FeedBack() {
         </TabsContent>
         <TabsContent value="aler">
           <div className=" flex gap-2">
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Alergias
@@ -486,7 +486,7 @@ export default function FeedBack() {
                 </Form>
               </CardContent>
             </Card>
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nuevas Alergias</h2>
               </CardHeader>
@@ -525,7 +525,7 @@ export default function FeedBack() {
         </TabsContent>
         <TabsContent value="tallas">
           <div className="flex gap-2">
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nueva Region</h2>
               </CardHeader>
@@ -548,7 +548,7 @@ export default function FeedBack() {
                 </Form>
               </CardContent>
             </Card>
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nueva Talla</h2>
               </CardHeader>
@@ -597,7 +597,7 @@ export default function FeedBack() {
         </TabsContent>
         <TabsContent value="retro-beneficio">
           <div className="flex flex-row gap-2">
-            <Card className="grow">
+            <Card className="grow bg-white">
               <CardContent className="flex flex-col justify-center gap-5">
                 <div className="flex gap-2">
                   {isPending ? (

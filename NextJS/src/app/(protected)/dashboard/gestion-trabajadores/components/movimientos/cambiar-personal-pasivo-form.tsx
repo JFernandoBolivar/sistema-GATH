@@ -99,7 +99,7 @@ export function PasivoForm() {
     estatusId === statusEmployee?.data.find((v) => v.estatus === "PASIVO")?.id;
   return (
     <>
-      <Card>
+      <Card className="bg-white">
         <CardContent className="gap-5">
           <EmployeeSearchForm onSearch={search} />
 

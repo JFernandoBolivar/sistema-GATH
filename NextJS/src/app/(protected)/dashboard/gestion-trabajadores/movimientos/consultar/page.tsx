@@ -82,7 +82,7 @@ export default function TableMovesPage() {
                       <FormItem>
                         <FormLabel>Buscar Cédula</FormLabel>
                         <FormControl>
-                          <Input
+                          <Input className="bg-white"
                             type="text"
                             placeholder="buscar cedula..."
                             {...field}

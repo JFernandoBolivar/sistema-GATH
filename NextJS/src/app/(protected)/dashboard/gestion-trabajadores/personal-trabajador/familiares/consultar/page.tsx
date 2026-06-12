@@ -70,7 +70,7 @@ export default function FamilyConsult() {
           onSubmit={form.handleSubmit(onSearch)}
           className="flex flex-col justify-start gap-2 flex-1"
         >
-          <div className="flex flex-row items-center gap-2 ">
+          <div className="flex flex-row items-center gap-2  ">
             <FormField
               name="cedula_empleado"
               control={form.control}
@@ -78,7 +78,7 @@ export default function FamilyConsult() {
                 <FormItem>
                   <FormLabel>Buscar Cédula Trabajador</FormLabel>
                   <FormControl>
-                    <Input
+                    <Input className="bg-white"
                       type="text"
                       placeholder="buscar cedula..."
                       {...field}
