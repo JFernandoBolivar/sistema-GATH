@@ -64,8 +64,8 @@ export default function MetricasPage() {
             );
 
             return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+                <Card className="bg-white">
                   <CardHeader>
                     <CardTitle className="text-sm font-medium">
                       Progreso del Censo
@@ -88,7 +88,7 @@ export default function MetricasPage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-white">
                   <CardHeader>
                     <CardTitle className="text-sm font-medium">
                       Respuestas por Dependencia
@@ -120,7 +120,7 @@ export default function MetricasPage() {
         )}
 
         {!displayReportData && (
-          <Card>
+          <Card className="bg-white">
             <CardContent className="flex items-center justify-center py-12 text-muted-foreground">
               Cargando métricas...
             </CardContent>

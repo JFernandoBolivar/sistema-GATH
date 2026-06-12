@@ -144,7 +144,7 @@ export default function ReportLeaving() {
   };
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardContent>
         <Form {...form}>
           {isPending ? (

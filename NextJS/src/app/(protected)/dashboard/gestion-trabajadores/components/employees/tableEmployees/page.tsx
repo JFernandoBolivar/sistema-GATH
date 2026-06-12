@@ -8,7 +8,7 @@ export default function TableEmployee({
 }) {
   return (
     <div>
-      <DataTable columns={columns} data={employeeData || []} />
+      <DataTable  columns={columns} data={employeeData || []} />
     </div>
   );
 }

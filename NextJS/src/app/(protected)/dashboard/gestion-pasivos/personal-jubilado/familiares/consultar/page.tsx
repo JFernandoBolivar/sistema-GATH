@@ -83,7 +83,7 @@ export default function FamilyConsultPasive() {
                     Buscar Cédula del Personal Pasivo/Jubilado
                   </FormLabel>
                   <FormControl>
-                    <Input
+                    <Input className="bg-white"
                       type="text"
                       placeholder="buscar cedula..."
                       {...field}

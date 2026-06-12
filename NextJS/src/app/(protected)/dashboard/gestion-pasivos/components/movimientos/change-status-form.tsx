@@ -95,7 +95,7 @@ export function ChangeStatusPasiveForm() {
 
   return (
     <>
-      <Card>
+      <Card className="bg-white">
         <CardContent className="gap-5">
           <Form {...formSearch}>
             <form

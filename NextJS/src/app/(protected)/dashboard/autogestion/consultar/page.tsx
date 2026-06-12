@@ -325,7 +325,7 @@ export default function ConsultarCensoPage() {
                 <FormItem>
                   <FormLabel>Buscar por Cedula</FormLabel>
                   <FormControl>
-                    <Input placeholder="buscar cedula..." {...field} />
+                    <Input className="bg-white" placeholder="buscar cedula..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -358,7 +358,7 @@ export default function ConsultarCensoPage() {
           </form>
         </Form>
 
-        <Card>
+        <Card className="bg-white">
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Filter className="size-4" /> Filtros para Exportar Excel
@@ -588,7 +588,7 @@ export default function ConsultarCensoPage() {
         {isLoading ? (
           <Loading promiseMessage="Cargando respuestas..." />
         ) : (
-          <ScrollArea className="h-[60vh] rounded-md border">
+          <ScrollArea className="h-[60vh] rounded-md border bg-white">
             <Table>
               <TableHeader>
                 <TableRow>
