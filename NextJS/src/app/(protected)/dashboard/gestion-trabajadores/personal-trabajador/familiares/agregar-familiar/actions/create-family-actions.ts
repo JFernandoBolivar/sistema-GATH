@@ -5,6 +5,8 @@ import { schemaFamilyEmployeeOne } from "../schema/schemaCreateFamily";
 import { auth } from "#/auth";
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 interface FamilyCreateResponse {
   id: number;
@@ -45,7 +47,8 @@ export default async function createFamilyActions(
       message: getResponse.message,
       data: getResponse.data,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio un error",

@@ -83,14 +83,14 @@ export function ReporteFiltersForm() {
   };
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Filter className="size-4" /> Filtros para Reporte de Métricas
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
+        <Form {...form}>schema
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <SelectForm
               form={form}

@@ -1,6 +1,8 @@
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
 import { RegionTallaSchema } from "../schemas/schemaRegionTalla";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function regionTallaCreateActions(values: RegionTallaSchema) {
   try {
@@ -15,7 +17,8 @@ export async function regionTallaCreateActions(values: RegionTallaSchema) {
       success: getResponse.status === "success",
       message: getResponse.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error en el servidor",

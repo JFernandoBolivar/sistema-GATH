@@ -5,6 +5,8 @@ import { schemaAsignCode } from "../schema/schema-asign-code";
 import { auth } from "#/auth";
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function AsignCode(values: z.infer<typeof schemaAsignCode>) {
   try {
@@ -31,7 +33,8 @@ export async function AsignCode(values: z.infer<typeof schemaAsignCode>) {
       success: getResponse.status === "success",
       message: getResponse.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error",

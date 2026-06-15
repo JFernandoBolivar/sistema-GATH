@@ -12,6 +12,8 @@ import { BasicInfoUpdateType } from "@/shared/schemas/employees/update/schemaEmp
 import { SupplementaryTrainingUpdateType } from "@/shared/schemas/employees/update/schema-supplementary_training";
 import { ContratoUpdateType } from "@/shared/schemas/employees/update/schema-contrato";
 import { createCarrera, createInstitucion, createMencion, createOrganismoAdscrito } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export default async function updateInfoEmployee(
   data:
@@ -143,7 +145,8 @@ export default async function updateInfoEmployee(
         getResponse.message ||
         "Error al actualizar la información del empleado.",
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error",

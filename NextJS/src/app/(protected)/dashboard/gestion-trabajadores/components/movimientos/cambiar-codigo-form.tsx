@@ -173,7 +173,7 @@ export function ChangeCodeForm() {
       {isPending ? (
         <Loading promiseMessage="Cambiando Cargo..." />
       ) : (
-        <Card>
+        <Card className="bg-white">
           <CardContent className="gap-5">
             <EmployeeSearchForm onSearch={search} />
 

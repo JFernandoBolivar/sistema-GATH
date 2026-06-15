@@ -3,6 +3,8 @@ import { ApiResponse } from "@/app/types/types";
 
 import { CategoryGroup } from "../schemas/schemaCategory";
 import { AllergiesSchema } from "../schemas/schemaAllergies";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function allergiesCreateActions(values: AllergiesSchema) {
   try {
@@ -14,7 +16,8 @@ export async function allergiesCreateActions(values: AllergiesSchema) {
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error en el servidor",
@@ -32,7 +35,8 @@ export async function allergiesGroup(values: CategoryGroup) {
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error en el servidor",

@@ -5,6 +5,8 @@ import { schemaChangeCode } from "../schema/schemaChangeCode";
 import { auth } from "#/auth";
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export default async function ChangeCodeActions(
   values: z.infer<typeof schemaChangeCode>,
@@ -35,7 +37,8 @@ export default async function ChangeCodeActions(
       success: getResponse.status === "success",
       message: getResponse.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error",

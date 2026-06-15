@@ -5,6 +5,35 @@ import { signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { cookies } from "next/headers";
 
+const AUTH_COOKIE_PREFIXES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+  "authjs.csrf-token",
+  "__Secure-authjs.csrf-token",
+  "authjs.callback-url",
+  "__Secure-authjs.callback-url",
+];
+
+function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
+  const secure = process.env.NODE_ENV === "production";
+  cookieStore.set("dj_access", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
+  cookieStore.set("dj_refresh", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
+  const allCookies = cookieStore.getAll();
+  for (const c of allCookies) {
+    if (AUTH_COOKIE_PREFIXES.some((prefix) => c.name.startsWith(prefix))) {
+      cookieStore.set(c.name, "", {
+        maxAge: 0,
+        path: "/",
+        secure: secure || c.name.startsWith("__Secure-"),
+        httpOnly: true,
+        sameSite: "lax",
+      });
+    }
+  }
+}
+
 export const loginAction = async (values: z.infer<typeof signInSchema>) => {
   try {
     const loginResponse = await fetch(
@@ -42,11 +71,16 @@ export const loginAction = async (values: z.infer<typeof signInSchema>) => {
       });
     }
 
-    await signIn("credentials", {
+    const result = await signIn("credentials", {
       email: values.email,
       password: values.password,
       redirect: false,
     });
+
+    if (result?.error) {
+      return { error: "Credenciales Invalidas o Usuario Bloqueado" };
+    }
+
     return { success: "Login successful" };
   } catch (error) {
     if (error instanceof AuthError) {
@@ -82,13 +116,20 @@ export const changePasswordAction = async (
 };
 
 export const logoutAction = async () => {
+  const cookieStore = await cookies();
+  deleteAuthCookies(cookieStore);
   try {
     await fetch(
       `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}accounts/logout/`,
       { method: "POST" },
     );
   } catch {
-    // Silenciar error de red, igual cerramos sesion local
   }
   await signOut({ redirect: false });
+};
+
+export const clearAuthCookies = async () => {
+  const cookieStore = await cookies();
+  deleteAuthCookies(cookieStore);
+  return { success: true };
 };

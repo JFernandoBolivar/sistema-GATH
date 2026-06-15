@@ -4,6 +4,8 @@ import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
 import { TypeSchemaUpdateUser } from "../tableUser/updateInfo/schema/schemaUpdateUser";
 import { revalidatePath } from "next/cache";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export default async function updateAction(
   values: TypeSchemaUpdateUser,
@@ -21,7 +23,8 @@ export default async function updateAction(
       success: getResponse.status === "success",
       message: getResponse.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error",
@@ -45,7 +48,8 @@ export async function blockUserAction(id: number, is_active: boolean) {
       success: getResponse.status === "success",
       message: getResponse.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error",

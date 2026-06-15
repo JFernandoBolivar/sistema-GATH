@@ -182,7 +182,7 @@ export function CodigoCatalogEspecialForm({
   }, [employee]);
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
         <CardTitle>Registrar Código de Posición</CardTitle>
         <CardDescription>

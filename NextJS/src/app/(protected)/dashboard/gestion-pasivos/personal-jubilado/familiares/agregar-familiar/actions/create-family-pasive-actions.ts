@@ -5,6 +5,8 @@ import { schemaFamilyEmployeeOne } from "../schema/schemaCreateFamily";
 import { auth } from "#/auth";
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export default async function createFamilyPasiveActions(
   values: z.infer<typeof schemaFamilyEmployeeOne>,
@@ -49,7 +51,8 @@ export default async function createFamilyPasiveActions(
       success: false,
       message: data.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio un error",

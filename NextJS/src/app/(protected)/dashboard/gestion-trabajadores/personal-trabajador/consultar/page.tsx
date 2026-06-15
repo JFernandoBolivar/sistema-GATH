@@ -82,7 +82,7 @@ export default function PersonalPage() {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSearch)}
-          className="flex flex-col justify-start gap-2 flex-1"
+          className="flex flex-col justify-start gap-2 flex-1 "
         >
           <div className="flex flex-row items-center gap-2 ">
             <FormField
@@ -92,7 +92,7 @@ export default function PersonalPage() {
                 <FormItem>
                   <FormLabel>Buscar Cédula</FormLabel>
                   <FormControl>
-                    <Input
+                    <Input className="bg-white"
                       type="text"
                       placeholder="buscar cedula..."
                       {...field}
@@ -108,7 +108,7 @@ export default function PersonalPage() {
                 <FormItem>
                   <FormLabel>Buscar Código De Trabajador</FormLabel>
                   <FormControl>
-                    <Input
+                    <Input className="bg-white"
                       type="text"
                       placeholder="buscar codigo de trabajador..."
                       {...field}
@@ -129,7 +129,7 @@ export default function PersonalPage() {
                     }}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full truncate">
+                      <SelectTrigger className="w-full truncate bg-white">
                         <SelectValue
                           placeholder={`${isLoadingNomina ? "Cargando Nominas" : "Seleccione un Tipo de Nomina"}`}
                         />

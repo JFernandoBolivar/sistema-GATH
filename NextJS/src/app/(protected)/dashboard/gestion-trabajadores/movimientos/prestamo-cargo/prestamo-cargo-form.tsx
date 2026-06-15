@@ -223,8 +223,8 @@ const formatDate = (d: string | Date) => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
+    <div className="flex flex-col gap-6  ">
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle>Registrar Encargaduría</CardTitle>
         </CardHeader>
@@ -404,7 +404,7 @@ const formatDate = (d: string | Date) => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card  className="bg-white">
         <CardHeader>
           <CardTitle>Encargadurías Activas</CardTitle>
           <div className="flex gap-2">

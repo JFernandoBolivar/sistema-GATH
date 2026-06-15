@@ -80,7 +80,7 @@ export function CodeListPage() {
     });
   };
   return (
-    <Card className="bg-background shadow-none border-none  ">
+    <Card className="bg-white shadow-none border-none  ">
       <CardHeader>
         <CardTitle>
           <h1>Listado De Cargos</h1>

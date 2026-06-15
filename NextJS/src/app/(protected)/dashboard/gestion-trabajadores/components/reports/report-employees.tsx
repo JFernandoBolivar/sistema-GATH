@@ -247,7 +247,7 @@ export default function ReportEmployee() {
   };
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardContent>
         <Form {...form}>
           {isPending ? (
