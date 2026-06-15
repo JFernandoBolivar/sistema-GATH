@@ -1,6 +1,8 @@
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
 import { AdsType, AdsUpdateType } from "../schemas/schemaAds";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function adsCreateActions(values: AdsType) {
   try {
@@ -12,7 +14,8 @@ export async function adsCreateActions(values: AdsType) {
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error en el servidor",
@@ -30,7 +33,8 @@ export async function adsUpdateActions(values: AdsUpdateType) {
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error en el servidor",

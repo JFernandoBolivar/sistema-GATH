@@ -9,6 +9,8 @@ import { PhysicalProfileType } from "@/shared/schemas/employees/register/schema-
 import { DwellingType } from "@/shared/schemas/employees/register/schema-dwelling";
 import { ApiResponse } from "@/app/types/types";
 import { createCarrera, createInstitucion, createMencion, createOrganismoAdscrito } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 export async function registerEmployeeSteps(
   data: BasicInfoType &
     AcademyType &
@@ -144,7 +146,8 @@ export async function registerEmployeeSteps(
           ? getEmployee.message
           : getEmployee.message || "Error al registrar empleado",
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error ",

@@ -5,18 +5,31 @@ import { signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { cookies } from "next/headers";
 
+const AUTH_COOKIE_PREFIXES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+  "authjs.csrf-token",
+  "__Secure-authjs.csrf-token",
+  "authjs.callback-url",
+  "__Secure-authjs.callback-url",
+];
+
 function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  cookieStore.delete("dj_access");
-  cookieStore.delete("dj_refresh");
+  const secure = process.env.NODE_ENV === "production";
+  cookieStore.set("dj_access", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
+  cookieStore.set("dj_refresh", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
   const allCookies = cookieStore.getAll();
   for (const c of allCookies) {
-    if (
-      c.name.startsWith("authjs.session-token") ||
-      c.name.startsWith("__Secure-authjs.session-token") ||
-      c.name.startsWith("next-auth.session-token") ||
-      c.name.startsWith("__Secure-next-auth.session-token")
-    ) {
-      cookieStore.delete(c.name);
+    if (AUTH_COOKIE_PREFIXES.some((prefix) => c.name.startsWith(prefix))) {
+      cookieStore.set(c.name, "", {
+        maxAge: 0,
+        path: "/",
+        secure: secure || c.name.startsWith("__Secure-"),
+        httpOnly: true,
+        sameSite: "lax",
+      });
     }
   }
 }

@@ -3,6 +3,8 @@
 import { auth } from "#/auth";
 import { apiFetch, apiFetchFormData, apiFetchBlob } from "@/lib/api-client";
 import type { VistaPreviaResponse, UploadFotoResponse } from "../../types/carnetizacion";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function actualizarVistaPrevia(cedula: string, nombre: string) {
   try {
@@ -18,7 +20,8 @@ export async function actualizarVistaPrevia(cedula: string, nombre: string) {
       return { success: true as const, message: "Vista previa actualizada", vista_previa: data.vista_previa };
     }
     return { success: false as const, message: "Error al actualizar vista previa" };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return { success: false as const, message: "Error al actualizar vista previa" };
   }
 }
@@ -41,7 +44,8 @@ export async function subirFoto(cedula: string, nombre: string, foto: File) {
       return { success: true as const, message: "Foto actualizada correctamente", vista_previa: data.vista_previa };
     }
     return { success: false as const, message: data.error || "Error al subir foto" };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return { success: false as const, message: "Error al subir la foto" };
   }
 }
@@ -58,7 +62,8 @@ export async function registrarSolicitud(cedula: string, motivo_id: number) {
     });
     if (data.success) return { success: true as const, message: "Solicitud registrada" };
     return { success: false as const, message: "Error al registrar solicitud" };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return { success: false as const, message: "Error al registrar solicitud" };
   }
 }
@@ -76,7 +81,8 @@ export async function generarCarnet(cedula: string, motivo_id: number, nombre: s
     const arrayBuffer = await blob.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     return { success: true as const, message: "Carnet generado exitosamente", data: base64 };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return { success: false as const, message: "Error al generar el carnet", data: null };
   }
 }

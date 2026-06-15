@@ -2,6 +2,8 @@
 
 import { auth } from "#/auth";
 import { submitCensoVivienda } from "../api/getInfoAutogestion";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 interface RespuestaItem {
   pregunta: number;
@@ -54,7 +56,8 @@ export async function enviarAutogestion(
       success: response.status === "success",
       message: response.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrió un error al enviar el formulario.",

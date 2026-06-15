@@ -1,5 +1,7 @@
 import { apiFetch } from "@/lib/api-client";
 import type { EmployeeCarnet, EstadisticasData, MotivoOption, Plantilla } from "../types/carnetizacion";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function searchEmployees(query: string): Promise<EmployeeCarnet[]> {
   try {
@@ -7,6 +9,7 @@ export async function searchEmployees(query: string): Promise<EmployeeCarnet[]> 
       cache: "no-cache",
     });
   } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     throw new Error("Error en la búsqueda");
   }
 }
@@ -17,6 +20,7 @@ export async function getEstadisticas(): Promise<EstadisticasData> {
       cache: "no-cache",
     });
   } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     throw new Error("Error al cargar estadísticas");
   }
 }
@@ -27,6 +31,7 @@ export async function getMotivos(): Promise<MotivoOption[]> {
       cache: "no-cache",
     });
   } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     throw new Error("Error al cargar motivos");
   }
 }
@@ -37,6 +42,7 @@ export async function getPlantillas(): Promise<Plantilla[]> {
       cache: "no-cache",
     });
   } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     throw new Error("Error al cargar plantillas");
   }
 }

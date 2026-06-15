@@ -3,6 +3,8 @@ import { ApiResponse } from "@/app/types/types";
 import z from "zod";
 import { schemaRac } from "../schemas/schemaRac";
 import { apiFetch } from "@/lib/api-client";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function registerEmployee(
   values: z.infer<typeof schemaRac>,
@@ -61,7 +63,8 @@ export async function registerEmployee(
       success: true,
       message: message.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio un error",

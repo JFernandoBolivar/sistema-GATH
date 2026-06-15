@@ -5,6 +5,8 @@ import { auth } from "#/auth";
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
 import { schemaCodePasive } from "../schemas/schemaCode";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function createCodePasiveAction(
   values: z.infer<typeof schemaCodePasive>,
@@ -44,7 +46,8 @@ export async function createCodePasiveAction(
       success: true,
       message: data.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio un error Inesperado",
