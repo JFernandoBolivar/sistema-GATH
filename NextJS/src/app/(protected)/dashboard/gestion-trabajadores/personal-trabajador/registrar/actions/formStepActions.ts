@@ -11,6 +11,8 @@ import { FamilyEmployeeType } from "@/shared/schemas/employees/register/schema-f
 import { ApiResponse } from "@/app/types/types";
 import { createCarrera, createCapacitacion, createInstitucion, createMencion, createOrganismoAdscrito } from "../../../api/getInfoRac";
 import { apiFetch } from "@/lib/api-client";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function registerEmployeeSteps(
   data: BasicInfoType &
@@ -162,7 +164,8 @@ export async function registerEmployeeSteps(
       success: getEmployee.status === "success",
       message: getEmployee.message || "Error al registrar empleado",
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error ",

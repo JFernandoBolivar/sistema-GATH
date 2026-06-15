@@ -1,25 +1,43 @@
 "use server"
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { auth } from "#/auth";
+import { AuthSessionExpiredError } from "./auth-errors";
 
 let refreshPromise: Promise<string | null> | null = null;
 
+const AUTH_COOKIE_PREFIXES = [
+  "authjs.session-token",
+  "__Secure-authjs.session-token",
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+  "authjs.csrf-token",
+  "__Secure-authjs.csrf-token",
+  "authjs.callback-url",
+  "__Secure-authjs.callback-url",
+];
+
 function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  cookieStore.delete("dj_access");
-  cookieStore.delete("dj_refresh");
+  const secure = process.env.NODE_ENV === "production";
+  cookieStore.set("dj_access", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
+  cookieStore.set("dj_refresh", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
   const allCookies = cookieStore.getAll();
   for (const c of allCookies) {
-    if (c.name.startsWith("authjs.session-token") || c.name.startsWith("__Secure-authjs.session-token") || c.name.startsWith("next-auth.session-token")) {
-      cookieStore.delete(c.name);
+    if (AUTH_COOKIE_PREFIXES.some((prefix) => c.name.startsWith(prefix))) {
+      cookieStore.set(c.name, "", {
+        maxAge: 0,
+        path: "/",
+        secure: secure || c.name.startsWith("__Secure-"),
+        httpOnly: true,
+        sameSite: "lax",
+      });
     }
   }
 }
 
-async function redirectToLogin(): Promise<never> {
+async function throwAuthExpired(): Promise<never> {
   const cookieStore = await cookies();
   deleteAuthCookies(cookieStore);
-  redirect("/login");
+  throw new AuthSessionExpiredError();
 }
 
 async function getValidAccessToken(): Promise<string | null> {
@@ -99,7 +117,7 @@ export async function apiFetch<T>(
   options?: RequestInit,
 ): Promise<T> {
   const headers = await getAuthHeaders();
-  if (!headers) await redirectToLogin();
+  if (!headers) await throwAuthExpired();
 
   const requestOptions: RequestInit = {
     ...options,
@@ -116,7 +134,7 @@ export async function apiFetch<T>(
   }
 
   const newAccessToken = await refreshTokens();
-  if (!newAccessToken) await redirectToLogin();
+  if (!newAccessToken) await throwAuthExpired();
 
   const retryOptions: RequestInit = {
     ...options,
@@ -141,7 +159,7 @@ export async function apiFetchFormData<T>(
   method: "POST" | "PUT" | "PATCH" = "POST",
 ): Promise<T> {
   const headers = await getAuthHeaders();
-  if (!headers) await redirectToLogin();
+  if (!headers) await throwAuthExpired();
 
   const { "Content-Type": _, ...restHeaders } = headers!;
 
@@ -161,7 +179,7 @@ export async function apiFetchFormData<T>(
   }
 
   const newAccessToken = await refreshTokens();
-  if (!newAccessToken) await redirectToLogin();
+  if (!newAccessToken) await throwAuthExpired();
 
   const retryOptions: RequestInit = {
     method,
@@ -184,7 +202,7 @@ export async function apiFetchBlob(
   options?: RequestInit,
 ): Promise<globalThis.Blob> {
   const headers = await getAuthHeaders();
-  if (!headers) await redirectToLogin();
+  if (!headers) await throwAuthExpired();
 
   const requestOptions: RequestInit = {
     ...options,
@@ -201,7 +219,7 @@ export async function apiFetchBlob(
   }
 
   const newAccessToken = await refreshTokens();
-  if (!newAccessToken) await redirectToLogin();
+  if (!newAccessToken) await throwAuthExpired();
 
   const retryOptions: RequestInit = {
     ...options,

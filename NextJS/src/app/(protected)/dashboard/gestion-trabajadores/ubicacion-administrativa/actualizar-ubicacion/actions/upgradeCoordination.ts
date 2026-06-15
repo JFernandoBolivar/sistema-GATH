@@ -2,6 +2,8 @@
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
 import { SchemaUpgradeCoordination } from "../schema/schemaUpdateCoordination";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export default async function upgradeCoordinationActions(
   values: SchemaUpgradeCoordination,
@@ -16,7 +18,8 @@ export default async function upgradeCoordinationActions(
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Error En El Servidor",

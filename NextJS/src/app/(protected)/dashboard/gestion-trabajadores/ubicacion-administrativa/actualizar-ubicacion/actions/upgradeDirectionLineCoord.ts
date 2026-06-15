@@ -2,6 +2,8 @@
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
 import { SchemaUpgradeDireccionLineCoord } from "../schema/schemaUpdateDireccionLineCoord";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export default async function upgradeDirectionLineCoordAction(
   values: SchemaUpgradeDireccionLineCoord,
@@ -16,7 +18,8 @@ export default async function upgradeDirectionLineCoordAction(
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Error En El Servidor",

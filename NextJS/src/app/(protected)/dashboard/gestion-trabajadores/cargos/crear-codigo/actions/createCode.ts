@@ -5,6 +5,8 @@ import { schemaCode } from "../schemas/schemaCode";
 import { auth } from "#/auth";
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function createCodeAction(values: z.infer<typeof schemaCode>) {
   try {
@@ -42,7 +44,8 @@ export async function createCodeAction(values: z.infer<typeof schemaCode>) {
       success: true,
       message: data.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio un error Inesperado",

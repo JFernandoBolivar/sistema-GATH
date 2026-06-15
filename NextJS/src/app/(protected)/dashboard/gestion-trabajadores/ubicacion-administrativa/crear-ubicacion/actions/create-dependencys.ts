@@ -6,6 +6,8 @@ import {
   schemaCreateDirectionAdm,
 } from "../schema/schemaCreateDependency";
 import { apiFetch } from "@/lib/api-client";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 import {
   ApiResponse,
   Coordination,
@@ -112,7 +114,8 @@ export async function CreateDependencyAction(
       success: false,
       message: getDependency.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio Un Error",

@@ -6,6 +6,8 @@ import {
   updatePrestamoCargoFn,
 } from "../../api/getInfoRac";
 import { PrestamoCargoFormType } from "./schema";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function createPrestamoCargoAction(data: PrestamoCargoFormType) {
   try {
@@ -38,7 +40,8 @@ export async function createPrestamoCargoAction(data: PrestamoCargoFormType) {
       success: response.status === "success",
       message: response.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return { success: false, message: "Ocurrio un error" };
   }
 }
@@ -55,7 +58,8 @@ export async function finalizarPrestamoCargoAction(id: number, fecha_fin: string
       success: response.status === "success",
       message: response.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return { success: false, message: "Ocurrio un error" };
   }
 }
