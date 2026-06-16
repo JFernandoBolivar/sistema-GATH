@@ -87,18 +87,20 @@ class CuentaSerializer(serializers.ModelSerializer):
  
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
-    correo = serializers.EmailField(write_only=True, required=True)
+    cedula = serializers.CharField(write_only=True, required=True)
+    departamento = serializers.PrimaryKeyRelatedField(queryset=departaments.objects.all(), required=False, allow_null=True)
+    rol = serializers.PrimaryKeyRelatedField(queryset=Rol.objects.all(), required=False, allow_null=True)
 
     class Meta:
         model = cuenta
-        fields = ['correo', 'password', 'departamento', 'rol']
+        fields = ['cedula', 'password', 'departamento', 'rol']
 
-    def validate_correo(self, value):
-        correo_str = str(value).strip().lower()
+    def validate_cedula(self, value):
+        cedula_str = str(value).strip()
         try:
-            empleado = Employee.objects.get(correo__iexact=correo_str)
+            empleado = Employee.objects.get(cedulaidentidad=cedula_str)
         except Employee.DoesNotExist:
-            raise serializers.ValidationError("El correo electrónico no pertenece a ningún empleado registrado en RAC.")
+            raise serializers.ValidationError("La cédula no pertenece a ningún empleado registrado en RAC.")
         
         if cuenta.objects.filter(cedula=empleado).exists():
             raise serializers.ValidationError("Este empleado ya posee una cuenta de usuario.")
@@ -106,7 +108,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return empleado
 
     def create(self, validated_data):
-        empleado = validated_data.pop('correo')
+        empleado = validated_data.pop('cedula')
         password = validated_data.pop('password')
         
         user = cuenta(cedula=empleado, **validated_data)
