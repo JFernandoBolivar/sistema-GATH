@@ -248,12 +248,13 @@ def register_view(request):
 
     except ValidationError:
         error_dict = serializer.errors
-        first_error_field = list(error_dict.values())[0]
-        clean_message = first_error_field[0] if isinstance(first_error_field, list) else first_error_field
+        field_name = list(error_dict.keys())[0]
+        first_error = list(error_dict.values())[0]
+        clean_message = first_error[0] if isinstance(first_error, list) else first_error
 
         return Response({
             'status': "error",
-            'message': clean_message,
+            'message': f"{field_name}: {clean_message}",
 
         }, status=status.HTTP_400_BAD_REQUEST)
 
