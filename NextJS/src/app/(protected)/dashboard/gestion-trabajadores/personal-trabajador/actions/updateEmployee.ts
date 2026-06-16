@@ -4,6 +4,8 @@ import { ApiResponse } from "@/app/types/types";
 import z from "zod";
 import { schemaEmployeeEdit } from "../registrar/schemas/schemaRac";
 import { apiFetch } from "@/lib/api-client";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function updateEmployee(
   values: z.infer<typeof schemaEmployeeEdit>,
@@ -28,7 +30,8 @@ export async function updateEmployee(
       success: message.status === "success",
       message: message.message,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio un error",

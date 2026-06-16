@@ -4,6 +4,8 @@ import { auth } from "#/auth";
 import { apiFetch } from "@/lib/api-client";
 import { ApiResponse } from "@/app/types/types";
 import { UpdateCodeTable } from "../schema/schema-update-code";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export async function updateCodeTable(values: UpdateCodeTable, id: number) {
   try {
@@ -28,7 +30,8 @@ export async function updateCodeTable(values: UpdateCodeTable, id: number) {
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Ocurrio un error",

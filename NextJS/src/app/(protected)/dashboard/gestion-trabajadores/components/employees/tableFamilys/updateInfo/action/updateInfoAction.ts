@@ -7,6 +7,8 @@ import { TypeSchemaUpdateAcademy } from "../schema/schemaAcademyUpdate";
 import { SchemaUpdatePhysical } from "../schema/schemaPhysicalUpdate";
 import { UpdateInfoFormValues } from "../schema/updateInfoSchema";
 import { SchemaUpdateRelaction } from "../schema/updateRelationSchema";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { redirect } from "next/navigation";
 
 export default async function updateInfoAction({
   values,
@@ -29,7 +31,8 @@ export default async function updateInfoAction({
       },
     );
     return { success: data.status === "success", message: data.message };
-  } catch {
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) redirect("/login");
     return {
       success: false,
       message: "Error al actualizar la información",

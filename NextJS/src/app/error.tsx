@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { clearAuthCookies } from "#/actions/auth-actions";
 
 export default function Error({
@@ -9,6 +10,17 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    if (
+      error.name === "AuthSessionExpiredError" ||
+      error.message?.includes("Sesión expirada")
+    ) {
+      clearAuthCookies().then(() => {
+        window.location.href = "/login";
+      });
+    }
+  }, [error]);
+
   const handleClearAndReload = async () => {
     await clearAuthCookies();
     window.location.href = "/login";
