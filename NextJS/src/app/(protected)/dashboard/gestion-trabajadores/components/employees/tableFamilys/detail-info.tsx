@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 import { Family } from "@/app/types/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,9 @@ interface Props {
   family: Family;
 }
 export function DetailInfoFamily({ family }: Props) {
+  // El rol RECEPCIONISTA sólo consulta: se ocultan los accesos a edición.
+  const { data: session } = useSession();
+  const soloLectura = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
   const { mutate } = useSWRConfig();
   const { data: docsData } = useSWR(
     `family-docs-${family.id}`,
@@ -79,11 +83,13 @@ export function DetailInfoFamily({ family }: Props) {
                   <PersonStanding />
                 </div>
                 <Dialog>
+                  {!soloLectura && (
                   <DialogTrigger asChild>
                     <Button variant={"default"} size={"sm"}>
                       Editar
                     </Button>
                   </DialogTrigger>
+                  )}
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Actualizar Información Básica</DialogTitle>
@@ -125,11 +131,13 @@ export function DetailInfoFamily({ family }: Props) {
                   <PersonStanding />
                 </div>
                 <Dialog>
+                  {!soloLectura && (
                   <DialogTrigger asChild>
                     <Button variant={"default"} size={"sm"}>
                       Editar
                     </Button>
                   </DialogTrigger>
+                  )}
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Actualizar Parentesco</DialogTitle>
@@ -172,11 +180,13 @@ export function DetailInfoFamily({ family }: Props) {
                     Formaciones Academicas <GraduationCap />
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button variant={"default"} size={"sm"}>
                         Editar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <UpdateFormAcademy mutate={mutate} id={family.id} />
                     </DialogContent>
@@ -216,11 +226,13 @@ export function DetailInfoFamily({ family }: Props) {
                     Información De Vestimenta <Shirt />
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button variant={"default"} size={"sm"}>
                         Editar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <UpdateFormPhysical mutate={mutate} id={family.id} />
                     </DialogContent>
@@ -255,11 +267,13 @@ export function DetailInfoFamily({ family }: Props) {
                 Información De Salud <Heart />
               </div>
               <Dialog>
+                {!soloLectura && (
                 <DialogTrigger asChild>
                   <Button variant={"default"} size={"sm"}>
                     Editar
                   </Button>
                 </DialogTrigger>
+                )}
                 <DialogContent>
                   <FormUpdateHealthFamily mutate={mutate} id={family.id} />
                 </DialogContent>

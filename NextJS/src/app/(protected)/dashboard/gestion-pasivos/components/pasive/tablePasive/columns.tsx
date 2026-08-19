@@ -34,6 +34,9 @@ function PasiveActionsCell({ row }: { row: Row<EmployeeData> }) {
     return URL.createObjectURL(profileBlob);
   }, [profileBlob]);
   const session = useSession();
+  // RECEPCIONISTA sólo consulta: no puede extraer el expediente en PDF.
+  const soloLectura =
+    session?.data?.user?.role?.nombre_rol === "RECEPCIONISTA";
 
   return (
     <DropdownMenu>
@@ -54,6 +57,7 @@ function PasiveActionsCell({ row }: { row: Row<EmployeeData> }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Extras</DropdownMenuLabel>
+        {!soloLectura && (
         <DropdownMenuItem>
           <ExportButton
             className="w-full"
@@ -68,6 +72,7 @@ function PasiveActionsCell({ row }: { row: Row<EmployeeData> }) {
             }
           />
         </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <DetailInfoEmployee employee={employee} />
         </DropdownMenuItem>
