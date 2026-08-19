@@ -11,6 +11,11 @@ from .user_views import (
     list_rols,
     cambiar_password_primera_vez,
 )
+from .rol_views import (
+    crear_rol,
+    actualizar_rol,
+    eliminar_rol,
+)
 
 __all__ = [
     'login_view',
@@ -24,4 +29,7 @@ __all__ = [
     'list_departaments',
     'list_rols',
     'cambiar_password_primera_vez',
+    'crear_rol',
+    'actualizar_rol',
+    'eliminar_rol',
 ]
