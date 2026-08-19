@@ -37,6 +37,9 @@ function EmployeeActionsCell({ row }: { row: Row<EmployeeData> }) {
     [profileBlob],
   );
   const session = useSession();
+  // RECEPCIONISTA sólo consulta: no puede extraer el expediente en PDF.
+  const soloLectura =
+    session?.data?.user?.role?.nombre_rol === "RECEPCIONISTA";
 
   const pdfDocument = useMemo(
     () => (
@@ -69,6 +72,7 @@ function EmployeeActionsCell({ row }: { row: Row<EmployeeData> }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Extras</DropdownMenuLabel>
+        {!soloLectura && (
         <DropdownMenuItem>
           <ExportButton
             className="w-full"
@@ -76,6 +80,7 @@ function EmployeeActionsCell({ row }: { row: Row<EmployeeData> }) {
             document={pdfDocument}
           />
         </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <DetailInfoEmployee employee={employee} />
         </DropdownMenuItem>
