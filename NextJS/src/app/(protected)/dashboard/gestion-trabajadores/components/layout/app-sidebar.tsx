@@ -76,7 +76,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL","RECEPCIONISTA"],
       departmentAccept: ["RAC"],
     },
     title: "Personal Trabajador",
@@ -97,7 +97,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/consultar",
         icon: ListCheck,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL","RECEPCIONISTA"],
           departmentAccept: ["RAC"],
         },
       },
@@ -115,7 +115,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
         icon: BookUser,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL","RECEPCIONISTA"],
           departmentAccept: ["RAC"],
         },
       },

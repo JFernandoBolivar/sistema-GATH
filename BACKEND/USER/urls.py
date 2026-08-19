@@ -17,4 +17,9 @@ urlpatterns = [
     path('departamentos/', views.list_departaments, name="lista_departamentos"),
     path('usuarios/<int:id>/', views.editar_usuario, name='api_editar_usuario'),
     path('usuarios/estado/<int:id>/', views.cambiar_estado_usuario, name='api_cambiar_estado_usuario'),
+
+    # ─── Gestión de roles ───
+    path('roles/create/', views.crear_rol, name='crear_rol'),
+    path('roles/<int:id>/update/', views.actualizar_rol, name='actualizar_rol'),
+    path('roles/<int:id>/delete/', views.eliminar_rol, name='eliminar_rol'),
 ]
