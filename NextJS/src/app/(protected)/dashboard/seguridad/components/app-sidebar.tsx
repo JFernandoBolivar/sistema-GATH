@@ -92,6 +92,35 @@ const items: MenuItem[] = [
     ],
   },
   {
+    permission: {
+      roleAccept: ["ADMINISTRADOR"],
+      departmentAccept: ["Seguridad"],
+    },
+    title: "Gestionar Roles",
+    url: "#",
+    icon: IdCard,
+    subMenu: [
+      {
+        title: "Registrar",
+        url: "/dashboard/seguridad/gestionar-roles/registrar",
+        icon: BadgePlus,
+        permission: {
+          roleAccept: ["ADMINISTRADOR"],
+          departmentAccept: ["Seguridad"],
+        },
+      },
+      {
+        title: "Consultar",
+        url: "/dashboard/seguridad/gestionar-roles",
+        icon: List,
+        permission: {
+          roleAccept: ["ADMINISTRADOR"],
+          departmentAccept: ["Seguridad"],
+        },
+      },
+    ],
+  },
+  {
     icon: BookCheck,
     title: "Autogestión",
     url: "/dashboard/autogestion",
