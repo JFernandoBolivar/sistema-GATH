@@ -1,0 +1,32 @@
+"""
+DTOs de Pasivos (Regla B5).
+"""
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class PasivoDTO:
+    id: int
+    cedula: str
+    nombres: str
+    apellidos: str
+    nombre_completo: str
+    tipo_pasivo: str
+    fecha_egreso: str | None = None
+    resolucion: str | None = None
+    observaciones: str | None = None
+    datos_vivienda: dict | None = None
+    perfil_salud: dict | None = None
+    formacion_academica: list = field(default_factory=list)
+    contacto_emergencia: list = field(default_factory=list)
+    antecedentes: list = field(default_factory=list)
+    contrato_actual: dict | None = None
+
+
+@dataclass(frozen=True)
+class ProcesarEgresoDTO:
+    cedula: str
+    motivo_movimiento_id: int
+    tipo_nomina_id: int
+    liberar_activos: bool = True
+    usuario_id: int | None = None

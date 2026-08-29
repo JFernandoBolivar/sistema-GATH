@@ -1,0 +1,968 @@
+# import-linter - verificacion automatica de los contratos Onion del plan
+# (Fase B1.4; reglas B1, B2, B4, B16 del Apendice A).
+#
+# Uso: lint-imports  (desde BACKEND/)
+#
+# Pureza de capas y direccion de dependencias por modulo (domain/application
+# /presentation) + kernel core/. Cada modulo de dominio (apps.*) tiene:
+#   - domain-puro           : su domain no importa framework (B1)
+#   - application-puro      : su application no importa framework (B4)
+#   - capas                 : presentation -> infrastructure -> application -> domain (B2/B3)
+#   - <mod>-no-cruzado      : su domain/application no importa de otros modulos (B16)
+#   - <mod>-presentacion-no-cruzado : su presentation no importa de otros modulos (B16)
+#   - <mod>-independiente   : modulo nuevo no importa de las apps legadas (B16)
+#
+# Nota B16 (acoplamiento entre modulos): SOLO la capa `infrastructure` puede
+# importar modelos/repos de otros modulos — es la capa de adaptadores que
+# implementa los puertos (p.ej. `movimientos` lee `cargos`/`personal` para
+# armar el historial; `reportes` lee `personal`/`pasivos`/`cargos`). Las capas
+# `domain`, `application` y `presentation` quedan blindadas por los contratos
+# `-no-cruzado`/`-presentacion-no-cruzado`. Ver plan §I.2.2 (R-01/R-02).
+# django-simple-history permanece instalado porque el codigo legado RAC aun lo
+# usa (retiro en B8).
+
+[importlinter]
+include_external_packages = True
+root_packages =
+    core
+    apps
+
+[importlinter:contract:core-domain-puro]
+name = core.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    core.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:core-capas]
+name = capas del kernel apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    core.presentation
+    core.infrastructure
+    core.domain
+
+[importlinter:contract:kernel-independiente]
+name = el kernel nunca importa de los modulos de dominio (B16)
+type = forbidden
+source_modules =
+    core
+forbidden_modules =
+    apps
+
+
+[importlinter:contract:apps-identidad-domain-puro]
+name = apps.identidad.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.identidad.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-identidad-application-puro]
+name = apps.identidad.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.identidad.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-identidad-capas]
+name = capas del modulo identidad apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.identidad.presentation
+    apps.identidad.infrastructure
+    apps.identidad.application
+    apps.identidad.domain
+
+[importlinter:contract:apps-personal-domain-puro]
+name = apps.personal.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.personal.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-personal-application-puro]
+name = apps.personal.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.personal.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-personal-capas]
+name = capas del modulo personal apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.personal.presentation
+    apps.personal.infrastructure
+    apps.personal.application
+    apps.personal.domain
+
+[importlinter:contract:apps-catalogos-domain-puro]
+name = apps.catalogos.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.catalogos.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-catalogos-application-puro]
+name = apps.catalogos.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.catalogos.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-catalogos-capas]
+name = capas del modulo catalogos apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.catalogos.presentation
+    apps.catalogos.infrastructure
+    apps.catalogos.application
+    apps.catalogos.domain
+
+[importlinter:contract:apps-organizacion-domain-puro]
+name = apps.organizacion.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.organizacion.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-organizacion-application-puro]
+name = apps.organizacion.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.organizacion.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-organizacion-capas]
+name = capas del modulo organizacion apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.organizacion.presentation
+    apps.organizacion.infrastructure
+    apps.organizacion.application
+    apps.organizacion.domain
+
+[importlinter:contract:apps-cargos-domain-puro]
+name = apps.cargos.domain no depende de framework ni librerias de I/O (B1)
+# Excepcion puntual (Fase 2.5): `domain/events.py` usa `django.dispatch.Signal`
+# para el patron evento->signal->receiver documentado en la skill
+# `arquitectura-onion-feature-scream` — es un despachador de eventos sin
+# ORM/HTTP/I-O, no el acoplamiento que B1 busca prevenir.
+type = forbidden
+source_modules =
+    apps.cargos.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+ignore_imports =
+    apps.cargos.domain.events -> django
+
+[importlinter:contract:apps-cargos-application-puro]
+name = apps.cargos.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.cargos.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-cargos-capas]
+name = capas del modulo cargos apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.cargos.presentation
+    apps.cargos.infrastructure
+    apps.cargos.application
+    apps.cargos.domain
+
+[importlinter:contract:apps-movimientos-domain-puro]
+name = apps.movimientos.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.movimientos.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-movimientos-application-puro]
+name = apps.movimientos.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.movimientos.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-movimientos-capas]
+name = capas del modulo movimientos apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.movimientos.presentation
+    apps.movimientos.infrastructure
+    apps.movimientos.application
+    apps.movimientos.domain
+
+[importlinter:contract:apps-pasivos-domain-puro]
+name = apps.pasivos.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.pasivos.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-pasivos-application-puro]
+name = apps.pasivos.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.pasivos.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-pasivos-capas]
+name = capas del modulo pasivos apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.pasivos.presentation
+    apps.pasivos.infrastructure
+    apps.pasivos.application
+    apps.pasivos.domain
+
+[importlinter:contract:apps-familiares-domain-puro]
+name = apps.familiares.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.familiares.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-familiares-application-puro]
+name = apps.familiares.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.familiares.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-familiares-capas]
+name = capas del modulo familiares apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.familiares.presentation
+    apps.familiares.infrastructure
+    apps.familiares.application
+    apps.familiares.domain
+
+[importlinter:contract:apps-carnetizacion-domain-puro]
+name = apps.carnetizacion.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.carnetizacion.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-carnetizacion-application-puro]
+name = apps.carnetizacion.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.carnetizacion.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-carnetizacion-capas]
+name = capas del modulo carnetizacion apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.carnetizacion.presentation
+    apps.carnetizacion.infrastructure
+    apps.carnetizacion.application
+    apps.carnetizacion.domain
+
+[importlinter:contract:apps-autogestion-domain-puro]
+name = apps.autogestion.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.autogestion.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-autogestion-application-puro]
+name = apps.autogestion.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.autogestion.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-autogestion-capas]
+name = capas del modulo autogestion apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.autogestion.presentation
+    apps.autogestion.infrastructure
+    apps.autogestion.application
+    apps.autogestion.domain
+
+[importlinter:contract:apps-reportes-domain-puro]
+name = apps.reportes.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.reportes.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-reportes-application-puro]
+name = apps.reportes.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.reportes.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-reportes-capas]
+name = capas del modulo reportes apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.reportes.presentation
+    apps.reportes.infrastructure
+    apps.reportes.application
+    apps.reportes.domain
+
+[importlinter:contract:apps-identidad-no-cruzado]
+name = apps.identidad.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.identidad.domain
+    apps.identidad.application
+forbidden_modules =
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-identidad-presentacion-no-cruzado]
+name = apps.identidad.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.identidad.presentation
+forbidden_modules =
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-personal-no-cruzado]
+name = apps.personal.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.personal.domain
+    apps.personal.application
+forbidden_modules =
+    apps.identidad
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-personal-presentacion-no-cruzado]
+name = apps.personal.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.personal.presentation
+forbidden_modules =
+    apps.identidad
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-catalogos-no-cruzado]
+name = apps.catalogos.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.catalogos.domain
+    apps.catalogos.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-catalogos-presentacion-no-cruzado]
+name = apps.catalogos.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.catalogos.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-organizacion-no-cruzado]
+name = apps.organizacion.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.organizacion.domain
+    apps.organizacion.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-organizacion-presentacion-no-cruzado]
+name = apps.organizacion.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.organizacion.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-cargos-no-cruzado]
+name = apps.cargos.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.cargos.domain
+    apps.cargos.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-cargos-presentacion-no-cruzado]
+name = apps.cargos.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.cargos.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-movimientos-no-cruzado]
+name = apps.movimientos.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.movimientos.domain
+    apps.movimientos.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-movimientos-presentacion-no-cruzado]
+name = apps.movimientos.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.movimientos.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-pasivos-no-cruzado]
+name = apps.pasivos.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.pasivos.domain
+    apps.pasivos.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-pasivos-presentacion-no-cruzado]
+name = apps.pasivos.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.pasivos.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-familiares-no-cruzado]
+name = apps.familiares.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.familiares.domain
+    apps.familiares.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-familiares-presentacion-no-cruzado]
+name = apps.familiares.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.familiares.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-carnetizacion-no-cruzado]
+name = apps.carnetizacion.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.carnetizacion.domain
+    apps.carnetizacion.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-carnetizacion-presentacion-no-cruzado]
+name = apps.carnetizacion.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.carnetizacion.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-autogestion-no-cruzado]
+name = apps.autogestion.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.autogestion.domain
+    apps.autogestion.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.reportes
+
+[importlinter:contract:apps-autogestion-presentacion-no-cruzado]
+name = apps.autogestion.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.autogestion.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.reportes
+
+[importlinter:contract:apps-reportes-no-cruzado]
+name = apps.reportes.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.reportes.domain
+    apps.reportes.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+
+[importlinter:contract:apps-reportes-presentacion-no-cruzado]
+name = apps.reportes.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.reportes.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+
+[importlinter:contract:identidad-independiente]
+name = apps.identidad no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.identidad
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:personal-independiente]
+name = apps.personal no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.personal
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:catalogos-independiente]
+name = apps.catalogos no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.catalogos
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:organizacion-independiente]
+name = apps.organizacion no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.organizacion
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:cargos-independiente]
+name = apps.cargos no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.cargos
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:movimientos-independiente]
+name = apps.movimientos no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.movimientos
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:pasivos-independiente]
+name = apps.pasivos no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.pasivos
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:familiares-independiente]
+name = apps.familiares no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.familiares
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:carnetizacion-independiente]
+name = apps.carnetizacion no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.carnetizacion
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:autogestion-independiente]
+name = apps.autogestion no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.autogestion
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:reportes-independiente]
+name = apps.reportes no importa de las apps legadas (B16)
+type = forbidden
+source_modules =
+    apps.reportes
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+
+[importlinter:contract:apps-personal-shared-domain-puro]
+name = apps.personal.shared.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.personal.shared.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
