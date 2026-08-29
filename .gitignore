@@ -1,0 +1,42 @@
+# Python / Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.env
+.env.*
+!.env.example
+*.sqlite3
+*.log
+logs/
+
+# Next.js / Node
+node_modules/
+.next/
+out/
+build/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Archivos de respaldo y datos sensibles (ALTA-18 / CRIT-10)
+*.bak_*
+*.bak
+*.xlsx
+*.xls
+*.sql
+*.csv
+migrar/
+backups/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

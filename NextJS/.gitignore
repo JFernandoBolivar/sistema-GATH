@@ -5,3 +5,13 @@ node_modules/
 backend-oac/
 .env.local
 .env
+.env.*
+!.env.example
+*.bak_*
+*.bak
+
+# Logs de auditoría de servidor (D-04, C-5) — no versionar contenido, sí la carpeta
+logs/frontend/*.txt
+logs/frontend/*.txt.gz
+!logs/frontend/.gitkeep
+

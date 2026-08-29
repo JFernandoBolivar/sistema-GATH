@@ -178,6 +178,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-**/migrations/
-**/migrations/*.py
-**/migrations/*.pyc
+
+# Logs TXT de auditoria dual (D-04): se generan en runtime, no se versionan
+logs/backend/*.txt
+logs/backend/*.txt.*.gz
