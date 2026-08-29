@@ -107,7 +107,9 @@ class PerfilSaludModel(models.Model):
     """
     Espejo del perfil de salud: campo escalar `grupo_sanguineo` + M2M
     `alergias` / `patologiaCronica` / `discapacidad` (regla B26/R7 sobre las
-    tablas físicas `perfil_salud_*`).
+    tablas físicas `perfil_salud_*`). Las M2M usan modelos `through`
+    explícitos porque las tablas físicas no siguen la convención de
+    `ManyToManyField` de Django (`alergias_id`, no `alergiamodel_id`).
     """
     empleado = models.ForeignKey(
         'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
@@ -118,16 +120,13 @@ class PerfilSaludModel(models.Model):
         null=True, blank=True, related_name='+',
     )
     alergias = models.ManyToManyField(
-        'personal.AlergiaModel', db_table='perfil_salud_alergias', related_name='+',
-        blank=True,
+        'personal.AlergiaModel', through='PerfilSaludAlergias', related_name='+', blank=True,
     )
     patologiaCronica = models.ManyToManyField(
-        'personal.PatologiaCronicaModel', db_table='perfil_salud_patologiaCronica', related_name='+',
-        blank=True,
+        'personal.PatologiaCronicaModel', through='PerfilSaludPatologia', related_name='+', blank=True,
     )
     discapacidad = models.ManyToManyField(
-        'personal.DiscapacidadModel', db_table='perfil_salud_discapacidad', related_name='+',
-        blank=True,
+        'personal.DiscapacidadModel', through='PerfilSaludDiscapacidad', related_name='+', blank=True,
     )
 
     class Meta:
@@ -135,6 +134,54 @@ class PerfilSaludModel(models.Model):
         db_table = 'perfil_salud'
         verbose_name = 'perfil de salud'
         verbose_name_plural = 'perfiles de salud'
+
+
+class PerfilSaludAlergias(models.Model):
+    """Tabla física `perfil_salud_alergias` (M2M perfil de salud ↔ alergias)."""
+    perfil_salud = models.ForeignKey(
+        PerfilSaludModel, models.PROTECT, db_column='perfil_salud_id', related_name='+',
+    )
+    alergias = models.ForeignKey(
+        'personal.AlergiaModel', models.PROTECT, db_column='alergias_id', related_name='+',
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'perfil_salud_alergias'
+        verbose_name = 'perfil de salud · alergia'
+        verbose_name_plural = 'perfiles de salud · alergias'
+
+
+class PerfilSaludPatologia(models.Model):
+    """Tabla física `perfil_salud_patologiaCronica` (M2M perfil de salud ↔ patologías crónicas)."""
+    perfil_salud = models.ForeignKey(
+        PerfilSaludModel, models.PROTECT, db_column='perfil_salud_id', related_name='+',
+    )
+    patologias_cronicas = models.ForeignKey(
+        'personal.PatologiaCronicaModel', models.PROTECT, db_column='patologias_cronicas_id', related_name='+',
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'perfil_salud_patologiaCronica'
+        verbose_name = 'perfil de salud · patología crónica'
+        verbose_name_plural = 'perfiles de salud · patologías crónicas'
+
+
+class PerfilSaludDiscapacidad(models.Model):
+    """Tabla física `perfil_salud_discapacidad` (M2M perfil de salud ↔ discapacidades)."""
+    perfil_salud = models.ForeignKey(
+        PerfilSaludModel, models.PROTECT, db_column='perfil_salud_id', related_name='+',
+    )
+    discapacidades = models.ForeignKey(
+        'personal.DiscapacidadModel', models.PROTECT, db_column='discapacidades_id', related_name='+',
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'perfil_salud_discapacidad'
+        verbose_name = 'perfil de salud · discapacidad'
+        verbose_name_plural = 'perfiles de salud · discapacidades'
 
 
 class PerfilFisicoModel(models.Model):

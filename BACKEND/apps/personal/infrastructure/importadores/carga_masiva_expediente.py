@@ -31,11 +31,12 @@ import pandas as pd
 from django.db import transaction
 
 from core.domain.exceptions import ValidationError
-from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, ParentescoModel, SexoModel
+from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, ParentescoModel, SexoModel, TipoProcedenciaModel
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
 from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
 from apps.personal.application.use_cases.upsert_contrato import upsert_contrato
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    AlergiaModel,
     CarreraModel,
     CodigoPostalModel,
     CondicionViviendaModel,
@@ -44,6 +45,13 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     MencionModel,
     NivelAcademicoModel,
     PoliticaModel,
+    CapacitacionModel,
+    GrupoCapacitacionModel,
+    TallaModel,
+    TipoPrendaModel,
+    RegionTallaModel,
+    PatologiaCronicaModel,
+    DiscapacidadModel,
 )
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
@@ -57,6 +65,13 @@ def _normalizar(texto) -> str:
     if pd.isna(texto) or not str(texto).strip():
         return ''
     return ' '.join(str(texto).split()).upper()
+
+
+def _separar(texto) -> list[str]:
+    """Separa un campo con varios valores por ';' o '|' y los normaliza."""
+    if pd.isna(texto) or not str(texto).strip():
+        return []
+    return [n for n in (_normalizar(v) for v in str(texto).replace('|', ';').split(';')) if n]
 
 
 def _parsear_fecha(valor):
@@ -85,6 +100,15 @@ def _construir_cache() -> dict:
         'parentescos': {_normalizar(o.parentesco): o for o in ParentescoModel.objects.all()},
         'organismos': {_normalizar(o.Organismoadscrito): o for o in OrganismoAdscritoModel.objects.all()},
         'politicas': {_normalizar(o.tipo_politica): o for o in PoliticaModel.objects.all()},
+        'alergias': {_normalizar(o.alergia): o for o in AlergiaModel.objects.all()},
+        'patologias': {_normalizar(o.patologia): o for o in PatologiaCronicaModel.objects.all()},
+        'discapacidades': {_normalizar(o.discapacidad): o for o in DiscapacidadModel.objects.all()},
+        'capacitaciones': {_normalizar(o.nombre_capacitacion): o for o in CapacitacionModel.objects.all()},
+        'grupos_capacitacion': {_normalizar(o.nombre_grupo): o for o in GrupoCapacitacionModel.objects.all()},
+        'tallas': {_normalizar(o.valor): o for o in TallaModel.objects.all()},
+        'tipos_prenda': {_normalizar(o.categoria): o for o in TipoPrendaModel.objects.all()},
+        'regiones_talla': {_normalizar(o.descripcion or o.codigo): o for o in RegionTallaModel.objects.all()},
+        'tipos_procedencia': {_normalizar(o.tipo_procedencia): o for o in TipoProcedenciaModel.objects.all()},
     }
 
 
@@ -174,7 +198,53 @@ def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) 
 
             grupo_sanguineo = obtener('sangre', 'grupo_sanguineo')
             if grupo_sanguineo:
-                repo._upsert_salud(emp_instance, {'grupo_sanguineo': grupo_sanguineo})
+                repo._upsert_salud(emp_instance, {'grupo_sanguineo_id': grupo_sanguineo.pk})
+
+            # M2M de salud (paridad funcional): alergias, patologías y
+            # discapacidades se pasan como nombres (separadas por ';' o '|').
+            alergias_nombres = _separar(fila.get('alergias'))
+            patologias_nombres = _separar(fila.get('patologias_cronicas'))
+            discapacidades_nombres = _separar(fila.get('discapacidades'))
+            salud_data = {'grupo_sanguineo_id': grupo_sanguineo.pk if grupo_sanguineo else None}
+            if alergias_nombres:
+                salud_data['alergias'] = [cache['alergias'][n].pk for n in alergias_nombres if n in cache['alergias']]
+            if patologias_nombres:
+                salud_data['patologias_cronicas'] = [cache['patologias'][n].pk for n in patologias_nombres if n in cache['patologias']]
+            if discapacidades_nombres:
+                salud_data['discapacidades'] = [cache['discapacidades'][n].pk for n in discapacidades_nombres if n in cache['discapacidades']]
+            if grupo_sanguineo or alergias_nombres or patologias_nombres or discapacidades_nombres:
+                repo._upsert_salud(emp_instance, salud_data)
+
+            # Perfil físico (paridad funcional): tallas por prenda.
+            tallas_nombres = _separar(fila.get('tallas'))
+            if tallas_nombres:
+                tallas = [cache['tallas'][n].pk for n in tallas_nombres if n in cache['tallas']]
+                if len(tallas) >= 1:
+                    repo._upsert_perfil_fisico(emp_instance, {
+                        'talla_camisa_id': tallas[0],
+                        'talla_pantalon_id': tallas[1] if len(tallas) > 1 else None,
+                        'talla_zapatos_id': tallas[2] if len(tallas) > 2 else None,
+                        'talla_chaqueta_id': tallas[3] if len(tallas) > 3 else None,
+                    })
+
+            # Formación complementaria (paridad funcional): capacitaciones.
+            capacitacion_nombre = _normalizar(fila.get('capacitacion'))
+            if capacitacion_nombre:
+                capacitacion_obj = cache['capacitaciones'].get(capacitacion_nombre)
+                if not capacitacion_obj:
+                    errores.append(f"Línea {linea}: capacitación '{capacitacion_nombre}' no encontrada.")
+                else:
+                    repo._upsert_formacion_complementaria(emp_instance, {
+                        'capacitacion_id': capacitacion_obj.pk,
+                        'institucion_id': (cache['instituciones'].get(_normalizar(fila.get('institucion_academica'))).pk
+                                           if _normalizar(fila.get('institucion_academica')) in cache['instituciones'] else None),
+                        'fechaInicio': _parsear_fecha(fila.get('capacitacion_inicio')),
+                        'fechaFin': _parsear_fecha(fila.get('capacitacion_fin')),
+                        'dias_completados': str(fila.get('dias_completados', '')) if not pd.isna(fila.get('dias_completados')) else None,
+                        'horas_completadas': str(fila.get('horas_completadas', '')) if not pd.isna(fila.get('horas_completadas')) else None,
+                        'procedencia_id': cache.get('tipos_procedencia', {}).get(_normalizar(fila.get('procedencia'))) or None,
+                        'grupo_id': cache['grupos_capacitacion'].get(_normalizar(fila.get('grupo_capacitacion'))) or None,
+                    })
 
             if _normalizar(fila.get('contacto_nombres')) and _normalizar(fila.get('contacto_apellidos')):
                 ContactoEmergenciaModel.objects.update_or_create(

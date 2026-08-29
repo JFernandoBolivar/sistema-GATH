@@ -19,6 +19,8 @@ from apps.personal.infrastructure.models.expediente_models import (
     ContratoModel,
     DatosViviendaModel,
     FormacionAcademicaModel,
+    FormacionComplementariaModel,
+    PerfilFisicoModel,
     PerfilSaludModel,
 )
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
@@ -145,7 +147,9 @@ class RepoPersonalORM:
         return {
             'vivienda': datos.pop('datos_vivienda', None),
             'salud': datos.pop('perfil_salud', None),
+            'fisico': datos.pop('perfil_fisico', None),
             'academico': datos.pop('formacion_academica', None),
+            'complementaria': datos.pop('formacion_complementaria', None),
             'contacto_emergencia': datos.pop('contacto_emergencia', None),
             'antecedentes': datos.pop('antecedentes', None),
             'contrato': datos.pop('contrato', None),
@@ -154,7 +158,9 @@ class RepoPersonalORM:
     def _guardar_datos_anidados(self, empleado: EmployeeModel, nested: dict) -> None:
         self._upsert_vivienda(empleado, nested.get('vivienda'))
         self._upsert_salud(empleado, nested.get('salud'))
+        self._upsert_perfil_fisico(empleado, nested.get('fisico'))
         self._upsert_academico(empleado, nested.get('academico'))
+        self._upsert_formacion_complementaria(empleado, nested.get('complementaria'))
         self._replace_contacto_emergencia(empleado, nested.get('contacto_emergencia'))
         self._replace_antecedentes(empleado, nested.get('antecedentes'))
         self._upsert_contrato(empleado, nested.get('contrato'))
@@ -173,7 +179,37 @@ class RepoPersonalORM:
     def _upsert_salud(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:
             return
-        PerfilSaludModel.objects.update_or_create(empleado=empleado, defaults=data)
+        # Escalar + M2M (alergias/patologías/discapacidades). `data` puede
+        # traer listas de ids para las M2M; se reemplazan con `set`.
+        obj, _ = PerfilSaludModel.objects.update_or_create(empleado=empleado, defaults={
+            'grupo_sanguineo_id': data.get('grupo_sanguineo_id'),
+        })
+        if 'alergias' in data and data['alergias'] is not None:
+            obj.alergias.set(data['alergias'])
+        if 'patologias_cronicas' in data and data['patologias_cronicas'] is not None:
+            obj.patologiaCronica.set(data['patologias_cronicas'])
+        if 'discapacidades' in data and data['discapacidades'] is not None:
+            obj.discapacidad.set(data['discapacidades'])
+
+    def _upsert_perfil_fisico(self, empleado: EmployeeModel, data: dict | None) -> None:
+        if not data:
+            return
+        PerfilFisicoModel.objects.update_or_create(empleado=empleado, defaults={
+            'tallaCamisa_id': data.get('talla_camisa_id'),
+            'tallaPantalon_id': data.get('talla_pantalon_id'),
+            'tallaZapatos_id': data.get('talla_zapatos_id'),
+            'tallaChaqueta_id': data.get('talla_chaqueta_id'),
+        })
+
+    def _upsert_formacion_complementaria(self, empleado: EmployeeModel, data) -> None:
+        if not data:
+            return
+        if isinstance(data, list):
+            FormacionComplementariaModel.objects.filter(empleado=empleado).delete()
+            for item in data:
+                FormacionComplementariaModel.objects.create(empleado=empleado, **item)
+        else:
+            FormacionComplementariaModel.objects.update_or_create(empleado=empleado, defaults=data)
 
     def _upsert_academico(self, empleado: EmployeeModel, data) -> None:
         if not data:

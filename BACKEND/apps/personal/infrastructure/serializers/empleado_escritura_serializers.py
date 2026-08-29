@@ -22,6 +22,8 @@ from apps.personal.infrastructure.models.expediente_models import (
     ContactoEmergenciaModel,
     DatosViviendaModel,
     FormacionAcademicaModel,
+    FormacionComplementariaModel,
+    PerfilFisicoModel,
     PerfilSaludModel,
 )
 
@@ -35,7 +37,19 @@ class DatosViviendaEscrituraSerializer(serializers.ModelSerializer):
 class PerfilSaludEscrituraSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerfilSaludModel
-        fields = ['grupo_sanguineo']
+        fields = ['grupo_sanguineo', 'alergias', 'patologiaCronica', 'discapacidad']
+
+
+class PerfilFisicoEscrituraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PerfilFisicoModel
+        fields = ['tallaCamisa', 'tallaPantalon', 'tallaZapatos', 'tallaChaqueta']
+
+
+class FormacionComplementariaEscrituraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FormacionComplementariaModel
+        fields = ['capacitacion', 'institucion', 'fechaInicio', 'fechaFin', 'dias_completados', 'horas_completadas', 'procedencia', 'grupo']
 
 
 class FormacionAcademicaEscrituraSerializer(serializers.ModelSerializer):
@@ -104,7 +118,9 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
 
     datos_vivienda = DatosViviendaEscrituraSerializer(required=False)
     perfil_salud = PerfilSaludEscrituraSerializer(required=False)
+    perfil_fisico = PerfilFisicoEscrituraSerializer(required=False)
     formacion_academica = FormacionAcademicaEscrituraSerializer(many=True, required=False)
+    formacion_complementaria = FormacionComplementariaEscrituraSerializer(many=True, required=False)
     contacto_emergencia = ContactoEmergenciaEscrituraSerializer(many=True, required=False)
     antecedentes = AntecedenteServicioEscrituraSerializer(many=True, required=False)
     contrato = ContratoEscrituraSerializer(many=True, required=False)
@@ -139,6 +155,20 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
         validado = super().to_internal_value(data)
         if 'estado_civil_id' in validado and validado['estado_civil_id'] is not None:
             validado['estado_civil_id'] = validado['estado_civil_id'].pk
+        # Aplanar las M2M de salud a ids (el repo espera listas de ids).
+        salud = validado.get('perfil_salud')
+        if salud:
+            if 'grupo_sanguineo' in salud and salud['grupo_sanguineo'] is not None:
+                salud['grupo_sanguineo_id'] = salud.pop('grupo_sanguineo').pk
+            for campo, destino in [('alergias', 'alergias'), ('patologiaCronica', 'patologias_cronicas'), ('discapacidad', 'discapacidades')]:
+                if campo in salud and salud[campo] is not None:
+                    salud[destino] = [i.pk for i in salud.pop(campo)]
+        # Aplanar las FK de perfil físico a ids (repo espera *_id plano).
+        fisico = validado.get('perfil_fisico')
+        if fisico:
+            for campo, destino in [('tallaCamisa', 'talla_camisa_id'), ('tallaPantalon', 'talla_pantalon_id'), ('tallaZapatos', 'talla_zapatos_id'), ('tallaChaqueta', 'talla_chaqueta_id')]:
+                if campo in fisico and fisico[campo] is not None:
+                    fisico[destino] = fisico.pop(campo).pk
         return validado
 
 

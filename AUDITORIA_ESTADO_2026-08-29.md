@@ -130,7 +130,7 @@ Las server actions de `modules/*/infrastructure/actions/*-actions.ts` ahora vali
 | 16 | R15 residual: `NEXT_PUBLIC_DJANGO` en 4 archivos cliente-legado | Proxy F4 |
 | 17 | R16 residual: `nombre_rol` hardcodeado en `proxy.ts` (RECEPCIONISTA/AUTOGESTION) y sidebars | Sustituir en F9 |
 | 18 | Bug latente `repo_reportes_orm.py:66` — campos inexistentes en `AsigTrabajoModel` | Reporte de vacantes |
-| 19 | Escritura de `perfil_fisico`/`formacion_complementaria`/M2M salud desde carga masiva | Los modelos/endpoints están; falta la escritura en el flujo de alta/edición |
+| 19 | Escritura de `perfil_fisico`/`formacion_complementaria`/M2M salud desde carga masiva | ✅ **RESUELTO** — los 3 bloques se persisten vía `_upsert_perfil_fisico`/`_upsert_formacion_complementaria` y M2M de salud con `through` explícito; conectado al alta/edición individual (serializer) y a la carga masiva de expediente |
 
 ---
 
@@ -176,6 +176,21 @@ Se habilitó la **escritura** (POST/PUT/DELETE) que faltaba:
 | Denominaciones específicas | idem | `cargos.crear/editar` |
 
 **Bug latente corregido:** `CoordinacionModel` declaraba un FK `direccionGeneralId` inexistente en la tabla `Coordinaciones` (y la entidad/DTO/mapper/serializer referenciaban `direccion_general_id`). Se eliminó para que el listado de coordinaciones no reviente con `column Coordinaciones.direccionGeneralId does not exist`. Verificado con prueba end-to-end de crear/actualizar/eliminar (transacción con rollback).
+
+### Escritura de perfil_fisico / formacion_complementaria / M2M salud
+Se habilitó la persistencia de los 3 bloques que estaban en 0:
+
+| Bloque | Mecanismo |
+|---|---|
+| `perfil_fisico` | `_upsert_perfil_fisico` (tallas camisa/pantalón/zapatos/chaqueta) |
+| `formacion_complementaria` | `_upsert_formacion_complementaria` (capacitaciones, lista o dict) |
+| Salud M2M | `_upsert_salud` ampliado con M2M; se definieron modelos `through` explícitos (`PerfilSaludAlergias`, `PerfilSaludPatologia`, `PerfilSaludDiscapacidad`) porque la tabla física no sigue la convención de `ManyToManyField` (usa `alergias_id`, no `alergiamodel_id`) |
+
+Conectado a dos vías:
+1. **Alta/edición individual** — `EmpleadoEscrituraSerializer` ampliado (campos `perfil_fisico`, `formacion_complementaria`, M2M en `perfil_salud`) que aplanan a los ids que espera el repo.
+2. **Carga masiva de expediente** — `carga_masiva_expediente.py` lee columnas (`tallas`, `alergias`, `patologias_cronicas`, `discapacidades`, `capacitacion`, ...) y persiste.
+
+**Bug de modelo corregido:** las M2M de `PerfilSaludModel` generaban la columna `alergiamodel_id` (convención de Django) que no existe en la tabla física `perfil_salud_alergias`; se resolvió con `through` explícito que mapea `alergias_id`/`perfil_salud_id`. Verificado con escritura real (transacción con rollback). Nota: la tabla `RAC_capacitaciones` está vacía en la BD (datos legado sin migrar), por eso no hay registros de capacitación a insertar; el flujo no falla.
 
 ---
 
