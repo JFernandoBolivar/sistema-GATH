@@ -48,7 +48,6 @@ def coordinacion_a_entidad(modelo: CoordinacionModel) -> Coordinacion:
         codigo=modelo.Codigo,
         nombre=modelo.coordinacion,
         direccion_linea_id=modelo.direccionLinea_id,
-        direccion_general_id=modelo.direccionGeneral_id,
     )
 
 

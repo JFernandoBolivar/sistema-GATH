@@ -8,19 +8,14 @@ from apps.organizacion.domain.ports.repo_organizacion import RepoOrganizacion
 def listar_coordinaciones(
     repo: RepoOrganizacion,
     direccion_linea_id: int | None = None,
-    direccion_general_id: int | None = None,
 ) -> list[CoordinacionDTO]:
-    entidades = repo.listar_coordinaciones(
-        direccion_linea_id=direccion_linea_id,
-        direccion_general_id=direccion_general_id,
-    )
+    entidades = repo.listar_coordinaciones(direccion_linea_id=direccion_linea_id)
     return [
         CoordinacionDTO(
             id=c.id,
             codigo=c.codigo,
             nombre=c.nombre,
             direccion_linea_id=c.direccion_linea_id,
-            direccion_general_id=c.direccion_general_id,
         )
         for c in entidades
     ]

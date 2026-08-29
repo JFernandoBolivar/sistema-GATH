@@ -34,7 +34,6 @@ class CoordinacionDTO:
     codigo: str
     nombre: str
     direccion_linea_id: int | None = None
-    direccion_general_id: int | None = None
 
 
 @dataclass(frozen=True)

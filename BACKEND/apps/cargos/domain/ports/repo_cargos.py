@@ -16,6 +16,24 @@ class RepoCargos(Protocol):
     def listar_denominaciones_especificas(self) -> list[DenominacionEspecifica]:
         ...
 
+    def crear_denominacion(self, nombre: str, orden: int) -> DenominacionCargo:
+        ...
+
+    def actualizar_denominacion(self, denominacion_id: int, nombre: str, orden: int) -> DenominacionCargo:
+        ...
+
+    def eliminar_denominacion(self, denominacion_id: int) -> None:
+        ...
+
+    def crear_denominacion_especifica(self, nombre: str, orden: int) -> DenominacionEspecifica:
+        ...
+
+    def actualizar_denominacion_especifica(self, denominacion_id: int, nombre: str, orden: int) -> DenominacionEspecifica:
+        ...
+
+    def eliminar_denominacion_especifica(self, denominacion_id: int) -> None:
+        ...
+
     def listar_cargos(
         self,
         tipo_nomina_id: int | None = None,

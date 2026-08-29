@@ -38,9 +38,37 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         qs = DenominacionCargoModel.objects.all().order_by('cargo')
         return [denominacion_a_entidad(d) for d in qs]
 
+    def crear_denominacion(self, nombre: str, orden: int) -> DenominacionCargo:
+        fila = DenominacionCargoModel.objects.create(cargo=nombre, orden_by_cargo=orden)
+        return denominacion_a_entidad(fila)
+
+    def actualizar_denominacion(self, denominacion_id: int, nombre: str, orden: int) -> DenominacionCargo:
+        fila = DenominacionCargoModel.objects.get(pk=denominacion_id)
+        fila.cargo = nombre
+        fila.orden_by_cargo = orden
+        fila.save(update_fields=['cargo', 'orden_by_cargo'])
+        return denominacion_a_entidad(fila)
+
+    def eliminar_denominacion(self, denominacion_id: int) -> None:
+        DenominacionCargoModel.objects.filter(pk=denominacion_id).delete()
+
     def listar_denominaciones_especificas(self) -> list[DenominacionEspecifica]:
         qs = DenominacionCargoEspecificoModel.objects.all().order_by('cargo')
         return [denominacion_especifica_a_entidad(d) for d in qs]
+
+    def crear_denominacion_especifica(self, nombre: str, orden: int) -> DenominacionEspecifica:
+        fila = DenominacionCargoEspecificoModel.objects.create(cargo=nombre, orden_by_cargo=orden)
+        return denominacion_especifica_a_entidad(fila)
+
+    def actualizar_denominacion_especifica(self, denominacion_id: int, nombre: str, orden: int) -> DenominacionEspecifica:
+        fila = DenominacionCargoEspecificoModel.objects.get(pk=denominacion_id)
+        fila.cargo = nombre
+        fila.orden_by_cargo = orden
+        fila.save(update_fields=['cargo', 'orden_by_cargo'])
+        return denominacion_especifica_a_entidad(fila)
+
+    def eliminar_denominacion_especifica(self, denominacion_id: int) -> None:
+        DenominacionCargoEspecificoModel.objects.filter(pk=denominacion_id).delete()
 
     def listar_cargos(
         self,

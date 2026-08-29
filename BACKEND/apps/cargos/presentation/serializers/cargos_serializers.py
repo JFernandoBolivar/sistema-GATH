@@ -10,6 +10,11 @@ class DenominacionSerializer(serializers.Serializer):
     orden = serializers.IntegerField(read_only=True)
 
 
+class DenominacionWriteSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=200, required=True)
+    orden = serializers.IntegerField(required=False, default=30)
+
+
 class CargoAsignacionSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     codigo = serializers.CharField(read_only=True)

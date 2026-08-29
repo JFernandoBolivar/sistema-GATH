@@ -18,6 +18,14 @@ from apps.cargos.application.use_cases.listar_denominaciones import (
     listar_denominaciones,
     listar_denominaciones_especificas,
 )
+from apps.cargos.application.use_cases.gestionar_denominaciones import (
+    actualizar_denominacion,
+    actualizar_denominacion_especifica,
+    crear_denominacion,
+    crear_denominacion_especifica,
+    eliminar_denominacion,
+    eliminar_denominacion_especifica,
+)
 from apps.cargos.application.use_cases.prestamo_cargo import (
     crear_prestamo,
     finalizar_prestamo,
@@ -31,6 +39,7 @@ from apps.cargos.presentation.serializers.cargos_serializers import (
     CrearCargoEspecialInputSerializer,
     CrearPrestamoInputSerializer,
     DenominacionSerializer,
+    DenominacionWriteSerializer,
     GestionarEstatusPuestoInputSerializer,
     PrestamoCargoSerializer,
 )
@@ -44,6 +53,68 @@ class DenominacionesListView(APIView):
         repo = RepoCargosORM()
         dtos = listar_denominaciones(repo)
         return ok(DenominacionSerializer(dtos, many=True).data)
+
+
+class DenominacionCreateView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('cargos.crear')]
+
+    @extend_schema(tags=['Cargos'], summary='Crear denominación de cargo', request=DenominacionWriteSerializer, responses={201: DenominacionSerializer})
+    def post(self, request):
+        s = DenominacionWriteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entidad = crear_denominacion(RepoCargosORM(), s.validated_data['nombre'], s.validated_data.get('orden', 30))
+        return ok(DenominacionSerializer(entidad).data, 'Denominación creada.', status=201)
+
+
+class DenominacionUpdateView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('cargos.editar')]
+
+    @extend_schema(tags=['Cargos'], summary='Actualizar denominación de cargo', request=DenominacionWriteSerializer, responses={200: DenominacionSerializer})
+    def put(self, request, denominacion_id: int):
+        s = DenominacionWriteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entidad = actualizar_denominacion(RepoCargosORM(), denominacion_id, s.validated_data['nombre'], s.validated_data.get('orden', 30))
+        return ok(DenominacionSerializer(entidad).data, 'Denominación actualizada.')
+
+
+class DenominacionDeleteView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('cargos.crear')]
+
+    @extend_schema(tags=['Cargos'], summary='Eliminar denominación de cargo', responses={200: None})
+    def delete(self, request, denominacion_id: int):
+        eliminar_denominacion(RepoCargosORM(), denominacion_id)
+        return ok(message='Denominación eliminada.')
+
+
+class DenominacionEspecificaCreateView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('cargos.crear')]
+
+    @extend_schema(tags=['Cargos'], summary='Crear denominación específica', request=DenominacionWriteSerializer, responses={201: DenominacionSerializer})
+    def post(self, request):
+        s = DenominacionWriteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entidad = crear_denominacion_especifica(RepoCargosORM(), s.validated_data['nombre'], s.validated_data.get('orden', 30))
+        return ok(DenominacionSerializer(entidad).data, 'Denominación específica creada.', status=201)
+
+
+class DenominacionEspecificaUpdateView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('cargos.editar')]
+
+    @extend_schema(tags=['Cargos'], summary='Actualizar denominación específica', request=DenominacionWriteSerializer, responses={200: DenominacionSerializer})
+    def put(self, request, denominacion_id: int):
+        s = DenominacionWriteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entidad = actualizar_denominacion_especifica(RepoCargosORM(), denominacion_id, s.validated_data['nombre'], s.validated_data.get('orden', 30))
+        return ok(DenominacionSerializer(entidad).data, 'Denominación específica actualizada.')
+
+
+class DenominacionEspecificaDeleteView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('cargos.crear')]
+
+    @extend_schema(tags=['Cargos'], summary='Eliminar denominación específica', responses={200: None})
+    def delete(self, request, denominacion_id: int):
+        eliminar_denominacion_especifica(RepoCargosORM(), denominacion_id)
+        return ok(message='Denominación específica eliminada.')
 
 
 class DenominacionesEspecificasListView(APIView):

@@ -107,8 +107,8 @@ Las server actions de `modules/*/infrastructure/actions/*-actions.ts` ahora vali
 | 4 | `formacion_complementaria` (capacitaciones/cursos) | ~54× (`capacitacion` 121×) | ✅ **Modelo + catálogos listos** (`FormacionComplementariaModel`, `CapacitacionModel`/`GrupoCapacitacionModel`) |
 | 5 | Salud M2M (alergias / patología crónica / discapacidad) | ~60–104× | ✅ **Modelo + M2M + catálogos listos** (`PerfilSaludModel` ampliado, `AlergiaModel`/`PatologiaCronicaModel`/`DiscapacidadModel`) |
 | 6 | `CargoEgresado` (cargos al pasivar) | — | ✅ **Modelo + escritura en `procesar_egreso` + serializer** (`CargoEgresadoModel`, `cargos_historial` en el detalle) |
-| 7 | CRUD organización | — | ⚠️ Solo GET (faltan POST/PUT/DELETE) |
-| 8 | CRUD códigos de cargo (denominaciones) | — | ⚠️ Solo GET (faltan alta/edición) |
+| 7 | CRUD organización | — | ✅ **RESUELTO** — POST/PUT/DELETE para dependencias, direcciones generales, direcciones de línea, coordinaciones y organismos adscritos (permisos `organizacion.crear/editar/eliminar`) |
+| 8 | CRUD códigos de cargo (denominaciones) | — | ✅ **RESUELTO** — POST/PUT/DELETE para denominaciones y denominaciones específicas (permisos `cargos.crear/editar`) |
 | 9 | Catálogos sin API | — | ✅ **Exportados** (~20 nuevos: estados-civiles, políticas, vivienda, códigos postales, sanguíneos, niveles, carreras, menciones, instituciones, tallas, prendas, regiones-talla, capacitaciones, grupos, alergias, patologías, discapacidades) |
 
 
@@ -150,7 +150,6 @@ Tras commitear el estado base, se ejecutó la **paridad funcional** validando co
 
 ### UI de los 7 módulos (R10)
 Se construyó la interfaz de los 7 módulos que solo tenían schema zod y se conectaron a rutas (opcionalmente a un selector de catálogos ya compartido):
-
 | Módulo | Página | Acciones que consume |
 |---|---|---|
 | `organizacion` | `organizacion-page.tsx` | 5 GET en cascada |
@@ -163,10 +162,25 @@ Se construyó la interfaz de los 7 módulos que solo tenían schema zod y se con
 
 **Los 11 módulos tienen ahora thin wrapper en `app/(protected)/dashboard/migracion/`** y están enlazados en la navegación e índice de esa sección.
 
+### CRUDs de organización y códigos de cargo
+Se habilitó la **escritura** (POST/PUT/DELETE) que faltaba:
+
+| Entidad | Endpoints | Permiso |
+|---|---|---|
+| Dependencias | `POST /dependencias/crear/`, `PUT /dependencias/<id>/`, `DELETE /dependencias/<id>/eliminar/` | `organizacion.crear/editar/eliminar` |
+| Direcciones generales | idem | `organizacion.*` |
+| Direcciones de línea | idem | `organizacion.*` |
+| Coordinaciones | idem | `organizacion.*` |
+| Organismos adscritos | idem | `organizacion.*` |
+| Denominaciones de cargo | `POST /denominaciones/crear/`, `PUT /denominaciones/<id>/`, `DELETE /denominaciones/<id>/eliminar/` | `cargos.crear/editar` |
+| Denominaciones específicas | idem | `cargos.crear/editar` |
+
+**Bug latente corregido:** `CoordinacionModel` declaraba un FK `direccionGeneralId` inexistente en la tabla `Coordinaciones` (y la entidad/DTO/mapper/serializer referenciaban `direccion_general_id`). Se eliminó para que el listado de coordinaciones no reviente con `column Coordinaciones.direccionGeneralId does not exist`. Verificado con prueba end-to-end de crear/actualizar/eliminar (transacción con rollback).
+
 ---
 
 ## 8. Conclusión
 
-La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK) y la **paridad funcional de datos quedó habilitada**: modelos + catálogos + endpoints + snapshot `CargoEgresado`, todos validados contra el esquema Postgres real. El **frontend `modules/` cumple las reglas** de arquitectura y seguridad (safeParse, VOs puros, kebab-case, `@/`) y **los 11 módulos tienen UI conectada a rutas** (R10).
+La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK), la **paridad funcional de datos quedó habilitada** (modelos + catálogos + endpoints + `CargoEgresado` validados contra Postgres real), y los **CRUDs** de organización y códigos de cargo ya tienen escritura. El **frontend `modules/` cumple las reglas** (safeParse, VOs puros, kebab-case, `@/`) y **los 11 módulos tienen UI conectada a rutas** (R10).
 
-La migración **aún no está completa** en el frente de producto: falta **retirar el legado del dashboard** (Fase 8, 263 archivos activos) y quedan los **CRUDs** de organización/códigos de cargo (requieren decisión de negocio). El riesgo de git quedó resuelto con los commits atómicos (§7).
+La migración **aún no está completa** en el frente de producto: falta **retirar el legado del dashboard** (Fase 8, 263 archivos activos) y conectar la **escritura desde carga masiva** de `perfil_fisico`/`formacion_complementaria`/M2M salud (los datos están en 0; modelos/endpoints ya listos). El riesgo de git quedó resuelto con los commits atómicos (§7).
