@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema GATH · Mockup Completo de Todos los Módulos (Fase 1 + Fase 2) | CONATEL</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN for live dashboard charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f5fa',
+              100: '#e1ecf5',
+              500: '#1a56db',
+              700: '#1e429f',
+              800: '#1e3a8a',
+              900: '#0f294a',
+              950: '#0a1a30'
+            },
+            conatel: {
+              blue: '#0d3268',
+              gold: '#c59b27',
+              red: '#b91c1c'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f4f6f9; }
+    .badge-status { @apply px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide inline-flex items-center gap-1; }
+    .card-surface { @apply bg-white rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow duration-200; }
+    .nav-item-active { @apply bg-blue-50 text-blue-900 font-semibold border-r-4 border-blue-700; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .login-glass {
+      background: rgba(15, 41, 74, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col custom-scrollbar">
+
+  <!-- ========================================================================= -->
+  <!-- VISTA 0: PANTALLA DE INICIO DE SESIÓN INSTITUCIONAL (LOGIN) -->
+  <!-- ========================================================================= -->
+  <section id="view-login" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-cover bg-center overflow-y-auto" style="background-image: linear-gradient(rgba(10, 26, 48, 0.85), rgba(15, 41, 74, 0.92)), url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=80');">
+    <div class="w-full max-w-4xl login-glass rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-white my-auto">
+      
+      <!-- Columna Izquierda: Formulario y Selectores de Rol Mockup (7 Cols) -->
+      <div class="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-between space-y-6">
+        <div>
+          <!-- Header del Login con Cintillo -->
+          <div class="flex items-center gap-3 border-b border-white/15 pb-4 mb-6">
+            <div class="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/40 flex items-center justify-center text-blue-300">
+              <i data-lucide="shield" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-xl tracking-wider text-white">GATH</span>
+                <span class="bg-blue-500/30 text-blue-200 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-400/30 uppercase">CONATEL</span>
+              </div>
+              <p class="text-xs text-blue-200/75">Sistema Automatizado de Gestión de Talento Humano</p>
+            </div>
+          </div>
+
+          <h2 class="text-xl font-bold text-white tracking-tight">Iniciar Sesión en el Sistema</h2>
+          <p class="text-xs text-slate-300 mt-1">Seleccione su tipo de cuenta para acceder al sistema institucional.</p>
+
+          <!-- Selector de Modo de Acceso (Funcionario / Trabajador / Postulante) -->
+          <div class="grid grid-cols-3 gap-1.5 p-1 bg-black/30 rounded-xl border border-white/10 mt-4 text-xs font-semibold">
+            <button onclick="setLoginMode('funcionario')" id="btn-login-funcionario" class="py-2 px-1 rounded-lg bg-blue-600 text-white text-center transition-all">
+              Funcionario / RRHH
+            </button>
+            <button onclick="setLoginMode('trabajador')" id="btn-login-trabajador" class="py-2 px-1 rounded-lg text-slate-300 hover:text-white text-center transition-all">
+              Trabajador (Autogestión)
+            </button>
+            <button onclick="setLoginMode('postulante')" id="btn-login-postulante" class="py-2 px-1 rounded-lg text-amber-300 hover:text-white text-center transition-all">
+              Postulante (Fase 2)
+            </button>
+          </div>
+
+          <!-- Formulario Dinámico -->
+          <form onsubmit="handleLoginSubmit(event)" class="space-y-4 mt-5 text-xs">
+            <div id="login-field-user">
+              <label id="lbl-login-user" class="block font-medium text-slate-200 mb-1">Correo Electrónico Institucional *</label>
+              <div class="relative">
+                <i data-lucide="mail" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                <input id="input-login-user" type="text" value="josefina.ramirez@conatel.gob.ve" required class="w-full pl-9 pr-3 py-2.5 bg-black/30 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400">
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="font-medium text-slate-200">Contraseña de Acceso *</label>
+                <span id="login-temp-badge" class="hidden text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/30">Credencial Temporal 48h</span>
+              </div>
+              <div class="relative">
+                <i data-lucide="lock" class="w-4 h-4 absolute left-3 top-3 text-slate-400"></i>
+                <input id="input-login-pass" type="password" value="••••••••••••" required class="w-full pl-9 pr-3 py-2.5 bg-black/30 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-400">
+              </div>
+            </div>
+
+            <!-- Loading Promise State -->
+            <div id="login-loading-state" class="hidden p-3 bg-blue-900/60 border border-blue-400/30 rounded-lg text-center text-xs text-blue-200 flex items-center justify-center gap-2">
+              <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Validando Credenciales y Permisos en Servidor...</span>
+            </div>
+
+            <button id="btn-login-submit" type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-900/40 transition-all flex items-center justify-center gap-2">
+              <i data-lucide="log-in" class="w-4 h-4"></i>
+              <span>INGRESAR AL SISTEMA</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Acceso Rápido por Perfiles (Para Pruebas del Mockup) -->
+        <div class="pt-4 border-t border-white/10">
+          <p class="text-[11px] text-blue-300 font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i> Acceso Rápido por Perfil (Mockup Demo):
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
+            <button onclick="quickLogin('captacion')" class="p-1.5 rounded bg-white/10 hover:bg-white/20 text-left truncate">1. Captación</button>
+            <button onclick="quickLogin('presupuesto')" class="p-1.5 rounded bg-white/10 hover:bg-white/20 text-left truncate">2. Presupuesto</button>
+            <button onclick="quickLogin('direccion')" class="p-1.5 rounded bg-white/10 hover:bg-white/20 text-left truncate">3. Dir. General</button>
+            <button onclick="quickLogin('postulante')" class="p-1.5 rounded bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30 text-left truncate">4. Postulante</button>
+            <button onclick="quickLogin('autogestion')" class="p-1.5 rounded bg-sky-500/20 text-sky-200 hover:bg-sky-500/30 text-left truncate">5. Autogestión</button>
+            <button onclick="quickLogin('bienestar')" class="p-1.5 rounded bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30 text-left truncate">6. Bienestar Diff</button>
+            <button onclick="quickLogin('carnet')" class="p-1.5 rounded bg-teal-500/20 text-teal-200 hover:bg-teal-500/30 text-left truncate">7. Carnet 2 Caras</button>
+            <button onclick="quickLogin('admin')" class="p-1.5 rounded bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 text-left truncate">8. Administrador</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna Derecha: Información Institucional & Beneficios Fase 2 (5 Cols) -->
+      <div class="lg:col-span-5 bg-gradient-to-br from-blue-950/80 to-[#0a1a30]/90 p-6 sm:p-10 border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col justify-between space-y-6">
+        <div>
+          <div class="inline-block p-2 bg-white/10 rounded-xl mb-4">
+            <i data-lucide="award" class="w-8 h-8 text-amber-400"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">GATH Fase 2 · Transformación Digital</h3>
+          <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+            Evolución del sistema de registro pasivo a la <strong>conducción integral de procesos</strong> en CONATEL.
+          </p>
+
+          <div class="space-y-3 mt-6 text-xs text-slate-200">
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+              <span><strong>Cero papel:</strong> Onboarding digital desde la primera entrevista.</span>
+            </div>
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+              <span><strong>Trazabilidad:</strong> Ruta de aprobación Captación → Presupuesto → Dir. General.</span>
+            </div>
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+              <span><strong>Planillas precargadas:</strong> HCM y Caja de Ahorro automáticas.</span>
+            </div>
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+              <span><strong>Expediente vivo:</strong> Autogestión con validación diferencial (*Diff*).</span>
+            </div>
+            <div class="flex items-start gap-2.5">
+              <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+              <span><strong>Sincronización SIGEP:</strong> Integración outbox directa con nóminas.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-[10px] text-slate-400 border-t border-white/10 pt-4">
+          Comisión Nacional de Telecomunicaciones · República Bolivariana de Venezuela · 2026
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SISTEMA PRINCIPAL GATH (VISTA POST-LOGIN) -->
+  <!-- ========================================================================= -->
+  <div id="view-app" class="hidden min-h-screen flex flex-col flex-1">
+
+    <!-- Top Header Fijo -->
+    <header class="sticky top-0 z-40 bg-[#0f294a] text-white border-b border-blue-950/40 shadow-md px-4 lg:px-6 py-2.5 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- Logo & Titulo -->
+        <div class="flex items-center gap-3 cursor-pointer" onclick="navigateToModule('mod-inicio')">
+          <div class="bg-white/10 p-2 rounded-lg backdrop-blur-sm border border-white/10">
+            <i data-lucide="layers" class="w-6 h-6 text-blue-300"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-black tracking-wider text-lg text-white">GATH</span>
+              <span class="bg-amber-400/20 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-400/30 uppercase">Fase 2 Activa</span>
+            </div>
+            <p class="text-xs text-blue-200/80">CONATEL · Gerencia de Recursos Humanos</p>
+          </div>
+        </div>
+
+        <!-- Selector de Contexto / Breadcrumb -->
+        <div class="hidden lg:flex items-center ml-6 pl-6 border-l border-blue-800/60">
+          <div class="bg-blue-800/50 hover:bg-blue-800 text-xs px-3 py-1.5 rounded-lg flex items-center gap-2 border border-blue-700/50 text-blue-100">
+            <i data-lucide="layout-grid" class="w-3.5 h-3.5 text-sky-300"></i>
+            <span>Módulo Actual: </span>
+            <span class="font-bold text-white" id="header-module-label">Consolidado Institucional</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Acciones de Usuario & Cerrar Sesión -->
+      <div class="flex items-center gap-3">
+        <!-- Selector rápido de rol (Mockup Switcher) -->
+        <div class="flex items-center gap-2 bg-blue-950/70 px-2 py-1 rounded-lg border border-blue-800/60">
+          <span class="text-[11px] text-blue-300 hidden sm:inline">Perfil:</span>
+          <select id="app-role-dropdown" onchange="handleRoleDropdown(this.value)" class="bg-[#0f294a] text-xs text-white rounded px-2 py-1 border-0 focus:ring-1 focus:ring-blue-400 cursor-pointer">
+            <option value="ADMINISTRADOR">Administrador (Acceso Total)</option>
+            <option value="ANALISTA_CAPTACION">Analista de Captación</option>
+            <option value="PRESUPUESTO">Analista de Presupuesto</option>
+            <option value="DIRECCION_GENERAL">Dirección General</option>
+            <option value="BIENESTAR_SOCIAL">Bienestar Social</option>
+            <option value="TRABAJADOR">Trabajador (Autogestión)</option>
+            <option value="POSTULANTE">Postulante (Acceso Temporal)</option>
+          </select>
+        </div>
+
+        <!-- Notificaciones -->
+        <button class="relative p-2 rounded-lg bg-blue-800/40 hover:bg-blue-800 text-blue-200 hover:text-white transition-colors">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span>
+        </button>
+
+        <!-- User Info Card -->
+        <div class="flex items-center gap-2.5 pl-2 border-l border-blue-800/50">
+          <div class="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center text-white font-bold text-xs border border-blue-400/40" id="user-avatar-initials">
+            JR
+          </div>
+          <div class="hidden xl:block text-right">
+            <p class="text-xs font-semibold text-white leading-tight" id="user-display-name">Josefina Ramírez</p>
+            <p class="text-[10px] text-blue-300" id="user-display-role">RAC · Administrador</p>
+          </div>
+        </div>
+
+        <!-- Botón Salir -->
+        <button onclick="logout()" class="p-2 text-rose-300 hover:text-rose-100 hover:bg-rose-900/30 rounded-lg transition-colors ml-1" title="Cerrar Sesión">
+          <i data-lucide="log-out" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Layout Principal: Sidebar + Lienzo de Trabajo -->
+    <div class="flex-1 flex overflow-hidden">
+
+      <!-- App Sidebar Completo -->
+      <aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between hidden md:flex shrink-0">
+        <div class="py-4 custom-scrollbar overflow-y-auto">
+
+          <!-- Categoría 0: Inicio -->
+          <div class="px-4 mb-2">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">General</span>
+          </div>
+          <nav class="space-y-1 px-2">
+            <button onclick="navigateToModule('mod-inicio')" id="nav-mod-inicio" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors nav-item-active">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="home" class="w-4 h-4 text-blue-600"></i>
+                <span>Inicio / Consolidado</span>
+              </div>
+            </button>
+          </nav>
+
+          <!-- Categoría 1: Módulos Nuevos Fase 2 (Onboarding & Aprobación) -->
+          <div class="px-4 mt-5 mb-2 flex items-center justify-between">
+            <span class="text-[10px] font-bold text-blue-900 uppercase tracking-wider">Flujo de Ingreso (Fase 2)</span>
+            <span class="text-[9px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded">NUEVO</span>
+          </div>
+          <nav class="space-y-1 px-2">
+            <button onclick="navigateToModule('mod-captacion')" id="nav-mod-captacion" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="user-plus" class="w-4 h-4 text-blue-600"></i>
+                <span>1. Captación & Onboarding</span>
+              </div>
+              <span class="bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded">3</span>
+            </button>
+
+            <button onclick="navigateToModule('mod-presupuesto')" id="nav-mod-presupuesto" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="calculator" class="w-4 h-4 text-amber-600"></i>
+                <span>2. Presupuesto & Vacantes</span>
+              </div>
+              <span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded">2</span>
+            </button>
+
+            <button onclick="navigateToModule('mod-direccion')" id="nav-mod-direccion" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="stamp" class="w-4 h-4 text-purple-600"></i>
+                <span>3. Dir. General (Firma)</span>
+              </div>
+              <span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-1.5 py-0.5 rounded">1</span>
+            </button>
+
+            <button onclick="navigateToModule('mod-portal-postulante')" id="nav-mod-portal-postulante" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="key-round" class="w-4 h-4 text-emerald-600"></i>
+                <span>4. Portal del Postulante</span>
+              </div>
+              <span class="text-[10px] text-emerald-700 bg-emerald-50 font-bold px-1 rounded">Temp</span>
+            </button>
+          </nav>
+
+          <!-- Categoría 2: Autogestión, Validación y Carnetización -->
+          <div class="px-4 mt-5 mb-2">
+            <span class="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Autogestión & Carnet</span>
+          </div>
+          <nav class="space-y-1 px-2">
+            <button onclick="navigateToModule('mod-autogestion')" id="nav-mod-autogestion" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="contact" class="w-4 h-4 text-sky-600"></i>
+                <span>Portal del Trabajador</span>
+              </div>
+            </button>
+
+            <button onclick="navigateToModule('mod-bienestar')" id="nav-mod-bienestar" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="git-compare" class="w-4 h-4 text-indigo-600"></i>
+                <span>Validación Bienestar (Diff)</span>
+              </div>
+              <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 rounded">4</span>
+            </button>
+
+            <button onclick="navigateToModule('mod-carnet')" id="nav-mod-carnet" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="credit-card" class="w-4 h-4 text-teal-600"></i>
+                <span>Carnetización (2 Caras)</span>
+              </div>
+            </button>
+
+            <button onclick="navigateToModule('mod-nomina')" id="nav-mod-nomina" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="refresh-cw" class="w-4 h-4 text-slate-600"></i>
+                <span>Sincronización SIGEP</span>
+              </div>
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+            </button>
+          </nav>
+
+          <!-- Categoría 3: Módulos Base Existentes (Fase 1) -->
+          <div class="px-4 mt-5 mb-2">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Módulos Base (Fase 1)</span>
+          </div>
+          <nav class="space-y-1 px-2">
+            <button onclick="navigateToModule('mod-personal-activo')" id="nav-mod-personal-activo" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="users" class="w-4 h-4 text-slate-600"></i>
+                <span>Personal Trabajador</span>
+              </div>
+            </button>
+
+            <button onclick="navigateToModule('mod-personal-pasivo')" id="nav-mod-personal-pasivo" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="user-minus" class="w-4 h-4 text-slate-600"></i>
+                <span>Personal Pasivo (Jubilados)</span>
+              </div>
+            </button>
+
+            <button onclick="navigateToModule('mod-movimientos')" id="nav-mod-movimientos" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="arrow-right-left" class="w-4 h-4 text-slate-600"></i>
+                <span>Movimientos & Traslados</span>
+              </div>
+            </button>
+
+            <button onclick="navigateToModule('mod-cargos')" id="nav-mod-cargos" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="network" class="w-4 h-4 text-slate-600"></i>
+                <span>Estructura de Cargos</span>
+              </div>
+            </button>
+
+            <button onclick="navigateToModule('mod-reportes')" id="nav-mod-reportes" class="sidebar-nav-btn w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
+              <div class="flex items-center gap-2.5">
+                <i data-lucide="file-bar-chart" class="w-4 h-4 text-slate-600"></i>
+                <span>Reportes & Auditoría</span>
+              </div>
+            </button>
+          </nav>
+        </div>
+
+        <!-- Sidebar Footer -->
+        <div class="p-3 bg-slate-50 border-t border-slate-200 text-xs">
+          <div class="flex items-center justify-between text-slate-500 mb-1">
+            <span class="font-bold text-slate-700">CONATEL · GATH</span>
+            <span class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-mono font-bold">v2.0-Fase2</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Automatización de Gestión de Talento</p>
+        </div>
+      </aside>
+
+      <!-- Lienzo de Contenido Principal Dinámico -->
+      <main class="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 bg-slate-50/70">
+
+        <!-- ===================================================================== -->
+        <!-- MODULO: INICIO / CONSOLIDADO INSTITUCIONAL -->
+        <!-- ===================================================================== -->
+        <div id="mod-inicio" class="module-view block space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Consolidado General de Gestión Humana</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Visión unificada de personal activo, pasivo, estructura de cargos y procesos de ingreso en curso.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="navigateToModule('mod-captacion')" class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2 shadow-sm">
+                <i data-lucide="user-plus" class="w-4 h-4"></i> Nuevo Postulante (Fase 2)
+              </button>
+              <button onclick="navigateToModule('mod-reportes')" class="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700">
+                <i data-lucide="download" class="w-4 h-4 text-emerald-600 inline mr-1"></i> Reporte PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards Generales -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="card-surface p-4 border-l-4 border-l-blue-600">
+              <div class="flex justify-between items-start">
+                <p class="text-xs font-medium text-slate-500">Personal Activo</p>
+                <i data-lucide="users" class="w-5 h-5 text-blue-600"></i>
+              </div>
+              <p class="text-2xl font-extrabold text-slate-900 mt-2">1,248</p>
+              <p class="text-[11px] text-emerald-600 font-semibold mt-1">98.4% Asignados con cargo</p>
+            </div>
+            <div class="card-surface p-4 border-l-4 border-l-slate-500">
+              <div class="flex justify-between items-start">
+                <p class="text-xs font-medium text-slate-500">Personal Pasivo</p>
+                <i data-lucide="user-minus" class="w-5 h-5 text-slate-600"></i>
+              </div>
+              <p class="text-2xl font-extrabold text-slate-900 mt-2">412</p>
+              <p class="text-[11px] text-slate-500 font-semibold mt-1">Jubilados y Pensionados</p>
+            </div>
+            <div class="card-surface p-4 border-l-4 border-l-emerald-600">
+              <div class="flex justify-between items-start">
+                <p class="text-xs font-medium text-slate-500">Cargos Vacantes GATH</p>
+                <i data-lucide="network" class="w-5 h-5 text-emerald-600"></i>
+              </div>
+              <p class="text-2xl font-extrabold text-slate-900 mt-2">34</p>
+              <p class="text-[11px] text-emerald-600 font-semibold mt-1">Disponibles para contratación</p>
+            </div>
+            <div class="card-surface p-4 border-l-4 border-l-purple-600">
+              <div class="flex justify-between items-start">
+                <p class="text-xs font-medium text-slate-500">En Onboarding (Fase 2)</p>
+                <i data-lucide="sparkles" class="w-5 h-5 text-purple-600"></i>
+              </div>
+              <p class="text-2xl font-extrabold text-purple-900 mt-2">15</p>
+              <p class="text-[11px] text-purple-600 font-semibold mt-1">Ruta de ingreso 100% digital</p>
+            </div>
+          </div>
+
+          <!-- Charts and Summary Grids -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 card-surface p-6 bg-white space-y-4">
+              <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                  <i data-lucide="git-branch" class="w-4 h-4 text-blue-600"></i>
+                  Estado del Flujo de Contratación (Fase 2)
+                </h3>
+                <span class="badge-status bg-blue-100 text-blue-800">15 Candidatos Activos</span>
+              </div>
+              <div class="grid grid-cols-5 gap-2 text-center text-xs">
+                <div class="p-3 bg-sky-50 rounded-xl border border-sky-100 cursor-pointer" onclick="navigateToModule('mod-captacion')">
+                  <p class="text-lg font-bold text-sky-800">8</p>
+                  <p class="text-[10px] text-sky-700 font-semibold">1. Datos & Test</p>
+                </div>
+                <div class="p-3 bg-blue-50 rounded-xl border border-blue-100 cursor-pointer" onclick="navigateToModule('mod-captacion')">
+                  <p class="text-lg font-bold text-blue-800">5</p>
+                  <p class="text-[10px] text-blue-700 font-semibold">2. Propuesta Cargo</p>
+                </div>
+                <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 cursor-pointer" onclick="navigateToModule('mod-presupuesto')">
+                  <p class="text-lg font-bold text-amber-800">4</p>
+                  <p class="text-[10px] text-amber-700 font-semibold">3. Presupuesto</p>
+                </div>
+                <div class="p-3 bg-purple-50 rounded-xl border border-purple-100 cursor-pointer" onclick="navigateToModule('mod-direccion')">
+                  <p class="text-lg font-bold text-purple-800">2</p>
+                  <p class="text-[10px] text-purple-700 font-semibold">4. Firma DG</p>
+                </div>
+                <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100 cursor-pointer" onclick="navigateToModule('mod-portal-postulante')">
+                  <p class="text-lg font-bold text-emerald-800">1</p>
+                  <p class="text-[10px] text-emerald-700 font-semibold">5. Planillas / Asig.</p>
+                </div>
+              </div>
+              <div class="p-3 bg-slate-50 rounded-lg text-xs text-slate-600 flex justify-between items-center">
+                <span>Tiempo promedio de aprobación: <strong>3.2 días hábiles</strong> (antes en físico: 24 días)</span>
+                <span class="text-emerald-700 font-bold text-[11px]">-86% tiempo de trámite</span>
+              </div>
+            </div>
+
+            <!-- Accesos Rápidos -->
+            <div class="card-surface p-6 bg-white space-y-3">
+              <h3 class="font-bold text-sm text-slate-900">Acciones Frecuentes</h3>
+              <div class="space-y-2 text-xs">
+                <button onclick="navigateToModule('mod-captacion')" class="w-full p-2.5 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-900 rounded-lg border border-slate-200 text-left flex items-center justify-between">
+                  <span class="flex items-center gap-2"><i data-lucide="user-plus" class="w-4 h-4 text-blue-600"></i> Registrar Postulante</span>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+                <button onclick="navigateToModule('mod-bienestar')" class="w-full p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 rounded-lg border border-slate-200 text-left flex items-center justify-between">
+                  <span class="flex items-center gap-2"><i data-lucide="git-compare" class="w-4 h-4 text-indigo-600"></i> Validar Cambios de Empleados</span>
+                  <span class="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-1.5 rounded">4</span>
+                </button>
+                <button onclick="navigateToModule('mod-carnet')" class="w-full p-2.5 bg-slate-50 hover:bg-teal-50 text-slate-700 hover:text-teal-900 rounded-lg border border-slate-200 text-left flex items-center justify-between">
+                  <span class="flex items-center gap-2"><i data-lucide="credit-card" class="w-4 h-4 text-teal-600"></i> Diseñador de Carnet 2 Caras</span>
+                  <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+                </button>
+                <button onclick="navigateToModule('mod-nomina')" class="w-full p-2.5 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-900 rounded-lg border border-slate-200 text-left flex items-center justify-between">
+                  <span class="flex items-center gap-2"><i data-lucide="refresh-cw" class="w-4 h-4 text-emerald-600"></i> Conciliación Nómina SIGEP</span>
+                  <span class="badge-status bg-emerald-100 text-emerald-800 text-[10px]">OK</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 1: PERSONAL TRABAJADOR (ACTIVO) -->
+        <!-- ===================================================================== -->
+        <div id="mod-personal-activo" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Personal Trabajador (Activo)</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Expediente digital centralizado del personal activo en el organismo.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openDrawerEmpleado('Josefina Ramírez', 'V-18.345.921', 'Especialista Principal', 'Gerencia de Planificación de Espectro')" class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+                <i data-lucide="eye" class="w-4 h-4"></i> Ver Ficha Ejemplo
+              </button>
+            </div>
+          </div>
+
+          <div class="card-surface overflow-hidden bg-white">
+            <div class="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-3 justify-between items-center bg-slate-50/50">
+              <div class="relative w-full md:w-80">
+                <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+                <input type="text" placeholder="Buscar por Cédula, Nombres o Cargo..." class="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs">
+              </div>
+              <div class="flex gap-2">
+                <select class="bg-white border border-slate-200 text-xs rounded-lg px-2.5 py-1.5">
+                  <option>Todas las Gerencias</option>
+                  <option>Gerencia de Telecomunicaciones</option>
+                  <option>Gerencia de Informática</option>
+                  <option>Consultoría Jurídica</option>
+                </select>
+              </div>
+            </div>
+
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+                <tr>
+                  <th class="p-3">Trabajador</th>
+                  <th class="p-3">Cédula</th>
+                  <th class="p-3">Cargo Institucional</th>
+                  <th class="p-3">Dependencia</th>
+                  <th class="p-3">Tipo Nómina</th>
+                  <th class="p-3">Estatus</th>
+                  <th class="p-3 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-semibold text-slate-900 flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">JR</div>
+                    Josefina Ramírez
+                  </td>
+                  <td class="p-3 font-mono">V-18.345.921</td>
+                  <td class="p-3">Especialista Principal</td>
+                  <td class="p-3">G. Planificación de Espectro</td>
+                  <td class="p-3">Empleado Fijo</td>
+                  <td class="p-3"><span class="badge-status bg-emerald-100 text-emerald-800">ACTIVO</span></td>
+                  <td class="p-3 text-right">
+                    <button onclick="openDrawerEmpleado('Josefina Ramírez', 'V-18.345.921', 'Especialista Principal', 'Gerencia de Planificación de Espectro')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-semibold text-slate-700">Ver Ficha</button>
+                  </td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="p-3 font-semibold text-slate-900 flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">MA</div>
+                    Manuel Alarcón
+                  </td>
+                  <td class="p-3 font-mono">V-16.712.309</td>
+                  <td class="p-3">Coordinador de Infraestructura</td>
+                  <td class="p-3">G. Informática</td>
+                  <td class="p-3">Empleado Fijo</td>
+                  <td class="p-3"><span class="badge-status bg-emerald-100 text-emerald-800">ACTIVO</span></td>
+                  <td class="p-3 text-right">
+                    <button class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 rounded font-semibold text-slate-700">Ver Ficha</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 2: PERSONAL PASIVO (JUBILADOS / PENSIONADOS) -->
+        <!-- ===================================================================== -->
+        <div id="mod-personal-pasivo" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Personal Pasivo (Jubilados y Pensionados)</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Control de sobrevivencia, grupo familiar y emisión de constancias de jubilación.</p>
+            </div>
+            <button class="px-3 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="file-text" class="w-4 h-4"></i> Generar Reporte de Jubilados
+            </button>
+          </div>
+
+          <div class="card-surface p-4 bg-white">
+            <div class="p-3 bg-blue-50 rounded-lg text-xs text-blue-900 mb-4 flex items-center justify-between">
+              <span>Total Jubilados Registrados: <strong>284</strong> | Pensionados por Incapacidad/Sobreviviente: <strong>128</strong></span>
+              <span class="font-bold text-blue-700">Censo 2026 al día</span>
+            </div>
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+                <tr>
+                  <th class="p-3">Jubilado / Pensionado</th>
+                  <th class="p-3">Cédula</th>
+                  <th class="p-3">Tipo de Beneficio</th>
+                  <th class="p-3">Fecha de Egreso / Jubilación</th>
+                  <th class="p-3">Familiares Registrados</th>
+                  <th class="p-3 text-right">Constancia</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900">Ramón Eduardo Silva</td>
+                  <td class="p-3 font-mono">V-6.840.112</td>
+                  <td class="p-3"><span class="badge-status bg-slate-100 text-slate-800">JUBILADO</span></td>
+                  <td class="p-3">15/02/2021</td>
+                  <td class="p-3 font-semibold">2 Beneficiarios</td>
+                  <td class="p-3 text-right">
+                    <button class="px-2.5 py-1 bg-white border border-slate-200 rounded text-slate-700 font-semibold">Descargar PDF</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 3: MOVIMIENTOS & TRASLADOS -->
+        <!-- ===================================================================== -->
+        <div id="mod-movimientos" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Movimientos de Personal & Trazabilidad</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Asignación de cargos, traslados administrativos, encargadurías y egresos con rastro auditor.</p>
+            </div>
+            <button class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="plus" class="w-4 h-4"></i> Registrar Nuevo Movimiento
+            </button>
+          </div>
+
+          <div class="card-surface p-4 bg-white">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+                <tr>
+                  <th class="p-3">Tipo de Movimiento</th>
+                  <th class="p-3">Trabajador / C.I.</th>
+                  <th class="p-3">Origen / Destino</th>
+                  <th class="p-3">Fecha Efectiva</th>
+                  <th class="p-3">Responsable</th>
+                  <th class="p-3 text-right">Sincronizado Nómina</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="user-plus" class="w-4 h-4 text-emerald-600"></i> INGRESO_NUEVO
+                  </td>
+                  <td class="p-3">Carlos Pérez (V-19.450.311)</td>
+                  <td class="p-3">Consultoría Jurídica (CARG-JUR-0012)</td>
+                  <td class="p-3">24/08/2026</td>
+                  <td class="p-3 text-slate-600">Analista RAC</td>
+                  <td class="p-3 text-right"><span class="badge-status bg-emerald-100 text-emerald-800">Transmitido</span></td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900 flex items-center gap-1.5">
+                    <i data-lucide="arrow-right-left" class="w-4 h-4 text-blue-600"></i> TRASLADO_ADMINISTRATIVO
+                  </td>
+                  <td class="p-3">Elena Mendoza (V-21.390.412)</td>
+                  <td class="p-3">G. Administración -> G. Informática</td>
+                  <td class="p-3">18/08/2026</td>
+                  <td class="p-3 text-slate-600">Analista RAC</td>
+                  <td class="p-3 text-right"><span class="badge-status bg-emerald-100 text-emerald-800">Transmitido</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 4: GESTIÓN DE CÓDIGOS DE CARGO -->
+        <!-- ===================================================================== -->
+        <div id="mod-cargos" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Estructura & Códigos de Cargo</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Control de vacantes por oficina, creación de códigos presupuestarios y dependencias.</p>
+            </div>
+            <button class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i> Crear Código de Cargo (Presupuesto)
+            </button>
+          </div>
+
+          <div class="grid grid-cols-3 gap-4">
+            <div class="card-surface p-4 border-l-4 border-l-emerald-600">
+              <p class="text-xs text-slate-500">Cargos Vacantes</p>
+              <p class="text-2xl font-bold text-slate-900 mt-1">34</p>
+              <p class="text-[11px] text-emerald-700">Listos para contratación</p>
+            </div>
+            <div class="card-surface p-4 border-l-4 border-l-blue-600">
+              <p class="text-xs text-slate-500">Cargos Ocupados</p>
+              <p class="text-2xl font-bold text-slate-900 mt-1">1,248</p>
+              <p class="text-[11px] text-blue-700">Con titular activo</p>
+            </div>
+            <div class="card-surface p-4 border-l-4 border-l-amber-600">
+              <p class="text-xs text-slate-500">Cargos en Reserva (Fase 2)</p>
+              <p class="text-2xl font-bold text-slate-900 mt-1">4</p>
+              <p class="text-[11px] text-amber-700">En proceso de aprobación DG</p>
+            </div>
+          </div>
+
+          <div class="card-surface p-4 bg-white">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+                <tr>
+                  <th class="p-3">Código de Cargo</th>
+                  <th class="p-3">Denominación</th>
+                  <th class="p-3">Dependencia</th>
+                  <th class="p-3">Tipo Nómina</th>
+                  <th class="p-3">Titular Actual</th>
+                  <th class="p-3 text-right">Estatus</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="p-3 font-mono font-bold text-slate-800">CARG-GTEL-0042</td>
+                  <td class="p-3 font-semibold">Especialista en Redes II</td>
+                  <td class="p-3">Gerencia de Telecomunicaciones</td>
+                  <td class="p-3">Contratado</td>
+                  <td class="p-3 text-amber-600 italic">Reservado: Alejandro González (Postulante)</td>
+                  <td class="p-3 text-right"><span class="badge-status bg-amber-100 text-amber-800">RESERVADO</span></td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-mono font-bold text-slate-800">CARG-INFO-0015</td>
+                  <td class="p-3 font-semibold">Desarrollador FullStack Senior</td>
+                  <td class="p-3">Gerencia de Informática</td>
+                  <td class="p-3">Empleado Fijo</td>
+                  <td class="p-3 text-slate-400">Sin Asignar</td>
+                  <td class="p-3 text-right"><span class="badge-status bg-emerald-100 text-emerald-800">VACANTE</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 5: CAPTACIÓN & ONBOARDING (FASE 2) -->
+        <!-- ===================================================================== -->
+        <div id="mod-captacion" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-slate-900">Bandeja de Captación & Onboarding Digital</h1>
+                <span class="badge-status bg-blue-100 text-blue-800 border border-blue-200">Fase 2</span>
+              </div>
+              <p class="text-sm text-slate-500 mt-0.5">Gestión de postulantes, verificación de recaudos, test psicofísico y propuesta de cargos.</p>
+            </div>
+            <button onclick="document.getElementById('modal-alta-postulante').classList.remove('hidden')" class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2 shadow-sm">
+              <i data-lucide="user-plus" class="w-4 h-4"></i> Dar de Alta Postulante
+            </button>
+          </div>
+
+          <!-- Pipeline Trazabilidad -->
+          <div class="card-surface p-4 bg-gradient-to-r from-blue-950 to-[#0f294a] text-white">
+            <div class="grid grid-cols-5 gap-2 text-center text-xs">
+              <div class="p-2 bg-white/10 rounded-lg">
+                <p class="font-bold">1. Postulante</p>
+                <p class="text-[10px] text-blue-200">Carga datos + Test</p>
+              </div>
+              <div class="p-2 bg-white/10 rounded-lg border border-blue-400/50">
+                <p class="font-bold text-blue-300">2. Captación</p>
+                <p class="text-[10px] text-blue-200">Propone Cargo</p>
+              </div>
+              <div class="p-2 bg-white/10 rounded-lg">
+                <p class="font-bold">3. Presupuesto</p>
+                <p class="text-[10px] text-blue-200">Vacante + Disponib.</p>
+              </div>
+              <div class="p-2 bg-white/10 rounded-lg">
+                <p class="font-bold">4. Dir. General</p>
+                <p class="text-[10px] text-blue-200">Firma Punto Cta</p>
+              </div>
+              <div class="p-2 bg-white/10 rounded-lg">
+                <p class="font-bold">5. Contratado</p>
+                <p class="text-[10px] text-blue-200">Nómina & Autogest.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-surface p-4 bg-white">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+                <tr>
+                  <th class="p-3">Postulante</th>
+                  <th class="p-3">Cédula</th>
+                  <th class="p-3">Cargo Propuesto</th>
+                  <th class="p-3">Test Psicofísico</th>
+                  <th class="p-3">Estado</th>
+                  <th class="p-3 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="p-3 font-semibold text-slate-900">Alejandro González</td>
+                  <td class="p-3 font-mono">V-24.891.034</td>
+                  <td class="p-3">Especialista en Redes II</td>
+                  <td class="p-3"><span class="badge-status bg-emerald-100 text-emerald-800">94 / 100 Apto</span></td>
+                  <td class="p-3"><span class="badge-status bg-sky-100 text-sky-800">Validar & Proponer</span></td>
+                  <td class="p-3 text-right">
+                    <button onclick="openDrawerPostulante('Alejandro González', 'V-24.891.034', 'Especialista en Redes II', 94)" class="px-3 py-1 bg-blue-800 text-white rounded font-semibold text-xs">Ver Expediente</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 6: PRESUPUESTO & VACANTES (FASE 2) -->
+        <!-- ===================================================================== -->
+        <div id="mod-presupuesto" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Presupuesto & Disponibilidad (Fase 2)</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Verificación automática de vacante en GATH y declaración de disponibilidad presupuestaria.</p>
+            </div>
+          </div>
+
+          <div class="card-surface p-6 bg-white border-2 border-amber-200">
+            <div class="flex justify-between items-center border-b pb-4">
+              <h3 class="font-bold text-slate-900">Solicitud #SOL-2026-084 · Alejandro González (V-24.891.034)</h3>
+              <span class="badge-status bg-amber-100 text-amber-800">Pendiente por Declaración</span>
+            </div>
+            <div class="grid grid-cols-2 gap-6 mt-4 text-xs">
+              <div class="p-4 bg-slate-50 rounded-xl space-y-2 border">
+                <p class="font-bold text-slate-700">1. Verificación Automática de Vacante</p>
+                <p>Código: <strong class="font-mono">CARG-GTEL-0042</strong></p>
+                <p>Cargo: <strong>Especialista en Redes II</strong></p>
+                <p class="text-emerald-700 font-semibold">✓ El sistema confirmó vacante disponible en estructura organizativa.</p>
+              </div>
+              <div class="p-4 bg-white rounded-xl border border-amber-300 space-y-2">
+                <p class="font-bold text-slate-700">2. Declaración Presupuestaria</p>
+                <div>
+                  <label class="text-slate-500">N° Oficio / Referencia:</label>
+                  <input type="text" value="DP-CONATEL-2026-0512" class="w-full p-1.5 bg-slate-50 border rounded font-mono">
+                </div>
+                <div>
+                  <label class="text-slate-500">Partida Presupuestaria:</label>
+                  <input type="text" value="4.01.01.01.00 Sueldos Básicos" class="w-full p-1.5 bg-slate-50 border rounded">
+                </div>
+              </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6 pt-4 border-t">
+              <button class="px-4 py-2 bg-slate-100 text-slate-700 rounded text-xs font-semibold">Devolver a Captación</button>
+              <button onclick="alert('Punto de Cuenta emitido y enviado a Dirección General.')" class="px-4 py-2 bg-amber-600 text-white rounded text-xs font-semibold">Emitir Punto de Cuenta y Enviar a DG</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 7: DIRECCIÓN GENERAL / FIRMA DIGITAL (FASE 2) -->
+        <!-- ===================================================================== -->
+        <div id="mod-direccion" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Bandeja de Dirección General · Firma de Puntos de Cuenta</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Aprobación oficial con firma electrónica y hash institucional de validación.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6">
+            <div class="col-span-2 card-surface p-6 bg-white border space-y-4 text-xs">
+              <div class="border-b pb-3">
+                <p class="text-[10px] text-slate-400 font-bold uppercase">CONATEL · PUNTO DE CUENTA INSTITUCIONAL</p>
+                <h3 class="text-base font-bold text-slate-900">N° PC-DG-2026-0312 · Contratación de Alejandro González</h3>
+              </div>
+              <p class="text-justify leading-relaxed">
+                Se somete a consideración la contratación del ciudadano <strong>ALEJANDRO GONZÁLEZ</strong> (C.I. V-24.891.034) en el cargo de <strong>Especialista en Redes II</strong> con vacante comprobada y disponibilidad presupuestaria (Oficio DP-CONATEL-2026-0512).
+              </p>
+              <div class="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-900">
+                ✓ Firma digital de Recursos Humanos asentada: Hash #e8a912b4 (24/08/2026).
+              </div>
+            </div>
+
+            <div class="card-surface p-6 bg-white space-y-4 text-xs">
+              <h3 class="font-bold text-slate-900">Dictamen de Dirección General</h3>
+              <textarea placeholder="Observaciones si aplica..." class="w-full p-2 bg-slate-50 border rounded text-xs" rows="3"></textarea>
+              <button onclick="alert('Punto de Cuenta firmado y aprobado por Dirección General. Se notificó al Postulante para el llenado de planillas precargadas.');" class="w-full py-2.5 bg-purple-800 hover:bg-purple-900 text-white rounded font-bold">
+                Firmar y Aprobar Contratación
+              </button>
+              <button class="w-full py-2 bg-slate-100 text-slate-700 rounded font-semibold">Devolver con Observaciones</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 8: PORTAL DEL POSTULANTE (ACCESO TEMPORAL FASE 2) -->
+        <!-- ===================================================================== -->
+        <div id="mod-portal-postulante" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Portal del Postulante (Acceso Temporal)</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Espacio acotado para carga de fotografía tipo carnet y planillas digitales precargadas.</p>
+            </div>
+            <span class="badge-status bg-emerald-100 text-emerald-800">Credencial Temporal Activa</span>
+          </div>
+
+          <div class="card-surface p-6 bg-white space-y-6">
+            <div class="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 class="font-bold text-sm text-slate-900">Planilla Oficial de Afiliación HCM (Datos Precargados)</h3>
+                <p class="text-xs text-slate-500">Sus datos de identidad y cargo ya están listos. Solo valide a sus beneficiarios.</p>
+              </div>
+              <span class="badge-status bg-emerald-100 text-emerald-800">Precargada 100%</span>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 text-xs bg-slate-50 p-3 rounded-lg">
+              <div><span class="text-slate-400 block">Titular:</span><span class="font-bold">Alejandro González</span></div>
+              <div><span class="text-slate-400 block">Cédula:</span><span class="font-mono font-bold">V-24.891.034</span></div>
+              <div><span class="text-slate-400 block">Cargo Asignado:</span><span class="font-bold">Especialista en Redes II</span></div>
+            </div>
+
+            <div>
+              <p class="text-xs font-bold text-slate-700 uppercase mb-2">Grupo Familiar para Cobertura HCM:</p>
+              <table class="w-full text-left text-xs border rounded">
+                <thead class="bg-slate-100 text-slate-600 uppercase text-[10px]">
+                  <tr>
+                    <th class="p-2">Nombre y Apellido</th>
+                    <th class="p-2">Cédula</th>
+                    <th class="p-2">Parentesco</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-t">
+                    <td class="p-2 font-medium">Valeria González Méndez</td>
+                    <td class="p-2 font-mono">V-28.912.441</td>
+                    <td class="p-2">Cónyuge</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-4 border-t">
+              <button onclick="alert('Planillas digitales firmadas electrónicamente. Su expediente pasa a formalización de contrato.');" class="px-5 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded text-xs font-bold">
+                Firmar y Enviar Planillas Oficiales
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 9: AUTOGESTIÓN DEL TRABAJADOR (FICHA INTEGRAL) -->
+        <!-- ===================================================================== -->
+        <div id="mod-autogestion" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Portal de Autogestión del Trabajador</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Expediente vivo permanente y solicitud de actualización con validación.</p>
+            </div>
+            <button onclick="alert('Solicitud enviada a Bienestar Social. Dispondrá de 72 horas para cargar sus cambios.');" class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="edit-3" class="w-4 h-4"></i> Solicitar Actualización de Datos
+            </button>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6">
+            <div class="card-surface p-6 bg-white text-center space-y-3">
+              <div class="w-24 h-24 mx-auto rounded-2xl bg-blue-50 border flex items-center justify-center text-blue-700 font-bold text-2xl">
+                JR
+              </div>
+              <h3 class="font-bold text-slate-900">Josefina Ramírez</h3>
+              <p class="text-xs font-mono text-slate-500">C.I. V-18.345.921</p>
+              <span class="badge-status bg-emerald-100 text-emerald-800">EMPLEADO ACTIVO</span>
+            </div>
+
+            <div class="col-span-2 card-surface p-6 bg-white space-y-4 text-xs">
+              <h3 class="font-bold text-slate-900 border-b pb-2">Información Institucional & Expediente</h3>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="p-3 bg-slate-50 rounded">
+                  <span class="text-slate-400 block text-[10px]">CARGO:</span>
+                  <span class="font-bold">Especialista Principal de Espectro</span>
+                </div>
+                <div class="p-3 bg-slate-50 rounded">
+                  <span class="text-slate-400 block text-[10px]">DEPENDENCIA:</span>
+                  <span class="font-bold">G. Planificación de Espectro</span>
+                </div>
+                <div class="p-3 bg-slate-50 rounded">
+                  <span class="text-slate-400 block text-[10px]">NIVEL ACADÉMICO:</span>
+                  <span class="font-bold">Magíster en Telecomunicaciones</span>
+                </div>
+                <div class="p-3 bg-slate-50 rounded">
+                  <span class="text-slate-400 block text-[10px]">TELÉFONO MÓVIL:</span>
+                  <span class="font-bold">0414-2391084</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 10: VALIDACIÓN DE BIENESTAR SOCIAL (DIFF VIEWER FASE 2) -->
+        <!-- ===================================================================== -->
+        <div id="mod-bienestar" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Bienestar Social · Validación Diferencial (*Diff*)</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Comparación lado a lado de cambios propuestos con aprobación granular campo por campo.</p>
+            </div>
+          </div>
+
+          <div class="card-surface p-6 bg-white space-y-4">
+            <div class="flex justify-between items-center border-b pb-3 text-xs">
+              <h3 class="font-bold text-slate-900">Solicitud #ACT-2026-112 · Josefina Ramírez (V-18.345.921)</h3>
+              <span class="badge-status bg-indigo-100 text-indigo-800">3 Cambios Propuestos</span>
+            </div>
+
+            <table class="w-full text-left text-xs border rounded">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-[10px]">
+                <tr>
+                  <th class="p-3">Campo</th>
+                  <th class="p-3 bg-rose-50/50 text-rose-900">Valor Actual (GATH)</th>
+                  <th class="p-3 bg-emerald-50/50 text-emerald-900">Valor Propuesto</th>
+                  <th class="p-3">Soporte</th>
+                  <th class="p-3 text-right">Dictamen</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y text-slate-700">
+                <tr>
+                  <td class="p-3 font-semibold">Teléfono Móvil</td>
+                  <td class="p-3 text-slate-400 line-through">0414-1122334</td>
+                  <td class="p-3 font-bold text-emerald-800">0414-2391084</td>
+                  <td class="p-3 text-slate-400">No aplica</td>
+                  <td class="p-3 text-right">
+                    <button class="px-2 py-1 bg-emerald-600 text-white rounded font-bold text-[11px]">Aprobar</button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="p-3 font-semibold">Nivel Académico</td>
+                  <td class="p-3 text-slate-400 line-through">Ing. Telecomunicaciones</td>
+                  <td class="p-3 font-bold text-emerald-800">Magíster Telecomunicaciones</td>
+                  <td class="p-3 text-blue-700 font-bold underline cursor-pointer">Titulo.pdf</td>
+                  <td class="p-3 text-right">
+                    <button class="px-2 py-1 bg-emerald-600 text-white rounded font-bold text-[11px]">Aprobar</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="flex justify-end gap-2 pt-3 border-t">
+              <button onclick="alert('Cambios aprobados aplicados al expediente real.');" class="px-5 py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded text-xs font-bold">
+                Aplicar Dictamen a Expediente
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 11: CARNETIZACIÓN DE DOS CARAS -->
+        <!-- ===================================================================== -->
+        <div id="mod-carnet" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Diseñador de Carnet Institucional (Dos Caras)</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Posicionamiento visual de capas, foto del expediente, QR y versionado.</p>
+            </div>
+            <button onclick="alert('Generando carnet de dos caras en PDF institucional con ReportLab...');" class="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="printer" class="w-4 h-4"></i> Emitir Carnet de Prueba
+            </button>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6">
+            <div class="col-span-2 card-surface p-6 bg-slate-900 text-white flex flex-col items-center space-y-4">
+              <div class="flex gap-2 text-xs">
+                <button id="btn-face-anv" onclick="setCarnetFace('anverso')" class="px-3 py-1 bg-teal-600 text-white font-bold rounded">Anverso (Frente)</button>
+                <button id="btn-face-rev" onclick="setCarnetFace('reverso')" class="px-3 py-1 bg-slate-800 text-slate-300 rounded">Reverso (Posterior)</button>
+              </div>
+
+              <!-- Carnet Card Visualizer -->
+              <div id="box-carnet-card" class="w-64 h-96 bg-gradient-to-b from-blue-900 via-slate-900 to-blue-950 rounded-2xl border-2 border-teal-500/50 p-4 flex flex-col justify-between text-center relative overflow-hidden shadow-2xl">
+                <div class="h-2 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 absolute top-0 left-0 right-0"></div>
+                <div id="carnet-content-anverso" class="flex flex-col h-full justify-between pt-2">
+                  <div>
+                    <p class="text-[8px] uppercase tracking-widest text-blue-200">CONATEL</p>
+                    <p class="text-[9px] font-bold">Comisión Nacional de Telecomunicaciones</p>
+                  </div>
+                  <div class="w-24 h-28 mx-auto bg-slate-800 border-2 border-teal-400 rounded-xl flex items-center justify-center text-slate-400">
+                    <i data-lucide="user" class="w-12 h-12 text-slate-400"></i>
+                  </div>
+                  <div>
+                    <p class="font-bold text-xs">JOSEFINA RAMÍREZ</p>
+                    <p class="text-[9px] text-teal-300 uppercase">Especialista Principal</p>
+                    <p class="text-[10px] font-mono font-bold mt-1">C.I. V-18.345.921</p>
+                  </div>
+                  <p class="text-[7px] text-slate-400 border-t border-white/10 pt-1">VENCE: 2028 · GATH-018345921</p>
+                </div>
+                <div id="carnet-content-reverso" class="hidden flex-col h-full justify-between pt-2 text-[10px]">
+                  <p class="font-bold border-b pb-1">DATOS MÉDICOS & VALIDACIÓN</p>
+                  <div class="text-left space-y-1 bg-white/10 p-2 rounded text-[9px]">
+                    <p><strong>Grupo Sanguíneo:</strong> O Rh (+)</p>
+                    <p><strong>Alergias:</strong> Penicilina</p>
+                  </div>
+                  <div class="bg-white p-2 rounded-xl text-slate-900 w-24 mx-auto">
+                    <i data-lucide="qr-code" class="w-16 h-16 mx-auto"></i>
+                    <p class="text-[6px] font-mono font-bold">VALIDACIÓN OFICIAL</p>
+                  </div>
+                  <p class="text-[7px] text-slate-400">Propiedad de CONATEL</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-surface p-6 bg-white space-y-4 text-xs">
+              <h3 class="font-bold text-slate-900">Capas Configurables</h3>
+              <div class="space-y-2">
+                <div class="p-2 bg-slate-50 border rounded flex justify-between">
+                  <span>Foto del Expediente</span>
+                  <span class="font-mono text-slate-400">X:160 Y:120</span>
+                </div>
+                <div class="p-2 bg-slate-50 border rounded flex justify-between">
+                  <span>Nombres / Cargo</span>
+                  <span class="font-mono text-slate-400">X:160 Y:310</span>
+                </div>
+                <div class="p-2 bg-slate-50 border rounded flex justify-between">
+                  <span>Código QR Reverso</span>
+                  <span class="font-mono text-slate-400">X:160 Y:240</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 12: SINCRONIZACIÓN NÓMINA / SIGEP (FASE 2) -->
+        <!-- ===================================================================== -->
+        <div id="mod-nomina" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Sincronización Automática con Nómina (SIGEP)</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Garantía de entrega Outbox y conciliación diaria de discrepancias.</p>
+            </div>
+            <button onclick="alert('Conciliación diaria ejecutada: 100% de datos en regla.');" class="px-4 py-2 bg-blue-800 hover:bg-blue-900 text-white rounded-lg text-xs font-semibold flex items-center gap-2">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i> Ejecutar Conciliación Diaria
+            </button>
+          </div>
+
+          <div class="card-surface p-6 bg-white space-y-4">
+            <div class="flex justify-between items-center p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900">
+              <span>Eventos Transmitidos Hoy: <strong>18/18</strong> | Pendientes en Cola: <strong>0</strong></span>
+              <span class="font-bold">API CONECTADA</span>
+            </div>
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+                <tr>
+                  <th class="p-3">Evento</th>
+                  <th class="p-3">Trabajador</th>
+                  <th class="p-3">Detalle</th>
+                  <th class="p-3 text-right">Estatus</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="p-3 font-semibold text-emerald-800">INGRESO_NUEVO</td>
+                  <td class="p-3">Carlos Pérez (V-19.450.311)</td>
+                  <td class="p-3">Asignación CARG-JUR-0012</td>
+                  <td class="p-3 text-right"><span class="badge-status bg-emerald-100 text-emerald-800">Confirmado</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- MODULO 13: REPORTES & AUDITORÍA -->
+        <!-- ===================================================================== -->
+        <div id="mod-reportes" class="module-view hidden space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-slate-900">Reportes Institucionales & Bitácora de Auditoría</h1>
+              <p class="text-sm text-slate-500 mt-0.5">Emisión de listados oficiales en PDF y Excel con firmas de auditoría.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6">
+            <div class="card-surface p-6 bg-white space-y-3">
+              <h3 class="font-bold text-sm text-slate-900">Nómina Activa General</h3>
+              <p class="text-xs text-slate-500">Listado consolidado de personal por gerencia, grado y tipo de nómina.</p>
+              <button onclick="alert('Generando listado oficial PDF...');" class="w-full py-2 bg-blue-800 text-white rounded text-xs font-semibold">Descargar PDF</button>
+            </div>
+            <div class="card-surface p-6 bg-white space-y-3">
+              <h3 class="font-bold text-sm text-slate-900">Cargos Vacantes & Ocupados</h3>
+              <p class="text-xs text-slate-500">Informe presupuestario de la estructura de cargos del organismo.</p>
+              <button onclick="alert('Generando reporte Excel...');" class="w-full py-2 bg-emerald-700 text-white rounded text-xs font-semibold">Descargar Excel</button>
+            </div>
+            <div class="card-surface p-6 bg-white space-y-3">
+              <h3 class="font-bold text-sm text-slate-900">Bitácora de Contrataciones (Fase 2)</h3>
+              <p class="text-xs text-slate-500">Trazabilidad de Puntos de Cuenta, firmas y tiempos por etapa.</p>
+              <button onclick="alert('Generando auditoría PDF...');" class="w-full py-2 bg-purple-800 text-white rounded text-xs font-semibold">Descargar Auditoría</button>
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ALTA DE NUEVO POSTULANTE -->
+  <!-- ========================================================================= -->
+  <div id="modal-alta-postulante" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+      <div class="bg-[#0f294a] text-white p-5 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-5 h-5 text-blue-300"></i>
+          <h3 class="font-bold text-sm">Dar de Alta a Nuevo Postulante</h3>
+        </div>
+        <button onclick="document.getElementById('modal-alta-postulante').classList.add('hidden')" class="text-blue-200 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 text-xs">
+        <p class="text-slate-600">
+          Se emitirá una <strong>credencial temporal (48h)</strong> para que el candidato cargue sus datos personales y realice la evaluación psicofísica en el sistema.
+        </p>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Cédula de Identidad *</label>
+          <input type="text" placeholder="Ej. V-26.114.890" class="w-full p-2 bg-slate-50 border rounded">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Nombres *</label>
+            <input type="text" placeholder="Nombres" class="w-full p-2 bg-slate-50 border rounded">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Apellidos *</label>
+            <input type="text" placeholder="Apellidos" class="w-full p-2 bg-slate-50 border rounded">
+          </div>
+        </div>
+        <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900">
+          <span class="font-bold block">Contraseña Temporal Generada:</span>
+          <span class="font-mono text-sm font-bold">GATH-Temp#8942</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 p-4 border-t flex justify-end gap-2 text-xs font-semibold">
+        <button onclick="document.getElementById('modal-alta-postulante').classList.add('hidden')" class="px-4 py-2 bg-slate-200 text-slate-700 rounded">Cancelar</button>
+        <button onclick="alert('Postulante dado de alta exitosamente.'); document.getElementById('modal-alta-postulante').classList.add('hidden');" class="px-4 py-2 bg-blue-800 text-white rounded">Emitir Credencial</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- DRAWER: FICHA DETALLADA DEL EMPLEADO / POSTULANTE -->
+  <!-- ========================================================================= -->
+  <div id="drawer-empleado" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex justify-end hidden">
+    <div class="bg-white w-full max-w-xl h-full shadow-2xl overflow-y-auto custom-scrollbar flex flex-col justify-between">
+      <div>
+        <div class="bg-[#0f294a] text-white p-5 flex justify-between items-center">
+          <div>
+            <h3 class="font-bold text-base" id="drw-emp-nombre">Josefina Ramírez</h3>
+            <p class="text-xs text-blue-200 font-mono" id="drw-emp-cedula">V-18.345.921</p>
+          </div>
+          <button onclick="document.getElementById('drawer-empleado').classList.add('hidden')" class="text-blue-200 hover:text-white">
+            <i data-lucide="x" class="w-6 h-6"></i>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-4 text-xs text-slate-700">
+          <div class="p-3 bg-slate-50 rounded-lg border">
+            <span class="text-slate-400 block text-[10px]">CARGO:</span>
+            <span class="font-bold text-sm text-slate-900" id="drw-emp-cargo">Especialista Principal</span>
+            <span class="text-slate-500 block mt-1" id="drw-emp-gerencia">Gerencia de Planificación de Espectro</span>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="font-bold text-slate-900 uppercase">Detalles del Expediente:</h4>
+            <p><strong>Tipo de Nómina:</strong> Personal Empleado Fijo</p>
+            <p><strong>Fecha de Ingreso:</strong> 15/01/2018 (8 años)</p>
+            <p><strong>Carga Familiar:</strong> 3 Beneficiarios registrados en HCM</p>
+            <p><strong>Carnet Institucional:</strong> Emitido (Versión v2.4)</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 bg-slate-100 border-t flex justify-end">
+        <button onclick="document.getElementById('drawer-empleado').classList.add('hidden')" class="px-4 py-2 bg-slate-300 text-slate-700 rounded text-xs font-semibold">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript y Control de Navegación -->
+  <script>
+    // Estado de la sesión
+    let currentRole = 'ADMINISTRADOR';
+
+    // Función para alternar modo login
+    function setLoginMode(mode) {
+      document.getElementById('btn-login-funcionario').className = 'py-2 px-1 rounded-lg text-slate-300 hover:text-white text-center transition-all';
+      document.getElementById('btn-login-trabajador').className = 'py-2 px-1 rounded-lg text-slate-300 hover:text-white text-center transition-all';
+      document.getElementById('btn-login-postulante').className = 'py-2 px-1 rounded-lg text-slate-300 hover:text-white text-center transition-all';
+
+      const badgeTemp = document.getElementById('login-temp-badge');
+      const userInput = document.getElementById('input-login-user');
+      const userLabel = document.getElementById('lbl-login-user');
+
+      if (mode === 'funcionario') {
+        document.getElementById('btn-login-funcionario').className = 'py-2 px-1 rounded-lg bg-blue-600 text-white text-center transition-all';
+        badgeTemp.classList.add('hidden');
+        userLabel.textContent = 'Correo Electrónico Institucional *';
+        userInput.value = 'josefina.ramirez@conatel.gob.ve';
+        currentRole = 'ADMINISTRADOR';
+      } else if (mode === 'trabajador') {
+        document.getElementById('btn-login-trabajador').className = 'py-2 px-1 rounded-lg bg-blue-600 text-white text-center transition-all';
+        badgeTemp.classList.add('hidden');
+        userLabel.textContent = 'Cédula de Identidad *';
+        userInput.value = 'V-18.345.921';
+        currentRole = 'TRABAJADOR';
+      } else if (mode === 'postulante') {
+        document.getElementById('btn-login-postulante').className = 'py-2 px-1 rounded-lg bg-amber-600 text-white text-center transition-all';
+        badgeTemp.classList.remove('hidden');
+        userLabel.textContent = 'Cédula de Identidad del Postulante *';
+        userInput.value = 'V-24.891.034';
+        currentRole = 'POSTULANTE';
+      }
+    }
+
+    // Submit del login con loading promise
+    function handleLoginSubmit(e) {
+      e.preventDefault();
+      document.getElementById('login-loading-state').classList.remove('hidden');
+      document.getElementById('btn-login-submit').disabled = true;
+
+      setTimeout(() => {
+        document.getElementById('login-loading-state').classList.add('hidden');
+        document.getElementById('btn-login-submit').disabled = false;
+        enterApp(currentRole);
+      }, 700);
+    }
+
+    // Acceso Rápido Mockup Demo
+    function quickLogin(targetRole) {
+      const roleMap = {
+        'captacion': 'ANALISTA_CAPTACION',
+        'presupuesto': 'PRESUPUESTO',
+        'direccion': 'DIRECCION_GENERAL',
+        'postulante': 'POSTULANTE',
+        'autogestion': 'TRABAJADOR',
+        'bienestar': 'BIENESTAR_SOCIAL',
+        'carnet': 'ADMINISTRADOR',
+        'admin': 'ADMINISTRADOR'
+      };
+      enterApp(roleMap[targetRole] || 'ADMINISTRADOR');
+
+      const moduleMap = {
+        'captacion': 'mod-captacion',
+        'presupuesto': 'mod-presupuesto',
+        'direccion': 'mod-direccion',
+        'postulante': 'mod-portal-postulante',
+        'autogestion': 'mod-autogestion',
+        'bienestar': 'mod-bienestar',
+        'carnet': 'mod-carnet',
+        'admin': 'mod-inicio'
+      };
+      if (moduleMap[targetRole]) {
+        navigateToModule(moduleMap[targetRole]);
+      }
+    }
+
+    // Entrada a la Aplicación
+    function enterApp(role) {
+      currentRole = role;
+      document.getElementById('view-login').classList.add('hidden');
+      document.getElementById('view-app').classList.remove('hidden');
+      document.getElementById('app-role-dropdown').value = role;
+
+      const userNames = {
+        'ADMINISTRADOR': { name: 'Josefina Ramírez', role: 'RAC · Administrador', initials: 'JR' },
+        'ANALISTA_CAPTACION': { name: 'Lic. Mariana Soto', role: 'Captación · Analista', initials: 'MS' },
+        'PRESUPUESTO': { name: 'Lic. Marcos Rondón', role: 'Presupuesto · Analista', initials: 'MR' },
+        'DIRECCION_GENERAL': { name: 'Dr. Gustavo Silva', role: 'Director General', initials: 'GS' },
+        'BIENESTAR_SOCIAL': { name: 'Lic. Carmen Duarte', role: 'Bienestar Social', initials: 'CD' },
+        'TRABAJADOR': { name: 'Josefina Ramírez', role: 'Trabajador Activo', initials: 'JR' },
+        'POSTULANTE': { name: 'Alejandro González', role: 'Postulante (Acceso Temp)', initials: 'AG' }
+      };
+
+      const u = userNames[role] || userNames['ADMINISTRADOR'];
+      document.getElementById('user-display-name').textContent = u.name;
+      document.getElementById('user-display-role').textContent = u.role;
+      document.getElementById('user-avatar-initials').textContent = u.initials;
+    }
+
+    // Cerrar Sesión
+    function logout() {
+      document.getElementById('view-app').classList.add('hidden');
+      document.getElementById('view-login').classList.remove('hidden');
+    }
+
+    // Navegación entre Módulos
+    function navigateToModule(modId) {
+      document.querySelectorAll('.module-view').forEach(m => m.classList.add('hidden'));
+      const target = document.getElementById(modId);
+      if (target) target.classList.remove('hidden');
+
+      document.querySelectorAll('.sidebar-nav-btn').forEach(btn => {
+        btn.classList.remove('nav-item-active');
+        btn.classList.add('text-slate-600', 'hover:bg-slate-50');
+      });
+
+      const activeNav = document.getElementById('nav-' + modId);
+      if (activeNav) {
+        activeNav.classList.add('nav-item-active');
+        activeNav.classList.remove('text-slate-600', 'hover:bg-slate-50');
+      }
+
+      const labelMap = {
+        'mod-inicio': 'Consolidado Institucional',
+        'mod-personal-activo': 'Personal Trabajador (Activo)',
+        'mod-personal-pasivo': 'Personal Pasivo (Jubilados)',
+        'mod-movimientos': 'Movimientos & Traslados',
+        'mod-cargos': 'Estructura de Cargos',
+        'mod-captacion': 'Captación & Onboarding Digital',
+        'mod-presupuesto': 'Presupuesto & Disponibilidad',
+        'mod-direccion': 'Dirección General & Firma',
+        'mod-portal-postulante': 'Portal del Postulante',
+        'mod-autogestion': 'Portal de Autogestión',
+        'mod-bienestar': 'Validación Bienestar Social (Diff)',
+        'mod-carnet': 'Carnetización (Dos Caras)',
+        'mod-nomina': 'Sincronización Nómina SIGEP',
+        'mod-reportes': 'Reportes & Auditoría'
+      };
+      document.getElementById('header-module-label').textContent = labelMap[modId] || 'Módulo GATH';
+    }
+
+    // Dropdown de cambio de rol en la barra superior
+    function handleRoleDropdown(role) {
+      enterApp(role);
+      const roleToModule = {
+        'ANALISTA_CAPTACION': 'mod-captacion',
+        'PRESUPUESTO': 'mod-presupuesto',
+        'DIRECCION_GENERAL': 'mod-direccion',
+        'POSTULANTE': 'mod-portal-postulante',
+        'TRABAJADOR': 'mod-autogestion',
+        'BIENESTAR_SOCIAL': 'mod-bienestar',
+        'ADMINISTRADOR': 'mod-inicio'
+      };
+      if (roleToModule[role]) {
+        navigateToModule(roleToModule[role]);
+      }
+    }
+
+    // Toggle de Caras de Carnet
+    function setCarnetFace(face) {
+      if (face === 'anverso') {
+        document.getElementById('carnet-content-anverso').classList.remove('hidden');
+        document.getElementById('carnet-content-reverso').classList.add('hidden');
+        document.getElementById('btn-face-anv').className = 'px-3 py-1 bg-teal-600 text-white font-bold rounded';
+        document.getElementById('btn-face-rev').className = 'px-3 py-1 bg-slate-800 text-slate-300 rounded';
+      } else {
+        document.getElementById('carnet-content-anverso').classList.add('hidden');
+        document.getElementById('carnet-content-reverso').classList.remove('hidden');
+        document.getElementById('carnet-content-reverso').classList.add('flex');
+        document.getElementById('btn-face-anv').className = 'px-3 py-1 bg-slate-800 text-slate-300 rounded';
+        document.getElementById('btn-face-rev').className = 'px-3 py-1 bg-teal-600 text-white font-bold rounded';
+      }
+    }
+
+    // Abrir Drawer de Empleado
+    function openDrawerEmpleado(nombre, cedula, cargo, gerencia) {
+      document.getElementById('drw-emp-nombre').textContent = nombre;
+      document.getElementById('drw-emp-cedula').textContent = cedula;
+      document.getElementById('drw-emp-cargo').textContent = cargo;
+      document.getElementById('drw-emp-gerencia').textContent = gerencia;
+      document.getElementById('drawer-empleado').classList.remove('hidden');
+    }
+
+    // Abrir Drawer de Postulante
+    function openDrawerPostulante(nombre, cedula, cargo, puntaje) {
+      openDrawerEmpleado(nombre, cedula, cargo + ' (Propuesta)', 'Gerencia de Telecomunicaciones · Test: ' + puntaje + ' pts');
+    }
+
+    // Inicializar Iconos Lucide
+    lucide.createIcons();
+  </script>
+</body>
+</html>
