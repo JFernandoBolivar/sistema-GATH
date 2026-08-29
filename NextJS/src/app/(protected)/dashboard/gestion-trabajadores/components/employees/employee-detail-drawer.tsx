@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, User } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { EmployeeData } from "@/app/types/types";
 import Image from "next/image";
+import { imageProfileFn } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+
 interface EmployeeDetailDrawerProps {
   employee: EmployeeData | null;
   isOpen: boolean;
@@ -19,14 +21,14 @@ export function EmployeeDetailDrawer({
 }: EmployeeDetailDrawerProps) {
   const [profile, setProfile] = useState<string>("");
   if (!isOpen || !employee) return null;
-  const imageProfileFn = async () => {
-    const profileImg = await fetch(
-      `http://172.16.26.48:4000/read-file/profile/${employee.cedulaidentidad}`,
-    );
-    const getProfile = await profileImg.blob();
-    setProfile(URL.createObjectURL(getProfile));
-  };
-  imageProfileFn();
+  useEffect(() => {
+    if (employee?.cedulaidentidad) {
+      imageProfileFn(employee.cedulaidentidad)
+        .then((blob) => setProfile(URL.createObjectURL(blob)))
+        .catch(() => setProfile(""));
+    }
+  }, [employee?.cedulaidentidad]);
+
 
   return (
     <div className="fixed inset-0 z-50 flex">

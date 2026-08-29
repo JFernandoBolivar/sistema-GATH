@@ -5,6 +5,7 @@ import z from "zod";
 import { schemaRac } from "../schemas/schemaRac";
 import { AuthSessionExpiredError } from "@/lib/auth-errors";
 import { redirect } from "next/navigation";
+import { subirFotoEmpleadoAction } from "@/modules/personal/infrastructure/actions/personal-actions";
 
 export async function registerEmployee(
   values: z.infer<typeof schemaRac>,
@@ -37,16 +38,11 @@ export async function registerEmployee(
         message: message.message,
       };
     }
-    const formData = new FormData();
-    formData.append("file", values.file!);
-    await fetch(
-      `${process.env.NEXT_PUBLIC_NEST_API_URL_SERVER}file-save/upload/profile/${values.cedulaidentidad}`,
-
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
+    if (values.file && values.cedulaidentidad) {
+      const formData = new FormData();
+      formData.append("file", values.file);
+      await subirFotoEmpleadoAction(values.cedulaidentidad, formData);
+    }
     return {
       success: true,
       message: message.message,

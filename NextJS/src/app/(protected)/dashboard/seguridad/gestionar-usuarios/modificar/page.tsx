@@ -10,7 +10,7 @@ import { useForm } from "react-hook-form";
 import useSWR from "swr";
 import z from "zod";
 import Loading from "../../../gestion-trabajadores/components/loading/loading";
-import { getUserListSearch } from "../../api/getInfo";
+import { getDeparment, getRole, getUserListSearch } from "../../api/getInfo";
 import TableUser from "./tableUser/page";
 import { useSearchStore } from "@/hooks/use-search-params";
 
@@ -22,8 +22,10 @@ export default function UsersPage() {
     ["/api/users", searchParams],
     async () => await getUserListSearch({ searchParams }),
   );
+  const { data: role } = useSWR("role", async () => await getRole());
+  const { data: department } = useSWR("depart", async () => await getDeparment());
   const schemaSearch = z.object({
-    cedulaidentidad: z.string(),
+    cedula: z.string(),
   });
   const onSearch = (values: z.infer<typeof schemaSearch>) => {
     const filteredEntries = Object.entries(values).filter(
@@ -34,13 +36,13 @@ export default function UsersPage() {
   };
   const form = useForm<z.infer<typeof schemaSearch>>({
     defaultValues: {
-      cedulaidentidad: "",
+      cedula: "",
     },
     resolver: zodResolver(schemaSearch),
   });
   const onClean = () => {
     form.reset({
-      cedulaidentidad: "",
+      cedula: "",
     });
   };
   return (
@@ -53,7 +55,7 @@ export default function UsersPage() {
           <InputForm
             form={form}
             label="Cedula"
-            nameInput="cedulaidentidad"
+            nameInput="cedula"
             type="text"
           />
           <Button className="self-baseline-last" type="submit">
@@ -71,7 +73,15 @@ export default function UsersPage() {
           </Button>
         </form>
       </Form>
-      {isLoadingUser ? <Loading /> : <TableUser user={user?.data ?? []} />}
+      {isLoadingUser ? (
+        <Loading />
+      ) : (
+        <TableUser
+          user={user?.data ?? []}
+          roles={role?.data ?? []}
+          departamentos={department?.data ?? []}
+        />
+      )}
     </PageLayout>
   );
 }

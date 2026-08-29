@@ -12,11 +12,16 @@ export default async function updateAction(
   id: number,
 ) {
   try {
+    const payload: Record<string, unknown> = {};
+    if (values.departamento > 0) payload.departamento_id = values.departamento;
+    if (values.rol > 0) payload.rol_id = values.rol;
+    if (values.password) payload.password = values.password;
+
     const getResponse = await apiFetch<ApiResponse<never>>(
-      `accounts/usuarios/${id}/`,
+      `v1/identidad/usuarios/${id}/`,
       {
         method: "PATCH",
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
       },
     );
     return {
@@ -38,7 +43,7 @@ export async function blockUserAction(id: number, is_active: boolean) {
   };
   try {
     const getResponse = await apiFetch<ApiResponse<never>>(
-      `accounts/usuarios/estado/${id}/`,
+      `v1/identidad/usuarios/${id}/estado/`,
       {
         method: "PATCH",
         body: JSON.stringify(payload),

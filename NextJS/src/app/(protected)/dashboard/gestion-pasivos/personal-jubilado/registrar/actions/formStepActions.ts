@@ -11,6 +11,8 @@ import { ApiResponse } from "@/app/types/types";
 import { createCarrera, createInstitucion, createMencion, createOrganismoAdscrito } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import { AuthSessionExpiredError } from "@/lib/auth-errors";
 import { redirect } from "next/navigation";
+import { subirFotoEmpleadoAction } from "@/modules/personal/infrastructure/actions/personal-actions";
+
 export async function registerEmployeeSteps(
   data: BasicInfoType &
     AcademyType &
@@ -128,23 +130,15 @@ export async function registerEmployeeSteps(
         }),
       },
     );
-    const formData = new FormData();
-    formData.append("file", data.file!);
-    const responseNestjs = await fetch(
-      `${process.env.NEXT_PUBLIC_NEST_API_URL_SERVER}file-save/upload/profile/${data.cedulaidentidad}`,
-
-      {
-        method: "POST",
-        body: formData,
-      },
-    );
+    if (data.file && data.cedulaidentidad) {
+      const formData = new FormData();
+      formData.append("file", data.file);
+      await subirFotoEmpleadoAction(data.cedulaidentidad, formData);
+    }
 
     return {
       success: getEmployee.status === "success",
-      message:
-        getEmployee.status === "success" && responseNestjs.ok
-          ? getEmployee.message
-          : getEmployee.message || "Error al registrar empleado",
+      message: getEmployee.message || "Error al registrar empleado",
     };
   } catch (error) {
     if (error instanceof AuthSessionExpiredError) redirect("/login");

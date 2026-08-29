@@ -87,7 +87,7 @@ export default function DetailInfoUser({ id }: { id: number }) {
                 nameSalect="departamento"
                 placeholder="Seleccione un departamento"
                 valueKey="id"
-                labelKey="nombre_departamento"
+                labelKey="nombre"
               />
             </div>
             <Button className="w-full">Actualizar Usuario</Button>

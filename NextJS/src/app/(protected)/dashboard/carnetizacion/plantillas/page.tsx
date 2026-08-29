@@ -23,8 +23,8 @@ import PlantillaUploadForm from "../components/forms/plantilla-upload-form";
 import type { Plantilla } from "../types/carnetizacion";
 
 const DJANGO_URL =
-  process.env.NEXT_PUBLIC_DJANGO_API_URL?.replace("/api/", "") ||
-  "http://localhost:8000";
+  process.env.NEXT_PUBLIC_DJANGO_API_URL?.replace(/\/api\/?$/, "") || "";
+
 
 export default function PlantillasPage() {
   const [preview, setPreview] = useState<string | null>(null);

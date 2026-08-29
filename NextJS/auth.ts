@@ -4,7 +4,7 @@ import authConfig from "#/auth.config";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
-    maxAge: 10 * 60 * 60,
+    maxAge: 8 * 60 * 60, // 8 horas (D-08 / Contrato C-2)
   },
 
   trustHost: true,
@@ -26,6 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.djAccess = user.djAccess;
         token.djRefresh = user.djRefresh;
         token.debeCambiarPassword = user.debeCambiarPassword || false;
+        token.permisos = user.permisos || [];
       }
       if (trigger === "update" && updatedSession) {
         if (updatedSession.debeCambiarPassword !== undefined) {
@@ -46,6 +47,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.coordination = token.coordination;
         session.user.dependency = token.dependency;
         session.user.debeCambiarPassword = token.debeCambiarPassword as boolean;
+        session.user.permisos = (token.permisos as string[]) || [];
       }
       return session;
     },

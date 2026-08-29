@@ -82,6 +82,7 @@ export default function Dashboard() {
   const changeForm = useForm<z.infer<typeof changePasswordSchema>>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
+      current_password: "",
       new_password: "",
       confirm_password: "",
     },
@@ -94,16 +95,16 @@ export default function Dashboard() {
   }, [session?.user?.debeCambiarPassword]);
 
   async function onChangePassword(values: z.infer<typeof changePasswordSchema>) {
-    const userId = Number(session?.user?.id);
-    if (!userId) return;
-
     startChangePass(async () => {
-      const response = await changePasswordAction(userId, values.new_password);
+      const response = await changePasswordAction({
+        current_password: values.current_password,
+        new_password: values.new_password,
+      });
       if (response.success) {
         await updateSession({ debeCambiarPassword: false });
         setShowChangePassword(false);
       } else {
-        changeForm.setError("new_password", {
+        changeForm.setError("current_password", {
           message: response.message || "Error al cambiar la contraseña",
         });
       }
@@ -188,6 +189,19 @@ export default function Dashboard() {
               onSubmit={changeForm.handleSubmit(onChangePassword)}
               className="gap-4"
             >
+              <FormField
+                control={changeForm.control}
+                name="current_password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña Actual</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={changeForm.control}
                 name="new_password"

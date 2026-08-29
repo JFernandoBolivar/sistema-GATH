@@ -85,7 +85,7 @@ export default function RegisterForm() {
                 nameSalect="departamento"
                 placeholder="Seleccione un departamento"
                 valueKey="id"
-                labelKey="nombre_departamento"
+                labelKey="nombre"
               />
             </div>
             <Button className="w-full">Registrar Usuario</Button>

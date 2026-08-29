@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import authConfig from "../auth.config";
 import { NextResponse } from "next/server";
+import { puede } from "@/shared/lib/evaluador-iam";
 
 const { auth: proxy } = NextAuth(authConfig);
 
@@ -9,16 +10,18 @@ const publicRoutes = ["/", "/login", "/register"];
 export default proxy((req) => {
   const { nextUrl, auth } = req;
   const isLoggedIn = !!auth?.user;
+  const permisos = auth?.user?.permisos;
 
   const esAutogestion =
     auth?.user?.role?.nombre_rol === "AUTOGESTION" ||
-    auth?.user?.department?.nombre_departamento === "AUTOGESTION";
+    auth?.user?.department?.nombre_departamento === "AUTOGESTION" ||
+    (puede(permisos, "autogestion.censo") && !puede(permisos, "personal.ver"));
 
-  const esRecepcionista = auth?.user?.role?.nombre_rol === "RECEPCIONISTA";
+  const esRecepcionista =
+    auth?.user?.role?.nombre_rol === "RECEPCIONISTA" ||
+    (puede(permisos, "personal.ver") && !puede(permisos, "personal.crear"));
 
-  // Rutas que puede abrir un recepcionista. Se comparan de forma EXACTA a
-  // propósito: un prefijo como "/dashboard/gestion-trabajadores" dejaría pasar
-  // también las pantallas de escritura del mismo módulo.
+  // Rutas que puede abrir un recepcionista / usuario de solo lectura
   const RUTAS_RECEPCIONISTA = [
     "/dashboard",
     "/dashboard/gestion-trabajadores",
@@ -50,7 +53,6 @@ export default proxy((req) => {
   }
 
   if (isLoggedIn && esRecepcionista) {
-    // el header enlaza con barra final, así que se normaliza antes de comparar
     const ruta =
       nextUrl.pathname.length > 1
         ? nextUrl.pathname.replace(/\/+$/, "")

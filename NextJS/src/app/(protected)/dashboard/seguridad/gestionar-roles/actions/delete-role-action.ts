@@ -11,7 +11,7 @@ export default async function deleteRoleAction(id: number) {
     // no lanza excepción por el código de estado, así que el mensaje con el
     // conteo llega en el cuerpo y se propaga tal cual al usuario.
     const getResponse = await apiFetch<ApiResponse<never>>(
-      `accounts/roles/${id}/delete/`,
+      `v1/identidad/roles/${id}/eliminar/`,
       {
         method: "DELETE",
       },

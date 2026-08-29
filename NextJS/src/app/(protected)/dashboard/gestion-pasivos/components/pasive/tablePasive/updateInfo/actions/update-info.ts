@@ -14,6 +14,8 @@ import { ContratoUpdateType } from "@/shared/schemas/employees/update/schema-con
 import { createCarrera, createInstitucion, createMencion, createOrganismoAdscrito } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import { AuthSessionExpiredError } from "@/lib/auth-errors";
 import { redirect } from "next/navigation";
+import { subirFotoEmpleadoAction } from "@/modules/personal/infrastructure/actions/personal-actions";
+
 
 export default async function updateInfoEmployee(
   data:
@@ -109,29 +111,13 @@ export default async function updateInfoEmployee(
         }),
       },
     );
-    if ("file" in data && data.file !== null && data.file !== undefined) {
+
+    if ("file" in data && data.file !== null && data.file !== undefined && cedulaidentidad) {
       const formData = new FormData();
-      formData.append("file", data.file!);
-      await fetch(
-        `${process.env.NEXT_PUBLIC_NEST_API_URL_SERVER}file-save/upload/profile/${cedulaidentidad}`,
-
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-
-      await apiFetch<ApiResponse<never>>(
-        `Employee/${idEmployee}/`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            profile: data.file.name,
-            usuario_id: userId,
-          }),
-        },
-      );
+      formData.append("file", data.file);
+      await subirFotoEmpleadoAction(cedulaidentidad, formData);
     }
+
 
     if (getResponse.status === "success") {
       return {
@@ -139,6 +125,7 @@ export default async function updateInfoEmployee(
         message: getResponse.message,
       };
     }
+
     return {
       success: false,
       message:

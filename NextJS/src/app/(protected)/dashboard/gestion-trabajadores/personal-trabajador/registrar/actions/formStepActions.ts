@@ -13,6 +13,8 @@ import { createCarrera, createCapacitacion, createInstitucion, createMencion, cr
 import { apiFetch } from "@/lib/api-client";
 import { AuthSessionExpiredError } from "@/lib/auth-errors";
 import { redirect } from "next/navigation";
+import { subirFotoEmpleadoAction } from "@/modules/personal/infrastructure/actions/personal-actions";
+
 
 export async function registerEmployeeSteps(
   data: BasicInfoType &
@@ -146,19 +148,12 @@ export async function registerEmployeeSteps(
         body: JSON.stringify(payloadEmployee),
       },
     );
-    let nestjsOk = true;
-    if (data.file) {
+    if (data.file && data.cedulaidentidad) {
       const formData = new FormData();
       formData.append("file", data.file);
-      const responseNestjs = await fetch(
-        `${process.env.NEXT_PUBLIC_NEST_API_URL_SERVER}file-save/upload/profile/${data.cedulaidentidad}`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-      nestjsOk = responseNestjs.ok;
+      await subirFotoEmpleadoAction(data.cedulaidentidad, formData);
     }
+
 
     return {
       success: getEmployee.status === "success",

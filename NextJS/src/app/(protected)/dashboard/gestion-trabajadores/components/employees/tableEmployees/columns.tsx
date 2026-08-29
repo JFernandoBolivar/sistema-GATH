@@ -18,6 +18,8 @@ import { DataTableColumnHeader } from "./data-table-column-header";
 import ExportButton from "@/components/ui/ExportButtonPDF";
 import { useSearchStore } from "@/hooks/use-search-params";
 import { formatInTimeZone } from "date-fns-tz";
+import { puede } from "@/shared/lib/evaluador-iam";
+
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { imageProfileFn } from "../../../api/getInfoRac";
@@ -37,9 +39,11 @@ function EmployeeActionsCell({ row }: { row: Row<EmployeeData> }) {
     [profileBlob],
   );
   const session = useSession();
-  // RECEPCIONISTA sólo consulta: no puede extraer el expediente en PDF.
+  // PBAC: soloLectura si no tiene permiso de edición o creación de reportes
   const soloLectura =
+    !puede(session?.data?.user?.permisos, "personal.editar") ||
     session?.data?.user?.role?.nombre_rol === "RECEPCIONISTA";
+
 
   const pdfDocument = useMemo(
     () => (

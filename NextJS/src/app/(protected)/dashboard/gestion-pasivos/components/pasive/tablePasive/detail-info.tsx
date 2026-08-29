@@ -1,6 +1,8 @@
 "use client";
 import { useSession } from "next-auth/react";
+import { puede } from "@/shared/lib/evaluador-iam";
 import { imageProfileFn } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+
 import { EmployeeData } from "@/app/types/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,9 +48,12 @@ interface Props {
   employee: EmployeeData;
 }
 export default function DetailInfoEmployee({ employee }: Props) {
-  // El rol RECEPCIONISTA sólo consulta: se ocultan los accesos a edición.
+  // PBAC: soloLectura si no tiene permiso de edición
   const { data: session } = useSession();
-  const soloLectura = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
+  const soloLectura =
+    !puede(session?.user?.permisos, "personal.editar") ||
+    session?.user?.role?.nombre_rol === "RECEPCIONISTA";
+
   const { mutate } = useSWRConfig();
   const { data: profileBlob } = useSWR(
     employee.cedulaidentidad ? ["profile", employee.cedulaidentidad] : null,

@@ -1,5 +1,5 @@
 "use client";
-import { UserSystem } from "@/app/types/types";
+import { Depart, Role, UserSystem } from "@/app/types/types";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -90,44 +90,57 @@ function UserActionsCell({ row }: { row: Row<UserSystem> }) {
   );
 }
 
-export const columns: ColumnDef<UserSystem>[] = [
-  {
-    accessorKey: "cedula",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Cédula" />
-    ),
-  },
-  {
-    accessorKey: "nombres",
-    header: "Nombres",
-  },
-  {
-    accessorKey: "apellidos",
-    header: "Apellidos",
-  },
-  {
-    accessorKey: "rol.nombre_rol",
-    header: "Rol",
-  },
-  {
-    accessorKey: "departamento.nombre_departamento",
-    header: "Departamento",
-  },
-  {
-    accessorKey: "is_active",
-    header: "Activo/Bloqueado",
-    cell: ({ getValue }) => {
-      const active: boolean = getValue() as boolean;
-      if (active) {
-        return <Badge variant={"default"}>Activo</Badge>;
-      }
-      return <Badge variant={"destructive"}>Bloqueado</Badge>;
-    },
-  },
+/**
+ * `CuentaLecturaSerializer` real solo expone `departamento_id`/`rol_id`
+ * planos (Fase 1 del plan de reparación) — el nombre se resuelve aquí contra
+ * los catálogos `/roles/`/`/departamentos/` que la página ya carga.
+ */
+export function getColumns(roles: Role[], departamentos: Depart[]): ColumnDef<UserSystem>[] {
+  const nombreRol = (id: number | null) =>
+    roles.find((r) => r.id === id)?.nombre_rol ?? "Sin rol";
+  const nombreDepartamento = (id: number | null) =>
+    departamentos.find((d) => d.id === id)?.nombre ?? "Sin departamento";
 
-  {
-    accessorKey: "actions",
-    header: "Acciones",
-    cell: ({ row }) => <UserActionsCell row={row} />,
-  },
-];
+  return [
+    {
+      accessorKey: "cedula",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Cédula" />
+      ),
+    },
+    {
+      accessorKey: "nombres",
+      header: "Nombres",
+    },
+    {
+      accessorKey: "apellidos",
+      header: "Apellidos",
+    },
+    {
+      id: "rol",
+      header: "Rol",
+      cell: ({ row }) => nombreRol(row.original.rol_id),
+    },
+    {
+      id: "departamento",
+      header: "Departamento",
+      cell: ({ row }) => nombreDepartamento(row.original.departamento_id),
+    },
+    {
+      accessorKey: "is_active",
+      header: "Activo/Bloqueado",
+      cell: ({ getValue }) => {
+        const active: boolean = getValue() as boolean;
+        if (active) {
+          return <Badge variant={"default"}>Activo</Badge>;
+        }
+        return <Badge variant={"destructive"}>Bloqueado</Badge>;
+      },
+    },
+    {
+      accessorKey: "actions",
+      header: "Acciones",
+      cell: ({ row }) => <UserActionsCell row={row} />,
+    },
+  ];
+}

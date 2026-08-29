@@ -3,10 +3,10 @@ import { ApiResponse, Depart, Role, UserSystem } from "@/app/types/types";
 import { apiFetchGet } from "@/lib/utils";
 
 export const getDeparment = async () => {
-  return await apiFetchGet<Depart[]>("accounts/departamentos/");
+  return await apiFetchGet<Depart[]>("v1/identidad/departamentos/");
 };
 export const getRole = async () => {
-  return await apiFetchGet<Role[]>("accounts/roles/");
+  return await apiFetchGet<Role[]>("v1/identidad/roles/");
 };
 
 export const getUserListSearch = async ({
@@ -20,5 +20,5 @@ export const getUserListSearch = async ({
       status: "",
       message: "",
     };
-  return await apiFetchGet<UserSystem[]>(`accounts/usuarios/?${searchParams}`);
+  return await apiFetchGet<UserSystem[]>(`v1/identidad/usuarios/?${searchParams}`);
 };

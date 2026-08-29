@@ -2,8 +2,8 @@
 import { cookies } from "next/headers";
 import { auth } from "#/auth";
 import { AuthSessionExpiredError } from "./auth-errors";
-
-let refreshPromise: Promise<string | null> | null = null;
+import { cache } from "react";
+import { DJANGO_API_SERVER } from "@/shared/commons/api";
 
 const AUTH_COOKIE_PREFIXES = [
   "authjs.session-token",
@@ -48,59 +48,53 @@ async function getValidAccessToken(): Promise<string | null> {
   return refreshTokens();
 }
 
-async function refreshTokens(): Promise<string | null> {
-  if (refreshPromise) return refreshPromise;
+export const refreshTokens = cache(async (): Promise<string | null> => {
+  try {
+    const cookieStore = await cookies();
+    const refreshToken = cookieStore.get("dj_refresh")?.value;
+    if (!refreshToken) return null;
 
-  refreshPromise = (async () => {
-    try {
-      const cookieStore = await cookies();
-      const refreshToken = cookieStore.get("dj_refresh")?.value;
-      if (!refreshToken) return null;
+    const refreshResponse = await fetch(
+      `${DJANGO_API_SERVER}accounts/refresh/`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh: refreshToken }),
+      },
+    );
 
-      const refreshResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}accounts/refresh/`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh: refreshToken }),
-        },
-      );
+    if (!refreshResponse.ok) {
+      deleteAuthCookies(cookieStore);
+      return null;
+    }
 
-      if (!refreshResponse.ok) {
-        deleteAuthCookies(cookieStore);
-        return null;
-      }
+    const refreshData = await refreshResponse.json();
 
-      const refreshData = await refreshResponse.json();
+    cookieStore.set("dj_access", refreshData.tokens.access, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 15 * 60,
+      path: "/",
+    });
 
-      cookieStore.set("dj_access", refreshData.tokens.access, {
+    if (refreshData.tokens.refresh) {
+      cookieStore.set("dj_refresh", refreshData.tokens.refresh, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        maxAge: 15 * 60,
+        maxAge: 8 * 60 * 60,
         path: "/",
       });
-
-      if (refreshData.tokens.refresh) {
-        cookieStore.set("dj_refresh", refreshData.tokens.refresh, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 8 * 60 * 60,
-          path: "/",
-        });
-      }
-
-      return refreshData.tokens.access as string;
-    } catch {
-      return null;
-    } finally {
-      refreshPromise = null;
     }
-  })();
 
-  return refreshPromise;
-}
+    return refreshData.tokens.access as string;
+  } catch {
+    return null;
+  }
+});
+
+export const refreshAccessToken = refreshTokens;
 
 async function getAuthHeaders(): Promise<Record<string, string> | null> {
   const session = await auth();
@@ -125,7 +119,7 @@ export async function apiFetch<T>(
   };
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}${url}`,
+    `${DJANGO_API_SERVER}${url}`,
     requestOptions,
   );
 
@@ -146,7 +140,7 @@ export async function apiFetch<T>(
   };
 
   const retryResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}${url}`,
+    `${DJANGO_API_SERVER}${url}`,
     retryOptions,
   );
 
@@ -170,7 +164,7 @@ export async function apiFetchFormData<T>(
   };
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}${url}`,
+    `${DJANGO_API_SERVER}${url}`,
     requestOptions,
   );
 
@@ -190,7 +184,7 @@ export async function apiFetchFormData<T>(
   };
 
   const retryResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}${url}`,
+    `${DJANGO_API_SERVER}${url}`,
     retryOptions,
   );
 
@@ -210,7 +204,7 @@ export async function apiFetchBlob(
   };
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}${url}`,
+    `${DJANGO_API_SERVER}${url}`,
     requestOptions,
   );
 
@@ -231,7 +225,7 @@ export async function apiFetchBlob(
   };
 
   const retryResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}${url}`,
+    `${DJANGO_API_SERVER}${url}`,
     retryOptions,
   );
 

@@ -5,6 +5,8 @@ import { BarChart3, BookCheck, ChevronDown, ChevronRight, FileSpreadsheet, Home 
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useState } from "react";
+import { puede } from "@/shared/lib/evaluador-iam";
+
 import {
   Sidebar,
   SidebarContent,
@@ -30,9 +32,9 @@ function MiniSidebar() {
   };
 
   const isRacAdmin =
-    (session?.user.role.nombre_rol === "ADMINISTRADOR" ||
-      session?.user.role.nombre_rol === "PRESUPUESTO") &&
-    session?.user.department.nombre_departamento === "RAC";
+    puede(session?.user?.permisos, "personal.ver") ||
+    session?.user?.role?.nombre_rol === "ADMINISTRADOR";
+
 
   return (
     <Sidebar>

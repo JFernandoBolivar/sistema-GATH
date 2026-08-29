@@ -1,6 +1,8 @@
 "use client";
 import { useSession } from "next-auth/react";
+import { puede } from "@/shared/lib/evaluador-iam";
 import UpdateFormAcademy from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/updateInfo/form/form-academy-update";
+
 import FormUpdateHealthFamily from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/updateInfo/form/form-health_profile";
 import UpdateFormPhysical from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/updateInfo/form/form-physical-update";
 import FormRelationship from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/updateInfo/form/form-relationship";
@@ -49,9 +51,12 @@ interface Props {
   family: Family;
 }
 export function DetailInfoFamily({ family }: Props) {
-  // El rol RECEPCIONISTA sólo consulta: se ocultan los accesos a edición.
+  // PBAC: soloLectura si no tiene permiso de edición de familiares
   const { data: session } = useSession();
-  const soloLectura = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
+  const soloLectura =
+    !puede(session?.user?.permisos, "familiares.editar") ||
+    session?.user?.role?.nombre_rol === "RECEPCIONISTA";
+
   const { mutate } = useSWRConfig();
   const { data: docsData } = useSWR(
     `family-docs-${family.id}`,

@@ -13,6 +13,9 @@ export const signInSchema = object({
 
 export const changePasswordSchema = z
   .object({
+    current_password: z
+      .string({ required_error: "La contraseña actual es requerida" })
+      .min(1, "La contraseña actual es requerida"),
     new_password: z
       .string({ required_error: "La nueva contraseña es requerida" })
       .min(8, "La contraseña debe tener al menos 8 caracteres")

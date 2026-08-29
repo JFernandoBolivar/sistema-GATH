@@ -9,10 +9,15 @@ import { redirect } from "next/navigation";
 export default async function registerAction(values: TypeSchemaRegister) {
   try {
     const getResponse = await apiFetch<ApiResponse<never>>(
-      "accounts/registro/",
+      "v1/identidad/usuarios/",
       {
         method: "POST",
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          cedula: values.cedula,
+          password: values.password,
+          departamento_id: values.departamento,
+          rol_id: values.rol,
+        }),
       },
     );
     return {

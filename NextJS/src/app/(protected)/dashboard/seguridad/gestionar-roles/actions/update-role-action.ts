@@ -12,7 +12,7 @@ export default async function updateRoleAction(
 ) {
   try {
     const getResponse = await apiFetch<ApiResponse<never>>(
-      `accounts/roles/${id}/update/`,
+      `v1/identidad/roles/${id}/`,
       {
         method: "PATCH",
         body: JSON.stringify(values),

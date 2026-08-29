@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 export default async function createRoleAction(values: TypeSchemaRole) {
   try {
     const getResponse = await apiFetch<ApiResponse<never>>(
-      "accounts/roles/create/",
+      "v1/identidad/roles/",
       {
         method: "POST",
         body: JSON.stringify(values),

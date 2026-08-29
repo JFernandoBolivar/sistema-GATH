@@ -15,3 +15,5 @@ logs/frontend/*.txt
 logs/frontend/*.txt.gz
 !logs/frontend/.gitkeep
 
+# Build de TypeScript (artifact, no versionar)
+tsconfig.tsbuildinfo

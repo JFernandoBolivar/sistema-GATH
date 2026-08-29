@@ -4,6 +4,9 @@ import { z } from "zod";
 import { signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { cookies } from "next/headers";
+import { apiFetch } from "@/lib/api-client";
+import { AuthSessionExpiredError } from "@/lib/auth-errors";
+import { DJANGO_API_SERVER } from "@/shared/commons/api";
 
 const AUTH_COOKIE_PREFIXES = [
   "authjs.session-token",
@@ -37,7 +40,7 @@ function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
 export const loginAction = async (values: z.infer<typeof signInSchema>) => {
   try {
     const loginResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}accounts/login/`,
+      `${DJANGO_API_SERVER}accounts/login/`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -90,28 +93,57 @@ export const loginAction = async (values: z.infer<typeof signInSchema>) => {
   }
 };
 
+export type ChangePasswordInput = {
+  current_password?: string;
+  password_actual?: string;
+  new_password?: string;
+  password_nueva?: string;
+  password?: string;
+};
+
 export const changePasswordAction = async (
-  userId: number,
-  newPassword: string,
+  payload: ChangePasswordInput | string,
+  maybeNewPassword?: string,
 ) => {
   try {
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}accounts/cambiar-password/`,
+    let currentPassword = "";
+    let newPassword = "";
+
+    if (typeof payload === "string") {
+      if (maybeNewPassword) {
+        currentPassword = payload;
+        newPassword = maybeNewPassword;
+      } else {
+        newPassword = payload;
+      }
+    } else if (payload && typeof payload === "object") {
+      currentPassword = payload.current_password || payload.password_actual || "";
+      newPassword = payload.new_password || payload.password_nueva || payload.password || "";
+    }
+
+    const response = await apiFetch<{ status?: string; message?: string }>(
+      "accounts/cambiar-password/",
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: userId, password: newPassword }),
+        body: JSON.stringify({
+          current_password: currentPassword,
+          password_actual: currentPassword,
+          new_password: newPassword,
+          password: newPassword,
+        }),
       },
     );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      return { message: errorData.message || "Error al cambiar la contraseña" };
+    if (response?.status === "error") {
+      return { success: false, message: response.message || "Error al cambiar la contraseña" };
     }
 
-    return { success: true };
-  } catch {
-    return { message: "Error de conexión al cambiar la contraseña" };
+    return { success: true, message: response?.message || "Contraseña actualizada exitosamente." };
+  } catch (error) {
+    if (error instanceof AuthSessionExpiredError) {
+      return { success: false, message: "Sesión expirada. Por favor inicie sesión nuevamente." };
+    }
+    return { success: false, message: "Error de conexión al cambiar la contraseña" };
   }
 };
 
@@ -120,7 +152,7 @@ export const logoutAction = async () => {
   deleteAuthCookies(cookieStore);
   try {
     await fetch(
-      `${process.env.NEXT_PUBLIC_DJANGO_API_URL_SERVER}accounts/logout/`,
+      `${DJANGO_API_SERVER}accounts/logout/`,
       { method: "POST" },
     );
   } catch {

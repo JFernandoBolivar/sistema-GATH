@@ -62,12 +62,10 @@ export const getStatus = async (): Promise<ApiResponse<Status[]>> => {
   return await apiFetchGet<Status[]>(`listar-estatus/`);
 };
 export const imageProfileFn = async (id: string) => {
-  const profileImg = await fetch(
-    `${process.env.NEXT_PUBLIC_NEST_API_URL_SERVER}read-file/profile/${id}`,
-  );
-  const getProfile = await profileImg.blob();
-  return getProfile;
+  const { apiClient } = await import("@/shared/infrastructure/http/fetcher-api");
+  return await apiClient.getBlob(`/api/v1/personal/empleados/${id}/foto/`);
 };
+
 export const getStatusNomina = async (): Promise<ApiResponse<Status[]>> => {
   return await apiFetchGet<Status[]>(`estatus-gestion/`);
 };

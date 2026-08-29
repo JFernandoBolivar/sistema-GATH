@@ -1,6 +1,8 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { puede } from "@/shared/lib/evaluador-iam";
+
 
 import {
   Form,
@@ -431,8 +433,9 @@ export default function ReportEmployee() {
                         )}
                       />
                     </fieldset>
-                    {session.user.role.nombre_rol == "ADMINISTRADOR" && (
+                    {(puede(session?.user?.permisos, "reportes.generar") || session?.user?.role?.nombre_rol === "ADMINISTRADOR") && (
                       <fieldset className="flex flex-col gap-3 border-2 p-2 rounded-sm border-green-600">
+
                         <legend className="text-green-800 font-semibold">
                           Dirección Administativa Del Empleado
                         </legend>

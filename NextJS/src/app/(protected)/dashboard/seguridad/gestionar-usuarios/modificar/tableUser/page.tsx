@@ -1,10 +1,19 @@
-import { columns } from "./columns";
+import { getColumns } from "./columns";
 import { DataTable } from "./data-table";
-import { EmployeeData, UserSystem } from "@/app/types/types";
-export default function TableUser({ user }: { user: UserSystem[] }) {
+import { Depart, Role, UserSystem } from "@/app/types/types";
+
+export default function TableUser({
+  user,
+  roles,
+  departamentos,
+}: {
+  user: UserSystem[];
+  roles: Role[];
+  departamentos: Depart[];
+}) {
   return (
     <div>
-      <DataTable columns={columns} data={user || []} />
+      <DataTable columns={getColumns(roles, departamentos)} data={user || []} />
     </div>
   );
 }

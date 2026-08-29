@@ -1,5 +1,6 @@
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
+import eslintConfigPrettier from "eslint-config-prettier";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -10,7 +11,6 @@ const eslintConfig = [
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
-    // NO quites las languageOptions si ya te funcionan
     languageOptions: {
       parserOptions: {
         ecmaFeatures: {
@@ -19,16 +19,9 @@ const eslintConfig = [
       },
     },
     rules: {
-      // --- RESTRICCIONES ACTIVADAS ---
-
-      // 1. PROHIBIDO usar 'any' (Lo que querías arreglar)
       "@typescript-eslint/no-explicit-any": "error",
-
-      // 2. Obligatorio usar reglas de Hooks (Evita bugs de renderizado)
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
-
-      // 3. Limpieza de variables no usadas (Solo ignora las que empiezan con _)
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -37,15 +30,12 @@ const eslintConfig = [
           caughtErrorsIgnorePattern: "^_",
         },
       ],
-
-      // 4. Reactivar advertencias de imágenes y accesibilidad
       "@next/next/no-img-element": "warn",
       "jsx-a11y/alt-text": "warn",
-
-      // 5. No permitir expresiones sin uso (ej: funciones que no se llaman)
       "@typescript-eslint/no-unused-expressions": "error",
     },
   },
+  eslintConfigPrettier,
   {
     ignores: [
       "node_modules/**",

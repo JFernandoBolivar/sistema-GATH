@@ -1,6 +1,8 @@
 "use client";
 import { useSession } from "next-auth/react";
+import { puede } from "@/shared/lib/evaluador-iam";
 import { Family } from "@/app/types/types";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,9 +57,12 @@ interface Props {
   family: Family;
 }
 export function DetailInfoFamily({ family }: Props) {
-  // El rol RECEPCIONISTA sólo consulta: se ocultan los accesos a edición.
+  // PBAC: soloLectura si no tiene permiso de edición de familiares
   const { data: session } = useSession();
-  const soloLectura = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
+  const soloLectura =
+    !puede(session?.user?.permisos, "familiares.editar") ||
+    session?.user?.role?.nombre_rol === "RECEPCIONISTA";
+
   const { mutate } = useSWRConfig();
   const { data: docsData } = useSWR(
     `family-docs-${family.id}`,
