@@ -128,3 +128,43 @@ export async function listarInstituciones(repo: RepoCatalogos): Promise<Catalogo
   const entidades = await repo.listarInstituciones();
   return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
 }
+
+export async function listarTiposPrenda(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarTiposPrenda();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}
+
+export async function listarRegionesTalla(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarRegionesTalla();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}
+
+export async function listarTallas(repo: RepoCatalogos, tipoPrendaId?: number): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarTallas(tipoPrendaId);
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}
+
+export async function listarCapacitaciones(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarCapacitaciones();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}
+
+export async function listarGruposCapacitacion(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarGruposCapacitacion();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}
+
+export async function listarAlergias(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarAlergias();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}
+
+export async function listarPatologias(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarPatologias();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}
+
+export async function listarDiscapacidades(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarDiscapacidades();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}

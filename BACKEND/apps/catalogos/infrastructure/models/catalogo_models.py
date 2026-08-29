@@ -33,11 +33,11 @@ class EstatusModel(models.Model):
 
 
 class TipoPersonalModel(models.Model):
-    tipo_personal = models.CharField(max_length=50, unique=True)
+    tipo_personal = models.CharField(max_length=50, unique=True, db_column='tipoPersonal')
 
     class Meta:
         managed = False
-        db_table = 'Tipo_personal'
+        db_table = 'TipoPersonal'
         ordering = ['tipo_personal']
         verbose_name = 'tipo de personal'
         verbose_name_plural = 'tipos de personal'
@@ -63,17 +63,17 @@ class TipoNominaModel(models.Model):
 
 
 class ParentescoModel(models.Model):
-    parentesco = models.CharField(max_length=50, unique=True)
+    descripcion_parentesco = models.CharField(max_length=50, unique=True, db_column='descripcion_parentesco')
 
     class Meta:
         managed = False
-        db_table = 'Parentesco'
-        ordering = ['parentesco']
+        db_table = 'RAC_parentesco'
+        ordering = ['descripcion_parentesco']
         verbose_name = 'parentesco'
         verbose_name_plural = 'parentescos'
 
     def __str__(self) -> str:
-        return self.parentesco
+        return self.descripcion_parentesco
 
 
 class TipoProcedenciaModel(models.Model):
@@ -123,7 +123,7 @@ class CategoriaMovimientoModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'categoria_movimiento'
+        db_table = 'RAC_categoria_movimiento'
         ordering = ['categoria']
         verbose_name = 'categoría de movimiento'
         verbose_name_plural = 'categorías de movimiento'

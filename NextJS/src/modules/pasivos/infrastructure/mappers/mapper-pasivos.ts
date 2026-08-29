@@ -21,5 +21,6 @@ export function pasivoApiAEntidad(raw: PasivoApiItem): Pasivo {
     contactoEmergencia: raw.contacto_emergencia,
     antecedentes: raw.antecedentes,
     contratoActual: raw.contrato_actual,
+    cargosHistorial: raw.cargos_historial ?? [],
   };
 }

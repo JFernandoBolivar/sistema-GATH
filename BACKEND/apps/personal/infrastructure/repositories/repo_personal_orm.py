@@ -22,14 +22,22 @@ from apps.personal.infrastructure.models.expediente_models import (
     PerfilSaludModel,
 )
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    AlergiaModel,
     CarreraModel,
     CodigoPostalModel,
     CondicionViviendaModel,
+    DiscapacidadModel,
+    GrupoCapacitacionModel,
     GrupoSanguineoModel,
     InstitucionModel,
     MencionModel,
     NivelAcademicoModel,
+    PatologiaCronicaModel,
     PoliticaModel,
+    RegionTallaModel,
+    TallaModel,
+    TipoPrendaModel,
+    CapacitacionModel,
 )
 from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
 from apps.catalogos.infrastructure.models.catalogo_models import EstatusModel
@@ -303,3 +311,30 @@ class RepoPersonalORM:
 
     def listar_instituciones(self) -> list:
         return list(InstitucionModel.objects.all().order_by('nombre_institucion'))
+
+    def listar_tipos_prenda(self) -> list:
+        return list(TipoPrendaModel.objects.all().order_by('categoria'))
+
+    def listar_regiones_talla(self) -> list:
+        return list(RegionTallaModel.objects.all().order_by('codigo'))
+
+    def listar_tallas(self, tipo_prenda_id: int | None = None) -> list:
+        qs = TallaModel.objects.select_related('tipo_prenda', 'region').all().order_by('valor')
+        if tipo_prenda_id is not None:
+            qs = qs.filter(tipo_prenda_id=tipo_prenda_id)
+        return list(qs)
+
+    def listar_capacitaciones(self) -> list:
+        return list(CapacitacionModel.objects.all().order_by('nombre_capacitacion'))
+
+    def listar_grupos_capacitacion(self) -> list:
+        return list(GrupoCapacitacionModel.objects.all().order_by('nombre_grupo'))
+
+    def listar_alergias(self) -> list:
+        return list(AlergiaModel.objects.select_related('categoria').all().order_by('alergia'))
+
+    def listar_patologias(self) -> list:
+        return list(PatologiaCronicaModel.objects.all().order_by('patologia'))
+
+    def listar_discapacidades(self) -> list:
+        return list(DiscapacidadModel.objects.all().order_by('discapacidad'))

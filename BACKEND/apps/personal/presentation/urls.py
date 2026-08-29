@@ -10,14 +10,22 @@ from apps.personal.presentation.views.personal_views import (
     EmpleadosListView,
 )
 from apps.personal.presentation.views.catalogos_soporte_views import (
+    AlergiasListView,
     CarrerasListView,
+    CapacitacionesListView,
     CodigosPostalesListView,
     CondicionesViviendaListView,
+    DiscapacidadesListView,
+    GruposCapacitacionListView,
     GruposSanguineosListView,
     InstitucionesListView,
     MencionesListView,
     NivelesAcademicosListView,
+    PatologiasListView,
     PoliticasListView,
+    RegionesTallaListView,
+    TallasListView,
+    TiposPrendaListView,
 )
 
 app_name = 'personal'
@@ -34,6 +42,14 @@ urlpatterns = [
     path('catalogos/carreras/', CarrerasListView.as_view(), name='catalogos-carreras'),
     path('catalogos/menciones/', MencionesListView.as_view(), name='catalogos-menciones'),
     path('catalogos/instituciones/', InstitucionesListView.as_view(), name='catalogos-instituciones'),
+    path('catalogos/tipos-prenda/', TiposPrendaListView.as_view(), name='catalogos-tipos-prenda'),
+    path('catalogos/regiones-talla/', RegionesTallaListView.as_view(), name='catalogos-regiones-talla'),
+    path('catalogos/tallas/', TallasListView.as_view(), name='catalogos-tallas'),
+    path('catalogos/capacitaciones/', CapacitacionesListView.as_view(), name='catalogos-capacitaciones'),
+    path('catalogos/grupos-capacitacion/', GruposCapacitacionListView.as_view(), name='catalogos-grupos-capacitacion'),
+    path('catalogos/alergias/', AlergiasListView.as_view(), name='catalogos-alergias'),
+    path('catalogos/patologias/', PatologiasListView.as_view(), name='catalogos-patologias'),
+    path('catalogos/discapacidades/', DiscapacidadesListView.as_view(), name='catalogos-discapacidades'),
     path('<str:cedula>/', EmpleadoDetailView.as_view(), name='empleado-detail'),
     path('<str:cedula>/foto/', EmpleadoFotoView.as_view(), name='empleado-foto'),
 ]

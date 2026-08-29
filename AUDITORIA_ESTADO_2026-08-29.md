@@ -97,42 +97,61 @@ Las server actions de `modules/*/infrastructure/actions/*-actions.ts` ahora vali
 ### 🔴 Prioridad 1 — Deuda crítica / riesgo
 | # | Ítem | Lado | Nota |
 |---|---|---|---|
-| 1 | **Commitear el estado actual** (apps/core/GATH/modules untracked + legado `D`). | Ambos | Sin esto, todo lo construido está en riesgo de perderse. Ver §4. |
-| 2 | **Validar esquema Postgres real** de las tablas legado espejo (`managed=False`/`db_table` en ~30 tablas). | Backend | Es requisito previo para modelar perfil físico, formación, M2M salud y CargoEgresado. Bloquea toda la paridad funcional restante. |
+| ~~1~~ | ~~Commitear el estado actual~~ | Ambos | ✅ **RESUELTO** — 7 commits atómicos en `feature/arquitectura-onion` (ver §7) |
+| 2 | **Validar esquema Postgres real** de las tablas legado espejo | Backend | ✅ **RESUELTO** — validado contra BD (PostgreSQL 18.4). Se corrigieron ~14 `db_table`/`db_column` erróneos (catálogos `RAC_*`, `TipoPersonal`, `Coordinaciones`). Quedó como requisito informativo: los datos de `perfil_fisico`/`formacion_complementaria` están en 0 (no migrados), los catálogos sí. |
 
 ### 🟠 Prioridad 2 — Paridad funcional (datos que el frontend legado usa y el backend nuevo no persiste)
 | # | Bloque | Uso frontend legado | Estado |
 |---|---|---|---|
-| 3 | `perfil_fisico` (tallas camisa/pantalón/zapato/chaqueta) | ~19–35× | ❌ Sin modelo/endpoint en `apps/*` |
-| 4 | `formacion_complementaria` (capacitaciones/cursos) | ~54× (`capacitacion` 121×) | ❌ Sin modelo/endpoint |
-| 5 | Salud M2M (alergias / patología crónica / discapacidad) | ~60–104× | ❌ `PerfilSaludModel` solo tiene `grupo_sanguineo` |
-| 6 | `CargoEgresado` (cargos al pasivar) | — | ❌ 0 resultados en `apps/`; reportes de egresados fallan |
+| 3 | `perfil_fisico` (tallas camisa/pantalón/zapato/chaqueta) | ~19–35× | ✅ **Modelo + catálogos listos** (`PerfilFisicoModel`, `TallaModel`/`TipoPrendaModel`/`RegionTallaModel`). Pendiente: escritura desde carga masiva |
+| 4 | `formacion_complementaria` (capacitaciones/cursos) | ~54× (`capacitacion` 121×) | ✅ **Modelo + catálogos listos** (`FormacionComplementariaModel`, `CapacitacionModel`/`GrupoCapacitacionModel`) |
+| 5 | Salud M2M (alergias / patología crónica / discapacidad) | ~60–104× | ✅ **Modelo + M2M + catálogos listos** (`PerfilSaludModel` ampliado, `AlergiaModel`/`PatologiaCronicaModel`/`DiscapacidadModel`) |
+| 6 | `CargoEgresado` (cargos al pasivar) | — | ✅ **Modelo + escritura en `procesar_egreso` + serializer** (`CargoEgresadoModel`, `cargos_historial` en el detalle) |
 | 7 | CRUD organización | — | ⚠️ Solo GET (faltan POST/PUT/DELETE) |
 | 8 | CRUD códigos de cargo (denominaciones) | — | ⚠️ Solo GET (faltan alta/edición) |
+| 9 | Catálogos sin API | — | ✅ **Exportados** (~20 nuevos: estados-civiles, políticas, vivienda, códigos postales, sanguíneos, niveles, carreras, menciones, instituciones, tallas, prendas, regiones-talla, capacitaciones, grupos, alergias, patologías, discapacidades) |
+
 
 > Todos los de prioridad 2 requieren **validar BD + decisión de negocio** (asalariados vs nómina, qué campos son editables, etc.).
 
 ### 🟡 Prioridad 3 — Frontend funcional
 | # | Ítem | Nota |
 |---|---|---|
-| 9 | Construir UI (`*-page.tsx`) de los 7 módulos sin componente: `autogestion`, `cargos`, `carnetizacion`, `familiares`, `organizacion`, `personal`, `reportes` | Solo tienen schema zod; sin componente no pueden conectarse a `app/` |
-| 10 | Retirar el legado del dashboard (`app/(protected)/dashboard/`, 263 archivos) y el legado de `shared/{forms,schemas,components}` | Fase 8; 116 imports del legado de `shared/` apuntan al dashboard |
-| 11 | `eslint-plugin-boundaries` para enforcement automático de R1-R3 en frontend | F1.5 pendiente |
-| 12 | Storybook/Chromatic, Dockerfiles multi-stage | F6/F7/T1.7 pendientes |
+| 10 | Construir UI (`*-page.tsx`) de los 7 módulos sin componente: `autogestion`, `cargos`, `carnetizacion`, `familiares`, `organizacion`, `personal`, `reportes` | Solo tienen schema zod; sin componente no pueden conectarse a `app/` |
+| 11 | Retirar el legado del dashboard (`app/(protected)/dashboard/`, 263 archivos) y el legado de `shared/{forms,schemas,components}` | Fase 8; 116 imports del legado de `shared/` apuntan al dashboard |
+| 12 | `eslint-plugin-boundaries` para enforcement automático de R1-R3 en frontend | F1.5 pendiente |
+| 13 | Storybook/Chromatic, Dockerfiles multi-stage | F6/F7/T1.7 pendientes |
 
 ### 🟢 Prioridad 4 — Diferido / menor
 | # | Ítem | Ref. |
 |---|---|---|
-| 13 | D-05/A-02: trigger PL/pgSQL `calcular_total_apn()` vs Python | Requiere decisión RRHH |
-| 14 | R-03: `extract_first_error` no absorbido (~28 call-sites) | exception_handler |
-| 15 | R15 residual: `NEXT_PUBLIC_DJANGO` en 4 archivos cliente-legado | Proxy F4 |
-| 16 | R16 residual: `nombre_rol` hardcodeado en `proxy.ts` (RECEPCIONISTA/AUTOGESTION) y sidebars | Sustituir en F9 |
-| 17 | Bug latente `repo_reportes_orm.py:66` — campos inexistentes en `AsigTrabajoModel` | Reporte de vacantes |
+| 14 | D-05/A-02: trigger PL/pgSQL `calcular_total_apn()` vs Python | Requiere decisión RRHH |
+| 15 | R-03: `extract_first_error` no absorbido (~28 call-sites) | exception_handler |
+| 16 | R15 residual: `NEXT_PUBLIC_DJANGO` en 4 archivos cliente-legado | Proxy F4 |
+| 17 | R16 residual: `nombre_rol` hardcodeado en `proxy.ts` (RECEPCIONISTA/AUTOGESTION) y sidebars | Sustituir en F9 |
+| 18 | Bug latente `repo_reportes_orm.py:66` — campos inexistentes en `AsigTrabajoModel` | Reporte de vacantes |
+| 19 | Escritura de `perfil_fisico`/`formacion_complementaria`/M2M salud desde carga masiva | Los modelos/endpoints están; falta la escritura en el flujo de alta/edición |
 
 ---
 
-## 6. Conclusión
+## 7. Seguimiento de la sesión (paridad funcional backend)
 
-La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK). El **frontend `modules/` cumple las reglas** de arquitectura y seguridad (safeParse, VOs puros, kebab-case, `@/`), pero **la migración no está completa**: faltan 7 módulos con UI real, el legado del dashboard está activo, y la **paridad funcional de datos** (perfil físico, formación, salud M2M, CargoEgresado, CRUDs) está abierta — bloqueada por la **falta de validación del esquema Postgres** y por decisiones de negocio.
+Tras commitear el estado base, se ejecutó la **paridad funcional** validando contra la BD real:
 
-**El riesgo más inmediato no es funcional, es git:** toda la reconstrucción está sin versionar y el legado backend borrado sin commit. Documentado y recomendado priorizar.
+| Sub-tarea | Resultado |
+|---|---|
+| Validación del esquema Postgres (PostgreSQL 18.4) | ✅ Tablas físicas listadas y columnas verificadas |
+| Corrección de `db_table`/`db_column` erróneos (~14) | ✅ Catálogos `RAC_*` (parentesco, carreras, menciones, instituciones, cond. vivienda, grupos sanguínceos, región/estado/municipio/parroquia, categoría-movimiento), `TipoPersonal` (columna `tipoPersonal`), `Coordinaciones` (FK sobrante) |
+| Modelos nuevos: `PerfilFisicoModel`, `FormacionComplementariaModel`, M2M salud en `PerfilSaludModel` | ✅ Creados sobre tablas físicas, verificados consultando |
+| Catálogos nuevos exportados como endpoints | ✅ ~17 endpoints nuevos en `apps/personal/catalogos/*` |
+| `CargoEgresadoModel` + escritura en `procesar_egreso_a_pasivo` + serializer `cargos_historial` | ✅ Crea `EmployeeEgresado` + snapshot del cargo al pasivar |
+| Endpoints de catálogos wireados en frontend (`catalogos-api`/`actions`/`catalogos-page`) | ✅ |
+| Verificación final | **70/70 contratos import-linter** · `manage.py check` OK · **176 passed** (4 preexistentes RAC) · frontend **84 tests** · **0 errores tsc** en `modules`/`shared` |
+
+---
+
+## 8. Conclusión
+
+La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK) y la **paridad funcional de datos quedó habilitada**: modelos + catálogos + endpoints + snapshot `CargoEgresado`, todos validados contra el esquema Postgres real. El **frontend `modules/` cumple las reglas** de arquitectura y seguridad (safeParse, VOs puros, kebab-case, `@/`).
+
+La migración **aún no está completa** en el frente de producto: faltan **7 módulos con UI real**, el legado del dashboard sigue activo (Fase 8), y quedan los **CRUDs** de organización/códigos de cargo (requieren decisión de negocio sobre qué campos son editables). El riesgo de git quedó resuelto con los commits atómicos (§7).

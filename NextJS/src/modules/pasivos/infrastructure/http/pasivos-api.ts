@@ -19,6 +19,7 @@ export interface PasivoApiItem {
   contacto_emergencia: Record<string, unknown>[];
   antecedentes: Record<string, unknown>[];
   contrato_actual: Record<string, unknown> | null;
+  cargos_historial: Record<string, unknown>[];
 }
 
 export interface ProcesarEgresoApiBody {

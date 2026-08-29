@@ -8,6 +8,8 @@ from apps.personal.infrastructure.models.expediente_models import (
     ContratoModel,
     DatosViviendaModel,
     FormacionAcademicaModel,
+    FormacionComplementariaModel,
+    PerfilFisicoModel,
     PerfilSaludModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
@@ -79,7 +81,37 @@ def vivienda_a_dict(v) -> dict | None:
 def salud_a_dict(s) -> dict | None:
     if not s:
         return None
-    return {'grupo_sanguineo_id': s.grupo_sanguineo_id}
+    return {
+        'grupo_sanguineo_id': s.grupo_sanguineo_id,
+        'alergias': list(s.alergias.values_list('id', flat=True)),
+        'patologias_cronicas': list(s.patologiaCronica.values_list('id', flat=True)),
+        'discapacidades': list(s.discapacidad.values_list('id', flat=True)),
+    }
+
+
+def perfil_fisico_a_dict(p) -> dict | None:
+    if not p:
+        return None
+    return {
+        'talla_camisa_id': p.tallaCamisa_id,
+        'talla_pantalon_id': p.tallaPantalon_id,
+        'talla_zapatos_id': p.tallaZapatos_id,
+        'talla_chaqueta_id': p.tallaChaqueta_id,
+    }
+
+
+def formacion_complementaria_a_dict(f) -> dict:
+    return {
+        'id': f.pk,
+        'capacitacion_id': f.capacitacion_id,
+        'institucion_id': f.institucion_id,
+        'fecha_inicio': f.fechaInicio.isoformat() if f.fechaInicio else None,
+        'fecha_fin': f.fechaFin.isoformat() if f.fechaFin else None,
+        'dias_completados': f.dias_completados,
+        'horas_completadas': f.horas_completadas,
+        'procedencia_id': f.procedencia_id,
+        'grupo_id': f.grupo_id,
+    }
 
 
 def formacion_a_dict(f) -> dict:
@@ -144,8 +176,13 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
     return {
         'datos_vivienda': vivienda_a_dict(DatosViviendaModel.objects.filter(empleado=empleado).first()),
         'perfil_salud': salud_a_dict(PerfilSaludModel.objects.filter(empleado=empleado).first()),
+        'perfil_fisico': perfil_fisico_a_dict(PerfilFisicoModel.objects.filter(empleado=empleado).first()),
         'formacion_academica': [
             formacion_a_dict(f) for f in FormacionAcademicaModel.objects.filter(empleado=empleado)
+        ],
+        'formacion_complementaria': [
+            formacion_complementaria_a_dict(f)
+            for f in FormacionComplementariaModel.objects.filter(empleado=empleado)
         ],
         'contacto_emergencia': [
             contacto_emergencia_a_dict(c) for c in ContactoEmergenciaModel.objects.filter(empleado=empleado)

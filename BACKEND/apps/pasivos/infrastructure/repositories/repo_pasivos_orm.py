@@ -12,7 +12,10 @@ from apps.pasivos.infrastructure.mappers.mapper_pasivos import (
     pasivo_a_entidad,
     pasivo_desde_asignacion,
 )
-from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
+from apps.pasivos.infrastructure.models.pasivo_models import (
+    CargoEgresadoModel,
+    EmployeeEgresadoModel,
+)
 
 # Import entre módulos de dominio (apps.personal, apps.cargos, apps.catalogos,
 # apps.organizacion) en la capa infrastructure: mismo patrón ya establecido
@@ -164,6 +167,36 @@ class RepoPasivosORM:
             DireccionGeneral=dg_humana,
             OrganismoAdscritoid=ultima_asig.OrganismoAdscritoid,
             observaciones=f"Cargo pasivo generado. {motivo.movimiento}",
+        )
+
+        # Fase 8 de paridad funcional: snapshot histórico de los cargos al
+        # pasivar (`CargoEgresado`). Referencia al `EmployeeEgresado` creado
+        # aquí y guarda los detalles del cargo que se libera. Si ya existe un
+        # `EmployeeEgresado` para esta cédula (egreso previo con liberar_activos),
+        # se reutiliza; si no, se crea.
+        egreso = (
+            EmployeeEgresadoModel.objects.filter(employee=empleado).order_by('-fecha_egreso').first()
+        )
+        if not egreso:
+            egreso = EmployeeEgresadoModel.objects.create(
+                employee=empleado,
+                n_contrato=ultima_asig.codigo,
+                fechaingresoorganismo=timezone.now().date(),
+                motivo_egreso=motivo,
+            )
+        CargoEgresadoModel.objects.create(
+            egreso=egreso,
+            codigo=ultima_asig.codigo,
+            denominacioncargoid=ultima_asig.denominacioncargoid,
+            denominacioncargoespecificoid=ultima_asig.denominacioncargoespecificoid,
+            gradoId=ultima_asig.gradoid,
+            tipoNominaId=tipo_nomina,
+            tipoPersonalId=tipo_pasivo,
+            dependenciaId=ultima_asig.Dependencia,
+            direccionGeneralId=ultima_asig.DireccionGeneral,
+            direccionLineaId=ultima_asig.DireccionLinea,
+            coordinacionId=ultima_asig.Coordinacion,
+            organismoAdscritoId=ultima_asig.OrganismoAdscritoid,
         )
 
         # Fase 2.5 del plan de reparación: cierra el gap que quedó

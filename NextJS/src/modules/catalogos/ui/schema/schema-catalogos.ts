@@ -30,6 +30,14 @@ export const CATALOGOS_CODIGOS = [
   "carreras",
   "menciones",
   "instituciones",
+  "tipos-prenda",
+  "regiones-talla",
+  "tallas",
+  "capacitaciones",
+  "grupos-capacitacion",
+  "alergias",
+  "patologias",
+  "discapacidades",
 ] as const;
 
 export const catalogoFiltroSchema = z.object({

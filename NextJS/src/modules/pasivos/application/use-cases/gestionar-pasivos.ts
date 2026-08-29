@@ -23,6 +23,7 @@ function aDto(e: PasivoEntity): PasivoDTO {
     contactoEmergencia: e.contactoEmergencia,
     antecedentes: e.antecedentes,
     contratoActual: e.contratoActual,
+    cargosHistorial: e.cargosHistorial,
   };
 }
 

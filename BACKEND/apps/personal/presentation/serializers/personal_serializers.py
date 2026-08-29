@@ -9,6 +9,8 @@ from core.presentation.serializers.expediente_lectura import (
     ContratoLecturaSerializer,
     DatosViviendaLecturaSerializer,
     FormacionAcademicaLecturaSerializer,
+    FormacionComplementariaLecturaSerializer,
+    PerfilFisicoLecturaSerializer,
     PerfilSaludLecturaSerializer,
 )
 
@@ -35,7 +37,9 @@ class EmpleadoSerializer(serializers.Serializer):
     # en `repo_personal_orm.py`).
     datos_vivienda = DatosViviendaLecturaSerializer(read_only=True, allow_null=True)
     perfil_salud = PerfilSaludLecturaSerializer(read_only=True, allow_null=True)
+    perfil_fisico = PerfilFisicoLecturaSerializer(read_only=True, allow_null=True)
     formacion_academica = FormacionAcademicaLecturaSerializer(read_only=True, many=True)
+    formacion_complementaria = FormacionComplementariaLecturaSerializer(read_only=True, many=True)
     contacto_emergencia = ContactoEmergenciaLecturaSerializer(read_only=True, many=True)
     antecedentes = AntecedenteServicioLecturaSerializer(read_only=True, many=True)
     contrato_actual = ContratoLecturaSerializer(read_only=True, allow_null=True)

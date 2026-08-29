@@ -32,6 +32,14 @@ import {
   listarCarreras,
   listarMenciones,
   listarInstituciones,
+  listarTiposPrenda,
+  listarRegionesTalla,
+  listarTallas,
+  listarCapacitaciones,
+  listarGruposCapacitacion,
+  listarAlergias,
+  listarPatologias,
+  listarDiscapacidades,
 } from "../../application/use-cases/listar-catalogos";
 import { repoCatalogosApi } from "../repositories/repo-catalogos-api";
 import { idPadreFiltroSchema } from "../../ui/schema/schema-catalogos";
@@ -351,6 +359,121 @@ export async function getInstitucionesAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getInstitucionesAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getTiposPrendaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarTiposPrenda(repoCatalogosApi);
+    await logAudit({ traceId, action: "getTiposPrendaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTiposPrendaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getRegionesTallaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarRegionesTalla(repoCatalogosApi);
+    await logAudit({ traceId, action: "getRegionesTallaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getRegionesTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getTallasAction(tipoPrendaId?: number) {
+  const validated = idPadreFiltroSchema.safeParse({ idPadre: tipoPrendaId });
+  const id = validated.success ? validated.data.idPadre ?? undefined : undefined;
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarTallas(repoCatalogosApi, id);
+    await logAudit({ traceId, action: "getTallasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTallasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getCapacitacionesAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCapacitaciones(repoCatalogosApi);
+    await logAudit({ traceId, action: "getCapacitacionesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCapacitacionesAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getGruposCapacitacionAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarGruposCapacitacion(repoCatalogosApi);
+    await logAudit({ traceId, action: "getGruposCapacitacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getGruposCapacitacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getAlergiasAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarAlergias(repoCatalogosApi);
+    await logAudit({ traceId, action: "getAlergiasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getAlergiasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getPatologiasAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarPatologias(repoCatalogosApi);
+    await logAudit({ traceId, action: "getPatologiasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getPatologiasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getDiscapacidadesAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarDiscapacidades(repoCatalogosApi);
+    await logAudit({ traceId, action: "getDiscapacidadesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getDiscapacidadesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

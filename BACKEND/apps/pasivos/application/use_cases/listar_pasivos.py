@@ -23,6 +23,7 @@ def pasivo_a_dto(p: Pasivo) -> PasivoDTO:
         contacto_emergencia=p.contacto_emergencia,
         antecedentes=p.antecedentes,
         contrato_actual=p.contrato_actual,
+        cargos_historial=p.cargos_historial,
     )
 
 

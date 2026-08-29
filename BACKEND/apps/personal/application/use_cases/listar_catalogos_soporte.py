@@ -47,3 +47,35 @@ def listar_menciones(items) -> list[CatalogoItemDTO]:
 
 def listar_instituciones(items) -> list[CatalogoItemDTO]:
     return [CatalogoItemDTO(id=i.pk, nombre=i.nombre_institucion) for i in items]
+
+
+def listar_tipos_prenda(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.categoria) for i in items]
+
+
+def listar_regiones_talla(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.descripcion or i.codigo) for i in items]
+
+
+def listar_tallas(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.valor) for i in items]
+
+
+def listar_capacitaciones(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.nombre_capacitacion) for i in items]
+
+
+def listar_grupos_capacitacion(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.nombre_grupo) for i in items]
+
+
+def listar_alergias(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.alergia) for i in items]
+
+
+def listar_patologias(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.patologia) for i in items]
+
+
+def listar_discapacidades(items) -> list[CatalogoItemDTO]:
+    return [CatalogoItemDTO(id=i.pk, nombre=i.discapacidad) for i in items]

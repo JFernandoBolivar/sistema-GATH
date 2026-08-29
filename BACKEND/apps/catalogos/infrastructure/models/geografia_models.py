@@ -9,7 +9,7 @@ class RegionModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'Region'
+        db_table = 'RAC_region'
         verbose_name = 'región'
         verbose_name_plural = 'regiones'
 
@@ -30,7 +30,7 @@ class EstadoModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'Estado'
+        db_table = 'RAC_estado'
         ordering = ['estado']
         verbose_name = 'estado'
         verbose_name_plural = 'estados'
@@ -50,7 +50,7 @@ class MunicipioModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'Municipio'
+        db_table = 'RAC_municipio'
         ordering = ['municipio']
         verbose_name = 'municipio'
         verbose_name_plural = 'municipios'
@@ -70,7 +70,7 @@ class ParroquiaModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'Parroquia'
+        db_table = 'RAC_parroquia'
         ordering = ['parroquia']
         verbose_name = 'parroquia'
         verbose_name_plural = 'parroquias'

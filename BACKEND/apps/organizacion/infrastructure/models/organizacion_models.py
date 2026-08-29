@@ -75,14 +75,6 @@ class CoordinacionModel(models.Model):
         db_column='direccionLineaId',
         related_name='coordinaciones',
     )
-    direccionGeneral = models.ForeignKey(
-        DireccionGeneralModel,
-        models.PROTECT,
-        null=True,
-        blank=True,
-        db_column='direccionGeneralId',
-        related_name='coordinaciones_directas',
-    )
 
     class Meta:
         managed = False

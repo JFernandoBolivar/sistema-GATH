@@ -121,4 +121,44 @@ export const repoCatalogosApi: RepoCatalogos = {
     const raw = await catalogosApi.getInstituciones();
     return raw.map(catalogoApiAEntidad);
   },
+
+  async listarTiposPrenda() {
+    const raw = await catalogosApi.getTiposPrenda();
+    return raw.map(catalogoApiAEntidad);
+  },
+
+  async listarRegionesTalla() {
+    const raw = await catalogosApi.getRegionesTalla();
+    return raw.map(catalogoApiAEntidad);
+  },
+
+  async listarTallas(tipoPrendaId?: number) {
+    const raw = await catalogosApi.getTallas(tipoPrendaId);
+    return raw.map(catalogoApiAEntidad);
+  },
+
+  async listarCapacitaciones() {
+    const raw = await catalogosApi.getCapacitaciones();
+    return raw.map(catalogoApiAEntidad);
+  },
+
+  async listarGruposCapacitacion() {
+    const raw = await catalogosApi.getGruposCapacitacion();
+    return raw.map(catalogoApiAEntidad);
+  },
+
+  async listarAlergias() {
+    const raw = await catalogosApi.getAlergias();
+    return raw.map(catalogoApiAEntidad);
+  },
+
+  async listarPatologias() {
+    const raw = await catalogosApi.getPatologias();
+    return raw.map(catalogoApiAEntidad);
+  },
+
+  async listarDiscapacidades() {
+    const raw = await catalogosApi.getDiscapacidades();
+    return raw.map(catalogoApiAEntidad);
+  },
 };

@@ -40,13 +40,17 @@ import {
 
 import type { CatalogoItemDTO } from "../application/dtos/catalogos-dto";
 import {
+  getAlergiasAction,
   getCarrerasAction,
+  getCapacitacionesAction,
   getCodigosPostalesAction,
   getCondicionesViviendaAction,
+  getDiscapacidadesAction,
   getEstadosAction,
   getEstadosCivilesAction,
   getEstatusAction,
   getGradosAction,
+  getGruposCapacitacionAction,
   getGruposSanguineosAction,
   getInstitucionesAction,
   getMencionesAction,
@@ -54,11 +58,15 @@ import {
   getNivelesAcademicosAction,
   getParentescosAction,
   getParroquiasAction,
+  getPatologiasAction,
   getPoliticasAction,
   getRegionesAction,
+  getRegionesTallaAction,
   getSexosAction,
+  getTallasAction,
   getTiposNominaAction,
   getTiposPersonalAction,
+  getTiposPrendaAction,
   getTiposProcedenciaAction,
   getCategoriasMovimientoAction,
   getTiposMovimientoAction,
@@ -93,6 +101,14 @@ const ETIQUETAS: Record<CodigoCatalogo, string> = {
   carreras: "Carreras",
   menciones: "Menciones",
   instituciones: "Instituciones",
+  "tipos-prenda": "Tipos de prenda",
+  "regiones-talla": "Regiones de talla",
+  tallas: "Tallas",
+  capacitaciones: "Capacitaciones",
+  "grupos-capacitacion": "Grupos de capacitación",
+  alergias: "Alergias",
+  patologias: "Patologías crónicas",
+  discapacidades: "Discapacidades",
 };
 
 /**
@@ -124,6 +140,14 @@ const CARGAR: Partial<Record<CodigoCatalogo, () => Promise<CatalogoItemDTO[]>>> 
   carreras: () => getCarrerasAction(),
   menciones: () => getMencionesAction(),
   instituciones: () => getInstitucionesAction(),
+  "tipos-prenda": () => getTiposPrendaAction(),
+  "regiones-talla": () => getRegionesTallaAction(),
+  tallas: () => getTallasAction(),
+  capacitaciones: () => getCapacitacionesAction(),
+  "grupos-capacitacion": () => getGruposCapacitacionAction(),
+  alergias: () => getAlergiasAction(),
+  patologias: () => getPatologiasAction(),
+  discapacidades: () => getDiscapacidadesAction(),
 };
 
 const COLUMNAS = 2;

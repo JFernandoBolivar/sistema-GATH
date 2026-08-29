@@ -71,4 +71,15 @@ export const catalogosApi = {
       params: carreraId ? { carrera_id: carreraId } : undefined,
     }),
   getInstituciones: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/instituciones/"),
+  getTiposPrenda: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/tipos-prenda/"),
+  getRegionesTalla: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/regiones-talla/"),
+  getTallas: (tipoPrendaId?: number) =>
+    apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/tallas/", {
+      params: tipoPrendaId ? { tipo_prenda_id: tipoPrendaId } : undefined,
+    }),
+  getCapacitaciones: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/capacitaciones/"),
+  getGruposCapacitacion: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/grupos-capacitacion/"),
+  getAlergias: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/alergias/"),
+  getPatologias: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/patologias/"),
+  getDiscapacidades: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/discapacidades/"),
 };

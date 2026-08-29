@@ -19,6 +19,7 @@ export interface PasivoDTO {
   contactoEmergencia: Record<string, unknown>[];
   antecedentes: Record<string, unknown>[];
   contratoActual: Record<string, unknown> | null;
+  cargosHistorial: Record<string, unknown>[];
 }
 
 export type PasivoDTOItem = PasivoDTO;

@@ -3,14 +3,23 @@ Re-exportador de modelos ORM del módulo personal (Regla B26).
 """
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    AlergiaModel,
     CarreraModel,
+    CapacitacionModel,
+    CategoriaAlergiaModel,
     CodigoPostalModel,
     CondicionViviendaModel,
+    DiscapacidadModel,
+    GrupoCapacitacionModel,
     GrupoSanguineoModel,
     InstitucionModel,
     MencionModel,
     NivelAcademicoModel,
+    PatologiaCronicaModel,
     PoliticaModel,
+    RegionTallaModel,
+    TallaModel,
+    TipoPrendaModel,
 )
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
@@ -18,6 +27,8 @@ from apps.personal.infrastructure.models.expediente_models import (
     ContratoModel,
     DatosViviendaModel,
     FormacionAcademicaModel,
+    FormacionComplementariaModel,
+    PerfilFisicoModel,
     PerfilSaludModel,
 )
 
@@ -31,10 +42,21 @@ __all__ = [
     'CarreraModel',
     'MencionModel',
     'InstitucionModel',
+    'TipoPrendaModel',
+    'RegionTallaModel',
+    'TallaModel',
+    'CapacitacionModel',
+    'GrupoCapacitacionModel',
+    'AlergiaModel',
+    'CategoriaAlergiaModel',
+    'PatologiaCronicaModel',
+    'DiscapacidadModel',
     'AntecedenteServicioModel',
     'ContratoModel',
     'DatosViviendaModel',
     'PerfilSaludModel',
+    'PerfilFisicoModel',
     'FormacionAcademicaModel',
+    'FormacionComplementariaModel',
     'ContactoEmergenciaModel',
 ]

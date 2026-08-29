@@ -125,9 +125,9 @@ WSGI_APPLICATION = 'GATH.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DJANGO_DB_NAME', default='SIGEP'),
-        'USER': config('DJANGO_DB_USER', default='postgres'),
-        'PASSWORD': config('DJANGO_DB_PASSWORD', default='admin'),
+        'NAME': config('DJANGO_DB_NAME'),
+        'USER': config('DJANGO_DB_USER'),
+        'PASSWORD': config('DJANGO_DB_PASSWORD'),
         'HOST': config('DJANGO_DB_HOST', default='localhost'),
         'PORT': config('DJANGO_DB_PORT', default='5432'),
     }

@@ -34,4 +34,5 @@ export interface Pasivo {
   contactoEmergencia: Record<string, unknown>[];
   antecedentes: Record<string, unknown>[];
   contratoActual: Record<string, unknown> | null;
+  cargosHistorial: Record<string, unknown>[];
 }

@@ -21,6 +21,7 @@ class PasivoDTO:
     contacto_emergencia: list = field(default_factory=list)
     antecedentes: list = field(default_factory=list)
     contrato_actual: dict | None = None
+    cargos_historial: list = field(default_factory=list)
 
 
 @dataclass(frozen=True)

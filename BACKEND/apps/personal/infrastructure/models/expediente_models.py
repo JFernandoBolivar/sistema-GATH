@@ -1,7 +1,9 @@
 """
 Modelos ORM espejo (Regla B26/R7) de los datos anidados del expediente de
-personal activo: vivienda, perfil de salud (escalar), formación académica,
-contacto de emergencia, antecedentes de servicio y contratos.
+personal activo: vivienda, perfil de salud (escalar + M2M de alergias/
+patologías/discapacidades), perfil físico (tallas), formación académica y
+formación complementaria (capacitaciones), contacto de emergencia, antecedentes
+de servicio y contratos.
 
 `managed = False`: mismas tablas físicas que `RAC/models/personal_models.py`
 (base de datos `GATH`). Se crean como modelos propios de `apps.personal`
@@ -13,13 +15,6 @@ application in INSTALLED_APPS` (verificado empíricamente antes de escribir
 este archivo, ver Entrada de bitácora de esta tarea). Es la misma restricción
 documentada en la Entrada #033 para `token_service.py`/`AUTH_USER_MODEL`,
 aplicada aquí a todo el árbol de modelos de `RAC`.
-
-⚠️ Alcance NO cubierto por estos mirrors (documentado, no un olvido):
-`perfil_fisico` (tallas: camisa/pantalón/zapatos/chaqueta) y
-`formacion_complementaria` (capacitaciones) no se mirrorean en esta tarea.
-El perfil de salud tampoco mirrorea las M2M `alergias` / `patologiaCronica`
-/ `discapacidad` — solo el grupo sanguíneo escalar. Ver detalle de alcance
-en la bitácora.
 """
 from django.db import models
 
@@ -110,8 +105,9 @@ class DatosViviendaModel(models.Model):
 
 class PerfilSaludModel(models.Model):
     """
-    Espejo parcial (solo campo escalar): NO incluye las M2M
-    `alergias` / `patologiaCronica` / `discapacidad` (fuera de alcance).
+    Espejo del perfil de salud: campo escalar `grupo_sanguineo` + M2M
+    `alergias` / `patologiaCronica` / `discapacidad` (regla B26/R7 sobre las
+    tablas físicas `perfil_salud_*`).
     """
     empleado = models.ForeignKey(
         'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
@@ -121,12 +117,95 @@ class PerfilSaludModel(models.Model):
         'personal.GrupoSanguineoModel', models.PROTECT, db_column='grupoSanguineoId',
         null=True, blank=True, related_name='+',
     )
+    alergias = models.ManyToManyField(
+        'personal.AlergiaModel', db_table='perfil_salud_alergias', related_name='+',
+        blank=True,
+    )
+    patologiaCronica = models.ManyToManyField(
+        'personal.PatologiaCronicaModel', db_table='perfil_salud_patologiaCronica', related_name='+',
+        blank=True,
+    )
+    discapacidad = models.ManyToManyField(
+        'personal.DiscapacidadModel', db_table='perfil_salud_discapacidad', related_name='+',
+        blank=True,
+    )
 
     class Meta:
         managed = False
         db_table = 'perfil_salud'
         verbose_name = 'perfil de salud'
         verbose_name_plural = 'perfiles de salud'
+
+
+class PerfilFisicoModel(models.Model):
+    """
+    Espejo del perfil físico del empleado (tallas de camisa/pantalón/zapatos/
+    chaqueta). `managed=False` sobre la tabla física `perfil_fisico`.
+    """
+    empleado = models.ForeignKey(
+        'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
+        null=True, blank=True, related_name='perfil_fisico',
+    )
+    tallaCamisa = models.ForeignKey(
+        'personal.TallaModel', models.PROTECT, db_column='tallaCamisaId',
+        null=True, blank=True, related_name='+',
+    )
+    tallaPantalon = models.ForeignKey(
+        'personal.TallaModel', models.PROTECT, db_column='tallaPantalonId',
+        null=True, blank=True, related_name='+',
+    )
+    tallaZapatos = models.ForeignKey(
+        'personal.TallaModel', models.PROTECT, db_column='tallaZapatosId',
+        null=True, blank=True, related_name='+',
+    )
+    tallaChaqueta = models.ForeignKey(
+        'personal.TallaModel', models.PROTECT, db_column='tallaChaquetaId',
+        null=True, blank=True, related_name='+',
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'perfil_fisico'
+        verbose_name = 'perfil físico'
+        verbose_name_plural = 'perfiles físicos'
+
+
+class FormacionComplementariaModel(models.Model):
+    """
+    Espejo de la formación complementaria del empleado (capacitaciones/cursos).
+    `managed=False` sobre la tabla física `formacion_complementaria`.
+    """
+    empleado = models.ForeignKey(
+        'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
+        null=True, blank=True, related_name='formacion_complementaria',
+    )
+    capacitacion = models.ForeignKey(
+        'personal.CapacitacionModel', models.PROTECT, db_column='capacitacion_id',
+        null=True, blank=True, related_name='+',
+    )
+    institucion = models.ForeignKey(
+        'personal.InstitucionModel', models.PROTECT, db_column='institucion_id',
+        null=True, blank=True, related_name='+',
+    )
+    fechaInicio = models.DateField(null=True, blank=True, db_column='fechaInicio')
+    fechaFin = models.DateField(null=True, blank=True, db_column='fechaFin')
+    dias_completados = models.CharField(max_length=20, blank=True, null=True)
+    horas_completadas = models.CharField(max_length=20, blank=True, null=True)
+    procedencia = models.ForeignKey(
+        'catalogos.TipoProcedenciaModel', models.PROTECT, db_column='procedencia_id',
+        related_name='+',
+    )
+    grupo = models.ForeignKey(
+        'personal.GrupoCapacitacionModel', models.PROTECT, db_column='grupo_id',
+        null=True, blank=True, related_name='+',
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'formacion_complementaria'
+        ordering = ['-fechaInicio']
+        verbose_name = 'formación complementaria'
+        verbose_name_plural = 'formaciones complementarias'
 
 
 class FormacionAcademicaModel(models.Model):

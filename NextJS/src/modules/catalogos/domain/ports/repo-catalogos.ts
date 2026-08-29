@@ -32,4 +32,12 @@ export interface RepoCatalogos {
   listarCarreras(): Promise<CatalogoItem[]>;
   listarMenciones(carreraId?: number): Promise<CatalogoItem[]>;
   listarInstituciones(): Promise<CatalogoItem[]>;
+  listarTiposPrenda(): Promise<CatalogoItem[]>;
+  listarRegionesTalla(): Promise<CatalogoItem[]>;
+  listarTallas(tipoPrendaId?: number): Promise<CatalogoItem[]>;
+  listarCapacitaciones(): Promise<CatalogoItem[]>;
+  listarGruposCapacitacion(): Promise<CatalogoItem[]>;
+  listarAlergias(): Promise<CatalogoItem[]>;
+  listarPatologias(): Promise<CatalogoItem[]>;
+  listarDiscapacidades(): Promise<CatalogoItem[]>;
 }

@@ -12,8 +12,24 @@ from core.presentation.serializers.expediente_lectura import (
     ContratoLecturaSerializer,
     DatosViviendaLecturaSerializer,
     FormacionAcademicaLecturaSerializer,
+    FormacionComplementariaLecturaSerializer,
+    PerfilFisicoLecturaSerializer,
     PerfilSaludLecturaSerializer,
 )
+
+
+class CargoEgresadoSerializer(serializers.Serializer):
+    codigo = serializers.CharField(read_only=True)
+    denominacioncargo_id = serializers.IntegerField(read_only=True)
+    denominacioncargoespecifico_id = serializers.IntegerField(read_only=True)
+    grado_id = serializers.IntegerField(read_only=True, allow_null=True)
+    tipo_nomina_id = serializers.IntegerField(read_only=True)
+    tipo_personal_id = serializers.IntegerField(read_only=True)
+    dependencia_id = serializers.IntegerField(read_only=True)
+    direccion_general_id = serializers.IntegerField(read_only=True, allow_null=True)
+    direccion_linea_id = serializers.IntegerField(read_only=True, allow_null=True)
+    coordinacion_id = serializers.IntegerField(read_only=True, allow_null=True)
+    organismo_adscrito_id = serializers.IntegerField(read_only=True, allow_null=True)
 
 
 class PasivoSerializer(serializers.Serializer):
@@ -30,10 +46,13 @@ class PasivoSerializer(serializers.Serializer):
     # (`GET /api/v1/pasivos/<cedula>/`), el listado lo deja vacío.
     datos_vivienda = DatosViviendaLecturaSerializer(read_only=True, allow_null=True)
     perfil_salud = PerfilSaludLecturaSerializer(read_only=True, allow_null=True)
+    perfil_fisico = PerfilFisicoLecturaSerializer(read_only=True, allow_null=True)
     formacion_academica = FormacionAcademicaLecturaSerializer(read_only=True, many=True)
+    formacion_complementaria = FormacionComplementariaLecturaSerializer(read_only=True, many=True)
     contacto_emergencia = ContactoEmergenciaLecturaSerializer(read_only=True, many=True)
     antecedentes = AntecedenteServicioLecturaSerializer(read_only=True, many=True)
     contrato_actual = ContratoLecturaSerializer(read_only=True, allow_null=True)
+    cargos_historial = CargoEgresadoSerializer(read_only=True, many=True)
 
 
 class ProcesarEgresoInputSerializer(serializers.Serializer):

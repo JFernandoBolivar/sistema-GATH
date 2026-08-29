@@ -37,7 +37,7 @@ class CondicionViviendaModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'condicion_vivienda'
+        db_table = 'RAC_condicion_vivienda'
         verbose_name = 'condición de vivienda'
         verbose_name_plural = 'condiciones de vivienda'
 
@@ -67,7 +67,7 @@ class GrupoSanguineoModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'GrupoSanguineo'
+        db_table = 'RAC_gruposanguineo'
         verbose_name = 'grupo sanguíneo'
         verbose_name_plural = 'grupos sanguíneos'
 
@@ -98,7 +98,7 @@ class CarreraModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'carreras'
+        db_table = 'RAC_carreras'
         ordering = ['nombre_carrera']
         verbose_name = 'carrera'
         verbose_name_plural = 'carreras'
@@ -115,7 +115,7 @@ class MencionModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'Menciones'
+        db_table = 'RAC_menciones'
         ordering = ['nombre_mencion']
         verbose_name = 'mención'
         verbose_name_plural = 'menciones'
@@ -129,10 +129,160 @@ class InstitucionModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'Instituciones'
+        db_table = 'RAC_instituciones'
         ordering = ['nombre_institucion']
         verbose_name = 'institución'
         verbose_name_plural = 'instituciones'
 
     def __str__(self) -> str:
         return self.nombre_institucion
+
+
+class TipoPrendaModel(models.Model):
+    """Catálogo de tipo de prenda (camisa, pantalón, zapatos, chaqueta)."""
+    categoria = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        managed = False
+        db_table = 'TipoPrenda'
+        ordering = ['categoria']
+        verbose_name = 'tipo de prenda'
+        verbose_name_plural = 'tipos de prenda'
+
+    def __str__(self) -> str:
+        return self.categoria
+
+
+class RegionTallaModel(models.Model):
+    """Región de tallas (adulto, juvenil, niño, etc.)."""
+    codigo = models.CharField(max_length=10, unique=True)
+    descripcion = models.CharField(max_length=100, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'RegionTalla'
+        ordering = ['codigo']
+        verbose_name = 'región de talla'
+        verbose_name_plural = 'regiones de talla'
+
+    def __str__(self) -> str:
+        return self.codigo
+
+
+class TallaModel(models.Model):
+    """Talla de prenda (valor + región + tipo de prenda)."""
+    valor = models.CharField(max_length=20)
+    region = models.ForeignKey(
+        RegionTallaModel, models.PROTECT, db_column='region_id',
+        null=True, blank=True, related_name='+',
+    )
+    tipo_prenda = models.ForeignKey(
+        TipoPrendaModel, models.PROTECT, db_column='tipo_prenda_id',
+        null=True, blank=True, related_name='tallas',
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'Talla'
+        ordering = ['valor']
+        verbose_name = 'talla'
+        verbose_name_plural = 'tallas'
+
+    def __str__(self) -> str:
+        return self.valor
+
+
+class CapacitacionModel(models.Model):
+    """Catálogo de capacitaciones/cursos (formación complementaria)."""
+    nombre_capacitacion = models.CharField(max_length=200, unique=True)
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_capacitaciones'
+        ordering = ['nombre_capacitacion']
+        verbose_name = 'capacitación'
+        verbose_name_plural = 'capacitaciones'
+
+    def __str__(self) -> str:
+        return self.nombre_capacitacion
+
+
+class GrupoCapacitacionModel(models.Model):
+    """Grupo de capacitaciones. Referenciado por `formacion_complementaria.grupo_id`."""
+    nombre_grupo = models.CharField(max_length=200, unique=True)
+
+    class Meta:
+        managed = False
+        db_table = 'grupos_capacitacion'
+        ordering = ['nombre_grupo']
+        verbose_name = 'grupo de capacitación'
+        verbose_name_plural = 'grupos de capacitación'
+
+    def __str__(self) -> str:
+        return self.nombre_grupo
+
+
+class AlergiaModel(models.Model):
+    """Catálogo de alergias (M2M de perfil de salud)."""
+    alergia = models.CharField(max_length=200)
+    categoria = models.ForeignKey(
+        'personal.CategoriaAlergiaModel', models.PROTECT, db_column='categoriaId',
+        null=True, blank=True, related_name='+',
+    )
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_alergias'
+        ordering = ['alergia']
+        verbose_name = 'alergia'
+        verbose_name_plural = 'alergias'
+
+    def __str__(self) -> str:
+        return self.alergia
+
+
+class CategoriaAlergiaModel(models.Model):
+    """Categoría de alergias."""
+    nombre_categoria = models.CharField(max_length=200, unique=True)
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_categorias_alergias'
+        ordering = ['nombre_categoria']
+        verbose_name = 'categoría de alergia'
+        verbose_name_plural = 'categorías de alergia'
+
+    def __str__(self) -> str:
+        return self.nombre_categoria
+
+
+class PatologiaCronicaModel(models.Model):
+    """Catálogo de patologías crónicas (M2M de perfil de salud)."""
+    patologia = models.CharField(max_length=200)
+    categoriaId = models.IntegerField(null=True, blank=True, db_column='categoriaId')
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_patologias_cronicas'
+        ordering = ['patologia']
+        verbose_name = 'patología crónica'
+        verbose_name_plural = 'patologías crónicas'
+
+    def __str__(self) -> str:
+        return self.patologia
+
+
+class DiscapacidadModel(models.Model):
+    """Catálogo de discapacidades (M2M de perfil de salud)."""
+    discapacidad = models.CharField(max_length=200)
+    categoriaId = models.IntegerField(null=True, blank=True, db_column='categoriaId')
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_discapacidades'
+        ordering = ['discapacidad']
+        verbose_name = 'discapacidad'
+        verbose_name_plural = 'discapacidades'
+
+    def __str__(self) -> str:
+        return self.discapacidad

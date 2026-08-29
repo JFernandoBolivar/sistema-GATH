@@ -20,6 +20,28 @@ class DatosViviendaLecturaSerializer(serializers.Serializer):
 
 class PerfilSaludLecturaSerializer(serializers.Serializer):
     grupo_sanguineo_id = serializers.IntegerField(allow_null=True)
+    alergias = serializers.ListField(child=serializers.IntegerField(), required=False)
+    patologias_cronicas = serializers.ListField(child=serializers.IntegerField(), required=False)
+    discapacidades = serializers.ListField(child=serializers.IntegerField(), required=False)
+
+
+class PerfilFisicoLecturaSerializer(serializers.Serializer):
+    talla_camisa_id = serializers.IntegerField(allow_null=True)
+    talla_pantalon_id = serializers.IntegerField(allow_null=True)
+    talla_zapatos_id = serializers.IntegerField(allow_null=True)
+    talla_chaqueta_id = serializers.IntegerField(allow_null=True)
+
+
+class FormacionComplementariaLecturaSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    capacitacion_id = serializers.IntegerField(allow_null=True)
+    institucion_id = serializers.IntegerField(allow_null=True)
+    fecha_inicio = serializers.CharField(allow_null=True)
+    fecha_fin = serializers.CharField(allow_null=True)
+    dias_completados = serializers.CharField(allow_null=True)
+    horas_completadas = serializers.CharField(allow_null=True)
+    procedencia_id = serializers.IntegerField(allow_null=True)
+    grupo_id = serializers.IntegerField(allow_null=True)
 
 
 class FormacionAcademicaLecturaSerializer(serializers.Serializer):
