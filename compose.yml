@@ -6,14 +6,14 @@ services:
       dockerfile: django.dockerfile
     env_file:
       - ./BACKEND/.env
-    # En Linux 'host.docker.internal' no resuelve solo: hay que mapearlo al
-    # gateway del host para que el contenedor alcance el PostgreSQL local.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       backend:
         aliases:
           - djangoapp
+      broker:
+      storage:
     ports:
       - "8000:8000"
     volumes:
@@ -22,22 +22,6 @@ services:
       - "/opt/gath/BACKEND/staticfiles:/app/Django/staticfiles"
     restart: always
 
-  nestjs:
-    container_name: NestFS
-    build:
-      context: ./NestJS-Files
-      dockerfile: nestjs.dockerfile
-    env_file:
-      - ./NestJS-Files/.env
-    volumes:
-      - "/var/www/backup/uploadsNestFS:/app/NestFS/uploads"
-    networks:
-      file_manager:
-        aliases:
-          - file_managerapp
-    ports:
-      - "5000:5000"
-    restart: always
   nextjs:
     container_name: nextjs-App
     build:
@@ -49,11 +33,88 @@ services:
       - "3000:3000"
     networks:
       backend:
-      file_manager:
     depends_on:
       - django
-      - nestjs
     restart: always
+
+  # ── SeaweedFS ──────────────────────────────────────────────────────────────
+  sw_master:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_master
+    restart: always
+    command: >
+      master -ip=sw_master -port=9333
+      -volumeSizeLimitMB=1024
+      -defaultReplication=000
+    volumes:
+      - sw_master_data:/data
+    networks: [storage]
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  sw_volume:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_volume
+    restart: always
+    command: >
+      volume -mserver=sw_master:9333 -ip=sw_volume -port=8080
+      -max=64 -dir=/data
+    volumes:
+      - sw_volume_data:/data
+    networks: [storage]
+    depends_on:
+      - sw_master
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  sw_filer:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_filer
+    restart: always
+    command: >
+      filer -master=sw_master:9333 -ip=sw_filer -port=8888
+    volumes:
+      - sw_filer_data:/data
+    networks: [storage]
+    depends_on:
+      - sw_master
+      - sw_volume
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  sw_s3:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_s3
+    restart: always
+    command: >
+      s3 -filer=sw_filer:8888 -port=8333
+      -allowEmptyFolder=false
+    networks: [storage]
+    depends_on:
+      - sw_filer
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  # ── RabbitMQ ───────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: gath_rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER no definido (fallo cerrado, ver infra-fase2/.env.fase2.example)}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?RABBITMQ_PASS no definido (fallo cerrado, ver infra-fase2/.env.fase2.example)}
+      RABBITMQ_DEFAULT_VHOST: gath
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks: [broker]
+    deploy:
+      resources:
+        limits: { memory: 768M }
+
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:latest
@@ -63,17 +124,29 @@ services:
       - portainer_data:/data
     ports:
       - "9443:9443"
+
 volumes:
   portainer_data:
     name: portainer_data
   staticfiles:
     name: staticfiles
+  sw_master_data:
+    name: gath_sw_master
+  sw_volume_data:
+    name: gath_sw_volume
+  sw_filer_data:
+    name: gath_sw_filer
+  rabbitmq_data:
+    name: gath_rabbitmq
+
 networks:
   default:
     name: portainer_network
   backend:
     driver: bridge
-  file_manager:
+  storage:
     driver: bridge
-  postgres:
+    internal: true
+  broker:
     driver: bridge
+    internal: true
