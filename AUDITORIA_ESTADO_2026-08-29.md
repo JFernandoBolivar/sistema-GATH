@@ -117,7 +117,7 @@ Las server actions de `modules/*/infrastructure/actions/*-actions.ts` ahora vali
 ### 🟡 Prioridad 3 — Frontend funcional
 | # | Ítem | Nota |
 |---|---|---|
-| 10 | Construir UI (`*-page.tsx`) de los 7 módulos sin componente: `autogestion`, `cargos`, `carnetizacion`, `familiares`, `organizacion`, `personal`, `reportes` | Solo tienen schema zod; sin componente no pueden conectarse a `app/` |
+| ~~10~~ | ~~Construir UI (`*-page.tsx`) de los 7 módulos~~ | ✅ **RESUELTO** — UI creada para `autogestion`, `cargos`, `carnetizacion`, `familiares`, `organizacion`, `personal`, `reportes`. Los 11 módulos conectados a rutas (`migracion/`) |
 | 11 | Retirar el legado del dashboard (`app/(protected)/dashboard/`, 263 archivos) y el legado de `shared/{forms,schemas,components}` | Fase 8; 116 imports del legado de `shared/` apuntan al dashboard |
 | 12 | `eslint-plugin-boundaries` para enforcement automático de R1-R3 en frontend | F1.5 pendiente |
 | 13 | Storybook/Chromatic, Dockerfiles multi-stage | F6/F7/T1.7 pendientes |
@@ -148,10 +148,25 @@ Tras commitear el estado base, se ejecutó la **paridad funcional** validando co
 | Endpoints de catálogos wireados en frontend (`catalogos-api`/`actions`/`catalogos-page`) | ✅ |
 | Verificación final | **70/70 contratos import-linter** · `manage.py check` OK · **176 passed** (4 preexistentes RAC) · frontend **84 tests** · **0 errores tsc** en `modules`/`shared` |
 
+### UI de los 7 módulos (R10)
+Se construyó la interfaz de los 7 módulos que solo tenían schema zod y se conectaron a rutas (opcionalmente a un selector de catálogos ya compartido):
+
+| Módulo | Página | Acciones que consume |
+|---|---|---|
+| `organizacion` | `organizacion-page.tsx` | 5 GET en cascada |
+| `reportes` | `reportes-page.tsx` | 3 GET (personal/pasivos/vacantes) + filtro dependencia |
+| `cargos` | `cargos-page.tsx` | getCargos + asignar/desasignar + filtros |
+| `familiares` | `familiares-page.tsx` | CRUD + documentos |
+| `carnetizacion` | `carnetizacion-page.tsx` | emitir/listar/validar/plantillas/descargar |
+| `personal` | `personal-page.tsx` | listar/registrar/editar/foto |
+| `autogestion` | `autogestion-page.tsx` | cuestionario + mi censo + reporte |
+
+**Los 11 módulos tienen ahora thin wrapper en `app/(protected)/dashboard/migracion/`** y están enlazados en la navegación e índice de esa sección.
+
 ---
 
 ## 8. Conclusión
 
-La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK) y la **paridad funcional de datos quedó habilitada**: modelos + catálogos + endpoints + snapshot `CargoEgresado`, todos validados contra el esquema Postgres real. El **frontend `modules/` cumple las reglas** de arquitectura y seguridad (safeParse, VOs puros, kebab-case, `@/`).
+La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK) y la **paridad funcional de datos quedó habilitada**: modelos + catálogos + endpoints + snapshot `CargoEgresado`, todos validados contra el esquema Postgres real. El **frontend `modules/` cumple las reglas** de arquitectura y seguridad (safeParse, VOs puros, kebab-case, `@/`) y **los 11 módulos tienen UI conectada a rutas** (R10).
 
-La migración **aún no está completa** en el frente de producto: faltan **7 módulos con UI real**, el legado del dashboard sigue activo (Fase 8), y quedan los **CRUDs** de organización/códigos de cargo (requieren decisión de negocio sobre qué campos son editables). El riesgo de git quedó resuelto con los commits atómicos (§7).
+La migración **aún no está completa** en el frente de producto: falta **retirar el legado del dashboard** (Fase 8, 263 archivos activos) y quedan los **CRUDs** de organización/códigos de cargo (requieren decisión de negocio). El riesgo de git quedó resuelto con los commits atómicos (§7).

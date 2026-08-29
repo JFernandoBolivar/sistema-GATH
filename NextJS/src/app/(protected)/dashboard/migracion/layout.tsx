@@ -3,8 +3,15 @@ import { Boxes } from "lucide-react";
 
 const SECCIONES = [
   { href: "/dashboard/migracion/identidad", label: "Identidad / Usuarios" },
-  { href: "/dashboard/migracion/pasivos", label: "Pasivos" },
+  { href: "/dashboard/migracion/personal", label: "Personal" },
+  { href: "/dashboard/migracion/cargos", label: "Cargos" },
+  { href: "/dashboard/migracion/familias", label: "Cargas familiares" },
+  { href: "/dashboard/migracion/organizacion", label: "Organización" },
   { href: "/dashboard/migracion/movimientos", label: "Movimientos" },
+  { href: "/dashboard/migracion/pasivos", label: "Pasivos" },
+  { href: "/dashboard/migracion/carnetizacion", label: "Carnetización" },
+  { href: "/dashboard/migracion/autogestion", label: "Autogestión" },
+  { href: "/dashboard/migracion/reportes", label: "Reportes" },
   { href: "/dashboard/migracion/catalogos", label: "Catálogos" },
 ];
 

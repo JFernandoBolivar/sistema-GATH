@@ -3,8 +3,15 @@ import { Boxes } from "lucide-react";
 
 const SECCIONES = [
   { href: "/dashboard/migracion/identidad", label: "Identidad / Usuarios", desc: "Gestión de cuentas y permisos" },
-  { href: "/dashboard/migracion/pasivos", label: "Pasivos", desc: "Jubilados y pensionados" },
+  { href: "/dashboard/migracion/personal", label: "Personal", desc: "Empleados activos" },
+  { href: "/dashboard/migracion/cargos", label: "Cargos", desc: "Asignación y vacantes" },
+  { href: "/dashboard/migracion/familias", label: "Cargas familiares", desc: "Familiares de empleados" },
+  { href: "/dashboard/migracion/organizacion", label: "Organización", desc: "Estructura organizacional" },
   { href: "/dashboard/migracion/movimientos", label: "Movimientos", desc: "Historial de movimientos de cargo" },
+  { href: "/dashboard/migracion/pasivos", label: "Pasivos", desc: "Jubilados y pensionados" },
+  { href: "/dashboard/migracion/carnetizacion", label: "Carnetización", desc: "Carnets y plantillas" },
+  { href: "/dashboard/migracion/autogestion", label: "Autogestión", desc: "Censo de vivienda" },
+  { href: "/dashboard/migracion/reportes", label: "Reportes", desc: "Personal, pasivos y vacantes" },
   { href: "/dashboard/migracion/catalogos", label: "Catálogos", desc: "Catálogos de solo lectura" },
 ];
 

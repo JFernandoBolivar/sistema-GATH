@@ -31,3 +31,4 @@ export const plantillaIdSchema = z.object({
 });
 
 export type EmitirCarnetFormType = z.infer<typeof emitirCarnetSchema>;
+export type ValidarHashFormType = z.infer<typeof validarHashSchema>;

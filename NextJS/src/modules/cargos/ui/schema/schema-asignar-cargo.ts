@@ -21,3 +21,4 @@ export const desasignarCargoSchema = z.object({
 });
 
 export type AsignarCargoFormType = z.infer<typeof asignarCargoSchema>;
+export type CargosFiltroFormType = z.infer<typeof cargosFiltroSchema>;
