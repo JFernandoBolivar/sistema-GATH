@@ -7,8 +7,8 @@ Mixins de serializer transversales (R-02, B2.2).
 múltiples módulos (regla B16: lo transversal vive en `core/`), sin cambiar
 una sola línea de su comportamiento.
 
-`RAC/utils/data_formatters.py` mantiene un re-export de compatibilidad hacia
-atrás para no romper a quien lo siga importando desde la ruta legada.
+El legado `RAC`/`USER` fue retirado (Fase 8), así que el re-export de
+compatibilidad hacia atrás ya no existe; esta es la única fuente del mixin.
 """
 
 

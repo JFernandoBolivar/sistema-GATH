@@ -126,10 +126,10 @@ Las server actions de `modules/*/infrastructure/actions/*-actions.ts` ahora vali
 | # | Ítem | Ref. |
 |---|---|---|
 | 14 | D-05/A-02: trigger PL/pgSQL `calcular_total_apn()` vs Python | Requiere decisión RRHH |
-| 15 | R-03: `extract_first_error` no absorbido (~28 call-sites) | exception_handler |
+| 15 | R-03: `extract_first_error` no absorbido (~28 call-sites) | ✅ **RESUELTO** — el legado `RAC`/`AUTOGESTION` que lo usaba fue retirado; las vistas nuevas usan `raise_exception=True` (absorbido por el handler). Comentarios obsoletos actualizados |
 | 16 | R15 residual: `NEXT_PUBLIC_DJANGO` en 4 archivos cliente-legado | Proxy F4 |
 | 17 | R16 residual: `nombre_rol` hardcodeado en `proxy.ts` (RECEPCIONISTA/AUTOGESTION) y sidebars | Sustituir en F9 |
-| 18 | Bug latente `repo_reportes_orm.py:66` — campos inexistentes en `AsigTrabajoModel` | Reporte de vacantes |
+| 18 | Bug latente `repo_reportes_orm.py:66` — campos inexistentes en `AsigTrabajoModel` | ✅ **RESUELTO** — `denominacion_cargo.denominacion`→`denominacioncargoid.cargo`, `codigo_nomina`→`codigo`; verificado contra la BD |
 | 19 | Escritura de `perfil_fisico`/`formacion_complementaria`/M2M salud desde carga masiva | ✅ **RESUELTO** — los 3 bloques se persisten vía `_upsert_perfil_fisico`/`_upsert_formacion_complementaria` y M2M de salud con `through` explícito; conectado al alta/edición individual (serializer) y a la carga masiva de expediente |
 
 ---

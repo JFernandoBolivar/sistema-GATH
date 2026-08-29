@@ -9,18 +9,14 @@ TODO (B1.12): hoy el detalle técnico se registra con `logging.getLogger`
 estándar; falta configurar el `LOGGING` dict del proyecto con el handler de
 rotación hacia `logs/backend/errors_backend.txt` (D-04).
 
-TODO (R-03, pendiente — NO ejecutar de forma mecánica): `RAC/utils/data_formatters.py::extract_first_error`
-(reexportada ahora desde `core/infrastructure/error_utils.py`) todavía se usa
-en ~28 call-sites de `RAC/views/*` y `AUTOGESTION/views/*` para desempaquetar
-a mano `serializer.errors` y construir la respuesta de error del endpoint.
-El plan (§I.2.2, R-03) la marca como "absorbida" por este exception handler,
-pero portar esos 28 sitios cambia el cuerpo de error observable de cada
-endpoint (pasar de un `Response({...'message': extract_first_error(...)})`
-manual a que la excepción de `serializer.is_valid(raise_exception=True)` la
-traduzca este handler al sobre C-1). Es un cambio de patrón de manejo de
-errores, no una reubicación mecánica: se migra vista por vista cuando cada
-módulo legado (`personal_activo`, `personal_pasivo`, `historial`, `family`,
-`autogestion`) se porte a su `apps/[modulo]/` definitivo, no en este trabajo.
+# Nota (R-03, resuelto): `core/infrastructure/error_utils.py::extract_first_error`
+# se definió para absorber los ~28 call-sites del legado `RAC/views/*` y
+# `AUTOGESTION/views/*`, pero ese código legado fue retirado (Fase 8) y las
+# vistas de `apps/[modulo]/` usan `serializer.is_valid(raise_exception=True)`,
+# cuya excepción traduce este handler al sobre C-1. `extract_first_error`
+# queda como utilidad pura sin call-sites en producción y las vistas nuevas
+# no lo necesitan.
+
 """
 import logging
 import uuid

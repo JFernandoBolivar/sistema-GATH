@@ -53,7 +53,7 @@ class RepoReportesORM:
     def reporte_cargos_vacantes(self, dependencias_ids: list[int] | None = None) -> ResultadoReporte:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         qs = AsigTrabajoModel.objects.filter(employee__isnull=True).select_related(
-            'Dependencia', 'DireccionGeneral', 'denominacion_cargo'
+            'Dependencia', 'DireccionGeneral', 'denominacioncargoid'
         )
         if dependencias_ids:
             qs = qs.filter(Dependencia_id__in=dependencias_ids)
@@ -62,9 +62,9 @@ class RepoReportesORM:
         for c in qs[:500]:
             filas.append({
                 'id': c.pk,
-                'denominacion': c.denominacion_cargo.denominacion if c.denominacion_cargo else '',
+                'denominacion': c.denominacioncargoid.cargo if c.denominacioncargoid else '',
                 'dependencia': c.Dependencia.dependencia if c.Dependencia else '',
-                'codigo_nomina': c.codigo_nomina or '',
+                'codigo_nomina': c.codigo or '',
             })
 
         return ResultadoReporte(
