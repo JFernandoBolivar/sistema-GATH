@@ -54,6 +54,16 @@ export async function listarPlantillasCarnet(repo: RepoCarnetizacion): Promise<P
   return entidades.map(aPlantillaDTO);
 }
 
+export async function crearPlantillaCarnet(
+  repo: RepoCarnetizacion,
+  nombre: string,
+  imagen: File,
+  activar?: boolean
+): Promise<PlantillaCarnetDTO> {
+  const e = await repo.crearPlantilla(nombre, imagen, activar);
+  return aPlantillaDTO(e);
+}
+
 export async function activarPlantillaCarnet(
   repo: RepoCarnetizacion,
   plantillaId: number

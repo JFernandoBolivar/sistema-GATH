@@ -6,10 +6,10 @@
  * useTransition (R8) y se delegan a las Server Actions del módulo (R7). Opera
  * exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
  */
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BadgeCheck, Ban, BarChart3, FileDown, IdCard, Loader2, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Ban, BarChart3, FileDown, IdCard, Loader2, ShieldCheck, Upload } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/components/card";
+import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -42,6 +43,7 @@ import {
   getEstadisticasCarnetsAction,
   getPlantillasCarnetAction,
   revocarCarnetAction,
+  subirPlantillaCarnetAction,
   validarCarnetPorHashAction,
   validarCarnetPorIdAction,
 } from "../infrastructure/actions/carnetizacion-actions";
@@ -63,6 +65,10 @@ export default function CarnetizacionPage() {
   const [busqueda, setBusqueda] = useState<string>("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const nombrePlantilla = useRef<HTMLInputElement>(null);
+  const archivoPlantilla = useRef<HTMLInputElement>(null);
+  const [activarPlantilla, setActivarPlantilla] = useState(false);
 
   const emisionForm = useForm<EmitirCarnetFormType>({
     resolver: zodResolver(emitirCarnetSchema),
@@ -150,6 +156,28 @@ export default function CarnetizacionPage() {
         setError((resultado as { error: string }).error);
         return;
       }
+      setPlantillas(await getPlantillasCarnetAction());
+    });
+  };
+
+  const onSubirPlantilla = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nombre = nombrePlantilla.current?.value?.trim();
+    const imagen = archivoPlantilla.current?.files?.[0];
+    if (!nombre || !imagen) {
+      setError("Complete el nombre y seleccione una imagen.");
+      return;
+    }
+    startTransition(async () => {
+      setError(null);
+      const resultado = await subirPlantillaCarnetAction(nombre, imagen, activarPlantilla);
+      if (resultado && typeof resultado === "object" && "error" in resultado) {
+        setError((resultado as { error: string }).error);
+        return;
+      }
+      if (nombrePlantilla.current) nombrePlantilla.current.value = "";
+      if (archivoPlantilla.current) archivoPlantilla.current.value = "";
+      setActivarPlantilla(false);
       setPlantillas(await getPlantillasCarnetAction());
     });
   };
@@ -328,6 +356,35 @@ export default function CarnetizacionPage() {
         </TabsContent>
 
         <TabsContent value="plantillas">
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle>Subir plantilla</CardTitle>
+              <CardDescription>Registra una nueva plantilla de carnet.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={onSubirPlantilla} className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end" noValidate>
+                <Field>
+                  <Label htmlFor="nombrePlantilla">Nombre</Label>
+                  <Input id="nombrePlantilla" ref={nombrePlantilla} placeholder="Ej. Plantilla institucional" />
+                </Field>
+                <Field>
+                  <Label htmlFor="imagenPlantilla">Imagen</Label>
+                  <Input id="imagenPlantilla" ref={archivoPlantilla} type="file" accept="image/*" />
+                </Field>
+                <div className="flex items-center gap-2 md:col-span-2">
+                  <Checkbox id="activarPlantilla" checked={activarPlantilla} onCheckedChange={(c) => setActivarPlantilla(c === true)} />
+                  <Label htmlFor="activarPlantilla">Activar</Label>
+                </div>
+                <div className="md:col-span-2">
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Upload className="size-4" aria-hidden="true" />}
+                    Subir
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>

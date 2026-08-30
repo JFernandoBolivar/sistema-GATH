@@ -9,6 +9,7 @@ export interface RepoCarnetizacion {
   validarPorHash(securityHash: string): Promise<{ esValido: boolean; mensaje: string; carnet: Carnet | null }>;
   validarPorId(carnetId: number): Promise<{ esValido: boolean; mensaje: string; carnet: Carnet | null }>;
   listarPlantillas(): Promise<PlantillaCarnet[]>;
+  crearPlantilla(nombre: string, imagen: File, activar?: boolean): Promise<PlantillaCarnet>;
   activarPlantilla(plantillaId: number): Promise<PlantillaCarnet>;
   descargarPdf(carnetId: number): Promise<Blob>;
   revocarCarnet(carnetId: number): Promise<Carnet>;

@@ -71,6 +71,15 @@ export const carnetizacionApi = {
   activarPlantilla: (plantillaId: number) =>
     apiClient.post<PlantillaCarnetApiItem>(`/api/v1/carnetizacion/plantillas/${plantillaId}/activar/`),
 
+  crearPlantilla: async (nombre: string, imagen: File, activar?: boolean) => {
+    const formData = new FormData();
+    formData.append("nombre", nombre);
+    formData.append("imagen", imagen);
+    if (activar) formData.append("activar", "true");
+    const envelope = await apiClient.postForm<ApiResponse<PlantillaCarnetApiItem>>("/api/v1/carnetizacion/plantillas/crear/", formData);
+    return envelope.data;
+  },
+
   // Fase 2.3 del plan de reparación: generación real del PDF (QR + foto + plantilla).
   descargarPdf: (carnetId: number) =>
     apiClient.getBlob(`/api/v1/carnetizacion/${carnetId}/pdf/`),

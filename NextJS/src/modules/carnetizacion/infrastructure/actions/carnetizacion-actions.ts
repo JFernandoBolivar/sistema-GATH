@@ -11,6 +11,7 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   activarPlantillaCarnet,
+  crearPlantillaCarnet,
   emitirCarnet,
   listarCarnets,
   listarPlantillasCarnet,
@@ -103,6 +104,20 @@ export async function getPlantillasCarnetAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getPlantillasCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function subirPlantillaCarnetAction(nombre: string, imagen: File, activar?: boolean) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearPlantillaCarnet(repoCarnetizacionApi, nombre, imagen, activar);
+    await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

@@ -43,6 +43,11 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return raw.map(plantillaCarnetApiAEntidad);
   },
 
+  async crearPlantilla(nombre, imagen, activar) {
+    const raw = await carnetizacionApi.crearPlantilla(nombre, imagen, activar);
+    return plantillaCarnetApiAEntidad(raw);
+  },
+
   async activarPlantilla(plantillaId) {
     const raw = await carnetizacionApi.activarPlantilla(plantillaId);
     return plantillaCarnetApiAEntidad(raw);
