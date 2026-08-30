@@ -77,11 +77,16 @@ export default function MovimientosPage() {
 
   const { data: movimientos, error, isLoading, mutate } = useSWR<MovimientoCargoDTO[]>(
     consulta ? `movimientos-${consulta.tipo}-${consulta.valor}` : null,
-    () => {
+    async () => {
       if (!consulta) return [];
-      return consulta.tipo === "empleado"
-        ? getHistorialPorEmpleadoAction(consulta.valor)
-        : getHistorialPorCargoAction(consulta.valor);
+      const resultado =
+        consulta.tipo === "empleado"
+          ? await getHistorialPorEmpleadoAction(consulta.valor)
+          : await getHistorialPorCargoAction(consulta.valor);
+      if (resultado && typeof resultado === "object" && "error" in resultado) {
+        throw new Error((resultado as { error: string }).error);
+      }
+      return resultado as MovimientoCargoDTO[];
     },
   );
 

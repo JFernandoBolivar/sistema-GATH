@@ -73,7 +73,7 @@ export default function AutogestionPage() {
   }, []);
 
   const setRespuesta = (preguntaId: number, parcial: Partial<ItemRespuestaInputDTO>) => {
-    setRespuestas((prev) => ({ ...prev, [preguntaId]: { preguntaId, ...prev[preguntaId], ...parcial } }));
+    setRespuestas((prev) => ({ ...prev, [preguntaId]: { ...prev[preguntaId], ...parcial, preguntaId } }));
   };
 
   const onGuardar = () => {

@@ -149,8 +149,12 @@ export default function CarnetizacionPage() {
   const onDescargar = (carnetId: number) => {
     startTransition(async () => {
       setError(null);
-      const blob = await descargarPdfCarnetAction(carnetId);
-      const url = window.URL.createObjectURL(blob);
+      const resultado = await descargarPdfCarnetAction(carnetId);
+      if (!(resultado instanceof Blob)) {
+        setError((resultado as { error: string }).error ?? "No fue posible descargar el carnet.");
+        return;
+      }
+      const url = window.URL.createObjectURL(resultado);
       const a = document.createElement("a");
       a.href = url;
       a.download = `carnet-${carnetId}.pdf`;

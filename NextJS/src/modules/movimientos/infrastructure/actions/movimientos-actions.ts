@@ -44,7 +44,6 @@ export async function getHistorialPorCargoAction(codigoPuesto: string) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    crearCodigoPuestoVO(validation.data.codigoPuesto);
     const result = await listarHistorialPorCargo(repoMovimientosApi, validation.data.codigoPuesto);
     await logAudit({ traceId, action: "getHistorialPorCargoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;

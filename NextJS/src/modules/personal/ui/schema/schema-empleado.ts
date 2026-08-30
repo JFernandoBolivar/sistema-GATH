@@ -44,6 +44,7 @@ export type EmpleadoFormType = z.infer<typeof empleadoSchema>;
 export const listadoEmpleadosSchema = z.object({
   busqueda: z.string().trim().max(100, { message: "Búsqueda demasiado larga" }).optional(),
 });
+export type ListadoEmpleadosFormType = z.infer<typeof listadoEmpleadosSchema>;
 
 /** Cédula de empleado (zero-trust R7). */
 export const empleadoCedulaSchema = z.object({

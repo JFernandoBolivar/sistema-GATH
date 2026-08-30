@@ -21,6 +21,7 @@ class RepoPasivosMemoria implements RepoPasivos {
       contactoEmergencia: [],
       antecedentes: [],
       contratoActual: null,
+      cargosHistorial: [],
     },
   ];
 
@@ -54,6 +55,7 @@ class RepoPasivosMemoria implements RepoPasivos {
       contactoEmergencia: [],
       antecedentes: [],
       contratoActual: null,
+      cargosHistorial: [],
     };
     this.pasivos.push(nuevo);
     return nuevo;

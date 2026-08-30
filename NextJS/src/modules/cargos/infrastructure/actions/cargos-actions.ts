@@ -9,10 +9,44 @@
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
-import { asignarCargo, desasignarCargo } from "../../application/use-cases/asignar-cargo";
-import { listarCargos, listarDenominaciones } from "../../application/use-cases/listar-cargos";
+import {
+  asignarCargo,
+  cambiarCargo,
+  desasignarCargo,
+  gestionarEstatus,
+} from "../../application/use-cases/asignar-cargo";
+import {
+  listarCargos,
+  listarDenominaciones,
+  listarDenominacionesEspecificas,
+  listarEstatusCargo,
+  listarMotivos,
+} from "../../application/use-cases/listar-cargos";
+import {
+  crearPrestamo,
+  finalizarPrestamo,
+  listarPrestamos,
+} from "../../application/use-cases/prestamo-cargo";
+import {
+  actualizarDenominacion,
+  actualizarDenominacionEspecifica,
+  crearDenominacion,
+  crearDenominacionEspecifica,
+  eliminarDenominacion,
+  eliminarDenominacionEspecifica,
+} from "../../application/use-cases/gestionar-denominaciones";
 import { repoCargosApi } from "../repositories/repo-cargos-api";
-import { asignarCargoSchema, cargosFiltroSchema, desasignarCargoSchema } from "../../ui/schema/schema-asignar-cargo";
+import {
+  asignarCargoSchema,
+  cargoIdSchema,
+  cargosFiltroSchema,
+  cambiarCargoSchema,
+  crearPrestamoSchema,
+  denominacionIdSchema,
+  denominacionSchema,
+  gestionarEstatusSchema,
+  prestamoIdSchema,
+} from "../../ui/schema/schema-asignar-cargo";
 
 export async function getCargosAction(filtros?: { dependenciaId?: number; soloVacantes?: boolean }) {
   const validated = cargosFiltroSchema.safeParse(filtros ?? {});
@@ -48,6 +82,48 @@ export async function getDenominacionesAction() {
   }
 }
 
+export async function getDenominacionesEspecificasAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarDenominacionesEspecificas(repoCargosApi);
+    await logAudit({ traceId, action: "getDenominacionesEspecificasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getDenominacionesEspecificasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getMotivosAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarMotivos(repoCargosApi);
+    await logAudit({ traceId, action: "getMotivosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getMotivosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getEstatusAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarEstatusCargo(repoCargosApi);
+    await logAudit({ traceId, action: "getEstatusAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getEstatusAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
 export async function asignarCargoAction(cargoId: number, empleadoCedula: string) {
   const validation = asignarCargoSchema.safeParse({ cargoId, empleadoCedula });
   if (!validation.success) {
@@ -68,7 +144,7 @@ export async function asignarCargoAction(cargoId: number, empleadoCedula: string
 }
 
 export async function desasignarCargoAction(cargoId: number) {
-  const validation = desasignarCargoSchema.safeParse({ cargoId });
+  const validation = cargoIdSchema.safeParse({ cargoId });
   if (!validation.success) {
     return { error: "Debe seleccionar un cargo válido." };
   }
@@ -81,6 +157,218 @@ export async function desasignarCargoAction(cargoId: number) {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "desasignarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function cambiarCargoAction(input: { cargoActualId: number; cargoNuevoId: number; motivoId: number }) {
+  const validation = cambiarCargoSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos del traslado inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await cambiarCargo(repoCargosApi, validation.data);
+    await logAudit({ traceId, action: "cambiarCargoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "cambiarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function gestionarEstatusAction(input: { cargoId: number; estatusId: number; motivoId: number }) {
+  const validation = gestionarEstatusSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos de estatus inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await gestionarEstatus(repoCargosApi, validation.data);
+    await logAudit({ traceId, action: "gestionarEstatusAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "gestionarEstatusAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getPrestamosAction(soloActivos?: boolean) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarPrestamos(repoCargosApi, soloActivos);
+    await logAudit({ traceId, action: "getPrestamosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getPrestamosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearPrestamoAction(input: {
+  cedulaEncargado: string;
+  cargoId: number;
+  motivoId: number;
+  fechaInicio: string;
+  fechaFin: string;
+}) {
+  const validation = crearPrestamoSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos del préstamo inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearPrestamo(repoCargosApi, validation.data);
+    await logAudit({ traceId, action: "crearPrestamoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearPrestamoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function finalizarPrestamoAction(prestamoId: number) {
+  const validation = prestamoIdSchema.safeParse({ prestamoId });
+  if (!validation.success) {
+    return { error: "Préstamo inválido." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await finalizarPrestamo(repoCargosApi, validation.data.prestamoId);
+    await logAudit({ traceId, action: "finalizarPrestamoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "finalizarPrestamoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearDenominacionAction(input: { nombre: string; orden: number }) {
+  const validation = denominacionSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos de la denominación inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearDenominacion(repoCargosApi, validation.data);
+    await logAudit({ traceId, action: "crearDenominacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearDenominacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarDenominacionAction(id: number, input: { nombre: string; orden: number }) {
+  const idValido = denominacionIdSchema.safeParse({ denominacionId: id });
+  const dataValida = denominacionSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos de la denominación inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarDenominacion(repoCargosApi, idValido.data.denominacionId, dataValida.data);
+    await logAudit({ traceId, action: "actualizarDenominacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarDenominacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function eliminarDenominacionAction(denominacionId: number) {
+  const validation = denominacionIdSchema.safeParse({ denominacionId });
+  if (!validation.success) {
+    return { error: "Denominación inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarDenominacion(repoCargosApi, validation.data.denominacionId);
+    await logAudit({ traceId, action: "eliminarDenominacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarDenominacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearDenominacionEspecificaAction(input: { nombre: string; orden: number }) {
+  const validation = denominacionSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos de la denominación específica inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearDenominacionEspecifica(repoCargosApi, validation.data);
+    await logAudit({ traceId, action: "crearDenominacionEspecificaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearDenominacionEspecificaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarDenominacionEspecificaAction(id: number, input: { nombre: string; orden: number }) {
+  const idValido = denominacionIdSchema.safeParse({ denominacionId: id });
+  const dataValida = denominacionSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos de la denominación específica inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarDenominacionEspecifica(repoCargosApi, idValido.data.denominacionId, dataValida.data);
+    await logAudit({ traceId, action: "actualizarDenominacionEspecificaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarDenominacionEspecificaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function eliminarDenominacionEspecificaAction(denominacionId: number) {
+  const validation = denominacionIdSchema.safeParse({ denominacionId });
+  if (!validation.success) {
+    return { error: "Denominación específica inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarDenominacionEspecifica(repoCargosApi, validation.data.denominacionId);
+    await logAudit({ traceId, action: "eliminarDenominacionEspecificaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarDenominacionEspecificaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

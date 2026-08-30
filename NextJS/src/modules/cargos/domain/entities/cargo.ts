@@ -1,22 +1,57 @@
 /**
- * Entidades de Dominio de Cargos (Regla R1).
+ * Entidades de Dominio de Cargos (Regla R1), alineadas a los DTOs/serializers
+ * de `apps.cargos.presentation.serializers.cargos_serializers`.
  */
 export interface DenominacionCargo {
   id: number;
   nombre: string;
+  orden: number;
 }
 
 export interface CargoAsignacion {
   id: number;
-  codigoNomina: string | null;
+  codigo: string;
   empleadoCedula: string | null;
-  empleadoNombre: string | null;
-  denominacionCargoId: number;
-  denominacionCargoNombre: string;
+  denominacionId: number;
+  denominacionNombre: string;
+  especificaId: number;
+  especificaNombre: string;
+  tipoNominaId: number;
+  tipoNominaNombre: string;
+  estatusId: number;
+  estatusNombre: string;
   dependenciaId: number | null;
   dependenciaNombre: string | null;
   direccionGeneralId: number | null;
   direccionGeneralNombre: string | null;
-  activo: boolean;
+  direccionLineaId: number | null;
+  direccionLineaNombre: string | null;
+  coordinacionId: number | null;
+  coordinacionNombre: string | null;
+  observaciones: string | null;
   estaVacante: boolean;
+}
+
+export interface PrestamoCargo {
+  id: number;
+  empleadoEncargadoCedula: string;
+  empleadoEncargadoNombre: string;
+  cargoEncargadoId: number;
+  cargoEncargadoCodigo: string;
+  titularCedula: string | null;
+  titularNombre: string | null;
+  motivoId: number;
+  motivoNombre: string;
+  estatusId: number;
+  estatusNombre: string;
+  fechaInicio: string;
+  fechaFin: string;
+  ejecutadoPorId: number;
+  estaFinalizada: boolean;
+}
+
+/** Item genérico de catálogo (motivos de movimiento / estatus). */
+export interface CatalogoCargoItem {
+  id: number;
+  nombre: string;
 }

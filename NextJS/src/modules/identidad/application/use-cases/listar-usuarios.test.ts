@@ -4,15 +4,27 @@ import type { RepoUsuarios } from "../../domain/ports/repo-usuarios";
 import { listarUsuarios } from "./listar-usuarios";
 
 function fakeRepo(rows: Awaited<ReturnType<RepoUsuarios["getAll"]>> = []): RepoUsuarios {
-  return { getAll: vi.fn().mockResolvedValue(rows) };
+  return {
+    getAll: vi.fn().mockResolvedValue(rows),
+    crear: vi.fn(),
+    editar: vi.fn(),
+    cambiarEstado: vi.fn(),
+    listarDepartamentos: vi.fn(),
+    listarPermisos: vi.fn(),
+  };
 }
 
 const fila = {
   id: 1,
-  cedula: "V12345678",
+  cedula: "12345678",
   nombres: "Ana",
   apellidos: "Pérez",
   correo: "ana.perez@conatel.gob.ve",
+  telefono: null,
+  departamentoId: 3,
+  rolId: 2,
+  isActive: true,
+  debeCambiarPassword: false,
 };
 
 describe("listarUsuarios", () => {
@@ -22,23 +34,15 @@ describe("listarUsuarios", () => {
     const result = await listarUsuarios(repo);
 
     expect(repo.getAll).toHaveBeenCalledWith(undefined);
-    expect(result).toEqual([
-      {
-        id: 1,
-        cedula: "V12345678",
-        nombres: "Ana",
-        apellidos: "Pérez",
-        correo: "ana.perez@conatel.gob.ve",
-      },
-    ]);
+    expect(result).toEqual([fila]);
   });
 
   it("propaga los filtros al repositorio", async () => {
     const repo = fakeRepo();
 
-    await listarUsuarios(repo, { busqueda: "Ana" });
+    await listarUsuarios(repo, { busqueda: "Ana", departamentoId: 3, rolId: 2, isActive: true });
 
-    expect(repo.getAll).toHaveBeenCalledWith({ busqueda: "Ana" });
+    expect(repo.getAll).toHaveBeenCalledWith({ busqueda: "Ana", departamentoId: 3, rolId: 2, isActive: true });
   });
 
   it("devuelve una lista vacía cuando el repositorio no trae filas", async () => {

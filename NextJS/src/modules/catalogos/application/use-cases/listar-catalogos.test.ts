@@ -50,6 +50,57 @@ class RepoCatalogosMemoria implements RepoCatalogos {
   async listarTiposMovimiento() {
     return [{ id: 1, nombre: "TRANSFERENCIA" }];
   }
+  async listarEstadosCiviles() {
+    return [{ id: 1, nombre: "SOLTERO(A)" }];
+  }
+  async listarPoliticas() {
+    return [{ id: 1, nombre: "POLITICA DE CONTRATACION" }];
+  }
+  async listarCondicionesVivienda() {
+    return [{ id: 1, nombre: "PROPIA" }];
+  }
+  async listarCodigosPostales() {
+    return [{ id: 1, nombre: "1010" }];
+  }
+  async listarGruposSanguineos() {
+    return [{ id: 1, nombre: "O+" }];
+  }
+  async listarNivelesAcademicos() {
+    return [{ id: 1, nombre: "LICENCIATURA" }];
+  }
+  async listarCarreras() {
+    return [{ id: 1, nombre: "INGENIERIA" }];
+  }
+  async listarMenciones() {
+    return [{ id: 1, nombre: "SISTEMAS" }];
+  }
+  async listarInstituciones() {
+    return [{ id: 1, nombre: "UNIVERSIDAD CENTRAL" }];
+  }
+  async listarTiposPrenda() {
+    return [{ id: 1, nombre: "CAMISA" }];
+  }
+  async listarRegionesTalla() {
+    return [{ id: 1, nombre: "ADULTO" }];
+  }
+  async listarTallas() {
+    return [{ id: 1, nombre: "M" }];
+  }
+  async listarCapacitaciones() {
+    return [{ id: 1, nombre: "CURSO DE LIDERAZGO" }];
+  }
+  async listarGruposCapacitacion() {
+    return [{ id: 1, nombre: "GRUPO A" }];
+  }
+  async listarAlergias() {
+    return [{ id: 1, nombre: "POLEN" }];
+  }
+  async listarPatologias() {
+    return [{ id: 1, nombre: "ASMA" }];
+  }
+  async listarDiscapacidades() {
+    return [{ id: 1, nombre: "MOTORA" }];
+  }
 }
 
 describe("Casos de uso de Catálogos", () => {
