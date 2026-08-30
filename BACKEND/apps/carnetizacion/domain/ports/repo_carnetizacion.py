@@ -26,6 +26,10 @@ class RepoCarnetizacion(Protocol):
     def activar_plantilla(self, plantilla_id: int) -> PlantillaCarnet:
         ...
 
+    def crear_plantilla(self, nombre: str, imagen: object, activar: bool = False) -> PlantillaCarnet:
+        """Sube una plantilla de diseño de carnet (paridad con `plantillas` del legado)."""
+        ...
+
     def generar_pdf(self, carnet_id: int) -> bytes:
         """
         Genera el PDF físico del carnet (QR + foto + plantilla, Fase 2.3 del

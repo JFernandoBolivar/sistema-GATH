@@ -79,6 +79,12 @@ class RepoCarnetizacionORM:
         obj.save(update_fields=['activo'])
         return plantilla_a_entidad(obj)
 
+    def crear_plantilla(self, nombre: str, imagen: object, activar: bool = False) -> PlantillaCarnet:
+        if activar:
+            CarnetTemplateModel.objects.all().update(activo=False)
+        obj = CarnetTemplateModel.objects.create(nombre=nombre, imagen=imagen, activo=activar)
+        return plantilla_a_entidad(obj)
+
     def generar_pdf(self, carnet_id: int) -> bytes:
         fila = (
             CarnetEmitidoModel.objects.select_related('employee', 'motivo')

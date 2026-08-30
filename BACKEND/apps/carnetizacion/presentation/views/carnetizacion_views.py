@@ -143,3 +143,27 @@ class EstadisticasCarnetsView(APIView):
         repo = RepoCarnetizacionORM()
         stats = repo.obtener_estadisticas_carnets()
         return ok(stats)
+
+
+class PlantillaCreateView(APIView):
+    """POST /api/v1/carnetizacion/plantillas/ — subir plantilla de diseño (multipart)."""
+
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
+
+    @extend_schema(tags=['Carnetización'], summary='Subir plantilla de diseño de carnet')
+    def post(self, request):
+        from rest_framework import serializers as _sr
+        class _S(_sr.Serializer):
+            nombre = _sr.CharField(max_length=100)
+            imagen = _sr.ImageField()
+            activar = _sr.BooleanField(required=False, default=False)
+        s = _S(data=request.data)
+        s.is_valid(raise_exception=True)
+        repo = RepoCarnetizacionORM()
+        plantilla = repo.crear_plantilla(
+            nombre=s.validated_data['nombre'],
+            imagen=s.validated_data['imagen'],
+            activar=s.validated_data.get('activar', False),
+        )
+        from apps.carnetizacion.presentation.serializers.carnetizacion_serializers import PlantillaCarnetSerializer
+        return ok(PlantillaCarnetSerializer(plantilla).data, 'Plantilla subida.', status=201)
