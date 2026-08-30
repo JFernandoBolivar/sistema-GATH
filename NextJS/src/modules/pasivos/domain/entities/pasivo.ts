@@ -18,6 +18,11 @@ export interface ExpedientePasivo {
   codigoPostalId?: number | null;
 }
 
+export interface CatalogoPasivo {
+  id: number;
+  nombre: string;
+}
+
 export interface Pasivo {
   id: number;
   cedula: string;

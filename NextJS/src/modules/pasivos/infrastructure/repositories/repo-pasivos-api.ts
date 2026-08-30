@@ -4,7 +4,7 @@
 import type { RepoPasivos } from "../../domain/ports/repo-pasivos";
 import type { ProcesarEgresoInput } from "../../domain/ports/procesar-egreso";
 import { pasivosApi } from "../http/pasivos-api";
-import { pasivoApiAEntidad } from "../mappers/mapper-pasivos";
+import { catalogoPasivoApiAEntidad, pasivoApiAEntidad } from "../mappers/mapper-pasivos";
 
 export const repoPasivosApi: RepoPasivos = {
   async listarPasivos(busqueda) {
@@ -24,5 +24,15 @@ export const repoPasivosApi: RepoPasivos = {
       liberar_activos: input.liberarActivos,
     });
     return pasivoApiAEntidad(raw);
+  },
+
+  async listarMotivosEgreso() {
+    const raw = await pasivosApi.getMotivosEgreso();
+    return raw.map(catalogoPasivoApiAEntidad);
+  },
+
+  async listarTiposNomina() {
+    const raw = await pasivosApi.getTiposNomina();
+    return raw.map(catalogoPasivoApiAEntidad);
   },
 };

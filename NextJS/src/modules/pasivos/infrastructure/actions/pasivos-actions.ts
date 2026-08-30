@@ -14,6 +14,10 @@ import {
   obtenerPasivoPorCedula,
   procesarEgreso,
 } from "../../application/use-cases/gestionar-pasivos";
+import {
+  listarMotivosEgreso,
+  listarTiposNomina,
+} from "../../application/use-cases/listar-catalogo-egreso";
 import { repoPasivosApi } from "../repositories/repo-pasivos-api";
 import {
   listadoPasivosSchema,
@@ -76,6 +80,34 @@ export async function procesarEgresoAction(input: {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "procesarEgresoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getMotivosEgresoAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarMotivosEgreso(repoPasivosApi);
+    await logAudit({ traceId, action: "getMotivosEgresoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getMotivosEgresoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getTiposNominaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarTiposNomina(repoPasivosApi);
+    await logAudit({ traceId, action: "getTiposNominaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTiposNominaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

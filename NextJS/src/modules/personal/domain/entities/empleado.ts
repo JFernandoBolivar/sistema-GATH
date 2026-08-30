@@ -1,13 +1,88 @@
 /**
  * Entidades de Dominio de Personal (Regla R1).
  *
- * Alineado a `BACKEND/apps/personal/presentation/serializers/personal_serializers.py::EmpleadoSerializer`
- * (verificado contra el backend real — Fase 1 del plan de reparación). El
- * módulo `personal` solo conoce datos demográficos/civiles del empleado;
- * cargo, dependencia, tipo de nómina y estatus laboral pertenecen a los
- * módulos `cargos`/`organizacion`/`catalogos` y todavía no se exponen
- * anidados aquí (ver Fase 2.2 del plan de reparación).
+ * Alineado a
+ * `BACKEND/apps/personal/presentation/serializers/personal_serializers.py::EmpleadoSerializer`
+ * y a los serializers de escritura anidados
+ * (`empleado_escritura_serializers.py`). El expediente anidado (vivienda,
+ * salud, físico, formación académica/complementaria, contacto de emergencia,
+ * antecedentes y contrato) vive aquí porque forma parte del motor de dominio
+ * de personal y es transversal (un pasivo también es un `Employee`).
  */
+
+export interface DatosVivienda {
+  estadoId?: number | null;
+  municipioId?: number | null;
+  parroquiaId?: number | null;
+  direccionExacta?: string | null;
+  condicionViviendaId?: number | null;
+  codigoPostalId?: number | null;
+}
+
+export interface PerfilSalud {
+  grupoSanguineoId?: number | null;
+  alergias?: number[];
+  patologiasCronicas?: number[];
+  discapacidades?: number[];
+}
+
+export interface PerfilFisico {
+  tallaCamisaId?: number | null;
+  tallaPantalonId?: number | null;
+  tallaZapatosId?: number | null;
+  tallaChaquetaId?: number | null;
+}
+
+export interface FormacionAcademica {
+  id?: number;
+  nivelAcademicoId?: number | null;
+  carreraId?: number | null;
+  mencionId?: number | null;
+  institucionId?: number | null;
+}
+
+export interface FormacionComplementaria {
+  id?: number;
+  capacitacionId?: number | null;
+  institucionId?: number | null;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+  diasCompletados?: string | null;
+  horasCompletadas?: string | null;
+  procedenciaId?: number | null;
+  grupoId?: number | null;
+}
+
+export interface ContactoEmergencia {
+  id?: number;
+  nombres?: string | null;
+  apellidos?: string | null;
+  telefono?: string | null;
+  relacionId?: number | null;
+}
+
+export interface CatalogoExpediente {
+  id: number;
+  nombre: string;
+}
+
+export interface Antecedente {
+  id?: number;
+  organismoId?: number | null;
+  fechaIngreso?: string | null;
+  fechaEgreso?: string | null;
+}
+
+export interface Contrato {
+  id?: number;
+  nContrato?: string | null;
+  fechaIngreso?: string | null;
+  fechaCulminacion?: string | null;
+  politicaId?: number | null;
+  estatusId?: number | null;
+  esFijo?: boolean;
+}
+
 export interface Empleado {
   id: number;
   cedula: string;
@@ -24,4 +99,13 @@ export interface Empleado {
   estadoCivilNombre: string | null;
   carnetPatria: string | null;
   totalAnosApn: number;
+  // Expediente anidado (solo poblado en el detalle, Fase 2.2).
+  datosVivienda?: DatosVivienda | null;
+  perfilSalud?: PerfilSalud | null;
+  perfilFisico?: PerfilFisico | null;
+  formacionAcademica?: FormacionAcademica[];
+  formacionComplementaria?: FormacionComplementaria[];
+  contactoEmergencia?: ContactoEmergencia[];
+  antecedentes?: Antecedente[];
+  contratoActual?: Contrato | null;
 }

@@ -24,6 +24,7 @@ import {
   listarEmpleados,
   obtenerEmpleadoPorCedula,
 } from "../../application/use-cases/listar-empleados";
+import { listarCatalogosExpediente } from "../../application/use-cases/listar-catalogos-expediente";
 import { repoPersonalApi } from "../repositories/repo-personal-api";
 import { empleadoCedulaSchema, empleadoSchema, listadoEmpleadosSchema } from "../../ui/schema/schema-empleado";
 
@@ -120,6 +121,20 @@ export async function subirFotoEmpleadoAction(cedula: string, formData: FormData
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "subirFotoEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getCatalogosExpedienteAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCatalogosExpediente(repoPersonalApi);
+    await logAudit({ traceId, action: "getCatalogosExpedienteAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCatalogosExpedienteAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

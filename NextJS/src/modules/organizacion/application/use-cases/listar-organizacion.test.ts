@@ -24,6 +24,51 @@ class RepoOrganizacionMemoria implements RepoOrganizacion {
   async listarOrganismosAdscritos() {
     return [{ id: 40, nombre: "CANTV" }];
   }
+  async crearDependencia(data: { codigo: string; nombre: string }) {
+    return { id: 1, codigo: data.codigo, nombre: data.nombre };
+  }
+  async actualizarDependencia(id: number, data: { codigo: string; nombre: string }) {
+    return { id, codigo: data.codigo, nombre: data.nombre };
+  }
+  async eliminarDependencia(_id: number) {
+    return;
+  }
+  async crearDireccionGeneral(data: { codigo: string; nombre: string; dependenciaId: number | null }) {
+    return { id: 10, codigo: data.codigo, nombre: data.nombre, dependenciaId: data.dependenciaId };
+  }
+  async actualizarDireccionGeneral(id: number, data: { codigo: string; nombre: string; dependenciaId: number | null }) {
+    return { id, codigo: data.codigo, nombre: data.nombre, dependenciaId: data.dependenciaId };
+  }
+  async eliminarDireccionGeneral(_id: number) {
+    return;
+  }
+  async crearDireccionLinea(data: { codigo: string; nombre: string; direccionGeneralId: number | null }) {
+    return { id: 20, codigo: data.codigo, nombre: data.nombre, direccionGeneralId: data.direccionGeneralId };
+  }
+  async actualizarDireccionLinea(id: number, data: { codigo: string; nombre: string; direccionGeneralId: number | null }) {
+    return { id, codigo: data.codigo, nombre: data.nombre, direccionGeneralId: data.direccionGeneralId };
+  }
+  async eliminarDireccionLinea(_id: number) {
+    return;
+  }
+  async crearCoordinacion(data: { codigo: string; nombre: string; direccionLineaId: number | null }) {
+    return { id: 30, codigo: data.codigo, nombre: data.nombre, direccionLineaId: data.direccionLineaId };
+  }
+  async actualizarCoordinacion(id: number, data: { codigo: string; nombre: string; direccionLineaId: number | null }) {
+    return { id, codigo: data.codigo, nombre: data.nombre, direccionLineaId: data.direccionLineaId };
+  }
+  async eliminarCoordinacion(_id: number) {
+    return;
+  }
+  async crearOrganismoAdscrito(data: { nombre: string; parentId: number | null }) {
+    return { id: 40, nombre: data.nombre };
+  }
+  async actualizarOrganismoAdscrito(id: number, data: { nombre: string; parentId: number | null }) {
+    return { id, nombre: data.nombre };
+  }
+  async eliminarOrganismoAdscrito(_id: number) {
+    return;
+  }
 }
 
 describe("Casos de uso de Organización", () => {

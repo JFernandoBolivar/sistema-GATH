@@ -17,21 +17,21 @@ import type {
 } from "../http/organizacion-api";
 
 export function dependenciaApiAEntidad(raw: DependenciaApiItem): Dependencia {
-  return { id: raw.id, nombre: raw.nombre };
+  return { id: raw.id, codigo: raw.codigo, nombre: raw.nombre };
 }
 
 export function direccionGeneralApiAEntidad(raw: DireccionGeneralApiItem): DireccionGeneral {
-  return { id: raw.id, nombre: raw.nombre, dependenciaId: raw.dependencia_id };
+  return { id: raw.id, codigo: raw.codigo, nombre: raw.nombre, dependenciaId: raw.dependencia_id };
 }
 
 export function direccionLineaApiAEntidad(raw: DireccionLineaApiItem): DireccionLinea {
-  return { id: raw.id, nombre: raw.nombre, direccionGeneralId: raw.direccion_general_id };
+  return { id: raw.id, codigo: raw.codigo, nombre: raw.nombre, direccionGeneralId: raw.direccion_general_id };
 }
 
 export function coordinacionApiAEntidad(raw: CoordinacionApiItem): Coordinacion {
-  return { id: raw.id, nombre: raw.nombre, direccionLineaId: raw.direccion_linea_id };
+  return { id: raw.id, codigo: raw.codigo, nombre: raw.nombre, direccionLineaId: raw.direccion_linea_id };
 }
 
 export function organismoAdscritoApiAEntidad(raw: OrganismoAdscritoApiItem): OrganismoAdscrito {
-  return { id: raw.id, nombre: raw.nombre };
+  return { id: raw.id, nombre: raw.nombre, parentId: raw.parent_id };
 }

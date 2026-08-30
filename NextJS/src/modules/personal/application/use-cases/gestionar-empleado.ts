@@ -21,12 +21,20 @@ function aDTO(e: Awaited<ReturnType<RepoPersonal["crearEmpleado"]>>): EmpleadoDT
     estadoCivilNombre: e.estadoCivilNombre,
     carnetPatria: e.carnetPatria,
     totalAnosApn: e.totalAnosApn,
+    datosVivienda: e.datosVivienda,
+    perfilSalud: e.perfilSalud,
+    perfilFisico: e.perfilFisico,
+    formacionAcademica: e.formacionAcademica,
+    formacionComplementaria: e.formacionComplementaria,
+    contactoEmergencia: e.contactoEmergencia,
+    antecedentes: e.antecedentes,
+    contratoActual: e.contratoActual,
   };
 }
 
 export async function registrarEmpleado(
   repo: RepoPersonal,
-  input: GuardarEmpleadoInputDTO
+  input: GuardarEmpleadoInputDTO,
 ): Promise<EmpleadoDTO> {
   const e = await repo.crearEmpleado({
     cedula: input.cedula,
@@ -39,7 +47,14 @@ export async function registrarEmpleado(
     telefonoHabitacion: input.telefonoHabitacion ?? null,
     estadoCivilId: input.estadoCivilId ?? null,
     carnetPatria: input.carnetPatria ?? null,
-    totalAnosApn: 0,
+    datosVivienda: input.datosVivienda ?? null,
+    perfilSalud: input.perfilSalud ?? null,
+    perfilFisico: input.perfilFisico ?? null,
+    formacionAcademica: input.formacionAcademica ?? [],
+    formacionComplementaria: input.formacionComplementaria ?? [],
+    contactoEmergencia: input.contactoEmergencia ?? [],
+    antecedentes: input.antecedentes ?? [],
+    contrato: input.contrato ?? [],
   });
   return aDTO(e);
 }
@@ -47,8 +62,27 @@ export async function registrarEmpleado(
 export async function actualizarEmpleado(
   repo: RepoPersonal,
   cedula: string,
-  data: Partial<GuardarEmpleadoInputDTO>
+  data: Partial<GuardarEmpleadoInputDTO>,
 ): Promise<EmpleadoDTO> {
-  const e = await repo.actualizarEmpleado(cedula, data as Partial<EmpleadoDTO>);
+  const e = await repo.actualizarEmpleado(cedula, {
+    cedula: data.cedula,
+    nombres: data.nombres,
+    apellidos: data.apellidos,
+    sexoId: data.sexoId,
+    fechaNacimiento: data.fechaNacimiento,
+    correo: data.correo,
+    telefonoMovil: data.telefonoMovil,
+    telefonoHabitacion: data.telefonoHabitacion,
+    estadoCivilId: data.estadoCivilId,
+    carnetPatria: data.carnetPatria,
+    datosVivienda: data.datosVivienda,
+    perfilSalud: data.perfilSalud,
+    perfilFisico: data.perfilFisico,
+    formacionAcademica: data.formacionAcademica,
+    formacionComplementaria: data.formacionComplementaria,
+    contactoEmergencia: data.contactoEmergencia,
+    antecedentes: data.antecedentes,
+    contrato: data.contrato,
+  });
   return aDTO(e);
 }

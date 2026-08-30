@@ -16,8 +16,33 @@ import {
   listarDireccionesLinea,
   listarOrganismosAdscritos,
 } from "../../application/use-cases/listar-organizacion";
+import {
+  actualizarCoordinacion,
+  actualizarDependencia,
+  actualizarDireccionGeneral,
+  actualizarDireccionLinea,
+  actualizarOrganismoAdscrito,
+  crearCoordinacion,
+  crearDependencia,
+  crearDireccionGeneral,
+  crearDireccionLinea,
+  crearOrganismoAdscrito,
+  eliminarCoordinacion,
+  eliminarDependencia,
+  eliminarDireccionGeneral,
+  eliminarDireccionLinea,
+  eliminarOrganismoAdscrito,
+} from "../../application/use-cases/gestionar-organizacion";
 import { repoOrganizacionApi } from "../repositories/repo-organizacion-api";
-import { organizacionFilterSchema } from "../../ui/schema/schema-organizacion";
+import {
+  coordinacionSchema,
+  dependenciaSchema,
+  direccionGeneralSchema,
+  direccionLineaSchema,
+  organismoAdscritoSchema,
+  organizacionFilterSchema,
+  organizacionIdSchema,
+} from "../../ui/schema/schema-organizacion";
 
 export async function getDependenciasAction() {
   const traceId = generateTraceId();
@@ -93,6 +118,296 @@ export async function getOrganismosAdscritosAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getOrganismosAdscritosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearDependenciaAction(input: { codigo: string; nombre: string }) {
+  const validation = dependenciaSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos de la dependencia inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearDependencia(repoOrganizacionApi, validation.data);
+    await logAudit({ traceId, action: "crearDependenciaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarDependenciaAction(id: number, input: { codigo: string; nombre: string }) {
+  const idValido = organizacionIdSchema.safeParse({ id });
+  const dataValida = dependenciaSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos de la dependencia inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarDependencia(repoOrganizacionApi, idValido.data.id, dataValida.data);
+    await logAudit({ traceId, action: "actualizarDependenciaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function eliminarDependenciaAction(id: number) {
+  const validation = organizacionIdSchema.safeParse({ id });
+  if (!validation.success) {
+    return { error: "Dependencia inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarDependencia(repoOrganizacionApi, validation.data.id);
+    await logAudit({ traceId, action: "eliminarDependenciaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearDireccionGeneralAction(input: { codigo: string; nombre: string; dependenciaId: number | null }) {
+  const validation = direccionGeneralSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos de la dirección general inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearDireccionGeneral(repoOrganizacionApi, validation.data);
+    await logAudit({ traceId, action: "crearDireccionGeneralAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearDireccionGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarDireccionGeneralAction(id: number, input: { codigo: string; nombre: string; dependenciaId: number | null }) {
+  const idValido = organizacionIdSchema.safeParse({ id });
+  const dataValida = direccionGeneralSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos de la dirección general inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarDireccionGeneral(repoOrganizacionApi, idValido.data.id, dataValida.data);
+    await logAudit({ traceId, action: "actualizarDireccionGeneralAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarDireccionGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function eliminarDireccionGeneralAction(id: number) {
+  const validation = organizacionIdSchema.safeParse({ id });
+  if (!validation.success) {
+    return { error: "Dirección general inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarDireccionGeneral(repoOrganizacionApi, validation.data.id);
+    await logAudit({ traceId, action: "eliminarDireccionGeneralAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarDireccionGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearDireccionLineaAction(input: { codigo: string; nombre: string; direccionGeneralId: number | null }) {
+  const validation = direccionLineaSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos de la dirección de línea inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearDireccionLinea(repoOrganizacionApi, validation.data);
+    await logAudit({ traceId, action: "crearDireccionLineaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearDireccionLineaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarDireccionLineaAction(id: number, input: { codigo: string; nombre: string; direccionGeneralId: number | null }) {
+  const idValido = organizacionIdSchema.safeParse({ id });
+  const dataValida = direccionLineaSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos de la dirección de línea inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarDireccionLinea(repoOrganizacionApi, idValido.data.id, dataValida.data);
+    await logAudit({ traceId, action: "actualizarDireccionLineaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarDireccionLineaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function eliminarDireccionLineaAction(id: number) {
+  const validation = organizacionIdSchema.safeParse({ id });
+  if (!validation.success) {
+    return { error: "Dirección de línea inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarDireccionLinea(repoOrganizacionApi, validation.data.id);
+    await logAudit({ traceId, action: "eliminarDireccionLineaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarDireccionLineaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearCoordinacionAction(input: { codigo: string; nombre: string; direccionLineaId: number | null }) {
+  const validation = coordinacionSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos de la coordinación inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearCoordinacion(repoOrganizacionApi, validation.data);
+    await logAudit({ traceId, action: "crearCoordinacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearCoordinacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarCoordinacionAction(id: number, input: { codigo: string; nombre: string; direccionLineaId: number | null }) {
+  const idValido = organizacionIdSchema.safeParse({ id });
+  const dataValida = coordinacionSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos de la coordinación inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarCoordinacion(repoOrganizacionApi, idValido.data.id, dataValida.data);
+    await logAudit({ traceId, action: "actualizarCoordinacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarCoordinacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function eliminarCoordinacionAction(id: number) {
+  const validation = organizacionIdSchema.safeParse({ id });
+  if (!validation.success) {
+    return { error: "Coordinación inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarCoordinacion(repoOrganizacionApi, validation.data.id);
+    await logAudit({ traceId, action: "eliminarCoordinacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarCoordinacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearOrganismoAdscritoAction(input: { nombre: string; parentId: number | null }) {
+  const validation = organismoAdscritoSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos del organismo adscrito inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearOrganismoAdscrito(repoOrganizacionApi, validation.data);
+    await logAudit({ traceId, action: "crearOrganismoAdscritoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarOrganismoAdscritoAction(id: number, input: { nombre: string; parentId: number | null }) {
+  const idValido = organizacionIdSchema.safeParse({ id });
+  const dataValida = organismoAdscritoSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos del organismo adscrito inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarOrganismoAdscrito(repoOrganizacionApi, idValido.data.id, dataValida.data);
+    await logAudit({ traceId, action: "actualizarOrganismoAdscritoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function eliminarOrganismoAdscritoAction(id: number) {
+  const validation = organizacionIdSchema.safeParse({ id });
+  if (!validation.success) {
+    return { error: "Organismo adscrito inválido." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarOrganismoAdscrito(repoOrganizacionApi, validation.data.id);
+    await logAudit({ traceId, action: "eliminarOrganismoAdscritoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

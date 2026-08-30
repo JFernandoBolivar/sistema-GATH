@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RepoPersonal } from "../../domain/ports/repo-personal";
+import type { GuardarEmpleadoDatos, RepoPersonal } from "../../domain/ports/repo-personal";
 import type { Empleado } from "../../domain/entities/empleado";
 import { actualizarEmpleado, registrarEmpleado } from "./gestionar-empleado";
 import { listarEmpleados, obtenerEmpleadoPorCedula } from "./listar-empleados";
@@ -31,21 +31,46 @@ class RepoPersonalMemoria implements RepoPersonal {
   async obtenerPorCedula(cedula: string) {
     return this.empleados.find((e) => e.cedula === cedula)!;
   }
-  async crearEmpleado(data: Omit<Empleado, "id" | "nombreCompleto" | "sexoNombre" | "estadoCivilNombre">) {
+  async crearEmpleado(data: GuardarEmpleadoDatos) {
+    const { contrato: _contrato, ...rest } = data;
     const e: Empleado = {
       id: 2,
-      ...data,
+      ...rest,
       nombreCompleto: `${data.nombres} ${data.apellidos}`,
       sexoNombre: "MASCULINO",
       estadoCivilNombre: "SOLTERO",
-    };
+      totalAnosApn: 0,
+    } as Empleado;
     this.empleados.push(e);
     return e;
   }
-  async actualizarEmpleado(cedula: string, data: Partial<Empleado>) {
+  async actualizarEmpleado(cedula: string, data: Partial<GuardarEmpleadoDatos>) {
     const e = this.empleados.find((x) => x.cedula === cedula)!;
     Object.assign(e, data);
     return e;
+  }
+  async listarCatalogosExpediente() {
+    return {
+      estados: [],
+      municipios: [],
+      parroquias: [],
+      condicionesVivienda: [],
+      codigosPostales: [],
+      gruposSanguineos: [],
+      nivelesAcademicos: [],
+      carreras: [],
+      menciones: [],
+      instituciones: [],
+      capacitaciones: [],
+      gruposCapacitacion: [],
+      tiposProcedencia: [],
+      tiposPrenda: [],
+      tallas: [],
+      politicas: [],
+      alergias: [],
+      patologias: [],
+      discapacidades: [],
+    };
   }
 }
 

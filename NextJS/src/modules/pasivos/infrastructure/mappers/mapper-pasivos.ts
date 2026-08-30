@@ -1,8 +1,8 @@
 /**
  * Mappers para convertir datos de Pasivos a entidades de dominio.
  */
-import type { Pasivo } from "../../domain/entities/pasivo";
-import type { PasivoApiItem } from "../http/pasivos-api";
+import type { CatalogoPasivo, Pasivo } from "../../domain/entities/pasivo";
+import type { CatalogoPasivoApiItem, PasivoApiItem } from "../http/pasivos-api";
 
 export function pasivoApiAEntidad(raw: PasivoApiItem): Pasivo {
   return {
@@ -23,4 +23,8 @@ export function pasivoApiAEntidad(raw: PasivoApiItem): Pasivo {
     contratoActual: raw.contrato_actual,
     cargosHistorial: raw.cargos_historial ?? [],
   };
+}
+
+export function catalogoPasivoApiAEntidad(raw: CatalogoPasivoApiItem): CatalogoPasivo {
+  return { id: raw.id, nombre: raw.nombre };
 }

@@ -22,6 +22,14 @@ function aDTO(e: Empleado): EmpleadoDTO {
     estadoCivilNombre: e.estadoCivilNombre,
     carnetPatria: e.carnetPatria,
     totalAnosApn: e.totalAnosApn,
+    datosVivienda: e.datosVivienda,
+    perfilSalud: e.perfilSalud,
+    perfilFisico: e.perfilFisico,
+    formacionAcademica: e.formacionAcademica,
+    formacionComplementaria: e.formacionComplementaria,
+    contactoEmergencia: e.contactoEmergencia,
+    antecedentes: e.antecedentes,
+    contratoActual: e.contratoActual,
   };
 }
 

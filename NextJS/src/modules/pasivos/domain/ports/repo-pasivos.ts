@@ -5,11 +5,13 @@
  * y procesar la transición activo → pasivo. Las lecturas por cédula se delegan
  * a las Server Actions del módulo.
  */
-import type { Pasivo } from "../entities/pasivo";
+import type { CatalogoPasivo, Pasivo } from "../entities/pasivo";
 import type { ProcesarEgresoInput } from "../ports/procesar-egreso";
 
 export interface RepoPasivos {
   listarPasivos(busqueda?: string): Promise<Pasivo[]>;
   obtenerPorCedula(cedula: string): Promise<Pasivo>;
   procesarEgreso(cedula: string, input: ProcesarEgresoInput): Promise<Pasivo>;
+  listarMotivosEgreso(): Promise<CatalogoPasivo[]>;
+  listarTiposNomina(): Promise<CatalogoPasivo[]>;
 }

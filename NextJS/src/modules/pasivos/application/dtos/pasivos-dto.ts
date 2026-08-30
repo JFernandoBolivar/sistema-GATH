@@ -3,6 +3,11 @@
  */
 import type { Pasivo } from "../../domain/entities/pasivo";
 
+export interface CatalogoPasivoDTO {
+  id: number;
+  nombre: string;
+}
+
 export interface PasivoDTO {
   id: number;
   cedula: string;

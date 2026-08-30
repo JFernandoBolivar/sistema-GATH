@@ -1,5 +1,87 @@
 import { z } from "zod";
-import { REGEX } from "@/shared/validation/regex";
+import { ERROR, REGEX } from "@/shared/domain/validation";
+
+/**
+ * Helpers para campos anidados: toleran el string vacío/NaN que deja
+ * react-hook-form y lo convierten a `null`, para que los bloques del
+ * expediente puedan guardarse parcialmente.
+ */
+const aNull = (v: unknown) =>
+  v === "" || v === null || v === undefined || (typeof v === "number" && Number.isNaN(v)) ? null : v;
+
+const numId = z.preprocess(aNull, z.number().int().positive().nullable());
+const texto = z.preprocess(aNull, z.string().nullable());
+
+function listaNumeros() {
+  return z.preprocess(
+    (v) =>
+      Array.isArray(v)
+        ? v.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0)
+        : [],
+    z.array(z.number().int()),
+  );
+}
+
+export const datosViviendaSchema = z.object({
+  estadoId: numId.optional(),
+  municipioId: numId.optional(),
+  parroquiaId: numId.optional(),
+  direccionExacta: texto.optional(),
+  condicionViviendaId: numId.optional(),
+  codigoPostalId: numId.optional(),
+});
+
+export const perfilSaludSchema = z.object({
+  grupoSanguineoId: numId.optional(),
+  alergias: listaNumeros().optional(),
+  patologiasCronicas: listaNumeros().optional(),
+  discapacidades: listaNumeros().optional(),
+});
+
+export const perfilFisicoSchema = z.object({
+  tallaCamisaId: numId.optional(),
+  tallaPantalonId: numId.optional(),
+  tallaZapatosId: numId.optional(),
+  tallaChaquetaId: numId.optional(),
+});
+
+export const formacionAcademicaItemSchema = z.object({
+  nivelAcademicoId: numId.optional(),
+  carreraId: numId.optional(),
+  mencionId: numId.optional(),
+  institucionId: numId.optional(),
+});
+
+export const formacionComplementariaItemSchema = z.object({
+  capacitacionId: numId.optional(),
+  institucionId: numId.optional(),
+  fechaInicio: texto.optional(),
+  fechaFin: texto.optional(),
+  diasCompletados: texto.optional(),
+  horasCompletadas: texto.optional(),
+  procedenciaId: numId.optional(),
+  grupoId: numId.optional(),
+});
+
+export const contactoEmergenciaItemSchema = z.object({
+  nombres: texto.optional(),
+  apellidos: texto.optional(),
+  telefono: texto.optional(),
+  relacionId: numId.optional(),
+});
+
+export const antecedenteItemSchema = z.object({
+  organismoId: numId.optional(),
+  fechaIngreso: texto.optional(),
+  fechaEgreso: texto.optional(),
+});
+
+export const contratoItemSchema = z.object({
+  nContrato: texto.optional(),
+  fechaIngreso: texto.optional(),
+  fechaCulminacion: texto.optional(),
+  politicaId: numId.optional(),
+});
 
 export const empleadoSchema = z.object({
   cedula: z
@@ -36,6 +118,14 @@ export const empleadoSchema = z.object({
   telefonoHabitacion: z.string().trim().optional().nullable(),
   estadoCivilId: z.number().positive().optional().nullable(),
   carnetPatria: z.string().trim().optional().nullable(),
+  datosVivienda: datosViviendaSchema.optional(),
+  perfilSalud: perfilSaludSchema.optional(),
+  perfilFisico: perfilFisicoSchema.optional(),
+  formacionAcademica: z.array(formacionAcademicaItemSchema).optional(),
+  formacionComplementaria: z.array(formacionComplementariaItemSchema).optional(),
+  contactoEmergencia: z.array(contactoEmergenciaItemSchema).optional(),
+  antecedentes: z.array(antecedenteItemSchema).optional(),
+  contrato: z.array(contratoItemSchema).optional(),
 });
 
 export type EmpleadoFormType = z.infer<typeof empleadoSchema>;

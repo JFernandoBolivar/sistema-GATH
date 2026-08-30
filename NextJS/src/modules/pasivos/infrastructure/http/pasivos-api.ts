@@ -1,7 +1,12 @@
 /**
  * Cliente HTTP para Pasivos conectado a la API canónica /api/v1/pasivos/.
+ * Todas las respuestas llegan envueltas en el sobre C-1 (`ok()`); por eso cada
+ * lectura/escritura desempaqueta `data` antes de devolver el resultado (mismo
+ * patrón que `cargos-api.ts`). Además provee los catálogos que el formulario
+ * de egreso necesita (motivos de egreso y tipos de nómina).
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import type { ApiResponse } from "@/shared/types/api-response";
 
 export interface PasivoApiItem {
   id: number;
@@ -28,15 +33,48 @@ export interface ProcesarEgresoApiBody {
   liberar_activos: boolean;
 }
 
+export interface CatalogoPasivoApiItem {
+  id: number;
+  nombre: string;
+}
+
+async function list<T>(getter: Promise<ApiResponse<T[]>>): Promise<T[]> {
+  const envelope = await getter;
+  return envelope.data ?? [];
+}
+
+async function single<T>(getter: Promise<ApiResponse<T>>): Promise<T> {
+  const envelope = await getter;
+  return envelope.data;
+}
+
 export const pasivosApi = {
   getPasivos: (busqueda?: string) =>
-    apiClient.get<PasivoApiItem[]>("/api/v1/pasivos/", {
-      params: busqueda ? { q: busqueda } : undefined,
-    }),
+    list<PasivoApiItem>(
+      apiClient.get<ApiResponse<PasivoApiItem[]>>("/api/v1/pasivos/", {
+        params: busqueda ? { q: busqueda } : undefined,
+      }),
+    ),
 
   getPorCedula: (cedula: string) =>
-    apiClient.get<PasivoApiItem>(`/api/v1/pasivos/${cedula}/`),
+    single<PasivoApiItem>(
+      apiClient.get<ApiResponse<PasivoApiItem>>(`/api/v1/pasivos/${cedula}/`),
+    ),
 
   procesarEgreso: (cedula: string, body: ProcesarEgresoApiBody) =>
-    apiClient.post<PasivoApiItem>(`/api/v1/pasivos/${cedula}/procesar-egreso/`, body as unknown as Record<string, unknown>),
+    single<PasivoApiItem>(
+      apiClient.post<ApiResponse<PasivoApiItem>>(`/api/v1/pasivos/${cedula}/procesar-egreso/`, body as unknown as Record<string, unknown>),
+    ),
+
+  getMotivosEgreso: () =>
+    list<CatalogoPasivoApiItem>(
+      apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/tipos-movimiento/", {
+        params: { categoria: "EGRESO" },
+      }),
+    ),
+
+  getTiposNomina: () =>
+    list<CatalogoPasivoApiItem>(
+      apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/tipos-nomina/"),
+    ),
 };
