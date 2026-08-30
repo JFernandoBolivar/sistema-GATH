@@ -117,8 +117,9 @@ Las server actions de `modules/*/infrastructure/actions/*-actions.ts` ahora vali
 ### 🟡 Prioridad 3 — Frontend funcional
 | # | Ítem | Nota |
 |---|---|---|
-| ~~10~~ | ~~Construir UI (`*-page.tsx`) de los 7 módulos~~ | ✅ **RESUELTO** — UI creada para `autogestion`, `cargos`, `carnetizacion`, `familiares`, `organizacion`, `personal`, `reportes`. Los 11 módulos conectados a rutas (`migracion/`) |
-| 11 | Retirar el legado del dashboard (`app/(protected)/dashboard/`, 263 archivos) y el legado de `shared/{forms,schemas,components}` | Fase 8; 116 imports del legado de `shared/` apuntan al dashboard |
+| ~~10~~ | ~~Construir UI (`*-page.tsx`) de los 7 módulos~~ | ✅ **RESUELTO** — UI creada; los 11 módulos conectados a rutas (`migracion/`) |
+| 20 | Paridad funcional de módulos vs legado | ✅ **RESUELTO (paridad amplia)** — identidad (usuarios/roles CRUD), cargos (préstamo/traslado/estatus/denominaciones), organizacion (CRUD), movimientos (egreso), personal (expediente completo), reportes (PDF/Excel), carnetizacion (revocar/estadísticas/subir plantilla), autogestion (consultar/Excel/métricas). Ver nota de GAPs residuales en §8 |
+| 11 | Retirar el legado del dashboard (`app/(protected)/dashboard/`, 263 archivos) | Fase 8; **bloqueado por GAPs residuales** (ver §8) — los módulos nuevos ya cubren la mayoría, pero el legado sigue siendo la referencia de comportamiento |
 | 12 | `eslint-plugin-boundaries` para enforcement automático de R1-R3 en frontend | F1.5 pendiente |
 | 13 | Storybook/Chromatic, Dockerfiles multi-stage | F6/F7/T1.7 pendientes |
 
@@ -195,8 +196,32 @@ Conectado a dos vías:
 
 ---
 
-## 8. Conclusión
+## 8. Paridad funcional lograda (módulos vs legado)
 
-La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK), la **paridad funcional de datos quedó habilitada** (modelos + catálogos + endpoints + `CargoEgresado` validados contra Postgres real), y los **CRUDs** de organización y códigos de cargo ya tienen escritura. El **frontend `modules/` cumple las reglas** (safeParse, VOs puros, kebab-case, `@/`) y **los 11 módulos tienen UI conectada a rutas** (R10).
+Se completó la UI + lógica de los módulos para igualar lo que hacía el legado. Resumen por módulo:
 
-La migración **aún no está completa** en el frente de producto: falta **retirar el legado del dashboard** (Fase 8, 263 archivos activos) y conectar la **escritura desde carga masiva** de `perfil_fisico`/`formacion_complementaria`/M2M salud (los datos están en 0; modelos/endpoints ya listos). El riesgo de git quedó resuelto con los commits atómicos (§7).
+| Módulo | Funcionalidad añadida |
+|---|---|
+| `identidad` | CRUD usuarios (registrar/editar/cambiar estado) + CRUD roles + catálogos departamentos/permisos |
+| `cargos` | préstamo/encargaduría, traslado de cargo, gestión de estatus, CRUD denominaciones y específicas |
+| `organizacion` | CRUD dependencias/direcciones generales/línea/coordinaciones/organismos (pestaña Administrar) |
+| `movimientos`/`pasivos` | egreso a pasivo (cédula + motivo + tipo nómina + liberar activos) |
+| `personal` | expediente completo (vivienda, salud, físico, académico, complementaria, contacto, antecedentes, contrato) + catálogos de expediente |
+| `reportes` | descarga PDF y Excel por tipo (backend `/pdf/`/`/excel/`) |
+| `carnetizacion` | revocar, estadísticas, subir plantilla |
+| `autogestion` | consultar censo por cédula, exportar Excel, métricas |
+
+**GAPs residuales (funciones del legado sin equivalente exacto en módulos nuevos):**
+- **Diseñador visual de carnet** del legado (vista previa editable con nombre/foto). Hoy el carnet se emite y descarga el PDF del backend (que ya genera QR+foto+plantilla), pero no hay editor en vivo con vista previa en el cliente. Es una feature de UX del legado, no un endpoint.
+- **Gráficas (recharts)** de métricas del censo: el módulo `autogestion` muestra tablas/tarjetas, el legado mostraba donut + barras. Es presentación, no funcionalidad.
+- El **registro multi-paso** del legado (wizard) se simplificó a formularios por sección; la carga de datos es equivalente.
+
+**Verificación de la sesión:** `tsc --noEmit` **0 errores en `src/modules`** (56 preexistentes en legado `dashboard/`) · `vitest` **22 files / 90 tests pass** · `lint-imports` **70/0** · `manage.py check` OK · backend **176 passed** (4 preexistentes RAC).
+
+---
+
+## 9. Conclusión
+
+La **arquitectura Onion backend está completa y verificada** (11/11 apps, 70 contratos import-linter, 176 tests, check OK), la **paridad funcional de datos quedó habilitada** (modelos + catálogos + endpoints + `CargoEgresado` validados contra Postgres real), y los **CRUDs** de organización y códigos de cargo tienen escritura. El **frontend `modules/` cumple las reglas** (safeParse, VOs puros, kebab-case, `@/`), **los 11 módulos tienen UI conectada a rutas** (R10) y se logró **paridad funcional amplia** con el legado (§8).
+
+La migración aún no está completa en el frente de **retiro del legado del dashboard** (Fase 8, 263 archivos): los módulos nuevos ya cubren la funcionalidad, pero el legado sigue activo como referencia de comportamiento y hay GAPs residuales de UX (editor visual de carnet, gráficas). **Riesgo de git:** resuelto con commits atómicos (§7).
