@@ -15,7 +15,7 @@ import {
   generarReporteVacantes,
 } from "../../application/use-cases/generar-reportes";
 import { repoReportesApi } from "../repositories/repo-reportes-api";
-import { reporteFilterSchema } from "../../ui/schema/schema-reporte";
+import { reporteFilterSchema, tipoReporteSchema } from "../../ui/schema/schema-reporte";
 
 export async function getReportePersonalAction(filtros?: {
   dependenciaId?: number;
@@ -66,6 +66,44 @@ export async function getReporteVacantesAction(filtros?: { dependenciaId?: numbe
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getReporteVacantesAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function descargarReportePdfAction(tipo: string) {
+  const validation = tipoReporteSchema.safeParse(tipo);
+  if (!validation.success) {
+    return { error: "Tipo de reporte inválido." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const resultado = await repoReportesApi.descargarPdf(validation.data);
+    await logAudit({ traceId, action: "descargarReportePdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return resultado;
+  } catch (error) {
+    await logAudit({ traceId, action: "descargarReportePdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function descargarReporteExcelAction(tipo: string) {
+  const validation = tipoReporteSchema.safeParse(tipo);
+  if (!validation.success) {
+    return { error: "Tipo de reporte inválido." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const resultado = await repoReportesApi.descargarExcel(validation.data);
+    await logAudit({ traceId, action: "descargarReporteExcelAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return resultado;
+  } catch (error) {
+    await logAudit({ traceId, action: "descargarReporteExcelAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

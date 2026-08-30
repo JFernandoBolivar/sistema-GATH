@@ -9,7 +9,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BadgeCheck, FileDown, IdCard, Loader2, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Ban, FileDown, IdCard, Loader2, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -40,6 +40,7 @@ import {
   emitirCarnetAction,
   getCarnetsAction,
   getPlantillasCarnetAction,
+  revocarCarnetAction,
   validarCarnetPorHashAction,
   validarCarnetPorIdAction,
 } from "../infrastructure/actions/carnetizacion-actions";
@@ -163,6 +164,18 @@ export default function CarnetizacionPage() {
     });
   };
 
+  const onRevocar = (carnetId: number) => {
+    startTransition(async () => {
+      setError(null);
+      const resultado = await revocarCarnetAction(carnetId);
+      if (resultado && typeof resultado === "object" && "error" in resultado) {
+        setError((resultado as { error: string }).error);
+        return;
+      }
+      cargarCarnets(busqueda);
+    });
+  };
+
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
       <header className="flex items-center gap-2">
@@ -241,6 +254,9 @@ export default function CarnetizacionPage() {
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="sm" onClick={() => onDescargar(c.id)} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /></Button>
                               <Button variant="ghost" size="sm" onClick={() => { onEmitidoSet(c.empleadoCedula); setTab("validar"); }} disabled={isPending}><ShieldCheck className="size-4" aria-hidden="true" /></Button>
+                              {c.activo && (
+                                <Button variant="ghost" size="sm" onClick={() => onRevocar(c.id)} disabled={isPending} title="Revocar carnet"><Ban className="size-4" aria-hidden="true" /></Button>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>

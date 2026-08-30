@@ -9,7 +9,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BarChart3, Loader2 } from "lucide-react";
+import { BarChart3, FileDown, FileSpreadsheet, Loader2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -37,7 +37,10 @@ import type {
   ReporteItemPersonalDTO,
   ReporteItemVacanteDTO,
 } from "../application/dtos/reporte-dto";
+import type { TipoReportePersonal } from "../domain/value-objects/tipo-reporte-vo";
 import {
+  descargarReporteExcelAction,
+  descargarReportePdfAction,
   getReportePasivosAction,
   getReportePersonalAction,
   getReporteVacantesAction,
@@ -45,6 +48,12 @@ import {
 import { reporteFilterSchema, type ReporteFilterType } from "./schema/schema-reporte";
 
 type Tab = "personal" | "pasivos" | "vacantes";
+
+const TAB_A_TIPO_REPORTE: Record<Tab, TipoReportePersonal> = {
+  personal: "personal-activo",
+  pasivos: "personal-pasivo",
+  vacantes: "vacantes",
+};
 
 export default function ReportesPage() {
   const [tab, setTab] = useState<Tab>("personal");
@@ -81,6 +90,27 @@ export default function ReportesPage() {
     if (tab === "personal") cargarPersonal(data.dependenciaId);
     else if (tab === "vacantes") cargarVacantes(data.dependenciaId);
     else cargarPasivos();
+  };
+
+  const onDescargar = (formato: "pdf" | "excel") => {
+    startTransition(async () => {
+      setError(null);
+      const tipo = TAB_A_TIPO_REPORTE[tab];
+      const resultado =
+        formato === "pdf"
+          ? await descargarReportePdfAction(tipo)
+          : await descargarReporteExcelAction(tipo);
+      if (!(resultado instanceof Blob)) {
+        setError((resultado as { error: string }).error ?? "No fue posible descargar el archivo.");
+        return;
+      }
+      const url = window.URL.createObjectURL(resultado);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte-${tipo}.${formato}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
   };
 
   useEffect(() => {
@@ -134,6 +164,10 @@ export default function ReportesPage() {
         </TabsList>
 
         <TabsContent value="personal">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>
@@ -169,6 +203,10 @@ export default function ReportesPage() {
         </TabsContent>
 
         <TabsContent value="pasivos">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>
@@ -200,6 +238,10 @@ export default function ReportesPage() {
         </TabsContent>
 
         <TabsContent value="vacantes">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
           <div className="overflow-hidden rounded-lg border">
             <Table>
               <TableHeader>

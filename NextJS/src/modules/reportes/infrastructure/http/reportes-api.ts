@@ -2,6 +2,24 @@
  * Cliente HTTP para Reportes conectado a las APIs canónicas /api/v1/reportes/
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import type { TipoReportePersonal } from "../../domain/value-objects/tipo-reporte-vo";
+
+/**
+ * Rutas canónicas de descarga del backend (verificadas en
+ * `BACKEND/apps/reportes/presentation/urls.py`): cada reporte resuelve su
+ * variante /pdf/ y /excel/ según el tipo.
+ */
+const RUTA_PDF_REPORTE: Record<TipoReportePersonal, string> = {
+  "personal-activo": "/api/v1/reportes/personal-activo/pdf/",
+  "personal-pasivo": "/api/v1/reportes/pasivos/pdf/",
+  vacantes: "/api/v1/reportes/cargos-vacantes/pdf/",
+};
+
+const RUTA_EXCEL_REPORTE: Record<TipoReportePersonal, string> = {
+  "personal-activo": "/api/v1/reportes/personal-activo/excel/",
+  "personal-pasivo": "/api/v1/reportes/pasivos/excel/",
+  vacantes: "/api/v1/reportes/cargos-vacantes/excel/",
+};
 
 export interface ReportePersonalApiItem {
   cedula: string;
@@ -38,4 +56,8 @@ export const reportesApi = {
 
   getReporteVacantes: (filtros?: any) =>
     apiClient.get<ReporteVacanteApiItem[]>("/api/v1/reportes/vacantes/", { params: filtros }),
+
+  getPdf: (tipo: TipoReportePersonal) => apiClient.getBlob(RUTA_PDF_REPORTE[tipo]),
+
+  getExcel: (tipo: TipoReportePersonal) => apiClient.getBlob(RUTA_EXCEL_REPORTE[tipo]),
 };

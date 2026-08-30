@@ -61,6 +61,11 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
   async descargarPdf(_carnetId: number) {
     return new Blob(["%PDF-simulado"], { type: "application/pdf" });
   }
+  async revocarCarnet(carnetId: number) {
+    const c = this.carnets.find((x) => x.id === carnetId)!;
+    c.activo = false;
+    return c;
+  }
 }
 
 describe("Casos de uso de Carnetización", () => {

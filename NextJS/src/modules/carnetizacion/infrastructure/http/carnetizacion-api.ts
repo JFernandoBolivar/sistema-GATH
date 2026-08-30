@@ -58,4 +58,7 @@ export const carnetizacionApi = {
   // Fase 2.3 del plan de reparación: generación real del PDF (QR + foto + plantilla).
   descargarPdf: (carnetId: number) =>
     apiClient.getBlob(`/api/v1/carnetizacion/${carnetId}/pdf/`),
+
+  revocar: (carnetId: number) =>
+    apiClient.post<CarnetApiItem>(`/api/v1/carnetizacion/${carnetId}/revocar/`),
 };

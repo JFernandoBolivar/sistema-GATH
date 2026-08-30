@@ -44,6 +44,14 @@ class RepoReportesMemoria implements RepoReportes {
       },
     ];
   }
+
+  async descargarPdf(tipo: "personal-activo" | "personal-pasivo" | "vacantes") {
+    return new Blob([`pdf-${tipo}`], { type: "application/pdf" });
+  }
+
+  async descargarExcel(tipo: "personal-activo" | "personal-pasivo" | "vacantes") {
+    return new Blob([`excel-${tipo}`], { type: "application/vnd.ms-excel" });
+  }
 }
 
 describe("Casos de uso de Reportes", () => {

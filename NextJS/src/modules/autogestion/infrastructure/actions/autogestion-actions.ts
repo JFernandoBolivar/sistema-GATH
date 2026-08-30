@@ -22,7 +22,7 @@ import {
   registrarRespuestasCenso,
 } from "../../application/use-cases/gestionar-censo";
 import { repoAutogestionApi } from "../repositories/repo-autogestion-api";
-import { registrarCensoSchema } from "../../ui/schema/schema-censo";
+import { censoCedulaSchema, registrarCensoSchema } from "../../ui/schema/schema-censo";
 
 async function cedulaDeLaSesion(): Promise<string> {
   const session = await auth();
@@ -89,6 +89,25 @@ export async function getReporteDependenciasCensoAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getReporteDependenciasCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function obtenerCensoPorCedulaAction(cedula: string) {
+  const validation = censoCedulaSchema.safeParse({ cedula });
+  if (!validation.success) {
+    return { error: "Cédula inválida. Revise el formato ingresado." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerCensoDeEmpleado(repoAutogestionApi, validation.data.cedula);
+    await logAudit({ traceId, action: "obtenerCensoPorCedulaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "obtenerCensoPorCedulaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

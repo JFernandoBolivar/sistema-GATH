@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { REGEX } from "@/shared/domain/validation";
 
 /**
  * Una respuesta del censo dinámico (Fase 1 del plan de reparación: el censo
@@ -15,5 +16,14 @@ export const registrarCensoSchema = z.object({
   respuestas: z.array(itemRespuestaCensoSchema).min(1, { message: "Debe responder al menos una pregunta" }),
 });
 
+/** Cédula para consultar el censo de un empleado (zero-trust R7). */
+export const censoCedulaSchema = z.object({
+  cedula: z
+    .string()
+    .trim()
+    .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida" }),
+});
+
 export type ItemRespuestaCensoFormType = z.infer<typeof itemRespuestaCensoSchema>;
 export type RegistrarCensoFormType = z.infer<typeof registrarCensoSchema>;
+export type CensoCedulaFormType = z.infer<typeof censoCedulaSchema>;

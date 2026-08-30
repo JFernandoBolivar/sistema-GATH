@@ -61,3 +61,8 @@ export async function activarPlantillaCarnet(
   const e = await repo.activarPlantilla(plantillaId);
   return aPlantillaDTO(e);
 }
+
+export async function revocarCarnet(repo: RepoCarnetizacion, carnetId: number): Promise<CarnetDTO> {
+  const e = await repo.revocarCarnet(carnetId);
+  return aCarnetDTO(e);
+}

@@ -31,4 +31,12 @@ export const repoReportesApi: RepoReportes = {
     const raw = await reportesApi.getReporteVacantes(params);
     return raw.map(reporteVacanteApiAEntidad);
   },
+
+  async descargarPdf(tipo) {
+    return reportesApi.getPdf(tipo);
+  },
+
+  async descargarExcel(tipo) {
+    return reportesApi.getExcel(tipo);
+  },
 };

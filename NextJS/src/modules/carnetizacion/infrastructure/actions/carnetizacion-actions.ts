@@ -14,6 +14,7 @@ import {
   emitirCarnet,
   listarCarnets,
   listarPlantillasCarnet,
+  revocarCarnet,
 } from "../../application/use-cases/emitir-carnet";
 import { validarCarnetPorHash, validarCarnetPorId } from "../../application/use-cases/validar-qr";
 import { repoCarnetizacionApi } from "../repositories/repo-carnetizacion-api";
@@ -139,6 +140,25 @@ export async function descargarPdfCarnetAction(carnetId: number) {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "descargarPdfCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function revocarCarnetAction(carnetId: number) {
+  const validation = carnetIdSchema.safeParse({ carnetId });
+  if (!validation.success) {
+    return { error: "Carnet inválido." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await revocarCarnet(repoCarnetizacionApi, validation.data.carnetId);
+    await logAudit({ traceId, action: "revocarCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "revocarCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

@@ -47,4 +47,8 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
   async descargarPdf(carnetId) {
     return carnetizacionApi.descargarPdf(carnetId);
   },
+
+  async revocarCarnet(carnetId) {
+    return carnetApiAEntidad(await carnetizacionApi.revocar(carnetId));
+  },
 };

@@ -11,4 +11,5 @@ export interface RepoCarnetizacion {
   listarPlantillas(): Promise<PlantillaCarnet[]>;
   activarPlantilla(plantillaId: number): Promise<PlantillaCarnet>;
   descargarPdf(carnetId: number): Promise<Blob>;
+  revocarCarnet(carnetId: number): Promise<Carnet>;
 }
