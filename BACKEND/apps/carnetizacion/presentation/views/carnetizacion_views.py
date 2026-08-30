@@ -131,3 +131,15 @@ class ActivarPlantillaView(APIView):
         repo = RepoCarnetizacionORM()
         dto = activar_plantilla(repo, plantilla_id=plantilla_id)
         return ok(PlantillaCarnetSerializer(dto).data)
+
+
+class EstadisticasCarnetsView(APIView):
+    """GET /api/v1/carnetizacion/estadisticas/ — paridad con el legado `estadisticas`."""
+
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(tags=['Carnetización'], summary='Estadísticas de carnets emitidos')
+    def get(self, request):
+        repo = RepoCarnetizacionORM()
+        stats = repo.obtener_estadisticas_carnets()
+        return ok(stats)

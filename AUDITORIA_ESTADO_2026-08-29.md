@@ -130,6 +130,7 @@ Las server actions de `modules/*/infrastructure/actions/*-actions.ts` ahora vali
 | 16 | R15 residual: `NEXT_PUBLIC_DJANGO` en 4 archivos cliente-legado | Proxy F4 |
 | 17 | R16 residual: `nombre_rol` hardcodeado en `proxy.ts` (RECEPCIONISTA/AUTOGESTION) y sidebars | Sustituir en F9 |
 | 18 | Bug latente `repo_reportes_orm.py:66` — campos inexistentes en `AsigTrabajoModel` | ✅ **RESUELTO** — `denominacion_cargo.denominacion`→`denominacioncargoid.cargo`, `codigo_nomina`→`codigo`; verificado contra la BD |
+| 19 | GAPs de carnetización (estadísticas, diseñador) y autogestión (Excel, métricas) | ✅ **Backend resuelto** — se crearon `carnetizacion/estadisticas/`, `autogestion/censo/export/excel/` y `autogestion/censo/metricas/`. Falta conectar más diseñador/subida de plantilla (endpoint propio) |
 | 19 | Escritura de `perfil_fisico`/`formacion_complementaria`/M2M salud desde carga masiva | ✅ **RESUELTO** — los 3 bloques se persisten vía `_upsert_perfil_fisico`/`_upsert_formacion_complementaria` y M2M de salud con `through` explícito; conectado al alta/edición individual (serializer) y a la carga masiva de expediente |
 
 ---

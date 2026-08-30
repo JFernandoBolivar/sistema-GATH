@@ -36,3 +36,7 @@ class RepoCarnetizacion(Protocol):
     def revocar_carnet(self, carnet_id: int) -> Carnet:
         """Marca el carnet como inactivo (Fase 2.3): permiso `carnetizacion.revocar` ya sembrado, sin código hasta ahora."""
         ...
+
+    def obtener_estadisticas_carnets(self) -> dict:
+        """Métricas agregadas de carnets (paridad con `estadisticas` del legado)."""
+        ...

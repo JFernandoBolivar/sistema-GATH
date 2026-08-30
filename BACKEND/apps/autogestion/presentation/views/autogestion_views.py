@@ -81,3 +81,32 @@ class ReporteCensoDependenciasView(APIView):
         repo = RepoAutogestionORM()
         reporte = obtener_reporte_censo_dependencias(repo)
         return ok(reporte)
+
+
+class MetricasCensoView(APIView):
+    """GET /api/v1/autogestion/censo/metricas/ — paridad con `autogestion/metricas`."""
+
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_ver_todos')]
+
+    @extend_schema(tags=['Autogestión'], summary='Métricas del censo (RRHH)')
+    def get(self, request):
+        repo = RepoAutogestionORM()
+        return ok(repo.obtener_metricas_censo())
+
+
+class CensoExcelView(APIView):
+    """GET /api/v1/autogestion/censo/export/excel/ — paridad con el Excel del censo."""
+
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_ver_todos')]
+
+    @extend_schema(tags=['Autogestión'], summary='Exportar respuestas del censo a Excel')
+    def get(self, request):
+        from core.infrastructure.pdf.report_excel import generar_reporte_excel
+        repo = RepoAutogestionORM()
+        filas = repo.obtener_todas_respuestas()
+        contenido = generar_reporte_excel('Censo de Vivienda', ['cedula', 'empleado', 'pregunta', 'respuesta'], filas)
+        from rest_framework.response import Response
+        from django.http import HttpResponse
+        response = HttpResponse(contenido, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="censo_vivienda.xlsx"'
+        return response

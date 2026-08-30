@@ -3,6 +3,7 @@ Repositorio ORM de Carnetización (Reglas B4, B7).
 """
 import hashlib
 from django.conf import settings
+from django.db.models import Count
 from django.utils import timezone
 
 from core.domain.exceptions import NotFoundError
@@ -133,3 +134,20 @@ class RepoCarnetizacionORM:
         obj.activo = False
         obj.save(update_fields=['activo'])
         return self.obtener_por_id(carnet_id)
+
+    def obtener_estadisticas_carnets(self) -> dict:
+        """Métricas de carnets (paridad con `carnetizacion/estadisticas`)."""
+        hoy = timezone.now().date()
+        qs = CarnetEmitidoModel.objects.all()
+        por_motivo = [
+            {'motivo_id': m['motivo_id'], 'motivo': str(m['motivo__nombre'] if m['motivo_id'] else 'Sin motivo'), 'total': m['total']}
+            for m in qs.values('motivo_id', 'motivo__nombre').annotate(total=Count('id')).order_by('-total')
+        ]
+        return {
+            'total': qs.count(),
+            'activos': qs.filter(activo=True).count(),
+            'revocados': qs.filter(activo=False).count(),
+            'emitidos_hoy': qs.filter(fecha_emision__date=hoy).count(),
+            'emitidos_mes': qs.filter(fecha_emision__year=hoy.year, fecha_emision__month=hoy.month).count(),
+            'por_motivo': por_motivo,
+        }

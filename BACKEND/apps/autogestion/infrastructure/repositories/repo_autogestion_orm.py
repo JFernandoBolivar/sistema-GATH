@@ -68,3 +68,31 @@ class RepoAutogestionORM:
                 reporte[dep_id]['empleados_censados'] += 1
 
         return list(reporte.values())
+
+    def obtener_todas_respuestas(self) -> list[dict]:
+        """Todas las respuestas del censo (para exportar a Excel)."""
+        qs = (
+            RespuestasEncuestaModel.objects.select_related('empleado', 'pregunta', 'opcion')
+            .order_by('empleado_id', 'pregunta__orden')
+        )
+        filas = []
+        for r in qs:
+            emp = r.empleado
+            filas.append({
+                'cedula': str(r.empleado_id),
+                'empleado': f"{emp.nombres} {emp.apellidos}".strip() if emp else '',
+                'pregunta': r.pregunta.enunciado if r.pregunta else '',
+                'respuesta': r.opcion.tipo_opcion if r.opcion else r.respuesta,
+            })
+        return filas
+
+    def obtener_metricas_censo(self) -> dict:
+        """Métricas agregadas del censo (paridad con `metricas` del legado)."""
+        total_empleados = RespuestasEncuestaModel.objects.values('empleado_id').distinct().count()
+        total_respuestas = RespuestasEncuestaModel.objects.count()
+        por_dependencia = self.obtener_reporte_dependencias()
+        return {
+            'total_empleados_censados': total_empleados,
+            'total_respuestas': total_respuestas,
+            'por_dependencia': por_dependencia,
+        }

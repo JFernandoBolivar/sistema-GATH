@@ -4,6 +4,7 @@ from apps.carnetizacion.presentation.views.carnetizacion_views import (
     ActivarPlantillaView,
     CarnetPdfView,
     CarnetsListView,
+    EstadisticasCarnetsView,
     PlantillasListView,
     RevocarCarnetView,
     ValidarCarnetHashView,
@@ -14,6 +15,7 @@ app_name = 'carnetizacion'
 
 urlpatterns = [
     path('', CarnetsListView.as_view(), name='carnets-list'),
+    path('estadisticas/', EstadisticasCarnetsView.as_view(), name='carnets-estadisticas'),
     path('plantillas/', PlantillasListView.as_view(), name='plantillas-list'),
     path('plantillas/<int:plantilla_id>/activar/', ActivarPlantillaView.as_view(), name='plantilla-activar'),
     path('validar/hash/<str:security_hash>/', ValidarCarnetHashView.as_view(), name='carnet-validar-hash'),
