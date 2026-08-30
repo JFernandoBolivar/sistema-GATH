@@ -16,8 +16,10 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { ItemRespuestaInputDTO } from "../../application/dtos/censo-dto";
 import {
+  descargarExcelCenso,
   listarPreguntasCenso,
   obtenerCensoDeEmpleado,
+  obtenerMetricasCenso,
   obtenerReporteDependenciasCenso,
   registrarRespuestasCenso,
 } from "../../application/use-cases/gestionar-censo";
@@ -108,6 +110,34 @@ export async function obtenerCensoPorCedulaAction(cedula: string) {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "obtenerCensoPorCedulaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getMetricasCensoAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerMetricasCenso(repoAutogestionApi);
+    await logAudit({ traceId, action: "getMetricasCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getMetricasCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function descargarExcelCensoAction(): Promise<Blob> {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await descargarExcelCenso(repoAutogestionApi);
+    await logAudit({ traceId, action: "descargarExcelCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "descargarExcelCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

@@ -44,3 +44,9 @@ export interface ReporteDependenciaCenso {
   totalEmpleados: number;
   empleadosCensados: number;
 }
+
+export interface MetricasCenso {
+  totalEmpleadosCensados: number;
+  totalRespuestas: number;
+  porDependencia: ReporteDependenciaCenso[];
+}

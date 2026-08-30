@@ -5,6 +5,7 @@
  * un cuestionario dinámico identificado por cédula, no un formulario fijo.
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import type { ApiResponse } from "@/shared/types/api-response";
 
 export interface OpcionPreguntaApiItem {
   id: number;
@@ -39,6 +40,12 @@ export interface ReporteDependenciaApiItem {
   empleados_censados: number;
 }
 
+export interface MetricasCensoApiItem {
+  total_empleados_censados: number;
+  total_respuestas: number;
+  por_dependencia: ReporteDependenciaApiItem[];
+}
+
 export const autogestionApi = {
   getPreguntas: () =>
     apiClient.get<PreguntaCensoApiItem[]>("/api/v1/autogestion/preguntas/"),
@@ -51,4 +58,12 @@ export const autogestionApi = {
 
   getReporteDependencias: () =>
     apiClient.get<ReporteDependenciaApiItem[]>("/api/v1/autogestion/censo/reporte-dependencias/"),
+
+  getExcelCenso: () =>
+    apiClient.getBlob("/api/v1/autogestion/censo/export/excel/"),
+
+  getMetricas: async () => {
+    const envelope = await apiClient.get<ApiResponse<MetricasCensoApiItem>>("/api/v1/autogestion/censo/metricas/");
+    return envelope.data;
+  },
 };

@@ -3,7 +3,11 @@
  */
 import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
 import { carnetizacionApi } from "../http/carnetizacion-api";
-import { carnetApiAEntidad, plantillaCarnetApiAEntidad } from "../mappers/mapper-carnetizacion";
+import {
+  carnetApiAEntidad,
+  estadisticasCarnetApiAEntidad,
+  plantillaCarnetApiAEntidad,
+} from "../mappers/mapper-carnetizacion";
 
 export const repoCarnetizacionApi: RepoCarnetizacion = {
   async listarCarnets(cedula) {
@@ -50,5 +54,9 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
 
   async revocarCarnet(carnetId) {
     return carnetApiAEntidad(await carnetizacionApi.revocar(carnetId));
+  },
+
+  async obtenerEstadisticas() {
+    return estadisticasCarnetApiAEntidad(await carnetizacionApi.getEstadisticas());
   },
 };

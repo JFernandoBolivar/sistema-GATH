@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RepoAutogestion } from "../../domain/ports/repo-autogestion";
 import type {
   ItemRespuestaCenso,
+  MetricasCenso,
   PreguntaCenso,
   ReporteDependenciaCenso,
   RespuestaCenso,
@@ -9,6 +10,7 @@ import type {
 import {
   listarPreguntasCenso,
   obtenerCensoDeEmpleado,
+  obtenerMetricasCenso,
   obtenerReporteDependenciasCenso,
   registrarRespuestasCenso,
 } from "./gestionar-censo";
@@ -64,6 +66,16 @@ class RepoAutogestionMemoria implements RepoAutogestion {
   async obtenerReporteDependencias(): Promise<ReporteDependenciaCenso[]> {
     return [{ dependenciaId: 1, dependencia: "Tecnología", totalEmpleados: 10, empleadosCensados: 8 }];
   }
+  async obtenerMetricasCenso(): Promise<MetricasCenso> {
+    return {
+      totalEmpleadosCensados: 8,
+      totalRespuestas: 20,
+      porDependencia: [{ dependenciaId: 1, dependencia: "Tecnología", totalEmpleados: 10, empleadosCensados: 8 }],
+    };
+  }
+  async descargarExcelCenso(): Promise<Blob> {
+    return new Blob(["XLSX-simulado"], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  }
 }
 
 describe("Casos de uso de Autogestión", () => {
@@ -89,5 +101,13 @@ describe("Casos de uso de Autogestión", () => {
     const reporte = await obtenerReporteDependenciasCenso(repo);
     expect(reporte[0].dependencia).toBe("Tecnología");
     expect(reporte[0].totalEmpleados).toBe(10);
+  });
+
+  it("obtenerMetricasCenso retorna el consolidado de métricas", async () => {
+    const repo = new RepoAutogestionMemoria();
+    const metricas = await obtenerMetricasCenso(repo);
+    expect(metricas.totalEmpleadosCensados).toBe(8);
+    expect(metricas.totalRespuestas).toBe(20);
+    expect(metricas.porDependencia[0].dependencia).toBe("Tecnología");
   });
 });

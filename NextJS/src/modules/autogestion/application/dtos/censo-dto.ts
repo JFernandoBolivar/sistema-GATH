@@ -39,3 +39,9 @@ export interface ReporteDependenciaDTO {
   totalEmpleados: number;
   empleadosCensados: number;
 }
+
+export interface MetricasCensoDTO {
+  totalEmpleadosCensados: number;
+  totalRespuestas: number;
+  porDependencia: ReporteDependenciaDTO[];
+}

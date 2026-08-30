@@ -27,3 +27,18 @@ export interface ValidacionCarnetDTO {
   mensaje: string;
   carnet: CarnetDTO | null;
 }
+
+export interface EstadisticaMotivoCarnetDTO {
+  motivoId: number;
+  motivo: string;
+  total: number;
+}
+
+export interface EstadisticasCarnetDTO {
+  total: number;
+  activos: number;
+  revocados: number;
+  emitidosHoy: number;
+  emitidosMes: number;
+  porMotivo: EstadisticaMotivoCarnetDTO[];
+}

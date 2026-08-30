@@ -1,8 +1,9 @@
 /**
  * Mappers para convertir datos de Autogestión a entidades de dominio.
  */
-import type { PreguntaCenso, ReporteDependenciaCenso, RespuestaCenso } from "../../domain/entities/censo";
+import type { MetricasCenso, PreguntaCenso, ReporteDependenciaCenso, RespuestaCenso } from "../../domain/entities/censo";
 import type {
+  MetricasCensoApiItem,
   PreguntaCensoApiItem,
   ReporteDependenciaApiItem,
   RespuestaCensoApiItem,
@@ -38,5 +39,13 @@ export function reporteDependenciaApiAEntidad(raw: ReporteDependenciaApiItem): R
     dependencia: raw.dependencia,
     totalEmpleados: raw.total_empleados,
     empleadosCensados: raw.empleados_censados,
+  };
+}
+
+export function metricasApiAEntidad(raw: MetricasCensoApiItem): MetricasCenso {
+  return {
+    totalEmpleadosCensados: raw.total_empleados_censados,
+    totalRespuestas: raw.total_respuestas,
+    porDependencia: raw.por_dependencia.map(reporteDependenciaApiAEntidad),
   };
 }

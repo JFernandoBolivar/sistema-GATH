@@ -7,7 +7,7 @@
  * a las Server Actions del módulo (R7). Opera con DTOs (R5).
  */
 import { useEffect, useState, useTransition, type FormEvent } from "react";
-import { ClipboardList, Loader2, Save, Search } from "lucide-react";
+import { ClipboardList, FileDown, Loader2, Save, Search } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -32,11 +32,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components
 
 import type {
   ItemRespuestaInputDTO,
+  MetricasCensoDTO,
   PreguntaCensoDTO,
   ReporteDependenciaDTO,
   RespuestaCensoDTO,
 } from "../application/dtos/censo-dto";
 import {
+  descargarExcelCensoAction,
+  getMetricasCensoAction,
   getMiCensoAction,
   getPreguntasCensoAction,
   getReporteDependenciasCensoAction,
@@ -48,8 +51,9 @@ export default function AutogestionPage() {
   const [preguntas, setPreguntas] = useState<PreguntaCensoDTO[]>([]);
   const [miCenso, setMiCenso] = useState<RespuestaCensoDTO[]>([]);
   const [reporte, setReporte] = useState<ReporteDependenciaDTO[]>([]);
+  const [metricas, setMetricas] = useState<MetricasCensoDTO | null>(null);
   const [respuestas, setRespuestas] = useState<Record<number, ItemRespuestaInputDTO>>({});
-  const [tab, setTab] = useState<"censo" | "reporte">("censo");
+  const [tab, setTab] = useState<"censo" | "reporte" | "metricas">("censo");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
@@ -61,14 +65,16 @@ export default function AutogestionPage() {
     startTransition(async () => {
       setError(null);
       try {
-        const [p, mc, rep] = await Promise.all([
+        const [p, mc, rep, met] = await Promise.all([
           getPreguntasCensoAction(),
           getMiCensoAction(),
           getReporteDependenciasCensoAction(),
+          getMetricasCensoAction(),
         ]);
         setPreguntas(p);
         setMiCenso(mc);
         setReporte(rep);
+        setMetricas(met);
       } catch {
         setError("No fue posible cargar el censo.");
       }
@@ -117,6 +123,23 @@ export default function AutogestionPage() {
     });
   };
 
+  const onExportarExcel = () => {
+    startTransition(async () => {
+      setError(null);
+      const resultado = await descargarExcelCensoAction();
+      if (!(resultado instanceof Blob)) {
+        setError((resultado as { error: string }).error ?? "No fue posible exportar el censo.");
+        return;
+      }
+      const url = window.URL.createObjectURL(resultado);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `censo-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    });
+  };
+
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
       <header className="flex items-center gap-2">
@@ -127,13 +150,21 @@ export default function AutogestionPage() {
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {exito && <p role="status" className="text-sm text-emerald-600">{exito}</p>}
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "censo" | "reporte")}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "censo" | "reporte" | "metricas")}>
         <TabsList>
           <TabsTrigger value="censo">Cuestionario</TabsTrigger>
           <TabsTrigger value="reporte">Reporte por dependencias</TabsTrigger>
+          <TabsTrigger value="metricas">Métricas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="censo">
+          <div className="flex items-center justify-between">
+            <div />
+            <Button onClick={onExportarExcel} variant="outline" disabled={isPending}>
+              {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
+              Exportar Excel
+            </Button>
+          </div>
           <Card>
             <CardHeader className="pb-4">
               <CardTitle>Consultar censo por cédula</CardTitle>
@@ -260,6 +291,55 @@ export default function AutogestionPage() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="metricas">
+          {isPending && !metricas ? (
+            <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+          ) : !metricas ? (
+            <p className="text-sm text-muted-foreground">No fue posible cargar las métricas.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Empleados censados</span><span className="text-2xl font-semibold">{metricas.totalEmpleadosCensados}</span></CardContent></Card>
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Total respuestas</span><span className="text-2xl font-semibold">{metricas.totalRespuestas}</span></CardContent></Card>
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Dependencias</span><span className="text-2xl font-semibold">{metricas.porDependencia.length}</span></CardContent></Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle>Censo por dependencia</CardTitle>
+                  <CardDescription>Empleados censados respecto al total por dependencia.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-hidden rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Dependencia</TableHead>
+                          <TableHead>Total empleados</TableHead>
+                          <TableHead>Empleados censados</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {metricas.porDependencia.length === 0 ? (
+                          <TableRow><TableCell colSpan={3} className="h-16 text-center text-muted-foreground">Sin datos por dependencia.</TableCell></TableRow>
+                        ) : (
+                          metricas.porDependencia.map((r) => (
+                            <TableRow key={r.dependenciaId}>
+                              <TableCell className="font-medium">{r.dependencia}</TableCell>
+                              <TableCell>{r.totalEmpleados}</TableCell>
+                              <TableCell>{r.empleadosCensados}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </section>

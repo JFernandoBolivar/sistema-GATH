@@ -4,6 +4,7 @@
  * `carnetizacion_serializers.py` — Fase 1 del plan de reparación).
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import type { ApiResponse } from "@/shared/types/api-response";
 
 export interface CarnetApiItem {
   id: number;
@@ -30,6 +31,21 @@ export interface ValidacionCarnetApiItem {
   es_valido: boolean;
   mensaje: string;
   carnet: CarnetApiItem | null;
+}
+
+export interface EstadisticaMotivoCarnetApiItem {
+  motivo_id: number;
+  motivo: string;
+  total: number;
+}
+
+export interface EstadisticasCarnetApiItem {
+  total: number;
+  activos: number;
+  revocados: number;
+  emitidos_hoy: number;
+  emitidos_mes: number;
+  por_motivo: EstadisticaMotivoCarnetApiItem[];
 }
 
 export const carnetizacionApi = {
@@ -61,4 +77,9 @@ export const carnetizacionApi = {
 
   revocar: (carnetId: number) =>
     apiClient.post<CarnetApiItem>(`/api/v1/carnetizacion/${carnetId}/revocar/`),
+
+  getEstadisticas: async () => {
+    const envelope = await apiClient.get<ApiResponse<EstadisticasCarnetApiItem>>("/api/v1/carnetizacion/estadisticas/");
+    return envelope.data;
+  },
 };

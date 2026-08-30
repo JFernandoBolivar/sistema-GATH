@@ -16,6 +16,7 @@ import {
   listarPlantillasCarnet,
   revocarCarnet,
 } from "../../application/use-cases/emitir-carnet";
+import { obtenerEstadisticas } from "../../application/use-cases/obtener-estadisticas";
 import { validarCarnetPorHash, validarCarnetPorId } from "../../application/use-cases/validar-qr";
 import { repoCarnetizacionApi } from "../repositories/repo-carnetizacion-api";
 import { carnetIdSchema, emitirCarnetSchema, plantillaIdSchema, validarHashSchema } from "../../ui/schema/schema-carnet";
@@ -159,6 +160,20 @@ export async function revocarCarnetAction(carnetId: number) {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "revocarCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getEstadisticasCarnetsAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerEstadisticas(repoCarnetizacionApi);
+    await logAudit({ traceId, action: "getEstadisticasCarnetsAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getEstadisticasCarnetsAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

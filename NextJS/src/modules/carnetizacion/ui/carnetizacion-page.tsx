@@ -9,7 +9,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BadgeCheck, Ban, FileDown, IdCard, Loader2, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Ban, BarChart3, FileDown, IdCard, Loader2, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -33,12 +33,13 @@ import {
 } from "@/shared/ui/components/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 
-import type { CarnetDTO, PlantillaCarnetDTO, ValidacionCarnetDTO } from "../application/dtos/carnet-dto";
+import type { CarnetDTO, EstadisticasCarnetDTO, PlantillaCarnetDTO, ValidacionCarnetDTO } from "../application/dtos/carnet-dto";
 import {
   activarPlantillaCarnetAction,
   descargarPdfCarnetAction,
   emitirCarnetAction,
   getCarnetsAction,
+  getEstadisticasCarnetsAction,
   getPlantillasCarnetAction,
   revocarCarnetAction,
   validarCarnetPorHashAction,
@@ -51,13 +52,14 @@ import {
   type ValidarHashFormType,
 } from "./schema/schema-carnet";
 
-type Tab = "listado" | "validar" | "plantillas";
+type Tab = "listado" | "validar" | "plantillas" | "estadisticas";
 
 export default function CarnetizacionPage() {
   const [tab, setTab] = useState<Tab>("listado");
   const [carnets, setCarnets] = useState<CarnetDTO[]>([]);
   const [plantillas, setPlantillas] = useState<PlantillaCarnetDTO[]>([]);
   const [validacion, setValidacion] = useState<ValidacionCarnetDTO | null>(null);
+  const [estadisticas, setEstadisticas] = useState<EstadisticasCarnetDTO | null>(null);
   const [busqueda, setBusqueda] = useState<string>("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,11 @@ export default function CarnetizacionPage() {
         setPlantillas(await getPlantillasCarnetAction());
       } catch {
         /* plantillas opcionales */
+      }
+      try {
+        setEstadisticas(await getEstadisticasCarnetsAction());
+      } catch {
+        /* estadísticas opcionales */
       }
     });
   }, []);
@@ -190,6 +197,7 @@ export default function CarnetizacionPage() {
           <TabsTrigger value="listado">Carnets</TabsTrigger>
           <TabsTrigger value="validar">Validar</TabsTrigger>
           <TabsTrigger value="plantillas">Plantillas</TabsTrigger>
+          <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="listado">
@@ -350,6 +358,55 @@ export default function CarnetizacionPage() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="estadisticas">
+          {isPending && !estadisticas ? (
+            <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+          ) : !estadisticas ? (
+            <p className="text-sm text-muted-foreground">No fue posible cargar las estadísticas.</p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Total emitidos</span><span className="text-2xl font-semibold">{estadisticas.total}</span></CardContent></Card>
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Activos</span><span className="text-2xl font-semibold">{estadisticas.activos}</span></CardContent></Card>
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Revocados</span><span className="text-2xl font-semibold">{estadisticas.revocados}</span></CardContent></Card>
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Emitidos hoy</span><span className="text-2xl font-semibold">{estadisticas.emitidosHoy}</span></CardContent></Card>
+                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Emitidos este mes</span><span className="text-2xl font-semibold">{estadisticas.emitidosMes}</span></CardContent></Card>
+              </div>
+
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2"><BarChart3 className="size-4" aria-hidden="true" /> Emisiones por motivo</CardTitle>
+                  <CardDescription>Distribución de carnets emitidos según su motivo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-hidden rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Motivo</TableHead>
+                          <TableHead>Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {estadisticas.porMotivo.length === 0 ? (
+                          <TableRow><TableCell colSpan={2} className="h-16 text-center text-muted-foreground">Sin datos por motivo.</TableCell></TableRow>
+                        ) : (
+                          estadisticas.porMotivo.map((m) => (
+                            <TableRow key={m.motivoId}>
+                              <TableCell className="font-medium">{m.motivo}</TableCell>
+                              <TableCell>{m.total}</TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </section>

@@ -26,3 +26,18 @@ export interface PlantillaCarnet {
   activo: boolean;
   creado: string;
 }
+
+export interface EstadisticaMotivoCarnet {
+  motivoId: number;
+  motivo: string;
+  total: number;
+}
+
+export interface EstadisticasCarnet {
+  total: number;
+  activos: number;
+  revocados: number;
+  emitidosHoy: number;
+  emitidosMes: number;
+  porMotivo: EstadisticaMotivoCarnet[];
+}

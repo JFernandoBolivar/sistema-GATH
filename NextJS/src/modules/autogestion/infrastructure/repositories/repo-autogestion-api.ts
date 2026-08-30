@@ -4,6 +4,7 @@
 import type { RepoAutogestion } from "../../domain/ports/repo-autogestion";
 import { autogestionApi } from "../http/autogestion-api";
 import {
+  metricasApiAEntidad,
   preguntaApiAEntidad,
   reporteDependenciaApiAEntidad,
   respuestaApiAEntidad,
@@ -35,5 +36,13 @@ export const repoAutogestionApi: RepoAutogestion = {
   async obtenerReporteDependencias() {
     const raw = await autogestionApi.getReporteDependencias();
     return raw.map(reporteDependenciaApiAEntidad);
+  },
+
+  async obtenerMetricasCenso() {
+    return metricasApiAEntidad(await autogestionApi.getMetricas());
+  },
+
+  async descargarExcelCenso() {
+    return autogestionApi.getExcelCenso();
   },
 };

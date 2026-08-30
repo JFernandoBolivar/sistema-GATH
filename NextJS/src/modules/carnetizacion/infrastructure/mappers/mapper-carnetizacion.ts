@@ -1,8 +1,8 @@
 /**
  * Mappers para convertir datos de Carnetización a entidades de dominio.
  */
-import type { Carnet, PlantillaCarnet } from "../../domain/entities/carnet";
-import type { CarnetApiItem, PlantillaCarnetApiItem } from "../http/carnetizacion-api";
+import type { Carnet, EstadisticasCarnet, PlantillaCarnet } from "../../domain/entities/carnet";
+import type { CarnetApiItem, EstadisticasCarnetApiItem, PlantillaCarnetApiItem } from "../http/carnetizacion-api";
 
 export function carnetApiAEntidad(raw: CarnetApiItem): Carnet {
   return {
@@ -26,5 +26,20 @@ export function plantillaCarnetApiAEntidad(raw: PlantillaCarnetApiItem): Plantil
     imagenUrl: raw.imagen_url,
     activo: raw.activo,
     creado: raw.creado,
+  };
+}
+
+export function estadisticasCarnetApiAEntidad(raw: EstadisticasCarnetApiItem): EstadisticasCarnet {
+  return {
+    total: raw.total,
+    activos: raw.activos,
+    revocados: raw.revocados,
+    emitidosHoy: raw.emitidos_hoy,
+    emitidosMes: raw.emitidos_mes,
+    porMotivo: raw.por_motivo.map((m) => ({
+      motivoId: m.motivo_id,
+      motivo: m.motivo,
+      total: m.total,
+    })),
   };
 }

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
-import type { Carnet, PlantillaCarnet } from "../../domain/entities/carnet";
+import type { Carnet, EstadisticasCarnet, PlantillaCarnet } from "../../domain/entities/carnet";
 import { emitirCarnet, listarCarnets } from "./emitir-carnet";
+import { obtenerEstadisticas } from "./obtener-estadisticas";
 import { validarCarnetPorHash } from "./validar-qr";
 
 class RepoCarnetizacionMemoria implements RepoCarnetizacion {
@@ -66,6 +67,16 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
     c.activo = false;
     return c;
   }
+  async obtenerEstadisticas(): Promise<EstadisticasCarnet> {
+    return {
+      total: 2,
+      activos: 1,
+      revocados: 1,
+      emitidosHoy: 1,
+      emitidosMes: 2,
+      porMotivo: [{ motivoId: 1, motivo: "Ingreso", total: 2 }],
+    };
+  }
 }
 
 describe("Casos de uso de Carnetización", () => {
@@ -88,5 +99,13 @@ describe("Casos de uso de Carnetización", () => {
     const resInvalido = await validarCarnetPorHash(repo, "hash-falso");
     expect(resInvalido.esValido).toBe(false);
     expect(resInvalido.carnet).toBeNull();
+  });
+
+  it("obtenerEstadisticas retorna el consolidado por motivo", async () => {
+    const repo = new RepoCarnetizacionMemoria();
+    const stats = await obtenerEstadisticas(repo);
+    expect(stats.total).toBe(2);
+    expect(stats.porMotivo).toHaveLength(1);
+    expect(stats.porMotivo[0].motivo).toBe("Ingreso");
   });
 });

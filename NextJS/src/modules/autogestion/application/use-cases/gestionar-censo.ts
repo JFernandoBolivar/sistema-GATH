@@ -1,10 +1,11 @@
 /**
  * Casos de uso de Autogestión y Censo (Reglas R2, R4).
  */
-import type { PreguntaCenso, ReporteDependenciaCenso, RespuestaCenso } from "../../domain/entities/censo";
+import type { MetricasCenso, PreguntaCenso, ReporteDependenciaCenso, RespuestaCenso } from "../../domain/entities/censo";
 import type { RepoAutogestion } from "../../domain/ports/repo-autogestion";
 import type {
   ItemRespuestaInputDTO,
+  MetricasCensoDTO,
   PreguntaCensoDTO,
   ReporteDependenciaDTO,
   RespuestaCensoDTO,
@@ -73,4 +74,21 @@ export async function obtenerReporteDependenciasCenso(
 ): Promise<ReporteDependenciaDTO[]> {
   const entidades = await repo.obtenerReporteDependencias();
   return entidades.map(aReporteDTO);
+}
+
+function aMetricasDTO(e: MetricasCenso): MetricasCensoDTO {
+  return {
+    totalEmpleadosCensados: e.totalEmpleadosCensados,
+    totalRespuestas: e.totalRespuestas,
+    porDependencia: e.porDependencia.map(aReporteDTO),
+  };
+}
+
+export async function obtenerMetricasCenso(repo: RepoAutogestion): Promise<MetricasCensoDTO> {
+  const entidad = await repo.obtenerMetricasCenso();
+  return aMetricasDTO(entidad);
+}
+
+export async function descargarExcelCenso(repo: RepoAutogestion): Promise<Blob> {
+  return repo.descargarExcelCenso();
 }
