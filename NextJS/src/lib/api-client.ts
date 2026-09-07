@@ -40,6 +40,11 @@ async function throwAuthExpired(): Promise<never> {
   throw new AuthSessionExpiredError();
 }
 
+export async function ensureValidAccessToken(): Promise<boolean> {
+  const token = await getValidAccessToken();
+  return token !== null;
+}
+
 async function getValidAccessToken(): Promise<string | null> {
   const cookieStore = await cookies();
   const accessToken = cookieStore.get("dj_access")?.value;

@@ -10,6 +10,7 @@ from .user_views import (
     list_departaments,
     list_rols,
     cambiar_password_primera_vez,
+    frontend_error_view,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     'list_departaments',
     'list_rols',
     'cambiar_password_primera_vez',
+    'frontend_error_view',
 ]

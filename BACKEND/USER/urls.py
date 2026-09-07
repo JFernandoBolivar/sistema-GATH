@@ -9,6 +9,7 @@ urlpatterns = [
     path('refresh/', views.refresh_view, name='api_refresh'),
     path('me/', views.me_view, name='api_me'),
     path('cambiar-password/', views.cambiar_password_primera_vez, name='api_cambiar_password_primera_vez'),
+    path('frontend-error/', views.frontend_error_view, name='api_frontend_error'),
 
     # ─── User Management ───
     path('registro/', views.register_view, name='api_register'),

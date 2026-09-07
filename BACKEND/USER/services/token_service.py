@@ -5,6 +5,8 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
+from USER.models import cuenta
+
 logger = logging.getLogger(__name__)
 
 
@@ -116,7 +118,12 @@ class TokenService:
                     except Exception:
                         pass
 
-                new_refresh = RefreshToken.for_user(refresh.payload.get('user_id'))
+                try:
+                    user = cuenta.objects.get(pk=refresh.payload.get('user_id'))
+                except cuenta.DoesNotExist:
+                    raise TokenError("El usuario asociado al token ya no existe.")
+
+                new_refresh = RefreshToken.for_user(user)
                 new_tokens['refresh'] = str(new_refresh)
             else:
                 new_tokens['refresh'] = refresh_token_str
