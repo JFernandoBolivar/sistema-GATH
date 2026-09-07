@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { AuthController, IDLE_TIMEOUT, GRACE_PERIOD } from "./auth-timer";
 
+// El aviso debe aparecer GRACE_PERIOD antes de que se cumplan los
+// IDLE_TIMEOUT minutos de inactividad, para que el cierre real de sesion
+// ocurra exactamente a los IDLE_TIMEOUT minutos (no IDLE_TIMEOUT + GRACE_PERIOD).
+const WARNING_AT = IDLE_TIMEOUT - GRACE_PERIOD;
+
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
@@ -43,20 +48,20 @@ describe("AuthController (idle session timeout)", () => {
     vi.useRealTimers();
   });
 
-  it("does not show the warning modal before 15 minutes of inactivity", () => {
+  it("does not show the warning modal before (IDLE_TIMEOUT - GRACE_PERIOD) of inactivity", () => {
     render(<AuthController />);
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT - 1000);
+      vi.advanceTimersByTime(WARNING_AT - 1000);
     });
     expect(
       screen.queryByText(/tu sesión está por cerrarse/i),
     ).not.toBeInTheDocument();
   });
 
-  it("shows the warning modal with both actions exactly after 15 minutes of inactivity", () => {
+  it("shows the warning modal with both actions exactly GRACE_PERIOD before the 15-minute mark", () => {
     render(<AuthController />);
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT);
+      vi.advanceTimersByTime(WARNING_AT);
     });
     expect(screen.getByText(/tu sesión está por cerrarse/i)).toBeInTheDocument();
     expect(
@@ -67,10 +72,10 @@ describe("AuthController (idle session timeout)", () => {
     ).toBeInTheDocument();
   });
 
-  it("auto-logs out after the grace period if the user does not respond", async () => {
+  it("auto-logs out exactly at the IDLE_TIMEOUT mark if the user does not respond", async () => {
     render(<AuthController />);
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT);
+      vi.advanceTimersByTime(WARNING_AT);
     });
     expect(screen.getByText(/tu sesión está por cerrarse/i)).toBeInTheDocument();
 
@@ -85,7 +90,7 @@ describe("AuthController (idle session timeout)", () => {
   it('extends the session and refreshes the token when clicking "Permanecer en la sesión"', async () => {
     render(<AuthController />);
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT);
+      vi.advanceTimersByTime(WARNING_AT);
     });
     const stayButton = screen.getByRole("button", {
       name: /permanecer en la sesión/i,
@@ -102,9 +107,9 @@ describe("AuthController (idle session timeout)", () => {
     ).not.toBeInTheDocument();
     expect(logoutActionMock).not.toHaveBeenCalled();
 
-    // Tras "permanecer", el ciclo de 15 minutos debe reiniciarse desde cero.
+    // Tras "permanecer", el ciclo completo debe reiniciarse desde cero.
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT - 1000);
+      vi.advanceTimersByTime(WARNING_AT - 1000);
     });
     expect(
       screen.queryByText(/tu sesión está por cerrarse/i),
@@ -114,7 +119,7 @@ describe("AuthController (idle session timeout)", () => {
   it('logs out immediately when clicking "Cerrar sesión"', async () => {
     render(<AuthController />);
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT);
+      vi.advanceTimersByTime(WARNING_AT);
     });
     const closeButton = screen.getByRole("button", { name: /^cerrar sesión$/i });
 
@@ -127,17 +132,17 @@ describe("AuthController (idle session timeout)", () => {
     expect(pushMock).toHaveBeenCalledWith("/login");
   });
 
-  it("resets the 15-minute countdown on real user activity (mousemove) before the timeout", () => {
+  it("resets the countdown on real user activity (mousemove) before the warning would show", () => {
     render(<AuthController />);
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT - 1000);
+      vi.advanceTimersByTime(WARNING_AT - 1000);
     });
-    // Actividad justo antes de que se cumplan los 15 minutos: debe reiniciar el conteo.
+    // Actividad justo antes de que aparezca el aviso: debe reiniciar el conteo.
     act(() => {
       fireEvent.mouseMove(document);
     });
     act(() => {
-      vi.advanceTimersByTime(IDLE_TIMEOUT - 1000);
+      vi.advanceTimersByTime(WARNING_AT - 1000);
     });
     expect(
       screen.queryByText(/tu sesión está por cerrarse/i),

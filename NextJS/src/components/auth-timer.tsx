@@ -74,7 +74,10 @@ export function AuthController() {
       graceTimerRef.current = setTimeout(() => {
         handleLogoutRef.current();
       }, GRACE_PERIOD);
-    }, IDLE_TIMEOUT);
+      // El aviso aparece GRACE_PERIOD antes de cumplirse IDLE_TIMEOUT, para
+      // que el cierre de sesion real ocurra exactamente a los IDLE_TIMEOUT
+      // minutos de inactividad (no IDLE_TIMEOUT + GRACE_PERIOD).
+    }, IDLE_TIMEOUT - GRACE_PERIOD);
   };
 
   const handleActivityRef = useRef<() => void>(() => {});
