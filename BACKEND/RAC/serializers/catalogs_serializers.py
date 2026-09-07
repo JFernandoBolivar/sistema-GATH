@@ -601,6 +601,7 @@ class ContactoEmergenciaSerializer(serializers.ModelSerializer):
         
 class AntecedentesServicioSerializer(serializers.ModelSerializer):
 
+    id = serializers.IntegerField(required=False, allow_null=True)
     fecha_ingreso = serializers.DateField(required=False, allow_null=True,
         input_formats=['iso-8601', '%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%d'])
     fecha_egreso = serializers.DateField(required=False, allow_null=True,

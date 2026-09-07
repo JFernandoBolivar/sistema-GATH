@@ -2,6 +2,7 @@ import { z } from "zod"
 
 export const schemaBackgroundDateUpdate = z
   .object({
+    id: z.number().optional(),
     organismo_id: z
       .number({
         message: "Debe seleccionar un organismo",

@@ -235,6 +235,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                           defaultValues={{
                               antecedentes: employee.antecedentes?.length
                                 ? employee.antecedentes.map((ant) => ({
+                                  id: ant.id,
                                   organismo_id: ant.organismo?.id ?? undefined,
                                 fecha_ingreso: ant.fecha_ingreso
                                   ? new Date(ant.fecha_ingreso)
@@ -326,6 +327,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                                             antecedentes:
                         employee.antecedentes?.length
                           ? employee.antecedentes.map((ant) => ({
+                            id: ant.id,
                             organismo_id: ant.organismo?.id ?? undefined,
                             fecha_ingreso: ant.fecha_ingreso
                               ? new Date(ant.fecha_ingreso)

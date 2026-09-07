@@ -239,8 +239,15 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
                     continue
                 fin = item.get('fecha_egreso') or hoy
                 item_id = item.get('id')
+                item_org = item.get('organismo_id')
+                item_egreso = item.get('fecha_egreso')
                 for rec in existing_qs:
                     if item_id and rec.id == item_id:
+                        continue
+                    if not item_id and rec.organismo_id_id == (item_org.pk if item_org else None) \
+                            and rec.fecha_ingreso == inicio and rec.fecha_egreso == item_egreso:
+                        # Antecedente existente sin cambios (mismo criterio de "kept"
+                        # que usa replace_antecedentes) -- no se compara consigo mismo.
                         continue
                     rec_fin = rec.fecha_egreso or hoy
                     if rec.fecha_ingreso and inicio <= rec_fin and fin >= rec.fecha_ingreso:
