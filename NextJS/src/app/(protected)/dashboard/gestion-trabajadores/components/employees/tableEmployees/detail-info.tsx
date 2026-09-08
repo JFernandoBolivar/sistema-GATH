@@ -23,7 +23,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatInTimeZone } from "date-fns-tz";
-import { intervalToDuration } from "date-fns";
 import {
   Ambulance,
   ContactRound,
@@ -58,19 +57,14 @@ export default function DetailInfoEmployee({ employee }: Props) {
     return URL.createObjectURL(profileBlob);
   }, [profileBlob]);
 
-  const totalAPN = useMemo(() => {
-    if (!employee.antecedentes || employee.antecedentes.length === 0) return null;
-    const totalMs = employee.antecedentes.reduce((acc, ant) => {
-      const start = ant.fecha_ingreso ? new Date(ant.fecha_ingreso) : null;
-      const end = ant.fecha_egreso ? new Date(ant.fecha_egreso) : new Date();
-      if (!start) return acc;
-      return acc + (end.getTime() - start.getTime());
-    }, 0);
-    if (totalMs <= 0) return null;
-    const fakeStart = new Date(0);
-    const fakeEnd = new Date(totalMs);
-    return intervalToDuration({ start: fakeStart, end: fakeEnd });
-  }, [employee.antecedentes]);
+  // El total se calcula en el backend (calcular_total_apn, año comercial
+  // 30E/360) para que use exactamente la misma convencion que cada fila
+  // individual -- no recalcular aqui con fechas de calendario reales, que
+  // da un resultado distinto y desalineado con el de cada antecedente.
+  const totalAPN =
+    employee.antecedentes && employee.antecedentes.length > 0
+      ? employee.total_apn
+      : null;
 
   const [contratoDialogOpen, setContratoDialogOpen] = useState(false);
 
@@ -115,10 +109,10 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     cedulaidentidad={employee.cedulaidentidad}
                     defaultValues={{
                       apellidos: employee.apellidos,
-                      estadoCivil: employee.estadoCivil.id,
+                      estadoCivil: employee.estadoCivil?.id ?? 0,
                       fecha_nacimiento: new Date(employee.fecha_nacimiento),
                       nombres: employee.nombres,
-                      sexoid: employee.sexo.id,
+                      sexoid: employee.sexo?.id ?? 0,
                       file: undefined,
                     }}
                   />

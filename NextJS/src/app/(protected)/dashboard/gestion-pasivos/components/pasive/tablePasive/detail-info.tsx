@@ -96,10 +96,10 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     cedulaidentidad={employee.cedulaidentidad}
                     defaultValues={{
                       apellidos: employee.apellidos,
-                      estadoCivil: employee.estadoCivil.id,
+                      estadoCivil: employee.estadoCivil?.id ?? 0,
                       fecha_nacimiento: new Date(employee.fecha_nacimiento),
                       nombres: employee.nombres,
-                      sexoid: employee.sexo.id,
+                      sexoid: employee.sexo?.id ?? 0,
                       file: undefined,
                     }}
                   />
