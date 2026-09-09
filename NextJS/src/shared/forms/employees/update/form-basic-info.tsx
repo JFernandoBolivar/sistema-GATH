@@ -334,7 +334,7 @@ export function FormBasicUpdateInfo({
                     />
                     <InputForm
                       form={form}
-                      label="Carnet de la Patria"
+                      label="Código del Carnet de la Patria"
                       nameInput="carnet_patria"
                       placeholder="000-0000000-00"
                       type="text"

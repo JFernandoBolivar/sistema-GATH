@@ -319,7 +319,7 @@ export default function CensoViviendaPage() {
             >
               <InputForm
                 form={form}
-                label="N° CARNET DE LA PATRIA *"
+                label="Código del Carnet de la Patria *"
                 nameInput="carnet_patria"
                 type="text"
                 placeholder="N° Carnet de la Patria"

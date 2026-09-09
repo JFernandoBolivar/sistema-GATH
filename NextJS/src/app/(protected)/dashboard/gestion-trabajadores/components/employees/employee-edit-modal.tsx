@@ -165,7 +165,7 @@ export function EmployeeEditModal({
                     name="carnet_patria"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Carnet de la Patria</FormLabel>
+                        <FormLabel>Código del Carnet de la Patria</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="0000000000"
