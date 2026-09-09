@@ -39,6 +39,21 @@ export default proxy((req) => {
     }
   }
 
+  if (isLoggedIn && esRecepcionista) {
+    // el header enlaza con barra final, así que se normaliza antes de comparar
+    const ruta =
+      nextUrl.pathname.length > 1
+        ? nextUrl.pathname.replace(/\/+$/, "")
+        : nextUrl.pathname;
+
+    const permitida =
+      RUTAS_RECEPCIONISTA.includes(ruta) || ruta.startsWith("/api/auth");
+
+    if (!permitida) {
+      return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    }
+  }
+
   return NextResponse.next();
 });
 

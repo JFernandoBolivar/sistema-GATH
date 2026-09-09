@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 import { imageProfileFn } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import { EmployeeData } from "@/app/types/types";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,9 @@ interface Props {
   employee: EmployeeData;
 }
 export default function DetailInfoEmployee({ employee }: Props) {
+  // El rol RECEPCIONISTA sólo consulta: se ocultan los accesos a edición.
+  const { data: session } = useSession();
+  const soloLectura = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
   const { mutate } = useSWRConfig();
   const { data: profileBlob } = useSWR(
     employee.cedulaidentidad ? ["profile", employee.cedulaidentidad] : null,
@@ -80,6 +84,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                 {employee.nombres} {employee.apellidos}
               </h2>
               <Dialog>
+                {!soloLectura && (
                 <DialogTrigger asChild>
                   <Button
                     type="button"
@@ -88,6 +93,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     Actualizar Información Basica
                   </Button>
                 </DialogTrigger>
+                )}
                 <DialogContent>
                   <DialogTitle className="sr-only">Actualizar Información Básica</DialogTitle>
                   <FormBasicUpdateInfo
@@ -229,6 +235,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
               </Card>
             ) : (
               <Dialog>
+                {!soloLectura && (
                 <DialogTrigger asChild>
                   <Button
                     type="button"
@@ -238,6 +245,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     Valida Para Este Caso)
                   </Button>
                 </DialogTrigger>
+                )}
                 <DialogContent>
                   <DialogTitle className="sr-only">Agregar Antecedentes</DialogTitle>
                   <FormUpdateBackground
@@ -268,6 +276,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     Datos De Vivienda <House />
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button
                         type="button"
@@ -276,6 +285,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         Actualizar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <DialogTitle className="sr-only">Actualizar Datos de Vivienda</DialogTitle>
                       <FormUpdateDwelling
@@ -320,6 +330,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     Formaciones Academicas <GraduationCap />{" "}
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button
                         type="button"
@@ -328,6 +339,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         Actualizar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <DialogTitle className="sr-only">Actualizar Formación Académica</DialogTitle>
                       <FormUpdateAcademyLevel
@@ -398,6 +410,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     Información De Vestimenta <Shirt />
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button
                         type="button"
@@ -406,6 +419,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         Actualizar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <DialogTitle className="sr-only">Actualizar Información de Vestimenta</DialogTitle>
                       <FormUpdatePhysical
@@ -460,6 +474,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                     <Ambulance />
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button
                         type="button"
@@ -468,6 +483,7 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         Actualizar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <DialogTitle className="sr-only">Actualizar Información de Salud</DialogTitle>
                       <FormUpdateHealth

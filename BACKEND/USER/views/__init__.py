@@ -12,6 +12,11 @@ from .user_views import (
     cambiar_password_primera_vez,
     frontend_error_view,
 )
+from .rol_views import (
+    crear_rol,
+    actualizar_rol,
+    eliminar_rol,
+)
 
 __all__ = [
     'login_view',

@@ -15,7 +15,41 @@ class RolSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rol
         fields = ['id', 'nombre_rol']
-        
+
+
+class RolEscrituraSerializer(serializers.ModelSerializer):
+    """Alta y actualización de roles.
+
+    El nombre se normaliza a mayúsculas y sin espacios repetidos porque el
+    frontend compara el rol por su texto en los arreglos roleAccept.
+
+    Se desactiva el validador de unicidad que DRF agrega automáticamente desde
+    el modelo: ese corre antes de la normalización y devuelve el mensaje en
+    inglés. La unicidad se valida en validate_nombre_rol, ya normalizada y sin
+    distinguir mayúsculas.
+    """
+
+    # allow_blank deja que la validación del vacío la haga validate_nombre_rol,
+    # para responder en español en lugar del mensaje por defecto de DRF
+    nombre_rol = serializers.CharField(max_length=50, allow_blank=True, validators=[])
+
+    class Meta:
+        model = Rol
+        fields = ['id', 'nombre_rol', 'descripcion_rol']
+
+    def validate_nombre_rol(self, value):
+        nombre = ' '.join(str(value).strip().upper().split())
+        if not nombre:
+            raise serializers.ValidationError("El nombre del rol es obligatorio.")
+        if len(nombre) > 50:
+            raise serializers.ValidationError("El nombre no puede exceder 50 caracteres.")
+        existente = Rol.objects.filter(nombre_rol__iexact=nombre)
+        if self.instance is not None:
+            existente = existente.exclude(pk=self.instance.pk)
+        if existente.exists():
+            raise serializers.ValidationError(f"Ya existe un rol llamado '{nombre}'.")
+        return nombre
+
 
 class CuentaSerializer(serializers.ModelSerializer):
     nombres = serializers.CharField(source='cedula.nombres', read_only=True)
