@@ -6,8 +6,8 @@ export const schemaDwellingUpdate = z.object({
       .string({
         message: "Debe Ingresar Información Valida",
       })
-      .min(3, {
-        message: "Minimo 3 Caracteres",
+      .min(10, {
+        message: "Minimo 10 Caracteres",
       }),
     estado_id: z
       .number({
@@ -37,7 +37,9 @@ export const schemaDwellingUpdate = z.object({
       .refine((v) => v > 0, {
         message: "Debe Seleccionar Un Valor",
       }),
-    codigo_postal_id: z.coerce.number().optional(),
+    codigo_postal_id: z.coerce.number().refine((v) => v > 0, {
+      message: "Debe Seleccionar Un Valor",
+    }),
   }),
 })
 export type DwellingUpdateType = z.infer<typeof schemaDwellingUpdate>

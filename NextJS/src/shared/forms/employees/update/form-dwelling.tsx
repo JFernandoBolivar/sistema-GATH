@@ -278,7 +278,7 @@ export default function FormUpdateDwelling({ idEmployee, mutate, mutateKey = "ap
                     name="datos_vivienda.codigo_postal_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Código Postal</FormLabel>
+                        <FormLabel>Código Postal *</FormLabel>
                         <Select
                           onValueChange={(value) => {
                             field.onChange(Number.parseInt(value));

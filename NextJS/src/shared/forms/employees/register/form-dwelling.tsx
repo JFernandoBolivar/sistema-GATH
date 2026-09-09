@@ -259,7 +259,7 @@ export default function FormDwelling({
                     name="datos_vivienda.codigo_postal_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Código Postal</FormLabel>
+                        <FormLabel>Código Postal *</FormLabel>
                         <Select
                           onValueChange={(value) => {
                             field.onChange(Number.parseInt(value))
