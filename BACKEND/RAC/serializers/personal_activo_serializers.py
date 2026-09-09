@@ -244,6 +244,15 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
                     )
         if self.instance and self.instance.pk:
             existing_qs = antecedentes_servicio.objects.filter(empleado_id=self.instance)
+            # Los antecedentes ligados a un contrato son el registro de la
+            # estadia actual del empleado (autogenerado), no antecedentes que
+            # el usuario gestione desde este formulario -- excluirlos evita
+            # falsos "solapes" contra un registro que ni siquiera se muestra.
+            protected_ids = set(
+                contratos.objects.filter(
+                    antecedente_id__in=existing_qs.values_list('id', flat=True)
+                ).values_list('antecedente_id', flat=True)
+            )
             for i, item in enumerate(value):
                 inicio = item.get('fecha_ingreso')
                 if not inicio:
@@ -253,6 +262,8 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
                 item_org = item.get('organismo_id')
                 item_egreso = item.get('fecha_egreso')
                 for rec in existing_qs:
+                    if rec.id in protected_ids:
+                        continue
                     if item_id and rec.id == item_id:
                         continue
                     if not item_id and rec.organismo_id_id == (item_org.pk if item_org else None) \
