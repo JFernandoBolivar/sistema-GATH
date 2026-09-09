@@ -64,3 +64,15 @@ def calcular_total_apn(antecedentes_qs):
     months = resto // 30
     days = resto % 30
     return {"years": years, "months": months, "days": days}
+
+
+def calcular_total_apn_anios(employee) -> int:
+    """
+    Atajo para obtener solo los años (enteros, redondeados hacia abajo) del
+    total de antecedentes de servicio cerrados de un empleado. Usa la misma
+    fuente (calcular_total_apn) que el campo 'total_apn' expuesto en los
+    serializers, para que reportes/PDF/filtros nunca queden desincronizados
+    del calculo oficial.
+    """
+    cerrados = employee.antecedentes_servicio_set.filter(fecha_egreso__isnull=False)
+    return calcular_total_apn(cerrados)["years"]
