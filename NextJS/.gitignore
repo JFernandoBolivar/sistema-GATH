@@ -5,5 +5,6 @@ node_modules/
 backend-oac/
 .env.local
 .env
+.env.production
 /logs/
 *.tsbuildinfo
