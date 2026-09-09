@@ -85,6 +85,10 @@ describe("AuthController (idle session timeout)", () => {
 
     expect(logoutActionMock).toHaveBeenCalledTimes(1);
     expect(pushMock).toHaveBeenCalledWith("/login");
+    // El modal no debe seguir visible tras el cierre automatico de sesion.
+    expect(
+      screen.queryByText(/tu sesión está por cerrarse/i),
+    ).not.toBeInTheDocument();
   });
 
   it('extends the session and refreshes the token when clicking "Permanecer en la sesión"', async () => {

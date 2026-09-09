@@ -55,6 +55,8 @@ export function AuthController() {
   const handleLogoutRef = useRef<() => Promise<void>>(async () => {});
   handleLogoutRef.current = async () => {
     clearAllTimers();
+    modalOpenRef.current = false;
+    setShowAlert(false);
     await logoutAction();
     router.push("/login");
   };
