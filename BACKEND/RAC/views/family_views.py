@@ -396,6 +396,14 @@ def subir_documento_familiar(request, familiar_id):
     familiar = get_object_or_404(Employeefamily, id=familiar_id)
     serializer = FamilyDocumentSerializer(data=request.data)
     if serializer.is_valid():
+        document_type = serializer.validated_data.get('document_type')
+        # Si ya existe un documento de este tipo para el familiar, se
+        # reemplaza (se borra el archivo fisico anterior y el registro)
+        # en vez de acumular duplicados en cada re-subida.
+        existentes = familiar.documentos.filter(document_type=document_type)
+        for doc in existentes:
+            doc.file.delete(save=False)
+            doc.delete()
         serializer.save(familymember=familiar)
         return Response({
             "status": "Ok",
