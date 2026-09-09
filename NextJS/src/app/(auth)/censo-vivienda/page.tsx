@@ -40,15 +40,30 @@ import {
 import { useEmployeeSearch } from "@/shared/hooks/useEmployeeSearch"
 import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner"
 
+function _ajustarDia30_360(dia: number): number {
+  return dia === 31 ? 30 : dia
+}
+
+// Mismo metodo comercial 30E/360 que usa el backend (calcular_tiempo_comercial
+// en tiempo_servicio.py), para que "Años CONATEL" sea consistente con el resto
+// del sistema en vez de aproximar con 365.25/30.44 dias por año.
 function calcular_anios_servicio(fecha_ingreso: string | null): string {
   if (!fecha_ingreso) return ""
   const inicio = new Date(fecha_ingreso + "T00:00:00")
   const hoy = new Date()
-  const diffMs = hoy.getTime() - inicio.getTime()
-  const anios = Math.floor(diffMs / (365.25 * 24 * 60 * 60 * 1000))
-  const meses = Math.floor(
-    (diffMs % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000)
-  )
+
+  const diaInicio = _ajustarDia30_360(inicio.getDate())
+  const diaFin = _ajustarDia30_360(hoy.getDate())
+
+  const diasTotales =
+    (hoy.getFullYear() - inicio.getFullYear()) * 360 +
+    (hoy.getMonth() - inicio.getMonth()) * 30 +
+    (diaFin - diaInicio) +
+    1
+
+  const anios = Math.floor(diasTotales / 360)
+  const meses = Math.floor((diasTotales % 360) / 30)
+
   if (anios > 0)
     return `${anios} año${anios !== 1 ? "s" : ""} y ${meses} mes${meses !== 1 ? "es" : ""}`
   return `${meses} mes${meses !== 1 ? "es" : ""}`
@@ -136,7 +151,18 @@ export default function CensoViviendaPage() {
       const full = await getEmployeeById(employee.cedulaidentidad)
       if (cancelled) return
       if (full.data && !Array.isArray(full.data)) {
-        form.setValue("anios_servicio_apn", full.data.anos_apn?.toString() || "")
+        // El total se calcula en el backend (calcular_total_apn, año comercial
+        // 30E/360), no con anos_apn (campo obsoleto, nunca se actualiza en BD).
+        const totalApn =
+          full.data.antecedentes && full.data.antecedentes.length > 0
+            ? full.data.total_apn
+            : null
+        form.setValue(
+          "anios_servicio_apn",
+          totalApn
+            ? `${totalApn.years ?? 0} año${totalApn.years !== 1 ? "s" : ""} y ${totalApn.months ?? 0} mes${totalApn.months !== 1 ? "es" : ""}`
+            : "",
+        )
         form.setValue("telefono", full.data.telefono_movil || full.data.telefono_habitacion || "")
         if (full.data.asignaciones?.[0]) {
           const dep =

@@ -94,7 +94,10 @@ function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
           <div className="col-span-2">
             <span className="font-semibold text-gray-700">Tiempo APN:</span>
             <span className="ml-2 text-gray-900 font-medium">
-              {empleado.total_apn
+              {empleado.total_apn &&
+              (empleado.total_apn.years ||
+                empleado.total_apn.months ||
+                empleado.total_apn.days)
                 ? `${empleado.total_apn.years}a ${empleado.total_apn.months}m ${empleado.total_apn.days}d`
                 : "N/A"}
             </span>
@@ -615,7 +618,12 @@ export default function ConsultarCensoPage() {
                       <TableCell>{emp.apellidos}</TableCell>
                       <TableCell>{emp.carnet_patria || "N/A"}</TableCell>
                       <TableCell>
-                        {emp.total_apn ? `${emp.total_apn.years}a ${emp.total_apn.months}m` : "N/A"}
+                        {emp.total_apn &&
+                        (emp.total_apn.years ||
+                          emp.total_apn.months ||
+                          emp.total_apn.days)
+                          ? `${emp.total_apn.years}a ${emp.total_apn.months}m`
+                          : "N/A"}
                       </TableCell>
                       <TableCell>
                         <SheetUI>

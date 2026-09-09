@@ -216,7 +216,11 @@ export default function DetailInfoEmployee({ employee }: Props) {
                         ))}
                       <TableRow>
                         <TableCell colSpan={3} className="text-right font-bold">
-                          Total años: {employee.anos_apn}
+                          {/* El total se calcula en el backend (calcular_total_apn,
+                              año comercial 30E/360), no con anos_apn (campo obsoleto). */}
+                          {employee.antecedentes && employee.antecedentes.length > 0
+                            ? `Total: ${employee.total_apn?.years ?? 0} años, ${employee.total_apn?.months ?? 0} meses, ${employee.total_apn?.days ?? 0} días`
+                            : "Total: N/A"}
                         </TableCell>
                       </TableRow>
                     </TableBody>
