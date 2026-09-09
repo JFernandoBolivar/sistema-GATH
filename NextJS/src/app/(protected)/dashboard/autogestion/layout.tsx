@@ -32,7 +32,7 @@ function MiniSidebar() {
   const isRacAdmin =
     (session?.user.role.nombre_rol === "ADMINISTRADOR" ||
       session?.user.role.nombre_rol === "PRESUPUESTO") &&
-    session?.user.department.nombre_departamento === "RAC";
+    session?.user.department?.nombre_departamento === "RAC";
 
   return (
     <Sidebar>
@@ -129,7 +129,7 @@ function MiniSidebar() {
                   Rol: {session.user.role.nombre_rol}
                 </h2>
                 <h1 className="text-sm text-gray-400 font-bold">
-                  Departamento: {session.user.department.nombre_departamento}
+                  Departamento: {session.user.department?.nombre_departamento}
                 </h1>
               </div>
             </div>

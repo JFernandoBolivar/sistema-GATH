@@ -8,13 +8,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -69,30 +63,23 @@ export default function UpdateDependency() {
               render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel>Nivel</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(Number.parseInt(values));
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full truncate">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingDependency
-                              ? "Cargando Niveles"
-                              : "Seleccione un Nivel"
-                          }`}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {dependency?.data.map((dependencia, i) => (
-                        <SelectItem key={i} value={`${dependencia.id}`}>
-                          {dependencia.dependencia}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(dependency?.data ?? []).map((dependencia) => ({
+                        value: `${dependencia.id}`,
+                        label: dependencia.dependencia,
+                      }))}
+                      value={field.value ? `${field.value}` : ""}
+                      onChange={(value) => {
+                        field.onChange(Number.parseInt(value));
+                      }}
+                      placeholder={
+                        isLoadingDependency ? "Cargando Niveles" : "Seleccione un Nivel"
+                      }
+                      searchPlaceholder="Buscar nivel..."
+                      disabled={isLoadingDependency}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

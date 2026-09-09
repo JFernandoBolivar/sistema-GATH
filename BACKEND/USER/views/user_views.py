@@ -37,6 +37,7 @@ from USER.serializers import (
     RolSerializer,
 )
 from USER.services.token_service import TokenService
+from USER.services.audit_service import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -82,12 +83,22 @@ def login_view(request):
         # Set HttpOnly cookies
         TokenService.set_token_cookies(response, tokens)
 
+        log_event(
+            action="LOGIN", actor=usuario, entity="cuenta", entity_id=usuario.pk,
+            detail="Inicio de sesion exitoso", request=request,
+        )
+
         return response
 
     except ValidationError:
         error_dict = serializer.errors
         first_error_field = list(error_dict.values())[0]
         clean_message = first_error_field[0] if isinstance(first_error_field, list) else first_error_field
+
+        log_event(
+            action="LOGIN_FAILED", entity="cuenta",
+            detail=str(clean_message), level="WARNING", request=request,
+        )
 
         return Response({
             'status': "error",
@@ -130,6 +141,10 @@ def logout_view(request):
         }, status=status.HTTP_200_OK)
 
         TokenService.clear_token_cookies(response)
+        log_event(
+            action="LOGOUT", actor=request.user, entity="cuenta",
+            entity_id=getattr(request.user, "pk", ""), request=request,
+        )
         return response
 
     except Exception as e:
@@ -182,7 +197,11 @@ def refresh_view(request):
         TokenService.set_token_cookies(response, new_tokens)
         return response
 
-    except TokenError:
+    except TokenError as e:
+        log_event(
+            action="SESSION_EXPIRED", entity="token",
+            detail=str(e), level="WARNING", request=request,
+        )
         response = Response({
             'status': "error",
             'message': "El token de refresco es inválido o ha expirado",
@@ -483,3 +502,36 @@ def cambiar_password_primera_vez(request):
         'status': 'success',
         'message': 'Contraseña actualizada exitosamente.'
     }, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=["Auditoría"],
+    summary="Reportar error del frontend",
+    description="Registra en auditoria (DB + logs/errors.log) un error capturado en el cliente NextJS.",
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def frontend_error_view(request):
+    """
+    Recibe errores no manejados del frontend (global-error, error boundaries,
+    window.onerror) y los registra en el sistema de auditoria comun.
+    No requiere autenticacion: un error puede ocurrir antes de tener sesion.
+    """
+    message = request.data.get('message', '')
+    stack = request.data.get('stack', '')
+    url = request.data.get('url', '')
+
+    actor = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+
+    log_event(
+        action="ERROR",
+        actor=actor,
+        entity="frontend",
+        entity_id=url,
+        detail=f"{message}\n{stack}".strip(),
+        level="ERROR",
+        source="frontend",
+        request=request,
+    )
+
+    return Response({'status': 'success'}, status=status.HTTP_200_OK)

@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import useSWR from "swr";
@@ -155,7 +156,7 @@ export default function ReportCode() {
               onSubmit={form.handleSubmit(onSubmit)}
               className="grid grid-cols-3 gap-4"
             >
-              <div className="flex flex-col gap-2 col-span-3">
+              <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="w-full ">
                   <div className="flex flex-row w-full gap-2">
                     {session.user.role.nombre_rol == "ADMINISTRADOR" && (
@@ -209,32 +210,26 @@ export default function ReportCode() {
                               <FormLabel>
                                 Dirección / Gerencia / Oficina
                               </FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                  setDirectionGeneralId(values);
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingDirectionGeneral
-                                          ? "Cargando Direcciones"
-                                          : "Seleccione una Dirección"
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {directionGeneral?.data.map((general, i) => (
-                                    <SelectItem key={i} value={`${general.id}`}>
-                                      {general.Codigo}-
-                                      {general.direccion_general}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <Combobox
+                                  options={(directionGeneral?.data ?? []).map((general) => ({
+                                    value: String(general.id),
+                                    label: `${general.Codigo}-${general.direccion_general}`,
+                                  }))}
+                                  value={field.value ? String(field.value) : ""}
+                                  onChange={(value) => {
+                                    field.onChange(Number.parseInt(value));
+                                    setDirectionGeneralId(value);
+                                  }}
+                                  placeholder={
+                                    isLoadingDirectionGeneral
+                                      ? "Cargando Direcciones"
+                                      : "Seleccione una Dirección"
+                                  }
+                                  searchPlaceholder="Buscar dirección..."
+                                  disabled={isLoadingDirectionGeneral}
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -245,31 +240,26 @@ export default function ReportCode() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>División / Coordinación</FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                  setDirectionLineId(values);
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingDirectionLine
-                                          ? "Cargando Dirección"
-                                          : "Seleccione una Dirección"
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {directionLine?.data.map((line, i) => (
-                                    <SelectItem key={i} value={`${line.id}`}>
-                                      {line.Codigo}-{line.direccion_linea}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <Combobox
+                                  options={(directionLine?.data ?? []).map((line) => ({
+                                    value: String(line.id),
+                                    label: `${line.Codigo}-${line.direccion_linea}`,
+                                  }))}
+                                  value={field.value ? String(field.value) : ""}
+                                  onChange={(value) => {
+                                    field.onChange(Number.parseInt(value));
+                                    setDirectionLineId(value);
+                                  }}
+                                  placeholder={
+                                    isLoadingDirectionLine
+                                      ? "Cargando Dirección"
+                                      : "Seleccione una Dirección"
+                                  }
+                                  searchPlaceholder="Buscar división..."
+                                  disabled={isLoadingDirectionLine}
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -280,30 +270,25 @@ export default function ReportCode() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Coordinación</FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={`${
-                                        isLoadingCoordination
-                                          ? "Cargando Coordinaciones"
-                                          : "Seleccione una Coordinación"
-                                      }`}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {coordination?.data.map((coord, i) => (
-                                    <SelectItem key={i} value={`${coord.id}`}>
-                                      {coord.Codigo}-{coord.coordinacion}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <Combobox
+                                  options={(coordination?.data ?? []).map((coord) => ({
+                                    value: String(coord.id),
+                                    label: `${coord.Codigo}-${coord.coordinacion}`,
+                                  }))}
+                                  value={field.value ? String(field.value) : ""}
+                                  onChange={(value) => {
+                                    field.onChange(Number.parseInt(value));
+                                  }}
+                                  placeholder={
+                                    isLoadingCoordination
+                                      ? "Cargando Coordinaciones"
+                                      : "Seleccione una Coordinación"
+                                  }
+                                  searchPlaceholder="Buscar coordinación..."
+                                  disabled={isLoadingCoordination}
+                                />
+                              </FormControl>
 
                               <FormMessage />
                             </FormItem>
@@ -324,30 +309,25 @@ export default function ReportCode() {
                             <FormLabel>
                               Denominación De Cargo Específico
                             </FormLabel>
-                            <Select
-                              onValueChange={(values) => {
-                                field.onChange(Number.parseInt(values));
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full truncate">
-                                  <SelectValue
-                                    placeholder={`${
-                                      isLoadingCargoEspecifico
-                                        ? "Cargando Cargos Especificos"
-                                        : "Seleccione una Denominación De Cargo Específico"
-                                    }`}
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {cargoEspecifico?.data.map((cargo, i) => (
-                                  <SelectItem key={i} value={`${cargo.id}`}>
-                                    {cargo.cargo}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <Combobox
+                                options={(cargoEspecifico?.data ?? []).map((cargo) => ({
+                                  value: String(cargo.id),
+                                  label: cargo.cargo,
+                                }))}
+                                value={field.value ? String(field.value) : ""}
+                                onChange={(value) => {
+                                  field.onChange(Number.parseInt(value));
+                                }}
+                                placeholder={
+                                  isLoadingCargoEspecifico
+                                    ? "Cargando Cargos Especificos"
+                                    : "Seleccione una Denominación De Cargo Específico"
+                                }
+                                searchPlaceholder="Buscar cargo específico..."
+                                disabled={isLoadingCargoEspecifico}
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -358,30 +338,25 @@ export default function ReportCode() {
                         render={({ field }) => (
                           <FormItem className=" ">
                             <FormLabel>Denominación De Cargo</FormLabel>
-                            <Select
-                              onValueChange={(values) => {
-                                field.onChange(Number.parseInt(values));
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full truncate">
-                                  <SelectValue
-                                    placeholder={`${
-                                      isLoadingCargo
-                                        ? "Cargando Denominaciones De Cargo"
-                                        : "Seleccione una Denominación De Cargo"
-                                    }`}
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {cargo?.data.map((cargo, i) => (
-                                  <SelectItem key={i} value={`${cargo.id}`}>
-                                    {cargo.cargo}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <Combobox
+                                options={(cargo?.data ?? []).map((c) => ({
+                                  value: String(c.id),
+                                  label: c.cargo,
+                                }))}
+                                value={field.value ? String(field.value) : ""}
+                                onChange={(value) => {
+                                  field.onChange(Number.parseInt(value));
+                                }}
+                                placeholder={
+                                  isLoadingCargo
+                                    ? "Cargando Denominaciones De Cargo"
+                                    : "Seleccione una Denominación De Cargo"
+                                }
+                                searchPlaceholder="Buscar cargo..."
+                                disabled={isLoadingCargo}
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -460,30 +435,25 @@ export default function ReportCode() {
                         render={({ field }) => (
                           <FormItem className={`col-span-2`}>
                             <FormLabel>Organismo Adscrito </FormLabel>
-                            <Select
-                              onValueChange={(values) => {
-                                field.onChange(Number.parseInt(values));
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full truncate">
-                                  <SelectValue
-                                    placeholder={`${
-                                      isLoadingGrado
-                                        ? "Cargando Organismos Adscritos"
-                                        : "Seleccione Un Organismo Adscrito"
-                                    }`}
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {organismoAds?.data.map((org, i) => (
-                                  <SelectItem key={i} value={`${org.id}`}>
-                                    {org.id}-{org.Organismoadscrito}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <Combobox
+                                options={(organismoAds?.data ?? []).map((org) => ({
+                                  value: String(org.id),
+                                  label: `${org.id}-${org.Organismoadscrito}`,
+                                }))}
+                                value={field.value ? String(field.value) : ""}
+                                onChange={(value) => {
+                                  field.onChange(Number.parseInt(value));
+                                }}
+                                placeholder={
+                                  isLoadingGrado
+                                    ? "Cargando Organismos Adscritos"
+                                    : "Seleccione Un Organismo Adscrito"
+                                }
+                                searchPlaceholder="Buscar organismo..."
+                                disabled={isLoadingGrado}
+                              />
+                            </FormControl>
 
                             <FormMessage />
                           </FormItem>

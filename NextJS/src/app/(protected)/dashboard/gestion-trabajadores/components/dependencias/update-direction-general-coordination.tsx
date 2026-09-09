@@ -8,13 +8,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -80,31 +74,24 @@ export default function UpdateDireccionGeneralCoordin() {
               render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel>Nivel</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(Number.parseInt(values));
-                      setDependencyId(Number.parseInt(values));
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full truncate">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingDependency
-                              ? "Cargando Nivel"
-                              : "Seleccione un Nivel"
-                          }`}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {dependency?.data.map((dependencia, i) => (
-                        <SelectItem key={i} value={`${dependencia.id}`}>
-                          {dependencia.dependencia}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(dependency?.data ?? []).map((dependencia) => ({
+                        value: `${dependencia.id}`,
+                        label: dependencia.dependencia,
+                      }))}
+                      value={field.value ? `${field.value}` : ""}
+                      onChange={(value) => {
+                        field.onChange(Number.parseInt(value));
+                        setDependencyId(Number.parseInt(value));
+                      }}
+                      placeholder={
+                        isLoadingDependency ? "Cargando Nivel" : "Seleccione un Nivel"
+                      }
+                      searchPlaceholder="Buscar nivel..."
+                      disabled={isLoadingDependency}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -115,30 +102,25 @@ export default function UpdateDireccionGeneralCoordin() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(Number.parseInt(values));
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full truncate">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingDirectionGeneral
-                              ? "Cargando Direcciones Generales"
-                              : "Seleccione una D / O / G"
-                          }`}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {directionGeneral?.data.map((general, i) => (
-                        <SelectItem key={i} value={`${general.id}`}>
-                          {general.Codigo}-{general.direccion_general}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(directionGeneral?.data ?? []).map((general) => ({
+                        value: `${general.id}`,
+                        label: `${general.Codigo}-${general.direccion_general}`,
+                      }))}
+                      value={field.value ? `${field.value}` : ""}
+                      onChange={(value) => {
+                        field.onChange(Number.parseInt(value));
+                      }}
+                      placeholder={
+                        isLoadingDirectionGeneral
+                          ? "Cargando Direcciones Generales"
+                          : "Seleccione una D / O / G"
+                      }
+                      searchPlaceholder="Buscar dirección..."
+                      disabled={isLoadingDirectionGeneral}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

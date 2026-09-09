@@ -42,7 +42,7 @@ export default function FormRelationship({ id, mutate }: Props) {
       if (response.success) {
         form.reset();
         toast.success(response.message);
-        mutate(["api/family", searchParams]);
+        await mutate(["api/family", searchParams]);
       } else {
         toast.error(response.message);
       }

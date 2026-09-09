@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -267,18 +268,15 @@ const formatDate = (d: string | Date) => {
               {codeList?.data && codeList.data.length > 0 && (
                 <div>
                   <Label>Código del Cargo</Label>
-                  <Select onValueChange={handleSelectCargo}>
-                    <SelectTrigger className="w-full truncate">
-                      <SelectValue placeholder="Seleccione un cargo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {codeList.data.map((c) => (
-                        <SelectItem key={c.id} value={c.id.toString()}>
-                          {c.codigo} - {c.denominacioncargo?.cargo} ({c.denominacioncargoespecifico?.cargo})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={codeList.data.map((c) => ({
+                      value: c.id.toString(),
+                      label: `${c.codigo} - ${c.denominacioncargo?.cargo} (${c.denominacioncargoespecifico?.cargo})`,
+                    }))}
+                    onChange={handleSelectCargo}
+                    placeholder="Seleccione un cargo"
+                    searchPlaceholder="Buscar codigo o cargo..."
+                  />
                 </div>
               )}
 

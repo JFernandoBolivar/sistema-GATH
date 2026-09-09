@@ -29,7 +29,12 @@ export default proxy((req) => {
     "/dashboard/gestion-pasivos/personal-jubilado/familiares/consultar",
   ];
 
-  if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
+  // Las rutas internas de Auth.js (/api/auth/session, /api/auth/csrf, etc.)
+  // deben responder siempre, incluso sin sesion valida -- de lo contrario
+  // useSession() recibe un 307 (HTML) en vez de JSON y falla al parsearlo.
+  const isAuthRoute = nextUrl.pathname.startsWith("/api/auth");
+
+  if (!isAuthRoute && !publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 

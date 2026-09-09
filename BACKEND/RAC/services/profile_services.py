@@ -110,7 +110,8 @@ def replace_antecedentes(instance, data_list):
     if data_list is None:
         return
     existing_qs = instance.antecedentes_servicio_set.all()
-    existing_ids = set(existing_qs.values_list('id', flat=True))
+    existing_by_id = {rec.id: rec for rec in existing_qs}
+    existing_ids = set(existing_by_id.keys())
     # Proteger antecedentes que tienen un contrato asociado
     protected_ids = set(
         contratos.objects.filter(
@@ -121,17 +122,36 @@ def replace_antecedentes(instance, data_list):
     for item in data_list:
         if not item.get('fecha_ingreso'):
             continue
+        item = dict(item)
+        item_id = item.pop('id', None)
         ingreso = item.get('fecha_ingreso')
         egreso = item.get('fecha_egreso')
         org_id = item.get('organismo_id')
-        match = existing_qs.filter(
-            organismo_id=org_id,
-            fecha_ingreso=ingreso,
-            fecha_egreso=egreso,
-        ).first()
-        if match:
-            kept_ids.add(match.id)
+
+        rec = existing_by_id.get(item_id) if item_id else None
+        if rec is None:
+            rec = existing_qs.filter(
+                organismo_id=org_id,
+                fecha_ingreso=ingreso,
+                fecha_egreso=egreso,
+            ).first()
+
+        if rec:
+            kept_ids.add(rec.id)
+            cambio = (
+                rec.organismo_id_id != (org_id.pk if org_id else None)
+                or rec.fecha_ingreso != ingreso
+                or rec.fecha_egreso != egreso
+            )
+            if cambio:
+                # Actualiza in-place (en vez de crear+huerfano) para no perder la
+                # referencia de contratos protegidos que apuntan a este antecedente.
+                rec.organismo_id = org_id
+                rec.fecha_ingreso = ingreso
+                rec.fecha_egreso = egreso
+                rec.save()
             continue
+
         antecedentes_servicio.objects.create(empleado_id=instance, **item)
     deleteable = existing_ids - kept_ids - protected_ids
     if deleteable:

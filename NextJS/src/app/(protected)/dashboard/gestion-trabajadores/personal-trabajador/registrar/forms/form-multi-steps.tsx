@@ -169,6 +169,7 @@ const schema: SchemaFormity<Values> = [
             municipio_id: 0,
             parroquia: 0,
             condicion_vivienda_id: 0,
+            codigo_postal_id: 0,
           },
           [],
         ],

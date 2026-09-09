@@ -334,6 +334,7 @@ class ImportFullEmployeeDataView(APIView):
                 'niveles': {normalize(obj.nivelacademico): obj for obj in NivelAcademico.objects.all()},
                 'carreras': {normalize(obj.nombre_carrera): obj for obj in carreras.objects.all()},
                 'menciones': {normalize(obj.nombre_mencion): obj for obj in Menciones.objects.all()},
+                'instituciones': {normalize(obj.nombre_institucion): obj for obj in Instituciones.objects.all()},
                 
                 # Vivienda
                 'vivienda_cond': {normalize(obj.condicion): obj for obj in condicion_vivienda.objects.all()},
@@ -440,8 +441,7 @@ class ImportFullEmployeeDataView(APIView):
                                         'nivel_Academico_id': get_obj('niveles', 'nivel_academico'),
                                         'carrera_id': get_obj('carreras', 'carrera'),
                                         'mencion_id': get_obj('menciones', 'mencion'),
-                                        'institucion': normalize(row.get('institucion_academica')),
-                                        'capacitacion': normalize(row.get('capacitacion')),
+                                        'institucion_id': get_obj('instituciones', 'institucion_academica'),
                                     }
                                 )
 
@@ -593,6 +593,7 @@ class ImportFullFamilyDataView(APIView):
                 'niveles': {normalize(obj.nivelacademico): obj for obj in NivelAcademico.objects.all()},
                 'carreras': {normalize(obj.nombre_carrera): obj for obj in carreras.objects.all()},
                 'menciones': {normalize(obj.nombre_mencion): obj for obj in Menciones.objects.all()},
+                'instituciones': {normalize(obj.nombre_institucion): obj for obj in Instituciones.objects.all()},
                 
                 # Vivienda
                 'vivienda_cond': {normalize(obj.condicion): obj for obj in condicion_vivienda.objects.all()},
@@ -738,8 +739,7 @@ class ImportFullFamilyDataView(APIView):
                                         'nivel_Academico_id': get_obj('niveles', 'nivel_academico'),
                                         'carrera_id': get_obj('carreras', 'carrera'),
                                         'mencion_id': get_obj('menciones', 'mencion'),
-                                        'institucion': normalize(row.get('institucion_academica')),
-                                        'capacitacion': normalize(row.get('capacitacion')),
+                                        'institucion_id': get_obj('instituciones', 'institucion_academica'),
                                     }
                                 )
 

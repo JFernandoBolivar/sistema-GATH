@@ -1,3 +1,41 @@
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
+
+# Filtros de edad (años) que deben convertirse a un umbral real de fecha de
+# nacimiento antes de compararlos contra un DateField: comparar el entero de
+# "edad" directo contra fecha_nacimiento (DateField) es invalido/no produce
+# el resultado esperado.
+FILTROS_EDAD_MIN = {"edad_min", "edad_empleado_min", "edad_familiar_min"}
+FILTROS_EDAD_MAX = {"edad_max", "edad_empleado_max", "edad_familiar_max"}
+
+# Filtros de años en APN que en realidad no pueden resolverse con un simple
+# WHERE de SQL porque el total se calcula (30E/360, fusion de periodos) en
+# Python via calcular_total_apn, no en un campo de BD mantenido al dia.
+FILTROS_APN = {"apn_min", "apn_max"}
+
+
+def convertir_filtro_edad(filtro_key, valor):
+    """
+    Convierte un filtro de edad en años (ej. edad_min=25) en la fecha de
+    nacimiento umbral equivalente, respetando el sentido de la comparacion
+    ya definido en filtros_permitidos (edad_min -> fecha_nacimiento__lte,
+    edad_max -> fecha_nacimiento__gte).
+    """
+    if filtro_key not in FILTROS_EDAD_MIN and filtro_key not in FILTROS_EDAD_MAX:
+        return valor
+    try:
+        anios = int(valor)
+    except (TypeError, ValueError):
+        return valor
+
+    hoy = date.today()
+    if filtro_key in FILTROS_EDAD_MIN:
+        # Tener al menos N anios: nacio en o antes de (hoy - N anios)
+        return hoy - relativedelta(years=anios)
+    # Tener a lo sumo N anios: nacio en o despues de (hoy - (N+1) anios + 1 dia)
+    return hoy - relativedelta(years=anios + 1) + timedelta(days=1)
+
+
 MAPA_REPORTES = {
     "empleados": {
         "modelo": "Employee",

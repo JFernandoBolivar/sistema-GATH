@@ -8,13 +8,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -95,31 +89,24 @@ export default function UpdateCoord() {
               render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel>Nivel</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(Number.parseInt(values));
-                      setDependencyId(Number.parseInt(values));
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full truncate">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingDependency
-                              ? "Cargando Nivel"
-                              : "Seleccione un Nivel"
-                          }`}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {dependency?.data.map((dependencia, i) => (
-                        <SelectItem key={i} value={`${dependencia.id}`}>
-                          {dependencia.dependencia}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(dependency?.data ?? []).map((dependencia) => ({
+                        value: `${dependencia.id}`,
+                        label: dependencia.dependencia,
+                      }))}
+                      value={field.value ? `${field.value}` : ""}
+                      onChange={(value) => {
+                        field.onChange(Number.parseInt(value));
+                        setDependencyId(Number.parseInt(value));
+                      }}
+                      placeholder={
+                        isLoadingDependency ? "Cargando Nivel" : "Seleccione un Nivel"
+                      }
+                      searchPlaceholder="Buscar nivel..."
+                      disabled={isLoadingDependency}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -130,31 +117,26 @@ export default function UpdateCoord() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(Number.parseInt(values));
-                      setSelecteIdDirectionGeneral(values);
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full truncate">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingDirectionGeneral
-                              ? "Cargando D / O / G"
-                              : "Seleccione una D / O / G"
-                          }`}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {directionGeneral?.data.map((general, i) => (
-                        <SelectItem key={i} value={`${general.id}`}>
-                          {general.Codigo}-{general.direccion_general}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(directionGeneral?.data ?? []).map((general) => ({
+                        value: `${general.id}`,
+                        label: `${general.Codigo}-${general.direccion_general}`,
+                      }))}
+                      value={field.value ? `${field.value}` : ""}
+                      onChange={(value) => {
+                        field.onChange(Number.parseInt(value));
+                        setSelecteIdDirectionGeneral(value);
+                      }}
+                      placeholder={
+                        isLoadingDirectionGeneral
+                          ? "Cargando D / O / G"
+                          : "Seleccione una D / O / G"
+                      }
+                      searchPlaceholder="Buscar dirección..."
+                      disabled={isLoadingDirectionGeneral}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -165,31 +147,26 @@ export default function UpdateCoord() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>División / Coordinación</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(Number.parseInt(values));
-                      setSelecteIdDirectionLine(values);
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full truncate">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingDirectionLine
-                              ? "Cargando División / Coordinación "
-                              : "Seleccione una División / Coordinación"
-                          }`}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {directionLine?.data.map((line, i) => (
-                        <SelectItem key={i} value={`${line.id}`}>
-                          {line.Codigo}-{line.direccion_linea}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(directionLine?.data ?? []).map((line) => ({
+                        value: `${line.id}`,
+                        label: `${line.Codigo}-${line.direccion_linea}`,
+                      }))}
+                      value={field.value ? `${field.value}` : ""}
+                      onChange={(value) => {
+                        field.onChange(Number.parseInt(value));
+                        setSelecteIdDirectionLine(value);
+                      }}
+                      placeholder={
+                        isLoadingDirectionLine
+                          ? "Cargando División / Coordinación "
+                          : "Seleccione una División / Coordinación"
+                      }
+                      searchPlaceholder="Buscar división o coordinación..."
+                      disabled={isLoadingDirectionLine}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -200,30 +177,25 @@ export default function UpdateCoord() {
               render={({ field }) => (
                 <FormItem className="col-span-2">
                   <FormLabel>Coordinación</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(Number.parseInt(values));
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full truncate">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingCoordination
-                              ? "Cargando Coordinaciones"
-                              : "Seleccione una Coordinación"
-                          }`}
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {coordination?.data.map((coord, i) => (
-                        <SelectItem key={i} value={`${coord.id}`}>
-                          {coord.Codigo}-{coord.coordinacion}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Combobox
+                      options={(coordination?.data ?? []).map((coord) => ({
+                        value: `${coord.id}`,
+                        label: `${coord.Codigo}-${coord.coordinacion}`,
+                      }))}
+                      value={field.value ? `${field.value}` : ""}
+                      onChange={(value) => {
+                        field.onChange(Number.parseInt(value));
+                      }}
+                      placeholder={
+                        isLoadingCoordination
+                          ? "Cargando Coordinaciones"
+                          : "Seleccione una Coordinación"
+                      }
+                      searchPlaceholder="Buscar coordinación..."
+                      disabled={isLoadingCoordination}
+                    />
+                  </FormControl>
 
                   <FormMessage />
                 </FormItem>

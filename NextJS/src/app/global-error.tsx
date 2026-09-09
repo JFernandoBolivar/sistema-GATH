@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { clearAuthCookies } from "#/actions/auth-actions";
+import { reportFrontendError } from "@/lib/audit-log";
 
 export default function GlobalError({
   error,
@@ -10,6 +11,14 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    reportFrontendError(
+      error.message,
+      error.stack,
+      typeof window !== "undefined" ? window.location.href : undefined,
+    );
+  }, [error]);
+
   useEffect(() => {
     if (
       error.name === "AuthSessionExpiredError" ||

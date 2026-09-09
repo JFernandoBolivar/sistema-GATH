@@ -122,6 +122,7 @@ export function ReporteFiltersForm() {
               isLoading={isLoadingDg}
               valueKey="id"
               labelKey="direccion_general"
+              searchable
               onCustomChange={(v) => {
                 const id = Number(v) || undefined;
                 form.setValue("direccion_general_id", id);
@@ -141,6 +142,7 @@ export function ReporteFiltersForm() {
               isLoading={isLoadingDl}
               valueKey="id"
               labelKey="direccion_linea"
+              searchable
               onCustomChange={(v) => {
                 const id = Number(v) || undefined;
                 form.setValue("direccion_linea_id", id);
@@ -159,6 +161,7 @@ export function ReporteFiltersForm() {
               isLoading={isLoadingCoord}
               valueKey="id"
               labelKey="coordinacion"
+              searchable
               onCustomChange={(v) => {
                 const id = Number(v) || undefined;
                 form.setValue("coordinacion_id", id);

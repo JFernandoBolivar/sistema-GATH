@@ -209,7 +209,7 @@ export function AppSidebarPasivos() {
     );
 
     const hasDepartmentPermission = item.permission.departmentAccept.includes(
-      session?.user.department.nombre_departamento || "",
+      session?.user.department?.nombre_departamento || "",
     );
 
     return hasRolePermission && hasDepartmentPermission;
