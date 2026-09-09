@@ -24,7 +24,7 @@ export function HeaderLayout({
   subtitle?: string;
 }>) {
   const { data: session } = useSession();
-  const isRac = session?.user.department.nombre_departamento === "RAC";
+  const isRac = session?.user.department?.nombre_departamento === "RAC";
   const pathName = usePathname().split("/");
   const pasivoPath = "dashboard/gestion-pasivos".split("/");
   const activoPath = "dashboard/gestion-trabajadores".split("/");
