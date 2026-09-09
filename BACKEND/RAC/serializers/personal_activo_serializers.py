@@ -23,6 +23,7 @@ from ..services.profile_services import (
 )
 from ..serializers.mixins import ContratoMixin
 from ..services.dependency_validators import validate_dependency_hierarchy
+from USER.services.audit_service import log_event
 
 
         
@@ -78,8 +79,13 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
         instance._history_user = usuario_obj
         instance.save()
 
-      
+
         self._handle_nested_data(instance, nested_data)
+        log_event(
+            action="CREATE", actor=usuario_obj, entity="Employee",
+            entity_id=instance.pk,
+            detail=f"Trabajador creado: {instance.cedulaidentidad}",
+        )
         return instance
     
     @transaction.atomic
@@ -93,6 +99,11 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
         instance = super().update(instance, validated_data)
 
         self._handle_nested_data(instance, nested_data)
+        log_event(
+            action="UPDATE", actor=usuario_obj, entity="Employee",
+            entity_id=instance.pk,
+            detail=f"Trabajador actualizado: {instance.cedulaidentidad}",
+        )
         return instance
     
     def _pop_nested_data(self, validated_data):
@@ -233,14 +244,32 @@ class EmployeeCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerialize
                     )
         if self.instance and self.instance.pk:
             existing_qs = antecedentes_servicio.objects.filter(empleado_id=self.instance)
+            # Los antecedentes ligados a un contrato son el registro de la
+            # estadia actual del empleado (autogenerado), no antecedentes que
+            # el usuario gestione desde este formulario -- excluirlos evita
+            # falsos "solapes" contra un registro que ni siquiera se muestra.
+            protected_ids = set(
+                contratos.objects.filter(
+                    antecedente_id__in=existing_qs.values_list('id', flat=True)
+                ).values_list('antecedente_id', flat=True)
+            )
             for i, item in enumerate(value):
                 inicio = item.get('fecha_ingreso')
                 if not inicio:
                     continue
                 fin = item.get('fecha_egreso') or hoy
                 item_id = item.get('id')
+                item_org = item.get('organismo_id')
+                item_egreso = item.get('fecha_egreso')
                 for rec in existing_qs:
+                    if rec.id in protected_ids:
+                        continue
                     if item_id and rec.id == item_id:
+                        continue
+                    if not item_id and rec.organismo_id_id == (item_org.pk if item_org else None) \
+                            and rec.fecha_ingreso == inicio and rec.fecha_egreso == item_egreso:
+                        # Antecedente existente sin cambios (mismo criterio de "kept"
+                        # que usa replace_antecedentes) -- no se compara consigo mismo.
                         continue
                     rec_fin = rec.fecha_egreso or hoy
                     if rec.fecha_ingreso and inicio <= rec_fin and fin >= rec.fecha_ingreso:

@@ -61,6 +61,7 @@ type Props = {
   mutate: (key: string[]) => void;
   mutateKey?: string;
     updateInfoEmployee: UpdateEmployeeFn;
+  onSuccess?: () => void;
 };
 export function FormBasicUpdateInfo({
   defaultValues,
@@ -69,6 +70,7 @@ export function FormBasicUpdateInfo({
   mutate,
   mutateKey = "api/empleados",
   updateInfoEmployee,
+  onSuccess,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const [photoPreview, setPhotoPreview] = useState<string | null | undefined>(
@@ -104,8 +106,9 @@ export function FormBasicUpdateInfo({
       );
       if (response.success) {
         toast.success(response.message);
-        mutate([mutateKey, searchParams]);
-        mutate(["profile", searchParams]);
+        await mutate([mutateKey, searchParams]);
+        await mutate(["profile", searchParams]);
+        onSuccess?.();
       } else {
         toast.error(response.message);
       }
@@ -331,7 +334,7 @@ export function FormBasicUpdateInfo({
                     />
                     <InputForm
                       form={form}
-                      label="Carnet de la Patria"
+                      label="Código del Carnet de la Patria"
                       nameInput="carnet_patria"
                       placeholder="000-0000000-00"
                       type="text"

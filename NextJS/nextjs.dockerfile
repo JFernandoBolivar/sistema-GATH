@@ -7,7 +7,9 @@ WORKDIR /app/NextJS
 # Copiamos el archivo package.json
 COPY package.json .
 # Instalamos las dependencias
-RUN npm i
+# --legacy-peer-deps: next-auth@5 beta y vitest todavia no publican rangos
+# de peerDependencies compatibles con next@16 / @types/node@20 respectivamente.
+RUN npm i --legacy-peer-deps
 # Copiamos el proyecto a la ruta que creamos en el espacio de trabajo
 COPY . .
 #exponemos el puerto 3000

@@ -76,7 +76,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL","RECEPCIONISTA"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL", "RECEPCIONISTA"],
       departmentAccept: ["RAC"],
     },
     title: "Personal Trabajador",
@@ -97,7 +97,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/consultar",
         icon: ListCheck,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL","RECEPCIONISTA"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO","BIENSTAR SOCIAL", "RECEPCIONISTA"],
           departmentAccept: ["RAC"],
         },
       },
@@ -115,7 +115,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
         icon: BookUser,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL","RECEPCIONISTA"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL", "RECEPCIONISTA"],
           departmentAccept: ["RAC"],
         },
       },
@@ -378,7 +378,7 @@ export function AppSidebarEmployees() {
     );
 
     const hasDepartmentPermission = item.permission.departmentAccept.includes(
-      session?.user.department.nombre_departamento || "",
+      session?.user.department?.nombre_departamento || "",
     );
 
     return hasRolePermission && hasDepartmentPermission;
@@ -509,7 +509,7 @@ export function AppSidebarEmployees() {
                   Rol: {session.user.role.nombre_rol}
                 </h2>
                 <h1 className="text-sm text-gray-400 font-bold">
-                  Departamento: {session.user.department.nombre_departamento}
+                  Departamento: {session.user.department?.nombre_departamento}
                 </h1>
               </div>
             </div>

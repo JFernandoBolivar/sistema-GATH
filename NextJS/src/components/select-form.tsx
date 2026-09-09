@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Combobox } from "./ui/combobox";
 import { cn } from "@/lib/utils";
 
 interface Props<T extends FieldValues, D> {
@@ -34,6 +35,13 @@ interface Props<T extends FieldValues, D> {
   onCustomChange?: (value: string) => void;
   selectedValue?: string;
   children?: React.ReactNode;
+  /** Usa un select con buscador (shadcn Combobox) en vez del <Select> nativo.
+   * Pensado para catalogos largos (paises, cargos, dependencias, etc.). */
+  searchable?: boolean;
+  /** Opciones extra (ej. "Otra") que en el <Select> nativo se pasan como
+   * `children` (<SelectItem>): el Combobox no renderiza children, asi que
+   * cuando `searchable` esta activo se deben repetir aqui. */
+  extraOptions?: { value: string; label: string }[];
 }
 export function SelectForm<T extends FieldValues, D>({
   form,
@@ -51,6 +59,8 @@ export function SelectForm<T extends FieldValues, D>({
   onCustomChange,
   selectedValue,
   children,
+  searchable,
+  extraOptions,
 }: Props<T, D>) {
   return (
     <>
@@ -61,32 +71,54 @@ export function SelectForm<T extends FieldValues, D>({
           <FormItem className={cn(classNameItem)}>
             <FormLabel>{Formlabel}</FormLabel>
             <FormControl>
-              <Select
-                onValueChange={(value) => {
-                  onCustomChange ? onCustomChange(value) : field.onChange(value);
-                }}
-                value={selectedValue ?? field.value?.toString() ?? ""}
-              >
-                <SelectTrigger
-                  className={`${cn(clasNameSelect)} w-full truncate`}
+              {searchable ? (
+                <Combobox
+                  className={cn(clasNameSelect)}
+                  options={[
+                    ...(options ?? []).map((item) => ({
+                      value: String(item[valueKey]),
+                      label: String(item[labelKey]),
+                    })),
+                    ...(extraOptions ?? []),
+                  ]}
+                  value={selectedValue ?? field.value?.toString() ?? ""}
+                  onChange={(value) => {
+                    onCustomChange
+                      ? onCustomChange(value)
+                      : field.onChange(value);
+                  }}
+                  placeholder={isLoading ? "Cargando..." : placeholder}
+                  searchPlaceholder={`Buscar ${SelectLabelItem.toLowerCase()}...`}
+                  disabled={isLoading}
+                />
+              ) : (
+                <Select
+                  onValueChange={(value) => {
+                    onCustomChange ? onCustomChange(value) : field.onChange(value);
+                  }}
+                  value={selectedValue ?? field.value?.toString() ?? ""}
                 >
-                  <SelectValue
-                    placeholder={isLoading ? "Cargando..." : placeholder}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>{SelectLabelItem}</SelectLabel>
+                  <SelectTrigger
+                    className={`${cn(clasNameSelect)} w-full truncate`}
+                  >
+                    <SelectValue
+                      placeholder={isLoading ? "Cargando..." : placeholder}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>{SelectLabelItem}</SelectLabel>
 
-                    {options?.map((item, index) => (
-                      <SelectItem key={index} value={String(item[valueKey])}>
-                        {String(item[labelKey])}
-                      </SelectItem>
-                    ))}
-                    {children}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+                      {options?.map((item, index) => (
+                        <SelectItem key={index} value={String(item[valueKey])}>
+                          {String(item[labelKey])}
+                        </SelectItem>
+                      ))}
+                      {children}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              )}
             </FormControl>
             {description !== undefined && (
               <FormDescription>{description}</FormDescription>

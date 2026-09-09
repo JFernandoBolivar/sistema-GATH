@@ -24,6 +24,27 @@ export function buildSchema(preguntas: Pregunta[]) {
       shape[String(pregunta.id)] = z
         .string()
         .min(1, "Este campo es obligatorio");
+} else if (pregunta.id === 1) {
+  // Código del Carnet de la Patria: aunque la pregunta está tipeada como
+  // "number", es un código (no una cantidad) y algunos empiezan con "0" --
+  // transformarlo a Number (como el resto de las preguntas "number"/"float")
+  // le haría perder esos ceros a la izquierda. Se valida como string.
+  let carnetField: z.ZodTypeAny = z
+    .string()
+    .min(1, "Este campo es obligatorio")
+    .regex(/^\d+$/, "Debe ingresar solo números");
+
+  if (pregunta.validacion) {
+    const digitos = parseInt(pregunta.validacion, 10);
+    if (!isNaN(digitos)) {
+      carnetField = carnetField.refine(
+        (val) => val.length === digitos,
+        `Debe tener ${digitos} dígitos`,
+      );
+    }
+  }
+
+  shape[String(pregunta.id)] = carnetField;
 } else if (tipo === "number" || tipo === "float") {
   // Usamos z.ZodTypeAny para que TypeScript permita los cambios de tipo internos de Zod
   let stringField: z.ZodTypeAny = z

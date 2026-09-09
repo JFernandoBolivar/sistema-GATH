@@ -1,5 +1,8 @@
 "use client";
-import { useSession } from "next-auth/react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+import FileUpload from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/file-upload";
+import { uploadFamilyDocument } from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/actions/upload-document";
 import UpdateFormAcademy from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/updateInfo/form/form-academy-update";
 import FormUpdateHealthFamily from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/updateInfo/form/form-health_profile";
 import UpdateFormPhysical from "@/app/(protected)/dashboard/gestion-trabajadores/components/employees/tableFamilys/updateInfo/form/form-physical-update";
@@ -48,6 +51,57 @@ interface FamilyDocument {
 interface Props {
   family: Family;
 }
+
+function FamilyDocumentUploader({
+  familiarId,
+  documentType,
+  label,
+  onUploaded,
+}: {
+  familiarId: number;
+  documentType: "cedula" | "partida_nacimiento";
+  label: string;
+  onUploaded: () => void;
+}) {
+  const [file, setFile] = useState<File | undefined>();
+  const [isPending, startTransition] = useTransition();
+
+  const handleUpload = () => {
+    if (!file) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.append("familiarId", String(familiarId));
+      fd.append("document_type", documentType);
+      fd.append("file", file);
+      const result = await uploadFamilyDocument(fd);
+      if (result.success) {
+        toast.success(result.message || "Documento actualizado");
+        setFile(undefined);
+        onUploaded();
+      } else {
+        toast.error(result.message || "Error al subir el documento");
+      }
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <FileUpload label={label} value={file} onChange={setFile} />
+      {file && (
+        <Button
+          type="button"
+          size="sm"
+          className="cursor-pointer"
+          disabled={isPending}
+          onClick={handleUpload}
+        >
+          {isPending ? "Subiendo..." : "Guardar documento"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function DetailInfoFamily({ family }: Props) {
   // El rol RECEPCIONISTA sólo consulta: se ocultan los accesos a edición.
   const { data: session } = useSession();
@@ -364,25 +418,54 @@ export function DetailInfoFamily({ family }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   {docsData?.data?.map((doc) => (
                     <a
                       key={doc.id}
                       href={`${DJANGO_BASE}${doc.file}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-blue-600 hover:underline"
+                      className="group flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/60"
                     >
-                      <FileDown className="size-4" />
-                      {doc.document_type === "cedula"
-                        ? "Ver Cédula del Familiar"
-                        : "Ver Partida de Nacimiento"}
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <FileDown className="size-4" />
+                      </span>
+                      <span className="flex flex-col min-w-0">
+                        <span className="truncate text-sm font-medium group-hover:underline">
+                          {doc.document_type === "cedula"
+                            ? "Cédula del Familiar"
+                            : "Partida de Nacimiento"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Ver documento
+                        </span>
+                      </span>
                     </a>
                   ))}
                   {(!docsData?.data || docsData.data.length === 0) && (
                     <span className="text-gray-400 text-sm">
                       No hay documentos subidos
                     </span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-3 pt-4 mt-2 border-t">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Subir o reemplazar documento
+                  </span>
+                  <FamilyDocumentUploader
+                    familiarId={family.id}
+                    documentType="cedula"
+                    label="Foto o PDF de la Cédula"
+                    onUploaded={() => mutate(`family-docs-${family.id}`)}
+                  />
+                  {family.parentesco?.descripcion_parentesco ===
+                    "HIJO (A)" && (
+                    <FamilyDocumentUploader
+                      familiarId={family.id}
+                      documentType="partida_nacimiento"
+                      label="Partida de Nacimiento"
+                      onUploaded={() => mutate(`family-docs-${family.id}`)}
+                    />
                   )}
                 </div>
               </CardContent>

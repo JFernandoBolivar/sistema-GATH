@@ -14,22 +14,12 @@ export default proxy((req) => {
     auth?.user?.role?.nombre_rol === "AUTOGESTION" ||
     auth?.user?.department?.nombre_departamento === "AUTOGESTION";
 
-  const esRecepcionista = auth?.user?.role?.nombre_rol === "RECEPCIONISTA";
+  // Las rutas internas de Auth.js (/api/auth/session, /api/auth/csrf, etc.)
+  // deben responder siempre, incluso sin sesion valida -- de lo contrario
+  // useSession() recibe un 307 (HTML) en vez de JSON y falla al parsearlo.
+  const isAuthRoute = nextUrl.pathname.startsWith("/api/auth");
 
-  // Rutas que puede abrir un recepcionista. Se comparan de forma EXACTA a
-  // propósito: un prefijo como "/dashboard/gestion-trabajadores" dejaría pasar
-  // también las pantallas de escritura del mismo módulo.
-  const RUTAS_RECEPCIONISTA = [
-    "/dashboard",
-    "/dashboard/gestion-trabajadores",
-    "/dashboard/gestion-trabajadores/personal-trabajador/consultar",
-    "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
-    "/dashboard/gestion-pasivos",
-    "/dashboard/gestion-pasivos/personal-jubilado/consultar",
-    "/dashboard/gestion-pasivos/personal-jubilado/familiares/consultar",
-  ];
-
-  if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
+  if (!isAuthRoute && !publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 

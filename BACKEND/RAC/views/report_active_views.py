@@ -9,6 +9,7 @@ from django.db.models import  Prefetch, Q
 from RAC.serializers.report_serializers import *
 from RAC.utils.mapa_reporte import *
 from RAC.utils.constants import *
+from RAC.utils.tiempo_servicio import calcular_total_apn_anios
 from RAC.services.pdf.generators.employee_active_pdf import EmployeePDFGenerator
 from RAC.services.pdf.generators.family_pdf import FamilyPDFGenerator
 from RAC.services.pdf.generators.assignment_pdf import AssignmentPDFGenerator
@@ -275,27 +276,35 @@ def _generate_employee_pdf(filtros):
     filtros_permitidos = config.get('filtros_permitidos', {})
     query_filtros = {}
     asignacion_filtros = {}
+    apn_min = filtros.get('apn_min')
+    apn_max = filtros.get('apn_max')
 
     for k, v in filtros.items():
         if v is not None and k in filtros_permitidos:
+            if k in FILTROS_APN:
+                # total_anos_apn no se mantiene actualizado en BD: el total real
+                # se calcula en Python (30E/360) y se filtra despues de traer el queryset.
+                continue
+
             campo = filtros_permitidos[k]
-            
+            v = convertir_filtro_edad(k, v)
+
             if k == 'OrganismoAdscrito_id':
                 # Obtenemos los IDs de los hijos y le sumamos el ID del padre (v)
                 hijos_ids = OrganismoAdscrito.objects.filter(parent_id=v).values_list('id', flat=True)
                 ids_busqueda = [v] + list(hijos_ids)
-                
+
                 campo_in = f"{campo}__in"
-                
+
                 query_filtros[campo_in] = ids_busqueda
                 if 'assignments__' in campo_in:
                     asignacion_filtros[campo_in.replace('assignments__', '')] = ids_busqueda
-                    
+
             else: # <--- DEBE IR EXACTAMENTE AQUÍ, ALINEADO CON EL IF ANTERIOR
                 query_filtros[campo] = v
                 if 'assignments__' in campo:
                     asignacion_filtros[campo.replace('assignments__', '')] = v
-                    
+
     query_filtros['assignments__Tipo_personal__tipo_personal'] = PERSONAL_ACTIVO
     asignacion_filtros['Tipo_personal__tipo_personal'] = PERSONAL_ACTIVO
 
@@ -309,7 +318,7 @@ def _generate_employee_pdf(filtros):
             queryset=AsigTrabajo.objects.filter(**asignacion_filtros).select_related(
                 'Dependencia',
                 'DireccionGeneral',
-                'denominacioncargoid', 
+                'denominacioncargoid',
                 'tiponominaid',
                 'Tipo_personal'
             ).order_by('denominacioncargoid__orden_by_cargo','-fecha_actualizacion'),
@@ -319,8 +328,21 @@ def _generate_employee_pdf(filtros):
         'cedulaidentidad'
     ).distinct()
 
+    empleados = list(queryset)
+
+    if apn_min is not None or apn_max is not None:
+        empleados_filtrados = []
+        for emp in empleados:
+            anos_apn = calcular_total_apn_anios(emp)
+            if apn_min is not None and anos_apn < int(apn_min):
+                continue
+            if apn_max is not None and anos_apn > int(apn_max):
+                continue
+            empleados_filtrados.append(emp)
+        empleados = empleados_filtrados
+
     generator = EmployeePDFGenerator(
-        employees=list(queryset),
+        employees=empleados,
         title="REPORTE DE TRABAJADORES (ACTIVOS)",
         filters=filtros
     )
@@ -346,7 +368,8 @@ def _generate_family_activo_pdf(filtros):
     for filtro_key, filtro_value in filtros.items():
         if filtro_value is not None and filtro_key in filtros_permitidos:
             campo_db = filtros_permitidos[filtro_key]
-            
+            filtro_value = convertir_filtro_edad(filtro_key, filtro_value)
+
             if campo_db.startswith('carga_familiar__'):
                 # Le quitamos el prefijo para poder usarlo directo en el modelo CargaFamiliar
                 campo_limpio = campo_db.replace('carga_familiar__', '')
@@ -482,8 +505,9 @@ def _generate_graduate_pdf(filtros):
     for filtro_key, filtro_value in filtros.items():
         if filtro_value is not None and filtro_key in filtros_permitidos:
             campo_db = filtros_permitidos[filtro_key]
+            filtro_value = convertir_filtro_edad(filtro_key, filtro_value)
             queryset = queryset.filter(**{campo_db: filtro_value})
-    
+
     queryset = queryset.order_by('-fecha_egreso')
     
     generator = GraduatePDFGenerator(

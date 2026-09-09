@@ -114,7 +114,7 @@ export default function FormUpdateContrato({ employee, mutate, mutateKey = "api/
       );
       if (response.success) {
         toast.success(response.message);
-        mutate([mutateKey, searchParams]);
+        await mutate([mutateKey, searchParams]);
         onSuccess?.();
       } else {
         toast.error(response.message);

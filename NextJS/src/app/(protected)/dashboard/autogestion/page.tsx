@@ -344,6 +344,24 @@ export default function AutogestionPage() {
                       );
                     }
 
+                    if (pregunta.id === 1) {
+                      // Código del Carnet de la Patria: es un código, no una
+                      // cantidad -- con type="text" (no "number") se preservan
+                      // los ceros a la izquierda que algunos códigos tienen.
+                      return (
+                        <div key={pregunta.id}>
+                          <InputForm
+                            form={form}
+                            nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
+                            label="Código del Carnet de la Patria *"
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="0000000000"
+                          />
+                        </div>
+                      );
+                    }
+
                     if (tipo === "number" || tipo === "float") {
                       return (
                         <div key={pregunta.id}>
