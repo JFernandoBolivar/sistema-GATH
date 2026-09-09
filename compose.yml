@@ -6,6 +6,10 @@ services:
       dockerfile: django.dockerfile
     env_file:
       - ./BACKEND/.env
+    # En Linux 'host.docker.internal' no resuelve solo: hay que mapearlo al
+    # gateway del host para que el contenedor alcance el PostgreSQL local.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       backend:
         aliases:
