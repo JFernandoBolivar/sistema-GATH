@@ -81,7 +81,7 @@ export default function UpdateFormAcademy({ id, mutate }: Props) {
       if (response.success) {
         form.reset();
         toast.success(response.message);
-        mutate(["api/family", searchParams]);
+        await mutate(["api/family", searchParams]);
       } else {
         toast.error(response.message);
       }
@@ -116,6 +116,8 @@ export default function UpdateFormAcademy({ id, mutate }: Props) {
                 placeholder="Seleccione una institución"
                 valueKey="id"
                 labelKey="nombre_institucion"
+                searchable
+                extraOptions={[{ value: "-1", label: "Otra" }]}
                 selectedValue={watchedInstitucionId === -1 ? "-1" : String(watchedInstitucionId ?? "")}
                 onCustomChange={(v) => {
                   if (v === "-1") {
@@ -153,6 +155,8 @@ export default function UpdateFormAcademy({ id, mutate }: Props) {
                 placeholder="Seleccione una carrera"
                 valueKey="id"
                 labelKey="nombre_carrera"
+                searchable
+                extraOptions={[{ value: "-1", label: "Otra" }]}
                 selectedValue={isOtherCarrera ? "-1" : String(watchedCarreraId ?? "")}
                 onCustomChange={(v) => {
                   if (v === "-1") {

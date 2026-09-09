@@ -15,15 +15,7 @@ import {
   createDirectionGeneral,
   createDirectionLine,
 } from "@/app/(protected)/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion-administrativa-direccion/action/createDirectionDependecy";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
 import useSWR from "swr";
 import z from "zod";
@@ -51,6 +43,8 @@ export default function FormCreateDirectionDependency() {
   const [dependencyId, setDependencyId] = useState<number | string>("");
 
   const [selectionDirectionGeneralId, setSelectionDirectionGeneralId] =
+    useState<string>();
+  const [selectionDirectionLineId, setSelectionDirectionLineId] =
     useState<string>();
 
   const formDirectionGeneral = useForm({
@@ -173,121 +167,90 @@ export default function FormCreateDirectionDependency() {
                     }`}
                   >
                     <Label>Nivel</Label>
-                    <Select
-                      onValueChange={(value) => {
+                    <Combobox
+                      options={(dependency?.data ?? []).map((dp) => ({
+                        value: `${dp.id}`,
+                        label: `${dp.Codigo}-${dp.dependencia}`,
+                      }))}
+                      value={dependencyId ? `${dependencyId}` : ""}
+                      onChange={(value) => {
                         setDependencyId(value);
                         selectionDependency(Number.parseInt(value));
                       }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue
-                          placeholder={`${
-                            isLoadingDependency
-                              ? "Cargando Niveles"
-                              : "Seleccionar Nivel"
-                          }`}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectLabel>Nivel</SelectLabel>
-                          {dependency?.data.map((dp, i) => (
-                            <SelectItem key={i} value={`${dp.id}`}>
-                              {dp.Codigo}-{dp.dependencia}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                      placeholder={
+                        isLoadingDependency ? "Cargando Niveles" : "Seleccionar Nivel"
+                      }
+                      searchPlaceholder="Buscar nivel..."
+                      disabled={isLoadingDependency}
+                    />
                   </div>
                   {create === "create-direction-line" && (
                     <div className="gap-2">
                       <Label>Dirección / Gerencia / Oficina</Label>
-                      <Select
-                        onValueChange={(value) => {
+                      <Combobox
+                        options={(directionGeneral?.data ?? []).map((general) => ({
+                          value: `${general.id}`,
+                          label: `${general.Codigo}-${general.direccion_general}`,
+                        }))}
+                        value={selectionDirectionGeneralId ?? ""}
+                        onChange={(value) => {
+                          setSelectionDirectionGeneralId(value);
                           selectionDirectionGeneral(Number.parseInt(value));
                         }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue
-                            placeholder={`${
-                              isLoadingDirectionGeneral
-                                ? "Cargando Direcciones"
-                                : "Seleccionar Dirección"
-                            }`}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            <SelectLabel>Direcciones</SelectLabel>
-                            {directionGeneral?.data.map((general, i) => (
-                              <SelectItem key={i} value={`${general.id}`}>
-                                {general.Codigo}-{general.direccion_general}
-                              </SelectItem>
-                            ))}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
+                        placeholder={
+                          isLoadingDirectionGeneral
+                            ? "Cargando Direcciones"
+                            : "Seleccionar Dirección"
+                        }
+                        searchPlaceholder="Buscar dirección..."
+                        disabled={isLoadingDirectionGeneral}
+                      />
                     </div>
                   )}
                   {create === "create-coordination" && (
                     <>
                       <div className="gap-2">
                         <Label>Dirección / Gerencia / Oficina</Label>
-                        <Select
-                          onValueChange={(value) => {
+                        <Combobox
+                          options={(directionGeneral?.data ?? []).map((general) => ({
+                            value: `${general.id}`,
+                            label: `${general.Codigo}-${general.direccion_general}`,
+                          }))}
+                          value={selectionDirectionGeneralId ?? ""}
+                          onChange={(value) => {
                             setSelectionDirectionGeneralId(value);
                             selectionDirectionGeneral(Number.parseInt(value));
                           }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue
-                              placeholder={`${
-                                isLoadingDirectionGeneral
-                                  ? "Cargando Direcciones"
-                                  : "Seleccionar Dirección"
-                              }`}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectLabel>Direcciones</SelectLabel>
-                              {directionGeneral?.data.map((general, i) => (
-                                <SelectItem key={i} value={`${general.id}`}>
-                                  {general.Codigo}-{general.direccion_general}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                          placeholder={
+                            isLoadingDirectionGeneral
+                              ? "Cargando Direcciones"
+                              : "Seleccionar Dirección"
+                          }
+                          searchPlaceholder="Buscar dirección..."
+                          disabled={isLoadingDirectionGeneral}
+                        />
                       </div>
                       <div className="gap-2 col-span-2">
                         <Label>División / Coordinación</Label>
 
-                        <Select
-                          onValueChange={(value) => {
+                        <Combobox
+                          options={(directionLine?.data ?? []).map((line) => ({
+                            value: `${line.id}`,
+                            label: `${line.Codigo}-${line.direccion_linea}`,
+                          }))}
+                          value={selectionDirectionLineId ?? ""}
+                          onChange={(value) => {
+                            setSelectionDirectionLineId(value);
                             selectionDirectionLine(Number.parseInt(value));
                           }}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue
-                              placeholder={` ${
-                                isLoadingDirectionLine
-                                  ? "Cargando Direcciones"
-                                  : "Seleccionar Dirección"
-                              }`}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {directionLine?.data.map((line, i) => (
-                                <SelectItem key={i} value={`${line.id}`}>
-                                  {line.Codigo}-{line.direccion_linea}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                          placeholder={
+                            isLoadingDirectionLine
+                              ? "Cargando Direcciones"
+                              : "Seleccionar Dirección"
+                          }
+                          searchPlaceholder="Buscar división o coordinación..."
+                          disabled={isLoadingDirectionLine}
+                        />
                       </div>
                     </>
                   )}

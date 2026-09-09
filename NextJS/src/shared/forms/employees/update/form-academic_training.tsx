@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Cross, Trash, X } from "lucide-react";
 import { useTransition } from "react";
@@ -55,6 +56,7 @@ type Props = {
   mutate: (key: string[]) => void;
   mutateKey?: string;
     updateInfoEmployee: UpdateEmployeeFn;
+  onSuccess?: () => void;
 };
 
 function AcademicRow({
@@ -153,51 +155,40 @@ function AcademicRow({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Carrera (Opcional)</FormLabel>
-              <Select
-                onValueChange={(v) => {
-                  if (v === "-1") {
-                    field.onChange(-1);
-                    setValue(
-                      `formacion_academica.${index}.mencion_id` as never,
-                      undefined as never,
-                    );
-                  } else {
-                    const numV = Number(v);
-                    field.onChange(numV);
-                    setValue(
-                      `formacion_academica.${index}.nueva_carrera_nombre` as never,
-                      "" as never,
-                    );
-                  }
-                }}
-                value={
-                  field.value === -1
-                    ? "-1"
-                    : field.value?.toString() ?? ""
-                }
-              >
-                <FormControl>
-                  <SelectTrigger className="w-44">
-                    <SelectValue
-                      placeholder={
-                        isLoadingCarrera
-                          ? "Cargando..."
-                          : "Seleccione"
-                      }
-                    />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {carrera?.data.map((c, i) => (
-                    <SelectItem key={i} value={`${c.id}`}>
-                      {c.nombre_carrera}
-                    </SelectItem>
-                  ))}
-                  {!!watchedNivelAcademicoId && watchedNivelAcademicoId > 0 && !esNoPosee && (
-                    <SelectItem value="-1">Otra</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Combobox
+                  className="w-44"
+                  options={[
+                    ...(carrera?.data.map((c) => ({
+                      value: `${c.id}`,
+                      label: c.nombre_carrera,
+                    })) ?? []),
+                    ...(!!watchedNivelAcademicoId && watchedNivelAcademicoId > 0 && !esNoPosee
+                      ? [{ value: "-1", label: "Otra" }]
+                      : []),
+                  ]}
+                  value={field.value === -1 ? "-1" : field.value?.toString() ?? ""}
+                  onChange={(v) => {
+                    if (v === "-1") {
+                      field.onChange(-1);
+                      setValue(
+                        `formacion_academica.${index}.mencion_id` as never,
+                        undefined as never,
+                      );
+                    } else {
+                      const numV = Number(v);
+                      field.onChange(numV);
+                      setValue(
+                        `formacion_academica.${index}.nueva_carrera_nombre` as never,
+                        "" as never,
+                      );
+                    }
+                  }}
+                  placeholder={isLoadingCarrera ? "Cargando..." : "Seleccione"}
+                  searchPlaceholder="Buscar carrera..."
+                  disabled={isLoadingCarrera}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -233,46 +224,33 @@ function AcademicRow({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Mención (Opcional)</FormLabel>
-              <Select
-                onValueChange={(v) => {
-                  if (v === "-1") {
-                    field.onChange(-1);
-                  } else {
-                    field.onChange(Number.parseInt(v));
-                    setValue(
-                      `formacion_academica.${index}.nueva_mencion_nombre` as never,
-                      "" as never,
-                    );
-                  }
-                }}
-                value={
-                  field.value === -1
-                    ? "-1"
-                    : field.value?.toString() ?? ""
-                }
-              >
-                <FormControl>
-                  <SelectTrigger className="w-44">
-                    <SelectValue
-                      placeholder={
-                        isLoadingMencion
-                          ? "Cargando..."
-                          : "Seleccione"
-                      }
-                    />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {mencion?.data.map((m, i) => (
-                    <SelectItem key={i} value={`${m.id}`}>
-                      {m.nombre_mencion}
-                    </SelectItem>
-                  ))}
-                  {hasCarrera && (
-                    <SelectItem value="-1">Otra</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Combobox
+                  className="w-44"
+                  options={[
+                    ...(mencion?.data.map((m) => ({
+                      value: `${m.id}`,
+                      label: m.nombre_mencion,
+                    })) ?? []),
+                    ...(hasCarrera ? [{ value: "-1", label: "Otra" }] : []),
+                  ]}
+                  value={field.value === -1 ? "-1" : field.value?.toString() ?? ""}
+                  onChange={(v) => {
+                    if (v === "-1") {
+                      field.onChange(-1);
+                    } else {
+                      field.onChange(Number.parseInt(v));
+                      setValue(
+                        `formacion_academica.${index}.nueva_mencion_nombre` as never,
+                        "" as never,
+                      );
+                    }
+                  }}
+                  placeholder={isLoadingMencion ? "Cargando..." : "Seleccione"}
+                  searchPlaceholder="Buscar mención..."
+                  disabled={isLoadingMencion}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -307,48 +285,34 @@ function AcademicRow({
               <FormLabel>
                 Institución {hasCarrera ? <span className="text-red-500">*</span> : "(Opcional)"}
               </FormLabel>
-              <Select
-                onValueChange={(v) => {
-                  if (v === "-1") {
-                    field.onChange(-1);
-                  } else {
-                    const numV = Number(v);
-                    field.onChange(numV);
-                    setValue(
-                      `formacion_academica.${index}.nueva_institucion_nombre` as never,
-                      "" as never,
-                    );
-                  }
-                }}
-                value={
-                  field.value === -1
-                    ? "-1"
-                    : field.value?.toString() ?? ""
-                }
-              >
-                <FormControl>
-                  <SelectTrigger className="w-44">
-                    <SelectValue
-                      placeholder={
-                        isLoadingInstituciones
-                          ? "Cargando..."
-                          : "Seleccione"
-                      }
-                    />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {instituciones?.data?.map((i) => (
-                    <SelectItem
-                      key={i.id}
-                      value={i.id.toString()}
-                    >
-                      {i.nombre_institucion}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="-1">Otra</SelectItem>
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Combobox
+                  className="w-44"
+                  options={[
+                    ...(instituciones?.data?.map((i) => ({
+                      value: i.id.toString(),
+                      label: i.nombre_institucion,
+                    })) ?? []),
+                    { value: "-1", label: "Otra" },
+                  ]}
+                  value={field.value === -1 ? "-1" : field.value?.toString() ?? ""}
+                  onChange={(v) => {
+                    if (v === "-1") {
+                      field.onChange(-1);
+                    } else {
+                      const numV = Number(v);
+                      field.onChange(numV);
+                      setValue(
+                        `formacion_academica.${index}.nueva_institucion_nombre` as never,
+                        "" as never,
+                      );
+                    }
+                  }}
+                  placeholder={isLoadingInstituciones ? "Cargando..." : "Seleccione"}
+                  searchPlaceholder="Buscar institución..."
+                  disabled={isLoadingInstituciones}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -396,6 +360,7 @@ export default function FormUpdateAcademyLevel({
   mutate,
   mutateKey = "api/empleados",
   updateInfoEmployee,
+  onSuccess,
 }: Props) {
   const [isPending, startTransition] = useTransition();
 
@@ -423,7 +388,8 @@ export default function FormUpdateAcademyLevel({
       const response = await updateInfoEmployee(values, idEmployee);
       if (response.success) {
         toast.success(response.message);
-        mutate([mutateKey, searchParams]);
+        await mutate([mutateKey, searchParams]);
+        onSuccess?.();
       } else {
         toast.error(response.message);
       }

@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Combobox } from "@/components/ui/combobox"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
@@ -104,27 +105,22 @@ export default function FormDwelling({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Estado *</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(Number.parseInt(value))
-                          setStateId(value)
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate">
-                            <SelectValue
-                              placeholder={`${isLoadingStatesStates ? "Cargando Estados" : "Seleccione un Estado"}`}
-                            />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {states?.data.map((state, i) => (
-                            <SelectItem key={i} value={`${state.id}`}>
-                              {state.estado}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={(states?.data ?? []).map((state) => ({
+                            value: `${state.id}`,
+                            label: state.estado,
+                          }))}
+                          value={field.value ? `${field.value}` : ""}
+                          onChange={(value) => {
+                            field.onChange(Number.parseInt(value))
+                            setStateId(value)
+                          }}
+                          disabled={isLoadingStatesStates}
+                          placeholder={isLoadingStatesStates ? "Cargando Estados" : "Seleccione un Estado"}
+                          searchPlaceholder="Buscar estado..."
+                        />
+                      </FormControl>
                       <FormDescription>
                         Esta Información Sera Publica
                       </FormDescription>
@@ -138,27 +134,22 @@ export default function FormDwelling({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Municipio *</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(Number.parseInt(value))
-                          setMunicipalityId(value)
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate">
-                            <SelectValue
-                              placeholder={`${isLoadingStatesSMunicipalitys ? "Cargando Municipios" : "Seleccione un Municpio"}`}
-                            />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {municipalitys?.data.map((municipality, i) => (
-                            <SelectItem key={i} value={`${municipality.id}`}>
-                              {municipality.municipio}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={(municipalitys?.data ?? []).map((municipality) => ({
+                            value: `${municipality.id}`,
+                            label: municipality.municipio,
+                          }))}
+                          value={field.value ? `${field.value}` : ""}
+                          onChange={(value) => {
+                            field.onChange(Number.parseInt(value))
+                            setMunicipalityId(value)
+                          }}
+                          disabled={isLoadingStatesSMunicipalitys}
+                          placeholder={isLoadingStatesSMunicipalitys ? "Cargando Municipios" : "Seleccione un Municpio"}
+                          searchPlaceholder="Buscar municipio..."
+                        />
+                      </FormControl>
                       <FormDescription>
                         Esta Información Sera Publica
                       </FormDescription>
@@ -172,26 +163,21 @@ export default function FormDwelling({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Parroquia *</FormLabel>
-                      <Select
-                        onValueChange={(values) => {
-                          field.onChange(Number.parseInt(values))
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate">
-                            <SelectValue
-                              placeholder={`${isLoadingStatesParish ? "Cargando Parroquias" : "Seleccione una Parroquia"}`}
-                            />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {parish?.data.map((parish, i) => (
-                            <SelectItem key={i} value={`${parish.id}`}>
-                              {parish.parroquia}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Combobox
+                          options={(parish?.data ?? []).map((p) => ({
+                            value: `${p.id}`,
+                            label: p.parroquia,
+                          }))}
+                          value={field.value ? `${field.value}` : ""}
+                          onChange={(value) => {
+                            field.onChange(Number.parseInt(value))
+                          }}
+                          disabled={isLoadingStatesParish}
+                          placeholder={isLoadingStatesParish ? "Cargando Parroquias" : "Seleccione una Parroquia"}
+                          searchPlaceholder="Buscar parroquia..."
+                        />
+                      </FormControl>
                       <FormDescription>
                         Esta Información Sera Publica
                       </FormDescription>

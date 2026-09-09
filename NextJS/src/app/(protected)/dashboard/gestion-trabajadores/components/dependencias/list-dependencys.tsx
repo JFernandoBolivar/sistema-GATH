@@ -17,15 +17,7 @@ import {
   getDirectionGeneralById,
   getDirectionLine,
 } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useState } from "react";
 import useSWR from "swr";
 export default function TableDependencys() {
@@ -74,96 +66,73 @@ export default function TableDependencys() {
           <div className={`grid grid-cols-2 w-full gap-5`}>
             <div className={`col-span-2 gap-2`}>
               <Label>Nivel</Label>
-              <Select
-                onValueChange={(value) => {
+              <Combobox
+                options={(dependency?.data ?? []).map((dp) => ({
+                  value: `${dp.id}`,
+                  label: `${dp.Codigo}-${dp.dependencia}`,
+                }))}
+                value={dependencyId ? `${dependencyId}` : ""}
+                onChange={(value) => {
                   setDependencyId(value);
                 }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccionar Nivel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Nivel</SelectLabel>
-                    {dependency?.data.map((dp, i) => (
-                      <SelectItem key={i} value={`${dp.id}`}>
-                        {dp.Codigo}-{dp.dependencia}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-                <div className="text-sm text-gray-700 text-[12px]">
-                  Consultar Dirección / Gerencia / Oficina
-                </div>
-              </Select>
+                placeholder="Seleccionar Nivel"
+                searchPlaceholder="Buscar nivel..."
+                disabled={isLoadingDependency}
+              />
+              <div className="text-sm text-gray-700 text-[12px]">
+                Consultar Dirección / Gerencia / Oficina
+              </div>
             </div>
 
             <div className={`gap-2 `}>
               <Label>Dirección / Gerencia / Oficina</Label>
-              <Select
-                onValueChange={(value) => {
+              <Combobox
+                options={(directionGeneral?.data ?? []).map((general) => ({
+                  value: `${general.id}`,
+                  label: `${general.Codigo}-${general.direccion_general}`,
+                }))}
+                value={directionGeneralId ?? ""}
+                onChange={(value) => {
                   setDirectionGeneralId(value);
                 }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccionar Ubicacion Administrativa" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Dirección / Gerencia / Oficina</SelectLabel>
-                    {directionGeneral?.data.map((general, i) => (
-                      <SelectItem key={i} value={`${general.id}`}>
-                        {general.Codigo}-{general.direccion_general}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-                <div className="text-sm text-gray-700 text-[12px]">
-                  Consultar Divisiones
-                </div>
-              </Select>
+                placeholder="Seleccionar Ubicacion Administrativa"
+                searchPlaceholder="Buscar dirección..."
+                disabled={isLoadingDirectionGeneral}
+              />
+              <div className="text-sm text-gray-700 text-[12px]">
+                Consultar Divisiones
+              </div>
             </div>
 
             <div className="gap-2">
               <Label>División / Coordinación</Label>
 
-              <Select
-                onValueChange={(value) => {
+              <Combobox
+                options={(directionLine?.data ?? []).map((line) => ({
+                  value: `${line.id}`,
+                  label: `${line.Codigo}-${line.direccion_linea}`,
+                }))}
+                value={coordinationId ?? ""}
+                onChange={(value) => {
                   setCoordinationId(value);
                 }}
-              >
-                <SelectTrigger
-                  className="w-full"
-                  disabled={
+                disabled={
+                  !(
                     directionLine?.data !== undefined &&
                     directionLine!.data?.length > 0
-                      ? false
-                      : true
-                  }
-                >
-                  <SelectValue
-                    placeholder={`${
-                      directionLine?.data !== undefined &&
-                      directionLine!.data?.length > 0
-                        ? "Seleccionar Ubicacion Administrativa"
-                        : "No Posee Ubicaciones Administrativas"
-                    }`}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>División / Coordinación</SelectLabel>
-                    {directionLine?.data.map((line, i) => (
-                      <SelectItem key={i} value={`${line.id}`}>
-                        {line.Codigo}-{line.direccion_linea}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-                <div className="text-[12px] text-gray-700">
-                  Consultar Coordinaciones De La División
-                </div>
-              </Select>
+                  )
+                }
+                placeholder={
+                  directionLine?.data !== undefined &&
+                  directionLine!.data?.length > 0
+                    ? "Seleccionar Ubicacion Administrativa"
+                    : "No Posee Ubicaciones Administrativas"
+                }
+                searchPlaceholder="Buscar división o coordinación..."
+              />
+              <div className="text-[12px] text-gray-700">
+                Consultar Coordinaciones De La División
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-5 ">

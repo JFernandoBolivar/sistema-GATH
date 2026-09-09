@@ -41,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatInTimeZone } from "date-fns-tz";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -308,38 +309,32 @@ export default function FormSupplementaryTraining({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Capacitación</FormLabel>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === "-1") {
-                                  field.onChange(-1);
-                                } else {
-                                  field.onChange(Number(v));
-                                  form.setValue(
-                                    `formacion_complementaria.${index}.nueva_capacitacion_nombre` as never,
-                                    "" as never,
-                                  );
-                                }
-                              }}
-                              value={
-                                field.value === -1
-                                  ? "-1"
-                                  : field.value?.toString() ?? ""
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-48">
-                                  <SelectValue placeholder="Seleccione" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {capacitaciones?.data?.map((c) => (
-                                  <SelectItem key={c.id} value={c.id.toString()}>
-                                    {c.nombre_capacitacion}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value="-1">Otra</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <Combobox
+                                className="w-48"
+                                options={[
+                                  ...(capacitaciones?.data?.map((c) => ({
+                                    value: c.id.toString(),
+                                    label: c.nombre_capacitacion,
+                                  })) ?? []),
+                                  { value: "-1", label: "Otra" },
+                                ]}
+                                value={field.value === -1 ? "-1" : field.value?.toString() ?? ""}
+                                onChange={(v) => {
+                                  if (v === "-1") {
+                                    field.onChange(-1);
+                                  } else {
+                                    field.onChange(Number(v));
+                                    form.setValue(
+                                      `formacion_complementaria.${index}.nueva_capacitacion_nombre` as never,
+                                      "" as never,
+                                    );
+                                  }
+                                }}
+                                placeholder="Seleccione"
+                                searchPlaceholder="Buscar capacitación..."
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -381,39 +376,33 @@ export default function FormSupplementaryTraining({
                           <FormLabel>
                             Institución {hasCapacitacion ? <span className="text-red-500">*</span> : ""}
                           </FormLabel>
-                          <Select
-                            onValueChange={(v) => {
-                              if (v === "-1") {
-                                field.onChange(-1);
-                              } else {
-                                const numV = Number(v);
-                                field.onChange(numV);
-                                form.setValue(
-                                  `formacion_complementaria.${index}.nueva_institucion_nombre` as never,
-                                  "" as never,
-                                );
-                              }
-                            }}
-                            value={
-                              field.value === -1
-                                ? "-1"
-                                : field.value?.toString() ?? ""
-                            }
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Seleccione" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {instituciones?.data?.map((i) => (
-                                <SelectItem key={i.id} value={i.id.toString()}>
-                                  {i.nombre_institucion}
-                                </SelectItem>
-                              ))}
-                              <SelectItem value="-1">Otra</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <Combobox
+                              className="w-48"
+                              options={[
+                                ...(instituciones?.data?.map((i) => ({
+                                  value: i.id.toString(),
+                                  label: i.nombre_institucion,
+                                })) ?? []),
+                                { value: "-1", label: "Otra" },
+                              ]}
+                              value={field.value === -1 ? "-1" : field.value?.toString() ?? ""}
+                              onChange={(v) => {
+                                if (v === "-1") {
+                                  field.onChange(-1);
+                                } else {
+                                  const numV = Number(v);
+                                  field.onChange(numV);
+                                  form.setValue(
+                                    `formacion_complementaria.${index}.nueva_institucion_nombre` as never,
+                                    "" as never,
+                                  );
+                                }
+                              }}
+                              placeholder="Seleccione"
+                              searchPlaceholder="Buscar institución..."
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

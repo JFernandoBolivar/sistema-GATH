@@ -12,13 +12,7 @@ import {
 import { AsignCode } from "@/app/(protected)/dashboard/gestion-trabajadores/movimientos/asignar-codigo/actions/asign-code";
 import { schemaAsignCode } from "@/app/(protected)/dashboard/gestion-trabajadores/movimientos/asignar-codigo/schema/schema-asign-code";
 import { EmployeeInfo } from "@/app/types/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -211,28 +205,21 @@ export function AsigCode() {
                                 <FormLabel>
                                   Listado De Codigos Disponibles
                                 </FormLabel>
-                                <Select
-                                  onValueChange={(values) => {
-                                    field.onChange(Number.parseInt(values));
-                                    setSelectedCodeId(Number.parseInt(values));
-                                  }}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full truncate">
-                                      <SelectValue
-                                        placeholder={"Seleccione Un Codigo"}
-                                      />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {codeList.data.map((codes, i) => (
-                                      <SelectItem key={i} value={`${codes.id}`}>
-                                        {codes.codigo} -{" "}
-                                        {codes.denominacioncargoespecifico.cargo}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <FormControl>
+                                  <Combobox
+                                    options={codeList.data.map((codes) => ({
+                                      value: `${codes.id}`,
+                                      label: `${codes.codigo} - ${codes.denominacioncargoespecifico.cargo}`,
+                                    }))}
+                                    value={field.value ? `${field.value}` : ""}
+                                    onChange={(value) => {
+                                      field.onChange(Number.parseInt(value));
+                                      setSelectedCodeId(Number.parseInt(value));
+                                    }}
+                                    placeholder="Seleccione Un Codigo"
+                                    searchPlaceholder="Buscar codigo o cargo..."
+                                  />
+                                </FormControl>
 
                                 <FormMessage />
                               </FormItem>
