@@ -1,5 +1,7 @@
 from datetime import date
 
+_MESES_DE_31_DIAS = {1, 3, 5, 7, 8, 10, 12}
+
 
 def _ajustar_dia_30_360(dia: int) -> int:
     """Ajuste dia 31 -> 30 de la convencion europea 30E/360
@@ -9,16 +11,21 @@ def _ajustar_dia_30_360(dia: int) -> int:
 
 def calcular_tiempo_comercial(fecha_inicio: date, fecha_fin: date):
     """
-    Retorna dict con years, months, days usando metodo comercial 30E/360
-    Incluye 1 día adicional por el período (día de inicio + día de fin)
+    Retorna dict con years, months, days usando metodo comercial 30E/360.
+
+    Suma 1 dia inclusivo (dia de inicio + dia de fin) solo cuando el mes de
+    egreso tiene 30 dias o menos (abril, junio, septiembre, noviembre y
+    febrero). Cuando el mes de egreso tiene 31 dias (enero, marzo, mayo,
+    julio, agosto, octubre, diciembre) no se suma el dia inclusivo.
     """
     dia_inicio = _ajustar_dia_30_360(fecha_inicio.day)
     dia_fin = _ajustar_dia_30_360(fecha_fin.day)
 
-    # Suma 1 día al cálculo base para incluir el día de inicio en el cómputo
+    dia_inclusivo = 0 if fecha_fin.month in _MESES_DE_31_DIAS else 1
+
     dias_totales = (fecha_fin.year - fecha_inicio.year) * 360 \
                  + (fecha_fin.month - fecha_inicio.month) * 30 \
-                 + (dia_fin - dia_inicio) + 1
+                 + (dia_fin - dia_inicio) + dia_inclusivo
 
     years = dias_totales // 360
     resto = dias_totales % 360
