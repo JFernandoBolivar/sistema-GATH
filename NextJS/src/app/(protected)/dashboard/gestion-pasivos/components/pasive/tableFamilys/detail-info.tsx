@@ -103,6 +103,9 @@ function FamilyDocumentUploader({
 }
 
 export function DetailInfoFamily({ family }: Props) {
+  // El rol RECEPCIONISTA sólo consulta: se ocultan los accesos a edición.
+  const { data: session } = useSession();
+  const soloLectura = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
   const { mutate } = useSWRConfig();
   const { data: docsData } = useSWR(
     `family-docs-${family.id}`,
@@ -128,11 +131,13 @@ export function DetailInfoFamily({ family }: Props) {
                   <PersonStanding />
                 </div>
                 <Dialog>
+                  {!soloLectura && (
                   <DialogTrigger asChild>
                     <Button variant={"default"} size={"sm"}>
                       Editar
                     </Button>
                   </DialogTrigger>
+                  )}
                   <DialogContent>
                     <UpdateBasicInfoFamily mutate={mutate} id={family.id} />
                   </DialogContent>
@@ -171,11 +176,13 @@ export function DetailInfoFamily({ family }: Props) {
                   <PersonStanding />
                 </div>
                 <Dialog>
+                  {!soloLectura && (
                   <DialogTrigger asChild>
                     <Button variant={"default"} size={"sm"}>
                       Editar
                     </Button>
                   </DialogTrigger>
+                  )}
                   <DialogContent>
                     <FormRelationship mutate={mutate} id={family.id} />
                   </DialogContent>
@@ -215,11 +222,13 @@ export function DetailInfoFamily({ family }: Props) {
                     Formaciones Academicas <GraduationCap />
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button variant={"default"} size={"sm"}>
                         Editar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <UpdateFormAcademy mutate={mutate} id={family.id} />
                     </DialogContent>
@@ -259,11 +268,13 @@ export function DetailInfoFamily({ family }: Props) {
                     Información De Vestimenta <Shirt />
                   </div>
                   <Dialog>
+                    {!soloLectura && (
                     <DialogTrigger asChild>
                       <Button variant={"default"} size={"sm"}>
                         Editar
                       </Button>
                     </DialogTrigger>
+                    )}
                     <DialogContent>
                       <UpdateFormPhysical mutate={mutate} id={family.id} />
                     </DialogContent>
@@ -298,11 +309,13 @@ export function DetailInfoFamily({ family }: Props) {
                 Información De Salud <Heart />
               </div>
               <Dialog>
+                {!soloLectura && (
                 <DialogTrigger asChild>
                   <Button variant={"default"} size={"sm"}>
                     Editar
                   </Button>
                 </DialogTrigger>
+                )}
                 <DialogContent>
                   <FormUpdateHealthFamily mutate={mutate} id={family.id} />
                 </DialogContent>
@@ -435,26 +448,28 @@ export function DetailInfoFamily({ family }: Props) {
                     </span>
                   )}
                 </div>
-                <div className="flex flex-col gap-3 pt-4 mt-2 border-t">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Subir o reemplazar documento
-                  </span>
-                  <FamilyDocumentUploader
-                    familiarId={family.id}
-                    documentType="cedula"
-                    label="Foto o PDF de la Cédula"
-                    onUploaded={() => mutate(`family-docs-${family.id}`)}
-                  />
-                  {family.parentesco?.descripcion_parentesco ===
-                    "HIJO (A)" && (
+                {!soloLectura && (
+                  <div className="flex flex-col gap-3 pt-4 mt-2 border-t">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Subir o reemplazar documento
+                    </span>
                     <FamilyDocumentUploader
                       familiarId={family.id}
-                      documentType="partida_nacimiento"
-                      label="Partida de Nacimiento"
+                      documentType="cedula"
+                      label="Foto o PDF de la Cédula"
                       onUploaded={() => mutate(`family-docs-${family.id}`)}
                     />
-                  )}
-                </div>
+                    {family.parentesco?.descripcion_parentesco ===
+                      "HIJO (A)" && (
+                      <FamilyDocumentUploader
+                        familiarId={family.id}
+                        documentType="partida_nacimiento"
+                        label="Partida de Nacimiento"
+                        onUploaded={() => mutate(`family-docs-${family.id}`)}
+                      />
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
