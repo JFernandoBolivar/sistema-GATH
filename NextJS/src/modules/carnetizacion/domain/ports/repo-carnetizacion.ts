@@ -1,7 +1,7 @@
 /**
  * Puerto del Repositorio de Carnetización (Reglas R1, R4).
  */
-import type { Carnet, EstadisticasCarnet, PlantillaCarnet } from "../entities/carnet";
+import type { Carnet, DatosCarnetEmpleado, EstadisticasCarnet, PlantillaCarnet } from "../entities/carnet";
 
 export interface RepoCarnetizacion {
   listarCarnets(cedula?: string): Promise<Carnet[]>;
@@ -14,4 +14,5 @@ export interface RepoCarnetizacion {
   descargarPdf(carnetId: number): Promise<Blob>;
   revocarCarnet(carnetId: number): Promise<Carnet>;
   obtenerEstadisticas(): Promise<EstadisticasCarnet>;
+  obtenerDatosEmpleado(cedula: string): Promise<DatosCarnetEmpleado | null>;
 }

@@ -48,6 +48,19 @@ export interface EstadisticasCarnetApiItem {
   por_motivo: EstadisticaMotivoCarnetApiItem[];
 }
 
+export interface EmpleadoCarnetApiItem {
+  id?: number;
+  cedula: string;
+  nombres?: string;
+  apellidos?: string;
+  nombre_completo?: string;
+  cargo?: string;
+  departamento?: string;
+  codigo?: string;
+  codigo_empleado?: string;
+  foto_url?: string | null;
+}
+
 export const carnetizacionApi = {
   getCarnets: (cedula?: string) =>
     apiClient.get<CarnetApiItem[]>("/api/v1/carnetizacion/", { params: { cedula } }),
@@ -90,5 +103,14 @@ export const carnetizacionApi = {
   getEstadisticas: async () => {
     const envelope = await apiClient.get<ApiResponse<EstadisticasCarnetApiItem>>("/api/v1/carnetizacion/estadisticas/");
     return envelope.data;
+  },
+
+  getEmpleado: async (cedula: string): Promise<EmpleadoCarnetApiItem | null> => {
+    try {
+      const envelope = await apiClient.get<ApiResponse<EmpleadoCarnetApiItem>>(`/api/v1/personal/${cedula}/`);
+      return envelope.data ?? null;
+    } catch {
+      return null;
+    }
   },
 };

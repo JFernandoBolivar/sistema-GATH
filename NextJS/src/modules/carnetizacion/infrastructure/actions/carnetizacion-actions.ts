@@ -17,10 +17,17 @@ import {
   listarPlantillasCarnet,
   revocarCarnet,
 } from "../../application/use-cases/emitir-carnet";
+import { obtenerDatosEmpleadoParaCarnet } from "../../application/use-cases/disenar-carnet";
 import { obtenerEstadisticas } from "../../application/use-cases/obtener-estadisticas";
 import { validarCarnetPorHash, validarCarnetPorId } from "../../application/use-cases/validar-qr";
 import { repoCarnetizacionApi } from "../repositories/repo-carnetizacion-api";
-import { carnetIdSchema, emitirCarnetSchema, plantillaIdSchema, validarHashSchema } from "../../ui/schema/schema-carnet";
+import {
+  buscarEmpleadoCarnetSchema,
+  carnetIdSchema,
+  emitirCarnetSchema,
+  plantillaIdSchema,
+  validarHashSchema,
+} from "../../ui/schema/schema-carnet";
 
 export async function getCarnetsAction(cedula?: string) {
   const cedulaValida = cedula ? cedula.trim() : undefined;
@@ -189,6 +196,28 @@ export async function getEstadisticasCarnetsAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getEstadisticasCarnetsAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function buscarEmpleadoParaCarnetAction(cedula: string) {
+  const validation = buscarEmpleadoCarnetSchema.safeParse({ cedula });
+  if (!validation.success) {
+    return { error: "Cédula inválida. Ingrese solo dígitos numéricos." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerDatosEmpleadoParaCarnet(repoCarnetizacionApi, validation.data.cedula);
+    await logAudit({ traceId, action: "buscarEmpleadoParaCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    if (!result) {
+      return { error: `No se encontraron datos para el trabajador con cédula ${validation.data.cedula}.` };
+    }
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "buscarEmpleadoParaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

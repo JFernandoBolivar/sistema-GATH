@@ -42,3 +42,25 @@ export interface EstadisticasCarnetDTO {
   emitidosMes: number;
   porMotivo: EstadisticaMotivoCarnetDTO[];
 }
+
+export interface DatosCarnetEmpleadoDTO {
+  cedula: string;
+  nombres: string;
+  apellidos: string;
+  nombreCompleto: string;
+  codigo?: string;
+  cargo?: string;
+  departamento?: string;
+  fotoUrl?: string | null;
+}
+
+export interface VistaPreviaCarnetDTO {
+  cedula: string;
+  nombreCompleto: string;
+  codigo?: string;
+  cargo?: string;
+  departamento?: string;
+  fotoUrl?: string | null;
+  plantillaUrl?: string | null;
+  htmlVistaPrevia: string;
+}

@@ -41,3 +41,24 @@ export interface EstadisticasCarnet {
   emitidosMes: number;
   porMotivo: EstadisticaMotivoCarnet[];
 }
+
+export interface DatosCarnetEmpleado {
+  cedula: string;
+  nombres: string;
+  apellidos: string;
+  nombreCompleto: string;
+  codigo?: string;
+  cargo?: string;
+  departamento?: string;
+  fotoUrl?: string | null;
+}
+
+export interface VistaPreviaCarnetDatos {
+  cedula: string;
+  nombreCompleto: string;
+  codigo?: string;
+  cargo?: string;
+  departamento?: string;
+  fotoUrl?: string | null;
+  plantillaUrl?: string | null;
+}

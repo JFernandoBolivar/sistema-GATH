@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BadgeCheck, Ban, BarChart3, FileDown, IdCard, Loader2, ShieldCheck, Upload } from "lucide-react";
+import { BadgeCheck, Ban, BarChart3, FileDown, IdCard, Loader2, ShieldCheck, Sparkles, Upload } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -53,16 +53,18 @@ import {
   validarHashSchema,
   type ValidarHashFormType,
 } from "./schema/schema-carnet";
+import { DisenadorCarnet } from "./components/disenador-carnet";
 
-type Tab = "listado" | "validar" | "plantillas" | "estadisticas";
+type Tab = "disenador" | "listado" | "validar" | "plantillas" | "estadisticas";
 
 export default function CarnetizacionPage() {
-  const [tab, setTab] = useState<Tab>("listado");
+  const [tab, setTab] = useState<Tab>("disenador");
   const [carnets, setCarnets] = useState<CarnetDTO[]>([]);
   const [plantillas, setPlantillas] = useState<PlantillaCarnetDTO[]>([]);
   const [validacion, setValidacion] = useState<ValidacionCarnetDTO | null>(null);
   const [estadisticas, setEstadisticas] = useState<EstadisticasCarnetDTO | null>(null);
   const [busqueda, setBusqueda] = useState<string>("");
+  const [cedulaParaDiseno, setCedulaParaDiseno] = useState<string>("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -222,11 +224,22 @@ export default function CarnetizacionPage() {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList>
+          <TabsTrigger value="disenador">Diseñador / Emitir</TabsTrigger>
           <TabsTrigger value="listado">Carnets</TabsTrigger>
           <TabsTrigger value="validar">Validar</TabsTrigger>
           <TabsTrigger value="plantillas">Plantillas</TabsTrigger>
           <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="disenador">
+          <DisenadorCarnet
+            plantillas={plantillas}
+            initialCedula={cedulaParaDiseno}
+            onCarnetEmitido={() => {
+              cargarCarnets();
+            }}
+          />
+        </TabsContent>
 
         <TabsContent value="listado">
           <Card>
@@ -288,8 +301,9 @@ export default function CarnetizacionPage() {
                           <TableCell><Badge variant={c.activo ? "default" : "outline"}>{c.activo ? "Activo" : "Revocado"}</Badge></TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => onDescargar(c.id)} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /></Button>
-                              <Button variant="ghost" size="sm" onClick={() => { onEmitidoSet(c.empleadoCedula); setTab("validar"); }} disabled={isPending}><ShieldCheck className="size-4" aria-hidden="true" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => { setCedulaParaDiseno(c.empleadoCedula); setTab("disenador"); }} disabled={isPending} title="Abrir en Diseñador"><Sparkles className="size-4 text-amber-500" aria-hidden="true" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => onDescargar(c.id)} disabled={isPending} title="Descargar PDF"><FileDown className="size-4" aria-hidden="true" /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => { onEmitidoSet(c.empleadoCedula); setTab("validar"); }} disabled={isPending} title="Validar"><ShieldCheck className="size-4" aria-hidden="true" /></Button>
                               {c.activo && (
                                 <Button variant="ghost" size="sm" onClick={() => onRevocar(c.id)} disabled={isPending} title="Revocar carnet"><Ban className="size-4" aria-hidden="true" /></Button>
                               )}

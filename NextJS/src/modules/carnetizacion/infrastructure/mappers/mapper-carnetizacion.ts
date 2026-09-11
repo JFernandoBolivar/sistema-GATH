@@ -1,8 +1,8 @@
 /**
  * Mappers para convertir datos de Carnetización a entidades de dominio.
  */
-import type { Carnet, EstadisticasCarnet, PlantillaCarnet } from "../../domain/entities/carnet";
-import type { CarnetApiItem, EstadisticasCarnetApiItem, PlantillaCarnetApiItem } from "../http/carnetizacion-api";
+import type { Carnet, DatosCarnetEmpleado, EstadisticasCarnet, PlantillaCarnet } from "../../domain/entities/carnet";
+import type { CarnetApiItem, EmpleadoCarnetApiItem, EstadisticasCarnetApiItem, PlantillaCarnetApiItem } from "../http/carnetizacion-api";
 
 export function carnetApiAEntidad(raw: CarnetApiItem): Carnet {
   return {
@@ -41,5 +41,21 @@ export function estadisticasCarnetApiAEntidad(raw: EstadisticasCarnetApiItem): E
       motivo: m.motivo,
       total: m.total,
     })),
+  };
+}
+
+export function empleadoApiADatosCarnet(raw: EmpleadoCarnetApiItem): DatosCarnetEmpleado {
+  const nombres = raw.nombres?.trim() || "";
+  const apellidos = raw.apellidos?.trim() || "";
+  const nombreCompleto = raw.nombre_completo?.trim() || `${nombres} ${apellidos}`.trim() || raw.cedula;
+  return {
+    cedula: raw.cedula,
+    nombres,
+    apellidos,
+    nombreCompleto,
+    codigo: raw.codigo || raw.codigo_empleado || undefined,
+    cargo: raw.cargo || undefined,
+    departamento: raw.departamento || undefined,
+    fotoUrl: raw.foto_url || null,
   };
 }

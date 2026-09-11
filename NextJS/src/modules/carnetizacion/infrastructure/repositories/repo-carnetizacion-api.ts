@@ -5,6 +5,7 @@ import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
 import { carnetizacionApi } from "../http/carnetizacion-api";
 import {
   carnetApiAEntidad,
+  empleadoApiADatosCarnet,
   estadisticasCarnetApiAEntidad,
   plantillaCarnetApiAEntidad,
 } from "../mappers/mapper-carnetizacion";
@@ -63,5 +64,10 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
 
   async obtenerEstadisticas() {
     return estadisticasCarnetApiAEntidad(await carnetizacionApi.getEstadisticas());
+  },
+
+  async obtenerDatosEmpleado(cedula) {
+    const raw = await carnetizacionApi.getEmpleado(cedula);
+    return raw ? empleadoApiADatosCarnet(raw) : null;
   },
 };

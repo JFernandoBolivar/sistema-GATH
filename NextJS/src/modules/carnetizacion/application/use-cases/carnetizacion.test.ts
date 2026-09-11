@@ -88,6 +88,18 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
       porMotivo: [{ motivoId: 1, motivo: "Ingreso", total: 2 }],
     };
   }
+  async obtenerDatosEmpleado(cedula: string) {
+    const c = this.carnets.find((x) => x.empleadoCedula === cedula);
+    if (!c) return null;
+    return {
+      cedula: c.empleadoCedula,
+      nombres: c.empleadoNombres,
+      apellidos: c.empleadoApellidos,
+      nombreCompleto: `${c.empleadoNombres} ${c.empleadoApellidos}`,
+      cargo: "Especialista",
+      departamento: "Tecnología",
+    };
+  }
 }
 
 describe("Casos de uso de Carnetización", () => {
