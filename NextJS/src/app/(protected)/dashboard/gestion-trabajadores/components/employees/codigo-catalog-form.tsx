@@ -20,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -81,7 +80,6 @@ export function CodigoCatalogForm({ onSuccess }: CodigoCatalogFormProps) {
   const form = useForm({
     resolver: zodResolver(schemaCode),
     defaultValues: {
-      codigo: "",
       denominacioncargoespecificoid: 0,
       denominacioncargoid: 0,
       gradoid: 0,
@@ -137,7 +135,6 @@ export function CodigoCatalogForm({ onSuccess }: CodigoCatalogFormProps) {
         const response = await createCodeAction(data);
         if (response.success) {
           form.reset({
-            codigo: "",
             Coordinacion: 0,
             denominacioncargoespecificoid: 0,
             denominacioncargoid: 0,
@@ -175,23 +172,6 @@ export function CodigoCatalogForm({ onSuccess }: CodigoCatalogFormProps) {
                 className="gap-6"
               >
                 <div className="grid grid-cols-2 items-baseline gap-6 place-content-center">
-                  <FormField
-                    control={form.control}
-                    name="codigo"
-                    render={({ field }) => (
-                      <FormItem className="col-span-2">
-                        <FormLabel>Código</FormLabel>
-                        <FormControl>
-                          <Input placeholder="000" {...field} />
-                        </FormControl>
-                        <FormDescription>
-                          Opcional. Si se deja vacío, el código se generará
-                          automáticamente.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   <FormField
                     control={form.control}
                     name="denominacioncargoid"
