@@ -12,7 +12,21 @@ import type {
   DenominacionCargo,
   PrestamoCargo,
 } from "../entities/cargo";
-import type { DenominacionInputDTO, CrearPrestamoInputDTO } from "../../application/dtos/cargo-dto";
+
+/** Datos de entrada para crear/actualizar una denominación de cargo (Regla R1: tipo propio de domain/). */
+export interface DenominacionInput {
+  nombre: string;
+  orden: number;
+}
+
+/** Datos de entrada para crear un préstamo de cargo (encargaduría) (Regla R1: tipo propio de domain/). */
+export interface CrearPrestamoInput {
+  cedulaEncargado: string;
+  cargoId: number;
+  motivoId: number;
+  fechaInicio: string;
+  fechaFin: string;
+}
 
 export interface RepoCargos {
   listarCargos(filtros?: { dependenciaId?: number; soloVacantes?: boolean }): Promise<CargoAsignacion[]>;
@@ -23,13 +37,13 @@ export interface RepoCargos {
   cambiarCargo(cargoActualId: number, cargoNuevoId: number, motivoId: number): Promise<CargoAsignacion>;
   gestionarEstatus(cargoId: number, estatusId: number, motivoId: number): Promise<CargoAsignacion>;
   listarPrestamos(soloActivos?: boolean): Promise<PrestamoCargo[]>;
-  crearPrestamo(input: CrearPrestamoInputDTO): Promise<PrestamoCargo>;
+  crearPrestamo(input: CrearPrestamoInput): Promise<PrestamoCargo>;
   finalizarPrestamo(prestamoId: number): Promise<PrestamoCargo>;
-  crearDenominacion(input: DenominacionInputDTO): Promise<DenominacionCargo>;
-  actualizarDenominacion(id: number, input: DenominacionInputDTO): Promise<DenominacionCargo>;
+  crearDenominacion(input: DenominacionInput): Promise<DenominacionCargo>;
+  actualizarDenominacion(id: number, input: DenominacionInput): Promise<DenominacionCargo>;
   eliminarDenominacion(id: number): Promise<void>;
-  crearDenominacionEspecifica(input: DenominacionInputDTO): Promise<DenominacionCargo>;
-  actualizarDenominacionEspecifica(id: number, input: DenominacionInputDTO): Promise<DenominacionCargo>;
+  crearDenominacionEspecifica(input: DenominacionInput): Promise<DenominacionCargo>;
+  actualizarDenominacionEspecifica(id: number, input: DenominacionInput): Promise<DenominacionCargo>;
   eliminarDenominacionEspecifica(id: number): Promise<void>;
   listarMotivos(): Promise<CatalogoCargoItem[]>;
   listarEstatus(): Promise<CatalogoCargoItem[]>;

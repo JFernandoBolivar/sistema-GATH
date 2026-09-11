@@ -1,8 +1,7 @@
 /**
  * Implementación del repositorio de Cargos usando la API REST.
  */
-import type { RepoCargos } from "../../domain/ports/repo-cargos";
-import type { CrearPrestamoInputDTO, DenominacionInputDTO } from "../../application/dtos/cargo-dto";
+import type { RepoCargos, CrearPrestamoInput, DenominacionInput } from "../../domain/ports/repo-cargos";
 import { cargosApi } from "../http/cargos-api";
 import {
   cargoApiAEntidad,
@@ -55,7 +54,7 @@ export const repoCargosApi: RepoCargos = {
     return (await cargosApi.getPrestamos(soloActivos)).map(prestamoApiAEntidad);
   },
 
-  async crearPrestamo(input: CrearPrestamoInputDTO) {
+  async crearPrestamo(input: CrearPrestamoInput) {
     return prestamoApiAEntidad(
       await cargosApi.crearPrestamo({
         cedula_encargado: input.cedulaEncargado,
@@ -71,11 +70,11 @@ export const repoCargosApi: RepoCargos = {
     return prestamoApiAEntidad(await cargosApi.finalizarPrestamo(prestamoId));
   },
 
-  async crearDenominacion(input: DenominacionInputDTO) {
+  async crearDenominacion(input: DenominacionInput) {
     return denominacionApiAEntidad(await cargosApi.crearDenominacion({ nombre: input.nombre, orden: input.orden }));
   },
 
-  async actualizarDenominacion(id, input: DenominacionInputDTO) {
+  async actualizarDenominacion(id, input: DenominacionInput) {
     return denominacionApiAEntidad(
       await cargosApi.actualizarDenominacion(id, { nombre: input.nombre, orden: input.orden }),
     );
@@ -85,13 +84,13 @@ export const repoCargosApi: RepoCargos = {
     await cargosApi.eliminarDenominacion(id);
   },
 
-  async crearDenominacionEspecifica(input: DenominacionInputDTO) {
+  async crearDenominacionEspecifica(input: DenominacionInput) {
     return denominacionApiAEntidad(
       await cargosApi.crearDenominacionEspecifica({ nombre: input.nombre, orden: input.orden }),
     );
   },
 
-  async actualizarDenominacionEspecifica(id, input: DenominacionInputDTO) {
+  async actualizarDenominacionEspecifica(id, input: DenominacionInput) {
     return denominacionApiAEntidad(
       await cargosApi.actualizarDenominacionEspecifica(id, { nombre: input.nombre, orden: input.orden }),
     );
