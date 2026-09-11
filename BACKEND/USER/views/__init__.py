@@ -30,5 +30,8 @@ __all__ = [
     'list_departaments',
     'list_rols',
     'cambiar_password_primera_vez',
+    'crear_rol',
+    'actualizar_rol',
+    'eliminar_rol',
     'frontend_error_view',
 ]
