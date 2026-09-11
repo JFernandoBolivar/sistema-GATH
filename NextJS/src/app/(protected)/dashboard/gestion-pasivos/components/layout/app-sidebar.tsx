@@ -123,7 +123,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/cargos/crear-codigo",
         icon: BadgePlus,
         permission: {
-          roleAccept: ["PRESUPUESTO"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },

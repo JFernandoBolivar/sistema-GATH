@@ -135,7 +135,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion",
         icon: ArrowRightFromLine,
         permission: {
-          roleAccept: ["PRESUPUESTO"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -144,7 +144,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion-administrativa-direccion",
         icon: MoveDownRight,
         permission: {
-          roleAccept: ["PRESUPUESTO"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -162,7 +162,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/actualizar-ubicacion",
         icon: Boxes,
         permission: {
-          roleAccept: ["PRESUPUESTO"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
@@ -182,7 +182,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-trabajadores/cargos/crear-codigo",
         icon: BadgePlus,
         permission: {
-          roleAccept: ["PRESUPUESTO"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
