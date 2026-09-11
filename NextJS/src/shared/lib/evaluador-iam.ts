@@ -51,3 +51,33 @@ export function puede(
   // 3. Denegación implícita
   return false;
 }
+
+/**
+ * Evalúa un código de permiso contra la lista PLANA de códigos efectivos ya
+ * resueltos que expone la sesión (`session.user.permisos: string[]`, tal
+ * como la sirve `/api/v1/identidad/auth/me/`: el backend ya resolvió
+ * allow/deny en `resolver_permisos` y solo entrega los códigos concedidos).
+ * A diferencia de `puede()` (que evalúa una `PoliticaAccesoDTO` sin
+ * resolver), esta función es la que deben usar los componentes `ui/` de los
+ * módulos: mismos patrones de coincidencia (exacto, `modulo.*`, `*`),
+ * fail-closed igual que `puede()`.
+ */
+export function tienePermiso(
+  permisos: string[] | null | undefined,
+  codigoRequerido: string
+): boolean {
+  if (!permisos || !codigoRequerido || !codigoRequerido.trim()) {
+    return false;
+  }
+
+  const candidatos = patronesCandidatos(codigoRequerido);
+  const concedidos = new Set(permisos.map((x) => x.trim().toLowerCase()));
+
+  for (const patron of candidatos) {
+    if (concedidos.has(patron)) {
+      return true;
+    }
+  }
+
+  return false;
+}

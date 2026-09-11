@@ -10,8 +10,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { Loader2, LogOut, Search, UserRound } from "lucide-react";
+
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -108,6 +111,9 @@ function CatalogSelect({
 }
 
 export default function PasivosPage() {
+  const { data: session } = useSession();
+  const puedeProcesarEgreso = tienePermiso(session?.user?.permisos, "pasivos.cambiar_condicion");
+
   const [busqueda, setBusqueda] = useState("");
   const [motivos, setMotivos] = useState<CatalogoPasivoDTO[]>([]);
   const [tiposNomina, setTiposNomina] = useState<CatalogoPasivoDTO[]>([]);
@@ -176,6 +182,13 @@ export default function PasivosPage() {
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
+      {!puedeProcesarEgreso && (
+        <p className="text-sm text-muted-foreground">
+          Su perfil solo tiene acceso de consulta al personal pasivo.
+        </p>
+      )}
+
+      {puedeProcesarEgreso && (
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Procesar egreso</CardTitle>
@@ -253,6 +266,7 @@ export default function PasivosPage() {
           </form>
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-4">

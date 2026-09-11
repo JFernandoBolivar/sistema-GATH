@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { puede, patronesCandidatos } from './evaluador-iam';
+import { puede, patronesCandidatos, tienePermiso } from './evaluador-iam';
 
 describe('Evaluador IAM PBAC Frontend', () => {
   it('genera correctamente los patrones candidatos', () => {
@@ -47,5 +47,38 @@ describe('Evaluador IAM PBAC Frontend', () => {
     expect(puede(null, 'personal.ver')).toBe(false);
     expect(puede({ allow: [], deny: [] }, 'personal.ver')).toBe(false);
     expect(puede({ allow: ['*'], deny: [] }, '')).toBe(false);
+  });
+});
+
+describe('tienePermiso (lista plana de codigos resuelta por el backend)', () => {
+  it('autoriza por coincidencia exacta', () => {
+    const permisos = ['personal.ver', 'pasivos.ver', 'familiares.ver'];
+    expect(tienePermiso(permisos, 'personal.ver')).toBe(true);
+    expect(tienePermiso(permisos, 'pasivos.ver')).toBe(true);
+  });
+
+  it('el perfil RECEPCIONISTA (solo *.ver) no tiene permisos de escritura', () => {
+    const permisos = ['personal.ver', 'pasivos.ver', 'familiares.ver'];
+    expect(tienePermiso(permisos, 'personal.crear')).toBe(false);
+    expect(tienePermiso(permisos, 'personal.editar_personales')).toBe(false);
+    expect(tienePermiso(permisos, 'pasivos.cambiar_condicion')).toBe(false);
+  });
+
+  it('autoriza mediante wildcard por modulo', () => {
+    const permisos = ['personal.*'];
+    expect(tienePermiso(permisos, 'personal.crear')).toBe(true);
+    expect(tienePermiso(permisos, 'personal.editar_personales')).toBe(true);
+    expect(tienePermiso(permisos, 'pasivos.ver')).toBe(false);
+  });
+
+  it('autoriza con wildcard global *', () => {
+    expect(tienePermiso(['*'], 'pasivos.cambiar_condicion')).toBe(true);
+  });
+
+  it('deniega por defecto sin permisos o codigo vacio (fail-closed)', () => {
+    expect(tienePermiso(null, 'personal.crear')).toBe(false);
+    expect(tienePermiso(undefined, 'personal.crear')).toBe(false);
+    expect(tienePermiso([], 'personal.crear')).toBe(false);
+    expect(tienePermiso(['*'], '')).toBe(false);
   });
 });

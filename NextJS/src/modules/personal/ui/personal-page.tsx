@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import {
   Camera,
   Loader2,
@@ -21,6 +22,8 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -160,6 +163,11 @@ const defaultExpediente: Partial<EmpleadoFormType> = {
 };
 
 export default function PersonalPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeCrear = tienePermiso(permisos, "personal.crear");
+  const puedeEditar = tienePermiso(permisos, "personal.editar_personales");
+
   const [empleados, setEmpleados] = useState<EmpleadoDTO[]>([]);
   const [editando, setEditando] = useState<EmpleadoDTO | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
@@ -289,6 +297,13 @@ export default function PersonalPage() {
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
+      {!puedeCrear && !puedeEditar && (
+        <p className="text-sm text-muted-foreground">
+          Su perfil solo tiene acceso de consulta al personal.
+        </p>
+      )}
+
+      {(editando ? puedeEditar : puedeCrear) && (
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>{editando ? "Editar empleado" : "Registrar empleado"}</CardTitle>
@@ -511,6 +526,7 @@ export default function PersonalPage() {
           </form>
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-4">
@@ -554,10 +570,12 @@ export default function PersonalPage() {
                   <TableCell>{e.correo ?? "—"}</TableCell>
                   <TableCell>{e.totalAnosApn}</TableCell>
                   <TableCell>
+                    {puedeEditar && (
                     <div className="flex items-center gap-1">
                       <Button variant="ghost" size="sm" onClick={() => onBuscarParaEditar(e.cedula)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
                       <Button variant="ghost" size="sm" onClick={() => onSubirFoto(e.cedula)} disabled={isPending}><Camera className="size-4" aria-hidden="true" /></Button>
                     </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
