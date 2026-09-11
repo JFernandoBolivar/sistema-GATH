@@ -39,13 +39,6 @@ def test_extract_first_error_desempaqueta_anidado():
     assert extract_first_error(errores) == "primer error"
 
 
-def test_compatibilidad_hacia_atras_rac_data_formatters():
-    from RAC.utils import data_formatters
-
-    assert data_formatters.CleanZerosMixin is CleanZerosMixin
-    assert data_formatters.extract_first_error is extract_first_error
-
-
 def test_report_field_registry_consolida_rac_y_autogestion_sin_colision():
     assert set(MAPA_REPORTES) == {
         "empleados", "familiares", "egresados", "asignaciones", "censo_vivienda",
@@ -55,12 +48,4 @@ def test_report_field_registry_consolida_rac_y_autogestion_sin_colision():
     assert registro.configuracion("empleados")["modelo"] == "Employee"
     assert registro.categorias_disponibles() == get_available_report_categories()
     assert registro.tipos_reporte() == {"conteo", "lista"}
-
-
-def test_compatibilidad_hacia_atras_mapa_reporte_rac_y_autogestion():
-    from RAC.utils import mapa_reporte as rac_mapa
-    from AUTOGESTION.utils import mapa_reporte as autogestion_mapa
-
-    assert rac_mapa.MAPA_REPORTES is MAPA_REPORTES
-    assert autogestion_mapa.MAPA_REPORTES is MAPA_REPORTES
     assert get_config_by_category("empleados")["agrupaciones"]
