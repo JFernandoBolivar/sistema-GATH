@@ -38,17 +38,20 @@ export default proxy((req) => {
 
   if (publicRoutes.includes(nextUrl.pathname) && isLoggedIn) {
     if (esAutogestion) {
-      return NextResponse.redirect(new URL("/dashboard/autogestion", nextUrl));
+      return NextResponse.redirect(new URL("/autogestion", nextUrl));
     }
-    return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    if (esRecepcionista) {
+      return NextResponse.redirect(new URL("/dashboard", nextUrl));
+    }
+    return NextResponse.redirect(new URL("/inicio", nextUrl));
   }
 
   if (isLoggedIn && esAutogestion) {
     if (
-      !nextUrl.pathname.startsWith("/dashboard/autogestion") &&
+      !nextUrl.pathname.startsWith("/autogestion") &&
       !nextUrl.pathname.startsWith("/api/auth")
     ) {
-      return NextResponse.redirect(new URL("/dashboard/autogestion", nextUrl));
+      return NextResponse.redirect(new URL("/autogestion", nextUrl));
     }
   }
 
