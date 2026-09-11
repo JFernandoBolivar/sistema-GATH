@@ -38,7 +38,7 @@ class EmployeefamilyModel(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'Employeefamily'
+        db_table = 'RAC_employeefamily'
         ordering = ['-updatedat']
         verbose_name = 'familiar de empleado'
         verbose_name_plural = 'familiares de empleados'

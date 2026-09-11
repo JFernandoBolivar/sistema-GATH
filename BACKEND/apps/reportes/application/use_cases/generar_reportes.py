@@ -31,3 +31,18 @@ def generar_reporte_vacantes(
 ) -> ResultadoReporteDTO:
     entidad = repo.reporte_cargos_vacantes(dependencias_ids=dependencias_ids)
     return _resultado_a_dto(entidad)
+
+
+def generar_reporte_familiares(repo: RepoReportes, filtros: dict) -> ResultadoReporteDTO:
+    entidad = repo.reporte_familiares(filtros=filtros)
+    return _resultado_a_dto(entidad)
+
+
+def generar_reporte_codigos(repo: RepoReportes, filtros: dict) -> ResultadoReporteDTO:
+    entidad = repo.reporte_codigos(filtros=filtros)
+    return _resultado_a_dto(entidad)
+
+
+def generar_reporte_tendencias(repo: RepoReportes) -> ResultadoReporteDTO:
+    entidad = repo.reporte_tendencias_personal()
+    return _resultado_a_dto(entidad)

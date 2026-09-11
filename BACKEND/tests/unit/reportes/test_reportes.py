@@ -4,8 +4,11 @@ Tests unitarios del módulo reportes (Arquitectura Onion pura sin BD).
 import pytest
 
 from apps.reportes.application.use_cases.generar_reportes import (
+    generar_reporte_codigos,
+    generar_reporte_familiares,
     generar_reporte_pasivos,
     generar_reporte_personal,
+    generar_reporte_tendencias,
     generar_reporte_vacantes,
 )
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
@@ -36,6 +39,30 @@ class RepoReportesMemoria:
             total_registros=1,
         )
 
+    def reporte_familiares(self, filtros):
+        return ResultadoReporte(
+            titulo="Reporte de Familiares",
+            columnas=['cedula_familiar', 'nombres', 'parentesco'],
+            filas=[{'cedula_familiar': '99999999', 'nombres': 'Ana Pérez', 'parentesco': 'HIJO(A)'}],
+            total_registros=1,
+        )
+
+    def reporte_codigos(self, filtros):
+        return ResultadoReporte(
+            titulo="Reporte de Códigos de Cargo (Asignaciones)",
+            columnas=['codigo', 'cargo'],
+            filas=[{'codigo': 'COD-001', 'cargo': 'ANALISTA I'}],
+            total_registros=1,
+        )
+
+    def reporte_tendencias_personal(self):
+        return ResultadoReporte(
+            titulo="Tendencia de Movimientos de Personal (últimos 12 meses)",
+            columnas=['periodo', 'ingresos', 'egresos'],
+            filas=[{'periodo': '2026-08', 'ingresos': 2, 'egresos': 1}],
+            total_registros=1,
+        )
+
 
 def test_generar_reporte_personal():
     repo = RepoReportesMemoria()
@@ -56,3 +83,26 @@ def test_generar_reporte_vacantes():
     rep = generar_reporte_vacantes(repo)
     assert rep.total_registros == 1
     assert rep.filas[0]['denominacion'] == 'ANALISTA I'
+
+
+def test_generar_reporte_familiares():
+    repo = RepoReportesMemoria()
+    rep = generar_reporte_familiares(repo, filtros={})
+    assert rep.total_registros == 1
+    assert rep.filas[0]['parentesco'] == 'HIJO(A)'
+
+
+def test_generar_reporte_codigos():
+    repo = RepoReportesMemoria()
+    rep = generar_reporte_codigos(repo, filtros={})
+    assert rep.total_registros == 1
+    assert rep.filas[0]['codigo'] == 'COD-001'
+
+
+def test_generar_reporte_tendencias():
+    repo = RepoReportesMemoria()
+    rep = generar_reporte_tendencias(repo)
+    assert rep.total_registros == 1
+    assert rep.filas[0]['periodo'] == '2026-08'
+    assert rep.filas[0]['ingresos'] == 2
+    assert rep.filas[0]['egresos'] == 1
