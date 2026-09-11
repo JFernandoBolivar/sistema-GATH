@@ -64,7 +64,7 @@ const items: MenuItem[] = [
   },
   {
     permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL","RECEPCIONISTA"],
+      roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL", "RECEPCIONISTA"],
       departmentAccept: ["RAC"],
     },
     title: "Personal Jubilado/Pasivo",
@@ -85,7 +85,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/personal-jubilado/consultar",
         icon: ListCheck,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO","BIENSTAR SOCIAL","RECEPCIONISTA"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO","BIENSTAR SOCIAL", "RECEPCIONISTA"],
           departmentAccept: ["RAC"],
         },
       },
@@ -103,7 +103,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/personal-jubilado/familiares/consultar",
         icon: BookUser,
         permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO","BIENSTAR SOCIAL","RECEPCIONISTA"],
+          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO","BIENSTAR SOCIAL", "RECEPCIONISTA"],
           departmentAccept: ["RAC"],
         },
       },
@@ -123,7 +123,7 @@ const items: MenuItem[] = [
         url: "/dashboard/gestion-pasivos/cargos/crear-codigo",
         icon: BadgePlus,
         permission: {
-          roleAccept: ["PRESUPUESTO"],
+          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },

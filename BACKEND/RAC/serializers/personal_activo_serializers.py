@@ -391,10 +391,16 @@ class CodigosCreateUpdateSerializer(CleanZerosMixin, serializers.ModelSerializer
         if self.instance:
             self.fields['codigo'].read_only = True
         else:
-            # En creación el frontend puede omitir el código (el backend lo genera)
+            # En creación el frontend puede omitir el código (el backend lo genera).
+            # unique_together=('codigo','tiponominaid') hace que DRF le agregue un
+            # UniqueTogetherValidator que fuerza 'required' en ambos campos sin
+            # importar este required=False (ver UniqueTogetherValidator.enforce_
+            # required_fields), asi que ademas necesita un default explicito para
+            # que el campo SI aparezca en attrs cuando se omite del payload.
             self.fields['codigo'].required = False
             self.fields['codigo'].allow_blank = True
             self.fields['codigo'].allow_null = True
+            self.fields['codigo'].default = ''
             self.fields['OrganismoAdscritoid'].read_only = True
             self.fields['tipo_procedencia'].read_only = True
 
