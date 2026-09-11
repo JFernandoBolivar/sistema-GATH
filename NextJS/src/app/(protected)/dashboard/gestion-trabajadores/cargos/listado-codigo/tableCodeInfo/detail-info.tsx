@@ -1,5 +1,6 @@
 import { Code } from "@/app/types/types";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -155,30 +156,23 @@ export default function UpdateCode({ code }: Props) {
                     render={({ field }) => (
                       <FormItem className=" ">
                         <FormLabel>Denominación De Cargo</FormLabel>
-                        <Select
-                          onValueChange={(values) => {
-                            field.onChange(Number.parseInt(values));
-                          }}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full truncate">
-                              <SelectValue
-                                placeholder={`${
-                                  isLoadingCargo
-                                    ? "Cargando Denominaciones De Cargo"
-                                    : "Seleccione una Denominación De Cargo"
-                                }`}
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {cargo?.data.map((cargo, i) => (
-                              <SelectItem key={i} value={`${cargo.id}`}>
-                                {cargo.cargo}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Combobox
+                            options={(cargo?.data ?? []).map((cargo) => ({
+                              value: `${cargo.id}`,
+                              label: cargo.cargo,
+                            }))}
+                            value={field.value ? `${field.value}` : ""}
+                            onChange={(value) => field.onChange(Number.parseInt(value))}
+                            placeholder={
+                              isLoadingCargo
+                                ? "Cargando Denominaciones De Cargo"
+                                : "Seleccione una Denominación De Cargo"
+                            }
+                            searchPlaceholder="Buscar cargo..."
+                            disabled={isLoadingCargo}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -190,30 +184,23 @@ export default function UpdateCode({ code }: Props) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Denominación De Cargo Específico</FormLabel>
-                        <Select
-                          onValueChange={(values) => {
-                            field.onChange(Number.parseInt(values));
-                          }}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full truncate">
-                              <SelectValue
-                                placeholder={`${
-                                  isLoadingCargoEspecifico
-                                    ? "Cargando Cargos Especificos"
-                                    : "Seleccione una Denominación De Cargo Específico"
-                                }`}
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {cargoEspecifico?.data.map((cargo, i) => (
-                              <SelectItem key={i} value={`${cargo.id}`}>
-                                {cargo.cargo}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Combobox
+                            options={(cargoEspecifico?.data ?? []).map((cargo) => ({
+                              value: `${cargo.id}`,
+                              label: cargo.cargo,
+                            }))}
+                            value={field.value ? `${field.value}` : ""}
+                            onChange={(value) => field.onChange(Number.parseInt(value))}
+                            placeholder={
+                              isLoadingCargoEspecifico
+                                ? "Cargando Cargos Especificos"
+                                : "Seleccione una Denominación De Cargo Específico"
+                            }
+                            searchPlaceholder="Buscar cargo especifico..."
+                            disabled={isLoadingCargoEspecifico}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
