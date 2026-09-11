@@ -46,6 +46,9 @@ import {
   guardarMiCensoAction,
   obtenerCensoPorCedulaAction,
 } from "../infrastructure/actions/autogestion-actions";
+import { CensoBarrasChart } from "./censo-barras-chart";
+import { buildCensoMetricasChartData } from "./censo-metricas-chart-data";
+import { CensoDonutChart } from "./censo-donut-chart";
 
 export default function AutogestionPage() {
   const [preguntas, setPreguntas] = useState<PreguntaCensoDTO[]>([]);
@@ -305,6 +308,46 @@ export default function AutogestionPage() {
                 <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Total respuestas</span><span className="text-2xl font-semibold">{metricas.totalRespuestas}</span></CardContent></Card>
                 <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Dependencias</span><span className="text-2xl font-semibold">{metricas.porDependencia.length}</span></CardContent></Card>
               </div>
+
+              {(() => {
+                const chartData = buildCensoMetricasChartData(metricas);
+                return (
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle>Progreso del censo</CardTitle>
+                        <CardDescription>Empleados censados respecto al total.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex flex-col items-center gap-4">
+                        <CensoDonutChart data={chartData.donutData} total={chartData.donutTotal} />
+                        <div className="flex gap-6 text-sm">
+                          <div className="flex items-center gap-2">
+                            <span className="size-3 rounded-full" style={{ backgroundColor: "var(--chart-1)" }} />
+                            <span>Respondido: <strong>{chartData.respondido}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="size-3 rounded-full" style={{ backgroundColor: "var(--chart-2)" }} />
+                            <span>No Respondido: <strong>{chartData.noRespondido}</strong></span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle>Respuestas por dependencia</CardTitle>
+                        <CardDescription>Empleados censados y pendientes en cada dependencia.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {chartData.barData.length === 0 ? (
+                          <p className="py-8 text-center text-sm text-muted-foreground">Sin datos por dependencia.</p>
+                        ) : (
+                          <CensoBarrasChart data={chartData.barData} />
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
 
               <Card>
                 <CardHeader className="pb-4">
