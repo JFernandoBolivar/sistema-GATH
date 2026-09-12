@@ -82,4 +82,56 @@ export const catalogosApi = {
   getAlergias: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/alergias/"),
   getPatologias: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/patologias/"),
   getDiscapacidades: () => apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/discapacidades/"),
+
+  // Escritura / CRUD para catálogos de soporte
+  crearAlergia: (data: { alergia: string; categoria_id: number }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/alergias/", data),
+  eliminarAlergia: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/alergias/${id}/`),
+
+  getCategoriasAlergia: () =>
+    apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/alergias/categorias/"),
+  crearCategoriaAlergia: (data: { nombre_categoria: string }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/alergias/categorias/", data),
+  eliminarCategoriaAlergia: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/alergias/categorias/${id}/`),
+
+  crearPatologia: (data: { patologia: string; categoria_id: number }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/patologias/", data),
+  eliminarPatologia: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/patologias/${id}/`),
+
+  getCategoriasPatologia: () =>
+    apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/patologias/categorias/"),
+  crearCategoriaPatologia: (data: { nombre_categoria: string }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/patologias/categorias/", data),
+  eliminarCategoriaPatologia: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/patologias/categorias/${id}/`),
+
+  crearDiscapacidad: (data: { discapacidad: string; categoria_id: number }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/discapacidades/", data),
+  eliminarDiscapacidad: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/discapacidades/${id}/`),
+
+  getCategoriasDiscapacidad: () =>
+    apiClient.get<CatalogoApiItem[]>("/api/v1/personal/catalogos/discapacidades/categorias/"),
+  crearCategoriaDiscapacidad: (data: { nombre_categoria: string }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/discapacidades/categorias/", data),
+  eliminarCategoriaDiscapacidad: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/discapacidades/categorias/${id}/`),
+
+  crearTalla: (data: { valor: string; region_id: number; tipo_prenda_id: number }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/tallas/", data),
+  eliminarTalla: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/tallas/${id}/`),
+
+  crearRegionTalla: (data: { codigo: string; descripcion?: string | null }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/regiones-talla/", data),
+  eliminarRegionTalla: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/regiones-talla/${id}/`),
+
+  crearTipoPrenda: (data: { categoria: string }) =>
+    apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/tipos-prenda/", data),
+  eliminarTipoPrenda: (id: number) =>
+    apiClient.delete<void>(`/api/v1/personal/catalogos/tipos-prenda/${id}/`),
 };

@@ -41,8 +41,41 @@ import {
   listarPatologias,
   listarDiscapacidades,
 } from "../../application/use-cases/listar-catalogos";
+import {
+  crearAlergia,
+  eliminarAlergia,
+  listarCategoriasAlergia,
+  crearCategoriaAlergia,
+  eliminarCategoriaAlergia,
+  crearPatologia,
+  eliminarPatologia,
+  listarCategoriasPatologia,
+  crearCategoriaPatologia,
+  eliminarCategoriaPatologia,
+  crearDiscapacidad,
+  eliminarDiscapacidad,
+  listarCategoriasDiscapacidad,
+  crearCategoriaDiscapacidad,
+  eliminarCategoriaDiscapacidad,
+  crearTalla,
+  eliminarTalla,
+  crearRegionTalla,
+  eliminarRegionTalla,
+  crearTipoPrenda,
+  eliminarTipoPrenda,
+} from "../../application/use-cases/gestionar-catalogos";
 import { repoCatalogosApi } from "../repositories/repo-catalogos-api";
-import { idPadreFiltroSchema } from "../../ui/schema/schema-catalogos";
+import {
+  crearAlergiaSchema,
+  crearCategoriaSchema,
+  crearDiscapacidadSchema,
+  crearPatologiaSchema,
+  crearRegionTallaSchema,
+  crearTallaSchema,
+  crearTipoPrendaSchema,
+  eliminarItemSchema,
+  idPadreFiltroSchema,
+} from "../../ui/schema/schema-catalogos";
 
 export async function getRegionesAction() {
   const traceId = generateTraceId();
@@ -478,3 +511,398 @@ export async function getDiscapacidadesAction() {
     throw error;
   }
 }
+
+// ----------------------------------------------------------------------
+// Server Actions para CRUD de Catálogos de Soporte (Zero-trust R7)
+// ----------------------------------------------------------------------
+
+// Alergias
+export async function crearAlergiaAction(datos: unknown) {
+  const parsed = crearAlergiaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearAlergia(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearAlergiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Alergia creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear alergia";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarAlergiaAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarAlergia(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarAlergiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Alergia eliminada exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar alergia";
+    return { success: false, message: msg };
+  }
+}
+
+export async function getCategoriasAlergiaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCategoriasAlergia(repoCatalogosApi);
+    await logAudit({ traceId, action: "getCategoriasAlergiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCategoriasAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearCategoriaAlergiaAction(datos: unknown) {
+  const parsed = crearCategoriaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearCategoriaAlergia(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearCategoriaAlergiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Categoría de alergia creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearCategoriaAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear categoría";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarCategoriaAlergiaAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarCategoriaAlergia(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarCategoriaAlergiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Categoría de alergia eliminada." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarCategoriaAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar categoría";
+    return { success: false, message: msg };
+  }
+}
+
+// Patologías
+export async function crearPatologiaAction(datos: unknown) {
+  const parsed = crearPatologiaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearPatologia(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearPatologiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Patología creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear patología";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarPatologiaAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarPatologia(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarPatologiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Patología eliminada exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar patología";
+    return { success: false, message: msg };
+  }
+}
+
+export async function getCategoriasPatologiaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCategoriasPatologia(repoCatalogosApi);
+    await logAudit({ traceId, action: "getCategoriasPatologiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCategoriasPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearCategoriaPatologiaAction(datos: unknown) {
+  const parsed = crearCategoriaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearCategoriaPatologia(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearCategoriaPatologiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Categoría de patología creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearCategoriaPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear categoría";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarCategoriaPatologiaAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarCategoriaPatologia(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarCategoriaPatologiaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Categoría de patología eliminada." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarCategoriaPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar categoría";
+    return { success: false, message: msg };
+  }
+}
+
+// Discapacidades
+export async function crearDiscapacidadAction(datos: unknown) {
+  const parsed = crearDiscapacidadSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearDiscapacidad(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearDiscapacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Discapacidad creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear discapacidad";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarDiscapacidadAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarDiscapacidad(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarDiscapacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Discapacidad eliminada exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar discapacidad";
+    return { success: false, message: msg };
+  }
+}
+
+export async function getCategoriasDiscapacidadAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCategoriasDiscapacidad(repoCatalogosApi);
+    await logAudit({ traceId, action: "getCategoriasDiscapacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCategoriasDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearCategoriaDiscapacidadAction(datos: unknown) {
+  const parsed = crearCategoriaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearCategoriaDiscapacidad(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearCategoriaDiscapacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Categoría de discapacidad creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearCategoriaDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear categoría";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarCategoriaDiscapacidadAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarCategoriaDiscapacidad(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarCategoriaDiscapacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Categoría de discapacidad eliminada." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarCategoriaDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar categoría";
+    return { success: false, message: msg };
+  }
+}
+
+// Tallas
+export async function crearTallaAction(datos: unknown) {
+  const parsed = crearTallaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearTalla(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearTallaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Talla creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear talla";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarTallaAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarTalla(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarTallaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Talla eliminada exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar talla";
+    return { success: false, message: msg };
+  }
+}
+
+// Regiones de Talla
+export async function crearRegionTallaAction(datos: unknown) {
+  const parsed = crearRegionTallaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearRegionTalla(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearRegionTallaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Región de talla creada exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearRegionTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear región de talla";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarRegionTallaAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarRegionTalla(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarRegionTallaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Región de talla eliminada exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarRegionTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar región de talla";
+    return { success: false, message: msg };
+  }
+}
+
+// Tipos de Prenda
+export async function crearTipoPrendaAction(datos: unknown) {
+  const parsed = crearTipoPrendaSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearTipoPrenda(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearTipoPrendaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Tipo de prenda creado exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearTipoPrendaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear tipo de prenda";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarTipoPrendaAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarTipoPrenda(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarTipoPrendaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Tipo de prenda eliminado exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarTipoPrendaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar tipo de prenda";
+    return { success: false, message: msg };
+  }
+}
+

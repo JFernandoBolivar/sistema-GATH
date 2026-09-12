@@ -161,4 +161,86 @@ export const repoCatalogosApi: RepoCatalogos = {
     const raw = await catalogosApi.getDiscapacidades();
     return raw.map(catalogoApiAEntidad);
   },
+
+  // Escritura / CRUD
+  async crearAlergia(datos) {
+    const raw = await catalogosApi.crearAlergia(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarAlergia(id) {
+    await catalogosApi.eliminarAlergia(id);
+  },
+  async listarCategoriasAlergia() {
+    const raw = await catalogosApi.getCategoriasAlergia();
+    return raw.map(catalogoApiAEntidad);
+  },
+  async crearCategoriaAlergia(datos) {
+    const raw = await catalogosApi.crearCategoriaAlergia(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarCategoriaAlergia(id) {
+    await catalogosApi.eliminarCategoriaAlergia(id);
+  },
+
+  async crearPatologia(datos) {
+    const raw = await catalogosApi.crearPatologia(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarPatologia(id) {
+    await catalogosApi.eliminarPatologia(id);
+  },
+  async listarCategoriasPatologia() {
+    const raw = await catalogosApi.getCategoriasPatologia();
+    return raw.map(catalogoApiAEntidad);
+  },
+  async crearCategoriaPatologia(datos) {
+    const raw = await catalogosApi.crearCategoriaPatologia(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarCategoriaPatologia(id) {
+    await catalogosApi.eliminarCategoriaPatologia(id);
+  },
+
+  async crearDiscapacidad(datos) {
+    const raw = await catalogosApi.crearDiscapacidad(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarDiscapacidad(id) {
+    await catalogosApi.eliminarDiscapacidad(id);
+  },
+  async listarCategoriasDiscapacidad() {
+    const raw = await catalogosApi.getCategoriasDiscapacidad();
+    return raw.map(catalogoApiAEntidad);
+  },
+  async crearCategoriaDiscapacidad(datos) {
+    const raw = await catalogosApi.crearCategoriaDiscapacidad(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarCategoriaDiscapacidad(id) {
+    await catalogosApi.eliminarCategoriaDiscapacidad(id);
+  },
+
+  async crearTalla(datos) {
+    const raw = await catalogosApi.crearTalla(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarTalla(id) {
+    await catalogosApi.eliminarTalla(id);
+  },
+
+  async crearRegionTalla(datos) {
+    const raw = await catalogosApi.crearRegionTalla(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarRegionTalla(id) {
+    await catalogosApi.eliminarRegionTalla(id);
+  },
+
+  async crearTipoPrenda(datos) {
+    const raw = await catalogosApi.crearTipoPrenda(datos);
+    return catalogoApiAEntidad(raw);
+  },
+  async eliminarTipoPrenda(id) {
+    await catalogosApi.eliminarTipoPrenda(id);
+  },
 };

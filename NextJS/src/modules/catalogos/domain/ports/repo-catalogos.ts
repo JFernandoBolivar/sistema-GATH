@@ -40,4 +40,33 @@ export interface RepoCatalogos {
   listarAlergias(): Promise<CatalogoItem[]>;
   listarPatologias(): Promise<CatalogoItem[]>;
   listarDiscapacidades(): Promise<CatalogoItem[]>;
+
+  // Métodos de escritura / CRUD para catálogos de soporte
+  crearAlergia(datos: { alergia: string; categoria_id: number }): Promise<CatalogoItem>;
+  eliminarAlergia(id: number): Promise<void>;
+  listarCategoriasAlergia(): Promise<CatalogoItem[]>;
+  crearCategoriaAlergia(datos: { nombre_categoria: string }): Promise<CatalogoItem>;
+  eliminarCategoriaAlergia(id: number): Promise<void>;
+
+  crearPatologia(datos: { patologia: string; categoria_id: number }): Promise<CatalogoItem>;
+  eliminarPatologia(id: number): Promise<void>;
+  listarCategoriasPatologia(): Promise<CatalogoItem[]>;
+  crearCategoriaPatologia(datos: { nombre_categoria: string }): Promise<CatalogoItem>;
+  eliminarCategoriaPatologia(id: number): Promise<void>;
+
+  crearDiscapacidad(datos: { discapacidad: string; categoria_id: number }): Promise<CatalogoItem>;
+  eliminarDiscapacidad(id: number): Promise<void>;
+  listarCategoriasDiscapacidad(): Promise<CatalogoItem[]>;
+  crearCategoriaDiscapacidad(datos: { nombre_categoria: string }): Promise<CatalogoItem>;
+  eliminarCategoriaDiscapacidad(id: number): Promise<void>;
+
+  crearTalla(datos: { valor: string; region_id: number; tipo_prenda_id: number }): Promise<CatalogoItem>;
+  eliminarTalla(id: number): Promise<void>;
+
+  crearRegionTalla(datos: { codigo: string; descripcion?: string | null }): Promise<CatalogoItem>;
+  eliminarRegionTalla(id: number): Promise<void>;
+
+  crearTipoPrenda(datos: { categoria: string }): Promise<CatalogoItem>;
+  eliminarTipoPrenda(id: number): Promise<void>;
 }
+

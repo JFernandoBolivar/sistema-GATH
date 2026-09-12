@@ -101,6 +101,51 @@ class RepoCatalogosMemoria implements RepoCatalogos {
   async listarDiscapacidades() {
     return [{ id: 1, nombre: "MOTORA" }];
   }
+  async crearAlergia(datos: { alergia: string; categoria_id: number }) {
+    return { id: 2, nombre: datos.alergia };
+  }
+  async eliminarAlergia() {}
+  async listarCategoriasAlergia() {
+    return [{ id: 1, nombre: "ALIMENTOS" }];
+  }
+  async crearCategoriaAlergia(datos: { nombre_categoria: string }) {
+    return { id: 2, nombre: datos.nombre_categoria };
+  }
+  async eliminarCategoriaAlergia() {}
+  async crearPatologia(datos: { patologia: string; categoria_id: number }) {
+    return { id: 2, nombre: datos.patologia };
+  }
+  async eliminarPatologia() {}
+  async listarCategoriasPatologia() {
+    return [{ id: 1, nombre: "RESPIRATORIAS" }];
+  }
+  async crearCategoriaPatologia(datos: { nombre_categoria: string }) {
+    return { id: 2, nombre: datos.nombre_categoria };
+  }
+  async eliminarCategoriaPatologia() {}
+  async crearDiscapacidad(datos: { discapacidad: string; categoria_id: number }) {
+    return { id: 2, nombre: datos.discapacidad };
+  }
+  async eliminarDiscapacidad() {}
+  async listarCategoriasDiscapacidad() {
+    return [{ id: 1, nombre: "VISUAL" }];
+  }
+  async crearCategoriaDiscapacidad(datos: { nombre_categoria: string }) {
+    return { id: 2, nombre: datos.nombre_categoria };
+  }
+  async eliminarCategoriaDiscapacidad() {}
+  async crearTalla(datos: { valor: string; region_id: number; tipo_prenda_id: number }) {
+    return { id: 2, nombre: datos.valor };
+  }
+  async eliminarTalla() {}
+  async crearRegionTalla(datos: { codigo: string; descripcion?: string | null }) {
+    return { id: 2, nombre: datos.codigo };
+  }
+  async eliminarRegionTalla() {}
+  async crearTipoPrenda(datos: { categoria: string }) {
+    return { id: 2, nombre: datos.categoria };
+  }
+  async eliminarTipoPrenda() {}
 }
 
 describe("Casos de uso de Catálogos", () => {

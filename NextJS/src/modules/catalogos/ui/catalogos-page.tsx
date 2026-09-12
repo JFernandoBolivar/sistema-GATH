@@ -1,16 +1,27 @@
 "use client";
 
 /**
- * Página de consulta de catálogos del módulo catalogos. Cliente + react-hook-form
- * + zodResolver; la consulta a la Server Action va envuelta en useTransition (R8)
- * y opera exclusivamente con DTOs (R5). No importa de `infrastructure/` el
- * repositorio, solo la capa de acciones (R3). El thin wrapper en `app/(app)/`
- * se registrará cuando exista navegación.
+ * Página de consulta y gestión (CRUD) de catálogos del módulo catalogos.
+ * Cumple Reglas Onion R1–R8:
+ * - UI delgada cliente + react-hook-form + zodResolver
+ * - Invoca exclusivamente Server Actions con useTransition
+ * - No importa de infrastructure repositorios directos
+ * - Toast feedback con sonner
  */
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Layers, Loader2, RefreshCw, SearchX } from "lucide-react";
+import {
+  FolderPlus,
+  Layers,
+  Loader2,
+  Plus,
+  RefreshCw,
+  SearchX,
+  Trash2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -21,6 +32,7 @@ import {
   CardTitle,
 } from "@/shared/ui/components/card";
 import { Field } from "@/shared/ui/components/field";
+import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import {
   Select,
@@ -40,9 +52,28 @@ import {
 
 import type { CatalogoItemDTO } from "../application/dtos/catalogos-dto";
 import {
+  crearAlergiaAction,
+  crearCategoriaAlergiaAction,
+  crearCategoriaDiscapacidadAction,
+  crearCategoriaPatologiaAction,
+  crearDiscapacidadAction,
+  crearPatologiaAction,
+  crearRegionTallaAction,
+  crearTallaAction,
+  crearTipoPrendaAction,
+  eliminarAlergiaAction,
+  eliminarDiscapacidadAction,
+  eliminarPatologiaAction,
+  eliminarRegionTallaAction,
+  eliminarTallaAction,
+  eliminarTipoPrendaAction,
   getAlergiasAction,
-  getCarrerasAction,
   getCapacitacionesAction,
+  getCarrerasAction,
+  getCategoriasAlergiaAction,
+  getCategoriasDiscapacidadAction,
+  getCategoriasMovimientoAction,
+  getCategoriasPatologiaAction,
   getCodigosPostalesAction,
   getCondicionesViviendaAction,
   getDiscapacidadesAction,
@@ -64,12 +95,11 @@ import {
   getRegionesTallaAction,
   getSexosAction,
   getTallasAction,
+  getTiposMovimientoAction,
   getTiposNominaAction,
   getTiposPersonalAction,
   getTiposPrendaAction,
   getTiposProcedenciaAction,
-  getCategoriasMovimientoAction,
-  getTiposMovimientoAction,
 } from "../infrastructure/actions/catalogos-actions";
 import {
   catalogoFiltroSchema,
@@ -77,7 +107,7 @@ import {
   type CodigoCatalogo,
 } from "./schema/schema-catalogos";
 
-/** Etiquetas legibles por código de catálogo (coincide con `CATALOGOS_CODIGOS`). */
+/** Etiquetas legibles por código de catálogo. */
 const ETIQUETAS: Record<CodigoCatalogo, string> = {
   regiones: "Regiones",
   estados: "Estados",
@@ -111,12 +141,16 @@ const ETIQUETAS: Record<CodigoCatalogo, string> = {
   discapacidades: "Discapacidades",
 };
 
-/**
- * Mapa código -> Server Action. Los catálogos geográficos y maestros comparten
- * la forma `{ id, nombre }` (CatalogoItemDTO), por lo que sus DTOs específicos
- * son asignables al DTO genérico. `categorias-movimiento` y `tipos-movimiento`
- * no tienen acción aún en el módulo frontal.
- */
+/** Catálogos que permiten operaciones de creación y eliminación (CRUD de soporte). */
+const CATALOGOS_EDITABLES: Set<CodigoCatalogo> = new Set([
+  "alergias",
+  "patologias",
+  "discapacidades",
+  "tallas",
+  "regiones-talla",
+  "tipos-prenda",
+]);
+
 const CARGAR: Partial<Record<CodigoCatalogo, () => Promise<CatalogoItemDTO[]>>> = {
   regiones: () => getRegionesAction(),
   estados: () => getEstadosAction(),
@@ -150,23 +184,40 @@ const CARGAR: Partial<Record<CodigoCatalogo, () => Promise<CatalogoItemDTO[]>>> 
   discapacidades: () => getDiscapacidadesAction(),
 };
 
-const COLUMNAS = 2;
-
 export default function CatalogosPage() {
   const [isPending, startTransition] = useTransition();
   const [items, setItems] = useState<CatalogoItemDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [noDisponible, setNoDisponible] = useState(false);
 
+  // Estados para formulario de alta de soporte
+  const [mostrarFormCrear, setMostrarFormCrear] = useState(false);
+  const [nombreItem, setNombreItem] = useState("");
+  const [categoriaIdSeleccionada, setCategoriaIdSeleccionada] = useState<string>("");
+  const [regionIdSeleccionada, setRegionIdSeleccionada] = useState<string>("");
+  const [tipoPrendaIdSeleccionada, setTipoPrendaIdSeleccionada] = useState<string>("");
+  const [descripcionRegion, setDescripcionRegion] = useState("");
+
+  // Sub-formulario para agregar nueva categoría rápidamente
+  const [mostrarCrearCategoria, setMostrarCrearCategoria] = useState(false);
+  const [nuevaCategoriaNombre, setNuevaCategoriaNombre] = useState("");
+
+  // Opciones auxiliares para selects
+  const [categoriasSalud, setCategoriasSalud] = useState<CatalogoItemDTO[]>([]);
+  const [regionesTallaOpciones, setRegionesTallaOpciones] = useState<CatalogoItemDTO[]>([]);
+  const [tiposPrendaOpciones, setTiposPrendaOpciones] = useState<CatalogoItemDTO[]>([]);
+
   const form = useForm<CatalogoFiltroFormType>({
     resolver: zodResolver(catalogoFiltroSchema),
-    defaultValues: { codigo: "sexos" },
+    defaultValues: { codigo: "alergias" },
   });
 
-  const onSubmit = (data: CatalogoFiltroFormType) => {
-    setError(null);
-    const cargar = CARGAR[data.codigo];
+  const catalogoActual = form.watch("codigo");
+  const esEditable = CATALOGOS_EDITABLES.has(catalogoActual);
 
+  const cargarDatos = (codigo: CodigoCatalogo) => {
+    setError(null);
+    const cargar = CARGAR[codigo];
     startTransition(async () => {
       if (!cargar) {
         setNoDisponible(true);
@@ -184,18 +235,375 @@ export default function CatalogosPage() {
     });
   };
 
+  const onSubmit = (data: CatalogoFiltroFormType) => {
+    setMostrarFormCrear(false);
+    cargarDatos(data.codigo);
+  };
+
+  // Cargar dependencias auxiliares según catálogo actual
+  useEffect(() => {
+    if (catalogoActual === "alergias") {
+      getCategoriasAlergiaAction().then(setCategoriasSalud).catch(() => {});
+    } else if (catalogoActual === "patologias") {
+      getCategoriasPatologiaAction().then(setCategoriasSalud).catch(() => {});
+    } else if (catalogoActual === "discapacidades") {
+      getCategoriasDiscapacidadAction().then(setCategoriasSalud).catch(() => {});
+    } else if (catalogoActual === "tallas") {
+      getRegionesTallaAction().then(setRegionesTallaOpciones).catch(() => {});
+      getTiposPrendaAction().then(setTiposPrendaOpciones).catch(() => {});
+    }
+  }, [catalogoActual]);
+
+  // Cargar por defecto al montar
+  useEffect(() => {
+    cargarDatos("alergias");
+  }, []);
+
+  const handleCrearCategoriaRapida = async () => {
+    if (!nuevaCategoriaNombre.trim()) {
+      toast.error("El nombre de la categoría es requerido.");
+      return;
+    }
+    startTransition(async () => {
+      let res: { success: boolean; message: string; item?: CatalogoItemDTO };
+      if (catalogoActual === "alergias") {
+        res = await crearCategoriaAlergiaAction({ nombre_categoria: nuevaCategoriaNombre });
+      } else if (catalogoActual === "patologias") {
+        res = await crearCategoriaPatologiaAction({ nombre_categoria: nuevaCategoriaNombre });
+      } else {
+        res = await crearCategoriaDiscapacidadAction({ nombre_categoria: nuevaCategoriaNombre });
+      }
+
+      if (res.success) {
+        toast.success(res.message);
+        setNuevaCategoriaNombre("");
+        setMostrarCrearCategoria(false);
+        // Recargar categorías
+        if (catalogoActual === "alergias") {
+          const list = await getCategoriasAlergiaAction();
+          setCategoriasSalud(list);
+        } else if (catalogoActual === "patologias") {
+          const list = await getCategoriasPatologiaAction();
+          setCategoriasSalud(list);
+        } else {
+          const list = await getCategoriasDiscapacidadAction();
+          setCategoriasSalud(list);
+        }
+        if (res.item) {
+          setCategoriaIdSeleccionada(String(res.item.id));
+        }
+      } else {
+        toast.error(res.message);
+      }
+    });
+  };
+
+  const handleCrearItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombreItem.trim()) {
+      toast.error("El nombre o valor es requerido.");
+      return;
+    }
+
+    startTransition(async () => {
+      let res: { success: boolean; message: string; item?: CatalogoItemDTO };
+
+      if (catalogoActual === "alergias") {
+        if (!categoriaIdSeleccionada) {
+          toast.error("Debe seleccionar una categoría.");
+          return;
+        }
+        res = await crearAlergiaAction({
+          alergia: nombreItem,
+          categoria_id: Number(categoriaIdSeleccionada),
+        });
+      } else if (catalogoActual === "patologias") {
+        if (!categoriaIdSeleccionada) {
+          toast.error("Debe seleccionar una categoría.");
+          return;
+        }
+        res = await crearPatologiaAction({
+          patologia: nombreItem,
+          categoria_id: Number(categoriaIdSeleccionada),
+        });
+      } else if (catalogoActual === "discapacidades") {
+        if (!categoriaIdSeleccionada) {
+          toast.error("Debe seleccionar una categoría.");
+          return;
+        }
+        res = await crearDiscapacidadAction({
+          discapacidad: nombreItem,
+          categoria_id: Number(categoriaIdSeleccionada),
+        });
+      } else if (catalogoActual === "tallas") {
+        if (!regionIdSeleccionada || !tipoPrendaIdSeleccionada) {
+          toast.error("Debe seleccionar región y tipo de prenda.");
+          return;
+        }
+        res = await crearTallaAction({
+          valor: nombreItem,
+          region_id: Number(regionIdSeleccionada),
+          tipo_prenda_id: Number(tipoPrendaIdSeleccionada),
+        });
+      } else if (catalogoActual === "regiones-talla") {
+        res = await crearRegionTallaAction({
+          codigo: nombreItem,
+          descripcion: descripcionRegion || null,
+        });
+      } else if (catalogoActual === "tipos-prenda") {
+        res = await crearTipoPrendaAction({
+          categoria: nombreItem,
+        });
+      } else {
+        return;
+      }
+
+      if (res.success) {
+        toast.success(res.message);
+        setNombreItem("");
+        setDescripcionRegion("");
+        setMostrarFormCrear(false);
+        cargarDatos(catalogoActual);
+      } else {
+        toast.error(res.message);
+      }
+    });
+  };
+
+  const handleEliminarItem = (id: number, nombre: string) => {
+    if (!confirm(`¿Está seguro de eliminar "${nombre}"?`)) return;
+
+    startTransition(async () => {
+      let res: { success: boolean; message: string };
+      if (catalogoActual === "alergias") {
+        res = await eliminarAlergiaAction({ id });
+      } else if (catalogoActual === "patologias") {
+        res = await eliminarPatologiaAction({ id });
+      } else if (catalogoActual === "discapacidades") {
+        res = await eliminarDiscapacidadAction({ id });
+      } else if (catalogoActual === "tallas") {
+        res = await eliminarTallaAction({ id });
+      } else if (catalogoActual === "regiones-talla") {
+        res = await eliminarRegionTallaAction({ id });
+      } else if (catalogoActual === "tipos-prenda") {
+        res = await eliminarTipoPrendaAction({ id });
+      } else {
+        return;
+      }
+
+      if (res.success) {
+        toast.success(res.message);
+        cargarDatos(catalogoActual);
+      } else {
+        toast.error(res.message);
+      }
+    });
+  };
+
+  const columnasTotal = esEditable ? 3 : 2;
+
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center gap-2">
-        <Layers className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Catálogos</h1>
+      <header className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Layers className="size-5 text-muted-foreground" aria-hidden="true" />
+          <h1 className="text-xl font-semibold tracking-tight">Catálogos</h1>
+        </div>
+        {esEditable && (
+          <Button
+            variant={mostrarFormCrear ? "outline" : "default"}
+            size="sm"
+            onClick={() => setMostrarFormCrear(!mostrarFormCrear)}
+          >
+            {mostrarFormCrear ? (
+              <>
+                <X className="size-4 mr-1" aria-hidden="true" /> Cerrar formulario
+              </>
+            ) : (
+              <>
+                <Plus className="size-4 mr-1" aria-hidden="true" /> Agregar {ETIQUETAS[catalogoActual]}
+              </>
+            )}
+          </Button>
+        )}
       </header>
 
+      {/* Formulario de Alta / Creación para Catálogos de Soporte */}
+      {esEditable && mostrarFormCrear && (
+        <Card className="border-primary/40 bg-accent/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Nuevo registro en {ETIQUETAS[catalogoActual]}</CardTitle>
+            <CardDescription>
+              Complete los campos para registrar un nuevo elemento en este catálogo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCrearItem} className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="nombreItem">
+                    {catalogoActual === "regiones-talla"
+                      ? "Código de Región (máx. 10 car.)"
+                      : catalogoActual === "tallas"
+                      ? "Valor de Talla (ej. M, 38, XL)"
+                      : "Nombre / Descripción"}
+                  </Label>
+                  <Input
+                    id="nombreItem"
+                    value={nombreItem}
+                    onChange={(e) => setNombreItem(e.target.value)}
+                    placeholder={
+                      catalogoActual === "regiones-talla"
+                        ? "Ej. ADULTO"
+                        : catalogoActual === "tallas"
+                        ? "Ej. M o 38"
+                        : "Nombre..."
+                    }
+                    maxLength={catalogoActual === "regiones-talla" ? 10 : 100}
+                    disabled={isPending}
+                    required
+                  />
+                </div>
+
+                {/* Select de Categoría para Salud */}
+                {(catalogoActual === "alergias" ||
+                  catalogoActual === "patologias" ||
+                  catalogoActual === "discapacidades") && (
+                  <div>
+                    <div className="flex items-center justify-between pb-1">
+                      <Label htmlFor="catSalud">Categoría</Label>
+                      <button
+                        type="button"
+                        onClick={() => setMostrarCrearCategoria(!mostrarCrearCategoria)}
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        <FolderPlus className="size-3" />
+                        {mostrarCrearCategoria ? "Cancelar" : "+ Nueva Categoría"}
+                      </button>
+                    </div>
+                    {mostrarCrearCategoria ? (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Nombre de nueva categoría..."
+                          value={nuevaCategoriaNombre}
+                          onChange={(e) => setNuevaCategoriaNombre(e.target.value)}
+                          disabled={isPending}
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleCrearCategoriaRapida}
+                          disabled={isPending}
+                        >
+                          Crear
+                        </Button>
+                      </div>
+                    ) : (
+                      <Select
+                        value={categoriaIdSeleccionada}
+                        onValueChange={setCategoriaIdSeleccionada}
+                      >
+                        <SelectTrigger id="catSalud">
+                          <SelectValue placeholder="Seleccione categoría" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categoriasSalud.map((cat) => (
+                            <SelectItem key={cat.id} value={String(cat.id)}>
+                              {cat.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+
+                {/* Selects para Talla */}
+                {catalogoActual === "tallas" && (
+                  <>
+                    <div>
+                      <Label htmlFor="regionSelect">Región de Talla</Label>
+                      <Select
+                        value={regionIdSeleccionada}
+                        onValueChange={setRegionIdSeleccionada}
+                      >
+                        <SelectTrigger id="regionSelect">
+                          <SelectValue placeholder="Seleccione región" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {regionesTallaOpciones.map((r) => (
+                            <SelectItem key={r.id} value={String(r.id)}>
+                              {r.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="prendaSelect">Tipo de Prenda</Label>
+                      <Select
+                        value={tipoPrendaIdSeleccionada}
+                        onValueChange={setTipoPrendaIdSeleccionada}
+                      >
+                        <SelectTrigger id="prendaSelect">
+                          <SelectValue placeholder="Seleccione tipo de prenda" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tiposPrendaOpciones.map((p) => (
+                            <SelectItem key={p.id} value={String(p.id)}>
+                              {p.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+
+                {/* Descripción para Región Talla */}
+                {catalogoActual === "regiones-talla" && (
+                  <div>
+                    <Label htmlFor="descRegion">Descripción (opcional)</Label>
+                    <Input
+                      id="descRegion"
+                      value={descripcionRegion}
+                      onChange={(e) => setDescripcionRegion(e.target.value)}
+                      placeholder="Ej. Tallas para adulto"
+                      disabled={isPending}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setMostrarFormCrear(false)}
+                  disabled={isPending}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? (
+                    <Loader2 className="size-4 animate-spin mr-1" />
+                  ) : (
+                    <Plus className="size-4 mr-1" />
+                  )}
+                  Guardar
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Selector de Catálogo */}
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Consultar catálogo</CardTitle>
           <CardDescription>
-            Seleccione un catálogo de solo-lectura para listar sus registros.
+            Seleccione un catálogo institucional para listar y administrar sus registros.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -212,7 +620,11 @@ export default function CatalogosPage() {
                   <Label htmlFor="codigo">Catálogo</Label>
                   <Select
                     value={field.value}
-                    onValueChange={(value) => field.onChange(value as CodigoCatalogo)}
+                    onValueChange={(value) => {
+                      field.onChange(value as CodigoCatalogo);
+                      setMostrarFormCrear(false);
+                      cargarDatos(value as CodigoCatalogo);
+                    }}
                   >
                     <SelectTrigger
                       id="codigo"
@@ -224,7 +636,7 @@ export default function CatalogosPage() {
                     <SelectContent>
                       {(Object.keys(ETIQUETAS) as CodigoCatalogo[]).map((codigo) => (
                         <SelectItem key={codigo} value={codigo}>
-                          {ETIQUETAS[codigo]}
+                          {ETIQUETAS[codigo]} {CATALOGOS_EDITABLES.has(codigo) ? "(Editable)" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -245,38 +657,40 @@ export default function CatalogosPage() {
                 ) : (
                   <RefreshCw className="size-4" aria-hidden="true" />
                 )}
-                {isPending ? "Cargando..." : "Listar"}
+                {isPending ? "Cargando..." : "Actualizar"}
               </Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
+      {/* Tabla de Registros */}
       <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-24">ID</TableHead>
               <TableHead>Nombre</TableHead>
+              {esEditable && <TableHead className="w-24 text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isPending ? (
               <TableRow>
-                <TableCell colSpan={COLUMNAS} className="h-24 text-center">
+                <TableCell colSpan={columnasTotal} className="h-24 text-center">
                   <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : error ? (
               <TableRow>
-                <TableCell colSpan={COLUMNAS} className="h-24 text-center text-destructive">
+                <TableCell colSpan={columnasTotal} className="h-24 text-center text-destructive">
                   {error}
                 </TableCell>
               </TableRow>
             ) : noDisponible ? (
               <TableRow>
                 <TableCell
-                  colSpan={COLUMNAS}
+                  colSpan={columnasTotal}
                   className="h-24 text-center text-muted-foreground"
                 >
                   El catálogo seleccionado aún no está disponible.
@@ -285,12 +699,12 @@ export default function CatalogosPage() {
             ) : items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={COLUMNAS}
+                  colSpan={columnasTotal}
                   className="h-24 text-center text-muted-foreground"
                 >
                   <span className="inline-flex items-center gap-2">
                     <SearchX className="size-4" aria-hidden="true" />
-                    No hay registros. Seleccione un catálogo para consultar.
+                    No hay registros en este catálogo.
                   </span>
                 </TableCell>
               </TableRow>
@@ -299,6 +713,21 @@ export default function CatalogosPage() {
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.id}</TableCell>
                   <TableCell>{item.nombre}</TableCell>
+                  {esEditable && (
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Eliminar elemento"
+                        aria-label={`Eliminar ${item.nombre}`}
+                        onClick={() => handleEliminarItem(item.id, item.nombre)}
+                        disabled={isPending}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             )}
