@@ -256,10 +256,28 @@ class CategoriaAlergiaModel(models.Model):
         return self.nombre_categoria
 
 
+class CategoriaPatologiaModel(models.Model):
+    """Categoría de patologías."""
+    nombre_categoria = models.CharField(max_length=200, unique=True)
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_categorias_patologias'
+        ordering = ['nombre_categoria']
+        verbose_name = 'categoría de patología'
+        verbose_name_plural = 'categorías de patologías'
+
+    def __str__(self) -> str:
+        return self.nombre_categoria
+
+
 class PatologiaCronicaModel(models.Model):
     """Catálogo de patologías crónicas (M2M de perfil de salud)."""
     patologia = models.CharField(max_length=200)
-    categoriaId = models.IntegerField(null=True, blank=True, db_column='categoriaId')
+    categoria = models.ForeignKey(
+        'personal.CategoriaPatologiaModel', models.PROTECT, db_column='categoriaId',
+        null=True, blank=True, related_name='+',
+    )
 
     class Meta:
         managed = False
@@ -272,10 +290,28 @@ class PatologiaCronicaModel(models.Model):
         return self.patologia
 
 
+class CategoriaDiscapacidadModel(models.Model):
+    """Categoría de discapacidades."""
+    nombre_categoria = models.CharField(max_length=200, unique=True)
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_categorias_discapacidad'
+        ordering = ['nombre_categoria']
+        verbose_name = 'categoría de discapacidad'
+        verbose_name_plural = 'categorías de discapacidades'
+
+    def __str__(self) -> str:
+        return self.nombre_categoria
+
+
 class DiscapacidadModel(models.Model):
     """Catálogo de discapacidades (M2M de perfil de salud)."""
     discapacidad = models.CharField(max_length=200)
-    categoriaId = models.IntegerField(null=True, blank=True, db_column='categoriaId')
+    categoria = models.ForeignKey(
+        'personal.CategoriaDiscapacidadModel', models.PROTECT, db_column='categoriaId',
+        null=True, blank=True, related_name='+',
+    )
 
     class Meta:
         managed = False
