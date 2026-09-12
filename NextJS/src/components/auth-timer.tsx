@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useCallback, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { logoutAction } from "#/actions/auth-actions";
+import { cerrarSesionAction } from "@/modules/auth/infrastructure/actions/auth-actions";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -28,7 +28,7 @@ export function AuthController() {
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleLogout = useCallback(async () => {
-    await logoutAction();
+    await cerrarSesionAction();
     router.push("/login");
   }, [router]);
 
@@ -46,7 +46,7 @@ export function AuthController() {
 
   useEffect(() => {
     if (hasError) {
-      logoutAction().then(() => router.push("/login"));
+      cerrarSesionAction().then(() => router.push("/login"));
       return;
     }
     if (!session) return;

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
-import { logoutAction } from "#/actions/auth-actions";
+import { cerrarSesionAction } from "@/modules/auth/infrastructure/actions/auth-actions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -12,7 +12,7 @@ export function SignOut() {
 
   const handleSignOut = async () => {
     setIsLoggingOut(true);
-    await logoutAction();
+    await cerrarSesionAction();
     router.push("/login");
   };
 

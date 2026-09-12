@@ -7,8 +7,8 @@ import { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { changePasswordSchema } from "@/lib/zod";
-import { changePasswordAction } from "#/actions/auth-actions";
+import { cambiarPasswordFormSchema } from "@/modules/auth/ui/schema/schema-cambiar-password";
+import { cambiarPasswordAction } from "@/modules/auth/infrastructure/actions/auth-actions";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -48,8 +48,8 @@ export default function InicioPage() {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [isChangingPass, startChangePass] = useTransition();
 
-  const changeForm = useForm<z.infer<typeof changePasswordSchema>>({
-    resolver: zodResolver(changePasswordSchema),
+  const changeForm = useForm<z.infer<typeof cambiarPasswordFormSchema>>({
+    resolver: zodResolver(cambiarPasswordFormSchema),
     defaultValues: {
       current_password: "",
       new_password: "",
@@ -63,12 +63,9 @@ export default function InicioPage() {
     }
   }, [session?.user?.debeCambiarPassword]);
 
-  async function onChangePassword(values: z.infer<typeof changePasswordSchema>) {
+  async function onChangePassword(values: z.infer<typeof cambiarPasswordFormSchema>) {
     startChangePass(async () => {
-      const response = await changePasswordAction({
-        current_password: values.current_password,
-        new_password: values.new_password,
-      });
+      const response = await cambiarPasswordAction(values);
       if (response.success) {
         await updateSession({ debeCambiarPassword: false });
         setShowChangePassword(false);
