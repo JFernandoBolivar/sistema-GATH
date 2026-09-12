@@ -3,9 +3,12 @@
  */
 import type { RepoReportes } from "../../domain/ports/repo-reportes";
 import type {
+  ReporteItemCodigoDTO,
+  ReporteItemFamiliarDTO,
   ReporteItemPasivoDTO,
   ReporteItemPersonalDTO,
   ReporteItemVacanteDTO,
+  TendenciaPeriodoDTO,
 } from "../dtos/reporte-dto";
 
 export async function generarReportePersonal(
@@ -49,5 +52,48 @@ export async function generarReporteVacantes(
     denominacionCargo: e.denominacionCargo,
     dependencia: e.dependencia,
     direccionGeneral: e.direccionGeneral,
+  }));
+}
+
+export async function generarReporteFamiliares(
+  repo: RepoReportes,
+  filtros?: { parentescoId?: number; sexoId?: number }
+): Promise<ReporteItemFamiliarDTO[]> {
+  const entidades = await repo.generarReporteFamiliares(filtros);
+  return entidades.map((e) => ({
+    cedulaFamiliar: e.cedulaFamiliar,
+    nombres: e.nombres,
+    apellidos: e.apellidos,
+    parentesco: e.parentesco,
+    sexo: e.sexo,
+    fechaNacimiento: e.fechaNacimiento,
+    cedulaEmpleado: e.cedulaEmpleado,
+  }));
+}
+
+export async function generarReporteCodigos(
+  repo: RepoReportes,
+  filtros?: { dependenciaId?: number; nominaId?: number }
+): Promise<ReporteItemCodigoDTO[]> {
+  const entidades = await repo.generarReporteCodigos(filtros);
+  return entidades.map((e) => ({
+    codigo: e.codigo,
+    cargo: e.cargo,
+    cargoEspecifico: e.cargoEspecifico,
+    tipoNomina: e.tipoNomina,
+    dependencia: e.dependencia,
+    direccionGeneral: e.direccionGeneral,
+    estatus: e.estatus,
+  }));
+}
+
+export async function obtenerTendenciasPersonal(
+  repo: RepoReportes
+): Promise<TendenciaPeriodoDTO[]> {
+  const entidades = await repo.obtenerTendenciasPersonal();
+  return entidades.map((e) => ({
+    periodo: e.periodo,
+    ingresos: e.ingresos,
+    egresos: e.egresos,
   }));
 }

@@ -26,3 +26,29 @@ export interface ReporteItemVacante {
   dependencia: string;
   direccionGeneral: string;
 }
+
+export interface ReporteItemFamiliar {
+  cedulaFamiliar: string;
+  nombres: string;
+  apellidos: string;
+  parentesco: string;
+  sexo: string;
+  fechaNacimiento: string;
+  cedulaEmpleado: string;
+}
+
+export interface ReporteItemCodigo {
+  codigo: string;
+  cargo: string;
+  cargoEspecifico: string;
+  tipoNomina: string;
+  dependencia: string;
+  direccionGeneral: string;
+  estatus: string;
+}
+
+export interface TendenciaPeriodo {
+  periodo: string;
+  ingresos: number;
+  egresos: number;
+}

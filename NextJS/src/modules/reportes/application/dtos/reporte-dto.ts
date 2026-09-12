@@ -26,3 +26,29 @@ export interface ReporteItemVacanteDTO {
   dependencia: string;
   direccionGeneral: string;
 }
+
+export interface ReporteItemFamiliarDTO {
+  cedulaFamiliar: string;
+  nombres: string;
+  apellidos: string;
+  parentesco: string;
+  sexo: string;
+  fechaNacimiento: string;
+  cedulaEmpleado: string;
+}
+
+export interface ReporteItemCodigoDTO {
+  codigo: string;
+  cargo: string;
+  cargoEspecifico: string;
+  tipoNomina: string;
+  dependencia: string;
+  direccionGeneral: string;
+  estatus: string;
+}
+
+export interface TendenciaPeriodoDTO {
+  periodo: string;
+  ingresos: number;
+  egresos: number;
+}

@@ -1,13 +1,22 @@
 /**
- * Value Object tipo de reporte de personal (activo/pasivo/vacante). Evita
- * "string literals" dispersos en las consultas de reportes.
+ * Value Object tipo de reporte institucional. Evita "string literals"
+ * dispersos en las consultas de reportes.
  */
-export type TipoReportePersonalVO = "personal-activo" | "personal-pasivo" | "vacantes";
+export type TipoReportePersonalVO =
+  | "personal-activo"
+  | "personal-pasivo"
+  | "vacantes"
+  | "familiares"
+  | "codigos"
+  | "tendencias";
 
 const TIPOS: readonly TipoReportePersonalVO[] = [
   "personal-activo",
   "personal-pasivo",
   "vacantes",
+  "familiares",
+  "codigos",
+  "tendencias",
 ];
 
 export type TipoReportePersonal = (typeof TIPOS)[number];

@@ -2,14 +2,20 @@
  * Mappers para convertir datos de Reportes a entidades de dominio.
  */
 import type {
+  ReporteItemCodigo,
+  ReporteItemFamiliar,
   ReporteItemPasivo,
   ReporteItemPersonal,
   ReporteItemVacante,
+  TendenciaPeriodo,
 } from "../../domain/entities/reporte";
 import type {
+  ReporteCodigoApiItem,
+  ReporteFamiliarApiItem,
   ReportePasivoApiItem,
   ReportePersonalApiItem,
   ReporteVacanteApiItem,
+  TendenciaApiItem,
 } from "../http/reportes-api";
 
 export function reportePersonalApiAEntidad(raw: ReportePersonalApiItem): ReporteItemPersonal {
@@ -41,5 +47,37 @@ export function reporteVacanteApiAEntidad(raw: ReporteVacanteApiItem): ReporteIt
     denominacionCargo: raw.denominacion_cargo,
     dependencia: raw.dependencia,
     direccionGeneral: raw.direccion_general,
+  };
+}
+
+export function reporteFamiliarApiAEntidad(raw: ReporteFamiliarApiItem): ReporteItemFamiliar {
+  return {
+    cedulaFamiliar: raw.cedula_familiar,
+    nombres: raw.nombres,
+    apellidos: raw.apellidos,
+    parentesco: raw.parentesco,
+    sexo: raw.sexo,
+    fechaNacimiento: raw.fecha_nacimiento,
+    cedulaEmpleado: raw.cedula_empleado,
+  };
+}
+
+export function reporteCodigoApiAEntidad(raw: ReporteCodigoApiItem): ReporteItemCodigo {
+  return {
+    codigo: raw.codigo,
+    cargo: raw.cargo,
+    cargoEspecifico: raw.cargo_especifico,
+    tipoNomina: raw.tipo_nomina,
+    dependencia: raw.dependencia,
+    direccionGeneral: raw.direccion_general,
+    estatus: raw.estatus,
+  };
+}
+
+export function tendenciaApiAEntidad(raw: TendenciaApiItem): TendenciaPeriodo {
+  return {
+    periodo: raw.periodo,
+    ingresos: raw.ingresos,
+    egresos: raw.egresos,
   };
 }

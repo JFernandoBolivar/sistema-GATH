@@ -10,12 +10,20 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
+  generarReporteCodigos,
+  generarReporteFamiliares,
   generarReportePasivos,
   generarReportePersonal,
   generarReporteVacantes,
+  obtenerTendenciasPersonal,
 } from "../../application/use-cases/generar-reportes";
 import { repoReportesApi } from "../repositories/repo-reportes-api";
-import { reporteFilterSchema, tipoReporteSchema } from "../../ui/schema/schema-reporte";
+import {
+  reporteCodigosFilterSchema,
+  reporteFamiliaresFilterSchema,
+  reporteFilterSchema,
+  tipoReporteSchema,
+} from "../../ui/schema/schema-reporte";
 
 export async function getReportePersonalAction(filtros?: {
   dependenciaId?: number;
@@ -66,6 +74,60 @@ export async function getReporteVacantesAction(filtros?: { dependenciaId?: numbe
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getReporteVacantesAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getReporteFamiliaresAction(filtros?: {
+  parentescoId?: number;
+  sexoId?: number;
+}) {
+  const validation = reporteFamiliaresFilterSchema.safeParse(filtros ?? {});
+  const validatedFiltros = validation.success ? validation.data : {};
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await generarReporteFamiliares(repoReportesApi, validatedFiltros);
+    await logAudit({ traceId, action: "getReporteFamiliaresAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getReporteFamiliaresAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getReporteCodigosAction(filtros?: {
+  dependenciaId?: number;
+  nominaId?: number;
+}) {
+  const validation = reporteCodigosFilterSchema.safeParse(filtros ?? {});
+  const validatedFiltros = validation.success ? validation.data : {};
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await generarReporteCodigos(repoReportesApi, validatedFiltros);
+    await logAudit({ traceId, action: "getReporteCodigosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getReporteCodigosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getTendenciasPersonalAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerTendenciasPersonal(repoReportesApi);
+    await logAudit({ traceId, action: "getTendenciasPersonalAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTendenciasPersonalAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

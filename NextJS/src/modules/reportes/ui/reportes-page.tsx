@@ -33,26 +33,37 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 
 import type {
+  ReporteItemCodigoDTO,
+  ReporteItemFamiliarDTO,
   ReporteItemPasivoDTO,
   ReporteItemPersonalDTO,
   ReporteItemVacanteDTO,
+  TendenciaPeriodoDTO,
 } from "../application/dtos/reporte-dto";
 import type { TipoReportePersonal } from "../domain/value-objects/tipo-reporte-vo";
 import {
   descargarReporteExcelAction,
   descargarReportePdfAction,
+  getReporteCodigosAction,
+  getReporteFamiliaresAction,
   getReportePasivosAction,
   getReportePersonalAction,
   getReporteVacantesAction,
+  getTendenciasPersonalAction,
 } from "../infrastructure/actions/reportes-actions";
 import { reporteFilterSchema, type ReporteFilterType } from "./schema/schema-reporte";
+import { buildTendenciaChartData } from "./tendencia-chart-data";
+import { TendenciaLineChart } from "./tendencia-line-chart";
 
-type Tab = "personal" | "pasivos" | "vacantes";
+type Tab = "personal" | "pasivos" | "vacantes" | "familiares" | "codigos" | "tendencias";
 
 const TAB_A_TIPO_REPORTE: Record<Tab, TipoReportePersonal> = {
   personal: "personal-activo",
   pasivos: "personal-pasivo",
   vacantes: "vacantes",
+  familiares: "familiares",
+  codigos: "codigos",
+  tendencias: "tendencias",
 };
 
 export default function ReportesPage() {
@@ -60,6 +71,10 @@ export default function ReportesPage() {
   const [personal, setPersonal] = useState<ReporteItemPersonalDTO[]>([]);
   const [pasivos, setPasivos] = useState<ReporteItemPasivoDTO[]>([]);
   const [vacantes, setVacantes] = useState<ReporteItemVacanteDTO[]>([]);
+  const [familiares, setFamiliares] = useState<ReporteItemFamiliarDTO[]>([]);
+  const [codigos, setCodigos] = useState<ReporteItemCodigoDTO[]>([]);
+  const [tendencias, setTendencias] = useState<TendenciaPeriodoDTO[]>([]);
+  const [tendenciasCargadas, setTendenciasCargadas] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -85,10 +100,22 @@ export default function ReportesPage() {
     cargar(async () => setPasivos(await getReportePasivosAction()));
   const cargarVacantes = (dependenciaId?: number) =>
     cargar(async () => setVacantes(await getReporteVacantesAction({ dependenciaId })));
+  const cargarFamiliares = () =>
+    cargar(async () => setFamiliares(await getReporteFamiliaresAction()));
+  const cargarCodigos = (dependenciaId?: number) =>
+    cargar(async () => setCodigos(await getReporteCodigosAction({ dependenciaId })));
+  const cargarTendencias = () =>
+    cargar(async () => {
+      setTendencias(await getTendenciasPersonalAction());
+      setTendenciasCargadas(true);
+    });
 
   const onSubmit = (data: ReporteFilterType) => {
     if (tab === "personal") cargarPersonal(data.dependenciaId);
     else if (tab === "vacantes") cargarVacantes(data.dependenciaId);
+    else if (tab === "codigos") cargarCodigos(data.dependenciaId);
+    else if (tab === "familiares") cargarFamiliares();
+    else if (tab === "tendencias") cargarTendencias();
     else cargarPasivos();
   };
 
@@ -117,6 +144,10 @@ export default function ReportesPage() {
     cargarPersonal();
   }, []);
 
+  useEffect(() => {
+    if (tab === "tendencias" && !tendenciasCargadas) cargarTendencias();
+  }, [tab, tendenciasCargadas]);
+
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
       <header className="flex items-center gap-2">
@@ -128,7 +159,8 @@ export default function ReportesPage() {
         <CardHeader className="pb-4">
           <CardTitle>Filtros</CardTitle>
           <CardDescription>
-            Genere los reportes de personal activo, pasivos o puestos vacantes.
+            Genere los reportes de personal activo, pasivos, puestos vacantes, familiares,
+            códigos de cargo o la tendencia mensual de ingresos/egresos.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -161,6 +193,9 @@ export default function ReportesPage() {
           <TabsTrigger value="personal">Personal activo</TabsTrigger>
           <TabsTrigger value="pasivos">Pasivos</TabsTrigger>
           <TabsTrigger value="vacantes">Vacantes</TabsTrigger>
+          <TabsTrigger value="familiares">Familiares</TabsTrigger>
+          <TabsTrigger value="codigos">Códigos</TabsTrigger>
+          <TabsTrigger value="tendencias">Tendencias</TabsTrigger>
         </TabsList>
 
         <TabsContent value="personal">
@@ -268,6 +303,100 @@ export default function ReportesPage() {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        <TabsContent value="familiares">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cédula familiar</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Parentesco</TableHead>
+                  <TableHead>Sexo</TableHead>
+                  <TableHead>Nacimiento</TableHead>
+                  <TableHead>Cédula empleado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {familiares.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Sin datos para el reporte.</TableCell></TableRow>
+                ) : (
+                  familiares.map((r, i) => (
+                    <TableRow key={`${r.cedulaFamiliar}-${i}`}>
+                      <TableCell className="font-medium">{r.cedulaFamiliar}</TableCell>
+                      <TableCell>{r.nombres} {r.apellidos}</TableCell>
+                      <TableCell>{r.parentesco}</TableCell>
+                      <TableCell>{r.sexo}</TableCell>
+                      <TableCell>{r.fechaNacimiento}</TableCell>
+                      <TableCell>{r.cedulaEmpleado}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="codigos">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Cargo específico</TableHead>
+                  <TableHead>Nómina</TableHead>
+                  <TableHead>Dependencia</TableHead>
+                  <TableHead>Estatus</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {codigos.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Sin datos para el reporte.</TableCell></TableRow>
+                ) : (
+                  codigos.map((r, i) => (
+                    <TableRow key={`${r.codigo}-${i}`}>
+                      <TableCell className="font-medium">{r.codigo}</TableCell>
+                      <TableCell>{r.cargo}</TableCell>
+                      <TableCell>{r.cargoEspecifico}</TableCell>
+                      <TableCell>{r.tipoNomina}</TableCell>
+                      <TableCell>{r.dependencia}</TableCell>
+                      <TableCell>{r.estatus}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="tendencias">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Ingresos y egresos de personal (últimos 12 meses)</CardTitle>
+              <CardDescription>Serie mensual real, calculada a partir de los antecedentes de servicio y egresos registrados.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {tendencias.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para la tendencia.</p>
+              ) : (
+                <TendenciaLineChart data={buildTendenciaChartData(tendencias)} />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </section>
