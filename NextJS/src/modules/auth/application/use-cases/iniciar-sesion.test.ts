@@ -13,6 +13,8 @@ function fakeRepo(overrides: Partial<RepoAutenticacion> = {}): RepoAutenticacion
         rol: { id: 2, nombre: "Analista" },
         permisos: [{ id: 1, code: "identidad.listar", name: "Listar usuarios" }],
       }),
+    cerrarSesion: vi.fn(),
+    cambiarPassword: vi.fn(),
     ...overrides,
   };
 }

@@ -23,3 +23,9 @@ export interface SesionDTO {
   rolNombre: string;
   permisos: PermisoDTO[];
 }
+
+/** Entrada del caso de uso `cambiarPassword`: valores crudos del formulario. */
+export interface CambiarPasswordDTO {
+  readonly passwordActual: string;
+  readonly passwordNuevo: string;
+}
