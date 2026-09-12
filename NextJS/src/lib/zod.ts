@@ -11,24 +11,6 @@ export const signInSchema = object({
     .max(32, "La contraseña debe tener menos de 32 caracteres"),
 });
 
-export const changePasswordSchema = z
-  .object({
-    current_password: z
-      .string({ required_error: "La contraseña actual es requerida" })
-      .min(1, "La contraseña actual es requerida"),
-    new_password: z
-      .string({ required_error: "La nueva contraseña es requerida" })
-      .min(8, "La contraseña debe tener al menos 8 caracteres")
-      .max(32, "La contraseña debe tener máximo 32 caracteres"),
-    confirm_password: z
-      .string({ required_error: "Confirme su nueva contraseña" })
-      .min(1, "Confirme su nueva contraseña"),
-  })
-  .refine((data) => data.new_password === data.confirm_password, {
-    message: "Las contraseñas no coinciden",
-    path: ["confirm_password"],
-  });
-
 export const registerInSchema = z
   .object({
     email: z
