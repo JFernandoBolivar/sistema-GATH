@@ -1,30 +1,21 @@
 "use client";
 import {
-  ArrowRightFromLine,
   ArrowRightLeft,
   Badge,
-  BadgePlus,
   BarChart3,
   BookCheck,
   BookKey,
   BookUser,
-  Boxes,
-  Briefcase,
   BriefcaseBusiness,
-  BriefcaseConveyorBelt,
   ChevronDown,
   ChevronRight,
   ContactRound,
   DoorOpen,
-  FileChartLine,
-  FileSpreadsheet,
   FolderOpenDot,
   Home,
   IdCard,
-  List,
   ListCheck,
   LucideIcon,
-  MoveDownRight,
   NotebookTabs,
   SignpostBig,
   User,
@@ -85,7 +76,7 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Agregar Trabajador",
-        url: "/dashboard/gestion-trabajadores/personal-trabajador/registrar",
+        url: "/personal",
         icon: UserPlus,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -103,7 +94,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Agregar Familiar",
-        url: "/dashboard/gestion-trabajadores/personal-trabajador/familiares/agregar-familiar",
+        url: "/familiares",
         icon: ContactRound,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL"],
@@ -127,46 +118,8 @@ const items: MenuItem[] = [
       departmentAccept: ["RAC"],
     },
     title: "Ub. Administrativas",
-    url: "#",
+    url: "/organizacion",
     icon: SignpostBig,
-    subMenu: [
-      {
-        title: "Crear Ub. Administrativa",
-        url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion",
-        icon: ArrowRightFromLine,
-        permission: {
-          roleAccept: ["PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Crear Direcciones",
-        url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/crear-ubicacion-administrativa-direccion",
-        icon: MoveDownRight,
-        permission: {
-          roleAccept: ["PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Consultar Ub. Admnistrativas",
-        url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/listado-ubicacion-administrativa",
-        icon: List,
-        permission: {
-          roleAccept: ["ANALISTA","ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Actualizar Ub. Admnistrativas",
-        url: "/dashboard/gestion-trabajadores/ubicacion-administrativa/actualizar-ubicacion",
-        icon: Boxes,
-        permission: {
-          roleAccept: ["PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-    ],
   },
   {
     permission: {
@@ -174,28 +127,8 @@ const items: MenuItem[] = [
       departmentAccept: ["RAC"],
     },
     title: "Gestión De Codigos",
-    url: "#",
+    url: "/cargos",
     icon: Badge,
-    subMenu: [
-      {
-        title: "Crear Nuevo Código",
-        url: "/dashboard/gestion-trabajadores/cargos/crear-codigo",
-        icon: BadgePlus,
-        permission: {
-          roleAccept: ["PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Consultar/Actualizar",
-        url: "/dashboard/gestion-trabajadores/cargos/listado-codigo",
-        icon: List,
-        permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-    ],
   },
   {
     permission: {
@@ -207,8 +140,8 @@ const items: MenuItem[] = [
     icon: ArrowRightLeft,
     subMenu: [
       {
-        title: "Asignar Cargo",
-        url: "/dashboard/gestion-trabajadores/movimientos/asignar-codigo",
+        title: "Cargos (asignar/cambiar/estatus/encargaduría)",
+        url: "/cargos",
         icon: BriefcaseBusiness,
         permission: {
           roleAccept: ["ANALISTA","ADMINISTRADOR"],
@@ -216,44 +149,8 @@ const items: MenuItem[] = [
         },
       },
       {
-        title: "Asignar Cargo Esp",
-        url: "/dashboard/gestion-trabajadores/movimientos/asignar-codigo-especial",
-        icon: Briefcase,
-        permission: {
-          roleAccept: ["ANALISTA","ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Asignar Encargaduría",
-        url: "/dashboard/gestion-trabajadores/movimientos/prestamo-cargo",
-        icon: ArrowRightLeft,
-        permission: {
-          roleAccept: ["ANALISTA","ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Cambiar Cargo",
-        url: "/dashboard/gestion-trabajadores/movimientos/cambiar-codigo",
-        icon: BriefcaseConveyorBelt,
-        permission: {
-          roleAccept: ["ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Cambiar Estatus",
-        url: "/dashboard/gestion-trabajadores/movimientos/cambiar-estatus",
-        icon: FileChartLine,
-        permission: {
-          roleAccept: ["ANALISTA","ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
         title: "Egresar/Pasivo",
-        url: "/dashboard/gestion-trabajadores/movimientos/cambiar-pasivo",
+        url: "/pasivos",
         icon: BookCheck,
         permission: {
           roleAccept: ["ANALISTA","ADMINISTRADOR"],
@@ -262,7 +159,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Consultar Movimientos",
-        url: "/dashboard/gestion-trabajadores/movimientos/consultar",
+        url: "/movimientos",
         icon: ListCheck,
         permission: {
           roleAccept: ["ADMINISTRADOR","BIENSTAR SOCIAL"],
@@ -282,7 +179,7 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Consultar Trabajador",
-        url: "/dashboard/gestion-trabajadores/reportes/empleados",
+        url: "/reportes",
         icon: IdCard,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
@@ -334,32 +231,7 @@ const items: MenuItem[] = [
     },
     icon: BookCheck,
     title: "Autogestión",
-    url: "#",
-    subMenu: [
-      {
-        title: "Formulario",
-        url: "/dashboard/autogestion",
-        icon: BookCheck,
-      },
-      {
-        title: "Respuestas Encuesta",
-        url: "/dashboard/autogestion/consultar",
-        icon: FileSpreadsheet,
-        permission: {
-          roleAccept: ["ANALISTA","ADMINISTRADOR","BIENSTAR SOCIAL"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Métricas",
-        url: "/dashboard/autogestion/metricas",
-        icon: BarChart3,
-        permission: {
-          roleAccept: ["ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
-      },
-    ],
+    url: "/autogestion",
   },
 ];
 

@@ -2,7 +2,6 @@
 import {
   ArrowRightLeft,
   Badge,
-  BadgePlus,
   BarChart3,
   BookCheck,
   BookUser,
@@ -11,11 +10,8 @@ import {
   ContactRound,
   FileChartLine,
   Home,
-  IdCard,
-  List,
   ListCheck,
   LucideIcon,
-  PersonStanding,
   User,
 } from "lucide-react";
 
@@ -91,7 +87,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Agregar Familiar",
-        url: "/dashboard/gestion-pasivos/personal-jubilado/familiares/agregar-familiar",
+        url: "/familiares",
         icon: ContactRound,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR","BIENSTAR SOCIAL"],
@@ -115,28 +111,8 @@ const items: MenuItem[] = [
       departmentAccept: ["RAC"],
     },
     title: "Gestión De Codigos",
-    url: "#",
+    url: "/cargos",
     icon: Badge,
-    subMenu: [
-      {
-        title: "Crear Nuevo Código",
-        url: "/dashboard/gestion-pasivos/cargos/crear-codigo",
-        icon: BadgePlus,
-        permission: {
-          roleAccept: ["PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Consultar/Actualizar",
-        url: "/dashboard/gestion-pasivos/cargos/listado-codigo",
-        icon: List,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR","PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-    ],
   },
   {
     permission: {
@@ -149,7 +125,7 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Cambiar Estatus",
-        url: "/dashboard/gestion-pasivos/movimientos/cambiar-estatus",
+        url: "/cargos",
         icon: FileChartLine,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -158,7 +134,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Egresar",
-        url: "/dashboard/gestion-pasivos/movimientos/cambiar-pasivo",
+        url: "/pasivos",
         icon: BookCheck,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -174,23 +150,12 @@ const items: MenuItem[] = [
     },
     icon: BarChart3,
     title: "Reportes",
-    url: "#",
-    subMenu: [
-      {
-        title: "Personal Pasivos",
-        url: "/dashboard/gestion-pasivos/reportes/pasivos",
-        icon: IdCard,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
-      },
-    ],
+    url: "/reportes",
   },
   {
     icon: BookCheck,
     title: "Autogestión",
-    url: "/dashboard/autogestion",
+    url: "/autogestion",
   },
 ];
 
