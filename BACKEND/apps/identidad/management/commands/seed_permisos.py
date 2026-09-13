@@ -55,12 +55,14 @@ PERMISOS_CATALOGO = [
     ("personal.egresar", "Procesar egreso de personal activo"),
     ("personal.reincorporar", "Reincorporar trabajador egresado"),
     ("personal.carga_masiva", "Ejecutar importación masiva de personal vía Excel"),
+    ("personal.exportar_pdf", "Exportar el expediente de un trabajador activo en PDF"),
 
     # ─── 5. PERSONAL PASIVO ───
     ("pasivos.ver", "Consultar listado y ficha básica de personal pasivo"),
     ("pasivos.ver_detalle", "Consultar expediente completo de personal pasivo"),
     ("pasivos.crear", "Registrar nuevo personal jubilado/pensionado"),
     ("pasivos.editar", "Modificar datos de personal pasivo"),
+    ("pasivos.exportar_pdf", "Exportar el expediente de un trabajador pasivo en PDF"),
     ("pasivos.cambiar_condicion", "Actualizar condición pasiva (jubilado, sobreviviente)"),
 
     # ─── 6. CARGOS Y UBICACIONES ───
@@ -140,11 +142,13 @@ ROL_ASIGNACIONES = {
         "personal.egresar",
         "personal.reincorporar",
         "personal.carga_masiva",
+        "personal.exportar_pdf",
         "pasivos.ver",
         "pasivos.ver_detalle",
         "pasivos.crear",
         "pasivos.editar",
         "pasivos.cambiar_condicion",
+        "pasivos.exportar_pdf",
         "cargos.ver",
         "cargos.crear",
         "cargos.editar",
@@ -201,8 +205,10 @@ ROL_ASIGNACIONES = {
         "personal.ver_detalle",
         "personal.ver_salud",
         "personal.editar_salud",
+        "personal.exportar_pdf",
         "pasivos.ver",
         "pasivos.ver_detalle",
+        "pasivos.exportar_pdf",
         "familiares.ver",
         "familiares.adjuntar_documento",
         "familiares.descargar_documento",
@@ -213,9 +219,13 @@ ROL_ASIGNACIONES = {
         "reportes.generar_excel",
     ],
 
-    # 9: RECEPCIONISTA -> Estricta consulta de personal y familiares (PLAN_ROL_RECEPCIONISTA)
+    # 9: RECEPCIONISTA -> Estricta consulta de personal y familiares (PLAN_ROL_RECEPCIONISTA).
+    # Amplía a partir de CC-APP-2026-08-001 (Control de Cambio original del rol): el objetivo es
+    # "revisar la información...tanto activos como pasivos" (expediente completo), pero "ocultar
+    # ...la exportación de expedientes" -- por eso se otorga *.ver_detalle pero NO *.exportar_pdf.
     9: [
         "personal.ver",
+        "personal.ver_detalle",
         "pasivos.ver",
         "familiares.ver",
     ],
