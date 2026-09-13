@@ -21,15 +21,18 @@ export default proxy((req) => {
     auth?.user?.role?.nombre_rol === "RECEPCIONISTA" ||
     (puede(permisos, "personal.ver") && !puede(permisos, "personal.crear"));
 
-  // Rutas que puede abrir un recepcionista / usuario de solo lectura
+  // Rutas que puede abrir un recepcionista / usuario de solo lectura.
+  // El lado "pasivos" del legado ya se retiró (modules/pasivos cubre
+  // consulta + detalle + PDF con el mismo permiso pasivos.ver que ya
+  // tiene este rol), por lo que se redirige al módulo nuevo. El lado
+  // "personal" del legado permanece hasta resolver si personal.ver_detalle
+  // se otorga a RECEPCIONISTA (ver AUDITORIA/LIMPIEZA_FINAL_LEGADO).
   const RUTAS_RECEPCIONISTA = [
     "/dashboard",
     "/dashboard/gestion-trabajadores",
     "/dashboard/gestion-trabajadores/personal-trabajador/consultar",
     "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
-    "/dashboard/gestion-pasivos",
-    "/dashboard/gestion-pasivos/personal-jubilado/consultar",
-    "/dashboard/gestion-pasivos/personal-jubilado/familiares/consultar",
+    "/pasivos",
   ];
 
   if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {

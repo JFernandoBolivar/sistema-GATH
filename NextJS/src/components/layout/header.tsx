@@ -59,8 +59,8 @@ export function HeaderLayout({
                             Gestión De Personal Activo
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer">
-                          <Link href={"/dashboard/gestion-pasivos/"}>
+                        <DropdownMenuItem className="cursor-pointer" asChild>
+                          <Link href={"/pasivos"}>
                             Gestión De Personal Pasivo
                           </Link>
                         </DropdownMenuItem>
