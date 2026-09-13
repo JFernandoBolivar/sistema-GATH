@@ -19,6 +19,7 @@ function aDto(e: PasivoEntity): PasivoDTO {
     observaciones: e.observaciones,
     datosVivienda: e.datosVivienda,
     perfilSalud: e.perfilSalud,
+    perfilFisico: e.perfilFisico,
     formacionAcademica: e.formacionAcademica,
     contactoEmergencia: e.contactoEmergencia,
     antecedentes: e.antecedentes,

@@ -18,6 +18,7 @@ import {
   listarMotivosEgreso,
   listarTiposNomina,
 } from "../../application/use-cases/listar-catalogo-egreso";
+import { listarCatalogosExpedientePasivo } from "../../application/use-cases/listar-catalogos-expediente";
 import { repoPasivosApi } from "../repositories/repo-pasivos-api";
 import {
   listadoPasivosSchema,
@@ -108,6 +109,20 @@ export async function getTiposNominaAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getTiposNominaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getCatalogosExpedientePasivoAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCatalogosExpedientePasivo(repoPasivosApi);
+    await logAudit({ traceId, action: "getCatalogosExpedientePasivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCatalogosExpedientePasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

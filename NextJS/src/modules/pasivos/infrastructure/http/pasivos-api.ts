@@ -20,6 +20,7 @@ export interface PasivoApiItem {
   observaciones: string | null;
   datos_vivienda: Record<string, unknown> | null;
   perfil_salud: Record<string, unknown> | null;
+  perfil_fisico: Record<string, unknown> | null;
   formacion_academica: Record<string, unknown>[];
   contacto_emergencia: Record<string, unknown>[];
   antecedentes: Record<string, unknown>[];
@@ -77,4 +78,39 @@ export const pasivosApi = {
     list<CatalogoPasivoApiItem>(
       apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/tipos-nomina/"),
     ),
+
+  // --- Catálogos del expediente (vista de detalle) ---
+  // Mismos endpoints que consume `modules/personal` para el mismo contrato
+  // de expediente compartido; se llaman aquí directamente (sin importar el
+  // módulo hermano) porque son rutas de backend públicas, no código frontend.
+  getEstados: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/estados/")),
+  getMunicipios: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/municipios/")),
+  getParroquias: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/parroquias/")),
+  getCondicionesVivienda: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/condiciones-vivienda/")),
+  getCodigosPostales: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/codigos-postales/")),
+  getGruposSanguineos: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/grupos-sanguineos/")),
+  getAlergias: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/alergias/")),
+  getPatologias: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/patologias/")),
+  getDiscapacidades: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/discapacidades/")),
+  getTallas: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/tallas/")),
+  getNivelesAcademicos: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/niveles-academicos/")),
+  getCarreras: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/carreras/")),
+  getMenciones: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/menciones/")),
+  getInstituciones: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/instituciones/")),
+  getPoliticas: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/personal/catalogos/politicas/")),
 };

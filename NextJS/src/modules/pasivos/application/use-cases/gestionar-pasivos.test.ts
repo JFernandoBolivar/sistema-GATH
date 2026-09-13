@@ -17,6 +17,7 @@ class RepoPasivosMemoria implements RepoPasivos {
       observaciones: null,
       datosVivienda: null,
       perfilSalud: null,
+      perfilFisico: null,
       formacionAcademica: [],
       contactoEmergencia: [],
       antecedentes: [],
@@ -40,6 +41,26 @@ class RepoPasivosMemoria implements RepoPasivos {
     return [{ id: 1, nombre: "Nómina fija" }];
   }
 
+  async listarCatalogosExpediente() {
+    return {
+      estados: [],
+      municipios: [],
+      parroquias: [],
+      condicionesVivienda: [],
+      codigosPostales: [],
+      gruposSanguineos: [],
+      alergias: [],
+      patologias: [],
+      discapacidades: [],
+      tallas: [],
+      nivelesAcademicos: [],
+      carreras: [],
+      menciones: [],
+      instituciones: [],
+      politicas: [],
+    };
+  }
+
   async obtenerPorCedula(cedula: string) {
     const p = this.pasivos.find((x) => x.cedula === cedula);
     if (!p) throw new Error("No encontrado");
@@ -59,6 +80,7 @@ class RepoPasivosMemoria implements RepoPasivos {
       observaciones: null,
       datosVivienda: null,
       perfilSalud: null,
+      perfilFisico: null,
       formacionAcademica: [],
       contactoEmergencia: [],
       antecedentes: [],

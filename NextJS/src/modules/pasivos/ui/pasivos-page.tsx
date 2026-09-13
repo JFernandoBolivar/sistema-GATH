@@ -46,6 +46,7 @@ import {
 } from "@/shared/ui/components/table";
 
 import type { CatalogoPasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
+import { DetallePasivo } from "./detalle-pasivo";
 import {
   getMotivosEgresoAction,
   getPasivosAction,
@@ -74,6 +75,9 @@ function PasivoRow({ pasivo }: { pasivo: PasivoDTO }) {
       </TableCell>
       <TableCell className="text-muted-foreground">
         {pasivo.resolucion ?? "—"}
+      </TableCell>
+      <TableCell>
+        <DetallePasivo cedula={pasivo.cedula} />
       </TableCell>
     </TableRow>
   );
@@ -316,24 +320,25 @@ export default function PasivosPage() {
               <TableHead>Tipo</TableHead>
               <TableHead>Fecha de egreso</TableHead>
               <TableHead>Resolución</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : errorLista ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-destructive">
+                <TableCell colSpan={6} className="h-24 text-center text-destructive">
                   No fue posible cargar el listado de pasivos.
                 </TableCell>
               </TableRow>
             ) : !pasivos?.length ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   No hay trabajadores pasivos registrados.
                 </TableCell>
               </TableRow>

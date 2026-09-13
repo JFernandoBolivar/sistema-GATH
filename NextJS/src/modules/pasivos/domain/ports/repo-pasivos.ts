@@ -7,6 +7,7 @@
  */
 import type { CatalogoPasivo, Pasivo } from "../entities/pasivo";
 import type { ProcesarEgresoInput } from "../ports/procesar-egreso";
+import type { CatalogosExpedientePasivo } from "../ports/catalogos-expediente";
 
 export interface RepoPasivos {
   listarPasivos(busqueda?: string): Promise<Pasivo[]>;
@@ -14,4 +15,6 @@ export interface RepoPasivos {
   procesarEgreso(cedula: string, input: ProcesarEgresoInput): Promise<Pasivo>;
   listarMotivosEgreso(): Promise<CatalogoPasivo[]>;
   listarTiposNomina(): Promise<CatalogoPasivo[]>;
+  /** Catálogos para resolver a nombre el expediente del detalle (vista de detalle). */
+  listarCatalogosExpediente(): Promise<CatalogosExpedientePasivo>;
 }
