@@ -221,8 +221,8 @@ const items: MenuItem[] = [
       departmentAccept: ["RAC"],
     },
     icon: FolderOpenDot,
-    title: "Retroalimentación",
-    url: "/dashboard/gestion-trabajadores/retroalimentacion",
+    title: "Catálogos",
+    url: "/catalogos",
   },
   {
     permission: {
