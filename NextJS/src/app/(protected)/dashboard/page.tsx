@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import Loading from "./gestion-trabajadores/components/loading/loading";
+import Loading from "@/shared/ui/components/loading";
 import { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,7 +50,7 @@ const departments: Department[] = [
     id: "RAC",
     name: "Gestión de Trabajadores",
     imageSrc: "/images/departments/datos.jpg",
-    href: "/dashboard/gestion-trabajadores",
+    href: "/personal",
     color: "bg-green-500",
     alt: "Human Resources Department",
   },
