@@ -8,6 +8,7 @@ import {
   listarSexos,
   listarCategoriasMovimiento,
   listarTiposMovimiento,
+  listarOrganismosAdscritos,
 } from "./listar-catalogos";
 
 class RepoCatalogosMemoria implements RepoCatalogos {
@@ -146,6 +147,16 @@ class RepoCatalogosMemoria implements RepoCatalogos {
     return { id: 2, nombre: datos.categoria };
   }
   async eliminarTipoPrenda() {}
+  async listarOrganismosAdscritos() {
+    return [{ id: 1, nombre: "CONATEL" }];
+  }
+  async crearOrganismoAdscrito(datos: { nombre: string; parent_id?: number | null }) {
+    return { id: 2, nombre: datos.nombre };
+  }
+  async actualizarOrganismoAdscrito(id: number, datos: { nombre: string; parent_id?: number | null }) {
+    return { id, nombre: datos.nombre };
+  }
+  async eliminarOrganismoAdscrito() {}
 }
 
 describe("Casos de uso de Catálogos", () => {
@@ -181,5 +192,10 @@ describe("Casos de uso de Catálogos", () => {
 
     const tipos = await listarTiposMovimiento(repo);
     expect(tipos[0].nombre).toBe("TRANSFERENCIA");
+  });
+
+  it("listarOrganismosAdscritos retorna organismos adscritos", async () => {
+    const orgs = await listarOrganismosAdscritos(repo);
+    expect(orgs).toEqual([{ id: 1, nombre: "CONATEL" }]);
   });
 });

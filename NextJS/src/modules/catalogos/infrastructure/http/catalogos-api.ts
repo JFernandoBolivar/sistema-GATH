@@ -2,6 +2,7 @@
  * Cliente HTTP para Catálogos conectado a las APIs canónicas /api/v1/catalogos/
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import type { ApiResponse } from "@/shared/types/api-response";
 
 export interface CatalogoApiItem {
   id: number;
@@ -134,4 +135,14 @@ export const catalogosApi = {
     apiClient.post<CatalogoApiItem>("/api/v1/personal/catalogos/tipos-prenda/", data),
   eliminarTipoPrenda: (id: number) =>
     apiClient.delete<void>(`/api/v1/personal/catalogos/tipos-prenda/${id}/`),
+
+  // Organismos adscritos (/api/v1/organizacion/organismos-adscritos/)
+  getOrganismosAdscritos: () =>
+    apiClient.get<ApiResponse<CatalogoApiItem[]> | CatalogoApiItem[]>("/api/v1/organizacion/organismos-adscritos/"),
+  crearOrganismoAdscrito: (data: { nombre: string; parent_id?: number | null }) =>
+    apiClient.post<ApiResponse<CatalogoApiItem> | CatalogoApiItem>("/api/v1/organizacion/organismos-adscritos/crear/", data),
+  actualizarOrganismoAdscrito: (id: number, data: { nombre: string; parent_id?: number | null }) =>
+    apiClient.put<ApiResponse<CatalogoApiItem> | CatalogoApiItem>(`/api/v1/organizacion/organismos-adscritos/${id}/`, data),
+  eliminarOrganismoAdscrito: (id: number) =>
+    apiClient.delete<void>(`/api/v1/organizacion/organismos-adscritos/${id}/eliminar/`),
 };

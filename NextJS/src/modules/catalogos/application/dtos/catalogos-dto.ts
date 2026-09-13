@@ -63,6 +63,17 @@ export interface CrearTipoPrendaDTO {
   categoria: string;
 }
 
+export interface CrearOrganismoAdscritoDTO {
+  nombre: string;
+  parent_id?: number | null;
+}
+
+export interface ActualizarOrganismoAdscritoDTO {
+  id: number;
+  nombre: string;
+  parent_id?: number | null;
+}
+
 export interface EliminarCatalogoItemDTO {
   id: number;
 }

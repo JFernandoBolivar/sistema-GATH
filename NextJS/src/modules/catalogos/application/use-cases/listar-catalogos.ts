@@ -168,3 +168,8 @@ export async function listarDiscapacidades(repo: RepoCatalogos): Promise<Catalog
   const entidades = await repo.listarDiscapacidades();
   return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
 }
+
+export async function listarOrganismosAdscritos(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarOrganismosAdscritos();
+  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+}

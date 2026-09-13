@@ -17,6 +17,9 @@ import {
   eliminarRegionTalla,
   eliminarTalla,
   eliminarTipoPrenda,
+  crearOrganismoAdscrito,
+  actualizarOrganismoAdscrito,
+  eliminarOrganismoAdscrito,
   listarCategoriasAlergia,
   listarCategoriasDiscapacidad,
   listarCategoriasPatologia,
@@ -81,6 +84,11 @@ function crearRepoMock(): RepoCatalogos {
 
     crearTipoPrenda: vi.fn().mockResolvedValue({ id: 1, nombre: "Camisa" }),
     eliminarTipoPrenda: vi.fn().mockResolvedValue(undefined),
+
+    listarOrganismosAdscritos: vi.fn().mockResolvedValue([{ id: 1, nombre: "CONATEL" }]),
+    crearOrganismoAdscrito: vi.fn().mockResolvedValue({ id: 1, nombre: "CONATEL" }),
+    actualizarOrganismoAdscrito: vi.fn().mockResolvedValue({ id: 1, nombre: "CONATEL ACTUALIZADO" }),
+    eliminarOrganismoAdscrito: vi.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -141,5 +149,19 @@ describe("Casos de uso de gestión de catálogos", () => {
     expect(tipo.nombre).toBe("Camisa");
     await eliminarTipoPrenda(repo, 1);
     expect(repo.eliminarTipoPrenda).toHaveBeenCalledWith(1);
+  });
+
+  it("organismos adscritos CRUD (crear, actualizar, eliminar)", async () => {
+    const repo = crearRepoMock();
+    const nuevo = await crearOrganismoAdscrito(repo, { nombre: "  CONATEL  " });
+    expect(nuevo.nombre).toBe("CONATEL");
+    expect(repo.crearOrganismoAdscrito).toHaveBeenCalledWith({ nombre: "CONATEL", parent_id: null });
+
+    const actualizado = await actualizarOrganismoAdscrito(repo, 1, { nombre: "  CONATEL ACTUALIZADO  " });
+    expect(actualizado.nombre).toBe("CONATEL ACTUALIZADO");
+    expect(repo.actualizarOrganismoAdscrito).toHaveBeenCalledWith(1, { nombre: "CONATEL ACTUALIZADO", parent_id: null });
+
+    await eliminarOrganismoAdscrito(repo, 1);
+    expect(repo.eliminarOrganismoAdscrito).toHaveBeenCalledWith(1);
   });
 });

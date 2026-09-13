@@ -68,5 +68,10 @@ export interface RepoCatalogos {
 
   crearTipoPrenda(datos: { categoria: string }): Promise<CatalogoItem>;
   eliminarTipoPrenda(id: number): Promise<void>;
+
+  listarOrganismosAdscritos(): Promise<CatalogoItem[]>;
+  crearOrganismoAdscrito(datos: { nombre: string; parent_id?: number | null }): Promise<CatalogoItem>;
+  actualizarOrganismoAdscrito(id: number, datos: { nombre: string; parent_id?: number | null }): Promise<CatalogoItem>;
+  eliminarOrganismoAdscrito(id: number): Promise<void>;
 }
 

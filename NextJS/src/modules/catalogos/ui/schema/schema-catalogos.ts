@@ -38,6 +38,7 @@ export const CATALOGOS_CODIGOS = [
   "alergias",
   "patologias",
   "discapacidades",
+  "organismos-adscritos",
 ] as const;
 
 export const catalogoFiltroSchema = z.object({
@@ -120,6 +121,25 @@ export const crearTipoPrendaSchema = z.object({
     .max(50, "Máximo 50 caracteres"),
 });
 
+export const crearOrganismoAdscritoSchema = z.object({
+  nombre: z
+    .string()
+    .trim()
+    .min(1, ERROR.REQUIRED)
+    .max(50, "Máximo 50 caracteres"),
+  parent_id: z.coerce.number().int().positive().optional().nullable(),
+});
+
+export const actualizarOrganismoAdscritoSchema = z.object({
+  id: z.coerce.number().int().positive(ERROR.REQUIRED),
+  nombre: z
+    .string()
+    .trim()
+    .min(1, ERROR.REQUIRED)
+    .max(50, "Máximo 50 caracteres"),
+  parent_id: z.coerce.number().int().positive().optional().nullable(),
+});
+
 export const eliminarItemSchema = z.object({
   id: z.coerce.number().int().positive(ERROR.REQUIRED),
 });
@@ -131,5 +151,7 @@ export type CrearDiscapacidadFormType = z.infer<typeof crearDiscapacidadSchema>;
 export type CrearTallaFormType = z.infer<typeof crearTallaSchema>;
 export type CrearRegionTallaFormType = z.infer<typeof crearRegionTallaSchema>;
 export type CrearTipoPrendaFormType = z.infer<typeof crearTipoPrendaSchema>;
+export type CrearOrganismoAdscritoFormType = z.infer<typeof crearOrganismoAdscritoSchema>;
+export type ActualizarOrganismoAdscritoFormType = z.infer<typeof actualizarOrganismoAdscritoSchema>;
 export type EliminarItemFormType = z.infer<typeof eliminarItemSchema>;
 

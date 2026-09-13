@@ -15,6 +15,7 @@ import {
   FolderPlus,
   Layers,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   SearchX,
@@ -61,12 +62,16 @@ import {
   crearRegionTallaAction,
   crearTallaAction,
   crearTipoPrendaAction,
+  crearOrganismoAdscritoAction,
+  actualizarOrganismoAdscritoAction,
+  eliminarOrganismoAdscritoAction,
   eliminarAlergiaAction,
   eliminarDiscapacidadAction,
   eliminarPatologiaAction,
   eliminarRegionTallaAction,
   eliminarTallaAction,
   eliminarTipoPrendaAction,
+  getOrganismosAdscritosAction,
   getAlergiasAction,
   getCapacitacionesAction,
   getCarrerasAction,
@@ -139,6 +144,7 @@ const ETIQUETAS: Record<CodigoCatalogo, string> = {
   alergias: "Alergias",
   patologias: "Patologías crónicas",
   discapacidades: "Discapacidades",
+  "organismos-adscritos": "Organismos adscritos",
 };
 
 /** Catálogos que permiten operaciones de creación y eliminación (CRUD de soporte). */
@@ -149,6 +155,7 @@ const CATALOGOS_EDITABLES: Set<CodigoCatalogo> = new Set([
   "tallas",
   "regiones-talla",
   "tipos-prenda",
+  "organismos-adscritos",
 ]);
 
 const CARGAR: Partial<Record<CodigoCatalogo, () => Promise<CatalogoItemDTO[]>>> = {
@@ -182,6 +189,7 @@ const CARGAR: Partial<Record<CodigoCatalogo, () => Promise<CatalogoItemDTO[]>>> 
   alergias: () => getAlergiasAction(),
   patologias: () => getPatologiasAction(),
   discapacidades: () => getDiscapacidadesAction(),
+  "organismos-adscritos": () => getOrganismosAdscritosAction(),
 };
 
 export default function CatalogosPage() {
@@ -192,6 +200,7 @@ export default function CatalogosPage() {
 
   // Estados para formulario de alta de soporte
   const [mostrarFormCrear, setMostrarFormCrear] = useState(false);
+  const [itemEditando, setItemEditando] = useState<CatalogoItemDTO | null>(null);
   const [nombreItem, setNombreItem] = useState("");
   const [categoriaIdSeleccionada, setCategoriaIdSeleccionada] = useState<string>("");
   const [regionIdSeleccionada, setRegionIdSeleccionada] = useState<string>("");
@@ -237,6 +246,7 @@ export default function CatalogosPage() {
 
   const onSubmit = (data: CatalogoFiltroFormType) => {
     setMostrarFormCrear(false);
+    setItemEditando(null);
     cargarDatos(data.codigo);
   };
 
@@ -354,12 +364,24 @@ export default function CatalogosPage() {
         res = await crearTipoPrendaAction({
           categoria: nombreItem,
         });
+      } else if (catalogoActual === "organismos-adscritos") {
+        if (itemEditando) {
+          res = await actualizarOrganismoAdscritoAction({
+            id: itemEditando.id,
+            nombre: nombreItem,
+          });
+        } else {
+          res = await crearOrganismoAdscritoAction({
+            nombre: nombreItem,
+          });
+        }
       } else {
         return;
       }
 
       if (res.success) {
         toast.success(res.message);
+        setItemEditando(null);
         setNombreItem("");
         setDescripcionRegion("");
         setMostrarFormCrear(false);
@@ -387,6 +409,8 @@ export default function CatalogosPage() {
         res = await eliminarRegionTallaAction({ id });
       } else if (catalogoActual === "tipos-prenda") {
         res = await eliminarTipoPrendaAction({ id });
+      } else if (catalogoActual === "organismos-adscritos") {
+        res = await eliminarOrganismoAdscritoAction({ id });
       } else {
         return;
       }
@@ -413,7 +437,17 @@ export default function CatalogosPage() {
           <Button
             variant={mostrarFormCrear ? "outline" : "default"}
             size="sm"
-            onClick={() => setMostrarFormCrear(!mostrarFormCrear)}
+            onClick={() => {
+              if (mostrarFormCrear) {
+                setMostrarFormCrear(false);
+                setItemEditando(null);
+                setNombreItem("");
+              } else {
+                setItemEditando(null);
+                setNombreItem("");
+                setMostrarFormCrear(true);
+              }
+            }}
           >
             {mostrarFormCrear ? (
               <>
@@ -432,9 +466,13 @@ export default function CatalogosPage() {
       {esEditable && mostrarFormCrear && (
         <Card className="border-primary/40 bg-accent/20">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Nuevo registro en {ETIQUETAS[catalogoActual]}</CardTitle>
+            <CardTitle className="text-base">
+              {itemEditando ? "Editar registro en" : "Nuevo registro en"} {ETIQUETAS[catalogoActual]}
+            </CardTitle>
             <CardDescription>
-              Complete los campos para registrar un nuevo elemento en este catálogo.
+              {itemEditando
+                ? "Modifique los datos del elemento seleccionado."
+                : "Complete los campos para registrar un nuevo elemento en este catálogo."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -446,6 +484,8 @@ export default function CatalogosPage() {
                       ? "Código de Región (máx. 10 car.)"
                       : catalogoActual === "tallas"
                       ? "Valor de Talla (ej. M, 38, XL)"
+                      : catalogoActual === "organismos-adscritos"
+                      ? "Nombre del Organismo Adscrito"
                       : "Nombre / Descripción"}
                   </Label>
                   <Input
@@ -457,9 +497,17 @@ export default function CatalogosPage() {
                         ? "Ej. ADULTO"
                         : catalogoActual === "tallas"
                         ? "Ej. M o 38"
+                        : catalogoActual === "organismos-adscritos"
+                        ? "Ej. CONATEL, VTV, CANTV"
                         : "Nombre..."
                     }
-                    maxLength={catalogoActual === "regiones-talla" ? 10 : 100}
+                    maxLength={
+                      catalogoActual === "regiones-talla"
+                        ? 10
+                        : catalogoActual === "organismos-adscritos"
+                        ? 50
+                        : 100
+                    }
                     disabled={isPending}
                     required
                   />
@@ -579,7 +627,11 @@ export default function CatalogosPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setMostrarFormCrear(false)}
+                  onClick={() => {
+                    setMostrarFormCrear(false);
+                    setItemEditando(null);
+                    setNombreItem("");
+                  }}
                   disabled={isPending}
                 >
                   Cancelar
@@ -587,10 +639,12 @@ export default function CatalogosPage() {
                 <Button type="submit" disabled={isPending}>
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin mr-1" />
+                  ) : itemEditando ? (
+                    <Pencil className="size-4 mr-1" />
                   ) : (
                     <Plus className="size-4 mr-1" />
                   )}
-                  Guardar
+                  {itemEditando ? "Actualizar" : "Guardar"}
                 </Button>
               </div>
             </form>
@@ -715,17 +769,36 @@ export default function CatalogosPage() {
                   <TableCell>{item.nombre}</TableCell>
                   {esEditable && (
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        title="Eliminar elemento"
-                        aria-label={`Eliminar ${item.nombre}`}
-                        onClick={() => handleEliminarItem(item.id, item.nombre)}
-                        disabled={isPending}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        {catalogoActual === "organismos-adscritos" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 text-primary hover:text-primary hover:bg-primary/10"
+                            title="Editar elemento"
+                            aria-label={`Editar ${item.nombre}`}
+                            onClick={() => {
+                              setItemEditando(item);
+                              setNombreItem(item.nombre);
+                              setMostrarFormCrear(true);
+                            }}
+                            disabled={isPending}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Eliminar elemento"
+                          aria-label={`Eliminar ${item.nombre}`}
+                          onClick={() => handleEliminarItem(item.id, item.nombre)}
+                          disabled={isPending}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>

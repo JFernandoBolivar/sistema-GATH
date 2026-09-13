@@ -40,6 +40,7 @@ import {
   listarAlergias,
   listarPatologias,
   listarDiscapacidades,
+  listarOrganismosAdscritos,
 } from "../../application/use-cases/listar-catalogos";
 import {
   crearAlergia,
@@ -63,6 +64,9 @@ import {
   eliminarRegionTalla,
   crearTipoPrenda,
   eliminarTipoPrenda,
+  crearOrganismoAdscrito,
+  actualizarOrganismoAdscrito,
+  eliminarOrganismoAdscrito,
 } from "../../application/use-cases/gestionar-catalogos";
 import { repoCatalogosApi } from "../repositories/repo-catalogos-api";
 import {
@@ -73,6 +77,8 @@ import {
   crearRegionTallaSchema,
   crearTallaSchema,
   crearTipoPrendaSchema,
+  crearOrganismoAdscritoSchema,
+  actualizarOrganismoAdscritoSchema,
   eliminarItemSchema,
   idPadreFiltroSchema,
 } from "../../ui/schema/schema-catalogos";
@@ -905,4 +911,78 @@ export async function eliminarTipoPrendaAction(datos: unknown) {
     return { success: false, message: msg };
   }
 }
+
+// Organismos Adscritos
+export async function getOrganismosAdscritosAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarOrganismosAdscritos(repoCatalogosApi);
+    await logAudit({ traceId, action: "getOrganismosAdscritosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getOrganismosAdscritosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearOrganismoAdscritoAction(datos: unknown) {
+  const parsed = crearOrganismoAdscritoSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await crearOrganismoAdscrito(repoCatalogosApi, parsed.data);
+    await logAudit({ traceId, action: "crearOrganismoAdscritoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Organismo adscrito creado exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear organismo adscrito";
+    return { success: false, message: msg };
+  }
+}
+
+export async function actualizarOrganismoAdscritoAction(datos: unknown) {
+  const parsed = actualizarOrganismoAdscritoSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { id, ...resto } = parsed.data;
+    const item = await actualizarOrganismoAdscrito(repoCatalogosApi, id, resto);
+    await logAudit({ traceId, action: "actualizarOrganismoAdscritoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Organismo adscrito actualizado exitosamente.", item };
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al actualizar organismo adscrito";
+    return { success: false, message: msg };
+  }
+}
+
+export async function eliminarOrganismoAdscritoAction(datos: unknown) {
+  const parsed = eliminarItemSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { success: false, message: parsed.error.issues[0].message };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarOrganismoAdscrito(repoCatalogosApi, parsed.data.id);
+    await logAudit({ traceId, action: "eliminarOrganismoAdscritoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Organismo adscrito eliminado exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al eliminar organismo adscrito";
+    return { success: false, message: msg };
+  }
+}
+
 

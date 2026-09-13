@@ -12,6 +12,8 @@ import type {
   CrearRegionTallaDTO,
   CrearTallaDTO,
   CrearTipoPrendaDTO,
+  CrearOrganismoAdscritoDTO,
+  ActualizarOrganismoAdscritoDTO,
 } from "../dtos/catalogos-dto";
 
 // Alergias
@@ -198,4 +200,35 @@ export async function eliminarTipoPrenda(
   id: number,
 ): Promise<void> {
   await repo.eliminarTipoPrenda(id);
+}
+
+// Organismos Adscritos
+export async function crearOrganismoAdscrito(
+  repo: RepoCatalogos,
+  dto: CrearOrganismoAdscritoDTO,
+): Promise<CatalogoItemDTO> {
+  const item = await repo.crearOrganismoAdscrito({
+    nombre: dto.nombre.trim(),
+    parent_id: dto.parent_id ?? null,
+  });
+  return { id: item.id, nombre: item.nombre };
+}
+
+export async function actualizarOrganismoAdscrito(
+  repo: RepoCatalogos,
+  id: number,
+  dto: { nombre: string; parent_id?: number | null },
+): Promise<CatalogoItemDTO> {
+  const item = await repo.actualizarOrganismoAdscrito(id, {
+    nombre: dto.nombre.trim(),
+    parent_id: dto.parent_id ?? null,
+  });
+  return { id: item.id, nombre: item.nombre };
+}
+
+export async function eliminarOrganismoAdscrito(
+  repo: RepoCatalogos,
+  id: number,
+): Promise<void> {
+  await repo.eliminarOrganismoAdscrito(id);
 }
