@@ -38,6 +38,8 @@ interface EmpleadoDetalleSheetProps {
   onOpenChange: (open: boolean) => void;
   onExportarPdf: () => void;
   exportandoPdf: boolean;
+  /** CC-APP-2026-08-001: RECEPCIONISTA puede ver el detalle pero no exportarlo. */
+  puedeExportarPdf: boolean;
 }
 
 function FilaInfo({ etiqueta, valor }: { etiqueta: string; valor: string }) {
@@ -55,6 +57,7 @@ export default function EmpleadoDetalleSheet({
   onOpenChange,
   onExportarPdf,
   exportandoPdf,
+  puedeExportarPdf,
 }: EmpleadoDetalleSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -73,10 +76,12 @@ export default function EmpleadoDetalleSheet({
                 <h2 className="text-lg font-semibold">{detalle.nombreCompleto}</h2>
                 <p className="text-sm text-muted-foreground">Cédula: {detalle.cedula}</p>
               </div>
-              <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf}>
-                {exportandoPdf ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
-                PDF
-              </Button>
+              {puedeExportarPdf && (
+                <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf}>
+                  {exportandoPdf ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
+                  PDF
+                </Button>
+              )}
             </div>
 
             <Card>

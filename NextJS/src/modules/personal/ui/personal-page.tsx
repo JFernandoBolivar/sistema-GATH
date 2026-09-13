@@ -172,6 +172,7 @@ export default function PersonalPage() {
   const puedeCrear = tienePermiso(permisos, "personal.crear");
   const puedeEditar = tienePermiso(permisos, "personal.editar_personales");
   const puedeVerDetalle = tienePermiso(permisos, "personal.ver_detalle");
+  const puedeExportarPdf = tienePermiso(permisos, "personal.exportar_pdf");
 
   const [empleados, setEmpleados] = useState<EmpleadoDTO[]>([]);
   const [editando, setEditando] = useState<EmpleadoDTO | null>(null);
@@ -649,6 +650,7 @@ export default function PersonalPage() {
         detalle={viendoDetalle && catalogos ? construirDetalleExpediente(viendoDetalle, catalogos) : null}
         onExportarPdf={onExportarPdf}
         exportandoPdf={exportandoPdf}
+        puedeExportarPdf={puedeExportarPdf}
       />
     </section>
   );

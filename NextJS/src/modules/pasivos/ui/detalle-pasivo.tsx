@@ -16,7 +16,10 @@
  */
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSession } from "next-auth/react";
 import { Ambulance, Briefcase, ClipboardCheck, FileDown, GraduationCap, House, Loader2, Shirt, UserRound } from "lucide-react";
+
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -67,6 +70,9 @@ function fechaLegible(fecha?: string | null): string {
 }
 
 export function DetallePasivo({ cedula }: { cedula: string }) {
+  const { data: session } = useSession();
+  // CC-APP-2026-08-001: RECEPCIONISTA puede ver el detalle pero no exportarlo.
+  const puedeExportarPdf = tienePermiso(session?.user?.permisos, "pasivos.exportar_pdf");
   const [open, setOpen] = useState(false);
   const [pasivo, setPasivo] = useState<PasivoDTO | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosExpedientePasivoDTO | null>(null);
@@ -120,7 +126,7 @@ export function DetallePasivo({ cedula }: { cedula: string }) {
                   <p className="text-sm text-muted-foreground">Cédula: {pasivo.cedula}</p>
                 </div>
               </div>
-              {catalogos && (
+              {catalogos && puedeExportarPdf && (
                 <PDFDownloadLink
                   document={<ReportePasivoPDF pasivo={pasivo} catalogos={catalogos} />}
                   fileName={`expediente-pasivo-${pasivo.cedula}.pdf`}
