@@ -25,6 +25,7 @@ const RUTA_PDF_REPORTE: Record<TipoReportePersonal, string> = {
   familiares: "/api/v1/reportes/familiares/pdf/",
   codigos: "/api/v1/reportes/codigos/pdf/",
   tendencias: "/api/v1/reportes/tendencias/pdf/",
+  "distribucion-nomina": "/api/v1/reportes/distribucion-nomina/pdf/",
 };
 
 const RUTA_EXCEL_REPORTE: Record<TipoReportePersonal, string> = {
@@ -34,6 +35,7 @@ const RUTA_EXCEL_REPORTE: Record<TipoReportePersonal, string> = {
   familiares: "/api/v1/reportes/familiares/excel/",
   codigos: "/api/v1/reportes/codigos/excel/",
   tendencias: "/api/v1/reportes/tendencias/excel/",
+  "distribucion-nomina": "/api/v1/reportes/distribucion-nomina/excel/",
 };
 
 export interface ReportePersonalApiItem {
@@ -88,6 +90,11 @@ export interface TendenciaApiItem {
   egresos: number;
 }
 
+export interface DistribucionNominaApiItem {
+  tipo_nomina: string;
+  total: number;
+}
+
 interface ResultadoReporteApi<T> {
   titulo: string;
   columnas: string[];
@@ -120,6 +127,9 @@ export const reportesApi = {
     getFilas<ReporteCodigoApiItem>("/api/v1/reportes/codigos/", filtros),
 
   getTendencias: () => getFilas<TendenciaApiItem>("/api/v1/reportes/tendencias/"),
+
+  getDistribucionNomina: () =>
+    getFilas<DistribucionNominaApiItem>("/api/v1/reportes/distribucion-nomina/"),
 
   getPdf: (tipo: TipoReportePersonal) => apiClient.getBlob(RUTA_PDF_REPORTE[tipo]),
 

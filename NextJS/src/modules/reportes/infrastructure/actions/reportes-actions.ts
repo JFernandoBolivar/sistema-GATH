@@ -15,11 +15,13 @@ import {
   generarReportePasivos,
   generarReportePersonal,
   generarReporteVacantes,
+  obtenerDistribucionNomina,
   obtenerTendenciasPersonal,
 } from "../../application/use-cases/generar-reportes";
 import { repoReportesApi } from "../repositories/repo-reportes-api";
 import {
   reporteCodigosFilterSchema,
+  reporteEgresadosFilterSchema,
   reporteFamiliaresFilterSchema,
   reporteFilterSchema,
   tipoReporteSchema,
@@ -128,6 +130,40 @@ export async function getTendenciasPersonalAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getTendenciasPersonalAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getReporteEgresadosAction(filtros?: {
+  fechaEgresoDesde?: string;
+  fechaEgresoHasta?: string;
+}) {
+  const validation = reporteEgresadosFilterSchema.safeParse(filtros ?? {});
+  const validatedFiltros = validation.success ? validation.data : {};
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await generarReportePasivos(repoReportesApi, validatedFiltros);
+    await logAudit({ traceId, action: "getReporteEgresadosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getReporteEgresadosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getDistribucionNominaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerDistribucionNomina(repoReportesApi);
+    await logAudit({ traceId, action: "getDistribucionNominaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getDistribucionNominaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

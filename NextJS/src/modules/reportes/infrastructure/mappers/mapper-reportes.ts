@@ -2,6 +2,7 @@
  * Mappers para convertir datos de Reportes a entidades de dominio.
  */
 import type {
+  DistribucionNomina,
   ReporteItemCodigo,
   ReporteItemFamiliar,
   ReporteItemPasivo,
@@ -10,6 +11,7 @@ import type {
   TendenciaPeriodo,
 } from "../../domain/entities/reporte";
 import type {
+  DistribucionNominaApiItem,
   ReporteCodigoApiItem,
   ReporteFamiliarApiItem,
   ReportePasivoApiItem,
@@ -79,5 +81,12 @@ export function tendenciaApiAEntidad(raw: TendenciaApiItem): TendenciaPeriodo {
     periodo: raw.periodo,
     ingresos: raw.ingresos,
     egresos: raw.egresos,
+  };
+}
+
+export function distribucionNominaApiAEntidad(raw: DistribucionNominaApiItem): DistribucionNomina {
+  return {
+    tipoNomina: raw.tipo_nomina,
+    total: raw.total,
   };
 }

@@ -3,6 +3,7 @@
  */
 import type { RepoReportes } from "../../domain/ports/repo-reportes";
 import type {
+  DistribucionNominaDTO,
   ReporteItemCodigoDTO,
   ReporteItemFamiliarDTO,
   ReporteItemPasivoDTO,
@@ -29,7 +30,7 @@ export async function generarReportePersonal(
 
 export async function generarReportePasivos(
   repo: RepoReportes,
-  filtros?: { tipoPersonalId?: number }
+  filtros?: { tipoPersonalId?: number; fechaEgresoDesde?: string; fechaEgresoHasta?: string }
 ): Promise<ReporteItemPasivoDTO[]> {
   const entidades = await repo.generarReportePasivos(filtros);
   return entidades.map((e) => ({
@@ -95,5 +96,15 @@ export async function obtenerTendenciasPersonal(
     periodo: e.periodo,
     ingresos: e.ingresos,
     egresos: e.egresos,
+  }));
+}
+
+export async function obtenerDistribucionNomina(
+  repo: RepoReportes
+): Promise<DistribucionNominaDTO[]> {
+  const entidades = await repo.obtenerDistribucionNomina();
+  return entidades.map((e) => ({
+    tipoNomina: e.tipoNomina,
+    total: e.total,
   }));
 }

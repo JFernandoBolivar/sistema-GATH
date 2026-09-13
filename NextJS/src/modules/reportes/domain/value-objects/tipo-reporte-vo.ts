@@ -8,7 +8,8 @@ export type TipoReportePersonalVO =
   | "vacantes"
   | "familiares"
   | "codigos"
-  | "tendencias";
+  | "tendencias"
+  | "distribucion-nomina";
 
 const TIPOS: readonly TipoReportePersonalVO[] = [
   "personal-activo",
@@ -17,6 +18,7 @@ const TIPOS: readonly TipoReportePersonalVO[] = [
   "familiares",
   "codigos",
   "tendencias",
+  "distribucion-nomina",
 ];
 
 export type TipoReportePersonal = (typeof TIPOS)[number];

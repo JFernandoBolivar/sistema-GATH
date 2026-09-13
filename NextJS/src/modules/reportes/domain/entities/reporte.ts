@@ -52,3 +52,8 @@ export interface TendenciaPeriodo {
   ingresos: number;
   egresos: number;
 }
+
+export interface DistribucionNomina {
+  tipoNomina: string;
+  total: number;
+}

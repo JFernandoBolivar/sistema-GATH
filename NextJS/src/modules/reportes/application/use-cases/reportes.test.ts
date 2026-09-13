@@ -7,6 +7,7 @@ import {
   generarReportePasivos,
   generarReportePersonal,
   generarReporteVacantes,
+  obtenerDistribucionNomina,
   obtenerTendenciasPersonal,
 } from "./generar-reportes";
 
@@ -25,16 +26,18 @@ class RepoReportesMemoria implements RepoReportes {
     ];
   }
 
-  async generarReportePasivos() {
-    return [
-      {
-        cedula: "87654321",
-        nombreCompleto: "Rosa Gómez",
-        tipoPersonal: "JUBILADO",
-        fechaEgreso: "2025-12-31",
-        motivoEgreso: "Jubilación",
-      },
-    ];
+  async generarReportePasivos(filtros?: { fechaEgresoDesde?: string; fechaEgresoHasta?: string }) {
+    const base = {
+      cedula: "87654321",
+      nombreCompleto: "Rosa Gómez",
+      tipoPersonal: "JUBILADO",
+      fechaEgreso: "2025-12-31",
+      motivoEgreso: "Jubilación",
+    };
+    if (filtros?.fechaEgresoDesde === "2026-01-01") {
+      return [];
+    }
+    return [base];
   }
 
   async generarReporteVacantes() {
@@ -81,6 +84,13 @@ class RepoReportesMemoria implements RepoReportes {
     return [{ periodo: "2026-08", ingresos: 3, egresos: 1 }];
   }
 
+  async obtenerDistribucionNomina() {
+    return [
+      { tipoNomina: "FIJO", total: 120 },
+      { tipoNomina: "CONTRATADO", total: 45 },
+    ];
+  }
+
   async descargarPdf(tipo: TipoReportePersonalVO) {
     return new Blob([`pdf-${tipo}`], { type: "application/pdf" });
   }
@@ -103,6 +113,11 @@ describe("Casos de uso de Reportes", () => {
     const res = await generarReportePasivos(repo);
     expect(res.length).toBe(1);
     expect(res[0].motivoEgreso).toBe("Jubilación");
+  });
+
+  it("generarReportePasivos reenvía el filtro de rango de fecha de egreso al repositorio", async () => {
+    const res = await generarReportePasivos(repo, { fechaEgresoDesde: "2026-01-01" });
+    expect(res).toEqual([]);
   });
 
   it("generarReporteVacantes retorna listado de cargos disponibles", async () => {
@@ -129,5 +144,12 @@ describe("Casos de uso de Reportes", () => {
     expect(res[0].periodo).toBe("2026-08");
     expect(res[0].ingresos).toBe(3);
     expect(res[0].egresos).toBe(1);
+  });
+
+  it("obtenerDistribucionNomina retorna el conteo de personal por tipo de nómina", async () => {
+    const res = await obtenerDistribucionNomina(repo);
+    expect(res.length).toBe(2);
+    expect(res[0].tipoNomina).toBe("FIJO");
+    expect(res[0].total).toBe(120);
   });
 });

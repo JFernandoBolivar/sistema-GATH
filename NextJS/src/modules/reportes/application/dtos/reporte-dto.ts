@@ -52,3 +52,8 @@ export interface TendenciaPeriodoDTO {
   ingresos: number;
   egresos: number;
 }
+
+export interface DistribucionNominaDTO {
+  tipoNomina: string;
+  total: number;
+}

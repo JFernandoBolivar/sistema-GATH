@@ -33,6 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 
 import type {
+  DistribucionNominaDTO,
   ReporteItemCodigoDTO,
   ReporteItemFamiliarDTO,
   ReporteItemPasivoDTO,
@@ -44,7 +45,9 @@ import type { TipoReportePersonal } from "../domain/value-objects/tipo-reporte-v
 import {
   descargarReporteExcelAction,
   descargarReportePdfAction,
+  getDistribucionNominaAction,
   getReporteCodigosAction,
+  getReporteEgresadosAction,
   getReporteFamiliaresAction,
   getReportePasivosAction,
   getReportePersonalAction,
@@ -52,10 +55,20 @@ import {
   getTendenciasPersonalAction,
 } from "../infrastructure/actions/reportes-actions";
 import { reporteFilterSchema, type ReporteFilterType } from "./schema/schema-reporte";
+import { buildDistribucionNominaChartData } from "./distribucion-nomina-chart-data";
+import { DistribucionNominaPieChart } from "./distribucion-nomina-pie-chart";
 import { buildTendenciaChartData } from "./tendencia-chart-data";
 import { TendenciaLineChart } from "./tendencia-line-chart";
 
-type Tab = "personal" | "pasivos" | "vacantes" | "familiares" | "codigos" | "tendencias";
+type Tab =
+  | "personal"
+  | "pasivos"
+  | "vacantes"
+  | "familiares"
+  | "codigos"
+  | "tendencias"
+  | "egresados"
+  | "distribucion";
 
 const TAB_A_TIPO_REPORTE: Record<Tab, TipoReportePersonal> = {
   personal: "personal-activo",
@@ -64,6 +77,8 @@ const TAB_A_TIPO_REPORTE: Record<Tab, TipoReportePersonal> = {
   familiares: "familiares",
   codigos: "codigos",
   tendencias: "tendencias",
+  egresados: "personal-pasivo",
+  distribucion: "distribucion-nomina",
 };
 
 export default function ReportesPage() {
@@ -75,6 +90,9 @@ export default function ReportesPage() {
   const [codigos, setCodigos] = useState<ReporteItemCodigoDTO[]>([]);
   const [tendencias, setTendencias] = useState<TendenciaPeriodoDTO[]>([]);
   const [tendenciasCargadas, setTendenciasCargadas] = useState(false);
+  const [egresados, setEgresados] = useState<ReporteItemPasivoDTO[]>([]);
+  const [distribucion, setDistribucion] = useState<DistribucionNominaDTO[]>([]);
+  const [distribucionCargada, setDistribucionCargada] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -109,6 +127,15 @@ export default function ReportesPage() {
       setTendencias(await getTendenciasPersonalAction());
       setTendenciasCargadas(true);
     });
+  const cargarEgresados = (fechaEgresoDesde?: string, fechaEgresoHasta?: string) =>
+    cargar(async () =>
+      setEgresados(await getReporteEgresadosAction({ fechaEgresoDesde, fechaEgresoHasta }))
+    );
+  const cargarDistribucion = () =>
+    cargar(async () => {
+      setDistribucion(await getDistribucionNominaAction());
+      setDistribucionCargada(true);
+    });
 
   const onSubmit = (data: ReporteFilterType) => {
     if (tab === "personal") cargarPersonal(data.dependenciaId);
@@ -116,6 +143,8 @@ export default function ReportesPage() {
     else if (tab === "codigos") cargarCodigos(data.dependenciaId);
     else if (tab === "familiares") cargarFamiliares();
     else if (tab === "tendencias") cargarTendencias();
+    else if (tab === "egresados") cargarEgresados(data.fechaEgresoDesde, data.fechaEgresoHasta);
+    else if (tab === "distribucion") cargarDistribucion();
     else cargarPasivos();
   };
 
@@ -148,6 +177,10 @@ export default function ReportesPage() {
     if (tab === "tendencias" && !tendenciasCargadas) cargarTendencias();
   }, [tab, tendenciasCargadas]);
 
+  useEffect(() => {
+    if (tab === "distribucion" && !distribucionCargada) cargarDistribucion();
+  }, [tab, distribucionCargada]);
+
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
       <header className="flex items-center gap-2">
@@ -160,21 +193,43 @@ export default function ReportesPage() {
           <CardTitle>Filtros</CardTitle>
           <CardDescription>
             Genere los reportes de personal activo, pasivos, puestos vacantes, familiares,
-            códigos de cargo o la tendencia mensual de ingresos/egresos.
+            códigos de cargo, egresados detallados, la tendencia mensual de ingresos/egresos o
+            la distribución de personal por tipo de nómina.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
             <div className="flex flex-col gap-4 md:w-72">
-              <Field>
-                <Label htmlFor="dependenciaId">Dependencia (opcional)</Label>
-                <Input
-                  type="number"
-                  id="dependenciaId"
-                  placeholder="Id de dependencia"
-                  {...form.register("dependenciaId", { valueAsNumber: true })}
-                />
-              </Field>
+              {tab === "egresados" ? (
+                <>
+                  <Field>
+                    <Label htmlFor="fechaEgresoDesde">Fecha de egreso desde</Label>
+                    <Input
+                      type="date"
+                      id="fechaEgresoDesde"
+                      {...form.register("fechaEgresoDesde")}
+                    />
+                  </Field>
+                  <Field>
+                    <Label htmlFor="fechaEgresoHasta">Fecha de egreso hasta</Label>
+                    <Input
+                      type="date"
+                      id="fechaEgresoHasta"
+                      {...form.register("fechaEgresoHasta")}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <Field>
+                  <Label htmlFor="dependenciaId">Dependencia (opcional)</Label>
+                  <Input
+                    type="number"
+                    id="dependenciaId"
+                    placeholder="Id de dependencia"
+                    {...form.register("dependenciaId", { valueAsNumber: true })}
+                  />
+                </Field>
+              )}
             </div>
             <div>
               <Button type="submit" disabled={isPending}>
@@ -195,7 +250,9 @@ export default function ReportesPage() {
           <TabsTrigger value="vacantes">Vacantes</TabsTrigger>
           <TabsTrigger value="familiares">Familiares</TabsTrigger>
           <TabsTrigger value="codigos">Códigos</TabsTrigger>
+          <TabsTrigger value="egresados">Egresados</TabsTrigger>
           <TabsTrigger value="tendencias">Tendencias</TabsTrigger>
+          <TabsTrigger value="distribucion">Distribución por nómina</TabsTrigger>
         </TabsList>
 
         <TabsContent value="personal">
@@ -379,6 +436,41 @@ export default function ReportesPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="egresados">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cédula</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Egreso</TableHead>
+                  <TableHead>Motivo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {egresados.length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="h-16 text-center text-muted-foreground">Sin datos para el reporte. Use los filtros de fecha de egreso y presione &quot;Generar&quot;.</TableCell></TableRow>
+                ) : (
+                  egresados.map((r, i) => (
+                    <TableRow key={`${r.cedula}-${i}`}>
+                      <TableCell className="font-medium">{r.cedula}</TableCell>
+                      <TableCell>{r.nombreCompleto}</TableCell>
+                      <TableCell>{r.tipoPersonal}</TableCell>
+                      <TableCell>{r.fechaEgreso}</TableCell>
+                      <TableCell>{r.motivoEgreso}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
         <TabsContent value="tendencias">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
@@ -394,6 +486,26 @@ export default function ReportesPage() {
                 <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para la tendencia.</p>
               ) : (
                 <TendenciaLineChart data={buildTendenciaChartData(tendencias)} />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="distribucion">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
+          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Distribución de personal activo por tipo de nómina</CardTitle>
+              <CardDescription>Conteo de asignaciones de cargo con empleado (sin vacantes), agrupado por tipo de nómina.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {distribucion.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para la distribución.</p>
+              ) : (
+                <DistribucionNominaPieChart data={buildDistribucionNominaChartData(distribucion)} />
               )}
             </CardContent>
           </Card>
