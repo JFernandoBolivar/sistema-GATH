@@ -21,15 +21,25 @@ from core.presentation.serializers.expediente_lectura import (
 class CargoEgresadoSerializer(serializers.Serializer):
     codigo = serializers.CharField(read_only=True)
     denominacioncargo_id = serializers.IntegerField(read_only=True)
+    denominacioncargo_nombre = serializers.CharField(read_only=True)
     denominacioncargoespecifico_id = serializers.IntegerField(read_only=True)
+    denominacioncargoespecifico_nombre = serializers.CharField(read_only=True)
     grado_id = serializers.IntegerField(read_only=True, allow_null=True)
+    grado_nombre = serializers.CharField(read_only=True, allow_null=True)
     tipo_nomina_id = serializers.IntegerField(read_only=True)
+    tipo_nomina_nombre = serializers.CharField(read_only=True)
     tipo_personal_id = serializers.IntegerField(read_only=True)
+    tipo_personal_nombre = serializers.CharField(read_only=True)
     dependencia_id = serializers.IntegerField(read_only=True)
+    dependencia_nombre = serializers.CharField(read_only=True)
     direccion_general_id = serializers.IntegerField(read_only=True, allow_null=True)
+    direccion_general_nombre = serializers.CharField(read_only=True, allow_null=True)
     direccion_linea_id = serializers.IntegerField(read_only=True, allow_null=True)
+    direccion_linea_nombre = serializers.CharField(read_only=True, allow_null=True)
     coordinacion_id = serializers.IntegerField(read_only=True, allow_null=True)
+    coordinacion_nombre = serializers.CharField(read_only=True, allow_null=True)
     organismo_adscrito_id = serializers.IntegerField(read_only=True, allow_null=True)
+    organismo_adscrito_nombre = serializers.CharField(read_only=True, allow_null=True)
 
 
 class PasivoSerializer(serializers.Serializer):

@@ -9,23 +9,50 @@ from apps.pasivos.infrastructure.models.pasivo_models import (
 
 
 def cargo_egresado_a_dict(c: CargoEgresadoModel) -> dict:
+    """
+    Incluye tanto el `_id` crudo como el `_nombre` ya resuelto de cada
+    catálogo (mismo patrón que `CargoAsignacionSerializer` de `apps.cargos`
+    para los cargos activos): la UI de detalle de pasivo no debe resolver
+    ~9 catálogos por su cuenta solo para mostrar el historial de cargos.
+    """
     return {
         'codigo': c.codigo,
         'denominacioncargo_id': c.denominacioncargoid_id,
+        'denominacioncargo_nombre': c.denominacioncargoid.cargo,
         'denominacioncargoespecifico_id': c.denominacioncargoespecificoid_id,
+        'denominacioncargoespecifico_nombre': c.denominacioncargoespecificoid.cargo,
         'grado_id': c.gradoId_id,
+        'grado_nombre': c.gradoId.grado if c.gradoId_id else None,
         'tipo_nomina_id': c.tipoNominaId_id,
+        'tipo_nomina_nombre': c.tipoNominaId.nomina,
         'tipo_personal_id': c.tipoPersonalId_id,
+        'tipo_personal_nombre': c.tipoPersonalId.tipo_personal,
         'dependencia_id': c.dependenciaId_id,
+        'dependencia_nombre': c.dependenciaId.dependencia,
         'direccion_general_id': c.direccionGeneralId_id,
+        'direccion_general_nombre': c.direccionGeneralId.direccion_general if c.direccionGeneralId_id else None,
         'direccion_linea_id': c.direccionLineaId_id,
+        'direccion_linea_nombre': c.direccionLineaId.direccion_linea if c.direccionLineaId_id else None,
         'coordinacion_id': c.coordinacionId_id,
+        'coordinacion_nombre': c.coordinacionId.coordinacion if c.coordinacionId_id else None,
         'organismo_adscrito_id': c.organismoAdscritoId_id,
+        'organismo_adscrito_nombre': c.organismoAdscritoId.Organismoadscrito if c.organismoAdscritoId_id else None,
     }
 
 
 def cargos_historial_de_egreso(egreso_id: int) -> list[dict]:
-    qs = CargoEgresadoModel.objects.filter(egreso_id=egreso_id).order_by('-pk')
+    qs = CargoEgresadoModel.objects.filter(egreso_id=egreso_id).select_related(
+        'denominacioncargoid',
+        'denominacioncargoespecificoid',
+        'gradoId',
+        'tipoNominaId',
+        'tipoPersonalId',
+        'dependenciaId',
+        'direccionGeneralId',
+        'direccionLineaId',
+        'coordinacionId',
+        'organismoAdscritoId',
+    ).order_by('-pk')
     return [cargo_egresado_a_dict(c) for c in qs]
 
 
