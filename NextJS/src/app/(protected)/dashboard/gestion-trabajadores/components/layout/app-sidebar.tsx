@@ -2,21 +2,16 @@
 import {
   ArrowRightLeft,
   Badge,
-  BarChart3,
   BookCheck,
-  BookKey,
   BookUser,
   BriefcaseBusiness,
   ChevronDown,
   ChevronRight,
   ContactRound,
-  DoorOpen,
   FolderOpenDot,
   Home,
-  IdCard,
   ListCheck,
   LucideIcon,
-  NotebookTabs,
   SignpostBig,
   User,
   UserPlus,
@@ -163,53 +158,6 @@ const items: MenuItem[] = [
         icon: ListCheck,
         permission: {
           roleAccept: ["ADMINISTRADOR","BIENSTAR SOCIAL"],
-          departmentAccept: ["RAC"],
-        },
-      },
-    ],
-  },
-  {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-      departmentAccept: ["RAC"],
-    },
-    icon: BarChart3,
-    title: "Reportes",
-    url: "#",
-    subMenu: [
-      {
-        title: "Consultar Trabajador",
-        url: "/reportes",
-        icon: IdCard,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Consultar Familiares",
-        url: "/dashboard/gestion-trabajadores/reportes/familiares",
-        icon: NotebookTabs,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Consultar Egresados",
-        url: "/dashboard/gestion-trabajadores/reportes/egresados",
-        icon: DoorOpen,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
-      },
-      {
-        title: "Consultar Cargos",
-        url: "/dashboard/gestion-trabajadores/reportes/codigos",
-        icon: BookKey,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
           departmentAccept: ["RAC"],
         },
       },
