@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import {
   Camera,
+  Eye,
   Loader2,
   Pencil,
   Plus,
@@ -67,6 +68,9 @@ import {
   registrarEmpleadoAction,
   subirFotoEmpleadoAction,
 } from "../infrastructure/actions/personal-actions";
+import EmpleadoDetalleSheet from "./empleado-detalle-sheet";
+import { EmpleadoDetallePdf } from "./empleado-detalle-pdf";
+import { construirDetalleExpediente } from "./expediente-detalle-view-model";
 import {
   empleadoCedulaSchema,
   empleadoSchema,
@@ -167,10 +171,14 @@ export default function PersonalPage() {
   const permisos = session?.user?.permisos;
   const puedeCrear = tienePermiso(permisos, "personal.crear");
   const puedeEditar = tienePermiso(permisos, "personal.editar_personales");
+  const puedeVerDetalle = tienePermiso(permisos, "personal.ver_detalle");
 
   const [empleados, setEmpleados] = useState<EmpleadoDTO[]>([]);
   const [editando, setEditando] = useState<EmpleadoDTO | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
+  const [viendoDetalle, setViendoDetalle] = useState<EmpleadoDTO | null>(null);
+  const [detalleAbierto, setDetalleAbierto] = useState(false);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -287,6 +295,49 @@ export default function PersonalPage() {
 
   const municipios = (estadoId?: number) => catalogos?.municipios.filter((m) => !estadoId || m.nombre) ?? [];
   const parroquias = (municipioId?: number) => catalogos?.parroquias.filter((p) => !municipioId || p.nombre) ?? [];
+
+  const onVerDetalle = (cedula: string) => {
+    setDetalleAbierto(true);
+    setViendoDetalle(null);
+    startTransition(async () => {
+      setError(null);
+      const resultado = await getEmpleadoPorCedulaAction(cedula);
+      if (resultado && typeof resultado === "object" && "error" in resultado) {
+        setError((resultado as { error: string }).error);
+        setDetalleAbierto(false);
+        return;
+      }
+      setViendoDetalle(resultado as EmpleadoDTO);
+    });
+  };
+
+  const onExportarPdf = () => {
+    if (!viendoDetalle || !catalogos) return;
+    setExportandoPdf(true);
+    startTransition(async () => {
+      try {
+        const detalleVM = construirDetalleExpediente(viendoDetalle, catalogos);
+        const { pdf } = await import("@react-pdf/renderer");
+        const blob = await pdf(
+          <EmpleadoDetallePdf
+            detalle={detalleVM}
+            generadoPor={session?.user?.name ?? undefined}
+            generadoEn={new Date().toLocaleString("es-VE")}
+          />,
+        ).toBlob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `expediente-${viendoDetalle.cedula}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } catch {
+        setError("No fue posible generar el PDF del expediente.");
+      } finally {
+        setExportandoPdf(false);
+      }
+    });
+  };
 
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
@@ -570,12 +621,17 @@ export default function PersonalPage() {
                   <TableCell>{e.correo ?? "—"}</TableCell>
                   <TableCell>{e.totalAnosApn}</TableCell>
                   <TableCell>
-                    {puedeEditar && (
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => onBuscarParaEditar(e.cedula)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => onSubirFoto(e.cedula)} disabled={isPending}><Camera className="size-4" aria-hidden="true" /></Button>
+                      {puedeVerDetalle && (
+                        <Button variant="ghost" size="sm" onClick={() => onVerDetalle(e.cedula)} disabled={isPending}><Eye className="size-4" aria-hidden="true" /></Button>
+                      )}
+                      {puedeEditar && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => onBuscarParaEditar(e.cedula)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => onSubirFoto(e.cedula)} disabled={isPending}><Camera className="size-4" aria-hidden="true" /></Button>
+                        </>
+                      )}
                     </div>
-                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -583,6 +639,17 @@ export default function PersonalPage() {
           </TableBody>
         </Table>
       </div>
+
+      <EmpleadoDetalleSheet
+        open={detalleAbierto}
+        onOpenChange={(open) => {
+          setDetalleAbierto(open);
+          if (!open) setViendoDetalle(null);
+        }}
+        detalle={viendoDetalle && catalogos ? construirDetalleExpediente(viendoDetalle, catalogos) : null}
+        onExportarPdf={onExportarPdf}
+        exportandoPdf={exportandoPdf}
+      />
     </section>
   );
 }
