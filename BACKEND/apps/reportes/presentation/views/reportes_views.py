@@ -14,6 +14,7 @@ from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,
+    generar_reporte_distribucion_nomina,
     generar_reporte_familiares,
     generar_reporte_pasivos,
     generar_reporte_personal,
@@ -259,3 +260,39 @@ class ReporteTendenciasExcelView(APIView):
         dto = generar_reporte_tendencias(repo)
         excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
         return _respuesta_excel(excel_bytes, 'reporte_tendencias.xlsx')
+
+
+class ReporteDistribucionNominaView(APIView):
+    """GET /api/v1/reportes/distribucion-nomina/ — conteo de personal activo
+    (asignaciones con empleado, sin vacantes) agrupado por tipo de nómina,
+    para la gráfica de distribución del frontend."""
+
+    permission_classes = [IsAuthenticated, HasPermission('reportes.estadisticas')]
+
+    @extend_schema(tags=['Reportes'], summary='Distribución de personal activo por tipo de nómina', responses={200: ResultadoReporteSerializer})
+    def get(self, request):
+        repo = RepoReportesORM()
+        dto = generar_reporte_distribucion_nomina(repo)
+        return ok(ResultadoReporteSerializer(dto).data)
+
+
+class ReporteDistribucionNominaPdfView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('reportes.generar_pdf')]
+
+    @extend_schema(tags=['Reportes'], summary='Descargar la distribución por tipo de nómina en PDF', responses={200: OpenApiTypes.BINARY})
+    def get(self, request):
+        repo = RepoReportesORM()
+        dto = generar_reporte_distribucion_nomina(repo)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        return _respuesta_pdf(pdf_bytes, 'reporte_distribucion_nomina.pdf')
+
+
+class ReporteDistribucionNominaExcelView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('reportes.generar_excel')]
+
+    @extend_schema(tags=['Reportes'], summary='Descargar la distribución por tipo de nómina en Excel', responses={200: OpenApiTypes.BINARY})
+    def get(self, request):
+        repo = RepoReportesORM()
+        dto = generar_reporte_distribucion_nomina(repo)
+        excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
+        return _respuesta_excel(excel_bytes, 'reporte_distribucion_nomina.xlsx')

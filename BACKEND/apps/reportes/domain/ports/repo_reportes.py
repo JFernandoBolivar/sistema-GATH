@@ -24,3 +24,6 @@ class RepoReportes(Protocol):
 
     def reporte_tendencias_personal(self) -> ResultadoReporte:
         ...
+
+    def reporte_distribucion_nomina(self) -> ResultadoReporte:
+        ...

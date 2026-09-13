@@ -4,6 +4,9 @@ from apps.reportes.presentation.views.reportes_views import (
     ReporteCodigosExcelView,
     ReporteCodigosPdfView,
     ReporteCodigosView,
+    ReporteDistribucionNominaExcelView,
+    ReporteDistribucionNominaPdfView,
+    ReporteDistribucionNominaView,
     ReporteFamiliaresExcelView,
     ReporteFamiliaresPdfView,
     ReporteFamiliaresView,
@@ -42,4 +45,7 @@ urlpatterns = [
     path('tendencias/', ReporteTendenciasView.as_view(), name='reporte-tendencias'),
     path('tendencias/pdf/', ReporteTendenciasPdfView.as_view(), name='reporte-tendencias-pdf'),
     path('tendencias/excel/', ReporteTendenciasExcelView.as_view(), name='reporte-tendencias-excel'),
+    path('distribucion-nomina/', ReporteDistribucionNominaView.as_view(), name='reporte-distribucion-nomina'),
+    path('distribucion-nomina/pdf/', ReporteDistribucionNominaPdfView.as_view(), name='reporte-distribucion-nomina-pdf'),
+    path('distribucion-nomina/excel/', ReporteDistribucionNominaExcelView.as_view(), name='reporte-distribucion-nomina-excel'),
 ]

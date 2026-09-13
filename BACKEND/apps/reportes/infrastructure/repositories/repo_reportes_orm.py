@@ -212,3 +212,31 @@ class RepoReportesORM:
             filas=filas,
             total_registros=len(filas),
         )
+
+    def reporte_distribucion_nomina(self) -> ResultadoReporte:
+        from django.db.models import Count
+
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+
+        conteos = (
+            AsigTrabajoModel.objects
+            .filter(employee__isnull=False)
+            .values('tiponominaid__nomina')
+            .annotate(total=Count('id'))
+            .order_by('-total')
+        )
+
+        filas = [
+            {
+                'tipo_nomina': c['tiponominaid__nomina'] or 'Sin especificar',
+                'total': c['total'],
+            }
+            for c in conteos
+        ]
+
+        return ResultadoReporte(
+            titulo="Distribución de Personal por Tipo de Nómina",
+            columnas=['tipo_nomina', 'total'],
+            filas=filas,
+            total_registros=len(filas),
+        )

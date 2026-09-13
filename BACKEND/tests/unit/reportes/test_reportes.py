@@ -5,6 +5,7 @@ import pytest
 
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,
+    generar_reporte_distribucion_nomina,
     generar_reporte_familiares,
     generar_reporte_pasivos,
     generar_reporte_personal,
@@ -63,6 +64,14 @@ class RepoReportesMemoria:
             total_registros=1,
         )
 
+    def reporte_distribucion_nomina(self):
+        return ResultadoReporte(
+            titulo="Distribución de Personal por Tipo de Nómina",
+            columnas=['tipo_nomina', 'total'],
+            filas=[{'tipo_nomina': 'FIJO', 'total': 42}],
+            total_registros=1,
+        )
+
 
 def test_generar_reporte_personal():
     repo = RepoReportesMemoria()
@@ -106,3 +115,11 @@ def test_generar_reporte_tendencias():
     assert rep.filas[0]['periodo'] == '2026-08'
     assert rep.filas[0]['ingresos'] == 2
     assert rep.filas[0]['egresos'] == 1
+
+
+def test_generar_reporte_distribucion_nomina():
+    repo = RepoReportesMemoria()
+    rep = generar_reporte_distribucion_nomina(repo)
+    assert rep.total_registros == 1
+    assert rep.filas[0]['tipo_nomina'] == 'FIJO'
+    assert rep.filas[0]['total'] == 42

@@ -46,3 +46,8 @@ def generar_reporte_codigos(repo: RepoReportes, filtros: dict) -> ResultadoRepor
 def generar_reporte_tendencias(repo: RepoReportes) -> ResultadoReporteDTO:
     entidad = repo.reporte_tendencias_personal()
     return _resultado_a_dto(entidad)
+
+
+def generar_reporte_distribucion_nomina(repo: RepoReportes) -> ResultadoReporteDTO:
+    entidad = repo.reporte_distribucion_nomina()
+    return _resultado_a_dto(entidad)
