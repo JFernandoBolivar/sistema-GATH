@@ -17,3 +17,10 @@ logs/frontend/*.txt.gz
 
 # Build de TypeScript (artifact, no versionar)
 tsconfig.tsbuildinfo
+
+# Playwright E2E (testing-e2e-playwright): reportes/artefactos de corrida y
+# sesión de autenticación persistida, nunca el código de los tests.
+/test-results/
+/playwright-report/
+/e2e-results/
+/e2e/.auth/

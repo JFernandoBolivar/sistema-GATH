@@ -29,8 +29,8 @@ from apps.familiares.presentation.serializers.familiares_serializers import (
 class FamiliaresEmpleadoListView(APIView):
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), HasPermission('familiares.crear')]
-        return [IsAuthenticated(), HasPermission('familiares.ver')]
+            return [IsAuthenticated(), HasPermission('familiares.crear')()]
+        return [IsAuthenticated(), HasPermission('familiares.ver')()]
 
     @extend_schema(tags=['Familiares'], summary='Listar cargas familiares de un empleado', responses={200: FamiliarSerializer(many=True)})
     def get(self, request, cedula: str):
@@ -52,8 +52,8 @@ class FamiliaresEmpleadoListView(APIView):
 class FamiliarDetailView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAuthenticated(), HasPermission('familiares.ver')]
-        return [IsAuthenticated(), HasPermission('familiares.editar')]
+            return [IsAuthenticated(), HasPermission('familiares.ver')()]
+        return [IsAuthenticated(), HasPermission('familiares.editar')()]
 
     @extend_schema(tags=['Familiares'], summary='Obtener familiar por id', responses={200: FamiliarSerializer})
     def get(self, request, familiar_id: int):

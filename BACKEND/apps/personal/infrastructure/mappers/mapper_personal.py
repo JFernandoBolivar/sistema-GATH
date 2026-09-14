@@ -51,7 +51,7 @@ def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expedi
         telefono_habitacion=modelo.telefono_habitacion,
         fecha_nacimiento=str(modelo.fecha_nacimiento) if modelo.fecha_nacimiento else None,
         estado_civil_id=modelo.estadoCivil_id,
-        estado_civil_nombre=modelo.estadoCivil.estado_civil if modelo.estadoCivil else None,
+        estado_civil_nombre=modelo.estadoCivil.estadoCivil if modelo.estadoCivil else None,
         carnet_patria=modelo.carnet_patria,
         total_anos_apn=_total_anos_apn_calculado(antecedentes_cerrados),
         **(expediente or {}),

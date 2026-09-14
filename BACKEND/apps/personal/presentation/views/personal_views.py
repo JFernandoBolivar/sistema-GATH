@@ -28,8 +28,8 @@ class EmpleadosListView(APIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), HasPermission('personal.crear')]
-        return [IsAuthenticated(), HasPermission('personal.ver')]
+            return [IsAuthenticated(), HasPermission('personal.crear')()]
+        return [IsAuthenticated(), HasPermission('personal.ver')()]
 
     @extend_schema(tags=['Personal'], summary='Listar expediente de empleados activos con búsqueda', responses={200: EmpleadoSerializer(many=True)})
     def get(self, request):
@@ -58,8 +58,8 @@ class EmpleadoDetailView(APIView):
 
     def get_permissions(self):
         if self.request.method in ('PUT', 'PATCH'):
-            return [IsAuthenticated(), HasPermission('personal.editar_personales')]
-        return [IsAuthenticated(), HasPermission('personal.ver_detalle')]
+            return [IsAuthenticated(), HasPermission('personal.editar_personales')()]
+        return [IsAuthenticated(), HasPermission('personal.ver_detalle')()]
 
     @extend_schema(tags=['Personal'], summary='Obtener expediente de empleado por cédula', responses={200: EmpleadoSerializer})
     def get(self, request, cedula: str):
