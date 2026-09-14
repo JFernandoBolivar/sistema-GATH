@@ -27,7 +27,10 @@ from apps.familiares.presentation.serializers.familiares_serializers import (
 
 
 class FamiliaresEmpleadoListView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('familiares.ver')]
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), HasPermission('familiares.crear')]
+        return [IsAuthenticated(), HasPermission('familiares.ver')]
 
     @extend_schema(tags=['Familiares'], summary='Listar cargas familiares de un empleado', responses={200: FamiliarSerializer(many=True)})
     def get(self, request, cedula: str):

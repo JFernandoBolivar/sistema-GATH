@@ -58,10 +58,22 @@ describe('tienePermiso (lista plana de codigos resuelta por el backend)', () => 
   });
 
   it('el perfil RECEPCIONISTA (solo *.ver) no tiene permisos de escritura', () => {
-    const permisos = ['personal.ver', 'pasivos.ver', 'familiares.ver'];
+    const permisos = ['personal.ver', 'personal.ver_detalle', 'pasivos.ver', 'familiares.ver'];
     expect(tienePermiso(permisos, 'personal.crear')).toBe(false);
     expect(tienePermiso(permisos, 'personal.editar_personales')).toBe(false);
+    expect(tienePermiso(permisos, 'personal.exportar_pdf')).toBe(false);
     expect(tienePermiso(permisos, 'pasivos.cambiar_condicion')).toBe(false);
+    expect(tienePermiso(permisos, 'pasivos.exportar_pdf')).toBe(false);
+    expect(tienePermiso(permisos, 'familiares.crear')).toBe(false);
+    expect(tienePermiso(permisos, 'familiares.editar')).toBe(false);
+    expect(tienePermiso(permisos, 'familiares.eliminar')).toBe(false);
+  });
+
+  it('el perfil RECEPCIONISTA sí puede ver el detalle completo (CC-APP-2026-08-001)', () => {
+    const permisos = ['personal.ver', 'personal.ver_detalle', 'pasivos.ver', 'familiares.ver'];
+    expect(tienePermiso(permisos, 'personal.ver_detalle')).toBe(true);
+    expect(tienePermiso(permisos, 'pasivos.ver')).toBe(true);
+    expect(tienePermiso(permisos, 'familiares.ver')).toBe(true);
   });
 
   it('autoriza mediante wildcard por modulo', () => {

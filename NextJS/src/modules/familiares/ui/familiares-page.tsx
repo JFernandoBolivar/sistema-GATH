@@ -9,7 +9,10 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import { FileText, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
+
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -47,6 +50,12 @@ import {
 } from "./schema/schema-familiar";
 
 export default function FamiliaresPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeCrear = tienePermiso(permisos, "familiares.crear");
+  const puedeEditar = tienePermiso(permisos, "familiares.editar");
+  const puedeEliminar = tienePermiso(permisos, "familiares.eliminar");
+
   const [familiares, setFamiliares] = useState<FamiliarDTO[]>([]);
   const [documentos, setDocumentos] = useState<DocumentoFamiliarDTO[]>([]);
   const [empleadoCedula, setEmpleadoCedula] = useState<string>("");
@@ -181,6 +190,7 @@ export default function FamiliaresPage() {
         </CardContent>
       </Card>
 
+      {(puedeCrear || puedeEditar) && (
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>{editando ? "Editar carga familiar" : "Nueva carga familiar"}</CardTitle>
@@ -243,6 +253,7 @@ export default function FamiliaresPage() {
           </form>
         </CardContent>
       </Card>
+      )}
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
@@ -273,8 +284,12 @@ export default function FamiliaresPage() {
                   <TableCell>{f.heredero ? "Sí" : "No"}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => onEditar(f)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => onEliminar(f.id)} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                      {puedeEditar && (
+                        <Button variant="ghost" size="sm" onClick={() => onEditar(f)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
+                      )}
+                      {puedeEliminar && (
+                        <Button variant="ghost" size="sm" onClick={() => onEliminar(f.id)} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                      )}
                       <Button variant="ghost" size="sm" onClick={() => onDocumentos(f.id)} disabled={isPending}><FileText className="size-4" aria-hidden="true" /></Button>
                     </div>
                   </TableCell>
