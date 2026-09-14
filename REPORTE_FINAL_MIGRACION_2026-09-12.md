@@ -1,7 +1,7 @@
 # Reporte Final — Migración a Arquitectura Onion GATH (2026-09-12)
 
-> **Fecha:** 2026-09-12
-> **Commit auditado:** `c15969c` (branch `feature/arquitectura-onion`)
+> **Fecha:** 2026-09-13 (actualizado; primera versión 2026-09-12)
+> **Commit auditado:** `6c2eac4` (branch `feature/arquitectura-onion`)
 > **Reemplaza a:** `REPORTE_FINAL_MIGRACION_2026-09-11.md` (88 archivos de legado remanente, 4 GAPs abiertos)
 > **Objetivo:** Cerrar los 3 GAPs de UX documentados en `LIMPIEZA_FINAL_LEGADO_2026-09-12.md`
 > (OrganismoAdscrito/`retroalimentacion`, detalle+PDF de personal/pasivos, reportes de
@@ -150,27 +150,44 @@ en PDF, algo que el CC-APP-2026-08-001 exige explícitamente ocultar.
 permisos nuevos `personal.exportar_pdf` / `pasivos.exportar_pdf` (§2.4), que RECEPCIONISTA no
 tiene pero ANALISTA y BIENESTAR SOCIAL sí.
 
-### 3.3 GAP NUEVO, no cerrado — consulta de familiares (`modules/familiares` sin gating)
+### 3.3 GAP de permisos en `modules/familiares` — CERRADO; retiro de legado sigue bloqueado por un gap distinto (contenido)
 
-Al intentar retirar la pantalla legado de "consultar familiares" (parte de la paridad
-RECEPCIONISTA, ~18 archivos entre ambos lados), se encontró que **`modules/familiares` no tiene
-ningún gating de permisos**: sus botones de editar (`Pencil`) y eliminar (`Trash2`) se muestran
-sin condición alguna a cualquier usuario que llegue a `/familiares`, a diferencia de
-`modules/personal` y `modules/pasivos` (que sí distinguen ver/editar por permiso). El legado, en
-cambio, es genuinamente de solo lectura en esa pantalla específica: su columna "Acciones" solo
-tiene "copiar cédula" y "ver detalle" — nunca editar/eliminar (ni en el lado activo ni en el
-pasivo).
+**Parte 1 — gating de permisos (cerrado en esta tarea, commit `6c2eac4`).** Se confirmó que
+`modules/familiares` no tenía ningún gating de permisos: sus botones de editar (`Pencil`) y
+eliminar (`Trash2`) se mostraban sin condición alguna a cualquier usuario que llegara a
+`/familiares`. Se agregó el mismo patrón `tienePermiso()` ya usado en `modules/personal`/
+`modules/pasivos`: los botones de editar/eliminar y la card de crear/editar ahora se ocultan sin
+`familiares.editar`/`familiares.eliminar`/`familiares.crear` — permisos que RECEPCIONISTA (rol 9)
+no tiene (solo `familiares.ver`, confirmado en `seed_permisos.py`). De paso se encontró y corrigió
+un hueco de autorización real en el backend: `FamiliaresEmpleadoListView.post` (registrar
+familiar) solo exigía `familiares.ver` (el mismo permiso que el `GET`), no `familiares.crear` —
+un hueco que afectaba a **cualquier** rol con `familiares.ver`, no solo a RECEPCIONISTA. Se agregó
+`get_permissions()` exigiendo `familiares.crear` en `POST`, igual que `FamiliarDetailView` ya hace
+para `PUT`/`DELETE` con `familiares.editar`.
 
-Exponer `/familiares` a RECEPCIONISTA hoy sería una regresión real: pasaría de no poder editar ni
-eliminar cargas familiares (su estado legado) a poder hacerlo sin ninguna restricción. Siguiendo
-la instrucción explícita de la tarea, **no se retiró** esta pantalla: se restauraron los archivos
-ya borrados (`tableFamilys/**` de ambos lados y las 2 páginas `familiares/consultar`) y se
-mantienen en `RUTAS_RECEPCIONISTA`.
+**Parte 2 — retiro del legado de "consultar familiares" (NO ejecutado, gap distinto encontrado).**
+Con el gating de permisos ya resuelto, se verificó si ahora era seguro retirar las ~25 archivos de
+`tableFamilys/**` + `familiares/consultar` (ambos lados). Al comparar `modules/familiares/ui/
+familiares-page.tsx` contra el legado `tableFamilys/detail-info.tsx` (leído completo, ambos
+lados), se encontró que **no son equivalentes en contenido**: la tabla de `modules/familiares`
+solo muestra cédula/nombre/parentesco/fecha de nacimiento/mismo ente/heredero, mientras el
+"Ver Detalles" legado expone además estado civil, formación académica (nivel/carrera/mención/
+institución), perfil físico (tallas), perfil de salud completo (grupo sanguíneo, patologías,
+discapacidades, alergias) y enlaces de descarga de documentos (cédula, partida de nacimiento) —
+información que hoy **no existe en ningún punto** de `modules/familiares`. Esto no es un problema
+de permisos: es que `modules/familiares` nunca implementó una vista de detalle equivalente, ni
+siquiera para los roles con todos los permisos.
 
-**No es un problema de diseño de `modules/personal`/`modules/pasivos`** (esos sí están bien
-gateados) — es un gap distinto, en un tercer módulo, descubierto como efecto colateral de intentar
-cerrar este. Queda documentado para una tarea de seguimiento (agregar gating de permisos a
-`modules/familiares`, análogo al que ya tiene `modules/personal`/`modules/pasivos`).
+Retirar el legado hoy dejaría a **todos** los roles (no solo RECEPCIONISTA) sin forma de consultar
+esa información — una regresión real y más amplia que la que motivó este gap originalmente.
+Siguiendo la instrucción explícita de la tarea ("si falta algo más, documéntalo en vez de
+borrar"), **no se retiró ningún archivo** de este bloque; los 25 archivos permanecen intactos y
+`RUTAS_RECEPCIONISTA` sigue apuntando a las 2 páginas de consulta.
+
+**Recomendación concreta:** construir una vista de detalle en `modules/familiares` (Sheet o Dialog
+de solo lectura, mismo patrón que `EmpleadoDetalleSheet`/`DetallePasivo`) que cubra estado civil,
+formación académica, perfil físico, perfil de salud y documentos del familiar — recién entonces
+los 25 archivos de consulta legado quedan genuinamente cubiertos 1:1 y se pueden retirar.
 
 ### 3.4 `npx tsc --noEmit`
 **28 errores**, todos preexistentes:
@@ -183,35 +200,39 @@ cerrar este. Queda documentado para una tarea de seguimiento (agregar gating de 
 | `src/lib/regex.ts` | reexporta 7 nombres que no existen en `@/shared/validation/regex` (bug preexistente, fuera de alcance) — 7 errores |
 | `src/proxy.ts` | `PoliticaAccesoDTO` vs `string[]` en `puede()` legado — 2 errores |
 
-**0 errores nuevos** introducidos por los borrados/restauraciones de esta tarea.
+**0 errores nuevos** introducidos por el gating de `modules/familiares` ni por los cambios de la
+tarea anterior.
 
 ### 3.5 `npx vitest run`
 ```
 Test Files  32 passed (32)
-Tests       141 passed (141)
+Tests       142 passed (142)
 ```
-✅ Sin fallos.
+✅ Sin fallos. El test nuevo (`evaluador-iam.test.ts`) cubre explícitamente que RECEPCIONISTA no
+tiene `familiares.crear`/`editar`/`eliminar` pero sí `familiares.ver`/`personal.ver_detalle`.
 
-### 3.6 Legado remanente: 34 archivos (antes 88, el 2026-09-11)
+### 3.6 Legado remanente: 34 archivos (sin cambio en esta tarea; 88 el 2026-09-11)
 
 | Bloque | Archivos | Motivo de no-retiro |
 |---|---|---|
-| Consulta de familiares (`tableFamilys/**` + `familiares/consultar`, ambos lados) | 25 | `modules/familiares` sin gating de permisos (§3.3) — gap nuevo, no relacionado con personal/pasivos |
+| Consulta de familiares (`tableFamilys/**` + `familiares/consultar`, ambos lados) | 25 | `modules/familiares` no tiene vista de detalle equivalente (§3.3, parte 2) — el gating de permisos SÍ se cerró, pero falta contenido (salud/académico/físico/documentos), no permisos |
 | `gestion-trabajadores/api/getInfoRac.ts` + `components/loading/loading.tsx` | 2 | Dependencias reales de `censo-vivienda` y `shared/forms/employees` (§3.1) |
 | `gestion-pasivos/personal-jubilado/registrar/**` | 5 | GAP #4, cerrado como "no aplica" en tarea anterior |
 | `dashboard/layout.tsx` + `dashboard/page.tsx` | 2 | Shell compartido / home de RECEPCIONISTA; sin equivalente todavía en `app/(app)/*` |
 
 ---
 
-## 4. Commits de esta tarea
+## 4. Commits
 
 1. `73e6fd4` — retiro de `reportes/egresados` + `reportes/page.tsx` (GAP B)
 2. `60c65a0` — retiro de paridad RECEPCIONISTA del lado "pasivos" (GAP C, mitad segura)
 3. `ea7029f` — otorgar `personal.ver_detalle` a RECEPCIONISTA + crear permisos de exportación de PDF (backend, CC-APP-2026-08-001)
 4. `a25491f` — ocultar exportación de PDF para RECEPCIONISTA en personal y pasivos
 5. `c15969c` — retiro de paridad RECEPCIONISTA del lado "personal" (GAP C, mitad restante) + hallazgo y reversión parcial por el gap de `modules/familiares`
+6. `42baf93` — reporte final (versión 2026-09-12)
+7. `6c2eac4` — gating de permisos en `modules/familiares` + corrección del hueco de autorización en `FamiliaresEmpleadoListView.post` (esta tarea, 2026-09-13)
 
-(GAP A ya había sido cerrado por un worker concurrente antes de esta tarea, commit `ca506e8`.)
+(GAP A ya había sido cerrado por un worker concurrente antes de esta sesión de tareas, commit `ca506e8`.)
 
 ---
 
@@ -219,9 +240,11 @@ Tests       141 passed (141)
 
 1. Ejecutar `manage.py seed_permisos` en el entorno real (staging/producción) para que el permiso
    `personal.ver_detalle` de RECEPCIONISTA y los permisos nuevos de exportación tomen efecto.
-2. Agregar gating de permisos a `modules/familiares` (ocultar editar/eliminar sin
-   `familiares.editar`/`familiares.eliminar`, análogo a `modules/personal`), y una vez hecho,
-   retirar los 25 archivos de consulta de familiares documentados en §3.6.
+2. **Construir una vista de detalle de solo lectura en `modules/familiares`** (mismo patrón que
+   `EmpleadoDetalleSheet`/`DetallePasivo`) cubriendo estado civil, formación académica, perfil
+   físico, perfil de salud y documentos del familiar — es lo único que falta para que los 25
+   archivos de consulta de familiares queden cubiertos 1:1 y se puedan retirar (el gating de
+   permisos, que sí era necesario, ya está resuelto).
 3. (Opcional, de menor impacto) Diseñar un home/selector de módulos para RECEPCIONISTA equivalente
    a `dashboard/page.tsx` dentro de `app/(app)/*`, y entonces retirar `dashboard/layout.tsx` +
    `dashboard/page.tsx`.
@@ -241,12 +264,14 @@ de legado queda **100% completa**.
 módulos frontend con las 4 capas Onion sin violaciones, 70/70 contratos backend, 0 regresiones de
 tests en ambos lados.
 
-**¿El retiro de legado está 100% completo? No — al ~61% acumulado desde el reporte anterior (34
-de los 88 archivos que había el 2026-09-11).** De los 3 GAPs que motivaron esta tarea, **los 3
-quedaron cerrados y verificados**, incluyendo una corrección de permisos real (respaldada por el
-Control de Cambio oficial del rol) que este mismo trabajo identificó y resolvió en el camino. Lo
-que queda no es indefinición: son 34 archivos con causa raíz concreta cada uno — 25 por un gap de
-permisos recién descubierto en un módulo distinto (`modules/familiares`), 5 por una decisión de
-producto ya tomada explícitamente, 2 por ser dependencias reales de otras features activas, y 2
-por ser un shell compartido sin equivalente todavía. Cada uno tiene una recomendación concreta de
-una sola tarea de seguimiento (§5) para llegar al 0.
+**¿El retiro de legado está 100% completo? No — se mantiene en 34 de los 88 archivos que había el
+2026-09-11 (61% de reducción acumulada).** Esta tarea cerró el gap de permisos de
+`modules/familiares` que la tarea anterior había dejado documentado (gating de editar/eliminar +
+corrección de un hueco real de autorización en el backend para `familiares.crear`), pero al
+intentar retirar en consecuencia los 25 archivos de consulta de familiares se encontró que el
+bloqueo real no era de permisos sino de **contenido**: `modules/familiares` nunca implementó una
+vista de detalle equivalente a la del legado (salud, formación académica, perfil físico,
+documentos). Por eso el conteo de legado remanente no cambia en esta tarea (34 archivos), pero la
+causa raíz del bloque más grande (25 archivos) sí cambió y se volvió más precisa y accionable: ya
+no es "falta gating" (resuelto), es "falta una vista de detalle" (§5, punto 2) — una tarea de
+alcance conocido y acotado, no una ambigüedad.
