@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BadgeCheck, Ban, BarChart3, FileDown, IdCard, Loader2, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { BadgeCheck, BarChart3, IdCard, Loader2, Upload } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
+import { DataTable } from "@/shared/ui/components/data-table";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -54,6 +55,7 @@ import {
   type ValidarHashFormType,
 } from "./schema/schema-carnet";
 import { DisenadorCarnet } from "./components/disenador-carnet";
+import { construirColumnasCarnets } from "./carnetizacion-columnas";
 
 type Tab = "disenador" | "listado" | "validar" | "plantillas" | "estadisticas";
 
@@ -201,6 +203,16 @@ export default function CarnetizacionPage() {
     });
   };
 
+  const onAbrirDisenador = (cedula: string) => {
+    setCedulaParaDiseno(cedula);
+    setTab("disenador");
+  };
+
+  const onValidarDesdeListado = (cedula: string) => {
+    onEmitidoSet(cedula);
+    setTab("validar");
+  };
+
   const onRevocar = (carnetId: number) => {
     startTransition(async () => {
       setError(null);
@@ -212,6 +224,8 @@ export default function CarnetizacionPage() {
       cargarCarnets(busqueda);
     });
   };
+
+  const columnasCarnets = construirColumnasCarnets(onAbrirDisenador, onDescargar, onValidarDesdeListado, onRevocar);
 
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
@@ -268,53 +282,20 @@ export default function CarnetizacionPage() {
                 </div>
               </form>
 
-              <form onSubmit={(e) => { e.preventDefault(); cargarCarnets(busqueda); }} className="flex items-end gap-2">
-                <Field>
-                  <Label htmlFor="busqueda">Buscar por cédula</Label>
-                  <Input id="busqueda" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Cédula (opcional)" />
-                </Field>
-                <Button type="submit" variant="outline" disabled={isPending}>Buscar</Button>
-              </form>
-
-              <div className="overflow-hidden rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cédula</TableHead>
-                      <TableHead>Empleado</TableHead>
-                      <TableHead>Motivo</TableHead>
-                      <TableHead>Emisión</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {carnets.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Sin carnets.</TableCell></TableRow>
-                    ) : (
-                      carnets.map((c) => (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-medium">{c.empleadoCedula}</TableCell>
-                          <TableCell>{c.empleadoNombres} {c.empleadoApellidos}</TableCell>
-                          <TableCell>{c.motivoNombre}</TableCell>
-                          <TableCell>{c.fechaEmision}</TableCell>
-                          <TableCell><Badge variant={c.activo ? "default" : "outline"}>{c.activo ? "Activo" : "Revocado"}</Badge></TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => { setCedulaParaDiseno(c.empleadoCedula); setTab("disenador"); }} disabled={isPending} title="Abrir en Diseñador"><Sparkles className="size-4 text-amber-500" aria-hidden="true" /></Button>
-                              <Button variant="ghost" size="sm" onClick={() => onDescargar(c.id)} disabled={isPending} title="Descargar PDF"><FileDown className="size-4" aria-hidden="true" /></Button>
-                              <Button variant="ghost" size="sm" onClick={() => { onEmitidoSet(c.empleadoCedula); setTab("validar"); }} disabled={isPending} title="Validar"><ShieldCheck className="size-4" aria-hidden="true" /></Button>
-                              {c.activo && (
-                                <Button variant="ghost" size="sm" onClick={() => onRevocar(c.id)} disabled={isPending} title="Revocar carnet"><Ban className="size-4" aria-hidden="true" /></Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataTable
+                columns={columnasCarnets}
+                data={carnets}
+                emptyMessage="Sin carnets."
+                toolbar={
+                  <form onSubmit={(e) => { e.preventDefault(); cargarCarnets(busqueda); }} className="flex items-end gap-2">
+                    <Field>
+                      <Label htmlFor="busqueda" className="sr-only">Buscar por cédula</Label>
+                      <Input id="busqueda" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Cédula (opcional)" />
+                    </Field>
+                    <Button type="submit" variant="outline" disabled={isPending}>Buscar</Button>
+                  </form>
+                }
+              />
             </CardContent>
           </Card>
         </TabsContent>
