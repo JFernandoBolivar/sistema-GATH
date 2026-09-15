@@ -58,3 +58,37 @@ export type EmitirCarnetFormType = z.infer<typeof emitirCarnetSchema>;
 export type ValidarHashFormType = z.infer<typeof validarHashSchema>;
 export type BuscarEmpleadoCarnetType = z.infer<typeof buscarEmpleadoCarnetSchema>;
 export type DisenarCarnetFormType = z.infer<typeof disenarCarnetSchema>;
+
+/** Constantes de validación para subida de plantillas (zero-trust R7, OWASP API3). */
+export const MAX_TAMANO_PLANTILLA = 5 * 1024 * 1024; // 5MB
+export const TIPOS_MIME_PLANTILLA_PERMITIDOS = ["image/png", "image/jpeg", "image/jpg"] as const;
+
+/** Subida de plantilla de carnet con validación estricta zero-trust (Fase 2 / C2). */
+export const subirPlantillaCarnetSchema = z.object({
+  nombre: z
+    .string({ required_error: "El nombre de la plantilla es requerido" })
+    .trim()
+    .min(2, { message: "El nombre de la plantilla debe tener al menos 2 caracteres" })
+    .max(100, { message: "El nombre de la plantilla no puede exceder 100 caracteres" })
+    .regex(REGEX.NO_HTML, { message: "El nombre contiene caracteres no permitidos" }),
+  imagen: z
+    .custom<File>(
+      (file) => typeof file === "object" && file !== null && "size" in file && "type" in file,
+      { message: "Debe seleccionar un archivo de imagen válido" }
+    )
+    .refine((file) => file.size > 0, {
+      message: "El archivo de imagen no puede estar vacío",
+    })
+    .refine((file) => file.size <= MAX_TAMANO_PLANTILLA, {
+      message: "El tamaño de la imagen no puede exceder 5MB",
+    })
+    .refine((file) => file.type !== "image/svg+xml", {
+      message: "No se permiten imágenes vectoriales SVG por motivos de seguridad",
+    })
+    .refine((file) => (TIPOS_MIME_PLANTILLA_PERMITIDOS as readonly string[]).includes(file.type), {
+      message: "Formato de imagen no permitido. Solo se aceptan PNG y JPEG",
+    }),
+  activar: z.boolean().optional().default(false),
+});
+
+export type SubirPlantillaCarnetFormType = z.infer<typeof subirPlantillaCarnetSchema>;

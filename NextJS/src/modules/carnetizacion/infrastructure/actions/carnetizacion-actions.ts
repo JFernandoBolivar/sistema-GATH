@@ -26,6 +26,7 @@ import {
   carnetIdSchema,
   emitirCarnetSchema,
   plantillaIdSchema,
+  subirPlantillaCarnetSchema,
   validarHashSchema,
 } from "../../ui/schema/schema-carnet";
 
@@ -117,10 +118,17 @@ export async function getPlantillasCarnetAction() {
 }
 
 export async function subirPlantillaCarnetAction(nombre: string, imagen: File, activar?: boolean) {
+  const validation = subirPlantillaCarnetSchema.safeParse({ nombre, imagen, activar });
+  if (!validation.success) {
+    const errorMsg = validation.error.issues[0]?.message ?? "Datos de plantilla inválidos.";
+    return { error: errorMsg };
+  }
+
+  const { nombre: validNombre, imagen: validImagen, activar: validActivar } = validation.data;
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await crearPlantillaCarnet(repoCarnetizacionApi, nombre, imagen, activar);
+    const result = await crearPlantillaCarnet(repoCarnetizacionApi, validNombre, validImagen, validActivar);
     await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
