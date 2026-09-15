@@ -1,53 +1,48 @@
 "use client";
 
 /**
- * Página de cargas familiares: búsqueda por empleado, CRUD y documentos.
- * Cliente + react-hook-form + zodResolver; las acciones van envueltas en
- * useTransition (R8) y se delegan a las Server Actions del módulo (R7). Opera
- * exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
+ * Página de cargas familiares: búsqueda por empleado + listado con
+ * `DataTable` (tanstack) y menú de acciones por fila, paridad de patrón con
+ * `modules/personal/ui/personal-page.tsx`. A diferencia de personal, no hay
+ * un listado global de familiares (el backend solo expone `GET
+ * .../empleado/<cedula>/`, nunca todos los familiares): la búsqueda de
+ * empleado sigue siendo el primer paso obligatorio, no una ruta de alta
+ * separada — ver `familiar-form-dialog.tsx` para la justificación de por
+ * qué el alta es un diálogo y no una página propia aquí, a diferencia del
+ * legado (`personal-trabajador/familiares/agregar-familiar/page.tsx`).
+ * Cliente + react-hook-form (solo el buscador) + useTransition (R8);
+ * delega a las Server Actions del módulo (R7). Opera exclusivamente con
+ * DTOs (R5) y no importa de `infrastructure/` (R3).
  */
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
-import { Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import { Button } from "@/shared/ui/components/button";
-import { Badge } from "@/shared/ui/components/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/shared/ui/components/card";
+import { DataTable } from "@/shared/ui/components/data-table";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/components/table";
 
-import type { FamiliarDTO, GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
+import type { FamiliarDTO } from "../application/dtos/familiar-dto";
 import {
-  actualizarFamiliarAction,
-  crearFamiliarAction,
   eliminarFamiliarAction,
   getFamiliaresPorEmpleadoAction,
 } from "../infrastructure/actions/familiares-actions";
-import {
-  familiaresPorEmpleadoSchema,
-  familiarSchema,
-  type FamiliarFormType,
-} from "./schema/schema-familiar";
 import { DetalleFamiliar } from "./detalle-familiar";
+import { construirColumnasFamiliares } from "./familiares-columns";
+import { FamiliarFormDialog } from "./familiar-form-dialog";
+import { familiaresPorEmpleadoSchema } from "./schema/schema-familiar";
 
 export default function FamiliaresPage() {
   const { data: session } = useSession();
@@ -58,18 +53,15 @@ export default function FamiliaresPage() {
 
   const [familiares, setFamiliares] = useState<FamiliarDTO[]>([]);
   const [empleadoCedula, setEmpleadoCedula] = useState<string>("");
-  const [editando, setEditando] = useState<FamiliarDTO | null>(null);
+  const [buscado, setBuscado] = useState(false);
+  const [viendoDetalle, setViendoDetalle] = useState<FamiliarDTO | null>(null);
+  const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const busquedaForm = useForm<{ cedula: string }>({
     resolver: zodResolver(familiaresPorEmpleadoSchema),
     defaultValues: { cedula: "" },
-  });
-
-  const form = useForm<FamiliarFormType>({
-    resolver: zodResolver(familiarSchema),
-    defaultValues: { mismoEnte: false, heredero: false },
   });
 
   const cargarFamiliares = (cedula: string) => {
@@ -90,40 +82,20 @@ export default function FamiliaresPage() {
 
   const onBuscar = (data: { cedula: string }) => {
     setEmpleadoCedula(data.cedula);
+    setBuscado(true);
     cargarFamiliares(data.cedula);
   };
 
-  const resetForm = () => {
-    setEditando(null);
-    form.reset({ mismoEnte: false, heredero: false });
+  const onVerDetalle = (familiar: FamiliarDTO) => {
+    setViendoDetalle(familiar);
+    setDetalleAbierto(true);
   };
 
-  const onGuardar = (data: FamiliarFormType) => {
+  const onEliminar = (familiar: FamiliarDTO) => {
+    if (!window.confirm(`¿Eliminar la carga familiar de ${familiar.primerNombre} ${familiar.primerApellido}?`)) return;
     startTransition(async () => {
       setError(null);
-      const input = { ...data, empleadoCedula };
-      let resultado;
-      if (editando) {
-        resultado = await actualizarFamiliarAction(editando.id, input as Partial<GuardarFamiliarInputDTO>);
-      } else if (empleadoCedula) {
-        resultado = await crearFamiliarAction(input as GuardarFamiliarInputDTO);
-      } else {
-        setError("Primero busque un empleado para asociar la carga.");
-        return;
-      }
-      if (resultado && typeof resultado === "object" && "error" in resultado) {
-        setError((resultado as { error: string }).error);
-        return;
-      }
-      resetForm();
-      cargarFamiliares(empleadoCedula);
-    });
-  };
-
-  const onEliminar = (id: number) => {
-    startTransition(async () => {
-      setError(null);
-      const resultado = await eliminarFamiliarAction(id);
+      const resultado = await eliminarFamiliarAction(familiar.id);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         setError((resultado as { error: string }).error);
         return;
@@ -132,22 +104,7 @@ export default function FamiliaresPage() {
     });
   };
 
-  const onEditar = (f: FamiliarDTO) => {
-    setEditando(f);
-    form.reset({
-      cedulaFamiliar: f.cedulaFamiliar,
-      primerNombre: f.primerNombre,
-      segundoNombre: f.segundoNombre,
-      primerApellido: f.primerApellido,
-      segundoApellido: f.segundoApellido,
-      parentescoId: f.parentescoId,
-      fechaNacimiento: f.fechaNacimiento,
-      sexoId: f.sexoId,
-      mismoEnte: f.mismoEnte,
-      heredero: f.heredero,
-      observaciones: f.observaciones,
-    });
-  };
+  const columnas = construirColumnasFamiliares(puedeEliminar, onVerDetalle, onEliminar);
 
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
@@ -176,115 +133,35 @@ export default function FamiliaresPage() {
         </CardContent>
       </Card>
 
-      {(puedeCrear || puedeEditar) && (
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>{editando ? "Editar carga familiar" : "Nueva carga familiar"}</CardTitle>
-          <CardDescription>{empleadoCedula ? `Empleado: ${empleadoCedula}` : "Busque un empleado primero."}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.handleSubmit(onGuardar)} className="flex flex-col gap-4" noValidate>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <Field>
-                <Label htmlFor="cedulaFamiliar">Cédula del familiar</Label>
-                <Input id="cedulaFamiliar" {...form.register("cedulaFamiliar")} />
-              </Field>
-              <Field data-invalid={!!form.formState.errors.primerNombre}>
-                <Label htmlFor="primerNombre">Primer nombre</Label>
-                <Input id="primerNombre" {...form.register("primerNombre")} aria-invalid={!!form.formState.errors.primerNombre} />
-              </Field>
-              <Field>
-                <Label htmlFor="segundoNombre">Segundo nombre</Label>
-                <Input id="segundoNombre" {...form.register("segundoNombre")} />
-              </Field>
-              <Field data-invalid={!!form.formState.errors.primerApellido}>
-                <Label htmlFor="primerApellido">Primer apellido</Label>
-                <Input id="primerApellido" {...form.register("primerApellido")} aria-invalid={!!form.formState.errors.primerApellido} />
-              </Field>
-              <Field>
-                <Label htmlFor="segundoApellido">Segundo apellido</Label>
-                <Input id="segundoApellido" {...form.register("segundoApellido")} />
-              </Field>
-              <Field data-invalid={!!form.formState.errors.parentescoId}>
-                <Label htmlFor="parentescoId">Parentesco (id)</Label>
-                <Input type="number" id="parentescoId" {...form.register("parentescoId", { valueAsNumber: true })} aria-invalid={!!form.formState.errors.parentescoId} />
-              </Field>
-              <Field data-invalid={!!form.formState.errors.fechaNacimiento}>
-                <Label htmlFor="fechaNacimiento">Fecha de nacimiento</Label>
-                <Input type="date" id="fechaNacimiento" {...form.register("fechaNacimiento")} aria-invalid={!!form.formState.errors.fechaNacimiento} />
-              </Field>
-              <Field data-invalid={!!form.formState.errors.sexoId}>
-                <Label htmlFor="sexoId">Sexo (id)</Label>
-                <Input type="number" id="sexoId" {...form.register("sexoId", { valueAsNumber: true })} aria-invalid={!!form.formState.errors.sexoId} />
-              </Field>
-              <Field>
-                <Label htmlFor="observaciones">Observaciones</Label>
-                <Input id="observaciones" {...form.register("observaciones")} />
-              </Field>
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" {...form.register("mismoEnte")} className="size-4" /> Mismo ente
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" {...form.register("heredero")} className="size-4" /> Heredero
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="submit" disabled={isPending}>
-                <Plus className="size-4" aria-hidden="true" /> {editando ? "Actualizar" : "Crear"}
-              </Button>
-              {editando && <Button type="button" variant="outline" onClick={resetForm}>Cancelar</Button>}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-      )}
-
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-      <div className="overflow-hidden rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cédula</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Parentesco</TableHead>
-              <TableHead>Nacimiento</TableHead>
-              <TableHead>Mismo ente</TableHead>
-              <TableHead>Heredero</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {familiares.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="h-16 text-center text-muted-foreground">Sin cargas familiares. Busque un empleado.</TableCell></TableRow>
-            ) : (
-              familiares.map((f) => (
-                <TableRow key={f.id}>
-                  <TableCell className="font-medium">{f.cedulaFamiliar ?? "—"}</TableCell>
-                  <TableCell>{f.primerNombre} {f.segundoNombre ?? ""} {f.primerApellido} {f.segundoApellido ?? ""}</TableCell>
-                  <TableCell><Badge variant="secondary">{f.parentescoNombre}</Badge></TableCell>
-                  <TableCell>{f.fechaNacimiento}</TableCell>
-                  <TableCell>{f.mismoEnte ? "Sí" : "No"}</TableCell>
-                  <TableCell>{f.heredero ? "Sí" : "No"}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {puedeEditar && (
-                        <Button variant="ghost" size="sm" onClick={() => onEditar(f)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
-                      )}
-                      {puedeEliminar && (
-                        <Button variant="ghost" size="sm" onClick={() => onEliminar(f.id)} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
-                      )}
-                      <DetalleFamiliar familiar={f} />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {!buscado ? (
+        <p className="text-sm text-muted-foreground">Busque un empleado para ver sus cargas familiares.</p>
+      ) : isPending && familiares.length === 0 ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+        </div>
+      ) : (
+        <DataTable
+          columns={columnas}
+          data={familiares}
+          emptyMessage="Sin cargas familiares para este empleado."
+          toolbar={puedeCrear ? <FamiliarFormDialog empleadoCedula={empleadoCedula} onGuardado={() => cargarFamiliares(empleadoCedula)} /> : undefined}
+        />
+      )}
+
+      {viendoDetalle && (
+        <DetalleFamiliar
+          familiar={viendoDetalle}
+          open={detalleAbierto}
+          onOpenChange={setDetalleAbierto}
+          puedeEditar={puedeEditar}
+          onGuardado={(actualizado) => {
+            cargarFamiliares(empleadoCedula);
+            setViendoDetalle(actualizado);
+          }}
+        />
+      )}
     </section>
   );
 }

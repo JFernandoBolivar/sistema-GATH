@@ -1,8 +1,11 @@
 "use client";
 
 /**
- * Vista de detalle (solo lectura) de una carga familiar: datos personales,
- * parentesco, observaciones y documentos adjuntos. Réplica de paridad
+ * Vista de detalle (con edición vía diálogo embebido) de una carga
+ * familiar: datos personales, parentesco, observaciones y documentos
+ * adjuntos. Controlado externamente (`open`/`onOpenChange`) para que el
+ * menú de acciones de `familiares-columns.tsx` lo abra igual que
+ * `EmpleadoDetalleSheet` en `modules/personal`. Réplica de paridad
  * funcional de `dashboard/{gestion-trabajadores,gestion-pasivos}/.../
  * tableFamilys/detail-info.tsx` del legado — con una diferencia deliberada:
  * NO incluye estado civil, formación académica, perfil físico ni salud del
@@ -22,10 +25,9 @@
  * Opera exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
  */
 import { useState } from "react";
-import { Eye, FileText, Loader2, UserRound } from "lucide-react";
+import { FileText, Loader2, UserRound } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
-import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import {
   Sheet,
@@ -37,11 +39,19 @@ import {
 import type { DocumentoFamiliarDTO, FamiliarDTO } from "../application/dtos/familiar-dto";
 import { getDocumentosFamiliarAction } from "../infrastructure/actions/familiares-actions";
 import { etiquetaDocumento, fechaLegible } from "./detalle-familiar-view-model";
+import { FamiliarFormDialog } from "./familiar-form-dialog";
 
 const SIN_DATO = "N/A";
 
-export function DetalleFamiliar({ familiar }: { familiar: FamiliarDTO }) {
-  const [open, setOpen] = useState(false);
+interface DetalleFamiliarProps {
+  familiar: FamiliarDTO;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  puedeEditar: boolean;
+  onGuardado: (familiar: FamiliarDTO) => void;
+}
+
+export function DetalleFamiliar({ familiar, open, onOpenChange, puedeEditar, onGuardado }: DetalleFamiliarProps) {
   const [documentos, setDocumentos] = useState<DocumentoFamiliarDTO[] | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,33 +76,27 @@ export function DetalleFamiliar({ familiar }: { familiar: FamiliarDTO }) {
     <Sheet
       open={open}
       onOpenChange={(siguiente) => {
-        setOpen(siguiente);
+        onOpenChange(siguiente);
         if (siguiente) cargarDocumentos();
       }}
     >
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={() => setOpen(true)}
-        aria-label="Ver detalle"
-      >
-        <Eye className="size-4" aria-hidden="true" />
-      </Button>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>Expediente del familiar</SheetTitle>
         </SheetHeader>
 
         <div className="flex flex-col gap-4 px-4 pb-8">
-          <div className="flex items-center gap-2">
-            <UserRound className="size-5 text-muted-foreground" aria-hidden="true" />
-            <div>
-              <p className="font-semibold">
-                {familiar.primerNombre} {familiar.segundoNombre ?? ""} {familiar.primerApellido} {familiar.segundoApellido ?? ""}
-              </p>
-              <p className="text-sm text-muted-foreground">Cédula: {familiar.cedulaFamiliar ?? SIN_DATO}</p>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <UserRound className="size-5 text-muted-foreground" aria-hidden="true" />
+              <div>
+                <p className="font-semibold">
+                  {familiar.primerNombre} {familiar.segundoNombre ?? ""} {familiar.primerApellido} {familiar.segundoApellido ?? ""}
+                </p>
+                <p className="text-sm text-muted-foreground">Cédula: {familiar.cedulaFamiliar ?? SIN_DATO}</p>
+              </div>
             </div>
+            {puedeEditar && <FamiliarFormDialog familiar={familiar} onGuardado={onGuardado} />}
           </div>
 
           <Card>
