@@ -6,12 +6,14 @@ import type {
   CatalogoCargoItem,
   DenominacionCargo,
   PrestamoCargo,
+  UnidadOrganizativaCargo,
 } from "../../domain/entities/cargo";
 import type {
   CargoApiItem,
   CatalogoApiItem,
   DenominacionApiItem,
   PrestamoApiItem,
+  UnidadOrganizativaApiItem,
 } from "../http/cargos-api";
 
 export function cargoApiAEntidad(raw: CargoApiItem): CargoAsignacion {
@@ -66,4 +68,8 @@ export function prestamoApiAEntidad(raw: PrestamoApiItem): PrestamoCargo {
 
 export function catalogoApiAEntidad(raw: CatalogoApiItem): CatalogoCargoItem {
   return { id: raw.id, nombre: raw.nombre };
+}
+
+export function unidadOrganizativaApiAEntidad(raw: UnidadOrganizativaApiItem): UnidadOrganizativaCargo {
+  return { id: raw.id, codigo: raw.codigo, nombre: raw.nombre };
 }

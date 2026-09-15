@@ -71,9 +71,24 @@ export const denominacionIdSchema = z.object({
   denominacionId: z.number().int().positive({ message: "Denominación inválida" }),
 });
 
+/** Creación de un código de posición vacante (zero-trust R7), réplica del legado (schemaCode). */
+export const crearCargoSchema = z.object({
+  denominacionId: z.number().int().positive({ message: "Seleccione una denominación de cargo" }),
+  especificaId: z.number().int().positive({ message: "Seleccione una denominación de cargo específico" }),
+  tipoNominaId: z.number().int().positive({ message: "Seleccione un tipo de nómina" }),
+  dependenciaId: z.number().int().positive().optional(),
+  direccionGeneralId: z.number().int().positive().optional(),
+  direccionLineaId: z.number().int().positive().optional(),
+  coordinacionId: z.number().int().positive().optional(),
+  organismoId: z.number().int().positive().optional(),
+  gradoId: z.number().int().positive().optional(),
+  observaciones: z.string().trim().max(500, ERROR.MAX_LENGTH(500)).optional(),
+});
+
 export type AsignarCargoFormType = z.infer<typeof asignarCargoSchema>;
 export type CargosFiltroFormType = z.infer<typeof cargosFiltroSchema>;
 export type CambiarCargoFormType = z.infer<typeof cambiarCargoSchema>;
 export type GestionarEstatusFormType = z.infer<typeof gestionarEstatusSchema>;
 export type CrearPrestamoFormType = z.infer<typeof crearPrestamoSchema>;
 export type DenominacionFormType = z.infer<typeof denominacionSchema>;
+export type CrearCargoFormType = z.infer<typeof crearCargoSchema>;

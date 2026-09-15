@@ -50,8 +50,19 @@ export interface PrestamoCargo {
   estaFinalizada: boolean;
 }
 
-/** Item genérico de catálogo (motivos de movimiento / estatus). */
+/** Item genérico de catálogo (motivos de movimiento / estatus / grados / tipos de nómina). */
 export interface CatalogoCargoItem {
   id: number;
+  nombre: string;
+}
+
+/**
+ * Unidad organizativa (dependencia / dirección general / línea /
+ * coordinación) para la cascada de ubicación en "Crear código", réplica de
+ * `DependenciaSerializer`/`DireccionGeneralSerializer`/etc. del backend.
+ */
+export interface UnidadOrganizativaCargo {
+  id: number;
+  codigo: string;
   nombre: string;
 }

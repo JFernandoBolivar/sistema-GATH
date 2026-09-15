@@ -136,6 +136,54 @@ class RepoCargosMemoria implements RepoCargos {
   async listarEstatus(): Promise<CatalogoCargoItem[]> {
     return [{ id: 1, nombre: "ACTIVO" }];
   }
+  async crearCargo(datos: { denominacionId: number; especificaId: number; tipoNominaId: number }) {
+    const c: CargoAsignacion = {
+      id: this.cargos.length + 1,
+      codigo: "COD-NEW",
+      empleadoCedula: null,
+      denominacionId: datos.denominacionId,
+      denominacionNombre: "ANALISTA I",
+      especificaId: datos.especificaId,
+      especificaNombre: "ANALISTA JUNIOR",
+      tipoNominaId: datos.tipoNominaId,
+      tipoNominaNombre: "PRESUPUESTO",
+      estatusId: 2,
+      estatusNombre: "VACANTE",
+      dependenciaId: null,
+      dependenciaNombre: null,
+      direccionGeneralId: null,
+      direccionGeneralNombre: null,
+      direccionLineaId: null,
+      direccionLineaNombre: null,
+      coordinacionId: null,
+      coordinacionNombre: null,
+      observaciones: null,
+      estaVacante: true,
+    };
+    this.cargos.push(c);
+    return c;
+  }
+  async listarTiposNomina(): Promise<CatalogoCargoItem[]> {
+    return [{ id: 1, nombre: "PRESUPUESTO" }];
+  }
+  async listarGrados(): Promise<CatalogoCargoItem[]> {
+    return [{ id: 1, nombre: "GRADO I" }];
+  }
+  async listarOrganismosAdscritos(): Promise<CatalogoCargoItem[]> {
+    return [{ id: 1, nombre: "ORGANISMO X" }];
+  }
+  async listarDependencias() {
+    return [{ id: 1, codigo: "000001", nombre: "NIVEL SUPERIOR" }];
+  }
+  async listarDireccionesGenerales() {
+    return [{ id: 1, codigo: "010000", nombre: "CONSEJO DIRECTIVO" }];
+  }
+  async listarDireccionesLinea() {
+    return [];
+  }
+  async listarCoordinaciones() {
+    return [];
+  }
 }
 
 describe("Casos de uso de Cargos", () => {

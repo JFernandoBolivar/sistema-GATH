@@ -15,12 +15,20 @@ import {
   desasignarCargo,
   gestionarEstatus,
 } from "../../application/use-cases/asignar-cargo";
+import { crearCargo } from "../../application/use-cases/crear-cargo";
 import {
   listarCargos,
+  listarCoordinaciones,
+  listarDependencias,
   listarDenominaciones,
   listarDenominacionesEspecificas,
+  listarDireccionesGenerales,
+  listarDireccionesLinea,
   listarEstatusCargo,
+  listarGrados,
   listarMotivos,
+  listarOrganismosAdscritos,
+  listarTiposNomina,
 } from "../../application/use-cases/listar-cargos";
 import {
   crearPrestamo,
@@ -41,6 +49,7 @@ import {
   cargoIdSchema,
   cargosFiltroSchema,
   cambiarCargoSchema,
+  crearCargoSchema,
   crearPrestamoSchema,
   denominacionIdSchema,
   denominacionSchema,
@@ -369,6 +378,134 @@ export async function eliminarDenominacionEspecificaAction(denominacionId: numbe
     return { success: true as const };
   } catch (error) {
     await logAudit({ traceId, action: "eliminarDenominacionEspecificaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function crearCargoAction(input: {
+  denominacionId: number;
+  especificaId: number;
+  tipoNominaId: number;
+  dependenciaId?: number;
+  direccionGeneralId?: number;
+  direccionLineaId?: number;
+  coordinacionId?: number;
+  organismoId?: number;
+  gradoId?: number;
+  observaciones?: string;
+}) {
+  const validation = crearCargoSchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos del código inválidos. Revise los campos ingresados." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearCargo(repoCargosApi, validation.data);
+    await logAudit({ traceId, action: "crearCargoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "crearCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getTiposNominaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarTiposNomina(repoCargosApi);
+    await logAudit({ traceId, action: "getTiposNominaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTiposNominaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getGradosAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarGrados(repoCargosApi);
+    await logAudit({ traceId, action: "getGradosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getGradosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getOrganismosAdscritosAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarOrganismosAdscritos(repoCargosApi);
+    await logAudit({ traceId, action: "getOrganismosAdscritosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getOrganismosAdscritosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getDependenciasAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarDependencias(repoCargosApi);
+    await logAudit({ traceId, action: "getDependenciasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getDependenciasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getDireccionesGeneralesAction(dependenciaId?: number) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarDireccionesGenerales(repoCargosApi, dependenciaId);
+    await logAudit({ traceId, action: "getDireccionesGeneralesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getDireccionesGeneralesAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getDireccionesLineaAction(direccionGeneralId?: number) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarDireccionesLinea(repoCargosApi, direccionGeneralId);
+    await logAudit({ traceId, action: "getDireccionesLineaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getDireccionesLineaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getCoordinacionesAction(direccionLineaId?: number) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCoordinaciones(repoCargosApi, direccionLineaId);
+    await logAudit({ traceId, action: "getCoordinacionesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCoordinacionesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

@@ -11,6 +11,7 @@ import type {
   CatalogoCargoItem,
   DenominacionCargo,
   PrestamoCargo,
+  UnidadOrganizativaCargo,
 } from "../entities/cargo";
 
 /** Datos de entrada para crear/actualizar una denominación de cargo (Regla R1: tipo propio de domain/). */
@@ -26,6 +27,20 @@ export interface CrearPrestamoInput {
   motivoId: number;
   fechaInicio: string;
   fechaFin: string;
+}
+
+/** Datos de entrada para crear un código de posición vacante (Regla R1: tipo propio de domain/). */
+export interface CrearCargoInput {
+  denominacionId: number;
+  especificaId: number;
+  tipoNominaId: number;
+  dependenciaId?: number;
+  direccionGeneralId?: number;
+  direccionLineaId?: number;
+  coordinacionId?: number;
+  organismoId?: number;
+  gradoId?: number;
+  observaciones?: string;
 }
 
 export interface RepoCargos {
@@ -47,4 +62,12 @@ export interface RepoCargos {
   eliminarDenominacionEspecifica(id: number): Promise<void>;
   listarMotivos(): Promise<CatalogoCargoItem[]>;
   listarEstatus(): Promise<CatalogoCargoItem[]>;
+  crearCargo(input: CrearCargoInput): Promise<CargoAsignacion>;
+  listarTiposNomina(): Promise<CatalogoCargoItem[]>;
+  listarGrados(): Promise<CatalogoCargoItem[]>;
+  listarOrganismosAdscritos(): Promise<CatalogoCargoItem[]>;
+  listarDependencias(): Promise<UnidadOrganizativaCargo[]>;
+  listarDireccionesGenerales(dependenciaId?: number): Promise<UnidadOrganizativaCargo[]>;
+  listarDireccionesLinea(direccionGeneralId?: number): Promise<UnidadOrganizativaCargo[]>;
+  listarCoordinaciones(direccionLineaId?: number): Promise<UnidadOrganizativaCargo[]>;
 }

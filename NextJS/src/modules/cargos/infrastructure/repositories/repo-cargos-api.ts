@@ -1,13 +1,19 @@
 /**
  * Implementación del repositorio de Cargos usando la API REST.
  */
-import type { RepoCargos, CrearPrestamoInput, DenominacionInput } from "../../domain/ports/repo-cargos";
+import type {
+  RepoCargos,
+  CrearCargoInput,
+  CrearPrestamoInput,
+  DenominacionInput,
+} from "../../domain/ports/repo-cargos";
 import { cargosApi } from "../http/cargos-api";
 import {
   cargoApiAEntidad,
   catalogoApiAEntidad,
   denominacionApiAEntidad,
   prestamoApiAEntidad,
+  unidadOrganizativaApiAEntidad,
 } from "../mappers/mapper-cargos";
 
 export const repoCargosApi: RepoCargos = {
@@ -106,5 +112,50 @@ export const repoCargosApi: RepoCargos = {
 
   async listarEstatus() {
     return (await cargosApi.getEstatus()).map(catalogoApiAEntidad);
+  },
+
+  async crearCargo(input: CrearCargoInput) {
+    return cargoApiAEntidad(
+      await cargosApi.crearCargo({
+        denominacion_id: input.denominacionId,
+        especifica_id: input.especificaId,
+        tipo_nomina_id: input.tipoNominaId,
+        dependencia_id: input.dependenciaId,
+        direccion_general_id: input.direccionGeneralId,
+        direccion_linea_id: input.direccionLineaId,
+        coordinacion_id: input.coordinacionId,
+        organismo_id: input.organismoId,
+        grado_id: input.gradoId,
+        observaciones: input.observaciones,
+      }),
+    );
+  },
+
+  async listarTiposNomina() {
+    return (await cargosApi.getTiposNomina()).map(catalogoApiAEntidad);
+  },
+
+  async listarGrados() {
+    return (await cargosApi.getGrados()).map(catalogoApiAEntidad);
+  },
+
+  async listarOrganismosAdscritos() {
+    return (await cargosApi.getOrganismosAdscritos()).map(catalogoApiAEntidad);
+  },
+
+  async listarDependencias() {
+    return (await cargosApi.getDependencias()).map(unidadOrganizativaApiAEntidad);
+  },
+
+  async listarDireccionesGenerales(dependenciaId) {
+    return (await cargosApi.getDireccionesGenerales(dependenciaId)).map(unidadOrganizativaApiAEntidad);
+  },
+
+  async listarDireccionesLinea(direccionGeneralId) {
+    return (await cargosApi.getDireccionesLinea(direccionGeneralId)).map(unidadOrganizativaApiAEntidad);
+  },
+
+  async listarCoordinaciones(direccionLineaId) {
+    return (await cargosApi.getCoordinaciones(direccionLineaId)).map(unidadOrganizativaApiAEntidad);
   },
 };

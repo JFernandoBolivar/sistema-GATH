@@ -59,6 +59,25 @@ export interface CatalogoApiItem {
   nombre: string;
 }
 
+export interface UnidadOrganizativaApiItem {
+  id: number;
+  codigo: string;
+  nombre: string;
+}
+
+export type CrearCargoBody = {
+  denominacion_id: number;
+  especifica_id: number;
+  tipo_nomina_id: number;
+  dependencia_id?: number;
+  direccion_general_id?: number;
+  direccion_linea_id?: number;
+  coordinacion_id?: number;
+  organismo_id?: number;
+  grado_id?: number;
+  observaciones?: string;
+};
+
 export type DenominacionWriteBody = {
   nombre: string;
   orden: number;
@@ -186,5 +205,51 @@ export const cargosApi = {
   getEstatus: () =>
     list<CatalogoApiItem>(
       apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/estatus/"),
+    ),
+
+  crearCargo: (body: CrearCargoBody) =>
+    single<CargoApiItem>(
+      apiClient.post<ApiResponse<CargoApiItem>>("/api/v1/cargos/crear/", body),
+    ),
+
+  getTiposNomina: () =>
+    list<CatalogoApiItem>(
+      apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/tipos-nomina/"),
+    ),
+
+  getGrados: () =>
+    list<CatalogoApiItem>(
+      apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/grados/"),
+    ),
+
+  getOrganismosAdscritos: () =>
+    list<CatalogoApiItem>(
+      apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/organizacion/organismos-adscritos/"),
+    ),
+
+  getDependencias: () =>
+    list<UnidadOrganizativaApiItem>(
+      apiClient.get<ApiResponse<UnidadOrganizativaApiItem[]>>("/api/v1/organizacion/dependencias/"),
+    ),
+
+  getDireccionesGenerales: (dependenciaId?: number) =>
+    list<UnidadOrganizativaApiItem>(
+      apiClient.get<ApiResponse<UnidadOrganizativaApiItem[]>>("/api/v1/organizacion/direcciones-generales/", {
+        params: { dependencia_id: dependenciaId },
+      }),
+    ),
+
+  getDireccionesLinea: (direccionGeneralId?: number) =>
+    list<UnidadOrganizativaApiItem>(
+      apiClient.get<ApiResponse<UnidadOrganizativaApiItem[]>>("/api/v1/organizacion/direcciones-linea/", {
+        params: { direccion_general_id: direccionGeneralId },
+      }),
+    ),
+
+  getCoordinaciones: (direccionLineaId?: number) =>
+    list<UnidadOrganizativaApiItem>(
+      apiClient.get<ApiResponse<UnidadOrganizativaApiItem[]>>("/api/v1/organizacion/coordinaciones/", {
+        params: { direccion_linea_id: direccionLineaId },
+      }),
     ),
 };

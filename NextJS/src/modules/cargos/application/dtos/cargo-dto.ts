@@ -50,10 +50,30 @@ export interface PrestamoCargoDTO {
   estaFinalizada: boolean;
 }
 
-/** Item genérico de catálogo para selects (motivos/estatus). */
+/** Item genérico de catálogo para selects (motivos/estatus/grados/tipos de nómina). */
 export interface CatalogoCargoItemDTO {
   id: number;
   nombre: string;
+}
+
+/** Unidad organizativa (dependencia/dirección general/línea/coordinación) para la cascada de "Crear código". */
+export interface UnidadOrganizativaCargoDTO {
+  id: number;
+  codigo: string;
+  nombre: string;
+}
+
+export interface CrearCargoInputDTO {
+  denominacionId: number;
+  especificaId: number;
+  tipoNominaId: number;
+  dependenciaId?: number;
+  direccionGeneralId?: number;
+  direccionLineaId?: number;
+  coordinacionId?: number;
+  organismoId?: number;
+  gradoId?: number;
+  observaciones?: string;
 }
 
 export interface CambiarCargoInputDTO {
