@@ -2,8 +2,11 @@
 
 /**
  * Página de consulta del historial de movimientos de cargo (solo lectura).
- * Cliente + react-hook-form + zodResolver; la consulta va envuelta en
- * useTransition (R8) y se delega a las Server Actions del módulo (R7). Opera
+ * `DataTable` (tanstack, shared/ui) con menú de acciones por fila (Copiar
+ * código de puesto, Ver detalle) en vez de una tabla HTML plana — paridad
+ * de patrón con `modules/personal`/`modules/familiares`. Cliente +
+ * react-hook-form + zodResolver; la consulta va envuelta en useTransition
+ * (R8) y se delega a las Server Actions del módulo (R7). Opera
  * exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
  * Sin mutaciones: únicamente GET del historial por empleado o por cargo.
  */
@@ -13,7 +16,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
 import { Briefcase, History, Loader2, Search, User } from "lucide-react";
 
-import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import {
   Card,
@@ -22,23 +24,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/components/card";
+import { DataTable } from "@/shared/ui/components/data-table";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/components/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
 import {
   getHistorialPorCargoAction,
   getHistorialPorEmpleadoAction,
 } from "../infrastructure/actions/movimientos-actions";
+import { DetalleMovimiento } from "./detalle-movimiento";
+import { construirColumnasMovimientos } from "./movimientos-columns";
 import {
   historialCargoSchema,
   historialEmpleadoSchema,
@@ -48,32 +45,12 @@ import {
 
 type Consulta = { tipo: "empleado" | "cargo"; valor: string } | null;
 
-function MovimientoRow({ movimiento }: { movimiento: MovimientoCargoDTO }) {
-  return (
-    <TableRow>
-      <TableCell className="font-medium">{movimiento.fechaMovimiento}</TableCell>
-      <TableCell className="font-medium">{movimiento.codigoPuesto}</TableCell>
-      <TableCell>{movimiento.empleadoCedula}</TableCell>
-      <TableCell>
-        <Badge variant="secondary">{movimiento.tipoMovimiento}</Badge>
-      </TableCell>
-      <TableCell>{movimiento.denominacionNombre}</TableCell>
-      <TableCell>{movimiento.especificaNombre}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {movimiento.motivoNombre ?? "—"}
-      </TableCell>
-      <TableCell>{movimiento.estatusNombre}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {movimiento.ejecutadoPorNombre}
-      </TableCell>
-    </TableRow>
-  );
-}
-
 export default function MovimientosPage() {
   const [tab, setTab] = useState<"empleado" | "cargo">("empleado");
   const [consulta, setConsulta] = useState<Consulta>(null);
   const [isPending, startTransition] = useTransition();
+  const [viendoDetalle, setViendoDetalle] = useState<MovimientoCargoDTO | null>(null);
+  const [detalleAbierto, setDetalleAbierto] = useState(false);
 
   const { data: movimientos, error, isLoading, mutate } = useSWR<MovimientoCargoDTO[]>(
     consulta ? `movimientos-${consulta.tipo}-${consulta.valor}` : null,
@@ -226,42 +203,26 @@ export default function MovimientosPage() {
             Reintentar
           </Button>
         </div>
-      ) : (
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Código puesto</TableHead>
-                <TableHead>Cédula</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Denominación</TableHead>
-                <TableHead>Específica</TableHead>
-                <TableHead>Motivo</TableHead>
-                <TableHead>Estatus</TableHead>
-                <TableHead>Ejecutado por</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading || isPending ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
-                    <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              ) : !movimientos?.length ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                    No hay movimientos registrados para la consulta.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                movimientos.map((m) => <MovimientoRow key={m.id} movimiento={m} />)
-              )}
-            </TableBody>
-          </Table>
+      ) : isLoading || isPending ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
         </div>
+      ) : (
+        <DataTable
+          columns={construirColumnasMovimientos((movimiento) => {
+            setViendoDetalle(movimiento);
+            setDetalleAbierto(true);
+          })}
+          data={movimientos ?? []}
+          emptyMessage="No hay movimientos registrados para la consulta."
+        />
       )}
+
+      <DetalleMovimiento
+        movimiento={viendoDetalle}
+        open={detalleAbierto}
+        onOpenChange={setDetalleAbierto}
+      />
     </section>
   );
 }
