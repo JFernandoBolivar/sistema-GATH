@@ -19,17 +19,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/components/card";
+import { DataTable } from "@/shared/ui/components/data-table";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/components/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 
 import type {
@@ -59,6 +52,13 @@ import { buildDistribucionNominaChartData } from "./distribucion-nomina-chart-da
 import { DistribucionNominaPieChart } from "./distribucion-nomina-pie-chart";
 import { buildTendenciaChartData } from "./tendencia-chart-data";
 import { TendenciaLineChart } from "./tendencia-line-chart";
+import {
+  construirColumnasReporteCodigos,
+  construirColumnasReporteFamiliares,
+  construirColumnasReportePasivos,
+  construirColumnasReportePersonal,
+  construirColumnasReporteVacantes,
+} from "./reportes-columnas";
 
 type Tab =
   | "personal"
@@ -181,6 +181,13 @@ export default function ReportesPage() {
     if (tab === "distribucion" && !distribucionCargada) cargarDistribucion();
   }, [tab, distribucionCargada]);
 
+  const columnasPersonal = construirColumnasReportePersonal();
+  const columnasPasivos = construirColumnasReportePasivos();
+  const columnasVacantes = construirColumnasReporteVacantes();
+  const columnasFamiliares = construirColumnasReporteFamiliares();
+  const columnasCodigos = construirColumnasReporteCodigos();
+  const columnasEgresados = construirColumnasReportePasivos();
+
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
       <header className="flex items-center gap-2">
@@ -260,38 +267,7 @@ export default function ReportesPage() {
             <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
             <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
           </div>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cédula</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Dependencia</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Ingreso</TableHead>
-                  <TableHead>APN (años)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {personal.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="h-16 text-center text-muted-foreground">Sin datos para el reporte.</TableCell></TableRow>
-                ) : (
-                  personal.map((r, i) => (
-                    <TableRow key={`${r.cedula}-${i}`}>
-                      <TableCell className="font-medium">{r.cedula}</TableCell>
-                      <TableCell>{r.nombreCompleto}</TableCell>
-                      <TableCell>{r.dependencia}</TableCell>
-                      <TableCell>{r.cargo}</TableCell>
-                      <TableCell>{r.tipoPersonal}</TableCell>
-                      <TableCell>{r.fechaIngreso}</TableCell>
-                      <TableCell>{r.totalAnosApn}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable columns={columnasPersonal} data={personal} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="pasivos">
@@ -299,34 +275,7 @@ export default function ReportesPage() {
             <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
             <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
           </div>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cédula</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Egreso</TableHead>
-                  <TableHead>Motivo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pasivos.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="h-16 text-center text-muted-foreground">Sin datos para el reporte.</TableCell></TableRow>
-                ) : (
-                  pasivos.map((r, i) => (
-                    <TableRow key={`${r.cedula}-${i}`}>
-                      <TableCell className="font-medium">{r.cedula}</TableCell>
-                      <TableCell>{r.nombreCompleto}</TableCell>
-                      <TableCell>{r.tipoPersonal}</TableCell>
-                      <TableCell>{r.fechaEgreso}</TableCell>
-                      <TableCell>{r.motivoEgreso}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable columns={columnasPasivos} data={pasivos} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="vacantes">
@@ -334,32 +283,7 @@ export default function ReportesPage() {
             <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
             <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
           </div>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Denominación</TableHead>
-                  <TableHead>Dependencia</TableHead>
-                  <TableHead>Dirección general</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vacantes.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="h-16 text-center text-muted-foreground">Sin datos para el reporte.</TableCell></TableRow>
-                ) : (
-                  vacantes.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.codigoNomina ?? "—"}</TableCell>
-                      <TableCell>{r.denominacionCargo}</TableCell>
-                      <TableCell>{r.dependencia}</TableCell>
-                      <TableCell>{r.direccionGeneral}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable columns={columnasVacantes} data={vacantes} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="familiares">
@@ -367,36 +291,7 @@ export default function ReportesPage() {
             <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
             <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
           </div>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cédula familiar</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Parentesco</TableHead>
-                  <TableHead>Sexo</TableHead>
-                  <TableHead>Nacimiento</TableHead>
-                  <TableHead>Cédula empleado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {familiares.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Sin datos para el reporte.</TableCell></TableRow>
-                ) : (
-                  familiares.map((r, i) => (
-                    <TableRow key={`${r.cedulaFamiliar}-${i}`}>
-                      <TableCell className="font-medium">{r.cedulaFamiliar}</TableCell>
-                      <TableCell>{r.nombres} {r.apellidos}</TableCell>
-                      <TableCell>{r.parentesco}</TableCell>
-                      <TableCell>{r.sexo}</TableCell>
-                      <TableCell>{r.fechaNacimiento}</TableCell>
-                      <TableCell>{r.cedulaEmpleado}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable columns={columnasFamiliares} data={familiares} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="codigos">
@@ -404,36 +299,7 @@ export default function ReportesPage() {
             <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
             <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
           </div>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Cargo específico</TableHead>
-                  <TableHead>Nómina</TableHead>
-                  <TableHead>Dependencia</TableHead>
-                  <TableHead>Estatus</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {codigos.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="h-16 text-center text-muted-foreground">Sin datos para el reporte.</TableCell></TableRow>
-                ) : (
-                  codigos.map((r, i) => (
-                    <TableRow key={`${r.codigo}-${i}`}>
-                      <TableCell className="font-medium">{r.codigo}</TableCell>
-                      <TableCell>{r.cargo}</TableCell>
-                      <TableCell>{r.cargoEspecifico}</TableCell>
-                      <TableCell>{r.tipoNomina}</TableCell>
-                      <TableCell>{r.dependencia}</TableCell>
-                      <TableCell>{r.estatus}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable columns={columnasCodigos} data={codigos} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="egresados">
@@ -441,34 +307,11 @@ export default function ReportesPage() {
             <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
             <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
           </div>
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cédula</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Egreso</TableHead>
-                  <TableHead>Motivo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {egresados.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="h-16 text-center text-muted-foreground">Sin datos para el reporte. Use los filtros de fecha de egreso y presione &quot;Generar&quot;.</TableCell></TableRow>
-                ) : (
-                  egresados.map((r, i) => (
-                    <TableRow key={`${r.cedula}-${i}`}>
-                      <TableCell className="font-medium">{r.cedula}</TableCell>
-                      <TableCell>{r.nombreCompleto}</TableCell>
-                      <TableCell>{r.tipoPersonal}</TableCell>
-                      <TableCell>{r.fechaEgreso}</TableCell>
-                      <TableCell>{r.motivoEgreso}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={columnasEgresados}
+            data={egresados}
+            emptyMessage='Sin datos para el reporte. Use los filtros de fecha de egreso y presione "Generar".'
+          />
         </TabsContent>
 
         <TabsContent value="tendencias">
