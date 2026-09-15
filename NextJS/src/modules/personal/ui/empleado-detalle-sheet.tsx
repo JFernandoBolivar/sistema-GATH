@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Vista de detalle (solo lectura) del expediente completo de un empleado:
- * datos personales, vivienda, salud, perfil físico, formación académica y
- * complementaria, contacto de emergencia, antecedentes de servicio y
- * contrato actual. Réplica de paridad funcional de
- * `dashboard/gestion-trabajadores/components/employees/tableEmployees/detail-info.tsx`
- * del legado, sin los diálogos de edición (esos ya los cubre el formulario
- * de `personal-page.tsx`). Opera exclusivamente con DTOs (R5) y no importa
- * de `infrastructure/` (R3).
+ * Vista de detalle (solo lectura, con edición vía diálogo) del expediente
+ * completo de un empleado: datos personales, vivienda, salud, perfil
+ * físico, formación académica y complementaria, contacto de emergencia,
+ * antecedentes de servicio y contrato actual. Réplica de paridad funcional
+ * de `dashboard/gestion-trabajadores/components/employees/tableEmployees/detail-info.tsx`
+ * del legado — igual que allá, la edición vive en un diálogo dentro de este
+ * Sheet (`empleado-editar-dialog.tsx`), no en el listado. Opera
+ * exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
  */
 import { FileDown, Loader2 } from "lucide-react";
 
@@ -30,16 +30,22 @@ import {
   TableRow,
 } from "@/shared/ui/components/table";
 
+import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../application/dtos/empleado-dto";
+import EmpleadoEditarDialog from "./empleado-editar-dialog";
 import type { DetalleExpedienteViewModel } from "./expediente-detalle-view-model";
 
 interface EmpleadoDetalleSheetProps {
   detalle: DetalleExpedienteViewModel | null;
+  empleado: EmpleadoDTO | null;
+  catalogos: CatalogosExpedienteDTO | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExportarPdf: () => void;
+  onGuardado: () => void;
   exportandoPdf: boolean;
   /** CC-APP-2026-08-001: RECEPCIONISTA puede ver el detalle pero no exportarlo. */
   puedeExportarPdf: boolean;
+  puedeEditar: boolean;
 }
 
 function FilaInfo({ etiqueta, valor }: { etiqueta: string; valor: string }) {
@@ -53,11 +59,15 @@ function FilaInfo({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 
 export default function EmpleadoDetalleSheet({
   detalle,
+  empleado,
+  catalogos,
   open,
   onOpenChange,
   onExportarPdf,
+  onGuardado,
   exportandoPdf,
   puedeExportarPdf,
+  puedeEditar,
 }: EmpleadoDetalleSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -76,12 +86,17 @@ export default function EmpleadoDetalleSheet({
                 <h2 className="text-lg font-semibold">{detalle.nombreCompleto}</h2>
                 <p className="text-sm text-muted-foreground">Cédula: {detalle.cedula}</p>
               </div>
-              {puedeExportarPdf && (
-                <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf}>
-                  {exportandoPdf ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
-                  PDF
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {puedeEditar && empleado && (
+                  <EmpleadoEditarDialog empleado={empleado} catalogos={catalogos} onGuardado={onGuardado} />
+                )}
+                {puedeExportarPdf && (
+                  <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf}>
+                    {exportandoPdf ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
+                    PDF
+                  </Button>
+                )}
+              </div>
             </div>
 
             <Card>
