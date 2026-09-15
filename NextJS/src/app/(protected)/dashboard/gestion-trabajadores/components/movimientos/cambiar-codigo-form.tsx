@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -253,28 +254,21 @@ export function ChangeCodeForm() {
                               <FormLabel>
                                 Listado De Codigos Disponibles
                               </FormLabel>
-                              <Select
-                                onValueChange={(values) => {
-                                  field.onChange(Number.parseInt(values));
-                                  setSelectedCodeId(Number.parseInt(values));
-                                }}
-                              >
-                                <FormControl>
-                                  <SelectTrigger className="w-full truncate">
-                                    <SelectValue
-                                      placeholder={"Seleccione Un Código"}
-                                    />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {codeList.data.map((codes, i) => (
-                                    <SelectItem key={i} value={`${codes.id}`}>
-                                      {codes.codigo} -{" "}
-                                      {codes.denominacioncargo.cargo}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <Combobox
+                                  options={codeList.data.map((codes) => ({
+                                    value: `${codes.id}`,
+                                    label: `${codes.codigo} - ${codes.denominacioncargo.cargo}`,
+                                  }))}
+                                  value={field.value ? `${field.value}` : ""}
+                                  onChange={(value) => {
+                                    field.onChange(Number.parseInt(value));
+                                    setSelectedCodeId(Number.parseInt(value));
+                                  }}
+                                  placeholder="Seleccione Un Código"
+                                  searchPlaceholder="Buscar codigo o cargo..."
+                                />
+                              </FormControl>
 
                               <FormMessage />
                             </FormItem>

@@ -10,6 +10,7 @@ from .user_views import (
     list_departaments,
     list_rols,
     cambiar_password_primera_vez,
+    frontend_error_view,
 )
 from .rol_views import (
     crear_rol,
@@ -32,4 +33,5 @@ __all__ = [
     'crear_rol',
     'actualizar_rol',
     'eliminar_rol',
+    'frontend_error_view',
 ]

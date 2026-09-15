@@ -7,6 +7,13 @@
     width: 90vw;
     max-width: 600px;
   }
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 @theme inline {
   --color-background: var(--background);

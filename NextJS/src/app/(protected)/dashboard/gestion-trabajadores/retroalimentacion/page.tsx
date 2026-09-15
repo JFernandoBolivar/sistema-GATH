@@ -305,6 +305,7 @@ export default function FeedBack() {
                       valueKey="id"
                       nameSalect="id"
                       placeholder="Seleccione un organismo adscrito"
+                      searchable
                     />
                     <InputForm
                       form={formAdsUpdate}

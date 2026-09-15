@@ -162,11 +162,6 @@ db.sqlite3-journal
 media/
 static/
 
-# Django migrations (si quieres ignorar las migraciones)
-# **/migrations/*.py
-# **/migrations/*.pyc
-# !**/migrations/__init__.py
-
 # VS Code
 .vscode/
 
@@ -177,7 +172,3 @@ static/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-
-**/migrations/
-**/migrations/*.py
-**/migrations/*.pyc

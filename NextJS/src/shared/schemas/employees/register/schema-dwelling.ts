@@ -7,7 +7,7 @@ export const schemaDwelling = z.object({
         message: "Debe Ingresar Información Valida",
         required_error: "Este Campo Es Requerido",
       })
-      .min(3, "La Direccion Exacta Debe Tener Minimo 3 Caracteres"),
+      .min(10, "La Direccion Exacta Debe Tener Minimo 10 Caracteres"),
     estado_id: z
       .number({
         message: "Debe Ingresar Información Valida",
@@ -32,7 +32,7 @@ export const schemaDwelling = z.object({
         required_error: "Este Campo Es Requerido",
       })
       .min(1, "Debe Seleccionar Una Parroquia"),
-    codigo_postal_id: z.coerce.number().min(1, "Seleccione un código postal").optional(),
+    codigo_postal_id: z.coerce.number().min(1, "Seleccione un código postal"),
   }),
 });
 export type DwellingType = z.infer<typeof schemaDwelling>;

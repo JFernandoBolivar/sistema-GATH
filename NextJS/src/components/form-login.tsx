@@ -16,9 +16,7 @@ import {
 import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/input";
 import { loginAction } from "#/actions/auth-actions";
-import { useRouter } from "next/navigation";
 export default function FormRegister() {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<z.infer<typeof signInSchema>>({
@@ -35,7 +33,13 @@ export default function FormRegister() {
       if (response?.error) {
         setError(response.error);
       } else {
-        router.push("/dashboard");
+        // Navegacion dura (no router.push): el Router Cache de Next.js
+        // puede reutilizar una entrada de /dashboard prefetcheada antes del
+        // login (con session=null), y router.refresh()+router.push() corren
+        // en carrera entre si. Un location.href fuerza una carga completa
+        // que re-ejecuta el RootLayout con la sesion ya autenticada, sin lo
+        // cual AuthController nunca programa el temporizador de inactividad.
+        window.location.href = "/dashboard";
       }
     });
   }

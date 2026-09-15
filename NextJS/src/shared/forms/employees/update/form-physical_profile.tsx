@@ -59,6 +59,7 @@ type Props = {
   mutateKey?: string;
     updateInfoEmployee: UpdateEmployeeFn;
   idEmployee: string;
+  onSuccess?: () => void;
 };
 export default function FormUpdatePhysical({
   defaultValues,
@@ -66,6 +67,7 @@ export default function FormUpdatePhysical({
   mutateKey = "api/empleados",
   updateInfoEmployee,
   idEmployee,
+  onSuccess,
 }: Props) {
   const [isPending, startTransition] = useTransition();
   const form = useForm({
@@ -97,7 +99,8 @@ export default function FormUpdatePhysical({
       const response = await updateInfoEmployee(values, idEmployee);
       if (response.success) {
         toast.success(response.message);
-        mutate([mutateKey, searchParams]);
+        await mutate([mutateKey, searchParams]);
+        onSuccess?.();
       } else {
         toast.error(response.message);
       }

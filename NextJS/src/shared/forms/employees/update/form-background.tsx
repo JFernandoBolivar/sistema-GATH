@@ -92,7 +92,7 @@ export default function FormUpdateBackground({
       const response = await updateInfoEmployee(values, idEmployee);
       if (response.success) {
         toast.success(response.message);
-        mutate([mutateKey, searchParams]);
+        await mutate([mutateKey, searchParams]);
       } else {
         toast.error(response.message);
       }

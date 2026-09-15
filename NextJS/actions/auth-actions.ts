@@ -4,6 +4,7 @@ import { z } from "zod";
 import { signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { cookies } from "next/headers";
+import { ensureValidAccessToken } from "@/lib/api-client";
 
 const AUTH_COOKIE_PREFIXES = [
   "authjs.session-token",
@@ -132,4 +133,9 @@ export const clearAuthCookies = async () => {
   const cookieStore = await cookies();
   deleteAuthCookies(cookieStore);
   return { success: true };
+};
+
+export const extendSessionAction = async () => {
+  const ok = await ensureValidAccessToken();
+  return { success: ok };
 };

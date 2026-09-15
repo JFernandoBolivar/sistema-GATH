@@ -200,9 +200,9 @@ class EmployeePassivePDFGenerator(BasePDFGenerator):
             return format_date(primer_contrato.fecha_ingreso)
         return "N/A"
     def _get_anos_apn(self, employee):
-        anos = getattr(employee, 'total_anos_apn', 'N/A') 
-        try: return str(int(anos)) if anos not in [None, 'N/A'] else 'N/A'
-        except: return str(anos)
+        from RAC.utils.tiempo_servicio import calcular_total_apn_anios
+        try: return str(calcular_total_apn_anios(employee))
+        except Exception: return 'N/A'
     def _get_sexo(self, employee):
         sexo_obj = getattr(employee, 'sexoid', None)
         sexo_texto = str(getattr(sexo_obj, 'sexo', 'N/A')).upper()

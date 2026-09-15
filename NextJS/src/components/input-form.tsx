@@ -7,6 +7,7 @@ import {
   FormMessage,
 } from "./ui/form";
 import { FieldValues, Path, UseFormReturn } from "react-hook-form";
+import type { HTMLAttributes } from "react";
 import { Input } from "./ui/input";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ interface Props<T extends FieldValues> {
   description?: string;
   type: string;
   className?: string;
+  inputMode?: HTMLAttributes<HTMLInputElement>["inputMode"];
 }
 export default function InputForm<T extends FieldValues>({
   form,
@@ -27,6 +29,7 @@ export default function InputForm<T extends FieldValues>({
   placeholder,
   type,
   className,
+  inputMode,
 }: Props<T>) {
   return (
     <>
@@ -37,7 +40,12 @@ export default function InputForm<T extends FieldValues>({
           <FormItem className={cn(className)}>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholder} type={type} />
+              <Input
+                {...field}
+                placeholder={placeholder}
+                type={type}
+                inputMode={inputMode}
+              />
             </FormControl>
             {description !== undefined && (
               <FormDescription>{description}</FormDescription>

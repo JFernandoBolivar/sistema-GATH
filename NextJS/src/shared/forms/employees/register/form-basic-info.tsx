@@ -208,7 +208,7 @@ export function FormBasicInfo({
                   <div className="flex-1">
                     <InputForm
                       form={form}
-                      label="Carnet de la Patria"
+                      label="Código del Carnet de la Patria"
                       nameInput="carnet_patria"
                       placeholder="0000000000"
                       type="text"
