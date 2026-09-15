@@ -22,24 +22,21 @@ export default proxy((req) => {
     (puede(permisos, "personal.ver") && !puede(permisos, "personal.crear"));
 
   // Rutas que puede abrir un recepcionista / usuario de solo lectura.
-  // El legado de "empleado"/"pasivo" (listado + detalle) ya se retiró por
-  // completo (CC-APP-2026-08-001: modules/personal y modules/pasivos cubren
-  // consulta + detalle con permisos personal.ver_detalle/pasivos.ver que
-  // este rol ya tiene, y ocultan la exportación de PDF que el CC exige
-  // restringir), por lo que se redirige a los módulos nuevos. "/dashboard"
-  // se conserva como shell/selector de inicio (aún no tiene equivalente en
-  // la arquitectura nueva). Las 2 rutas de consulta de familiares (activo y
-  // pasivo) SÍ se conservan del legado: modules/familiares todavía no tiene
-  // gating de permisos (muestra editar/eliminar sin condición alguna) y
-  // exponer ese módulo a este rol sería una regresión real, así que su
-  // pantalla legado de solo-lectura (sin acciones de editar/eliminar) sigue
-  // siendo la única forma segura de darle acceso a `familiares.ver`.
+  // El legado de "empleado"/"pasivo"/"familiares" (listado + detalle) ya se
+  // retiró por completo (CC-APP-2026-08-001: modules/personal y
+  // modules/pasivos cubren consulta + detalle con permisos
+  // personal.ver_detalle/pasivos.ver que este rol ya tiene, y ocultan la
+  // exportación de PDF que el CC exige restringir; modules/familiares ya
+  // tiene gating de permisos -- oculta editar/eliminar sin
+  // familiares.editar/eliminar, que este rol no tiene -- y una vista de
+  // detalle equivalente a la del legado), por lo que se redirige a los
+  // módulos nuevos. "/dashboard" se conserva como shell/selector de inicio
+  // (aún no tiene equivalente en la arquitectura nueva).
   const RUTAS_RECEPCIONISTA = [
     "/dashboard",
     "/personal",
     "/pasivos",
-    "/dashboard/gestion-trabajadores/personal-trabajador/familiares/consultar",
-    "/dashboard/gestion-pasivos/personal-jubilado/familiares/consultar",
+    "/familiares",
   ];
 
   if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
