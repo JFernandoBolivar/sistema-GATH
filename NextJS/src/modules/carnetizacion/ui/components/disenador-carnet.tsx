@@ -44,10 +44,8 @@ import {
 } from "@/shared/ui/components/select";
 
 import type { CarnetDTO, DatosCarnetEmpleadoDTO, PlantillaCarnetDTO } from "../../application/dtos/carnet-dto";
-import {
-  generarHtmlVistaPrevia,
-  truncarNombre,
-} from "../../application/use-cases/disenar-carnet";
+import { truncarNombre } from "../../application/use-cases/disenar-carnet";
+import { CarnetVistaPrevia } from "./carnet-vista-previa";
 import {
   buscarEmpleadoParaCarnetAction,
   descargarPdfCarnetAction,
@@ -180,18 +178,6 @@ export function DisenadorCarnet({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Generación del HTML de la vista previa del carnet
-  const htmlPreview = useMemo(() => {
-    return generarHtmlVistaPrevia({
-      cedula: cedulaActiva || cedulaInput || "00000000",
-      nombreCompleto: nombreDebounced.trim() || (cedulaActiva ? "TITULAR" : ""),
-      codigo: codigo.trim(),
-      cargo: cargo.trim(),
-      departamento: departamento.trim(),
-      fotoUrl,
-      plantillaUrl: plantillaActiva?.imagenUrl ?? null,
-    });
-  }, [cedulaActiva, cedulaInput, nombreDebounced, codigo, cargo, departamento, fotoUrl, plantillaActiva]);
 
   // Envío final contra la Server Action del módulo
   const handleEmitir = () => {
@@ -502,10 +488,17 @@ export function DisenadorCarnet({
             <CardContent className="flex flex-col items-center justify-center p-4">
               {cedulaActiva || cedulaInput ? (
                 <div className="flex flex-col items-center">
-                  <div
-                    className="flex justify-center transition-all duration-300"
-                    dangerouslySetInnerHTML={{ __html: htmlPreview }}
-                  />
+                  <div className="flex justify-center transition-all duration-300">
+                    <CarnetVistaPrevia
+                      cedula={cedulaActiva || cedulaInput || "00000000"}
+                      nombreCompleto={nombreDebounced.trim() || (cedulaActiva ? "TITULAR" : "")}
+                      codigo={codigo.trim()}
+                      cargo={cargo.trim()}
+                      departamento={departamento.trim()}
+                      fotoUrl={fotoUrl}
+                      plantillaUrl={plantillaActiva?.imagenUrl ?? null}
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground text-center mt-3 max-w-xs leading-relaxed">
                     Solo el nombre es editable. Cédula, código, cargo y dirección general se cargan automáticamente.
                   </p>

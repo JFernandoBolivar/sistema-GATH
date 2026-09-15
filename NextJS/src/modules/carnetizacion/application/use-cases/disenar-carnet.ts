@@ -28,18 +28,42 @@ export interface GenerarHtmlVistaPreviaInput {
 }
 
 /**
+ * Escapa caracteres especiales en cadenas de texto para prevenir inyección HTML / XSS (OWASP A03 / C1).
+ */
+export function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * Sanitiza URLs para prevenir ataques mediante esquemas no seguros (ej. javascript:).
+ */
+export function sanitizeUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (/^(?:https?:\/\/|\/|data:image\/)/i.test(trimmed)) {
+    return trimmed;
+  }
+  return null;
+}
+
+/**
  * Genera el markup HTML autocontenido con las proporciones físicas
  * de una tarjeta de identificación vertical CR80 (55mm x 85.6mm).
- * Compatible con dangerouslySetInnerHTML tal como en el legado.
+ * Aplica escape HTML estricto a todos los campos para neutralizar XSS.
  */
 export function generarHtmlVistaPrevia(datos: GenerarHtmlVistaPreviaInput): string {
-  const cedula = datos.cedula.trim() || "00000000";
-  const nombre = (datos.nombreCompleto.trim() || "NOMBRE DEL TITULAR").toUpperCase();
-  const cargo = (datos.cargo?.trim() || "CARGO NO ASIGNADO").toUpperCase();
-  const departamento = (datos.departamento?.trim() || "DIRECCIÓN GENERAL").toUpperCase();
-  const codigo = datos.codigo?.trim();
-  const fotoUrl = datos.fotoUrl;
-  const plantillaUrl = datos.plantillaUrl;
+  const cedula = escapeHtml(datos.cedula.trim() || "00000000");
+  const nombre = escapeHtml((datos.nombreCompleto.trim() || "NOMBRE DEL TITULAR").toUpperCase());
+  const cargo = escapeHtml((datos.cargo?.trim() || "CARGO NO ASIGNADO").toUpperCase());
+  const departamento = escapeHtml((datos.departamento?.trim() || "DIRECCIÓN GENERAL").toUpperCase());
+  const codigo = datos.codigo?.trim() ? escapeHtml(datos.codigo.trim()) : undefined;
+  const fotoUrl = sanitizeUrl(datos.fotoUrl);
+  const plantillaUrl = sanitizeUrl(datos.plantillaUrl);
 
   const bgStyle = plantillaUrl
     ? `background-image: url('${plantillaUrl}'); background-size: cover; background-position: center;`

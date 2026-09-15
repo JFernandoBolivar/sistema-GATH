@@ -3,8 +3,10 @@ import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
 import type { Carnet, DatosCarnetEmpleado, EstadisticasCarnet, PlantillaCarnet } from "../../domain/entities/carnet";
 import {
   construirVistaPreviaCarnet,
+  escapeHtml,
   generarHtmlVistaPrevia,
   obtenerDatosEmpleadoParaCarnet,
+  sanitizeUrl,
   truncarNombre,
 } from "./disenar-carnet";
 
@@ -76,6 +78,61 @@ describe("Diseñador de carnet — Use cases", () => {
         plantillaUrl: "https://example.com/plantilla.png",
       });
       expect(html).toContain("https://example.com/plantilla.png");
+    });
+
+    it("mitiga XSS escapando caracteres HTML en nombre, cargo y departamento (C1 / OWASP A03)", () => {
+      const payloadXss = '"><img src=x onerror="alert(1)">';
+      const html = generarHtmlVistaPrevia({
+        cedula: "12345678",
+        nombreCompleto: payloadXss,
+        cargo: '<script>alert("xss")</script>',
+        departamento: '<b>Depto</b>',
+      });
+      // Verifica que no se inyecten tags HTML sin escapar
+      expect(html).not.toContain('<img src=x onerror="alert(1)">');
+      expect(html).not.toContain('<script>alert("xss")</script>');
+      expect(html).not.toContain('<b>Depto</b>');
+      // Verifica que los caracteres peligrosos estén escapados como entidades HTML
+      expect(html).toContain("&quot;&gt;&lt;IMG SRC=X ONERROR=&quot;ALERT(1)&quot;&gt;");
+      expect(html).toContain("&lt;SCRIPT&gt;ALERT(&quot;XSS&quot;)&lt;/SCRIPT&gt;");
+      expect(html).toContain("&lt;B&gt;DEPTO&lt;/B&gt;");
+    });
+
+    it("neutraliza URLs con pseudo-protocolo javascript: en fotos y plantillas (C1 / OWASP A03)", () => {
+      const html = generarHtmlVistaPrevia({
+        cedula: "12345678",
+        nombreCompleto: "Pedro Pérez",
+        fotoUrl: "javascript:alert(document.cookie)",
+        plantillaUrl: "javascript:alert(1)",
+      });
+      expect(html).not.toContain("javascript:");
+      // Debe usar el fallback seguro de foto SVG
+      expect(html).toContain("FOTO");
+    });
+  });
+
+  describe("escapeHtml y sanitizeUrl (Seguridad)", () => {
+    it("escapa caracteres especiales HTML correctamente", () => {
+      expect(escapeHtml('<script>alert("test") & \'hack\'</script>')).toBe(
+        "&lt;script&gt;alert(&quot;test&quot;) &amp; &#039;hack&#039;&lt;/script&gt;"
+      );
+    });
+
+    it("permite URLs seguras con http, https, data:image y relativas", () => {
+      expect(sanitizeUrl("https://conatel.gob.ve/logo.png")).toBe("https://conatel.gob.ve/logo.png");
+      expect(sanitizeUrl("http://localhost:3000/foto.jpg")).toBe("http://localhost:3000/foto.jpg");
+      expect(sanitizeUrl("data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==")).toBe(
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=="
+      );
+      expect(sanitizeUrl("/plantillas/oficial.png")).toBe("/plantillas/oficial.png");
+    });
+
+    it("bloquea URLs inseguras devolviendo null", () => {
+      expect(sanitizeUrl("javascript:alert(1)")).toBeNull();
+      expect(sanitizeUrl("data:text/html,<script>alert(1)</script>")).toBeNull();
+      expect(sanitizeUrl("vbscript:msgbox(1)")).toBeNull();
+      expect(sanitizeUrl(null)).toBeNull();
+      expect(sanitizeUrl(undefined)).toBeNull();
     });
   });
 
