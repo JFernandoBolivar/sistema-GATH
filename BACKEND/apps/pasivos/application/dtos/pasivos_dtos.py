@@ -17,7 +17,9 @@ class PasivoDTO:
     observaciones: str | None = None
     datos_vivienda: dict | None = None
     perfil_salud: dict | None = None
+    perfil_fisico: dict | None = None
     formacion_academica: list = field(default_factory=list)
+    formacion_complementaria: list = field(default_factory=list)
     contacto_emergencia: list = field(default_factory=list)
     antecedentes: list = field(default_factory=list)
     contrato_actual: dict | None = None
