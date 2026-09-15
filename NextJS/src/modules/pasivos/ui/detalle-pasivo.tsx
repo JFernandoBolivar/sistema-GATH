@@ -7,12 +7,28 @@
  * `dashboard/gestion-pasivos/components/pasive/tablePasive/detail-info.tsx`
  * del legado — a diferencia de aquel, es de solo lectura (modules/pasivos no
  * tiene casos de uso de edición de expediente, solo `procesarEgreso`).
+ * Controlado externamente (`open`/`onOpenChange`), mismo patrón que
+ * `DetalleFamiliar`/`EmpleadoDetalleSheet`, para que el menú de acciones de
+ * `pasivos-columns.tsx` lo abra.
  *
  * No incluye foto de perfil: ningún módulo migrado expone todavía una
  * acción de *lectura* de foto (solo `subirFotoEmpleadoAction` en
  * modules/personal), a diferencia del legado que la obtenía de
  * `gestion-trabajadores/api/getInfoRac.ts`. Queda fuera de alcance de esta
  * tarea (gap de plataforma, no específico de pasivos).
+ *
+ * Tampoco incluye "Formación complementaria": el backend ya la agregó a
+ * `Pasivo`/`PasivoDTO` (fix de PLAN_RECONSTRUCCION_UI_2026-09-15.md §2.1,
+ * que desbloqueó perfil físico y esta sección), pero el dominio/DTO
+ * *frontend* de este módulo (`domain/entities/pasivo.ts`,
+ * `application/dtos/pasivos-dto.ts`) nunca llegó a modelarla, y sus
+ * catálogos de resolución (capacitaciones, procedencia, grupo) tampoco
+ * existen en `CatalogosExpedientePasivo` — a diferencia de perfil físico,
+ * que sí estaba completamente cableado en el frontend y solo esperaba el
+ * fix del backend. Añadirla exigiría además ampliar el endpoint de
+ * catálogos de `apps.pasivos` (backend), fuera del alcance "ui/" de esta
+ * tarea y en paralelo a otro worker editando ese mismo módulo. Se
+ * documenta como brecha, no se fabrica con catálogos a medias.
  */
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
@@ -30,7 +46,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/shared/ui/components/sheet";
 import {
   Table,
@@ -69,18 +84,24 @@ function fechaLegible(fecha?: string | null): string {
   return d.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-export function DetallePasivo({ cedula }: { cedula: string }) {
+interface DetallePasivoProps {
+  cedula: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps) {
   const { data: session } = useSession();
   // CC-APP-2026-08-001: RECEPCIONISTA puede ver el detalle pero no exportarlo.
   const puedeExportarPdf = tienePermiso(session?.user?.permisos, "pasivos.exportar_pdf");
-  const [open, setOpen] = useState(false);
   const [pasivo, setPasivo] = useState<PasivoDTO | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosExpedientePasivoDTO | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open || pasivo) return;
+    if (!open || !cedula || pasivo?.cedula === cedula) return;
+    setPasivo(null);
     setCargando(true);
     setError(null);
     Promise.all([getPasivoPorCedulaAction(cedula), getCatalogosExpedientePasivoAction()])
@@ -97,12 +118,7 @@ export function DetallePasivo({ cedula }: { cedula: string }) {
   }, [open, pasivo, cedula]);
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
-          Ver detalle
-        </Button>
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
         <ScrollArea className="h-full">
           <SheetHeader>

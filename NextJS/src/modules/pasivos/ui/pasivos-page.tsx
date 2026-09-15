@@ -2,10 +2,13 @@
 
 /**
  * Página de consulta de trabajadores pasivos (jubilados/pensionados) y
- * gestión de la transición activo → pasivo. Cliente + react-hook-form +
- * zodResolver; las acciones van envueltas en useTransition (R8) y se delegan
- * a las Server Actions del módulo (R7). Opera exclusivamente con DTOs (R5) y
- * no importa de `infrastructure/` (R3).
+ * gestión de la transición activo → pasivo. `DataTable` (tanstack,
+ * shared/ui) con menú de acciones por fila (Copiar cédula, Ver detalle) en
+ * vez de un botón "Ver detalle" suelto por fila — paridad de patrón con
+ * `modules/personal`/`modules/familiares`/`modules/movimientos`. Cliente +
+ * react-hook-form + zodResolver; las acciones van envueltas en useTransition
+ * (R8) y se delegan a las Server Actions del módulo (R7). Opera
+ * exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
  */
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
@@ -16,7 +19,6 @@ import { Loader2, LogOut, Search, UserRound } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
-import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import {
   Card,
@@ -26,6 +28,7 @@ import {
   CardTitle,
 } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
+import { DataTable } from "@/shared/ui/components/data-table";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -36,14 +39,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/components/table";
 
 import type { CatalogoPasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
 import { DetallePasivo } from "./detalle-pasivo";
@@ -53,35 +48,13 @@ import {
   getTiposNominaAction,
   procesarEgresoAction,
 } from "../infrastructure/actions/pasivos-actions";
+import { construirColumnasPasivos } from "./pasivos-columns";
 import {
   listadoPasivosSchema,
   procesarEgresoSchema,
   type ListadoPasivosFormType,
   type ProcesarEgresoFormType,
 } from "./schema/schema-pasivo";
-
-function PasivoRow({ pasivo }: { pasivo: PasivoDTO }) {
-  return (
-    <TableRow>
-      <TableCell className="font-medium">{pasivo.cedula}</TableCell>
-      <TableCell>
-        {pasivo.nombres} {pasivo.apellidos}
-      </TableCell>
-      <TableCell>
-        <Badge variant="secondary">{pasivo.tipoPasivo}</Badge>
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {pasivo.fechaEgreso ?? "—"}
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {pasivo.resolucion ?? "—"}
-      </TableCell>
-      <TableCell>
-        <DetallePasivo cedula={pasivo.cedula} />
-      </TableCell>
-    </TableRow>
-  );
-}
 
 function CatalogSelect({
   id,
@@ -123,6 +96,8 @@ export default function PasivosPage() {
   const [tiposNomina, setTiposNomina] = useState<CatalogoPasivoDTO[]>([]);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [cedulaDetalle, setCedulaDetalle] = useState<string | null>(null);
+  const [detalleAbierto, setDetalleAbierto] = useState(false);
 
   const form = useForm<ListadoPasivosFormType>({
     resolver: zodResolver(listadoPasivosSchema),
@@ -311,43 +286,28 @@ export default function PasivosPage() {
         </CardContent>
       </Card>
 
-      <div className="overflow-hidden rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cédula</TableHead>
-              <TableHead>Nombre completo</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Fecha de egreso</TableHead>
-              <TableHead>Resolución</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : errorLista ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-destructive">
-                  No fue posible cargar el listado de pasivos.
-                </TableCell>
-              </TableRow>
-            ) : !pasivos?.length ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  No hay trabajadores pasivos registrados.
-                </TableCell>
-              </TableRow>
-            ) : (
-              pasivos.map((p) => <PasivoRow key={p.id} pasivo={p} />)
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+        </div>
+      ) : errorLista ? (
+        <p className="text-sm text-destructive">No fue posible cargar el listado de pasivos.</p>
+      ) : (
+        <DataTable
+          columns={construirColumnasPasivos((cedula) => {
+            setCedulaDetalle(cedula);
+            setDetalleAbierto(true);
+          })}
+          data={pasivos ?? []}
+          emptyMessage="No hay trabajadores pasivos registrados."
+        />
+      )}
+
+      <DetallePasivo
+        cedula={cedulaDetalle}
+        open={detalleAbierto}
+        onOpenChange={setDetalleAbierto}
+      />
     </section>
   );
 }
