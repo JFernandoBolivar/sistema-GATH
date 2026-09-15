@@ -1,5 +1,5 @@
 import LoginForm from "@/modules/auth/ui/login-form";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/shared/ui/components/card";
 import Link from "next/link";
 import Image from "next/image";
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Boxes, Home } from "lucide-react";
-import { SignOut } from "@/components/signout-button";
+import LogoutButton from "@/modules/auth/ui/logout-button";
 
 const SECCIONES = [
   { href: "/inicio", label: "Inicio" },
@@ -44,7 +44,7 @@ export function AppNav() {
         </Link>
       ))}
       <div className="mt-4 px-2">
-        <SignOut />
+        <LogoutButton />
       </div>
     </nav>
   );

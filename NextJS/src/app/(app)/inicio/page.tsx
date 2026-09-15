@@ -1,31 +1,9 @@
 "use client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Loading from "@/shared/ui/components/loading";
+import CambiarPasswordDialog from "@/modules/auth/ui/cambiar-password-dialog";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { useState, useTransition, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { cambiarPasswordFormSchema } from "@/modules/auth/ui/schema/schema-cambiar-password";
-import { cambiarPasswordAction } from "@/modules/auth/infrastructure/actions/auth-actions";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
 
 const MODULOS = [
   { href: "/usuarios", label: "Identidad / Usuarios", desc: "Gestión de cuentas y permisos" },
@@ -46,36 +24,12 @@ export default function InicioPage() {
   const { data: session, status, update: updateSession } = useSession();
 
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [isChangingPass, startChangePass] = useTransition();
-
-  const changeForm = useForm<z.infer<typeof cambiarPasswordFormSchema>>({
-    resolver: zodResolver(cambiarPasswordFormSchema),
-    defaultValues: {
-      current_password: "",
-      new_password: "",
-      confirm_password: "",
-    },
-  });
 
   useEffect(() => {
     if (session?.user?.debeCambiarPassword) {
       setShowChangePassword(true);
     }
   }, [session?.user?.debeCambiarPassword]);
-
-  async function onChangePassword(values: z.infer<typeof cambiarPasswordFormSchema>) {
-    startChangePass(async () => {
-      const response = await cambiarPasswordAction(values);
-      if (response.success) {
-        await updateSession({ debeCambiarPassword: false });
-        setShowChangePassword(false);
-      } else {
-        changeForm.setError("current_password", {
-          message: response.message || "Error al cambiar la contraseña",
-        });
-      }
-    });
-  }
 
   if (status === "loading") {
     return <Loading promiseMessage="Cargando Sesion" />;
@@ -100,77 +54,13 @@ export default function InicioPage() {
         ))}
       </div>
 
-      <Dialog
+      <CambiarPasswordDialog
         open={showChangePassword}
-        onOpenChange={(open) => {
-          if (!open) return;
-          setShowChangePassword(open);
+        onCambiada={() => {
+          updateSession({ debeCambiarPassword: false });
+          setShowChangePassword(false);
         }}
-      >
-        <DialogContent
-          className="sm:max-w-md"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>Cambiar Contraseña</DialogTitle>
-            <DialogDescription>
-              Debe cambiar su contraseña para continuar. Esta es una medida de
-              seguridad obligatoria.
-            </DialogDescription>
-          </DialogHeader>
-
-          <Form {...changeForm}>
-            <form
-              onSubmit={changeForm.handleSubmit(onChangePassword)}
-              className="gap-4"
-            >
-              <FormField
-                control={changeForm.control}
-                name="current_password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contraseña Actual</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={changeForm.control}
-                name="new_password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nueva Contraseña</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={changeForm.control}
-                name="confirm_password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirmar Contraseña</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" disabled={isChangingPass} className="w-full">
-                {isChangingPass ? "Cambiando..." : "Cambiar Contraseña"}
-              </Button>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      />
     </section>
   );
 }
