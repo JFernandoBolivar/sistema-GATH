@@ -10,7 +10,7 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
-import { FileText, Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
@@ -35,12 +35,11 @@ import {
   TableRow,
 } from "@/shared/ui/components/table";
 
-import type { DocumentoFamiliarDTO, FamiliarDTO, GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
+import type { FamiliarDTO, GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
 import {
   actualizarFamiliarAction,
   crearFamiliarAction,
   eliminarFamiliarAction,
-  getDocumentosFamiliarAction,
   getFamiliaresPorEmpleadoAction,
 } from "../infrastructure/actions/familiares-actions";
 import {
@@ -48,6 +47,7 @@ import {
   familiarSchema,
   type FamiliarFormType,
 } from "./schema/schema-familiar";
+import { DetalleFamiliar } from "./detalle-familiar";
 
 export default function FamiliaresPage() {
   const { data: session } = useSession();
@@ -57,7 +57,6 @@ export default function FamiliaresPage() {
   const puedeEliminar = tienePermiso(permisos, "familiares.eliminar");
 
   const [familiares, setFamiliares] = useState<FamiliarDTO[]>([]);
-  const [documentos, setDocumentos] = useState<DocumentoFamiliarDTO[]>([]);
   const [empleadoCedula, setEmpleadoCedula] = useState<string>("");
   const [editando, setEditando] = useState<FamiliarDTO | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -91,7 +90,6 @@ export default function FamiliaresPage() {
 
   const onBuscar = (data: { cedula: string }) => {
     setEmpleadoCedula(data.cedula);
-    setDocumentos([]);
     cargarFamiliares(data.cedula);
   };
 
@@ -148,18 +146,6 @@ export default function FamiliaresPage() {
       mismoEnte: f.mismoEnte,
       heredero: f.heredero,
       observaciones: f.observaciones,
-    });
-  };
-
-  const onDocumentos = (id: number) => {
-    startTransition(async () => {
-      setError(null);
-      const resultado = await getDocumentosFamiliarAction(id);
-      if (resultado && typeof resultado === "object" && "error" in resultado) {
-        setError((resultado as { error: string }).error);
-        return;
-      }
-      setDocumentos(resultado as DocumentoFamiliarDTO[]);
     });
   };
 
@@ -290,7 +276,7 @@ export default function FamiliaresPage() {
                       {puedeEliminar && (
                         <Button variant="ghost" size="sm" onClick={() => onEliminar(f.id)} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => onDocumentos(f.id)} disabled={isPending}><FileText className="size-4" aria-hidden="true" /></Button>
+                      <DetalleFamiliar familiar={f} />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -299,29 +285,6 @@ export default function FamiliaresPage() {
           </TableBody>
         </Table>
       </div>
-
-      {documentos.length > 0 && (
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Ruta</TableHead>
-                <TableHead>Fecha de subida</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {documentos.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.tipoDocumento}</TableCell>
-                  <TableCell>{d.rutaArchivo}</TableCell>
-                  <TableCell>{d.fechaSubida}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
     </section>
   );
 }
