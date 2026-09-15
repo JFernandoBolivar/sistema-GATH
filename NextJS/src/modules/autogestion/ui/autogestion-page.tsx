@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/components/card";
+import { DataTable } from "@/shared/ui/components/data-table";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -49,6 +50,7 @@ import {
 import { CensoBarrasChart } from "./censo-barras-chart";
 import { buildCensoMetricasChartData } from "./censo-metricas-chart-data";
 import { CensoDonutChart } from "./censo-donut-chart";
+import { construirColumnasReporteDependencias } from "./autogestion-columnas";
 
 export default function AutogestionPage() {
   const [preguntas, setPreguntas] = useState<PreguntaCensoDTO[]>([]);
@@ -142,6 +144,8 @@ export default function AutogestionPage() {
       window.URL.revokeObjectURL(url);
     });
   };
+
+  const columnasReporteDependencias = construirColumnasReporteDependencias();
 
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
@@ -270,30 +274,11 @@ export default function AutogestionPage() {
         </TabsContent>
 
         <TabsContent value="reporte">
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dependencia</TableHead>
-                  <TableHead>Total empleados</TableHead>
-                  <TableHead>Empleados censados</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reporte.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="h-16 text-center text-muted-foreground">Sin datos de reporte.</TableCell></TableRow>
-                ) : (
-                  reporte.map((r) => (
-                    <TableRow key={r.dependenciaId}>
-                      <TableCell className="font-medium">{r.dependencia}</TableCell>
-                      <TableCell>{r.totalEmpleados}</TableCell>
-                      <TableCell>{r.empleadosCensados}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            columns={columnasReporteDependencias}
+            data={reporte}
+            emptyMessage="Sin datos de reporte."
+          />
         </TabsContent>
 
         <TabsContent value="metricas">
@@ -355,30 +340,12 @@ export default function AutogestionPage() {
                   <CardDescription>Empleados censados respecto al total por dependencia.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-hidden rounded-lg border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Dependencia</TableHead>
-                          <TableHead>Total empleados</TableHead>
-                          <TableHead>Empleados censados</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {metricas.porDependencia.length === 0 ? (
-                          <TableRow><TableCell colSpan={3} className="h-16 text-center text-muted-foreground">Sin datos por dependencia.</TableCell></TableRow>
-                        ) : (
-                          metricas.porDependencia.map((r) => (
-                            <TableRow key={r.dependenciaId}>
-                              <TableCell className="font-medium">{r.dependencia}</TableCell>
-                              <TableCell>{r.totalEmpleados}</TableCell>
-                              <TableCell>{r.empleadosCensados}</TableCell>
-                            </TableRow>
-                          ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <DataTable
+                    columns={columnasReporteDependencias}
+                    data={metricas.porDependencia}
+                    emptyMessage="Sin datos por dependencia."
+                    hideColumnsMenu
+                  />
                 </CardContent>
               </Card>
             </div>
