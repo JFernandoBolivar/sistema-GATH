@@ -9,6 +9,7 @@ from apps.cargos.domain.entities.cargo_asignacion import CargoAsignacion
 from apps.cargos.domain.entities.denominacion_cargo import DenominacionCargo
 from apps.cargos.domain.entities.denominacion_especifica import DenominacionEspecifica
 from apps.cargos.domain.services.generacion_codigo import (
+    generar_codigo_normal,
     generar_prefijo_nomina,
     siguiente_codigo_especial,
 )
@@ -28,6 +29,12 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
+)
+from apps.organizacion.infrastructure.models.organizacion_models import (
+    CoordinacionModel,
+    DependenciaModel,
+    DireccionGeneralModel,
+    DireccionLineaModel,
 )
 
 ESTATUS_PERMITIDOS_GESTION = ('SUSPENDIDO', 'BLOQUEADO', 'ACTIVO')
@@ -193,6 +200,88 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             .first()
         )
         return siguiente_codigo_especial(prefijo, ultimo)
+
+    @transaction.atomic
+    def crear_cargo(self, datos: dict) -> CargoAsignacion:
+        """
+        Crea un código de posición VACANTE (sin empleado asignado), réplica
+        funcional de la pantalla "Crear Nuevo Código" del legado. Usa el
+        esquema de código NORMAL (6 dígitos de ubicación + 2 de tipo de
+        cargo) en vez del prefijo especial de `crear_cargo_especial_y_asignar`.
+        """
+        denominacion = DenominacionCargoModel.objects.filter(pk=datos['denominacion_id']).first()
+        if not denominacion:
+            raise NotFoundError(f"Denominación de cargo {datos['denominacion_id']} no encontrada")
+        if not TipoNominaModel.objects.filter(pk=datos['tipo_nomina_id']).exists():
+            raise NotFoundError(f"Tipo de nómina {datos['tipo_nomina_id']} no encontrado")
+
+        try:
+            estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
+        except EstatusModel.DoesNotExist as exc:
+            raise ValidationError(f"Error de configuración: {exc}") from exc
+
+        dependencia_id = datos.get('dependencia_id')
+        direccion_general_id = datos.get('direccion_general_id')
+        direccion_linea_id = datos.get('direccion_linea_id')
+        coordinacion_id = datos.get('coordinacion_id')
+
+        codigo_dependencia = (
+            DependenciaModel.objects.filter(pk=dependencia_id).values_list('Codigo', flat=True).first()
+            if dependencia_id else None
+        )
+        codigo_direccion_general = (
+            DireccionGeneralModel.objects.filter(pk=direccion_general_id).values_list('Codigo', flat=True).first()
+            if direccion_general_id else None
+        )
+        codigo_direccion_linea = (
+            DireccionLineaModel.objects.filter(pk=direccion_linea_id).values_list('Codigo', flat=True).first()
+            if direccion_linea_id else None
+        )
+        codigo_coordinacion = (
+            CoordinacionModel.objects.filter(pk=coordinacion_id).values_list('Codigo', flat=True).first()
+            if coordinacion_id else None
+        )
+
+        prefijo_6 = (codigo_coordinacion or codigo_direccion_linea or codigo_direccion_general or codigo_dependencia or '')[:6].zfill(6) if (
+            codigo_coordinacion or codigo_direccion_linea or codigo_direccion_general or codigo_dependencia
+        ) else None
+        sufijos_usados: set[int] = set()
+        if prefijo_6:
+            codigos_en_ubicacion = AsigTrabajoModel.objects.filter(
+                codigo__startswith=prefijo_6
+            ).values_list('codigo', flat=True)
+            sufijos_usados = {
+                int(c[6:8]) for c in codigos_en_ubicacion if len(c) >= 8 and c[6:8].isdigit()
+            }
+
+        try:
+            codigo = generar_codigo_normal(
+                codigo_coordinacion=codigo_coordinacion,
+                codigo_direccion_linea=codigo_direccion_linea,
+                codigo_direccion_general=codigo_direccion_general,
+                codigo_dependencia=codigo_dependencia,
+                nombre_cargo=denominacion.cargo,
+                sufijos_ya_usados_en_ubicacion=sufijos_usados,
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+
+        fila = AsigTrabajoModel.objects.create(
+            codigo=codigo,
+            employee=None,
+            denominacioncargoid_id=datos['denominacion_id'],
+            denominacioncargoespecificoid_id=datos['especifica_id'],
+            tiponominaid_id=datos['tipo_nomina_id'],
+            estatusid=estatus_vacante,
+            Dependencia_id=dependencia_id,
+            DireccionGeneral_id=direccion_general_id,
+            DireccionLinea_id=direccion_linea_id,
+            Coordinacion_id=coordinacion_id,
+            OrganismoAdscritoid_id=datos.get('organismo_id'),
+            gradoid_id=datos.get('grado_id'),
+            observaciones=datos.get('observaciones') or '',
+        )
+        return self.obtener_cargo(fila.pk)
 
     @transaction.atomic
     def crear_cargo_especial_y_asignar(self, datos: dict) -> CargoAsignacion:

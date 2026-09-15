@@ -64,6 +64,9 @@ class RepoCargos(Protocol):
     def crear_cargo_especial_y_asignar(self, datos: dict) -> CargoAsignacion:
         ...
 
+    def crear_cargo(self, datos: dict) -> CargoAsignacion:
+        ...
+
     # ------------------------------------------------------------------
     # Fase 2.5 del plan de reparación — traslado, estatus, encargaduría
     # ------------------------------------------------------------------

@@ -8,10 +8,11 @@ from drf_spectacular.utils import extend_schema
 
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
-from apps.cargos.application.dtos.cargos_dtos import CrearCargoEspecialDTO
+from apps.cargos.application.dtos.cargos_dtos import CrearCargoDTO, CrearCargoEspecialDTO
 from apps.cargos.application.use_cases.asignar_cargo import asignar_cargo, desasignar_cargo
 from apps.cargos.application.use_cases.asignar_cargo_especial import asignar_cargo_especial
 from apps.cargos.application.use_cases.cambiar_cargo import cambiar_cargo
+from apps.cargos.application.use_cases.crear_cargo import crear_cargo
 from apps.cargos.application.use_cases.gestionar_estatus_puesto import gestionar_estatus_puesto
 from apps.cargos.application.use_cases.listar_cargos import listar_cargos
 from apps.cargos.application.use_cases.listar_denominaciones import (
@@ -36,6 +37,7 @@ from apps.cargos.presentation.serializers.cargos_serializers import (
     AsignarCargoInputSerializer,
     CambiarCargoInputSerializer,
     CargoAsignacionSerializer,
+    CrearCargoInputSerializer,
     CrearCargoEspecialInputSerializer,
     CrearPrestamoInputSerializer,
     DenominacionSerializer,
@@ -194,6 +196,30 @@ class DesasignarCargoView(APIView):
         repo = RepoCargosORM()
         dto = desasignar_cargo(repo, cargo_id=cargo_id, usuario_id=request.user.pk)
         return ok(CargoAsignacionSerializer(dto).data)
+
+
+class CrearCargoView(APIView):
+    """
+    Crea un código de posición vacante (sin empleado asignado), réplica
+    funcional de la pantalla "Crear Nuevo Código" del legado
+    (`CodigoCatalogForm`). Usa el esquema de código NORMAL, distinto del
+    prefijo especial de `AsignarCargoEspecialView`.
+    """
+    permission_classes = [IsAuthenticated, HasPermission('cargos.crear')]
+
+    @extend_schema(
+        tags=['Cargos'],
+        summary='Crear un código de posición vacante',
+        request=CrearCargoInputSerializer,
+        responses={201: CargoAsignacionSerializer},
+    )
+    def post(self, request):
+        serializer = CrearCargoInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        repo = RepoCargosORM()
+        dto = crear_cargo(repo, CrearCargoDTO(**serializer.validated_data))
+        return ok(CargoAsignacionSerializer(dto).data, 'Código de posición creado correctamente.', status=201)
 
 
 class AsignarCargoEspecialView(APIView):

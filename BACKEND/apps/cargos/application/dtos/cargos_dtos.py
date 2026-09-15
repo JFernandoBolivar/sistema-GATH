@@ -57,6 +57,28 @@ class CrearCargoEspecialDTO:
 
 
 @dataclass(frozen=True)
+class CrearCargoDTO:
+    """
+    Datos de entrada para crear un código de posición vacante (sin asignar),
+    réplica funcional de la pantalla "Crear Nuevo Código" del legado
+    (`CodigoCatalogForm`). A diferencia de `CrearCargoEspecialDTO`, no exige
+    `cedula_empleado` ni un tipo de nómina "especial" — usa el esquema de
+    código NORMAL (`generar_codigo_normal`), ya definido en el dominio pero
+    sin ningún caso de uso que lo invocara hasta ahora.
+    """
+    denominacion_id: int
+    especifica_id: int
+    tipo_nomina_id: int
+    dependencia_id: int | None = None
+    direccion_general_id: int | None = None
+    direccion_linea_id: int | None = None
+    coordinacion_id: int | None = None
+    organismo_id: int | None = None
+    grado_id: int | None = None
+    observaciones: str | None = None
+
+
+@dataclass(frozen=True)
 class PrestamoCargoDTO:
     """Fase 2.5 del plan de reparación — subsistema de préstamo/encargaduría."""
     id: int

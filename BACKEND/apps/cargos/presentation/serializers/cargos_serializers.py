@@ -102,3 +102,20 @@ class CrearCargoEspecialInputSerializer(serializers.Serializer):
     organismo_id = serializers.IntegerField(required=False, allow_null=True)
     grado_id = serializers.IntegerField(required=False, allow_null=True)
     observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class CrearCargoInputSerializer(serializers.Serializer):
+    """
+    Input para crear un código de posición vacante (sin empleado), réplica
+    del contrato de `CodigoCatalogForm`/`schemaCode` del legado.
+    """
+    denominacion_id = serializers.IntegerField(required=True)
+    especifica_id = serializers.IntegerField(required=True)
+    tipo_nomina_id = serializers.IntegerField(required=True)
+    dependencia_id = serializers.IntegerField(required=False, allow_null=True)
+    direccion_general_id = serializers.IntegerField(required=False, allow_null=True)
+    direccion_linea_id = serializers.IntegerField(required=False, allow_null=True)
+    coordinacion_id = serializers.IntegerField(required=False, allow_null=True)
+    organismo_id = serializers.IntegerField(required=False, allow_null=True)
+    grado_id = serializers.IntegerField(required=False, allow_null=True)
+    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
