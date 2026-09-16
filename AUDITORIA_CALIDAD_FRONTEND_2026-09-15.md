@@ -35,7 +35,7 @@
   - **Nueva Arquitectura (`src/modules/*` y `src/shared/*`): 0 ERRORES.** La tipificación interna y los contratos entre capas compilan limpiamente.
   - **Proyecto Global: 28 errores** en 4 archivos fuera de los módulos (`e2e/smoke.spec.ts` [2], legado `dashboard/gestion-pasivos/` [15], `src/lib/regex.ts` [7], y `src/proxy.ts` [4]).
 - **Vitest (`npx vitest run`):**
-  - **162/162 tests pasados (100% éxito)** en 34 archivos de prueba (incluye 15 nuevos tests de seguridad y componentes para C1 y C2).
+  - **180/180 tests pasados (100% éxito)** en 42 archivos de prueba (incluye 18 nuevos tests de PBAC y seguridad para C1, C2 y A4).
 - **ESLint (`npx eslint src/modules/`):**
   - **49 observaciones:** 24 errores (principalmente deshabilitación de reglas de React Compiler por `form.watch`, `setState` en efectos, interfaces vacías y `@typescript-eslint/no-explicit-any`) y 25 advertencias (variables e imports sin uso).
 - **Prettier (`npx prettier --check "src/modules/**/*.{ts,tsx}"`):**
@@ -48,17 +48,17 @@
 | Módulo | Capas Onion (R1-R5) | Zero-Trust Actions (R7) | PBAC en UI (R16) | A11y / Labels | Mobile-First Tables | Tests Unitarios | Estado General |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | **1. auth** | ✅ Cumple | ✅ `safeParse` | N/A (Público) | ✅ Completo | N/A | ✅ 4 tests (1 archivo) | 🟢 Robusto |
-| **2. autogestion** | ✅ Cumple | ✅ `safeParse` | ⚠️ Sin verificar | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟡 Requiere A11y & Mobile |
-| **3. cargos** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟡 Requiere PBAC & Mobile |
-| **4. carnetizacion** | ✅ Cumple | ✅ `safeParse` (`d380c15`) | ❌ Sin PBAC en UI | ⚠️ Botones icono | N/A | ✅ 28 tests (4 archivos) | 🟢 **Aceptable (C1 y C2 Resueltos)** |
-| **5. catalogos** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 16 tests (4 archivos) | 🟡 Requiere PBAC & Regex |
+| **2. autogestion** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` (`27574bc`) | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 9 tests (4 archivos) | 🟢 **Aceptable (PBAC Resuelto)** |
+| **3. cargos** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` (`c7bd8b2`) | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 11 tests (3 archivos) | 🟢 **Aceptable (PBAC Resuelto)** |
+| **4. carnetizacion** | ✅ Cumple | ✅ `safeParse` (`d380c15`) | ✅ `tienePermiso` (`d6e6904`) | ⚠️ Botones icono | N/A | ✅ 30 tests (5 archivos) | 🟢 **Aceptable (C1, C2 y PBAC Resueltos)** |
+| **5. catalogos** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` (`b24bdbc`) | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 23 tests (4 archivos) | 🟢 **Aceptable (PBAC Resuelto)** |
 | **6. familiares** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟢 Aceptable |
-| **7. identidad** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 12 tests (3 archivos) | 🟡 Requiere PBAC en Tabs |
-| **8. movimientos** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟡 Requiere PBAC & Mobile |
-| **9. organizacion** | ✅ Cumple | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 12 tests (3 archivos) | 🟡 Requiere PBAC & Mobile |
+| **7. identidad** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` (`0fecdca`) | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟢 **Aceptable (PBAC Resuelto)** |
+| **8. movimientos** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` (`faa8b9d`) | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 14 tests (3 archivos) | 🟢 **Aceptable (PBAC Resuelto)** |
+| **9. organizacion** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` (`6827fac`) | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 8 tests (2 archivos) | 🟢 **Aceptable (PBAC Resuelto)** |
 | **10. pasivos** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 15 tests (3 archivos) | 🟢 Aceptable |
 | **11. personal** | ✅ Cumple | ✅ `safeParse` | ✅ `tienePermiso` | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 28 tests (6 archivos) | 🟠 **Alto (Bundle PDF)** |
-| **12. reportes** | 🔴 Violación (A1) | ✅ `safeParse` | ❌ Sin PBAC en UI | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 16 tests (4 archivos) | 🟠 **Alto (Onion Layer)** |
+| **12. reportes** | 🔴 Violación (A1) | ✅ `safeParse` | ✅ `tienePermiso` (`0dfb1f4`) | ⚠️ Botones icono | ⚠️ `overflow-hidden` | ✅ 13 tests (4 archivos) | 🟠 **Alto (Onion Layer)** |
 
 ---
 
@@ -162,26 +162,18 @@
 
 ---
 
-### A4 — Ausencia Sistémica de Control de Acceso PBAC en UI (8 de 11 Módulos Exponen Acciones a No Autorizados)
-- **Archivos:**
-  - `NextJS/src/modules/cargos/ui/cargos-page.tsx`
-  - `NextJS/src/modules/organizacion/ui/organizacion-page.tsx`
-  - `NextJS/src/modules/catalogos/ui/catalogos-page.tsx`
-  - `NextJS/src/modules/carnetizacion/ui/carnetizacion-page.tsx`
-  - `NextJS/src/modules/identidad/ui/usuarios-page.tsx`
-  - `NextJS/src/modules/movimientos/ui/movimientos-page.tsx`
-  - `NextJS/src/modules/autogestion/ui/autogestion-page.tsx`
-  - `NextJS/src/modules/reportes/ui/reportes-page.tsx`
-- **Regla Violada:** `patrones-implementacion-frontend` §PBAC, `arquitecto-scream-feature-onion` R16 ("Permisos siempre por código `[modulo].[accion]`"), y OWASP API5:2023 (Broken Function Level Authorization).
-- **Detalle del Defecto:**
-  Únicamente 3 módulos (`personal`, `pasivos`, `familiares`) consumen `useSession()` y aplican `tienePermiso(...)` para condicionar la visibilidad de los controles interactivos. En los restantes 8 módulos, botones destructivos y de mutación (ej. "Crear Cargo", "Eliminar Departamento", "Nuevo Catálogo", "Subir Plantilla", "Crear Usuario") se muestran a cualquier usuario autenticado sin importar su rol o permisos asignados (por ejemplo, personal de recepción o solo lectura). El usuario puede hacer clic, abrir modales y enviar formularios, enterándose de que no tiene autorización únicamente cuando el backend rechaza la petición con `403 Forbidden`.
-- **Sugerencia de Solución:**
-  Implementar de manera uniforme en las páginas UI:
-  ```tsx
-  const { data: session } = useSession();
-  const puedeCrear = tienePermiso(session?.user?.permisos, "cargos.crear");
-  // Ocultar o deshabilitar botón si !puedeCrear
-  ```
+### A4 — [RESUELTO — Commits c7bd8b2..0dfb1f4] Control de Acceso PBAC en UI Implementado en los 8 Módulos
+- **Estado:** ✅ **RESUELTO** (Commits atómicos por módulo: `c7bd8b2`, `6827fac`, `b24bdbc`, `d6e6904`, `0fecdca`, `faa8b9d`, `27574bc`, `0dfb1f4`).
+- **Archivos Modificados y Commits:**
+  1. `cargos` (`c7bd8b2`): `cargos-page.tsx`, `cargo-crear-page.tsx`, `cargos-columns.tsx`, `cargos-columns.test.ts` (gating de `cargos.crear`, `cargos.ver`, `cargos.editar`, etc.).
+  2. `organizacion` (`6827fac`): `organizacion-page.tsx`, `organismo-admin.tsx`, `dependencia-admin.tsx`, `direccion-general-admin.tsx`, `direccion-linea-admin.tsx`, `coordinacion-admin.tsx`, `organizacion-pbac.test.ts` (gating de `organizacion.crear`, `organizacion.editar`, `organizacion.eliminar`).
+  3. `catalogos` (`b24bdbc`): `catalogos-page.tsx`, `catalogos-columns.tsx`, `catalogos-columns.test.ts` (gating de `catalogos.crear`, `catalogos.editar`, `catalogos.eliminar`).
+  4. `carnetizacion` (`d6e6904`): `carnetizacion-page.tsx`, `carnetizacion-columnas.tsx`, `carnetizacion-columnas.test.ts` (gating de `carnetizacion.disenar`, `carnetizacion.emitir`, `carnetizacion.revocar`, `carnetizacion.reimprimir`).
+  5. `identidad` (`0fecdca`): `usuarios-page.tsx`, `usuarios-columns.tsx`, `usuario-registrar-page.tsx`, `identidad-pbac.test.ts` (gating de `identidad.crear_usuarios`, `identidad.editar_usuarios`, `identidad.desactivar_usuarios`, `identidad.ver_roles`, `identidad.crear_roles`, `identidad.editar_roles`, `identidad.eliminar_roles`, `identidad.asignar_permisos`).
+  6. `movimientos` (`faa8b9d`): `movimientos-page.tsx`, `movimientos-columns.tsx`, `movimientos-pbac.test.ts` (gating de `movimientos.ver`).
+  7. `autogestion` (`27574bc`): `autogestion-page.tsx`, `autogestion-pbac.test.ts` (gating de `autogestion.censo_ver_todos`, `autogestion.censo_exportar`, `autogestion.censo_actualizar_propio`).
+  8. `reportes` (`0dfb1f4`): `reportes-page.tsx`, `reportes-pbac.test.ts` (gating de `reportes.ver`, `reportes.generar_pdf`, `reportes.generar_excel`, `reportes.estadisticas`).
+- **Regla Cumplida:** `patrones-implementacion-frontend` §PBAC, `arquitecto-scream-feature-onion` R16 ("Permisos siempre por código `[modulo].[accion]`"), y OWASP API5:2023 (Broken Function Level Authorization). Defend-in-depth con UI limpia para roles sin privilegios administrativos.
 
 ---
 
@@ -449,9 +441,12 @@ Evaluación de la superficie de ataque del frontend contra los vectores del **OW
 - **Remediación Verificada:** Se implementó `subirPlantillaCarnetSchema` con Zod validando límite de 5MB, tipos MIME estrictos (`image/png`, `image/jpeg`), y rechazo explícito de `image/svg+xml`.
 
 ### 9.3 API5:2023 / BFLA (Broken Function Level Authorization) en Frontend
-- **Vulnerabilidad Comprobada:**
-  - En 8 de los 11 módulos con interfaz (`cargos`, `organizacion`, `catalogos`, `carnetizacion`, `identidad`, `movimientos`, `autogestion`, `reportes`), la UI no valida los códigos de permiso del usuario autenticado (`session.user.permisos`).
-  - **Impacto:** Los endpoints administrativos quedan expuestos en la interfaz para usuarios con roles de menor privilegio (ej. recepcionistas o pasantes). Si bien el backend devuelve 403, el usuario tiene visibilidad de la estructura interna del sistema, formularios, campos y catálogos restringidos (Exceso de exposición de datos / API3:2023).
+- **Estado:** ✅ **RESUELTO** (Commits `c7bd8b2`, `6827fac`, `b24bdbc`, `d6e6904`, `0fecdca`, `faa8b9d`, `27574bc`, `0dfb1f4`).
+- **Vulnerabilidad Previa:**
+  - En 8 de los 11 módulos con interfaz (`cargos`, `organizacion`, `catalogos`, `carnetizacion`, `identidad`, `movimientos`, `autogestion`, `reportes`), la UI no validaba los códigos de permiso del usuario autenticado (`session.user.permisos`).
+  - **Impacto:** Los endpoints administrativos quedaban expuestos en la interfaz para usuarios con roles de menor privilegio (ej. recepcionistas o pasantes). Si bien el backend devuelve 403, el usuario tenía visibilidad de la estructura interna del sistema, formularios, campos y catálogos restringidos (Exceso de exposición de datos / API3:2023).
+- **Remediación Verificada:**
+  - Se aplicó PBAC sistemático con `useSession()` y `tienePermiso(permisos, "modulo.accion")` en todos los 8 módulos, ocultando y deshabilitando botones de mutación, formularios de alta, opciones de DataTable y pestañas de acceso privilegiado. Se añadieron 18 pruebas unitarias adicionales validando el gating PBAC.
 
 ### 9.4 OWASP A03:2021 / Inyección XSS en DOM
 - **Estado:** ✅ **RESUELTO** (Commit `993fe63`).
@@ -482,7 +477,7 @@ Evaluación de la superficie de ataque del frontend contra los vectores del **OW
 1. **A1 (Onion Violation):** Mover `TipoReportePersonal` a `reporte-dto.ts` y eliminar la importación de Domain en `reportes-page.tsx`.
 2. **A2 (TypeScript / Proxy):** Corregir `proxy.ts:18, 22` invocando `tienePermiso(permisos, ...)` en lugar de `puede()`.
 3. **A3 (Bundle PDF):** Convertir `EmpleadoDetallePdf` a import dinámico (`next/dynamic`) en `personal-page.tsx`.
-4. **A4 (PBAC / BFLA):** Incorporar `useSession()` y `tienePermiso()` en los 8 módulos de UI que carecen de chequeos de permisos.
+4. **A4 (PBAC / BFLA):** ✅ Resuelto en Commits `c7bd8b2`, `6827fac`, `b24bdbc`, `d6e6904`, `0fecdca`, `faa8b9d`, `27574bc`, `0dfb1f4`. Incorporado `useSession()` y `tienePermiso()` en los 8 módulos de UI con gating estricto y 18 tests unitarios asociados.
 
 ### Fase 3: Poda de Sobre-Ingeniería (Ponytail Audit)
 1. Desinstalar dependencias no utilizadas (`npm uninstall pdfjs-dist d3 @types/d3 @uidotdev/usehooks html-to-image date-fns date-fns-tz`).
