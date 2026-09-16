@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
-from core.presentation.envelope import ok
+from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.personal.application.use_cases.gestionar_personal import (
     actualizar_empleado,
@@ -94,7 +94,7 @@ class EmpleadoFotoView(APIView):
     def post(self, request, cedula: str):
         archivo = request.FILES.get('file') or request.FILES.get('foto')
         if not archivo:
-            return ok({'error': 'No se proporcionó ningún archivo'}, status=400)
+            return fail('No se proporcionó ningún archivo', status=400)
 
         from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 
