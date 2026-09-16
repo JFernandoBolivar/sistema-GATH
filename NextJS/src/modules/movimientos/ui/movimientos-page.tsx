@@ -15,7 +15,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
 import { Briefcase, History, Loader2, Search, User } from "lucide-react";
+import { useSession } from "next-auth/react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import {
   Card,
@@ -46,6 +48,10 @@ import {
 type Consulta = { tipo: "empleado" | "cargo"; valor: string } | null;
 
 export default function MovimientosPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeVer = tienePermiso(permisos, "movimientos.ver");
+
   const [tab, setTab] = useState<"empleado" | "cargo">("empleado");
   const [consulta, setConsulta] = useState<Consulta>(null);
   const [isPending, startTransition] = useTransition();
@@ -53,9 +59,9 @@ export default function MovimientosPage() {
   const [detalleAbierto, setDetalleAbierto] = useState(false);
 
   const { data: movimientos, error, isLoading, mutate } = useSWR<MovimientoCargoDTO[]>(
-    consulta ? `movimientos-${consulta.tipo}-${consulta.valor}` : null,
+    consulta && puedeVer ? `movimientos-${consulta.tipo}-${consulta.valor}` : null,
     async () => {
-      if (!consulta) return [];
+      if (!consulta || !puedeVer) return [];
       const resultado =
         consulta.tipo === "empleado"
           ? await getHistorialPorEmpleadoAction(consulta.valor)
@@ -78,12 +84,14 @@ export default function MovimientosPage() {
   });
 
   const onBuscarEmpleado = (data: HistorialEmpleadoFormType) => {
+    if (!puedeVer) return;
     startTransition(() => {
       setConsulta({ tipo: "empleado", valor: data.empleadoCedula });
     });
   };
 
   const onBuscarCargo = (data: HistorialCargoFormType) => {
+    if (!puedeVer) return;
     startTransition(() => {
       setConsulta({ tipo: "cargo", valor: data.codigoPuesto.toUpperCase() });
     });
@@ -95,6 +103,12 @@ export default function MovimientosPage() {
         <History className="size-5 text-muted-foreground" aria-hidden="true" />
         <h1 className="text-xl font-semibold tracking-tight">Historial de Movimientos</h1>
       </header>
+
+      {!puedeVer && (
+        <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive font-medium">
+          No tiene permisos suficientes para consultar el historial de movimientos de personal (se requiere movimientos.ver).
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -129,6 +143,7 @@ export default function MovimientosPage() {
                     {...formEmpleado.register("empleadoCedula")}
                     id="empleadoCedula"
                     placeholder="Ej. V-12345678"
+                    disabled={!puedeVer}
                     aria-invalid={!!formEmpleado.formState.errors.empleadoCedula}
                   />
                   {formEmpleado.formState.errors.empleadoCedula && (
@@ -140,7 +155,7 @@ export default function MovimientosPage() {
                 <Button
                   type="submit"
                   className="w-fit"
-                  disabled={isPending}
+                  disabled={isPending || !puedeVer}
                 >
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -164,6 +179,7 @@ export default function MovimientosPage() {
                     {...formCargo.register("codigoPuesto")}
                     id="codigoPuesto"
                     placeholder="Ej. 0-00-000000-00"
+                    disabled={!puedeVer}
                     aria-invalid={!!formCargo.formState.errors.codigoPuesto}
                   />
                   {formCargo.formState.errors.codigoPuesto && (
@@ -175,7 +191,7 @@ export default function MovimientosPage() {
                 <Button
                   type="submit"
                   className="w-fit"
-                  disabled={isPending}
+                  disabled={isPending || !puedeVer}
                 >
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -212,7 +228,7 @@ export default function MovimientosPage() {
           columns={construirColumnasMovimientos((movimiento) => {
             setViendoDetalle(movimiento);
             setDetalleAbierto(true);
-          })}
+          }, puedeVer)}
           data={movimientos ?? []}
           emptyMessage="No hay movimientos registrados para la consulta."
         />

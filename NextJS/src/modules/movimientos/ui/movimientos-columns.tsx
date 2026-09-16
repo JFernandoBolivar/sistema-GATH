@@ -24,8 +24,13 @@ import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-
 
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
 
-function AccionesCell({ movimiento, onVerDetalle }: {
+function AccionesCell({
+  movimiento,
+  puedeVer = true,
+  onVerDetalle,
+}: {
   movimiento: MovimientoCargoDTO;
+  puedeVer?: boolean;
   onVerDetalle: (movimiento: MovimientoCargoDTO) => void;
 }) {
   return (
@@ -41,9 +46,11 @@ function AccionesCell({ movimiento, onVerDetalle }: {
         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(movimiento.codigoPuesto)}>
           <Copy className="size-4" aria-hidden="true" /> Copiar código de puesto
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onVerDetalle(movimiento)}>
-          <Eye className="size-4" aria-hidden="true" /> Ver detalle
-        </DropdownMenuItem>
+        {puedeVer && (
+          <DropdownMenuItem onClick={() => onVerDetalle(movimiento)}>
+            <Eye className="size-4" aria-hidden="true" /> Ver detalle
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -51,6 +58,7 @@ function AccionesCell({ movimiento, onVerDetalle }: {
 
 export function construirColumnasMovimientos(
   onVerDetalle: (movimiento: MovimientoCargoDTO) => void,
+  puedeVer: boolean = true,
 ): ColumnDef<MovimientoCargoDTO>[] {
   return [
     {
@@ -84,7 +92,13 @@ export function construirColumnasMovimientos(
     {
       id: "actions",
       header: "Acciones",
-      cell: ({ row }) => <AccionesCell movimiento={row.original} onVerDetalle={onVerDetalle} />,
+      cell: ({ row }) => (
+        <AccionesCell
+          movimiento={row.original}
+          puedeVer={puedeVer}
+          onVerDetalle={onVerDetalle}
+        />
+      ),
     },
   ];
 }
