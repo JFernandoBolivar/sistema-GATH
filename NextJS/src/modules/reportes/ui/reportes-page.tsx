@@ -10,7 +10,9 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BarChart3, FileDown, FileSpreadsheet, Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import {
   Card,
@@ -81,7 +83,42 @@ const TAB_A_TIPO_REPORTE: Record<Tab, TipoReportePersonal> = {
   distribucion: "distribucion-nomina",
 };
 
+function BotonesExportacion({
+  onDescargar,
+  puedePdf,
+  puedeExcel,
+  disabled,
+}: {
+  onDescargar: (formato: "pdf" | "excel") => void;
+  puedePdf: boolean;
+  puedeExcel: boolean;
+  disabled: boolean;
+}) {
+  if (!puedePdf && !puedeExcel) return null;
+  return (
+    <div className="flex items-center gap-2">
+      {puedePdf && (
+        <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={disabled}>
+          <FileDown className="size-4" aria-hidden="true" /> PDF
+        </Button>
+      )}
+      {puedeExcel && (
+        <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={disabled}>
+          <FileSpreadsheet className="size-4" aria-hidden="true" /> Excel
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export default function ReportesPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeVer = tienePermiso(permisos, "reportes.ver");
+  const puedePdf = tienePermiso(permisos, "reportes.generar_pdf");
+  const puedeExcel = tienePermiso(permisos, "reportes.generar_excel");
+  const puedeEstadisticas = tienePermiso(permisos, "reportes.estadisticas");
+
   const [tab, setTab] = useState<Tab>("personal");
   const [personal, setPersonal] = useState<ReporteItemPersonalDTO[]>([]);
   const [pasivos, setPasivos] = useState<ReporteItemPasivoDTO[]>([]);
@@ -138,6 +175,7 @@ export default function ReportesPage() {
     });
 
   const onSubmit = (data: ReporteFilterType) => {
+    if (!puedeVer) return;
     if (tab === "personal") cargarPersonal(data.dependenciaId);
     else if (tab === "vacantes") cargarVacantes(data.dependenciaId);
     else if (tab === "codigos") cargarCodigos(data.dependenciaId);
@@ -149,6 +187,8 @@ export default function ReportesPage() {
   };
 
   const onDescargar = (formato: "pdf" | "excel") => {
+    if (formato === "pdf" && !puedePdf) return;
+    if (formato === "excel" && !puedeExcel) return;
     startTransition(async () => {
       setError(null);
       const tipo = TAB_A_TIPO_REPORTE[tab];
@@ -170,16 +210,18 @@ export default function ReportesPage() {
   };
 
   useEffect(() => {
-    cargarPersonal();
-  }, []);
+    if (puedeVer) {
+      cargarPersonal();
+    }
+  }, [puedeVer]);
 
   useEffect(() => {
-    if (tab === "tendencias" && !tendenciasCargadas) cargarTendencias();
-  }, [tab, tendenciasCargadas]);
+    if (tab === "tendencias" && !tendenciasCargadas && puedeEstadisticas) cargarTendencias();
+  }, [tab, tendenciasCargadas, puedeEstadisticas]);
 
   useEffect(() => {
-    if (tab === "distribucion" && !distribucionCargada) cargarDistribucion();
-  }, [tab, distribucionCargada]);
+    if (tab === "distribucion" && !distribucionCargada && puedeEstadisticas) cargarDistribucion();
+  }, [tab, distribucionCargada, puedeEstadisticas]);
 
   const columnasPersonal = construirColumnasReportePersonal();
   const columnasPasivos = construirColumnasReportePasivos();
@@ -194,6 +236,12 @@ export default function ReportesPage() {
         <BarChart3 className="size-5 text-muted-foreground" aria-hidden="true" />
         <h1 className="text-xl font-semibold tracking-tight">Reportes</h1>
       </header>
+
+      {!puedeVer && (
+        <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive font-medium">
+          No tiene permisos suficientes para consultar reportes (se requiere reportes.ver).
+        </div>
+      )}
 
       <Card>
         <CardHeader className="pb-4">
@@ -239,7 +287,7 @@ export default function ReportesPage() {
               )}
             </div>
             <div>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || !puedeVer}>
                 {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <BarChart3 className="size-4" aria-hidden="true" />}
                 Generar
               </Button>
@@ -258,55 +306,37 @@ export default function ReportesPage() {
           <TabsTrigger value="familiares">Familiares</TabsTrigger>
           <TabsTrigger value="codigos">Códigos</TabsTrigger>
           <TabsTrigger value="egresados">Egresados</TabsTrigger>
-          <TabsTrigger value="tendencias">Tendencias</TabsTrigger>
-          <TabsTrigger value="distribucion">Distribución por nómina</TabsTrigger>
+          {puedeEstadisticas && <TabsTrigger value="tendencias">Tendencias</TabsTrigger>}
+          {puedeEstadisticas && <TabsTrigger value="distribucion">Distribución por nómina</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="personal">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
+          <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
           <DataTable columns={columnasPersonal} data={personal} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="pasivos">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
+          <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
           <DataTable columns={columnasPasivos} data={pasivos} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="vacantes">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
+          <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
           <DataTable columns={columnasVacantes} data={vacantes} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="familiares">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
+          <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
           <DataTable columns={columnasFamiliares} data={familiares} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="codigos">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
+          <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
           <DataTable columns={columnasCodigos} data={codigos} emptyMessage="Sin datos para el reporte." />
         </TabsContent>
 
         <TabsContent value="egresados">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
+          <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
           <DataTable
             columns={columnasEgresados}
             data={egresados}
@@ -314,45 +344,43 @@ export default function ReportesPage() {
           />
         </TabsContent>
 
-        <TabsContent value="tendencias">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Ingresos y egresos de personal (últimos 12 meses)</CardTitle>
-              <CardDescription>Serie mensual real, calculada a partir de los antecedentes de servicio y egresos registrados.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {tendencias.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para la tendencia.</p>
-              ) : (
-                <TendenciaLineChart data={buildTendenciaChartData(tendencias)} />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {puedeEstadisticas && (
+          <TabsContent value="tendencias">
+            <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Ingresos y egresos de personal (últimos 12 meses)</CardTitle>
+                <CardDescription>Serie mensual real, calculada a partir de los antecedentes de servicio y egresos registrados.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {tendencias.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para la tendencia.</p>
+                ) : (
+                  <TendenciaLineChart data={buildTendenciaChartData(tendencias)} />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
-        <TabsContent value="distribucion">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => onDescargar("pdf")} disabled={isPending}><FileDown className="size-4" aria-hidden="true" /> PDF</Button>
-            <Button variant="outline" size="sm" onClick={() => onDescargar("excel")} disabled={isPending}><FileSpreadsheet className="size-4" aria-hidden="true" /> Excel</Button>
-          </div>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Distribución de personal activo por tipo de nómina</CardTitle>
-              <CardDescription>Conteo de asignaciones de cargo con empleado (sin vacantes), agrupado por tipo de nómina.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {distribucion.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para la distribución.</p>
-              ) : (
-                <DistribucionNominaPieChart data={buildDistribucionNominaChartData(distribucion)} />
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {puedeEstadisticas && (
+          <TabsContent value="distribucion">
+            <BotonesExportacion onDescargar={onDescargar} puedePdf={puedePdf} puedeExcel={puedeExcel} disabled={isPending} />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Distribución de personal activo por tipo de nómina</CardTitle>
+                <CardDescription>Conteo de asignaciones de cargo con empleado (sin vacantes), agrupado por tipo de nómina.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {distribucion.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">Sin datos para la distribución.</p>
+                ) : (
+                  <DistribucionNominaPieChart data={buildDistribucionNominaChartData(distribucion)} />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
     </section>
   );
