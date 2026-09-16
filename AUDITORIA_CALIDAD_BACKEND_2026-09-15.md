@@ -18,12 +18,12 @@
 
 ## 1. Resumen ejecutivo
 
-| Severidad | Cantidad |
-|---|---|
-| 🔴 Crítico | 2 |
-| 🟠 Alto | 8 |
-| 🟡 Medio | 11 |
-| ⚪ Bajo | 10 |
+| Severidad | Cantidad | Resueltos |
+|---|---|---|
+| 🔴 Crítico | 2 | 2/2 (commits `af47773`, `15f3e0b` — 2026-09-15) |
+| 🟠 Alto | 8 | 0/8 |
+| 🟡 Medio | 11 | 0/11 |
+| ⚪ Bajo | 10 | 0/10 |
 
 **Contratos arquitectónicos automatizados: en verde.** `python manage.py check` → 0 issues.
 `lint-imports` → **70/70 contratos KEPT, 0 broken** (267 archivos, 374 dependencias analizadas).
@@ -42,9 +42,21 @@ para que la regla de negocio sea testeable sin base de datos.
 
 ## 2. Hallazgos críticos 🔴
 
-### C1 — Subida de foto de perfil pierde el archivo en silencio y reporta éxito
+### C1 — Subida de foto de perfil pierde el archivo en silencio y reporta éxito — ✅ RESUELTO (commit `af47773`)
 **Archivos:** `core/infrastructure/storage/seaweedfs_storage.py:35-52,54-70,84-98` +
 `apps/personal/presentation/views/personal_views.py:99-106`
+
+> **Resuelto en `af47773`** (2026-09-15): se confirmó que SeaweedFS es un servicio real
+> y desplegado del proyecto (`compose.yml` / `infra-fase2/compose.fase2.yml`), no un plan a
+> futuro — la corrección fue la opción (a) del hallazgo: `boto3==1.35.36` se agregó a
+> `requirements.txt` e instaló en el venv del proyecto. Además, `SeaweedFSStorage` ya no
+> devuelve datos falsos en ningún camino: `_get_client()`/`subir()`/`descargar()`/
+> `url_firmada()` lanzan la nueva excepción de dominio `AlmacenamientoNoDisponible`
+> (mapeada a HTTP 503 en `core/presentation/exception_handler.py`) ante cualquier fallo —
+> cliente no construible, red inalcanzable, o error de la operación S3 —, en vez de
+> aparentar éxito. Verificado con 3 tests nuevos en `tests/unit/core/test_storage_and_tasks.py`
+> (boto3 ausente, servidor S3 inalcanzable, y el camino feliz con un cliente mockeado) y con
+> `manage.py check`/`lint-imports` (70/70) en verde.
 
 `SeaweedFSStorage._get_client()` captura `ImportError` de `boto3` y deja `_s3_client = None`.
 **`boto3` no está en `BACKEND/requirements.txt`** (confirmado con `grep -i boto3 requirements.txt`
@@ -75,8 +87,14 @@ construir, `subir()`/`descargar()`/`url_firmada()` deben lanzar una excepción d
 agregar `boto3` a `requirements.txt` si SeaweedFS está realmente en uso, o documentar explícitamente
 que esta funcionalidad está deshabilitada hasta que se instale.
 
-### C2 — `EmpleadoFotoView` usa el sobre de éxito (`ok()`) para responder un error 400
+### C2 — `EmpleadoFotoView` usa el sobre de éxito (`ok()`) para responder un error 400 — ✅ RESUELTO (commit `15f3e0b`)
 **Archivo:** `apps/personal/presentation/views/personal_views.py:97`
+
+> **Resuelto en `15f3e0b`** (2026-09-15): la línea ahora usa
+> `fail('No se proporcionó ningún archivo', status=400)`, exactamente la sugerencia de este
+> hallazgo. Verificado con un test nuevo (`tests/unit/personal/test_empleado_foto_view.py`)
+> que confirma `response.data['status'] == 'error'` en el body del 400, y con
+> `manage.py check`/`lint-imports` (70/70) en verde.
 
 ```python
 if not archivo:
