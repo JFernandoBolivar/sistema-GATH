@@ -22,8 +22,10 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Briefcase, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
 import {
@@ -80,6 +82,17 @@ import {
 } from "./schema/schema-asignar-cargo";
 
 export default function CargosPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeCrearCodigo = tienePermiso(permisos, "cargos.crear");
+  const puedeVerDetalle = tienePermiso(permisos, "cargos.ver");
+  const puedeAsignar = tienePermiso(permisos, "cargos.asignar");
+  const puedePrestar = tienePermiso(permisos, "cargos.prestar");
+  const puedeRevertirPrestamo = tienePermiso(permisos, "cargos.revertir_prestamo");
+  const puedeCrearDenominacion = tienePermiso(permisos, "cargos.crear");
+  const puedeEditarDenominacion = tienePermiso(permisos, "cargos.editar");
+  const puedeEliminarDenominacion = tienePermiso(permisos, "cargos.desincorporar");
+
   const [cargos, setCargos] = useState<CargoAsignacionDTO[]>([]);
   const [prestamos, setPrestamos] = useState<PrestamoCargoDTO[]>([]);
   const [denominaciones, setDenominaciones] = useState<DenominacionCargoDTO[]>([]);
@@ -284,7 +297,7 @@ export default function CargosPage() {
   };
 
   const cargosVacantes = cargos.filter((c) => c.estaVacante);
-  const columnas = construirColumnasCargos(true, onVerDetalle);
+  const columnas = construirColumnasCargos(puedeVerDetalle, onVerDetalle);
 
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
@@ -293,11 +306,13 @@ export default function CargosPage() {
           <Briefcase className="size-5 text-muted-foreground" aria-hidden="true" />
           <h1 className="text-xl font-semibold tracking-tight">Cargos</h1>
         </div>
-        <Button asChild>
-          <Link href="/cargos/crear-codigo">
-            <Plus className="size-4" aria-hidden="true" /> Nuevo código
-          </Link>
-        </Button>
+        {puedeCrearCodigo && (
+          <Button asChild>
+            <Link href="/cargos/crear-codigo">
+              <Plus className="size-4" aria-hidden="true" /> Nuevo código
+            </Link>
+          </Button>
+        )}
       </header>
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -339,43 +354,45 @@ export default function CargosPage() {
         </TabsContent>
 
         <TabsContent value="prestamos" className="flex flex-col gap-4">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle>Registrar préstamo de cargo</CardTitle>
-              <CardDescription>Registre una encargaduría sobre un puesto.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={prestamoForm.handleSubmit(onCrearPrestamo)} className="flex flex-col gap-4" noValidate>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <Field data-invalid={!!prestamoForm.formState.errors.cedulaEncargado}>
-                    <Label htmlFor="cedulaEncargado">Cédula del encargado</Label>
-                    <Input id="cedulaEncargado" placeholder="Ej. 12345678" {...prestamoForm.register("cedulaEncargado")} aria-invalid={!!prestamoForm.formState.errors.cedulaEncargado} />
-                  </Field>
-                  <Field data-invalid={!!prestamoForm.formState.errors.cargoId}>
-                    <Label htmlFor="prestamoCargoId">Id del cargo</Label>
-                    <Input type="number" id="prestamoCargoId" {...prestamoForm.register("cargoId", { valueAsNumber: true })} aria-invalid={!!prestamoForm.formState.errors.cargoId} />
-                  </Field>
-                  <Field data-invalid={!!prestamoForm.formState.errors.motivoId}>
-                    <Label htmlFor="prestamoMotivoId">Id del motivo</Label>
-                    <Input type="number" id="prestamoMotivoId" {...prestamoForm.register("motivoId", { valueAsNumber: true })} aria-invalid={!!prestamoForm.formState.errors.motivoId} />
-                  </Field>
-                  <Field data-invalid={!!prestamoForm.formState.errors.fechaInicio}>
-                    <Label htmlFor="fechaInicio">Fecha inicio</Label>
-                    <Input type="date" id="fechaInicio" {...prestamoForm.register("fechaInicio")} aria-invalid={!!prestamoForm.formState.errors.fechaInicio} />
-                  </Field>
-                  <Field data-invalid={!!prestamoForm.formState.errors.fechaFin}>
-                    <Label htmlFor="fechaFin">Fecha fin</Label>
-                    <Input type="date" id="fechaFin" {...prestamoForm.register("fechaFin")} aria-invalid={!!prestamoForm.formState.errors.fechaFin} />
-                  </Field>
-                </div>
-                <div>
-                  <Button type="submit" disabled={isPending}>
-                    <Plus className="size-4" aria-hidden="true" /> Crear préstamo
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          {puedePrestar && (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle>Registrar préstamo de cargo</CardTitle>
+                <CardDescription>Registre una encargaduría sobre un puesto.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={prestamoForm.handleSubmit(onCrearPrestamo)} className="flex flex-col gap-4" noValidate>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <Field data-invalid={!!prestamoForm.formState.errors.cedulaEncargado}>
+                      <Label htmlFor="cedulaEncargado">Cédula del encargado</Label>
+                      <Input id="cedulaEncargado" placeholder="Ej. 12345678" {...prestamoForm.register("cedulaEncargado")} aria-invalid={!!prestamoForm.formState.errors.cedulaEncargado} />
+                    </Field>
+                    <Field data-invalid={!!prestamoForm.formState.errors.cargoId}>
+                      <Label htmlFor="prestamoCargoId">Id del cargo</Label>
+                      <Input type="number" id="prestamoCargoId" {...prestamoForm.register("cargoId", { valueAsNumber: true })} aria-invalid={!!prestamoForm.formState.errors.cargoId} />
+                    </Field>
+                    <Field data-invalid={!!prestamoForm.formState.errors.motivoId}>
+                      <Label htmlFor="prestamoMotivoId">Id del motivo</Label>
+                      <Input type="number" id="prestamoMotivoId" {...prestamoForm.register("motivoId", { valueAsNumber: true })} aria-invalid={!!prestamoForm.formState.errors.motivoId} />
+                    </Field>
+                    <Field data-invalid={!!prestamoForm.formState.errors.fechaInicio}>
+                      <Label htmlFor="fechaInicio">Fecha inicio</Label>
+                      <Input type="date" id="fechaInicio" {...prestamoForm.register("fechaInicio")} aria-invalid={!!prestamoForm.formState.errors.fechaInicio} />
+                    </Field>
+                    <Field data-invalid={!!prestamoForm.formState.errors.fechaFin}>
+                      <Label htmlFor="fechaFin">Fecha fin</Label>
+                      <Input type="date" id="fechaFin" {...prestamoForm.register("fechaFin")} aria-invalid={!!prestamoForm.formState.errors.fechaFin} />
+                    </Field>
+                  </div>
+                  <div>
+                    <Button type="submit" disabled={isPending}>
+                      <Plus className="size-4" aria-hidden="true" /> Crear préstamo
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="overflow-hidden rounded-lg border">
             <Table>
@@ -409,7 +426,7 @@ export default function CargosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {!p.estaFinalizada && (
+                        {!p.estaFinalizada && puedeRevertirPrestamo && (
                           <Button variant="ghost" size="sm" onClick={() => onFinalizarPrestamo(p.id)} disabled={isPending}>
                             Finalizar
                           </Button>
@@ -424,34 +441,36 @@ export default function CargosPage() {
         </TabsContent>
 
         <TabsContent value="denominaciones" className="flex flex-col gap-4">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle>{editandoDenominacion ? "Editar denominación" : "Nueva denominación"}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={denominacionForm.handleSubmit(onGuardarDenominacion)} className="flex flex-col gap-4 md:max-w-lg" noValidate>
-                <Field data-invalid={!!denominacionForm.formState.errors.nombre}>
-                  <Label htmlFor="denominacionNombre">Nombre</Label>
-                  <Input id="denominacionNombre" {...denominacionForm.register("nombre")} aria-invalid={!!denominacionForm.formState.errors.nombre} />
-                  {denominacionForm.formState.errors.nombre && <p role="alert" className="text-sm text-destructive">{denominacionForm.formState.errors.nombre.message}</p>}
-                </Field>
-                <Field data-invalid={!!denominacionForm.formState.errors.orden}>
-                  <Label htmlFor="denominacionOrden">Orden</Label>
-                  <Input type="number" id="denominacionOrden" {...denominacionForm.register("orden", { valueAsNumber: true })} aria-invalid={!!denominacionForm.formState.errors.orden} />
-                </Field>
-                <div className="flex items-center gap-2">
-                  <Button type="submit" disabled={isPending}>
-                    <Plus className="size-4" aria-hidden="true" /> {editandoDenominacion ? "Actualizar" : "Crear"}
-                  </Button>
-                  {editandoDenominacion && (
-                    <Button type="button" variant="outline" onClick={() => { setEditandoDenominacion(null); denominacionForm.reset({ orden: 30 }); }}>
-                      Cancelar
+          {(editandoDenominacion ? puedeEditarDenominacion : puedeCrearDenominacion) && (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle>{editandoDenominacion ? "Editar denominación" : "Nueva denominación"}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={denominacionForm.handleSubmit(onGuardarDenominacion)} className="flex flex-col gap-4 md:max-w-lg" noValidate>
+                  <Field data-invalid={!!denominacionForm.formState.errors.nombre}>
+                    <Label htmlFor="denominacionNombre">Nombre</Label>
+                    <Input id="denominacionNombre" {...denominacionForm.register("nombre")} aria-invalid={!!denominacionForm.formState.errors.nombre} />
+                    {denominacionForm.formState.errors.nombre && <p role="alert" className="text-sm text-destructive">{denominacionForm.formState.errors.nombre.message}</p>}
+                  </Field>
+                  <Field data-invalid={!!denominacionForm.formState.errors.orden}>
+                    <Label htmlFor="denominacionOrden">Orden</Label>
+                    <Input type="number" id="denominacionOrden" {...denominacionForm.register("orden", { valueAsNumber: true })} aria-invalid={!!denominacionForm.formState.errors.orden} />
+                  </Field>
+                  <div className="flex items-center gap-2">
+                    <Button type="submit" disabled={isPending}>
+                      <Plus className="size-4" aria-hidden="true" /> {editandoDenominacion ? "Actualizar" : "Crear"}
                     </Button>
-                  )}
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+                    {editandoDenominacion && (
+                      <Button type="button" variant="outline" onClick={() => { setEditandoDenominacion(null); denominacionForm.reset({ orden: 30 }); }}>
+                        Cancelar
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="overflow-hidden rounded-lg border">
             <Table>
@@ -474,8 +493,12 @@ export default function CargosPage() {
                       <TableCell>{d.orden}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => onEditarDenominacion(d)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => onEliminarDenominacion(d.id)} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                          {puedeEditarDenominacion && (
+                            <Button variant="ghost" size="sm" onClick={() => onEditarDenominacion(d)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
+                          )}
+                          {puedeEliminarDenominacion && (
+                            <Button variant="ghost" size="sm" onClick={() => onEliminarDenominacion(d.id)} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -502,7 +525,7 @@ export default function CargosPage() {
         onTrasladar={onTrasladar}
         onCambiarEstatus={onCambiarEstatus}
         isPending={isPending}
-        puedeAsignar
+        puedeAsignar={puedeAsignar}
       />
     </section>
   );

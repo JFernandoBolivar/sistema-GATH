@@ -16,8 +16,10 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Loader2, Save } from "lucide-react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Field } from "@/shared/ui/components/field";
@@ -77,6 +79,8 @@ function OpcionesSelect<T extends { id: number; nombre: string }>({
 
 export default function CargoCrearPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const puedeCrear = tienePermiso(session?.user?.permisos, "cargos.crear");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -176,12 +180,21 @@ export default function CargoCrearPage() {
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>Registrar código de posición</CardTitle>
-          <CardDescription>Ingrese los datos del nuevo código y sus atributos asociados.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      {!puedeCrear ? (
+        <Card className="max-w-3xl">
+          <CardContent className="py-6">
+            <p className="text-sm font-medium text-destructive">
+              No tiene permisos para crear códigos de posición (requiere permiso cargos.crear).
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="max-w-3xl">
+          <CardHeader>
+            <CardTitle>Registrar código de posición</CardTitle>
+            <CardDescription>Ingrese los datos del nuevo código y sus atributos asociados.</CardDescription>
+          </CardHeader>
+          <CardContent>
           {cargandoCatalogos ? (
             <div className="flex justify-center py-10">
               <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
@@ -320,6 +333,7 @@ export default function CargoCrearPage() {
           )}
         </CardContent>
       </Card>
+      )}
     </section>
   );
 }
