@@ -25,3 +25,14 @@ class PermissionDeniedError(DomainError):
 
 class ConflictError(DomainError):
     """La operación entra en conflicto con el estado actual del recurso (409)."""
+
+
+class AlmacenamientoNoDisponible(DomainError):
+    """
+    El backend de almacenamiento de archivos (S3/SeaweedFS) no está disponible
+    o una operación de subida/descarga/firma de URL falló (503).
+
+    Corrige CRIT-01 de AUDITORIA_CALIDAD_BACKEND_2026-09-15.md: antes de esta
+    excepción, `SeaweedFSStorage` fallaba en silencio (cliente no disponible)
+    y devolvía valores que aparentaban éxito sin persistir ningún dato.
+    """

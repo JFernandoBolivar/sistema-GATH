@@ -24,6 +24,7 @@ import uuid
 from rest_framework.views import exception_handler as drf_exception_handler
 
 from core.domain.exceptions import (
+    AlmacenamientoNoDisponible,
     ConflictError,
     DomainError,
     NotFoundError,
@@ -39,6 +40,7 @@ _STATUS_POR_EXCEPCION = (
     (DomainValidationError, 400),
     (PermissionDeniedError, 403),
     (ConflictError, 409),
+    (AlmacenamientoNoDisponible, 503),
 )
 
 
