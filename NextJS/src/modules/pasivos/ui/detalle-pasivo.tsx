@@ -35,11 +35,14 @@ import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { Ambulance, Briefcase, ClipboardCheck, FileDown, GraduationCap, House, Loader2, Shirt, UserRound } from "lucide-react";
 
+import { nombrePorId } from "@/shared/lib/catalogos";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { InfoRow } from "@/shared/ui/components/info-row";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
   Sheet,
@@ -71,18 +74,6 @@ const ReportePasivoPDF = dynamic(
   () => import("./pdf/reporte-pasivo-pdf").then((m) => m.ReportePasivoPDF),
   { ssr: false },
 );
-
-function nombreCatalogo(lista: { id: number; nombre: string }[], id?: number | null): string {
-  if (id === null || id === undefined) return "N/A";
-  return lista.find((c) => c.id === id)?.nombre ?? "N/A";
-}
-
-function fechaLegible(fecha?: string | null): string {
-  if (!fecha) return "N/A";
-  const d = new Date(fecha);
-  if (Number.isNaN(d.getTime())) return fecha;
-  return d.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
 
 interface DetallePasivoProps {
   cedula: string | null;
@@ -161,15 +152,14 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Datos del pasivo</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Tipo</div>
-                <div><Badge variant="secondary">{pasivo.tipoPasivo}</Badge></div>
-                <div className="text-muted-foreground">Fecha de egreso</div>
-                <div>{fechaLegible(pasivo.fechaEgreso)}</div>
-                <div className="text-muted-foreground">Resolución</div>
-                <div>{pasivo.resolucion ?? "N/A"}</div>
-                <div className="text-muted-foreground">Observaciones</div>
-                <div>{pasivo.observaciones ?? "N/A"}</div>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2 py-1 text-sm">
+                  <div className="text-muted-foreground">Tipo</div>
+                  <div><Badge variant="secondary">{pasivo.tipoPasivo}</Badge></div>
+                </div>
+                <InfoRow label="Fecha de egreso" value={formatearFecha(pasivo.fechaEgreso)} />
+                <InfoRow label="Resolución" value={pasivo.resolucion} />
+                <InfoRow label="Observaciones" value={pasivo.observaciones} />
               </CardContent>
             </Card>
 
@@ -186,22 +176,17 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
                 ) : (
                   <div className="flex flex-col gap-3">
                     {pasivo.cargosHistorial.map((c, i) => (
-                      <div key={`${c.codigo}-${i}`} className="grid grid-cols-2 gap-1 rounded-lg border p-3 text-sm">
-                        <div className="col-span-2 font-medium">{c.codigo}</div>
-                        <div className="text-muted-foreground">Cargo</div>
-                        <div>{c.denominacionCargoNombre}</div>
-                        <div className="text-muted-foreground">Cargo específico</div>
-                        <div>{c.denominacionCargoEspecificoNombre}</div>
-                        <div className="text-muted-foreground">Grado</div>
-                        <div>{c.gradoNombre ?? "N/A"}</div>
-                        <div className="text-muted-foreground">Tipo de nómina</div>
-                        <div>{c.tipoNominaNombre}</div>
-                        <div className="text-muted-foreground">Dependencia</div>
-                        <div>
-                          {c.coordinacionNombre ?? c.direccionLineaNombre ?? c.direccionGeneralNombre ?? c.dependenciaNombre}
-                        </div>
-                        <div className="text-muted-foreground">Organismo adscrito</div>
-                        <div>{c.organismoAdscritoNombre ?? "N/A"}</div>
+                      <div key={`${c.codigo}-${i}`} className="rounded-lg border p-3 text-sm">
+                        <div className="font-medium">{c.codigo}</div>
+                        <InfoRow label="Cargo" value={c.denominacionCargoNombre} />
+                        <InfoRow label="Cargo específico" value={c.denominacionCargoEspecificoNombre} />
+                        <InfoRow label="Grado" value={c.gradoNombre} />
+                        <InfoRow label="Tipo de nómina" value={c.tipoNominaNombre} />
+                        <InfoRow
+                          label="Dependencia"
+                          value={c.coordinacionNombre ?? c.direccionLineaNombre ?? c.direccionGeneralNombre ?? c.dependenciaNombre}
+                        />
+                        <InfoRow label="Organismo adscrito" value={c.organismoAdscritoNombre} />
                       </div>
                     ))}
                   </div>
@@ -230,8 +215,8 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
                     <TableBody>
                       {pasivo.antecedentes.map((a, i) => (
                         <TableRow key={a.id ?? i}>
-                          <TableCell>{fechaLegible(a.fechaIngreso)}</TableCell>
-                          <TableCell>{a.fechaEgreso ? fechaLegible(a.fechaEgreso) : "Presente"}</TableCell>
+                          <TableCell>{formatearFecha(a.fechaIngreso)}</TableCell>
+                          <TableCell>{a.fechaEgreso ? formatearFecha(a.fechaEgreso) : "Presente"}</TableCell>
                           <TableCell>{a.organismoId ?? "N/A"}</TableCell>
                         </TableRow>
                       ))}
@@ -248,23 +233,17 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
                   Datos de vivienda
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2 text-sm">
+              <CardContent>
                 {cargando || !catalogos ? (
-                  <p className="col-span-2 text-muted-foreground">Cargando catálogos…</p>
+                  <p className="text-muted-foreground">Cargando catálogos…</p>
                 ) : (
                   <>
-                    <div className="text-muted-foreground">Estado</div>
-                    <div>{nombreCatalogo(catalogos.estados, pasivo.datosVivienda?.estadoId)}</div>
-                    <div className="text-muted-foreground">Municipio</div>
-                    <div>{nombreCatalogo(catalogos.municipios, pasivo.datosVivienda?.municipioId)}</div>
-                    <div className="text-muted-foreground">Parroquia</div>
-                    <div>{nombreCatalogo(catalogos.parroquias, pasivo.datosVivienda?.parroquiaId)}</div>
-                    <div className="text-muted-foreground">Condición de vivienda</div>
-                    <div>{nombreCatalogo(catalogos.condicionesVivienda, pasivo.datosVivienda?.condicionViviendaId)}</div>
-                    <div className="text-muted-foreground">Dirección exacta</div>
-                    <div>{pasivo.datosVivienda?.direccionExacta ?? "N/A"}</div>
-                    <div className="text-muted-foreground">Código postal</div>
-                    <div>{nombreCatalogo(catalogos.codigosPostales, pasivo.datosVivienda?.codigoPostalId)}</div>
+                    <InfoRow label="Estado" value={nombrePorId(catalogos.estados, pasivo.datosVivienda?.estadoId)} />
+                    <InfoRow label="Municipio" value={nombrePorId(catalogos.municipios, pasivo.datosVivienda?.municipioId)} />
+                    <InfoRow label="Parroquia" value={nombrePorId(catalogos.parroquias, pasivo.datosVivienda?.parroquiaId)} />
+                    <InfoRow label="Condición de vivienda" value={nombrePorId(catalogos.condicionesVivienda, pasivo.datosVivienda?.condicionViviendaId)} />
+                    <InfoRow label="Dirección exacta" value={pasivo.datosVivienda?.direccionExacta} />
+                    <InfoRow label="Código postal" value={nombrePorId(catalogos.codigosPostales, pasivo.datosVivienda?.codigoPostalId)} />
                   </>
                 )}
               </CardContent>
@@ -295,10 +274,10 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
                     <TableBody>
                       {pasivo.formacionAcademica.map((fa, i) => (
                         <TableRow key={fa.id ?? i}>
-                          <TableCell>{nombreCatalogo(catalogos.nivelesAcademicos, fa.nivelAcademicoId)}</TableCell>
-                          <TableCell>{nombreCatalogo(catalogos.carreras, fa.carreraId)}</TableCell>
-                          <TableCell>{nombreCatalogo(catalogos.menciones, fa.mencionId)}</TableCell>
-                          <TableCell>{nombreCatalogo(catalogos.instituciones, fa.institucionId)}</TableCell>
+                          <TableCell>{nombrePorId(catalogos.nivelesAcademicos, fa.nivelAcademicoId)}</TableCell>
+                          <TableCell>{nombrePorId(catalogos.carreras, fa.carreraId)}</TableCell>
+                          <TableCell>{nombrePorId(catalogos.menciones, fa.mencionId)}</TableCell>
+                          <TableCell>{nombrePorId(catalogos.instituciones, fa.institucionId)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -314,19 +293,15 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
                   Perfil físico
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2 text-sm">
+              <CardContent>
                 {cargando || !catalogos ? (
-                  <p className="col-span-2 text-muted-foreground">Cargando catálogos…</p>
+                  <p className="text-muted-foreground">Cargando catálogos…</p>
                 ) : (
                   <>
-                    <div className="text-muted-foreground">Talla de camisa</div>
-                    <div>{nombreCatalogo(catalogos.tallas, pasivo.perfilFisico?.tallaCamisaId)}</div>
-                    <div className="text-muted-foreground">Talla de pantalón</div>
-                    <div>{nombreCatalogo(catalogos.tallas, pasivo.perfilFisico?.tallaPantalonId)}</div>
-                    <div className="text-muted-foreground">Talla de calzado</div>
-                    <div>{nombreCatalogo(catalogos.tallas, pasivo.perfilFisico?.tallaZapatosId)}</div>
-                    <div className="text-muted-foreground">Talla de chaqueta</div>
-                    <div>{nombreCatalogo(catalogos.tallas, pasivo.perfilFisico?.tallaChaquetaId)}</div>
+                    <InfoRow label="Talla de camisa" value={nombrePorId(catalogos.tallas, pasivo.perfilFisico?.tallaCamisaId)} />
+                    <InfoRow label="Talla de pantalón" value={nombrePorId(catalogos.tallas, pasivo.perfilFisico?.tallaPantalonId)} />
+                    <InfoRow label="Talla de calzado" value={nombrePorId(catalogos.tallas, pasivo.perfilFisico?.tallaZapatosId)} />
+                    <InfoRow label="Talla de chaqueta" value={nombrePorId(catalogos.tallas, pasivo.perfilFisico?.tallaChaquetaId)} />
                   </>
                 )}
               </CardContent>
@@ -344,26 +319,23 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
                   <p className="text-muted-foreground">Cargando catálogos…</p>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="text-muted-foreground">Grupo sanguíneo</div>
-                      <div>{nombreCatalogo(catalogos.gruposSanguineos, pasivo.perfilSalud?.grupoSanguineoId)}</div>
-                    </div>
+                    <InfoRow label="Grupo sanguíneo" value={nombrePorId(catalogos.gruposSanguineos, pasivo.perfilSalud?.grupoSanguineoId)} />
                     <div>
                       <span className="text-muted-foreground">Alergias: </span>
                       {pasivo.perfilSalud?.alergias?.length
-                        ? pasivo.perfilSalud.alergias.map((id) => nombreCatalogo(catalogos.alergias, id)).join(", ")
+                        ? pasivo.perfilSalud.alergias.map((id) => nombrePorId(catalogos.alergias, id)).join(", ")
                         : "Ninguna"}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Patologías crónicas: </span>
                       {pasivo.perfilSalud?.patologiasCronicas?.length
-                        ? pasivo.perfilSalud.patologiasCronicas.map((id) => nombreCatalogo(catalogos.patologias, id)).join(", ")
+                        ? pasivo.perfilSalud.patologiasCronicas.map((id) => nombrePorId(catalogos.patologias, id)).join(", ")
                         : "Ninguna"}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Discapacidades: </span>
                       {pasivo.perfilSalud?.discapacidades?.length
-                        ? pasivo.perfilSalud.discapacidades.map((id) => nombreCatalogo(catalogos.discapacidades, id)).join(", ")
+                        ? pasivo.perfilSalud.discapacidades.map((id) => nombrePorId(catalogos.discapacidades, id)).join(", ")
                         : "Ninguna"}
                     </div>
                   </>

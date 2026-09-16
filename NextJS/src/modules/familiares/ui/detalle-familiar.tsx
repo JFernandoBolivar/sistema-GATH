@@ -27,8 +27,10 @@
 import { useState } from "react";
 import { FileText, Loader2, UserRound } from "lucide-react";
 
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 import { Badge } from "@/shared/ui/components/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { InfoRow } from "@/shared/ui/components/info-row";
 import {
   Sheet,
   SheetContent,
@@ -38,7 +40,7 @@ import {
 
 import type { DocumentoFamiliarDTO, FamiliarDTO } from "../application/dtos/familiar-dto";
 import { getDocumentosFamiliarAction } from "../infrastructure/actions/familiares-actions";
-import { etiquetaDocumento, fechaLegible } from "./detalle-familiar-view-model";
+import { etiquetaDocumento } from "./detalle-familiar-view-model";
 import { FamiliarFormDialog } from "./familiar-form-dialog";
 
 const SIN_DATO = "N/A";
@@ -103,11 +105,9 @@ export function DetalleFamiliar({ familiar, open, onOpenChange, puedeEditar, onG
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Datos personales</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-muted-foreground">Sexo</div>
-              <div>{familiar.sexoNombre}</div>
-              <div className="text-muted-foreground">Fecha de nacimiento</div>
-              <div>{fechaLegible(familiar.fechaNacimiento)}</div>
+            <CardContent>
+              <InfoRow label="Sexo" value={familiar.sexoNombre} />
+              <InfoRow label="Fecha de nacimiento" value={formatearFecha(familiar.fechaNacimiento)} />
             </CardContent>
           </Card>
 
@@ -115,20 +115,23 @@ export function DetalleFamiliar({ familiar, open, onOpenChange, puedeEditar, onG
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Parentesco</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-muted-foreground">Parentesco</div>
-              <div>{familiar.parentescoNombre}</div>
-              <div className="text-muted-foreground">Labora en la institución</div>
-              <div>
-                <Badge variant={familiar.mismoEnte ? "default" : "destructive"}>
-                  {familiar.mismoEnte ? "Sí" : "No"}
-                </Badge>
+            <CardContent>
+              <InfoRow label="Parentesco" value={familiar.parentescoNombre} />
+              <div className="grid grid-cols-2 gap-2 py-1 text-sm">
+                <div className="text-muted-foreground">Labora en la institución</div>
+                <div>
+                  <Badge variant={familiar.mismoEnte ? "default" : "destructive"}>
+                    {familiar.mismoEnte ? "Sí" : "No"}
+                  </Badge>
+                </div>
               </div>
-              <div className="text-muted-foreground">Heredero</div>
-              <div>
-                <Badge variant={familiar.heredero ? "default" : "destructive"}>
-                  {familiar.heredero ? "Heredero" : "No heredero"}
-                </Badge>
+              <div className="grid grid-cols-2 gap-2 py-1 text-sm">
+                <div className="text-muted-foreground">Heredero</div>
+                <div>
+                  <Badge variant={familiar.heredero ? "default" : "destructive"}>
+                    {familiar.heredero ? "Heredero" : "No heredero"}
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -163,7 +166,7 @@ export function DetalleFamiliar({ familiar, open, onOpenChange, puedeEditar, onG
                   {documentos.map((d) => (
                     <li key={d.id} className="flex items-center justify-between gap-2">
                       <span>{etiquetaDocumento(d.tipoDocumento)}</span>
-                      <span className="text-muted-foreground">{fechaLegible(d.fechaSubida)}</span>
+                      <span className="text-muted-foreground">{formatearFecha(d.fechaSubida)}</span>
                     </li>
                   ))}
                 </ul>

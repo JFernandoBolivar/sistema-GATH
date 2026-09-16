@@ -15,6 +15,7 @@ import { FileDown, Loader2 } from "lucide-react";
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { InfoRow } from "@/shared/ui/components/info-row";
 import {
   Sheet,
   SheetContent,
@@ -46,15 +47,6 @@ interface EmpleadoDetalleSheetProps {
   /** CC-APP-2026-08-001: RECEPCIONISTA puede ver el detalle pero no exportarlo. */
   puedeExportarPdf: boolean;
   puedeEditar: boolean;
-}
-
-function FilaInfo({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div className="grid grid-cols-2 gap-2 py-1 text-sm">
-      <div className="text-muted-foreground">{etiqueta}</div>
-      <div>{valor}</div>
-    </div>
-  );
 }
 
 export default function EmpleadoDetalleSheet({
@@ -102,14 +94,14 @@ export default function EmpleadoDetalleSheet({
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Datos personales</CardTitle></CardHeader>
               <CardContent>
-                <FilaInfo etiqueta="Sexo" valor={detalle.sexo} />
-                <FilaInfo etiqueta="Fecha de nacimiento" valor={detalle.fechaNacimiento} />
-                <FilaInfo etiqueta="Estado civil" valor={detalle.estadoCivil} />
-                <FilaInfo etiqueta="Carnet de la patria" valor={detalle.carnetPatria} />
-                <FilaInfo etiqueta="Correo" valor={detalle.correo} />
-                <FilaInfo etiqueta="Teléfono móvil" valor={detalle.telefonoMovil} />
-                <FilaInfo etiqueta="Teléfono habitación" valor={detalle.telefonoHabitacion} />
-                <FilaInfo etiqueta="Total años APN" valor={detalle.totalAnosApn} />
+                <InfoRow label="Sexo" value={detalle.sexo} />
+                <InfoRow label="Fecha de nacimiento" value={detalle.fechaNacimiento} />
+                <InfoRow label="Estado civil" value={detalle.estadoCivil} />
+                <InfoRow label="Carnet de la patria" value={detalle.carnetPatria} />
+                <InfoRow label="Correo" value={detalle.correo} />
+                <InfoRow label="Teléfono móvil" value={detalle.telefonoMovil} />
+                <InfoRow label="Teléfono habitación" value={detalle.telefonoHabitacion} />
+                <InfoRow label="Total años APN" value={detalle.totalAnosApn} />
               </CardContent>
             </Card>
 
@@ -117,10 +109,10 @@ export default function EmpleadoDetalleSheet({
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Contrato actual</CardTitle></CardHeader>
                 <CardContent>
-                  <FilaInfo etiqueta="N° contrato" valor={detalle.contratoActual.nContrato} />
-                  <FilaInfo etiqueta="Fecha de culminación" valor={detalle.contratoActual.fechaCulminacion} />
-                  <FilaInfo etiqueta="Política" valor={detalle.contratoActual.politica} />
-                  <FilaInfo etiqueta="Tipo" valor={detalle.contratoActual.esFijo} />
+                  <InfoRow label="N° contrato" value={detalle.contratoActual.nContrato} />
+                  <InfoRow label="Fecha de culminación" value={detalle.contratoActual.fechaCulminacion} />
+                  <InfoRow label="Política" value={detalle.contratoActual.politica} />
+                  <InfoRow label="Tipo" value={detalle.contratoActual.esFijo} />
                 </CardContent>
               </Card>
             )}
@@ -157,12 +149,12 @@ export default function EmpleadoDetalleSheet({
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Datos de vivienda</CardTitle></CardHeader>
                 <CardContent>
-                  <FilaInfo etiqueta="Estado" valor={detalle.vivienda.estado} />
-                  <FilaInfo etiqueta="Municipio" valor={detalle.vivienda.municipio} />
-                  <FilaInfo etiqueta="Parroquia" valor={detalle.vivienda.parroquia} />
-                  <FilaInfo etiqueta="Dirección" valor={detalle.vivienda.direccionExacta} />
-                  <FilaInfo etiqueta="Condición de vivienda" valor={detalle.vivienda.condicion} />
-                  <FilaInfo etiqueta="Código postal" valor={detalle.vivienda.codigoPostal} />
+                  <InfoRow label="Estado" value={detalle.vivienda.estado} />
+                  <InfoRow label="Municipio" value={detalle.vivienda.municipio} />
+                  <InfoRow label="Parroquia" value={detalle.vivienda.parroquia} />
+                  <InfoRow label="Dirección" value={detalle.vivienda.direccionExacta} />
+                  <InfoRow label="Condición de vivienda" value={detalle.vivienda.condicion} />
+                  <InfoRow label="Código postal" value={detalle.vivienda.codigoPostal} />
                 </CardContent>
               </Card>
             )}
@@ -261,10 +253,10 @@ export default function EmpleadoDetalleSheet({
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Perfil físico (tallas)</CardTitle></CardHeader>
                 <CardContent>
-                  <FilaInfo etiqueta="Talla camisa" valor={detalle.fisico.tallaCamisa} />
-                  <FilaInfo etiqueta="Talla pantalón" valor={detalle.fisico.tallaPantalon} />
-                  <FilaInfo etiqueta="Talla zapatos" valor={detalle.fisico.tallaZapatos} />
-                  <FilaInfo etiqueta="Talla chaqueta" valor={detalle.fisico.tallaChaqueta} />
+                  <InfoRow label="Talla camisa" value={detalle.fisico.tallaCamisa} />
+                  <InfoRow label="Talla pantalón" value={detalle.fisico.tallaPantalon} />
+                  <InfoRow label="Talla zapatos" value={detalle.fisico.tallaZapatos} />
+                  <InfoRow label="Talla chaqueta" value={detalle.fisico.tallaChaqueta} />
                 </CardContent>
               </Card>
             )}
@@ -273,7 +265,7 @@ export default function EmpleadoDetalleSheet({
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Salud</CardTitle></CardHeader>
                 <CardContent className="flex flex-col gap-2">
-                  <FilaInfo etiqueta="Grupo sanguíneo" valor={detalle.salud.grupoSanguineo} />
+                  <InfoRow label="Grupo sanguíneo" value={detalle.salud.grupoSanguineo} />
                   <div>
                     <div className="mb-1 text-sm text-muted-foreground">Alergias</div>
                     <div className="flex flex-wrap gap-1">

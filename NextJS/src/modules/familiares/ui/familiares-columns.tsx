@@ -14,8 +14,10 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, Eye, MoreHorizontal, Trash2 } from "lucide-react";
 
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
+import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,10 +26,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/components/dropdown-menu";
-import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
 
 import type { FamiliarDTO } from "../application/dtos/familiar-dto";
-import { fechaLegible } from "./detalle-familiar-view-model";
 
 function AccionesCell({ familiar, puedeEliminar, onVerDetalle, onEliminar }: {
   familiar: FamiliarDTO;
@@ -91,7 +91,7 @@ export function construirColumnasFamiliares(
     {
       accessorKey: "fechaNacimiento",
       header: "F. Nacimiento",
-      cell: ({ getValue }) => <span>{fechaLegible(getValue() as string)}</span>,
+      cell: ({ getValue }) => <span>{formatearFecha(getValue() as string)}</span>,
     },
     {
       accessorKey: "heredero",

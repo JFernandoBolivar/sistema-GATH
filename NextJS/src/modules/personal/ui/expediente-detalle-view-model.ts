@@ -7,32 +7,12 @@
  * tener helpers de presentación puros — mismo patrón que
  * `modules/reportes/ui/tendencia-chart-data.ts`).
  */
-import { formatInTimeZone } from "date-fns-tz";
+import { nombrePorId, nombresPorIds } from "@/shared/lib/catalogos";
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../application/dtos/empleado-dto";
 
 const SIN_DATO = "N/A";
-
-interface CatalogoItem {
-  id: number;
-  nombre: string;
-}
-
-function nombrePorId(lista: CatalogoItem[] | undefined, id: number | null | undefined): string {
-  if (id === null || id === undefined) return SIN_DATO;
-  return lista?.find((x) => x.id === id)?.nombre ?? `ID ${id}`;
-}
-
-function nombresPorIds(lista: CatalogoItem[] | undefined, ids: number[] | undefined): string[] {
-  return (ids ?? []).map((id) => nombrePorId(lista, id));
-}
-
-function formatearFecha(fecha: string | null | undefined, presente = SIN_DATO): string {
-  if (!fecha) return presente;
-  const parsed = new Date(fecha);
-  if (Number.isNaN(parsed.getTime())) return presente;
-  return formatInTimeZone(parsed, "UTC", "dd/MM/yyyy");
-}
 
 export interface DetalleViviendaVM {
   estado: string;
