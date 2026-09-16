@@ -11,8 +11,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Loader2, UserPlus } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import {
   Card,
@@ -42,6 +44,8 @@ import { registrarUsuarioSchema, type RegistrarUsuarioFormType } from "./schema/
 
 export default function UsuarioRegistrarPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const puedeCrear = tienePermiso(session?.user?.permisos, "identidad.crear_usuarios");
   const [isPending, startTransition] = useTransition();
   const [departamentos, setDepartamentos] = useState<DepartamentoDTO[]>([]);
   const [roles, setRoles] = useState<RolDTO[]>([]);
@@ -61,6 +65,10 @@ export default function UsuarioRegistrarPage() {
   }, []);
 
   const onSubmit = (data: RegistrarUsuarioFormType) => {
+    if (!puedeCrear) {
+      toast.error("No tiene permisos para registrar usuarios.");
+      return;
+    }
     startTransition(async () => {
       const resultado = await registrarUsuarioAction(data);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
@@ -78,6 +86,12 @@ export default function UsuarioRegistrarPage() {
         <UserPlus className="size-5 text-muted-foreground" aria-hidden="true" />
         <h1 className="text-xl font-semibold tracking-tight">Registrar usuario</h1>
       </header>
+
+      {!puedeCrear && (
+        <div role="alert" className="max-w-2xl rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive font-medium">
+          No tiene permisos suficientes para registrar usuarios (se requiere identidad.crear_usuarios).
+        </div>
+      )}
 
       <Card className="max-w-2xl">
         <CardHeader>
@@ -153,7 +167,7 @@ export default function UsuarioRegistrarPage() {
                 </Select>
               </Field>
             </div>
-            <Button type="submit" size="lg" disabled={isPending} className="w-full">
+            <Button type="submit" size="lg" disabled={isPending || !puedeCrear} className="w-full">
               {isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
               ) : (

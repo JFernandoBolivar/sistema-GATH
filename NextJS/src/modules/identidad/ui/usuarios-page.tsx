@@ -75,10 +75,13 @@ export default function UsuariosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const puedeCrearUsuario = tienePermiso(permisos, "identidad.crear_usuarios");
-  const puedeEditarUsuario = tienePermiso(permisos, "identidad.editar_usuarios") || tienePermiso(permisos, "identidad.desactivar_usuarios");
+  const puedeEditarUsuario = tienePermiso(permisos, "identidad.editar_usuarios");
+  const puedeDesactivarUsuario = tienePermiso(permisos, "identidad.desactivar_usuarios");
+  const puedeVerRoles = tienePermiso(permisos, "identidad.ver_roles");
   const puedeCrearRol = tienePermiso(permisos, "identidad.crear_roles");
   const puedeEditarRol = tienePermiso(permisos, "identidad.editar_roles");
   const puedeEliminarRol = tienePermiso(permisos, "identidad.eliminar_roles");
+  const puedeVerPermisos = tienePermiso(permisos, "identidad.asignar_permisos") || puedeVerRoles;
 
   const [usuarios, setUsuarios] = useState<UsuarioDTO[]>([]);
   const [roles, setRoles] = useState<RolDTO[]>([]);
@@ -169,6 +172,7 @@ export default function UsuariosPage() {
     departamentos,
     roles,
     puedeEditarUsuario,
+    puedeDesactivarUsuario,
     (u) => {
       setUsuarioEditando(u);
       setDialogoUsuarioAbierto(true);
@@ -211,8 +215,8 @@ export default function UsuariosPage() {
       <Tabs defaultValue="usuarios">
         <TabsList>
           <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-          <TabsTrigger value="roles">Roles</TabsTrigger>
-          <TabsTrigger value="permisos">Permisos</TabsTrigger>
+          {puedeVerRoles && <TabsTrigger value="roles">Roles</TabsTrigger>}
+          {puedeVerPermisos && <TabsTrigger value="permisos">Permisos</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="usuarios" className="flex flex-col gap-4">
@@ -249,34 +253,38 @@ export default function UsuariosPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="roles" className="flex flex-col gap-4">
-          <DataTable
-            columns={columnasRoles}
-            data={roles}
-            emptyMessage="No hay roles registrados."
-            toolbar={
-              puedeCrearRol ? (
-                <Button
-                  onClick={() => {
-                    setRolEditando(null);
-                    setDialogoRolAbierto(true);
-                  }}
-                >
-                  <Plus className="size-4" aria-hidden="true" /> Nuevo rol
-                </Button>
-              ) : undefined
-            }
-          />
-        </TabsContent>
+        {puedeVerRoles && (
+          <TabsContent value="roles" className="flex flex-col gap-4">
+            <DataTable
+              columns={columnasRoles}
+              data={roles}
+              emptyMessage="No hay roles registrados."
+              toolbar={
+                puedeCrearRol ? (
+                  <Button
+                    onClick={() => {
+                      setRolEditando(null);
+                      setDialogoRolAbierto(true);
+                    }}
+                  >
+                    <Plus className="size-4" aria-hidden="true" /> Nuevo rol
+                  </Button>
+                ) : undefined
+              }
+            />
+          </TabsContent>
+        )}
 
-        <TabsContent value="permisos" className="flex flex-col gap-4">
-          <DataTable
-            columns={columnasPermisos}
-            data={permisosCatalogo}
-            emptyMessage="No hay permisos registrados."
-            hideColumnsMenu
-          />
-        </TabsContent>
+        {puedeVerPermisos && (
+          <TabsContent value="permisos" className="flex flex-col gap-4">
+            <DataTable
+              columns={columnasPermisos}
+              data={permisosCatalogo}
+              emptyMessage="No hay permisos registrados."
+              hideColumnsMenu
+            />
+          </TabsContent>
+        )}
       </Tabs>
 
       <UsuarioEditarDialog

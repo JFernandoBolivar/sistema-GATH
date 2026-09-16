@@ -27,11 +27,13 @@ import type { DepartamentoDTO, RolDTO, UsuarioDTO } from "../application/dtos/us
 function AccionesCell({
   usuario,
   puedeEditar,
+  puedeDesactivar,
   onEditar,
   onCambiarEstado,
 }: {
   usuario: UsuarioDTO;
   puedeEditar: boolean;
+  puedeDesactivar: boolean;
   onEditar: (usuario: UsuarioDTO) => void;
   onCambiarEstado: (usuario: UsuarioDTO) => void;
 }) {
@@ -48,24 +50,24 @@ function AccionesCell({
         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(usuario.cedula)}>
           <Copy className="size-4" aria-hidden="true" /> Copiar cédula
         </DropdownMenuItem>
+        {(puedeEditar || puedeDesactivar) && <DropdownMenuSeparator />}
         {puedeEditar && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onEditar(usuario)}>
-              <Pencil className="size-4" aria-hidden="true" /> Editar
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant={usuario.isActive ? "destructive" : "default"}
-              onClick={() => onCambiarEstado(usuario)}
-            >
-              {usuario.isActive ? (
-                <RotateCcw className="size-4" aria-hidden="true" />
-              ) : (
-                <CheckCircle2 className="size-4" aria-hidden="true" />
-              )}
-              {usuario.isActive ? "Bloquear" : "Activar"}
-            </DropdownMenuItem>
-          </>
+          <DropdownMenuItem onClick={() => onEditar(usuario)}>
+            <Pencil className="size-4" aria-hidden="true" /> Editar
+          </DropdownMenuItem>
+        )}
+        {puedeDesactivar && (
+          <DropdownMenuItem
+            variant={usuario.isActive ? "destructive" : "default"}
+            onClick={() => onCambiarEstado(usuario)}
+          >
+            {usuario.isActive ? (
+              <RotateCcw className="size-4" aria-hidden="true" />
+            ) : (
+              <CheckCircle2 className="size-4" aria-hidden="true" />
+            )}
+            {usuario.isActive ? "Bloquear" : "Activar"}
+          </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -76,6 +78,7 @@ export function construirColumnasUsuarios(
   departamentos: DepartamentoDTO[],
   roles: RolDTO[],
   puedeEditar: boolean,
+  puedeDesactivar: boolean,
   onEditar: (usuario: UsuarioDTO) => void,
   onCambiarEstado: (usuario: UsuarioDTO) => void,
 ): ColumnDef<UsuarioDTO>[] {
@@ -124,6 +127,7 @@ export function construirColumnasUsuarios(
         <AccionesCell
           usuario={row.original}
           puedeEditar={puedeEditar}
+          puedeDesactivar={puedeDesactivar}
           onEditar={onEditar}
           onCambiarEstado={onCambiarEstado}
         />
