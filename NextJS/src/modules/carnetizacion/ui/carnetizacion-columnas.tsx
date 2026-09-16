@@ -26,12 +26,30 @@ import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-
 
 import type { CarnetDTO } from "../application/dtos/carnet-dto";
 
-function AccionesCell({ carnet, onAbrirDisenador, onDescargarPdf, onValidar, onRevocar }: {
+export interface OpcionesColumnasCarnet {
+  puedeDisenar?: boolean;
+  puedeDescargar?: boolean;
+  puedeRevocar?: boolean;
+}
+
+function AccionesCell({
+  carnet,
+  onAbrirDisenador,
+  onDescargarPdf,
+  onValidar,
+  onRevocar,
+  puedeDisenar = true,
+  puedeDescargar = true,
+  puedeRevocar = true,
+}: {
   carnet: CarnetDTO;
   onAbrirDisenador: (cedula: string) => void;
   onDescargarPdf: (carnetId: number) => void;
   onValidar: (cedula: string) => void;
   onRevocar: (carnetId: number) => void;
+  puedeDisenar?: boolean;
+  puedeDescargar?: boolean;
+  puedeRevocar?: boolean;
 }) {
   return (
     <DropdownMenu>
@@ -46,16 +64,20 @@ function AccionesCell({ carnet, onAbrirDisenador, onDescargarPdf, onValidar, onR
         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(carnet.empleadoCedula)}>
           <Copy className="size-4" aria-hidden="true" /> Copiar cédula
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onAbrirDisenador(carnet.empleadoCedula)}>
-          <Sparkles className="size-4 text-amber-500" aria-hidden="true" /> Abrir en Diseñador
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDescargarPdf(carnet.id)}>
-          <FileDown className="size-4" aria-hidden="true" /> Descargar PDF
-        </DropdownMenuItem>
+        {puedeDisenar && (
+          <DropdownMenuItem onClick={() => onAbrirDisenador(carnet.empleadoCedula)}>
+            <Sparkles className="size-4 text-amber-500" aria-hidden="true" /> Abrir en Diseñador
+          </DropdownMenuItem>
+        )}
+        {puedeDescargar && (
+          <DropdownMenuItem onClick={() => onDescargarPdf(carnet.id)}>
+            <FileDown className="size-4" aria-hidden="true" /> Descargar PDF
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => onValidar(carnet.empleadoCedula)}>
           <ShieldCheck className="size-4" aria-hidden="true" /> Validar
         </DropdownMenuItem>
-        {carnet.activo && (
+        {carnet.activo && puedeRevocar && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onRevocar(carnet.id)}>
@@ -73,6 +95,7 @@ export function construirColumnasCarnets(
   onDescargarPdf: (carnetId: number) => void,
   onValidar: (cedula: string) => void,
   onRevocar: (carnetId: number) => void,
+  opciones: OpcionesColumnasCarnet = {},
 ): ColumnDef<CarnetDTO>[] {
   return [
     {
@@ -107,6 +130,9 @@ export function construirColumnasCarnets(
           onDescargarPdf={onDescargarPdf}
           onValidar={onValidar}
           onRevocar={onRevocar}
+          puedeDisenar={opciones.puedeDisenar}
+          puedeDescargar={opciones.puedeDescargar}
+          puedeRevocar={opciones.puedeRevocar}
         />
       ),
     },

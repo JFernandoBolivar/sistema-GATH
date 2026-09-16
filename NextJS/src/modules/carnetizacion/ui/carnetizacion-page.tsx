@@ -10,7 +10,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BadgeCheck, BarChart3, IdCard, Loader2, Upload } from "lucide-react";
+import { useSession } from "next-auth/react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
 import {
@@ -60,6 +62,14 @@ import { construirColumnasCarnets } from "./carnetizacion-columnas";
 type Tab = "disenador" | "listado" | "validar" | "plantillas" | "estadisticas";
 
 export default function CarnetizacionPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeDisenar = tienePermiso(permisos, "carnetizacion.disenar");
+  const puedeEmitir = tienePermiso(permisos, "carnetizacion.emitir");
+  const puedeRevocar = tienePermiso(permisos, "carnetizacion.revocar");
+  const puedeReimprimir = tienePermiso(permisos, "carnetizacion.reimprimir");
+  const puedeDescargar = puedeReimprimir || puedeEmitir;
+
   const [tab, setTab] = useState<Tab>("disenador");
   const [carnets, setCarnets] = useState<CarnetDTO[]>([]);
   const [plantillas, setPlantillas] = useState<PlantillaCarnetDTO[]>([]);
@@ -225,7 +235,13 @@ export default function CarnetizacionPage() {
     });
   };
 
-  const columnasCarnets = construirColumnasCarnets(onAbrirDisenador, onDescargar, onValidarDesdeListado, onRevocar);
+  const columnasCarnets = construirColumnasCarnets(
+    onAbrirDisenador,
+    onDescargar,
+    onValidarDesdeListado,
+    onRevocar,
+    { puedeDisenar, puedeDescargar, puedeRevocar },
+  );
 
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
@@ -261,26 +277,28 @@ export default function CarnetizacionPage() {
               <CardTitle>Emitir / listar</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <form onSubmit={emisionForm.handleSubmit(onEmitir)} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end" noValidate>
-                <Field data-invalid={!!emisionForm.formState.errors.empleadoCedula}>
-                  <Label htmlFor="empleadoCedula">Cédula del empleado</Label>
-                  <Input id="empleadoCedula" placeholder="Ej. 12345678" {...emisionForm.register("empleadoCedula")} aria-invalid={!!emisionForm.formState.errors.empleadoCedula} />
-                </Field>
-                <Field data-invalid={!!emisionForm.formState.errors.motivoId}>
-                  <Label htmlFor="motivoId">Motivo (id)</Label>
-                  <Input type="number" id="motivoId" {...emisionForm.register("motivoId", { valueAsNumber: true })} aria-invalid={!!emisionForm.formState.errors.motivoId} />
-                </Field>
-                <Field>
-                  <Label htmlFor="observaciones">Observaciones</Label>
-                  <Input id="observaciones" {...emisionForm.register("observaciones")} />
-                </Field>
-                <div className="md:col-span-3">
-                  <Button type="submit" disabled={isPending}>
-                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <IdCard className="size-4" aria-hidden="true" />}
-                    Emitir
-                  </Button>
-                </div>
-              </form>
+              {puedeEmitir && (
+                <form onSubmit={emisionForm.handleSubmit(onEmitir)} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end" noValidate>
+                  <Field data-invalid={!!emisionForm.formState.errors.empleadoCedula}>
+                    <Label htmlFor="empleadoCedula">Cédula del empleado</Label>
+                    <Input id="empleadoCedula" placeholder="Ej. 12345678" {...emisionForm.register("empleadoCedula")} aria-invalid={!!emisionForm.formState.errors.empleadoCedula} />
+                  </Field>
+                  <Field data-invalid={!!emisionForm.formState.errors.motivoId}>
+                    <Label htmlFor="motivoId">Motivo (id)</Label>
+                    <Input type="number" id="motivoId" {...emisionForm.register("motivoId", { valueAsNumber: true })} aria-invalid={!!emisionForm.formState.errors.motivoId} />
+                  </Field>
+                  <Field>
+                    <Label htmlFor="observaciones">Observaciones</Label>
+                    <Input id="observaciones" {...emisionForm.register("observaciones")} />
+                  </Field>
+                  <div className="md:col-span-3">
+                    <Button type="submit" disabled={isPending}>
+                      {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <IdCard className="size-4" aria-hidden="true" />}
+                      Emitir
+                    </Button>
+                  </div>
+                </form>
+              )}
 
               <DataTable
                 columns={columnasCarnets}
@@ -351,34 +369,36 @@ export default function CarnetizacionPage() {
         </TabsContent>
 
         <TabsContent value="plantillas">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle>Subir plantilla</CardTitle>
-              <CardDescription>Registra una nueva plantilla de carnet.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={onSubirPlantilla} className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end" noValidate>
-                <Field>
-                  <Label htmlFor="nombrePlantilla">Nombre</Label>
-                  <Input id="nombrePlantilla" ref={nombrePlantilla} placeholder="Ej. Plantilla institucional" />
-                </Field>
-                <Field>
-                  <Label htmlFor="imagenPlantilla">Imagen</Label>
-                  <Input id="imagenPlantilla" ref={archivoPlantilla} type="file" accept="image/*" />
-                </Field>
-                <div className="flex items-center gap-2 md:col-span-2">
-                  <Checkbox id="activarPlantilla" checked={activarPlantilla} onCheckedChange={(c) => setActivarPlantilla(c === true)} />
-                  <Label htmlFor="activarPlantilla">Activar</Label>
-                </div>
-                <div className="md:col-span-2">
-                  <Button type="submit" disabled={isPending}>
-                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Upload className="size-4" aria-hidden="true" />}
-                    Subir
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          {puedeDisenar && (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle>Subir plantilla</CardTitle>
+                <CardDescription>Registra una nueva plantilla de carnet.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={onSubirPlantilla} className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end" noValidate>
+                  <Field>
+                    <Label htmlFor="nombrePlantilla">Nombre</Label>
+                    <Input id="nombrePlantilla" ref={nombrePlantilla} placeholder="Ej. Plantilla institucional" />
+                  </Field>
+                  <Field>
+                    <Label htmlFor="imagenPlantilla">Imagen</Label>
+                    <Input id="imagenPlantilla" ref={archivoPlantilla} type="file" accept="image/*" />
+                  </Field>
+                  <div className="flex items-center gap-2 md:col-span-2">
+                    <Checkbox id="activarPlantilla" checked={activarPlantilla} onCheckedChange={(c) => setActivarPlantilla(c === true)} />
+                    <Label htmlFor="activarPlantilla">Activar</Label>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Button type="submit" disabled={isPending}>
+                      {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Upload className="size-4" aria-hidden="true" />}
+                      Subir
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="overflow-hidden rounded-lg border">
             <Table>
@@ -400,7 +420,7 @@ export default function CarnetizacionPage() {
                       <TableCell>{p.imagenUrl ?? "—"}</TableCell>
                       <TableCell><Badge variant={p.activo ? "default" : "outline"}>{p.activo ? "Activa" : "Inactiva"}</Badge></TableCell>
                       <TableCell>
-                        {!p.activo && (
+                        {puedeDisenar && !p.activo && (
                           <Button variant="outline" size="sm" onClick={() => onActivarPlantilla(p.id)} disabled={isPending}>Activar</Button>
                         )}
                       </TableCell>
