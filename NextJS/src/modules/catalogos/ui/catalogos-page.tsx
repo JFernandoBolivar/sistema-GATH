@@ -19,7 +19,10 @@ import { useEffect, useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Layers, Loader2, Plus, RefreshCw } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import {
   AlertDialog,
@@ -194,6 +197,12 @@ export default function CatalogosPage() {
     defaultValues: { codigo: "alergias" },
   });
 
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeCrear = tienePermiso(permisos, "catalogos.crear");
+  const puedeEditar = tienePermiso(permisos, "catalogos.editar");
+  const puedeEliminar = tienePermiso(permisos, "catalogos.eliminar");
+
   const catalogoActual = form.watch("codigo");
   const esEditable = CATALOGOS_EDITABLES.has(catalogoActual);
 
@@ -258,6 +267,8 @@ export default function CatalogosPage() {
 
   const columnas = construirColumnasCatalogo(
     catalogoActual,
+    esEditable && puedeEditar && catalogoActual === "organismos-adscritos",
+    esEditable && puedeEliminar,
     (item) => {
       setItemEditando(item);
       setDialogoAbierto(true);
@@ -338,7 +349,7 @@ export default function CatalogosPage() {
           data={items}
           emptyMessage="No hay registros en este catálogo."
           toolbar={
-            esEditable ? (
+            esEditable && puedeCrear ? (
               <Button
                 size="sm"
                 onClick={() => {
