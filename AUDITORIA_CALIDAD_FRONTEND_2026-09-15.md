@@ -385,6 +385,16 @@
 
 ## 8. Auditoría de Sobre-Ingeniería y Bloat (Skill: `ponytail-audit`)
 
+> ### ✅ ESTADO: APLICADA (2026-09-15/16)
+> Se ejecutó la limpieza propuesta en esta sección en una tarea de seguimiento dedicada.
+> Cada punto de §8.2 se reverificó con `grep` real contra el estado actual del código antes de
+> tocar nada (varios cambiaron desde que se escribió este reporte, por trabajo concurrente de
+> otros workers en la misma sesión) — el detalle de qué se aplicó, qué se corrigió respecto al
+> hallazgo original, y qué se dejó documentado sin tocar está detallado punto por punto en §8.2.
+> Commits:
+> `159d324` (dependencias muertas), `5c9cb45` (InfoRow + formato de fecha + catálogo compartidos).
+> `npx tsc --noEmit`: 28 errores (mismo baseline de siempre, 0 nuevos). `npx vitest run`: 182/182.
+
 Siguiendo la metodología de `ponytail-audit`, se inspeccionó todo el frontend buscando dependencias innecesarias en `package.json`, abstracciones con un único consumidor, reinvención de utilidades de la plataforma/stdlib y duplicación en componentes de detalle.
 
 ### 8.1 Estudio de Caso: Duplicación en los 3 Sheets de Detalle (`personal`, `pasivos`, `familiares`)
@@ -399,24 +409,73 @@ Los componentes `empleado-detalle-sheet.tsx` (310 líneas), `detalle-pasivo.tsx`
 3. **Búsqueda Manual en Catálogos:**
    - `detalle-pasivo.tsx:60` crea `function nombreCatalogo(lista, id) { return lista.find(c => c.id === id)?.nombre ?? "N/A"; }`, idéntica a `nombrePorId` en `expediente-detalle-view-model.ts:21`.
 
+**✅ Resuelto (commit `5c9cb45`):** los 3 puntos se cerraron juntos porque las 3 duplicaciones vivían
+en los mismos 3 archivos. Ver `shared/ui/components/info-row.tsx`, `shared/lib/formato-fecha.ts`
+(con test propio) y `shared/lib/catalogos.ts`. El punto 2 (`toLocaleDateString` sin zona horaria
+explícita en pasivos) no era solo duplicación: era el único de los 3 con riesgo real de
+desplazamiento de día según la zona horaria del proceso — ya corregido al consolidar en
+`Intl.DateTimeFormat` con `timeZone: "UTC"` fijo.
+
 ### 8.2 Hallazgos Repo-Wide con Formato de Tags Ponytail
-Rankeados por mayor volumen de corte/simplificación posible:
+Rankeados por mayor volumen de corte/simplificación posible. Estado tras la tarea de aplicación
+(2026-09-15/16), con la corrección respecto al hallazgo original cuando aplica:
 
-1. `delete:` 43 archivos proxy puente en `src/shared/ui/components/*.tsx`. Migrar componentes directamente o consolidar. [`NextJS/src/shared/ui/components/`]
-2. `delete:` Dependencia muerta `pdfjs-dist` (3.4 MB) no importada en ningún archivo del frontend. Desinstalar de `package.json`. [`NextJS/package.json`]
-3. `delete:` Dependencias muertas `d3` y `@types/d3` no importadas en ningún archivo del frontend. Desinstalar de `package.json`. [`NextJS/package.json`]
-4. `delete:` Dependencia muerta `@uidotdev/usehooks` no importada en ningún archivo de `src/modules/`. Desinstalar de `package.json`. [`NextJS/package.json`]
-5. `delete:` Dependencia muerta `html-to-image` no importada en ningún archivo del frontend. Desinstalar de `package.json`. [`NextJS/package.json`]
-6. `native:` Reemplazar dependencia `nanoid` por estándar web `crypto.randomUUID()`. [`NextJS/package.json`]
-7. `stdlib:` Reemplazar `date-fns` y `date-fns-tz` por la API nativa de la plataforma `Intl.DateTimeFormat("es-VE", { timeZone: "UTC", ... })`. [`NextJS/src/modules/personal/ui/expediente-detalle-view-model.ts:10`, `NextJS/src/modules/familiares/ui/detalle-familiar-view-model.ts:6`]
-8. `delete:` Estado global `zustand` en `src/hooks/use-reporte-store.ts` y `use-search-params.ts`. Ningún módulo Onion lo utiliza; cada módulo maneja su estado local o URL params nativos. [`NextJS/src/hooks/`]
-9. `shrink:` Duplicación de grids y tarjetas en `detalle-pasivo.tsx`, `empleado-detalle-sheet.tsx` y `detalle-familiar.tsx`. Extraer `<InfoRow label="..." value="..." />` compartido. Reducción estimada de 848 líneas combinadas a ~450 líneas. [`NextJS/src/modules/{personal,pasivos,familiares}/ui/`]
-10. `delete:` Interfaces vacías sin propiedades `RequisitoEgresoDTO` y `RequisitoIngresoDTO`. Reemplazar por type alias o eliminar. [`NextJS/src/modules/pasivos/application/dtos/pasivos-dto.ts:23-32`, `NextJS/src/modules/personal/application/dtos/empleado-dto.ts:22-29`]
-11. `yagni:` Caso de uso `expediente-detalle-view-model.ts` (193 líneas) realiza mapeo exhaustivo de `EmpleadoDTO` a `DetalleExpedienteViewModel` donde el 90% de los campos solo convierten `undefined` a `"N/A"`. Puede simplificarse con un helper genérico `resolveCatalogo(dto, catalogos)`. [`NextJS/src/modules/personal/ui/expediente-detalle-view-model.ts`]
-12. `delete:` Imports no utilizados de iconos Lucide y tipos en 5 archivos. Remover con linter. [`NextJS/src/modules/organizacion/ui/organizacion-page.tsx:18`, `NextJS/src/modules/personal/ui/personal-page.tsx:29`]
+1. ⏸️ `delete:` 43 archivos proxy puente en `src/shared/ui/components/*.tsx`. **No aplicado en esta
+   tarea** (fuera de su alcance; es el hallazgo A5 de este mismo reporte, de mayor tamaño).
+2. ✅ `delete:` Dependencia muerta `pdfjs-dist`. Desinstalada (`159d324`).
+3. ✅ `delete:` Dependencias muertas `d3` y `@types/d3`. Desinstaladas (`159d324`).
+4. ✅ `delete:` Dependencia muerta `@uidotdev/usehooks`. Desinstalada (`159d324`).
+5. ✅ `delete:` Dependencia muerta `html-to-image`. Desinstalada (`159d324`).
+6. ✅ `native:` `nanoid` — no tenía ningún call-site en `src/` (confirmado con grep antes de tocar
+   nada), así que no hubo código que migrar a `crypto.randomUUID()`: se desinstaló directamente
+   (`159d324`).
+7. 🟡 `stdlib:` **Corregido respecto al hallazgo original.** `date-fns-tz` se consolidó en
+   `Intl.DateTimeFormat` en los 2 archivos de nueva arquitectura que lo usaban
+   (`personal/ui/expediente-detalle-view-model.ts`, `familiares/ui/detalle-familiar-view-model.ts`
+   → `shared/lib/formato-fecha.ts`, commit `5c9cb45`), pero **la dependencia `date-fns-tz` no se
+   desinstaló**: sigue en uso real en 11 archivos legado/`shared/forms/**` fuera del alcance de
+   esta tarea. Además, **`date-fns` (no `date-fns-tz`) resultó NO ser una dependencia muerta**: el
+   grep original de este reporte solo buscaba `from "date-fns"` exacto y no detectó el import de
+   subpath `import { es } from "date-fns/locale"` en `src/components/ui/calendar.tsx` (legado, en
+   uso real por `shared/forms/employees/**`). Se reinstaló tras confirmar con `tsc --noEmit` que
+   su ausencia rompía la compilación de ese archivo. Ver commit `159d324`.
+8. 📝 `delete:` Estado global `zustand`. **Documentado con precisión, no borrado** (instrucción
+   explícita de la tarea de aplicación): `src/hooks/use-reporte-store.ts` tiene **cero
+   consumidores** en todo el repo (verificado con grep, ni siquiera legado lo usa — candidato real
+   a borrado inmediato en una futura tarea). `src/hooks/use-search-params.ts` sí tiene 8
+   consumidores reales, todos en `shared/forms/employees/update/*.tsx` (legado activo, no Onion) —
+   borrarlo hoy rompería esos formularios.
+9. ✅ `shrink:` `InfoRow` compartido (commit `5c9cb45`). La reducción real fue más modesta que la
+   estimación original (848→~450): los 3 archivos suman hoy 832 líneas combinadas, porque
+   `empleado-detalle-sheet.tsx` y `detalle-pasivo.tsx` crecieron en tareas posteriores de esta
+   sesión (edición vía diálogo embebido, gating de permisos) antes de que se aplicara esta
+   limpieza — la deduplicación en sí se aplicó igual, sobre una base de código más grande de la
+   que este reporte medió originalmente.
+10. 🟡 `delete:` Interfaces vacías `RequisitoEgresoDTO`/`RequisitoIngresoDTO`. **No se encontraron
+    en el código** bajo ese nombre exacto ni en `pasivos-dto.ts`/`empleado-dto.ts` ni en ningún
+    otro archivo (grep repo-wide, 0 resultados) — probablemente ya renombradas en una tarea previa
+    de esta sesión. Las interfaces `extends X {}` que sí existen hoy en esos archivos (p. ej.
+    `DatosViviendaDTO extends DatosVivienda {}`) **no son placeholders vacíos**: son el patrón
+    deliberado de la regla R5 (`ui/` solo opera con tipos DTO, nunca con tipos de `domain/`
+    directamente) — heredan todos los campos del tipo de dominio bajo un nombre nominalmente
+    distinto. Convertirlas a `Record<string, unknown>` rompería esa separación de capas. No se
+    tocaron.
+11. ⏸️ `yagni:` Simplificación de `expediente-detalle-view-model.ts` con un `resolveCatalogo`
+    genérico. **No aplicado en esta tarea** (no estaba en su alcance explícito; el punto 5 de esa
+    misma tarea sí se cerró — ver `nombrePorId`/`nombresPorIds` en `shared/lib/catalogos.ts`, que
+    es la mitad reutilizable de esta simplificación).
+12. ⏸️ `delete:` Imports no utilizados de 5 archivos. **No aplicado en esta tarea** (fuera de su
+    alcance explícito; ver hallazgo B3 de este mismo reporte).
 
-> **Balance Ponytail Audit:**  
-> `net: -680 lines, -7 deps possible (pdfjs-dist, d3, @types/d3, @uidotdev/usehooks, html-to-image, date-fns, date-fns-tz).`
+> **Balance Ponytail Audit — actualizado:**
+> Aplicado: 6 de 7 dependencias muertas confirmadas y desinstaladas (`pdfjs-dist`, `d3`,
+> `@types/d3`, `@uidotdev/usehooks`, `html-to-image`, `nanoid`); `date-fns` se mantiene porque
+> el hallazgo original tenía un falso positivo (uso real vía subpath no detectado por el grep
+> original). `date-fns-tz` se redujo a solo los consumidores legado que quedan, con los 2
+> consumidores de nueva arquitectura migrados a `Intl.DateTimeFormat` nativo. `InfoRow` compartido
+> aplicado en los 3 Sheets. `zustand`: un hook (`use-reporte-store.ts`) confirmado sin ningún
+> consumidor (candidato a borrado inmediato), el otro (`use-search-params.ts`) con 8 consumidores
+> legado reales — ninguno borrado en esta tarea, ambos documentados con precisión.
 
 ---
 
@@ -479,11 +538,19 @@ Evaluación de la superficie de ataque del frontend contra los vectores del **OW
 3. **A3 (Bundle PDF):** Convertir `EmpleadoDetallePdf` a import dinámico (`next/dynamic`) en `personal-page.tsx`.
 4. **A4 (PBAC / BFLA):** ✅ Resuelto en Commits `c7bd8b2`, `6827fac`, `b24bdbc`, `d6e6904`, `0fecdca`, `faa8b9d`, `27574bc`, `0dfb1f4`. Incorporado `useSession()` y `tienePermiso()` en los 8 módulos de UI con gating estricto y 18 tests unitarios asociados.
 
-### Fase 3: Poda de Sobre-Ingeniería (Ponytail Audit)
-1. Desinstalar dependencias no utilizadas (`npm uninstall pdfjs-dist d3 @types/d3 @uidotdev/usehooks html-to-image date-fns date-fns-tz`).
-2. Sustituir `date-fns-tz` por `Intl.DateTimeFormat` nativo y `nanoid` por `crypto.randomUUID()`.
-3. Extraer `<InfoRow label="..." value="..." />` a `shared/ui/components/info-row.tsx` para reducir ~250 líneas duplicadas en los 3 Sheets de detalle (`personal`, `pasivos`, `familiares`).
-4. Migrar los 43 proxies de `shared/ui/components/` a componentes independientes para eliminar el acoplamiento con `@/components/ui/`.
+### Fase 3: Poda de Sobre-Ingeniería (Ponytail Audit) — ✅ 1–3 COMPLETADAS (commits `159d324`, `5c9cb45`), 4 pendiente
+1. ✅ Desinstaladas 6 de 7 dependencias muertas (`pdfjs-dist`, `d3`, `@types/d3`,
+   `@uidotdev/usehooks`, `html-to-image`, `nanoid`). `date-fns` se mantuvo (falso positivo del
+   hallazgo original, ver §8.2 punto 7) y `date-fns-tz` se mantuvo (uso legado real en 11 archivos
+   fuera de alcance).
+2. ✅ `date-fns-tz` sustituido por `Intl.DateTimeFormat` nativo (`shared/lib/formato-fecha.ts`) en
+   los 2 consumidores de nueva arquitectura. `nanoid` no tenía código que migrar (0 call-sites):
+   se desinstaló directamente.
+3. ✅ `<InfoRow label="..." value="..." />` extraído a `shared/ui/components/info-row.tsx` y
+   adoptado en los 3 Sheets de detalle.
+4. ⏸️ Migrar los 43 proxies de `shared/ui/components/` a componentes independientes — **no
+   aplicado**, fuera del alcance de la tarea de aplicación de esta sección (sigue siendo el
+   hallazgo A5 abierto).
 
 ### Fase 4: Accesibilidad, Mobile-First y Calidad de Código
 1. **M1:** Reemplazar `overflow-hidden` por `overflow-x-auto` en los contenedores de `<Table>` para soporte en pantallas móviles.
