@@ -10,8 +10,10 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Field } from "@/shared/ui/components/field";
@@ -38,6 +40,12 @@ type Resultado = { error?: string; success?: boolean };
 const tieneError = (r: unknown): r is Resultado => !!r && typeof r === "object" && "error" in r;
 
 export default function OrganismoAdmin({ items, onChanged }: { items: OrganismoAdscritoDTO[]; onChanged: () => void }) {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeCrear = tienePermiso(permisos, "organizacion.crear");
+  const puedeEditar = tienePermiso(permisos, "organizacion.editar");
+  const puedeEliminar = tienePermiso(permisos, "organizacion.eliminar");
+
   const [editando, setEditando] = useState<OrganismoAdscritoDTO | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -68,18 +76,20 @@ export default function OrganismoAdmin({ items, onChanged }: { items: OrganismoA
         <CardTitle>{editando ? "Editar organismo adscrito" : "Nuevo organismo adscrito"}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <form onSubmit={form.handleSubmit(guardar)} className="flex flex-col gap-4" noValidate>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field data-invalid={!!form.formState.errors.nombre}>
-              <Label htmlFor="orgNombre">Nombre</Label>
-              <Input id="orgNombre" {...form.register("nombre")} aria-invalid={!!form.formState.errors.nombre} />
-            </Field>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button type="submit" disabled={isPending}><Plus className="size-4" aria-hidden="true" /> {editando ? "Actualizar" : "Crear"}</Button>
-            {editando && <Button type="button" variant="outline" onClick={() => { setEditando(null); form.reset({ nombre: "", parentId: null }); }}>Cancelar</Button>}
-          </div>
-        </form>
+        {(editando ? puedeEditar : puedeCrear) && (
+          <form onSubmit={form.handleSubmit(guardar)} className="flex flex-col gap-4" noValidate>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field data-invalid={!!form.formState.errors.nombre}>
+                <Label htmlFor="orgNombre">Nombre</Label>
+                <Input id="orgNombre" {...form.register("nombre")} aria-invalid={!!form.formState.errors.nombre} />
+              </Field>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={isPending}><Plus className="size-4" aria-hidden="true" /> {editando ? "Actualizar" : "Crear"}</Button>
+              {editando && <Button type="button" variant="outline" onClick={() => { setEditando(null); form.reset({ nombre: "", parentId: null }); }}>Cancelar</Button>}
+            </div>
+          </form>
+        )}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="overflow-hidden rounded-lg border">
           <Table>
@@ -96,8 +106,12 @@ export default function OrganismoAdmin({ items, onChanged }: { items: OrganismoA
                     <TableCell>{o.parentId ?? "—"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => editar(o)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => { startTransition(async () => { const r = await eliminarOrganismoAdscritoAction(o.id); if (tieneError(r)) setError(r.error ?? "Error."); else onChanged(); }); }} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                        {puedeEditar && (
+                          <Button variant="ghost" size="sm" onClick={() => editar(o)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
+                        )}
+                        {puedeEliminar && (
+                          <Button variant="ghost" size="sm" onClick={() => { startTransition(async () => { const r = await eliminarOrganismoAdscritoAction(o.id); if (tieneError(r)) setError(r.error ?? "Error."); else onChanged(); }); }} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

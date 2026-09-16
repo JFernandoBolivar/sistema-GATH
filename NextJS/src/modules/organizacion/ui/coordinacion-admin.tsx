@@ -7,8 +7,10 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Field } from "@/shared/ui/components/field";
@@ -64,6 +66,12 @@ function CatalogSelect({ id, value, onChange, options, placeholder, ariaInvalid 
 }
 
 export default function CoordinacionAdmin({ dirLinea, items, onChanged }: { dirLinea: DireccionLineaDTO[]; items: CoordinacionDTO[]; onChanged: () => void }) {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeCrear = tienePermiso(permisos, "organizacion.crear");
+  const puedeEditar = tienePermiso(permisos, "organizacion.editar");
+  const puedeEliminar = tienePermiso(permisos, "organizacion.eliminar");
+
   const [editando, setEditando] = useState<CoordinacionDTO | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -96,33 +104,35 @@ export default function CoordinacionAdmin({ dirLinea, items, onChanged }: { dirL
         <CardTitle>{editando ? "Editar coordinación" : "Nueva coordinación"}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <form onSubmit={form.handleSubmit(guardar)} className="flex flex-col gap-4" noValidate>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Field data-invalid={!!form.formState.errors.codigo}>
-              <Label htmlFor="coCodigo">Código</Label>
-              <Input id="coCodigo" {...form.register("codigo")} aria-invalid={!!form.formState.errors.codigo} />
-            </Field>
-            <Field data-invalid={!!form.formState.errors.nombre}>
-              <Label htmlFor="coNombre">Nombre</Label>
-              <Input id="coNombre" {...form.register("nombre")} aria-invalid={!!form.formState.errors.nombre} />
-            </Field>
-            <Field data-invalid={!!form.formState.errors.direccionLineaId}>
-              <Label htmlFor="coDirLinea">Dirección de línea</Label>
-              <CatalogSelect
-                id="coDirLinea"
-                value={form.watch("direccionLineaId") ? String(form.watch("direccionLineaId")) : undefined}
-                onChange={(v) => form.setValue("direccionLineaId", v)}
-                options={dirLinea}
-                placeholder="Seleccione dirección de línea"
-                ariaInvalid={!!form.formState.errors.direccionLineaId}
-              />
-            </Field>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button type="submit" disabled={isPending}><Plus className="size-4" aria-hidden="true" /> {editando ? "Actualizar" : "Crear"}</Button>
-            {editando && <Button type="button" variant="outline" onClick={() => { setEditando(null); form.reset({ codigo: "", nombre: "", direccionLineaId: null }); }}>Cancelar</Button>}
-          </div>
-        </form>
+        {(editando ? puedeEditar : puedeCrear) && (
+          <form onSubmit={form.handleSubmit(guardar)} className="flex flex-col gap-4" noValidate>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <Field data-invalid={!!form.formState.errors.codigo}>
+                <Label htmlFor="coCodigo">Código</Label>
+                <Input id="coCodigo" {...form.register("codigo")} aria-invalid={!!form.formState.errors.codigo} />
+              </Field>
+              <Field data-invalid={!!form.formState.errors.nombre}>
+                <Label htmlFor="coNombre">Nombre</Label>
+                <Input id="coNombre" {...form.register("nombre")} aria-invalid={!!form.formState.errors.nombre} />
+              </Field>
+              <Field data-invalid={!!form.formState.errors.direccionLineaId}>
+                <Label htmlFor="coDirLinea">Dirección de línea</Label>
+                <CatalogSelect
+                  id="coDirLinea"
+                  value={form.watch("direccionLineaId") ? String(form.watch("direccionLineaId")) : undefined}
+                  onChange={(v) => form.setValue("direccionLineaId", v)}
+                  options={dirLinea}
+                  placeholder="Seleccione dirección de línea"
+                  ariaInvalid={!!form.formState.errors.direccionLineaId}
+                />
+              </Field>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={isPending}><Plus className="size-4" aria-hidden="true" /> {editando ? "Actualizar" : "Crear"}</Button>
+              {editando && <Button type="button" variant="outline" onClick={() => { setEditando(null); form.reset({ codigo: "", nombre: "", direccionLineaId: null }); }}>Cancelar</Button>}
+            </div>
+          </form>
+        )}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="overflow-hidden rounded-lg border">
           <Table>
@@ -140,8 +150,12 @@ export default function CoordinacionAdmin({ dirLinea, items, onChanged }: { dirL
                     <TableCell>{nombreDireccionLinea(c.direccionLineaId)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => editar(c)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => { startTransition(async () => { const r = await eliminarCoordinacionAction(c.id); if (tieneError(r)) setError(r.error ?? "Error."); else onChanged(); }); }} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                        {puedeEditar && (
+                          <Button variant="ghost" size="sm" onClick={() => editar(c)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
+                        )}
+                        {puedeEliminar && (
+                          <Button variant="ghost" size="sm" onClick={() => { startTransition(async () => { const r = await eliminarCoordinacionAction(c.id); if (tieneError(r)) setError(r.error ?? "Error."); else onChanged(); }); }} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

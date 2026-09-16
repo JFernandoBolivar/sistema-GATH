@@ -27,6 +27,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   Building2,
   Loader2,
@@ -34,6 +35,8 @@ import {
   Network,
   RefreshCw,
 } from "lucide-react";
+
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -90,6 +93,11 @@ const FLUJOS = [
 ];
 
 export default function OrganizacionPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeCrear = tienePermiso(permisos, "organizacion.crear");
+  const puedeEditar = tienePermiso(permisos, "organizacion.editar");
+
   const [dependencias, setDependencias] = useState<DependenciaDTO[]>([]);
   const [dirGenerales, setDirGenerales] = useState<DireccionGeneralDTO[]>([]);
   const [dirLinea, setDirLinea] = useState<DireccionLineaDTO[]>([]);
@@ -153,13 +161,15 @@ export default function OrganizacionPage() {
           <Building2 className="size-5 text-muted-foreground" aria-hidden="true" />
           <h1 className="text-xl font-semibold tracking-tight">Organización</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {FLUJOS.map((f) => (
-            <Button key={f.href} asChild variant="outline" size="sm">
-              <Link href={f.href}><f.icon className="size-4" aria-hidden="true" /> {f.label}</Link>
-            </Button>
-          ))}
-        </div>
+        {(puedeCrear || puedeEditar) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {FLUJOS.map((f) => (
+              <Button key={f.href} asChild variant="outline" size="sm">
+                <Link href={f.href}><f.icon className="size-4" aria-hidden="true" /> {f.label}</Link>
+              </Button>
+            ))}
+          </div>
+        )}
       </header>
 
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
