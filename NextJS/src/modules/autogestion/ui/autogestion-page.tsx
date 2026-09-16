@@ -8,7 +8,9 @@
  */
 import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { ClipboardList, FileDown, Loader2, Save, Search } from "lucide-react";
+import { useSession } from "next-auth/react";
 
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import {
   Card,
@@ -53,6 +55,12 @@ import { CensoDonutChart } from "./censo-donut-chart";
 import { construirColumnasReporteDependencias } from "./autogestion-columnas";
 
 export default function AutogestionPage() {
+  const { data: session } = useSession();
+  const permisos = session?.user?.permisos;
+  const puedeVerTodos = tienePermiso(permisos, "autogestion.censo_ver_todos");
+  const puedeExportar = tienePermiso(permisos, "autogestion.censo_exportar");
+  const puedeActualizarPropio = tienePermiso(permisos, "autogestion.censo_actualizar_propio");
+
   const [preguntas, setPreguntas] = useState<PreguntaCensoDTO[]>([]);
   const [miCenso, setMiCenso] = useState<RespuestaCensoDTO[]>([]);
   const [reporte, setReporte] = useState<ReporteDependenciaDTO[]>([]);
@@ -70,16 +78,21 @@ export default function AutogestionPage() {
     startTransition(async () => {
       setError(null);
       try {
-        const [p, mc, rep, met] = await Promise.all([
+        const [p, mc] = await Promise.all([
           getPreguntasCensoAction(),
           getMiCensoAction(),
-          getReporteDependenciasCensoAction(),
-          getMetricasCensoAction(),
         ]);
         setPreguntas(p);
         setMiCenso(mc);
-        setReporte(rep);
-        setMetricas(met);
+
+        if (puedeVerTodos) {
+          const [rep, met] = await Promise.all([
+            getReporteDependenciasCensoAction(),
+            getMetricasCensoAction(),
+          ]);
+          setReporte(rep);
+          setMetricas(met);
+        }
       } catch {
         setError("No fue posible cargar el censo.");
       }
@@ -88,13 +101,18 @@ export default function AutogestionPage() {
 
   useEffect(() => {
     cargar();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeVerTodos]);
 
   const setRespuesta = (preguntaId: number, parcial: Partial<ItemRespuestaInputDTO>) => {
     setRespuestas((prev) => ({ ...prev, [preguntaId]: { ...prev[preguntaId], ...parcial, preguntaId } }));
   };
 
   const onGuardar = () => {
+    if (!puedeActualizarPropio) {
+      setError("No tiene permisos para responder o actualizar el censo.");
+      return;
+    }
     startTransition(async () => {
       setError(null);
       setExito(null);
@@ -116,6 +134,7 @@ export default function AutogestionPage() {
 
   const onBuscarCedula = (e: FormEvent) => {
     e.preventDefault();
+    if (!puedeVerTodos) return;
     startTransition(async () => {
       setBusquedaError(null);
       const resultado = await obtenerCensoPorCedulaAction(busquedaCedula);
@@ -129,6 +148,7 @@ export default function AutogestionPage() {
   };
 
   const onExportarExcel = () => {
+    if (!puedeExportar) return;
     startTransition(async () => {
       setError(null);
       const resultado = await descargarExcelCensoAction();
@@ -160,70 +180,74 @@ export default function AutogestionPage() {
       <Tabs value={tab} onValueChange={(v) => setTab(v as "censo" | "reporte" | "metricas")}>
         <TabsList>
           <TabsTrigger value="censo">Cuestionario</TabsTrigger>
-          <TabsTrigger value="reporte">Reporte por dependencias</TabsTrigger>
-          <TabsTrigger value="metricas">Métricas</TabsTrigger>
+          {puedeVerTodos && <TabsTrigger value="reporte">Reporte por dependencias</TabsTrigger>}
+          {puedeVerTodos && <TabsTrigger value="metricas">Métricas</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="censo">
-          <div className="flex items-center justify-between">
-            <div />
-            <Button onClick={onExportarExcel} variant="outline" disabled={isPending}>
-              {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
-              Exportar Excel
-            </Button>
-          </div>
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle>Consultar censo por cédula</CardTitle>
-              <CardDescription>
-                Busque las respuestas del censo de un empleado por su cédula de identidad.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <form onSubmit={onBuscarCedula} className="flex items-end gap-2 md:w-96" noValidate>
-                <Field>
-                  <Label htmlFor="busquedaCedula">Cédula</Label>
-                  <Input
-                    id="busquedaCedula"
-                    value={busquedaCedula}
-                    onChange={(e) => setBusquedaCedula(e.target.value)}
-                    placeholder="Ej. 12345678"
-                  />
-                </Field>
-                <Button type="submit" disabled={isPending}>
-                  {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
-                  Buscar
-                </Button>
-              </form>
+          {puedeExportar && (
+            <div className="flex items-center justify-between">
+              <div />
+              <Button onClick={onExportarExcel} variant="outline" disabled={isPending}>
+                {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
+                Exportar Excel
+              </Button>
+            </div>
+          )}
+          {puedeVerTodos && (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle>Consultar censo por cédula</CardTitle>
+                <CardDescription>
+                  Busque las respuestas del censo de un empleado por su cédula de identidad.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <form onSubmit={onBuscarCedula} className="flex items-end gap-2 md:w-96" noValidate>
+                  <Field>
+                    <Label htmlFor="busquedaCedula">Cédula</Label>
+                    <Input
+                      id="busquedaCedula"
+                      value={busquedaCedula}
+                      onChange={(e) => setBusquedaCedula(e.target.value)}
+                      placeholder="Ej. 12345678"
+                    />
+                  </Field>
+                  <Button type="submit" disabled={isPending}>
+                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
+                    Buscar
+                  </Button>
+                </form>
 
-              {busquedaError && <p role="alert" className="text-sm text-destructive">{busquedaError}</p>}
+                {busquedaError && <p role="alert" className="text-sm text-destructive">{busquedaError}</p>}
 
-              {censoPorCedula && (
-                censoPorCedula.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Este empleado no tiene respuestas de censo registradas.</p>
-                ) : (
-                  <div className="overflow-hidden rounded-lg border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Pregunta</TableHead>
-                          <TableHead>Respuesta</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {censoPorCedula.map((r) => (
-                          <TableRow key={r.id}>
-                            <TableCell className="font-medium">{r.preguntaEnunciado}</TableCell>
-                            <TableCell>{r.opcionTexto ?? r.respuestaTexto}</TableCell>
+                {censoPorCedula && (
+                  censoPorCedula.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Este empleado no tiene respuestas de censo registradas.</p>
+                  ) : (
+                    <div className="overflow-hidden rounded-lg border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Pregunta</TableHead>
+                            <TableHead>Respuesta</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )
-              )}
-            </CardContent>
-          </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {censoPorCedula.map((r) => (
+                            <TableRow key={r.id}>
+                              <TableCell className="font-medium">{r.preguntaEnunciado}</TableCell>
+                              <TableCell>{r.opcionTexto ?? r.respuestaTexto}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex flex-col gap-4">
             {preguntas.length === 0 ? (
@@ -265,7 +289,7 @@ export default function AutogestionPage() {
               ))
             )}
             <div>
-              <Button onClick={onGuardar} disabled={isPending}>
+              <Button onClick={onGuardar} disabled={isPending || !puedeActualizarPropio}>
                 {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Save className="size-4" aria-hidden="true" />}
                 Guardar censo
               </Button>
@@ -273,84 +297,88 @@ export default function AutogestionPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="reporte">
-          <DataTable
-            columns={columnasReporteDependencias}
-            data={reporte}
-            emptyMessage="Sin datos de reporte."
-          />
-        </TabsContent>
+        {puedeVerTodos && (
+          <TabsContent value="reporte">
+            <DataTable
+              columns={columnasReporteDependencias}
+              data={reporte}
+              emptyMessage="Sin datos de reporte."
+            />
+          </TabsContent>
+        )}
 
-        <TabsContent value="metricas">
-          {isPending && !metricas ? (
-            <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
-          ) : !metricas ? (
-            <p className="text-sm text-muted-foreground">No fue posible cargar las métricas.</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Empleados censados</span><span className="text-2xl font-semibold">{metricas.totalEmpleadosCensados}</span></CardContent></Card>
-                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Total respuestas</span><span className="text-2xl font-semibold">{metricas.totalRespuestas}</span></CardContent></Card>
-                <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Dependencias</span><span className="text-2xl font-semibold">{metricas.porDependencia.length}</span></CardContent></Card>
+        {puedeVerTodos && (
+          <TabsContent value="metricas">
+            {isPending && !metricas ? (
+              <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
+            ) : !metricas ? (
+              <p className="text-sm text-muted-foreground">No fue posible cargar las métricas.</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Empleados censados</span><span className="text-2xl font-semibold">{metricas.totalEmpleadosCensados}</span></CardContent></Card>
+                  <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Total respuestas</span><span className="text-2xl font-semibold">{metricas.totalRespuestas}</span></CardContent></Card>
+                  <Card><CardContent className="flex flex-col gap-1 p-4"><span className="text-sm text-muted-foreground">Dependencias</span><span className="text-2xl font-semibold">{metricas.porDependencia.length}</span></CardContent></Card>
+                </div>
+
+                {(() => {
+                  const chartData = buildCensoMetricasChartData(metricas);
+                  return (
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      <Card>
+                        <CardHeader className="pb-4">
+                          <CardTitle>Progreso del censo</CardTitle>
+                          <CardDescription>Empleados censados respecto al total.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center gap-4">
+                          <CensoDonutChart data={chartData.donutData} total={chartData.donutTotal} />
+                          <div className="flex gap-6 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="size-3 rounded-full" style={{ backgroundColor: "var(--chart-1)" }} />
+                              <span>Respondido: <strong>{chartData.respondido}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="size-3 rounded-full" style={{ backgroundColor: "var(--chart-2)" }} />
+                              <span>No Respondido: <strong>{chartData.noRespondido}</strong></span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="pb-4">
+                          <CardTitle>Respuestas por dependencia</CardTitle>
+                          <CardDescription>Empleados censados y pendientes en cada dependencia.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {chartData.barData.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">Sin datos por dependencia.</p>
+                          ) : (
+                            <CensoBarrasChart data={chartData.barData} />
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })()}
+
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle>Censo por dependencia</CardTitle>
+                    <CardDescription>Empleados censados respecto al total por dependencia.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <DataTable
+                      columns={columnasReporteDependencias}
+                      data={metricas.porDependencia}
+                      emptyMessage="Sin datos por dependencia."
+                      hideColumnsMenu
+                    />
+                  </CardContent>
+                </Card>
               </div>
-
-              {(() => {
-                const chartData = buildCensoMetricasChartData(metricas);
-                return (
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <Card>
-                      <CardHeader className="pb-4">
-                        <CardTitle>Progreso del censo</CardTitle>
-                        <CardDescription>Empleados censados respecto al total.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex flex-col items-center gap-4">
-                        <CensoDonutChart data={chartData.donutData} total={chartData.donutTotal} />
-                        <div className="flex gap-6 text-sm">
-                          <div className="flex items-center gap-2">
-                            <span className="size-3 rounded-full" style={{ backgroundColor: "var(--chart-1)" }} />
-                            <span>Respondido: <strong>{chartData.respondido}</strong></span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="size-3 rounded-full" style={{ backgroundColor: "var(--chart-2)" }} />
-                            <span>No Respondido: <strong>{chartData.noRespondido}</strong></span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="pb-4">
-                        <CardTitle>Respuestas por dependencia</CardTitle>
-                        <CardDescription>Empleados censados y pendientes en cada dependencia.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {chartData.barData.length === 0 ? (
-                          <p className="py-8 text-center text-sm text-muted-foreground">Sin datos por dependencia.</p>
-                        ) : (
-                          <CensoBarrasChart data={chartData.barData} />
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                );
-              })()}
-
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle>Censo por dependencia</CardTitle>
-                  <CardDescription>Empleados censados respecto al total por dependencia.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <DataTable
-                    columns={columnasReporteDependencias}
-                    data={metricas.porDependencia}
-                    emptyMessage="Sin datos por dependencia."
-                    hideColumnsMenu
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </TabsContent>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
     </section>
   );
