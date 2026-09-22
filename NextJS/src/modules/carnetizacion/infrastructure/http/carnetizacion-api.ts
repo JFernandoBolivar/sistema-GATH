@@ -62,27 +62,39 @@ export interface EmpleadoCarnetApiItem {
 }
 
 export const carnetizacionApi = {
-  getCarnets: (cedula?: string) =>
-    apiClient.get<CarnetApiItem[]>("/api/v1/carnetizacion/", { params: { cedula } }),
+  getCarnets: async (cedula?: string) => {
+    const envelope = await apiClient.get<ApiResponse<CarnetApiItem[]>>("/api/v1/carnetizacion/", { params: { cedula } });
+    return envelope.data ?? [];
+  },
 
-  emitir: (empleadoCedula: string, motivoId: number, observaciones?: string) =>
-    apiClient.post<CarnetApiItem>("/api/v1/carnetizacion/", {
+  emitir: async (empleadoCedula: string, motivoId: number, observaciones?: string) => {
+    const envelope = await apiClient.post<ApiResponse<CarnetApiItem>>("/api/v1/carnetizacion/", {
       empleado_cedula: empleadoCedula,
       motivo_id: motivoId,
       observaciones,
-    }),
+    });
+    return envelope.data;
+  },
 
-  validarPorHash: (securityHash: string) =>
-    apiClient.get<ValidacionCarnetApiItem>(`/api/v1/carnetizacion/validar/hash/${securityHash}/`),
+  validarPorHash: async (securityHash: string) => {
+    const envelope = await apiClient.get<ApiResponse<ValidacionCarnetApiItem>>(`/api/v1/carnetizacion/validar/hash/${securityHash}/`);
+    return envelope.data;
+  },
 
-  validarPorId: (carnetId: number) =>
-    apiClient.get<ValidacionCarnetApiItem>(`/api/v1/carnetizacion/validar/${carnetId}/`),
+  validarPorId: async (carnetId: number) => {
+    const envelope = await apiClient.get<ApiResponse<ValidacionCarnetApiItem>>(`/api/v1/carnetizacion/validar/${carnetId}/`);
+    return envelope.data;
+  },
 
-  getPlantillas: () =>
-    apiClient.get<PlantillaCarnetApiItem[]>("/api/v1/carnetizacion/plantillas/"),
+  getPlantillas: async () => {
+    const envelope = await apiClient.get<ApiResponse<PlantillaCarnetApiItem[]>>("/api/v1/carnetizacion/plantillas/");
+    return envelope.data ?? [];
+  },
 
-  activarPlantilla: (plantillaId: number) =>
-    apiClient.post<PlantillaCarnetApiItem>(`/api/v1/carnetizacion/plantillas/${plantillaId}/activar/`),
+  activarPlantilla: async (plantillaId: number) => {
+    const envelope = await apiClient.post<ApiResponse<PlantillaCarnetApiItem>>(`/api/v1/carnetizacion/plantillas/${plantillaId}/activar/`);
+    return envelope.data;
+  },
 
   crearPlantilla: async (nombre: string, imagen: File, activar?: boolean) => {
     const formData = new FormData();
@@ -113,4 +125,53 @@ export const carnetizacionApi = {
       return null;
     }
   },
+
+  buscarPersonal: async (query: string) => {
+    const envelope = await apiClient.get<ApiResponse<EmpleadoCarnetApiItem[]>>("/api/v1/carnetizacion/buscar/", {
+      params: { q: query },
+    });
+    return envelope.data ?? [];
+  },
+
+  getMotivos: async () => {
+    const envelope = await apiClient.get<ApiResponse<{ id: number; nombre: string }[]>>("/api/v1/carnetizacion/motivos/");
+    return envelope.data ?? [];
+  },
+
+  actualizarVistaPrevia: async (cedula: string, nombre: string) => {
+    const envelope = await apiClient.post<ApiResponse<{ vista_previa: string }>>(`/api/v1/carnetizacion/actualizar-vista-previa/${cedula}/`, {
+      nombre,
+      cedula,
+    });
+    return {
+      success: envelope.status === "success",
+      vista_previa: envelope.data?.vista_previa || "",
+    };
+  },
+
+  subirFoto: async (cedula: string, nombre: string, foto: File) => {
+    const formData = new FormData();
+    formData.append("foto", foto);
+    formData.append("nombre", nombre);
+    formData.append("cedula", cedula);
+    const envelope = await apiClient.postForm<ApiResponse<{ vista_previa: string; filename?: string; message?: string }>>(
+      `/api/v1/carnetizacion/subir-foto/${cedula}/`,
+      formData,
+    );
+    return {
+      success: envelope.status === "success",
+      vista_previa: envelope.data?.vista_previa || "",
+      filename: envelope.data?.filename,
+      message: envelope.data?.message || envelope.message,
+    };
+  },
+
+  generarCarnetPdf: async (cedula: string, motivoId: number, nombre: string) => {
+    return apiClient.postBlob(`/api/v1/carnetizacion/generar/${cedula}/`, {
+      motivo_id: motivoId,
+      observaciones: "",
+      datos_editados: { nombre, cedula },
+    });
+  },
 };
+

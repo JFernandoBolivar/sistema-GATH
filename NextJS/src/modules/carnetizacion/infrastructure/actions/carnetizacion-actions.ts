@@ -230,3 +230,81 @@ export async function buscarEmpleadoParaCarnetAction(cedula: string) {
     throw error;
   }
 }
+
+export async function buscarPersonalCarnetAction(query: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const result = await carnetizacionApi.buscarPersonal(query);
+    await logAudit({ traceId, action: "buscarPersonalCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "buscarPersonalCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getMotivosCarnetAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const result = await carnetizacionApi.getMotivos();
+    await logAudit({ traceId, action: "getMotivosCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getMotivosCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarVistaPreviaAction(cedula: string, nombre: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const result = await carnetizacionApi.actualizarVistaPrevia(cedula, nombre);
+    await logAudit({ traceId, action: "actualizarVistaPreviaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarVistaPreviaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, message: "Error al actualizar vista previa", vista_previa: "" };
+  }
+}
+
+export async function subirFotoCarnetAction(cedula: string, nombre: string, foto: File) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const result = await carnetizacionApi.subirFoto(cedula, nombre, foto);
+    await logAudit({ traceId, action: "subirFotoCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "subirFotoCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, message: "Error al subir la foto", vista_previa: "" };
+  }
+}
+
+export async function generarCarnetPdfAction(cedula: string, motivoId: number, nombre: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const { carnetizacionApi } = await import("../http/carnetizacion-api");
+    const blob = await carnetizacionApi.generarCarnetPdf(cedula, motivoId, nombre);
+    const arrayBuffer = await blob.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    await logAudit({ traceId, action: "generarCarnetPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, message: "Carnet generado exitosamente", data: base64 };
+  } catch (error) {
+    await logAudit({ traceId, action: "generarCarnetPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, message: "Error al generar el carnet", data: null };
+  }
+}
+

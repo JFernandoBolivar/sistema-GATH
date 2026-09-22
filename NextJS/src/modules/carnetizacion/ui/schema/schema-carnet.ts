@@ -92,3 +92,33 @@ export const subirPlantillaCarnetSchema = z.object({
 });
 
 export type SubirPlantillaCarnetFormType = z.infer<typeof subirPlantillaCarnetSchema>;
+
+export const schemaSearch = z.object({
+  query: z
+    .string()
+    .min(2, "Debe ingresar al menos 2 caracteres")
+    .max(50, "La búsqueda es demasiado larga"),
+});
+
+export const schemaGenerar = z.object({
+  nombre: z
+    .string()
+    .min(3, "El nombre debe tener al menos 3 caracteres")
+    .max(200, "El nombre es demasiado largo"),
+  motivo_id: z.coerce.number().positive("Debe seleccionar un motivo"),
+});
+
+export const schemaPlantilla = z.object({
+  nombre: z
+    .string()
+    .min(3, "El nombre debe tener al menos 3 caracteres")
+    .max(100, "El nombre es demasiado largo"),
+  imagen: z
+    .instanceof(File)
+    .refine(
+      (file) => ["image/jpeg", "image/png", "image/jpg"].includes(file.type),
+      "Solo se permiten imágenes JPG o PNG",
+    )
+    .refine((file) => file.size <= 5 * 1024 * 1024, "La imagen no debe superar los 5MB"),
+});
+
