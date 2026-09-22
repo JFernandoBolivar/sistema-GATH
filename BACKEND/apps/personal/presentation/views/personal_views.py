@@ -33,9 +33,15 @@ class EmpleadosListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar expediente de empleados activos con búsqueda', responses={200: EmpleadoSerializer(many=True)})
     def get(self, request):
-        busqueda = request.query_params.get('q')
+        busqueda = (
+            request.query_params.get('q')
+            or request.query_params.get('busqueda')
+            or request.query_params.get('cedulaidentidad')
+        )
+        codigo = request.query_params.get('codigo')
+        tipo_nomina = request.query_params.get('tipo_nomina')
         repo = RepoPersonalORM()
-        dtos = listar_personal(repo, busqueda=busqueda)
+        dtos = listar_personal(repo, busqueda=busqueda, codigo=codigo, tipo_nomina=tipo_nomina)
         return ok(EmpleadoSerializer(dtos, many=True).data)
 
     @extend_schema(

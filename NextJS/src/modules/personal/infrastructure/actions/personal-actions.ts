@@ -26,6 +26,7 @@ import {
 } from "../../application/use-cases/listar-empleados";
 import { listarCatalogosExpediente } from "../../application/use-cases/listar-catalogos-expediente";
 import { repoPersonalApi } from "../repositories/repo-personal-api";
+import { personalApi } from "../http/personal-api";
 import { empleadoCedulaSchema, empleadoSchema, listadoEmpleadosSchema } from "../../ui/schema/schema-empleado";
 
 export async function getEmpleadosAction(filtros?: FiltrosListadoEmpleado) {
@@ -139,3 +140,18 @@ export async function getCatalogosExpedienteAction() {
     throw error;
   }
 }
+
+export async function getTiposNominaAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await personalApi.getTiposNomina();
+    await logAudit({ traceId, action: "getTiposNominaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTiposNominaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+

@@ -35,7 +35,12 @@ def _empleado_a_dto(e: Empleado) -> EmpleadoDTO:
 
 
 def listar_personal(
-    repo: RepoPersonal, busqueda: str | None = None
+    repo: RepoPersonal,
+    busqueda: str | None = None,
+    codigo: str | None = None,
+    tipo_nomina: str | int | None = None,
 ) -> list[EmpleadoDTO]:
-    entidades = repo.listar_empleados(busqueda=busqueda)
+    entidades = repo.listar_empleados(
+        busqueda=busqueda, codigo=codigo, tipo_nomina=tipo_nomina
+    )
     return [_empleado_a_dto(e) for e in entidades]

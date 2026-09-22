@@ -57,7 +57,12 @@ class RepoPersonalORM:
     # ------------------------------------------------------------------
     # Lectura
     # ------------------------------------------------------------------
-    def listar_empleados(self, busqueda: str | None = None) -> list[Empleado]:
+    def listar_empleados(
+        self,
+        busqueda: str | None = None,
+        codigo: str | None = None,
+        tipo_nomina: str | int | None = None,
+    ) -> list[Empleado]:
         qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil').all().order_by('-fecha_actualizacion')
         if busqueda:
             qs = qs.filter(
@@ -65,6 +70,14 @@ class RepoPersonalORM:
                 | Q(nombres__icontains=busqueda)
                 | Q(apellidos__icontains=busqueda)
             )
+        if codigo:
+            from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+            emp_cedulas = AsigTrabajoModel.objects.filter(codigo__icontains=codigo).values_list('employee_id', flat=True)
+            qs = qs.filter(cedulaidentidad__in=emp_cedulas)
+        if tipo_nomina:
+            from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+            emp_cedulas = AsigTrabajoModel.objects.filter(tiponominaid_id=tipo_nomina).values_list('employee_id', flat=True)
+            qs = qs.filter(cedulaidentidad__in=emp_cedulas)
         empleados = list(qs)
         antecedentes_por_empleado = self._antecedentes_cerrados_bulk(
             [e.pk for e in empleados]

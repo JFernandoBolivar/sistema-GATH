@@ -1,35 +1,55 @@
 "use client";
 
 /**
- * Página de listado de personal — paridad estructural con el legado
- * (`tableEmployees/page.tsx` + `data-table.tsx` + `columns.tsx`): tabla
- * tanstack (`DataTable` compartido) con menú de acciones por fila en vez de
- * botones sueltos, búsqueda, botón "Nuevo" que lleva a la ruta propia
- * `/personal/registrar` (antes el alta vivía inline en esta misma página),
- * y Sheet de detalle con edición vía diálogo (`empleado-detalle-sheet.tsx`).
- * Cliente + react-hook-form (solo el buscador) + useTransition (R8);
- * delega a las Server Actions del módulo (R7). Opera exclusivamente con
- * DTOs (R5) y no importa de `infrastructure/` (R3).
+ * Página de listado y consulta de personal — 100% paridad visual y funcional
+ * con el sistema de referencia (`gestion-trabajadores/personal-trabajador/consultar/page.tsx`).
+ * 
+ * Filtros de búsqueda idénticos:
+ * - "Buscar Cédula" (placeholder: "buscar cedula...")
+ * - "Buscar Código De Trabajador" (placeholder: "buscar codigo de trabajador...")
+ * - "Tipo de Nomina" (Select con opciones reales de la API)
+ * - Botón "Buscar" con ícono Search
+ * - Botón "Limpiar" con ícono Eraser
+ * - Indicador de carga central animado `Loading promiseMessage="Cargando Información"`
+ * - Tabla idéntica con DataTable y menú de acciones (copiar cédula, ver detalle, expediente PDF, subir foto).
+ * - Hoja de detalle `EmpleadoDetalleSheet` con expedientes y exportación PDF.
+ * - Estricta Clean / Onion Architecture: comunicación vía Server Actions y DTOs tipados.
  */
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Loader2, Plus, Search, Users } from "lucide-react";
+import { Eraser, Plus, Search } from "lucide-react";
 
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
-import { Button } from "@/shared/ui/components/button";
+import PageLayout from "@/components/layout/page-layout";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DataTable } from "@/shared/ui/components/data-table";
-import { Field } from "@/shared/ui/components/field";
-import { Input } from "@/shared/ui/components/input";
-import { Label } from "@/shared/ui/components/label";
+import Loading from "@/shared/ui/components/loading";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../application/dtos/empleado-dto";
 import {
   getCatalogosExpedienteAction,
   getEmpleadoPorCedulaAction,
   getEmpleadosAction,
+  getTiposNominaAction,
   subirFotoEmpleadoAction,
 } from "../infrastructure/actions/personal-actions";
 import EmpleadoDetalleSheet from "./empleado-detalle-sheet";
@@ -41,13 +61,17 @@ import { listadoEmpleadosSchema, type ListadoEmpleadosFormType } from "./schema/
 export default function PersonalPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeCrear = tienePermiso(permisos, "personal.crear");
-  const puedeEditar = tienePermiso(permisos, "personal.editar_personales");
-  const puedeVerDetalle = tienePermiso(permisos, "personal.ver_detalle");
-  const puedeExportarPdf = tienePermiso(permisos, "personal.exportar_pdf");
+  const esAdmin = session?.user?.role?.nombre_rol === "ADMINISTRADOR" || session?.user?.role?.id === 1;
+  const puedeCrear = esAdmin || tienePermiso(permisos, "personal.crear");
+  const puedeEditar = esAdmin || tienePermiso(permisos, "personal.editar_personales");
+  const puedeVerDetalle = esAdmin || tienePermiso(permisos, "personal.ver_detalle");
+  const puedeExportarPdf = esAdmin || tienePermiso(permisos, "personal.exportar_pdf");
 
   const [empleados, setEmpleados] = useState<EmpleadoDTO[]>([]);
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
+  const [nominas, setNominas] = useState<{ id: number; nombre: string }[]>([]);
+  const [cargandoNominas, setCargandoNominas] = useState(false);
+  const [cargandoPersonal, setCargandoPersonal] = useState(true);
   const [viendoDetalle, setViendoDetalle] = useState<EmpleadoDTO | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [exportandoPdf, setExportandoPdf] = useState(false);
@@ -56,32 +80,71 @@ export default function PersonalPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cedulaFotoRef = useRef<string | null>(null);
 
-  const busquedaForm = useForm<ListadoEmpleadosFormType>({ resolver: zodResolver(listadoEmpleadosSchema), defaultValues: {} });
+  const form = useForm<ListadoEmpleadosFormType>({
+    resolver: zodResolver(listadoEmpleadosSchema),
+    defaultValues: {
+      cedulaidentidad: "",
+      codigo: "",
+      tipo_nomina: undefined,
+    },
+  });
 
-  const cargar = (busqueda?: string) => {
+  const cargar = (filtros?: ListadoEmpleadosFormType) => {
+    setCargandoPersonal(true);
     startTransition(async () => {
       setError(null);
       try {
-        setEmpleados(await getEmpleadosAction({ busqueda }));
+        const data = await getEmpleadosAction(filtros);
+        setEmpleados(data);
       } catch {
         setError("No fue posible cargar el personal.");
+      } finally {
+        setCargandoPersonal(false);
       }
     });
   };
 
   useEffect(() => {
     cargar();
+
     startTransition(async () => {
-      setError(null);
       try {
         setCatalogos(await getCatalogosExpedienteAction());
       } catch {
-        setError("No fue posible cargar los catálogos del expediente.");
+        // Silencioso
+      }
+    });
+
+    setCargandoNominas(true);
+    startTransition(async () => {
+      try {
+        const tipos = await getTiposNominaAction();
+        setNominas(tipos);
+      } catch {
+        // Silencioso
+      } finally {
+        setCargandoNominas(false);
       }
     });
   }, []);
 
-  const onBuscar = (data: ListadoEmpleadosFormType) => cargar(data.busqueda ?? undefined);
+  const onSearch = (values: ListadoEmpleadosFormType) => {
+    cargar({
+      cedulaidentidad: values.cedulaidentidad?.trim() || undefined,
+      busqueda: values.cedulaidentidad?.trim() || undefined,
+      codigo: values.codigo?.trim() || undefined,
+      tipo_nomina: values.tipo_nomina && values.tipo_nomina !== 0 ? values.tipo_nomina : undefined,
+    });
+  };
+
+  const cleanFields = () => {
+    form.reset({
+      cedulaidentidad: "",
+      codigo: "",
+      tipo_nomina: undefined,
+    });
+    cargar();
+  };
 
   const onVerDetalle = (cedula: string) => {
     setDetalleAbierto(true);
@@ -113,7 +176,7 @@ export default function PersonalPage() {
       setError(null);
       try {
         await subirFotoEmpleadoAction(cedula, formData);
-        cargar();
+        cargar(form.getValues());
       } catch {
         setError("No fue posible subir la foto.");
       } finally {
@@ -122,79 +185,175 @@ export default function PersonalPage() {
     });
   };
 
+  const descargarPdfExpediente = async (empleadoObj: EmpleadoDTO, cats: CatalogosExpedienteDTO) => {
+    setExportandoPdf(true);
+    try {
+      const detalleVM = construirDetalleExpediente(empleadoObj, cats);
+      const { pdf } = await import("@react-pdf/renderer");
+      const blob = await pdf(
+        <EmpleadoDetallePdf
+          detalle={detalleVM}
+          generadoPor={session?.user?.name ?? undefined}
+          generadoEn={new Date().toLocaleString("es-VE")}
+        />,
+      ).toBlob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `expediente-${empleadoObj.cedula}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError("No fue posible generar el PDF del expediente.");
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
+
   const onExportarPdf = () => {
     if (!viendoDetalle || !catalogos) return;
-    setExportandoPdf(true);
+    descargarPdfExpediente(viendoDetalle, catalogos);
+  };
+
+  const onExportarPdfDirecto = async (cedula: string) => {
+    if (!catalogos) {
+      setError("Cargando información del catálogo, por favor reintente.");
+      return;
+    }
     startTransition(async () => {
+      setError(null);
       try {
-        const detalleVM = construirDetalleExpediente(viendoDetalle, catalogos);
-        const { pdf } = await import("@react-pdf/renderer");
-        const blob = await pdf(
-          <EmpleadoDetallePdf
-            detalle={detalleVM}
-            generadoPor={session?.user?.name ?? undefined}
-            generadoEn={new Date().toLocaleString("es-VE")}
-          />,
-        ).toBlob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `expediente-${viendoDetalle.cedula}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        const emp = await getEmpleadoPorCedulaAction(cedula);
+        if (emp && typeof emp === "object" && !("error" in emp)) {
+          await descargarPdfExpediente(emp as EmpleadoDTO, catalogos);
+        } else {
+          setError("No se pudo obtener el expediente para generar el PDF.");
+        }
       } catch {
-        setError("No fue posible generar el PDF del expediente.");
-      } finally {
-        setExportandoPdf(false);
+        setError("Error al obtener datos para PDF.");
       }
     });
   };
 
-  const columnas = construirColumnasPersonal(puedeVerDetalle, puedeEditar, onVerDetalle, onSubirFotoClick);
+  const columnas = construirColumnasPersonal(
+    puedeVerDetalle,
+    puedeEditar,
+    onVerDetalle,
+    onSubirFotoClick,
+    puedeExportarPdf,
+    onExportarPdfDirecto,
+  );
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Users className="size-5 text-muted-foreground" aria-hidden="true" />
-          <h1 className="text-xl font-semibold tracking-tight">Personal</h1>
-        </div>
-        {puedeCrear && (
-          <Button asChild>
-            <Link href="/personal/registrar">
-              <Plus className="size-4" aria-hidden="true" /> Nuevo
-            </Link>
-          </Button>
-        )}
-      </header>
+    <PageLayout
+      title="Consultar Trabajador"
+      description="Información Detallada Del Trabajador"
+    >
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSearch)}
+          className="flex flex-col justify-start gap-2 flex-1 mb-4"
+        >
+          <div className="flex flex-row items-center gap-2 flex-wrap">
+            <FormField
+              name="cedulaidentidad"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Buscar Cédula</FormLabel>
+                  <FormControl>
+                    <Input
+                      className="bg-white"
+                      type="text"
+                      placeholder="buscar cedula..."
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              name="codigo"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Buscar Código De Trabajador</FormLabel>
+                  <FormControl>
+                    <Input
+                      className="bg-white"
+                      type="text"
+                      placeholder="buscar codigo de trabajador..."
+                      {...field}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="tipo_nomina"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Nomina</FormLabel>
+                  <Select
+                    onValueChange={(values) => {
+                      field.onChange(values === "0" ? undefined : Number.parseInt(values));
+                    }}
+                    value={field.value ? String(field.value) : "0"}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-[220px] truncate bg-white">
+                        <SelectValue
+                          placeholder={cargandoNominas ? "Cargando Nominas" : "Seleccione un Tipo de Nomina"}
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="0">Ninguno</SelectItem>
+                      {nominas.map((nom) => (
+                        <SelectItem key={nom.id} value={String(nom.id)}>
+                          {nom.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" className="cursor-pointer self-end">
+              Buscar <Search className="size-4 ml-1" />
+            </Button>
+            <Button
+              variant="outline"
+              className="cursor-pointer self-end"
+              type="button"
+              onClick={cleanFields}
+            >
+              Limpiar <Eraser className="size-4 ml-1" />
+            </Button>
+            {puedeCrear && (
+              <Button asChild variant="outline" className="cursor-pointer self-end ml-auto border-blue-600 text-blue-600 hover:bg-blue-50">
+                <Link href="/personal/registrar">
+                  <Plus className="size-4 mr-1" /> Nuevo Trabajador
+                </Link>
+              </Button>
+            )}
+          </div>
+        </form>
+      </Form>
 
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      {!puedeCrear && !puedeEditar && !puedeVerDetalle && (
-        <p className="text-sm text-muted-foreground">Su perfil solo tiene acceso de consulta al personal.</p>
-      )}
+      {error && <p role="alert" className="text-sm text-destructive mb-2">{error}</p>}
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFotoSeleccionada} />
 
-      {isPending && empleados.length === 0 ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
-        </div>
+      {cargandoPersonal ? (
+        <Loading promiseMessage="Cargando Información" />
       ) : (
         <DataTable
           columns={columnas}
           data={empleados}
           emptyMessage="Sin empleados."
-          toolbar={
-            <form onSubmit={busquedaForm.handleSubmit(onBuscar)} className="flex items-end gap-2" noValidate>
-              <Field>
-                <Label htmlFor="busqueda" className="sr-only">Búsqueda</Label>
-                <Input id="busqueda" placeholder="Cédula o nombre" {...busquedaForm.register("busqueda")} />
-              </Field>
-              <Button type="submit" variant="outline" disabled={isPending}>
-                <Search className="size-4" aria-hidden="true" /> Buscar
-              </Button>
-            </form>
-          }
         />
       )}
 
@@ -209,13 +368,13 @@ export default function PersonalPage() {
         detalle={viendoDetalle && catalogos ? construirDetalleExpediente(viendoDetalle, catalogos) : null}
         onExportarPdf={onExportarPdf}
         onGuardado={() => {
-          cargar();
+          cargar(form.getValues());
           if (viendoDetalle) onVerDetalle(viendoDetalle.cedula);
         }}
         exportandoPdf={exportandoPdf}
         puedeExportarPdf={puedeExportarPdf}
         puedeEditar={puedeEditar}
       />
-    </section>
+    </PageLayout>
   );
 }

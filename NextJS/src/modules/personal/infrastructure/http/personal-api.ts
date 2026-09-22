@@ -53,9 +53,9 @@ async function single<T>(getter: Promise<ApiResponse<T>>): Promise<T> {
 }
 
 export const personalApi = {
-  getEmpleados: (filtros?: { q?: string }) =>
+  getEmpleados: (filtros?: { q?: string; busqueda?: string; codigo?: string; tipo_nomina?: string | number }) =>
     list<EmpleadoApiItem>(
-      apiClient.get<ApiResponse<EmpleadoApiItem[]>>("/api/v1/personal/", { params: filtros }),
+      apiClient.get<ApiResponse<EmpleadoApiItem[]>>("/api/v1/personal/", { params: filtros as Record<string, string | number | undefined> }),
     ),
 
   getPorCedula: (cedula: string) =>
@@ -132,4 +132,6 @@ export const personalApi = {
     })),
   getTiposProcedencia: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/tipos-procedencia/")),
+  getTiposNomina: () =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/tipos-nomina/")),
 };

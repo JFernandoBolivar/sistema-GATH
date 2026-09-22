@@ -7,7 +7,12 @@ from apps.personal.domain.entities.empleado import Empleado
 
 
 class RepoPersonal(Protocol):
-    def listar_empleados(self, busqueda: str | None = None) -> list[Empleado]:
+    def listar_empleados(
+        self,
+        busqueda: str | None = None,
+        codigo: str | None = None,
+        tipo_nomina: str | int | None = None,
+    ) -> list[Empleado]:
         ...
 
     def obtener_por_cedula(self, cedula: str) -> Empleado | None:

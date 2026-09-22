@@ -16,7 +16,7 @@
  * backend, fuera del alcance de este ajuste de capa `ui/`.
  */
 import type { ColumnDef } from "@tanstack/react-table";
-import { Camera, Copy, Eye, MoreHorizontal } from "lucide-react";
+import { Camera, Copy, Eye, FileText, MoreHorizontal } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -31,12 +31,22 @@ import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-
 
 import type { EmpleadoDTO } from "../application/dtos/empleado-dto";
 
-function AccionesCell({ empleado, puedeVerDetalle, puedeEditar, onVerDetalle, onSubirFoto }: {
+function AccionesCell({
+  empleado,
+  puedeVerDetalle,
+  puedeEditar,
+  puedeExportarPdf,
+  onVerDetalle,
+  onSubirFoto,
+  onExportarPdfDirecto,
+}: {
   empleado: EmpleadoDTO;
   puedeVerDetalle: boolean;
   puedeEditar: boolean;
+  puedeExportarPdf: boolean;
   onVerDetalle: (cedula: string) => void;
   onSubirFoto: (cedula: string) => void;
+  onExportarPdfDirecto?: (cedula: string) => void;
 }) {
   return (
     <DropdownMenu>
@@ -56,13 +66,17 @@ function AccionesCell({ empleado, puedeVerDetalle, puedeEditar, onVerDetalle, on
             <Eye className="size-4" aria-hidden="true" /> Ver detalle
           </DropdownMenuItem>
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Extras</DropdownMenuLabel>
+        {puedeExportarPdf && (
+          <DropdownMenuItem onClick={() => onExportarPdfDirecto?.(empleado.cedula)}>
+            <FileText className="size-4" aria-hidden="true" /> Expediente PDF
+          </DropdownMenuItem>
+        )}
         {puedeEditar && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onSubirFoto(empleado.cedula)}>
-              <Camera className="size-4" aria-hidden="true" /> Subir foto
-            </DropdownMenuItem>
-          </>
+          <DropdownMenuItem onClick={() => onSubirFoto(empleado.cedula)}>
+            <Camera className="size-4" aria-hidden="true" /> Subir foto
+          </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -74,6 +88,8 @@ export function construirColumnasPersonal(
   puedeEditar: boolean,
   onVerDetalle: (cedula: string) => void,
   onSubirFoto: (cedula: string) => void,
+  puedeExportarPdf: boolean = false,
+  onExportarPdfDirecto?: (cedula: string) => void,
 ): ColumnDef<EmpleadoDTO>[] {
   return [
     {
@@ -110,8 +126,10 @@ export function construirColumnasPersonal(
           empleado={row.original}
           puedeVerDetalle={puedeVerDetalle}
           puedeEditar={puedeEditar}
+          puedeExportarPdf={puedeExportarPdf}
           onVerDetalle={onVerDetalle}
           onSubirFoto={onSubirFoto}
+          onExportarPdfDirecto={onExportarPdfDirecto}
         />
       ),
     },

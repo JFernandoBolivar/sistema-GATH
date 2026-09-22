@@ -19,6 +19,9 @@ import type {
 
 export interface FiltrosListadoEmpleado {
   busqueda?: string;
+  cedulaidentidad?: string;
+  codigo?: string;
+  tipo_nomina?: string | number;
 }
 
 export interface CatalogosExpediente {

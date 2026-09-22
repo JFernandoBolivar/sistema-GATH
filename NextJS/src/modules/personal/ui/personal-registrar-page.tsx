@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Loader2, UserPlus } from "lucide-react";
 
+import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 
@@ -76,36 +77,36 @@ export default function PersonalRegistrarPage() {
         setError((resultado as { error: string }).error);
         return;
       }
-      router.push("/personal");
+      router.push("/personal/consultar");
     });
   };
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center gap-2">
-        <UserPlus className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Registrar empleado</h1>
-      </header>
+    <PageLayout
+      title="Captación de información del trabajador"
+      description="Recopilación en pasos estrategicos"
+    >
+      <div className="flex flex-col gap-4 mt-2">
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Expediente del nuevo trabajador</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={form.handleSubmit(onGuardar)} className="flex flex-col gap-6" noValidate>
-            <ExpedienteCampos form={form} catalogos={catalogos} isPending={isPending} />
-            <div className="flex items-center gap-2">
-              <Button type="submit" disabled={isPending}>
-                {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <UserPlus className="size-4" aria-hidden="true" />}
-                Registrar
-              </Button>
-              <Button type="button" variant="outline" onClick={() => router.push("/personal")}>Cancelar</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </section>
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle>Expediente del nuevo trabajador</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={form.handleSubmit(onGuardar)} className="flex flex-col gap-6" noValidate>
+              <ExpedienteCampos form={form} catalogos={catalogos} isPending={isPending} />
+              <div className="flex items-center gap-2">
+                <Button type="submit" disabled={isPending}>
+                  {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <UserPlus className="size-4" aria-hidden="true" />}
+                  Registrar
+                </Button>
+                <Button type="button" variant="outline" onClick={() => router.push("/personal/consultar")}>Cancelar</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </PageLayout>
   );
 }

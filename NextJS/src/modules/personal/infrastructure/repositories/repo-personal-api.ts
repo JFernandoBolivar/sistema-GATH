@@ -145,7 +145,13 @@ function aplicarAnidados(payload: Record<string, unknown>, data: GuardarEmpleado
 
 export const repoPersonalApi: RepoPersonal = {
   async listarEmpleados(filtros) {
-    const raw = await personalApi.getEmpleados({ q: filtros?.busqueda });
+    const term = filtros?.busqueda || filtros?.cedulaidentidad;
+    const raw = await personalApi.getEmpleados({
+      q: term,
+      busqueda: term,
+      codigo: filtros?.codigo,
+      tipo_nomina: filtros?.tipo_nomina,
+    });
     return raw.map(empleadoApiAEntidad);
   },
 

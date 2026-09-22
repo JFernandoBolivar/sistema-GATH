@@ -133,6 +133,9 @@ export type EmpleadoFormType = z.infer<typeof empleadoSchema>;
 /** Filtro de listado de empleados (zero-trust R7). */
 export const listadoEmpleadosSchema = z.object({
   busqueda: z.string().trim().max(100, { message: "Búsqueda demasiado larga" }).optional(),
+  cedulaidentidad: z.string().trim().max(100).optional(),
+  codigo: z.string().trim().max(100).optional(),
+  tipo_nomina: z.union([z.string(), z.number()]).optional(),
 });
 export type ListadoEmpleadosFormType = z.infer<typeof listadoEmpleadosSchema>;
 

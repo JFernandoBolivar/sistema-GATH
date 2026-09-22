@@ -57,7 +57,7 @@ class ContratoModel(models.Model):
         'catalogos.EstatusModel', models.PROTECT, db_column='estatus_id', related_name='+',
     )
     antecedente = models.ForeignKey(
-        AntecedenteServicioModel, models.PROTECT, db_column='antecedente_id',
+        AntecedenteServicioModel, models.PROTECT, db_column='antecedente_id_id',
         null=True, blank=True, related_name='+',
     )
     es_fijo = models.BooleanField(default=False, db_column='es_fijo')
