@@ -167,3 +167,85 @@ class PlantillaCreateView(APIView):
         )
         from apps.carnetizacion.presentation.serializers.carnetizacion_serializers import PlantillaCarnetSerializer
         return ok(PlantillaCarnetSerializer(plantilla).data, 'Plantilla subida.', status=201)
+
+
+class CarnetBuscarPersonalView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(tags=['Carnetización'], summary='Buscar personal para emisión de carnet')
+    def get(self, request):
+        query = request.query_params.get('q', '')
+        repo = RepoCarnetizacionORM()
+        resultados = repo.buscar_personal(query)
+        return ok(resultados)
+
+
+class MotivosEmisionListView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(tags=['Carnetización'], summary='Listar motivos de emisión de carnet')
+    def get(self, request):
+        from apps.carnetizacion.infrastructure.models.carnetizacion_models import MotivosEmisionModel
+        motivos = MotivosEmisionModel.objects.all().order_by('nombre')
+        return ok([{"id": m.id, "nombre": m.nombre} for m in motivos])
+
+
+class CarnetActualizarVistaPreviaView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(tags=['Carnetización'], summary='Actualizar vista previa HTML del carnet')
+    def post(self, request, cedula: str):
+        nombre = request.data.get('nombre')
+        repo = RepoCarnetizacionORM()
+        html = repo.generar_vista_previa(cedula=cedula, nombre_override=nombre)
+        return ok({"vista_previa": html})
+
+
+class CarnetSubirFotoView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
+
+    @extend_schema(tags=['Carnetización'], summary='Subir foto de carnet y actualizar vista previa')
+    def post(self, request, cedula: str):
+        archivo = request.FILES.get('foto') or request.FILES.get('file')
+        if not archivo:
+            return fail('No se envió ninguna foto', status=400)
+
+        from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+        from apps.personal.infrastructure.models.personal_models import EmployeeModel
+
+        empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        if not empleado:
+            return fail(f"Empleado con cédula {cedula} no encontrado", status=404)
+
+        contenido = archivo.read()
+        clave = f"perfiles/{cedula}_{archivo.name}"
+        SeaweedFSStorage().subir(clave, contenido, archivo.content_type)
+        empleado.profile = clave
+        empleado.save(update_fields=['profile'])
+
+        nombre = request.data.get('nombre')
+        repo = RepoCarnetizacionORM()
+        html = repo.generar_vista_previa(cedula=cedula, nombre_override=nombre, foto_bytes=contenido)
+        return ok({"vista_previa": html, "filename": archivo.name, "message": "Foto subida exitosamente"})
+
+
+class CarnetGenerarView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
+
+    @extend_schema(tags=['Carnetización'], summary='Emitir carnet y descargar PDF generado')
+    def post(self, request, cedula: str):
+        motivo_id = request.data.get('motivo_id')
+        observaciones = request.data.get('observaciones', '')
+        datos_editados = request.data.get('datos_editados', {})
+        nombre_override = datos_editados.get('nombre') if isinstance(datos_editados, dict) else None
+
+        repo = RepoCarnetizacionORM()
+        carnet = repo.emitir_carnet(
+            empleado_cedula=cedula,
+            motivo_id=int(motivo_id) if motivo_id else 1,
+            observaciones=observaciones,
+        )
+        pdf_bytes = repo.generar_pdf(carnet.id, nombre_override=nombre_override)
+        respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
+        respuesta['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'
+        return respuesta
