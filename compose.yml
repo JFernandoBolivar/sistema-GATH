@@ -6,6 +6,8 @@ services:
       dockerfile: django.dockerfile
     env_file:
       - ./BACKEND/.env
+    environment:
+      - DJANGO_DB_HOST=host.docker.internal
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -15,7 +17,7 @@ services:
       broker:
       storage:
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
       - staticfiles:/app/Django/staticfiles
       - "/opt/gath/BACKEND/media:/app/Django/media"
@@ -29,8 +31,10 @@ services:
       dockerfile: nextjs.dockerfile
     env_file:
       - ./NextJS/.env
+    environment:
+      - DJANGO_API_SERVER=http://djangoapp:8000
     ports:
-      - "3000:3000"
+      - "3001:3000"
     networks:
       backend:
     depends_on:
@@ -128,6 +132,7 @@ services:
 volumes:
   portainer_data:
     name: portainer_data
+    external: true
   staticfiles:
     name: staticfiles
   sw_master_data:
@@ -142,6 +147,7 @@ volumes:
 networks:
   default:
     name: portainer_network
+    external: true
   backend:
     driver: bridge
   storage:

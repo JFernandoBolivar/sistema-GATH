@@ -88,7 +88,8 @@ async function doFetch(
   init: RequestInit,
   headers: Record<string, string>,
 ): Promise<Response> {
-  return fetch(`${DJANGO_API_SERVER}${path}`, { ...init, headers, cache: "no-store" });
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return fetch(`${DJANGO_API_SERVER}${cleanPath}`, { ...init, headers, cache: "no-store" });
 }
 
 async function request<T>(
@@ -125,17 +126,19 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-async function requestBlob(path: string, options: RequestOptions = {}): Promise<Blob> {
+async function requestBlob(path: string, init: RequestInit = { method: "GET" }, options: RequestOptions = {}): Promise<Blob> {
   const traceId = options.traceId ?? generateTraceId();
-  const headers = await buildHeaders(options.headers, traceId, true);
-  delete headers["Content-Type"];
+  const headers = await buildHeaders(options.headers, traceId, init.body instanceof FormData);
+  if (init.body && !(init.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
-  let response = await doFetch(path, { method: "GET" }, headers);
+  let response = await doFetch(path, init, headers);
 
   if (response.status === 401) {
     const newToken = await refreshTokens();
     if (!newToken) throw new SessionExpiredError();
-    response = await doFetch(path, { method: "GET" }, { ...headers, Authorization: `Bearer ${newToken}` });
+    response = await doFetch(path, init, { ...headers, Authorization: `Bearer ${newToken}` });
   }
 
   if (response.status === 403) {
@@ -171,5 +174,9 @@ export const apiClient = {
   patchForm: <T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> =>
     request<T>(path, { method: "PATCH", body: formData }, options, true),
 
-  getBlob: (path: string, options?: RequestOptions): Promise<Blob> => requestBlob(path, options),
+  getBlob: (path: string, options?: RequestOptions): Promise<Blob> => requestBlob(path, { method: "GET" }, options),
+
+  postBlob: (path: string, body?: JsonBody, options?: RequestOptions): Promise<Blob> =>
+    requestBlob(path, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }, options),
 };
+

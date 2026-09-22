@@ -1,15 +1,13 @@
 """
 Handlers de logging para el sistema dual de auditoría TXT (B1.12, §I.4.7).
 
-`TimedRotatingFileHandler` no expone `namer` como parámetro del constructor en
-ninguna versión soportada por el proyecto, por lo que no puede declararse
-directamente en el dict `LOGGING`. Esta subclase lo asigna tras la construcción,
-comprimiendo en gzip cada archivo rotado (ver `rotator.rotar_gzip`).
+`TimedRotatingFileHandler` permite configurar `namer` y `rotator` para comprimir
+en gzip cada archivo rotado al cumplir su periodo de rotación diaria.
 """
 
 from logging.handlers import TimedRotatingFileHandler
 
-from .rotator import rotar_gzip
+from .rotator import gzip_namer, gzip_rotator
 
 
 class GzipTimedRotatingFileHandler(TimedRotatingFileHandler):
@@ -17,4 +15,5 @@ class GzipTimedRotatingFileHandler(TimedRotatingFileHandler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.namer = rotar_gzip
+        self.namer = gzip_namer
+        self.rotator = gzip_rotator

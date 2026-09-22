@@ -4,133 +4,117 @@
  * Formulario de login del módulo auth (paso 13 del checklist §II.8). Cliente +
  * react-hook-form + zodResolver; la mutación va envuelta en useTransition (R8).
  * Los componentes provienen del barrel nuevo `@/shared/ui/components` (F2.13).
- * Los iconos usan lucide-react: @phosphor-icons/react NO está instalado en GATH.
+ * Layout/textos calcados del legado (src/components/login-form.tsx del repo de
+ * referencia) para paridad visual exacta -- solo cambia la arquitectura interna
+ * (Onion), no el diseño.
  */
-import { Controller, useForm } from "react-hook-form";
+import { useState, useTransition } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Loader2, LogIn, Lock, User } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import { Field } from "@/shared/ui/components/field";
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/ui/components/form";
 import { Input } from "@/shared/ui/components/input";
-import { Label } from "@/shared/ui/components/label";
 import { loginFormSchema, type LoginFormType } from "./schema/schema-login";
 import { loginAction } from "../infrastructure/actions/auth-actions";
 
 export default function LoginForm() {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<LoginFormType>({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { usuario: "", password: "" },
   });
 
-  const onSubmit = (data: LoginFormType) => {
+  function onSubmit(values: LoginFormType) {
+    setError(null);
     startTransition(async () => {
-      const result = await loginAction(data);
+      const result = await loginAction(values);
       if ("error" in result) {
-        toast.error(result.error);
+        setError(result.error);
         return;
       }
-      toast.success(result.success);
-      form.reset();
-      router.push("/dashboard");
+      // Navegacion dura (no router.push): el Router Cache de Next.js puede
+      // reutilizar una entrada prefetcheada antes del login (con session=null).
+      // Un location.href fuerza una carga completa que re-ejecuta el
+      // RootLayout con la sesion ya autenticada en /dashboard.
+      window.location.href = "/dashboard";
     });
-  };
+  }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="items-center pb-4 text-center">
-        <CardTitle>Iniciar Sesión</CardTitle>
-        <CardDescription>Ingrese sus credenciales institucionales</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="flex flex-col gap-5"
-          noValidate
-        >
-          <Controller
-            name="usuario"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <Label htmlFor="usuario">Usuario</Label>
-                <div className="relative flex items-center">
-                  <User
-                    className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    {...field}
-                    id="usuario"
-                    type="email"
-                    autoComplete="username"
-                    placeholder="Ej. nombre@conatel.gob.ve"
-                    aria-invalid={fieldState.invalid}
-                    className="pl-9"
-                  />
-                </div>
-                {fieldState.error && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {fieldState.error.message}
-                  </p>
-                )}
-              </Field>
-            )}
-          />
-
-          <Controller
-            name="password"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <Label htmlFor="password">Contraseña</Label>
-                <div className="relative flex items-center">
-                  <Lock
-                    className="pointer-events-none absolute left-3 h-4 w-4 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    {...field}
-                    id="password"
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    aria-invalid={fieldState.invalid}
-                    className="pl-9"
-                  />
-                </div>
-                {fieldState.error && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {fieldState.error.message}
-                  </p>
-                )}
-              </Field>
-            )}
-          />
-
-          <Button type="submit" size="lg" disabled={isPending} className="mt-2 w-full">
-            {isPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <LogIn className="size-4" aria-hidden="true" />
-            )}
-            {isPending ? "Ingresando..." : "Ingresar al Sistema"}
+    <Form {...form}>
+      <form
+        className="flex flex-col gap-6"
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
+        <div className="flex flex-col items-center gap-2 text-center">
+          <h1 className="text-2xl font-bold">
+            Inicia Sesión Con Tus Credenciales
+          </h1>
+        </div>
+        <div className="grid gap-6">
+          <div className="grid gap-3">
+            <FormField
+              control={form.control}
+              name="usuario"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Correo Electrónico:</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="correo@conatel.gob.ve"
+                      {...field}
+                      className="transition-property: all transition-duration: 300ms placeholder:text-white hover:bg-slate-900/20"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-white">
+                    Introduce tu correo electrónico institucional.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="grid gap-3">
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contraseña:</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="Tu Contraseña"
+                      className="hover:bg-slate-900/20 placeholder:text-white"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-white">
+                    Coloque su contraseña de acceso.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          {error && <FormMessage>{error}</FormMessage>}
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </form>
+    </Form>
   );
 }

@@ -46,7 +46,8 @@ interface RolItem {
 
 interface DepartamentoItem {
   id: number;
-  nombre_departamento: string;
+  nombre?: string;
+  nombre_departamento?: string;
 }
 
 interface MeData {
@@ -124,7 +125,7 @@ export default {
         try {
           const departamentos = await apiGet<DepartamentoItem[]>("api/v1/identidad/departamentos/", tokens.access);
           const dept = departamentos.find((d) => d.id === usuario.departamento_id);
-          nombreDepartamento = dept?.nombre_departamento || "";
+          nombreDepartamento = dept?.nombre_departamento || dept?.nombre || "";
         } catch { /* vacío */ }
 
         return {

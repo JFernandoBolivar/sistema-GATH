@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import authConfig from "../auth.config";
 import { NextResponse } from "next/server";
-import { puede } from "@/shared/lib/evaluador-iam";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 const { auth: proxy } = NextAuth(authConfig);
 
@@ -15,11 +15,11 @@ export default proxy((req) => {
   const esAutogestion =
     auth?.user?.role?.nombre_rol === "AUTOGESTION" ||
     auth?.user?.department?.nombre_departamento === "AUTOGESTION" ||
-    (puede(permisos, "autogestion.censo") && !puede(permisos, "personal.ver"));
+    (tienePermiso(permisos, "autogestion.censo") && !tienePermiso(permisos, "personal.ver"));
 
   const esRecepcionista =
     auth?.user?.role?.nombre_rol === "RECEPCIONISTA" ||
-    (puede(permisos, "personal.ver") && !puede(permisos, "personal.crear"));
+    (tienePermiso(permisos, "personal.ver") && !tienePermiso(permisos, "personal.crear"));
 
   // Rutas que puede abrir un recepcionista / usuario de solo lectura.
   // El legado de "empleado"/"pasivo"/"familiares" (listado + detalle) ya se
@@ -38,6 +38,10 @@ export default proxy((req) => {
     "/pasivos",
     "/familiares",
   ];
+
+  if (nextUrl.pathname.startsWith("/api/auth")) {
+    return NextResponse.next();
+  }
 
   if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", nextUrl));

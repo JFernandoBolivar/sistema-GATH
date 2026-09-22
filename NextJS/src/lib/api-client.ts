@@ -106,6 +106,11 @@ async function getAuthHeaders(): Promise<Record<string, string> | null> {
   return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
 }
 
+function buildApiUrl(url: string): string {
+  const cleanUrl = url.startsWith("/") ? url.slice(1) : url;
+  return `${DJANGO_API_SERVER}${cleanUrl}`;
+}
+
 export async function apiFetch<T>(
   url: string,
   options?: RequestInit,
@@ -119,7 +124,7 @@ export async function apiFetch<T>(
   };
 
   const response = await fetch(
-    `${DJANGO_API_SERVER}${url}`,
+    buildApiUrl(url),
     requestOptions,
   );
 
@@ -140,7 +145,7 @@ export async function apiFetch<T>(
   };
 
   const retryResponse = await fetch(
-    `${DJANGO_API_SERVER}${url}`,
+    buildApiUrl(url),
     retryOptions,
   );
 
@@ -164,7 +169,7 @@ export async function apiFetchFormData<T>(
   };
 
   const response = await fetch(
-    `${DJANGO_API_SERVER}${url}`,
+    buildApiUrl(url),
     requestOptions,
   );
 
@@ -184,7 +189,7 @@ export async function apiFetchFormData<T>(
   };
 
   const retryResponse = await fetch(
-    `${DJANGO_API_SERVER}${url}`,
+    buildApiUrl(url),
     retryOptions,
   );
 
@@ -204,7 +209,7 @@ export async function apiFetchBlob(
   };
 
   const response = await fetch(
-    `${DJANGO_API_SERVER}${url}`,
+    buildApiUrl(url),
     requestOptions,
   );
 
@@ -225,7 +230,7 @@ export async function apiFetchBlob(
   };
 
   const retryResponse = await fetch(
-    `${DJANGO_API_SERVER}${url}`,
+    buildApiUrl(url),
     retryOptions,
   );
 
