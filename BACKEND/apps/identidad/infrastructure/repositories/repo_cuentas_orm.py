@@ -54,7 +54,7 @@ class RepoCuentasORM:
         if is_active not in (None, ''):
             qs = qs.filter(is_active=is_active)
         if cedula:
-            qs = qs.filter(cedula_id__icontains=cedula)
+            qs = qs.filter(cedula__cedulaidentidad__icontains=cedula)
 
         return [cuenta_a_entidad(fila) for fila in qs]
 

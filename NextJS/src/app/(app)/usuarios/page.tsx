@@ -1,6 +1,18 @@
-import UsuariosPage from "@/modules/identidad/ui/usuarios-page";
+"use client";
 
-/** Thin wrapper (R10): monta la página de usuarios del módulo `identidad`. */
-export default function UsuariosRoutePage() {
-  return <UsuariosPage />;
+import PageLayout from "@/components/layout/page-layout";
+import { useSession } from "next-auth/react";
+
+export default function SecurityPage() {
+  const { data: session } = useSession();
+  return (
+    <PageLayout>
+      <h1 className="text-8xl text-center text-clip text-transparent bg-clip-text from-cyan-900 bg-linear-to-r to-purple-500 animate-gradient mt-20">
+        Bienvenid@ a <span className="underline">GATH</span>
+      </h1>
+      <h2 className="text-center text-6xl text-clip text-transparent bg-clip-text from-blue-600 bg-linear-to-r to-blue-900 select-none animate-pulse">
+        {session?.user?.name}
+      </h2>
+    </PageLayout>
+  );
 }

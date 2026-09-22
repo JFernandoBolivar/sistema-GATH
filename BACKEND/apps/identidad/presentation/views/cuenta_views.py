@@ -78,9 +78,7 @@ class UsuarioListView(views.APIView):
             'is_active': _parse_bool(request.query_params.get('is_active')),
         }
         usuarios = repo.listar(filtros)
-        datos = CuentaLecturaSerializer(
-            usuarios, many=True, context={'repo': repo}
-        ).data
+        datos = CuentaLecturaSerializer(usuarios, many=True).data
         return ok(datos, f'{len(datos)} usuario(s) encontrado(s).')
 
 
