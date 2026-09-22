@@ -2,7 +2,7 @@
  * Implementación del repositorio de Autogestión usando la API REST.
  */
 import type { RepoAutogestion } from "../../domain/ports/repo-autogestion";
-import { autogestionApi } from "../http/autogestion-api";
+import { autogestionApi, type PreguntaCensoApiItem, type MetricasCensoApiItem } from "../http/autogestion-api";
 import {
   metricasApiAEntidad,
   preguntaApiAEntidad,
@@ -13,7 +13,7 @@ import {
 export const repoAutogestionApi: RepoAutogestion = {
   async listarPreguntas() {
     const raw = await autogestionApi.getPreguntas();
-    return raw.map(preguntaApiAEntidad);
+    return ((raw.data as unknown as PreguntaCensoApiItem[]) || []).map(preguntaApiAEntidad);
   },
 
   async obtenerCensoDeEmpleado(cedula) {
@@ -39,7 +39,8 @@ export const repoAutogestionApi: RepoAutogestion = {
   },
 
   async obtenerMetricasCenso() {
-    return metricasApiAEntidad(await autogestionApi.getMetricas());
+    const m = await autogestionApi.getMetricas();
+    return metricasApiAEntidad((m.data as unknown as MetricasCensoApiItem) || {});
   },
 
   async descargarExcelCenso() {

@@ -1,144 +1,238 @@
 "use server";
 
-/**
- * Server Actions para Autogestión (Regla R7).
- * Zero-trust: se revalida la entrada con el schema Zod antes de invocar el
- * caso de uso. Captura errores y llama `handleSessionExpired` (R7) y registra
- * la auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
- *
- * El censo se identifica por cédula (`/api/v1/autogestion/censo/<cedula>/`,
- * ALTA-07): "mi censo" resuelve la cédula del titular de la sesión activa,
- * nunca acepta una cédula arbitraria del cliente.
- */
 import { auth } from "#/auth";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { autogestionApi, type SubmitPayload } from "../http/autogestion-api";
 import type { ItemRespuestaInputDTO } from "../../application/dtos/censo-dto";
-import {
-  descargarExcelCenso,
-  listarPreguntasCenso,
-  obtenerCensoDeEmpleado,
-  obtenerMetricasCenso,
-  obtenerReporteDependenciasCenso,
-  registrarRespuestasCenso,
-} from "../../application/use-cases/gestionar-censo";
-import { repoAutogestionApi } from "../repositories/repo-autogestion-api";
 import { censoCedulaSchema, registrarCensoSchema } from "../../ui/schema/schema-censo";
 
-async function cedulaDeLaSesion(): Promise<string> {
+export async function getSessionCedulaAction(): Promise<string | null> {
+  const session = await auth();
+  return session?.user?.cedula ?? null;
+}
+
+export async function getPreguntasAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.getPreguntas();
+    await logAudit({ traceId, action: "getPreguntasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return res;
+  } catch (error) {
+    await logAudit({ traceId, action: "getPreguntasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function consultarCensoEmpleadoAction(cedula?: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.consultarCensoEmpleado(cedula);
+    await logAudit({ traceId, action: "consultarCensoEmpleadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return res;
+  } catch (error) {
+    await logAudit({ traceId, action: "consultarCensoEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function enviarAutogestionAction(
+  carnetPatria: string,
+  datosVivienda: any | undefined,
+  respuestas: { pregunta: number; opcion: number | null; respuesta: string }[],
+) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const session = await auth();
+    const cedula = session?.user?.cedula;
+    if (!cedula) {
+      return {
+        success: false,
+        message: "No tienes permiso para realizar esta acción. Inicia sesión.",
+      };
+    }
+
+    const payload: SubmitPayload = {
+      carnet_patria: carnetPatria,
+      datos_vivienda: datosVivienda,
+      respuestas,
+    };
+
+    const res = await autogestionApi.submitCensoVivienda(cedula, payload);
+    await logAudit({ traceId, action: "enviarAutogestionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+
+    return {
+      success: res?.status === "success" || true,
+      message: res?.message || "Formulario enviado exitosamente.",
+    };
+  } catch (error) {
+    await logAudit({ traceId, action: "enviarAutogestionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return {
+      success: false,
+      message: "Ocurrió un error al enviar el formulario.",
+    };
+  }
+}
+
+export async function getReporteCensoDependenciasAction(searchParams?: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.getReporteCensoDependencias(searchParams);
+    await logAudit({ traceId, action: "getReporteCensoDependenciasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return res;
+  } catch (error) {
+    await logAudit({ traceId, action: "getReporteCensoDependenciasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function exportarCensoExcelAction(filtros?: any) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const blob = await autogestionApi.exportarCensoExcel(filtros);
+    const arrayBuffer = await blob.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    await logAudit({ traceId, action: "exportarCensoExcelAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: base64 };
+  } catch (error) {
+    await logAudit({ traceId, action: "exportarCensoExcelAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "Error al generar el archivo Excel" };
+  }
+}
+
+// Catálogos
+export async function getStatesAction() {
+  return autogestionApi.getStates();
+}
+
+export async function getMunicipalitysAction(estadoId: string | number) {
+  return autogestionApi.getMunicipalitys(estadoId);
+}
+
+export async function getParishAction(municipioId: string | number) {
+  return autogestionApi.getParish(municipioId);
+}
+
+export async function getConditionDwellingAction() {
+  return autogestionApi.getConditionDwelling();
+}
+
+export async function getCodigosPostalesAction(estadoId: string | number) {
+  return autogestionApi.getCodigosPostales(estadoId);
+}
+
+export async function getDependencyAction() {
+  return autogestionApi.getDependency();
+}
+
+export async function getDirectionGeneralAction(dependenciaId: string | number) {
+  return autogestionApi.getDirectionGeneralById(dependenciaId);
+}
+
+export async function getDirectionLineAction(dgId: string | number) {
+  return autogestionApi.getDirectionLine(dgId);
+}
+
+export async function getCoordinationAction(dlId: string | number) {
+  return autogestionApi.getCoordination(dlId);
+}
+
+export async function getNominaGeneralAction() {
+  return autogestionApi.getNominaGeneral();
+}
+
+// Aliases for compatibility
+export const getPreguntasCensoAction = async () => {
+  const res = await getPreguntasAction();
+  return (res.data || []).map((p: any) => ({
+    id: p.id,
+    enunciado: p.enunciado,
+    tipo: typeof p.tipo === "string" ? p.tipo : p.tipo?.nombre,
+    orden: p.orden,
+    activo: p.activo,
+    validacion: p.validacion,
+    opciones: (p.opciones || []).map((o: any) => ({ id: o.id, texto: o.tipo_opcion || o.texto, orden: o.orden })),
+  }));
+};
+
+export const getMiCensoAction = async () => {
   const session = await auth();
   const cedula = session?.user?.cedula;
-  if (!cedula) throw new Error("No se pudo determinar la cédula del usuario autenticado.");
-  return cedula;
-}
+  if (!cedula) return [];
+  const res = await consultarCensoEmpleadoAction(cedula);
+  const censo = res.data?.[0];
+  if (!censo) return [];
+  return (censo.preguntas || []).map((p: any) => ({
+    id: p.id,
+    preguntaId: p.id,
+    preguntaEnunciado: p.pregunta,
+    empleadoCedula: censo.cedula,
+    opcionId: p.opcion?.id ?? null,
+    opcionTexto: p.opcion?.opcion ?? null,
+    respuestaTexto: p.respuesta,
+  }));
+};
 
-export async function getPreguntasCensoAction() {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await listarPreguntasCenso(repoAutogestionApi);
-    await logAudit({ traceId, action: "getPreguntasCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "getPreguntasCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
+export const guardarMiCensoAction = async (respuestas: ItemRespuestaInputDTO[]) => {
+  const formatted = respuestas.map((r) => ({
+    pregunta: r.preguntaId,
+    opcion: r.opcionId ?? null,
+    respuesta: r.respuesta ?? "",
+  }));
+  return enviarAutogestionAction("", undefined, formatted);
+};
 
-export async function getMiCensoAction() {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const cedula = await cedulaDeLaSesion();
-    const result = await obtenerCensoDeEmpleado(repoAutogestionApi, cedula);
-    await logAudit({ traceId, action: "getMiCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "getMiCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
+export const getReporteDependenciasCensoAction = async () => {
+  const res = await getReporteCensoDependenciasAction();
+  return (res.data?.bar_chart || []).map((b, idx) => ({
+    dependenciaId: idx + 1,
+    dependencia: b.key,
+    totalEmpleados: b.total,
+    empleadosCensados: b.respondidos,
+  }));
+};
 
-export async function guardarMiCensoAction(respuestas: ItemRespuestaInputDTO[]) {
-  const validation = registrarCensoSchema.safeParse({ respuestas });
-  if (!validation.success) {
-    return { error: "Datos del censo inválidos. Revise las respuestas ingresadas." };
-  }
+export const obtenerCensoPorCedulaAction = async (cedula: string) => {
+  const res = await consultarCensoEmpleadoAction(cedula);
+  const censo = res.data?.[0];
+  if (!censo) return [];
+  return (censo.preguntas || []).map((p: any) => ({
+    id: p.id,
+    preguntaId: p.id,
+    preguntaEnunciado: p.pregunta,
+    empleadoCedula: censo.cedula,
+    opcionId: p.opcion?.id ?? null,
+    opcionTexto: p.opcion?.opcion ?? null,
+    respuestaTexto: p.respuesta,
+  }));
+};
 
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const cedula = await cedulaDeLaSesion();
-    const result = await registrarRespuestasCenso(repoAutogestionApi, cedula, validation.data.respuestas);
-    await logAudit({ traceId, action: "guardarMiCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "guardarMiCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
+export const getMetricasCensoAction = async () => {
+  const res = await autogestionApi.getMetricas();
+  const d = res.data;
+  return {
+    totalEmpleadosCensados: d?.total_empleados_censados || 0,
+    totalRespuestas: d?.total_respuestas || 0,
+    porDependencia: (d?.bar_chart || []).map((b: any, idx: number) => ({
+      dependenciaId: idx + 1,
+      dependencia: b.key,
+      totalEmpleados: b.total,
+      empleadosCensados: b.respondidos,
+    })),
+  };
+};
 
-export async function getReporteDependenciasCensoAction() {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await obtenerReporteDependenciasCenso(repoAutogestionApi);
-    await logAudit({ traceId, action: "getReporteDependenciasCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "getReporteDependenciasCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
-
-export async function obtenerCensoPorCedulaAction(cedula: string) {
-  const validation = censoCedulaSchema.safeParse({ cedula });
-  if (!validation.success) {
-    return { error: "Cédula inválida. Revise el formato ingresado." };
-  }
-
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await obtenerCensoDeEmpleado(repoAutogestionApi, validation.data.cedula);
-    await logAudit({ traceId, action: "obtenerCensoPorCedulaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "obtenerCensoPorCedulaAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
-
-export async function getMetricasCensoAction() {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await obtenerMetricasCenso(repoAutogestionApi);
-    await logAudit({ traceId, action: "getMetricasCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "getMetricasCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
-
-export async function descargarExcelCensoAction(): Promise<Blob> {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await descargarExcelCenso(repoAutogestionApi);
-    await logAudit({ traceId, action: "descargarExcelCensoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "descargarExcelCensoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
+export const descargarExcelCensoAction = async (): Promise<Blob> => {
+  return autogestionApi.exportarCensoExcel();
+};

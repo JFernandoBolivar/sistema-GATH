@@ -13,11 +13,15 @@ export function preguntaApiAEntidad(raw: PreguntaCensoApiItem): PreguntaCenso {
   return {
     id: raw.id,
     enunciado: raw.enunciado,
-    tipo: raw.tipo,
+    tipo: typeof raw.tipo === "string" ? raw.tipo : (raw.tipo as any)?.nombre,
     orden: raw.orden,
     activo: raw.activo,
     validacion: raw.validacion,
-    opciones: raw.opciones.map((o) => ({ id: o.id, texto: o.texto, orden: o.orden })),
+    opciones: (raw.opciones || []).map((o: any) => ({
+      id: o.id,
+      texto: o.texto || o.tipo_opcion,
+      orden: o.orden,
+    })),
   };
 }
 
@@ -46,6 +50,6 @@ export function metricasApiAEntidad(raw: MetricasCensoApiItem): MetricasCenso {
   return {
     totalEmpleadosCensados: raw.total_empleados_censados,
     totalRespuestas: raw.total_respuestas,
-    porDependencia: raw.por_dependencia.map(reporteDependenciaApiAEntidad),
+    porDependencia: (raw.por_dependencia || []).map(reporteDependenciaApiAEntidad),
   };
 }

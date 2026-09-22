@@ -128,7 +128,7 @@ export default function AutogestionPage() {
       }
       setRespuestas({});
       setExito("Censo guardado correctamente.");
-      setMiCenso(resultado as RespuestaCensoDTO[]);
+      setMiCenso(resultado as unknown as RespuestaCensoDTO[]);
     });
   };
 
