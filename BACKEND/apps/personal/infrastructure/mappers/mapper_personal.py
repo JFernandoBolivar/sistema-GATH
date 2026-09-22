@@ -146,12 +146,20 @@ def antecedente_a_dict(a) -> dict:
 def contrato_a_dict(c) -> dict | None:
     if not c:
         return None
+    f_ingreso = None
+    if hasattr(c, 'fecha_ingreso') and c.fecha_ingreso:
+        f_ingreso = str(c.fecha_ingreso)
+    elif getattr(c, 'antecedente', None) and c.antecedente.fecha_ingreso:
+        f_ingreso = str(c.antecedente.fecha_ingreso)
     return {
         'id': c.pk,
         'n_contrato': c.n_contrato,
+        'fecha_ingreso': f_ingreso,
         'fecha_culminacion': str(c.fecha_culminacion) if c.fecha_culminacion else None,
         'politica_id': c.politica_id,
+        'politica_nombre': c.politica.tipo_politica if getattr(c, 'politica', None) else None,
         'estatus_id': c.estatus_id,
+        'estatus_nombre': c.estatus.estatus if getattr(c, 'estatus', None) else None,
         'es_fijo': c.es_fijo,
     }
 
@@ -166,12 +174,65 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
     antecedentes_qs = list(
         AntecedenteServicioModel.objects.filter(empleado=empleado).order_by('fecha_ingreso')
     )
+    contratos_todos = [
+        contrato_a_dict(c)
+        for c in ContratoModel.objects.filter(antecedente__empleado=empleado).select_related('estatus', 'politica', 'antecedente').order_by('-pk')
+    ]
     contrato_actual = None
     antecedente_abierto = next((a for a in antecedentes_qs if a.fecha_egreso is None), None)
     if antecedente_abierto:
         contrato_actual = contrato_a_dict(
             ContratoModel.objects.filter(antecedente=antecedente_abierto).order_by('-pk').first()
         )
+    if not contrato_actual and contratos_todos:
+        contrato_actual = contratos_todos[0]
+
+    asignaciones_data = []
+    try:
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+        from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
+
+        asigs = list(
+            AsigTrabajoModel.objects.filter(employee=empleado)
+            .select_related(
+                'denominacioncargoid',
+                'denominacioncargoespecificoid',
+                'tiponominaid',
+                'Dependencia',
+                'DireccionGeneral',
+                'DireccionLinea',
+                'Coordinacion',
+                'gradoid',
+                'estatusid',
+                'OrganismoAdscritoid',
+                'tipo_procedencia',
+            )
+        )
+        prestamos_cargos_ids = set(
+            PrestamoCargoModel.objects.filter(
+                cargo_encargado__in=asigs,
+                estatus__estatus__in=['ACTIVO', 'POR VENCER']
+            ).values_list('cargo_encargado_id', flat=True)
+        )
+        for a in asigs:
+            asignaciones_data.append({
+                'id': a.pk,
+                'codigo': a.codigo,
+                'denominacion_cargo': a.denominacioncargoid.cargo if a.denominacioncargoid else 'N/A',
+                'denominacion_cargo_especifico': a.denominacioncargoespecificoid.cargo if a.denominacioncargoespecificoid else 'N/A',
+                'tipo_nomina': a.tiponominaid.nomina if a.tiponominaid else 'N/A',
+                'dependencia': a.Dependencia.dependencia if a.Dependencia else 'N/A',
+                'direccion_general': a.DireccionGeneral.direccion_general if a.DireccionGeneral else 'N/A',
+                'direccion_linea': a.DireccionLinea.direccion_linea if a.DireccionLinea else 'N/A',
+                'coordinacion': a.Coordinacion.coordinacion if a.Coordinacion else 'N/A',
+                'grado': a.gradoid.grado if a.gradoid else 'N/A',
+                'estatus': a.estatusid.estatus if a.estatusid else 'ACTIVO',
+                'organismo_adscrito': a.OrganismoAdscritoid.Organismoadscrito if a.OrganismoAdscritoid else 'N/A',
+                'tipo_procedencia': a.tipo_procedencia.tipo_procedencia if a.tipo_procedencia else 'N/A',
+                'cargo_cubierto_encargaduria': a.pk in prestamos_cargos_ids,
+            })
+    except Exception:
+        pass
 
     return {
         'datos_vivienda': vivienda_a_dict(DatosViviendaModel.objects.filter(empleado=empleado).first()),
@@ -189,4 +250,6 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
         ],
         'antecedentes': [antecedente_a_dict(a) for a in antecedentes_qs],
         'contrato_actual': contrato_actual,
+        'contratos': contratos_todos,
+        'asignaciones': asignaciones_data,
     }

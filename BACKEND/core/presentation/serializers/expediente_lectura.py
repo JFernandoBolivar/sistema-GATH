@@ -70,7 +70,10 @@ class AntecedenteServicioLecturaSerializer(serializers.Serializer):
 class ContratoLecturaSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     n_contrato = serializers.CharField()
+    fecha_ingreso = serializers.CharField(allow_null=True, required=False)
     fecha_culminacion = serializers.CharField(allow_null=True)
     politica_id = serializers.IntegerField(allow_null=True)
+    politica_nombre = serializers.CharField(allow_null=True, required=False)
     estatus_id = serializers.IntegerField(allow_null=True)
+    estatus_nombre = serializers.CharField(allow_null=True, required=False)
     es_fijo = serializers.BooleanField()

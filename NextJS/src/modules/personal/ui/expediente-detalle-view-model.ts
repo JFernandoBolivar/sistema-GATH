@@ -158,7 +158,7 @@ export function construirDetalleExpediente(
     antecedentes: (empleado.antecedentes ?? []).map((a) => ({
       fechaIngreso: formatearFecha(a.fechaIngreso),
       fechaEgreso: formatearFecha(a.fechaEgreso, "Presente"),
-      organismo: nombrePorId(undefined, a.organismoId),
+      organismo: nombrePorId(catalogos.organismos, a.organismoId),
     })),
     contratoActual: empleado.contratoActual
       ? {

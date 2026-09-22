@@ -82,8 +82,22 @@ class RepoPersonalORM:
         antecedentes_por_empleado = self._antecedentes_cerrados_bulk(
             [e.pk for e in empleados]
         )
+        from apps.personal.infrastructure.mappers.mapper_personal import contrato_a_dict
+        contratos_qs = ContratoModel.objects.filter(
+            antecedente__empleado_id__in=[e.pk for e in empleados]
+        ).select_related('estatus', 'politica', 'antecedente').order_by('-pk')
+        contrato_por_empleado = {}
+        for c in contratos_qs:
+            emp_id = c.antecedente.empleado_id
+            if emp_id not in contrato_por_empleado:
+                contrato_por_empleado[emp_id] = contrato_a_dict(c)
+
         return [
-            empleado_a_entidad(e, antecedentes_por_empleado.get(e.pk, []))
+            empleado_a_entidad(
+                e,
+                antecedentes_por_empleado.get(e.pk, []),
+                expediente={'contrato_actual': contrato_por_empleado.get(e.pk)},
+            )
             for e in empleados
         ]
 

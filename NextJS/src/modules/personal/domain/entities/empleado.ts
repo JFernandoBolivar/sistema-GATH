@@ -79,8 +79,27 @@ export interface Contrato {
   fechaIngreso?: string | null;
   fechaCulminacion?: string | null;
   politicaId?: number | null;
+  politicaNombre?: string | null;
   estatusId?: number | null;
+  estatusNombre?: string | null;
   esFijo?: boolean;
+}
+
+export interface CargoAsignado {
+  id: number;
+  codigo: string;
+  denominacionCargo: string;
+  denominacionCargoEspecifico: string;
+  tipoNomina: string;
+  dependencia: string;
+  direccionGeneral: string;
+  direccionLinea: string;
+  coordinacion: string;
+  grado: string;
+  estatus: string;
+  organismoAdscrito: string;
+  tipoProcedencia: string;
+  cargoCubiertoEncargaduria: boolean;
 }
 
 export interface Empleado {
@@ -108,4 +127,6 @@ export interface Empleado {
   contactoEmergencia?: ContactoEmergencia[];
   antecedentes?: Antecedente[];
   contratoActual?: Contrato | null;
+  contratos?: Contrato[];
+  asignaciones?: CargoAsignado[];
 }

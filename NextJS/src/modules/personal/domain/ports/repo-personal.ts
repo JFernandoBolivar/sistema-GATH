@@ -44,6 +44,9 @@ export interface CatalogosExpediente {
   alergias: CatalogoExpediente[];
   patologias: CatalogoExpediente[];
   discapacidades: CatalogoExpediente[];
+  sexos: CatalogoExpediente[];
+  estadosCiviles: CatalogoExpediente[];
+  organismos: CatalogoExpediente[];
 }
 
 export interface GuardarEmpleadoDatos {

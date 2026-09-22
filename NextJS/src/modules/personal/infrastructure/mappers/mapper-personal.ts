@@ -3,6 +3,7 @@
  */
 import type {
   Antecedente,
+  CargoAsignado,
   ContactoEmergencia,
   Contrato,
   DatosVivienda,
@@ -94,14 +95,37 @@ function contratoAPIADto(raw: Record<string, unknown>): Contrato {
   return {
     id: raw.id as number | undefined,
     nContrato: (raw.n_contrato as string | undefined) ?? null,
+    fechaIngreso: (raw.fecha_ingreso as string | null) ?? null,
     fechaCulminacion: (raw.fecha_culminacion as string | null) ?? null,
     politicaId: (raw.politica_id as number | null) ?? null,
+    politicaNombre: (raw.politica_nombre as string | null) ?? null,
     estatusId: (raw.estatus_id as number | null) ?? null,
+    estatusNombre: (raw.estatus_nombre as string | null) ?? null,
     esFijo: raw.es_fijo as boolean | undefined,
   };
 }
 
+function cargoAsignadoAPIADto(raw: Record<string, unknown>): CargoAsignado {
+  return {
+    id: (raw.id as number) ?? 0,
+    codigo: (raw.codigo as string) ?? "",
+    denominacionCargo: (raw.denominacion_cargo as string) ?? "N/A",
+    denominacionCargoEspecifico: (raw.denominacion_cargo_especifico as string) ?? "N/A",
+    tipoNomina: (raw.tipo_nomina as string) ?? "N/A",
+    dependencia: (raw.dependencia as string) ?? "N/A",
+    direccionGeneral: (raw.direccion_general as string) ?? "N/A",
+    direccionLinea: (raw.direccion_linea as string) ?? "N/A",
+    coordinacion: (raw.coordinacion as string) ?? "N/A",
+    grado: (raw.grado as string) ?? "N/A",
+    estatus: (raw.estatus as string) ?? "ACTIVO",
+    organismoAdscrito: (raw.organismo_adscrito as string) ?? "N/A",
+    tipoProcedencia: (raw.tipo_procedencia as string) ?? "N/A",
+    cargoCubiertoEncargaduria: !!raw.cargo_cubierto_encargaduria,
+  };
+}
+
 export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
+  const rec = asRec(raw);
   return {
     id: raw.id,
     cedula: raw.cedula,
@@ -126,5 +150,7 @@ export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
     contactoEmergencia: (raw.contacto_emergencia ?? []).map((i) => contactoAPIADto(asRec(i))),
     antecedentes: (raw.antecedentes ?? []).map((i) => antecedenteAPIADto(asRec(i))),
     contratoActual: raw.contrato_actual ? contratoAPIADto(asRec(raw.contrato_actual)) : null,
+    contratos: Array.isArray(rec.contratos) ? (rec.contratos as unknown[]).map((i) => contratoAPIADto(asRec(i))) : [],
+    asignaciones: Array.isArray(rec.asignaciones) ? (rec.asignaciones as unknown[]).map((i) => cargoAsignadoAPIADto(asRec(i))) : [],
   };
 }

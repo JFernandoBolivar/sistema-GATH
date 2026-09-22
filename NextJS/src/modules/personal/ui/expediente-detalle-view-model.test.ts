@@ -24,6 +24,9 @@ function catalogosVacios(): CatalogosExpedienteDTO {
     alergias: [],
     patologias: [],
     discapacidades: [],
+    sexos: [],
+    estadosCiviles: [],
+    organismos: [],
   };
 }
 

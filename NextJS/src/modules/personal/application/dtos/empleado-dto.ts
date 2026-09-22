@@ -17,6 +17,7 @@ import type {
   FormacionComplementaria,
   PerfilFisico,
   PerfilSalud,
+  CargoAsignado,
 } from "../../domain/entities/empleado";
 
 export interface DatosViviendaDTO extends DatosVivienda {}
@@ -27,6 +28,7 @@ export interface FormacionComplementariaDTO extends FormacionComplementaria {}
 export interface ContactoEmergenciaDTO extends ContactoEmergencia {}
 export interface AntecedenteDTO extends Antecedente {}
 export interface ContratoDTO extends Contrato {}
+export interface CargoAsignadoDTO extends CargoAsignado {}
 
 export interface CatalogoEmpleadoDTO {
   id: number;
@@ -53,6 +55,9 @@ export interface CatalogosExpedienteDTO {
   alergias: CatalogoEmpleadoDTO[];
   patologias: CatalogoEmpleadoDTO[];
   discapacidades: CatalogoEmpleadoDTO[];
+  sexos: CatalogoEmpleadoDTO[];
+  estadosCiviles: CatalogoEmpleadoDTO[];
+  organismos: CatalogoEmpleadoDTO[];
 }
 
 export interface EmpleadoDTO {
@@ -79,6 +84,8 @@ export interface EmpleadoDTO {
   contactoEmergencia?: ContactoEmergenciaDTO[];
   antecedentes?: AntecedenteDTO[];
   contratoActual?: ContratoDTO | null;
+  contratos?: ContratoDTO[];
+  asignaciones?: CargoAsignadoDTO[];
 }
 
 export interface GuardarEmpleadoInputDTO {

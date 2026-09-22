@@ -65,21 +65,21 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
     await expect(page.getByText("HITLER")).toBeVisible();
 
     // Actions dropdown
-    const actionsBtn = page.getByRole("button", { name: /abrir menú/i }).first();
+    const actionsBtn = page.getByRole("button", { name: /abrir menu/i }).first();
     await expect(actionsBtn).toBeVisible();
     await actionsBtn.click();
 
-    await expect(page.getByText("Copiar cédula")).toBeVisible();
-    await expect(page.getByText("Ver detalle")).toBeVisible();
+    await expect(page.getByText("Copiar Cédula De Identidad")).toBeVisible();
     await expect(page.getByText("Expediente PDF")).toBeVisible();
+    await expect(page.getByText("Ver Detalles")).toBeVisible();
 
     // Open detail sheet
-    await page.getByText("Ver detalle").click();
+    await page.getByText("Ver Detalles").click();
     await page.waitForTimeout(1500);
 
-    await expect(page.getByRole("heading", { name: "Expediente del trabajador" })).toBeVisible();
-    await expect(page.getByText("Cédula: 30540767")).toBeVisible();
-    await expect(page.getByText("Datos personales")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Información Detallada Del Trabajador" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Actualizar Información Basica" })).toBeVisible();
+    await expect(page.getByText(/Detalles Del Cargo|Detalles De Cargos Asignados/)).toBeVisible();
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/2_personal_consultar.png` });
   });
@@ -99,4 +99,63 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/3_personal_registrar.png` });
   });
+
+  test("4. /personal/consultar abre dialogos modulares desde el Sheet", async ({ page }) => {
+    await page.goto("/personal/consultar");
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+
+    // Search Hitler
+    await page.getByPlaceholder("buscar cedula...").fill("30540767");
+    await page.getByRole("button", { name: "Buscar", exact: true }).click();
+    await page.waitForTimeout(1500);
+
+    // Open Dropdown & Ver Detalles
+    await page.getByRole("button", { name: /abrir menu/i }).first().click();
+    await page.getByText("Ver Detalles").click();
+    await page.waitForTimeout(1500);
+
+    // Click Actualizar Informacion Basica
+    await page.getByRole("button", { name: "Actualizar Información Basica" }).click();
+    await page.waitForTimeout(500);
+
+    await expect(page.getByRole("dialog").getByRole("heading", { name: /Actualizar Información Básica/i })).toBeVisible();
+    await expect(page.getByLabel("Nombres")).toBeVisible();
+    await expect(page.getByLabel("Apellidos")).toBeVisible();
+    await page.screenshot({ path: `${ARTIFACT_DIR}/2b_personal_sheet_basic_dialog.png` });
+
+    // Cancel basic dialog
+    await page.getByRole("button", { name: "Cancelar" }).click();
+    await page.waitForTimeout(500);
+
+    // Scroll sheet to see Vivienda, Formaciones, Vestimenta and Salud
+    await page.evaluate(() => {
+      const dialog = document.querySelector("[role='dialog']");
+      if (dialog) {
+        dialog.scrollTop = 1000;
+        const viewports = dialog.querySelectorAll("[data-radix-scroll-area-viewport]");
+        viewports.forEach(vp => (vp as HTMLElement).scrollTop = 1000);
+      }
+    });
+    await page.waitForTimeout(600);
+
+    await expect(page.getByText("Datos De Vivienda")).toBeVisible();
+    await expect(page.getByText("Formaciones Academicas")).toBeVisible();
+    await expect(page.getByText("Información De Vestimenta")).toBeVisible();
+    await expect(page.getByText("Información De Salud")).toBeVisible();
+
+    await page.screenshot({ path: `${ARTIFACT_DIR}/2c_personal_sheet_scrolled.png` });
+
+    // Scroll further to bottom
+    await page.evaluate(() => {
+      const dialog = document.querySelector("[role='dialog']");
+      if (dialog) {
+        dialog.scrollTop = 2200;
+        const viewports = dialog.querySelectorAll("[data-radix-scroll-area-viewport]");
+        viewports.forEach(vp => (vp as HTMLElement).scrollTop = 2200);
+      }
+    });
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: `${ARTIFACT_DIR}/2d_personal_sheet_bottom.png` });
+  });
 });
+

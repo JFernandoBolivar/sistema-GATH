@@ -1,23 +1,24 @@
 "use client";
 
 /**
- * Definición de columnas del listado de personal para `DataTable`
- * (tanstack). Réplica de paridad estructural con el legado
- * (`tableEmployees/columns.tsx`): cédula ordenable, nombres/apellidos,
- * sexo, fecha de nacimiento, correo, APN y una columna de acciones con
- * menú desplegable (copiar cédula, ver detalle) en vez de botones sueltos.
- *
- * Nota de alcance: el legado también mostraba "Estatus Contrato" (badge de
- * color) y "F. Ingreso Organismo" en esta misma tabla porque el listado
- * legado (`EmployeeData`) traía el expediente completo anidado en cada
- * fila. El listado nuevo (`GET /api/v1/personal/`) solo puebla ese
- * expediente en el detalle, no en la lista (`EmpleadoSerializer`, Fase
- * 2.2) — añadir esas dos columnas requeriría cambiar el contrato del
- * backend, fuera del alcance de este ajuste de capa `ui/`.
+ * Definición de columnas del listado de personal para `DataTable` (tanstack).
+ * 100% Paridad visual y estructural con el sistema de referencia
+ * (`tableEmployees/columns.tsx`):
+ * - Cédula (ordenable con DataTableColumnHeader)
+ * - Nombres
+ * - Apellidos
+ * - Sexo (primera letra M/F)
+ * - F. Nacimiento (dd/MM/yyyy)
+ * - Estatus Contrato (Badge verde ACTIVO / amarillo POR VENCER / rojo VENCIDO o N/A)
+ * - F. Ingreso Organismo (fecha de ingreso del contrato o N/A)
+ * - Menú de acciones:
+ *   - Acciones: "Copiar Cédula De Identidad"
+ *   - Extras: "Expediente PDF" (ExportButton) y botón azul "Ver Detalles"
  */
 import type { ColumnDef } from "@tanstack/react-table";
-import { Camera, Copy, Eye, FileText, MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 
+import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import {
   DropdownMenu,
@@ -33,51 +34,50 @@ import type { EmpleadoDTO } from "../application/dtos/empleado-dto";
 
 function AccionesCell({
   empleado,
-  puedeVerDetalle,
-  puedeEditar,
   puedeExportarPdf,
   onVerDetalle,
-  onSubirFoto,
   onExportarPdfDirecto,
 }: {
   empleado: EmpleadoDTO;
-  puedeVerDetalle: boolean;
-  puedeEditar: boolean;
   puedeExportarPdf: boolean;
   onVerDetalle: (cedula: string) => void;
-  onSubirFoto: (cedula: string) => void;
   onExportarPdfDirecto?: (cedula: string) => void;
 }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="size-8 p-0">
-          <span className="sr-only">Abrir menú</span>
-          <MoreHorizontal className="size-4" aria-hidden="true" />
+          <span className="sr-only">Abrir Menu</span>
+          <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(empleado.cedula)}>
-          <Copy className="size-4" aria-hidden="true" /> Copiar cédula
+        <DropdownMenuItem
+          className="cursor-pointer"
+          onClick={() => navigator.clipboard.writeText(empleado.cedula)}
+        >
+          Copiar Cédula De Identidad
         </DropdownMenuItem>
-        {puedeVerDetalle && (
-          <DropdownMenuItem onClick={() => onVerDetalle(empleado.cedula)}>
-            <Eye className="size-4" aria-hidden="true" /> Ver detalle
-          </DropdownMenuItem>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Extras</DropdownMenuLabel>
         {puedeExportarPdf && (
-          <DropdownMenuItem onClick={() => onExportarPdfDirecto?.(empleado.cedula)}>
-            <FileText className="size-4" aria-hidden="true" /> Expediente PDF
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => onExportarPdfDirecto?.(empleado.cedula)}
+          >
+            Expediente PDF
           </DropdownMenuItem>
         )}
-        {puedeEditar && (
-          <DropdownMenuItem onClick={() => onSubirFoto(empleado.cedula)}>
-            <Camera className="size-4" aria-hidden="true" /> Subir foto
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem asChild>
+          <Button
+            type="button"
+            className="w-full bg-blue-900 hover:bg-blue-800 p-2 rounded-sm text-white font-medium cursor-pointer"
+            onClick={() => onVerDetalle(empleado.cedula)}
+          >
+            Ver Detalles
+          </Button>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -107,16 +107,44 @@ export function construirColumnasPersonal(
     {
       accessorKey: "fechaNacimiento",
       header: "F. Nacimiento",
-      cell: ({ getValue }) => <span>{(getValue() as string | null) ?? "N/A"}</span>,
+      cell: ({ getValue }) => {
+        const val = getValue() as string | null;
+        if (!val) return <span>N/A</span>;
+        // Normalizar a dd/MM/yyyy
+        const parts = val.split("-");
+        if (parts.length === 3) {
+          return <span>{`${parts[2]}/${parts[1]}/${parts[0]}`}</span>;
+        }
+        return <span>{val}</span>;
+      },
     },
     {
-      accessorKey: "correo",
-      header: "Correo",
-      cell: ({ getValue }) => <span>{(getValue() as string | null) ?? "—"}</span>,
+      id: "estatus_contrato",
+      header: "Estatus Contrato",
+      cell: ({ row }) => {
+        const estatus = row.original.contratoActual?.estatusNombre?.toUpperCase();
+        if (!estatus) return <span>N/A</span>;
+        const color =
+          estatus === "ACTIVO"
+            ? "bg-green-600"
+            : estatus === "POR VENCER"
+            ? "bg-yellow-500"
+            : "bg-red-600";
+        return <Badge className={`${color} text-white`}>{estatus}</Badge>;
+      },
     },
     {
-      accessorKey: "totalAnosApn",
-      header: "APN",
+      id: "fecha_ingreso_org",
+      header: "F. Ingreso Organismo",
+      cell: ({ row }) => {
+        const fecha = row.original.contratoActual?.fechaIngreso;
+        if (!fecha) return <span>N/A</span>;
+        const parts = fecha.split("-");
+        if (parts.length === 3) {
+          return <span>{`${parts[2]}/${parts[1]}/${parts[0]}`}</span>;
+        }
+        return <span>{fecha}</span>;
+      },
     },
     {
       id: "actions",
@@ -124,11 +152,8 @@ export function construirColumnasPersonal(
       cell: ({ row }) => (
         <AccionesCell
           empleado={row.original}
-          puedeVerDetalle={puedeVerDetalle}
-          puedeEditar={puedeEditar}
           puedeExportarPdf={puedeExportarPdf}
           onVerDetalle={onVerDetalle}
-          onSubirFoto={onSubirFoto}
           onExportarPdfDirecto={onExportarPdfDirecto}
         />
       ),

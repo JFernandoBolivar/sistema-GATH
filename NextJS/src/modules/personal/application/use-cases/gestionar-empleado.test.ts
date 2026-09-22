@@ -70,6 +70,9 @@ class RepoPersonalMemoria implements RepoPersonal {
       alergias: [],
       patologias: [],
       discapacidades: [],
+      sexos: [],
+      estadosCiviles: [],
+      organismos: [],
     };
   }
 }

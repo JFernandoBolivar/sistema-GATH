@@ -43,3 +43,5 @@ class EmpleadoSerializer(serializers.Serializer):
     contacto_emergencia = ContactoEmergenciaLecturaSerializer(read_only=True, many=True)
     antecedentes = AntecedenteServicioLecturaSerializer(read_only=True, many=True)
     contrato_actual = ContratoLecturaSerializer(read_only=True, allow_null=True)
+    contratos = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)
+    asignaciones = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)

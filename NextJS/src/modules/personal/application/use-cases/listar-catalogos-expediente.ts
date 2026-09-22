@@ -28,5 +28,8 @@ export async function listarCatalogosExpediente(
     alergias: c.alergias.map((x) => ({ id: x.id, nombre: x.nombre })),
     patologias: c.patologias.map((x) => ({ id: x.id, nombre: x.nombre })),
     discapacidades: c.discapacidades.map((x) => ({ id: x.id, nombre: x.nombre })),
+    sexos: (c.sexos ?? []).map((x) => ({ id: x.id, nombre: x.nombre })),
+    estadosCiviles: (c.estadosCiviles ?? []).map((x) => ({ id: x.id, nombre: x.nombre })),
+    organismos: (c.organismos ?? []).map((x) => ({ id: x.id, nombre: x.nombre })),
   };
 }

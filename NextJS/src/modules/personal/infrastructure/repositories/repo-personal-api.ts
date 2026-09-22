@@ -216,6 +216,9 @@ export const repoPersonalApi: RepoPersonal = {
       alergias,
       patologias,
       discapacidades,
+      sexos,
+      estadosCiviles,
+      organismos,
     ] = await Promise.all([
       personalApi.getEstados(),
       personalApi.getMunicipios(),
@@ -236,6 +239,9 @@ export const repoPersonalApi: RepoPersonal = {
       personalApi.getAlergias(),
       personalApi.getPatologias(),
       personalApi.getDiscapacidades(),
+      personalApi.getSexos(),
+      personalApi.getEstadosCiviles(),
+      personalApi.getOrganismosAdscritos(),
     ]);
     const aCat = (raw: { id: number; nombre: string }[]) => raw.map((x) => ({ id: x.id, nombre: x.nombre }));
     return {
@@ -258,6 +264,9 @@ export const repoPersonalApi: RepoPersonal = {
       alergias: aCat(alergias),
       patologias: aCat(patologias),
       discapacidades: aCat(discapacidades),
+      sexos: aCat(sexos),
+      estadosCiviles: aCat(estadosCiviles),
+      organismos: aCat(organismos),
     };
   },
 };

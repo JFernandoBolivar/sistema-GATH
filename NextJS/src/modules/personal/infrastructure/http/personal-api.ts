@@ -134,4 +134,10 @@ export const personalApi = {
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/tipos-procedencia/")),
   getTiposNomina: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/tipos-nomina/")),
+  getSexos: () =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/sexos/")),
+  getEstadosCiviles: () =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/estados-civiles/")),
+  getOrganismosAdscritos: () =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/organizacion/organismos-adscritos/")),
 };

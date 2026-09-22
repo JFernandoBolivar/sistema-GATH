@@ -33,6 +33,8 @@ class Empleado:
     contacto_emergencia: list = field(default_factory=list)
     antecedentes: list = field(default_factory=list)
     contrato_actual: dict | None = None
+    contratos: list = field(default_factory=list)
+    asignaciones: list = field(default_factory=list)
 
     @property
     def nombre_completo(self) -> str:
