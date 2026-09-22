@@ -14,6 +14,7 @@ import { Button } from "@/shared/ui/components/button";
 
 import type { DependenciaDTO } from "../application/dtos/organizacion-dto";
 import { getDependenciasAction } from "../infrastructure/actions/organizacion-actions";
+import PageLayout from "@/components/layout/page-layout";
 import DependenciaAdmin from "./dependencia-admin";
 
 export default function OrganizacionDependenciasPage() {
@@ -28,17 +29,22 @@ export default function OrganizacionDependenciasPage() {
   }, []);
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/organizacion"><ArrowLeft className="size-4" aria-hidden="true" /> Organización</Link>
-        </Button>
-      </header>
-      <div className="flex items-center gap-2">
-        <Network className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Dependencias</h1>
+    <PageLayout
+      title="Gestión de Ubicaciones Administrativas"
+      description="Registre Nuevas Ubicaciones Administrativas Para Trabajadores"
+    >
+      <div className="flex flex-col gap-4 mt-2">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Network className="size-5 text-muted-foreground" aria-hidden="true" />
+            <h2 className="text-xl font-semibold tracking-tight">Dependencias</h2>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/organizacion"><ArrowLeft className="size-4 mr-1" aria-hidden="true" /> Volver a Organización</Link>
+          </Button>
+        </header>
+        <DependenciaAdmin dependencias={dependencias} onChanged={cargar} />
       </div>
-      <DependenciaAdmin dependencias={dependencias} onChanged={cargar} />
-    </section>
+    </PageLayout>
   );
 }

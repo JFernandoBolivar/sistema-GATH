@@ -16,6 +16,7 @@ import {
   getCoordinacionesAction,
   getDireccionesLineaAction,
 } from "../infrastructure/actions/organizacion-actions";
+import PageLayout from "@/components/layout/page-layout";
 import CoordinacionAdmin from "./coordinacion-admin";
 
 export default function OrganizacionCoordinacionesPage() {
@@ -32,17 +33,22 @@ export default function OrganizacionCoordinacionesPage() {
   }, []);
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/organizacion"><ArrowLeft className="size-4" aria-hidden="true" /> Organización</Link>
-        </Button>
-      </header>
-      <div className="flex items-center gap-2">
-        <Network className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Coordinaciones</h1>
+    <PageLayout
+      title="Actualizar Información De Dependencias"
+      description="Gestione las Coordinaciones de la Institución"
+    >
+      <div className="flex flex-col gap-4 mt-2">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Network className="size-5 text-muted-foreground" aria-hidden="true" />
+            <h2 className="text-xl font-semibold tracking-tight">Coordinaciones</h2>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/organizacion"><ArrowLeft className="size-4 mr-1" aria-hidden="true" /> Volver a Organización</Link>
+          </Button>
+        </header>
+        <CoordinacionAdmin dirLinea={dirLinea} items={items} onChanged={cargar} />
       </div>
-      <CoordinacionAdmin dirLinea={dirLinea} items={items} onChanged={cargar} />
-    </section>
+    </PageLayout>
   );
 }

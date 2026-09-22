@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import PageLayout from "@/components/layout/page-layout";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -95,8 +96,9 @@ const FLUJOS = [
 export default function OrganizacionPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeCrear = tienePermiso(permisos, "organizacion.crear");
-  const puedeEditar = tienePermiso(permisos, "organizacion.editar");
+  const esAdmin = session?.user?.role?.nombre_rol === "ADMINISTRADOR" || session?.user?.role?.id === 1;
+  const puedeCrear = esAdmin || tienePermiso(permisos, "organizacion.crear");
+  const puedeEditar = esAdmin || tienePermiso(permisos, "organizacion.editar");
 
   const [dependencias, setDependencias] = useState<DependenciaDTO[]>([]);
   const [dirGenerales, setDirGenerales] = useState<DireccionGeneralDTO[]>([]);
@@ -155,134 +157,139 @@ export default function OrganizacionPage() {
   };
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Building2 className="size-5 text-muted-foreground" aria-hidden="true" />
-          <h1 className="text-xl font-semibold tracking-tight">Organización</h1>
-        </div>
-        {(puedeCrear || puedeEditar) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {FLUJOS.map((f) => (
-              <Button key={f.href} asChild variant="outline" size="sm">
-                <Link href={f.href}><f.icon className="size-4" aria-hidden="true" /> {f.label}</Link>
-              </Button>
-            ))}
+    <PageLayout
+      title="Listado De Ubicaciones Administrativas"
+      description="Estructura Jerárquica y Dependencias de CONATEL"
+    >
+      <div className="flex flex-col gap-4 mt-2">
+        <header className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="size-5 text-muted-foreground" aria-hidden="true" />
+            <h2 className="text-lg font-semibold tracking-tight">Estructura Organizacional</h2>
           </div>
-        )}
-      </header>
-
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-
-      <Tabs defaultValue="explorar">
-        <TabsList>
-          <TabsTrigger value="explorar">Explorar</TabsTrigger>
-          <TabsTrigger value="organismos">Organismos adscritos</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="explorar" className="flex flex-col gap-4">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle>Explorar estructura</CardTitle>
-              <CardDescription>
-                Seleccione los niveles para ver jerarquías y organismos adscritos.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-5">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field>
-                  <Label htmlFor="dependenciaId">Dependencia</Label>
-                  <Select value={form.watch("dependenciaId")?.toString() ?? ""} onValueChange={(v) => onDependencia(Number(v))}>
-                    <SelectTrigger id="dependenciaId">
-                      <SelectValue placeholder="Seleccione una dependencia" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dependencias.map((d) => (
-                        <SelectItem key={d.id} value={String(d.id)}>{d.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <Label htmlFor="direccionGeneralId">Dirección general</Label>
-                  <Select value={form.watch("direccionGeneralId")?.toString() ?? ""} onValueChange={(v) => onDireccionGeneral(Number(v))}>
-                    <SelectTrigger id="direccionGeneralId">
-                      <SelectValue placeholder={dirGenerales.length ? "Seleccione" : "Seleccione una dependencia primero"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dirGenerales.map((d) => (
-                        <SelectItem key={d.id} value={String(d.id)}>{d.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <Label htmlFor="direccionLineaId">Dirección de línea</Label>
-                  <Select value={form.watch("direccionLineaId")?.toString() ?? ""} onValueChange={(v) => onDireccionLinea(Number(v))}>
-                    <SelectTrigger id="direccionLineaId">
-                      <SelectValue placeholder={dirLinea.length ? "Seleccione" : "Seleccione una dirección general primero"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dirLinea.map((d) => (
-                        <SelectItem key={d.id} value={String(d.id)}>{d.nombre}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="outline" onClick={cargarDependencias} disabled={isPending}>
-                  {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Map className="size-4" aria-hidden="true" />}
-                  Cargar dependencias
+          {(puedeCrear || puedeEditar) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {FLUJOS.map((f) => (
+                <Button key={f.href} asChild variant="outline" size="sm">
+                  <Link href={f.href}><f.icon className="size-4" aria-hidden="true" /> {f.label}</Link>
                 </Button>
-                <Button type="button" variant="outline" onClick={cargarOrganismos} disabled={isPending}>
-                  <RefreshCw className="size-4" aria-hidden="true" />
-                  Organismos adscritos
-                </Button>
+              ))}
+            </div>
+          )}
+        </header>
+
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+
+        <Tabs defaultValue="explorar">
+          <TabsList>
+            <TabsTrigger value="explorar">Explorar</TabsTrigger>
+            <TabsTrigger value="organismos">Organismos adscritos</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="explorar" className="flex flex-col gap-4">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle>Explorar estructura</CardTitle>
+                <CardDescription>
+                  Seleccione los niveles para ver jerarquías y organismos adscritos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-5">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Field>
+                    <Label htmlFor="dependenciaId">Dependencia</Label>
+                    <Select value={form.watch("dependenciaId")?.toString() ?? ""} onValueChange={(v) => onDependencia(Number(v))}>
+                      <SelectTrigger id="dependenciaId">
+                        <SelectValue placeholder="Seleccione una dependencia" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dependencias.map((d) => (
+                          <SelectItem key={d.id} value={String(d.id)}>{d.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <Label htmlFor="direccionGeneralId">Dirección general</Label>
+                    <Select value={form.watch("direccionGeneralId")?.toString() ?? ""} onValueChange={(v) => onDireccionGeneral(Number(v))}>
+                      <SelectTrigger id="direccionGeneralId">
+                        <SelectValue placeholder={dirGenerales.length ? "Seleccione" : "Seleccione una dependencia primero"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dirGenerales.map((d) => (
+                          <SelectItem key={d.id} value={String(d.id)}>{d.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <Label htmlFor="direccionLineaId">Dirección de línea</Label>
+                    <Select value={form.watch("direccionLineaId")?.toString() ?? ""} onValueChange={(v) => onDireccionLinea(Number(v))}>
+                      <SelectTrigger id="direccionLineaId">
+                        <SelectValue placeholder={dirLinea.length ? "Seleccione" : "Seleccione una dirección general primero"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dirLinea.map((d) => (
+                          <SelectItem key={d.id} value={String(d.id)}>{d.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={cargarDependencias} disabled={isPending}>
+                    {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Map className="size-4" aria-hidden="true" />}
+                    Cargar dependencias
+                  </Button>
+                  <Button type="button" variant="outline" onClick={cargarOrganismos} disabled={isPending}>
+                    <RefreshCw className="size-4" aria-hidden="true" />
+                    Organismos adscritos
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow><TableHead>Coordinaciones</TableHead></TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {coordinaciones.length === 0 ? (
+                      <TableRow><TableCell className="h-16 text-center text-muted-foreground">Sin coordinaciones en el nivel seleccionado.</TableCell></TableRow>
+                    ) : (
+                      coordinaciones.map((c) => (
+                        <TableRow key={c.id}><TableCell>{c.nombre}</TableCell></TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow><TableHead>Coordinaciones</TableHead></TableRow>
-                </TableHeader>
-                <TableBody>
-                  {coordinaciones.length === 0 ? (
-                    <TableRow><TableCell className="h-16 text-center text-muted-foreground">Sin coordinaciones en el nivel seleccionado.</TableCell></TableRow>
-                  ) : (
-                    coordinaciones.map((c) => (
-                      <TableRow key={c.id}><TableCell>{c.nombre}</TableCell></TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+              <div className="overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow><TableHead>Organismos adscritos</TableHead></TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {organismos.length === 0 ? (
+                      <TableRow><TableCell className="h-16 text-center text-muted-foreground">Sin organismos adscritos.</TableCell></TableRow>
+                    ) : (
+                      organismos.map((o) => (
+                        <TableRow key={o.id}><TableCell>{o.nombre}</TableCell></TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-            <div className="overflow-hidden rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow><TableHead>Organismos adscritos</TableHead></TableRow>
-                </TableHeader>
-                <TableBody>
-                  {organismos.length === 0 ? (
-                    <TableRow><TableCell className="h-16 text-center text-muted-foreground">Sin organismos adscritos.</TableCell></TableRow>
-                  ) : (
-                    organismos.map((o) => (
-                      <TableRow key={o.id}><TableCell>{o.nombre}</TableCell></TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="organismos" className="flex flex-col gap-6">
-          <OrganismoAdmin items={organismos} onChanged={cargarOrganismos} />
-        </TabsContent>
-      </Tabs>
-    </section>
+          <TabsContent value="organismos" className="flex flex-col gap-6">
+            <OrganismoAdmin items={organismos} onChanged={cargarOrganismos} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </PageLayout>
   );
 }

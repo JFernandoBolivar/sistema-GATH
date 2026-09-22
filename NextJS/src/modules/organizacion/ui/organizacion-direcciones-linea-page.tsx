@@ -16,6 +16,7 @@ import {
   getDireccionesGeneralesAction,
   getDireccionesLineaAction,
 } from "../infrastructure/actions/organizacion-actions";
+import PageLayout from "@/components/layout/page-layout";
 import DireccionLineaAdmin from "./direccion-linea-admin";
 
 export default function OrganizacionDireccionesLineaPage() {
@@ -32,17 +33,22 @@ export default function OrganizacionDireccionesLineaPage() {
   }, []);
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/organizacion"><ArrowLeft className="size-4" aria-hidden="true" /> Organización</Link>
-        </Button>
-      </header>
-      <div className="flex items-center gap-2">
-        <Network className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Direcciones de línea</h1>
+    <PageLayout
+      title="Crear Direcciones Administrativas"
+      description="Registre Nuevas Direcciones de Línea, Divisiones o Coordinaciones"
+    >
+      <div className="flex flex-col gap-4 mt-2">
+        <header className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Network className="size-5 text-muted-foreground" aria-hidden="true" />
+            <h2 className="text-xl font-semibold tracking-tight">Direcciones de Línea</h2>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/organizacion"><ArrowLeft className="size-4 mr-1" aria-hidden="true" /> Volver a Organización</Link>
+          </Button>
+        </header>
+        <DireccionLineaAdmin dirGenerales={dirGenerales} items={items} onChanged={cargar} />
       </div>
-      <DireccionLineaAdmin dirGenerales={dirGenerales} items={items} onChanged={cargar} />
-    </section>
+    </PageLayout>
   );
 }
