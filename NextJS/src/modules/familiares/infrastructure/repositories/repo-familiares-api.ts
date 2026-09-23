@@ -23,6 +23,15 @@ function perfilSaludAPayload(ps: NonNullable<Parameters<RepoFamiliares["crearFam
   };
 }
 
+function perfilFisicoAPayload(pf: NonNullable<Parameters<RepoFamiliares["crearFamiliar"]>[0]["perfilFisico"]>) {
+  return {
+    talla_camisa_id: pf.tallaCamisaId ?? null,
+    talla_pantalon_id: pf.tallaPantalonId ?? null,
+    talla_zapatos_id: pf.tallaZapatosId ?? null,
+    talla_chaqueta_id: pf.tallaChaquetaId ?? null,
+  };
+}
+
 export const repoFamiliaresApi: RepoFamiliares = {
   async listarPorEmpleado(cedula) {
     const raw = await familiaresApi.getPorEmpleado(cedula);
@@ -52,6 +61,7 @@ export const repoFamiliaresApi: RepoFamiliares = {
       // anidados, snake_case, con sufijo _id en cada catálogo.
       ...(data.formacionAcademica ? { formacion_academica: formacionAcademicaAPayload(data.formacionAcademica) } : {}),
       ...(data.perfilSalud ? { perfil_salud: perfilSaludAPayload(data.perfilSalud) } : {}),
+      ...(data.perfilFisico ? { perfil_fisico: perfilFisicoAPayload(data.perfilFisico) } : {}),
     });
     return familiarApiAEntidad(raw);
   },
@@ -74,6 +84,9 @@ export const repoFamiliaresApi: RepoFamiliares = {
     }
     if (data.perfilSalud !== undefined) {
       payload.perfil_salud = data.perfilSalud ? perfilSaludAPayload(data.perfilSalud) : null;
+    }
+    if (data.perfilFisico !== undefined) {
+      payload.perfil_fisico = data.perfilFisico ? perfilFisicoAPayload(data.perfilFisico) : null;
     }
 
     const raw = await familiaresApi.actualizar(id, payload);
@@ -101,6 +114,8 @@ export const repoFamiliaresApi: RepoFamiliares = {
       alergias,
       patologias,
       discapacidades,
+      tiposPrenda,
+      tallas,
     ] = await Promise.all([
       familiaresApi.getParentescos(),
       familiaresApi.getSexos(),
@@ -112,6 +127,8 @@ export const repoFamiliaresApi: RepoFamiliares = {
       familiaresApi.getAlergias(),
       familiaresApi.getPatologias(),
       familiaresApi.getDiscapacidades(),
+      familiaresApi.getTiposPrenda(),
+      familiaresApi.getTallas(),
     ]);
     return {
       parentescos,
@@ -124,9 +141,8 @@ export const repoFamiliaresApi: RepoFamiliares = {
       alergias: alergias.map(catalogoFamiliarApiAEntidad),
       patologias: patologias.map(catalogoFamiliarApiAEntidad),
       discapacidades: discapacidades.map(catalogoFamiliarApiAEntidad),
-      // Poblado en el commit "fisico" (ver catalogos-dependientes-familiar).
-      tiposPrenda: [],
-      tallas: [],
+      tiposPrenda: tiposPrenda.map(catalogoFamiliarApiAEntidad),
+      tallas: tallas.map(catalogoFamiliarApiAEntidad),
     };
   },
 };

@@ -34,6 +34,13 @@ export interface PerfilSaludFamiliarApiItem {
   discapacidades?: number[];
 }
 
+export interface PerfilFisicoFamiliarApiItem {
+  talla_camisa_id?: number | null;
+  talla_pantalon_id?: number | null;
+  talla_zapatos_id?: number | null;
+  talla_chaqueta_id?: number | null;
+}
+
 export interface FamiliarApiItem {
   id: number;
   empleado_cedula: string;
@@ -52,6 +59,7 @@ export interface FamiliarApiItem {
   observaciones: string | null;
   formacion_academica?: FormacionAcademicaFamiliarApiItem | null;
   perfil_salud?: PerfilSaludFamiliarApiItem | null;
+  perfil_fisico?: PerfilFisicoFamiliarApiItem | null;
 }
 
 export interface DocumentoFamiliarApiItem {
@@ -138,4 +146,8 @@ export const familiaresApi = {
   getAlergias: () => listarCatalogo("alergias"),
   getPatologias: () => listarCatalogo("patologias"),
   getDiscapacidades: () => listarCatalogo("discapacidades"),
+
+  // --- Catálogos del perfil físico (globales, compartidos con Personal) ---
+  getTiposPrenda: () => listarCatalogo("tipos-prenda"),
+  getTallas: () => listarCatalogo("tallas"),
 };

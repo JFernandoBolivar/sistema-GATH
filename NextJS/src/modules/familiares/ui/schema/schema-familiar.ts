@@ -63,6 +63,22 @@ export const perfilSaludFamiliarSchema = z
   .nullable()
   .optional();
 
+/**
+ * Validación del perfil físico del familiar (paridad con el legado
+ * `perfil_fisico_familiar`): tallas de camisa/pantalón/zapatos obligatorias
+ * solo si se aporta el objeto; talla de chaqueta opcional (igual que el
+ * legado).
+ */
+export const perfilFisicoFamiliarSchema = z
+  .object({
+    tallaCamisaId: z.number().positive({ message: "Debe seleccionar una talla de camisa" }),
+    tallaPantalonId: z.number().positive({ message: "Debe seleccionar una talla de pantalón" }),
+    tallaZapatosId: z.number().positive({ message: "Debe seleccionar una talla de zapatos" }),
+    tallaChaquetaId: z.number().positive().nullable().optional(),
+  })
+  .nullable()
+  .optional();
+
 export const familiarSchema = z.object({
   empleadoCedula: z
     .string()
@@ -109,6 +125,7 @@ export const familiarSchema = z.object({
   observaciones: z.string().optional().nullable(),
   formacionAcademica: formacionAcademicaFamiliarSchema,
   perfilSalud: perfilSaludFamiliarSchema,
+  perfilFisico: perfilFisicoFamiliarSchema,
 });
 
 export type FamiliarFormType = z.infer<typeof familiarSchema>;

@@ -38,6 +38,14 @@ export function familiarApiAEntidad(raw: FamiliarApiItem): Familiar {
           discapacidades: raw.perfil_salud.discapacidades ?? [],
         }
       : null,
+    perfilFisico: raw.perfil_fisico
+      ? {
+          tallaCamisaId: raw.perfil_fisico.talla_camisa_id ?? null,
+          tallaPantalonId: raw.perfil_fisico.talla_pantalon_id ?? null,
+          tallaZapatosId: raw.perfil_fisico.talla_zapatos_id ?? null,
+          tallaChaquetaId: raw.perfil_fisico.talla_chaqueta_id ?? null,
+        }
+      : null,
   };
 }
 

@@ -28,6 +28,7 @@ import { familiarSchema, type FamiliarFormType } from "./schema/schema-familiar"
 import { FamiliarCampos } from "./familiar-campos";
 import { FamiliarFormacionAcademica } from "./familiar-formacion-academica";
 import { FamiliarPerfilSalud } from "./familiar-perfil-salud";
+import { FamiliarPerfilFisico } from "./familiar-perfil-fisico";
 import { ID_OTRA_FAMILIAR } from "./catalogo-otra-familiar";
 import { resolverPendientesOtraFamiliar, type PendienteOtraFamiliar } from "./resolver-otra-familiar";
 
@@ -46,6 +47,7 @@ const defaultValues: FamiliarFormType = {
   observaciones: null,
   formacionAcademica: undefined,
   perfilSalud: undefined,
+  perfilFisico: undefined,
 };
 
 export default function FamiliarRegistrarPage() {
@@ -102,6 +104,7 @@ export default function FamiliarRegistrarPage() {
       }
 
       const ps = data.perfilSalud;
+      const pf = data.perfilFisico;
 
       const payload: GuardarFamiliarInputDTO = {
         ...(data as GuardarFamiliarInputDTO),
@@ -121,6 +124,15 @@ export default function FamiliarRegistrarPage() {
               discapacidades: ps.discapacidades ?? [],
             }
           : null,
+        perfilFisico:
+          pf?.tallaCamisaId && pf?.tallaPantalonId && pf?.tallaZapatosId
+            ? {
+                tallaCamisaId: pf.tallaCamisaId,
+                tallaPantalonId: pf.tallaPantalonId,
+                tallaZapatosId: pf.tallaZapatosId,
+                tallaChaquetaId: pf.tallaChaquetaId ?? null,
+              }
+            : null,
       };
 
       const resultado = await crearFamiliarAction(payload);
@@ -154,6 +166,8 @@ export default function FamiliarRegistrarPage() {
               <FamiliarFormacionAcademica form={form} catalogos={catalogos} />
 
               <FamiliarPerfilSalud form={form} catalogos={catalogos} />
+
+              <FamiliarPerfilFisico form={form} catalogos={catalogos} />
 
               <div className="flex items-center gap-2">
                 <Button type="submit" disabled={isPending}>

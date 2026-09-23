@@ -23,6 +23,7 @@ export async function crearFamiliar(
     observaciones: input.observaciones ?? null,
     formacionAcademica: input.formacionAcademica ?? null,
     perfilSalud: input.perfilSalud ?? null,
+    perfilFisico: input.perfilFisico ?? null,
   });
 
   return {
@@ -43,6 +44,7 @@ export async function crearFamiliar(
     observaciones: e.observaciones,
     formacionAcademica: e.formacionAcademica ?? null,
     perfilSalud: e.perfilSalud ?? null,
+    perfilFisico: e.perfilFisico ?? null,
   };
 }
 
@@ -70,6 +72,7 @@ export async function actualizarFamiliar(
     observaciones: e.observaciones,
     formacionAcademica: e.formacionAcademica ?? null,
     perfilSalud: e.perfilSalud ?? null,
+    perfilFisico: e.perfilFisico ?? null,
   };
 }
 
