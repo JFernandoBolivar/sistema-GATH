@@ -29,8 +29,40 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 
-import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
+import type { CatalogoEmpleadoDTO, CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
+import { useCatalogoDependiente } from "../use-catalogo-dependiente";
+
+/** Select de catálogo en cascada (Carrera por nivel, Mención por carrera). */
+function SelectDependiente({
+  tipo,
+  padreId,
+  value,
+  onChange,
+  respaldo,
+}: {
+  tipo: "carreras" | "menciones";
+  padreId: number | undefined;
+  value: number | undefined;
+  onChange: (id: number) => void;
+  respaldo: CatalogoEmpleadoDTO[];
+}) {
+  const { opciones, isLoading } = useCatalogoDependiente(tipo, padreId, { valorActual: value, respaldo });
+  return (
+    <Select value={value ? String(value) : ""} onValueChange={(v) => onChange(Number(v))}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder={isLoading ? "Cargando..." : "Seleccione"} />
+      </SelectTrigger>
+      <SelectContent>
+        {opciones.map((o) => (
+          <SelectItem key={o.id} value={String(o.id)}>
+            {o.nombre}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 interface FormAcademicTrainingUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -192,7 +224,11 @@ export default function FormAcademicTrainingUpdateDialog({
                         <Label>{index + 1}. Nivel Academico</Label>
                         <Select
                           value={watch(`formacionAcademica.${index}.nivelAcademicoId`) ? String(watch(`formacionAcademica.${index}.nivelAcademicoId`)) : undefined}
-                          onValueChange={(v) => setValue(`formacionAcademica.${index}.nivelAcademicoId`, Number(v))}
+                          onValueChange={(v) => {
+                            setValue(`formacionAcademica.${index}.nivelAcademicoId`, Number(v));
+                            setValue(`formacionAcademica.${index}.carreraId`, 0);
+                            setValue(`formacionAcademica.${index}.mencionId`, 0);
+                          }}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Seleccione" />
@@ -209,40 +245,27 @@ export default function FormAcademicTrainingUpdateDialog({
 
                       <div className="flex-1 min-w-[150px]">
                         <Label>Carrera (Opcional)</Label>
-                        <Select
-                          value={watch(`formacionAcademica.${index}.carreraId`) ? String(watch(`formacionAcademica.${index}.carreraId`)) : undefined}
-                          onValueChange={(v) => setValue(`formacionAcademica.${index}.carreraId`, Number(v))}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(catalogos?.carreras ?? []).map((c) => (
-                              <SelectItem key={c.id} value={String(c.id)}>
-                                {c.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SelectDependiente
+                          tipo="carreras"
+                          padreId={watch(`formacionAcademica.${index}.nivelAcademicoId`)}
+                          value={watch(`formacionAcademica.${index}.carreraId`)}
+                          onChange={(id) => {
+                            setValue(`formacionAcademica.${index}.carreraId`, id);
+                            setValue(`formacionAcademica.${index}.mencionId`, 0);
+                          }}
+                          respaldo={catalogos?.carreras ?? []}
+                        />
                       </div>
 
                       <div className="flex-1 min-w-[150px]">
                         <Label>Mención (Opcional)</Label>
-                        <Select
-                          value={watch(`formacionAcademica.${index}.mencionId`) ? String(watch(`formacionAcademica.${index}.mencionId`)) : undefined}
-                          onValueChange={(v) => setValue(`formacionAcademica.${index}.mencionId`, Number(v))}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(catalogos?.menciones ?? []).map((m) => (
-                              <SelectItem key={m.id} value={String(m.id)}>
-                                {m.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <SelectDependiente
+                          tipo="menciones"
+                          padreId={watch(`formacionAcademica.${index}.carreraId`)}
+                          value={watch(`formacionAcademica.${index}.mencionId`)}
+                          onChange={(id) => setValue(`formacionAcademica.${index}.mencionId`, id)}
+                          respaldo={catalogos?.menciones ?? []}
+                        />
                       </div>
 
                       <div className="flex-1 min-w-[150px]">

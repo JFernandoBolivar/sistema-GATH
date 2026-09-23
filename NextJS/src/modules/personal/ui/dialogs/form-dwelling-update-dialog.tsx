@@ -31,6 +31,7 @@ import {
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
+import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 
 interface FormDwellingUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -64,6 +65,22 @@ export default function FormDwellingUpdateDialog({
 
   const estadoId = watch("estadoId");
   const municipioId = watch("municipioId");
+  const parroquiaId = watch("parroquiaId");
+  const codigoPostalId = watch("codigoPostalId");
+
+  // Cascada Estado -> Municipio -> Parroquia y Estado -> Código Postal.
+  const { opciones: municipios } = useCatalogoDependiente("municipios", estadoId, {
+    valorActual: municipioId,
+    respaldo: catalogos?.municipios,
+  });
+  const { opciones: parroquias } = useCatalogoDependiente("parroquias", municipioId, {
+    valorActual: parroquiaId,
+    respaldo: catalogos?.parroquias,
+  });
+  const { opciones: codigosPostales } = useCatalogoDependiente("codigosPostales", estadoId, {
+    valorActual: codigoPostalId,
+    respaldo: catalogos?.codigosPostales,
+  });
 
   const onSubmit = (data: any) => {
     startTransition(async () => {
@@ -125,6 +142,9 @@ export default function FormDwellingUpdateDialog({
                   value={estadoId ? String(estadoId) : undefined}
                   onValueChange={(v) => {
                     setValue("estadoId", Number(v));
+                    setValue("municipioId", 0);
+                    setValue("parroquiaId", 0);
+                    setValue("codigoPostalId", 0);
                   }}
                 >
                   <SelectTrigger id="estadoId" className="w-full truncate">
@@ -146,16 +166,17 @@ export default function FormDwellingUpdateDialog({
               <div>
                 <Label htmlFor="municipioId">Municipio *</Label>
                 <Select
-                  value={municipioId ? String(municipioId) : undefined}
+                  value={municipioId ? String(municipioId) : ""}
                   onValueChange={(v) => {
                     setValue("municipioId", Number(v));
+                    setValue("parroquiaId", 0);
                   }}
                 >
                   <SelectTrigger id="municipioId" className="w-full truncate">
                     <SelectValue placeholder="Seleccione un Municpio" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(catalogos?.municipios ?? []).map((mun) => (
+                    {municipios.map((mun) => (
                       <SelectItem key={mun.id} value={String(mun.id)}>
                         {mun.nombre}
                       </SelectItem>
@@ -170,14 +191,14 @@ export default function FormDwellingUpdateDialog({
               <div>
                 <Label htmlFor="parroquiaId">Parroquia *</Label>
                 <Select
-                  value={watch("parroquiaId") ? String(watch("parroquiaId")) : undefined}
+                  value={parroquiaId ? String(parroquiaId) : ""}
                   onValueChange={(v) => setValue("parroquiaId", Number(v))}
                 >
                   <SelectTrigger id="parroquiaId" className="w-full truncate">
                     <SelectValue placeholder="Seleccione una Parroquia" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(catalogos?.parroquias ?? []).map((par) => (
+                    {parroquias.map((par) => (
                       <SelectItem key={par.id} value={String(par.id)}>
                         {par.nombre}
                       </SelectItem>
@@ -223,14 +244,14 @@ export default function FormDwellingUpdateDialog({
               <div>
                 <Label htmlFor="codigoPostalId">Código Postal *</Label>
                 <Select
-                  value={watch("codigoPostalId") ? String(watch("codigoPostalId")) : undefined}
+                  value={codigoPostalId ? String(codigoPostalId) : ""}
                   onValueChange={(v) => setValue("codigoPostalId", Number(v))}
                 >
                   <SelectTrigger id="codigoPostalId" className="w-full truncate">
                     <SelectValue placeholder="Seleccione un Código Postal" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(catalogos?.codigosPostales ?? []).map((cp) => (
+                    {codigosPostales.map((cp) => (
                       <SelectItem key={cp.id} value={String(cp.id)}>
                         {cp.nombre}
                       </SelectItem>
