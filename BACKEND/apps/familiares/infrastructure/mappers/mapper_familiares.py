@@ -19,7 +19,7 @@ def familiar_a_entidad(modelo: EmployeefamilyModel) -> Familiar:
         primer_apellido=modelo.primer_apellido,
         segundo_apellido=modelo.segundo_apellido,
         parentesco_id=modelo.parentesco_id,
-        parentesco_nombre=modelo.parentesco.parentesco if modelo.parentesco else "",
+        parentesco_nombre=modelo.parentesco.descripcion_parentesco if modelo.parentesco else "",
         fecha_nacimiento=str(modelo.fechanacimiento),
         sexo_id=modelo.sexo_id,
         sexo_nombre=modelo.sexo.sexo if modelo.sexo else "",
