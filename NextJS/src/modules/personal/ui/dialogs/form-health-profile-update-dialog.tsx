@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -85,6 +85,15 @@ export default function FormHealthProfileUpdateDialog({
   });
 
   const grupoSanguineoId = watch("grupoSanguineoId");
+
+  useEffect(() => {
+    if (open) {
+      setSelectedPatologias(empleado.perfilSalud?.patologiasCronicas ?? []);
+      setSelectedDiscapacidades(empleado.perfilSalud?.discapacidades ?? []);
+      setSelectedAlergias(empleado.perfilSalud?.alergias ?? []);
+      setValue("grupoSanguineoId", empleado.perfilSalud?.grupoSanguineoId ?? undefined);
+    }
+  }, [open, empleado.perfilSalud, setValue]);
 
   const togglePatologia = (id: number) => {
     setSelectedPatologias((prev) =>

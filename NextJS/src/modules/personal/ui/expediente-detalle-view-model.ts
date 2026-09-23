@@ -134,16 +134,16 @@ function itemsSaludPorIds(
   catalogo: CatalogosExpedienteDTO["alergias"] | undefined,
   ids: number[] | undefined,
 ): DetalleItemSaludVM[] {
-  if (!catalogo || !ids || ids.length === 0) return [];
-  const map = new Map(catalogo.map((c) => [c.id, c]));
-  return ids
-    .map((id) => map.get(id))
-    .filter((c): c is NonNullable<typeof c> => !!c)
-    .map((c) => ({
-      id: c.id,
-      nombre: c.nombre,
-      categoria: c.categoriaNombre || "General",
-    }));
+  if (!ids || ids.length === 0) return [];
+  const map = new Map((catalogo ?? []).map((c) => [c.id, c]));
+  return ids.map((id) => {
+    const c = map.get(id);
+    return {
+      id,
+      nombre: c?.nombre ?? `ID ${id}`,
+      categoria: c?.categoriaNombre || "General",
+    };
+  });
 }
 
 export function construirDetalleExpediente(

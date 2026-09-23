@@ -81,12 +81,20 @@ describe("construirDetalleExpediente", () => {
   it("cae a 'ID <n>' cuando el catálogo no contiene el id referenciado", () => {
     const empleado: EmpleadoDTO = {
       ...empleadoBase(),
-      perfilSalud: { grupoSanguineoId: 99, alergias: [], patologiasCronicas: [], discapacidades: [] },
+      perfilSalud: {
+        grupoSanguineoId: 99,
+        alergias: [88],
+        patologiasCronicas: [77],
+        discapacidades: [66],
+      },
     };
 
     const vm = construirDetalleExpediente(empleado, catalogosVacios());
 
     expect(vm.salud?.grupoSanguineo).toBe("ID 99");
+    expect(vm.salud?.alergias).toEqual([{ id: 88, nombre: "ID 88", categoria: "General" }]);
+    expect(vm.salud?.patologiasCronicas).toEqual([{ id: 77, nombre: "ID 77", categoria: "General" }]);
+    expect(vm.salud?.discapacidades).toEqual([{ id: 66, nombre: "ID 66", categoria: "General" }]);
   });
 
   it("formatea fechas a dd/MM/yyyy y usa el valor de reemplazo cuando falta", () => {

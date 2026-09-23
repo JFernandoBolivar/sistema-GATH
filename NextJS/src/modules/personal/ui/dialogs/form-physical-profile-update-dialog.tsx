@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -77,6 +77,15 @@ export default function FormPhysicalProfileUpdateDialog({
   const tallaPantalonId = watch("tallaPantalonId");
   const tallaZapatosId = watch("tallaZapatosId");
   const tallaChaquetaId = watch("tallaChaquetaId");
+
+  useEffect(() => {
+    if (open) {
+      setValue("tallaCamisaId", empleado.perfilFisico?.tallaCamisaId ?? undefined);
+      setValue("tallaPantalonId", empleado.perfilFisico?.tallaPantalonId ?? undefined);
+      setValue("tallaZapatosId", empleado.perfilFisico?.tallaZapatosId ?? undefined);
+      setValue("tallaChaquetaId", empleado.perfilFisico?.tallaChaquetaId ?? undefined);
+    }
+  }, [open, empleado.perfilFisico, setValue]);
 
   const onSubmit = (data: any) => {
     startTransition(async () => {
