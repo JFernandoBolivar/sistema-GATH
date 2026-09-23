@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +39,22 @@ interface FormHealthProfileUpdateDialogProps {
   onGuardado: () => void;
   triggerClassName?: string;
   triggerLabel?: string;
+}
+
+function agruparSaludPorCategoria(items: NonNullable<CatalogosExpedienteDTO["patologias"]>) {
+  return items.reduce(
+    (acc, item) => {
+      const categoria = item.categoriaNombre || "General";
+      let grupo = acc.find((g) => g.categoria === categoria);
+      if (!grupo) {
+        grupo = { categoria, datos: [] };
+        acc.push(grupo);
+      }
+      grupo.datos.push(item);
+      return acc;
+    },
+    [] as { categoria: string; datos: NonNullable<CatalogosExpedienteDTO["patologias"]> }[],
+  );
 }
 
 export default function FormHealthProfileUpdateDialog({
@@ -125,6 +141,10 @@ export default function FormHealthProfileUpdateDialog({
   const discapacidades = catalogos?.discapacidades ?? [];
   const alergias = catalogos?.alergias ?? [];
 
+  const patologiasAgrupadas = useMemo(() => agruparSaludPorCategoria(patologias), [patologias]);
+  const discapacidadesAgrupadas = useMemo(() => agruparSaludPorCategoria(discapacidades), [discapacidades]);
+  const alergiasAgrupadas = useMemo(() => agruparSaludPorCategoria(alergias), [alergias]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -177,20 +197,29 @@ export default function FormHealthProfileUpdateDialog({
                   <div className="flex-1">
                     <h2 className="font-bold mb-2">Patologias (Opcional)</h2>
                     <div className="flex flex-col gap-2">
-                      {patologias.map((p) => (
-                        <div key={p.id} className="flex flex-row items-center gap-2">
-                          <Checkbox
-                            id={`patologia-${p.id}`}
-                            className="border-black"
-                            checked={selectedPatologias.includes(p.id)}
-                            onCheckedChange={() => togglePatologia(p.id)}
-                          />
-                          <Label
-                            htmlFor={`patologia-${p.id}`}
-                            className="cursor-pointer text-sm"
-                          >
-                            {p.nombre}
-                          </Label>
+                      {patologiasAgrupadas.map((grupo, idx) => (
+                        <div key={idx} className="mb-2">
+                          <h3 className="p-1 text-xs font-bold text-slate-700">
+                            * {grupo.categoria.toUpperCase()}
+                          </h3>
+                          <div className="flex flex-col gap-1 pl-2">
+                            {grupo.datos.map((p) => (
+                              <div key={p.id} className="flex flex-row items-center gap-2">
+                                <Checkbox
+                                  id={`patologia-${p.id}`}
+                                  className="border-black"
+                                  checked={selectedPatologias.includes(p.id)}
+                                  onCheckedChange={() => togglePatologia(p.id)}
+                                />
+                                <Label
+                                  htmlFor={`patologia-${p.id}`}
+                                  className="cursor-pointer text-sm"
+                                >
+                                  {p.nombre}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                       {patologias.length === 0 && (
@@ -203,20 +232,29 @@ export default function FormHealthProfileUpdateDialog({
                   <div className="flex-1">
                     <h2 className="font-bold mb-2">Discapacidades (Opcional)</h2>
                     <div className="flex flex-col gap-2">
-                      {discapacidades.map((d) => (
-                        <div key={d.id} className="flex flex-row items-center gap-2">
-                          <Checkbox
-                            id={`discapacidad-${d.id}`}
-                            className="border-black"
-                            checked={selectedDiscapacidades.includes(d.id)}
-                            onCheckedChange={() => toggleDiscapacidad(d.id)}
-                          />
-                          <Label
-                            htmlFor={`discapacidad-${d.id}`}
-                            className="cursor-pointer text-sm"
-                          >
-                            {d.nombre}
-                          </Label>
+                      {discapacidadesAgrupadas.map((grupo, idx) => (
+                        <div key={idx} className="mb-2">
+                          <h3 className="p-1 text-xs font-bold text-slate-700">
+                            * {grupo.categoria.toUpperCase()}
+                          </h3>
+                          <div className="flex flex-col gap-1 pl-2">
+                            {grupo.datos.map((d) => (
+                              <div key={d.id} className="flex flex-row items-center gap-2">
+                                <Checkbox
+                                  id={`discapacidad-${d.id}`}
+                                  className="border-black"
+                                  checked={selectedDiscapacidades.includes(d.id)}
+                                  onCheckedChange={() => toggleDiscapacidad(d.id)}
+                                />
+                                <Label
+                                  htmlFor={`discapacidad-${d.id}`}
+                                  className="cursor-pointer text-sm"
+                                >
+                                  {d.nombre}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                       {discapacidades.length === 0 && (
@@ -229,20 +267,29 @@ export default function FormHealthProfileUpdateDialog({
                   <div className="flex-1">
                     <h2 className="font-bold mb-2">Alergias (Opcional)</h2>
                     <div className="flex flex-col gap-2">
-                      {alergias.map((a) => (
-                        <div key={a.id} className="flex flex-row items-center gap-2">
-                          <Checkbox
-                            id={`alergia-${a.id}`}
-                            className="border-black"
-                            checked={selectedAlergias.includes(a.id)}
-                            onCheckedChange={() => toggleAlergia(a.id)}
-                          />
-                          <Label
-                            htmlFor={`alergia-${a.id}`}
-                            className="cursor-pointer text-sm"
-                          >
-                            {a.nombre}
-                          </Label>
+                      {alergiasAgrupadas.map((grupo, idx) => (
+                        <div key={idx} className="mb-2">
+                          <h3 className="p-1 text-xs font-bold text-slate-700">
+                            * {grupo.categoria.toUpperCase()}
+                          </h3>
+                          <div className="flex flex-col gap-1 pl-2">
+                            {grupo.datos.map((a) => (
+                              <div key={a.id} className="flex flex-row items-center gap-2">
+                                <Checkbox
+                                  id={`alergia-${a.id}`}
+                                  className="border-black"
+                                  checked={selectedAlergias.includes(a.id)}
+                                  onCheckedChange={() => toggleAlergia(a.id)}
+                                />
+                                <Label
+                                  htmlFor={`alergia-${a.id}`}
+                                  className="cursor-pointer text-sm"
+                                >
+                                  {a.nombre}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))}
                       {alergias.length === 0 && (

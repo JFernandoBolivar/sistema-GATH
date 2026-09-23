@@ -23,11 +23,17 @@ export interface DetalleViviendaVM {
   codigoPostal: string;
 }
 
+export interface DetalleItemSaludVM {
+  id: number;
+  nombre: string;
+  categoria: string;
+}
+
 export interface DetalleSaludVM {
   grupoSanguineo: string;
-  alergias: string[];
-  patologiasCronicas: string[];
-  discapacidades: string[];
+  alergias: DetalleItemSaludVM[];
+  patologiasCronicas: DetalleItemSaludVM[];
+  discapacidades: DetalleItemSaludVM[];
 }
 
 export interface DetalleFisicoVM {
@@ -114,6 +120,22 @@ export interface DetalleExpedienteViewModel {
   contratoActual: DetalleContratoVM | null;
 }
 
+function itemsSaludPorIds(
+  catalogo: CatalogosExpedienteDTO["alergias"] | undefined,
+  ids: number[] | undefined,
+): DetalleItemSaludVM[] {
+  if (!catalogo || !ids || ids.length === 0) return [];
+  const map = new Map(catalogo.map((c) => [c.id, c]));
+  return ids
+    .map((id) => map.get(id))
+    .filter((c): c is NonNullable<typeof c> => !!c)
+    .map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      categoria: c.categoriaNombre || "General",
+    }));
+}
+
 export function construirDetalleExpediente(
   empleado: EmpleadoDTO,
   catalogos: CatalogosExpedienteDTO,
@@ -180,9 +202,9 @@ export function construirDetalleExpediente(
     salud: empleado.perfilSalud
       ? {
           grupoSanguineo: nombrePorId(catalogos.gruposSanguineos, empleado.perfilSalud.grupoSanguineoId),
-          alergias: nombresPorIds(catalogos.alergias, empleado.perfilSalud.alergias),
-          patologiasCronicas: nombresPorIds(catalogos.patologias, empleado.perfilSalud.patologiasCronicas),
-          discapacidades: nombresPorIds(catalogos.discapacidades, empleado.perfilSalud.discapacidades),
+          alergias: itemsSaludPorIds(catalogos.alergias, empleado.perfilSalud.alergias),
+          patologiasCronicas: itemsSaludPorIds(catalogos.patologias, empleado.perfilSalud.patologiasCronicas),
+          discapacidades: itemsSaludPorIds(catalogos.discapacidades, empleado.perfilSalud.discapacidades),
         }
       : null,
     fisico: empleado.perfilFisico

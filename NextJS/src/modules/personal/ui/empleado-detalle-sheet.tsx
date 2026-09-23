@@ -582,13 +582,15 @@ export default function EmpleadoDetalleSheet({
                       <TableCaption>Lista De Patologias Del Trabajador</TableCaption>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Categoria</TableHead>
                           <TableHead>Patología</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {detalle.salud.patologiasCronicas.map((p, i) => (
                           <TableRow key={i}>
-                            <TableCell className="font-medium">{p}</TableCell>
+                            <TableCell className="font-medium">{p.categoria}</TableCell>
+                            <TableCell>{p.nombre}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -600,13 +602,15 @@ export default function EmpleadoDetalleSheet({
                       <TableCaption>Lista De Discapacidades Del Trabajador</TableCaption>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>Categoria</TableHead>
                           <TableHead>Discapacidad</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {detalle.salud.discapacidades.map((d, i) => (
                           <TableRow key={i}>
-                            <TableCell className="font-medium">{d}</TableCell>
+                            <TableCell className="font-medium">{d.categoria}</TableCell>
+                            <TableCell>{d.nombre}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -619,13 +623,15 @@ export default function EmpleadoDetalleSheet({
                         <TableCaption>Lista De Alergias Del Trabajador</TableCaption>
                         <TableHeader>
                           <TableRow>
+                            <TableHead>Categoria</TableHead>
                             <TableHead>Alergia</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {detalle.salud.alergias.map((a, i) => (
                             <TableRow key={i}>
-                              <TableCell className="font-medium">{a}</TableCell>
+                              <TableCell className="font-medium">{a.categoria}</TableCell>
+                              <TableCell>{a.nombre}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

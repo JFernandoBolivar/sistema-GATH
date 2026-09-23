@@ -8,6 +8,7 @@
  * la categoría de cada patología/discapacidad/alergia, por lo que las
  * opciones se listan sin los subtítulos por categoría del legado.
  */
+import { useMemo } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -26,6 +27,22 @@ type CampoLista = Extract<
   "perfil_salud.patologiaCronica" | "perfil_salud.alergias" | "perfil_salud.discapacidad"
 >;
 
+function agruparSaludPorCategoria(items: CatalogoEmpleadoDTO[]) {
+  return items.reduce(
+    (acc, item) => {
+      const categoria = item.categoriaNombre || "General";
+      let grupo = acc.find((g) => g.categoria === categoria);
+      if (!grupo) {
+        grupo = { categoria, datos: [] };
+        acc.push(grupo);
+      }
+      grupo.datos.push(item);
+      return acc;
+    },
+    [] as { categoria: string; datos: CatalogoEmpleadoDTO[] }[],
+  );
+}
+
 function ListaChequeo({
   titulo,
   name,
@@ -37,32 +54,43 @@ function ListaChequeo({
   opciones: CatalogoEmpleadoDTO[];
   control: ReturnType<typeof useForm<PasoHealthType>>["control"];
 }) {
+  const grupos = useMemo(() => agruparSaludPorCategoria(opciones), [opciones]);
+
   return (
-    <div>
-      <h2 className="font-bold">{titulo}</h2>
-      {opciones.map((opcion) => (
-        <div className="flex flex-col justify-start gap-2 " key={opcion.id}>
-          <FormField
-            control={control}
-            name={name}
-            render={({ field }) => {
-              const actuales = Array.isArray(field.value) ? field.value : [];
-              return (
-                <FormItem className="flex flex-row items-center gap-2 ">
-                  <FormControl>
-                    <Checkbox
-                      className="border-black"
-                      checked={actuales.includes(opcion.id)}
-                      onCheckedChange={(checked) =>
-                        field.onChange(checked ? [...actuales, opcion.id] : actuales.filter((x) => x !== opcion.id))
-                      }
-                    />
-                  </FormControl>
-                  <FormLabel className="cursor-pointer">{opcion.nombre}</FormLabel>
-                </FormItem>
-              );
-            }}
-          />
+    <div className="flex-1">
+      <h2 className="font-bold mb-2">{titulo}</h2>
+      {grupos.map((grupo, gIdx) => (
+        <div key={gIdx} className="mb-2">
+          <h2 className="p-2 text-sm font-bold">
+            * {grupo.categoria.toUpperCase()}
+          </h2>
+          {grupo.datos.map((opcion) => (
+            <div className="flex flex-col justify-start gap-2" key={opcion.id}>
+              <FormField
+                control={control}
+                name={name}
+                render={({ field }) => {
+                  const actuales = Array.isArray(field.value) ? field.value : [];
+                  return (
+                    <FormItem className="flex flex-row items-center gap-2">
+                      <FormControl>
+                        <Checkbox
+                          className="border-black"
+                          checked={actuales.includes(opcion.id)}
+                          onCheckedChange={(checked) =>
+                            field.onChange(
+                              checked ? [...actuales, opcion.id] : actuales.filter((x) => x !== opcion.id),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormLabel className="cursor-pointer">{opcion.nombre}</FormLabel>
+                    </FormItem>
+                  );
+                }}
+              />
+            </div>
+          ))}
         </div>
       ))}
     </div>

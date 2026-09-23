@@ -63,7 +63,7 @@ describe("construirDetalleExpediente", () => {
     const catalogos: CatalogosExpedienteDTO = {
       ...catalogosVacios(),
       gruposSanguineos: [{ id: 3, nombre: "O+" }],
-      alergias: [{ id: 5, nombre: "Penicilina" }],
+      alergias: [{ id: 5, nombre: "Penicilina", categoriaNombre: "Medicamentos" }],
     };
     const empleado: EmpleadoDTO = {
       ...empleadoBase(),
@@ -73,7 +73,9 @@ describe("construirDetalleExpediente", () => {
     const vm = construirDetalleExpediente(empleado, catalogos);
 
     expect(vm.salud?.grupoSanguineo).toBe("O+");
-    expect(vm.salud?.alergias).toEqual(["Penicilina"]);
+    expect(vm.salud?.alergias).toEqual([
+      { id: 5, nombre: "Penicilina", categoria: "Medicamentos" },
+    ]);
   });
 
   it("cae a 'ID <n>' cuando el catálogo no contiene el id referenciado", () => {

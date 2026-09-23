@@ -262,9 +262,9 @@ export function EmpleadoDetallePdf({ detalle, generadoPor, generadoEn }: Emplead
           <View wrap={false}>
             <Text style={styles.sectionTitle}>SALUD</Text>
             <InfoRow label="Grupo sanguíneo:" value={detalle.salud.grupoSanguineo} />
-            <InfoRow label="Alergias:" value={detalle.salud.alergias.join(", ") || "Ninguna"} />
-            <InfoRow label="Patologías crónicas:" value={detalle.salud.patologiasCronicas.join(", ") || "Ninguna"} />
-            <InfoRow label="Discapacidades:" value={detalle.salud.discapacidades.join(", ") || "Ninguna"} />
+            <InfoRow label="Alergias:" value={detalle.salud.alergias.map((a) => a.nombre).join(", ") || "Ninguna"} />
+            <InfoRow label="Patologías crónicas:" value={detalle.salud.patologiasCronicas.map((p) => p.nombre).join(", ") || "Ninguna"} />
+            <InfoRow label="Discapacidades:" value={detalle.salud.discapacidades.map((d) => d.nombre).join(", ") || "Ninguna"} />
           </View>
         )}
 
