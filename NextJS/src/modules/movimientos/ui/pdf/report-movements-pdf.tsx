@@ -154,8 +154,8 @@ export function ReportMovementsPDF({
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Cédula:</Text>
-          <Text style={styles.infoValue}>{cedula}</Text>
+          <Text style={styles.infoLabel}>{cedula ? "Cédula:" : "Criterio:"}</Text>
+          <Text style={styles.infoValue}>{cedula ? cedula : "Historial General de Movimientos"}</Text>
         </View>
 
         <View wrap={false}>

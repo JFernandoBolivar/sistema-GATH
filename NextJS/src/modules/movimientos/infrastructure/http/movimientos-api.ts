@@ -25,10 +25,26 @@ export interface MovimientoApiItem {
   ejecutado_por_nombre: string;
 }
 
+export interface FiltrosMovimientosApi {
+  cedula?: string;
+  codigo_puesto?: string;
+  tipo_movimiento?: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
+  gerencia?: string;
+  estatus?: string;
+}
+
 export const movimientosApi = {
+  getHistorial: (filtros?: FiltrosMovimientosApi) =>
+    apiClient.get<any>("/api/v1/movimientos/", {
+      params: filtros as Record<string, string | number | boolean | undefined | null>,
+    }),
+
   getHistorialPorEmpleado: (cedula: string) =>
-    apiClient.get<MovimientoApiItem[]>(`/api/v1/movimientos/empleado/${cedula}/`),
+    apiClient.get<any>(`/api/v1/movimientos/empleado/${cedula}/`),
 
   getHistorialPorCargo: (codigoPuesto: string) =>
-    apiClient.get<MovimientoApiItem[]>(`/api/v1/movimientos/cargo/${codigoPuesto}/`),
+    apiClient.get<any>(`/api/v1/movimientos/cargo/${codigoPuesto}/`),
 };
+

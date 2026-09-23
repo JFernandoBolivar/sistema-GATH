@@ -10,9 +10,11 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
+  listarHistorialGeneral,
   listarHistorialPorCargo,
   listarHistorialPorEmpleado,
 } from "../../application/use-cases/listar-movimientos";
+import type { FiltrosMovimiento } from "../../domain/ports/repo-movimientos";
 import { repoMovimientosApi } from "../repositories/repo-movimientos-api";
 import { historialCargoSchema, historialEmpleadoSchema } from "../../ui/schema/schema-historial";
 
@@ -53,3 +55,18 @@ export async function getHistorialPorCargoAction(codigoPuesto: string) {
     throw error;
   }
 }
+
+export async function getHistorialGeneralAction(filtros?: FiltrosMovimiento) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarHistorialGeneral(repoMovimientosApi, filtros);
+    await logAudit({ traceId, action: "getHistorialGeneralAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getHistorialGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+

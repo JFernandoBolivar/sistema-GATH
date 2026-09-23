@@ -1,7 +1,7 @@
 /**
  * Casos de uso de Consulta de Movimientos (Reglas R2, R4).
  */
-import type { RepoMovimientos } from "../../domain/ports/repo-movimientos";
+import type { FiltrosMovimiento, RepoMovimientos } from "../../domain/ports/repo-movimientos";
 import type { MovimientoCargoDTO } from "../dtos/movimientos-dto";
 
 export async function listarHistorialPorEmpleado(
@@ -19,6 +19,24 @@ export async function listarHistorialPorCargo(
   const entidades = await repo.listarHistorialPorCargo(codigoPuesto);
   return entidades.map(aDto);
 }
+
+export async function listarHistorialGeneral(
+  repo: RepoMovimientos,
+  filtros?: FiltrosMovimiento,
+): Promise<MovimientoCargoDTO[]> {
+  if (repo.listarHistorial) {
+    const entidades = await repo.listarHistorial(filtros);
+    return entidades.map(aDto);
+  }
+  if (filtros?.cedula) {
+    return listarHistorialPorEmpleado(repo, filtros.cedula);
+  }
+  if (filtros?.codigoPuesto) {
+    return listarHistorialPorCargo(repo, filtros.codigoPuesto);
+  }
+  return [];
+}
+
 
 function aDto(e: Awaited<ReturnType<RepoMovimientos["listarHistorialPorEmpleado"]>>[number]): MovimientoCargoDTO {
   return {

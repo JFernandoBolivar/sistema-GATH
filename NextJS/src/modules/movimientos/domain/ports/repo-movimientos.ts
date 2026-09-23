@@ -7,7 +7,19 @@
  */
 import type { MovimientoCargo } from "../entities/movimiento";
 
+export interface FiltrosMovimiento {
+  cedula?: string;
+  codigoPuesto?: string;
+  tipoMovimiento?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  gerencia?: string;
+  estatus?: string;
+}
+
 export interface RepoMovimientos {
   listarHistorialPorEmpleado(cedula: string): Promise<MovimientoCargo[]>;
   listarHistorialPorCargo(codigoPuesto: string): Promise<MovimientoCargo[]>;
+  listarHistorial?(filtros?: FiltrosMovimiento): Promise<MovimientoCargo[]>;
 }
+
