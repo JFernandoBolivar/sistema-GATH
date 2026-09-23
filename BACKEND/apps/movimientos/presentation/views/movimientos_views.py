@@ -29,6 +29,33 @@ class HistorialPorEmpleadoView(APIView):
         return ok(MovimientoCargoSerializer(dtos, many=True).data)
 
 
+class HistorialMovimientosView(APIView):
+    """GET /api/v1/movimientos/ — Listar historial general con filtros opcionales."""
+    permission_classes = [IsAuthenticated, HasPermission('movimientos.ver')]
+
+    @extend_schema(tags=['Movimientos'], summary='Listar historial general de movimientos', responses={200: MovimientoCargoSerializer(many=True)})
+    def get(self, request):
+        cedula = request.query_params.get('cedula')
+        codigo_puesto = request.query_params.get('codigo_puesto')
+        tipo_movimiento = request.query_params.get('tipo_movimiento')
+        fecha_inicio = request.query_params.get('fecha_inicio')
+        fecha_fin = request.query_params.get('fecha_fin')
+        gerencia = request.query_params.get('gerencia')
+        estatus = request.query_params.get('estatus')
+
+        repo = RepoMovimientosORM()
+        dtos = repo.listar_historial(
+            cedula=cedula,
+            codigo_puesto=codigo_puesto,
+            tipo_movimiento=tipo_movimiento,
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            gerencia=gerencia,
+            estatus=estatus,
+        )
+        return ok(MovimientoCargoSerializer(dtos, many=True).data)
+
+
 class HistorialPorCargoView(APIView):
     """GET /api/v1/movimientos/cargo/<codigo_puesto>/ — Fase 2.5 del plan de reparación."""
     permission_classes = [IsAuthenticated, HasPermission('movimientos.ver')]
@@ -38,3 +65,4 @@ class HistorialPorCargoView(APIView):
         repo = RepoMovimientosORM()
         dtos = listar_historial_por_cargo(repo, codigo_puesto)
         return ok(MovimientoCargoSerializer(dtos, many=True).data)
+

@@ -94,3 +94,36 @@ class RepoMovimientosORM:
             codigo_puesto=codigo_puesto
         )
         return [movimiento_a_entidad(m) for m in qs]
+
+    def listar_historial(
+        self,
+        cedula: str | None = None,
+        codigo_puesto: str | None = None,
+        tipo_movimiento: str | None = None,
+        fecha_inicio: str | None = None,
+        fecha_fin: str | None = None,
+        gerencia: str | None = None,
+        estatus: str | None = None,
+        limit: int = 300,
+    ) -> list[MovimientoCargo]:
+        from django.db.models import Q
+        qs = EmployeeMovementHistoryModel.objects.select_related(*_SELECT_RELATED)
+        if cedula:
+            qs = qs.filter(empleado__cedulaidentidad=cedula)
+        if codigo_puesto:
+            qs = qs.filter(codigo_puesto__icontains=codigo_puesto)
+        if tipo_movimiento:
+            qs = qs.filter(
+                Q(tipo_movimiento__iexact=tipo_movimiento)
+                | Q(motivo__movimiento__icontains=tipo_movimiento)
+            )
+        if fecha_inicio:
+            qs = qs.filter(fecha_movimiento__date__gte=fecha_inicio)
+        if fecha_fin:
+            qs = qs.filter(fecha_movimiento__date__lte=fecha_fin)
+        if gerencia:
+            qs = qs.filter(DireccionGeneralid__direccion_general__icontains=gerencia)
+        if estatus:
+            qs = qs.filter(estatus__estatus__icontains=estatus)
+        return [movimiento_a_entidad(m) for m in qs[:limit]]
+
