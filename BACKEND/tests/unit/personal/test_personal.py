@@ -103,3 +103,26 @@ def test_registrar_y_actualizar_empleado():
 
     actualizado = actualizar_empleado(repo, "20111222", datos={'correo': 'maria.gomez@conatel.gob'})
     assert actualizado.correo == "maria.gomez@conatel.gob"
+
+
+def test_obtener_personal_por_cedula_incluye_encargadurias():
+    repo = RepoPersonalMemoria()
+    encargaduria_sample = {
+        'id': 10,
+        'cargo_encargado': 'GERENTE DE TECNOLOGIA',
+        'cargo_encargado_codigo': 'CAR-001',
+        'titular_cedula': '11223344',
+        'titular_nombre': 'Pedro Perez',
+        'estatus_nombre': 'ACTIVO',
+        'fecha_inicio': '2026-01-01',
+        'fecha_fin': None,
+    }
+    repo.empleados[0] = Empleado(
+        **{**repo.empleados[0].__dict__, 'encargadurias': [encargaduria_sample]},
+    )
+    emp = obtener_personal_por_cedula(repo, "12345678")
+    assert emp.encargadurias == [encargaduria_sample]
+
+    dto = listar_personal(repo)[0]
+    assert dto.encargadurias == [encargaduria_sample]
+

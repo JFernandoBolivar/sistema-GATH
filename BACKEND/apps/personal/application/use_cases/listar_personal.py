@@ -33,6 +33,7 @@ def _empleado_a_dto(e: Empleado) -> EmpleadoDTO:
         contrato_actual=e.contrato_actual,
         contratos=e.contratos,
         asignaciones=e.asignaciones,
+        encargadurias=e.encargadurias,
     )
 
 

@@ -188,6 +188,7 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
         contrato_actual = contratos_todos[0]
 
     asignaciones_data = []
+    encargadurias_data = []
     try:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
@@ -231,6 +232,47 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
                 'tipo_procedencia': a.tipo_procedencia.tipo_procedencia if a.tipo_procedencia else 'N/A',
                 'cargo_cubierto_encargaduria': a.pk in prestamos_cargos_ids,
             })
+
+        prestamos_empleado = list(
+            PrestamoCargoModel.objects.filter(empleado_encargado=empleado)
+            .select_related(
+                'cargo_encargado',
+                'cargo_encargado__denominacioncargoid',
+                'cargo_encargado__denominacioncargoespecificoid',
+                'cargo_encargado__employee',
+                'estatus',
+                'motivo',
+            )
+            .order_by('-fecha_inicio')
+        )
+        for p in prestamos_empleado:
+            cargo = p.cargo_encargado
+            titular = cargo.employee if cargo else None
+            cargo_especifico_nom = cargo.denominacioncargoespecificoid.cargo if (cargo and cargo.denominacioncargoespecificoid) else 'N/A'
+            cargo_nom = cargo.denominacioncargoid.cargo if (cargo and cargo.denominacioncargoid) else 'N/A'
+            titular_nom = f"{titular.nombres} {titular.apellidos}".strip() if titular else 'Vacante'
+            titular_ced = titular.cedulaidentidad if titular else 'N/A'
+            encargadurias_data.append({
+                'id': p.pk,
+                'cargo_encargado_id': p.cargo_encargado_id,
+                'cargo_encargado_codigo': cargo.codigo if cargo else 'N/A',
+                'cargo_encargado': cargo_especifico_nom if cargo_especifico_nom != 'N/A' else cargo_nom,
+                'cargo_info': {
+                    'codigo': cargo.codigo if cargo else 'N/A',
+                    'denominacioncargo': {'cargo': cargo_nom},
+                    'denominacioncargoespecifico': {'cargo': cargo_especifico_nom},
+                } if cargo else None,
+                'titular_cedula': titular_ced,
+                'titular_nombre': titular_nom,
+                'empleado_cedula': titular_ced,
+                'empleado_nombre': titular_nom,
+                'motivo_id': p.motivo_id,
+                'motivo_nombre': p.motivo.movimiento if p.motivo else 'N/A',
+                'estatus_id': p.estatus_id,
+                'estatus_nombre': p.estatus.estatus if p.estatus else 'ACTIVO',
+                'fecha_inicio': str(p.fecha_inicio) if p.fecha_inicio else None,
+                'fecha_fin': str(p.fecha_fin) if p.fecha_fin else None,
+            })
     except Exception:
         pass
 
@@ -252,4 +294,5 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
         'contrato_actual': contrato_actual,
         'contratos': contratos_todos,
         'asignaciones': asignaciones_data,
+        'encargadurias': encargadurias_data,
     }

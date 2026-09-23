@@ -31,3 +31,4 @@ class EmpleadoDTO:
     contrato_actual: dict | None = None
     contratos: list = field(default_factory=list)
     asignaciones: list = field(default_factory=list)
+    encargadurias: list = field(default_factory=list)

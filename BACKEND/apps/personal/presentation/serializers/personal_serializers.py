@@ -45,3 +45,4 @@ class EmpleadoSerializer(serializers.Serializer):
     contrato_actual = ContratoLecturaSerializer(read_only=True, allow_null=True)
     contratos = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)
     asignaciones = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)
+    encargadurias = serializers.ListField(child=serializers.DictField(), read_only=True, required=False)

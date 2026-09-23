@@ -35,6 +35,7 @@ class Empleado:
     contrato_actual: dict | None = None
     contratos: list = field(default_factory=list)
     asignaciones: list = field(default_factory=list)
+    encargadurias: list = field(default_factory=list)
 
     @property
     def nombre_completo(self) -> str:

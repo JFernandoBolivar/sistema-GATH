@@ -48,6 +48,19 @@ class CatalogoItemSerializer(serializers.Serializer):
             return {'id': reg_id, 'codigo': reg_cod, 'descripcion': reg_desc}
         return None
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        optional_keys = [
+            'categoria_id', 'categoria_nombre', 'categoria',
+            'tipo_prenda_id', 'tipo_prenda_nombre', 'tipo_prenda',
+            'region_id', 'region_codigo', 'region_descripcion', 'region',
+        ]
+        for key in optional_keys:
+            if ret.get(key) is None:
+                ret.pop(key, None)
+        return ret
+
+
 
 class CodigoPostalSerializer(CatalogoItemSerializer):
     """`{ id, nombre, estado_id }`: incluye el estado para la cascada Estado -> Código Postal."""
