@@ -25,7 +25,9 @@ import {
   registrarEmpleadoAction,
   subirFotoEmpleadoAction,
 } from "../../infrastructure/actions/personal-actions";
+import { resolverAltasInlineAction } from "../../infrastructure/actions/registro-actions";
 import type { RegistroPasosType } from "../schema/schema-registro-pasos";
+import { recolectarAltasInline } from "./altas-inline";
 import { registroPasosADTO } from "./registro-a-dto";
 import { PasoAcademic } from "./paso-academic";
 import { PasoBackground } from "./paso-background";
@@ -97,7 +99,18 @@ export default function MultiStepForm() {
     setValores(completo);
     startTransition(async () => {
       try {
-        const resultado = await registrarEmpleadoAction(registroPasosADTO(completo));
+        // Opción "Otra": se crean (o reutilizan) los catálogos nuevos antes de registrar.
+        const { solicitudes, aplicar } = recolectarAltasInline(completo);
+        let conIds = completo;
+        if (solicitudes.length > 0) {
+          const altas = await resolverAltasInlineAction(solicitudes);
+          if ("error" in altas) {
+            toast.error(altas.error);
+            return;
+          }
+          conIds = aplicar(altas.ok.map((a) => a.id));
+        }
+        const resultado = await registrarEmpleadoAction(registroPasosADTO(conIds));
         if (resultado && typeof resultado === "object" && "error" in resultado) {
           toast.error((resultado as { error: string }).error);
           return;

@@ -34,6 +34,45 @@ test.describe("Personal - wizard de registro", () => {
     await expect(page.getByText("Debe Seleccionar Un Sexo")).toBeVisible();
   });
 
+  test("opción \"Otra\" en carrera e institución revela el input y exige el nombre", async ({ page }) => {
+    await page.getByLabel("Cedula de Identidad *").fill("99999992");
+    await page.getByLabel("Nombre *").fill("Prueba");
+    await page.getByLabel("Apellidos *").fill("Otra");
+    await page.getByLabel("Fecha de Nacimiento *").click();
+    const popover = page.locator("[data-radix-popper-content-wrapper]");
+    await popover.locator("select").nth(1).selectOption("1990");
+    await popover.locator("button[data-day]").first().click();
+    await page.keyboard.press("Escape");
+    await elegirOpcion(page, page.getByRole("combobox").nth(0));
+    await elegirOpcion(page, page.getByRole("combobox").nth(1));
+    await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+    await expect(page.getByText("Paso 2: Información Academica")).toBeVisible();
+
+    // Un nivel con carreras (no "No posee") para que aparezca "Otra".
+    await page.getByLabel("1. Nivel Academico").click();
+    await page.getByRole("option", { name: "Doctorado" }).click();
+
+    await expect(page.getByPlaceholder("Nueva carrera...")).toBeHidden();
+    await page.getByRole("combobox").filter({ hasText: "Seleccione" }).nth(0).click();
+    await page.getByRole("option", { name: "Otra", exact: true }).click();
+    await expect(page.getByPlaceholder("Nueva carrera...")).toBeVisible();
+    await expect(page.getByText("Se asociará al nivel académico seleccionado.")).toBeVisible();
+
+    await page.getByRole("combobox").filter({ hasText: "Seleccione" }).last().click();
+    await page.getByRole("option", { name: "Otra", exact: true }).click();
+    await expect(page.getByPlaceholder("Nueva institución...")).toBeVisible();
+
+    await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+    await expect(page.getByText("Debe escribir el nombre de la nueva carrera")).toBeVisible();
+    await expect(page.getByText("Debe escribir el nombre de la nueva institución")).toBeVisible();
+
+    await page.getByPlaceholder("Nueva carrera...").fill("Carrera De Prueba E2E");
+    await page.getByPlaceholder("Nueva institución...").fill("Institucion De Prueba E2E");
+    await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+    // Avanza: el alta real solo ocurre al finalizar el wizard (este test no lo finaliza).
+    await expect(page.getByText("Opcional si no posee formación complementaria")).toBeVisible();
+  });
+
   test("recorre los 7 pasos en el orden del legado", async ({ page }) => {
     test.setTimeout(90_000);
     const siguiente = () => page.getByRole("button", { name: "Siguiente", exact: true }).click();

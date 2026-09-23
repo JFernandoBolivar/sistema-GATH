@@ -8,9 +8,10 @@ import { REGEX } from "@/shared/domain/validation";
  * `GuardarEmpleadoInputDTO` con `registroPasosADTO` y la Server Action lo
  * revalida con `empleadoSchema` (contrato del servidor intacto).
  *
- * Diferencia deliberada: no existe la opción "Otra" (alta de carrera,
- * mención, institución, capacitación u organismo al vuelo) porque el backend
- * nuevo no expone esas altas desde el expediente.
+ * Opción "Otra" (id sentinela `-1` + `nueva_*_nombre`): igual que el legado
+ * en Carrera, Mención, Institución y Capacitación; el alta real se resuelve
+ * al finalizar el wizard (`altas-inline.ts`). El organismo de antecedentes
+ * no tiene "Otra" en esta versión.
  */
 
 const opcionalVacio = (v: unknown) => (v === "" ? undefined : v);
@@ -78,17 +79,37 @@ export const pasoBasicInfoSchema = z.object({
 export type PasoBasicInfoType = z.infer<typeof pasoBasicInfoSchema>;
 
 // --- Paso 2: Formación académica ------------------------------------------
+const nombreNuevo = (id: number | undefined, nombre: string | undefined) => id !== -1 || !!nombre?.trim();
+
 export const formacionAcademicaPasoItemSchema = z
   .object({
     nivel_Academico_id: z
       .number({ message: "Debe Seleccionar un Nivel Academico", required_error: "Este Campo Es Requerido" })
       .min(1, { message: "Debe Seleccionar un Nivel Academico" }),
     carrera_id: z.number({ message: "Debe Ingresar Información Valida" }).optional(),
+    nueva_carrera_nombre: z.string().optional(),
     mencion_id: z.number({ message: "Debe Ingresar Información Valida" }).optional(),
+    nueva_mencion_nombre: z.string().optional(),
     institucion_id: z.number({ message: "Debe seleccionar una institución" }).optional(),
+    nueva_institucion_nombre: z.string().optional(),
+  })
+  .refine((d) => nombreNuevo(d.carrera_id, d.nueva_carrera_nombre), {
+    message: "Debe escribir el nombre de la nueva carrera",
+    path: ["nueva_carrera_nombre"],
+  })
+  .refine((d) => nombreNuevo(d.institucion_id, d.nueva_institucion_nombre), {
+    message: "Debe escribir el nombre de la nueva institución",
+    path: ["nueva_institucion_nombre"],
+  })
+  .refine((d) => nombreNuevo(d.mencion_id, d.nueva_mencion_nombre), {
+    message: "Debe escribir el nombre de la nueva mención",
+    path: ["nueva_mencion_nombre"],
   })
   .refine(
-    (d) => !(d.carrera_id != null && d.carrera_id > 0) || (d.institucion_id != null && d.institucion_id > 0),
+    (d) =>
+      !(d.carrera_id != null && d.carrera_id > 0) ||
+      (d.institucion_id != null && d.institucion_id > 0) ||
+      (d.institucion_id === -1 && !!d.nueva_institucion_nombre?.trim()),
     { message: "Debe seleccionar una institución", path: ["institucion_id"] },
   );
 export const pasoAcademySchema = z.object({
@@ -101,10 +122,12 @@ export const formacionComplementariaPasoItemSchema = z
   .object({
     capacitacion_id: z
       .number({ message: "Debe seleccionar una capacitación" })
-      .refine((val) => val >= 1, { message: "Debe seleccionar una capacitación" }),
+      .refine((val) => val === -1 || val >= 1, { message: "Debe seleccionar una capacitación" }),
+    nueva_capacitacion_nombre: z.string().optional(),
     institucion_id: z
       .number({ message: "Debe seleccionar una institución" })
-      .refine((val) => val >= 1, { message: "Debe seleccionar una institución" }),
+      .refine((val) => val === -1 || val >= 1, { message: "Debe seleccionar una institución" }),
+    nueva_institucion_nombre: z.string().optional(),
     procedencia_id: z
       .number({ message: "Debe seleccionar una procedencia" })
       .min(1, { message: "Debe seleccionar una procedencia" }),
@@ -122,6 +145,12 @@ export const formacionComplementariaPasoItemSchema = z
     }
     if (d.fecha_fin && !d.fecha_inicio) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe seleccionar una fecha de inicio", path: ["fecha_inicio"] });
+    }
+    if (!nombreNuevo(d.institucion_id, d.nueva_institucion_nombre)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe escribir el nombre de la nueva institución", path: ["nueva_institucion_nombre"] });
+    }
+    if (!nombreNuevo(d.capacitacion_id, d.nueva_capacitacion_nombre)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe escribir el nombre de la nueva capacitación", path: ["nueva_capacitacion_nombre"] });
     }
   });
 export const pasoSupplementaryTrainingSchema = z.object({

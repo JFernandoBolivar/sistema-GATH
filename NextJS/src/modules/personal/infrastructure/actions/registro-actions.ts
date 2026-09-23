@@ -13,6 +13,8 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { listarCatalogoDependiente } from "../../application/use-cases/listar-catalogo-dependiente";
 import { repoCatalogosDependientesApi } from "../repositories/repo-catalogos-dependientes-api";
+import { resolverAltasInline } from "../../application/use-cases/resolver-altas-inline";
+import { repoCatalogosAltaInlineApi } from "../repositories/repo-catalogos-alta-inline-api";
 
 const catalogoDependienteSchema = z.object({
   tipo: z.enum(["municipios", "parroquias", "codigosPostales", "carreras", "menciones", "tallas"]),
@@ -40,5 +42,41 @@ export async function getCatalogoDependienteAction(
     await logAudit({ traceId, action: "getCatalogoDependienteAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
+  }
+}
+
+const altasInlineSchema = z
+  .array(
+    z.object({
+      tipo: z.enum(["carreras", "menciones", "instituciones", "capacitaciones"]),
+      nombre: z.string().trim().min(1).max(200),
+      padreId: z.number().int().positive().nullable().optional(),
+    }),
+  )
+  .max(50);
+
+/**
+ * Resuelve las opciones "Otra X" (alta inline de carrera, mención,
+ * institución o capacitación): devuelve, en el mismo orden, el registro
+ * existente con ese nombre o el recién creado. Errores de negocio o del
+ * backend se devuelven como `{ error }` para mostrarlos en un toast.
+ */
+export async function resolverAltasInlineAction(solicitudes: z.infer<typeof altasInlineSchema>) {
+  const validation = altasInlineSchema.safeParse(solicitudes);
+  if (!validation.success) {
+    return { error: "Revise los nombres escritos en las opciones \"Otra\"." };
+  }
+  if (validation.data.length === 0) return { ok: [] };
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await resolverAltasInline(repoCatalogosAltaInlineApi, validation.data);
+    await logAudit({ traceId, action: "resolverAltasInlineAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { ok: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "resolverAltasInlineAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { error: error instanceof Error && error.message ? error.message : "No fue posible registrar la opción \"Otra\"." };
   }
 }

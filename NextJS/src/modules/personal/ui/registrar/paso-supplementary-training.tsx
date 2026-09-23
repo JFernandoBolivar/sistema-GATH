@@ -20,7 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { pasoSupplementaryTrainingSchema, type PasoSupplementaryTrainingType } from "../schema/schema-registro-pasos";
+import { ID_OTRA, OPCION_OTRA } from "../catalogo-otra";
 import { CampoFecha } from "./campo-fecha";
+import { CampoNuevoNombre } from "./campo-nuevo-nombre";
 
 const filaVacia = {
   fecha_inicio: undefined,
@@ -120,48 +122,80 @@ export function PasoSupplementaryTraining({
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name={`formacion_complementaria.${index}.capacitacion_id`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Capacitación</FormLabel>
-                          <FormControl>
-                            <Combobox
-                              className="w-48"
-                              options={(catalogos?.capacitaciones ?? []).map((c) => ({ value: c.id.toString(), label: c.nombre }))}
-                              value={field.value ? field.value.toString() : ""}
-                              onChange={(v) => field.onChange(Number(v))}
-                              placeholder="Seleccione"
-                              searchPlaceholder="Buscar capacitación..."
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`formacion_complementaria.${index}.institucion_id`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            Institución {hasCapacitacion ? <span className="text-red-500">*</span> : ""}
-                          </FormLabel>
-                          <FormControl>
-                            <Combobox
-                              className="w-48"
-                              options={(catalogos?.instituciones ?? []).map((i) => ({ value: i.id.toString(), label: i.nombre }))}
-                              value={field.value ? field.value.toString() : ""}
-                              onChange={(v) => field.onChange(Number(v))}
-                              placeholder="Seleccione"
-                              searchPlaceholder="Buscar institución..."
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="flex items-start gap-2">
+                      <FormField
+                        control={form.control}
+                        name={`formacion_complementaria.${index}.capacitacion_id`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Capacitación</FormLabel>
+                            <FormControl>
+                              <Combobox
+                                className="w-48"
+                                options={[
+                                  ...(catalogos?.capacitaciones ?? []).map((c) => ({ value: c.id.toString(), label: c.nombre })),
+                                  OPCION_OTRA,
+                                ]}
+                                value={field.value ? field.value.toString() : ""}
+                                onChange={(v) => {
+                                  field.onChange(Number(v));
+                                  if (Number(v) !== ID_OTRA) {
+                                    form.setValue(`formacion_complementaria.${index}.nueva_capacitacion_nombre`, "");
+                                  }
+                                }}
+                                placeholder="Seleccione"
+                                searchPlaceholder="Buscar capacitación..."
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <CampoNuevoNombre
+                        control={form.control}
+                        name={`formacion_complementaria.${index}.nueva_capacitacion_nombre`}
+                        visible={watchedCapacitacionId === ID_OTRA}
+                        placeholder="Nueva capacitación..."
+                      />
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <FormField
+                        control={form.control}
+                        name={`formacion_complementaria.${index}.institucion_id`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Institución {hasCapacitacion ? <span className="text-red-500">*</span> : ""}
+                            </FormLabel>
+                            <FormControl>
+                              <Combobox
+                                className="w-48"
+                                options={[
+                                  ...(catalogos?.instituciones ?? []).map((i) => ({ value: i.id.toString(), label: i.nombre })),
+                                  OPCION_OTRA,
+                                ]}
+                                value={field.value ? field.value.toString() : ""}
+                                onChange={(v) => {
+                                  field.onChange(Number(v));
+                                  if (Number(v) !== ID_OTRA) {
+                                    form.setValue(`formacion_complementaria.${index}.nueva_institucion_nombre`, "");
+                                  }
+                                }}
+                                placeholder="Seleccione"
+                                searchPlaceholder="Buscar institución..."
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <CampoNuevoNombre
+                        control={form.control}
+                        name={`formacion_complementaria.${index}.nueva_institucion_nombre`}
+                        visible={form.watch(`formacion_complementaria.${index}.institucion_id`) === ID_OTRA}
+                        placeholder="Nueva institución..."
+                      />
+                    </div>
                     <FormField
                       control={form.control}
                       name={`formacion_complementaria.${index}.procedencia_id`}

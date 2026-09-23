@@ -21,6 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { pasoAcademySchema, type PasoAcademyType } from "../schema/schema-registro-pasos";
 import { useCatalogoDependiente } from "../use-catalogo-dependiente";
+import { ID_OTRA, OPCION_OTRA, esNivelNoPosee } from "../catalogo-otra";
+import { CampoNuevoNombre } from "./campo-nuevo-nombre";
 
 const filaVacia = {
   nivel_Academico_id: 0,
@@ -45,6 +47,10 @@ function AcademicRow({
   const hasCarrera = watchedCarreraId != null && watchedCarreraId > 0;
 
   const watchedNivelId = useWatch({ control, name: `formacion_academica.${index}.nivel_Academico_id` });
+  const watchedMencionId = useWatch({ control, name: `formacion_academica.${index}.mencion_id` });
+  const watchedInstitucionId = useWatch({ control, name: `formacion_academica.${index}.institucion_id` });
+  const nivel = catalogos?.nivelesAcademicos.find((n) => n.id === watchedNivelId);
+  const permiteOtraCarrera = !!watchedNivelId && watchedNivelId > 0 && !esNivelNoPosee(nivel?.nombre);
   const { opciones: carreras, isLoading: isLoadingCarrera } = useCatalogoDependiente("carreras", watchedNivelId);
   const { opciones: menciones, isLoading: isLoadingMencion } = useCatalogoDependiente(
     "menciones",
@@ -84,74 +90,118 @@ function AcademicRow({
           </FormItem>
         )}
       />
-      <FormField
-        control={control}
-        name={`formacion_academica.${index}.carrera_id`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Carrera (Opcional)</FormLabel>
-            <FormControl>
-              <Combobox
-                className="w-80"
-                options={carreras.map((c) => ({ value: `${c.id}`, label: c.nombre }))}
-                value={field.value?.toString() ?? ""}
-                onChange={(v) => {
-                  field.onChange(Number(v));
-                  setValue(`formacion_academica.${index}.mencion_id`, undefined);
-                }}
-                placeholder={isLoadingCarrera ? "Cargando..." : "Seleccione"}
-                searchPlaceholder="Buscar carrera..."
-                disabled={isLoadingCarrera}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={control}
-        name={`formacion_academica.${index}.mencion_id`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Mención (Opcional)</FormLabel>
-            <FormControl>
-              <Combobox
-                className="w-80"
-                options={menciones.map((m) => ({ value: `${m.id}`, label: m.nombre }))}
-                value={field.value?.toString() ?? ""}
-                onChange={(v) => field.onChange(Number.parseInt(v))}
-                placeholder={isLoadingMencion ? "Cargando..." : "Seleccione"}
-                searchPlaceholder="Buscar mención..."
-                disabled={isLoadingMencion}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={control}
-        name={`formacion_academica.${index}.institucion_id`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              Institución {hasCarrera ? <span className="text-red-500">*</span> : "(Opcional)"}
-            </FormLabel>
-            <FormControl>
-              <Combobox
-                className="w-80"
-                options={(catalogos?.instituciones ?? []).map((i) => ({ value: i.id.toString(), label: i.nombre }))}
-                value={field.value?.toString() ?? ""}
-                onChange={(v) => field.onChange(Number(v))}
-                placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"}
-                searchPlaceholder="Buscar institución..."
-                disabled={isLoadingCatalogos}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <div className="flex items-start gap-2">
+        <FormField
+          control={control}
+          name={`formacion_academica.${index}.carrera_id`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Carrera (Opcional)</FormLabel>
+              <FormControl>
+                <Combobox
+                  className="w-80"
+                  options={[
+                    ...carreras.map((c) => ({ value: `${c.id}`, label: c.nombre })),
+                    ...(permiteOtraCarrera ? [OPCION_OTRA] : []),
+                  ]}
+                  value={field.value?.toString() ?? ""}
+                  onChange={(v) => {
+                    field.onChange(Number(v));
+                    setValue(`formacion_academica.${index}.mencion_id`, undefined);
+                    if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_carrera_nombre`, "");
+                  }}
+                  placeholder={isLoadingCarrera ? "Cargando..." : "Seleccione"}
+                  searchPlaceholder="Buscar carrera..."
+                  disabled={isLoadingCarrera}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <CampoNuevoNombre
+          control={control}
+          name={`formacion_academica.${index}.nueva_carrera_nombre`}
+          visible={watchedCarreraId === ID_OTRA}
+          className="w-44"
+          placeholder="Nueva carrera..."
+          descripcion="Se asociará al nivel académico seleccionado."
+        />
+      </div>
+      <div className="flex items-start gap-2">
+        <FormField
+          control={control}
+          name={`formacion_academica.${index}.mencion_id`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Mención (Opcional)</FormLabel>
+              <FormControl>
+                <Combobox
+                  className="w-80"
+                  options={[
+                    ...menciones.map((m) => ({ value: `${m.id}`, label: m.nombre })),
+                    ...(hasCarrera ? [OPCION_OTRA] : []),
+                  ]}
+                  value={field.value?.toString() ?? ""}
+                  onChange={(v) => {
+                    field.onChange(Number.parseInt(v));
+                    if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_mencion_nombre`, "");
+                  }}
+                  placeholder={isLoadingMencion ? "Cargando..." : "Seleccione"}
+                  searchPlaceholder="Buscar mención..."
+                  disabled={isLoadingMencion}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <CampoNuevoNombre
+          control={control}
+          name={`formacion_academica.${index}.nueva_mencion_nombre`}
+          visible={watchedMencionId === ID_OTRA}
+          className="w-44"
+          placeholder="Nueva mención..."
+        />
+      </div>
+      <div className="flex items-start gap-2">
+        <FormField
+          control={control}
+          name={`formacion_academica.${index}.institucion_id`}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Institución {hasCarrera ? <span className="text-red-500">*</span> : "(Opcional)"}
+              </FormLabel>
+              <FormControl>
+                <Combobox
+                  className="w-80"
+                  options={[
+                    ...(catalogos?.instituciones ?? []).map((i) => ({ value: i.id.toString(), label: i.nombre })),
+                    OPCION_OTRA,
+                  ]}
+                  value={field.value?.toString() ?? ""}
+                  onChange={(v) => {
+                    field.onChange(Number(v));
+                    if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_institucion_nombre`, "");
+                  }}
+                  placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"}
+                  searchPlaceholder="Buscar institución..."
+                  disabled={isLoadingCatalogos}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <CampoNuevoNombre
+          control={control}
+          name={`formacion_academica.${index}.nueva_institucion_nombre`}
+          visible={watchedInstitucionId === ID_OTRA}
+          className="w-44"
+          placeholder="Nueva institución..."
+        />
+      </div>
       <div className="flex flex-col items-center gap-2">
         <span className="text-sm font-medium leading-none invisible">X</span>
         <Button
