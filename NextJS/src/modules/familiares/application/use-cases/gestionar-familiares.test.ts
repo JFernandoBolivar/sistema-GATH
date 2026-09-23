@@ -54,7 +54,20 @@ class RepoFamiliaresMemoria implements RepoFamiliares {
   }
 
   async listarCatalogos() {
-    return { parentescos: [], sexos: [] };
+    return {
+      parentescos: [],
+      sexos: [],
+      nivelesAcademicos: [],
+      carreras: [],
+      menciones: [],
+      instituciones: [],
+      tiposPrenda: [],
+      tallas: [],
+      gruposSanguineos: [],
+      alergias: [],
+      patologias: [],
+      discapacidades: [],
+    };
   }
 }
 

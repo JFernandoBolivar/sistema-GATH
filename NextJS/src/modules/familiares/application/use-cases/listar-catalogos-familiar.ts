@@ -9,5 +9,15 @@ export async function listarCatalogosFamiliar(repo: RepoFamiliares): Promise<Cat
   return {
     parentescos: c.parentescos,
     sexos: c.sexos,
+    nivelesAcademicos: c.nivelesAcademicos,
+    carreras: c.carreras,
+    menciones: c.menciones,
+    instituciones: c.instituciones,
+    tiposPrenda: c.tiposPrenda,
+    tallas: c.tallas,
+    gruposSanguineos: c.gruposSanguineos,
+    alergias: c.alergias,
+    patologias: c.patologias,
+    discapacidades: c.discapacidades,
   };
 }

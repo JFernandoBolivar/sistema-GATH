@@ -22,10 +22,13 @@ import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 
-import type { CatalogosFamiliarDTO, GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
+import { CATALOGOS_FAMILIAR_VACIOS, type CatalogosFamiliarDTO, type GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
 import { crearFamiliarAction, getCatalogosFamiliarAction } from "../infrastructure/actions/familiares-actions";
 import { familiarSchema, type FamiliarFormType } from "./schema/schema-familiar";
 import { FamiliarCampos } from "./familiar-campos";
+import { FamiliarFormacionAcademica } from "./familiar-formacion-academica";
+import { ID_OTRA_FAMILIAR } from "./catalogo-otra-familiar";
+import { resolverPendientesOtraFamiliar, type PendienteOtraFamiliar } from "./resolver-otra-familiar";
 
 const defaultValues: FamiliarFormType = {
   empleadoCedula: "",
@@ -40,6 +43,7 @@ const defaultValues: FamiliarFormType = {
   mismoEnte: false,
   heredero: false,
   observaciones: null,
+  formacionAcademica: undefined,
 };
 
 export default function FamiliarRegistrarPage() {
@@ -49,7 +53,7 @@ export default function FamiliarRegistrarPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getCatalogosFamiliarAction().then(setCatalogos).catch(() => setCatalogos({ parentescos: [], sexos: [] }));
+    getCatalogosFamiliarAction().then(setCatalogos).catch(() => setCatalogos(CATALOGOS_FAMILIAR_VACIOS));
   }, []);
 
   const form = useForm<FamiliarFormType>({
@@ -60,7 +64,54 @@ export default function FamiliarRegistrarPage() {
   const onGuardar = (data: FamiliarFormType) => {
     startTransition(async () => {
       setError(null);
-      const resultado = await crearFamiliarAction(data as GuardarFamiliarInputDTO);
+
+      // Opción "Otra" de Formación académica: crear/reutilizar carrera,
+      // mención o institución nueva antes de guardar (mismo patrón que
+      // modules/personal/ui/dialogs/form-academic-training-update-dialog.tsx).
+      const fa = data.formacionAcademica;
+      const pendientes: PendienteOtraFamiliar[] = [];
+      if (fa) {
+        if (fa.carreraId === ID_OTRA_FAMILIAR) {
+          pendientes.push({
+            solicitud: { tipo: "carreras", nombre: fa.nuevaCarreraNombre ?? "", padreId: fa.nivelAcademicoId },
+            faltaNombre: "Debe escribir el nombre de la nueva carrera",
+            asignar: (id) => (fa.carreraId = id),
+          });
+        }
+        if (fa.mencionId === ID_OTRA_FAMILIAR) {
+          pendientes.push({
+            solicitud: { tipo: "menciones", nombre: fa.nuevaMencionNombre ?? "", padreId: fa.carreraId ?? undefined },
+            faltaNombre: "Debe escribir el nombre de la nueva mención",
+            asignar: (id) => (fa.mencionId = id),
+          });
+        }
+        if (fa.institucionId === ID_OTRA_FAMILIAR) {
+          pendientes.push({
+            solicitud: { tipo: "instituciones", nombre: fa.nuevaInstitucionNombre ?? "" },
+            faltaNombre: "Debe escribir el nombre de la nueva institución",
+            asignar: (id) => (fa.institucionId = id),
+          });
+        }
+      }
+      const errorOtra = await resolverPendientesOtraFamiliar(pendientes);
+      if (errorOtra) {
+        setError(errorOtra);
+        return;
+      }
+
+      const payload: GuardarFamiliarInputDTO = {
+        ...(data as GuardarFamiliarInputDTO),
+        formacionAcademica: fa?.nivelAcademicoId
+          ? {
+              nivelAcademicoId: fa.nivelAcademicoId,
+              carreraId: fa.carreraId ?? null,
+              mencionId: fa.mencionId ?? null,
+              institucionId: fa.institucionId ?? null,
+            }
+          : null,
+      };
+
+      const resultado = await crearFamiliarAction(payload);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         setError((resultado as { error: string }).error);
         return;
@@ -87,6 +138,8 @@ export default function FamiliarRegistrarPage() {
               </Field>
 
               <FamiliarCampos form={form} catalogos={catalogos} />
+
+              <FamiliarFormacionAcademica form={form} catalogos={catalogos} />
 
               <div className="flex items-center gap-2">
                 <Button type="submit" disabled={isPending}>

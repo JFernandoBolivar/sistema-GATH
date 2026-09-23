@@ -2,10 +2,29 @@
  * Cliente HTTP para Familiares conectado a las APIs canónicas /api/v1/familiares/
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
+import type { ApiResponse } from "@/shared/types/api-response";
 
 export interface CatalogoFamiliarApiItem {
   id: number;
   nombre: string;
+  codigo?: string | null;
+  categoria_id?: number | null;
+  categoria_nombre?: string | null;
+  categoria?: { id: number; nombre?: string; nombre_categoria?: string } | null;
+  tipo_prenda_id?: number | null;
+  tipo_prenda_nombre?: string | null;
+  tipo_prenda?: { id: number; categoria?: string } | null;
+  region_id?: number | null;
+  region_codigo?: string | null;
+  region_descripcion?: string | null;
+  region?: { id: number; codigo?: string; descripcion?: string } | null;
+}
+
+export interface FormacionAcademicaFamiliarApiItem {
+  nivel_academico_id?: number | null;
+  carrera_id?: number | null;
+  mencion_id?: number | null;
+  institucion_id?: number | null;
 }
 
 export interface FamiliarApiItem {
@@ -24,6 +43,7 @@ export interface FamiliarApiItem {
   mismo_ente: boolean;
   heredero: boolean;
   observaciones: string | null;
+  formacion_academica?: FormacionAcademicaFamiliarApiItem | null;
 }
 
 export interface DocumentoFamiliarApiItem {
@@ -32,6 +52,33 @@ export interface DocumentoFamiliarApiItem {
   tipo_documento: string;
   ruta_archivo: string;
   fecha_subida: string;
+}
+
+export interface CatalogoInlineFamiliarApiItem {
+  id: number;
+  nombre: string;
+}
+
+/**
+ * Catálogos académicos/de salud/físicos usados por el mini-expediente del
+ * familiar: son globales (no por empleado), expuestos por el mismo backend
+ * que consume `modules/personal` (`/api/v1/personal/catalogos/...`). Se
+ * duplican aquí (en vez de importar `modules/personal`) para respetar el
+ * aislamiento Feature-Based entre módulos.
+ */
+const catalogosPersonalBase = "/api/v1/personal/catalogos";
+
+async function listarCatalogo(
+  path: string,
+  params?: Record<string, string | number | undefined>,
+): Promise<CatalogoFamiliarApiItem[]> {
+  const envelope = await apiClient.get<ApiResponse<CatalogoFamiliarApiItem[]>>(`${catalogosPersonalBase}/${path}/`, { params });
+  return envelope.data ?? [];
+}
+
+async function crearCatalogoInline(path: string, body: Record<string, unknown>): Promise<CatalogoInlineFamiliarApiItem> {
+  const envelope = await apiClient.post<ApiResponse<CatalogoInlineFamiliarApiItem>>(`${catalogosPersonalBase}/${path}/`, body);
+  return envelope.data;
 }
 
 export const familiaresApi = {
@@ -58,4 +105,23 @@ export const familiaresApi = {
 
   getSexos: () =>
     apiClient.get<CatalogoFamiliarApiItem[]>("/api/v1/catalogos/sexos/"),
+
+  // --- Catálogos del mini-expediente académico (globales, compartidos con Personal) ---
+  getNivelesAcademicos: () => listarCatalogo("niveles-academicos"),
+
+  getCarreras: (nivelAcademicoId?: number) =>
+    listarCatalogo("carreras", nivelAcademicoId ? { nivel_academico_id: nivelAcademicoId } : undefined),
+
+  getMenciones: (carreraId?: number) =>
+    listarCatalogo("menciones", carreraId ? { carrera_id: carreraId } : undefined),
+
+  getInstituciones: () => listarCatalogo("instituciones"),
+
+  crearCarrera: (nombre: string, nivelAcademicoId: number) =>
+    crearCatalogoInline("carreras", { nombre, nivel_academico_id: nivelAcademicoId }),
+
+  crearMencion: (nombre: string, carreraId: number) =>
+    crearCatalogoInline("menciones", { nombre, carrera_id: carreraId }),
+
+  crearInstitucion: (nombre: string) => crearCatalogoInline("instituciones", { nombre }),
 };

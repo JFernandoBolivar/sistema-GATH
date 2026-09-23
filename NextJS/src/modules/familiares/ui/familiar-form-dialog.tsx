@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
 
-import type { CatalogosFamiliarDTO, FamiliarDTO, GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
+import { CATALOGOS_FAMILIAR_VACIOS, type CatalogosFamiliarDTO, type FamiliarDTO, type GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
 import {
   actualizarFamiliarAction,
   getCatalogosFamiliarAction,
@@ -58,7 +58,7 @@ export function FamiliarFormDialog({ familiar, onGuardado }: FamiliarFormDialogP
 
   useEffect(() => {
     if (!open || catalogos) return;
-    getCatalogosFamiliarAction().then(setCatalogos).catch(() => setCatalogos({ parentescos: [], sexos: [] }));
+    getCatalogosFamiliarAction().then(setCatalogos).catch(() => setCatalogos(CATALOGOS_FAMILIAR_VACIOS));
   }, [open, catalogos]);
 
   const form = useForm<FamiliarFormType>({

@@ -6,6 +6,8 @@
  * caso de uso. Captura errores y llama `handleSessionExpired` (R7) y registra
  * la auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
  */
+import { z } from "zod";
+
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -20,7 +22,11 @@ import {
   listarFamiliaresPorEmpleado,
 } from "../../application/use-cases/listar-familiares";
 import { listarCatalogosFamiliar } from "../../application/use-cases/listar-catalogos-familiar";
+import { listarCatalogoDependienteFamiliar } from "../../application/use-cases/listar-catalogo-dependiente-familiar";
+import { resolverAltasInlineFamiliar } from "../../application/use-cases/resolver-altas-inline-familiar";
 import { repoFamiliaresApi } from "../repositories/repo-familiares-api";
+import { repoCatalogosDependientesFamiliarApi } from "../repositories/repo-catalogos-dependientes-familiar-api";
+import { repoCatalogosAltaInlineFamiliarApi } from "../repositories/repo-catalogos-alta-inline-familiar-api";
 import { familiaresPorEmpleadoSchema, familiarIdSchema, familiarSchema } from "../../ui/schema/schema-familiar";
 
 export async function getFamiliaresPorEmpleadoAction(cedula: string) {
@@ -114,6 +120,71 @@ export async function getCatalogosFamiliarAction() {
     await logAudit({ traceId, action: "getCatalogosFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
+  }
+}
+
+const catalogoDependienteFamiliarSchema = z.object({
+  tipo: z.enum(["carreras", "menciones"]),
+  padreId: z.number().int().positive(),
+});
+
+/** Cascada de catálogos académicos del mini-expediente del familiar (Nivel -> Carrera -> Mención). */
+export async function getCatalogoDependienteFamiliarAction(
+  tipo: z.infer<typeof catalogoDependienteFamiliarSchema>["tipo"],
+  padreId: number,
+) {
+  const validation = catalogoDependienteFamiliarSchema.safeParse({ tipo, padreId });
+  if (!validation.success) return [];
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCatalogoDependienteFamiliar(
+      repoCatalogosDependientesFamiliarApi,
+      validation.data.tipo,
+      validation.data.padreId,
+    );
+    await logAudit({ traceId, action: "getCatalogoDependienteFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCatalogoDependienteFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+const altasInlineFamiliarSchema = z
+  .array(
+    z.object({
+      tipo: z.enum(["carreras", "menciones", "instituciones"]),
+      nombre: z.string().trim().min(1).max(200),
+      padreId: z.number().int().positive().nullable().optional(),
+    }),
+  )
+  .max(20);
+
+/**
+ * Resuelve las opciones "Otra X" del mini-expediente del familiar (carrera,
+ * mención o institución nueva): devuelve, en el mismo orden, el registro
+ * existente con ese nombre o el recién creado.
+ */
+export async function resolverAltasInlineFamiliarAction(solicitudes: z.infer<typeof altasInlineFamiliarSchema>) {
+  const validation = altasInlineFamiliarSchema.safeParse(solicitudes);
+  if (!validation.success) {
+    return { error: "Revise los nombres escritos en las opciones \"Otra\"." };
+  }
+  if (validation.data.length === 0) return { ok: [] };
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await resolverAltasInlineFamiliar(repoCatalogosAltaInlineFamiliarApi, validation.data);
+    await logAudit({ traceId, action: "resolverAltasInlineFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { ok: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "resolverAltasInlineFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { error: error instanceof Error && error.message ? error.message : "No fue posible registrar la opción \"Otra\"." };
   }
 }
 
