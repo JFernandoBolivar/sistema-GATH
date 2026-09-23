@@ -111,8 +111,44 @@ describe("construirDetalleExpediente", () => {
     expect(vm.telefonoHabitacion).toBe("N/A");
   });
 
-  it("formatea el total de años APN con un decimal", () => {
+  it("formatea el total de años APN al formato normalizado años, meses, días", () => {
     const vm = construirDetalleExpediente(empleadoBase(), catalogosVacios());
-    expect(vm.totalAnosApn).toBe("4.5 años");
+    expect(vm.totalAnosApn).toBe("4 años, 6 meses, 0 días");
+  });
+
+  it("mapea cargos asignados y calcula fecha de ingreso de organismo", () => {
+    const empleado: EmpleadoDTO = {
+      ...empleadoBase(),
+      contratos: [
+        { id: 1, nContrato: "CTR-01", fechaIngreso: "2018-03-01", fechaCulminacion: "2019-03-01" },
+        { id: 2, nContrato: "CTR-02", fechaIngreso: "2015-01-10", fechaCulminacion: null },
+      ],
+      asignaciones: [
+        {
+          id: 10,
+          codigo: "CARGO-001",
+          denominacionCargo: "ESPECIALISTA",
+          denominacionCargoEspecifico: "ESPECIALISTA EN TELECOM",
+          tipoNomina: "EMPLEADO FIJO",
+          dependencia: "GERENCIA",
+          direccionGeneral: "DG TECNOLOGÍA",
+          direccionLinea: "DL REDES",
+          coordinacion: "COORD SOPORTE",
+          grado: "9",
+          estatus: "ACTIVO",
+          organismoAdscrito: "CONATEL",
+          tipoProcedencia: "INTERNA",
+          cargoCubiertoEncargaduria: false,
+        },
+      ],
+    };
+
+    const vm = construirDetalleExpediente(empleado, catalogosVacios());
+
+    expect(vm.fechaIngresoOrganismo).toBe("10/01/2015");
+    expect(vm.cargosAsignados).toHaveLength(1);
+    expect(vm.cargosAsignados[0].codigo).toBe("CARGO-001");
+    expect(vm.cargosAsignados[0].cargoEspecifico).toBe("ESPECIALISTA EN TELECOM");
+    expect(vm.cargosAsignados[0].direccionResumida).toBe("COORD SOPORTE");
   });
 });

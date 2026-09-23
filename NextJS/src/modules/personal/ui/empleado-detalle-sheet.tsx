@@ -265,7 +265,7 @@ export default function EmpleadoDetalleSheet({
                       ))}
                       <TableRow>
                         <TableCell colSpan={3} className="text-right font-bold">
-                          {`Total: ${Math.floor(empleado.totalAnosApn)} años, ${Math.round((empleado.totalAnosApn % 1) * 12)} meses, 0 días`}
+                          {`Total: ${detalle.totalAnosApn}`}
                         </TableCell>
                       </TableRow>
                     </TableBody>

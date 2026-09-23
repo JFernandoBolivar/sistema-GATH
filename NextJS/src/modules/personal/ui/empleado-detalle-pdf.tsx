@@ -144,7 +144,36 @@ export function EmpleadoDetallePdf({ detalle, generadoPor, generadoEn }: Emplead
         <InfoRow label="Correo:" value={detalle.correo} />
         <InfoRow label="Teléfono móvil:" value={detalle.telefonoMovil} />
         <InfoRow label="Teléfono habitación:" value={detalle.telefonoHabitacion} />
-        <InfoRow label="Total años APN:" value={detalle.totalAnosApn} />
+        <InfoRow label="Total APN:" value={detalle.totalAnosApn} />
+
+        <View wrap={false}>
+          <Text style={styles.sectionTitle}>DATOS LABORALES</Text>
+          {detalle.cargosAsignados.length > 0 ? (
+            <View style={styles.table}>
+              <View style={[styles.tableRow, styles.tableRowHeader]}>
+                <Text style={[styles.tableCol, { width: "6%", flex: 0 }]}>#</Text>
+                <Text style={[styles.tableCol, { width: "16%", flex: 0 }]}>Código</Text>
+                <Text style={[styles.tableCol, { width: "24%", flex: 0 }]}>Cargo Específico</Text>
+                <Text style={[styles.tableCol, { width: "12%", flex: 0 }]}>Grado</Text>
+                <Text style={[styles.tableCol, { width: "18%", flex: 0 }]}>Nómina</Text>
+                <Text style={[styles.tableCol, { width: "24%", flex: 0 }]}>Dirección</Text>
+              </View>
+              {detalle.cargosAsignados.map((asig, idx) => (
+                <View key={asig.id || idx} style={styles.tableRow} wrap={false}>
+                  <Text style={[styles.tableCol, { width: "6%", flex: 0 }]}>{idx + 1}</Text>
+                  <Text style={[styles.tableCol, { width: "16%", flex: 0 }]}>{asig.codigo}</Text>
+                  <Text style={[styles.tableCol, { width: "24%", flex: 0 }]}>{asig.cargoEspecifico}</Text>
+                  <Text style={[styles.tableCol, { width: "12%", flex: 0 }]}>{asig.grado}</Text>
+                  <Text style={[styles.tableCol, { width: "18%", flex: 0 }]}>{asig.tipoNomina}</Text>
+                  <Text style={[styles.tableCol, { width: "24%", flex: 0 }]}>{asig.direccionResumida}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Sin cargos asignados registrados</Text>
+          )}
+          <InfoRow label="Fecha de ingreso:" value={detalle.fechaIngresoOrganismo} />
+        </View>
 
         {detalle.contratoActual && (
           <View wrap={false}>
@@ -157,11 +186,30 @@ export function EmpleadoDetallePdf({ detalle, generadoPor, generadoEn }: Emplead
         )}
 
         <View wrap={false}>
-          <Text style={styles.sectionTitle}>ANTECEDENTES DE SERVICIO</Text>
-          <TablaSimple
-            encabezados={["Ingreso", "Egreso", "Organismo"]}
-            filas={detalle.antecedentes.map((a) => [a.fechaIngreso, a.fechaEgreso, a.organismo])}
-          />
+          <Text style={styles.sectionTitle}>ANTECEDENTES LABORALES</Text>
+          {detalle.antecedentes.length > 0 ? (
+            <>
+              <View style={styles.table}>
+                <View style={[styles.tableRow, styles.tableRowHeader]}>
+                  <Text style={[styles.tableCol, { width: "8%", flex: 0 }]}>#</Text>
+                  <Text style={[styles.tableCol, { width: "25%", flex: 0 }]}>Fecha Ingreso</Text>
+                  <Text style={[styles.tableCol, { width: "25%", flex: 0 }]}>Fecha Egreso</Text>
+                  <Text style={[styles.tableCol, { width: "42%", flex: 0 }]}>Organismo</Text>
+                </View>
+                {detalle.antecedentes.map((a, idx) => (
+                  <View key={idx} style={styles.tableRow} wrap={false}>
+                    <Text style={[styles.tableCol, { width: "8%", flex: 0 }]}>{idx + 1}</Text>
+                    <Text style={[styles.tableCol, { width: "25%", flex: 0 }]}>{a.fechaIngreso}</Text>
+                    <Text style={[styles.tableCol, { width: "25%", flex: 0 }]}>{a.fechaEgreso}</Text>
+                    <Text style={[styles.tableCol, { width: "42%", flex: 0 }]}>{a.organismo}</Text>
+                  </View>
+                ))}
+              </View>
+              <InfoRow label="Total APN:" value={detalle.totalAnosApn} />
+            </>
+          ) : (
+            <Text style={styles.emptyText}>Sin antecedentes registrados</Text>
+          )}
         </View>
 
         {detalle.vivienda && (

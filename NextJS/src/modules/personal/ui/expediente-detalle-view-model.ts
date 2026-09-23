@@ -73,6 +73,24 @@ export interface DetalleContratoVM {
   esFijo: string;
 }
 
+export interface DetalleCargoAsignadoVM {
+  id: number;
+  codigo: string;
+  cargo: string;
+  cargoEspecifico: string;
+  tipoNomina: string;
+  dependencia: string;
+  direccionGeneral: string;
+  direccionLinea: string;
+  coordinacion: string;
+  grado: string;
+  estatus: string;
+  organismoAdscrito: string;
+  tipoProcedencia: string;
+  cargoCubiertoEncargaduria: boolean;
+  direccionResumida: string;
+}
+
 export interface DetalleExpedienteViewModel {
   cedula: string;
   nombreCompleto: string;
@@ -84,6 +102,8 @@ export interface DetalleExpedienteViewModel {
   estadoCivil: string;
   carnetPatria: string;
   totalAnosApn: string;
+  fechaIngresoOrganismo: string;
+  cargosAsignados: DetalleCargoAsignadoVM[];
   vivienda: DetalleViviendaVM | null;
   salud: DetalleSaludVM | null;
   fisico: DetalleFisicoVM | null;
@@ -98,6 +118,22 @@ export function construirDetalleExpediente(
   empleado: EmpleadoDTO,
   catalogos: CatalogosExpedienteDTO,
 ): DetalleExpedienteViewModel {
+  const anosApn = empleado.totalAnosApn ?? 0;
+  const anos = Math.floor(anosApn);
+  const meses = Math.round((anosApn % 1) * 12);
+
+  const todosContratos = empleado.contratos && empleado.contratos.length > 0
+    ? empleado.contratos
+    : empleado.contratoActual
+    ? [empleado.contratoActual]
+    : [];
+  const contratosConFecha = todosContratos
+    .filter((c) => c.fechaIngreso)
+    .sort((a, b) => new Date(a.fechaIngreso!).getTime() - new Date(b.fechaIngreso!).getTime());
+  const fechaIngresoOrg = contratosConFecha[0]?.fechaIngreso
+    ? formatearFecha(contratosConFecha[0].fechaIngreso)
+    : SIN_DATO;
+
   return {
     cedula: empleado.cedula,
     nombreCompleto: empleado.nombreCompleto,
@@ -108,7 +144,29 @@ export function construirDetalleExpediente(
     fechaNacimiento: formatearFecha(empleado.fechaNacimiento),
     estadoCivil: empleado.estadoCivilNombre ?? SIN_DATO,
     carnetPatria: empleado.carnetPatria ?? SIN_DATO,
-    totalAnosApn: `${empleado.totalAnosApn.toFixed(1)} años`,
+    totalAnosApn: `${anos} años, ${meses} meses, 0 días`,
+    fechaIngresoOrganismo: fechaIngresoOrg,
+    cargosAsignados: (empleado.asignaciones ?? []).map((asig) => ({
+      id: asig.id,
+      codigo: asig.codigo || SIN_DATO,
+      cargo: asig.denominacionCargo || SIN_DATO,
+      cargoEspecifico: asig.denominacionCargoEspecifico || SIN_DATO,
+      tipoNomina: asig.tipoNomina || SIN_DATO,
+      dependencia: asig.dependencia || SIN_DATO,
+      direccionGeneral: asig.direccionGeneral || SIN_DATO,
+      direccionLinea: asig.direccionLinea || SIN_DATO,
+      coordinacion: asig.coordinacion || SIN_DATO,
+      grado: asig.grado || SIN_DATO,
+      estatus: asig.estatus || SIN_DATO,
+      organismoAdscrito: asig.organismoAdscrito || SIN_DATO,
+      tipoProcedencia: asig.tipoProcedencia || SIN_DATO,
+      cargoCubiertoEncargaduria: asig.cargoCubiertoEncargaduria,
+      direccionResumida:
+        asig.coordinacion ||
+        asig.direccionLinea ||
+        asig.direccionGeneral ||
+        "No especificado",
+    })),
     vivienda: empleado.datosVivienda
       ? {
           estado: nombrePorId(catalogos.estados, empleado.datosVivienda.estadoId),
