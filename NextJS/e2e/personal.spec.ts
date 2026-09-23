@@ -118,13 +118,13 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
     await page.getByRole("button", { name: "Actualizar Información Basica" }).click();
     await page.waitForTimeout(500);
 
-    await expect(page.getByRole("dialog").getByRole("heading", { name: /Actualizar Información Básica/i })).toBeVisible();
-    await expect(page.getByLabel("Nombres")).toBeVisible();
-    await expect(page.getByLabel("Apellidos")).toBeVisible();
+    await expect(page.getByRole("dialog").getByRole("heading", { name: /Actualizar Información B[aá]sica/i })).toBeVisible();
+    await expect(page.getByLabel(/Nombre \*/i)).toBeVisible();
+    await expect(page.getByLabel("Apellidos *")).toBeVisible();
     await page.screenshot({ path: `${ARTIFACT_DIR}/2b_personal_sheet_basic_dialog.png` });
 
-    // Cancel basic dialog
-    await page.getByRole("button", { name: "Cancelar" }).click();
+    // Close basic dialog
+    await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
 
     // Scroll sheet to see Vivienda, Formaciones, Vestimenta and Salud

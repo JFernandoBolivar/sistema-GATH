@@ -7,9 +7,15 @@ import { Loader2, Upload, X } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/components/card";
+import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
@@ -22,6 +28,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import {
@@ -122,146 +136,183 @@ export default function FormBasicUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Actualizar Información Básica</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl p-0">
+        <DialogTitle className="sr-only">Actualizar Información Básica</DialogTitle>
 
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <Card className="w-full h-full border-0 shadow-none">
+          <CardHeader>
+            <CardTitle>Actualizar Información Basica</CardTitle>
+          </CardHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="border rounded-lg p-4 flex flex-col items-center gap-3">
-            <Label className="self-start">Foto del Trabajador</Label>
-            {photoPreview ? (
-              <div className="relative w-40 h-40">
-                <Image
-                  src={photoPreview}
-                  alt="Preview"
-                  fill
-                  className="object-cover rounded-lg"
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="destructive"
-                  className="absolute -top-2 -right-2 size-6 rounded-full p-0"
-                  onClick={handleRemovePhoto}
-                >
-                  <X className="size-3" />
-                </Button>
+          <CardContent>
+            <CardAction className="text-gray-500 mb-3">Información Basica</CardAction>
+
+            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <div className="gap-6">
+                <div className="border rounded-lg p-4 gap-3">
+                  <Label>Foto del Trabajador</Label>
+                  {photoPreview ? (
+                    <div className="relative w-full h-40 p-2">
+                      <Image
+                        height={150}
+                        width={100}
+                        src={photoPreview || "/placeholder.svg"}
+                        alt="Preview"
+                        className="w-full h-full object-contain rounded-lg"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 size-6 flex items-center justify-center"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                      <div className="text-center w-full text-xs text-muted-foreground mt-1">
+                        {selectedFile ? formatFileSize(selectedFile.size) : ""}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                      <div className="w-full h-full text-center flex flex-col justify-center items-center">
+                        <Upload className="size-8 text-gray-400" />
+                        <Label
+                          htmlFor="photoUpload"
+                          className="text-center p-1.5 bg-gray-300 text-black rounded-2xl cursor-pointer mt-2"
+                        >
+                          Haz clic aqui para seleccionar foto
+                        </Label>
+                        <input
+                          id="photoUpload"
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".png,.jpeg,.jpg"
+                          className="hidden"
+                          onChange={handleFileChange}
+                        />
+                        <span className="text-xs text-muted-foreground mt-2">
+                          PNG, JPG hasta 5MB
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  <div>
+                    <Label htmlFor="nombres">Nombre *</Label>
+                    <Input
+                      id="nombres"
+                      placeholder="Juan Bernardo"
+                      {...register("nombres", { required: true })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="apellidos">Apellidos *</Label>
+                    <Input
+                      id="apellidos"
+                      placeholder="Perez Gutierrez"
+                      {...register("apellidos", { required: true })}
+                    />
+                  </div>
+                  <div className="flex flex-col grow shrink basis-40">
+                    <Label htmlFor="fechaNacimiento"> Fecha de Nacimiento *</Label>
+                    <Input
+                      id="fechaNacimiento"
+                      type="date"
+                      {...register("fechaNacimiento", { required: true })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sexoId" className="cursor-pointer">
+                      Sexo *
+                    </Label>
+                    <Select
+                      value={String(watch("sexoId") || "")}
+                      onValueChange={(v) => setValue("sexoId", Number(v))}
+                    >
+                      <SelectTrigger id="sexoId" className="w-full truncate">
+                        <SelectValue placeholder="Seleccione un Genero" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(catalogos?.sexos ?? [
+                          { id: 1, nombre: "MASCULINO" },
+                          { id: 2, nombre: "FEMENINO" },
+                        ]).map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>
+                            {s.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="correo">Correo Electronico</Label>
+                    <Input
+                      id="correo"
+                      type="email"
+                      placeholder="ejemplo@gmail.com"
+                      {...register("correo")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="telefonoMovil">Teléfono De Móvil</Label>
+                    <Input
+                      id="telefonoMovil"
+                      type="text"
+                      placeholder="04160000000"
+                      {...register("telefonoMovil")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="telefonoHabitacion">Teléfono De Habitación</Label>
+                    <Input
+                      id="telefonoHabitacion"
+                      type="text"
+                      placeholder="02390000000"
+                      {...register("telefonoHabitacion")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="carnetPatria">Código del Carnet de la Patria</Label>
+                    <Input
+                      id="carnetPatria"
+                      type="text"
+                      placeholder="000-0000000-00"
+                      {...register("carnetPatria")}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="estadoCivilId">Estado Civil </Label>
+                    <Select
+                      value={watch("estadoCivilId") ? String(watch("estadoCivilId")) : undefined}
+                      onValueChange={(v) => setValue("estadoCivilId", Number(v))}
+                    >
+                      <SelectTrigger id="estadoCivilId" className="w-full truncate">
+                        <SelectValue placeholder="Seleccione Un Estado Civil" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(catalogos?.estadosCiviles ?? []).map((ec) => (
+                          <SelectItem key={ec.id} value={String(ec.id)}>
+                            {ec.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 justify-end pt-4">
+                  <Button className="w-full" disabled={isPending}>
+                    {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+                    Guardar
+                  </Button>
+                </div>
               </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center w-full flex flex-col items-center justify-center">
-                <Upload className="size-8 text-gray-400 mb-2" />
-                <Label
-                  htmlFor="photoUpload"
-                  className="cursor-pointer bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded text-xs font-medium"
-                >
-                  Haz clic aquí para seleccionar foto
-                </Label>
-                <input
-                  id="photoUpload"
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png, image/jpeg, image/jpg"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <span className="text-xs text-muted-foreground mt-1">PNG, JPG hasta 5MB</span>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="nombres">Nombres *</Label>
-              <Input id="nombres" {...register("nombres", { required: true })} />
-            </div>
-            <div>
-              <Label htmlFor="apellidos">Apellidos *</Label>
-              <Input id="apellidos" {...register("apellidos", { required: true })} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="fechaNacimiento">Fecha de Nacimiento *</Label>
-              <Input id="fechaNacimiento" type="date" {...register("fechaNacimiento", { required: true })} />
-            </div>
-            <div>
-              <Label htmlFor="sexoId">Sexo *</Label>
-              <Select
-                value={String(watch("sexoId") || "")}
-                onValueChange={(v) => setValue("sexoId", Number(v))}
-              >
-                <SelectTrigger id="sexoId">
-                  <SelectValue placeholder="Seleccione sexo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(catalogos?.sexos ?? [
-                    { id: 1, nombre: "MASCULINO" },
-                    { id: 2, nombre: "FEMENINO" },
-                  ]).map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="correo">Correo Electrónico</Label>
-              <Input id="correo" type="email" {...register("correo")} />
-            </div>
-            <div>
-              <Label htmlFor="telefonoMovil">Teléfono Móvil</Label>
-              <Input id="telefonoMovil" {...register("telefonoMovil")} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="telefonoHabitacion">Teléfono Habitación</Label>
-              <Input id="telefonoHabitacion" {...register("telefonoHabitacion")} />
-            </div>
-            <div>
-              <Label htmlFor="carnetPatria">Carnet de la Patria</Label>
-              <Input id="carnetPatria" {...register("carnetPatria")} />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="estadoCivilId">Estado Civil</Label>
-            <Select
-              value={watch("estadoCivilId") ? String(watch("estadoCivilId")) : undefined}
-              onValueChange={(v) => setValue("estadoCivilId", Number(v))}
-            >
-              <SelectTrigger id="estadoCivilId">
-                <SelectValue placeholder="Seleccione estado civil" />
-              </SelectTrigger>
-              <SelectContent>
-                {(catalogos?.estadosCiviles ?? []).map((ec) => (
-                  <SelectItem key={ec.id} value={String(ec.id)}>
-                    {ec.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex justify-end gap-2 mt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
-              Guardar Cambios
-            </Button>
-          </div>
-        </form>
+            </form>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
