@@ -73,7 +73,8 @@ export async function getEmpleadoPorCedulaAction(cedula: string) {
 export async function registrarEmpleadoAction(input: GuardarEmpleadoInputDTO) {
   const validation = empleadoRegistroSchema.safeParse(input);
   if (!validation.success) {
-    return { error: "Datos del empleado inválidos. Revise los campos ingresados." };
+    const detalle = validation.error.issues[0]?.message;
+    return { error: `Datos del empleado inválidos${detalle ? `: ${detalle}` : ". Revise los campos ingresados."}` };
   }
 
   const traceId = generateTraceId();
@@ -85,7 +86,11 @@ export async function registrarEmpleadoAction(input: GuardarEmpleadoInputDTO) {
   } catch (error) {
     await logAudit({ traceId, action: "registrarEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    // Se devuelve (no se relanza) para que el wizard muestre en el toast el
+    // mensaje real del backend: Next oculta el mensaje de los errores lanzados
+    // desde Server Actions en producción.
+    const mensaje = error instanceof Error && error.message ? error.message : "Error al registrar empleado";
+    return { error: mensaje };
   }
 }
 
