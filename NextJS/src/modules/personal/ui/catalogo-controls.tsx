@@ -1,10 +1,8 @@
 "use client";
 
 /**
- * Controles de selección de catálogo compartidos por el formulario de
- * registro (`personal-registrar-page.tsx`) y el diálogo de edición del
- * expediente (`empleado-editar-dialog.tsx`). Extraídos a un archivo propio
- * para no duplicarlos entre ambos.
+ * Controles de selección de catálogo compartidos para formularios del módulo
+ * de personal. Extraídos a un archivo propio para no duplicarlos entre vistas.
  */
 import {
   Select,

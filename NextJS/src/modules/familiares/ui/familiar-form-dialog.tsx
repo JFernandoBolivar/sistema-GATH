@@ -1,9 +1,7 @@
 "use client";
 
 /**
- * Diálogo único de alta/edición de una carga familiar — paridad de patrón
- * con `modules/personal/ui/empleado-editar-dialog.tsx`: un solo diálogo
- * consolidado en vez de fragmentar por sección. A diferencia de personal,
+ * Diálogo único de alta/edición de una carga familiar. A diferencia de personal,
  * el legado (`personal-trabajador/familiares/agregar-familiar/page.tsx`)
  * exponía el alta en una ruta propia — aquí se mantiene como diálogo porque
  * el formulario es mucho más chico (identidad + parentesco, sin las

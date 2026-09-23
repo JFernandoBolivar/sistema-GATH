@@ -3,9 +3,8 @@
 /**
  * Campos completos del expediente (básicos + vivienda + salud + físico +
  * formación académica/complementaria + contacto de emergencia +
- * antecedentes + contrato), factorizados en un solo componente para que lo
- * reutilicen tanto `personal-registrar-page.tsx` (alta) como
- * `empleado-editar-dialog.tsx` (edición) sin duplicar el JSX de cada campo.
+ * antecedentes + contrato), factorizados para el módulo de personal sin
+ * duplicar el JSX de cada campo.
  */
 import { useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
