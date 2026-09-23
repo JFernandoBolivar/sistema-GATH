@@ -76,3 +76,9 @@ class Mencion:
 class Institucion:
     id: int
     nombre: str
+
+
+@dataclass(frozen=True)
+class Capacitacion:
+    id: int
+    nombre: str

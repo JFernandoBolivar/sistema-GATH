@@ -35,6 +35,7 @@ from apps.personal.application.use_cases.gestionar_catalogos_soporte import (
     actualizar_tipo_prenda,
     crear_alergia,
     crear_carrera,
+    crear_capacitacion,
     crear_institucion,
     crear_mencion,
     crear_categoria_alergia,
@@ -68,6 +69,8 @@ from apps.personal.presentation.serializers.catalogos_soporte_serializers import
     CarreraDetalleSerializer,
     CarreraWriteSerializer,
     CategoriaWriteSerializer,
+    CapacitacionDetalleSerializer,
+    CapacitacionWriteSerializer,
     InstitucionDetalleSerializer,
     InstitucionWriteSerializer,
     MencionDetalleSerializer,
@@ -218,12 +221,22 @@ class InstitucionesListView(APIView):
 
 
 class CapacitacionesListView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated(), HasPermission(PERMISO_VER)()]
+        return [IsAuthenticated(), HasPermission(PERMISO_CREAR)()]
 
     @extend_schema(tags=['Personal'], summary='Listar capacitaciones/cursos', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
         dtos = listar_capacitaciones(RepoPersonalORM().listar_capacitaciones())
         return ok(CatalogoItemSerializer(dtos, many=True).data)
+
+    @extend_schema(tags=['Personal - Catálogos'], summary='Crear capacitación (alta inline "Otra")', request=CapacitacionWriteSerializer, responses={201: CapacitacionDetalleSerializer})
+    def post(self, request):
+        s = CapacitacionWriteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entidad = crear_capacitacion(RepoCatalogosSoporteORM(), s.validated_data['nombre'])
+        return ok(CapacitacionDetalleSerializer(entidad).data, 'Capacitación creada.', status=201)
 
 
 class GruposCapacitacionListView(APIView):

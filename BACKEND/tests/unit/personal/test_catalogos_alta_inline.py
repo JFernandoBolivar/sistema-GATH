@@ -8,11 +8,12 @@ from rest_framework.test import APIRequestFactory
 
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 from apps.personal.application.use_cases.gestionar_catalogos_soporte import (
+    crear_capacitacion,
     crear_carrera,
     crear_institucion,
     crear_mencion,
 )
-from apps.personal.domain.entities.catalogos_soporte import Carrera, Institucion, Mencion
+from apps.personal.domain.entities.catalogos_soporte import Capacitacion, Carrera, Institucion, Mencion
 from apps.personal.presentation.views import catalogos_soporte_views as vistas
 
 
@@ -24,6 +25,7 @@ class RepoAltaInlineMemoria:
         self.carreras: list[Carrera] = [Carrera(id=1, nombre="Ingeniería Electrónica", nivel_academico_id=3)]
         self.menciones: list[Mencion] = [Mencion(id=1, nombre="Telecomunicaciones", carrera_id=1)]
         self.instituciones: list[Institucion] = [Institucion(id=1, nombre="UCV")]
+        self.capacitaciones: list[Capacitacion] = [Capacitacion(id=1, nombre="Excel Avanzado")]
 
     @staticmethod
     def _duplicado(items, nombre, **filtro):
@@ -55,6 +57,13 @@ class RepoAltaInlineMemoria:
             raise ConflictError("La institución ya existe.")
         nueva = Institucion(id=len(self.instituciones) + 1, nombre=nombre)
         self.instituciones.append(nueva)
+        return nueva
+
+    def crear_capacitacion(self, nombre):
+        if self._duplicado(self.capacitaciones, nombre):
+            raise ConflictError("La capacitación ya existe.")
+        nueva = Capacitacion(id=len(self.capacitaciones) + 1, nombre=nombre)
+        self.capacitaciones.append(nueva)
         return nueva
 
 
@@ -172,3 +181,27 @@ def test_vista_crear_institucion_responde_201(monkeypatch, repo):
 
     assert response.status_code == 201
     assert response.data["data"] == {"id": 2, "nombre": "UNEXPO"}
+
+
+# ----------------------------------------------------------------------
+# Capacitación
+# ----------------------------------------------------------------------
+
+def test_crear_capacitacion(repo):
+    assert crear_capacitacion(repo, " Oratoria ") == Capacitacion(id=2, nombre="Oratoria")
+
+
+def test_crear_capacitacion_rechaza_vacio_y_duplicado(repo):
+    with pytest.raises(ValidationError):
+        crear_capacitacion(repo, "")
+    with pytest.raises(ConflictError):
+        crear_capacitacion(repo, "EXCEL AVANZADO")
+
+
+def test_vista_crear_capacitacion_responde_201(monkeypatch, repo):
+    monkeypatch.setattr(vistas, "RepoCatalogosSoporteORM", lambda: repo)
+
+    response = _post(vistas.CapacitacionesListView, "/api/v1/personal/catalogos/capacitaciones/", {"nombre": "Oratoria"})
+
+    assert response.status_code == 201
+    assert response.data["data"] == {"id": 2, "nombre": "Oratoria"}

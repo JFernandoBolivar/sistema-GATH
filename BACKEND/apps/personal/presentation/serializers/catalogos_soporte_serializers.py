@@ -176,3 +176,12 @@ class InstitucionWriteSerializer(serializers.Serializer):
 class InstitucionDetalleSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     nombre = serializers.CharField(read_only=True)
+
+
+class CapacitacionWriteSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=200)
+
+
+class CapacitacionDetalleSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    nombre = serializers.CharField(read_only=True)

@@ -12,6 +12,7 @@ from apps.personal.domain.entities.catalogos_soporte import (
     Talla,
     TipoPrenda,
     Carrera,
+    Capacitacion,
     Institucion,
     Mencion,
 )
@@ -226,3 +227,8 @@ def crear_mencion(repo: RepoCatalogosSoporte, nombre: str, carrera_id: int) -> M
 def crear_institucion(repo: RepoCatalogosSoporte, nombre: str) -> Institucion:
     nombre_limpio = _validar_texto("nombre", nombre, 200)
     return repo.crear_institucion(nombre_limpio)
+
+
+def crear_capacitacion(repo: RepoCatalogosSoporte, nombre: str) -> Capacitacion:
+    nombre_limpio = _validar_texto("nombre", nombre, 200)
+    return repo.crear_capacitacion(nombre_limpio)

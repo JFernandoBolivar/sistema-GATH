@@ -15,11 +15,13 @@ from apps.personal.domain.entities.catalogos_soporte import (
     Talla,
     TipoPrenda,
     Carrera,
+    Capacitacion,
     Institucion,
     Mencion,
 )
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
+    CapacitacionModel,
     InstitucionModel,
     MencionModel,
     CarreraModel,
@@ -361,3 +363,12 @@ class RepoCatalogosSoporteORM:
         except IntegrityError:
             raise ConflictError(f"La institución '{nombre}' ya existe.")
         return Institucion(id=obj.pk, nombre=obj.nombre_institucion)
+
+    def crear_capacitacion(self, nombre: str) -> Capacitacion:
+        if CapacitacionModel.objects.filter(nombre_capacitacion__iexact=nombre).exists():
+            raise ConflictError(f"La capacitación '{nombre}' ya existe.")
+        try:
+            obj = CapacitacionModel.objects.create(nombre_capacitacion=nombre)
+        except IntegrityError:
+            raise ConflictError(f"La capacitación '{nombre}' ya existe.")
+        return Capacitacion(id=obj.pk, nombre=obj.nombre_capacitacion)
