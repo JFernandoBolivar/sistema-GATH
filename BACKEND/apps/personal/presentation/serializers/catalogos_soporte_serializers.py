@@ -167,3 +167,12 @@ class MencionDetalleSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     nombre = serializers.CharField(read_only=True)
     carrera_id = serializers.IntegerField(read_only=True)
+
+
+class InstitucionWriteSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=200)
+
+
+class InstitucionDetalleSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    nombre = serializers.CharField(read_only=True)

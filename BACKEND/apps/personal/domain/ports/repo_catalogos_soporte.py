@@ -13,6 +13,7 @@ from apps.personal.domain.entities.catalogos_soporte import (
     Talla,
     TipoPrenda,
     Carrera,
+    Institucion,
     Mencion,
 )
 
@@ -110,4 +111,7 @@ class RepoCatalogosSoporte(Protocol):
         ...
 
     def crear_mencion(self, nombre: str, carrera_id: int) -> Mencion:
+        ...
+
+    def crear_institucion(self, nombre: str) -> Institucion:
         ...

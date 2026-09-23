@@ -7,8 +7,12 @@ import pytest
 from rest_framework.test import APIRequestFactory
 
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
-from apps.personal.application.use_cases.gestionar_catalogos_soporte import crear_carrera, crear_mencion
-from apps.personal.domain.entities.catalogos_soporte import Carrera, Mencion
+from apps.personal.application.use_cases.gestionar_catalogos_soporte import (
+    crear_carrera,
+    crear_institucion,
+    crear_mencion,
+)
+from apps.personal.domain.entities.catalogos_soporte import Carrera, Institucion, Mencion
 from apps.personal.presentation.views import catalogos_soporte_views as vistas
 
 
@@ -19,6 +23,7 @@ class RepoAltaInlineMemoria:
         self.niveles = {1, 3}
         self.carreras: list[Carrera] = [Carrera(id=1, nombre="Ingeniería Electrónica", nivel_academico_id=3)]
         self.menciones: list[Mencion] = [Mencion(id=1, nombre="Telecomunicaciones", carrera_id=1)]
+        self.instituciones: list[Institucion] = [Institucion(id=1, nombre="UCV")]
 
     @staticmethod
     def _duplicado(items, nombre, **filtro):
@@ -43,6 +48,13 @@ class RepoAltaInlineMemoria:
             raise ConflictError("La mención ya existe.")
         nueva = Mencion(id=len(self.menciones) + 1, nombre=nombre, carrera_id=carrera_id)
         self.menciones.append(nueva)
+        return nueva
+
+    def crear_institucion(self, nombre):
+        if self._duplicado(self.instituciones, nombre):
+            raise ConflictError("La institución ya existe.")
+        nueva = Institucion(id=len(self.instituciones) + 1, nombre=nombre)
+        self.instituciones.append(nueva)
         return nueva
 
 
@@ -136,3 +148,27 @@ def test_vista_crear_mencion_responde_201(monkeypatch, repo):
 
     assert response.status_code == 201
     assert response.data["data"] == {"id": 2, "nombre": "Control", "carrera_id": 1}
+
+
+# ----------------------------------------------------------------------
+# Institución
+# ----------------------------------------------------------------------
+
+def test_crear_institucion(repo):
+    assert crear_institucion(repo, "  UNEXPO ") == Institucion(id=2, nombre="UNEXPO")
+
+
+def test_crear_institucion_rechaza_vacio_y_duplicado(repo):
+    with pytest.raises(ValidationError):
+        crear_institucion(repo, "  ")
+    with pytest.raises(ConflictError):
+        crear_institucion(repo, "ucv")
+
+
+def test_vista_crear_institucion_responde_201(monkeypatch, repo):
+    monkeypatch.setattr(vistas, "RepoCatalogosSoporteORM", lambda: repo)
+
+    response = _post(vistas.InstitucionesListView, "/api/v1/personal/catalogos/instituciones/", {"nombre": "UNEXPO"})
+
+    assert response.status_code == 201
+    assert response.data["data"] == {"id": 2, "nombre": "UNEXPO"}

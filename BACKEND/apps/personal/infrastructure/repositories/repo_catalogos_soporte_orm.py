@@ -15,10 +15,12 @@ from apps.personal.domain.entities.catalogos_soporte import (
     Talla,
     TipoPrenda,
     Carrera,
+    Institucion,
     Mencion,
 )
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
+    InstitucionModel,
     MencionModel,
     CarreraModel,
     NivelAcademicoModel,
@@ -350,3 +352,12 @@ class RepoCatalogosSoporteORM:
         except IntegrityError:
             raise ConflictError(f"La mención '{nombre}' ya existe.")
         return Mencion(id=obj.pk, nombre=obj.nombre_mencion, carrera_id=obj.carrera_id_id)
+
+    def crear_institucion(self, nombre: str) -> Institucion:
+        if InstitucionModel.objects.filter(nombre_institucion__iexact=nombre).exists():
+            raise ConflictError(f"La institución '{nombre}' ya existe.")
+        try:
+            obj = InstitucionModel.objects.create(nombre_institucion=nombre)
+        except IntegrityError:
+            raise ConflictError(f"La institución '{nombre}' ya existe.")
+        return Institucion(id=obj.pk, nombre=obj.nombre_institucion)
