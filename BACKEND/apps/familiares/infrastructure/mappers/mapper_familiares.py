@@ -7,6 +7,16 @@ from apps.familiares.infrastructure.models.familiar_models import (
     EmployeefamilyModel,
     FamilyDocumentModel,
 )
+from apps.personal.infrastructure.mappers.mapper_personal import (
+    formacion_a_dict,
+    perfil_fisico_a_dict,
+    salud_a_dict,
+)
+from apps.personal.infrastructure.models.expediente_models import (
+    FormacionAcademicaModel,
+    PerfilFisicoModel,
+    PerfilSaludModel,
+)
 
 
 def familiar_a_entidad(modelo: EmployeefamilyModel) -> Familiar:
@@ -26,14 +36,29 @@ def familiar_a_entidad(modelo: EmployeefamilyModel) -> Familiar:
         mismo_ente=modelo.mismo_ente,
         heredero=modelo.heredero,
         observaciones=modelo.observaciones,
+        perfil_salud=salud_a_dict(PerfilSaludModel.objects.filter(familiar=modelo).first()),
+        perfil_fisico=perfil_fisico_a_dict(PerfilFisicoModel.objects.filter(familiar=modelo).first()),
+        formacion_academica=(
+            formacion_a_dict(fa) if (fa := FormacionAcademicaModel.objects.filter(familiar=modelo).first()) else None
+        ),
     )
 
 
 def documento_familiar_a_entidad(modelo: FamilyDocumentModel) -> DocumentoFamiliar:
+    """
+    `file` guarda solo la clave del objeto en SeaweedFS (mismo patrón que
+    `EmpleadoFotoView`/`guardar_foto`, no el `FileField` local de Django) --
+    la URL se resuelve como firmada temporal, nunca como ruta local expuesta.
+    """
+    ruta = ""
+    if modelo.file:
+        from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+
+        ruta = SeaweedFSStorage().url_firmada(modelo.file.name, expira_segundos=86400)
     return DocumentoFamiliar(
         id=modelo.pk,
         familiar_id=modelo.familymember_id,
         tipo_documento=modelo.document_type,
-        ruta_archivo=str(modelo.file.url) if modelo.file else "",
+        ruta_archivo=ruta,
         fecha_subida=str(modelo.uploaded_at),
     )

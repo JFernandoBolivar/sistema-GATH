@@ -21,6 +21,9 @@ class FamiliarDTO:
     mismo_ente: bool = False
     heredero: bool = False
     observaciones: str | None = None
+    perfil_salud: dict | None = None
+    perfil_fisico: dict | None = None
+    formacion_academica: dict | None = None
 
 
 @dataclass(frozen=True)

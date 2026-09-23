@@ -27,6 +27,9 @@ def _familiar_a_dto(f: Familiar) -> FamiliarDTO:
         mismo_ente=f.mismo_ente,
         heredero=f.heredero,
         observaciones=f.observaciones,
+        perfil_salud=f.perfil_salud,
+        perfil_fisico=f.perfil_fisico,
+        formacion_academica=f.formacion_academica,
     )
 
 
@@ -44,17 +47,25 @@ def obtener_familiar_por_id(repo: RepoFamiliares, familiar_id: int) -> FamiliarD
     return _familiar_a_dto(familiar)
 
 
+def _documento_a_dto(d) -> DocumentoFamiliarDTO:
+    return DocumentoFamiliarDTO(
+        id=d.id,
+        familiar_id=d.familiar_id,
+        tipo_documento=d.tipo_documento,
+        ruta_archivo=d.ruta_archivo,
+        fecha_subida=d.fecha_subida,
+    )
+
+
 def listar_documentos_familiar(
     repo: RepoFamiliares, familiar_id: int
 ) -> list[DocumentoFamiliarDTO]:
     entidades = repo.listar_documentos(familiar_id)
-    return [
-        DocumentoFamiliarDTO(
-            id=d.id,
-            familiar_id=d.familiar_id,
-            tipo_documento=d.tipo_documento,
-            ruta_archivo=d.ruta_archivo,
-            fecha_subida=d.fecha_subida,
-        )
-        for d in entidades
-    ]
+    return [_documento_a_dto(d) for d in entidades]
+
+
+def subir_documento_familiar(
+    repo: RepoFamiliares, familiar_id: int, tipo_documento: str, clave: str
+) -> DocumentoFamiliarDTO:
+    entidad = repo.crear_documento(familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave)
+    return _documento_a_dto(entidad)

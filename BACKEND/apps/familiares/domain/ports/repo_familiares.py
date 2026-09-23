@@ -25,3 +25,6 @@ class RepoFamiliares(Protocol):
 
     def listar_documentos(self, familiar_id: int) -> list[DocumentoFamiliar]:
         ...
+
+    def crear_documento(self, familiar_id: int, tipo_documento: str, clave: str) -> DocumentoFamiliar:
+        ...

@@ -79,6 +79,10 @@ class DatosViviendaModel(models.Model):
         'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
         null=True, blank=True, related_name='datos_vivienda',
     )
+    familiar = models.ForeignKey(
+        'familiares.EmployeefamilyModel', models.PROTECT, db_column='familiarId',
+        null=True, blank=True, related_name='datos_vivienda',
+    )
     estado = models.ForeignKey(
         'catalogos.EstadoModel', models.PROTECT, db_column='estadoId', related_name='+',
     )
@@ -113,6 +117,10 @@ class PerfilSaludModel(models.Model):
     """
     empleado = models.ForeignKey(
         'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
+        null=True, blank=True, related_name='perfil_salud',
+    )
+    familiar = models.ForeignKey(
+        'familiares.EmployeefamilyModel', models.PROTECT, db_column='familiarId',
         null=True, blank=True, related_name='perfil_salud',
     )
     grupo_sanguineo = models.ForeignKey(
@@ -193,6 +201,10 @@ class PerfilFisicoModel(models.Model):
         'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
         null=True, blank=True, related_name='perfil_fisico',
     )
+    familiar = models.ForeignKey(
+        'familiares.EmployeefamilyModel', models.PROTECT, db_column='familiarId',
+        null=True, blank=True, related_name='perfil_fisico',
+    )
     tallaCamisa = models.ForeignKey(
         'personal.TallaModel', models.PROTECT, db_column='tallaCamisaId',
         null=True, blank=True, related_name='+',
@@ -258,6 +270,10 @@ class FormacionComplementariaModel(models.Model):
 class FormacionAcademicaModel(models.Model):
     empleado = models.ForeignKey(
         'personal.EmployeeModel', models.PROTECT, db_column='empleadoId',
+        null=True, blank=True, related_name='formacion_academica',
+    )
+    familiar = models.ForeignKey(
+        'familiares.EmployeefamilyModel', models.PROTECT, db_column='familiarId',
         null=True, blank=True, related_name='formacion_academica',
     )
     nivel_academico = models.ForeignKey(
