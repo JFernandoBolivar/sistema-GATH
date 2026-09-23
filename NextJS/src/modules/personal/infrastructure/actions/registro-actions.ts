@@ -15,7 +15,7 @@ import { listarCatalogoDependiente } from "../../application/use-cases/listar-ca
 import { repoCatalogosDependientesApi } from "../repositories/repo-catalogos-dependientes-api";
 
 const catalogoDependienteSchema = z.object({
-  tipo: z.enum(["municipios", "parroquias", "menciones", "tallas"]),
+  tipo: z.enum(["municipios", "parroquias", "codigosPostales", "carreras", "menciones", "tallas"]),
   padreId: z.number().int().positive(),
 });
 

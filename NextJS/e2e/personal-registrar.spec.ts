@@ -55,6 +55,10 @@ test.describe("Personal - wizard de registro", () => {
     await expect(page.getByText("Paso 2: Información Academica")).toBeVisible();
     await expect(page.getByText("Opcional si no posee formación académica")).toBeVisible();
     await elegirOpcion(page, page.getByLabel("1. Nivel Academico"));
+    // Cascada Nivel -> Carrera: el combobox de carrera se habilita con las del nivel
+    await page.getByRole("combobox").filter({ hasText: "Seleccione" }).nth(1).click();
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await page.keyboard.press("Escape");
     await siguiente();
 
     // Paso 3
@@ -82,6 +86,19 @@ test.describe("Personal - wizard de registro", () => {
     await expect(page.getByText("Paso 6: Datos De Vivienda")).toBeVisible();
     await expect(page.getByText("Direccion Exacta *")).toBeVisible();
     await expect(page.getByText("Código Postal *")).toBeVisible();
+
+    // Cascada Estado -> Municipio / Código Postal -> Parroquia
+    await page.getByRole("combobox").filter({ hasText: "Seleccione un Estado" }).click();
+    await page.getByRole("option").first().click();
+    await page.getByRole("combobox").filter({ hasText: "Seleccione un Municpio" }).click();
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await page.getByRole("option").first().click();
+    await page.getByRole("combobox").filter({ hasText: "Seleccione una Parroquia" }).click();
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByRole("combobox").filter({ hasText: "Seleccione un Código Postal" }).click();
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Siguiente", exact: true })).toBeVisible();
   });
 });

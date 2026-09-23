@@ -2,13 +2,12 @@
 
 /**
  * Paso 2 del wizard de registro: Formación Académica (paridad con
- * `form-academic_training.tsx` del legado). Las menciones se cargan en
- * cascada según la carrera elegida.
+ * `form-academic_training.tsx` del legado). Cascada Nivel Académico ->
+ * Carrera -> Mención con los filtros del backend.
  */
 import { useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Cross, Trash, X } from "lucide-react";
-import useSWR from "swr";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -20,8 +19,8 @@ import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
-import { getCatalogoDependienteAction } from "../../infrastructure/actions/registro-actions";
 import { pasoAcademySchema, type PasoAcademyType } from "../schema/schema-registro-pasos";
+import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 
 const filaVacia = {
   nivel_Academico_id: 0,
@@ -45,9 +44,11 @@ function AcademicRow({
   const watchedCarreraId = useWatch({ control, name: `formacion_academica.${index}.carrera_id` });
   const hasCarrera = watchedCarreraId != null && watchedCarreraId > 0;
 
-  const { data: menciones, isLoading: isLoadingMencion } = useSWR(
-    hasCarrera ? ["mencion", watchedCarreraId] : null,
-    () => getCatalogoDependienteAction("menciones", watchedCarreraId!),
+  const watchedNivelId = useWatch({ control, name: `formacion_academica.${index}.nivel_Academico_id` });
+  const { opciones: carreras, isLoading: isLoadingCarrera } = useCatalogoDependiente("carreras", watchedNivelId);
+  const { opciones: menciones, isLoading: isLoadingMencion } = useCatalogoDependiente(
+    "menciones",
+    hasCarrera ? watchedCarreraId : null,
   );
 
   return (
@@ -58,7 +59,14 @@ function AcademicRow({
         render={({ field }) => (
           <FormItem>
             <FormLabel>{index + 1}. Nivel Academico</FormLabel>
-            <Select onValueChange={(v) => field.onChange(Number.parseInt(v))} value={field.value ? field.value.toString() : ""}>
+            <Select
+              onValueChange={(v) => {
+                field.onChange(Number.parseInt(v));
+                setValue(`formacion_academica.${index}.carrera_id`, undefined);
+                setValue(`formacion_academica.${index}.mencion_id`, undefined);
+              }}
+              value={field.value ? field.value.toString() : ""}
+            >
               <FormControl>
                 <SelectTrigger className="w-80">
                   <SelectValue placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"} />
@@ -85,15 +93,15 @@ function AcademicRow({
             <FormControl>
               <Combobox
                 className="w-80"
-                options={(catalogos?.carreras ?? []).map((c) => ({ value: `${c.id}`, label: c.nombre }))}
+                options={carreras.map((c) => ({ value: `${c.id}`, label: c.nombre }))}
                 value={field.value?.toString() ?? ""}
                 onChange={(v) => {
                   field.onChange(Number(v));
                   setValue(`formacion_academica.${index}.mencion_id`, undefined);
                 }}
-                placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"}
+                placeholder={isLoadingCarrera ? "Cargando..." : "Seleccione"}
                 searchPlaceholder="Buscar carrera..."
-                disabled={isLoadingCatalogos}
+                disabled={isLoadingCarrera}
               />
             </FormControl>
             <FormMessage />
@@ -109,7 +117,7 @@ function AcademicRow({
             <FormControl>
               <Combobox
                 className="w-80"
-                options={(menciones ?? []).map((m) => ({ value: `${m.id}`, label: m.nombre }))}
+                options={menciones.map((m) => ({ value: `${m.id}`, label: m.nombre }))}
                 value={field.value?.toString() ?? ""}
                 onChange={(v) => field.onChange(Number.parseInt(v))}
                 placeholder={isLoadingMencion ? "Cargando..." : "Seleccione"}

@@ -10,6 +10,8 @@ import { personalApi } from "../http/personal-api";
 const getters: Record<TipoCatalogoDependiente, (padreId: number) => Promise<{ id: number; nombre: string }[]>> = {
   municipios: (id) => personalApi.getMunicipios(id),
   parroquias: (id) => personalApi.getParroquias(id),
+  codigosPostales: (id) => personalApi.getCodigosPostales(id),
+  carreras: (id) => personalApi.getCarreras(id),
   menciones: (id) => personalApi.getMenciones(id),
   tallas: (id) => personalApi.getTallas(id),
 };

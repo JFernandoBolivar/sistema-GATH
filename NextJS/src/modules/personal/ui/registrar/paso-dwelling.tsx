@@ -2,12 +2,11 @@
 
 /**
  * Paso 7 del wizard de registro: Datos Socio-económicos / Vivienda (paridad
- * con `form-dwelling.tsx` del legado). Municipios y parroquias se cargan en
- * cascada con los filtros `estado_id` / `municipio_id` del backend.
+ * con `form-dwelling.tsx` del legado). Cascada Estado -> Municipio ->
+ * Parroquia y Estado -> Código Postal con los filtros del backend.
  */
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import useSWR from "swr";
 
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
@@ -25,8 +24,8 @@ import { Input } from "@/shared/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
-import { getCatalogoDependienteAction } from "../../infrastructure/actions/registro-actions";
 import { pasoDwellingSchema, type PasoDwellingType } from "../schema/schema-registro-pasos";
+import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 
 export function PasoDwelling({
   defaultValues,
@@ -48,13 +47,11 @@ export function PasoDwelling({
   const estadoId = useWatch({ control: form.control, name: "datos_vivienda.estado_id" });
   const municipioId = useWatch({ control: form.control, name: "datos_vivienda.municipio_id" });
 
-  const { data: municipios, isLoading: isLoadingMunicipios } = useSWR(
-    estadoId > 0 ? ["municipios", estadoId] : null,
-    () => getCatalogoDependienteAction("municipios", estadoId),
-  );
-  const { data: parroquias, isLoading: isLoadingParroquias } = useSWR(
-    municipioId > 0 ? ["parroquias", municipioId] : null,
-    () => getCatalogoDependienteAction("parroquias", municipioId),
+  const { opciones: municipios, isLoading: isLoadingMunicipios } = useCatalogoDependiente("municipios", estadoId);
+  const { opciones: parroquias, isLoading: isLoadingParroquias } = useCatalogoDependiente("parroquias", municipioId);
+  const { opciones: codigosPostales, isLoading: isLoadingCodigosPostales } = useCatalogoDependiente(
+    "codigosPostales",
+    estadoId,
   );
 
   return (
@@ -81,6 +78,7 @@ export function PasoDwelling({
                           field.onChange(Number.parseInt(value));
                           form.setValue("datos_vivienda.municipio_id", 0);
                           form.setValue("datos_vivienda.parroquia", 0);
+                          form.setValue("datos_vivienda.codigo_postal_id", 0);
                         }}
                         disabled={isLoadingCatalogos}
                         placeholder={isLoadingCatalogos ? "Cargando Estados" : "Seleccione un Estado"}
@@ -100,7 +98,7 @@ export function PasoDwelling({
                     <FormLabel>Municipio *</FormLabel>
                     <FormControl>
                       <Combobox
-                        options={(municipios ?? []).map((m) => ({ value: `${m.id}`, label: m.nombre }))}
+                        options={municipios.map((m) => ({ value: `${m.id}`, label: m.nombre }))}
                         value={field.value ? `${field.value}` : ""}
                         onChange={(value) => {
                           field.onChange(Number.parseInt(value));
@@ -124,7 +122,7 @@ export function PasoDwelling({
                     <FormLabel>Parroquia *</FormLabel>
                     <FormControl>
                       <Combobox
-                        options={(parroquias ?? []).map((p) => ({ value: `${p.id}`, label: p.nombre }))}
+                        options={parroquias.map((p) => ({ value: `${p.id}`, label: p.nombre }))}
                         value={field.value ? `${field.value}` : ""}
                         onChange={(value) => field.onChange(Number.parseInt(value))}
                         disabled={isLoadingParroquias}
@@ -193,12 +191,12 @@ export function PasoDwelling({
                       <FormControl>
                         <SelectTrigger className="w-full truncate">
                           <SelectValue
-                            placeholder={isLoadingCatalogos ? "Cargando Códigos Postales" : "Seleccione un Código Postal"}
+                            placeholder={isLoadingCodigosPostales ? "Cargando Códigos Postales" : "Seleccione un Código Postal"}
                           />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {(estadoId > 0 ? catalogos?.codigosPostales ?? [] : []).map((cp) => (
+                        {codigosPostales.map((cp) => (
                           <SelectItem key={cp.id} value={`${cp.id}`}>
                             {cp.nombre}
                           </SelectItem>

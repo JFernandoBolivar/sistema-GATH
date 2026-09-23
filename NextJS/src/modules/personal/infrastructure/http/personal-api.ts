@@ -88,14 +88,18 @@ export const personalApi = {
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/politicas/")),
   getCondicionesVivienda: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/condiciones-vivienda/")),
-  getCodigosPostales: () =>
-    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/codigos-postales/")),
+  getCodigosPostales: (estadoId?: number) =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/codigos-postales/", {
+      params: estadoId ? { estado_id: estadoId } : undefined,
+    })),
   getGruposSanguineos: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/grupos-sanguineos/")),
   getNivelesAcademicos: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/niveles-academicos/")),
-  getCarreras: () =>
-    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/carreras/")),
+  getCarreras: (nivelAcademicoId?: number) =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/carreras/", {
+      params: nivelAcademicoId ? { nivel_academico_id: nivelAcademicoId } : undefined,
+    })),
   getMenciones: (carreraId?: number) =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/menciones/", {
       params: carreraId ? { carrera_id: carreraId } : undefined,
