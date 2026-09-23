@@ -157,5 +157,82 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${ARTIFACT_DIR}/2d_personal_sheet_bottom.png` });
   });
+
+  test("5. /personal/consultar muestra los 13 campos de Detalles del Cargo con datos reales para JOSE FRANCISCO ORTA y otros empleados", async ({ page }) => {
+    await page.goto("/personal/consultar");
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+
+    // 1. Probar JOSE FRANCISCO ORTA (638954) - El caso reportado por el usuario
+    await page.getByPlaceholder("buscar cedula...").fill("638954");
+    await page.getByRole("button", { name: "Buscar", exact: true }).click();
+    await page.waitForTimeout(1500);
+
+    await expect(page.getByText("638954")).toBeVisible();
+    await expect(page.getByText("JOSE FRANCISCO")).toBeVisible();
+
+    await page.getByRole("button", { name: /abrir menu/i }).first().click();
+    await page.getByText("Ver Detalles").click();
+    await page.waitForTimeout(1500);
+
+    const sheet1 = page.getByRole("dialog");
+    // Verificar que NO muestra "Sin cargos asignados registrados"
+    await expect(sheet1.getByText("Sin cargos asignados registrados")).not.toBeVisible();
+
+    // Verificar campos del cargo de José Orta
+    await expect(sheet1.getByText("J_0001")).toBeVisible();
+    await expect(sheet1.getByText("PERSONAL PASIVO").first()).toBeVisible();
+    await expect(sheet1.getByText("JUBILADO").first()).toBeVisible();
+    await expect(sheet1.getByText("NIVEL DE APOYO").first()).toBeVisible();
+    await expect(sheet1.getByText("OFICINA DE GESTION HUMANA").first()).toBeVisible();
+
+    await page.screenshot({ path: `${ARTIFACT_DIR}/2e_personal_sheet_cargo_orta.png` });
+
+    // Cerrar sheet
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+
+    // 2. Probar HITLER MOISES MACHADO (30540767)
+    await page.getByRole("button", { name: "Limpiar", exact: true }).click();
+    await page.waitForTimeout(1000);
+    await page.getByPlaceholder("buscar cedula...").fill("30540767");
+    await page.getByRole("button", { name: "Buscar", exact: true }).click();
+    await page.waitForTimeout(1500);
+
+    await expect(page.getByText("30540767")).toBeVisible();
+    await page.getByRole("button", { name: /abrir menu/i }).first().click();
+    await page.getByText("Ver Detalles").click();
+    await page.waitForTimeout(1500);
+
+    const sheet2 = page.getByRole("dialog");
+    await expect(sheet2.getByText("Sin cargos asignados registrados")).not.toBeVisible();
+    await expect(sheet2.getByText("10010105")).toBeVisible();
+    await expect(sheet2.getByText("ASISTENTE ADMINISTRATIVO").first()).toBeVisible();
+
+    await page.screenshot({ path: `${ARTIFACT_DIR}/2f_personal_sheet_cargo_hitler.png` });
+
+    // Cerrar sheet
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(500);
+
+    // 3. Probar NILO GABRIEL DUQUE BRACHI (30966922)
+    await page.getByRole("button", { name: "Limpiar", exact: true }).click();
+    await page.waitForTimeout(1000);
+    await page.getByPlaceholder("buscar cedula...").fill("30966922");
+    await page.getByRole("button", { name: "Buscar", exact: true }).click();
+    await page.waitForTimeout(1500);
+
+    await expect(page.getByText("30966922")).toBeVisible();
+    await page.getByRole("button", { name: /abrir menu/i }).first().click();
+    await page.getByText("Ver Detalles").click();
+    await page.waitForTimeout(1500);
+
+    const sheet3 = page.getByRole("dialog");
+    await expect(sheet3.getByText("Sin cargos asignados registrados")).not.toBeVisible();
+    await expect(sheet3.getByText("10010104")).toBeVisible();
+    await expect(sheet3.getByText("ASISTENTE ADMINISTRATIVO I").first()).toBeVisible();
+
+    await page.screenshot({ path: `${ARTIFACT_DIR}/2g_personal_sheet_cargo_duque.png` });
+  });
 });
+
 

@@ -35,6 +35,8 @@ export interface EmpleadoApiItem {
   contacto_emergencia: Record<string, unknown>[];
   antecedentes: Record<string, unknown>[];
   contrato_actual: Record<string, unknown> | null;
+  contratos?: Record<string, unknown>[];
+  asignaciones?: Record<string, unknown>[];
 }
 
 export interface CatalogoEmpleadoApiItem {
