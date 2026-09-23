@@ -24,5 +24,11 @@ export const historialCargoSchema = z.object({
     .regex(REGEX.SAFE_TEXT, { message: "Código de puesto inválido" }),
 });
 
+export const consultaHistorialSchema = z.object({
+  cedulaidentidad: z.string().optional().default(""),
+  codigoPuesto: z.string().optional().default(""),
+});
+
 export type HistorialEmpleadoFormType = z.infer<typeof historialEmpleadoSchema>;
 export type HistorialCargoFormType = z.infer<typeof historialCargoSchema>;
+export type ConsultaHistorialFormType = z.infer<typeof consultaHistorialSchema>;

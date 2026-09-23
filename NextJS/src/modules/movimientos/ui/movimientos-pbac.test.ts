@@ -8,16 +8,16 @@ vi.mock("@/lib/api-client", () => ({
 import { construirColumnasMovimientos } from "./movimientos-columns";
 
 describe("Movimientos PBAC Gating", () => {
-  it("debe generar 10 columnas con puedeVer=true", () => {
+  it("debe generar 7 columnas con puedeVer=true (paridad con legado)", () => {
     const cols = construirColumnasMovimientos(vi.fn(), true);
-    expect(cols).toHaveLength(10);
+    expect(cols).toHaveLength(7);
     const colAcciones = cols.find((c) => c.id === "actions");
     expect(colAcciones).toBeDefined();
   });
 
-  it("debe generar 10 columnas con puedeVer=false", () => {
+  it("debe generar 7 columnas con puedeVer=false (paridad con legado)", () => {
     const cols = construirColumnasMovimientos(vi.fn(), false);
-    expect(cols).toHaveLength(10);
+    expect(cols).toHaveLength(7);
     const colAcciones = cols.find((c) => c.id === "actions");
     expect(colAcciones).toBeDefined();
   });
