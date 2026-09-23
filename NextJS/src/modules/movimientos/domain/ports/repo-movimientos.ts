@@ -17,9 +17,16 @@ export interface FiltrosMovimiento {
   estatus?: string;
 }
 
+export interface TipoMovimientoDisponible {
+  valor: string;
+  label: string;
+  grupo?: string;
+}
+
 export interface RepoMovimientos {
   listarHistorialPorEmpleado(cedula: string): Promise<MovimientoCargo[]>;
   listarHistorialPorCargo(codigoPuesto: string): Promise<MovimientoCargo[]>;
   listarHistorial?(filtros?: FiltrosMovimiento): Promise<MovimientoCargo[]>;
+  listarTiposDisponibles?(): Promise<TipoMovimientoDisponible[]>;
 }
 

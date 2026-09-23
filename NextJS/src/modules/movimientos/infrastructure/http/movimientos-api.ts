@@ -35,11 +35,20 @@ export interface FiltrosMovimientosApi {
   estatus?: string;
 }
 
+export interface TipoMovimientoItem {
+  valor: string;
+  label: string;
+  grupo?: string;
+}
+
 export const movimientosApi = {
   getHistorial: (filtros?: FiltrosMovimientosApi) =>
     apiClient.get<any>("/api/v1/movimientos/", {
       params: filtros as Record<string, string | number | boolean | undefined | null>,
     }),
+
+  getTiposDisponibles: () =>
+    apiClient.get<any>("/api/v1/movimientos/tipos/"),
 
   getHistorialPorEmpleado: (cedula: string) =>
     apiClient.get<any>(`/api/v1/movimientos/empleado/${cedula}/`),

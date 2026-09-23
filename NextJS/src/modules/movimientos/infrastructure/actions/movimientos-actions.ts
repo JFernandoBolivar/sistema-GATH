@@ -13,6 +13,7 @@ import {
   listarHistorialGeneral,
   listarHistorialPorCargo,
   listarHistorialPorEmpleado,
+  listarTiposMovimientoDisponibles,
 } from "../../application/use-cases/listar-movimientos";
 import type { FiltrosMovimiento } from "../../domain/ports/repo-movimientos";
 import { repoMovimientosApi } from "../repositories/repo-movimientos-api";
@@ -65,6 +66,20 @@ export async function getHistorialGeneralAction(filtros?: FiltrosMovimiento) {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getHistorialGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getTiposMovimientoDisponiblesAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarTiposMovimientoDisponibles(repoMovimientosApi);
+    await logAudit({ traceId, action: "getTiposMovimientoDisponiblesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTiposMovimientoDisponiblesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

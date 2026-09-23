@@ -14,7 +14,7 @@
  * - Exportación a PDF con `ReportMovementsPDF`
  * - Hoja de detalle `DetalleMovimiento`
  */
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eraser, Filter, Search, SlidersHorizontal } from "lucide-react";
@@ -33,7 +33,9 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
@@ -44,12 +46,14 @@ import Loading from "@/shared/ui/components/loading";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
-import type { FiltrosMovimiento } from "../domain/ports/repo-movimientos";
+import type { FiltrosMovimiento, TipoMovimientoDisponible } from "../domain/ports/repo-movimientos";
 import {
   getHistorialGeneralAction,
   getHistorialPorCargoAction,
   getHistorialPorEmpleadoAction,
+  getTiposMovimientoDisponiblesAction,
 } from "../infrastructure/actions/movimientos-actions";
+import { getDireccionesGeneralesAction } from "@/modules/organizacion/infrastructure/actions/organizacion-actions";
 import { DetalleMovimiento } from "./detalle-movimiento";
 import { construirColumnasMovimientos } from "./movimientos-columns";
 import { ReportMovementsPDF } from "./pdf/report-movements-pdf";
@@ -58,26 +62,40 @@ import {
   type ConsultaHistorialFormType,
 } from "./schema/schema-historial";
 
-const TIPOS_MOVIMIENTO = [
-  "INGRESO",
-  "ASIGNACION DE CARGO",
-  "ASCENSO PERSONAL EMPLEADO",
-  "CLASIFICACION DE CARGO OBRERO",
-  "TRASLADO FISICO Y ADMINISTRATIVO A OTRA DEPENDENCIA",
-  "TRASLADO DE NOMINA",
-  "ENCARGADURIA INTERNA",
-  "ENCARGADURIA EN CALIDAD DE COMISION DE SERVICIO",
-  "NOMBRAMIENTO DE LIBRE Y REMOCION",
-  "CAMBIO DE ESTATUS POR TRAMITES ADMINISTRATIVOS",
-  "EGRESO",
-  "JUBILACION DE DERECHO",
-  "PENSION DE INVALIDEZ",
-  "PENSION POR SOBREVIVIENTE",
-  "RENUNCIA",
-  "DESTITUCION",
-  "DESPIDO DE OBRERO",
-  "FALLECIMIENTO",
-] as const;
+const TIPOS_MOVIMIENTO_DB_INICIALES: TipoMovimientoDisponible[] = [
+  // Categorías Generales
+  { valor: "INGRESO", label: "INGRESO", grupo: "Categoría General" },
+  { valor: "TRASLADO", label: "TRASLADO", grupo: "Categoría General" },
+  { valor: "EGRESO", label: "EGRESO", grupo: "Categoría General" },
+  { valor: "CAMBIO DE ESTATUS", label: "CAMBIO DE ESTATUS", grupo: "Categoría General" },
+
+  // Motivos Específicos del Catálogo Institucional en BD (TipoMovimientoModel)
+  { valor: "ASIGNACION DE CARGO", label: "ASIGNACION DE CARGO", grupo: "Motivo Específico" },
+  { valor: "ASCENSO PERSONAL EMPLEADO", label: "ASCENSO PERSONAL EMPLEADO", grupo: "Motivo Específico" },
+  { valor: "CLASIFICACION DE CARGO OBRERO", label: "CLASIFICACION DE CARGO OBRERO", grupo: "Motivo Específico" },
+  { valor: "ENCARGADURIA INTERNA", label: "ENCARGADURIA INTERNA", grupo: "Motivo Específico" },
+  { valor: "ENCARGADURIA EN CALIDAD DE COMISION DE SERVICIO", label: "ENCARGADURIA EN CALIDAD DE COMISION DE SERVICIO", grupo: "Motivo Específico" },
+  { valor: "TRASLADO FISICO Y ADMINISTRATIVO A OTRA DEPENDENCIA", label: "TRASLADO FISICO Y ADMINISTRATIVO A OTRA DEPENDENCIA", grupo: "Motivo Específico" },
+  { valor: "TRASLADO DE NOMINA", label: "TRASLADO DE NOMINA", grupo: "Motivo Específico" },
+  { valor: "NOMBRAMIENTO DE LIBRE Y REMOCION", label: "NOMBRAMIENTO DE LIBRE Y REMOCION", grupo: "Motivo Específico" },
+  { valor: "JUBILACION DE DERECHO", label: "JUBILACION DE DERECHO", grupo: "Motivo Específico" },
+  { valor: "PENSION DE INVALIDEZ", label: "PENSION DE INVALIDEZ", grupo: "Motivo Específico" },
+  { valor: "PENSION POR SOBREVIVIENTE", label: "PENSION POR SOBREVIVIENTE", grupo: "Motivo Específico" },
+  { valor: "RENUNCIA", label: "RENUNCIA", grupo: "Motivo Específico" },
+  { valor: "DESTITUCION", label: "DESTITUCION", grupo: "Motivo Específico" },
+  { valor: "DESPIDO DE OBRERO", label: "DESPIDO DE OBRERO", grupo: "Motivo Específico" },
+  { valor: "FALLECIMIENTO", label: "FALLECIMIENTO", grupo: "Motivo Específico" },
+  { valor: "ABANDONO DE CARGO", label: "ABANDONO DE CARGO", grupo: "Motivo Específico" },
+  { valor: "ANULACION DE MOVIMIENTO", label: "ANULACION DE MOVIMIENTO", grupo: "Motivo Específico" },
+  { valor: "EGRESO POR TRANSFERENCIA", label: "EGRESO POR TRANSFERENCIA", grupo: "Motivo Específico" },
+  { valor: "REPOSO MEDICO", label: "REPOSO MEDICO", grupo: "Motivo Específico" },
+  { valor: "RETIRO POR REDUCCION DE PERSONAL", label: "RETIRO POR REDUCCION DE PERSONAL", grupo: "Motivo Específico" },
+  { valor: "SUSPENDIDO POR ABANDONO DE CARGO", label: "SUSPENDIDO POR ABANDONO DE CARGO", grupo: "Motivo Específico" },
+  { valor: "SUSPENDIDO POR COMISION DE SERVICIO", label: "SUSPENDIDO POR COMISION DE SERVICIO", grupo: "Motivo Específico" },
+  { valor: "SUSPENDIDO POR ENCARGADURIA", label: "SUSPENDIDO POR ENCARGADURIA", grupo: "Motivo Específico" },
+  { valor: "SUSPENDIDO POR TRAMITES ADMINISTRATIVOS", label: "SUSPENDIDO POR TRAMITES ADMINISTRATIVOS", grupo: "Motivo Específico" },
+  { valor: "CAMBIO DE ESTATUS POR TRAMITES ADMINISTRATIVOS", label: "CAMBIO DE ESTATUS POR TRAMITES ADMINISTRATIVOS", grupo: "Motivo Específico" },
+];
 
 const GERENCIAS_OPCIONES = [
   "OFICINA DE SISTEMAS Y TECNOLOGIA DE LA INFORMACION",
@@ -128,6 +146,54 @@ export default function MovimientosPage() {
 
   const [viendoDetalle, setViendoDetalle] = useState<MovimientoCargoDTO | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
+
+  const [tiposMovimiento, setTiposMovimiento] = useState<TipoMovimientoDisponible[]>(
+    TIPOS_MOVIMIENTO_DB_INICIALES,
+  );
+  const [gerencias, setGerencias] = useState<string[]>(
+    GERENCIAS_OPCIONES as unknown as string[],
+  );
+
+  useEffect(() => {
+    let montado = true;
+    getTiposMovimientoDisponiblesAction()
+      .then((data) => {
+        if (montado && Array.isArray(data) && data.length > 0) {
+          setTiposMovimiento(data);
+        }
+      })
+      .catch(() => {});
+
+    getDireccionesGeneralesAction()
+      .then((dirs) => {
+        if (montado && Array.isArray(dirs) && dirs.length > 0) {
+          const nombres = dirs
+            .map((d: any) => d.nombre)
+            .filter((n: any): n is string => typeof n === "string" && n.trim().length > 0);
+          if (nombres.length > 0) {
+            setGerencias(nombres);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      montado = false;
+    };
+  }, []);
+
+  const gruposTipos = useMemo(() => {
+    const categorias = tiposMovimiento.filter((t) => t.grupo === "Categoría General");
+    const motivos = tiposMovimiento.filter((t) => t.grupo === "Motivo Específico");
+    const otros = tiposMovimiento.filter(
+      (t) => t.grupo !== "Categoría General" && t.grupo !== "Motivo Específico",
+    );
+    const res: { nombre: string; items: TipoMovimientoDisponible[] }[] = [];
+    if (categorias.length > 0) res.push({ nombre: "Categorías Generales", items: categorias });
+    if (motivos.length > 0) res.push({ nombre: "Motivos Específicos (Catálogo)", items: motivos });
+    if (otros.length > 0) res.push({ nombre: "Otros Movimientos", items: otros });
+    return res;
+  }, [tiposMovimiento]);
 
   const form = useForm<ConsultaHistorialFormType>({
     resolver: zodResolver(consultaHistorialSchema),
@@ -368,12 +434,19 @@ export default function MovimientosPage() {
                             <SelectValue placeholder="Todos los tipos" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="max-h-72">
+                        <SelectContent className="max-h-80">
                           <SelectItem value="ALL">Todos los tipos</SelectItem>
-                          {TIPOS_MOVIMIENTO.map((tipo) => (
-                            <SelectItem key={tipo} value={tipo}>
-                              {tipo}
-                            </SelectItem>
+                          {gruposTipos.map((grupo) => (
+                            <SelectGroup key={grupo.nombre}>
+                              <SelectLabel className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1.5 bg-muted/40">
+                                {grupo.nombre}
+                              </SelectLabel>
+                              {grupo.items.map((tipo) => (
+                                <SelectItem key={tipo.valor} value={tipo.valor}>
+                                  {tipo.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
                           ))}
                         </SelectContent>
                       </Select>
@@ -399,7 +472,7 @@ export default function MovimientosPage() {
                         </FormControl>
                         <SelectContent className="max-h-72">
                           <SelectItem value="ALL">Todas las gerencias</SelectItem>
-                          {GERENCIAS_OPCIONES.map((g) => (
+                          {gerencias.map((g) => (
                             <SelectItem key={g} value={g}>
                               {g}
                             </SelectItem>
