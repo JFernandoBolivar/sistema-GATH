@@ -64,3 +64,41 @@ test.describe("Personal - cascadas en diálogos de actualización", () => {
     await page.keyboard.press("Escape");
   });
 });
+
+test.describe("Personal - opción \"Otra\" en diálogos de actualización", () => {
+  test("Formación Académica: \"Otra\" institución revela el input y exige el nombre", async ({ page }) => {
+    const sheet = await abrirDetalle(page);
+    await sheet.locator("div").filter({ hasText: /^Formaciones Academicas/ }).first().getByRole("button", { name: "Actualizar" }).click();
+    const dialogo = page.getByRole("dialog").filter({ hasText: "Opcional si no posee formación académica" });
+    const combos = dialogo.getByRole("combobox");
+
+    await expect(dialogo.getByPlaceholder("Nueva institución...")).toHaveCount(0);
+    await combos.nth(0).click();
+    await page.getByRole("option", { name: "Doctorado" }).click();
+    await combos.nth(3).click();
+    await page.getByRole("option", { name: "Otra", exact: true }).last().click();
+    await expect(dialogo.getByPlaceholder("Nueva institución...").first()).toBeVisible();
+
+    // Sin nombre: no se envía nada al backend.
+    await dialogo.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await expect(dialogo.getByRole("alert")).toHaveText("Debe escribir el nombre de la nueva institución");
+  });
+
+  test("Formación Complementaria: \"Otra\" capacitación revela el input y exige el nombre", async ({ page }) => {
+    const sheet = await abrirDetalle(page);
+    // Con registros el botón es "Actualizar" en la cabecera; sin registros, "Agregar Formación Complementaria ...".
+    const cabecera = sheet.locator("div").filter({ hasText: /^Formación Complementaria/ }).first().getByRole("button", { name: "Actualizar" });
+    await cabecera.or(sheet.getByRole("button", { name: /Agregar Formación Complementaria/ })).first().click();
+    const dialogo = page.getByRole("dialog").filter({ hasText: "Opcional si no posee formación complementaria" });
+    await expect(dialogo).toBeVisible();
+
+    await dialogo.getByRole("combobox").nth(0).click();
+    await page.getByRole("option", { name: "Otra", exact: true }).last().click();
+    await expect(dialogo.getByPlaceholder("Nueva capacitación...").first()).toBeVisible();
+    await dialogo.getByRole("combobox").nth(1).click();
+    await page.getByRole("option").first().click();
+
+    await dialogo.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await expect(dialogo.getByRole("alert")).toHaveText("Debe escribir el nombre de la nueva capacitación");
+  });
+});

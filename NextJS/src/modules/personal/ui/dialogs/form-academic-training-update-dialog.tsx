@@ -32,6 +32,9 @@ import {
 import type { CatalogoEmpleadoDTO, CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
 import { useCatalogoDependiente } from "../use-catalogo-dependiente";
+import { ID_OTRA, esNivelNoPosee } from "../catalogo-otra";
+import { resolverPendientesOtra, type PendienteOtra } from "../resolver-otra";
+import { Input } from "@/shared/ui/components/input";
 
 /** Select de catálogo en cascada (Carrera por nivel, Mención por carrera). */
 function SelectDependiente({
@@ -40,12 +43,14 @@ function SelectDependiente({
   value,
   onChange,
   respaldo,
+  permitirOtra,
 }: {
   tipo: "carreras" | "menciones";
   padreId: number | undefined;
   value: number | undefined;
   onChange: (id: number) => void;
   respaldo: CatalogoEmpleadoDTO[];
+  permitirOtra: boolean;
 }) {
   const { opciones, isLoading } = useCatalogoDependiente(tipo, padreId, { valorActual: value, respaldo });
   return (
@@ -59,6 +64,7 @@ function SelectDependiente({
             {o.nombre}
           </SelectItem>
         ))}
+        {permitirOtra && <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>}
       </SelectContent>
     </Select>
   );
@@ -83,7 +89,7 @@ export default function FormAcademicTrainingUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { control, handleSubmit, setValue, watch } = useForm({
+  const { control, register, handleSubmit, setValue, watch } = useForm({
     defaultValues: {
       formacionAcademica: (empleado.formacionAcademica ?? []).length > 0
         ? (empleado.formacionAcademica ?? []).map((fa) => ({
@@ -92,8 +98,11 @@ export default function FormAcademicTrainingUpdateDialog({
             carreraId: fa.carreraId ?? undefined,
             mencionId: fa.mencionId ?? undefined,
             institucionId: fa.institucionId ?? undefined,
+            nuevaCarreraNombre: "",
+            nuevaMencionNombre: "",
+            nuevaInstitucionNombre: "",
           }))
-        : [{ nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined }],
+        : [{ nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined, nuevaCarreraNombre: "", nuevaMencionNombre: "", nuevaInstitucionNombre: "" }],
     },
   });
 
@@ -116,6 +125,38 @@ export default function FormAcademicTrainingUpdateDialog({
         const msg = "Por favor complete el Nivel Académico y la Institución en las formaciones académicas agregadas.";
         setError(msg);
         toast.error(msg);
+        return;
+      }
+
+      // Opción "Otra": crear/reutilizar carrera, mención o institución nueva antes de guardar.
+      const pendientes: PendienteOtra[] = [];
+      rawItems.forEach((fa: any) => {
+        if (Number(fa.carreraId) === ID_OTRA) {
+          pendientes.push({
+            solicitud: { tipo: "carreras", nombre: fa.nuevaCarreraNombre ?? "", padreId: Number(fa.nivelAcademicoId) },
+            faltaNombre: "Debe escribir el nombre de la nueva carrera",
+            asignar: (id) => (fa.carreraId = id),
+          });
+        }
+        if (Number(fa.mencionId) === ID_OTRA) {
+          pendientes.push({
+            solicitud: { tipo: "menciones", nombre: fa.nuevaMencionNombre ?? "", padreId: Number(fa.carreraId) },
+            faltaNombre: "Debe escribir el nombre de la nueva mención",
+            asignar: (id) => (fa.mencionId = id),
+          });
+        }
+        if (Number(fa.institucionId) === ID_OTRA) {
+          pendientes.push({
+            solicitud: { tipo: "instituciones", nombre: fa.nuevaInstitucionNombre ?? "" },
+            faltaNombre: "Debe escribir el nombre de la nueva institución",
+            asignar: (id) => (fa.institucionId = id),
+          });
+        }
+      });
+      const errorOtra = await resolverPendientesOtra(pendientes);
+      if (errorOtra) {
+        setError(errorOtra);
+        toast.error(errorOtra);
         return;
       }
 
@@ -184,7 +225,7 @@ export default function FormAcademicTrainingUpdateDialog({
                     onClick={() => {
                       remove(fields.filter((_, i) => i !== 0).map((_, i) => i + 1));
                       setValue("formacionAcademica", [
-                        { nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined },
+                        { nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined, nuevaCarreraNombre: "", nuevaMencionNombre: "", nuevaInstitucionNombre: "" },
                       ]);
                     }}
                   >
@@ -205,6 +246,9 @@ export default function FormAcademicTrainingUpdateDialog({
                         carreraId: undefined,
                         mencionId: undefined,
                         institucionId: undefined,
+                        nuevaCarreraNombre: "",
+                        nuevaMencionNombre: "",
+                        nuevaInstitucionNombre: "",
                       })
                     }
                   >
@@ -254,7 +298,22 @@ export default function FormAcademicTrainingUpdateDialog({
                             setValue(`formacionAcademica.${index}.mencionId`, 0);
                           }}
                           respaldo={catalogos?.carreras ?? []}
+                          permitirOtra={
+                            Number(watch(`formacionAcademica.${index}.nivelAcademicoId`)) > 0 &&
+                            !esNivelNoPosee(
+                              catalogos?.nivelesAcademicos.find(
+                                (n) => n.id === Number(watch(`formacionAcademica.${index}.nivelAcademicoId`)),
+                              )?.nombre,
+                            )
+                          }
                         />
+                        {Number(watch(`formacionAcademica.${index}.carreraId`)) === ID_OTRA && (
+                          <Input
+                            className="mt-1"
+                            placeholder="Nueva carrera..."
+                            {...register(`formacionAcademica.${index}.nuevaCarreraNombre`)}
+                          />
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-[150px]">
@@ -265,7 +324,15 @@ export default function FormAcademicTrainingUpdateDialog({
                           value={watch(`formacionAcademica.${index}.mencionId`)}
                           onChange={(id) => setValue(`formacionAcademica.${index}.mencionId`, id)}
                           respaldo={catalogos?.menciones ?? []}
+                          permitirOtra={Number(watch(`formacionAcademica.${index}.carreraId`)) > 0}
                         />
+                        {Number(watch(`formacionAcademica.${index}.mencionId`)) === ID_OTRA && (
+                          <Input
+                            className="mt-1"
+                            placeholder="Nueva mención..."
+                            {...register(`formacionAcademica.${index}.nuevaMencionNombre`)}
+                          />
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-[150px]">
@@ -283,8 +350,16 @@ export default function FormAcademicTrainingUpdateDialog({
                                 {inst.nombre}
                               </SelectItem>
                             ))}
+                            <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
                           </SelectContent>
                         </Select>
+                        {Number(watch(`formacionAcademica.${index}.institucionId`)) === ID_OTRA && (
+                          <Input
+                            className="mt-1"
+                            placeholder="Nueva institución..."
+                            {...register(`formacionAcademica.${index}.nuevaInstitucionNombre`)}
+                          />
+                        )}
                       </div>
 
                       <div>

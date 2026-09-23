@@ -16,6 +16,11 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
 }
 
+/** Combobox dentro del FormItem cuyo label contiene `label` (el Combobox no recibe el id del label). */
+function comboPorLabel(page: Page, label: string | RegExp) {
+  return page.locator('[data-slot="form-item"]').filter({ has: page.getByText(label) }).getByRole("combobox");
+}
+
 async function elegirOpcion(page: Page, trigger: ReturnType<Page["locator"]>) {
   await trigger.click();
   await page.getByRole("option").first().click();
@@ -53,13 +58,14 @@ test.describe("Personal - wizard de registro", () => {
     await page.getByRole("option", { name: "Doctorado" }).click();
 
     await expect(page.getByPlaceholder("Nueva carrera...")).toBeHidden();
-    await page.getByRole("combobox").filter({ hasText: "Seleccione" }).nth(0).click();
-    await page.getByRole("option", { name: "Otra", exact: true }).click();
+    await expect(comboPorLabel(page, "Carrera (Opcional)")).toBeEnabled();
+    await comboPorLabel(page, "Carrera (Opcional)").click();
+    await page.getByRole("option", { name: "Otra", exact: true }).last().click();
     await expect(page.getByPlaceholder("Nueva carrera...")).toBeVisible();
     await expect(page.getByText("Se asociará al nivel académico seleccionado.")).toBeVisible();
 
-    await page.getByRole("combobox").filter({ hasText: "Seleccione" }).last().click();
-    await page.getByRole("option", { name: "Otra", exact: true }).click();
+    await comboPorLabel(page, /^Institución/).click();
+    await page.getByRole("option", { name: "Otra", exact: true }).last().click();
     await expect(page.getByPlaceholder("Nueva institución...")).toBeVisible();
 
     await page.getByRole("button", { name: "Siguiente", exact: true }).click();
@@ -95,7 +101,8 @@ test.describe("Personal - wizard de registro", () => {
     await expect(page.getByText("Opcional si no posee formación académica")).toBeVisible();
     await elegirOpcion(page, page.getByLabel("1. Nivel Academico"));
     // Cascada Nivel -> Carrera: el combobox de carrera se habilita con las del nivel
-    await page.getByRole("combobox").filter({ hasText: "Seleccione" }).nth(1).click();
+    await expect(comboPorLabel(page, "Carrera (Opcional)")).toBeEnabled();
+    await comboPorLabel(page, "Carrera (Opcional)").click();
     await expect(page.getByRole("option").first()).toBeVisible();
     await page.keyboard.press("Escape");
     await siguiente();

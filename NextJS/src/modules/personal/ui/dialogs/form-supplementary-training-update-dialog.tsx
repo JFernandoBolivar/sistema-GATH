@@ -32,6 +32,8 @@ import {
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
+import { ID_OTRA } from "../catalogo-otra";
+import { resolverPendientesOtra, type PendienteOtra } from "../resolver-otra";
 
 interface FormSupplementaryTrainingUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -64,8 +66,10 @@ export default function FormSupplementaryTrainingUpdateDialog({
             procedenciaId: fc.procedenciaId ?? undefined,
             grupoId: fc.grupoId ?? undefined,
             horasCompletadas: fc.horasCompletadas ?? "",
+            nuevaCapacitacionNombre: "",
+            nuevaInstitucionNombre: "",
           }))
-        : [{ capacitacionId: undefined, institucionId: undefined, fechaInicio: "", fechaFin: "", procedenciaId: undefined, grupoId: undefined, horasCompletadas: "" }],
+        : [{ capacitacionId: undefined, institucionId: undefined, fechaInicio: "", fechaFin: "", procedenciaId: undefined, grupoId: undefined, horasCompletadas: "", nuevaCapacitacionNombre: "", nuevaInstitucionNombre: "" }],
     },
   });
 
@@ -88,6 +92,31 @@ export default function FormSupplementaryTrainingUpdateDialog({
         const msg = "Por favor complete la Capacitación y la Institución en las capacitaciones agregadas.";
         setError(msg);
         toast.error(msg);
+        return;
+      }
+
+      // Opción "Otra": crear/reutilizar la capacitación o institución nueva antes de guardar.
+      const pendientes: PendienteOtra[] = [];
+      rawItems.forEach((fc: any) => {
+        if (Number(fc.capacitacionId) === ID_OTRA) {
+          pendientes.push({
+            solicitud: { tipo: "capacitaciones", nombre: fc.nuevaCapacitacionNombre ?? "" },
+            faltaNombre: "Debe escribir el nombre de la nueva capacitación",
+            asignar: (id) => (fc.capacitacionId = id),
+          });
+        }
+        if (Number(fc.institucionId) === ID_OTRA) {
+          pendientes.push({
+            solicitud: { tipo: "instituciones", nombre: fc.nuevaInstitucionNombre ?? "" },
+            faltaNombre: "Debe escribir el nombre de la nueva institución",
+            asignar: (id) => (fc.institucionId = id),
+          });
+        }
+      });
+      const errorOtra = await resolverPendientesOtra(pendientes);
+      if (errorOtra) {
+        setError(errorOtra);
+        toast.error(errorOtra);
         return;
       }
 
@@ -161,7 +190,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
                     onClick={() => {
                       remove(fields.filter((_, i) => i !== 0).map((_, i) => i + 1));
                       setValue("formacionComplementaria", [
-                        { capacitacionId: undefined, institucionId: undefined, fechaInicio: "", fechaFin: "", procedenciaId: undefined, grupoId: undefined, horasCompletadas: "" },
+                        { capacitacionId: undefined, institucionId: undefined, fechaInicio: "", fechaFin: "", procedenciaId: undefined, grupoId: undefined, horasCompletadas: "", nuevaCapacitacionNombre: "", nuevaInstitucionNombre: "" },
                       ]);
                     }}
                   >
@@ -185,6 +214,8 @@ export default function FormSupplementaryTrainingUpdateDialog({
                         procedenciaId: undefined,
                         grupoId: undefined,
                         horasCompletadas: "",
+                        nuevaCapacitacionNombre: "",
+                        nuevaInstitucionNombre: "",
                       })
                     }
                   >
@@ -235,8 +266,16 @@ export default function FormSupplementaryTrainingUpdateDialog({
                                 {cap.nombre}
                               </SelectItem>
                             ))}
+                            <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
                           </SelectContent>
                         </Select>
+                        {Number(watch(`formacionComplementaria.${index}.capacitacionId`)) === ID_OTRA && (
+                          <Input
+                            className="mt-1"
+                            placeholder="Nueva capacitación..."
+                            {...register(`formacionComplementaria.${index}.nuevaCapacitacionNombre`)}
+                          />
+                        )}
                       </div>
 
                       <div className="flex-1 min-w-[150px]">
@@ -254,8 +293,16 @@ export default function FormSupplementaryTrainingUpdateDialog({
                                 {inst.nombre}
                               </SelectItem>
                             ))}
+                            <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
                           </SelectContent>
                         </Select>
+                        {Number(watch(`formacionComplementaria.${index}.institucionId`)) === ID_OTRA && (
+                          <Input
+                            className="mt-1"
+                            placeholder="Nueva institución..."
+                            {...register(`formacionComplementaria.${index}.nuevaInstitucionNombre`)}
+                          />
+                        )}
                       </div>
 
                       <div className="w-36">
