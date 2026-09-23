@@ -5,11 +5,17 @@ import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
@@ -120,143 +126,137 @@ export default function FormHealthProfileUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Actualizar Información de Salud</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0 border-none bg-transparent shadow-none">
+        <DialogTitle className="sr-only">Datos De Salud</DialogTitle>
 
-        {error && (
-          <div className="rounded bg-red-100 p-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <Card className="flex flex-col gap-3">
+          <CardHeader>
+            <CardTitle> Datos De Salud</CardTitle>
+          </CardHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="grupoSanguineoId">Grupo Sanguíneo</Label>
-            <Select
-              value={grupoSanguineoId ? String(grupoSanguineoId) : ""}
-              onValueChange={(val) =>
-                setValue("grupoSanguineoId", val ? Number(val) : (undefined as any))
-              }
-            >
-              <SelectTrigger id="grupoSanguineoId">
-                <SelectValue placeholder="Seleccione un Grupo Sanguíneo" />
-              </SelectTrigger>
-              <SelectContent>
-                {grupos.map((g) => (
-                  <SelectItem key={g.id} value={String(g.id)}>
-                    {g.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CardContent>
+            <CardAction className="text-gray-500 mb-3">Perfil De Salud</CardAction>
 
-          <ScrollArea className="h-72 rounded-md border p-3">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              {/* Patologías */}
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm text-gray-800">
-                  Patologías (Opcional)
-                </h3>
-                <div className="space-y-2">
-                  {patologias.map((p) => (
-                    <div key={p.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`patologia-${p.id}`}
-                        checked={selectedPatologias.includes(p.id)}
-                        onCheckedChange={() => togglePatologia(p.id)}
-                      />
-                      <Label
-                        htmlFor={`patologia-${p.id}`}
-                        className="cursor-pointer text-xs font-normal"
-                      >
-                        {p.nombre}
-                      </Label>
-                    </div>
-                  ))}
-                  {patologias.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Sin patologías registradas</p>
-                  )}
-                </div>
+            {error && (
+              <div className="rounded bg-red-100 p-2 text-sm text-red-700 mb-3">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit(onSubmit)} className="gap-8 flex flex-col">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="grupoSanguineoId">Grupo Sanguineo </Label>
+                <Select
+                  value={grupoSanguineoId ? String(grupoSanguineoId) : ""}
+                  onValueChange={(val) =>
+                    setValue("grupoSanguineoId", val ? Number(val) : (undefined as any))
+                  }
+                >
+                  <SelectTrigger id="grupoSanguineoId" className="w-full truncate">
+                    <SelectValue placeholder="Seleccione un Grupo Sanguineo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {grupos.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)}>
+                        {g.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              {/* Discapacidades */}
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm text-gray-800">
-                  Discapacidades (Opcional)
-                </h3>
-                <div className="space-y-2">
-                  {discapacidades.map((d) => (
-                    <div key={d.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`discapacidad-${d.id}`}
-                        checked={selectedDiscapacidades.includes(d.id)}
-                        onCheckedChange={() => toggleDiscapacidad(d.id)}
-                      />
-                      <Label
-                        htmlFor={`discapacidad-${d.id}`}
-                        className="cursor-pointer text-xs font-normal"
-                      >
-                        {d.nombre}
-                      </Label>
+              <ScrollArea className="h-80 w-full border rounded-md p-3">
+                <div className="flex flex-row justify-around gap-4">
+                  {/* Patologías */}
+                  <div className="flex-1">
+                    <h2 className="font-bold mb-2">Patologias (Opcional)</h2>
+                    <div className="flex flex-col gap-2">
+                      {patologias.map((p) => (
+                        <div key={p.id} className="flex flex-row items-center gap-2">
+                          <Checkbox
+                            id={`patologia-${p.id}`}
+                            className="border-black"
+                            checked={selectedPatologias.includes(p.id)}
+                            onCheckedChange={() => togglePatologia(p.id)}
+                          />
+                          <Label
+                            htmlFor={`patologia-${p.id}`}
+                            className="cursor-pointer text-sm"
+                          >
+                            {p.nombre}
+                          </Label>
+                        </div>
+                      ))}
+                      {patologias.length === 0 && (
+                        <p className="text-xs text-muted-foreground">Sin patologías registradas</p>
+                      )}
                     </div>
-                  ))}
-                  {discapacidades.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Sin discapacidades registradas</p>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* Alergias */}
-              <div className="space-y-2">
-                <h3 className="font-semibold text-sm text-gray-800">
-                  Alergias (Opcional)
-                </h3>
-                <div className="space-y-2">
-                  {alergias.map((a) => (
-                    <div key={a.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`alergia-${a.id}`}
-                        checked={selectedAlergias.includes(a.id)}
-                        onCheckedChange={() => toggleAlergia(a.id)}
-                      />
-                      <Label
-                        htmlFor={`alergia-${a.id}`}
-                        className="cursor-pointer text-xs font-normal"
-                      >
-                        {a.nombre}
-                      </Label>
+                  {/* Discapacidades */}
+                  <div className="flex-1">
+                    <h2 className="font-bold mb-2">Discapacidades (Opcional)</h2>
+                    <div className="flex flex-col gap-2">
+                      {discapacidades.map((d) => (
+                        <div key={d.id} className="flex flex-row items-center gap-2">
+                          <Checkbox
+                            id={`discapacidad-${d.id}`}
+                            className="border-black"
+                            checked={selectedDiscapacidades.includes(d.id)}
+                            onCheckedChange={() => toggleDiscapacidad(d.id)}
+                          />
+                          <Label
+                            htmlFor={`discapacidad-${d.id}`}
+                            className="cursor-pointer text-sm"
+                          >
+                            {d.nombre}
+                          </Label>
+                        </div>
+                      ))}
+                      {discapacidades.length === 0 && (
+                        <p className="text-xs text-muted-foreground">Sin discapacidades registradas</p>
+                      )}
                     </div>
-                  ))}
-                  {alergias.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Sin alergias registradas</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
+                  </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="bg-blue-900 text-white hover:bg-blue-800"
-            >
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Actualizar
-            </Button>
-          </div>
-        </form>
+                  {/* Alergias */}
+                  <div className="flex-1">
+                    <h2 className="font-bold mb-2">Alergias (Opcional)</h2>
+                    <div className="flex flex-col gap-2">
+                      {alergias.map((a) => (
+                        <div key={a.id} className="flex flex-row items-center gap-2">
+                          <Checkbox
+                            id={`alergia-${a.id}`}
+                            className="border-black"
+                            checked={selectedAlergias.includes(a.id)}
+                            onCheckedChange={() => toggleAlergia(a.id)}
+                          />
+                          <Label
+                            htmlFor={`alergia-${a.id}`}
+                            className="cursor-pointer text-sm"
+                          >
+                            {a.nombre}
+                          </Label>
+                        </div>
+                      ))}
+                      {alergias.length === 0 && (
+                        <p className="text-xs text-muted-foreground">Sin alergias registradas</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+
+              <Button
+                className="w-full cursor-pointer mt-4"
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+                {isPending ? "Actualizando Información" : "Actualizar"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
