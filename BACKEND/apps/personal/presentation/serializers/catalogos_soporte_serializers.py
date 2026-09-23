@@ -15,6 +15,38 @@ class CatalogoItemSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     nombre = serializers.CharField(read_only=True)
     codigo = serializers.CharField(read_only=True, allow_null=True, required=False)
+    categoria_id = serializers.IntegerField(read_only=True, allow_null=True, required=False)
+    categoria_nombre = serializers.CharField(read_only=True, allow_null=True, required=False)
+    categoria = serializers.SerializerMethodField(required=False)
+    tipo_prenda_id = serializers.IntegerField(read_only=True, allow_null=True, required=False)
+    tipo_prenda_nombre = serializers.CharField(read_only=True, allow_null=True, required=False)
+    tipo_prenda = serializers.SerializerMethodField(required=False)
+    region_id = serializers.IntegerField(read_only=True, allow_null=True, required=False)
+    region_codigo = serializers.CharField(read_only=True, allow_null=True, required=False)
+    region_descripcion = serializers.CharField(read_only=True, allow_null=True, required=False)
+    region = serializers.SerializerMethodField(required=False)
+
+    def get_categoria(self, obj):
+        cat_id = getattr(obj, 'categoria_id', None)
+        cat_nom = getattr(obj, 'categoria_nombre', None)
+        if cat_id is not None or cat_nom is not None:
+            return {'id': cat_id, 'nombre': cat_nom, 'nombre_categoria': cat_nom}
+        return None
+
+    def get_tipo_prenda(self, obj):
+        tipo_id = getattr(obj, 'tipo_prenda_id', None)
+        tipo_nom = getattr(obj, 'tipo_prenda_nombre', None)
+        if tipo_id is not None or tipo_nom is not None:
+            return {'id': tipo_id, 'categoria': tipo_nom}
+        return None
+
+    def get_region(self, obj):
+        reg_id = getattr(obj, 'region_id', None)
+        reg_cod = getattr(obj, 'region_codigo', None)
+        reg_desc = getattr(obj, 'region_descripcion', None)
+        if reg_id is not None or reg_cod is not None:
+            return {'id': reg_id, 'codigo': reg_cod, 'descripcion': reg_desc}
+        return None
 
 
 class CodigoPostalSerializer(CatalogoItemSerializer):
