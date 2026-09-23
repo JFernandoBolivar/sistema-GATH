@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -102,14 +103,19 @@ export default function FormHealthProfileUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          setError((result as { error: string }).error);
+          const msg = (result as { error: string }).error;
+          setError(msg);
+          toast.error(msg);
           return;
         }
 
+        toast.success("Información de salud actualizada exitosamente");
         setOpen(false);
         onGuardado();
       } catch {
-        setError("Error al actualizar la información de salud.");
+        const msg = "Error al actualizar la información de salud.";
+        setError(msg);
+        toast.error(msg);
       }
     });
   };

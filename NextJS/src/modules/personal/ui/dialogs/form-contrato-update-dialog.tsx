@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Loader2, Plus, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -91,9 +92,23 @@ export default function FormContratoUpdateDialog({
   const onSubmit = (data: any) => {
     startTransition(async () => {
       setError(null);
+
+      const rawItems = data.contrato || [];
+      const hasPartial = rawItems.some(
+        (c: any) =>
+          (c.nContrato || c.fechaCulminacion || c.politicaId) &&
+          !c.fechaIngreso
+      );
+      if (hasPartial) {
+        const msg = "Por favor complete la Fecha de Inicio en los contratos agregados.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+
       try {
         const payload = {
-          contrato: (data.contrato || [])
+          contrato: rawItems
             .filter((c: any) => c.fechaIngreso)
             .map((c: any) => ({
               id: c.id,
@@ -107,14 +122,19 @@ export default function FormContratoUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          setError((result as { error: string }).error);
+          const msg = (result as { error: string }).error;
+          setError(msg);
+          toast.error(msg);
           return;
         }
 
+        toast.success("Contratos actualizados exitosamente");
         setOpen(false);
         onGuardado();
       } catch {
-        setError("Error al actualizar los contratos.");
+        const msg = "Error al actualizar los contratos.";
+        setError(msg);
+        toast.error(msg);
       }
     });
   };
@@ -201,6 +221,8 @@ export default function FormContratoUpdateDialog({
                         <Label className="text-xs">Fecha Inicio</Label>
                         <Input
                           type="date"
+                          max={new Date().toISOString().split("T")[0]}
+                          min="1930-01-01"
                           disabled={isVencido}
                           className="w-36 h-8 text-xs"
                           {...register(`contrato.${index}.fechaIngreso` as const, { required: true })}
@@ -211,6 +233,7 @@ export default function FormContratoUpdateDialog({
                         <Label className="text-xs">Fecha Culminación</Label>
                         <Input
                           type="date"
+                          min="1930-01-01"
                           disabled={isVencido}
                           className="w-36 h-8 text-xs"
                           {...register(`contrato.${index}.fechaCulminacion` as const)}

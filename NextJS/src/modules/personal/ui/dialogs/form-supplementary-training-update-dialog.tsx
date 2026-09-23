@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Loader2, Plus, Trash, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -76,9 +77,23 @@ export default function FormSupplementaryTrainingUpdateDialog({
   const onSubmit = (data: any) => {
     startTransition(async () => {
       setError(null);
+
+      const rawItems = data.formacionComplementaria || [];
+      const hasPartial = rawItems.some(
+        (fc: any) =>
+          (fc.capacitacionId || fc.institucionId || fc.fechaInicio || fc.fechaFin || fc.horasCompletadas) &&
+          (!fc.capacitacionId || !fc.institucionId)
+      );
+      if (hasPartial) {
+        const msg = "Por favor complete la Capacitación y la Institución en las capacitaciones agregadas.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+
       try {
         const payload = {
-          formacionComplementaria: (data.formacionComplementaria || [])
+          formacionComplementaria: rawItems
             .filter((fc: any) => fc.capacitacionId && fc.institucionId)
             .map((fc: any) => ({
               id: fc.id,
@@ -94,14 +109,19 @@ export default function FormSupplementaryTrainingUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          setError((result as { error: string }).error);
+          const msg = (result as { error: string }).error;
+          setError(msg);
+          toast.error(msg);
           return;
         }
 
+        toast.success("Formación complementaria actualizada exitosamente");
         setOpen(false);
         onGuardado();
       } catch {
-        setError("Error al actualizar la formación complementaria.");
+        const msg = "Error al actualizar la formación complementaria.";
+        setError(msg);
+        toast.error(msg);
       }
     });
   };
@@ -184,6 +204,8 @@ export default function FormSupplementaryTrainingUpdateDialog({
                         <Label>{index + 1}. Fecha Inicio</Label>
                         <Input
                           type="date"
+                          max={new Date().toISOString().split("T")[0]}
+                          min="1930-01-01"
                           {...register(`formacionComplementaria.${index}.fechaInicio` as const)}
                         />
                       </div>
@@ -192,6 +214,8 @@ export default function FormSupplementaryTrainingUpdateDialog({
                         <Label>{index + 1}. Fecha Culminacion</Label>
                         <Input
                           type="date"
+                          max={new Date().toISOString().split("T")[0]}
+                          min="1930-01-01"
                           {...register(`formacionComplementaria.${index}.fechaFin` as const)}
                         />
                       </div>

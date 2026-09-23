@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Loader2, Plus, Trash, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -72,9 +73,23 @@ export default function FormAcademicTrainingUpdateDialog({
   const onSubmit = (data: any) => {
     startTransition(async () => {
       setError(null);
+
+      const rawItems = data.formacionAcademica || [];
+      const hasPartial = rawItems.some(
+        (fa: any) =>
+          (fa.nivelAcademicoId || fa.carreraId || fa.institucionId || fa.mencionId) &&
+          (!fa.nivelAcademicoId || !fa.institucionId)
+      );
+      if (hasPartial) {
+        const msg = "Por favor complete el Nivel Académico y la Institución en las formaciones académicas agregadas.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+
       try {
         const payload = {
-          formacionAcademica: (data.formacionAcademica || [])
+          formacionAcademica: rawItems
             .filter((fa: any) => fa.nivelAcademicoId && fa.institucionId)
             .map((fa: any) => ({
               id: fa.id,
@@ -87,14 +102,19 @@ export default function FormAcademicTrainingUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          setError((result as { error: string }).error);
+          const msg = (result as { error: string }).error;
+          setError(msg);
+          toast.error(msg);
           return;
         }
 
+        toast.success("Formación académica actualizada exitosamente");
         setOpen(false);
         onGuardado();
       } catch {
-        setError("Error al actualizar la formación académica.");
+        const msg = "Error al actualizar la formación académica.";
+        setError(msg);
+        toast.error(msg);
       }
     });
   };

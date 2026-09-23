@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { ArrowBigDownDash, ArrowBigUpDash, Loader2, Plus, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -72,9 +73,23 @@ export default function FormBackgroundUpdateDialog({
   const onSubmit = (data: any) => {
     startTransition(async () => {
       setError(null);
+
+      const rawItems = data.antecedentes || [];
+      const hasPartial = rawItems.some(
+        (a: any) =>
+          (a.organismoId || a.fechaIngreso || a.fechaEgreso) &&
+          (!a.organismoId || !a.fechaIngreso)
+      );
+      if (hasPartial) {
+        const msg = "Por favor complete el Organismo y la Fecha de Inicio en los antecedentes agregados.";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+
       try {
         const payload = {
-          antecedentes: (data.antecedentes || [])
+          antecedentes: rawItems
             .filter((a: any) => a.organismoId && a.fechaIngreso)
             .map((a: any) => ({
               id: a.id,
@@ -86,14 +101,19 @@ export default function FormBackgroundUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          setError((result as { error: string }).error);
+          const msg = (result as { error: string }).error;
+          setError(msg);
+          toast.error(msg);
           return;
         }
 
+        toast.success("Antecedentes actualizados exitosamente");
         setOpen(false);
         onGuardado();
       } catch {
-        setError("Error al actualizar los antecedentes.");
+        const msg = "Error al actualizar los antecedentes.";
+        setError(msg);
+        toast.error(msg);
       }
     });
   };
@@ -188,6 +208,8 @@ export default function FormBackgroundUpdateDialog({
                         </Label>
                         <Input
                           type="date"
+                          max={new Date().toISOString().split("T")[0]}
+                          min="1930-01-01"
                           {...register(`antecedentes.${index}.fechaIngreso` as const)}
                         />
                       </div>
@@ -198,6 +220,8 @@ export default function FormBackgroundUpdateDialog({
                         </Label>
                         <Input
                           type="date"
+                          max={new Date().toISOString().split("T")[0]}
+                          min="1930-01-01"
                           {...register(`antecedentes.${index}.fechaEgreso` as const)}
                         />
                       </div>

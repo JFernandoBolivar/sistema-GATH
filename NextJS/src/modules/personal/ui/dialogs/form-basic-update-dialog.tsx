@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import Image from "next/image";
 import { Loader2, Upload, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -111,7 +112,9 @@ export default function FormBasicUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          setError((result as { error: string }).error);
+          const msg = (result as { error: string }).error;
+          setError(msg);
+          toast.error(msg);
           return;
         }
 
@@ -121,10 +124,13 @@ export default function FormBasicUpdateDialog({
           await subirFotoEmpleadoAction(empleado.cedula, formData);
         }
 
+        toast.success("Información básica actualizada exitosamente");
         setOpen(false);
         onGuardado();
       } catch {
-        setError("Error al actualizar la información básica.");
+        const msg = "Error al actualizar la información básica.";
+        setError(msg);
+        toast.error(msg);
       }
     });
   };
@@ -221,6 +227,8 @@ export default function FormBasicUpdateDialog({
                     <Input
                       id="fechaNacimiento"
                       type="date"
+                      max={new Date().toISOString().split("T")[0]}
+                      min="1900-01-01"
                       {...register("fechaNacimiento", { required: true })}
                     />
                   </div>
