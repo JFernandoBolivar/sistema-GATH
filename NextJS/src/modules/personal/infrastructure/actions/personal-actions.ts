@@ -27,7 +27,12 @@ import {
 import { listarCatalogosExpediente } from "../../application/use-cases/listar-catalogos-expediente";
 import { repoPersonalApi } from "../repositories/repo-personal-api";
 import { personalApi } from "../http/personal-api";
-import { empleadoCedulaSchema, empleadoSchema, listadoEmpleadosSchema } from "../../ui/schema/schema-empleado";
+import {
+  empleadoCedulaSchema,
+  empleadoRegistroSchema,
+  empleadoSchema,
+  listadoEmpleadosSchema,
+} from "../../ui/schema/schema-empleado";
 
 export async function getEmpleadosAction(filtros?: FiltrosListadoEmpleado) {
   const validated = listadoEmpleadosSchema.safeParse(filtros ?? {});
@@ -66,7 +71,7 @@ export async function getEmpleadoPorCedulaAction(cedula: string) {
 }
 
 export async function registrarEmpleadoAction(input: GuardarEmpleadoInputDTO) {
-  const validation = empleadoSchema.safeParse(input);
+  const validation = empleadoRegistroSchema.safeParse(input);
   if (!validation.success) {
     return { error: "Datos del empleado inválidos. Revise los campos ingresados." };
   }

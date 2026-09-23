@@ -130,6 +130,71 @@ export const empleadoSchema = z.object({
 
 export type EmpleadoFormType = z.infer<typeof empleadoSchema>;
 
+/**
+ * Revalidación zero-trust del ALTA (`registrarEmpleadoAction`) con las reglas
+ * de negocio del legado (`shared/schemas/employees/register/*`), las mismas
+ * que aplica el wizard por paso: cédula 7-12 dígitos, nombres/apellidos 3-30
+ * letras, nacimiento no futuro y edad mínima 16, carnet de la patria de 10
+ * dígitos, estado civil, vivienda completa y tallas de camisa/pantalón/zapatos
+ * obligatorias. La edición (`empleadoSchema.partial()`) conserva las reglas
+ * laxas para no rechazar expedientes históricos.
+ */
+const idRequerido = (mensaje: string) => z.number({ message: mensaje }).int().positive({ message: mensaje });
+
+function edadEnAnios(fechaIso: string) {
+  const [anio, mes, dia] = fechaIso.split("-").map(Number);
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - anio;
+  if (hoy.getMonth() + 1 < mes || (hoy.getMonth() + 1 === mes && hoy.getDate() < dia)) edad -= 1;
+  return edad;
+}
+
+export const empleadoRegistroSchema = empleadoSchema.extend({
+  cedula: z
+    .string()
+    .trim()
+    .regex(REGEX.DIGITS, { message: "Solo Se Permiten Números" })
+    .min(7, { message: "Debe Ingresar Al Menos 7 Digitos" })
+    .max(12, { message: "Debe Maximo 12 Digitos" }),
+  nombres: z
+    .string()
+    .trim()
+    .regex(REGEX.SOLO_LETRAS, { message: "Solo Se Permiten Letras" })
+    .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
+    .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
+  apellidos: z
+    .string()
+    .trim()
+    .regex(REGEX.SOLO_LETRAS, { message: "Solo Se Permiten Letras" })
+    .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
+    .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
+  fechaNacimiento: z
+    .string()
+    .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" })
+    .refine((f) => edadEnAnios(f) >= 0, { message: "La Fecha De Nacimiento No Puede Ser En El Futuro" })
+    .refine((f) => edadEnAnios(f) >= 16, { message: "La Edad Mínima Es De 16 Años" }),
+  estadoCivilId: idRequerido("Debe Seleccionar Un Estado Civil"),
+  carnetPatria: z
+    .string()
+    .trim()
+    .regex(/^\d{10}$/, { message: "Debe Ingresar 10 Digitos" })
+    .optional()
+    .nullable(),
+  datosVivienda: z.object({
+    estadoId: idRequerido("Debe Seleccionar Un Estado"),
+    municipioId: idRequerido("Debe Seleccionar Un Municipio"),
+    parroquiaId: idRequerido("Debe Seleccionar Una Parroquia"),
+    direccionExacta: z.string().trim().min(10, { message: "La Direccion Exacta Debe Tener Minimo 10 Caracteres" }),
+    condicionViviendaId: idRequerido("Debe Seleccionar Una Condicion De Vivienda"),
+    codigoPostalId: idRequerido("Seleccione un código postal"),
+  }),
+  perfilFisico: perfilFisicoSchema.extend({
+    tallaCamisaId: idRequerido("Debe seleccionar una talla de camisa"),
+    tallaPantalonId: idRequerido("Debe seleccionar una talla de pantalón"),
+    tallaZapatosId: idRequerido("Debe seleccionar una talla de zapatos"),
+  }),
+});
+
 /** Filtro de listado de empleados (zero-trust R7). */
 export const listadoEmpleadosSchema = z.object({
   busqueda: z.string().trim().max(100, { message: "Búsqueda demasiado larga" }).optional(),

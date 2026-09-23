@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { empleadoSchema } from "../schema/schema-empleado";
+import { empleadoRegistroSchema, empleadoSchema } from "../schema/schema-empleado";
 import {
   antecedentePasoItemSchema,
   formacionAcademicaPasoItemSchema,
@@ -79,6 +79,7 @@ describe("registroPasosADTO", () => {
   it("produce un DTO que pasa el empleadoSchema de la Server Action", () => {
     const dto = registroPasosADTO(completo);
     expect(empleadoSchema.safeParse(dto).success).toBe(true);
+    expect(empleadoRegistroSchema.safeParse(dto).success).toBe(true);
     expect(dto).toMatchObject({
       cedula: "12345678",
       sexoId: 1,
@@ -120,6 +121,36 @@ describe("registroPasosADTO", () => {
         fechaFin: "2020-02-10",
       },
     ]);
-    expect(empleadoSchema.safeParse(dto).success).toBe(true);
+    expect(empleadoRegistroSchema.safeParse(dto).success).toBe(true);
+  });
+});
+
+describe("empleadoRegistroSchema (revalidación del alta en el servidor)", () => {
+  const dto = registroPasosADTO(completo);
+  const pasa = (cambios: Record<string, unknown>) => empleadoRegistroSchema.safeParse({ ...dto, ...cambios }).success;
+
+  it("aplica las reglas del legado en datos básicos", () => {
+    expect(pasa({ cedula: "123456" })).toBe(false);
+    expect(pasa({ cedula: "1234567890123" })).toBe(false);
+    expect(pasa({ nombres: "Al" })).toBe(false);
+    expect(pasa({ apellidos: "A".repeat(31) })).toBe(false);
+    expect(pasa({ carnetPatria: "12345" })).toBe(false);
+    expect(pasa({ carnetPatria: "1234567890" })).toBe(true);
+    expect(pasa({ estadoCivilId: null })).toBe(false);
+  });
+
+  it("exige edad mínima de 16 años y fecha no futura", () => {
+    const hoy = new Date();
+    const hace15 = `${hoy.getFullYear() - 15}-01-01`;
+    const futuro = `${hoy.getFullYear() + 1}-01-01`;
+    expect(pasa({ fechaNacimiento: hace15 })).toBe(false);
+    expect(pasa({ fechaNacimiento: futuro })).toBe(false);
+  });
+
+  it("exige vivienda completa y tallas de camisa/pantalón/zapatos", () => {
+    expect(pasa({ datosVivienda: undefined })).toBe(false);
+    expect(pasa({ datosVivienda: { ...dto.datosVivienda, direccionExacta: "corta" } })).toBe(false);
+    expect(pasa({ perfilFisico: { ...dto.perfilFisico, tallaZapatosId: null } })).toBe(false);
+    expect(pasa({ perfilFisico: { ...dto.perfilFisico, tallaChaquetaId: null } })).toBe(true);
   });
 });
