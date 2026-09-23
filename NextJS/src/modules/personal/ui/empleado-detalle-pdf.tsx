@@ -212,6 +212,32 @@ export function EmpleadoDetallePdf({ detalle, generadoPor, generadoEn }: Emplead
           )}
         </View>
 
+        {detalle.encargadurias && detalle.encargadurias.length > 0 && (
+          <View wrap={false}>
+            <Text style={styles.sectionTitle}>ENCARGADURÍAS</Text>
+            <View style={styles.table}>
+              <View style={[styles.tableRow, styles.tableRowHeader]}>
+                <Text style={[styles.tableCol, { width: "6%", flex: 0 }]}>#</Text>
+                <Text style={[styles.tableCol, { width: "24%", flex: 0 }]}>Cargo Encargado</Text>
+                <Text style={[styles.tableCol, { width: "28%", flex: 0 }]}>Titular</Text>
+                <Text style={[styles.tableCol, { width: "16%", flex: 0 }]}>Fecha Inicio</Text>
+                <Text style={[styles.tableCol, { width: "14%", flex: 0 }]}>Fecha Fin</Text>
+                <Text style={[styles.tableCol, { width: "12%", flex: 0 }]}>Estatus</Text>
+              </View>
+              {detalle.encargadurias.map((enc, idx) => (
+                <View key={enc.id || idx} style={styles.tableRow} wrap={false}>
+                  <Text style={[styles.tableCol, { width: "6%", flex: 0 }]}>{idx + 1}</Text>
+                  <Text style={[styles.tableCol, { width: "24%", flex: 0 }]}>{enc.cargoEncargado}</Text>
+                  <Text style={[styles.tableCol, { width: "28%", flex: 0 }]}>{enc.titular}</Text>
+                  <Text style={[styles.tableCol, { width: "16%", flex: 0 }]}>{enc.fechaInicio}</Text>
+                  <Text style={[styles.tableCol, { width: "14%", flex: 0 }]}>{enc.fechaFin}</Text>
+                  <Text style={[styles.tableCol, { width: "12%", flex: 0 }]}>{enc.estatus}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {detalle.vivienda && (
           <View wrap={false}>
             <Text style={styles.sectionTitle}>DATOS DE VIVIENDA</Text>

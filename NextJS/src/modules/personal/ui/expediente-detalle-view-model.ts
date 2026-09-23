@@ -36,6 +36,15 @@ export interface DetalleSaludVM {
   discapacidades: DetalleItemSaludVM[];
 }
 
+export interface DetalleEncargaduriaVM {
+  id: number;
+  cargoEncargado: string;
+  titular: string;
+  fechaInicio: string;
+  fechaFin: string;
+  estatus: string;
+}
+
 export interface DetalleFisicoVM {
   tallaCamisa: string;
   tallaPantalon: string;
@@ -118,6 +127,7 @@ export interface DetalleExpedienteViewModel {
   contactoEmergencia: DetalleContactoEmergenciaVM[];
   antecedentes: DetalleAntecedenteVM[];
   contratoActual: DetalleContratoVM | null;
+  encargadurias: DetalleEncargaduriaVM[];
 }
 
 function itemsSaludPorIds(
@@ -248,5 +258,21 @@ export function construirDetalleExpediente(
           esFijo: empleado.contratoActual.esFijo ? "Fijo" : "Suplente/Contratado",
         }
       : null,
+    encargadurias: (empleado.encargadurias ?? []).map((enc) => {
+      const cargoEsp = enc.cargoInfo?.denominacioncargoespecifico?.cargo;
+      const cargoGen = enc.cargoInfo?.denominacioncargo?.cargo;
+      const cargo = cargoEsp || cargoGen || enc.cargoEncargado || SIN_DATO;
+      const titularNombre = enc.empleadoNombre || enc.titularNombre || "";
+      const titularCedula = enc.empleadoCedula || enc.titularCedula || SIN_DATO;
+      const titular = titularNombre ? `${titularNombre} (${titularCedula})` : titularCedula;
+      return {
+        id: enc.id,
+        cargoEncargado: cargo,
+        titular: titular || SIN_DATO,
+        fechaInicio: formatearFecha(enc.fechaInicio),
+        fechaFin: formatearFecha(enc.fechaFin, "Presente"),
+        estatus: enc.estatusNombre || "ACTIVO",
+      };
+    }),
   };
 }

@@ -228,6 +228,48 @@ export default function EmpleadoDetalleSheet({
               </CardContent>
             </Card>
 
+            {/* Encargadurías */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Encargadurías</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {detalle.encargadurias.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sin encargadurías registradas</p>
+                ) : (
+                  <Table className="w-full">
+                    <TableCaption>Lista De Encargadurías Del Trabajador</TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[50px]">#</TableHead>
+                        <TableHead>Cargo Encargado</TableHead>
+                        <TableHead>Titular</TableHead>
+                        <TableHead>Fecha Inicio</TableHead>
+                        <TableHead>Fecha Fin</TableHead>
+                        <TableHead>Estatus</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detalle.encargadurias.map((enc, idx) => (
+                        <TableRow key={enc.id || idx}>
+                          <TableCell className="font-medium">{idx + 1}</TableCell>
+                          <TableCell>{enc.cargoEncargado}</TableCell>
+                          <TableCell>{enc.titular}</TableCell>
+                          <TableCell>{enc.fechaInicio}</TableCell>
+                          <TableCell>{enc.fechaFin}</TableCell>
+                          <TableCell>
+                            <Badge variant={enc.estatus === "ACTIVO" ? "default" : "destructive"}>
+                              {enc.estatus}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
             {/* 3. Antecedentes */}
             {antecedentesList.length > 0 ? (
               <Card>

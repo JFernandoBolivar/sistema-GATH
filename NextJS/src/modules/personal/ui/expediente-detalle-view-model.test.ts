@@ -153,4 +153,30 @@ describe("construirDetalleExpediente", () => {
     expect(vm.cargosAsignados[0].cargoEspecifico).toBe("ESPECIALISTA EN TELECOM");
     expect(vm.cargosAsignados[0].direccionResumida).toBe("COORD SOPORTE");
   });
+
+  it("mapea encargadurias con cargo, titular y fechas formateadas", () => {
+    const empleado: EmpleadoDTO = {
+      ...empleadoBase(),
+      encargadurias: [
+        {
+          id: 12,
+          cargoEncargado: "GERENTE DE INFORMATICA",
+          empleadoNombre: "Pedro Pérez",
+          empleadoCedula: "11223344",
+          fechaInicio: "2024-01-01",
+          fechaFin: null,
+          estatusNombre: "ACTIVO",
+        },
+      ],
+    };
+
+    const vm = construirDetalleExpediente(empleado, catalogosVacios());
+
+    expect(vm.encargadurias).toHaveLength(1);
+    expect(vm.encargadurias[0].cargoEncargado).toBe("GERENTE DE INFORMATICA");
+    expect(vm.encargadurias[0].titular).toBe("Pedro Pérez (11223344)");
+    expect(vm.encargadurias[0].fechaInicio).toBe("01/01/2024");
+    expect(vm.encargadurias[0].fechaFin).toBe("Presente");
+    expect(vm.encargadurias[0].estatus).toBe("ACTIVO");
+  });
 });
