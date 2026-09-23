@@ -6,9 +6,15 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/components/card";
+import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
@@ -93,113 +99,110 @@ export default function FormPhysicalProfileUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Actualizar Información de Vestimenta</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg p-0 border-none bg-transparent shadow-none">
+        <DialogTitle className="sr-only">Actualizar Información de Vestimenta</DialogTitle>
 
-        {error && (
-          <div className="rounded bg-red-100 p-2 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <Card className="flex flex-col gap-3">
+          <CardHeader>
+            <CardTitle>Vestimenta</CardTitle>
+          </CardHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="tallaCamisaId">Talla De Camisa</Label>
-            <Select
-              value={tallaCamisaId ? String(tallaCamisaId) : ""}
-              onValueChange={(val) => setValue("tallaCamisaId", val ? Number(val) : (undefined as any))}
-            >
-              <SelectTrigger id="tallaCamisaId">
-                <SelectValue placeholder="Seleccione una talla" />
-              </SelectTrigger>
-              <SelectContent>
-                {tallas.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <CardContent>
+            <CardAction className="text-gray-600 mb-3">Datos De Vestimenta</CardAction>
 
-          <div className="space-y-2">
-            <Label htmlFor="tallaPantalonId">Talla De Pantalón</Label>
-            <Select
-              value={tallaPantalonId ? String(tallaPantalonId) : ""}
-              onValueChange={(val) => setValue("tallaPantalonId", val ? Number(val) : (undefined as any))}
-            >
-              <SelectTrigger id="tallaPantalonId">
-                <SelectValue placeholder="Seleccione una talla" />
-              </SelectTrigger>
-              <SelectContent>
-                {tallas.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            {error && (
+              <div className="rounded bg-red-100 p-2 text-sm text-red-700 mb-3">
+                {error}
+              </div>
+            )}
 
-          <div className="space-y-2">
-            <Label htmlFor="tallaZapatosId">Talla De Calzado</Label>
-            <Select
-              value={tallaZapatosId ? String(tallaZapatosId) : ""}
-              onValueChange={(val) => setValue("tallaZapatosId", val ? Number(val) : (undefined as any))}
-            >
-              <SelectTrigger id="tallaZapatosId">
-                <SelectValue placeholder="Seleccione una talla" />
-              </SelectTrigger>
-              <SelectContent>
-                {tallas.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="tallaCamisaId">Talla De Camisa</Label>
+                <Select
+                  value={tallaCamisaId ? String(tallaCamisaId) : ""}
+                  onValueChange={(val) => setValue("tallaCamisaId", val ? Number(val) : (undefined as any))}
+                >
+                  <SelectTrigger id="tallaCamisaId" className="w-full">
+                    <SelectValue placeholder="Seleccione una talla" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tallas.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="tallaChaquetaId">Talla De Chaqueta</Label>
-            <Select
-              value={tallaChaquetaId ? String(tallaChaquetaId) : ""}
-              onValueChange={(val) => setValue("tallaChaquetaId", val ? Number(val) : (undefined as any))}
-            >
-              <SelectTrigger id="tallaChaquetaId">
-                <SelectValue placeholder="Seleccione una talla" />
-              </SelectTrigger>
-              <SelectContent>
-                {tallas.map((t) => (
-                  <SelectItem key={t.id} value={String(t.id)}>
-                    {t.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="tallaPantalonId">Talla De Pantalón</Label>
+                <Select
+                  value={tallaPantalonId ? String(tallaPantalonId) : ""}
+                  onValueChange={(val) => setValue("tallaPantalonId", val ? Number(val) : (undefined as any))}
+                >
+                  <SelectTrigger id="tallaPantalonId" className="w-full">
+                    <SelectValue placeholder="Seleccione una talla" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tallas.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="bg-blue-900 text-white hover:bg-blue-800"
-            >
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Actualizar
-            </Button>
-          </div>
-        </form>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="tallaZapatosId">Talla De Zapatos</Label>
+                <Select
+                  value={tallaZapatosId ? String(tallaZapatosId) : ""}
+                  onValueChange={(val) => setValue("tallaZapatosId", val ? Number(val) : (undefined as any))}
+                >
+                  <SelectTrigger id="tallaZapatosId" className="w-full">
+                    <SelectValue placeholder="Seleccione una talla" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tallas.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="tallaChaquetaId">Talla De Chaqueta</Label>
+                <Select
+                  value={tallaChaquetaId ? String(tallaChaquetaId) : ""}
+                  onValueChange={(val) => setValue("tallaChaquetaId", val ? Number(val) : (undefined as any))}
+                >
+                  <SelectTrigger id="tallaChaquetaId" className="w-full">
+                    <SelectValue placeholder="Seleccione una talla" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tallas.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                className="w-full col-span-2 cursor-pointer mt-3"
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isPending ? "Actualizando Información" : "Actualizar"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
