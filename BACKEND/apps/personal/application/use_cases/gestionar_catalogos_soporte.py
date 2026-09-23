@@ -11,6 +11,7 @@ from apps.personal.domain.entities.catalogos_soporte import (
     RegionTalla,
     Talla,
     TipoPrenda,
+    Carrera,
 )
 from apps.personal.domain.ports.repo_catalogos_soporte import RepoCatalogosSoporte
 
@@ -202,3 +203,13 @@ def actualizar_tipo_prenda(repo: RepoCatalogosSoporte, id: int, categoria: str) 
 def eliminar_tipo_prenda(repo: RepoCatalogosSoporte, id: int) -> None:
     prenda_id = _validar_id("id", id)
     repo.eliminar_tipo_prenda(prenda_id)
+
+
+# ----------------------------------------------------------------------
+# Alta inline de catálogos académicos (opción "Otra X" del registro)
+# ----------------------------------------------------------------------
+
+def crear_carrera(repo: RepoCatalogosSoporte, nombre: str, nivel_academico_id: int) -> Carrera:
+    nombre_limpio = _validar_texto("nombre", nombre, 200)
+    nivel_id = _validar_id("nivel_academico_id", nivel_academico_id)
+    return repo.crear_carrera(nombre_limpio, nivel_id)

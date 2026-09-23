@@ -12,6 +12,7 @@ from apps.personal.domain.entities.catalogos_soporte import (
     RegionTalla,
     Talla,
     TipoPrenda,
+    Carrera,
 )
 
 
@@ -101,4 +102,8 @@ class RepoCatalogosSoporte(Protocol):
         ...
 
     def eliminar_tipo_prenda(self, id: int) -> None:
+        ...
+
+    # Alta inline de catálogos académicos ("Otra X" del registro)
+    def crear_carrera(self, nombre: str, nivel_academico_id: int) -> Carrera:
         ...

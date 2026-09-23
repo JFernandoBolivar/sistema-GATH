@@ -14,9 +14,12 @@ from apps.personal.domain.entities.catalogos_soporte import (
     RegionTalla,
     Talla,
     TipoPrenda,
+    Carrera,
 )
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
+    CarreraModel,
+    NivelAcademicoModel,
     CategoriaAlergiaModel,
     CategoriaDiscapacidadModel,
     CategoriaPatologiaModel,
@@ -320,3 +323,17 @@ class RepoCatalogosSoporteORM:
             obj.delete()
         except (IntegrityError, ProtectedError):
             raise ConflictError(f"No se puede eliminar el tipo de prenda '{obj.categoria}' porque está en uso.")
+
+    # ------------------------------------------------------------------
+    # Alta inline de catálogos académicos ("Otra X" del registro)
+    # ------------------------------------------------------------------
+    def crear_carrera(self, nombre: str, nivel_academico_id: int) -> Carrera:
+        if not NivelAcademicoModel.objects.filter(pk=nivel_academico_id).exists():
+            raise NotFoundError(f"Nivel académico con ID {nivel_academico_id} no existe.")
+        if CarreraModel.objects.filter(nombre_carrera__iexact=nombre).exists():
+            raise ConflictError(f"La carrera '{nombre}' ya existe.")
+        try:
+            obj = CarreraModel.objects.create(nombre_carrera=nombre, nivel_academico_id_id=nivel_academico_id)
+        except IntegrityError:
+            raise ConflictError(f"La carrera '{nombre}' ya existe.")
+        return Carrera(id=obj.pk, nombre=obj.nombre_carrera, nivel_academico_id=obj.nivel_academico_id_id)

@@ -34,6 +34,7 @@ from apps.personal.application.use_cases.gestionar_catalogos_soporte import (
     actualizar_talla,
     actualizar_tipo_prenda,
     crear_alergia,
+    crear_carrera,
     crear_categoria_alergia,
     crear_categoria_discapacidad,
     crear_categoria_patologia,
@@ -62,6 +63,8 @@ from apps.personal.presentation.serializers.catalogos_soporte_serializers import
     AlergiaWriteSerializer,
     CatalogoItemSerializer,
     CategoriaDetalleSerializer,
+    CarreraDetalleSerializer,
+    CarreraWriteSerializer,
     CategoriaWriteSerializer,
     CodigoPostalSerializer,
     DiscapacidadDetalleSerializer,
@@ -144,7 +147,10 @@ class NivelesAcademicosListView(APIView):
 
 
 class CarrerasListView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated(), HasPermission(PERMISO_VER)()]
+        return [IsAuthenticated(), HasPermission(PERMISO_CREAR)()]
 
     @extend_schema(
         tags=['Personal'],
@@ -156,6 +162,13 @@ class CarrerasListView(APIView):
         nivel_academico_id = _query_id(request, 'nivel_academico_id')
         dtos = listar_carreras(RepoPersonalORM().listar_carreras(nivel_academico_id=nivel_academico_id))
         return ok(CatalogoItemSerializer(dtos, many=True).data)
+
+    @extend_schema(tags=['Personal - Catálogos'], summary='Crear carrera (alta inline "Otra")', request=CarreraWriteSerializer, responses={201: CarreraDetalleSerializer})
+    def post(self, request):
+        s = CarreraWriteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entidad = crear_carrera(RepoCatalogosSoporteORM(), s.validated_data['nombre'], s.validated_data['nivel_academico_id'])
+        return ok(CarreraDetalleSerializer(entidad).data, 'Carrera creada.', status=201)
 
 
 class MencionesListView(APIView):

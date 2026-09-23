@@ -56,3 +56,10 @@ class Talla:
     tipo_prenda_id: int
     region_codigo: str = ""
     tipo_prenda_nombre: str = ""
+
+
+@dataclass(frozen=True)
+class Carrera:
+    id: int
+    nombre: str
+    nivel_academico_id: int | None = None

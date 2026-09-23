@@ -141,3 +141,18 @@ class TipoPrendaWriteSerializer(serializers.Serializer):
 class TipoPrendaDetalleSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     categoria = serializers.CharField(read_only=True)
+
+
+# ----------------------------------------------------------------------
+# Alta inline de catálogos académicos (opción "Otra X" del registro)
+# ----------------------------------------------------------------------
+
+class CarreraWriteSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=200)
+    nivel_academico_id = serializers.IntegerField(min_value=1)
+
+
+class CarreraDetalleSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+    nivel_academico_id = serializers.IntegerField(read_only=True, allow_null=True)
