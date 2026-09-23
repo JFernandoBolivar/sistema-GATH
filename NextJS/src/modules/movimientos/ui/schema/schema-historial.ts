@@ -27,6 +27,7 @@ export const historialCargoSchema = z.object({
 export const consultaHistorialSchema = z.object({
   cedulaidentidad: z.string().optional().default(""),
   codigoPuesto: z.string().optional().default(""),
+  categoria: z.string().optional().default(""),
   tipoMovimiento: z.string().optional().default(""),
   fechaInicio: z.string().optional().default(""),
   fechaFin: z.string().optional().default(""),

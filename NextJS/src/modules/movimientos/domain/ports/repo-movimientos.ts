@@ -10,6 +10,7 @@ import type { MovimientoCargo } from "../entities/movimiento";
 export interface FiltrosMovimiento {
   cedula?: string;
   codigoPuesto?: string;
+  categoria?: string;
   tipoMovimiento?: string;
   fechaInicio?: string;
   fechaFin?: string;
@@ -17,16 +18,15 @@ export interface FiltrosMovimiento {
   estatus?: string;
 }
 
-export interface TipoMovimientoDisponible {
-  valor: string;
-  label: string;
-  grupo?: string;
+export interface CatalogoTiposMovimientoInfo {
+  categorias: string[];
+  motivos_por_categoria: Record<string, string[]>;
 }
 
 export interface RepoMovimientos {
   listarHistorialPorEmpleado(cedula: string): Promise<MovimientoCargo[]>;
   listarHistorialPorCargo(codigoPuesto: string): Promise<MovimientoCargo[]>;
   listarHistorial?(filtros?: FiltrosMovimiento): Promise<MovimientoCargo[]>;
-  listarTiposDisponibles?(): Promise<TipoMovimientoDisponible[]>;
+  listarTiposDisponibles?(): Promise<CatalogoTiposMovimientoInfo>;
 }
 

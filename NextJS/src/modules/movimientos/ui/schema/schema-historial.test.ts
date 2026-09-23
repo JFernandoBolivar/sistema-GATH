@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { historialCargoSchema, historialEmpleadoSchema } from "./schema-historial";
+import {
+  consultaHistorialSchema,
+  historialCargoSchema,
+  historialEmpleadoSchema,
+} from "./schema-historial";
 
 describe("Schema de Historial de Movimientos", () => {
   describe("historialEmpleadoSchema", () => {
@@ -59,6 +63,35 @@ describe("Schema de Historial de Movimientos", () => {
         codigoPuesto: "",
       });
       expect(invalid.success).toBe(false);
+    });
+  });
+
+  describe("consultaHistorialSchema", () => {
+    it("valida filtros completos incluyendo categoria y tipoMovimiento", () => {
+      const parsed = consultaHistorialSchema.safeParse({
+        cedulaidentidad: "12345678",
+        codigoPuesto: "COD-01",
+        categoria: "EGRESO",
+        tipoMovimiento: "RENUNCIA",
+        fechaInicio: "2026-01-01",
+        fechaFin: "2026-12-31",
+        gerencia: "CONSULTORIA JURIDICA",
+        estatus: "ACTIVO",
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.categoria).toBe("EGRESO");
+        expect(parsed.data.tipoMovimiento).toBe("RENUNCIA");
+      }
+    });
+
+    it("asigna valores por defecto vacíos si no se especifican", () => {
+      const parsed = consultaHistorialSchema.safeParse({});
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.categoria).toBe("");
+        expect(parsed.data.tipoMovimiento).toBe("");
+      }
     });
   });
 });

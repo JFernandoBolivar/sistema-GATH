@@ -43,7 +43,7 @@ export async function listarTiposMovimientoDisponibles(
   if (repo.listarTiposDisponibles) {
     return repo.listarTiposDisponibles();
   }
-  return [];
+  return null;
 }
 
 function aDto(e: Awaited<ReturnType<RepoMovimientos["listarHistorialPorEmpleado"]>>[number]): MovimientoCargoDTO {

@@ -46,7 +46,7 @@ import Loading from "@/shared/ui/components/loading";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
-import type { FiltrosMovimiento, TipoMovimientoDisponible } from "../domain/ports/repo-movimientos";
+import type { CatalogoTiposMovimientoInfo, FiltrosMovimiento } from "../domain/ports/repo-movimientos";
 import {
   getHistorialGeneralAction,
   getHistorialPorCargoAction,
@@ -62,40 +62,49 @@ import {
   type ConsultaHistorialFormType,
 } from "./schema/schema-historial";
 
-const TIPOS_MOVIMIENTO_DB_INICIALES: TipoMovimientoDisponible[] = [
-  // Categorías Generales
-  { valor: "INGRESO", label: "INGRESO", grupo: "Categoría General" },
-  { valor: "TRASLADO", label: "TRASLADO", grupo: "Categoría General" },
-  { valor: "EGRESO", label: "EGRESO", grupo: "Categoría General" },
-  { valor: "CAMBIO DE ESTATUS", label: "CAMBIO DE ESTATUS", grupo: "Categoría General" },
-
-  // Motivos Específicos del Catálogo Institucional en BD (TipoMovimientoModel)
-  { valor: "ASIGNACION DE CARGO", label: "ASIGNACION DE CARGO", grupo: "Motivo Específico" },
-  { valor: "ASCENSO PERSONAL EMPLEADO", label: "ASCENSO PERSONAL EMPLEADO", grupo: "Motivo Específico" },
-  { valor: "CLASIFICACION DE CARGO OBRERO", label: "CLASIFICACION DE CARGO OBRERO", grupo: "Motivo Específico" },
-  { valor: "ENCARGADURIA INTERNA", label: "ENCARGADURIA INTERNA", grupo: "Motivo Específico" },
-  { valor: "ENCARGADURIA EN CALIDAD DE COMISION DE SERVICIO", label: "ENCARGADURIA EN CALIDAD DE COMISION DE SERVICIO", grupo: "Motivo Específico" },
-  { valor: "TRASLADO FISICO Y ADMINISTRATIVO A OTRA DEPENDENCIA", label: "TRASLADO FISICO Y ADMINISTRATIVO A OTRA DEPENDENCIA", grupo: "Motivo Específico" },
-  { valor: "TRASLADO DE NOMINA", label: "TRASLADO DE NOMINA", grupo: "Motivo Específico" },
-  { valor: "NOMBRAMIENTO DE LIBRE Y REMOCION", label: "NOMBRAMIENTO DE LIBRE Y REMOCION", grupo: "Motivo Específico" },
-  { valor: "JUBILACION DE DERECHO", label: "JUBILACION DE DERECHO", grupo: "Motivo Específico" },
-  { valor: "PENSION DE INVALIDEZ", label: "PENSION DE INVALIDEZ", grupo: "Motivo Específico" },
-  { valor: "PENSION POR SOBREVIVIENTE", label: "PENSION POR SOBREVIVIENTE", grupo: "Motivo Específico" },
-  { valor: "RENUNCIA", label: "RENUNCIA", grupo: "Motivo Específico" },
-  { valor: "DESTITUCION", label: "DESTITUCION", grupo: "Motivo Específico" },
-  { valor: "DESPIDO DE OBRERO", label: "DESPIDO DE OBRERO", grupo: "Motivo Específico" },
-  { valor: "FALLECIMIENTO", label: "FALLECIMIENTO", grupo: "Motivo Específico" },
-  { valor: "ABANDONO DE CARGO", label: "ABANDONO DE CARGO", grupo: "Motivo Específico" },
-  { valor: "ANULACION DE MOVIMIENTO", label: "ANULACION DE MOVIMIENTO", grupo: "Motivo Específico" },
-  { valor: "EGRESO POR TRANSFERENCIA", label: "EGRESO POR TRANSFERENCIA", grupo: "Motivo Específico" },
-  { valor: "REPOSO MEDICO", label: "REPOSO MEDICO", grupo: "Motivo Específico" },
-  { valor: "RETIRO POR REDUCCION DE PERSONAL", label: "RETIRO POR REDUCCION DE PERSONAL", grupo: "Motivo Específico" },
-  { valor: "SUSPENDIDO POR ABANDONO DE CARGO", label: "SUSPENDIDO POR ABANDONO DE CARGO", grupo: "Motivo Específico" },
-  { valor: "SUSPENDIDO POR COMISION DE SERVICIO", label: "SUSPENDIDO POR COMISION DE SERVICIO", grupo: "Motivo Específico" },
-  { valor: "SUSPENDIDO POR ENCARGADURIA", label: "SUSPENDIDO POR ENCARGADURIA", grupo: "Motivo Específico" },
-  { valor: "SUSPENDIDO POR TRAMITES ADMINISTRATIVOS", label: "SUSPENDIDO POR TRAMITES ADMINISTRATIVOS", grupo: "Motivo Específico" },
-  { valor: "CAMBIO DE ESTATUS POR TRAMITES ADMINISTRATIVOS", label: "CAMBIO DE ESTATUS POR TRAMITES ADMINISTRATIVOS", grupo: "Motivo Específico" },
+const CATEGORIAS_INICIALES = [
+  "INGRESO",
+  "TRASLADO",
+  "EGRESO",
+  "ENCARGADURIA",
+  "ESTATUS",
+  "ESTATUS PASIVO",
 ];
+
+const MOTIVOS_POR_CATEGORIA_INICIALES: Record<string, string[]> = {
+  INGRESO: ["INGRESO"],
+  TRASLADO: [
+    "ASCENSO PERSONAL EMPLEADO",
+    "ASIGNACION DE CARGO",
+    "CLASIFICACION DE CARGO OBRERO",
+    "ENCARGADURIA EN CALIDAD DE COMISION DE SERVICIO",
+    "ENCARGADURIA INTERNA",
+    "NOMBRAMIENTO DE LIBRE Y REMOCION",
+    "TRASLADO DE NOMINA",
+    "TRASLADO FISICO Y ADMINISTRATIVO A OTRA DEPENDENCIA",
+  ],
+  EGRESO: [
+    "ABANDONO DE CARGO",
+    "ANULACION DE MOVIMIENTO",
+    "DESPIDO DE OBRERO",
+    "DESTITUCION",
+    "EGRESO POR TRANSFERENCIA",
+    "FALLECIMIENTO",
+    "JUBILACION DE DERECHO",
+    "PENSION DE INVALIDEZ",
+    "PENSION POR SOBREVIVIENTE",
+    "RENUNCIA",
+    "RETIRO POR REDUCCION DE PERSONAL",
+  ],
+  ENCARGADURIA: ["REPOSO MEDICO"],
+  ESTATUS: [
+    "SUSPENDIDO POR ABANDONO DE CARGO",
+    "SUSPENDIDO POR COMISION DE SERVICIO",
+    "SUSPENDIDO POR ENCARGADURIA",
+    "SUSPENDIDO POR TRAMITES ADMINISTRATIVOS",
+  ],
+  "ESTATUS PASIVO": ["CAMBIO DE ESTATUS POR TRAMITES ADMINISTRATIVOS"],
+};
 
 const GERENCIAS_OPCIONES = [
   "OFICINA DE SISTEMAS Y TECNOLOGIA DE LA INFORMACION",
@@ -147,9 +156,10 @@ export default function MovimientosPage() {
   const [viendoDetalle, setViendoDetalle] = useState<MovimientoCargoDTO | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
 
-  const [tiposMovimiento, setTiposMovimiento] = useState<TipoMovimientoDisponible[]>(
-    TIPOS_MOVIMIENTO_DB_INICIALES,
-  );
+  const [catalogoTipos, setCatalogoTipos] = useState<CatalogoTiposMovimientoInfo>({
+    categorias: CATEGORIAS_INICIALES,
+    motivos_por_categoria: MOTIVOS_POR_CATEGORIA_INICIALES,
+  });
   const [gerencias, setGerencias] = useState<string[]>(
     GERENCIAS_OPCIONES as unknown as string[],
   );
@@ -158,8 +168,19 @@ export default function MovimientosPage() {
     let montado = true;
     getTiposMovimientoDisponiblesAction()
       .then((data) => {
-        if (montado && Array.isArray(data) && data.length > 0) {
-          setTiposMovimiento(data);
+        if (
+          montado &&
+          data &&
+          typeof data === "object" &&
+          "categorias" in data &&
+          Array.isArray(data.categorias) &&
+          data.categorias.length > 0
+        ) {
+          setCatalogoTipos({
+            categorias: data.categorias,
+            motivos_por_categoria:
+              data.motivos_por_categoria ?? MOTIVOS_POR_CATEGORIA_INICIALES,
+          });
         }
       })
       .catch(() => {});
@@ -182,24 +203,12 @@ export default function MovimientosPage() {
     };
   }, []);
 
-  const gruposTipos = useMemo(() => {
-    const categorias = tiposMovimiento.filter((t) => t.grupo === "Categoría General");
-    const motivos = tiposMovimiento.filter((t) => t.grupo === "Motivo Específico");
-    const otros = tiposMovimiento.filter(
-      (t) => t.grupo !== "Categoría General" && t.grupo !== "Motivo Específico",
-    );
-    const res: { nombre: string; items: TipoMovimientoDisponible[] }[] = [];
-    if (categorias.length > 0) res.push({ nombre: "Categorías Generales", items: categorias });
-    if (motivos.length > 0) res.push({ nombre: "Motivos Específicos (Catálogo)", items: motivos });
-    if (otros.length > 0) res.push({ nombre: "Otros Movimientos", items: otros });
-    return res;
-  }, [tiposMovimiento]);
-
   const form = useForm<ConsultaHistorialFormType>({
     resolver: zodResolver(consultaHistorialSchema),
     defaultValues: {
       cedulaidentidad: "",
       codigoPuesto: "",
+      categoria: "ALL",
       tipoMovimiento: "ALL",
       fechaInicio: "",
       fechaFin: "",
@@ -208,9 +217,18 @@ export default function MovimientosPage() {
     },
   });
 
+  const categoriaSeleccionada = form.watch("categoria");
+  const motivosDisponibles = useMemo(() => {
+    if (!categoriaSeleccionada || categoriaSeleccionada === "ALL") {
+      return [];
+    }
+    return catalogoTipos.motivos_por_categoria[categoriaSeleccionada] ?? [];
+  }, [categoriaSeleccionada, catalogoTipos]);
+
   const onSearch = (values: ConsultaHistorialFormType) => {
     const cedula = values.cedulaidentidad?.trim();
     const codigo = values.codigoPuesto?.trim();
+    const categoria = values.categoria?.trim();
     const tipo = values.tipoMovimiento?.trim();
     const fechaInicio = values.fechaInicio?.trim();
     const fechaFin = values.fechaFin?.trim();
@@ -232,6 +250,7 @@ export default function MovimientosPage() {
         const filtros: FiltrosMovimiento = {};
         if (cedula) filtros.cedula = cedula;
         if (codigo) filtros.codigoPuesto = codigo.toUpperCase();
+        if (categoria && categoria !== "ALL") filtros.categoria = categoria;
         if (tipo && tipo !== "ALL") filtros.tipoMovimiento = tipo;
         if (fechaInicio) filtros.fechaInicio = fechaInicio;
         if (fechaFin) filtros.fechaFin = fechaFin;
@@ -243,6 +262,7 @@ export default function MovimientosPage() {
         const soloCedula =
           cedula &&
           !codigo &&
+          (!categoria || categoria === "ALL") &&
           (!tipo || tipo === "ALL") &&
           !fechaInicio &&
           !fechaFin &&
@@ -252,6 +272,7 @@ export default function MovimientosPage() {
         const soloCodigo =
           codigo &&
           !cedula &&
+          (!categoria || categoria === "ALL") &&
           (!tipo || tipo === "ALL") &&
           !fechaInicio &&
           !fechaFin &&
@@ -268,7 +289,8 @@ export default function MovimientosPage() {
           const partesResumen = [
             cedula ? `Cédula: ${cedula}` : "",
             codigo ? `Puesto: ${codigo}` : "",
-            tipo && tipo !== "ALL" ? `Tipo: ${tipo}` : "",
+            categoria && categoria !== "ALL" ? `Categoría: ${categoria}` : "",
+            tipo && tipo !== "ALL" ? `Motivo: ${tipo}` : "",
             gerencia && gerencia !== "ALL" ? `Gerencia: ${gerencia}` : "",
             fechaInicio ? `Desde: ${fechaInicio}` : "",
             fechaFin ? `Hasta: ${fechaFin}` : "",
@@ -299,6 +321,7 @@ export default function MovimientosPage() {
     form.reset({
       cedulaidentidad: "",
       codigoPuesto: "",
+      categoria: "ALL",
       tipoMovimiento: "ALL",
       fechaInicio: "",
       fechaFin: "",
@@ -378,7 +401,7 @@ export default function MovimientosPage() {
               className="flex flex-col gap-4"
               noValidate
             >
-              {/* Fila 1: Cédula, Código Puesto, Tipo de Movimiento, Gerencia */}
+              {/* Fila 1: Cédula, Código Puesto, Categoría de Movimiento, Motivo Específico */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField
                   name="cedulaidentidad"
@@ -419,34 +442,30 @@ export default function MovimientosPage() {
                 />
 
                 <FormField
-                  name="tipoMovimiento"
+                  name="categoria"
                   control={form.control}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tipo de Movimiento</FormLabel>
+                      <FormLabel>Categoría de Movimiento</FormLabel>
                       <Select
                         value={field.value || "ALL"}
-                        onValueChange={(val) => field.onChange(val === "ALL" ? "" : val)}
+                        onValueChange={(val) => {
+                          field.onChange(val === "ALL" ? "" : val);
+                          form.setValue("tipoMovimiento", "ALL");
+                        }}
                         disabled={!puedeVer || isPending}
                       >
                         <FormControl>
                           <SelectTrigger className="bg-white w-full">
-                            <SelectValue placeholder="Todos los tipos" />
+                            <SelectValue placeholder="Todas las categorías" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="max-h-80">
-                          <SelectItem value="ALL">Todos los tipos</SelectItem>
-                          {gruposTipos.map((grupo) => (
-                            <SelectGroup key={grupo.nombre}>
-                              <SelectLabel className="text-xs font-semibold text-muted-foreground uppercase px-2 py-1.5 bg-muted/40">
-                                {grupo.nombre}
-                              </SelectLabel>
-                              {grupo.items.map((tipo) => (
-                                <SelectItem key={tipo.valor} value={tipo.valor}>
-                                  {tipo.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="ALL">Todas las categorías</SelectItem>
+                          {catalogoTipos.categorias.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -454,6 +473,53 @@ export default function MovimientosPage() {
                   )}
                 />
 
+                <FormField
+                  name="tipoMovimiento"
+                  control={form.control}
+                  render={({ field }) => {
+                    const tieneCategoria = Boolean(
+                      categoriaSeleccionada && categoriaSeleccionada !== "ALL",
+                    );
+                    return (
+                      <FormItem>
+                        <FormLabel>Tipo / Motivo Específico</FormLabel>
+                        <Select
+                          value={field.value || "ALL"}
+                          onValueChange={(val) => field.onChange(val === "ALL" ? "" : val)}
+                          disabled={!puedeVer || isPending || !tieneCategoria}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-white w-full">
+                              <SelectValue
+                                placeholder={
+                                  tieneCategoria
+                                    ? "Todos los motivos"
+                                    : "Seleccione una categoría primero"
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="max-h-72">
+                            <SelectItem value="ALL">
+                              {tieneCategoria
+                                ? `Todos los motivos (${categoriaSeleccionada})`
+                                : "Todos los motivos"}
+                            </SelectItem>
+                            {motivosDisponibles.map((motivo) => (
+                              <SelectItem key={motivo} value={motivo}>
+                                {motivo}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    );
+                  }}
+                />
+              </div>
+
+              {/* Fila 2: Gerencia, Estatus, Fecha Inicio, Fecha Fin */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <FormField
                   name="gerencia"
                   control={form.control}
@@ -482,10 +548,36 @@ export default function MovimientosPage() {
                     </FormItem>
                   )}
                 />
-              </div>
 
-              {/* Fila 2: Fecha Inicio, Fecha Fin, Estatus, Acciones */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <FormField
+                  name="estatus"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estatus del Cargo</FormLabel>
+                      <Select
+                        value={field.value || "ALL"}
+                        onValueChange={(val) => field.onChange(val === "ALL" ? "" : val)}
+                        disabled={!puedeVer || isPending}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-white w-full">
+                            <SelectValue placeholder="Todos los estatus" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="ALL">Todos los estatus</SelectItem>
+                          {ESTATUS_CARGO.map((est) => (
+                            <SelectItem key={est} value={est}>
+                              {est}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   name="fechaInicio"
                   control={form.control}
@@ -521,54 +613,26 @@ export default function MovimientosPage() {
                     </FormItem>
                   )}
                 />
+              </div>
 
-                <FormField
-                  name="estatus"
-                  control={form.control}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Estatus del Cargo</FormLabel>
-                      <Select
-                        value={field.value || "ALL"}
-                        onValueChange={(val) => field.onChange(val === "ALL" ? "" : val)}
-                        disabled={!puedeVer || isPending}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="bg-white w-full">
-                            <SelectValue placeholder="Todos los estatus" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="ALL">Todos los estatus</SelectItem>
-                          {ESTATUS_CARGO.map((est) => (
-                            <SelectItem key={est} value={est}>
-                              {est}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="submit"
-                    className="flex-1 cursor-pointer"
-                    disabled={isPending || !puedeVer}
-                  >
-                    Buscar <Search className="size-4 ml-1.5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 cursor-pointer"
-                    type="button"
-                    onClick={cleanFields}
-                    disabled={isPending}
-                  >
-                    Limpiar <Eraser className="size-4 ml-1.5" />
-                  </Button>
-                </div>
+              {/* Botones de acción */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                <Button
+                  variant="outline"
+                  className="cursor-pointer"
+                  type="button"
+                  onClick={cleanFields}
+                  disabled={isPending}
+                >
+                  Limpiar <Eraser className="size-4 ml-1.5" />
+                </Button>
+                <Button
+                  type="submit"
+                  className="cursor-pointer"
+                  disabled={isPending || !puedeVer}
+                >
+                  Buscar <Search className="size-4 ml-1.5" />
+                </Button>
               </div>
             </form>
           </Form>

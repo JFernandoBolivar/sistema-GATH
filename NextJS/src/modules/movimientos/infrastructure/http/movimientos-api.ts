@@ -28,6 +28,7 @@ export interface MovimientoApiItem {
 export interface FiltrosMovimientosApi {
   cedula?: string;
   codigo_puesto?: string;
+  categoria?: string;
   tipo_movimiento?: string;
   fecha_inicio?: string;
   fecha_fin?: string;
@@ -35,10 +36,9 @@ export interface FiltrosMovimientosApi {
   estatus?: string;
 }
 
-export interface TipoMovimientoItem {
-  valor: string;
-  label: string;
-  grupo?: string;
+export interface CatalogoTiposMovimientoApi {
+  categorias: string[];
+  motivos_por_categoria: Record<string, string[]>;
 }
 
 export const movimientosApi = {

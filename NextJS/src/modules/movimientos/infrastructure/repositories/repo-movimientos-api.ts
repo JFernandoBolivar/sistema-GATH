@@ -18,6 +18,7 @@ export const repoMovimientosApi: RepoMovimientos = {
     const raw = await movimientosApi.getHistorial({
       cedula: filtros?.cedula,
       codigo_puesto: filtros?.codigoPuesto,
+      categoria: filtros?.categoria,
       tipo_movimiento: filtros?.tipoMovimiento,
       fecha_inicio: filtros?.fechaInicio,
       fecha_fin: filtros?.fechaFin,
@@ -39,7 +40,10 @@ export const repoMovimientosApi: RepoMovimientos = {
 
   async listarTiposDisponibles() {
     const raw = await movimientosApi.getTiposDisponibles();
-    return extraerLista<{ valor: string; label: string; grupo?: string }>(raw);
+    if (raw && typeof raw === "object" && "data" in raw) {
+      return (raw as { data: any }).data;
+    }
+    return raw as any;
   },
 };
 
