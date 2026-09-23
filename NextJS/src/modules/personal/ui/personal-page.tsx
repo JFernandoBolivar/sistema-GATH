@@ -200,7 +200,7 @@ export default function PersonalPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `expediente-${empleadoObj.cedula}.pdf`;
+      a.download = `${empleadoObj.nombres}-${empleadoObj.apellidos}-expediente.pdf`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch {
@@ -220,19 +220,17 @@ export default function PersonalPage() {
       setError("Cargando información del catálogo, por favor reintente.");
       return;
     }
-    startTransition(async () => {
-      setError(null);
-      try {
-        const emp = await getEmpleadoPorCedulaAction(cedula);
-        if (emp && typeof emp === "object" && !("error" in emp)) {
-          await descargarPdfExpediente(emp as EmpleadoDTO, catalogos);
-        } else {
-          setError("No se pudo obtener el expediente para generar el PDF.");
-        }
-      } catch {
-        setError("Error al obtener datos para PDF.");
+    setError(null);
+    try {
+      const emp = await getEmpleadoPorCedulaAction(cedula);
+      if (emp && typeof emp === "object" && !("error" in emp)) {
+        await descargarPdfExpediente(emp as EmpleadoDTO, catalogos);
+      } else {
+        setError("No se pudo obtener el expediente para generar el PDF.");
       }
-    });
+    } catch {
+      setError("Error al obtener datos para PDF.");
+    }
   };
 
   const columnas = construirColumnasPersonal(

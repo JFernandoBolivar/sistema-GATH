@@ -15,6 +15,7 @@
  *   - Acciones: "Copiar Cédula De Identidad"
  *   - Extras: "Expediente PDF" (ExportButton) y botón azul "Ver Detalles"
  */
+import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { MoreHorizontal } from "lucide-react";
 
@@ -41,8 +42,20 @@ function AccionesCell({
   empleado: EmpleadoDTO;
   puedeExportarPdf: boolean;
   onVerDetalle: (cedula: string) => void;
-  onExportarPdfDirecto?: (cedula: string) => void;
+  onExportarPdfDirecto?: (cedula: string) => void | Promise<void>;
 }) {
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+
+  const handleDescargarPdf = async () => {
+    if (!onExportarPdfDirecto || generandoPdf) return;
+    setGenerandoPdf(true);
+    try {
+      await onExportarPdfDirecto(empleado.cedula);
+    } finally {
+      setGenerandoPdf(false);
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -64,9 +77,10 @@ function AccionesCell({
         {puedeExportarPdf && (
           <DropdownMenuItem
             className="cursor-pointer"
-            onClick={() => onExportarPdfDirecto?.(empleado.cedula)}
+            disabled={generandoPdf}
+            onClick={handleDescargarPdf}
           >
-            Expediente PDF
+            {generandoPdf ? "Generando archivo…" : "Descargar PDF"}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
