@@ -13,13 +13,33 @@ import useSWR from "swr";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/components/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
 
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { getCatalogoDependienteAction } from "../../infrastructure/actions/registro-actions";
 import { pasoPhysicalProfileSchema, type PasoPhysicalProfileType } from "../schema/schema-registro-pasos";
 
 const normalizar = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function groupByRegion(tallasList: CatalogosExpedienteDTO["tallas"]) {
+  return tallasList.reduce(
+    (acc, item) => {
+      const region = item.regionCodigo || item.regionDescripcion || "General";
+      if (!acc[region]) acc[region] = [];
+      acc[region].push(item);
+      return acc;
+    },
+    {} as Record<string, CatalogosExpedienteDTO["tallas"]>,
+  );
+}
 
 function useTallasPorPrenda(catalogos: CatalogosExpedienteDTO | null, prenda: string) {
   const tipo = catalogos?.tiposPrenda.find((t) => normalizar(t.nombre).startsWith(prenda));
@@ -40,10 +60,11 @@ function CampoTalla({
   control: ReturnType<typeof useForm<PasoPhysicalProfileType>>["control"];
   name: FieldPath<PasoPhysicalProfileType>;
   label: string;
-  tallas: { id: number; nombre: string }[];
+  tallas: CatalogosExpedienteDTO["tallas"];
   isLoading: boolean;
   className?: string;
 }) {
+  const grouped = groupByRegion(tallas);
   return (
     <FormField
       control={control}
@@ -58,10 +79,15 @@ function CampoTalla({
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {tallas.map((t) => (
-                <SelectItem key={t.id} value={t.id.toString()}>
-                  {t.nombre}
-                </SelectItem>
+              {Object.entries(grouped).map(([region, items]) => (
+                <SelectGroup key={region}>
+                  <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                  {items.map((t) => (
+                    <SelectItem key={t.id} value={t.id.toString()}>
+                      {t.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>

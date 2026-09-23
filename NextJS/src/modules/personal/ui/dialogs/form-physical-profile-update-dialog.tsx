@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,7 +23,9 @@ import { Label } from "@/shared/ui/components/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
@@ -37,6 +39,18 @@ interface FormPhysicalProfileUpdateDialogProps {
   onGuardado: () => void;
   triggerClassName?: string;
   triggerLabel?: string;
+}
+
+function groupByRegion(tallasList: NonNullable<CatalogosExpedienteDTO["tallas"]>) {
+  return tallasList.reduce(
+    (acc, item) => {
+      const region = item.regionCodigo || item.regionDescripcion || "General";
+      if (!acc[region]) acc[region] = [];
+      acc[region].push(item);
+      return acc;
+    },
+    {} as Record<string, NonNullable<CatalogosExpedienteDTO["tallas"]>>,
+  );
 }
 
 export default function FormPhysicalProfileUpdateDialog({
@@ -97,6 +111,36 @@ export default function FormPhysicalProfileUpdateDialog({
   };
 
   const tallas = catalogos?.tallas ?? [];
+  const tipos = catalogos?.tiposPrenda ?? [];
+  const normalizar = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const tipoCamisaId = tipos.find((tp) => normalizar(tp.nombre).includes("camisa"))?.id;
+  const tipoPantalonId = tipos.find((tp) => normalizar(tp.nombre).includes("pantalon"))?.id;
+  const tipoZapatoId = tipos.find((tp) => normalizar(tp.nombre).includes("zapato"))?.id;
+  const tipoChaquetaId = tipos.find((tp) => normalizar(tp.nombre).includes("chaqueta"))?.id;
+
+  const camisas = useMemo(
+    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("camisa") || (tipoCamisaId && t.tipoPrendaId === tipoCamisaId)),
+    [tallas, tipoCamisaId],
+  );
+  const pantalones = useMemo(
+    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("pantalon") || (tipoPantalonId && t.tipoPrendaId === tipoPantalonId)),
+    [tallas, tipoPantalonId],
+  );
+  const zapatos = useMemo(
+    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("zapato") || (tipoZapatoId && t.tipoPrendaId === tipoZapatoId)),
+    [tallas, tipoZapatoId],
+  );
+  const chaquetas = useMemo(
+    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("chaqueta") || (tipoChaquetaId && t.tipoPrendaId === tipoChaquetaId)),
+    [tallas, tipoChaquetaId],
+  );
+
+  const camisasGrouped = useMemo(() => groupByRegion(camisas), [camisas]);
+  const pantalonesGrouped = useMemo(() => groupByRegion(pantalones), [pantalones]);
+  const zapatosGrouped = useMemo(() => groupByRegion(zapatos), [zapatos]);
+  const chaquetasGrouped = useMemo(() => groupByRegion(chaquetas), [chaquetas]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -133,10 +177,15 @@ export default function FormPhysicalProfileUpdateDialog({
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
-                    {tallas.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.nombre}
-                      </SelectItem>
+                    {Object.entries(camisasGrouped).map(([region, items]) => (
+                      <SelectGroup key={region}>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        {items.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>
@@ -152,10 +201,15 @@ export default function FormPhysicalProfileUpdateDialog({
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
-                    {tallas.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.nombre}
-                      </SelectItem>
+                    {Object.entries(pantalonesGrouped).map(([region, items]) => (
+                      <SelectGroup key={region}>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        {items.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>
@@ -171,10 +225,15 @@ export default function FormPhysicalProfileUpdateDialog({
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
-                    {tallas.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.nombre}
-                      </SelectItem>
+                    {Object.entries(zapatosGrouped).map(([region, items]) => (
+                      <SelectGroup key={region}>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        {items.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>
@@ -190,10 +249,15 @@ export default function FormPhysicalProfileUpdateDialog({
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
-                    {tallas.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.nombre}
-                      </SelectItem>
+                    {Object.entries(chaquetasGrouped).map(([region, items]) => (
+                      <SelectGroup key={region}>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        {items.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>

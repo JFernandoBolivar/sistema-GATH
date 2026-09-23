@@ -5,9 +5,9 @@ import type {
   RepoCatalogosDependientes,
   TipoCatalogoDependiente,
 } from "../../domain/ports/catalogos-dependientes";
-import { personalApi } from "../http/personal-api";
+import { personalApi, type CatalogoEmpleadoApiItem } from "../http/personal-api";
 
-const getters: Record<TipoCatalogoDependiente, (padreId: number) => Promise<{ id: number; nombre: string }[]>> = {
+const getters: Record<TipoCatalogoDependiente, (padreId: number) => Promise<CatalogoEmpleadoApiItem[]>> = {
   municipios: (id) => personalApi.getMunicipios(id),
   parroquias: (id) => personalApi.getParroquias(id),
   codigosPostales: (id) => personalApi.getCodigosPostales(id),
