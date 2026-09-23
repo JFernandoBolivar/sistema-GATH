@@ -84,7 +84,7 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
     await page.screenshot({ path: `${ARTIFACT_DIR}/2_personal_consultar.png` });
   });
 
-  test("3. /personal/registrar muestra formulario de captación de expediente", async ({ page }) => {
+  test("3. /personal/registrar muestra el wizard de captación (paso 1)", async ({ page }) => {
     await page.goto("/personal/registrar");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
@@ -92,10 +92,10 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
     await expect(page.getByRole("heading", { name: "Captación de información del trabajador" })).toBeVisible();
     await expect(page.getByText("Recopilación en pasos estrategicos")).toBeVisible();
 
-    // Form card
-    await expect(page.getByText("Expediente del nuevo trabajador")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Registrar", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Cancelar", exact: true })).toBeVisible();
+    // Paso 1 del wizard (paridad con el legado)
+    await expect(page.getByText("Registrar Nuevo Trabajador")).toBeVisible();
+    await expect(page.getByText("Paso 1: Información Basica")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Siguiente", exact: true })).toBeVisible();
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/3_personal_registrar.png` });
   });
