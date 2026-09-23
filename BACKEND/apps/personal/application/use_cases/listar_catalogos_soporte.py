@@ -58,7 +58,20 @@ def listar_regiones_talla(items) -> list[CatalogoItemDTO]:
 
 
 def listar_tallas(items) -> list[CatalogoItemDTO]:
-    return [CatalogoItemDTO(id=i.pk, nombre=i.valor) for i in items]
+    return [
+        CatalogoItemDTO(
+            id=i.pk,
+            nombre=i.valor,
+            tipo_prenda_id=getattr(i, 'tipo_prenda_id', None),
+            tipo_prenda_nombre=i.tipo_prenda.categoria if getattr(i, 'tipo_prenda', None) else None,
+            categoria_id=getattr(i, 'tipo_prenda_id', None),
+            categoria_nombre=i.tipo_prenda.categoria if getattr(i, 'tipo_prenda', None) else None,
+            region_id=getattr(i, 'region_id', None),
+            region_codigo=i.region.codigo if getattr(i, 'region', None) else None,
+            region_descripcion=i.region.descripcion if getattr(i, 'region', None) else None,
+        )
+        for i in items
+    ]
 
 
 def listar_capacitaciones(items) -> list[CatalogoItemDTO]:
@@ -70,12 +83,36 @@ def listar_grupos_capacitacion(items) -> list[CatalogoItemDTO]:
 
 
 def listar_alergias(items) -> list[CatalogoItemDTO]:
-    return [CatalogoItemDTO(id=i.pk, nombre=i.alergia) for i in items]
+    return [
+        CatalogoItemDTO(
+            id=i.pk,
+            nombre=i.alergia,
+            categoria_id=getattr(i, 'categoria_id', None),
+            categoria_nombre=i.categoria.nombre_categoria if getattr(i, 'categoria', None) else None,
+        )
+        for i in items
+    ]
 
 
 def listar_patologias(items) -> list[CatalogoItemDTO]:
-    return [CatalogoItemDTO(id=i.pk, nombre=i.patologia) for i in items]
+    return [
+        CatalogoItemDTO(
+            id=i.pk,
+            nombre=i.patologia,
+            categoria_id=getattr(i, 'categoria_id', None),
+            categoria_nombre=i.categoria.nombre_categoria if getattr(i, 'categoria', None) else None,
+        )
+        for i in items
+    ]
 
 
 def listar_discapacidades(items) -> list[CatalogoItemDTO]:
-    return [CatalogoItemDTO(id=i.pk, nombre=i.discapacidad) for i in items]
+    return [
+        CatalogoItemDTO(
+            id=i.pk,
+            nombre=i.discapacidad,
+            categoria_id=getattr(i, 'categoria_id', None),
+            categoria_nombre=i.categoria.nombre_categoria if getattr(i, 'categoria', None) else None,
+        )
+        for i in items
+    ]

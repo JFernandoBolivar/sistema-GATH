@@ -369,3 +369,86 @@ def test_tipos_prenda_crud():
 
     eliminar_tipo_prenda(repo, nuevo.id)
     assert len(repo.tipos_prenda) == 1
+
+
+def test_listar_tallas_con_region_y_tipo_prenda():
+    from apps.personal.application.use_cases.listar_catalogos_soporte import listar_tallas
+    from apps.personal.presentation.serializers.catalogos_soporte_serializers import CatalogoItemSerializer
+
+    class DummyRegion:
+        id = 1
+        codigo = "ADULTO"
+        descripcion = "Adultos"
+
+    class DummyTipoPrenda:
+        id = 2
+        categoria = "Camisa"
+
+    class DummyTalla:
+        pk = 10
+        valor = "L"
+        region_id = 1
+        tipo_prenda_id = 2
+        region = DummyRegion()
+        tipo_prenda = DummyTipoPrenda()
+
+    dtos = listar_tallas([DummyTalla()])
+    assert len(dtos) == 1
+    dto = dtos[0]
+    assert dto.id == 10
+    assert dto.nombre == "L"
+    assert dto.tipo_prenda_id == 2
+    assert dto.tipo_prenda_nombre == "Camisa"
+    assert dto.categoria_id == 2
+    assert dto.categoria_nombre == "Camisa"
+    assert dto.region_id == 1
+    assert dto.region_codigo == "ADULTO"
+
+    data = CatalogoItemSerializer(dto).data
+    assert data["id"] == 10
+    assert data["nombre"] == "L"
+    assert data["tipo_prenda_id"] == 2
+    assert data["tipo_prenda_nombre"] == "Camisa"
+    assert data["tipo_prenda"] == {"id": 2, "categoria": "Camisa"}
+    assert data["region"] == {"id": 1, "codigo": "ADULTO", "descripcion": "Adultos"}
+
+
+def test_listar_salud_con_categoria():
+    from apps.personal.application.use_cases.listar_catalogos_soporte import (
+        listar_alergias,
+        listar_discapacidades,
+        listar_patologias,
+    )
+    from apps.personal.presentation.serializers.catalogos_soporte_serializers import CatalogoItemSerializer
+
+    class DummyCategoria:
+        id = 3
+        nombre_categoria = "Respiratorias"
+
+    class DummyItem:
+        pk = 5
+        alergia = "Polen"
+        patologia = "Asma"
+        discapacidad = "Motriz"
+        categoria_id = 3
+        categoria = DummyCategoria()
+
+    alergias = listar_alergias([DummyItem()])
+    assert alergias[0].categoria_id == 3
+    assert alergias[0].categoria_nombre == "Respiratorias"
+
+    patologias = listar_patologias([DummyItem()])
+    assert patologias[0].categoria_id == 3
+    assert patologias[0].categoria_nombre == "Respiratorias"
+
+    discapacidades = listar_discapacidades([DummyItem()])
+    assert discapacidades[0].categoria_id == 3
+    assert discapacidades[0].categoria_nombre == "Respiratorias"
+
+    data = CatalogoItemSerializer(alergias[0]).data
+    assert data["id"] == 5
+    assert data["nombre"] == "Polen"
+    assert data["categoria_id"] == 3
+    assert data["categoria_nombre"] == "Respiratorias"
+    assert data["categoria"] == {"id": 3, "nombre": "Respiratorias", "nombre_categoria": "Respiratorias"}
+

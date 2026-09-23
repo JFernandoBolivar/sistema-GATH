@@ -403,7 +403,7 @@ class RepoPersonalORM:
         return list(AlergiaModel.objects.select_related('categoria').all().order_by('alergia'))
 
     def listar_patologias(self) -> list:
-        return list(PatologiaCronicaModel.objects.all().order_by('patologia'))
+        return list(PatologiaCronicaModel.objects.select_related('categoria').all().order_by('patologia'))
 
     def listar_discapacidades(self) -> list:
-        return list(DiscapacidadModel.objects.all().order_by('discapacidad'))
+        return list(DiscapacidadModel.objects.select_related('categoria').all().order_by('discapacidad'))
