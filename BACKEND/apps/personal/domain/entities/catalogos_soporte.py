@@ -63,3 +63,10 @@ class Carrera:
     id: int
     nombre: str
     nivel_academico_id: int | None = None
+
+
+@dataclass(frozen=True)
+class Mencion:
+    id: int
+    nombre: str
+    carrera_id: int | None = None

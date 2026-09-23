@@ -12,6 +12,7 @@ from apps.personal.domain.entities.catalogos_soporte import (
     Talla,
     TipoPrenda,
     Carrera,
+    Mencion,
 )
 from apps.personal.domain.ports.repo_catalogos_soporte import RepoCatalogosSoporte
 
@@ -213,3 +214,9 @@ def crear_carrera(repo: RepoCatalogosSoporte, nombre: str, nivel_academico_id: i
     nombre_limpio = _validar_texto("nombre", nombre, 200)
     nivel_id = _validar_id("nivel_academico_id", nivel_academico_id)
     return repo.crear_carrera(nombre_limpio, nivel_id)
+
+
+def crear_mencion(repo: RepoCatalogosSoporte, nombre: str, carrera_id: int) -> Mencion:
+    nombre_limpio = _validar_texto("nombre", nombre, 200)
+    padre_id = _validar_id("carrera_id", carrera_id)
+    return repo.crear_mencion(nombre_limpio, padre_id)

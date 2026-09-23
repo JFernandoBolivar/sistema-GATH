@@ -35,6 +35,7 @@ from apps.personal.application.use_cases.gestionar_catalogos_soporte import (
     actualizar_tipo_prenda,
     crear_alergia,
     crear_carrera,
+    crear_mencion,
     crear_categoria_alergia,
     crear_categoria_discapacidad,
     crear_categoria_patologia,
@@ -66,6 +67,8 @@ from apps.personal.presentation.serializers.catalogos_soporte_serializers import
     CarreraDetalleSerializer,
     CarreraWriteSerializer,
     CategoriaWriteSerializer,
+    MencionDetalleSerializer,
+    MencionWriteSerializer,
     CodigoPostalSerializer,
     DiscapacidadDetalleSerializer,
     DiscapacidadWriteSerializer,
@@ -172,7 +175,10 @@ class CarrerasListView(APIView):
 
 
 class MencionesListView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated(), HasPermission(PERMISO_VER)()]
+        return [IsAuthenticated(), HasPermission(PERMISO_CREAR)()]
 
     @extend_schema(tags=['Personal'], summary='Listar menciones por carrera', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
@@ -180,6 +186,13 @@ class MencionesListView(APIView):
         reg_id = int(carrera_id) if carrera_id and str(carrera_id).isdigit() else None
         dtos = listar_menciones(RepoPersonalORM().listar_menciones(carrera_id=reg_id))
         return ok(CatalogoItemSerializer(dtos, many=True).data)
+
+    @extend_schema(tags=['Personal - Catálogos'], summary='Crear mención (alta inline "Otra")', request=MencionWriteSerializer, responses={201: MencionDetalleSerializer})
+    def post(self, request):
+        s = MencionWriteSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entidad = crear_mencion(RepoCatalogosSoporteORM(), s.validated_data['nombre'], s.validated_data['carrera_id'])
+        return ok(MencionDetalleSerializer(entidad).data, 'Mención creada.', status=201)
 
 
 class InstitucionesListView(APIView):

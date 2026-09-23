@@ -15,9 +15,11 @@ from apps.personal.domain.entities.catalogos_soporte import (
     Talla,
     TipoPrenda,
     Carrera,
+    Mencion,
 )
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
+    MencionModel,
     CarreraModel,
     NivelAcademicoModel,
     CategoriaAlergiaModel,
@@ -337,3 +339,14 @@ class RepoCatalogosSoporteORM:
         except IntegrityError:
             raise ConflictError(f"La carrera '{nombre}' ya existe.")
         return Carrera(id=obj.pk, nombre=obj.nombre_carrera, nivel_academico_id=obj.nivel_academico_id_id)
+
+    def crear_mencion(self, nombre: str, carrera_id: int) -> Mencion:
+        if not CarreraModel.objects.filter(pk=carrera_id).exists():
+            raise NotFoundError(f"Carrera con ID {carrera_id} no existe.")
+        if MencionModel.objects.filter(nombre_mencion__iexact=nombre, carrera_id=carrera_id).exists():
+            raise ConflictError(f"La mención '{nombre}' ya existe.")
+        try:
+            obj = MencionModel.objects.create(nombre_mencion=nombre, carrera_id_id=carrera_id)
+        except IntegrityError:
+            raise ConflictError(f"La mención '{nombre}' ya existe.")
+        return Mencion(id=obj.pk, nombre=obj.nombre_mencion, carrera_id=obj.carrera_id_id)

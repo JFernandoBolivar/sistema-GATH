@@ -13,6 +13,7 @@ from apps.personal.domain.entities.catalogos_soporte import (
     Talla,
     TipoPrenda,
     Carrera,
+    Mencion,
 )
 
 
@@ -106,4 +107,7 @@ class RepoCatalogosSoporte(Protocol):
 
     # Alta inline de catálogos académicos ("Otra X" del registro)
     def crear_carrera(self, nombre: str, nivel_academico_id: int) -> Carrera:
+        ...
+
+    def crear_mencion(self, nombre: str, carrera_id: int) -> Mencion:
         ...

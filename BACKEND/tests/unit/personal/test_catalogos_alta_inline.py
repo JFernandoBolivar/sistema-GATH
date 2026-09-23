@@ -7,8 +7,8 @@ import pytest
 from rest_framework.test import APIRequestFactory
 
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
-from apps.personal.application.use_cases.gestionar_catalogos_soporte import crear_carrera
-from apps.personal.domain.entities.catalogos_soporte import Carrera
+from apps.personal.application.use_cases.gestionar_catalogos_soporte import crear_carrera, crear_mencion
+from apps.personal.domain.entities.catalogos_soporte import Carrera, Mencion
 from apps.personal.presentation.views import catalogos_soporte_views as vistas
 
 
@@ -18,6 +18,7 @@ class RepoAltaInlineMemoria:
     def __init__(self):
         self.niveles = {1, 3}
         self.carreras: list[Carrera] = [Carrera(id=1, nombre="Ingeniería Electrónica", nivel_academico_id=3)]
+        self.menciones: list[Mencion] = [Mencion(id=1, nombre="Telecomunicaciones", carrera_id=1)]
 
     @staticmethod
     def _duplicado(items, nombre, **filtro):
@@ -33,6 +34,15 @@ class RepoAltaInlineMemoria:
             raise ConflictError("La carrera ya existe.")
         nueva = Carrera(id=len(self.carreras) + 1, nombre=nombre, nivel_academico_id=nivel_academico_id)
         self.carreras.append(nueva)
+        return nueva
+
+    def crear_mencion(self, nombre, carrera_id):
+        if not any(c.id == carrera_id for c in self.carreras):
+            raise NotFoundError("Carrera no existe.")
+        if self._duplicado(self.menciones, nombre, carrera_id=carrera_id):
+            raise ConflictError("La mención ya existe.")
+        nueva = Mencion(id=len(self.menciones) + 1, nombre=nombre, carrera_id=carrera_id)
+        self.menciones.append(nueva)
         return nueva
 
 
@@ -92,3 +102,37 @@ def test_vista_crear_carrera_exige_nivel_academico(monkeypatch, repo):
     monkeypatch.setattr(vistas, "RepoCatalogosSoporteORM", lambda: repo)
     with pytest.raises(DRFValidationError):
         _post(vistas.CarrerasListView, "/api/v1/personal/catalogos/carreras/", {"nombre": "Medicina"})
+
+
+# ----------------------------------------------------------------------
+# Mención
+# ----------------------------------------------------------------------
+
+def test_crear_mencion_asocia_la_carrera(repo):
+    mencion = crear_mencion(repo, " Control ", 1)
+
+    assert mencion == Mencion(id=2, nombre="Control", carrera_id=1)
+
+
+def test_crear_mencion_exige_carrera_existente(repo):
+    with pytest.raises(ValidationError):
+        crear_mencion(repo, "Control", 0)
+    with pytest.raises(NotFoundError):
+        crear_mencion(repo, "Control", 99)
+
+
+def test_crear_mencion_duplicado_es_por_carrera(repo):
+    repo.carreras.append(Carrera(id=2, nombre="Ingeniería Eléctrica", nivel_academico_id=3))
+
+    with pytest.raises(ConflictError):
+        crear_mencion(repo, "telecomunicaciones", 1)
+    assert crear_mencion(repo, "Telecomunicaciones", 2).carrera_id == 2
+
+
+def test_vista_crear_mencion_responde_201(monkeypatch, repo):
+    monkeypatch.setattr(vistas, "RepoCatalogosSoporteORM", lambda: repo)
+
+    response = _post(vistas.MencionesListView, "/api/v1/personal/catalogos/menciones/", {"nombre": "Control", "carrera_id": 1})
+
+    assert response.status_code == 201
+    assert response.data["data"] == {"id": 2, "nombre": "Control", "carrera_id": 1}
