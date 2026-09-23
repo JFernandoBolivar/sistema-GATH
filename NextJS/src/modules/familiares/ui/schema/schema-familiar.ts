@@ -48,6 +48,21 @@ export const formacionAcademicaFamiliarSchema = z
   .nullable()
   .optional();
 
+/**
+ * Validación del perfil de salud del familiar (paridad con el legado
+ * `perfil_salud_familiar`): grupo sanguíneo obligatorio solo si se aporta el
+ * objeto; alergias/patologías/discapacidades son arreglos opcionales de ids.
+ */
+export const perfilSaludFamiliarSchema = z
+  .object({
+    grupoSanguineoId: z.number().positive({ message: "Debe seleccionar un grupo sanguíneo" }),
+    alergias: z.array(z.number()).optional().default([]),
+    patologiasCronicas: z.array(z.number()).optional().default([]),
+    discapacidades: z.array(z.number()).optional().default([]),
+  })
+  .nullable()
+  .optional();
+
 export const familiarSchema = z.object({
   empleadoCedula: z
     .string()
@@ -93,6 +108,7 @@ export const familiarSchema = z.object({
   heredero: z.boolean().default(false),
   observaciones: z.string().optional().nullable(),
   formacionAcademica: formacionAcademicaFamiliarSchema,
+  perfilSalud: perfilSaludFamiliarSchema,
 });
 
 export type FamiliarFormType = z.infer<typeof familiarSchema>;

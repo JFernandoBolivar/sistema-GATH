@@ -22,6 +22,7 @@ export async function crearFamiliar(
     heredero: input.heredero,
     observaciones: input.observaciones ?? null,
     formacionAcademica: input.formacionAcademica ?? null,
+    perfilSalud: input.perfilSalud ?? null,
   });
 
   return {
@@ -41,6 +42,7 @@ export async function crearFamiliar(
     heredero: e.heredero,
     observaciones: e.observaciones,
     formacionAcademica: e.formacionAcademica ?? null,
+    perfilSalud: e.perfilSalud ?? null,
   };
 }
 
@@ -67,6 +69,7 @@ export async function actualizarFamiliar(
     heredero: e.heredero,
     observaciones: e.observaciones,
     formacionAcademica: e.formacionAcademica ?? null,
+    perfilSalud: e.perfilSalud ?? null,
   };
 }
 

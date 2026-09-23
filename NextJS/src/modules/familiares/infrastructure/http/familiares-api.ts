@@ -27,6 +27,13 @@ export interface FormacionAcademicaFamiliarApiItem {
   institucion_id?: number | null;
 }
 
+export interface PerfilSaludFamiliarApiItem {
+  grupo_sanguineo_id?: number | null;
+  alergias?: number[];
+  patologias_cronicas?: number[];
+  discapacidades?: number[];
+}
+
 export interface FamiliarApiItem {
   id: number;
   empleado_cedula: string;
@@ -44,6 +51,7 @@ export interface FamiliarApiItem {
   heredero: boolean;
   observaciones: string | null;
   formacion_academica?: FormacionAcademicaFamiliarApiItem | null;
+  perfil_salud?: PerfilSaludFamiliarApiItem | null;
 }
 
 export interface DocumentoFamiliarApiItem {
@@ -124,4 +132,10 @@ export const familiaresApi = {
     crearCatalogoInline("menciones", { nombre, carrera_id: carreraId }),
 
   crearInstitucion: (nombre: string) => crearCatalogoInline("instituciones", { nombre }),
+
+  // --- Catálogos del perfil de salud (globales, compartidos con Personal) ---
+  getGruposSanguineos: () => listarCatalogo("grupos-sanguineos"),
+  getAlergias: () => listarCatalogo("alergias"),
+  getPatologias: () => listarCatalogo("patologias"),
+  getDiscapacidades: () => listarCatalogo("discapacidades"),
 };

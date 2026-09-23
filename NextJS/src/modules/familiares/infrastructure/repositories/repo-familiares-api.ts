@@ -14,6 +14,15 @@ function formacionAcademicaAPayload(fa: NonNullable<Parameters<RepoFamiliares["c
   };
 }
 
+function perfilSaludAPayload(ps: NonNullable<Parameters<RepoFamiliares["crearFamiliar"]>[0]["perfilSalud"]>) {
+  return {
+    grupo_sanguineo_id: ps.grupoSanguineoId ?? null,
+    alergias: ps.alergias ?? [],
+    patologias_cronicas: ps.patologiasCronicas ?? [],
+    discapacidades: ps.discapacidades ?? [],
+  };
+}
+
 export const repoFamiliaresApi: RepoFamiliares = {
   async listarPorEmpleado(cedula) {
     const raw = await familiaresApi.getPorEmpleado(cedula);
@@ -38,11 +47,11 @@ export const repoFamiliaresApi: RepoFamiliares = {
       mismo_ente: data.mismoEnte,
       heredero: data.heredero,
       observaciones: data.observaciones,
-      // NOTA: `formacion_academica` (objeto anidado, snake_case) es el shape
-      // propuesto mientras el backend (apps/familiares) expone el endpoint
-      // real -- ver AUDITORIA_MODALES_PERSONAL_CONSULTAR_2026-09-23.md y el
-      // aviso del coordinador de que el contrato de API está en curso.
+      // Contrato confirmado por el coordinador (commit backend f8cbb29):
+      // formacion_academica/perfil_salud/perfil_fisico son objetos únicos
+      // anidados, snake_case, con sufijo _id en cada catálogo.
       ...(data.formacionAcademica ? { formacion_academica: formacionAcademicaAPayload(data.formacionAcademica) } : {}),
+      ...(data.perfilSalud ? { perfil_salud: perfilSaludAPayload(data.perfilSalud) } : {}),
     });
     return familiarApiAEntidad(raw);
   },
@@ -63,6 +72,9 @@ export const repoFamiliaresApi: RepoFamiliares = {
     if (data.formacionAcademica !== undefined) {
       payload.formacion_academica = data.formacionAcademica ? formacionAcademicaAPayload(data.formacionAcademica) : null;
     }
+    if (data.perfilSalud !== undefined) {
+      payload.perfil_salud = data.perfilSalud ? perfilSaludAPayload(data.perfilSalud) : null;
+    }
 
     const raw = await familiaresApi.actualizar(id, payload);
     return familiarApiAEntidad(raw);
@@ -78,13 +90,28 @@ export const repoFamiliaresApi: RepoFamiliares = {
   },
 
   async listarCatalogos() {
-    const [parentescos, sexos, nivelesAcademicos, carreras, menciones, instituciones] = await Promise.all([
+    const [
+      parentescos,
+      sexos,
+      nivelesAcademicos,
+      carreras,
+      menciones,
+      instituciones,
+      gruposSanguineos,
+      alergias,
+      patologias,
+      discapacidades,
+    ] = await Promise.all([
       familiaresApi.getParentescos(),
       familiaresApi.getSexos(),
       familiaresApi.getNivelesAcademicos(),
       familiaresApi.getCarreras(),
       familiaresApi.getMenciones(),
       familiaresApi.getInstituciones(),
+      familiaresApi.getGruposSanguineos(),
+      familiaresApi.getAlergias(),
+      familiaresApi.getPatologias(),
+      familiaresApi.getDiscapacidades(),
     ]);
     return {
       parentescos,
@@ -93,13 +120,13 @@ export const repoFamiliaresApi: RepoFamiliares = {
       carreras: carreras.map(catalogoFamiliarApiAEntidad),
       menciones: menciones.map(catalogoFamiliarApiAEntidad),
       instituciones: instituciones.map(catalogoFamiliarApiAEntidad),
-      // Poblados en el commit "fisico"/"salud" (ver catalogos-dependientes-familiar).
+      gruposSanguineos: gruposSanguineos.map(catalogoFamiliarApiAEntidad),
+      alergias: alergias.map(catalogoFamiliarApiAEntidad),
+      patologias: patologias.map(catalogoFamiliarApiAEntidad),
+      discapacidades: discapacidades.map(catalogoFamiliarApiAEntidad),
+      // Poblado en el commit "fisico" (ver catalogos-dependientes-familiar).
       tiposPrenda: [],
       tallas: [],
-      gruposSanguineos: [],
-      alergias: [],
-      patologias: [],
-      discapacidades: [],
     };
   },
 };

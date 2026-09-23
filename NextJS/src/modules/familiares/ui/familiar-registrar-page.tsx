@@ -27,6 +27,7 @@ import { crearFamiliarAction, getCatalogosFamiliarAction } from "../infrastructu
 import { familiarSchema, type FamiliarFormType } from "./schema/schema-familiar";
 import { FamiliarCampos } from "./familiar-campos";
 import { FamiliarFormacionAcademica } from "./familiar-formacion-academica";
+import { FamiliarPerfilSalud } from "./familiar-perfil-salud";
 import { ID_OTRA_FAMILIAR } from "./catalogo-otra-familiar";
 import { resolverPendientesOtraFamiliar, type PendienteOtraFamiliar } from "./resolver-otra-familiar";
 
@@ -44,6 +45,7 @@ const defaultValues: FamiliarFormType = {
   heredero: false,
   observaciones: null,
   formacionAcademica: undefined,
+  perfilSalud: undefined,
 };
 
 export default function FamiliarRegistrarPage() {
@@ -99,6 +101,8 @@ export default function FamiliarRegistrarPage() {
         return;
       }
 
+      const ps = data.perfilSalud;
+
       const payload: GuardarFamiliarInputDTO = {
         ...(data as GuardarFamiliarInputDTO),
         formacionAcademica: fa?.nivelAcademicoId
@@ -107,6 +111,14 @@ export default function FamiliarRegistrarPage() {
               carreraId: fa.carreraId ?? null,
               mencionId: fa.mencionId ?? null,
               institucionId: fa.institucionId ?? null,
+            }
+          : null,
+        perfilSalud: ps?.grupoSanguineoId
+          ? {
+              grupoSanguineoId: ps.grupoSanguineoId,
+              alergias: ps.alergias ?? [],
+              patologiasCronicas: ps.patologiasCronicas ?? [],
+              discapacidades: ps.discapacidades ?? [],
             }
           : null,
       };
@@ -140,6 +152,8 @@ export default function FamiliarRegistrarPage() {
               <FamiliarCampos form={form} catalogos={catalogos} />
 
               <FamiliarFormacionAcademica form={form} catalogos={catalogos} />
+
+              <FamiliarPerfilSalud form={form} catalogos={catalogos} />
 
               <div className="flex items-center gap-2">
                 <Button type="submit" disabled={isPending}>

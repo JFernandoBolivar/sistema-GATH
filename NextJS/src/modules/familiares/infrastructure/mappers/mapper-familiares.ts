@@ -30,6 +30,14 @@ export function familiarApiAEntidad(raw: FamiliarApiItem): Familiar {
           institucionId: raw.formacion_academica.institucion_id ?? null,
         }
       : null,
+    perfilSalud: raw.perfil_salud
+      ? {
+          grupoSanguineoId: raw.perfil_salud.grupo_sanguineo_id ?? null,
+          alergias: raw.perfil_salud.alergias ?? [],
+          patologiasCronicas: raw.perfil_salud.patologias_cronicas ?? [],
+          discapacidades: raw.perfil_salud.discapacidades ?? [],
+        }
+      : null,
   };
 }
 
