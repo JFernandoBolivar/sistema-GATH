@@ -127,3 +127,47 @@ class RepoMovimientosORM:
             qs = qs.filter(estatus__estatus__icontains=estatus)
         return [movimiento_a_entidad(m) for m in qs[:limit]]
 
+    def listar_tipos_movimiento_disponibles(self) -> list[dict[str, str]]:
+        """
+        Retorna los tipos y motivos de movimiento existentes en la DB
+        (TipoMovimientoModel y EmployeeMovementHistoryModel).
+        """
+        from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
+
+        categorias_principales = ['INGRESO', 'TRASLADO', 'EGRESO', 'CAMBIO DE ESTATUS']
+        motivos_qs = list(
+            TipoMovimientoModel.objects.values_list('movimiento', flat=True).order_by('movimiento')
+        )
+        en_historial_tipos = list(
+            EmployeeMovementHistoryModel.objects.values_list('tipo_movimiento', flat=True).distinct()
+        )
+        en_historial_motivos = list(
+            EmployeeMovementHistoryModel.objects.filter(motivo__isnull=False)
+            .values_list('motivo__movimiento', flat=True).distinct()
+        )
+
+        todos: list[dict[str, str]] = []
+        vistos = set()
+
+        for c in categorias_principales:
+            if c and c not in vistos:
+                vistos.add(c)
+                todos.append({'valor': c, 'label': c, 'grupo': 'Categoría General'})
+
+        for m in en_historial_tipos:
+            if m and m not in vistos:
+                vistos.add(m)
+                todos.append({'valor': m, 'label': m, 'grupo': 'Categoría General'})
+
+        for m in motivos_qs:
+            if m and m not in vistos:
+                vistos.add(m)
+                todos.append({'valor': m, 'label': m, 'grupo': 'Motivo Específico'})
+
+        for m in en_historial_motivos:
+            if m and m not in vistos:
+                vistos.add(m)
+                todos.append({'valor': m, 'label': m, 'grupo': 'Motivo Específico'})
+
+        return todos
+

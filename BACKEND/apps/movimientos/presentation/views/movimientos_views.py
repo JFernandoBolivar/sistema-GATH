@@ -66,3 +66,14 @@ class HistorialPorCargoView(APIView):
         dtos = listar_historial_por_cargo(repo, codigo_puesto)
         return ok(MovimientoCargoSerializer(dtos, many=True).data)
 
+
+class TiposMovimientoDisponiblesView(APIView):
+    """GET /api/v1/movimientos/tipos/ — Listar tipos y motivos de movimiento existentes en la DB."""
+    permission_classes = [IsAuthenticated, HasPermission('movimientos.ver')]
+
+    @extend_schema(tags=['Movimientos'], summary='Listar tipos y motivos de movimiento disponibles en la BD')
+    def get(self, request):
+        repo = RepoMovimientosORM()
+        tipos = repo.listar_tipos_movimiento_disponibles()
+        return ok(tipos)
+
