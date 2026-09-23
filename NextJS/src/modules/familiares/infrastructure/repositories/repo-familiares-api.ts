@@ -59,4 +59,12 @@ export const repoFamiliaresApi: RepoFamiliares = {
     const raw = await familiaresApi.getDocumentos(familiarId);
     return raw.map(documentoFamiliarApiAEntidad);
   },
+
+  async listarCatalogos() {
+    const [parentescos, sexos] = await Promise.all([
+      familiaresApi.getParentescos(),
+      familiaresApi.getSexos(),
+    ]);
+    return { parentescos, sexos };
+  },
 };

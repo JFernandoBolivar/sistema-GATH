@@ -27,6 +27,16 @@ export interface DocumentoFamiliarDTO {
   fechaSubida: string;
 }
 
+export interface CatalogoFamiliarDTO {
+  id: number;
+  nombre: string;
+}
+
+export interface CatalogosFamiliarDTO {
+  parentescos: CatalogoFamiliarDTO[];
+  sexos: CatalogoFamiliarDTO[];
+}
+
 export interface GuardarFamiliarInputDTO {
   empleadoCedula: string;
   cedulaFamiliar?: string | null;

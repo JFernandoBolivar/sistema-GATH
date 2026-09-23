@@ -30,6 +30,37 @@ describe("Schema de Cargas Familiares", () => {
     expect(res.success).toBe(false);
   });
 
+  it("acepta cedulaFamiliar vacía (familiar menor de edad sin cédula propia)", () => {
+    const res = familiarSchema.safeParse({
+      empleadoCedula: "12345678",
+      cedulaFamiliar: "",
+      primerNombre: "María",
+      primerApellido: "Pérez",
+      parentescoId: 1,
+      fechaNacimiento: "2015-05-10",
+      sexoId: 2,
+      mismoEnte: false,
+      heredero: true,
+    });
+    expect(res.success).toBe(true);
+    if (res.success) expect(res.data.cedulaFamiliar).toBeNull();
+  });
+
+  it("falla si cedulaFamiliar tiene contenido pero no es válida", () => {
+    const res = familiarSchema.safeParse({
+      empleadoCedula: "12345678",
+      cedulaFamiliar: "abc",
+      primerNombre: "María",
+      primerApellido: "Pérez",
+      parentescoId: 1,
+      fechaNacimiento: "2015-05-10",
+      sexoId: 2,
+      mismoEnte: false,
+      heredero: true,
+    });
+    expect(res.success).toBe(false);
+  });
+
   it("falla si la fecha no tiene formato ISO", () => {
     const res = familiarSchema.safeParse({
       empleadoCedula: "12345678",

@@ -11,7 +11,7 @@
  * para un formulario de 9 campos. Mismo componente sirve para crear
  * (`familiar` ausente) y editar (`familiar` presente).
  */
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Pencil, Plus } from "lucide-react";
@@ -28,12 +28,14 @@ import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 
-import type { FamiliarDTO, GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
+import type { CatalogosFamiliarDTO, FamiliarDTO, GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
 import {
   actualizarFamiliarAction,
   crearFamiliarAction,
+  getCatalogosFamiliarAction,
 } from "../infrastructure/actions/familiares-actions";
 import { familiarSchema, type FamiliarFormType } from "./schema/schema-familiar";
+import { CatalogoFamiliarSelect } from "./catalogo-familiar-select";
 
 interface FamiliarFormDialogProps {
   /** Presente = editar; ausente = crear (requiere `empleadoCedula`). */
@@ -79,7 +81,13 @@ export function FamiliarFormDialog({ familiar, empleadoCedula, onGuardado }: Fam
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [catalogos, setCatalogos] = useState<CatalogosFamiliarDTO | null>(null);
   const editando = !!familiar;
+
+  useEffect(() => {
+    if (!open || catalogos) return;
+    getCatalogosFamiliarAction().then(setCatalogos).catch(() => setCatalogos({ parentescos: [], sexos: [] }));
+  }, [open, catalogos]);
 
   const form = useForm<FamiliarFormType>({
     resolver: zodResolver(familiarSchema),
@@ -152,8 +160,14 @@ export function FamiliarFormDialog({ familiar, empleadoCedula, onGuardado }: Fam
               <Input id="segundoApellido" {...form.register("segundoApellido")} />
             </Field>
             <Field data-invalid={!!form.formState.errors.parentescoId}>
-              <Label htmlFor="parentescoId">Parentesco (id)</Label>
-              <Input type="number" id="parentescoId" {...form.register("parentescoId", { valueAsNumber: true })} aria-invalid={!!form.formState.errors.parentescoId} />
+              <Label htmlFor="parentescoId">Parentesco</Label>
+              <CatalogoFamiliarSelect
+                id="parentescoId"
+                value={form.watch("parentescoId")}
+                onChange={(v) => form.setValue("parentescoId", v, { shouldValidate: true })}
+                options={catalogos?.parentescos ?? []}
+                placeholder="Seleccione parentesco"
+              />
               {form.formState.errors.parentescoId && <p role="alert" className="text-sm text-destructive">{form.formState.errors.parentescoId.message}</p>}
             </Field>
             <Field data-invalid={!!form.formState.errors.fechaNacimiento}>
@@ -162,8 +176,14 @@ export function FamiliarFormDialog({ familiar, empleadoCedula, onGuardado }: Fam
               {form.formState.errors.fechaNacimiento && <p role="alert" className="text-sm text-destructive">{form.formState.errors.fechaNacimiento.message}</p>}
             </Field>
             <Field data-invalid={!!form.formState.errors.sexoId}>
-              <Label htmlFor="sexoId">Sexo (id)</Label>
-              <Input type="number" id="sexoId" {...form.register("sexoId", { valueAsNumber: true })} aria-invalid={!!form.formState.errors.sexoId} />
+              <Label htmlFor="sexoId">Sexo</Label>
+              <CatalogoFamiliarSelect
+                id="sexoId"
+                value={form.watch("sexoId")}
+                onChange={(v) => form.setValue("sexoId", v, { shouldValidate: true })}
+                options={catalogos?.sexos ?? []}
+                placeholder="Seleccione sexo"
+              />
               {form.formState.errors.sexoId && <p role="alert" className="text-sm text-destructive">{form.formState.errors.sexoId.message}</p>}
             </Field>
             <Field>

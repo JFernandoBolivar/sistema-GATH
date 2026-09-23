@@ -19,6 +19,7 @@ import {
   listarDocumentosFamiliar,
   listarFamiliaresPorEmpleado,
 } from "../../application/use-cases/listar-familiares";
+import { listarCatalogosFamiliar } from "../../application/use-cases/listar-catalogos-familiar";
 import { repoFamiliaresApi } from "../repositories/repo-familiares-api";
 import { familiaresPorEmpleadoSchema, familiarIdSchema, familiarSchema } from "../../ui/schema/schema-familiar";
 
@@ -97,6 +98,20 @@ export async function eliminarFamiliarAction(id: number) {
     return { success: true };
   } catch (error) {
     await logAudit({ traceId, action: "eliminarFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getCatalogosFamiliarAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCatalogosFamiliar(repoFamiliaresApi);
+    await logAudit({ traceId, action: "getCatalogosFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCatalogosFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

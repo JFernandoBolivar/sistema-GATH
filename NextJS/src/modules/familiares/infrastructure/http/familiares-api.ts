@@ -3,6 +3,11 @@
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 
+export interface CatalogoFamiliarApiItem {
+  id: number;
+  nombre: string;
+}
+
 export interface FamiliarApiItem {
   id: number;
   empleado_cedula: string;
@@ -47,4 +52,10 @@ export const familiaresApi = {
 
   getDocumentos: (familiarId: number) =>
     apiClient.get<DocumentoFamiliarApiItem[]>(`/api/v1/familiares/${familiarId}/documentos/`),
+
+  getParentescos: () =>
+    apiClient.get<CatalogoFamiliarApiItem[]>("/api/v1/catalogos/parentescos/"),
+
+  getSexos: () =>
+    apiClient.get<CatalogoFamiliarApiItem[]>("/api/v1/catalogos/sexos/"),
 };

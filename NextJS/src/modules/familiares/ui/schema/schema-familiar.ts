@@ -9,9 +9,12 @@ export const familiarSchema = z.object({
   cedulaFamiliar: z
     .string()
     .trim()
-    .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula del familiar inválida" })
+    .nullable()
     .optional()
-    .nullable(),
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || REGEX.CEDULA_DIGITOS.test(v), {
+      message: "Cédula del familiar inválida",
+    }),
   primerNombre: z
     .string()
     .trim()

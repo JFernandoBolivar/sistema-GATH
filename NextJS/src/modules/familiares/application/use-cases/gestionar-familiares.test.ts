@@ -52,6 +52,10 @@ class RepoFamiliaresMemoria implements RepoFamiliares {
   async listarDocumentos() {
     return [];
   }
+
+  async listarCatalogos() {
+    return { parentescos: [], sexos: [] };
+  }
 }
 
 describe("Casos de uso de Cargas Familiares", () => {

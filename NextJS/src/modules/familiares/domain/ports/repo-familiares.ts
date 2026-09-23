@@ -3,6 +3,16 @@
  */
 import type { DocumentoFamiliar, Familiar } from "../entities/familiar";
 
+export interface CatalogoFamiliar {
+  id: number;
+  nombre: string;
+}
+
+export interface CatalogosFamiliar {
+  parentescos: CatalogoFamiliar[];
+  sexos: CatalogoFamiliar[];
+}
+
 export interface RepoFamiliares {
   listarPorEmpleado(cedula: string): Promise<Familiar[]>;
   obtenerPorId(id: number): Promise<Familiar>;
@@ -10,4 +20,5 @@ export interface RepoFamiliares {
   actualizarFamiliar(id: number, data: Partial<Familiar>): Promise<Familiar>;
   eliminarFamiliar(id: number): Promise<void>;
   listarDocumentos(familiarId: number): Promise<DocumentoFamiliar[]>;
+  listarCatalogos(): Promise<CatalogosFamiliar>;
 }
