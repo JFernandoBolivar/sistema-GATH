@@ -4,7 +4,7 @@ Vistas de catálogos de soporte del expediente de personal
 """
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
@@ -81,6 +81,12 @@ PERMISO_EDITAR = 'catalogos.editar'
 PERMISO_ELIMINAR = 'catalogos.eliminar'
 
 
+def _query_id(request, nombre: str) -> int | None:
+    """Lee un id positivo del query string; ignora valores no numéricos."""
+    valor = request.query_params.get(nombre)
+    return int(valor) if valor and str(valor).isdigit() and int(valor) > 0 else None
+
+
 # ----------------------------------------------------------------------
 # Catálogos de Soporte de Solo Lectura
 # ----------------------------------------------------------------------
@@ -133,9 +139,15 @@ class NivelesAcademicosListView(APIView):
 class CarrerasListView(APIView):
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
 
-    @extend_schema(tags=['Personal'], summary='Listar carreras', responses={200: CatalogoItemSerializer(many=True)})
+    @extend_schema(
+        tags=['Personal'],
+        summary='Listar carreras (opcionalmente por nivel académico)',
+        parameters=[OpenApiParameter('nivel_academico_id', int, required=False, description='Filtra las carreras del nivel académico indicado.')],
+        responses={200: CatalogoItemSerializer(many=True)},
+    )
     def get(self, request):
-        dtos = listar_carreras(RepoPersonalORM().listar_carreras())
+        nivel_academico_id = _query_id(request, 'nivel_academico_id')
+        dtos = listar_carreras(RepoPersonalORM().listar_carreras(nivel_academico_id=nivel_academico_id))
         return ok(CatalogoItemSerializer(dtos, many=True).data)
 
 

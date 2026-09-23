@@ -363,8 +363,11 @@ class RepoPersonalORM:
     def listar_niveles_academicos(self) -> list:
         return list(NivelAcademicoModel.objects.all().order_by('nivelacademico'))
 
-    def listar_carreras(self) -> list:
-        return list(CarreraModel.objects.all().order_by('nombre_carrera'))
+    def listar_carreras(self, nivel_academico_id: int | None = None) -> list:
+        qs = CarreraModel.objects.all().order_by('nombre_carrera')
+        if nivel_academico_id is not None:
+            qs = qs.filter(nivel_academico_id=nivel_academico_id)
+        return list(qs)
 
     def listar_menciones(self, carrera_id: int | None = None) -> list:
         qs = MencionModel.objects.select_related('carrera_id').all().order_by('nombre_mencion')
