@@ -6,9 +6,15 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/components/card";
+import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
@@ -94,132 +100,146 @@ export default function FormDwellingUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Actualizar Datos de Vivienda</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl p-0">
+        <DialogTitle className="sr-only">Actualizar Datos de Vivienda</DialogTitle>
 
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <Card className="w-full h-full border-0 shadow-none">
+          <CardHeader>
+            <CardTitle>Datos Socio-economicos</CardTitle>
+          </CardHeader>
+          <CardContent className="gap-3">
+            <CardAction className="text-gray-500 mb-3">Datos De Vivienda</CardAction>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="estadoId">Estado</Label>
-              <Select
-                value={estadoId ? String(estadoId) : undefined}
-                onValueChange={(v) => {
-                  setValue("estadoId", Number(v));
-                }}
-              >
-                <SelectTrigger id="estadoId">
-                  <SelectValue placeholder="Seleccione estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(catalogos?.estados ?? []).map((est) => (
-                    <SelectItem key={est.id} value={String(est.id)}>
-                      {est.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
 
-            <div>
-              <Label htmlFor="municipioId">Municipio</Label>
-              <Select
-                value={municipioId ? String(municipioId) : undefined}
-                onValueChange={(v) => {
-                  setValue("municipioId", Number(v));
-                }}
-              >
-                <SelectTrigger id="municipioId">
-                  <SelectValue placeholder="Seleccione municipio" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(catalogos?.municipios ?? []).map((mun) => (
-                    <SelectItem key={mun.id} value={String(mun.id)}>
-                      {mun.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="estadoId">Estado *</Label>
+                <Select
+                  value={estadoId ? String(estadoId) : undefined}
+                  onValueChange={(v) => {
+                    setValue("estadoId", Number(v));
+                  }}
+                >
+                  <SelectTrigger id="estadoId" className="w-full truncate">
+                    <SelectValue placeholder="Seleccione un Estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(catalogos?.estados ?? []).map((est) => (
+                      <SelectItem key={est.id} value={String(est.id)}>
+                        {est.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground block mt-1">
+                  Esta Información Sera Publica
+                </span>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="parroquiaId">Parroquia</Label>
-              <Select
-                value={watch("parroquiaId") ? String(watch("parroquiaId")) : undefined}
-                onValueChange={(v) => setValue("parroquiaId", Number(v))}
-              >
-                <SelectTrigger id="parroquiaId">
-                  <SelectValue placeholder="Seleccione parroquia" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(catalogos?.parroquias ?? []).map((par) => (
-                    <SelectItem key={par.id} value={String(par.id)}>
-                      {par.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <Label htmlFor="municipioId">Municipio *</Label>
+                <Select
+                  value={municipioId ? String(municipioId) : undefined}
+                  onValueChange={(v) => {
+                    setValue("municipioId", Number(v));
+                  }}
+                >
+                  <SelectTrigger id="municipioId" className="w-full truncate">
+                    <SelectValue placeholder="Seleccione un Municpio" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(catalogos?.municipios ?? []).map((mun) => (
+                      <SelectItem key={mun.id} value={String(mun.id)}>
+                        {mun.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground block mt-1">
+                  Esta Información Sera Publica
+                </span>
+              </div>
 
-            <div>
-              <Label htmlFor="condicionViviendaId">Condición de Vivienda</Label>
-              <Select
-                value={watch("condicionViviendaId") ? String(watch("condicionViviendaId")) : undefined}
-                onValueChange={(v) => setValue("condicionViviendaId", Number(v))}
-              >
-                <SelectTrigger id="condicionViviendaId">
-                  <SelectValue placeholder="Seleccione condición" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(catalogos?.condicionesVivienda ?? []).map((cond) => (
-                    <SelectItem key={cond.id} value={String(cond.id)}>
-                      {cond.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+              <div>
+                <Label htmlFor="parroquiaId">Parroquia *</Label>
+                <Select
+                  value={watch("parroquiaId") ? String(watch("parroquiaId")) : undefined}
+                  onValueChange={(v) => setValue("parroquiaId", Number(v))}
+                >
+                  <SelectTrigger id="parroquiaId" className="w-full truncate">
+                    <SelectValue placeholder="Seleccione una Parroquia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(catalogos?.parroquias ?? []).map((par) => (
+                      <SelectItem key={par.id} value={String(par.id)}>
+                        {par.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground block mt-1">
+                  Esta Información Sera Publica
+                </span>
+              </div>
 
-          <div>
-            <Label htmlFor="direccionExacta">Dirección de Habitación</Label>
-            <Input id="direccionExacta" {...register("direccionExacta")} placeholder="Dirección detallada..." />
-          </div>
+              <div>
+                <Label htmlFor="condicionViviendaId">Condicion De Vivienda *</Label>
+                <Select
+                  value={watch("condicionViviendaId") ? String(watch("condicionViviendaId")) : undefined}
+                  onValueChange={(v) => setValue("condicionViviendaId", Number(v))}
+                >
+                  <SelectTrigger id="condicionViviendaId" className="w-full truncate">
+                    <SelectValue placeholder="Seleccione una Condicion De Vivienda" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(catalogos?.condicionesVivienda ?? []).map((cond) => (
+                      <SelectItem key={cond.id} value={String(cond.id)}>
+                        {cond.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground block mt-1">
+                  Esta Información Sera Publica
+                </span>
+              </div>
 
-          <div>
-            <Label htmlFor="codigoPostalId">Código Postal</Label>
-            <Select
-              value={watch("codigoPostalId") ? String(watch("codigoPostalId")) : undefined}
-              onValueChange={(v) => setValue("codigoPostalId", Number(v))}
-            >
-              <SelectTrigger id="codigoPostalId">
-                <SelectValue placeholder="Seleccione código postal" />
-              </SelectTrigger>
-              <SelectContent>
-                {(catalogos?.codigosPostales ?? []).map((cp) => (
-                  <SelectItem key={cp.id} value={String(cp.id)}>
-                    {cp.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="col-span-2">
+                <Label htmlFor="direccionExacta">Direccion Exacta *</Label>
+                <Input
+                  id="direccionExacta"
+                  {...register("direccionExacta")}
+                  placeholder="Calle, Casa, Apartamento, Sector"
+                />
+              </div>
 
-          <div className="flex justify-end gap-2 mt-4 border-t pt-3">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
-              Guardar Cambios
-            </Button>
-          </div>
-        </form>
+              <div>
+                <Label htmlFor="codigoPostalId">Código Postal *</Label>
+                <Select
+                  value={watch("codigoPostalId") ? String(watch("codigoPostalId")) : undefined}
+                  onValueChange={(v) => setValue("codigoPostalId", Number(v))}
+                >
+                  <SelectTrigger id="codigoPostalId" className="w-full truncate">
+                    <SelectValue placeholder="Seleccione un Código Postal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(catalogos?.codigosPostales ?? []).map((cp) => (
+                      <SelectItem key={cp.id} value={String(cp.id)}>
+                        {cp.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button className="w-full col-span-2 mt-2" disabled={isPending}>
+                {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+                {isPending ? "Actualizando" : "Actualizar"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
