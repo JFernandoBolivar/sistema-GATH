@@ -70,7 +70,7 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
     await actionsBtn.click();
 
     await expect(page.getByText("Copiar Cédula De Identidad")).toBeVisible();
-    await expect(page.getByText("Expediente PDF")).toBeVisible();
+    await expect(page.getByText("Descargar PDF")).toBeVisible();
     await expect(page.getByText("Ver Detalles")).toBeVisible();
 
     // Open detail sheet
