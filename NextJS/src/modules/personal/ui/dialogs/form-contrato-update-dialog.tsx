@@ -2,18 +2,25 @@
 
 import { useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 
+import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/components/card";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
+import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
   Select,
   SelectContent,
@@ -50,7 +57,18 @@ export default function FormContratoUpdateDialog({
     ? [empleado.contratoActual]
     : [];
 
-  const { control, register, handleSubmit, setValue, watch } = useForm({
+  interface ContratoFormItem {
+    id?: number;
+    nContrato: string;
+    fechaIngreso: string;
+    fechaCulminacion: string;
+    politicaId?: number;
+    esFijo: boolean;
+  }
+
+  const { control, register, handleSubmit, setValue, watch } = useForm<{
+    contrato: ContratoFormItem[];
+  }>({
     defaultValues: {
       contrato: initialContratos.length > 0
         ? initialContratos.map((c) => ({
@@ -61,7 +79,7 @@ export default function FormContratoUpdateDialog({
             politicaId: c.politicaId ?? undefined,
             esFijo: c.esFijo ?? false,
           }))
-        : [{ nContrato: "", fechaIngreso: "", fechaCulminacion: "", politicaId: undefined, esFijo: false }],
+        : [],
     },
   });
 
@@ -108,112 +126,143 @@ export default function FormContratoUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Gestionar Contratos</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0 border-none bg-transparent shadow-none">
+        <DialogTitle className="sr-only">Gestión de Contratos</DialogTitle>
 
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <Card className="flex flex-col gap-3">
+          <CardHeader>
+            <CardTitle>Gestión de Contratos</CardTitle>
+          </CardHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4">
-            {fields.map((field, index) => (
-              <div key={field.id} className="border rounded-md p-3 relative flex flex-col gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold">Contrato #{index + 1}</span>
-                  {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  )}
-                </div>
+          <CardContent>
+            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>N° de Contrato</Label>
-                    <Input
-                      placeholder="Ej. C-2024-001"
-                      {...register(`contrato.${index}.nContrato` as const)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Política *</Label>
-                    <Select
-                      value={watch(`contrato.${index}.politicaId`) ? String(watch(`contrato.${index}.politicaId`)) : undefined}
-                      onValueChange={(v) => setValue(`contrato.${index}.politicaId`, Number(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione política" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(catalogos?.politicas ?? []).map((pol) => (
-                          <SelectItem key={pol.id} value={String(pol.id)}>
-                            {pol.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Fecha de Ingreso *</Label>
-                    <Input
-                      type="date"
-                      {...register(`contrato.${index}.fechaIngreso` as const, { required: true })}
-                    />
-                  </div>
-                  <div>
-                    <Label>Fecha de Culminación</Label>
-                    <Input
-                      type="date"
-                      {...register(`contrato.${index}.fechaCulminacion` as const)}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id={`esFijo-${index}`}
-                    {...register(`contrato.${index}.esFijo` as const)}
-                    className="size-4 rounded"
-                  />
-                  <Label htmlFor={`esFijo-${index}`} className="cursor-pointer text-xs">
-                    ¿Es contrato a tiempo indeterminado / Fijo?
-                  </Label>
+            <form className="flex flex-col gap-2" onSubmit={handleSubmit(onSubmit)}>
+              <div className="flex justify-end gap-2 mr-4 items-center">
+                <div className="flex flex-col items-center justify-center">
+                  <Label htmlFor="add" className="text-xs">Agregar</Label>
+                  <Button
+                    id="add"
+                    variant="default"
+                    type="button"
+                    size="icon"
+                    className="cursor-pointer size-9"
+                    onClick={() => {
+                      append({
+                        nContrato: "",
+                        fechaIngreso: "",
+                        fechaCulminacion: "",
+                        politicaId: undefined,
+                        esFijo: false,
+                      });
+                    }}
+                  >
+                    <Plus className="size-4" />
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={() => append({ nContrato: "", fechaIngreso: "", fechaCulminacion: "", politicaId: undefined, esFijo: false })}
-          >
-            <Plus className="size-4 mr-1" /> Agregar otro contrato
-          </Button>
+              <ScrollArea className="h-80 rounded-md w-full border p-2">
+                {fields.length === 0 && (
+                  <h1 className="text-gray-600 text-center py-4 text-sm">
+                    No hay contratos registrados.
+                  </h1>
+                )}
+                {fields.map((field, index) => {
+                  const isExisting = Boolean(initialContratos[index]?.id);
+                  const isVencido = initialContratos[index]?.estatusNombre === "VENCIDO";
 
-          <div className="flex justify-end gap-2 mt-4 border-t pt-3">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
-              Guardar Cambios
-            </Button>
-          </div>
-        </form>
+                  return (
+                    <div
+                      key={field.id}
+                      className="relative flex flex-row gap-3 items-center justify-around w-full py-2 border-b"
+                    >
+                      {isVencido && (
+                        <Badge className="bg-red-600 text-white text-xs absolute -top-1 left-1">
+                          VENCIDO - Solo lectura
+                        </Badge>
+                      )}
+
+                      <div className="flex flex-col">
+                        <Label className="text-xs">
+                          {index + 1}. N° Contrato
+                        </Label>
+                        <Input
+                          {...register(`contrato.${index}.nContrato` as const)}
+                          readOnly={isExisting}
+                          className={`flex h-8 w-40 rounded-md border border-input bg-transparent px-2 py-1 text-sm ${
+                            isExisting ? "opacity-50 cursor-not-allowed bg-muted" : ""
+                          }`}
+                          placeholder="CTR-001"
+                        />
+                      </div>
+
+                      <div className="flex flex-col">
+                        <Label className="text-xs">Fecha Inicio</Label>
+                        <Input
+                          type="date"
+                          disabled={isVencido}
+                          className="w-36 h-8 text-xs"
+                          {...register(`contrato.${index}.fechaIngreso` as const, { required: true })}
+                        />
+                      </div>
+
+                      <div className="flex flex-col">
+                        <Label className="text-xs">Fecha Culminación</Label>
+                        <Input
+                          type="date"
+                          disabled={isVencido}
+                          className="w-36 h-8 text-xs"
+                          {...register(`contrato.${index}.fechaCulminacion` as const)}
+                        />
+                      </div>
+
+                      <div className="flex flex-col">
+                        <Label className="text-xs">Política</Label>
+                        <Select
+                          value={watch(`contrato.${index}.politicaId`) ? String(watch(`contrato.${index}.politicaId`)) : undefined}
+                          onValueChange={(v) => setValue(`contrato.${index}.politicaId`, Number(v))}
+                          disabled={isVencido}
+                        >
+                          <SelectTrigger className="w-36 h-8 text-xs">
+                            <SelectValue placeholder="Seleccione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(catalogos?.politicas ?? []).map((p) => (
+                              <SelectItem key={p.id} value={String(p.id)}>
+                                {p.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {!isVencido && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="cursor-pointer mt-4 size-8 p-0"
+                          onClick={() => remove(index)}
+                        >
+                          <X className="size-3" />
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </ScrollArea>
+
+              <Button
+                className="mt-4 w-full cursor-pointer"
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+                {isPending ? "Actualizando..." : "Guardar Cambios"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
