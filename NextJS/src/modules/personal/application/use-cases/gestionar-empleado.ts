@@ -31,6 +31,7 @@ function aDTO(e: Awaited<ReturnType<RepoPersonal["crearEmpleado"]>>): EmpleadoDT
     contratoActual: e.contratoActual,
     contratos: e.contratos,
     asignaciones: e.asignaciones,
+    encargadurias: e.encargadurias,
   };
 }
 

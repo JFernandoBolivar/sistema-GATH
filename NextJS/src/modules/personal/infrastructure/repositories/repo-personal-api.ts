@@ -243,7 +243,19 @@ export const repoPersonalApi: RepoPersonal = {
       personalApi.getEstadosCiviles(),
       personalApi.getOrganismosAdscritos(),
     ]);
-    const aCat = (raw: { id: number; nombre: string }[]) => raw.map((x) => ({ id: x.id, nombre: x.nombre }));
+    const aCat = (raw: import("../http/personal-api").CatalogoEmpleadoApiItem[]) =>
+      raw.map((x) => ({
+        id: x.id,
+        nombre: x.nombre,
+        codigo: x.codigo ?? null,
+        categoriaId: x.categoria_id ?? (x.categoria?.id ?? null),
+        categoriaNombre: x.categoria_nombre ?? (x.categoria?.nombre_categoria ?? (x.categoria?.nombre ?? null)),
+        tipoPrendaId: x.tipo_prenda_id ?? (x.tipo_prenda?.id ?? null),
+        tipoPrendaNombre: x.tipo_prenda_nombre ?? (x.tipo_prenda?.categoria ?? null),
+        regionId: x.region_id ?? (x.region?.id ?? null),
+        regionCodigo: x.region_codigo ?? (x.region?.codigo ?? null),
+        regionDescripcion: x.region_descripcion ?? (x.region?.descripcion ?? null),
+      }));
     return {
       estados: aCat(estados),
       municipios: aCat(municipios),

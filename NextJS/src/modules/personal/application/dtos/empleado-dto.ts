@@ -30,9 +30,39 @@ export interface AntecedenteDTO extends Antecedente {}
 export interface ContratoDTO extends Contrato {}
 export interface CargoAsignadoDTO extends CargoAsignado {}
 
+export interface EncargaduriaDTO {
+  id: number;
+  cargoEncargadoId?: number | null;
+  cargoEncargadoCodigo?: string | null;
+  cargoEncargado?: string | null;
+  cargoInfo?: {
+    codigo?: string;
+    denominacioncargo?: { cargo?: string };
+    denominacioncargoespecifico?: { cargo?: string };
+  } | null;
+  titularCedula?: string | null;
+  titularNombre?: string | null;
+  empleadoCedula?: string | null;
+  empleadoNombre?: string | null;
+  motivoId?: number | null;
+  motivoNombre?: string | null;
+  estatusId?: number | null;
+  estatusNombre?: string | null;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+}
+
 export interface CatalogoEmpleadoDTO {
   id: number;
   nombre: string;
+  codigo?: string | null;
+  categoriaId?: number | null;
+  categoriaNombre?: string | null;
+  tipoPrendaId?: number | null;
+  tipoPrendaNombre?: string | null;
+  regionId?: number | null;
+  regionCodigo?: string | null;
+  regionDescripcion?: string | null;
 }
 
 export interface CatalogosExpedienteDTO {
@@ -86,6 +116,7 @@ export interface EmpleadoDTO {
   contratoActual?: ContratoDTO | null;
   contratos?: ContratoDTO[];
   asignaciones?: CargoAsignadoDTO[];
+  encargadurias?: EncargaduriaDTO[];
 }
 
 export interface GuardarEmpleadoInputDTO {

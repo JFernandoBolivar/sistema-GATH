@@ -37,11 +37,23 @@ export interface EmpleadoApiItem {
   contrato_actual: Record<string, unknown> | null;
   contratos?: Record<string, unknown>[];
   asignaciones?: Record<string, unknown>[];
+  encargadurias?: Record<string, unknown>[];
 }
 
 export interface CatalogoEmpleadoApiItem {
   id: number;
   nombre: string;
+  codigo?: string | null;
+  categoria_id?: number | null;
+  categoria_nombre?: string | null;
+  categoria?: { id: number; nombre?: string; nombre_categoria?: string } | null;
+  tipo_prenda_id?: number | null;
+  tipo_prenda_nombre?: string | null;
+  tipo_prenda?: { id: number; categoria?: string } | null;
+  region_id?: number | null;
+  region_codigo?: string | null;
+  region_descripcion?: string | null;
+  region?: { id: number; codigo?: string; descripcion?: string } | null;
 }
 
 async function list<T>(getter: Promise<ApiResponse<T[]>>): Promise<T[]> {

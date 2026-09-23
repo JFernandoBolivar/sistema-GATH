@@ -12,6 +12,7 @@ import type {
   FormacionComplementaria,
   PerfilFisico,
   PerfilSalud,
+  Encargaduria,
 } from "../../domain/entities/empleado";
 import type { EmpleadoApiItem } from "../http/personal-api";
 
@@ -124,6 +125,26 @@ function cargoAsignadoAPIADto(raw: Record<string, unknown>): CargoAsignado {
   };
 }
 
+function encargaduriaAPIADto(raw: Record<string, unknown>): Encargaduria {
+  return {
+    id: (raw.id as number) ?? 0,
+    cargoEncargadoId: (raw.cargo_encargado_id as number | null) ?? null,
+    cargoEncargadoCodigo: (raw.cargo_encargado_codigo as string | null) ?? null,
+    cargoEncargado: (raw.cargo_encargado as string | null) ?? null,
+    cargoInfo: (raw.cargo_info as Encargaduria["cargoInfo"]) ?? null,
+    titularCedula: (raw.titular_cedula as string | null) ?? null,
+    titularNombre: (raw.titular_nombre as string | null) ?? null,
+    empleadoCedula: (raw.empleado_cedula as string | null) ?? null,
+    empleadoNombre: (raw.empleado_nombre as string | null) ?? null,
+    motivoId: (raw.motivo_id as number | null) ?? null,
+    motivoNombre: (raw.motivo_nombre as string | null) ?? null,
+    estatusId: (raw.estatus_id as number | null) ?? null,
+    estatusNombre: (raw.estatus_nombre as string | null) ?? null,
+    fechaInicio: (raw.fecha_inicio as string | null) ?? null,
+    fechaFin: (raw.fecha_fin as string | null) ?? null,
+  };
+}
+
 export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
   const rec = asRec(raw);
   return {
@@ -152,5 +173,6 @@ export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
     contratoActual: raw.contrato_actual ? contratoAPIADto(asRec(raw.contrato_actual)) : null,
     contratos: Array.isArray(rec.contratos) ? (rec.contratos as unknown[]).map((i) => contratoAPIADto(asRec(i))) : [],
     asignaciones: Array.isArray(rec.asignaciones) ? (rec.asignaciones as unknown[]).map((i) => cargoAsignadoAPIADto(asRec(i))) : [],
+    encargadurias: Array.isArray(rec.encargadurias) ? (rec.encargadurias as unknown[]).map((i) => encargaduriaAPIADto(asRec(i))) : [],
   };
 }

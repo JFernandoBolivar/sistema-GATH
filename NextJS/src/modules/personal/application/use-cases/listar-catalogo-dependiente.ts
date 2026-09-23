@@ -13,5 +13,16 @@ export async function listarCatalogoDependiente(
   padreId: number,
 ): Promise<CatalogoEmpleadoDTO[]> {
   const items = await repo.listar(tipo, padreId);
-  return items.map((x) => ({ id: x.id, nombre: x.nombre }));
+  return items.map((x) => ({
+    id: x.id,
+    nombre: x.nombre,
+    codigo: x.codigo ?? null,
+    categoriaId: x.categoriaId ?? null,
+    categoriaNombre: x.categoriaNombre ?? null,
+    tipoPrendaId: x.tipoPrendaId ?? null,
+    tipoPrendaNombre: x.tipoPrendaNombre ?? null,
+    regionId: x.regionId ?? null,
+    regionCodigo: x.regionCodigo ?? null,
+    regionDescripcion: x.regionDescripcion ?? null,
+  }));
 }

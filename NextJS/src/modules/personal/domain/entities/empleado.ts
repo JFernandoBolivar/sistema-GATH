@@ -64,6 +64,36 @@ export interface ContactoEmergencia {
 export interface CatalogoExpediente {
   id: number;
   nombre: string;
+  codigo?: string | null;
+  categoriaId?: number | null;
+  categoriaNombre?: string | null;
+  tipoPrendaId?: number | null;
+  tipoPrendaNombre?: string | null;
+  regionId?: number | null;
+  regionCodigo?: string | null;
+  regionDescripcion?: string | null;
+}
+
+export interface Encargaduria {
+  id: number;
+  cargoEncargadoId?: number | null;
+  cargoEncargadoCodigo?: string | null;
+  cargoEncargado?: string | null;
+  cargoInfo?: {
+    codigo?: string;
+    denominacioncargo?: { cargo?: string };
+    denominacioncargoespecifico?: { cargo?: string };
+  } | null;
+  titularCedula?: string | null;
+  titularNombre?: string | null;
+  empleadoCedula?: string | null;
+  empleadoNombre?: string | null;
+  motivoId?: number | null;
+  motivoNombre?: string | null;
+  estatusId?: number | null;
+  estatusNombre?: string | null;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
 }
 
 export interface Antecedente {
@@ -129,4 +159,5 @@ export interface Empleado {
   contratoActual?: Contrato | null;
   contratos?: Contrato[];
   asignaciones?: CargoAsignado[];
+  encargadurias?: Encargaduria[];
 }

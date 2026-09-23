@@ -32,6 +32,7 @@ function aDTO(e: Empleado): EmpleadoDTO {
     contratoActual: e.contratoActual,
     contratos: e.contratos,
     asignaciones: e.asignaciones,
+    encargadurias: e.encargadurias,
   };
 }
 
