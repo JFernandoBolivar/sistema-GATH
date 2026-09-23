@@ -2,17 +2,24 @@
 
 import { useState, useTransition } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash, X } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/components/card";
+import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
 import { Label } from "@/shared/ui/components/label";
+import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
   Select,
   SelectContent,
@@ -99,135 +106,170 @@ export default function FormAcademicTrainingUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Actualizar Formación Académica</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
+        <DialogTitle className="sr-only">Actualizar Formación Académica</DialogTitle>
 
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <Card className="w-full h-full border-0 shadow-none">
+          <CardHeader>
+            <CardTitle>Formacion Academica</CardTitle>
+          </CardHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4">
-            {fields.map((field, index) => (
-              <div key={field.id} className="border rounded-md p-3 relative flex flex-col gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold">Formación #{index + 1}</span>
-                  {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  )}
+          <CardContent>
+            <CardAction className="text-gray-500 mb-3">Información Academica</CardAction>
+
+            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-2">
+              <div className="flex justify-end gap-2 mr-4 items-center">
+                <div className="flex flex-col items-center justify-center">
+                  <Label htmlFor="clean" className="text-xs mb-1">Limpiar</Label>
+                  <Button
+                    id="clean"
+                    variant="destructive"
+                    type="button"
+                    size="icon"
+                    className="cursor-pointer size-8"
+                    onClick={() => {
+                      remove(fields.filter((_, i) => i !== 0).map((_, i) => i + 1));
+                      setValue("formacionAcademica", [
+                        { nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined },
+                      ]);
+                    }}
+                  >
+                    <Trash className="size-4" />
+                  </Button>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Nivel Académico *</Label>
-                    <Select
-                      value={watch(`formacionAcademica.${index}.nivelAcademicoId`) ? String(watch(`formacionAcademica.${index}.nivelAcademicoId`)) : undefined}
-                      onValueChange={(v) => setValue(`formacionAcademica.${index}.nivelAcademicoId`, Number(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione nivel" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(catalogos?.nivelesAcademicos ?? []).map((n) => (
-                          <SelectItem key={n.id} value={String(n.id)}>
-                            {n.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Institución *</Label>
-                    <Select
-                      value={watch(`formacionAcademica.${index}.institucionId`) ? String(watch(`formacionAcademica.${index}.institucionId`)) : undefined}
-                      onValueChange={(v) => setValue(`formacionAcademica.${index}.institucionId`, Number(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione institución" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(catalogos?.instituciones ?? []).map((inst) => (
-                          <SelectItem key={inst.id} value={String(inst.id)}>
-                            {inst.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Carrera</Label>
-                    <Select
-                      value={watch(`formacionAcademica.${index}.carreraId`) ? String(watch(`formacionAcademica.${index}.carreraId`)) : undefined}
-                      onValueChange={(v) => setValue(`formacionAcademica.${index}.carreraId`, Number(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione carrera" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(catalogos?.carreras ?? []).map((c) => (
-                          <SelectItem key={c.id} value={String(c.id)}>
-                            {c.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label>Mención</Label>
-                    <Select
-                      value={watch(`formacionAcademica.${index}.mencionId`) ? String(watch(`formacionAcademica.${index}.mencionId`)) : undefined}
-                      onValueChange={(v) => setValue(`formacionAcademica.${index}.mencionId`, Number(v))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione mención" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(catalogos?.menciones ?? []).map((m) => (
-                          <SelectItem key={m.id} value={String(m.id)}>
-                            {m.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="flex flex-col items-center justify-center">
+                  <Label htmlFor="add" className="text-xs mb-1">Agregar</Label>
+                  <Button
+                    id="add"
+                    variant="default"
+                    type="button"
+                    size="icon"
+                    className="cursor-pointer size-8"
+                    onClick={() =>
+                      append({
+                        nivelAcademicoId: undefined,
+                        carreraId: undefined,
+                        mencionId: undefined,
+                        institucionId: undefined,
+                      })
+                    }
+                  >
+                    <Plus className="size-4" />
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="self-start"
-            onClick={() => append({ nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined })}
-          >
-            <Plus className="size-4 mr-1" /> Agregar otra formación
-          </Button>
+              <ScrollArea className="h-64 rounded-md w-full border p-2">
+                <h1 className="text-gray-600 text-sm mb-3">
+                  Opcional si no posee formación académica
+                </h1>
+                <div className="flex flex-col gap-4">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="flex flex-row gap-3 items-end w-full">
+                      <div className="flex-1 min-w-[150px]">
+                        <Label>{index + 1}. Nivel Academico</Label>
+                        <Select
+                          value={watch(`formacionAcademica.${index}.nivelAcademicoId`) ? String(watch(`formacionAcademica.${index}.nivelAcademicoId`)) : undefined}
+                          onValueChange={(v) => setValue(`formacionAcademica.${index}.nivelAcademicoId`, Number(v))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleccione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(catalogos?.nivelesAcademicos ?? []).map((n) => (
+                              <SelectItem key={n.id} value={String(n.id)}>
+                                {n.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-          <div className="flex justify-end gap-2 mt-4 border-t pt-3">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
-              Guardar Cambios
-            </Button>
-          </div>
-        </form>
+                      <div className="flex-1 min-w-[150px]">
+                        <Label>Carrera (Opcional)</Label>
+                        <Select
+                          value={watch(`formacionAcademica.${index}.carreraId`) ? String(watch(`formacionAcademica.${index}.carreraId`)) : undefined}
+                          onValueChange={(v) => setValue(`formacionAcademica.${index}.carreraId`, Number(v))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleccione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(catalogos?.carreras ?? []).map((c) => (
+                              <SelectItem key={c.id} value={String(c.id)}>
+                                {c.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex-1 min-w-[150px]">
+                        <Label>Mención (Opcional)</Label>
+                        <Select
+                          value={watch(`formacionAcademica.${index}.mencionId`) ? String(watch(`formacionAcademica.${index}.mencionId`)) : undefined}
+                          onValueChange={(v) => setValue(`formacionAcademica.${index}.mencionId`, Number(v))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleccione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(catalogos?.menciones ?? []).map((m) => (
+                              <SelectItem key={m.id} value={String(m.id)}>
+                                {m.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex-1 min-w-[150px]">
+                        <Label>Institución (Opcional)</Label>
+                        <Select
+                          value={watch(`formacionAcademica.${index}.institucionId`) ? String(watch(`formacionAcademica.${index}.institucionId`)) : undefined}
+                          onValueChange={(v) => setValue(`formacionAcademica.${index}.institucionId`, Number(v))}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleccione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(catalogos?.instituciones ?? []).map((inst) => (
+                              <SelectItem key={inst.id} value={String(inst.id)}>
+                                {inst.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-9 shrink-0`}
+                          onClick={() => remove(index)}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              <Button
+                className="mt-4 w-full cursor-pointer"
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
+                {isPending ? "Actualizando Información" : "Actualizar"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </DialogContent>
     </Dialog>
   );
