@@ -2,7 +2,6 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { cerrarSesionAction } from "@/modules/auth/infrastructure/actions/auth-actions";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
@@ -10,7 +9,6 @@ const TOTAL_TIME = 10 * 60 * 1000;
 const WARNING_TIME = 5 * 60 * 1000;
 
 export function AuthController() {
-  const router = useRouter();
   const [hasError, setHasError] = useState(false);
 
   let sessionHookResult: { data: ReturnType<typeof useSession>["data"] };
@@ -29,8 +27,12 @@ export function AuthController() {
 
   const handleLogout = useCallback(async () => {
     await cerrarSesionAction();
-    router.push("/login");
-  }, [router]);
+    // Navegacion dura (no router.push): el Router Cache de Next.js puede
+    // reutilizar una entrada prefetcheada/visitada antes del logout (con
+    // session activa). Un location.href fuerza una carga completa que
+    // re-ejecuta el RootLayout ya sin sesion en /login.
+    window.location.href = "/login";
+  }, []);
 
   const resetTimer = useCallback(() => {
     if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
@@ -46,7 +48,9 @@ export function AuthController() {
 
   useEffect(() => {
     if (hasError) {
-      cerrarSesionAction().then(() => router.push("/login"));
+      cerrarSesionAction().then(() => {
+        window.location.href = "/login";
+      });
       return;
     }
     if (!session) return;
@@ -66,7 +70,7 @@ export function AuthController() {
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
     };
-  }, [session, resetTimer, hasError, router]);
+  }, [session, resetTimer, hasError]);
 
   if (hasError) return null;
   if (!session) return null;

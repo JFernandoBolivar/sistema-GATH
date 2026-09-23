@@ -7,20 +7,22 @@
  * reconstrucción de `ui/` de este módulo.
  */
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/shared/ui/components/button";
 import { cerrarSesionAction } from "../infrastructure/actions/auth-actions";
 
 export default function LogoutButton() {
-  const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleSignOut = async () => {
     setIsLoggingOut(true);
     await cerrarSesionAction();
-    router.push("/login");
+    // Navegacion dura (no router.push): el Router Cache de Next.js puede
+    // reutilizar una entrada prefetcheada/visitada antes del logout (con
+    // session activa). Un location.href fuerza una carga completa que
+    // re-ejecuta el RootLayout ya sin sesion en /login.
+    window.location.href = "/login";
   };
 
   return (
