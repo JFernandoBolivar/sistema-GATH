@@ -56,6 +56,8 @@ export interface DocumentoFamiliarDTO {
   fechaSubida: string;
 }
 
+export type { TipoDocumentoFamiliar } from "../../domain/entities/familiar";
+
 export interface CatalogoFamiliarDTO {
   id: number;
   nombre: string;

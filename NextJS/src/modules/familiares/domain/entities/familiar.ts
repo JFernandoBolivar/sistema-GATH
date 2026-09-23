@@ -50,6 +50,8 @@ export interface Familiar {
   perfilFisico?: PerfilFisicoFamiliar | null;
 }
 
+export type TipoDocumentoFamiliar = "cedula" | "partida_nacimiento";
+
 export interface DocumentoFamiliar {
   id: number;
   familiarId: number;

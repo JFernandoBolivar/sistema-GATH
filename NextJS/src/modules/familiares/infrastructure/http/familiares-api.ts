@@ -116,6 +116,9 @@ export const familiaresApi = {
   getDocumentos: (familiarId: number) =>
     apiClient.get<DocumentoFamiliarApiItem[]>(`/api/v1/familiares/${familiarId}/documentos/`),
 
+  subirDocumento: (familiarId: number, formData: FormData) =>
+    apiClient.postForm<DocumentoFamiliarApiItem>(`/api/v1/familiares/${familiarId}/documentos/`, formData),
+
   getParentescos: () =>
     apiClient.get<CatalogoFamiliarApiItem[]>("/api/v1/catalogos/parentescos/"),
 

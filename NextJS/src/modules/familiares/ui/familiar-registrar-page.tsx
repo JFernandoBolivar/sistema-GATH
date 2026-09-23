@@ -23,12 +23,13 @@ import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 
 import { CATALOGOS_FAMILIAR_VACIOS, type CatalogosFamiliarDTO, type GuardarFamiliarInputDTO } from "../application/dtos/familiar-dto";
-import { crearFamiliarAction, getCatalogosFamiliarAction } from "../infrastructure/actions/familiares-actions";
+import { crearFamiliarAction, getCatalogosFamiliarAction, subirDocumentoFamiliarAction } from "../infrastructure/actions/familiares-actions";
 import { familiarSchema, type FamiliarFormType } from "./schema/schema-familiar";
 import { FamiliarCampos } from "./familiar-campos";
 import { FamiliarFormacionAcademica } from "./familiar-formacion-academica";
 import { FamiliarPerfilSalud } from "./familiar-perfil-salud";
 import { FamiliarPerfilFisico } from "./familiar-perfil-fisico";
+import { FamiliarDocumentos } from "./familiar-documentos";
 import { ID_OTRA_FAMILIAR } from "./catalogo-otra-familiar";
 import { resolverPendientesOtraFamiliar, type PendienteOtraFamiliar } from "./resolver-otra-familiar";
 
@@ -55,6 +56,8 @@ export default function FamiliarRegistrarPage() {
   const [catalogos, setCatalogos] = useState<CatalogosFamiliarDTO | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [archivoCedula, setArchivoCedula] = useState<File | null>(null);
+  const [archivoPartida, setArchivoPartida] = useState<File | null>(null);
 
   useEffect(() => {
     getCatalogosFamiliarAction().then(setCatalogos).catch(() => setCatalogos(CATALOGOS_FAMILIAR_VACIOS));
@@ -140,6 +143,24 @@ export default function FamiliarRegistrarPage() {
         setError((resultado as { error: string }).error);
         return;
       }
+
+      // Documentos (opcional): se suben recién después de crear el
+      // familiar, porque el endpoint necesita su id. Es "mejor esfuerzo" --
+      // un fallo de subida no revierte la creación del familiar, ya exitosa.
+      const erroresDocumentos: string[] = [];
+      if (archivoCedula) {
+        const r = await subirDocumentoFamiliarAction(resultado.id, "cedula", archivoCedula);
+        if (r && typeof r === "object" && "error" in r) erroresDocumentos.push(`Cédula: ${r.error}`);
+      }
+      if (archivoPartida) {
+        const r = await subirDocumentoFamiliarAction(resultado.id, "partida_nacimiento", archivoPartida);
+        if (r && typeof r === "object" && "error" in r) erroresDocumentos.push(`Partida de nacimiento: ${r.error}`);
+      }
+      if (erroresDocumentos.length > 0) {
+        setError(`El familiar se creó correctamente, pero no se pudieron subir estos documentos: ${erroresDocumentos.join("; ")}`);
+        return;
+      }
+
       router.push("/familiares/consultar");
     });
   };
@@ -168,6 +189,13 @@ export default function FamiliarRegistrarPage() {
               <FamiliarPerfilSalud form={form} catalogos={catalogos} />
 
               <FamiliarPerfilFisico form={form} catalogos={catalogos} />
+
+              <FamiliarDocumentos
+                archivoCedula={archivoCedula}
+                onCedulaChange={setArchivoCedula}
+                archivoPartida={archivoPartida}
+                onPartidaChange={setArchivoPartida}
+              />
 
               <div className="flex items-center gap-2">
                 <Button type="submit" disabled={isPending}>

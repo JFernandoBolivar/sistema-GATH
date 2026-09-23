@@ -102,6 +102,14 @@ export const repoFamiliaresApi: RepoFamiliares = {
     return raw.map(documentoFamiliarApiAEntidad);
   },
 
+  async subirDocumento(familiarId, tipoDocumento, archivo) {
+    const formData = new FormData();
+    formData.append("file", archivo);
+    formData.append("tipo_documento", tipoDocumento);
+    const raw = await familiaresApi.subirDocumento(familiarId, formData);
+    return documentoFamiliarApiAEntidad(raw);
+  },
+
   async listarCatalogos() {
     const [
       parentescos,

@@ -25,6 +25,9 @@ export async function listarFamiliaresPorEmpleado(
     mismoEnte: e.mismoEnte,
     heredero: e.heredero,
     observaciones: e.observaciones,
+    formacionAcademica: e.formacionAcademica ?? null,
+    perfilSalud: e.perfilSalud ?? null,
+    perfilFisico: e.perfilFisico ?? null,
   }));
 }
 
@@ -40,4 +43,20 @@ export async function listarDocumentosFamiliar(
     rutaArchivo: e.rutaArchivo,
     fechaSubida: e.fechaSubida,
   }));
+}
+
+export async function subirDocumentoFamiliar(
+  repo: RepoFamiliares,
+  familiarId: number,
+  tipoDocumento: Parameters<RepoFamiliares["subirDocumento"]>[1],
+  archivo: File,
+): Promise<DocumentoFamiliarDTO> {
+  const e = await repo.subirDocumento(familiarId, tipoDocumento, archivo);
+  return {
+    id: e.id,
+    familiarId: e.familiarId,
+    tipoDocumento: e.tipoDocumento,
+    rutaArchivo: e.rutaArchivo,
+    fechaSubida: e.fechaSubida,
+  };
 }

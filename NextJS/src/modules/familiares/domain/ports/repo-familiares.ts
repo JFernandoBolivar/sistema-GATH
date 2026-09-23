@@ -1,7 +1,7 @@
 /**
  * Puerto del Repositorio de Familiares (Reglas R1, R4).
  */
-import type { DocumentoFamiliar, Familiar } from "../entities/familiar";
+import type { DocumentoFamiliar, Familiar, TipoDocumentoFamiliar } from "../entities/familiar";
 
 export interface CatalogoFamiliar {
   id: number;
@@ -38,5 +38,6 @@ export interface RepoFamiliares {
   actualizarFamiliar(id: number, data: Partial<Familiar>): Promise<Familiar>;
   eliminarFamiliar(id: number): Promise<void>;
   listarDocumentos(familiarId: number): Promise<DocumentoFamiliar[]>;
+  subirDocumento(familiarId: number, tipoDocumento: TipoDocumentoFamiliar, archivo: File): Promise<DocumentoFamiliar>;
   listarCatalogos(): Promise<CatalogosFamiliar>;
 }

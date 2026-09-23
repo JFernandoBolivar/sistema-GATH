@@ -52,6 +52,15 @@ class RepoFamiliaresMemoria implements RepoFamiliares {
   async listarDocumentos() {
     return [];
   }
+  async subirDocumento(familiarId: number, tipoDocumento: "cedula" | "partida_nacimiento") {
+    return {
+      id: 1,
+      familiarId,
+      tipoDocumento,
+      rutaArchivo: "https://example.com/doc.pdf",
+      fechaSubida: "2026-01-01",
+    };
+  }
 
   async listarCatalogos() {
     return {

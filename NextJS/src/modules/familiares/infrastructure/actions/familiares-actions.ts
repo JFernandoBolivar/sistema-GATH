@@ -20,6 +20,7 @@ import {
 import {
   listarDocumentosFamiliar,
   listarFamiliaresPorEmpleado,
+  subirDocumentoFamiliar,
 } from "../../application/use-cases/listar-familiares";
 import { listarCatalogosFamiliar } from "../../application/use-cases/listar-catalogos-familiar";
 import { listarCatalogoDependienteFamiliar } from "../../application/use-cases/listar-catalogo-dependiente-familiar";
@@ -204,5 +205,38 @@ export async function getDocumentosFamiliarAction(familiarId: number) {
     await logAudit({ traceId, action: "getDocumentosFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
+  }
+}
+
+const TAMANO_MAXIMO_DOCUMENTO_BYTES = 5 * 1024 * 1024; // 5MB, mismo límite que la foto del empleado en Personal.
+
+const subirDocumentoFamiliarSchema = z.object({
+  familiarId: z.number().int().positive({ message: "Familiar inválido" }),
+  tipoDocumento: z.enum(["cedula", "partida_nacimiento"]),
+});
+
+/** Sube el documento de cédula o partida de nacimiento de un familiar (multipart). */
+export async function subirDocumentoFamiliarAction(familiarId: number, tipoDocumento: "cedula" | "partida_nacimiento", archivo: File) {
+  const validation = subirDocumentoFamiliarSchema.safeParse({ familiarId, tipoDocumento });
+  if (!validation.success) {
+    return { error: "Familiar o tipo de documento inválido." };
+  }
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Seleccione un archivo válido." };
+  }
+  if (archivo.size > TAMANO_MAXIMO_DOCUMENTO_BYTES) {
+    return { error: "El tamaño máximo del archivo es 5MB." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await subirDocumentoFamiliar(repoFamiliaresApi, validation.data.familiarId, validation.data.tipoDocumento, archivo);
+    await logAudit({ traceId, action: "subirDocumentoFamiliarAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "subirDocumentoFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { error: error instanceof Error && error.message ? error.message : "No fue posible subir el documento." };
   }
 }
