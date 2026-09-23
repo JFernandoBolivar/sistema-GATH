@@ -52,3 +52,37 @@ def test_carreras_ignora_filtro_invalido(repo_doble, valor):
 
     assert repo_doble.llamadas['carreras'] is None
     assert len(response.data['data']) == 2
+
+
+class RepoCodigosPostalesDoble:
+    llamadas: dict = {}
+
+    def listar_codigos_postales(self, estado_id=None):
+        RepoCodigosPostalesDoble.llamadas['codigos'] = estado_id
+        codigos = [
+            SimpleNamespace(pk=10, codigo='1010', estado_id_id=1),
+            SimpleNamespace(pk=11, codigo='2001', estado_id_id=2),
+        ]
+        if estado_id is None:
+            return codigos
+        return [c for c in codigos if c.estado_id_id == estado_id]
+
+
+def test_codigos_postales_filtra_por_estado_e_incluye_estado_id(monkeypatch):
+    RepoCodigosPostalesDoble.llamadas = {}
+    monkeypatch.setattr(vistas, 'RepoPersonalORM', RepoCodigosPostalesDoble)
+
+    response = _get(vistas.CodigosPostalesListView, '/api/v1/personal/catalogos/codigos-postales/?estado_id=2')
+
+    assert RepoCodigosPostalesDoble.llamadas['codigos'] == 2
+    assert response.data['data'] == [{'id': 11, 'nombre': '2001', 'codigo': None, 'estado_id': 2}]
+
+
+def test_codigos_postales_sin_filtro_lista_todos(monkeypatch):
+    RepoCodigosPostalesDoble.llamadas = {}
+    monkeypatch.setattr(vistas, 'RepoPersonalORM', RepoCodigosPostalesDoble)
+
+    response = _get(vistas.CodigosPostalesListView, '/api/v1/personal/catalogos/codigos-postales/')
+
+    assert RepoCodigosPostalesDoble.llamadas['codigos'] is None
+    assert len(response.data['data']) == 2

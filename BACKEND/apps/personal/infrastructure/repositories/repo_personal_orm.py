@@ -354,8 +354,11 @@ class RepoPersonalORM:
     def listar_condiciones_vivienda(self) -> list:
         return list(CondicionViviendaModel.objects.all().order_by('condicion'))
 
-    def listar_codigos_postales(self) -> list:
-        return list(CodigoPostalModel.objects.select_related('estado_id').all().order_by('codigo'))
+    def listar_codigos_postales(self, estado_id: int | None = None) -> list:
+        qs = CodigoPostalModel.objects.select_related('estado_id').all().order_by('codigo')
+        if estado_id is not None:
+            qs = qs.filter(estado_id=estado_id)
+        return list(qs)
 
     def listar_grupos_sanguineos(self) -> list:
         return list(GrupoSanguineoModel.objects.all().order_by('GrupoSanguineo'))

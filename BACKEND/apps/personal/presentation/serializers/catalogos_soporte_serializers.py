@@ -17,6 +17,11 @@ class CatalogoItemSerializer(serializers.Serializer):
     codigo = serializers.CharField(read_only=True, allow_null=True, required=False)
 
 
+class CodigoPostalSerializer(CatalogoItemSerializer):
+    """`{ id, nombre, estado_id }`: incluye el estado para la cascada Estado -> Código Postal."""
+    estado_id = serializers.IntegerField(read_only=True)
+
+
 # ----------------------------------------------------------------------
 # Serializers de Escritura y Detalle (CRUD de Soporte)
 # ----------------------------------------------------------------------

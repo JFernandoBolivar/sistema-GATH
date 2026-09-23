@@ -63,6 +63,7 @@ from apps.personal.presentation.serializers.catalogos_soporte_serializers import
     CatalogoItemSerializer,
     CategoriaDetalleSerializer,
     CategoriaWriteSerializer,
+    CodigoPostalSerializer,
     DiscapacidadDetalleSerializer,
     DiscapacidadWriteSerializer,
     PatologiaDetalleSerializer,
@@ -112,10 +113,16 @@ class CondicionesViviendaListView(APIView):
 class CodigosPostalesListView(APIView):
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
 
-    @extend_schema(tags=['Personal'], summary='Listar códigos postales', responses={200: CatalogoItemSerializer(many=True)})
+    @extend_schema(
+        tags=['Personal'],
+        summary='Listar códigos postales (opcionalmente por estado)',
+        parameters=[OpenApiParameter('estado_id', int, required=False, description='Filtra los códigos postales del estado indicado.')],
+        responses={200: CodigoPostalSerializer(many=True)},
+    )
     def get(self, request):
-        dtos = listar_codigos_postales(RepoPersonalORM().listar_codigos_postales())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        estado_id = _query_id(request, 'estado_id')
+        dtos = listar_codigos_postales(RepoPersonalORM().listar_codigos_postales(estado_id=estado_id))
+        return ok(CodigoPostalSerializer(dtos, many=True).data)
 
 
 class GruposSanguineosListView(APIView):
