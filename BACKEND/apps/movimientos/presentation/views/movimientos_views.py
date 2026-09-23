@@ -37,6 +37,7 @@ class HistorialMovimientosView(APIView):
     def get(self, request):
         cedula = request.query_params.get('cedula')
         codigo_puesto = request.query_params.get('codigo_puesto')
+        categoria = request.query_params.get('categoria')
         tipo_movimiento = request.query_params.get('tipo_movimiento')
         fecha_inicio = request.query_params.get('fecha_inicio')
         fecha_fin = request.query_params.get('fecha_fin')
@@ -47,6 +48,7 @@ class HistorialMovimientosView(APIView):
         dtos = repo.listar_historial(
             cedula=cedula,
             codigo_puesto=codigo_puesto,
+            categoria=categoria,
             tipo_movimiento=tipo_movimiento,
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,

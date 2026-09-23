@@ -99,6 +99,7 @@ class RepoMovimientosORM:
         self,
         cedula: str | None = None,
         codigo_puesto: str | None = None,
+        categoria: str | None = None,
         tipo_movimiento: str | None = None,
         fecha_inicio: str | None = None,
         fecha_fin: str | None = None,
@@ -112,6 +113,11 @@ class RepoMovimientosORM:
             qs = qs.filter(empleado__cedulaidentidad=cedula)
         if codigo_puesto:
             qs = qs.filter(codigo_puesto__icontains=codigo_puesto)
+        if categoria:
+            qs = qs.filter(
+                Q(tipo_movimiento__iexact=categoria)
+                | Q(motivo__categoria__categoria__iexact=categoria)
+            )
         if tipo_movimiento:
             qs = qs.filter(
                 Q(tipo_movimiento__iexact=tipo_movimiento)
@@ -127,47 +133,49 @@ class RepoMovimientosORM:
             qs = qs.filter(estatus__estatus__icontains=estatus)
         return [movimiento_a_entidad(m) for m in qs[:limit]]
 
-    def listar_tipos_movimiento_disponibles(self) -> list[dict[str, str]]:
+    def listar_tipos_movimiento_disponibles(self) -> dict:
         """
-        Retorna los tipos y motivos de movimiento existentes en la DB
-        (TipoMovimientoModel y EmployeeMovementHistoryModel).
+        Retorna la estructura jerárquica de categorías y motivos existentes en la DB:
+        - Categorías de movimiento (CategoriaMovimientoModel + tipos físicos)
+        - Motivos asociados a cada categoría (TipoMovimientoModel)
         """
-        from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
-
-        categorias_principales = ['INGRESO', 'TRASLADO', 'EGRESO', 'CAMBIO DE ESTATUS']
-        motivos_qs = list(
-            TipoMovimientoModel.objects.values_list('movimiento', flat=True).order_by('movimiento')
-        )
-        en_historial_tipos = list(
-            EmployeeMovementHistoryModel.objects.values_list('tipo_movimiento', flat=True).distinct()
-        )
-        en_historial_motivos = list(
-            EmployeeMovementHistoryModel.objects.filter(motivo__isnull=False)
-            .values_list('motivo__movimiento', flat=True).distinct()
+        from apps.catalogos.infrastructure.models.catalogo_models import (
+            CategoriaMovimientoModel,
+            TipoMovimientoModel,
         )
 
-        todos: list[dict[str, str]] = []
-        vistos = set()
+        categorias_base = ['INGRESO', 'TRASLADO', 'EGRESO', 'ENCARGADURIA', 'ESTATUS', 'ESTATUS PASIVO']
+        categorias_db = list(
+            CategoriaMovimientoModel.objects.values_list('categoria', flat=True).order_by('categoria')
+        )
 
-        for c in categorias_principales:
-            if c and c not in vistos:
-                vistos.add(c)
-                todos.append({'valor': c, 'label': c, 'grupo': 'Categoría General'})
+        categorias_unificadas = []
+        for c in categorias_base:
+            if c not in categorias_unificadas:
+                categorias_unificadas.append(c)
+        for c in categorias_db:
+            if c not in categorias_unificadas:
+                categorias_unificadas.append(c)
 
-        for m in en_historial_tipos:
-            if m and m not in vistos:
-                vistos.add(m)
-                todos.append({'valor': m, 'label': m, 'grupo': 'Categoría General'})
+        motivos_por_categoria: dict[str, list[str]] = {c: [] for c in categorias_unificadas}
+        qs_motivos = (
+            TipoMovimientoModel.objects.select_related('categoria')
+            .all()
+            .order_by('movimiento')
+        )
+        for tm in qs_motivos:
+            cat_nombre = tm.categoria.categoria if tm.categoria else None
+            if cat_nombre and cat_nombre in motivos_por_categoria:
+                if tm.movimiento not in motivos_por_categoria[cat_nombre]:
+                    motivos_por_categoria[cat_nombre].append(tm.movimiento)
+            elif cat_nombre:
+                motivos_por_categoria[cat_nombre] = [tm.movimiento]
 
-        for m in motivos_qs:
-            if m and m not in vistos:
-                vistos.add(m)
-                todos.append({'valor': m, 'label': m, 'grupo': 'Motivo Específico'})
+        if 'INGRESO' in motivos_por_categoria and not motivos_por_categoria['INGRESO']:
+            motivos_por_categoria['INGRESO'] = ['INGRESO']
 
-        for m in en_historial_motivos:
-            if m and m not in vistos:
-                vistos.add(m)
-                todos.append({'valor': m, 'label': m, 'grupo': 'Motivo Específico'})
-
-        return todos
+        return {
+            'categorias': categorias_unificadas,
+            'motivos_por_categoria': motivos_por_categoria,
+        }
 
