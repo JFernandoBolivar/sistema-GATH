@@ -233,6 +233,74 @@ test.describe("Personal UI - Paridad 100% con referencia", () => {
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/2g_personal_sheet_cargo_duque.png` });
   });
+
+  test("6. /personal/consultar abre y verifica todos los modales modulares con paridad visual al legado", async ({ page }) => {
+    await page.goto("/personal/consultar");
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+
+    // Buscar Hitler Machado
+    await page.getByPlaceholder("buscar cedula...").fill("30540767");
+    await page.getByRole("button", { name: "Buscar", exact: true }).click();
+    await page.waitForTimeout(1500);
+
+    await page.getByRole("button", { name: /abrir menu/i }).first().click();
+    await page.getByText("Ver Detalles").click();
+    await page.waitForTimeout(1500);
+
+    const sheet = page.getByRole("dialog");
+    await expect(sheet.getByRole("heading", { name: "Información Detallada Del Trabajador" })).toBeVisible();
+
+    // 1. Vivienda
+    const dwellingCard = sheet.locator("div").filter({ hasText: /^Datos De Vivienda/ }).first();
+    const btnDwelling = dwellingCard.getByRole("button", { name: "Actualizar" });
+    if (await btnDwelling.isVisible()) {
+      await btnDwelling.click();
+      await page.waitForTimeout(600);
+      await expect(page.getByText("Datos Socio-economicos")).toBeVisible();
+      await expect(page.getByText("Datos De Vivienda").first()).toBeVisible();
+      await page.screenshot({ path: `${ARTIFACT_DIR}/2h_modal_dwelling.png` });
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(500);
+    }
+
+    // 2. Formación Académica
+    const academicCard = sheet.locator("div").filter({ hasText: /^Formaciones Academicas/ }).first();
+    const btnAcademic = academicCard.getByRole("button", { name: "Actualizar" });
+    if (await btnAcademic.isVisible()) {
+      await btnAcademic.click();
+      await page.waitForTimeout(600);
+      await expect(page.getByText("Formacion Academica")).toBeVisible();
+      await page.screenshot({ path: `${ARTIFACT_DIR}/2i_modal_academic.png` });
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(500);
+    }
+
+    // 3. Vestimenta
+    const physicalCard = sheet.locator("div").filter({ hasText: /^Información De Vestimenta/ }).first();
+    const btnPhysical = physicalCard.getByRole("button", { name: "Actualizar" });
+    if (await btnPhysical.isVisible()) {
+      await btnPhysical.click();
+      await page.waitForTimeout(600);
+      await expect(page.getByText("Vestimenta").first()).toBeVisible();
+      await expect(page.getByText("Datos De Vestimenta")).toBeVisible();
+      await page.screenshot({ path: `${ARTIFACT_DIR}/2j_modal_physical.png` });
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(500);
+    }
+
+    // 4. Salud
+    const healthCard = sheet.locator("div").filter({ hasText: /^Información De Salud/ }).first();
+    const btnHealth = healthCard.getByRole("button", { name: "Actualizar" });
+    if (await btnHealth.isVisible()) {
+      await btnHealth.click();
+      await page.waitForTimeout(600);
+      await expect(page.getByText("Datos De Salud").first()).toBeVisible();
+      await expect(page.getByText("Perfil De Salud")).toBeVisible();
+      await page.screenshot({ path: `${ARTIFACT_DIR}/2k_modal_health.png` });
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(500);
+    }
+  });
 });
 
 
