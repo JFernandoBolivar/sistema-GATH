@@ -16,7 +16,12 @@ from rest_framework import serializers
 
 from core.infrastructure.serializer_mixins import CleanZerosMixin
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, SexoModel
-from apps.personal.infrastructure.models.catalogos_soporte_models import PoliticaModel
+from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    AlergiaModel,
+    DiscapacidadModel,
+    PatologiaCronicaModel,
+    PoliticaModel,
+)
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
     ContactoEmergenciaModel,
@@ -35,9 +40,31 @@ class DatosViviendaEscrituraSerializer(serializers.ModelSerializer):
 
 
 class PerfilSaludEscrituraSerializer(serializers.ModelSerializer):
+    alergias = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=AlergiaModel.objects.all(), required=False
+    )
+    patologiaCronica = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=PatologiaCronicaModel.objects.all(), required=False
+    )
+    discapacidad = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=DiscapacidadModel.objects.all(), required=False
+    )
+
     class Meta:
         model = PerfilSaludModel
         fields = ['grupo_sanguineo', 'alergias', 'patologiaCronica', 'discapacidad']
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            data = data.copy()
+            if 'patologias_cronicas' in data and 'patologiaCronica' not in data:
+                data['patologiaCronica'] = data.pop('patologias_cronicas')
+            if 'discapacidades' in data and 'discapacidad' not in data:
+                data['discapacidad'] = data.pop('discapacidades')
+            for key in ('alergias', 'patologiaCronica', 'discapacidad'):
+                if key in data and data[key] is None:
+                    data[key] = []
+        return super().to_internal_value(data)
 
 
 class PerfilFisicoEscrituraSerializer(serializers.ModelSerializer):

@@ -206,11 +206,12 @@ class RepoPersonalORM:
     def _upsert_salud(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:
             return
-        # Escalar + M2M (alergias/patologías/discapacidades). `data` puede
-        # traer listas de ids para las M2M; se reemplazan con `set`.
-        obj, _ = PerfilSaludModel.objects.update_or_create(empleado=empleado, defaults={
-            'grupo_sanguineo_id': data.get('grupo_sanguineo_id'),
-        })
+        defaults = {}
+        if 'grupo_sanguineo_id' in data and data['grupo_sanguineo_id'] is not None:
+            defaults['grupo_sanguineo_id'] = data['grupo_sanguineo_id']
+        elif 'grupo_sanguineo_id' in data:
+            defaults['grupo_sanguineo_id'] = None
+        obj, _ = PerfilSaludModel.objects.update_or_create(empleado=empleado, defaults=defaults)
         if 'alergias' in data and data['alergias'] is not None:
             obj.alergias.set(data['alergias'])
         if 'patologias_cronicas' in data and data['patologias_cronicas'] is not None:
