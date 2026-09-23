@@ -2,17 +2,17 @@
 
 /**
  * Definición de columnas del historial de movimientos para `DataTable` (tanstack).
- * 100% paridad con el sistema de referencia y cumplimiento estricto de PBAC gating:
- * 1. Fecha Movimiento (sortable)
- * 2. Código Puesto (sortable)
- * 3. Cédula
- * 4. Tipo de Movimiento (badge temático)
- * 5. Denominación
- * 6. Específica
- * 7. Motivo
- * 8. Estatus (badge temático)
- * 9. Modificado Por
- * 10. Acciones (Copiar Código Puesto, Ver detalles)
+ * 100% paridad con el sistema de referencia:
+ * `dashboard/gestion-trabajadores/components/movimientos/tableMoves/columns.tsx`.
+ *
+ * Exactamente 7 columnas:
+ * 1. Código Puesto (sortable)
+ * 2. Fecha Movimiento (UTC dd/MM/yyyy, sortable)
+ * 3. Tipo de Movimiento (badge temático)
+ * 4. Nuevo Cargo (cargo específico o denominación)
+ * 5. Nuevo Grado
+ * 6. Modificado Por (nombre del usuario/analista)
+ * 7. Acciones (Copiar Código Puesto, Ver detalles)
  */
 import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, Eye, MoreHorizontal } from "lucide-react";
@@ -34,7 +34,7 @@ import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
 
 export function TipoMovimientoBadge({ tipo }: { tipo: string | null | undefined }) {
-  if (!tipo) return <span className="text-muted-foreground">—</span>;
+  if (!tipo) return <span className="text-muted-foreground">N/A</span>;
 
   const normalizado = tipo.trim().toUpperCase();
   if (normalizado.includes("ASCENSO")) {
@@ -91,7 +91,7 @@ export function TipoMovimientoBadge({ tipo }: { tipo: string | null | undefined 
 }
 
 function formatFechaMov(fecha: string | null | undefined): string {
-  if (!fecha) return "—";
+  if (!fecha) return "N/A";
   try {
     return formatInTimeZone(new Date(fecha), "UTC", "dd/MM/yyyy");
   } catch {
@@ -150,22 +150,20 @@ export function construirColumnasMovimientos(
 ): ColumnDef<MovimientoCargoDTO>[] {
   return [
     {
-      accessorKey: "fechaMovimiento",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Fecha Movimiento" />,
-      cell: ({ getValue }) => <span className="font-medium">{formatFechaMov(getValue() as string)}</span>,
-    },
-    {
       accessorKey: "codigoPuesto",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Código Puesto" />,
       cell: ({ getValue }) => {
         const val = getValue() as string | null | undefined;
-        return val ? <span className="font-mono text-xs">{val}</span> : <span className="text-muted-foreground">—</span>;
+        return val ? <span className="font-mono text-xs">{val}</span> : <span className="text-muted-foreground">N/A</span>;
       },
     },
     {
-      accessorKey: "empleadoCedula",
-      header: "Cédula",
-      cell: ({ getValue }) => <span>{(getValue() as string) || "—"}</span>,
+      accessorKey: "fechaMovimiento",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Fecha Movimiento" />,
+      cell: ({ getValue }) => {
+        const val = getValue() as string | null | undefined;
+        return <span>{formatFechaMov(val)}</span>;
+      },
     },
     {
       accessorKey: "tipoMovimiento",
@@ -176,33 +174,19 @@ export function construirColumnasMovimientos(
       },
     },
     {
-      accessorKey: "denominacionNombre",
-      header: "Denominación",
-      cell: ({ getValue }) => <span>{(getValue() as string) || "—"}</span>,
-    },
-    {
       accessorKey: "especificaNombre",
-      header: "Específica",
-      cell: ({ getValue }) => <span>{(getValue() as string) || "—"}</span>,
+      header: "Nuevo Cargo",
+      cell: ({ row }) => {
+        const cargo = row.original.especificaNombre || row.original.denominacionNombre || "N/A";
+        return <span>{cargo}</span>;
+      },
     },
     {
-      accessorKey: "motivoNombre",
-      header: "Motivo",
-      cell: ({ getValue }) => <span className="text-muted-foreground">{(getValue() as string | null) ?? "—"}</span>,
-    },
-    {
-      accessorKey: "estatusNombre",
-      header: "Estatus",
+      accessorKey: "gradoNombre",
+      header: "Nuevo Grado",
       cell: ({ getValue }) => {
-        const val = (getValue() as string | null)?.toUpperCase();
-        if (!val) return <span>—</span>;
-        const color =
-          val === "ACTIVO" || val === "ACTIVA"
-            ? "bg-green-600 text-white"
-            : val === "VACANTE"
-            ? "bg-blue-600 text-white"
-            : "bg-gray-500 text-white";
-        return <Badge className={color}>{val}</Badge>;
+        const val = getValue() as string | null | undefined;
+        return <span>{val || "N/A"}</span>;
       },
     },
     {
@@ -210,7 +194,7 @@ export function construirColumnasMovimientos(
       header: "Modificado Por",
       cell: ({ getValue }) => {
         const val = getValue() as string | null | undefined;
-        return <span className="text-muted-foreground">{val || "—"}</span>;
+        return <span>{val || "N/A"}</span>;
       },
     },
     {

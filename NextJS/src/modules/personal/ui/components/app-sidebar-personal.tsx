@@ -34,7 +34,8 @@ import {
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import {
   Sidebar,
@@ -365,7 +366,32 @@ const items: MenuItem[] = [
 ];
 
 export function AppSidebarPersonal() {
-  const [openSubmenu, setOpenSubmenu] = useState<string | null>("Personal Trabajador");
+  const pathname = usePathname();
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(() => {
+    if (pathname?.startsWith("/movimientos")) return "Movimientos";
+    if (pathname?.startsWith("/cargos")) return "Gestión De Codigos";
+    if (pathname?.startsWith("/organizacion")) return "Ub. Administrativas";
+    if (pathname?.startsWith("/reportes")) return "Reportes";
+    if (pathname?.startsWith("/autogestion")) return "Autogestión";
+    return "Personal Trabajador";
+  });
+
+  useEffect(() => {
+    if (pathname?.startsWith("/movimientos")) {
+      setOpenSubmenu("Movimientos");
+    } else if (pathname?.startsWith("/cargos")) {
+      setOpenSubmenu("Gestión De Codigos");
+    } else if (pathname?.startsWith("/organizacion")) {
+      setOpenSubmenu("Ub. Administrativas");
+    } else if (pathname?.startsWith("/reportes")) {
+      setOpenSubmenu("Reportes");
+    } else if (pathname?.startsWith("/autogestion")) {
+      setOpenSubmenu("Autogestión");
+    } else if (pathname?.startsWith("/personal") || pathname?.startsWith("/familiares")) {
+      setOpenSubmenu("Personal Trabajador");
+    }
+  }, [pathname]);
+
   const toggleSubmenu = (title: string) => {
     setOpenSubmenu(openSubmenu === title ? null : title);
   };
