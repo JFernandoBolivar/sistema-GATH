@@ -1,24 +1,21 @@
 "use client";
 
 /**
- * Página de cargas familiares: búsqueda por empleado + listado con
- * `DataTable` (tanstack) y menú de acciones por fila, paridad de patrón con
- * `modules/personal/ui/personal-page.tsx`. A diferencia de personal, no hay
- * un listado global de familiares (el backend solo expone `GET
- * .../empleado/<cedula>/`, nunca todos los familiares): la búsqueda de
- * empleado sigue siendo el primer paso obligatorio, no una ruta de alta
- * separada — ver `familiar-form-dialog.tsx` para la justificación de por
- * qué el alta es un diálogo y no una página propia aquí, a diferencia del
- * legado (`personal-trabajador/familiares/agregar-familiar/page.tsx`).
- * Cliente + react-hook-form (solo el buscador) + useTransition (R8);
- * delega a las Server Actions del módulo (R7). Opera exclusivamente con
- * DTOs (R5) y no importa de `infrastructure/` (R3).
+ * Página "Consultar Familiar" (`/familiares/consultar`): búsqueda por
+ * empleado + listado con `DataTable` (tanstack) y menú de acciones por fila,
+ * paridad de ruta y patrón con el legado
+ * (`personal-trabajador/familiares/consultar/page.tsx`). El alta vive en su
+ * propia ruta separada (`/familiares/registrar`, paridad con
+ * `familiares/agregar-familiar/page.tsx`) — esta página ya no la incluye
+ * como diálogo inline. Cliente + react-hook-form (solo el buscador) +
+ * useTransition (R8); delega a las Server Actions del módulo (R7). Opera
+ * exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
  */
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
-import { Loader2, Users } from "lucide-react";
+import { Eraser, Loader2, Search, Users } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
@@ -41,13 +38,11 @@ import {
 } from "../infrastructure/actions/familiares-actions";
 import { DetalleFamiliar } from "./detalle-familiar";
 import { construirColumnasFamiliares } from "./familiares-columns";
-import { FamiliarFormDialog } from "./familiar-form-dialog";
 import { familiaresPorEmpleadoSchema } from "./schema/schema-familiar";
 
 export default function FamiliaresPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeCrear = tienePermiso(permisos, "familiares.crear");
   const puedeEditar = tienePermiso(permisos, "familiares.editar");
   const puedeEliminar = tienePermiso(permisos, "familiares.eliminar");
 
@@ -86,6 +81,14 @@ export default function FamiliaresPage() {
     cargarFamiliares(data.cedula);
   };
 
+  const onLimpiar = () => {
+    busquedaForm.reset({ cedula: "" });
+    setEmpleadoCedula("");
+    setBuscado(false);
+    setFamiliares([]);
+    setError(null);
+  };
+
   const onVerDetalle = (familiar: FamiliarDTO) => {
     setViendoDetalle(familiar);
     setDetalleAbierto(true);
@@ -110,7 +113,7 @@ export default function FamiliaresPage() {
     <section className="flex flex-col gap-4 px-6 py-4">
       <header className="flex items-center gap-2">
         <Users className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Cargas Familiares</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Consultar Familiar</h1>
       </header>
 
       <Card>
@@ -124,9 +127,12 @@ export default function FamiliaresPage() {
               <Input id="cedula" placeholder="Ej. 12345678" {...busquedaForm.register("cedula")} aria-invalid={!!busquedaForm.formState.errors.cedula} />
               {busquedaForm.formState.errors.cedula && <p role="alert" className="text-sm text-destructive">{busquedaForm.formState.errors.cedula.message}</p>}
             </Field>
-            <div>
+            <div className="flex items-center gap-2">
               <Button type="submit" disabled={isPending}>
-                <Users className="size-4" aria-hidden="true" /> Buscar
+                <Search className="size-4" aria-hidden="true" /> Buscar
+              </Button>
+              <Button type="button" variant="outline" onClick={onLimpiar} disabled={isPending}>
+                <Eraser className="size-4" aria-hidden="true" /> Limpiar
               </Button>
             </div>
           </form>
@@ -146,7 +152,6 @@ export default function FamiliaresPage() {
           columns={columnas}
           data={familiares}
           emptyMessage="Sin cargas familiares para este empleado."
-          toolbar={puedeCrear ? <FamiliarFormDialog empleadoCedula={empleadoCedula} onGuardado={() => cargarFamiliares(empleadoCedula)} /> : undefined}
         />
       )}
 

@@ -37,6 +37,7 @@ export default proxy((req) => {
     "/personal",
     "/pasivos",
     "/familiares",
+    "/familiares/consultar",
   ];
 
   if (nextUrl.pathname.startsWith("/api/auth")) {

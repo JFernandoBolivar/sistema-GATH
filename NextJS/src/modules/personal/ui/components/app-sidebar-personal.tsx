@@ -105,7 +105,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Agregar Familiar",
-        url: "/familiares",
+        url: "/familiares/registrar",
         icon: ContactRound,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "BIENSTAR SOCIAL"],
@@ -114,7 +114,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Consultar Familiar",
-        url: "/familiares",
+        url: "/familiares/consultar",
         icon: BookUser,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "BIENSTAR SOCIAL", "RECEPCIONISTA"],
