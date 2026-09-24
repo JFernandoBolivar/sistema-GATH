@@ -1,35 +1,31 @@
 "use client";
 
 /**
- * Página "Consultar Familiar" (`/familiares/consultar`): búsqueda por
- * empleado + listado con `DataTable` (tanstack) y menú de acciones por fila,
- * paridad de ruta y patrón con el legado
- * (`personal-trabajador/familiares/consultar/page.tsx`). El alta vive en su
- * propia ruta separada (`/familiares/registrar`, paridad con
- * `familiares/agregar-familiar/page.tsx`) — esta página ya no la incluye
- * como diálogo inline. Cliente + react-hook-form (solo el buscador) +
- * useTransition (R8); delega a las Server Actions del módulo (R7). Opera
- * exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
+ * Página "Consultar Familiar" (/familiares/consultar):
+ * Réplica visual y de comportamiento del legado:
+ * 1. PageLayout con title="Consultar Familiar" y description="Consulte El Familiar Del Trabajador".
+ * 2. Formulario de búsqueda horizontal:
+ *    - Label: "Buscar Cédula Trabajador"
+ *    - Input: placeholder="buscar cedula...", bg-white
+ *    - Botones Buscar (Search) y Limpiar (Eraser).
+ * 3. Indicador de carga animado Loading (promiseMessage="Cargando Información").
+ * 4. Tabla de resultados tanstack DataTable con menú de acciones (Copiar C. Familiar, Ver Detalles).
+ * 5. Sheet de DetalleFamiliar con cards por sección (Básica, Parentesco, Formación, Vestimenta, Salud, Documentos).
  */
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
-import { Eraser, Loader2, Search, Users } from "lucide-react";
+import { Eraser, Search } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
-
+import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
+import { Card, CardContent } from "@/shared/ui/components/card";
 import { DataTable } from "@/shared/ui/components/data-table";
-import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
+import { Loading } from "@/shared/ui/components/loading";
 
 import type { FamiliarDTO } from "../application/dtos/familiar-dto";
 import {
@@ -43,8 +39,9 @@ import { familiaresPorEmpleadoSchema } from "./schema/schema-familiar";
 export default function FamiliaresPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeEditar = tienePermiso(permisos, "familiares.editar");
-  const puedeEliminar = tienePermiso(permisos, "familiares.eliminar");
+  const esRecepcionista = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
+  const puedeEditar = !esRecepcionista && tienePermiso(permisos, "familiares.editar");
+  const puedeEliminar = !esRecepcionista && tienePermiso(permisos, "familiares.eliminar");
 
   const [familiares, setFamiliares] = useState<FamiliarDTO[]>([]);
   const [empleadoCedula, setEmpleadoCedula] = useState<string>("");
@@ -66,16 +63,19 @@ export default function FamiliaresPage() {
         const resultado = await getFamiliaresPorEmpleadoAction(cedula);
         if (resultado && typeof resultado === "object" && "error" in resultado) {
           setError((resultado as { error: string }).error);
+          setFamiliares([]);
           return;
         }
-        setFamiliares(resultado as FamiliarDTO[]);
+        setFamiliares((resultado as FamiliarDTO[]) ?? []);
       } catch {
         setError("No fue posible cargar las cargas familiares.");
+        setFamiliares([]);
       }
     });
   };
 
   const onBuscar = (data: { cedula: string }) => {
+    if (!data.cedula.trim()) return;
     setEmpleadoCedula(data.cedula);
     setBuscado(true);
     cargarFamiliares(data.cedula);
@@ -110,63 +110,82 @@ export default function FamiliaresPage() {
   const columnas = construirColumnasFamiliares(puedeEliminar, onVerDetalle, onEliminar);
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center gap-2">
-        <Users className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Consultar Familiar</h1>
-      </header>
+    <PageLayout
+      title="Consultar Familiar"
+      description="Consulte El Familiar Del Trabajador"
+    >
+      <div className="flex flex-col gap-4 mt-2">
+        <Card className="bg-white">
+          <CardContent className="p-4 bg-white">
+            <form
+              onSubmit={busquedaForm.handleSubmit(onBuscar)}
+              className="flex flex-row items-end gap-2 flex-wrap"
+              noValidate
+            >
+              <div className="flex-1 min-w-[220px] flex flex-col gap-1.5">
+                <Label htmlFor="cedula_empleado">Buscar Cédula Trabajador</Label>
+                <Input
+                  id="cedula_empleado"
+                  className="bg-white"
+                  type="text"
+                  placeholder="buscar cedula..."
+                  {...busquedaForm.register("cedula")}
+                  disabled={isPending}
+                />
+              </div>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Buscar empleado</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={busquedaForm.handleSubmit(onBuscar)} className="flex flex-col gap-4 md:max-w-md" noValidate>
-            <Field data-invalid={!!busquedaForm.formState.errors.cedula}>
-              <Label htmlFor="cedula">Cédula del empleado</Label>
-              <Input id="cedula" placeholder="Ej. 12345678" {...busquedaForm.register("cedula")} aria-invalid={!!busquedaForm.formState.errors.cedula} />
-              {busquedaForm.formState.errors.cedula && <p role="alert" className="text-sm text-destructive">{busquedaForm.formState.errors.cedula.message}</p>}
-            </Field>
-            <div className="flex items-center gap-2">
-              <Button type="submit" disabled={isPending}>
-                <Search className="size-4" aria-hidden="true" /> Buscar
+              <Button type="submit" className="cursor-pointer shrink-0" disabled={isPending}>
+                Buscar <Search className="size-4 ml-1" />
               </Button>
-              <Button type="button" variant="outline" onClick={onLimpiar} disabled={isPending}>
-                <Eraser className="size-4" aria-hidden="true" /> Limpiar
+              <Button
+                variant="outline"
+                className="cursor-pointer shrink-0"
+                type="button"
+                onClick={onLimpiar}
+                disabled={isPending}
+              >
+                Limpiar <Eraser className="size-4 ml-1" />
               </Button>
+            </form>
+            {busquedaForm.formState.errors.cedula && (
+              <p role="alert" className="text-sm text-destructive mt-1.5">
+                {busquedaForm.formState.errors.cedula.message}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+
+        {isPending ? (
+          <div className="py-6">
+            <Loading promiseMessage="Cargando Información" />
+          </div>
+        ) : (
+          buscado && (
+            <div className="container mx-auto py-2">
+              <DataTable
+                columns={columnas}
+                data={familiares}
+                emptyMessage="Sin cargas familiares para este empleado."
+              />
             </div>
-          </form>
-        </CardContent>
-      </Card>
+          )
+        )}
 
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-
-      {!buscado ? (
-        <p className="text-sm text-muted-foreground">Busque un empleado para ver sus cargas familiares.</p>
-      ) : isPending && familiares.length === 0 ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
-        </div>
-      ) : (
-        <DataTable
-          columns={columnas}
-          data={familiares}
-          emptyMessage="Sin cargas familiares para este empleado."
-        />
-      )}
-
-      {viendoDetalle && (
-        <DetalleFamiliar
-          familiar={viendoDetalle}
-          open={detalleAbierto}
-          onOpenChange={setDetalleAbierto}
-          puedeEditar={puedeEditar}
-          onGuardado={(actualizado) => {
-            cargarFamiliares(empleadoCedula);
-            setViendoDetalle(actualizado);
-          }}
-        />
-      )}
-    </section>
+        {viendoDetalle && (
+          <DetalleFamiliar
+            familiar={viendoDetalle}
+            open={detalleAbierto}
+            onOpenChange={setDetalleAbierto}
+            puedeEditar={puedeEditar}
+            onGuardado={(actualizado) => {
+              cargarFamiliares(empleadoCedula);
+              setViendoDetalle(actualizado);
+            }}
+          />
+        )}
+      </div>
+    </PageLayout>
   );
 }

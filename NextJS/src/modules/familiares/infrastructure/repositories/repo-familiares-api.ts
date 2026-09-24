@@ -111,20 +111,7 @@ export const repoFamiliaresApi: RepoFamiliares = {
   },
 
   async listarCatalogos() {
-    const [
-      parentescos,
-      sexos,
-      nivelesAcademicos,
-      carreras,
-      menciones,
-      instituciones,
-      gruposSanguineos,
-      alergias,
-      patologias,
-      discapacidades,
-      tiposPrenda,
-      tallas,
-    ] = await Promise.all([
+    const results = await Promise.allSettled([
       familiaresApi.getParentescos(),
       familiaresApi.getSexos(),
       familiaresApi.getNivelesAcademicos(),
@@ -138,19 +125,28 @@ export const repoFamiliaresApi: RepoFamiliares = {
       familiaresApi.getTiposPrenda(),
       familiaresApi.getTallas(),
     ]);
+
+    const getItems = (index: number) => {
+      const res = results[index];
+      if (res.status === "fulfilled" && Array.isArray(res.value)) {
+        return res.value.map(catalogoFamiliarApiAEntidad);
+      }
+      return [];
+    };
+
     return {
-      parentescos,
-      sexos,
-      nivelesAcademicos: nivelesAcademicos.map(catalogoFamiliarApiAEntidad),
-      carreras: carreras.map(catalogoFamiliarApiAEntidad),
-      menciones: menciones.map(catalogoFamiliarApiAEntidad),
-      instituciones: instituciones.map(catalogoFamiliarApiAEntidad),
-      gruposSanguineos: gruposSanguineos.map(catalogoFamiliarApiAEntidad),
-      alergias: alergias.map(catalogoFamiliarApiAEntidad),
-      patologias: patologias.map(catalogoFamiliarApiAEntidad),
-      discapacidades: discapacidades.map(catalogoFamiliarApiAEntidad),
-      tiposPrenda: tiposPrenda.map(catalogoFamiliarApiAEntidad),
-      tallas: tallas.map(catalogoFamiliarApiAEntidad),
+      parentescos: getItems(0),
+      sexos: getItems(1),
+      nivelesAcademicos: getItems(2),
+      carreras: getItems(3),
+      menciones: getItems(4),
+      instituciones: getItems(5),
+      gruposSanguineos: getItems(6),
+      alergias: getItems(7),
+      patologias: getItems(8),
+      discapacidades: getItems(9),
+      tiposPrenda: getItems(10),
+      tallas: getItems(11),
     };
   },
 };

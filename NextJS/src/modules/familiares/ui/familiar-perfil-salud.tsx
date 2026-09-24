@@ -1,18 +1,19 @@
 "use client";
 
 /**
- * Sección "Perfil de salud" del mini-expediente del familiar
- * (`/familiares/registrar`): un solo objeto opcional (grupo sanguíneo +
- * alergias/patologías crónicas/discapacidades), paridad con el legado
- * `perfil_salud_familiar`. Mismo patrón visual (checkboxes agrupados por
- * categoría) que
- * `modules/personal/ui/dialogs/form-health-profile-update-dialog.tsx`.
+ * Sección "Datos De Salud" del familiar:
+ * Réplica visual y de comportamiento de crear-familiar.tsx del legado:
+ * fieldset border-red-700, legend con HeartPulse, Grupo Sanguíneo y
+ * ScrollArea h-80 con las 3 columnas (Patologías, Discapacidades, Alergias)
+ * agrupadas por categoría.
  */
 import type { UseFormReturn } from "react-hook-form";
+import { HeartPulse } from "lucide-react";
 
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Field } from "@/shared/ui/components/field";
 import { Label } from "@/shared/ui/components/label";
+import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
   Select,
   SelectContent,
@@ -56,12 +57,12 @@ function GrupoChecklist({
   const agrupados = agruparPorCategoria(items);
   return (
     <div>
-      <h4 className="mb-2 text-sm font-semibold">{titulo}</h4>
+      <h2 className="font-bold text-sm mb-2">{titulo}</h2>
       <div className="flex flex-col gap-2">
         {agrupados.map((grupo, idx) => (
           <div key={idx} className="mb-2">
-            <h5 className="p-1 text-xs font-bold text-slate-700">{grupo.categoria.toUpperCase()}</h5>
-            <div className="flex flex-col gap-1 pl-2">
+            <h3 className="p-1 text-sm font-bold">* {grupo.categoria.toUpperCase()}</h3>
+            <div className="flex flex-col gap-1.5 pl-2">
               {grupo.datos.map((item) => (
                 <div key={item.id} className="flex flex-row items-center gap-2">
                   <Checkbox
@@ -69,7 +70,7 @@ function GrupoChecklist({
                     checked={seleccionados.includes(item.id)}
                     onCheckedChange={() => onToggle(item.id)}
                   />
-                  <Label htmlFor={`${prefijoId}-${item.id}`} className="cursor-pointer text-sm">
+                  <Label htmlFor={`${prefijoId}-${item.id}`} className="cursor-pointer text-sm font-normal">
                     {item.nombre}
                   </Label>
                 </div>
@@ -107,17 +108,19 @@ export function FamiliarPerfilSalud({
   const errores = form.formState.errors.perfilSalud as { grupoSanguineoId?: { message?: string } } | undefined;
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border p-4">
-      <h3 className="text-sm font-semibold">Perfil de salud (opcional)</h3>
+    <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-red-700 rounded-sm">
+      <legend className="flex gap-2 text-red-700 font-bold items-center">
+        Datos De Salud <HeartPulse className="size-5" />
+      </legend>
 
-      <Field className="max-w-xs">
-        <Label>Grupo sanguíneo</Label>
+      <Field className="col-span-2">
+        <Label>Grupo Sanguíneo</Label>
         <Select
           value={grupoSanguineoId ? String(grupoSanguineoId) : ""}
           onValueChange={(v) => form.setValue("perfilSalud.grupoSanguineoId", Number(v), { shouldValidate: true })}
         >
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Seleccione un grupo sanguíneo" />
+            <SelectValue placeholder="Seleccione un Grupo Sanguineo" />
           </SelectTrigger>
           <SelectContent>
             {(catalogos?.gruposSanguineos ?? []).map((g) => (
@@ -130,29 +133,37 @@ export function FamiliarPerfilSalud({
         {errores?.grupoSanguineoId && <p role="alert" className="text-sm text-destructive">{errores.grupoSanguineoId.message}</p>}
       </Field>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <GrupoChecklist
-          titulo="Patologías crónicas"
-          items={catalogos?.patologias ?? []}
-          seleccionados={patologiasSel}
-          onToggle={(id) => toggle("perfilSalud.patologiasCronicas", patologiasSel, id)}
-          prefijoId="patologia-familiar"
-        />
-        <GrupoChecklist
-          titulo="Discapacidades"
-          items={catalogos?.discapacidades ?? []}
-          seleccionados={discapacidadesSel}
-          onToggle={(id) => toggle("perfilSalud.discapacidades", discapacidadesSel, id)}
-          prefijoId="discapacidad-familiar"
-        />
-        <GrupoChecklist
-          titulo="Alergias"
-          items={catalogos?.alergias ?? []}
-          seleccionados={alergiasSel}
-          onToggle={(id) => toggle("perfilSalud.alergias", alergiasSel, id)}
-          prefijoId="alergia-familiar"
-        />
-      </div>
-    </div>
+      <ScrollArea className="h-80 w-full col-span-2 border rounded-sm p-3 bg-muted/10">
+        <div className="flex flex-row justify-around gap-4">
+          <div className="flex-1">
+            <GrupoChecklist
+              titulo="Patologías (Opcional)"
+              items={catalogos?.patologias ?? []}
+              seleccionados={patologiasSel}
+              onToggle={(id) => toggle("perfilSalud.patologiasCronicas", patologiasSel, id)}
+              prefijoId="patologia-familiar"
+            />
+          </div>
+          <div className="flex-1">
+            <GrupoChecklist
+              titulo="Discapacidades (Opcional)"
+              items={catalogos?.discapacidades ?? []}
+              seleccionados={discapacidadesSel}
+              onToggle={(id) => toggle("perfilSalud.discapacidades", discapacidadesSel, id)}
+              prefijoId="discapacidad-familiar"
+            />
+          </div>
+          <div className="flex-1">
+            <GrupoChecklist
+              titulo="Alergias (Opcional)"
+              items={catalogos?.alergias ?? []}
+              seleccionados={alergiasSel}
+              onToggle={(id) => toggle("perfilSalud.alergias", alergiasSel, id)}
+              prefijoId="alergia-familiar"
+            />
+          </div>
+        </div>
+      </ScrollArea>
+    </fieldset>
   );
 }

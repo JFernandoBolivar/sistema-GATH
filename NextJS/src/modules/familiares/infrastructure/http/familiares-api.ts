@@ -92,6 +92,11 @@ async function listarCatalogo(
   return envelope.data ?? [];
 }
 
+async function listarCatalogoMaestro(path: string): Promise<CatalogoFamiliarApiItem[]> {
+  const envelope = await apiClient.get<ApiResponse<CatalogoFamiliarApiItem[]>>(`/api/v1/catalogos/${path}/`);
+  return envelope.data ?? [];
+}
+
 async function crearCatalogoInline(path: string, body: Record<string, unknown>): Promise<CatalogoInlineFamiliarApiItem> {
   const envelope = await apiClient.post<ApiResponse<CatalogoInlineFamiliarApiItem>>(`${catalogosPersonalBase}/${path}/`, body);
   return envelope.data;
@@ -119,11 +124,9 @@ export const familiaresApi = {
   subirDocumento: (familiarId: number, formData: FormData) =>
     apiClient.postForm<DocumentoFamiliarApiItem>(`/api/v1/familiares/${familiarId}/documentos/`, formData),
 
-  getParentescos: () =>
-    apiClient.get<CatalogoFamiliarApiItem[]>("/api/v1/catalogos/parentescos/"),
+  getParentescos: () => listarCatalogoMaestro("parentescos"),
 
-  getSexos: () =>
-    apiClient.get<CatalogoFamiliarApiItem[]>("/api/v1/catalogos/sexos/"),
+  getSexos: () => listarCatalogoMaestro("sexos"),
 
   // --- Catálogos del mini-expediente académico (globales, compartidos con Personal) ---
   getNivelesAcademicos: () => listarCatalogo("niveles-academicos"),

@@ -112,4 +112,18 @@ describe("Casos de uso de Cargas Familiares", () => {
     const res = await listarFamiliaresPorEmpleado(repo, "12345678");
     expect(res.length).toBe(0);
   });
+
+  it("listarCatalogosFamiliar mapea todos los catálogos requeridos", async () => {
+    const { listarCatalogosFamiliar } = await import("./listar-catalogos-familiar");
+    const repo = new RepoFamiliaresMemoria();
+    const cats = await listarCatalogosFamiliar(repo);
+    expect(cats).toHaveProperty("parentescos");
+    expect(cats).toHaveProperty("sexos");
+    expect(cats).toHaveProperty("patologias");
+    expect(cats).toHaveProperty("tallas");
+    expect(cats).toHaveProperty("alergias");
+    expect(cats).toHaveProperty("discapacidades");
+    expect(cats).toHaveProperty("gruposSanguineos");
+    expect(cats).toHaveProperty("nivelesAcademicos");
+  });
 });

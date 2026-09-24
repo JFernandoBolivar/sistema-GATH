@@ -9,6 +9,7 @@
  */
 import { useMemo } from "react";
 import type { UseFormReturn } from "react-hook-form";
+import { Shirt } from "lucide-react";
 
 import { Field } from "@/shared/ui/components/field";
 import { Label } from "@/shared/ui/components/label";
@@ -131,35 +132,43 @@ export function FamiliarPerfilFisico({
     | undefined;
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border p-4">
-      <h3 className="text-sm font-semibold">Perfil físico (opcional)</h3>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-purple-900 rounded-sm">
+      <legend className="flex flex-row gap-2 text-purple-900 font-bold items-center">
+        Información de Vestimenta <Shirt className="size-5" />
+      </legend>
+      <div className="col-span-2 md:col-span-1">
         <TallaSelect
-          label="Talla de camisa"
+          label="Talla De Camisa"
           campo="tallaCamisaId"
           value={tallaCamisaId}
           onChange={(v) => form.setValue("perfilFisico.tallaCamisaId", v, { shouldValidate: true })}
           opciones={camisasGrouped}
           errorMensaje={errores?.tallaCamisaId?.message}
         />
+      </div>
+      <div className="col-span-2 md:col-span-1">
         <TallaSelect
-          label="Talla de pantalón"
+          label="Talla De Pantalón"
           campo="tallaPantalonId"
           value={tallaPantalonId}
           onChange={(v) => form.setValue("perfilFisico.tallaPantalonId", v, { shouldValidate: true })}
           opciones={pantalonesGrouped}
           errorMensaje={errores?.tallaPantalonId?.message}
         />
+      </div>
+      <div className="col-span-2">
         <TallaSelect
-          label="Talla de zapatos"
+          label="Talla De Zapatos"
           campo="tallaZapatosId"
           value={tallaZapatosId}
           onChange={(v) => form.setValue("perfilFisico.tallaZapatosId", v, { shouldValidate: true })}
           opciones={zapatosGrouped}
           errorMensaje={errores?.tallaZapatosId?.message}
         />
+      </div>
+      <div className="col-span-2">
         <TallaSelect
-          label="Talla de chaqueta (opcional)"
+          label="Talla De Chaqueta"
           campo="tallaChaquetaId"
           value={tallaChaquetaId}
           onChange={(v) => form.setValue("perfilFisico.tallaChaquetaId", v, { shouldValidate: true })}
@@ -167,6 +176,6 @@ export function FamiliarPerfilFisico({
           errorMensaje={errores?.tallaChaquetaId?.message}
         />
       </div>
-    </div>
+    </fieldset>
   );
 }

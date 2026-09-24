@@ -21,6 +21,7 @@ export const formacionAcademicaFamiliarSchema = z
     nuevaMencionNombre: z.string().trim().optional(),
     institucionId: z.number().nullable().optional(),
     nuevaInstitucionNombre: z.string().trim().optional(),
+    capacitacion: z.string().trim().optional().nullable(),
   })
   .refine((data) => !(data.carreraId === ID_OTRA_FAMILIAR && !data.nuevaCarreraNombre?.trim()), {
     message: "Debe escribir el nombre de la nueva carrera",
@@ -116,6 +117,7 @@ export const familiarSchema = z.object({
     .optional()
     .nullable(),
   parentescoId: z.number().positive({ message: "Seleccione un parentesco válido" }),
+  ordenHijo: z.number().optional().nullable(),
   fechaNacimiento: z
     .string()
     .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" }),
