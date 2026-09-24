@@ -126,7 +126,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mx-8 ">
         {departments
           .filter(
-            (d) => d.id === session?.user?.department.nombre_departamento,
+            (d) =>
+              session?.user?.role?.nombre_rol === "ADMINISTRADOR" ||
+              d.id === session?.user?.department?.nombre_departamento,
           )
           .map((department, index) => (
             <Card

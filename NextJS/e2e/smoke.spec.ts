@@ -20,8 +20,8 @@ import { test, expect, type Page } from "@playwright/test";
  * BD real antes de ejecutar este archivo (ver E2E_BASE_URL en
  * playwright.config.ts).
  */
-const EMAIL = process.env.E2E_ADMIN_EMAIL;
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD;
+const EMAIL = process.env.E2E_ADMIN_EMAIL!;
+const PASSWORD = process.env.E2E_ADMIN_PASSWORD!;
 
 if (!EMAIL || !PASSWORD) {
   throw new Error(

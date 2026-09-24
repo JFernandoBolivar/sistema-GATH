@@ -53,10 +53,7 @@ export default async function AppLayout({
         }}
       />
       <SessionProvider session={session}>
-        <div className="flex min-h-svh flex-1">
-          <AppNav />
-          <div className="flex-1">{children}</div>
-        </div>
+        {children}
       </SessionProvider>
     </main>
   );
