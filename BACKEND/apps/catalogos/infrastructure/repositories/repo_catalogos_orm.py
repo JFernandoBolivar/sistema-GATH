@@ -73,7 +73,7 @@ class RepoCatalogosORM:
         return [tipo_nomina_a_entidad(tn) for tn in TipoNominaModel.objects.all().order_by('nomina')]
 
     def listar_parentescos(self) -> list[CatalogoItem]:
-        return [parentesco_a_entidad(p) for p in ParentescoModel.objects.all().order_by('parentesco')]
+        return [parentesco_a_entidad(p) for p in ParentescoModel.objects.all().order_by('descripcion_parentesco')]
 
     def listar_tipos_procedencia(self) -> list[CatalogoItem]:
         return [tipo_procedencia_a_entidad(tp) for tp in TipoProcedenciaModel.objects.all().order_by('tipo_procedencia')]

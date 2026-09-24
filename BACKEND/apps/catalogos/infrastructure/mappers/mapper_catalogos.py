@@ -59,7 +59,7 @@ def tipo_nomina_a_entidad(modelo: TipoNominaModel) -> CatalogoItem:
 
 
 def parentesco_a_entidad(modelo: ParentescoModel) -> CatalogoItem:
-    return CatalogoItem(id=modelo.pk, nombre=modelo.parentesco)
+    return CatalogoItem(id=modelo.pk, nombre=modelo.descripcion_parentesco)
 
 
 def tipo_procedencia_a_entidad(modelo: TipoProcedenciaModel) -> CatalogoItem:

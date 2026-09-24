@@ -75,6 +75,10 @@ class ParentescoModel(models.Model):
     def __str__(self) -> str:
         return self.descripcion_parentesco
 
+    @property
+    def parentesco(self) -> str:
+        return self.descripcion_parentesco
+
 
 class TipoProcedenciaModel(models.Model):
     tipo_procedencia = models.CharField(max_length=20, unique=True)
