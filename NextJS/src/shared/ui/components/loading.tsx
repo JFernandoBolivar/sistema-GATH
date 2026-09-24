@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 
 /** Indicador de carga genérico, reutilizable por cualquier módulo/página de `(app)`. */
-export default function Loading({
+export function Loading({
   className,
   promiseMessage,
 }: {
@@ -23,3 +23,5 @@ export default function Loading({
     </Card>
   );
 }
+
+export default Loading;
