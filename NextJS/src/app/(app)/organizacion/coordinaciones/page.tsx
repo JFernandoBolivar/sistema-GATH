@@ -1,6 +1,5 @@
-import OrganizacionCoordinacionesPage from "@/modules/organizacion/ui/organizacion-coordinaciones-page";
+import { redirect } from "next/navigation";
 
-/** Thin wrapper (R10): monta el flujo "coordinación" del módulo `organizacion`. */
 export default function OrganizacionCoordinacionesRoutePage() {
-  return <OrganizacionCoordinacionesPage />;
+  redirect("/organizacion/actualizar-ubicacion");
 }

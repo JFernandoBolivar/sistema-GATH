@@ -1,6 +1,14 @@
-import OrganizacionDireccionesLineaPage from "@/modules/organizacion/ui/organizacion-direcciones-linea-page";
+import PageLayout from "@/components/layout/page-layout";
+import CreateDirectionDependency from "@/modules/organizacion/ui/create-direction-dependency";
 
-/** Thin wrapper (R10): alias de ruta legada /crear-ubicacion-administrativa-direccion */
+/**
+ * Página "Crear Direcciones" (/organizacion/crear-ubicacion-administrativa-direccion).
+ * Paridad 100% con `crear-ubicacion-administrativa-direccion/page.tsx` del proyecto legado.
+ */
 export default function CrearUbicacionDireccionRoutePage() {
-  return <OrganizacionDireccionesLineaPage />;
+  return (
+    <PageLayout title="Crear Direcciones Administrativas">
+      <CreateDirectionDependency />
+    </PageLayout>
+  );
 }

@@ -1,6 +1,5 @@
-import OrganizacionDependenciasPage from "@/modules/organizacion/ui/organizacion-dependencias-page";
+import { redirect } from "next/navigation";
 
-/** Thin wrapper (R10): monta el flujo "dependencia" del módulo `organizacion`. */
 export default function OrganizacionDependenciasRoutePage() {
-  return <OrganizacionDependenciasPage />;
+  redirect("/organizacion/crear-ubicacion");
 }

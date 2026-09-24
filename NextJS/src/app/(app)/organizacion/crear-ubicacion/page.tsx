@@ -1,6 +1,17 @@
-import OrganizacionDependenciasPage from "@/modules/organizacion/ui/organizacion-dependencias-page";
+import PageLayout from "@/components/layout/page-layout";
+import CreateDependency from "@/modules/organizacion/ui/create-dependency";
 
-/** Thin wrapper (R10): alias de ruta legada /crear-ubicacion */
+/**
+ * Página "Crear Ub. Administrativa" (/organizacion/crear-ubicacion).
+ * Paridad 100% con `crear-ubicacion/page.tsx` del proyecto legado.
+ */
 export default function CrearUbicacionRoutePage() {
-  return <OrganizacionDependenciasPage />;
+  return (
+    <PageLayout
+      title="Gestión de Ubicaciones Administrativas"
+      description="Registre Nuevas Ubicaciones Administrativas Para Trabajadores"
+    >
+      <CreateDependency />
+    </PageLayout>
+  );
 }

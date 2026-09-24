@@ -1,6 +1,14 @@
-import OrganizacionCoordinacionesPage from "@/modules/organizacion/ui/organizacion-coordinaciones-page";
+import PageLayout from "@/components/layout/page-layout";
+import ActualizarUbicacionView from "@/modules/organizacion/ui/actualizar-ubicacion-view";
 
-/** Thin wrapper (R10): alias de ruta legada /actualizar-ubicacion */
+/**
+ * Página "Actualizar Ub. Admnistrativas" (/organizacion/actualizar-ubicacion).
+ * Paridad 100% con `actualizar-ubicacion/page.tsx` del proyecto legado.
+ */
 export default function ActualizarUbicacionRoutePage() {
-  return <OrganizacionCoordinacionesPage />;
+  return (
+    <PageLayout title="Actualizar Informacion De Dependencias">
+      <ActualizarUbicacionView />
+    </PageLayout>
+  );
 }

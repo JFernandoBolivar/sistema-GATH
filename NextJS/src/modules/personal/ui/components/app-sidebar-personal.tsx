@@ -134,7 +134,7 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Crear Ub. Administrativa",
-        url: "/organizacion/dependencias",
+        url: "/organizacion/crear-ubicacion",
         icon: ArrowRightFromLine,
         permission: {
           roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
@@ -143,7 +143,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Crear Direcciones",
-        url: "/organizacion/direcciones-linea",
+        url: "/organizacion/crear-ubicacion-administrativa-direccion",
         icon: MoveDownRight,
         permission: {
           roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
@@ -152,7 +152,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Consultar Ub. Admnistrativas",
-        url: "/organizacion",
+        url: "/organizacion/listado-ubicacion-administrativa",
         icon: List,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
@@ -161,7 +161,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Actualizar Ub. Admnistrativas",
-        url: "/organizacion/coordinaciones",
+        url: "/organizacion/actualizar-ubicacion",
         icon: Boxes,
         permission: {
           roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
@@ -486,7 +486,11 @@ export function AppSidebarPersonal() {
                               <SidebarMenuButton
                                 key={subItem.title}
                                 asChild
-                                isActive={pathname === subItem.url}
+                                isActive={
+                                  pathname === subItem.url ||
+                                  (subItem.url === "/organizacion/listado-ubicacion-administrativa" &&
+                                    pathname === "/organizacion")
+                                }
                                 className="mt-2 text-sm"
                               >
                                 <Link href={subItem.url} className="text-sm">

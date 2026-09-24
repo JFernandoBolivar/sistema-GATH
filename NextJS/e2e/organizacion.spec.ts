@@ -19,7 +19,7 @@ test.describe("Organización UI - Paridad 100% con referencia", () => {
     await login(page);
   });
 
-  test("1. /organizacion muestra HeaderLayout, AppSidebarPersonal y Estructura Organizacional", async ({ page }) => {
+  test("1. /organizacion y /organizacion/listado-ubicacion-administrativa muestran interfaz de consultar dependencias", async ({ page }) => {
     await page.goto("/organizacion");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
@@ -31,54 +31,66 @@ test.describe("Organización UI - Paridad 100% con referencia", () => {
     await expect(page.locator("img[alt='Logo CONATEL']")).toBeVisible();
     await expect(page.getByRole("button", { name: "Ub. Administrativas", exact: true })).toBeVisible();
 
-    // Main Page Title & Tabs
+    // Main Page Title
     await expect(page.getByRole("heading", { name: "Listado De Ubicaciones Administrativas" })).toBeVisible();
-    await expect(page.getByText("Estructura Jerárquica y Dependencias de CONATEL")).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Explorar" })).toBeVisible();
-    await expect(page.getByRole("tab", { name: "Organismos adscritos" })).toBeVisible();
 
-    // Selects and tables
-    await expect(page.getByText("Dependencia", { exact: true })).toBeVisible();
-    await expect(page.getByText("Dirección general", { exact: true })).toBeVisible();
-    await expect(page.getByText("Dirección de línea", { exact: true })).toBeVisible();
+    // Labels y textos de ayuda legados
+    await expect(page.getByText("Nivel", { exact: true })).toBeVisible();
+    await expect(page.getByText("Consultar Dirección / Gerencia / Oficina")).toBeVisible();
+    await expect(page.getByText("Dirección / Gerencia / Oficina", { exact: true })).toBeVisible();
+    await expect(page.getByText("Consultar Divisiones")).toBeVisible();
+    await expect(page.getByText("División / Coordinación", { exact: true })).toBeVisible();
+    await expect(page.getByText("Consultar Coordinaciones De La División")).toBeVisible();
 
-    await page.screenshot({ path: `${ARTIFACT_DIR}/1_organizacion_explorar.png` });
+    await page.screenshot({ path: `${ARTIFACT_DIR}/1_organizacion_consultar.png` });
   });
 
-  test("2. /organizacion/dependencias muestra gestión de dependencias", async ({ page }) => {
-    await page.goto("/organizacion/dependencias");
+  test("2. /organizacion/crear-ubicacion muestra formulario de creación con switches en cascada", async ({ page }) => {
+    await page.goto("/organizacion/crear-ubicacion");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
-    // Title
+    // Title & description
     await expect(page.getByRole("heading", { name: "Gestión de Ubicaciones Administrativas" })).toBeVisible();
     await expect(page.getByText("Registre Nuevas Ubicaciones Administrativas Para Trabajadores")).toBeVisible();
 
-    // Table / list
-    await expect(page.getByRole("heading", { name: "Dependencias" })).toBeVisible();
-    await expect(page.getByText("Volver a Organización")).toBeVisible();
+    // Campos iniciales
+    await expect(page.getByText("Código De La Dependencia")).toBeVisible();
+    await expect(page.getByText("Nombre De La Dependencia")).toBeVisible();
+    await expect(page.getByText("¿Desea Asignarle una Dirección General a la Dependencia?")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Crear Dependencia" })).toBeVisible();
 
-    await page.screenshot({ path: `${ARTIFACT_DIR}/2_organizacion_dependencias.png` });
+    await page.screenshot({ path: `${ARTIFACT_DIR}/2_organizacion_crear_ubicacion.png` });
   });
 
-  test("3. /organizacion/direcciones-linea muestra creación de direcciones", async ({ page }) => {
-    await page.goto("/organizacion/direcciones-linea");
+  test("3. /organizacion/crear-ubicacion-administrativa-direccion muestra selector radio y formulario", async ({ page }) => {
+    await page.goto("/organizacion/crear-ubicacion-administrativa-direccion");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // Title
     await expect(page.getByRole("heading", { name: "Crear Direcciones Administrativas" })).toBeVisible();
-    await expect(page.getByText("Registre Nuevas Direcciones de Línea, Divisiones o Coordinaciones")).toBeVisible();
 
-    await page.screenshot({ path: `${ARTIFACT_DIR}/3_organizacion_direcciones_linea.png` });
+    // Radios
+    await expect(page.getByText("Crear Dirección / Gerencia / Oficina")).toBeVisible();
+    await expect(page.getByText("Crear División / Coordinación")).toBeVisible();
+    await expect(page.getByText("Crear Coordinación")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Crear Dirección" })).toBeVisible();
+
+    await page.screenshot({ path: `${ARTIFACT_DIR}/3_organizacion_crear_direcciones.png` });
   });
 
-  test("4. /organizacion/coordinaciones muestra gestión de coordinaciones", async ({ page }) => {
-    await page.goto("/organizacion/coordinaciones");
+  test("4. /organizacion/actualizar-ubicacion muestra pestañas de actualización", async ({ page }) => {
+    await page.goto("/organizacion/actualizar-ubicacion");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // Title
-    await expect(page.getByRole("heading", { name: "Actualizar Información De Dependencias" })).toBeVisible();
-    await expect(page.getByText("Gestione las Coordinaciones de la Institución")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Actualizar Informacion De Dependencias" })).toBeVisible();
 
-    await page.screenshot({ path: `${ARTIFACT_DIR}/4_organizacion_coordinaciones.png` });
+    // Pestañas
+    await expect(page.getByRole("tab", { name: "Dirección / Gerencia / Oficina" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "División / Coordinación" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "Coordinación", exact: true })).toBeVisible();
+    await expect(page.getByText("Actualizar Dirección / Gerencia / Oficina")).toBeVisible();
+
+    await page.screenshot({ path: `${ARTIFACT_DIR}/4_organizacion_actualizar.png` });
   });
 });
