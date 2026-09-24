@@ -1,20 +1,22 @@
 "use client";
 
 /**
- * Página del flujo "dependencia" (uno de los 4 flujos separados de
- * ubicación administrativa), en ruta propia `/organizacion/dependencias`,
- * paridad estructural con el legado (`crear-ubicacion/` +
- * `actualizar-ubicacion/`, cada nivel jerárquico con su propio espacio).
+ * Página del flujo "Crear Ub. Administrativa" (/organizacion/dependencias).
+ * Paridad con el legado (`crear-ubicacion/` + `create-dependency.tsx`):
+ * - PageLayout con título "Gestión de Ubicaciones Administrativas"
+ * - Formulario jerárquico con switches para D/O/G, Dirección de Línea y Coordinación
+ * - Pestaña para administración/listado de dependencias existentes
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Network } from "lucide-react";
+import { ArrowLeft, Network, PlusCircle, ListFilter } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 import type { DependenciaDTO } from "../application/dtos/organizacion-dto";
 import { getDependenciasAction } from "../infrastructure/actions/organizacion-actions";
 import PageLayout from "@/components/layout/page-layout";
+import CreateDependency from "./create-dependency";
 import DependenciaAdmin from "./dependencia-admin";
 
 export default function OrganizacionDependenciasPage() {
@@ -40,10 +42,32 @@ export default function OrganizacionDependenciasPage() {
             <h2 className="text-xl font-semibold tracking-tight">Dependencias</h2>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href="/organizacion"><ArrowLeft className="size-4 mr-1" aria-hidden="true" /> Volver a Organización</Link>
+            <Link href="/organizacion">
+              <ArrowLeft className="size-4 mr-1" aria-hidden="true" /> Volver a Organización
+            </Link>
           </Button>
         </header>
-        <DependenciaAdmin dependencias={dependencias} onChanged={cargar} />
+
+        <Tabs defaultValue="crear" className="w-full">
+          <TabsList className="mb-2">
+            <TabsTrigger value="crear" className="flex items-center gap-1.5">
+              <PlusCircle className="size-4" aria-hidden="true" />
+              Crear Ub. Administrativa
+            </TabsTrigger>
+            <TabsTrigger value="listado" className="flex items-center gap-1.5">
+              <ListFilter className="size-4" aria-hidden="true" />
+              Listado de Dependencias ({dependencias.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="crear">
+            <CreateDependency onSuccess={cargar} />
+          </TabsContent>
+
+          <TabsContent value="listado">
+            <DependenciaAdmin dependencias={dependencias} onChanged={cargar} />
+          </TabsContent>
+        </Tabs>
       </div>
     </PageLayout>
   );

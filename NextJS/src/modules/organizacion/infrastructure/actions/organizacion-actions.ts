@@ -39,6 +39,8 @@ import {
   dependenciaSchema,
   direccionGeneralSchema,
   direccionLineaSchema,
+  hierarchyDependencySchema,
+  type HierarchyDependencyFormType,
   organismoAdscritoSchema,
   organizacionFilterSchema,
   organizacionIdSchema,
@@ -412,3 +414,69 @@ export async function eliminarOrganismoAdscritoAction(id: number) {
     throw error;
   }
 }
+
+/**
+ * Creación en cascada de una dependencia y opcionalmente sus niveles subordinados
+ * (Dirección General, Dirección de Línea, Coordinación), con paridad al flujo legado.
+ */
+export async function crearJerarquiaDependenciaAction(input: HierarchyDependencyFormType) {
+  const validation = hierarchyDependencySchema.safeParse(input);
+  if (!validation.success) {
+    return { error: "Datos del formulario inválidos. Revise los campos requeridos." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const {
+      dependency,
+      direction_general,
+      direction_line,
+      coordination,
+      activeDirectionGeneral,
+      activeDirectionLine,
+      activeCoordination,
+    } = validation.data;
+
+    // 1. Crear dependencia raíz
+    const depCreada = await crearDependencia(repoOrganizacionApi, {
+      codigo: dependency.codigo,
+      nombre: dependency.nombre,
+    });
+
+    // 2. Si se activó Dirección General
+    if (activeDirectionGeneral && direction_general?.codigo && direction_general?.nombre) {
+      const dgCreada = await crearDireccionGeneral(repoOrganizacionApi, {
+        codigo: direction_general.codigo,
+        nombre: direction_general.nombre,
+        dependenciaId: depCreada.id,
+      });
+
+      // 3. Si se activó Dirección de Línea
+      if (activeDirectionLine && direction_line?.codigo && direction_line?.nombre) {
+        const dlCreada = await crearDireccionLinea(repoOrganizacionApi, {
+          codigo: direction_line.codigo,
+          nombre: direction_line.nombre,
+          direccionGeneralId: dgCreada.id,
+        });
+
+        // 4. Si se activó Coordinación
+        if (activeCoordination && coordination?.codigo && coordination?.nombre) {
+          await crearCoordinacion(repoOrganizacionApi, {
+            codigo: coordination.codigo,
+            nombre: coordination.nombre,
+            direccionLineaId: dlCreada.id,
+          });
+        }
+      }
+    }
+
+    await logAudit({ traceId, action: "crearJerarquiaDependenciaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, message: "Dependencia creada exitosamente." };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearJerarquiaDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+

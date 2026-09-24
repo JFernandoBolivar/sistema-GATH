@@ -1,22 +1,25 @@
 "use client";
 
 /**
- * Página del flujo "dirección de línea" (uno de los 4 flujos separados de
- * ubicación administrativa), en ruta propia
- * `/organizacion/direcciones-linea`.
+ * Página del flujo "Crear Direcciones" (/organizacion/direcciones-linea).
+ * Paridad con el legado (`crear-ubicacion-administrativa-direccion/` + `create-direction-dependency.tsx`):
+ * - PageLayout con título "Crear Direcciones Administrativas"
+ * - Selectores jerárquicos y RadioGroup para D/O/G, División/Línea y Coordinación
+ * - Pestaña con listado administrativo de direcciones de línea
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Network } from "lucide-react";
+import { ArrowLeft, Network, PlusCircle, ListFilter } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
-
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 import type { DireccionGeneralDTO, DireccionLineaDTO } from "../application/dtos/organizacion-dto";
 import {
   getDireccionesGeneralesAction,
   getDireccionesLineaAction,
 } from "../infrastructure/actions/organizacion-actions";
 import PageLayout from "@/components/layout/page-layout";
+import CreateDirectionDependency from "./create-direction-dependency";
 import DireccionLineaAdmin from "./direccion-linea-admin";
 
 export default function OrganizacionDireccionesLineaPage() {
@@ -44,10 +47,32 @@ export default function OrganizacionDireccionesLineaPage() {
             <h2 className="text-xl font-semibold tracking-tight">Direcciones de Línea</h2>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href="/organizacion"><ArrowLeft className="size-4 mr-1" aria-hidden="true" /> Volver a Organización</Link>
+            <Link href="/organizacion">
+              <ArrowLeft className="size-4 mr-1" aria-hidden="true" /> Volver a Organización
+            </Link>
           </Button>
         </header>
-        <DireccionLineaAdmin dirGenerales={dirGenerales} items={items} onChanged={cargar} />
+
+        <Tabs defaultValue="crear" className="w-full">
+          <TabsList className="mb-2">
+            <TabsTrigger value="crear" className="flex items-center gap-1.5">
+              <PlusCircle className="size-4" aria-hidden="true" />
+              Crear Direcciones
+            </TabsTrigger>
+            <TabsTrigger value="listado" className="flex items-center gap-1.5">
+              <ListFilter className="size-4" aria-hidden="true" />
+              Listado de Direcciones ({items.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="crear">
+            <CreateDirectionDependency onSuccess={cargar} />
+          </TabsContent>
+
+          <TabsContent value="listado">
+            <DireccionLineaAdmin dirGenerales={dirGenerales} items={items} onChanged={cargar} />
+          </TabsContent>
+        </Tabs>
       </div>
     </PageLayout>
   );
