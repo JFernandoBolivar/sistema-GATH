@@ -486,6 +486,7 @@ export function AppSidebarPersonal() {
                               <SidebarMenuButton
                                 key={subItem.title}
                                 asChild
+                                isActive={pathname === subItem.url}
                                 className="mt-2 text-sm"
                               >
                                 <Link href={subItem.url} className="text-sm">
@@ -498,7 +499,7 @@ export function AppSidebarPersonal() {
                         )}
                       </>
                     ) : (
-                      <SidebarMenuButton asChild>
+                      <SidebarMenuButton asChild isActive={pathname === item.url}>
                         <Link
                           href={item.url}
                           className="flex items-center text-sm"

@@ -36,7 +36,12 @@ export function AppNav() {
         <Link
           key={s.href}
           href={s.href}
-          aria-current={pathname === s.href ? "page" : undefined}
+          aria-current={
+            pathname === s.href ||
+            (s.href !== "/inicio" && pathname.startsWith(s.href + "/"))
+              ? "page"
+              : undefined
+          }
           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
         >
           {s.href === "/inicio" && <Home className="size-3.5" aria-hidden="true" />}
