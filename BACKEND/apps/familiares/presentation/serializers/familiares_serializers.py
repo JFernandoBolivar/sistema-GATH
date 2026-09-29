@@ -3,25 +3,25 @@ Serializers de Presentación de Familiares.
 """
 from rest_framework import serializers
 
-from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel
 from apps.familiares.application.use_cases.validaciones_familiar import (
     resolver_cedula_familiar,
     validar_cedula_no_duplicada,
     validar_heredero_unico,
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
-from apps.personal.infrastructure.models.catalogos_soporte_models import (
+from apps.familiares.infrastructure.modelos_externos import (
     AlergiaModel,
     CarreraModel,
     DiscapacidadModel,
+    EmployeeModel,
     GrupoSanguineoModel,
     InstitucionModel,
     MencionModel,
     NivelAcademicoModel,
+    ParentescoModel,
     PatologiaCronicaModel,
     TallaModel,
 )
-from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 class FormacionAcademicaFamiliarDetalleSerializer(serializers.Serializer):
