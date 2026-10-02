@@ -19,7 +19,7 @@ class EmployeeMovementHistoryModel(models.Model):
         ('CAMBIO DE ESTATUS', '(ver observaciones)'),
     ]
 
-    empleado = models.ForeignKey('personal.EmployeeModel', models.CASCADE, related_name='+')
+    empleado = models.ForeignKey('personal.EmployeeModel', models.PROTECT, related_name='+')
     codigo_puesto = models.CharField(max_length=100)
     denominacioncargo = models.ForeignKey('cargos.DenominacionCargoModel', models.PROTECT, related_name='+')
     denominacioncargoespecifico = models.ForeignKey(
@@ -47,7 +47,9 @@ class EmployeeMovementHistoryModel(models.Model):
         'catalogos.TipoMovimientoModel', models.PROTECT, related_name='+', null=True, blank=True,
     )
     fecha_movimiento = models.DateTimeField(auto_now_add=True)
-    ejecutado_por = models.ForeignKey('identidad.CuentaModel', models.PROTECT, related_name='+')
+    ejecutado_por = models.ForeignKey(
+        'identidad.CuentaModel', models.SET_NULL, related_name='+', null=True, blank=True,
+    )
 
     class Meta:
         managed = False

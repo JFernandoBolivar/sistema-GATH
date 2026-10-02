@@ -36,8 +36,10 @@ class PrestamoCargoModel(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True, db_column='fechaCreacion')
     ejecutado_por = models.ForeignKey(
         'identidad.CuentaModel',
-        models.PROTECT,
+        models.SET_NULL,
         db_column='ejecutadoPorId',
+        null=True,
+        blank=True,
     )
 
     class Meta:

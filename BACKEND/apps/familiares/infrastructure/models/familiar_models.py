@@ -8,7 +8,7 @@ class EmployeefamilyModel(models.Model):
     id = models.AutoField(primary_key=True)
     employeecedula = models.ForeignKey(
         'personal.EmployeeModel',
-        models.DO_NOTHING,
+        models.CASCADE,
         db_column='employeeCedula',
         related_name='+',
         to_field='cedulaidentidad',
@@ -21,7 +21,7 @@ class EmployeefamilyModel(models.Model):
     segundo_apellido = models.CharField(null=True, blank=True, max_length=150)
     parentesco = models.ForeignKey(
         'catalogos.ParentescoModel',
-        models.DO_NOTHING,
+        models.PROTECT,
         db_column='parentescoId',
     )
     fechanacimiento = models.DateField(db_column='fechaNacimiento')
@@ -29,7 +29,7 @@ class EmployeefamilyModel(models.Model):
     heredero = models.BooleanField(db_column='heredero', default=False)
     sexo = models.ForeignKey(
         'catalogos.SexoModel',
-        models.DO_NOTHING,
+        models.PROTECT,
         db_column='sexoId',
     )
     observaciones = models.TextField(blank=True, null=True)

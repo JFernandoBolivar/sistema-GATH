@@ -35,7 +35,7 @@ class DenominacionCargoEspecificoModel(models.Model):
 
 
 class AsigTrabajoModel(models.Model):
-    codigo = models.CharField(max_length=20)
+    codigo = models.CharField(max_length=20, db_index=True)
     employee = models.ForeignKey(
         'personal.EmployeeModel',
         models.SET_NULL,
