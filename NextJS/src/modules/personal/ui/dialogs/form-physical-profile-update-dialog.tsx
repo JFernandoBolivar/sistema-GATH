@@ -158,15 +158,15 @@ export default function FormPhysicalProfileUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg p-0 border-none bg-transparent shadow-none">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl p-0">
         <DialogTitle className="sr-only">Actualizar Información de Vestimenta</DialogTitle>
 
-        <Card className="flex flex-col gap-3">
+        <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
           <CardHeader>
             <CardTitle>Vestimenta</CardTitle>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="pt-0">
             <CardAction className="text-gray-600 mb-3">Datos De Vestimenta</CardAction>
 
             {error && (

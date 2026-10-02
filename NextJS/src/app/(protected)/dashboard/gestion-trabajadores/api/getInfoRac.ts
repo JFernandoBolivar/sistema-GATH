@@ -127,7 +127,12 @@ export const getCodigo = async (): Promise<
 export const getEmployeeById = async (
   id: string,
 ): Promise<ApiResponse<EmployeeData>> => {
-  return await apiFetchGet<EmployeeData>(`empleados-cedula/${id}/`);
+  const res = await apiFetchGet<any>(`api/v1/personal/${id}/`);
+  if (res?.data && typeof res.data === "object") {
+    res.data.cedulaidentidad = res.data.cedulaidentidad || res.data.cedula;
+    res.data.contrato = res.data.contrato || res.data.contratos || (res.data.contrato_actual ? [res.data.contrato_actual] : []);
+  }
+  return res as ApiResponse<EmployeeData>;
 };
 export const getPasiveById = async (
   id: string,
@@ -275,7 +280,22 @@ export const getCoordination = async (
 export const getEmployeeInfo = async (
   id: string,
 ): Promise<ApiResponse<EmployeeInfo>> => {
-  return await apiFetchGet<EmployeeInfo>(`listar-data-empleados/${id}/`);
+  try {
+    const cleanCedula = id ? id.trim().replace(/^[VEJPG]-?/i, "") : id;
+    const res = await apiFetchGet<any>(`api/v1/personal/${cleanCedula}/`);
+    if (res?.data && typeof res.data === "object") {
+      res.data.cedulaidentidad = res.data.cedulaidentidad || res.data.cedula;
+      res.data.contrato = res.data.contrato || res.data.contratos || (res.data.contrato_actual ? [res.data.contrato_actual] : []);
+    }
+    return res as ApiResponse<EmployeeInfo>;
+  } catch (error) {
+    console.error("Error en getEmployeeInfo:", error);
+    return {
+      status: "error",
+      message: error instanceof Error ? error.message : "Error al consultar trabajador",
+      data: null as any,
+    };
+  }
 };
 
 export const getCodeByDirectionGeneral = async (
@@ -377,7 +397,14 @@ export const getSex = async (): Promise<ApiResponse<Sex[]>> => {
 };
 
 export const getPoliticas = async (): Promise<ApiResponse<Politica[]>> => {
-  return await apiFetchGet<Politica[]>(`listar-politicas/`);
+  const res = await apiFetchGet<any[]>(`api/v1/personal/catalogos/politicas/`);
+  if (res?.data && Array.isArray(res.data)) {
+    res.data = res.data.map((item: any) => ({
+      ...item,
+      tipo_politica: item.nombre || item.tipo_politica,
+    }));
+  }
+  return res as unknown as ApiResponse<Politica[]>;
 };
 
 export const getReasonLeaving = async (): Promise<ApiResponse<Motion[]>> => {

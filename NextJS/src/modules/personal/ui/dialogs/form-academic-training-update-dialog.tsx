@@ -257,15 +257,15 @@ export default function FormAcademicTrainingUpdateDialog({
                 </div>
               </div>
 
-              <ScrollArea className="h-64 rounded-md w-full border p-2">
+              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
                 <h1 className="text-gray-600 text-sm mb-3">
                   Opcional si no posee formación académica
                 </h1>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="flex flex-row gap-3 items-end w-full">
-                      <div className="flex-1 min-w-[150px]">
-                        <Label>{index + 1}. Nivel Academico</Label>
+                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 items-start border-b pb-3 mb-2 w-full">
+                      <div className="min-w-0">
+                        <Label className="text-xs">{index + 1}. Nivel Academico</Label>
                         <Select
                           value={watch(`formacionAcademica.${index}.nivelAcademicoId`) ? String(watch(`formacionAcademica.${index}.nivelAcademicoId`)) : undefined}
                           onValueChange={(v) => {
@@ -287,8 +287,8 @@ export default function FormAcademicTrainingUpdateDialog({
                         </Select>
                       </div>
 
-                      <div className="flex-1 min-w-[150px]">
-                        <Label>Carrera (Opcional)</Label>
+                      <div className="min-w-0">
+                        <Label className="text-xs">Carrera (Opcional)</Label>
                         <SelectDependiente
                           tipo="carreras"
                           padreId={watch(`formacionAcademica.${index}.nivelAcademicoId`)}
@@ -316,8 +316,8 @@ export default function FormAcademicTrainingUpdateDialog({
                         )}
                       </div>
 
-                      <div className="flex-1 min-w-[150px]">
-                        <Label>Mención (Opcional)</Label>
+                      <div className="min-w-0">
+                        <Label className="text-xs">Mención (Opcional)</Label>
                         <SelectDependiente
                           tipo="menciones"
                           padreId={watch(`formacionAcademica.${index}.carreraId`)}
@@ -335,8 +335,8 @@ export default function FormAcademicTrainingUpdateDialog({
                         )}
                       </div>
 
-                      <div className="flex-1 min-w-[150px]">
-                        <Label>Institución (Opcional)</Label>
+                      <div className="min-w-0">
+                        <Label className="text-xs">Institución (Opcional)</Label>
                         <Select
                           value={watch(`formacionAcademica.${index}.institucionId`) ? String(watch(`formacionAcademica.${index}.institucionId`)) : undefined}
                           onValueChange={(v) => setValue(`formacionAcademica.${index}.institucionId`, Number(v))}
@@ -362,12 +362,12 @@ export default function FormAcademicTrainingUpdateDialog({
                         )}
                       </div>
 
-                      <div>
+                      <div className="pt-5 flex justify-end">
                         <Button
                           type="button"
                           variant="destructive"
                           size="icon"
-                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-9 shrink-0`}
+                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-8 shrink-0`}
                           onClick={() => remove(index)}
                         >
                           <X className="size-4" />
@@ -376,7 +376,7 @@ export default function FormAcademicTrainingUpdateDialog({
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
 
               <Button
                 className="mt-4 w-full cursor-pointer"

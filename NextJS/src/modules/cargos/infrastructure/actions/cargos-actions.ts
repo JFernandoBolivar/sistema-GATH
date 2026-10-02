@@ -11,11 +11,16 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   asignarCargo,
+  asignarCargoEspecial,
   cambiarCargo,
   desasignarCargo,
   gestionarEstatus,
 } from "../../application/use-cases/asignar-cargo";
 import { crearCargo } from "../../application/use-cases/crear-cargo";
+import { actualizarCargo } from "../../application/use-cases/actualizar-cargo";
+import { schemaUpdateCodeTable, type UpdateCodeTable } from "../../ui/schema/schema-update-code";
+import { cargosApi } from "../http/cargos-api";
+import type { CrearCargoEspecialInputDTO } from "../../application/dtos/cargo-dto";
 import {
   listarCargos,
   listarCoordinaciones,
@@ -57,7 +62,15 @@ import {
   prestamoIdSchema,
 } from "../../ui/schema/schema-asignar-cargo";
 
-export async function getCargosAction(filtros?: { dependenciaId?: number; soloVacantes?: boolean }) {
+export async function getCargosAction(filtros?: {
+  dependenciaId?: number | null;
+  tipoNominaId?: number | null;
+  direccionGeneralId?: number | null;
+  direccionLineaId?: number | null;
+  coordinacionId?: number | null;
+  codigo?: string | null;
+  soloVacantes?: boolean;
+}) {
   const validated = cargosFiltroSchema.safeParse(filtros ?? {});
   const filtrosValidos = validated.success ? validated.data : {};
 
@@ -66,12 +79,41 @@ export async function getCargosAction(filtros?: { dependenciaId?: number; soloVa
   try {
     const result = await listarCargos(repoCargosApi, {
       dependenciaId: filtrosValidos.dependenciaId ?? undefined,
+      tipoNominaId: filtrosValidos.tipoNominaId ?? undefined,
+      direccionGeneralId: filtrosValidos.direccionGeneralId ?? undefined,
+      direccionLineaId: filtrosValidos.direccionLineaId ?? undefined,
+      coordinacionId: filtrosValidos.coordinacionId ?? undefined,
+      codigo: filtrosValidos.codigo || undefined,
       soloVacantes: filtrosValidos.soloVacantes,
     });
     await logAudit({ traceId, action: "getCargosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getCargosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getCargosVacantesAction(filtros?: {
+  dependenciaId?: number;
+  tipoNominaId?: number;
+  direccionGeneralId?: number;
+  direccionLineaId?: number;
+  coordinacionId?: number;
+  codigo?: string;
+}) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCargos(repoCargosApi, {
+      ...filtros,
+      soloVacantes: true,
+    });
+    await logAudit({ traceId, action: "getCargosVacantesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCargosVacantesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }
@@ -105,11 +147,11 @@ export async function getDenominacionesEspecificasAction() {
   }
 }
 
-export async function getMotivosAction() {
+export async function getMotivosAction(categoria?: string) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await listarMotivos(repoCargosApi);
+    const result = await listarMotivos(repoCargosApi, categoria);
     await logAudit({ traceId, action: "getMotivosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
@@ -145,10 +187,26 @@ export async function asignarCargoAction(cargoId: number, empleadoCedula: string
     const result = await asignarCargo(repoCargosApi, validation.data.cargoId, validation.data.empleadoCedula);
     await logAudit({ traceId, action: "asignarCargoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     await logAudit({ traceId, action: "asignarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    const msg = error instanceof Error ? error.message : "Ocurrió un error al asignar el puesto.";
+    return { error: msg };
+  }
+}
+
+export async function asignarCargoEspecialAction(input: CrearCargoEspecialInputDTO) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await asignarCargoEspecial(repoCargosApi, input);
+    await logAudit({ traceId, action: "asignarCargoEspecialAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Cargo especial asignado correctamente.", data: result };
+  } catch (error: unknown) {
+    await logAudit({ traceId, action: "asignarCargoEspecialAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Ocurrió un error al asignar el cargo especial.";
+    return { success: false, message: msg };
   }
 }
 
@@ -209,11 +267,11 @@ export async function gestionarEstatusAction(input: { cargoId: number; estatusId
   }
 }
 
-export async function getPrestamosAction(soloActivos?: boolean) {
+export async function getPrestamosAction(soloActivos?: boolean, empleado?: string) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await listarPrestamos(repoCargosApi, soloActivos);
+    const result = await listarPrestamos(repoCargosApi, soloActivos, empleado);
     await logAudit({ traceId, action: "getPrestamosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
@@ -248,22 +306,71 @@ export async function crearPrestamoAction(input: {
   }
 }
 
-export async function finalizarPrestamoAction(prestamoId: number) {
+export async function registrarEncargaduriaAction(input: {
+  cargo_encargado: number;
+  empleado_encargado: string;
+  motivo: number;
+  nueva_motivo_nombre?: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    let motivoId = input.motivo;
+    if (input.motivo === -1 && input.nueva_motivo_nombre?.trim()) {
+      const nuevoMotivo = await cargosApi.crearMotivo(input.nueva_motivo_nombre.trim(), "ENCARGADURIA");
+      motivoId = nuevoMotivo.id;
+    }
+    const result = await crearPrestamo(repoCargosApi, {
+      cedulaEncargado: input.empleado_encargado,
+      cargoId: input.cargo_encargado,
+      motivoId,
+      fechaInicio: input.fecha_inicio,
+      fechaFin: input.fecha_fin,
+    });
+    await logAudit({ traceId, action: "registrarEncargaduriaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Encargaduría registrada exitosamente.", data: result };
+  } catch (error: unknown) {
+    await logAudit({ traceId, action: "registrarEncargaduriaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Ocurrió un error al registrar la encargaduría.";
+    return { success: false, message: msg };
+  }
+}
+
+export async function finalizarPrestamoAction(prestamoId: number, fechaFin?: string) {
   const validation = prestamoIdSchema.safeParse({ prestamoId });
   if (!validation.success) {
-    return { error: "Préstamo inválido." };
+    return { success: false, message: "Préstamo inválido." };
   }
 
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await finalizarPrestamo(repoCargosApi, validation.data.prestamoId);
+    const result = await finalizarPrestamo(repoCargosApi, validation.data.prestamoId, fechaFin);
     await logAudit({ traceId, action: "finalizarPrestamoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
+    return { success: true, message: "Encargaduría finalizada exitosamente.", data: result };
+  } catch (error: unknown) {
     await logAudit({ traceId, action: "finalizarPrestamoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    const msg = error instanceof Error ? error.message : "Ocurrió un error al finalizar la encargaduría.";
+    return { success: false, message: msg };
+  }
+}
+
+export async function crearMotivoAction(movimiento: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await cargosApi.crearMotivo(movimiento);
+    await logAudit({ traceId, action: "crearMotivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, data: result };
+  } catch (error: unknown) {
+    await logAudit({ traceId, action: "crearMotivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const msg = error instanceof Error ? error.message : "Error al crear motivo.";
+    return { success: false, message: msg };
   }
 }
 
@@ -508,5 +615,22 @@ export async function getCoordinacionesAction(direccionLineaId?: number) {
     await logAudit({ traceId, action: "getCoordinacionesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
+  }
+}
+
+export async function actualizarCargoAction(cargoId: number, input: UpdateCodeTable) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const validatedId = cargoIdSchema.parse({ cargoId });
+    const validatedInput = schemaUpdateCodeTable.parse(input);
+    const result = await actualizarCargo(repoCargosApi, validatedId.cargoId, validatedInput);
+    await logAudit({ traceId, action: "actualizarCargoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Cargo actualizado correctamente", data: result };
+  } catch (error: unknown) {
+    await logAudit({ traceId, action: "actualizarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const message = error instanceof Error ? error.message : "Error al actualizar el cargo";
+    return { success: false, message };
   }
 }

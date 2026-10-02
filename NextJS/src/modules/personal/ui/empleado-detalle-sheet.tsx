@@ -91,7 +91,7 @@ export default function EmpleadoDetalleSheet({
   if (!detalle || !empleado) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+        <SheetContent className="w-full sm:max-w-2xl">
           <SheetHeader>
             <SheetTitle>Información Detallada Del Trabajador</SheetTitle>
           </SheetHeader>
@@ -112,9 +112,9 @@ export default function EmpleadoDetalleSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-        <ScrollArea className="h-full pr-4">
-          <SheetHeader className="mb-4">
+      <SheetContent className="w-full sm:max-w-2xl overflow-hidden p-0">
+        <ScrollArea className="h-full p-6">
+          <SheetHeader className="mb-4 pr-8 p-0">
             <div className="flex items-center justify-between">
               <SheetTitle>Información Detallada Del Trabajador</SheetTitle>
               {puedeExportarPdf && (

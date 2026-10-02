@@ -12,6 +12,7 @@ export interface CargoAsignacion {
   id: number;
   codigo: string;
   empleadoCedula: string | null;
+  empleadoNombre?: string | null;
   denominacionId: number;
   denominacionNombre: string;
   especificaId: number;
@@ -28,8 +29,13 @@ export interface CargoAsignacion {
   direccionLineaNombre: string | null;
   coordinacionId: number | null;
   coordinacionNombre: string | null;
+  organismoId?: number | null;
+  organismoNombre?: string | null;
+  gradoId?: number | null;
+  gradoNombre?: string | null;
   observaciones: string | null;
   estaVacante: boolean;
+  fechaActualizacion?: string | null;
 }
 
 export interface PrestamoCargo {
@@ -38,6 +44,7 @@ export interface PrestamoCargo {
   empleadoEncargadoNombre: string;
   cargoEncargadoId: number;
   cargoEncargadoCodigo: string;
+  cargoEncargadoDenominacion?: string;
   titularCedula: string | null;
   titularNombre: string | null;
   motivoId: number;

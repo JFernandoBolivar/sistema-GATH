@@ -7,6 +7,7 @@ import {
   PrestamoCargo,
 } from "../../domain/entities/cargo";
 import { asignarCargo, cambiarCargo, desasignarCargo, gestionarEstatus } from "./asignar-cargo";
+import { actualizarCargo } from "./actualizar-cargo";
 import { listarCargos, listarDenominaciones } from "./listar-cargos";
 import { crearPrestamo, finalizarPrestamo, listarPrestamos } from "./prestamo-cargo";
 import { crearDenominacion, eliminarDenominacion } from "./gestionar-denominaciones";
@@ -61,6 +62,22 @@ class RepoCargosMemoria implements RepoCargos {
     const c = this.cargos.find((x) => x.id === cargoId)!;
     c.empleadoCedula = null;
     c.estaVacante = true;
+    return c;
+  }
+  async asignarCargoEspecial(input: any) {
+    return this.cargos[0];
+  }
+  async actualizarCargo(cargoId: number, input: any) {
+    const c = this.cargos.find((x) => x.id === cargoId)!;
+    if (input.denominacioncargoid) c.denominacionId = input.denominacioncargoid;
+    if (input.denominacioncargoespecificoid) c.especificaId = input.denominacioncargoespecificoid;
+    if (input.tiponominaid) c.tipoNominaId = input.tiponominaid;
+    if (input.gradoid !== undefined) c.gradoId = input.gradoid;
+    if (input.OrganismoAdscritoid !== undefined) c.organismoId = input.OrganismoAdscritoid;
+    if (input.Dependencia !== undefined) c.dependenciaId = input.Dependencia;
+    if (input.DireccionGeneral !== undefined) c.direccionGeneralId = input.DireccionGeneral;
+    if (input.DireccionLinea !== undefined) c.direccionLineaId = input.DireccionLinea;
+    if (input.Coordinacion !== undefined) c.coordinacionId = input.Coordinacion;
     return c;
   }
   async cambiarCargo(cargoActualId: number, cargoNuevoId: number, _motivoId: number) {
@@ -261,5 +278,24 @@ describe("Casos de uso de Cargos", () => {
     expect(d.orden).toBe(50);
     await eliminarDenominacion(repo, d.id);
     expect((await repo.listarDenominaciones()).length).toBe(1);
+  });
+
+  it("actualizarCargo modifica los atributos del cargo", async () => {
+    const repo = new RepoCargosMemoria();
+    const actualizado = await actualizarCargo(repo, 1, {
+      denominacioncargoid: 99,
+      denominacioncargoespecificoid: 999,
+      tiponominaid: 2,
+      gradoid: 5,
+      Dependencia: 1,
+      DireccionGeneral: 10,
+      DireccionLinea: 20,
+      Coordinacion: 30,
+    });
+    expect(actualizado.denominacionId).toBe(99);
+    expect(actualizado.especificaId).toBe(999);
+    expect(actualizado.tipoNominaId).toBe(2);
+    expect(actualizado.gradoId).toBe(5);
+    expect(actualizado.direccionGeneralId).toBe(10);
   });
 });

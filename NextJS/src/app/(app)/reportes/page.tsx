@@ -1,6 +1,13 @@
-import ReportesPage from "@/modules/reportes/ui/reportes-page";
+import PageLayout from "@/components/layout/page-layout";
+import { ReportDistribution } from "@/modules/reportes/ui/components/report-distribution";
 
-/** Thin wrapper (R10): monta la página de reportes del módulo `reportes`. */
-export default function ReportesRoutePage() {
-  return <ReportesPage />;
+export default function ReportsPage() {
+  return (
+    <PageLayout
+      description="Análisis y métricas de recursos humanos"
+      title="Reportes"
+    >
+      <ReportDistribution />
+    </PageLayout>
+  );
 }

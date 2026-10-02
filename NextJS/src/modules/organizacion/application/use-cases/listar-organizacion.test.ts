@@ -10,16 +10,16 @@ import {
 
 class RepoOrganizacionMemoria implements RepoOrganizacion {
   async listarDependencias() {
-    return [{ id: 1, nombre: "Despacho" }];
+    return [{ id: 1, codigo: "DEP-01", nombre: "Despacho" }];
   }
   async listarDireccionesGenerales(dependenciaId?: number) {
-    return [{ id: 10, nombre: "Dirección General de Planificación", dependenciaId: dependenciaId ?? 1 }];
+    return [{ id: 10, codigo: "DG-01", nombre: "Dirección General de Planificación", dependenciaId: dependenciaId ?? 1 }];
   }
   async listarDireccionesLinea(direccionGeneralId?: number) {
-    return [{ id: 20, nombre: "Dirección de TI", direccionGeneralId: direccionGeneralId ?? 10 }];
+    return [{ id: 20, codigo: "DL-01", nombre: "Dirección de TI", direccionGeneralId: direccionGeneralId ?? 10 }];
   }
   async listarCoordinaciones(direccionLineaId?: number) {
-    return [{ id: 30, nombre: "Coordinación de Desarrollo", direccionLineaId: direccionLineaId ?? 20 }];
+    return [{ id: 30, codigo: "COORD-01", nombre: "Coordinación de Desarrollo", direccionLineaId: direccionLineaId ?? 20 }];
   }
   async listarOrganismosAdscritos() {
     return [{ id: 40, nombre: "CANTV" }];
@@ -76,23 +76,26 @@ describe("Casos de uso de Organización", () => {
 
   it("listarDependencias retorna DTOs formateados", async () => {
     const res = await listarDependencias(repo);
-    expect(res).toEqual([{ id: 1, nombre: "Despacho" }]);
+    expect(res).toEqual([{ id: 1, codigo: "DEP-01", nombre: "Despacho" }]);
   });
 
   it("listarDireccionesGenerales retorna jerarquía correcta", async () => {
     const res = await listarDireccionesGenerales(repo, 1);
     expect(res[0].dependenciaId).toBe(1);
+    expect(res[0].codigo).toBe("DG-01");
     expect(res[0].nombre).toBe("Dirección General de Planificación");
   });
 
   it("listarDireccionesLinea retorna jerarquía", async () => {
     const res = await listarDireccionesLinea(repo, 10);
     expect(res[0].direccionGeneralId).toBe(10);
+    expect(res[0].codigo).toBe("DL-01");
   });
 
   it("listarCoordinaciones retorna jerarquía", async () => {
     const res = await listarCoordinaciones(repo, 20);
     expect(res[0].direccionLineaId).toBe(20);
+    expect(res[0].codigo).toBe("COORD-01");
   });
 
   it("listarOrganismosAdscritos retorna lista", async () => {

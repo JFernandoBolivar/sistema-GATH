@@ -125,31 +125,29 @@ export default function FormBackgroundUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0 border-none bg-transparent shadow-none">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Antecedentes En La Administracion Publica</DialogTitle>
 
-        <Card className="flex flex-col gap-3">
+        <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
           <CardHeader>
             <CardTitle>Antecedentes En La Administracion Publica</CardTitle>
           </CardHeader>
 
-          <CardContent>
-            <CardAction className="text-gray-600">Datos Laborales</CardAction>
-          </CardContent>
+          <CardContent className="pt-0">
+            <CardAction className="text-gray-600 mb-3">Datos Laborales</CardAction>
 
-          <CardContent>
             {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
 
             <form className="flex flex-col gap-2" onSubmit={handleSubmit(onSubmit)}>
               <div className="flex justify-end gap-2 mr-4 items-center">
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="clean" className="text-xs">Limpiar</Label>
+                  <Label htmlFor="clean" className="text-xs mb-1">Limpiar</Label>
                   <Button
                     id="clean"
                     variant="destructive"
                     type="button"
                     size="icon"
-                    className="cursor-pointer size-9"
+                    className="cursor-pointer size-8"
                     onClick={() => {
                       remove(
                         fields
@@ -172,13 +170,13 @@ export default function FormBackgroundUpdateDialog({
                 </div>
 
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="add" className="text-xs">Agregar</Label>
+                  <Label htmlFor="add" className="text-xs mb-1">Agregar</Label>
                   <Button
                     id="add"
                     variant="default"
                     type="button"
                     size="icon"
-                    className="cursor-pointer size-9"
+                    className="cursor-pointer size-8"
                     onClick={() => {
                       append({
                         organismoId: undefined,
@@ -192,18 +190,18 @@ export default function FormBackgroundUpdateDialog({
                 </div>
               </div>
 
-              <ScrollArea className="h-60 rounded-md w-full border p-2">
+              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
                 <h1 className="text-gray-600 text-sm mb-3">
                   Opcional si no posee antecedentes
                 </h1>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="flex flex-wrap gap-3 items-end border-b pb-3 mb-2 w-full"
+                      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[160px_160px_1fr_auto] gap-3 items-start border-b pb-3 mb-2 w-full"
                     >
-                      <div className="w-44">
-                        <Label className="flex items-center gap-1">
+                      <div>
+                        <Label className="flex items-center gap-1 text-xs">
                           {index + 1}. Fecha Inicio <ArrowBigDownDash className="size-4" />
                         </Label>
                         <Input
@@ -214,8 +212,8 @@ export default function FormBackgroundUpdateDialog({
                         />
                       </div>
 
-                      <div className="w-44">
-                        <Label className="flex items-center gap-1">
+                      <div>
+                        <Label className="flex items-center gap-1 text-xs">
                           {index + 1}. Fecha Culminacion <ArrowBigUpDash className="size-4" />
                         </Label>
                         <Input
@@ -259,7 +257,7 @@ export default function FormBackgroundUpdateDialog({
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
 
               <Button
                 className="mt-4 w-full cursor-pointer"

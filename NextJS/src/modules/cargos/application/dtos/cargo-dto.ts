@@ -20,6 +20,7 @@ export interface CargoAsignacionDTO {
   tipoNominaNombre: string;
   estatusId: number;
   estatusNombre: string;
+  empleadoNombre?: string | null;
   dependenciaId: number | null;
   dependenciaNombre: string | null;
   direccionGeneralId: number | null;
@@ -28,8 +29,39 @@ export interface CargoAsignacionDTO {
   direccionLineaNombre: string | null;
   coordinacionId: number | null;
   coordinacionNombre: string | null;
+  organismoId?: number | null;
+  organismoNombre?: string | null;
+  gradoId?: number | null;
+  gradoNombre?: string | null;
   observaciones: string | null;
   estaVacante: boolean;
+  fechaActualizacion?: string | null;
+}
+
+export interface ActualizarCargoInputDTO {
+  denominacioncargoid: number;
+  denominacioncargoespecificoid: number;
+  tiponominaid: number;
+  gradoid?: number | null;
+  OrganismoAdscritoid?: number | null;
+  Dependencia?: number | null;
+  DireccionGeneral?: number | null;
+  DireccionLinea?: number | null;
+  Coordinacion?: number | null;
+}
+
+export interface CrearCargoEspecialInputDTO {
+  cedulaEmpleado: string;
+  denominacionId: number;
+  especificaId: number;
+  tipoNominaId: number;
+  dependenciaId?: number;
+  direccionGeneralId?: number;
+  direccionLineaId?: number;
+  coordinacionId?: number;
+  organismoId?: number;
+  gradoId?: number;
+  observaciones?: string;
 }
 
 export interface PrestamoCargoDTO {
@@ -38,6 +70,7 @@ export interface PrestamoCargoDTO {
   empleadoEncargadoNombre: string;
   cargoEncargadoId: number;
   cargoEncargadoCodigo: string;
+  cargoEncargadoDenominacion?: string;
   titularCedula: string | null;
   titularNombre: string | null;
   motivoId: number;

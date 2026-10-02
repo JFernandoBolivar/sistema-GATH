@@ -14,7 +14,7 @@ export interface RepoPasivos {
   obtenerPorCedula(cedula: string): Promise<Pasivo>;
   procesarEgreso(cedula: string, input: ProcesarEgresoInput): Promise<Pasivo>;
   listarMotivosEgreso(): Promise<CatalogoPasivo[]>;
-  listarTiposNomina(): Promise<CatalogoPasivo[]>;
+  listarTiposNomina(soloPasivos?: boolean): Promise<CatalogoPasivo[]>;
   /** Catálogos para resolver a nombre el expediente del detalle (vista de detalle). */
   listarCatalogosExpediente(): Promise<CatalogosExpedientePasivo>;
 }

@@ -127,6 +127,8 @@ export default function CargoDetalleSheet({
                   <div className="text-muted-foreground">Estatus</div>
                   <div><EstatusBadge estatusNombre={cargo.estatusNombre} estaVacante={cargo.estaVacante} /></div>
                 </div>
+                <FilaInfo etiqueta="Grado" valor={cargo.gradoNombre ?? "N/A"} />
+                <FilaInfo etiqueta="Organismo adscrito" valor={cargo.organismoNombre ?? "N/A"} />
                 <FilaInfo etiqueta="Dependencia" valor={cargo.dependenciaNombre ?? "—"} />
                 <FilaInfo etiqueta="Dirección general" valor={cargo.direccionGeneralNombre ?? "—"} />
                 <FilaInfo etiqueta="Dirección de línea" valor={cargo.direccionLineaNombre ?? "—"} />

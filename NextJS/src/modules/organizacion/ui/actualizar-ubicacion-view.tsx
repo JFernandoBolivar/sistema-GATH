@@ -230,7 +230,7 @@ function UpdateDireccionGeneralSection({
                 <Combobox
                   options={dependencias.map((dp) => ({
                     value: `${dp.id}`,
-                    label: `${dp.codigo}-${dp.nombre}`,
+                    label: dp.codigo ? `${dp.codigo}-${dp.nombre}` : dp.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -256,7 +256,7 @@ function UpdateDireccionGeneralSection({
                 <Combobox
                   options={dirGenerales.map((dg) => ({
                     value: `${dg.id}`,
-                    label: `${dg.codigo}-${dg.nombre}`,
+                    label: dg.codigo ? `${dg.codigo}-${dg.nombre}` : dg.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -426,7 +426,7 @@ function UpdateDireccionLineaSection({
                 <Combobox
                   options={dependencias.map((dp) => ({
                     value: `${dp.id}`,
-                    label: `${dp.codigo}-${dp.nombre}`,
+                    label: dp.codigo ? `${dp.codigo}-${dp.nombre}` : dp.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -452,7 +452,7 @@ function UpdateDireccionLineaSection({
                 <Combobox
                   options={dirGenerales.map((dg) => ({
                     value: `${dg.id}`,
-                    label: `${dg.codigo}-${dg.nombre}`,
+                    label: dg.codigo ? `${dg.codigo}-${dg.nombre}` : dg.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -483,7 +483,7 @@ function UpdateDireccionLineaSection({
                 <Combobox
                   options={dirLineas.map((dl) => ({
                     value: `${dl.id}`,
-                    label: `${dl.codigo}-${dl.nombre}`,
+                    label: dl.codigo ? `${dl.codigo}-${dl.nombre}` : dl.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -676,7 +676,7 @@ function UpdateCoordinacionSection({
                 <Combobox
                   options={dependencias.map((dp) => ({
                     value: `${dp.id}`,
-                    label: `${dp.codigo}-${dp.nombre}`,
+                    label: dp.codigo ? `${dp.codigo}-${dp.nombre}` : dp.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -702,7 +702,7 @@ function UpdateCoordinacionSection({
                 <Combobox
                   options={dirGenerales.map((dg) => ({
                     value: `${dg.id}`,
-                    label: `${dg.codigo}-${dg.nombre}`,
+                    label: dg.codigo ? `${dg.codigo}-${dg.nombre}` : dg.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -733,7 +733,7 @@ function UpdateCoordinacionSection({
                 <Combobox
                   options={dirLineas.map((dl) => ({
                     value: `${dl.id}`,
-                    label: `${dl.codigo}-${dl.nombre}`,
+                    label: dl.codigo ? `${dl.codigo}-${dl.nombre}` : dl.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -764,7 +764,7 @@ function UpdateCoordinacionSection({
                 <Combobox
                   options={coordinaciones.map((c) => ({
                     value: `${c.id}`,
-                    label: `${c.codigo}-${c.nombre}`,
+                    label: c.codigo ? `${c.codigo}-${c.nombre}` : c.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {
@@ -891,7 +891,7 @@ function UpdateDependenciaSection({
                 <Combobox
                   options={dependencias.map((dp) => ({
                     value: `${dp.id}`,
-                    label: `${dp.codigo}-${dp.nombre}`,
+                    label: dp.codigo ? `${dp.codigo}-${dp.nombre}` : dp.nombre,
                   }))}
                   value={field.value ? `${field.value}` : ""}
                   onChange={(val) => {

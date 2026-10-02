@@ -66,7 +66,8 @@ export async function getEmpleadoPorCedulaAction(cedula: string) {
   } catch (error) {
     await logAudit({ traceId, action: "getEmpleadoPorCedulaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    const mensaje = error instanceof Error && error.message ? error.message : "Empleado no encontrado";
+    return { error: mensaje };
   }
 }
 
@@ -113,7 +114,8 @@ export async function actualizarEmpleadoAction(
   } catch (error) {
     await logAudit({ traceId, action: "actualizarEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    const mensaje = error instanceof Error && error.message ? error.message : "Error al actualizar empleado";
+    return { error: mensaje };
   }
 }
 

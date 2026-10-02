@@ -66,7 +66,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
   const [selectionDirectionGeneralId, setSelectionDirectionGeneralId] = useState<string>("");
   const [selectionDirectionLineId, setSelectionDirectionLineId] = useState<string>("");
 
-  const [isLoadingDep, setIsLoadingDep] = useState(false);
+  const [isLoadingDep, setIsLoadingDep] = useState(true);
   const [isLoadingDG, setIsLoadingDG] = useState(false);
   const [isLoadingDL, setIsLoadingDL] = useState(false);
 
@@ -100,7 +100,6 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
 
   // Cargar dependencias iniciales
   useEffect(() => {
-    setIsLoadingDep(true);
     getDependenciasAction()
       .then(setDependencias)
       .finally(() => setIsLoadingDep(false));
@@ -242,7 +241,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
               <Combobox
                 options={dependencias.map((dp) => ({
                   value: `${dp.id}`,
-                  label: `${dp.codigo}-${dp.nombre}`,
+                  label: dp.codigo ? `${dp.codigo}-${dp.nombre}` : dp.nombre,
                 }))}
                 value={dependencyId}
                 onChange={onSelectDependency}
@@ -258,7 +257,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
                 <Combobox
                   options={dirGenerales.map((general) => ({
                     value: `${general.id}`,
-                    label: `${general.codigo}-${general.nombre}`,
+                    label: general.codigo ? `${general.codigo}-${general.nombre}` : general.nombre,
                   }))}
                   value={selectionDirectionGeneralId}
                   onChange={onSelectDirectionGeneral}
@@ -280,7 +279,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
                   <Combobox
                     options={dirGenerales.map((general) => ({
                       value: `${general.id}`,
-                      label: `${general.codigo}-${general.nombre}`,
+                      label: general.codigo ? `${general.codigo}-${general.nombre}` : general.nombre,
                     }))}
                     value={selectionDirectionGeneralId}
                     onChange={onSelectDirectionGeneral}
@@ -298,7 +297,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
                   <Combobox
                     options={dirLineas.map((line) => ({
                       value: `${line.id}`,
-                      label: `${line.codigo}-${line.nombre}`,
+                      label: line.codigo ? `${line.codigo}-${line.nombre}` : line.nombre,
                     }))}
                     value={selectionDirectionLineId}
                     onChange={onSelectDirectionLine}

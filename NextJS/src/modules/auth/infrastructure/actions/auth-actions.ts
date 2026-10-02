@@ -19,6 +19,7 @@ import { cookies } from "next/headers";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { ensureValidAccessToken } from "@/lib/api-client";
 import { signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { loginFormSchema, type LoginFormType } from "../../ui/schema/schema-login";
@@ -128,6 +129,17 @@ export async function limpiarCookiesAuthAction(): Promise<{ success: true }> {
   await limpiarCookiesSesion();
   return { success: true };
 }
+
+/**
+ * Extiende la sesión activa revalidando y renovando el access token (C-2).
+ * Invocada por AuthController cuando el usuario presiona 'Permanecer en la sesión'.
+ */
+export async function extenderSesionAction(): Promise<{ success: boolean }> {
+  const ok = await ensureValidAccessToken();
+  return { success: ok };
+}
+
+export const extendSessionAction = extenderSesionAction;
 
 export type CambiarPasswordActionResult =
   | { success: true; message: string }

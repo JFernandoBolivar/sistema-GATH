@@ -35,8 +35,8 @@ export const repoPasivosApi: RepoPasivos = {
     return raw.map(catalogoPasivoApiAEntidad);
   },
 
-  async listarTiposNomina() {
-    const raw = await pasivosApi.getTiposNomina();
+  async listarTiposNomina(soloPasivos: boolean = true) {
+    const raw = await pasivosApi.getTiposNomina(soloPasivos);
     return raw.map(catalogoPasivoApiAEntidad);
   },
 

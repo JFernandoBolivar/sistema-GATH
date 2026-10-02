@@ -14,6 +14,7 @@ interface UseEmployeeSearchReturn<T> {
   employee: T | null;
   isLoading: boolean;
   hasSearched: boolean;
+  errorMessage?: string;
   search: (cedula: string) => void;
   clear: () => void;
 }
@@ -60,5 +61,7 @@ export function useEmployeeSearch<T>(
 
   const hasSearched = !!cedula && !isLoading;
 
-  return { employee, isLoading, hasSearched, search, clear };
+  const errorMessage = data?.status === "error" ? data?.message : undefined;
+
+  return { employee, isLoading, hasSearched, errorMessage, search, clear };
 }

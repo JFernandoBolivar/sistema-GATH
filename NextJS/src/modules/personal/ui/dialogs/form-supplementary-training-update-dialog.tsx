@@ -162,7 +162,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Actualizar Formación Complementaria</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
@@ -170,7 +170,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
             <CardTitle>Formación Complementaria</CardTitle>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="pt-0">
             <CardAction className="text-gray-600 mb-3">
               Datos De Formación Complementaria
             </CardAction>
@@ -224,40 +224,42 @@ export default function FormSupplementaryTrainingUpdateDialog({
                 </div>
               </div>
 
-              <ScrollArea className="h-64 rounded-md w-full border p-2">
+              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
                 <h1 className="text-gray-600 text-sm mb-3">
                   Opcional si no posee formación complementaria
                 </h1>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="flex flex-wrap gap-3 items-end border-b pb-3 mb-2 w-full">
-                      <div className="w-40">
-                        <Label>{index + 1}. Fecha Inicio</Label>
+                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[140px_140px_1fr_1fr_120px_80px_auto] gap-2 items-start border-b pb-3 mb-2 w-full">
+                      <div>
+                        <Label className="text-xs">{index + 1}. Fecha Inicio</Label>
                         <Input
                           type="date"
                           max={new Date().toISOString().split("T")[0]}
                           min="1930-01-01"
+                          className="h-9 text-xs"
                           {...register(`formacionComplementaria.${index}.fechaInicio` as const)}
                         />
                       </div>
 
-                      <div className="w-40">
-                        <Label>{index + 1}. Fecha Culminacion</Label>
+                      <div>
+                        <Label className="text-xs">{index + 1}. Fecha Culminacion</Label>
                         <Input
                           type="date"
                           max={new Date().toISOString().split("T")[0]}
                           min="1930-01-01"
+                          className="h-9 text-xs"
                           {...register(`formacionComplementaria.${index}.fechaFin` as const)}
                         />
                       </div>
 
-                      <div className="flex-1 min-w-[150px]">
-                        <Label>Capacitación</Label>
+                      <div className="min-w-0">
+                        <Label className="text-xs">Capacitación</Label>
                         <Select
                           value={watch(`formacionComplementaria.${index}.capacitacionId`) ? String(watch(`formacionComplementaria.${index}.capacitacionId`)) : undefined}
                           onValueChange={(v) => setValue(`formacionComplementaria.${index}.capacitacionId`, Number(v))}
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-full h-9 text-xs">
                             <SelectValue placeholder="Seleccione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -271,20 +273,20 @@ export default function FormSupplementaryTrainingUpdateDialog({
                         </Select>
                         {Number(watch(`formacionComplementaria.${index}.capacitacionId`)) === ID_OTRA && (
                           <Input
-                            className="mt-1"
+                            className="mt-1 h-8 text-xs"
                             placeholder="Nueva capacitación..."
                             {...register(`formacionComplementaria.${index}.nuevaCapacitacionNombre`)}
                           />
                         )}
                       </div>
 
-                      <div className="flex-1 min-w-[150px]">
-                        <Label>Institución</Label>
+                      <div className="min-w-0">
+                        <Label className="text-xs">Institución</Label>
                         <Select
                           value={watch(`formacionComplementaria.${index}.institucionId`) ? String(watch(`formacionComplementaria.${index}.institucionId`)) : undefined}
                           onValueChange={(v) => setValue(`formacionComplementaria.${index}.institucionId`, Number(v))}
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-full h-9 text-xs">
                             <SelectValue placeholder="Seleccione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -298,20 +300,20 @@ export default function FormSupplementaryTrainingUpdateDialog({
                         </Select>
                         {Number(watch(`formacionComplementaria.${index}.institucionId`)) === ID_OTRA && (
                           <Input
-                            className="mt-1"
+                            className="mt-1 h-8 text-xs"
                             placeholder="Nueva institución..."
                             {...register(`formacionComplementaria.${index}.nuevaInstitucionNombre`)}
                           />
                         )}
                       </div>
 
-                      <div className="w-36">
-                        <Label>Procedencia</Label>
+                      <div>
+                        <Label className="text-xs">Procedencia</Label>
                         <Select
                           value={watch(`formacionComplementaria.${index}.procedenciaId`) ? String(watch(`formacionComplementaria.${index}.procedenciaId`)) : undefined}
                           onValueChange={(v) => setValue(`formacionComplementaria.${index}.procedenciaId`, Number(v))}
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-full h-9 text-xs">
                             <SelectValue placeholder="Seleccione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -324,20 +326,21 @@ export default function FormSupplementaryTrainingUpdateDialog({
                         </Select>
                       </div>
 
-                      <div className="w-24">
-                        <Label>Horas</Label>
+                      <div>
+                        <Label className="text-xs">Horas</Label>
                         <Input
-                          placeholder="Ej: 40"
+                          placeholder="40"
+                          className="h-9 text-xs"
                           {...register(`formacionComplementaria.${index}.horasCompletadas` as const)}
                         />
                       </div>
 
-                      <div>
+                      <div className="pt-5 flex justify-end">
                         <Button
                           type="button"
                           variant="destructive"
                           size="icon"
-                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-9 shrink-0`}
+                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-8 shrink-0`}
                           onClick={() => remove(index)}
                         >
                           <X className="size-4" />
@@ -346,7 +349,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
 
               <Button
                 className="mt-4 w-full cursor-pointer"

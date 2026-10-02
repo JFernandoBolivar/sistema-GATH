@@ -146,27 +146,27 @@ export default function FormContratoUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0 border-none bg-transparent shadow-none">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Gestión de Contratos</DialogTitle>
 
-        <Card className="flex flex-col gap-3">
+        <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
           <CardHeader>
             <CardTitle>Gestión de Contratos</CardTitle>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="pt-0">
             {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
 
             <form className="flex flex-col gap-2" onSubmit={handleSubmit(onSubmit)}>
               <div className="flex justify-end gap-2 mr-4 items-center">
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="add" className="text-xs">Agregar</Label>
+                  <Label htmlFor="add" className="text-xs mb-1">Agregar</Label>
                   <Button
                     id="add"
                     variant="default"
                     type="button"
                     size="icon"
-                    className="cursor-pointer size-9"
+                    className="cursor-pointer size-8"
                     onClick={() => {
                       append({
                         nContrato: "",
@@ -182,99 +182,103 @@ export default function FormContratoUpdateDialog({
                 </div>
               </div>
 
-              <ScrollArea className="h-80 rounded-md w-full border p-2">
+              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
                 {fields.length === 0 && (
                   <h1 className="text-gray-600 text-center py-4 text-sm">
                     No hay contratos registrados.
                   </h1>
                 )}
-                {fields.map((field, index) => {
-                  const isExisting = Boolean(initialContratos[index]?.id);
-                  const isVencido = initialContratos[index]?.estatusNombre === "VENCIDO";
+                <div className="flex flex-col gap-3">
+                  {fields.map((field, index) => {
+                    const isExisting = Boolean(initialContratos[index]?.id);
+                    const isVencido = initialContratos[index]?.estatusNombre === "VENCIDO";
 
-                  return (
-                    <div
-                      key={field.id}
-                      className="relative flex flex-row gap-3 items-center justify-around w-full py-2 border-b"
-                    >
-                      {isVencido && (
-                        <Badge className="bg-red-600 text-white text-xs absolute -top-1 left-1">
-                          VENCIDO - Solo lectura
-                        </Badge>
-                      )}
+                    return (
+                      <div
+                        key={field.id}
+                        className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[140px_140px_140px_1fr_auto] gap-3 items-start w-full py-2 border-b"
+                      >
+                        {isVencido && (
+                          <Badge className="bg-red-600 text-white text-xs col-span-full w-fit mb-1">
+                            VENCIDO - Solo lectura
+                          </Badge>
+                        )}
 
-                      <div className="flex flex-col">
-                        <Label className="text-xs">
-                          {index + 1}. N° Contrato
-                        </Label>
-                        <Input
-                          {...register(`contrato.${index}.nContrato` as const)}
-                          readOnly={isExisting}
-                          className={`flex h-8 w-40 rounded-md border border-input bg-transparent px-2 py-1 text-sm ${
-                            isExisting ? "opacity-50 cursor-not-allowed bg-muted" : ""
-                          }`}
-                          placeholder="CTR-001"
-                        />
+                        <div className="flex flex-col">
+                          <Label className="text-xs">
+                            {index + 1}. N° Contrato
+                          </Label>
+                          <Input
+                            {...register(`contrato.${index}.nContrato` as const)}
+                            readOnly={isExisting}
+                            className={`flex h-9 rounded-md border border-input bg-transparent px-2 py-1 text-sm ${
+                              isExisting ? "opacity-50 cursor-not-allowed bg-muted" : ""
+                            }`}
+                            placeholder="CTR-001"
+                          />
+                        </div>
+
+                        <div className="flex flex-col">
+                          <Label className="text-xs">Fecha Inicio</Label>
+                          <Input
+                            type="date"
+                            max={new Date().toISOString().split("T")[0]}
+                            min="1930-01-01"
+                            disabled={isVencido}
+                            className="h-9 text-xs"
+                            {...register(`contrato.${index}.fechaIngreso` as const, { required: true })}
+                          />
+                        </div>
+
+                        <div className="flex flex-col">
+                          <Label className="text-xs">Fecha Culminación</Label>
+                          <Input
+                            type="date"
+                            min="1930-01-01"
+                            disabled={isVencido}
+                            className="h-9 text-xs"
+                            {...register(`contrato.${index}.fechaCulminacion` as const)}
+                          />
+                        </div>
+
+                        <div className="flex flex-col">
+                          <Label className="text-xs">Política</Label>
+                          <Select
+                            value={watch(`contrato.${index}.politicaId`) ? String(watch(`contrato.${index}.politicaId`)) : undefined}
+                            onValueChange={(v) => setValue(`contrato.${index}.politicaId`, Number(v))}
+                            disabled={isVencido}
+                          >
+                            <SelectTrigger className="w-full h-9 text-xs">
+                              <SelectValue placeholder="Seleccione" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(catalogos?.politicas ?? []).map((p) => (
+                                <SelectItem key={p.id} value={String(p.id)}>
+                                  {p.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {!isVencido && (
+                          <div className="pt-5 flex justify-end">
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="cursor-pointer size-8"
+                              onClick={() => remove(index)}
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
-
-                      <div className="flex flex-col">
-                        <Label className="text-xs">Fecha Inicio</Label>
-                        <Input
-                          type="date"
-                          max={new Date().toISOString().split("T")[0]}
-                          min="1930-01-01"
-                          disabled={isVencido}
-                          className="w-36 h-8 text-xs"
-                          {...register(`contrato.${index}.fechaIngreso` as const, { required: true })}
-                        />
-                      </div>
-
-                      <div className="flex flex-col">
-                        <Label className="text-xs">Fecha Culminación</Label>
-                        <Input
-                          type="date"
-                          min="1930-01-01"
-                          disabled={isVencido}
-                          className="w-36 h-8 text-xs"
-                          {...register(`contrato.${index}.fechaCulminacion` as const)}
-                        />
-                      </div>
-
-                      <div className="flex flex-col">
-                        <Label className="text-xs">Política</Label>
-                        <Select
-                          value={watch(`contrato.${index}.politicaId`) ? String(watch(`contrato.${index}.politicaId`)) : undefined}
-                          onValueChange={(v) => setValue(`contrato.${index}.politicaId`, Number(v))}
-                          disabled={isVencido}
-                        >
-                          <SelectTrigger className="w-36 h-8 text-xs">
-                            <SelectValue placeholder="Seleccione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(catalogos?.politicas ?? []).map((p) => (
-                              <SelectItem key={p.id} value={String(p.id)}>
-                                {p.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {!isVencido && (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          className="cursor-pointer mt-4 size-8 p-0"
-                          onClick={() => remove(index)}
-                        >
-                          <X className="size-3" />
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-              </ScrollArea>
+                    );
+                  })}
+                </div>
+              </div>
 
               <Button
                 className="mt-4 w-full cursor-pointer"

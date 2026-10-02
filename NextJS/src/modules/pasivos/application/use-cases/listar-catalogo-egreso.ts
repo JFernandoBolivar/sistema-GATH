@@ -21,7 +21,8 @@ export async function listarMotivosEgreso(
 
 export async function listarTiposNomina(
   repo: RepoPasivos,
+  soloPasivos: boolean = true,
 ): Promise<CatalogoPasivoDTO[]> {
-  const entidades = await repo.listarTiposNomina();
+  const entidades = await repo.listarTiposNomina(soloPasivos);
   return entidades.map(aDTO);
 }

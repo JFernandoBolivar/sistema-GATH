@@ -6,6 +6,7 @@ import type { RepoCargos } from "../../domain/ports/repo-cargos";
 import type {
   CargoAsignacionDTO,
   CambiarCargoInputDTO,
+  CrearCargoEspecialInputDTO,
   GestionarEstatusInputDTO,
 } from "../dtos/cargo-dto";
 import type { CargoAsignacion } from "../../domain/entities/cargo";
@@ -31,6 +32,10 @@ function aDto(e: CargoAsignacion): CargoAsignacionDTO {
     direccionLineaNombre: e.direccionLineaNombre,
     coordinacionId: e.coordinacionId,
     coordinacionNombre: e.coordinacionNombre,
+    organismoId: e.organismoId,
+    organismoNombre: e.organismoNombre,
+    gradoId: e.gradoId,
+    gradoNombre: e.gradoNombre,
     observaciones: e.observaciones,
     estaVacante: e.estaVacante,
   };
@@ -42,6 +47,13 @@ export async function asignarCargo(
   empleadoCedula: string
 ): Promise<CargoAsignacionDTO> {
   return aDto(await repo.asignarCargo(cargoId, empleadoCedula));
+}
+
+export async function asignarCargoEspecial(
+  repo: RepoCargos,
+  input: CrearCargoEspecialInputDTO
+): Promise<CargoAsignacionDTO> {
+  return aDto(await repo.asignarCargoEspecial(input));
 }
 
 export async function desasignarCargo(

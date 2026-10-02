@@ -161,15 +161,15 @@ export default function FormHealthProfileUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0 border-none bg-transparent shadow-none">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Datos De Salud</DialogTitle>
 
-        <Card className="flex flex-col gap-3">
+        <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
           <CardHeader>
             <CardTitle> Datos De Salud</CardTitle>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="pt-0">
             <CardAction className="text-gray-500 mb-3">Perfil De Salud</CardAction>
 
             {error && (
@@ -178,7 +178,7 @@ export default function FormHealthProfileUpdateDialog({
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="gap-8 flex flex-col">
+            <form onSubmit={handleSubmit(onSubmit)} className="gap-4 flex flex-col">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="grupoSanguineoId">Grupo Sanguineo </Label>
                 <Select
@@ -200,8 +200,8 @@ export default function FormHealthProfileUpdateDialog({
                 </Select>
               </div>
 
-              <ScrollArea className="h-80 w-full border rounded-md p-3">
-                <div className="flex flex-row justify-around gap-4">
+              <div className="max-h-[55vh] overflow-y-auto w-full border rounded-md p-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Patologías */}
                   <div className="flex-1">
                     <h2 className="font-bold mb-2">Patologias (Opcional)</h2>
@@ -307,7 +307,7 @@ export default function FormHealthProfileUpdateDialog({
                     </div>
                   </div>
                 </div>
-              </ScrollArea>
+              </div>
 
               <Button
                 className="w-full cursor-pointer mt-4"

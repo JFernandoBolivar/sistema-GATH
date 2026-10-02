@@ -35,7 +35,7 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   Sidebar,
@@ -210,7 +210,7 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Asignar Cargo",
-        url: "/movimientos",
+        url: "/movimientos/asignar-codigo",
         icon: BriefcaseBusiness,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -219,7 +219,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Asignar Cargo Esp",
-        url: "/movimientos",
+        url: "/movimientos/asignar-codigo-especial",
         icon: Briefcase,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -228,7 +228,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Asignar Encargaduría",
-        url: "/movimientos",
+        url: "/movimientos/prestamo-cargo",
         icon: ArrowRightLeft,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -237,7 +237,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Cambiar Cargo",
-        url: "/movimientos",
+        url: "/movimientos/cambiar-codigo",
         icon: BriefcaseConveyorBelt,
         permission: {
           roleAccept: ["ADMINISTRADOR"],
@@ -246,7 +246,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Cambiar Estatus",
-        url: "/movimientos",
+        url: "/movimientos/cambiar-estatus",
         icon: FileChartLine,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -255,7 +255,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Egresar/Pasivo",
-        url: "/movimientos",
+        url: "/movimientos/cambiar-pasivo",
         icon: BookCheck,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR"],
@@ -284,7 +284,7 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Consultar Trabajador",
-        url: "/reportes",
+        url: "/reportes/empleados",
         icon: IdCard,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
@@ -293,7 +293,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Consultar Familiares",
-        url: "/reportes",
+        url: "/reportes/familiares",
         icon: NotebookTabs,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
@@ -302,7 +302,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Consultar Egresados",
-        url: "/reportes",
+        url: "/reportes/egresados",
         icon: DoorOpen,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
@@ -311,7 +311,7 @@ const items: MenuItem[] = [
       },
       {
         title: "Consultar Cargos",
-        url: "/reportes",
+        url: "/reportes/codigos",
         icon: BookKey,
         permission: {
           roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
@@ -327,7 +327,7 @@ const items: MenuItem[] = [
     },
     icon: FolderOpenDot,
     title: "Retroalimentación",
-    url: "/reportes",
+    url: "/retroalimentacion",
   },
   {
     permission: {
@@ -367,33 +367,26 @@ const items: MenuItem[] = [
 
 export function AppSidebarPersonal() {
   const pathname = usePathname();
-  const [openSubmenu, setOpenSubmenu] = useState<string | null>(() => {
+  const activeSubmenuByPath = useMemo(() => {
     if (pathname?.startsWith("/movimientos")) return "Movimientos";
     if (pathname?.startsWith("/cargos")) return "Gestión De Codigos";
     if (pathname?.startsWith("/organizacion")) return "Ub. Administrativas";
     if (pathname?.startsWith("/reportes")) return "Reportes";
     if (pathname?.startsWith("/autogestion")) return "Autogestión";
     return "Personal Trabajador";
-  });
-
-  useEffect(() => {
-    if (pathname?.startsWith("/movimientos")) {
-      setOpenSubmenu("Movimientos");
-    } else if (pathname?.startsWith("/cargos")) {
-      setOpenSubmenu("Gestión De Codigos");
-    } else if (pathname?.startsWith("/organizacion")) {
-      setOpenSubmenu("Ub. Administrativas");
-    } else if (pathname?.startsWith("/reportes")) {
-      setOpenSubmenu("Reportes");
-    } else if (pathname?.startsWith("/autogestion")) {
-      setOpenSubmenu("Autogestión");
-    } else if (pathname?.startsWith("/personal") || pathname?.startsWith("/familiares")) {
-      setOpenSubmenu("Personal Trabajador");
-    }
   }, [pathname]);
 
+  const [toggledSubmenu, setToggledSubmenu] = useState<{ path: string; menu: string | null } | null>(null);
+
+  const openSubmenu = (toggledSubmenu && toggledSubmenu.path === pathname)
+    ? toggledSubmenu.menu
+    : activeSubmenuByPath;
+
   const toggleSubmenu = (title: string) => {
-    setOpenSubmenu(openSubmenu === title ? null : title);
+    setToggledSubmenu({
+      path: pathname ?? "",
+      menu: openSubmenu === title ? null : title,
+    });
   };
   const { data: session } = useSession();
 

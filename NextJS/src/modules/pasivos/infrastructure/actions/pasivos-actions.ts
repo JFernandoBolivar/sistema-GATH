@@ -100,11 +100,11 @@ export async function getMotivosEgresoAction() {
   }
 }
 
-export async function getTiposNominaAction() {
+export async function getTiposNominaAction(soloPasivos: boolean = true) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await listarTiposNomina(repoPasivosApi);
+    const result = await listarTiposNomina(repoPasivosApi, soloPasivos);
     await logAudit({ traceId, action: "getTiposNominaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {

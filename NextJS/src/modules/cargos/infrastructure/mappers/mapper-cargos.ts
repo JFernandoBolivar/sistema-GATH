@@ -21,6 +21,7 @@ export function cargoApiAEntidad(raw: CargoApiItem): CargoAsignacion {
     id: raw.id,
     codigo: raw.codigo,
     empleadoCedula: raw.empleado_cedula,
+    empleadoNombre: raw.empleado_nombre ?? null,
     denominacionId: raw.denominacion_id,
     denominacionNombre: raw.denominacion_nombre,
     especificaId: raw.especifica_id,
@@ -37,8 +38,13 @@ export function cargoApiAEntidad(raw: CargoApiItem): CargoAsignacion {
     direccionLineaNombre: raw.direccion_linea_nombre,
     coordinacionId: raw.coordinacion_id,
     coordinacionNombre: raw.coordinacion_nombre,
+    organismoId: raw.organismo_id ?? null,
+    organismoNombre: raw.organismo_nombre ?? null,
+    gradoId: raw.grado_id ?? null,
+    gradoNombre: raw.grado_nombre ?? null,
     observaciones: raw.observaciones,
     estaVacante: raw.esta_vacante,
+    fechaActualizacion: raw.fecha_actualizacion ?? null,
   };
 }
 
@@ -53,6 +59,7 @@ export function prestamoApiAEntidad(raw: PrestamoApiItem): PrestamoCargo {
     empleadoEncargadoNombre: raw.empleado_encargado_nombre,
     cargoEncargadoId: raw.cargo_encargado_id,
     cargoEncargadoCodigo: raw.cargo_encargado_codigo,
+    cargoEncargadoDenominacion: raw.cargo_encargado_denominacion ?? "",
     titularCedula: raw.titular_cedula,
     titularNombre: raw.titular_nombre,
     motivoId: raw.motivo_id,

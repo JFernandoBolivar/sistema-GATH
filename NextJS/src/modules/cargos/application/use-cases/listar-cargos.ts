@@ -36,6 +36,10 @@ function cargoADto(e: CargoAsignacion): CargoAsignacionDTO {
     direccionLineaNombre: e.direccionLineaNombre,
     coordinacionId: e.coordinacionId,
     coordinacionNombre: e.coordinacionNombre,
+    organismoId: e.organismoId,
+    organismoNombre: e.organismoNombre,
+    gradoId: e.gradoId,
+    gradoNombre: e.gradoNombre,
     observaciones: e.observaciones,
     estaVacante: e.estaVacante,
   };
@@ -55,7 +59,15 @@ function unidadOrganizativaADto(e: UnidadOrganizativaCargo): UnidadOrganizativaC
 
 export async function listarCargos(
   repo: RepoCargos,
-  filtros?: { dependenciaId?: number; soloVacantes?: boolean }
+  filtros?: {
+    dependenciaId?: number;
+    tipoNominaId?: number;
+    direccionGeneralId?: number;
+    direccionLineaId?: number;
+    coordinacionId?: number;
+    codigo?: string;
+    soloVacantes?: boolean;
+  }
 ): Promise<CargoAsignacionDTO[]> {
   const entidades = await repo.listarCargos(filtros);
   return entidades.map(cargoADto);
@@ -75,8 +87,8 @@ export async function listarDenominacionesEspecificas(
   return entidades.map(denominacionADto);
 }
 
-export async function listarMotivos(repo: RepoCargos): Promise<CatalogoCargoItemDTO[]> {
-  const entidades = await repo.listarMotivos();
+export async function listarMotivos(repo: RepoCargos, categoria?: string): Promise<CatalogoCargoItemDTO[]> {
+  const entidades = await repo.listarMotivos(categoria);
   return entidades.map(catalogoADto);
 }
 

@@ -10,6 +10,7 @@ export interface CargoApiItem {
   id: number;
   codigo: string;
   empleado_cedula: string | null;
+  empleado_nombre?: string | null;
   denominacion_id: number;
   denominacion_nombre: string;
   especifica_id: number;
@@ -26,9 +27,26 @@ export interface CargoApiItem {
   direccion_linea_nombre: string | null;
   coordinacion_id: number | null;
   coordinacion_nombre: string | null;
+  organismo_id?: number | null;
+  organismo_nombre?: string | null;
+  grado_id?: number | null;
+  grado_nombre?: string | null;
   observaciones: string | null;
   esta_vacante: boolean;
+  fecha_actualizacion?: string | null;
 }
+
+export type ActualizarCargoBody = {
+  denominacioncargoid: number;
+  denominacioncargoespecificoid: number;
+  tiponominaid: number;
+  gradoid?: number | null;
+  OrganismoAdscritoid?: number | null;
+  Dependencia?: number | null;
+  DireccionGeneral?: number | null;
+  DireccionLinea?: number | null;
+  Coordinacion?: number | null;
+};
 
 export interface DenominacionApiItem {
   id: number;
@@ -42,6 +60,7 @@ export interface PrestamoApiItem {
   empleado_encargado_nombre: string;
   cargo_encargado_id: number;
   cargo_encargado_codigo: string;
+  cargo_encargado_denominacion?: string;
   titular_cedula: string | null;
   titular_nombre: string | null;
   motivo_id: number;
@@ -78,6 +97,20 @@ export type CrearCargoBody = {
   observaciones?: string;
 };
 
+export type CrearCargoEspecialBody = {
+  cedula_empleado: string;
+  denominacion_id: number;
+  especifica_id: number;
+  tipo_nomina_id: number;
+  dependencia_id?: number | null;
+  direccion_general_id?: number | null;
+  direccion_linea_id?: number | null;
+  coordinacion_id?: number | null;
+  organismo_id?: number | null;
+  grado_id?: number | null;
+  observaciones?: string | null;
+};
+
 export type DenominacionWriteBody = {
   nombre: string;
   orden: number;
@@ -112,12 +145,27 @@ async function single<T>(getPromise: Promise<ApiResponse<T>>): Promise<T> {
 }
 
 export const cargosApi = {
-  getCargos: (filtros?: { dependencia_id?: number; solo_vacantes?: boolean }) =>
+  getCargos: (filtros?: {
+    dependencia_id?: number;
+    tipo_nomina_id?: number;
+    direccion_general_id?: number;
+    direccion_linea_id?: number;
+    coordinacion_id?: number;
+    codigo?: string;
+    solo_vacantes?: boolean;
+  }) =>
     list<CargoApiItem>(
       apiClient.get<ApiResponse<CargoApiItem[]>>("/api/v1/cargos/", { params: filtros }),
     ),
 
-  getVacantes: (filtros?: { dependencia_id?: number }) =>
+  getVacantes: (filtros?: {
+    dependencia_id?: number;
+    tipo_nomina_id?: number;
+    direccion_general_id?: number;
+    direccion_linea_id?: number;
+    coordinacion_id?: number;
+    codigo?: string;
+  }) =>
     list<CargoApiItem>(
       apiClient.get<ApiResponse<CargoApiItem[]>>("/api/v1/cargos/vacantes/", { params: filtros }),
     ),
@@ -165,9 +213,19 @@ export const cargosApi = {
       }),
     ),
 
+  asignarCargoEspecial: (body: CrearCargoEspecialBody) =>
+    single<CargoApiItem>(
+      apiClient.post<ApiResponse<CargoApiItem>>("/api/v1/cargos/especiales/asignar/", body),
+    ),
+
   desasignar: (cargoId: number) =>
     single<CargoApiItem>(
       apiClient.post<ApiResponse<CargoApiItem>>(`/api/v1/cargos/${cargoId}/desasignar/`, {}),
+    ),
+
+  actualizarCargo: (cargoId: number, body: ActualizarCargoBody) =>
+    single<CargoApiItem>(
+      apiClient.put<ApiResponse<CargoApiItem>>(`/api/v1/cargos/${cargoId}/`, body),
     ),
 
   cambiarCargo: (cargoActualId: number, body: CambiarCargoBody) =>
@@ -180,10 +238,10 @@ export const cargosApi = {
       apiClient.post<ApiResponse<CargoApiItem>>(`/api/v1/cargos/${cargoId}/estatus/`, body),
     ),
 
-  getPrestamos: (soloActivos?: boolean) =>
+  getPrestamos: (filtros?: { solo_activos?: boolean; empleado?: string }) =>
     list<PrestamoApiItem>(
       apiClient.get<ApiResponse<PrestamoApiItem[]>>("/api/v1/cargos/prestamos/", {
-        params: { solo_activos: soloActivos },
+        params: filtros,
       }),
     ),
 
@@ -192,14 +250,24 @@ export const cargosApi = {
       apiClient.post<ApiResponse<PrestamoApiItem>>("/api/v1/cargos/prestamos/", body),
     ),
 
-  finalizarPrestamo: (prestamoId: number) =>
+  finalizarPrestamo: (prestamoId: number, body?: { fecha_fin?: string }) =>
     single<PrestamoApiItem>(
-      apiClient.post<ApiResponse<PrestamoApiItem>>(`/api/v1/cargos/prestamos/${prestamoId}/finalizar/`, {}),
+      apiClient.post<ApiResponse<PrestamoApiItem>>(`/api/v1/cargos/prestamos/${prestamoId}/finalizar/`, body ?? {}),
     ),
 
-  getMotivos: () =>
+  getMotivos: (categoria?: string) =>
     list<CatalogoApiItem>(
-      apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/tipos-movimiento/"),
+      apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/tipos-movimiento/", {
+        params: categoria ? { categoria } : undefined,
+      }),
+    ),
+
+  crearMotivo: (movimiento: string, categoria?: string) =>
+    single<CatalogoApiItem>(
+      apiClient.post<ApiResponse<CatalogoApiItem>>("/api/v1/catalogos/tipos-movimiento/", {
+        movimiento,
+        categoria: categoria || "ENCARGADURIA",
+      }),
     ),
 
   getEstatus: () =>

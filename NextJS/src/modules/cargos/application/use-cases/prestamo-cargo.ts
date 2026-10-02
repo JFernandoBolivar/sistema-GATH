@@ -12,6 +12,7 @@ function aDto(e: PrestamoCargo): PrestamoCargoDTO {
     empleadoEncargadoNombre: e.empleadoEncargadoNombre,
     cargoEncargadoId: e.cargoEncargadoId,
     cargoEncargadoCodigo: e.cargoEncargadoCodigo,
+    cargoEncargadoDenominacion: e.cargoEncargadoDenominacion || "",
     titularCedula: e.titularCedula,
     titularNombre: e.titularNombre,
     motivoId: e.motivoId,
@@ -27,9 +28,10 @@ function aDto(e: PrestamoCargo): PrestamoCargoDTO {
 
 export async function listarPrestamos(
   repo: RepoCargos,
-  soloActivos?: boolean
+  soloActivos?: boolean,
+  empleado?: string
 ): Promise<PrestamoCargoDTO[]> {
-  const entidades = await repo.listarPrestamos(soloActivos);
+  const entidades = await repo.listarPrestamos(soloActivos, empleado);
   return entidades.map(aDto);
 }
 
@@ -42,9 +44,10 @@ export async function crearPrestamo(
 
 export async function finalizarPrestamo(
   repo: RepoCargos,
-  prestamoId: number
+  prestamoId: number,
+  fechaFin?: string
 ): Promise<PrestamoCargoDTO> {
-  return aDto(await repo.finalizarPrestamo(prestamoId));
+  return aDto(await repo.finalizarPrestamo(prestamoId, fechaFin));
 }
 
 export type { PrestamoCargo };

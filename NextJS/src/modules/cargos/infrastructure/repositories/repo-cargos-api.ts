@@ -3,7 +3,9 @@
  */
 import type {
   RepoCargos,
+  ActualizarCargoInput,
   CrearCargoInput,
+  CrearCargoEspecialInput,
   CrearPrestamoInput,
   DenominacionInput,
 } from "../../domain/ports/repo-cargos";
@@ -19,12 +21,22 @@ import {
 export const repoCargosApi: RepoCargos = {
   async listarCargos(filtros) {
     const raw = filtros?.soloVacantes
-      ? await cargosApi.getVacantes(
-          filtros?.dependenciaId ? { dependencia_id: filtros.dependenciaId } : undefined,
-        )
-      : await cargosApi.getCargos(
-          filtros?.dependenciaId ? { dependencia_id: filtros.dependenciaId } : undefined,
-        );
+      ? await cargosApi.getVacantes({
+          dependencia_id: filtros?.dependenciaId,
+          tipo_nomina_id: filtros?.tipoNominaId,
+          direccion_general_id: filtros?.direccionGeneralId,
+          direccion_linea_id: filtros?.direccionLineaId,
+          coordinacion_id: filtros?.coordinacionId,
+          codigo: filtros?.codigo,
+        })
+      : await cargosApi.getCargos({
+          dependencia_id: filtros?.dependenciaId,
+          tipo_nomina_id: filtros?.tipoNominaId,
+          direccion_general_id: filtros?.direccionGeneralId,
+          direccion_linea_id: filtros?.direccionLineaId,
+          coordinacion_id: filtros?.coordinacionId,
+          codigo: filtros?.codigo,
+        });
     return raw.map(cargoApiAEntidad);
   },
 
@@ -38,6 +50,24 @@ export const repoCargosApi: RepoCargos = {
 
   async asignarCargo(cargoId, empleadoCedula) {
     return cargoApiAEntidad(await cargosApi.asignar(cargoId, empleadoCedula));
+  },
+
+  async asignarCargoEspecial(input: CrearCargoEspecialInput) {
+    return cargoApiAEntidad(
+      await cargosApi.asignarCargoEspecial({
+        cedula_empleado: input.cedulaEmpleado,
+        denominacion_id: input.denominacionId,
+        especifica_id: input.especificaId,
+        tipo_nomina_id: input.tipoNominaId,
+        dependencia_id: input.dependenciaId || null,
+        direccion_general_id: input.direccionGeneralId || null,
+        direccion_linea_id: input.direccionLineaId || null,
+        coordinacion_id: input.coordinacionId || null,
+        organismo_id: input.organismoId || null,
+        grado_id: input.gradoId || null,
+        observaciones: input.observaciones || null,
+      }),
+    );
   },
 
   async desasignarCargo(cargoId) {
@@ -56,8 +86,8 @@ export const repoCargosApi: RepoCargos = {
     );
   },
 
-  async listarPrestamos(soloActivos) {
-    return (await cargosApi.getPrestamos(soloActivos)).map(prestamoApiAEntidad);
+  async listarPrestamos(soloActivos, empleado) {
+    return (await cargosApi.getPrestamos({ solo_activos: soloActivos, empleado })).map(prestamoApiAEntidad);
   },
 
   async crearPrestamo(input: CrearPrestamoInput) {
@@ -72,8 +102,8 @@ export const repoCargosApi: RepoCargos = {
     );
   },
 
-  async finalizarPrestamo(prestamoId) {
-    return prestamoApiAEntidad(await cargosApi.finalizarPrestamo(prestamoId));
+  async finalizarPrestamo(prestamoId, fechaFin) {
+    return prestamoApiAEntidad(await cargosApi.finalizarPrestamo(prestamoId, fechaFin ? { fecha_fin: fechaFin } : undefined));
   },
 
   async crearDenominacion(input: DenominacionInput) {
@@ -106,8 +136,8 @@ export const repoCargosApi: RepoCargos = {
     await cargosApi.eliminarDenominacionEspecifica(id);
   },
 
-  async listarMotivos() {
-    return (await cargosApi.getMotivos()).map(catalogoApiAEntidad);
+  async listarMotivos(categoria?: string) {
+    return (await cargosApi.getMotivos(categoria)).map(catalogoApiAEntidad);
   },
 
   async listarEstatus() {
@@ -127,6 +157,22 @@ export const repoCargosApi: RepoCargos = {
         organismo_id: input.organismoId,
         grado_id: input.gradoId,
         observaciones: input.observaciones,
+      }),
+    );
+  },
+
+  async actualizarCargo(cargoId: number, input: ActualizarCargoInput) {
+    return cargoApiAEntidad(
+      await cargosApi.actualizarCargo(cargoId, {
+        denominacioncargoid: input.denominacioncargoid,
+        denominacioncargoespecificoid: input.denominacioncargoespecificoid,
+        tiponominaid: input.tiponominaid,
+        gradoid: input.gradoid,
+        OrganismoAdscritoid: input.OrganismoAdscritoid,
+        Dependencia: input.Dependencia,
+        DireccionGeneral: input.DireccionGeneral,
+        DireccionLinea: input.DireccionLinea,
+        Coordinacion: input.Coordinacion,
       }),
     );
   },

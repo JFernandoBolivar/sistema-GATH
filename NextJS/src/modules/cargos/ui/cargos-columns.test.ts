@@ -8,9 +8,9 @@ vi.mock("@/lib/api-client", () => ({
 import { construirColumnasCargos } from "./cargos-columns";
 
 describe("construirColumnasCargos (PBAC Gating)", () => {
-  it("debe generar 8 columnas incluyendo columna de acciones", () => {
+  it("debe generar 12 columnas incluyendo columna de acciones", () => {
     const columnas = construirColumnasCargos(true, vi.fn());
-    expect(columnas).toHaveLength(8);
+    expect(columnas).toHaveLength(12);
     const colAcciones = columnas.find((c) => c.id === "actions");
     expect(colAcciones).toBeDefined();
     expect(colAcciones?.header).toBe("Acciones");

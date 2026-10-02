@@ -74,9 +74,11 @@ export const pasivosApi = {
       }),
     ),
 
-  getTiposNomina: () =>
+  getTiposNomina: (soloPasivos: boolean = true) =>
     list<CatalogoPasivoApiItem>(
-      apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/tipos-nomina/"),
+      apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/tipos-nomina/", {
+        params: soloPasivos ? { solo_pasivos: true } : undefined,
+      }),
     ),
 
   // --- Catálogos del expediente (vista de detalle) ---

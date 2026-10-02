@@ -1,7 +1,5 @@
 "use client";
 
-import { apiFetch } from "@/lib/api-client";
-import { getEmployeeById, getPoliticas } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,14 +14,42 @@ import {
 } from "@/components/ui/select";
 import { formatInTimeZone } from "date-fns-tz";
 import { CalendarIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
-import useSWR from "swr";
-import type { Contrato, Politica } from "@/app/types/types";
+import type { Contrato } from "@/app/types/types";
+import {
+  getEmpleadoPorCedulaAction,
+  actualizarEmpleadoAction,
+} from "@/modules/personal/infrastructure/actions/personal-actions";
+import { getPoliticasAction } from "@/modules/catalogos/infrastructure/actions/catalogos-actions";
+
+export interface ContratoInlineEmployee {
+  id?: number;
+  cedulaidentidad?: string;
+  cedula?: string;
+  contrato?: Contrato[];
+  contratoActual?: {
+    id?: number;
+    nContrato?: string | null;
+    estatusNombre?: string | null;
+    fechaIngreso?: string | null;
+    fechaCulminacion?: string | null;
+    politicaId?: number | null;
+    politicaNombre?: string | null;
+    estatusId?: number | null;
+    esFijo?: boolean;
+  } | null;
+}
+
+export interface PoliticaOption {
+  id: number;
+  tipo_politica?: string;
+  nombre?: string;
+}
 
 interface ContratoInlineFormProps {
-  employee: { id: number; cedulaidentidad: string } | undefined;
-  politicas?: Politica[];
+  employee: ContratoInlineEmployee | undefined;
+  politicas?: PoliticaOption[];
   onSuccess?: () => void;
   className?: string;
 }
@@ -39,32 +65,89 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
   });
   const [savingContrato, setSavingContrato] = useState(false);
   const [fullContrato, setFullContrato] = useState<Contrato[]>([]);
-
-  const { data: politicasData } = useSWR(!politicas ? "politicas" : null, getPoliticas);
-  const politicasList = politicas ?? politicasData?.data ?? [];
+  const [internalPoliticas, setInternalPoliticas] = useState<PoliticaOption[]>([]);
 
   useEffect(() => {
-    if (!employee) {
+    if (politicas && politicas.length > 0) return;
+    let active = true;
+    getPoliticasAction()
+      .then((data) => {
+        if (active && Array.isArray(data)) {
+          setInternalPoliticas(
+            data.map((p) => ({
+              id: p.id,
+              tipo_politica: p.nombre,
+              nombre: p.nombre,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [politicas]);
+
+  const politicasList = useMemo(() => {
+    return politicas && politicas.length > 0 ? politicas : internalPoliticas;
+  }, [politicas, internalPoliticas]);
+
+  const cedula = employee?.cedulaidentidad || employee?.cedula || "";
+
+  useEffect(() => {
+    if (!employee || !cedula) {
       setHasActiveContrato(false);
       setShowContratoForm(false);
       return;
     }
+
+    if (employee.contratoActual) {
+      const estatus = employee.contratoActual.estatusNombre || "";
+      const isActivo = estatus !== "VENCIDO" && estatus !== "CULMINADO";
+      if (isActivo) {
+        setHasActiveContrato(true);
+        setShowContratoForm(false);
+        onSuccess?.();
+        return;
+      }
+    }
+
+    if (Array.isArray(employee.contrato) && employee.contrato.length > 0) {
+      const hasActive = employee.contrato.some((c: any) => {
+        const est = c?.estatus?.estatus || c?.estatusNombre || c?.estatus_nombre || "";
+        return est !== "VENCIDO" && est !== "CULMINADO";
+      });
+      if (hasActive) {
+        setHasActiveContrato(true);
+        setShowContratoForm(false);
+        onSuccess?.();
+        return;
+      }
+    }
+
     let cancelled = false;
     (async () => {
-      const fullEmployee = await getEmployeeById(employee.cedulaidentidad);
+      const fullEmployee = await getEmpleadoPorCedulaAction(cedula);
       if (cancelled) return;
-      if (fullEmployee.data && !Array.isArray(fullEmployee.data)) {
-        const contratos = fullEmployee.data.contrato ?? [];
+      if (fullEmployee && "cedula" in fullEmployee) {
+        const contratos = (fullEmployee.contratos ?? (fullEmployee.contratoActual ? [fullEmployee.contratoActual] : [])) as unknown as Contrato[];
         setFullContrato(contratos || []);
-        const hasActive = contratos.some((c) => c.estatus?.estatus !== "VENCIDO");
+        const hasActive =
+          (fullEmployee.contratoActual &&
+            fullEmployee.contratoActual.estatusNombre !== "VENCIDO" &&
+            fullEmployee.contratoActual.estatusNombre !== "CULMINADO") ||
+          contratos.some((c: any) => {
+            const est = c?.estatus?.estatus || c?.estatusNombre || c?.estatus_nombre || "";
+            return est !== "VENCIDO" && est !== "CULMINADO";
+          });
         setHasActiveContrato(!!hasActive);
         if (!hasActive) {
           setShowContratoForm(true);
-          const initials = politicasList[0]?.tipo_politica?.charAt(0)?.toUpperCase() || "C";
+          const firstPolitica = politicasList[0];
+          const initials =
+            (firstPolitica?.tipo_politica || firstPolitica?.nombre)?.charAt(0)?.toUpperCase() || "C";
           const count = (contratos.length || 0) + 1;
           setContratoData((prev) => ({
             ...prev,
-            n_contrato: `${initials}-${fullEmployee.data.cedulaidentidad}-${String(count).padStart(2, "0")}`,
+            n_contrato: `${initials}-${cedula}-${String(count).padStart(2, "0")}`,
           }));
         } else {
           setShowContratoForm(false);
@@ -73,13 +156,14 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
       }
     })();
     return () => { cancelled = true; };
-  }, [employee, politicasList]);
+  }, [employee, cedula, politicasList, onSuccess]);
 
-  const generateNContrato = (cedula: string, politicaId: number) => {
+  const generateNContrato = (empCedula: string, politicaId: number) => {
     const selectedPolitica = politicasList.find((p) => p.id === politicaId);
-    const initials = selectedPolitica?.tipo_politica?.charAt(0)?.toUpperCase() || "C";
+    const initials =
+      (selectedPolitica?.tipo_politica || selectedPolitica?.nombre)?.charAt(0)?.toUpperCase() || "C";
     const count = (fullContrato.length || 0) + 1;
-    return `${initials}-${cedula}-${String(count).padStart(2, "0")}`;
+    return `${initials}-${empCedula}-${String(count).padStart(2, "0")}`;
   };
 
   const handleSaveContrato = async () => {
@@ -91,40 +175,33 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
       toast.error("Seleccione fecha de ingreso");
       return;
     }
-    if (!employee) return;
+    if (!cedula) return;
 
     setSavingContrato(true);
     try {
-      const n_contrato = contratoData.n_contrato || generateNContrato(employee.cedulaidentidad, contratoData.politica_id);
-      const session = await fetch("/api/auth/session").then((r) => r.json());
-      const userId = session?.user?.id;
+      const n_contrato =
+        contratoData.n_contrato || generateNContrato(cedula, contratoData.politica_id);
 
-      const payload = {
-        usuario_id: Number(userId),
+      const res = await actualizarEmpleadoAction(cedula, {
         contrato: [
           {
-            n_contrato,
-            fecha_ingreso: contratoData.fecha_ingreso.toISOString().split("T")[0],
-            politica_id: contratoData.politica_id,
-            fecha_culminacion: contratoData.fecha_culminacion
-              ? contratoData.fecha_culminacion.toISOString().split("T")[0]
-              : null,
+            nContrato: n_contrato,
+            fechaIngreso: formatInTimeZone(contratoData.fecha_ingreso, "UTC", "yyyy-MM-dd"),
+            politicaId: contratoData.politica_id,
+            fechaCulminacion: contratoData.fecha_culminacion
+              ? formatInTimeZone(contratoData.fecha_culminacion, "UTC", "yyyy-MM-dd")
+              : undefined,
           },
         ],
-      };
-
-      const data = await apiFetch<{ status: string; message?: string }>(`Employee/${employee.id}/`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
       });
 
-      if (data.status === "success") {
+      if (res && "error" in res) {
+        toast.error(res.error);
+      } else {
         toast.success("Contrato registrado correctamente");
         setHasActiveContrato(true);
         setShowContratoForm(false);
         onSuccess?.();
-      } else {
-        toast.error(data.message || "Error al registrar contrato");
       }
     } catch {
       toast.error("Error de conexión");
@@ -156,7 +233,7 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
               setContratoData((prev) => ({
                 ...prev,
                 politica_id: politicaId,
-                n_contrato: prev.n_contrato || generateNContrato(employee.cedulaidentidad, politicaId),
+                n_contrato: prev.n_contrato || generateNContrato(cedula, politicaId),
               }));
             }}
             value={contratoData.politica_id ? contratoData.politica_id.toString() : ""}

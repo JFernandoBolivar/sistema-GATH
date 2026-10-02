@@ -14,7 +14,7 @@ export async function listarDependencias(
   repo: RepoOrganizacion
 ): Promise<DependenciaDTO[]> {
   const entidades = await repo.listarDependencias();
-  return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
+  return entidades.map((e) => ({ id: e.id, codigo: e.codigo, nombre: e.nombre }));
 }
 
 export async function listarDireccionesGenerales(
@@ -24,6 +24,7 @@ export async function listarDireccionesGenerales(
   const entidades = await repo.listarDireccionesGenerales(dependenciaId);
   return entidades.map((e) => ({
     id: e.id,
+    codigo: e.codigo,
     nombre: e.nombre,
     dependenciaId: e.dependenciaId,
   }));
@@ -36,6 +37,7 @@ export async function listarDireccionesLinea(
   const entidades = await repo.listarDireccionesLinea(direccionGeneralId);
   return entidades.map((e) => ({
     id: e.id,
+    codigo: e.codigo,
     nombre: e.nombre,
     direccionGeneralId: e.direccionGeneralId,
   }));
@@ -48,6 +50,7 @@ export async function listarCoordinaciones(
   const entidades = await repo.listarCoordinaciones(direccionLineaId);
   return entidades.map((e) => ({
     id: e.id,
+    codigo: e.codigo,
     nombre: e.nombre,
     direccionLineaId: e.direccionLineaId,
   }));

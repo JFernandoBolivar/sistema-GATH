@@ -129,7 +129,7 @@ export default function OrganizacionPage() {
               <Combobox
                 options={dependencias.map((dp) => ({
                   value: `${dp.id}`,
-                  label: `${dp.codigo}-${dp.nombre}`,
+                  label: dp.codigo ? `${dp.codigo}-${dp.nombre}` : dp.nombre,
                 }))}
                 value={dependencyId}
                 onChange={handleSelectDependencia}
@@ -147,7 +147,7 @@ export default function OrganizacionPage() {
               <Combobox
                 options={dirGenerales.map((general) => ({
                   value: `${general.id}`,
-                  label: `${general.codigo}-${general.nombre}`,
+                  label: general.codigo ? `${general.codigo}-${general.nombre}` : general.nombre,
                 }))}
                 value={directionGeneralId}
                 onChange={handleSelectDireccionGeneral}
@@ -165,7 +165,7 @@ export default function OrganizacionPage() {
               <Combobox
                 options={dirLinea.map((line) => ({
                   value: `${line.id}`,
-                  label: `${line.codigo}-${line.nombre}`,
+                  label: line.codigo ? `${line.codigo}-${line.nombre}` : line.nombre,
                 }))}
                 value={coordinationId}
                 onChange={handleSelectDireccionLinea}

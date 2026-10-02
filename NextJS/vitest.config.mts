@@ -20,9 +20,6 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      // Debe reflejar tsconfig.json: "@/*" -> "./src/*", "#/*" -> "./*" (raíz del proyecto,
-      // p.ej. "#/auth" resuelve a auth.ts). Antes apuntaba a "./src/modules", que no existe
-      // todavía y rompía la resolución de cualquier test que importara "#/auth".
       "@": path.resolve(__dirname, "./src"),
       "#": path.resolve(__dirname, "."),
     },

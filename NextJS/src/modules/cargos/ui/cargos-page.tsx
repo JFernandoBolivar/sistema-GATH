@@ -1,33 +1,18 @@
 "use client";
 
 /**
- * Página de cargos: listado de códigos de posición (DataTable + Sheet de
- * detalle con las acciones operativas embebidas, paridad con
- * `listado-codigo/tableCodeInfo` del legado), préstamos de cargo
- * (encargadurías) y CRUD de denominaciones. El alta de un código nuevo
- * vive en su propia ruta (`/cargos/crear-codigo`, paridad con
- * `cargos/crear-codigo/` del legado) en vez de un formulario inline.
- *
- * Nota de alcance: préstamos y denominaciones se mantienen como pestañas
- * de esta misma página — son funcionalidad real y probada de
- * `apps.cargos` que no tiene una ruta equivalente identificada en el
- * legado explorado; se prioriza no perder capacidad funcional existente
- * sobre inventar una ubicación nueva.
- *
- * Cliente + react-hook-form + zodResolver; las acciones van envueltas en
- * useTransition (R8) y se delegan a las Server Actions del módulo (R7).
- * Opera exclusivamente con DTOs (R5) y no importa de `infrastructure/` (R3).
+ * Página de cargos: Listado de Códigos (DataTable + Sheet de detalle con
+ * acciones operativas embebidas, réplica exacta de paridad visual y
+ * funcional del legado `listado-codigo` y `code-list.tsx`).
  */
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Briefcase, Loader2, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eraser, Search } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
-import { Badge } from "@/shared/ui/components/badge";
 import {
   Card,
   CardContent,
@@ -36,90 +21,102 @@ import {
   CardTitle,
 } from "@/shared/ui/components/card";
 import { DataTable } from "@/shared/ui/components/data-table";
-import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
-import { Label } from "@/shared/ui/components/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/components/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
+import { Loading } from "@/shared/ui/components/loading";
 
 import type {
   CargoAsignacionDTO,
-  DenominacionCargoDTO,
-  PrestamoCargoDTO,
+  CatalogoCargoItemDTO,
+  UnidadOrganizativaCargoDTO,
 } from "../application/dtos/cargo-dto";
 import {
-  actualizarDenominacionAction,
   asignarCargoAction,
   cambiarCargoAction,
-  crearDenominacionAction,
-  crearPrestamoAction,
   desasignarCargoAction,
-  eliminarDenominacionAction,
-  finalizarPrestamoAction,
   gestionarEstatusAction,
   getCargosAction,
-  getDenominacionesAction,
+  getCoordinacionesAction,
+  getDependenciasAction,
+  getDireccionesGeneralesAction,
+  getDireccionesLineaAction,
   getEstatusAction,
   getMotivosAction,
-  getPrestamosAction,
+  getTiposNominaAction,
 } from "../infrastructure/actions/cargos-actions";
 import CargoDetalleSheet from "./cargo-detalle-sheet";
+import CargoUpdateModal from "./cargo-update-modal";
 import { construirColumnasCargos } from "./cargos-columns";
 import {
-  cargosFiltroSchema,
-  crearPrestamoSchema,
-  denominacionSchema,
-  type CargosFiltroFormType,
-  type CrearPrestamoFormType,
-  type DenominacionFormType,
+  schemaFilterForm,
+  type SchemaFilterFormType,
 } from "./schema/schema-asignar-cargo";
 
 export default function CargosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeCrearCodigo = tienePermiso(permisos, "cargos.crear");
   const puedeVerDetalle = tienePermiso(permisos, "cargos.ver");
   const puedeAsignar = tienePermiso(permisos, "cargos.asignar");
-  const puedePrestar = tienePermiso(permisos, "cargos.prestar");
-  const puedeRevertirPrestamo = tienePermiso(permisos, "cargos.revertir_prestamo");
-  const puedeCrearDenominacion = tienePermiso(permisos, "cargos.crear");
-  const puedeEditarDenominacion = tienePermiso(permisos, "cargos.editar");
-  const puedeEliminarDenominacion = tienePermiso(permisos, "cargos.desincorporar");
 
   const [cargos, setCargos] = useState<CargoAsignacionDTO[]>([]);
-  const [prestamos, setPrestamos] = useState<PrestamoCargoDTO[]>([]);
-  const [denominaciones, setDenominaciones] = useState<DenominacionCargoDTO[]>([]);
+  const [nominas, setNominas] = useState<CatalogoCargoItemDTO[]>([]);
+  const [dependencias, setDependencias] = useState<UnidadOrganizativaCargoDTO[]>([]);
+  const [direccionesGenerales, setDireccionesGenerales] = useState<UnidadOrganizativaCargoDTO[]>([]);
+  const [direccionesLinea, setDireccionesLinea] = useState<UnidadOrganizativaCargoDTO[]>([]);
+  const [coordinaciones, setCoordinaciones] = useState<UnidadOrganizativaCargoDTO[]>([]);
+
+  const [dependenciaId, setDependenciaId] = useState<number | null>(null);
+  const [direccionGeneralId, setDireccionGeneralId] = useState<number | null>(null);
+  const [direccionLineaId, setDireccionLineaId] = useState<number | null>(null);
+
+  const [isLoadingCatalogos, setIsLoadingCatalogos] = useState(false);
+  const [isLoadingDG, setIsLoadingDG] = useState(false);
+  const [isLoadingDL, setIsLoadingDL] = useState(false);
+  const [isLoadingCoord, setIsLoadingCoord] = useState(false);
+
   const [motivos, setMotivos] = useState<{ id: number; nombre: string }[]>([]);
   const [estatus, setEstatus] = useState<{ id: number; nombre: string }[]>([]);
-  const [editandoDenominacion, setEditandoDenominacion] = useState<number | null>(null);
   const [viendoDetalleId, setViendoDetalleId] = useState<number | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
+  const [cargoParaActualizar, setCargoParaActualizar] = useState<CargoAsignacionDTO | null>(null);
+  const [modalActualizarAbierto, setModalActualizarAbierto] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const filtroForm = useForm<CargosFiltroFormType>({
-    resolver: zodResolver(cargosFiltroSchema),
-    defaultValues: {},
+  const form = useForm<SchemaFilterFormType>({
+    resolver: zodResolver(schemaFilterForm),
+    defaultValues: {
+      codigo: "",
+      tipo_nomina: undefined,
+      dependencia_id: undefined,
+      direccion_general_id: undefined,
+      direccion_linea_id: undefined,
+      coordinacion_id: undefined,
+    },
   });
 
-  const prestamoForm = useForm<CrearPrestamoFormType>({
-    resolver: zodResolver(crearPrestamoSchema),
-    defaultValues: { fechaInicio: "", fechaFin: "" },
-  });
-
-  const denominacionForm = useForm<DenominacionFormType>({
-    resolver: zodResolver(denominacionSchema),
-    defaultValues: { orden: 30 },
-  });
-
-  const cargarCargos = (filtros?: { dependenciaId?: number; soloVacantes?: boolean }) => {
+  const cargarCargos = (filtros?: {
+    codigo?: string;
+    tipoNominaId?: number;
+    dependenciaId?: number;
+    direccionGeneralId?: number;
+    direccionLineaId?: number;
+    coordinacionId?: number;
+  }) => {
     startTransition(async () => {
       setError(null);
       try {
@@ -130,52 +127,130 @@ export default function CargosPage() {
     });
   };
 
-  const cargarPrestamos = () => {
-    startTransition(async () => {
-      setError(null);
-      try {
-        setPrestamos(await getPrestamosAction());
-      } catch {
-        setError("No fue posible cargar los préstamos.");
-      }
-    });
-  };
-
-  const cargarDenominaciones = () => {
-    startTransition(async () => {
-      setError(null);
-      try {
-        setDenominaciones(await getDenominacionesAction());
-      } catch {
-        setError("No fue posible cargar las denominaciones.");
-      }
-    });
-  };
-
   useEffect(() => {
     cargarCargos();
-    cargarPrestamos();
-    startTransition(async () => {
+    const cargarCatalogosIniciales = async () => {
+      setIsLoadingCatalogos(true);
       try {
-        const [denoms, motivosList, estatusList] = await Promise.all([
-          getDenominacionesAction(),
+        const [nominasList, dependenciasList, motivosList, estatusList] = await Promise.all([
+          getTiposNominaAction(),
+          getDependenciasAction(),
           getMotivosAction(),
           getEstatusAction(),
         ]);
-        setDenominaciones(denoms);
+        setNominas(nominasList);
+        setDependencias(dependenciasList);
         setMotivos(motivosList);
         setEstatus(estatusList);
       } catch {
-        setError("No fue posible cargar catálogos auxiliares.");
+        setError("No fue posible cargar los catálogos de filtro.");
+      } finally {
+        setIsLoadingCatalogos(false);
       }
-    });
+    };
+    cargarCatalogosIniciales();
   }, []);
 
-  const onFiltro = (data: CargosFiltroFormType) => {
-    cargarCargos({ dependenciaId: data.dependenciaId ?? undefined, soloVacantes: data.soloVacantes });
+  const handleDependenciaChange = async (val: string) => {
+    const id = Number.parseInt(val);
+    form.setValue("dependencia_id", id);
+    form.setValue("direccion_general_id", undefined);
+    form.setValue("direccion_linea_id", undefined);
+    form.setValue("coordinacion_id", undefined);
+    setDependenciaId(id);
+    setDireccionGeneralId(null);
+    setDireccionLineaId(null);
+    setDireccionesGenerales([]);
+    setDireccionesLinea([]);
+    setCoordinaciones([]);
+
+    if (id > 0) {
+      setIsLoadingDG(true);
+      try {
+        const dgs = await getDireccionesGeneralesAction(id);
+        setDireccionesGenerales(dgs);
+      } catch (e) {
+        console.error("Error cargando direcciones generales:", e);
+      } finally {
+        setIsLoadingDG(false);
+      }
+    }
+  };
+
+  const handleDireccionGeneralChange = async (val: string) => {
+    const id = Number.parseInt(val);
+    form.setValue("direccion_general_id", id);
+    form.setValue("direccion_linea_id", undefined);
+    form.setValue("coordinacion_id", undefined);
+    setDireccionGeneralId(id);
+    setDireccionLineaId(null);
+    setDireccionesLinea([]);
+    setCoordinaciones([]);
+
+    if (id > 0) {
+      setIsLoadingDL(true);
+      try {
+        const dls = await getDireccionesLineaAction(id);
+        setDireccionesLinea(dls);
+      } catch (e) {
+        console.error("Error cargando direcciones de línea:", e);
+      } finally {
+        setIsLoadingDL(false);
+      }
+    }
+  };
+
+  const handleDireccionLineaChange = async (val: string) => {
+    const id = Number.parseInt(val);
+    form.setValue("direccion_linea_id", id);
+    form.setValue("coordinacion_id", undefined);
+    setDireccionLineaId(id);
+    setCoordinaciones([]);
+
+    if (id > 0) {
+      setIsLoadingCoord(true);
+      try {
+        const coords = await getCoordinacionesAction(id);
+        setCoordinaciones(coords);
+      } catch (e) {
+        console.error("Error cargando coordinaciones:", e);
+      } finally {
+        setIsLoadingCoord(false);
+      }
+    }
+  };
+
+  const onSearch = (values: SchemaFilterFormType) => {
+    cargarCargos({
+      codigo: values.codigo?.trim() || undefined,
+      tipoNominaId: values.tipo_nomina && values.tipo_nomina > 0 ? values.tipo_nomina : undefined,
+      dependenciaId: values.dependencia_id || undefined,
+      direccionGeneralId: values.direccion_general_id || undefined,
+      direccionLineaId: values.direccion_linea_id || undefined,
+      coordinacionId: values.coordinacion_id || undefined,
+    });
+  };
+
+  const cleanFields = () => {
+    form.reset({
+      codigo: "",
+      tipo_nomina: undefined,
+      dependencia_id: undefined,
+      direccion_general_id: undefined,
+      direccion_linea_id: undefined,
+      coordinacion_id: undefined,
+    });
+    setDependenciaId(null);
+    setDireccionGeneralId(null);
+    setDireccionLineaId(null);
+    setDireccionesGenerales([]);
+    setDireccionesLinea([]);
+    setCoordinaciones([]);
+    cargarCargos({});
   };
 
   const cargoSeleccionado = cargos.find((c) => c.id === viendoDetalleId) ?? null;
+  const cargosVacantes = cargos.filter((c) => c.estaVacante);
 
   const onVerDetalle = (cargoId: number) => {
     setViendoDetalleId(cargoId);
@@ -219,7 +294,6 @@ export default function CargosPage() {
       }
       setDetalleAbierto(false);
       cargarCargos();
-      cargarPrestamos();
     });
   };
 
@@ -236,297 +310,282 @@ export default function CargosPage() {
     });
   };
 
-  const onCrearPrestamo = (data: CrearPrestamoFormType) => {
-    startTransition(async () => {
-      setError(null);
-      const result = await crearPrestamoAction(data as { cedulaEncargado: string; cargoId: number; motivoId: number; fechaInicio: string; fechaFin: string });
-      if (result && typeof result === "object" && "error" in result) {
-        setError((result as { error: string }).error);
-        return;
-      }
-      prestamoForm.reset({ fechaInicio: "", fechaFin: "" });
-      cargarPrestamos();
-    });
+  const onActualizar = (cargo: CargoAsignacionDTO) => {
+    setCargoParaActualizar(cargo);
+    setModalActualizarAbierto(true);
   };
 
-  const onFinalizarPrestamo = (prestamoId: number) => {
-    startTransition(async () => {
-      setError(null);
-      const result = await finalizarPrestamoAction(prestamoId);
-      if (result && typeof result === "object" && "error" in result) {
-        setError((result as { error: string }).error);
-        return;
-      }
-      cargarPrestamos();
-    });
-  };
-
-  const onGuardarDenominacion = (data: DenominacionFormType) => {
-    startTransition(async () => {
-      setError(null);
-      const input = { nombre: data.nombre, orden: data.orden ?? 30 };
-      const result = editandoDenominacion
-        ? await actualizarDenominacionAction(editandoDenominacion, input)
-        : await crearDenominacionAction(input);
-      if (result && typeof result === "object" && "error" in result) {
-        setError((result as { error: string }).error);
-        return;
-      }
-      setEditandoDenominacion(null);
-      denominacionForm.reset({ orden: 30 });
-      cargarDenominaciones();
-    });
-  };
-
-  const onEditarDenominacion = (d: DenominacionCargoDTO) => {
-    setEditandoDenominacion(d.id);
-    denominacionForm.reset({ nombre: d.nombre, orden: d.orden });
-  };
-
-  const onEliminarDenominacion = (id: number) => {
-    startTransition(async () => {
-      setError(null);
-      const result = await eliminarDenominacionAction(id);
-      if (result && typeof result === "object" && "error" in result) {
-        setError((result as { error: string }).error);
-        return;
-      }
-      if (editandoDenominacion === id) setEditandoDenominacion(null);
-      cargarDenominaciones();
-    });
-  };
-
-  const cargosVacantes = cargos.filter((c) => c.estaVacante);
-  const columnas = construirColumnasCargos(puedeVerDetalle, onVerDetalle);
+  const columnas = construirColumnasCargos(puedeVerDetalle, onVerDetalle, onActualizar);
 
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Briefcase className="size-5 text-muted-foreground" aria-hidden="true" />
-          <h1 className="text-xl font-semibold tracking-tight">Cargos</h1>
-        </div>
-        {puedeCrearCodigo && (
-          <Button asChild>
-            <Link href="/cargos/crear-codigo">
-              <Plus className="size-4" aria-hidden="true" /> Nuevo código
-            </Link>
-          </Button>
-        )}
-      </header>
-
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-
-      <Tabs defaultValue="codigos">
-        <TabsList>
-          <TabsTrigger value="codigos">Códigos</TabsTrigger>
-          <TabsTrigger value="prestamos">Préstamos</TabsTrigger>
-          <TabsTrigger value="denominaciones">Denominaciones</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="codigos" className="flex flex-col gap-4">
-          {isPending && cargos.length === 0 ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+    <Card className="bg-white">
+      <CardHeader>
+        <CardTitle>
+          <h1 className="text-2xl font-semibold">Listado De Cargos</h1>
+        </CardTitle>
+        <CardDescription>
+          Listado Detallado De Cargos Registrados En El Sistema
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSearch)}>
+            <div className="flex flex-row items-center gap-2 w-full flex-1">
+              <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+                <FormField
+                  name="codigo"
+                  control={form.control}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Buscar Código</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="buscar codigo..."
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="tipo_nomina"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipo de Nomina</FormLabel>
+                      <Select
+                        value={field.value !== undefined ? String(field.value) : undefined}
+                        onValueChange={(val) => {
+                          field.onChange(Number.parseInt(val));
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full truncate">
+                            <SelectValue
+                              placeholder={
+                                isLoadingCatalogos
+                                  ? "Cargando Nominas"
+                                  : "Seleccione un Tipo de Nomina"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0">Ninguno</SelectItem>
+                          {nominas.map((n) => (
+                            <SelectItem key={n.id} value={String(n.id)}>
+                              {n.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dependencia_id"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Nivel</FormLabel>
+                      <Select
+                        value={field.value !== undefined ? String(field.value) : undefined}
+                        onValueChange={handleDependenciaChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full truncate">
+                            <SelectValue
+                              placeholder={
+                                isLoadingCatalogos
+                                  ? "Cargando Nivel"
+                                  : "Seleccione un Nivel"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {dependencias.map((dep) => (
+                            <SelectItem key={dep.id} value={String(dep.id)}>
+                              {dep.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="direccion_general_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
+                      <Select
+                        value={field.value !== undefined ? String(field.value) : undefined}
+                        disabled={!dependenciaId}
+                        onValueChange={handleDireccionGeneralChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full truncate">
+                            <SelectValue
+                              placeholder={
+                                isLoadingDG
+                                  ? "Cargando Direcciones"
+                                  : "Seleccione una Dirección"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {direccionesGenerales.map((general) => (
+                            <SelectItem key={general.id} value={String(general.id)}>
+                              {general.codigo ? `${general.codigo}-${general.nombre}` : general.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="direccion_linea_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>División / Coordinación</FormLabel>
+                      <Select
+                        value={field.value !== undefined ? String(field.value) : undefined}
+                        disabled={!direccionGeneralId}
+                        onValueChange={handleDireccionLineaChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full truncate">
+                            <SelectValue
+                              placeholder={
+                                isLoadingDL
+                                  ? "Cargando División / Coordinación"
+                                  : "Seleccione una División / Coordinación"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {direccionesLinea.map((line) => (
+                            <SelectItem key={line.id} value={String(line.id)}>
+                              {line.codigo ? `${line.codigo}-${line.nombre}` : line.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="coordinacion_id"
+                  render={({ field }) => (
+                    <FormItem className="col-span-2">
+                      <FormLabel>Coordinación</FormLabel>
+                      <Select
+                        value={field.value !== undefined ? String(field.value) : undefined}
+                        disabled={!direccionLineaId}
+                        onValueChange={(val) => {
+                          field.onChange(Number.parseInt(val));
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full truncate">
+                            <SelectValue
+                              placeholder={
+                                isLoadingCoord
+                                  ? "Cargando Coordinaciones"
+                                  : "Seleccione una Coordinación"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {coordinaciones.map((coord) => (
+                            <SelectItem key={coord.id} value={String(coord.id)}>
+                              {coord.codigo ? `${coord.codigo}-${coord.nombre}` : coord.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  className="cursor-pointer self-baseline-last"
+                  type="submit"
+                  disabled={isPending}
+                >
+                  Buscar <Search className="ml-2 size-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="cursor-pointer self-baseline-last"
+                  type="button"
+                  onClick={cleanFields}
+                  disabled={isPending}
+                >
+                  Limpiar <Eraser className="ml-2 size-4" />
+                </Button>
+              </div>
             </div>
-          ) : (
+          </form>
+        </Form>
+
+        {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+
+        {isPending && cargos.length === 0 ? (
+          <Loading className="mt-6 border-none shadow-none" promiseMessage="Cargando Cargos..." />
+        ) : (
+          <div className="mt-4 w-full overflow-x-auto">
             <DataTable
               columns={columnas}
               data={cargos}
-              emptyMessage="No hay cargos."
-              toolbar={
-                <form onSubmit={filtroForm.handleSubmit(onFiltro)} className="flex items-end gap-2" noValidate>
-                  <Field>
-                    <Label htmlFor="dependenciaId" className="sr-only">Dependencia</Label>
-                    <Input type="number" id="dependenciaId" placeholder="Id de dependencia (opcional)" {...filtroForm.register("dependenciaId", { valueAsNumber: true })} />
-                  </Field>
-                  <label className="inline-flex items-center gap-2 whitespace-nowrap text-sm">
-                    <input type="checkbox" {...filtroForm.register("soloVacantes")} className="size-4 shrink-0" />
-                    Solo vacantes
-                  </label>
-                  <Button type="submit" variant="outline" disabled={isPending}>
-                    <RefreshCw className="size-4" aria-hidden="true" /> Buscar
-                  </Button>
-                </form>
-              }
+              emptyMessage="Sin Resultados"
             />
-          )}
-        </TabsContent>
-
-        <TabsContent value="prestamos" className="flex flex-col gap-4">
-          {puedePrestar && (
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle>Registrar préstamo de cargo</CardTitle>
-                <CardDescription>Registre una encargaduría sobre un puesto.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={prestamoForm.handleSubmit(onCrearPrestamo)} className="flex flex-col gap-4" noValidate>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <Field data-invalid={!!prestamoForm.formState.errors.cedulaEncargado}>
-                      <Label htmlFor="cedulaEncargado">Cédula del encargado</Label>
-                      <Input id="cedulaEncargado" placeholder="Ej. 12345678" {...prestamoForm.register("cedulaEncargado")} aria-invalid={!!prestamoForm.formState.errors.cedulaEncargado} />
-                    </Field>
-                    <Field data-invalid={!!prestamoForm.formState.errors.cargoId}>
-                      <Label htmlFor="prestamoCargoId">Id del cargo</Label>
-                      <Input type="number" id="prestamoCargoId" {...prestamoForm.register("cargoId", { valueAsNumber: true })} aria-invalid={!!prestamoForm.formState.errors.cargoId} />
-                    </Field>
-                    <Field data-invalid={!!prestamoForm.formState.errors.motivoId}>
-                      <Label htmlFor="prestamoMotivoId">Id del motivo</Label>
-                      <Input type="number" id="prestamoMotivoId" {...prestamoForm.register("motivoId", { valueAsNumber: true })} aria-invalid={!!prestamoForm.formState.errors.motivoId} />
-                    </Field>
-                    <Field data-invalid={!!prestamoForm.formState.errors.fechaInicio}>
-                      <Label htmlFor="fechaInicio">Fecha inicio</Label>
-                      <Input type="date" id="fechaInicio" {...prestamoForm.register("fechaInicio")} aria-invalid={!!prestamoForm.formState.errors.fechaInicio} />
-                    </Field>
-                    <Field data-invalid={!!prestamoForm.formState.errors.fechaFin}>
-                      <Label htmlFor="fechaFin">Fecha fin</Label>
-                      <Input type="date" id="fechaFin" {...prestamoForm.register("fechaFin")} aria-invalid={!!prestamoForm.formState.errors.fechaFin} />
-                    </Field>
-                  </div>
-                  <div>
-                    <Button type="submit" disabled={isPending}>
-                      <Plus className="size-4" aria-hidden="true" /> Crear préstamo
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Encargado</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Titular</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Inicio</TableHead>
-                  <TableHead>Fin</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {prestamos.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="h-16 text-center text-muted-foreground">No hay préstamos registrados.</TableCell></TableRow>
-                ) : (
-                  prestamos.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.empleadoEncargadoCedula}</TableCell>
-                      <TableCell>{p.cargoEncargadoCodigo}</TableCell>
-                      <TableCell>{p.titularNombre ?? "—"}</TableCell>
-                      <TableCell>{p.motivoNombre}</TableCell>
-                      <TableCell>{p.fechaInicio}</TableCell>
-                      <TableCell>{p.fechaFin}</TableCell>
-                      <TableCell>
-                        <Badge variant={p.estaFinalizada ? "outline" : "secondary"}>
-                          {p.estaFinalizada ? "Finalizada" : "Activa"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {!p.estaFinalizada && puedeRevertirPrestamo && (
-                          <Button variant="ghost" size="sm" onClick={() => onFinalizarPrestamo(p.id)} disabled={isPending}>
-                            Finalizar
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
           </div>
-        </TabsContent>
+        )}
 
-        <TabsContent value="denominaciones" className="flex flex-col gap-4">
-          {(editandoDenominacion ? puedeEditarDenominacion : puedeCrearDenominacion) && (
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle>{editandoDenominacion ? "Editar denominación" : "Nueva denominación"}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={denominacionForm.handleSubmit(onGuardarDenominacion)} className="flex flex-col gap-4 md:max-w-lg" noValidate>
-                  <Field data-invalid={!!denominacionForm.formState.errors.nombre}>
-                    <Label htmlFor="denominacionNombre">Nombre</Label>
-                    <Input id="denominacionNombre" {...denominacionForm.register("nombre")} aria-invalid={!!denominacionForm.formState.errors.nombre} />
-                    {denominacionForm.formState.errors.nombre && <p role="alert" className="text-sm text-destructive">{denominacionForm.formState.errors.nombre.message}</p>}
-                  </Field>
-                  <Field data-invalid={!!denominacionForm.formState.errors.orden}>
-                    <Label htmlFor="denominacionOrden">Orden</Label>
-                    <Input type="number" id="denominacionOrden" {...denominacionForm.register("orden", { valueAsNumber: true })} aria-invalid={!!denominacionForm.formState.errors.orden} />
-                  </Field>
-                  <div className="flex items-center gap-2">
-                    <Button type="submit" disabled={isPending}>
-                      <Plus className="size-4" aria-hidden="true" /> {editandoDenominacion ? "Actualizar" : "Crear"}
-                    </Button>
-                    {editandoDenominacion && (
-                      <Button type="button" variant="outline" onClick={() => { setEditandoDenominacion(null); denominacionForm.reset({ orden: 30 }); }}>
-                        Cancelar
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+        <CargoDetalleSheet
+          open={detalleAbierto}
+          onOpenChange={(open) => {
+            setDetalleAbierto(open);
+            if (!open) setViendoDetalleId(null);
+          }}
+          cargo={cargoSeleccionado}
+          cargosVacantes={cargosVacantes.filter((c) => c.id !== viendoDetalleId)}
+          motivos={motivos}
+          estatus={estatus}
+          onAsignar={onAsignar}
+          onDesasignar={onDesasignar}
+          onTrasladar={onTrasladar}
+          onCambiarEstatus={onCambiarEstatus}
+          isPending={isPending}
+          puedeAsignar={puedeAsignar}
+        />
 
-          <div className="overflow-hidden rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Id</TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Orden</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {denominaciones.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="h-16 text-center text-muted-foreground">No hay denominaciones registradas.</TableCell></TableRow>
-                ) : (
-                  denominaciones.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell className="font-medium">{d.id}</TableCell>
-                      <TableCell>{d.nombre}</TableCell>
-                      <TableCell>{d.orden}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {puedeEditarDenominacion && (
-                            <Button variant="ghost" size="sm" onClick={() => onEditarDenominacion(d)} disabled={isPending}><Pencil className="size-4" aria-hidden="true" /></Button>
-                          )}
-                          {puedeEliminarDenominacion && (
-                            <Button variant="ghost" size="sm" onClick={() => onEliminarDenominacion(d.id)} disabled={isPending}><Trash2 className="size-4" aria-hidden="true" /></Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      <CargoDetalleSheet
-        open={detalleAbierto}
-        onOpenChange={(open) => {
-          setDetalleAbierto(open);
-          if (!open) setViendoDetalleId(null);
-        }}
-        cargo={cargoSeleccionado}
-        cargosVacantes={cargosVacantes.filter((c) => c.id !== viendoDetalleId)}
-        motivos={motivos}
-        estatus={estatus}
-        onAsignar={onAsignar}
-        onDesasignar={onDesasignar}
-        onTrasladar={onTrasladar}
-        onCambiarEstatus={onCambiarEstatus}
-        isPending={isPending}
-        puedeAsignar={puedeAsignar}
-      />
-    </section>
+        <CargoUpdateModal
+          open={modalActualizarAbierto}
+          onOpenChange={(open) => {
+            setModalActualizarAbierto(open);
+            if (!open) setCargoParaActualizar(null);
+          }}
+          cargo={cargoParaActualizar}
+          onUpdated={() => cargarCargos()}
+        />
+      </CardContent>
+    </Card>
   );
 }
