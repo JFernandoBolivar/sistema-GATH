@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
-from decouple import config
+from decouple import config, Csv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -31,15 +31,16 @@ DEBUG = config('DJANGO_DEBUG', default=False, cast=bool)
 
 # Dentro de Docker, otros servicios llegan a este contenedor por el hostname del servicio (por ej. "django").
 
-
-
-ALLOWED_HOSTS = ['172.16.10.209', '127.0.0.1','localhost', 'django', 'djangoapp', 'django-App', 'postgresdb', 'nextjs-App','172.16.26.48','172.16.26.48','172.17.105.223', 'testserver']
+_DEFAULT_ALLOWED_HOSTS = (
+    '127.0.0.1,localhost,django,djangoapp,django-App,postgresdb,nextjs-App,'
+    '172.16.10.209,172.16.26.48,172.17.105.223,testserver'
+)
+ALLOWED_HOSTS = config('DJANGO_ALLOWED_HOSTS', default=_DEFAULT_ALLOWED_HOSTS, cast=Csv())
 
 # Application definition
 
 INSTALLED_APPS = [
     'corsheaders',
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -80,24 +81,13 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'GATH.urls'
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://172.16.26.48:3000", 
-    "http://djangoapp:3000",
-    "http://192.168.1.5:3000", 
-    "http://172.16.10.209:3000",
-    "http://127.0.0.1:3000",
-    "http://next-app:3000",
-    "http://nextjs-App:3000",
-    "http://172.16.24.81:3000",
-    "http://172.21.192.1:3000",
-    "http://172.21.192.1:3000",
-    "http://172.16.24.56:3000",
-    "http://192.168.137.22:3000",
-    "http://172.22.112.1:3000",
-    "http://172.17.105.223:3000"
-  
-]
+_DEFAULT_CORS_ORIGINS = (
+    'http://localhost:3000,http://127.0.0.1:3000,http://djangoapp:3000,http://next-app:3000,'
+    'http://nextjs-App:3000,http://172.16.26.48:3000,http://192.168.1.5:3000,http://172.16.10.209:3000,'
+    'http://172.16.24.81:3000,http://172.21.192.1:3000,http://172.16.24.56:3000,http://192.168.137.22:3000,'
+    'http://172.22.112.1:3000,http://172.17.105.223:3000'
+)
+CORS_ALLOWED_ORIGINS = list(dict.fromkeys(config('CORS_ALLOWED_ORIGINS', default=_DEFAULT_CORS_ORIGINS, cast=Csv())))
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -197,7 +187,10 @@ SPECTACULAR_SETTINGS = {
 CARNET_VALIDATOR_URL = os.getenv('CARNET_VALIDATOR_URL', 'https://midominio.com/validar')
 CARNET_COMPANY_NAME = os.getenv('CARNET_COMPANY_NAME', 'CONATEL')
 NESTJS_URL = os.getenv('NESTJS_URL', 'http://localhost:5000/')
-POPPLER_PATH = os.getenv('POPPLER_PATH', r'C:\poppler\poppler-25.12.0\Library\bin')
+POPPLER_PATH = os.getenv(
+    'POPPLER_PATH',
+    r'C:\poppler\poppler-25.12.0\Library\bin' if os.name == 'nt' else '/usr/bin',
+)
 
 CACHES = {
     'default': {

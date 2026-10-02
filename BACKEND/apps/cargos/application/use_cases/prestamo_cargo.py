@@ -15,6 +15,7 @@ def _prestamo_a_dto(entidad) -> PrestamoCargoDTO:
         empleado_encargado_nombre=entidad.empleado_encargado_nombre,
         cargo_encargado_id=entidad.cargo_encargado_id,
         cargo_encargado_codigo=entidad.cargo_encargado_codigo,
+        cargo_encargado_denominacion=getattr(entidad, 'cargo_encargado_denominacion', ''),
         titular_cedula=entidad.titular_cedula,
         titular_nombre=entidad.titular_nombre,
         motivo_id=entidad.motivo_id,
@@ -28,8 +29,14 @@ def _prestamo_a_dto(entidad) -> PrestamoCargoDTO:
     )
 
 
-def listar_prestamos(repo: RepoCargos, solo_activos: bool = False) -> list[PrestamoCargoDTO]:
-    return [_prestamo_a_dto(e) for e in repo.listar_prestamos(solo_activos=solo_activos)]
+def listar_prestamos(
+    repo: RepoCargos, solo_activos: bool = False, empleado: str | None = None
+) -> list[PrestamoCargoDTO]:
+    try:
+        entidades = repo.listar_prestamos(solo_activos=solo_activos, empleado=empleado)
+    except TypeError:
+        entidades = repo.listar_prestamos(solo_activos=solo_activos)
+    return [_prestamo_a_dto(e) for e in entidades]
 
 
 def crear_prestamo(
@@ -52,6 +59,9 @@ def crear_prestamo(
     return _prestamo_a_dto(entidad)
 
 
-def finalizar_prestamo(repo: RepoCargos, prestamo_id: int) -> PrestamoCargoDTO:
-    entidad = repo.finalizar_prestamo(prestamo_id=prestamo_id)
+def finalizar_prestamo(repo: RepoCargos, prestamo_id: int, fecha_fin=None) -> PrestamoCargoDTO:
+    try:
+        entidad = repo.finalizar_prestamo(prestamo_id=prestamo_id, fecha_fin=fecha_fin)
+    except TypeError:
+        entidad = repo.finalizar_prestamo(prestamo_id=prestamo_id)
     return _prestamo_a_dto(entidad)

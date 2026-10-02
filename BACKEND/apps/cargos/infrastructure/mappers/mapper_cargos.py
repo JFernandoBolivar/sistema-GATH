@@ -32,10 +32,14 @@ def denominacion_especifica_a_entidad(
 
 
 def cargo_asignacion_a_entidad(modelo: AsigTrabajoModel) -> CargoAsignacion:
+    empleado_nom = None
+    if modelo.employee:
+        empleado_nom = f"{modelo.employee.nombres} {modelo.employee.apellidos}".strip()
     return CargoAsignacion(
         id=modelo.pk,
         codigo=modelo.codigo,
         empleado_cedula=str(modelo.employee_id) if modelo.employee_id else None,
+        empleado_nombre=empleado_nom,
         denominacion_id=modelo.denominacioncargoid_id,
         denominacion_nombre=modelo.denominacioncargoid.cargo if modelo.denominacioncargoid else "",
         especifica_id=modelo.denominacioncargoespecificoid_id,
@@ -52,7 +56,12 @@ def cargo_asignacion_a_entidad(modelo: AsigTrabajoModel) -> CargoAsignacion:
         direccion_linea_nombre=modelo.DireccionLinea.direccion_linea if modelo.DireccionLinea else None,
         coordinacion_id=modelo.Coordinacion_id,
         coordinacion_nombre=modelo.Coordinacion.coordinacion if modelo.Coordinacion else None,
+        organismo_id=modelo.OrganismoAdscritoid_id,
+        organismo_nombre=modelo.OrganismoAdscritoid.Organismoadscrito if modelo.OrganismoAdscritoid else None,
+        grado_id=modelo.gradoid_id,
+        grado_nombre=modelo.gradoid.grado if modelo.gradoid else None,
         observaciones=modelo.observaciones,
+        fecha_actualizacion=modelo.fecha_actualizacion.isoformat() if getattr(modelo, 'fecha_actualizacion', None) else None,
     )
 
 
@@ -65,6 +74,7 @@ def prestamo_a_entidad(modelo: PrestamoCargoModel) -> PrestamoCargo:
         empleado_encargado_nombre=f"{modelo.empleado_encargado.nombres} {modelo.empleado_encargado.apellidos}".strip(),
         cargo_encargado_id=modelo.cargo_encargado_id,
         cargo_encargado_codigo=cargo.codigo if cargo else '',
+        cargo_encargado_denominacion=cargo.denominacioncargoid.cargo if cargo and cargo.denominacioncargoid else '',
         titular_cedula=titular.cedulaidentidad if titular else None,
         titular_nombre=f"{titular.nombres} {titular.apellidos}".strip() if titular else None,
         motivo_id=modelo.motivo_id,

@@ -5,6 +5,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 from rest_framework.permissions import IsAuthenticated
 
 from core.presentation.views.media_views import servir_archivo_media
+from apps.reportes.presentation.views.reportes_views import ReportePersonalActivoExcelView
 
 PERMISOS_DOCUMENTACION = [IsAuthenticated]
 PREFIJO_MEDIA = settings.MEDIA_URL.lstrip('/')
@@ -22,6 +23,7 @@ urlpatterns = [
     path('api/v1/autogestion/', include('apps.autogestion.presentation.urls')),
     path('api/v1/reportes/', include('apps.reportes.presentation.urls')),
     path('api/v1/movimientos/', include('apps.movimientos.presentation.urls')),
+    path('reportes/excel/', ReportePersonalActivoExcelView.as_view(), name='reporte-excel-legado'),
     path(
         'api/schema/',
         SpectacularAPIView.as_view(permission_classes=PERMISOS_DOCUMENTACION),

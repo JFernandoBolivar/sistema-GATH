@@ -39,6 +39,10 @@ class RepoCargos(Protocol):
         tipo_nomina_id: int | None = None,
         dependencia_id: int | None = None,
         solo_vacantes: bool = False,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+        codigo: str | None = None,
     ) -> list[CargoAsignacion]:
         ...
 
@@ -67,6 +71,9 @@ class RepoCargos(Protocol):
     def crear_cargo(self, datos: dict) -> CargoAsignacion:
         ...
 
+    def actualizar_cargo(self, cargo_id: int, datos: dict, usuario_id: int | None = None) -> CargoAsignacion:
+        ...
+
     # ------------------------------------------------------------------
     # Fase 2.5 del plan de reparación — traslado, estatus, encargaduría
     # ------------------------------------------------------------------
@@ -80,7 +87,7 @@ class RepoCargos(Protocol):
     ) -> CargoAsignacion:
         ...
 
-    def listar_prestamos(self, solo_activos: bool = False) -> list[PrestamoCargo]:
+    def listar_prestamos(self, solo_activos: bool = False, empleado: str | None = None) -> list[PrestamoCargo]:
         ...
 
     def crear_prestamo(
@@ -94,5 +101,5 @@ class RepoCargos(Protocol):
     ) -> PrestamoCargo:
         ...
 
-    def finalizar_prestamo(self, prestamo_id: int) -> PrestamoCargo:
+    def finalizar_prestamo(self, prestamo_id: int, fecha_fin=None) -> PrestamoCargo:
         ...

@@ -9,6 +9,7 @@ from drf_spectacular.utils import extend_schema
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 from apps.cargos.application.dtos.cargos_dtos import CrearCargoDTO, CrearCargoEspecialDTO
+from apps.cargos.application.use_cases.actualizar_cargo import actualizar_cargo
 from apps.cargos.application.use_cases.asignar_cargo import asignar_cargo, desasignar_cargo
 from apps.cargos.application.use_cases.asignar_cargo_especial import asignar_cargo_especial
 from apps.cargos.application.use_cases.cambiar_cargo import cambiar_cargo
@@ -34,6 +35,7 @@ from apps.cargos.application.use_cases.prestamo_cargo import (
 )
 from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
 from apps.cargos.presentation.serializers.cargos_serializers import (
+    ActualizarCargoInputSerializer,
     AsignarCargoInputSerializer,
     CambiarCargoInputSerializer,
     CargoAsignacionSerializer,
@@ -136,10 +138,17 @@ class CargosListView(APIView):
     def get(self, request):
         tipo_nomina = request.query_params.get('tipo_nomina_id')
         dependencia = request.query_params.get('dependencia_id')
+        direccion_general = request.query_params.get('direccion_general_id')
+        direccion_linea = request.query_params.get('direccion_linea_id')
+        coordinacion = request.query_params.get('coordinacion_id')
+        codigo = request.query_params.get('codigo')
         solo_vacantes = request.query_params.get('solo_vacantes', '').lower() in ('true', '1')
 
         tn_id = int(tipo_nomina) if tipo_nomina and str(tipo_nomina).isdigit() else None
         dep_id = int(dependencia) if dependencia and str(dependencia).isdigit() else None
+        dg_id = int(direccion_general) if direccion_general and str(direccion_general).isdigit() else None
+        dl_id = int(direccion_linea) if direccion_linea and str(direccion_linea).isdigit() else None
+        coord_id = int(coordinacion) if coordinacion and str(coordinacion).isdigit() else None
 
         repo = RepoCargosORM()
         dtos = listar_cargos(
@@ -147,6 +156,10 @@ class CargosListView(APIView):
             tipo_nomina_id=tn_id,
             dependencia_id=dep_id,
             solo_vacantes=solo_vacantes,
+            direccion_general_id=dg_id,
+            direccion_linea_id=dl_id,
+            coordinacion_id=coord_id,
+            codigo=codigo,
         )
         return ok(CargoAsignacionSerializer(dtos, many=True).data)
 
@@ -158,8 +171,16 @@ class CargosVacantesListView(APIView):
     def get(self, request):
         tipo_nomina = request.query_params.get('tipo_nomina_id')
         dependencia = request.query_params.get('dependencia_id')
+        direccion_general = request.query_params.get('direccion_general_id')
+        direccion_linea = request.query_params.get('direccion_linea_id')
+        coordinacion = request.query_params.get('coordinacion_id')
+        codigo = request.query_params.get('codigo')
+
         tn_id = int(tipo_nomina) if tipo_nomina and str(tipo_nomina).isdigit() else None
         dep_id = int(dependencia) if dependencia and str(dependencia).isdigit() else None
+        dg_id = int(direccion_general) if direccion_general and str(direccion_general).isdigit() else None
+        dl_id = int(direccion_linea) if direccion_linea and str(direccion_linea).isdigit() else None
+        coord_id = int(coordinacion) if coordinacion and str(coordinacion).isdigit() else None
 
         repo = RepoCargosORM()
         dtos = listar_cargos(
@@ -167,6 +188,10 @@ class CargosVacantesListView(APIView):
             tipo_nomina_id=tn_id,
             dependencia_id=dep_id,
             solo_vacantes=True,
+            direccion_general_id=dg_id,
+            direccion_linea_id=dl_id,
+            coordinacion_id=coord_id,
+            codigo=codigo,
         )
         return ok(CargoAsignacionSerializer(dtos, many=True).data)
 
@@ -196,6 +221,33 @@ class DesasignarCargoView(APIView):
         repo = RepoCargosORM()
         dto = desasignar_cargo(repo, cargo_id=cargo_id, usuario_id=request.user.pk)
         return ok(CargoAsignacionSerializer(dto).data)
+
+
+class ActualizarCargoView(APIView):
+    """
+    PUT /api/v1/cargos/<cargo_id>/ — Réplica funcional de `update_position` del legado.
+    Actualiza atributos de denominación, nómina, grado y ubicación administrativa.
+    """
+    permission_classes = [IsAuthenticated, HasPermission('cargos.editar')]
+
+    @extend_schema(
+        tags=['Cargos'],
+        summary='Actualizar atributos de un cargo',
+        request=ActualizarCargoInputSerializer,
+        responses={200: CargoAsignacionSerializer},
+    )
+    def put(self, request, cargo_id: int):
+        serializer = ActualizarCargoInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        repo = RepoCargosORM()
+        dto = actualizar_cargo(
+            repo,
+            cargo_id=cargo_id,
+            datos=serializer.validated_data,
+            usuario_id=request.user.pk,
+        )
+        return ok(CargoAsignacionSerializer(dto).data, 'Cargo actualizado correctamente.')
 
 
 class CrearCargoView(APIView):
@@ -314,8 +366,9 @@ class PrestamoCargoListCreateView(APIView):
     @extend_schema(tags=['Cargos'], summary='Listar préstamos de cargo (encargadurías)', responses={200: PrestamoCargoSerializer(many=True)})
     def get(self, request):
         solo_activos = request.query_params.get('solo_activos', '').lower() in ('true', '1')
+        empleado = request.query_params.get('empleado')
         repo = RepoCargosORM()
-        dtos = listar_prestamos(repo, solo_activos=solo_activos)
+        dtos = listar_prestamos(repo, solo_activos=solo_activos, empleado=empleado)
         return ok(PrestamoCargoSerializer(dtos, many=True).data)
 
     @extend_schema(tags=['Cargos'], summary='Registrar un préstamo de cargo (encargaduría)', request=CrearPrestamoInputSerializer, responses={201: PrestamoCargoSerializer})
@@ -343,6 +396,7 @@ class PrestamoCargoFinalizarView(APIView):
 
     @extend_schema(tags=['Cargos'], summary='Finalizar un préstamo de cargo (encargaduría)', responses={200: PrestamoCargoSerializer})
     def post(self, request, prestamo_id: int):
+        fecha_fin = request.data.get('fecha_fin')
         repo = RepoCargosORM()
-        dto = finalizar_prestamo(repo, prestamo_id=prestamo_id)
+        dto = finalizar_prestamo(repo, prestamo_id=prestamo_id, fecha_fin=fecha_fin)
         return ok(PrestamoCargoSerializer(dto).data, 'Préstamo de cargo finalizado correctamente.')

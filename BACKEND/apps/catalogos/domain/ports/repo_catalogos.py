@@ -29,7 +29,9 @@ class RepoCatalogos(Protocol):
     def listar_tipos_personal(self) -> list[CatalogoItem]:
         ...
 
-    def listar_tipos_nomina(self) -> list[CatalogoItem]:
+    def listar_tipos_nomina(
+        self, solo_especiales: bool = False, solo_pasivos: bool = False
+    ) -> list[CatalogoItem]:
         ...
 
     def listar_parentescos(self) -> list[CatalogoItem]:

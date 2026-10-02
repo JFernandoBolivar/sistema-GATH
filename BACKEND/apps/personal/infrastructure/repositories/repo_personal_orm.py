@@ -63,21 +63,31 @@ class RepoPersonalORM:
         codigo: str | None = None,
         tipo_nomina: str | int | None = None,
     ) -> list[Empleado]:
-        qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil').all().order_by('-fecha_actualizacion')
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+
+        # Solo listar trabajadores que tienen cargos asignados activos (Regla de negocio Personal Activo)
+        asig_qs = AsigTrabajoModel.objects.filter(
+            employee__isnull=False,
+        ).filter(
+            Q(Tipo_personal__tipo_personal__iexact='ACTIVO') | Q(Tipo_personal__isnull=True)
+        )
+        if codigo:
+            asig_qs = asig_qs.filter(codigo__icontains=codigo)
+        if tipo_nomina:
+            asig_qs = asig_qs.filter(tiponominaid_id=tipo_nomina)
+
+        emp_cedulas = asig_qs.values_list('employee_id', flat=True).distinct()
+
+        qs = EmployeeModel.objects.filter(
+            cedulaidentidad__in=emp_cedulas
+        ).select_related('sexoid', 'estadoCivil').order_by('-fecha_actualizacion')
+
         if busqueda:
             qs = qs.filter(
                 Q(cedulaidentidad__icontains=busqueda)
                 | Q(nombres__icontains=busqueda)
                 | Q(apellidos__icontains=busqueda)
             )
-        if codigo:
-            from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-            emp_cedulas = AsigTrabajoModel.objects.filter(codigo__icontains=codigo).values_list('employee_id', flat=True)
-            qs = qs.filter(cedulaidentidad__in=emp_cedulas)
-        if tipo_nomina:
-            from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-            emp_cedulas = AsigTrabajoModel.objects.filter(tiponominaid_id=tipo_nomina).values_list('employee_id', flat=True)
-            qs = qs.filter(cedulaidentidad__in=emp_cedulas)
         empleados = list(qs)
         antecedentes_por_empleado = self._antecedentes_cerrados_bulk(
             [e.pk for e in empleados]
@@ -102,10 +112,12 @@ class RepoPersonalORM:
         ]
 
     def obtener_por_cedula(self, cedula: str) -> Empleado | None:
+        cedula_str = str(cedula).strip() if cedula else ""
+        cedula_limpia = "".join(filter(str.isdigit, cedula_str)) if cedula_str else ""
+        qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil')
         fila = (
-            EmployeeModel.objects.select_related('sexoid', 'estadoCivil')
-            .filter(cedulaidentidad=cedula)
-            .first()
+            qs.filter(cedulaidentidad=cedula_str).first()
+            or (qs.filter(cedulaidentidad=cedula_limpia).first() if cedula_limpia else None)
         )
         if not fila:
             return None

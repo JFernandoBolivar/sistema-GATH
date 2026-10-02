@@ -31,7 +31,11 @@ class RepoCatalogosMemoria:
         self.sexos = [CatalogoItem(id=1, nombre="MASCULINO"), CatalogoItem(id=2, nombre="FEMENINO")]
         self.estatus = [CatalogoItem(id=1, nombre="ACTIVO"), CatalogoItem(id=2, nombre="EGRESADO")]
         self.tipos_personal = [CatalogoItem(id=1, nombre="EMPLEADO FIJO")]
-        self.tipos_nomina = [CatalogoItem(id=1, nombre="EMPLEADOS ADM")]
+        self.tipos_nomina = [
+            CatalogoItem(id=1, nombre="EMPLEADOS ADM"),
+            CatalogoItem(id=15, nombre="JUBILADO", extra={'es_activo': False}),
+            CatalogoItem(id=10, nombre="PENSIONADO", extra={'es_activo': False}),
+        ]
         self.parentescos = [CatalogoItem(id=1, nombre="HIJO(A)"), CatalogoItem(id=2, nombre="CONYUGE")]
         self.categorias_movimiento = [CatalogoItem(id=1, nombre="TRASLADO"), CatalogoItem(id=2, nombre="ENCARGADURIA")]
         self.tipos_movimiento = [
@@ -66,7 +70,9 @@ class RepoCatalogosMemoria:
     def listar_tipos_personal(self):
         return list(self.tipos_personal)
 
-    def listar_tipos_nomina(self):
+    def listar_tipos_nomina(self, solo_especiales=False, solo_pasivos=False):
+        if solo_pasivos:
+            return [tn for tn in self.tipos_nomina if tn.extra.get('es_activo') is False]
         return list(self.tipos_nomina)
 
     def listar_parentescos(self):
@@ -124,3 +130,15 @@ def test_listar_categorias_y_tipos_movimiento():
     filtrados = listar_tipos_movimiento(repo, categoria='TRASLADO')
     assert len(filtrados) == 1
     assert filtrados[0].nombre == "TRASLADO POR NECESIDAD DEL SERVICIO"
+
+
+def test_listar_tipos_nomina_solo_pasivos():
+    repo = RepoCatalogosMemoria()
+    todos = listar_tipos_nomina(repo)
+    assert len(todos) == 3
+
+    pasivos = listar_tipos_nomina(repo, solo_pasivos=True)
+    assert len(pasivos) == 2
+    nombres = [p.nombre for p in pasivos]
+    assert "JUBILADO" in nombres
+    assert "PENSIONADO" in nombres

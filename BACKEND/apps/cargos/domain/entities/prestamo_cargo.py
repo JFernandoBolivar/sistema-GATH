@@ -12,8 +12,6 @@ class PrestamoCargo:
     empleado_encargado_nombre: str
     cargo_encargado_id: int
     cargo_encargado_codigo: str
-    titular_cedula: str | None
-    titular_nombre: str | None
     motivo_id: int
     motivo_nombre: str
     estatus_id: int
@@ -21,6 +19,9 @@ class PrestamoCargo:
     fecha_inicio: str
     fecha_fin: str
     ejecutado_por_id: int
+    cargo_encargado_denominacion: str = ""
+    titular_cedula: str | None = None
+    titular_nombre: str | None = None
 
     @property
     def esta_finalizada(self) -> bool:

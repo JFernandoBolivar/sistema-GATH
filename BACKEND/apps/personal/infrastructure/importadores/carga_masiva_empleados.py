@@ -56,7 +56,11 @@ def importar_empleados_basico(archivo) -> dict:
     """
     df = pd.read_excel(archivo)
 
-    estado_civil_default = EstadoCivilModel.objects.filter(pk=1).first()
+    estado_civil_default = (
+        EstadoCivilModel.objects.filter(estadoCivil__iexact='SOLTERO').first()
+        or EstadoCivilModel.objects.filter(pk=1).first()
+        or EstadoCivilModel.objects.first()
+    )
 
     empleados_a_crear = []
     errores = []
@@ -79,7 +83,7 @@ def importar_empleados_basico(archivo) -> dict:
                 apellidos=fila.get('APELLIDOS'),
                 fecha_nacimiento=fecha_nac,
                 sexoid_id=sexo_id,
-                estadoCivil_id=estado_civil_default.pk if estado_civil_default else 1,
+                estadoCivil_id=estado_civil_default.pk if estado_civil_default else None,
             ))
         except Exception as exc:  # noqa: BLE001 — réplica del try/except por fila del legado
             errores.append(f"Fila {indice}: {exc}")

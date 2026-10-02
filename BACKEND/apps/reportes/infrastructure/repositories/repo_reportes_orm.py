@@ -7,30 +7,79 @@ from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
 class RepoReportesORM:
     def reporte_personal_activo(self, filtros: dict) -> ResultadoReporte:
         from apps.personal.infrastructure.models.personal_models import EmployeeModel
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil').all()
-        if 'sexo_id' in filtros:
+        filtros = filtros or {}
+        if filtros.get('sexo_id'):
             qs = qs.filter(sexoid_id=filtros['sexo_id'])
+        if filtros.get('estado_civil_id'):
+            qs = qs.filter(estadoCivil_id=filtros['estado_civil_id'])
+
+        asig_filtros = {}
+        if filtros.get('dependencia_id'):
+            asig_filtros['Dependencia_id'] = filtros['dependencia_id']
+        if filtros.get('direccion_general_id'):
+            asig_filtros['DireccionGeneral_id'] = filtros['direccion_general_id']
+        if filtros.get('direccion_linea_id'):
+            asig_filtros['DireccionLinea_id'] = filtros['direccion_linea_id']
+        if filtros.get('coordinacion_id'):
+            asig_filtros['Coordinacion_id'] = filtros['coordinacion_id']
+        if filtros.get('nomina_id'):
+            asig_filtros['tiponominaid_id'] = filtros['nomina_id']
+        if filtros.get('grado_id'):
+            asig_filtros['gradoid_id'] = filtros['grado_id']
+        if filtros.get('cargo_id'):
+            asig_filtros['denominacioncargoid_id'] = filtros['cargo_id']
+        if filtros.get('cargo_especifico_id'):
+            asig_filtros['denominacioncargoespecificoid_id'] = filtros['cargo_especifico_id']
+        if filtros.get('OrganismoAdscrito_id'):
+            asig_filtros['OrganismoAdscritoid_id'] = filtros['OrganismoAdscrito_id']
+
+        from apps.personal.infrastructure.models.expediente_models import AntecedenteServicioModel
+
+        if asig_filtros:
+            cedulas = AsigTrabajoModel.objects.filter(**asig_filtros).exclude(employee__isnull=True).values_list('employee_id', flat=True)
+            qs = qs.filter(cedulaidentidad__in=cedulas)
+
+        empleados_list = list(qs[:500])
+        asigs = {
+            a.employee_id: a
+            for a in AsigTrabajoModel.objects.filter(employee__in=empleados_list)
+            .select_related('denominacioncargoid', 'tiponominaid', 'OrganismoAdscritoid')
+        }
+        antecedentes = {
+            ant.empleado_id: ant.fecha_ingreso
+            for ant in AntecedenteServicioModel.objects.filter(empleado__in=empleados_list).order_by('fecha_ingreso')
+        }
 
         filas = []
-        for e in qs[:500]:
+        for idx, e in enumerate(empleados_list, start=1):
+            asig = asigs.get(e.cedulaidentidad)
+            f_ing = antecedentes.get(e.cedulaidentidad)
             filas.append({
-                'cedula': e.cedulaidentidad,
-                'nombres': e.nombres,
-                'apellidos': e.apellidos,
+                '#': str(idx),
+                'codigo': asig.codigo if asig else 'S/D',
+                'cedula': str(e.cedulaidentidad),
+                'nombres': e.nombres or '',
+                'apellidos': e.apellidos or '',
+                'fecha_ingreso': f_ing.strftime('%d/%m/%Y') if f_ing else 'N/A',
                 'sexo': e.sexoid.sexo if e.sexoid else '',
-                'correo': e.correo or '',
-                'telefono': e.telefono_movil or '',
+                'tipo_nomina': asig.tiponominaid.nomina if asig and asig.tiponominaid else 'S/D',
+                'cargo': asig.denominacioncargoid.cargo if asig and asig.denominacioncargoid else 'S/D',
+                'organismo_adscrito': asig.OrganismoAdscritoid.nombre if asig and asig.OrganismoAdscritoid else 'CONATEL',
             })
 
         return ResultadoReporte(
             titulo="Reporte de Personal Activo",
-            columnas=['cedula', 'nombres', 'apellidos', 'sexo', 'correo', 'telefono'],
+            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito'],
             filas=filas,
             total_registros=len(filas),
         )
 
     def reporte_egresos_pasivos(self, filtros: dict) -> ResultadoReporte:
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
+        from apps.personal.infrastructure.models.expediente_models import AntecedenteServicioModel
         qs = EmployeeEgresadoModel.objects.select_related('employee', 'motivo_egreso').all()
 
         filtros = filtros or {}
@@ -52,18 +101,34 @@ class RepoReportesORM:
             qs = qs.distinct()
 
         filas = []
-        for p in qs[:500]:
+        for idx, p in enumerate(qs[:500], start=1):
+            emp = p.employee
+            ant = AntecedenteServicioModel.objects.filter(empleado=emp).order_by('fecha_ingreso').first() if emp else None
+            f_ing = ant.fecha_ingreso.strftime('%d/%m/%Y') if ant and ant.fecha_ingreso else 'N/A'
+            f_egr = p.fecha_egreso.strftime('%d/%m/%Y') if p.fecha_egreso else 'N/A'
+
+            ultimo_cargo = ''
+            historial = p.cargos_historial.select_related('denominacioncargoid').first()
+            if historial and historial.denominacioncargoid:
+                ultimo_cargo = historial.denominacioncargoid.cargo
+            elif emp:
+                asig = AsigTrabajoModel.objects.filter(employee=emp).select_related('denominacioncargoid').first()
+                if asig and asig.denominacioncargoid:
+                    ultimo_cargo = asig.denominacioncargoid.cargo
+
             filas.append({
+                '#': str(idx),
                 'cedula': str(p.employee_id),
-                'nombres': p.employee.nombres if p.employee else '',
-                'apellidos': p.employee.apellidos if p.employee else '',
-                'motivo_egreso': str(p.motivo_egreso) if p.motivo_egreso else '',
-                'fecha_egreso': str(p.fecha_egreso),
+                'nombre_completo': f"{emp.nombres} {emp.apellidos}".strip() if emp else '',
+                'fecha_ingreso': f_ing,
+                'fecha_egreso': f_egr,
+                'motivo_egreso': str(p.motivo_egreso.motivo) if p.motivo_egreso else '',
+                'ultimo_cargo': ultimo_cargo or 'N/A',
             })
 
         return ResultadoReporte(
-            titulo="Reporte de Personal Pasivo y Egresos",
-            columnas=['cedula', 'nombres', 'apellidos', 'motivo_egreso', 'fecha_egreso'],
+            titulo="Reporte de Egresados",
+            columnas=['#', 'cedula', 'nombre_completo', 'fecha_ingreso', 'fecha_egreso', 'motivo_egreso', 'ultimo_cargo'],
             filas=filas,
             total_registros=len(filas),
         )
@@ -77,8 +142,9 @@ class RepoReportesORM:
             qs = qs.filter(Dependencia_id__in=dependencias_ids)
 
         filas = []
-        for c in qs[:500]:
+        for idx, c in enumerate(qs[:500], start=1):
             filas.append({
+                '#': str(idx),
                 'id': c.pk,
                 'denominacion': c.denominacioncargoid.cargo if c.denominacioncargoid else '',
                 'dependencia': c.Dependencia.dependencia if c.Dependencia else '',
@@ -87,7 +153,7 @@ class RepoReportesORM:
 
         return ResultadoReporte(
             titulo="Reporte de Cargos Vacantes",
-            columnas=['id', 'denominacion', 'dependencia', 'codigo_nomina'],
+            columnas=['#', 'id', 'denominacion', 'dependencia', 'codigo_nomina'],
             filas=filas,
             total_registros=len(filas),
         )
@@ -105,20 +171,23 @@ class RepoReportesORM:
             qs = qs.filter(employeecedula_id=filtros['cedula_empleado'])
 
         filas = []
-        for f in qs[:500]:
+        for idx, f in enumerate(qs[:500], start=1):
+            emp = f.employeecedula
+            f_nac = f.fechanacimiento.strftime('%d/%m/%Y') if f.fechanacimiento else 'N/A'
             filas.append({
-                'cedula_familiar': f.cedulaFamiliar or '',
-                'nombres': f"{f.primer_nombre} {f.segundo_nombre or ''}".strip(),
-                'apellidos': f"{f.primer_apellido} {f.segundo_apellido or ''}".strip(),
+                '#': str(idx),
+                'cedula_empleado': str(f.employeecedula_id) if f.employeecedula_id else '',
+                'nombre_empleado': f"{emp.nombres} {emp.apellidos}".strip() if emp else '',
+                'cedula_familiar': f.cedulaFamiliar or 'S/C',
+                'nombre_familiar': f"{f.primer_nombre} {f.primer_apellido}".strip(),
                 'parentesco': f.parentesco.descripcion_parentesco if f.parentesco_id else '',
+                'fecha_nacimiento': f_nac,
                 'sexo': f.sexo.sexo if f.sexo_id else '',
-                'fecha_nacimiento': str(f.fechanacimiento),
-                'cedula_empleado': f.employeecedula_id or '',
             })
 
         return ResultadoReporte(
             titulo="Reporte de Familiares",
-            columnas=['cedula_familiar', 'nombres', 'apellidos', 'parentesco', 'sexo', 'fecha_nacimiento', 'cedula_empleado'],
+            columnas=['#', 'cedula_empleado', 'nombre_empleado', 'cedula_familiar', 'nombre_familiar', 'parentesco', 'fecha_nacimiento', 'sexo'],
             filas=filas,
             total_registros=len(filas),
         )
@@ -126,8 +195,8 @@ class RepoReportesORM:
     def reporte_codigos(self, filtros: dict) -> ResultadoReporte:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         qs = AsigTrabajoModel.objects.select_related(
-            'denominacioncargoid', 'denominacioncargoespecificoid', 'tiponominaid',
-            'estatusid', 'Dependencia', 'DireccionGeneral',
+            'employee', 'denominacioncargoid', 'denominacioncargoespecificoid', 'gradoid',
+            'tiponominaid', 'OrganismoAdscritoid', 'estatusid', 'Dependencia', 'DireccionGeneral',
         ).all()
 
         filtros = filtros or {}
@@ -145,20 +214,24 @@ class RepoReportesORM:
             qs = qs.filter(estatusid_id=filtros['estatus_id'])
 
         filas = []
-        for c in qs[:500]:
+        for idx, c in enumerate(qs[:500], start=1):
+            emp = c.employee
             filas.append({
-                'codigo': c.codigo,
+                '#': str(idx),
+                'codigo': c.codigo or '',
+                'cedula': str(c.employee_id) if c.employee_id else 'VACANTE',
+                'empleado': f"{emp.nombres} {emp.apellidos}".strip() if emp else 'VACANTE',
                 'cargo': c.denominacioncargoid.cargo if c.denominacioncargoid_id else '',
                 'cargo_especifico': c.denominacioncargoespecificoid.cargo if c.denominacioncargoespecificoid_id else '',
+                'grado': c.gradoid.grado if c.gradoid_id else '',
                 'tipo_nomina': c.tiponominaid.nomina if c.tiponominaid_id else '',
-                'dependencia': c.Dependencia.dependencia if c.Dependencia_id else '',
-                'direccion_general': c.DireccionGeneral.direccion_general if c.DireccionGeneral_id else '',
+                'organismo_adscrito': c.OrganismoAdscritoid.nombre if c.OrganismoAdscritoid_id else 'CONATEL',
                 'estatus': c.estatusid.estatus if c.estatusid_id else '',
             })
 
         return ResultadoReporte(
-            titulo="Reporte de Códigos de Cargo (Asignaciones)",
-            columnas=['codigo', 'cargo', 'cargo_especifico', 'tipo_nomina', 'dependencia', 'direccion_general', 'estatus'],
+            titulo="Reporte de Cargos",
+            columnas=['#', 'codigo', 'cedula', 'empleado', 'cargo', 'cargo_especifico', 'grado', 'tipo_nomina', 'organismo_adscrito', 'estatus'],
             filas=filas,
             total_registros=len(filas),
         )

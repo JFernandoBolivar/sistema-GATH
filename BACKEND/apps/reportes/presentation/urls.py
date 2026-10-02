@@ -30,6 +30,7 @@ urlpatterns = [
     path('personal-activo/', ReportePersonalActivoView.as_view(), name='reporte-personal-activo'),
     path('personal-activo/pdf/', ReportePersonalActivoPdfView.as_view(), name='reporte-personal-activo-pdf'),
     path('personal-activo/excel/', ReportePersonalActivoExcelView.as_view(), name='reporte-personal-activo-excel'),
+    path('excel/', ReportePersonalActivoExcelView.as_view(), name='reporte-excel'),
     path('pasivos/', ReportePasivosView.as_view(), name='reporte-pasivos'),
     path('pasivos/pdf/', ReportePasivosPdfView.as_view(), name='reporte-pasivos-pdf'),
     path('pasivos/excel/', ReportePasivosExcelView.as_view(), name='reporte-pasivos-excel'),

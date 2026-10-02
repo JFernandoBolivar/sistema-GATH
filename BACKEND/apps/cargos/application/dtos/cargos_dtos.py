@@ -24,6 +24,7 @@ class CargoAsignacionDTO:
     tipo_nomina_nombre: str
     estatus_id: int
     estatus_nombre: str
+    empleado_nombre: str | None = None
     dependencia_id: int | None = None
     dependencia_nombre: str | None = None
     direccion_general_id: int | None = None
@@ -32,8 +33,13 @@ class CargoAsignacionDTO:
     direccion_linea_nombre: str | None = None
     coordinacion_id: int | None = None
     coordinacion_nombre: str | None = None
+    organismo_id: int | None = None
+    organismo_nombre: str | None = None
+    grado_id: int | None = None
+    grado_nombre: str | None = None
     observaciones: str | None = None
     esta_vacante: bool = False
+    fecha_actualizacion: str | None = None
 
 
 @dataclass(frozen=True)
@@ -86,8 +92,6 @@ class PrestamoCargoDTO:
     empleado_encargado_nombre: str
     cargo_encargado_id: int
     cargo_encargado_codigo: str
-    titular_cedula: str | None
-    titular_nombre: str | None
     motivo_id: int
     motivo_nombre: str
     estatus_id: int
@@ -95,4 +99,7 @@ class PrestamoCargoDTO:
     fecha_inicio: str
     fecha_fin: str
     ejecutado_por_id: int
+    cargo_encargado_denominacion: str = ""
+    titular_cedula: str | None = None
+    titular_nombre: str | None = None
     esta_finalizada: bool = False

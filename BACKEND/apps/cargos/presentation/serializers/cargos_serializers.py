@@ -19,6 +19,7 @@ class CargoAsignacionSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     codigo = serializers.CharField(read_only=True)
     empleado_cedula = serializers.CharField(read_only=True, allow_null=True)
+    empleado_nombre = serializers.CharField(read_only=True, allow_null=True)
     denominacion_id = serializers.IntegerField(read_only=True)
     denominacion_nombre = serializers.CharField(read_only=True)
     especifica_id = serializers.IntegerField(read_only=True)
@@ -35,8 +36,26 @@ class CargoAsignacionSerializer(serializers.Serializer):
     direccion_linea_nombre = serializers.CharField(read_only=True, allow_null=True)
     coordinacion_id = serializers.IntegerField(read_only=True, allow_null=True)
     coordinacion_nombre = serializers.CharField(read_only=True, allow_null=True)
+    organismo_id = serializers.IntegerField(read_only=True, allow_null=True)
+    organismo_nombre = serializers.CharField(read_only=True, allow_null=True)
+    grado_id = serializers.IntegerField(read_only=True, allow_null=True)
+    grado_nombre = serializers.CharField(read_only=True, allow_null=True)
     observaciones = serializers.CharField(read_only=True, allow_null=True)
     esta_vacante = serializers.BooleanField(read_only=True)
+    fecha_actualizacion = serializers.CharField(read_only=True, allow_null=True)
+
+
+class ActualizarCargoInputSerializer(serializers.Serializer):
+    """Serializer para actualizar atributos de un cargo existente."""
+    denominacioncargoid = serializers.IntegerField(required=True)
+    denominacioncargoespecificoid = serializers.IntegerField(required=True)
+    tiponominaid = serializers.IntegerField(required=True)
+    gradoid = serializers.IntegerField(required=False, allow_null=True)
+    OrganismoAdscritoid = serializers.IntegerField(required=False, allow_null=True)
+    Dependencia = serializers.IntegerField(required=False, allow_null=True)
+    DireccionGeneral = serializers.IntegerField(required=False, allow_null=True)
+    DireccionLinea = serializers.IntegerField(required=False, allow_null=True)
+    Coordinacion = serializers.IntegerField(required=False, allow_null=True)
 
 
 class AsignarCargoInputSerializer(serializers.Serializer):
@@ -66,6 +85,7 @@ class PrestamoCargoSerializer(serializers.Serializer):
     empleado_encargado_nombre = serializers.CharField(read_only=True)
     cargo_encargado_id = serializers.IntegerField(read_only=True)
     cargo_encargado_codigo = serializers.CharField(read_only=True)
+    cargo_encargado_denominacion = serializers.CharField(read_only=True, default='')
     titular_cedula = serializers.CharField(read_only=True, allow_null=True)
     titular_nombre = serializers.CharField(read_only=True, allow_null=True)
     motivo_id = serializers.IntegerField(read_only=True)

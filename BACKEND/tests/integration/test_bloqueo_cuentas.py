@@ -120,7 +120,9 @@ def test_quinto_intento_bloquea_y_siguiente_correcto_recibe_429(
         resp = intentar_login(cliente, cuenta_login['correo'], 'clave-invalida')
 
     assert resp.status_code == 429
-    assert 'bloqueada' in resp.json().get('error', '').lower()
+    contenido = resp.json()
+    mensaje = (contenido.get('error') or contenido.get('message', '')).lower()
+    assert 'bloqueada' in mensaje
 
     # El siguiente intento con credenciales correctas debe ser rechazado
     resp_valido_bloqueado = intentar_login(

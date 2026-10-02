@@ -7,6 +7,7 @@ puerto `RepoCargos` como un único objeto.
 Réplica funcional de `RAC/services/prestamo_cargo_services.py` y del modelo
 `RAC/models/historial_personal_models.py::PrestamoCargo`.
 """
+import datetime
 from django.db import transaction
 from django.utils import timezone
 
@@ -21,10 +22,20 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 class RepoPrestamosCargoORM:
+    @staticmethod
+    def _normalizar_fecha(fecha) -> datetime.date:
+        if isinstance(fecha, str):
+            return datetime.date.fromisoformat(fecha)
+        if isinstance(fecha, datetime.datetime):
+            return fecha.date()
+        return fecha
+
     def _calcular_estatus_prestamo(self, fecha_fin, hoy) -> EstatusModel:
-        if fecha_fin <= hoy:
+        f_fin = self._normalizar_fecha(fecha_fin)
+        f_hoy = self._normalizar_fecha(hoy)
+        if f_fin <= f_hoy:
             nombre = 'FINALIZADA'
-        elif (fecha_fin - hoy).days <= 5:
+        elif (f_fin - f_hoy).days <= 5:
             nombre = 'POR VENCER'
         else:
             nombre = 'ACTIVO'
@@ -56,19 +67,31 @@ class RepoPrestamosCargoORM:
     def _obtener_prestamo(self, prestamo_id: int) -> PrestamoCargo | None:
         fila = (
             PrestamoCargoModel.objects.select_related(
-                'empleado_encargado', 'cargo_encargado', 'cargo_encargado__employee', 'motivo', 'estatus',
+                'empleado_encargado',
+                'cargo_encargado',
+                'cargo_encargado__employee',
+                'cargo_encargado__denominacioncargoid',
+                'motivo',
+                'estatus',
             )
             .filter(pk=prestamo_id)
             .first()
         )
         return prestamo_a_entidad(fila) if fila else None
 
-    def listar_prestamos(self, solo_activos: bool = False) -> list[PrestamoCargo]:
+    def listar_prestamos(self, solo_activos: bool = False, empleado: str | None = None) -> list[PrestamoCargo]:
         qs = PrestamoCargoModel.objects.select_related(
-            'empleado_encargado', 'cargo_encargado', 'cargo_encargado__employee', 'motivo', 'estatus',
-        ).all()
+            'empleado_encargado',
+            'cargo_encargado',
+            'cargo_encargado__employee',
+            'cargo_encargado__denominacioncargoid',
+            'motivo',
+            'estatus',
+        ).all().order_by('-fecha_inicio')
         if solo_activos:
             qs = qs.exclude(estatus__estatus__iexact='FINALIZADA')
+        if empleado:
+            qs = qs.filter(empleado_encargado__cedulaidentidad__icontains=empleado)
         return [prestamo_a_entidad(p) for p in qs]
 
     @transaction.atomic
@@ -81,7 +104,9 @@ class RepoPrestamosCargoORM:
         fecha_fin,
         usuario_id: int,
     ) -> PrestamoCargo:
-        if fecha_fin < fecha_inicio:
+        f_inicio = self._normalizar_fecha(fecha_inicio)
+        f_fin = self._normalizar_fecha(fecha_fin)
+        if f_fin < f_inicio:
             raise ValidationError('La fecha de fin no puede ser anterior a la fecha de inicio.')
 
         empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula_encargado).first()
@@ -91,6 +116,9 @@ class RepoPrestamosCargoORM:
         cargo = AsigTrabajoModel.objects.select_for_update().filter(pk=cargo_id).first()
         if not cargo:
             raise NotFoundError(f"Cargo con id {cargo_id} no encontrado")
+
+        if cargo.employee_id == cedula_encargado:
+            raise ValidationError('El trabajador no puede ser encargado de su propio cargo.')
 
         try:
             motivo = TipoMovimientoModel.objects.get(pk=motivo_id)
@@ -108,15 +136,15 @@ class RepoPrestamosCargoORM:
         ).exclude(estatus__estatus__iexact='FINALIZADA').exists():
             raise ConflictError('El trabajador ya tiene una encargaduría activa.')
 
-        estatus_calculado = self._calcular_estatus_prestamo(fecha_fin, hoy)
+        estatus_calculado = self._calcular_estatus_prestamo(f_fin, hoy)
 
         prestamo = PrestamoCargoModel.objects.create(
             empleado_encargado=empleado,
             cargo_encargado=cargo,
             motivo=motivo,
             estatus=estatus_calculado,
-            fecha_inicio=fecha_inicio,
-            fecha_fin=fecha_fin,
+            fecha_inicio=f_inicio,
+            fecha_fin=f_fin,
             ejecutado_por_id=usuario_id,
         )
         self._sincronizar_estatus_cargos(prestamo)
@@ -133,7 +161,7 @@ class RepoPrestamosCargoORM:
         return self._obtener_prestamo(prestamo.pk)
 
     @transaction.atomic
-    def finalizar_prestamo(self, prestamo_id: int) -> PrestamoCargo:
+    def finalizar_prestamo(self, prestamo_id: int, fecha_fin=None) -> PrestamoCargo:
         prestamo = PrestamoCargoModel.objects.select_for_update().filter(pk=prestamo_id).first()
         if not prestamo:
             raise NotFoundError(f"Préstamo {prestamo_id} no encontrado.")
@@ -142,8 +170,10 @@ class RepoPrestamosCargoORM:
         if prestamo.estatus_id == finalizada.pk:
             raise ConflictError('Este préstamo ya se encuentra finalizado.')
 
+        f_fin = self._normalizar_fecha(fecha_fin) if fecha_fin else timezone.localdate()
+
         prestamo.estatus = finalizada
-        prestamo.fecha_fin = timezone.localdate()
+        prestamo.fecha_fin = f_fin
         prestamo.save(update_fields=['estatus', 'fecha_fin'])
         self._sincronizar_estatus_cargos(prestamo)
 

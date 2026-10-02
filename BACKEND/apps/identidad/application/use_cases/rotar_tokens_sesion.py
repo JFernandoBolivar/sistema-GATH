@@ -46,6 +46,8 @@ def rotar_tokens_sesion(repo: RepoCuentaAuth, refresh_token_str: str) -> TokensE
         raise PermissionDeniedError('La cuenta no existe o está inactiva.')
 
     objeto_orm = repo.obtener_objeto_autenticable(titular_id)
+    if objeto_orm is None:
+        raise PermissionDeniedError('La cuenta no existe o está inactiva.')
     nuevos = emitir_tokens_sesion(objeto_orm, titular.cedula, titular.rol_nombre)
 
     # Blacklist del token anterior (ROTATE_REFRESH_TOKENS/BLACKLIST_AFTER_ROTATION

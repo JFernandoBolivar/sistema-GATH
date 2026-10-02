@@ -6,8 +6,10 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
-from core.presentation.envelope import ok
+from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
+from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
+from apps.catalogos.infrastructure.mappers.mapper_catalogos import tipo_movimiento_a_entidad
 from apps.catalogos.application.use_cases.listar_geografia import (
     listar_estados,
     listar_municipios,
@@ -117,8 +119,10 @@ class TiposNominaListView(APIView):
 
     @extend_schema(tags=['Catálogos'], summary='Listar tipos de nómina', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
+        solo_especiales = request.query_params.get('solo_especiales', '').lower() in ('true', '1')
+        solo_pasivos = request.query_params.get('solo_pasivos', '').lower() in ('true', '1')
         repo = RepoCatalogosORM()
-        dtos = listar_tipos_nomina(repo)
+        dtos = listar_tipos_nomina(repo, solo_especiales=solo_especiales, solo_pasivos=solo_pasivos)
         return ok(CatalogoItemSerializer(dtos, many=True).data)
 
 
@@ -180,7 +184,9 @@ class TiposMovimientoListView(APIView):
     internos/traslado, suspendido, suspendido_pasivo) con un único endpoint
     filtrable por `categoria`, funcionalmente equivalente.
     """
-    permission_classes = [IsAuthenticated, HasPermission('catalogos.ver')]
+    def get_permissions(self):
+        codigo = 'catalogos.ver' if self.request.method == 'GET' else 'cargos.prestar'
+        return [IsAuthenticated(), HasPermission(codigo)()]
 
     @extend_schema(tags=['Catálogos'], summary='Listar tipos de movimiento (motivos), opcionalmente filtrados por categoría', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
@@ -188,3 +194,23 @@ class TiposMovimientoListView(APIView):
         repo = RepoCatalogosORM()
         dtos = listar_tipos_movimiento(repo, categoria=categoria)
         return ok(CatalogoItemSerializer(dtos, many=True).data)
+
+    @extend_schema(tags=['Catálogos'], summary='Crear tipo de movimiento (motivo)', responses={201: CatalogoItemSerializer})
+    def post(self, request):
+        movimiento = request.data.get('movimiento', '').strip().upper()
+        categoria_nombre = request.data.get('categoria', '').strip()
+        if not movimiento:
+            return fail('El nombre del motivo es requerido.', status=400)
+        categoria_obj = None
+        if categoria_nombre:
+            categoria_obj, _ = CategoriaMovimientoModel.objects.get_or_create(
+                categoria__iexact=categoria_nombre, defaults={'categoria': categoria_nombre.upper()}
+            )
+        defaults = {}
+        if categoria_obj:
+            defaults['categoria'] = categoria_obj
+        tipo, _ = TipoMovimientoModel.objects.get_or_create(movimiento=movimiento, defaults=defaults)
+        if categoria_obj and not tipo.categoria:
+            tipo.categoria = categoria_obj
+            tipo.save(update_fields=['categoria'])
+        return ok(CatalogoItemSerializer(tipo_movimiento_a_entidad(tipo)).data, message='Motivo registrado correctamente.', status=201)

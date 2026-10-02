@@ -82,6 +82,10 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         tipo_nomina_id: int | None = None,
         dependencia_id: int | None = None,
         solo_vacantes: bool = False,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+        codigo: str | None = None,
     ) -> list[CargoAsignacion]:
         qs = (
             AsigTrabajoModel.objects.select_related(
@@ -93,6 +97,9 @@ class RepoCargosORM(RepoPrestamosCargoORM):
                 'DireccionGeneral',
                 'DireccionLinea',
                 'Coordinacion',
+                'OrganismoAdscritoid',
+                'gradoid',
+                'employee',
             )
             .all()
             .order_by('-fecha_actualizacion')
@@ -101,6 +108,14 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             qs = qs.filter(tiponominaid_id=tipo_nomina_id)
         if dependencia_id is not None:
             qs = qs.filter(Dependencia_id=dependencia_id)
+        if direccion_general_id is not None:
+            qs = qs.filter(DireccionGeneral_id=direccion_general_id)
+        if direccion_linea_id is not None:
+            qs = qs.filter(DireccionLinea_id=direccion_linea_id)
+        if coordinacion_id is not None:
+            qs = qs.filter(Coordinacion_id=coordinacion_id)
+        if codigo:
+            qs = qs.filter(codigo__icontains=codigo)
         if solo_vacantes:
             qs = qs.filter(employee__isnull=True)
         return [cargo_asignacion_a_entidad(c) for c in qs]
@@ -116,6 +131,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
                 'DireccionGeneral',
                 'DireccionLinea',
                 'Coordinacion',
+                'employee',
             )
             .filter(pk=cargo_id)
             .first()
@@ -331,6 +347,36 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             )
 
         return self.obtener_cargo(fila.pk)
+
+    @transaction.atomic
+    def actualizar_cargo(
+        self, cargo_id: int, datos: dict, usuario_id: int | None = None
+    ) -> CargoAsignacion:
+        fila = AsigTrabajoModel.objects.select_for_update().filter(pk=cargo_id).first()
+        if not fila:
+            raise NotFoundError(f"Cargo con id {cargo_id} no encontrado")
+
+        if 'denominacioncargoid' in datos and datos['denominacioncargoid']:
+            fila.denominacioncargoid_id = datos['denominacioncargoid']
+        if 'denominacioncargoespecificoid' in datos and datos['denominacioncargoespecificoid']:
+            fila.denominacioncargoespecificoid_id = datos['denominacioncargoespecificoid']
+        if 'tiponominaid' in datos and datos['tiponominaid']:
+            fila.tiponominaid_id = datos['tiponominaid']
+        if 'gradoid' in datos:
+            fila.gradoid_id = datos['gradoid'] if datos['gradoid'] and datos['gradoid'] > 0 else None
+        if 'OrganismoAdscritoid' in datos:
+            fila.OrganismoAdscritoid_id = datos['OrganismoAdscritoid'] if datos['OrganismoAdscritoid'] and datos['OrganismoAdscritoid'] > 0 else None
+        if 'Dependencia' in datos:
+            fila.Dependencia_id = datos['Dependencia'] if datos['Dependencia'] and datos['Dependencia'] > 0 else None
+        if 'DireccionGeneral' in datos:
+            fila.DireccionGeneral_id = datos['DireccionGeneral'] if datos['DireccionGeneral'] and datos['DireccionGeneral'] > 0 else None
+        if 'DireccionLinea' in datos:
+            fila.DireccionLinea_id = datos['DireccionLinea'] if datos['DireccionLinea'] and datos['DireccionLinea'] > 0 else None
+        if 'Coordinacion' in datos:
+            fila.Coordinacion_id = datos['Coordinacion'] if datos['Coordinacion'] and datos['Coordinacion'] > 0 else None
+
+        fila.save()
+        return self.obtener_cargo(cargo_id)
 
     # ------------------------------------------------------------------
     # Fase 2.5 del plan de reparación — traslado, estatus, encargaduría

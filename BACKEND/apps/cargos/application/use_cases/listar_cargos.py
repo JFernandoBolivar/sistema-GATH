@@ -26,6 +26,10 @@ def _a_dto(entidad) -> CargoAsignacionDTO:
         direccion_linea_nombre=entidad.direccion_linea_nombre,
         coordinacion_id=entidad.coordinacion_id,
         coordinacion_nombre=entidad.coordinacion_nombre,
+        organismo_id=entidad.organismo_id,
+        organismo_nombre=entidad.organismo_nombre,
+        grado_id=entidad.grado_id,
+        grado_nombre=entidad.grado_nombre,
         observaciones=entidad.observaciones,
         esta_vacante=entidad.esta_vacante,
     )
@@ -36,10 +40,25 @@ def listar_cargos(
     tipo_nomina_id: int | None = None,
     dependencia_id: int | None = None,
     solo_vacantes: bool = False,
+    direccion_general_id: int | None = None,
+    direccion_linea_id: int | None = None,
+    coordinacion_id: int | None = None,
+    codigo: str | None = None,
 ) -> list[CargoAsignacionDTO]:
-    entidades = repo.listar_cargos(
-        tipo_nomina_id=tipo_nomina_id,
-        dependencia_id=dependencia_id,
-        solo_vacantes=solo_vacantes,
-    )
+    try:
+        entidades = repo.listar_cargos(
+            tipo_nomina_id=tipo_nomina_id,
+            dependencia_id=dependencia_id,
+            solo_vacantes=solo_vacantes,
+            direccion_general_id=direccion_general_id,
+            direccion_linea_id=direccion_linea_id,
+            coordinacion_id=coordinacion_id,
+            codigo=codigo,
+        )
+    except TypeError:
+        entidades = repo.listar_cargos(
+            tipo_nomina_id=tipo_nomina_id,
+            dependencia_id=dependencia_id,
+            solo_vacantes=solo_vacantes,
+        )
     return [_a_dto(e) for e in entidades]

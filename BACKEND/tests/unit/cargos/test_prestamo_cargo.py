@@ -122,3 +122,14 @@ def test_finalizar_prestamo_ya_finalizado_lanza_conflicto():
     finalizar_prestamo(repo, prestamo_id=creado.id)
     with pytest.raises(ConflictError):
         finalizar_prestamo(repo, prestamo_id=creado.id)
+
+
+def test_repo_prestamos_orm_normalizar_fecha():
+    from apps.cargos.infrastructure.repositories.repo_prestamos_cargo_orm import RepoPrestamosCargoORM
+
+    norm = RepoPrestamosCargoORM._normalizar_fecha
+    d = datetime.date(2026, 5, 10)
+    assert norm('2026-05-10') == d
+    assert norm(d) == d
+    assert norm(datetime.datetime(2026, 5, 10, 14, 30)) == d
+
