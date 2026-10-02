@@ -40,22 +40,11 @@ async function throwAuthExpired(): Promise<never> {
   throw new AuthSessionExpiredError();
 }
 
-async function getValidAccessToken(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("dj_access")?.value;
-  if (accessToken) return accessToken;
-
-  return refreshTokens();
-}
-
-export const refreshTokens = cache(async (): Promise<string | null> => {
+const executeRefresh = cache(async (refreshToken: string): Promise<string | null> => {
   try {
     const cookieStore = await cookies();
-    const refreshToken = cookieStore.get("dj_refresh")?.value;
-    if (!refreshToken) return null;
-
     const refreshResponse = await fetch(
-      `${DJANGO_API_SERVER}accounts/refresh/`,
+      `${DJANGO_API_SERVER}api/v1/identidad/auth/refresh/`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,8 +58,13 @@ export const refreshTokens = cache(async (): Promise<string | null> => {
     }
 
     const refreshData = await refreshResponse.json();
+    const tokenPayload = refreshData?.data?.tokens || refreshData?.tokens;
+    if (!tokenPayload?.access) {
+      deleteAuthCookies(cookieStore);
+      return null;
+    }
 
-    cookieStore.set("dj_access", refreshData.tokens.access, {
+    cookieStore.set("dj_access", tokenPayload.access, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -78,8 +72,8 @@ export const refreshTokens = cache(async (): Promise<string | null> => {
       path: "/",
     });
 
-    if (refreshData.tokens.refresh) {
-      cookieStore.set("dj_refresh", refreshData.tokens.refresh, {
+    if (tokenPayload.refresh) {
+      cookieStore.set("dj_refresh", tokenPayload.refresh, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
@@ -88,11 +82,32 @@ export const refreshTokens = cache(async (): Promise<string | null> => {
       });
     }
 
-    return refreshData.tokens.access as string;
+    return tokenPayload.access as string;
   } catch {
     return null;
   }
 });
+
+export async function ensureValidAccessToken(): Promise<boolean> {
+  const token = await getValidAccessToken();
+  return token !== null;
+}
+
+async function getValidAccessToken(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("dj_access")?.value;
+  if (accessToken) return accessToken;
+
+  return refreshTokens();
+}
+
+export async function refreshTokens(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const refreshToken = cookieStore.get("dj_refresh")?.value;
+  if (!refreshToken) return null;
+
+  return executeRefresh(refreshToken);
+}
 
 export const refreshAccessToken = refreshTokens;
 

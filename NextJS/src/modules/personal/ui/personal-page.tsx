@@ -61,7 +61,7 @@ import { listadoEmpleadosSchema, type ListadoEmpleadosFormType } from "./schema/
 export default function PersonalPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const esAdmin = session?.user?.role?.nombre_rol === "ADMINISTRADOR" || session?.user?.role?.id === 1;
+  const esAdmin = tienePermiso(permisos, "*") || session?.user?.role?.nombre_rol === "ADMINISTRADOR";
   const puedeCrear = esAdmin || tienePermiso(permisos, "personal.crear");
   const puedeEditar = esAdmin || tienePermiso(permisos, "personal.editar_personales");
   const puedeVerDetalle = esAdmin || tienePermiso(permisos, "personal.ver_detalle");

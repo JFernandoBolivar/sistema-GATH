@@ -47,7 +47,7 @@ import { Switch } from "@/shared/ui/components/switch";
 import { Textarea } from "@/shared/ui/components/textarea";
 import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
 import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner";
-import { getEmpleadoPorCedulaAction } from "@/modules/personal/infrastructure/actions/personal-actions";
+import { getEmpleadoPorCedulaAction } from "@/shared/infrastructure/actions/employee-actions";
 
 import {
   CATALOGOS_FAMILIAR_VACIOS,

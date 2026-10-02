@@ -143,7 +143,7 @@ export default function MovimientosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const esAdmin =
-    session?.user?.role?.nombre_rol === "ADMINISTRADOR" || session?.user?.role?.id === 1;
+    tienePermiso(permisos, "*") || session?.user?.role?.nombre_rol === "ADMINISTRADOR";
   const puedeVer = esAdmin || tienePermiso(permisos, "movimientos.ver");
 
   const [movimientos, setMovimientos] = useState<MovimientoCargoDTO[]>([]);
