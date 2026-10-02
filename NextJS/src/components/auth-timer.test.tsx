@@ -142,4 +142,138 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
       screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
     ).not.toBeInTheDocument();
   });
+
+  it("al presionar 'Cerrar sesión' llama a cerrarSesionAction inmediatamente y oculta el diálogo", async () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: {
+        user: { id: "1", name: "Test User" } as any,
+        expires: "2099-01-01",
+      },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<AuthController />);
+
+    // Disparar diálogo a los 14 minutos
+    act(() => {
+      vi.advanceTimersByTime(14 * 60 * 1000);
+    });
+
+    const logoutBtn = screen.getByRole("button", {
+      name: /Cerrar sesión/i,
+    });
+
+    await act(async () => {
+      fireEvent.click(logoutBtn);
+    });
+
+    expect(mockCerrarSesionAction).toHaveBeenCalled();
+    expect(
+      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("la actividad del usuario (mousemove, keypress) antes de los 14 minutos reinicia el contador de inactividad", () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: {
+        user: { id: "1", name: "Test User" } as any,
+        expires: "2099-01-01",
+      },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<AuthController />);
+
+    // Avanzar 10 minutos (600s)
+    act(() => {
+      vi.advanceTimersByTime(10 * 60 * 1000);
+    });
+
+    // Simular evento de actividad (ej. movimiento del ratón)
+    act(() => {
+      fireEvent.mouseMove(document);
+    });
+
+    // Avanzar 10 minutos más desde el evento (a los 20 min totales, pero 10 min de la última actividad)
+    act(() => {
+      vi.advanceTimersByTime(10 * 60 * 1000);
+    });
+
+    // Como se reinició, a los 10 minutos no debe mostrarse aún
+    expect(
+      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
+    ).not.toBeInTheDocument();
+
+    // Avanzar 4 minutos más (14 min desde la última actividad)
+    act(() => {
+      vi.advanceTimersByTime(4 * 60 * 1000);
+    });
+
+    // Ahora sí debe mostrarse
+    expect(
+      screen.getByText(/Tu sesión está por cerrarse por inactividad/i)
+    ).toBeInTheDocument();
+  });
+
+  it("la cuenta regresiva decrece segundo a segundo en el aviso", () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: {
+        user: { id: "1", name: "Test User" } as any,
+        expires: "2099-01-01",
+      },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<AuthController />);
+
+    // Disparar diálogo
+    act(() => {
+      vi.advanceTimersByTime(14 * 60 * 1000);
+    });
+
+    expect(screen.getByText(/Se cerrará automáticamente en 60 segundos/i)).toBeInTheDocument();
+
+    // Avanzar 5 segundos
+    act(() => {
+      vi.advanceTimersByTime(5 * 1000);
+    });
+
+    expect(screen.getByText(/Se cerrará automáticamente en 55 segundos/i)).toBeInTheDocument();
+  });
+
+  it("la actividad pasiva mientras el modal está abierto no descarta el aviso", () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: {
+        user: { id: "1", name: "Test User" } as any,
+        expires: "2099-01-01",
+      },
+      status: "authenticated",
+      update: vi.fn(),
+    });
+
+    render(<AuthController />);
+
+    // Disparar diálogo
+    act(() => {
+      vi.advanceTimersByTime(14 * 60 * 1000);
+    });
+
+    expect(
+      screen.getByText(/Tu sesión está por cerrarse por inactividad/i)
+    ).toBeInTheDocument();
+
+    // Eventos pasivos del usuario mientras el modal está abierto
+    act(() => {
+      fireEvent.mouseMove(document);
+      fireEvent.keyDown(document, { key: "Shift" });
+    });
+
+    // El diálogo DEBE permanecer abierto (exige acción explícita en los botones)
+    expect(
+      screen.getByText(/Tu sesión está por cerrarse por inactividad/i)
+    ).toBeInTheDocument();
+  });
 });

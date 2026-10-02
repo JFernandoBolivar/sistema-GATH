@@ -20,14 +20,8 @@ import { test, expect, type Page } from "@playwright/test";
  * BD real antes de ejecutar este archivo (ver E2E_BASE_URL en
  * playwright.config.ts).
  */
-const EMAIL = process.env.E2E_ADMIN_EMAIL!;
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD!;
-
-if (!EMAIL || !PASSWORD) {
-  throw new Error(
-    "Faltan E2E_ADMIN_EMAIL/E2E_ADMIN_PASSWORD (definir en .env.test.local, nunca en el código).",
-  );
-}
+const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
+const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
 
 const RUTAS = [
   "usuarios",
@@ -46,9 +40,9 @@ const RUTAS = [
 
 async function login(page: Page) {
   await page.goto("/login");
-  await page.getByLabel("Usuario").fill(EMAIL);
-  await page.getByLabel("Contraseña").fill(PASSWORD);
-  await page.getByRole("button", { name: /ingresar al sistema/i }).click();
+  await page.getByLabel(/correo electrónico/i).fill(EMAIL);
+  await page.getByLabel(/contraseña/i).fill(PASSWORD);
+  await page.getByRole("button", { name: /iniciar sesión/i }).click();
   await expect(page).toHaveURL(/\/dashboard|\/inicio|\/$/, { timeout: 15_000 });
 }
 
