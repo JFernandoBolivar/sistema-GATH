@@ -21,6 +21,7 @@ COLORS = {
     'border': colors.HexColor('#e0e0e0'),
     'header_bg': colors.HexColor('#f5f5f5'),
     'row_alt': colors.HexColor('#fafafa'),
+    'stats_bg': colors.HexColor('#e8f4fd'),
     'white': colors.white,
     'black': colors.black,
 }
@@ -67,6 +68,10 @@ def get_paragraph_styles() -> dict:
         'TableCell': ParagraphStyle(
             name='ReporteTableCell', fontName=FONTS['table_cell'][0], fontSize=FONTS['table_cell'][1],
             textColor=COLORS['text'], alignment=TA_LEFT,
+        ),
+        'CenterSmall': ParagraphStyle(
+            name='ReporteCenterSmall', fontName=FONTS['small'][0], fontSize=FONTS['small'][1],
+            textColor=COLORS['black'], alignment=TA_CENTER,
         ),
     }
 

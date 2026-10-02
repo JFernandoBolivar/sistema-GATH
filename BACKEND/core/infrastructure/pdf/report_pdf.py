@@ -39,11 +39,48 @@ def generar_reporte_pdf(titulo: str, columnas: list[str], filas: list[dict], ori
     )
     ancho_disponible = doc.pagesize[0] - page_config['leftMargin'] - page_config['rightMargin']
 
-    styles = get_paragraph_styles()
+    # Estadísticas automáticas
+    stats = {}
+    if 'cedula_familiar' in columnas:
+        total_fam = len(filas)
+        cedulas_emp = len({f.get('cedula_empleado') for f in filas if f.get('cedula_empleado')})
+        masc = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('M', 'MASCULINO'))
+        fem = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('F', 'FEMENINO'))
+        stats = {'Total Empleados': cedulas_emp, 'Total Familiares': total_fam, 'Masculino': masc, 'Femenino': fem}
+    elif 'sexo' in columnas and 'cedula' in columnas:
+        total = len(filas)
+        masc = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('M', 'MASCULINO'))
+        fem = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('F', 'FEMENINO'))
+        stats = {'Total Empleados': total, 'Masculino': masc, 'Femenino': fem}
+    elif 'motivo_egreso' in columnas or 'fecha_egreso' in columnas:
+        stats = {'Total Egresados': len(filas)}
+    elif 'codigo' in columnas and 'estatus' in columnas:
+        total = len(filas)
+        ocupados = sum(1 for f in filas if str(f.get('estatus', '')).strip().upper() == 'ACTIVO')
+        vacantes = sum(1 for f in filas if str(f.get('estatus', '')).strip().upper() == 'VACANTE')
+        stats = {'Total Cargos': total, 'Ocupados': ocupados, 'Vacantes': vacantes}
+    else:
+        stats = {'Total de Registros': len(filas)}
+
+    # Proporciones de columnas reconocidas idénticas al formato legado
+    col_widths = None
+    if columnas == ['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito']:
+        col_widths = [10 * mm, 17 * mm, 22 * mm, 30 * mm, 30 * mm, 22 * mm, 15 * mm, 30 * mm, 40 * mm, 45 * mm]
+    elif columnas == ['#', 'cedula_empleado', 'nombre_empleado', 'cedula_familiar', 'nombre_familiar', 'parentesco', 'fecha_nacimiento', 'sexo']:
+        col_widths = [10 * mm, 24 * mm, 48 * mm, 24 * mm, 48 * mm, 25 * mm, 25 * mm, 15 * mm]
+    elif columnas == ['#', 'cedula', 'nombre_completo', 'fecha_ingreso', 'fecha_egreso', 'motivo_egreso', 'ultimo_cargo']:
+        col_widths = [10 * mm, 22 * mm, 55 * mm, 25 * mm, 25 * mm, 45 * mm, 75 * mm]
+    elif columnas == ['#', 'codigo', 'cedula', 'empleado', 'cargo', 'cargo_especifico', 'grado', 'tipo_nomina', 'organismo_adscrito', 'estatus']:
+        col_widths = [10 * mm, 17 * mm, 22 * mm, 40 * mm, 33 * mm, 35 * mm, 13 * mm, 25 * mm, 36 * mm, 25 * mm]
+    elif columnas:
+        col_widths = [ancho_disponible / len(columnas)] * len(columnas)
+
+    from core.infrastructure.pdf.pdf_components import create_stats_box
+
     story = [
-        Paragraph(f"Total de registros: {len(filas)}", styles['TableCell']),
-        Spacer(1, 6 * mm),
-        create_data_table(columnas, filas, col_widths=None if not columnas else [ancho_disponible / len(columnas)] * len(columnas)),
+        create_stats_box(stats, width=ancho_disponible),
+        Spacer(1, 4 * mm),
+        create_data_table(columnas, filas, col_widths=col_widths),
     ]
 
     def _en_pagina(canvas, doc_):

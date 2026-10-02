@@ -61,6 +61,7 @@ def _nombre_cookie_refresh() -> str:
 class LoginView(APIView):
     """Endpoint unificado de autenticación con throttling y bloqueo progresivo."""
     permission_classes = [AllowAny]
+    throttle_scope = 'login'
 
     @extend_schema(
         tags=['Identidad'],
@@ -153,9 +154,11 @@ class RefreshView(APIView):
                    403: MensajeRespuestaSerializer},
     )
     def post(self, request):
-        refresh_token = request.COOKIES.get(_nombre_cookie_refresh()) or request.data.get('refresh')
+        refresh_token = request.data.get('refresh') or request.COOKIES.get(_nombre_cookie_refresh())
+        if isinstance(refresh_token, dict):
+            refresh_token = refresh_token.get('refresh') or refresh_token.get('token')
 
-        if not refresh_token:
+        if not refresh_token or not isinstance(refresh_token, str):
             return fail('No se proporcionó un token de refresco.', 400)
 
         try:

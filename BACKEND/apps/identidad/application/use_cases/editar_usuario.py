@@ -3,13 +3,19 @@ Caso de uso `editar_usuario` (edición de departamento/rol/contraseña).
 
 Puro: recibe el puerto por inyección (B4/B21).
 """
+from typing import Callable
+
 from apps.identidad.application.dtos.cuenta_dto import ActualizarCuentaDTO
 from apps.identidad.domain.entities.cuenta import Cuenta
 from apps.identidad.domain.ports.repo_cuentas import RepoCuentas
 from core.domain.exceptions import NotFoundError
 
 
-def editar_usuario(repo: RepoCuentas, dto: ActualizarCuentaDTO) -> Cuenta:
+def editar_usuario(
+    repo: RepoCuentas,
+    dto: ActualizarCuentaDTO,
+    validar_fortaleza: Callable[[str], None] | None = None,
+) -> Cuenta:
     """Actualiza departamento y/o rol de una cuenta existente."""
     cuenta = repo.obtener_por_id(dto.id)
     if cuenta is None:
@@ -22,6 +28,8 @@ def editar_usuario(repo: RepoCuentas, dto: ActualizarCuentaDTO) -> Cuenta:
     guardada = repo.guardar(actualizada)
 
     if dto.password:
+        if validar_fortaleza is not None:
+            validar_fortaleza(dto.password)
         repo.establecer_password(dto.id, dto.password)
 
     return guardada

@@ -30,9 +30,18 @@ class PreguntasCensoListView(APIView):
 class CensoEmpleadoView(APIView):
     """
     Consultar / registrar el censo de una cédula.
-    Permite al titular o a un administrador consultar o registrar respuestas.
+    Permite al titular (ALTA-07) o a un analista/administrador consultar o registrar respuestas.
     """
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [
+                IsAuthenticated(),
+                EsPropiaCedulaOTienePermiso('autogestion.censo_actualizar_propio', 'autogestion.censo_ver_todos')(),
+            ]
+        return [
+            IsAuthenticated(),
+            EsPropiaCedulaOTienePermiso('autogestion.censo_ver_propio', 'autogestion.censo_ver_todos')(),
+        ]
 
     @extend_schema(tags=['Autogestión'], summary='Consultar respuestas de censo de un empleado')
     def get(self, request, cedula: str):
@@ -72,7 +81,7 @@ class CensoConsultarView(APIView):
     Consultar todos los censos o buscar por cédula.
     Paridad con /censo-vivienda/consultar/ y /censo-vivienda/consultar/<cedula>/
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_ver_todos')]
 
     @extend_schema(tags=['Autogestión'], summary='Consultar todos los censos o filtrar por cédula')
     def get(self, request, cedula: str | None = None):
@@ -86,7 +95,7 @@ class ReporteCensoDependenciasView(APIView):
     """
     Reporte agregado de censo para gráficos (torta y barras).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_ver_todos')]
 
     @extend_schema(tags=['Autogestión'], summary='Consolidado del censo por dependencias (RRHH)')
     def get(self, request):
@@ -120,7 +129,7 @@ class ReporteCensoDependenciasView(APIView):
 
 class MetricasCensoView(APIView):
     """GET /api/v1/autogestion/censo/metricas/ — paridad con métricas del censo."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_ver_todos')]
 
     @extend_schema(tags=['Autogestión'], summary='Métricas del censo (RRHH)')
     def get(self, request):
@@ -130,7 +139,7 @@ class MetricasCensoView(APIView):
 
 class CensoExcelView(APIView):
     """Exportar respuestas del censo a archivo Excel (.xlsx) con o sin filtros."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.censo_exportar')]
 
     def _generar_respuesta(self, filtros: dict | None):
         repo = RepoAutogestionORM()

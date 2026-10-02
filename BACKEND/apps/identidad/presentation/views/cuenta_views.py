@@ -153,6 +153,7 @@ class UsuarioEditarView(views.APIView):
                 tocar_rol='rol_id' in request.data,
                 password=datos.get('password') or None,
             ),
+            validar_fortaleza=validar_fortaleza_django,
         )
         return ok(
             CuentaLecturaSerializer(cuenta, context={'repo': repo}).data,
