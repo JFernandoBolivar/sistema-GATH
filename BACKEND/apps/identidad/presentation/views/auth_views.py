@@ -44,6 +44,10 @@ from apps.identidad.infrastructure.serializers.auth_serializers import (
 from apps.identidad.infrastructure.serializers.cuenta_lectura_serializers import (
     CuentaLecturaSerializer,
 )
+from apps.identidad.presentation.serializers.recuperacion_password_serializers import (
+    RestablecerPasswordSerializer,
+    SolicitarRecuperacionSerializer,
+)
 from core.domain.exceptions import DomainError
 from core.presentation.cookies import clear_jwt_cookies, set_jwt_cookies
 from core.presentation.envelope import fail, ok
@@ -72,26 +76,25 @@ class LoginView(APIView):
                    429: MensajeRespuestaSerializer},
     )
     def post(self, request):
-        correo = request.data.get('correo') or request.data.get('email')
+        identificador = (
+            request.data.get('usuario')
+            or request.data.get('correo')
+            or request.data.get('email')
+            or request.data.get('cedula')
+        )
         password = request.data.get('password')
-        cedula_directa = request.data.get('cedula')
 
-        if not password or (not correo and not cedula_directa):
+        if not password or not identificador:
             return fail('Credenciales requeridas.', 400)
 
         ip_cliente = request.META.get('REMOTE_ADDR')
 
         repo_auth = RepoCuentaAuthORM()
-        cedula_registro = None
-        cuenta = None
-        if correo:
-            cedula_registro = repo_auth.obtener_cedula_por_email(correo) or correo[:20]
-        else:
-            cedula_registro = cedula_directa or ''
+        cedula_registro = repo_auth.obtener_cedula_por_email(identificador) or str(identificador)[:20]
 
         bloqueado_hasta = (
             validar_bloqueo_vigente(cedula_registro)
-            or (validar_bloqueo_vigente(correo) if correo else None)
+            or validar_bloqueo_vigente(identificador)
         )
         if bloqueado_hasta:
             return fail(
@@ -101,9 +104,15 @@ class LoginView(APIView):
             )
 
         try:
-            cuenta = repo_auth.obtener_cuenta_por_email_o_cedula(correo, cedula_directa)
+            cuenta = repo_auth.obtener_cuenta_por_identificador(identificador)
 
-            if not cuenta or not cuenta.check_password(password) or not cuenta.is_active:
+            if not cuenta or not cuenta.is_active:
+                anotar_intento_fallido(cedula_registro, ip_cliente)
+                return fail('Credenciales inválidas.', 401)
+
+            clave_valida = cuenta.check_password(password)
+
+            if not clave_valida:
                 anotar_intento_fallido(cedula_registro, ip_cliente)
                 nuevo_bloqueo = validar_bloqueo_vigente(cedula_registro)
                 if nuevo_bloqueo:
@@ -120,8 +129,7 @@ class LoginView(APIView):
             return fail('Error procesando la solicitud de autenticación.', 401)
 
         limpiar_bloqueo(cedula_registro)
-        if correo:
-            limpiar_bloqueo(correo)
+        limpiar_bloqueo(identificador)
 
         tokens = emitir_tokens_sesion(
             cuenta,
@@ -213,3 +221,64 @@ class MeView(APIView):
             {**usuario_data, 'permisos': sorted(permisos.codigos)},
             'Datos del usuario obtenidos correctamente.',
         )
+
+
+class SolicitarRecuperacionPasswordView(APIView):
+    """Solicitud de recuperación de contraseña por correo institucional con throttling (3/min)."""
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset'
+
+    @extend_schema(
+        tags=['Identidad'],
+        summary='Solicitar recuperación de contraseña',
+        description='Envía un correo con token de 15 min al correo institucional del trabajador.',
+        request=SolicitarRecuperacionSerializer,
+        responses={200: MensajeRespuestaSerializer, 400: MensajeRespuestaSerializer, 429: MensajeRespuestaSerializer},
+    )
+    def post(self, request):
+        from apps.identidad.application.use_cases.solicitar_recuperacion_password import (
+            solicitar_recuperacion_password,
+        )
+        from apps.identidad.presentation.serializers.recuperacion_password_serializers import (
+            SolicitarRecuperacionSerializer,
+        )
+
+        serializer = SolicitarRecuperacionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        identificador = serializer.validated_data['identificador']
+        base_frontend = serializer.validated_data.get('frontend_url') or request.headers.get('Origin') or None
+
+        mensaje = solicitar_recuperacion_password(identificador, base_frontend=base_frontend)
+        return ok(message=mensaje)
+
+
+class RestablecerPasswordView(APIView):
+    """Restablece la contraseña utilizando un token válido y no utilizado previamente."""
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset'
+
+    @extend_schema(
+        tags=['Identidad'],
+        summary='Restablecer contraseña con token',
+        description='Valida el token de recuperación y establece la nueva contraseña.',
+        request=RestablecerPasswordSerializer,
+        responses={200: MensajeRespuestaSerializer, 400: MensajeRespuestaSerializer, 429: MensajeRespuestaSerializer},
+    )
+    def post(self, request):
+        from apps.identidad.application.use_cases.restablecer_password import (
+            restablecer_password,
+        )
+        from apps.identidad.presentation.serializers.recuperacion_password_serializers import (
+            RestablecerPasswordSerializer,
+        )
+
+        serializer = RestablecerPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        mensaje = restablecer_password(
+            token=serializer.validated_data['token'],
+            password_nuevo=serializer.validated_data['password_nuevo'],
+            password_confirmacion=serializer.validated_data['password_confirmacion'],
+        )
+        return ok(message=mensaje)
+

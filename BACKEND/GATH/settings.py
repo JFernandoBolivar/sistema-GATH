@@ -82,8 +82,9 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'GATH.urls'
 
 _DEFAULT_CORS_ORIGINS = (
-    'http://localhost:3000,http://127.0.0.1:3000,http://djangoapp:3000,http://next-app:3000,'
-    'http://nextjs-App:3000,http://172.16.26.48:3000,http://192.168.1.5:3000,http://172.16.10.209:3000,'
+    'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,'
+    'http://djangoapp:3000,http://next-app:3000,http://nextjs-App:3000,'
+    'http://172.16.26.48:3000,http://192.168.1.5:3000,http://172.16.10.209:3000,'
     'http://172.16.24.81:3000,http://172.21.192.1:3000,http://172.16.24.56:3000,http://192.168.137.22:3000,'
     'http://172.22.112.1:3000,http://172.17.105.223:3000'
 )
@@ -192,6 +193,19 @@ POPPLER_PATH = os.getenv(
     r'C:\poppler\poppler-25.12.0\Library\bin' if os.name == 'nt' else '/usr/bin',
 )
 
+# Configuración de Correo Electrónico Institucional (CONATEL)
+EMAIL_BACKEND = config(
+    'DJANGO_EMAIL_BACKEND',
+    default='django.core.mail.backends.smtp.EmailBackend',
+)
+EMAIL_HOST = config('EMAIL_HOST', default='mail.conatel.gob.ve')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='conatelenlinea@conatel.gob.ve')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='conatelenlinea@conatel.gob.ve')
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
+
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
@@ -215,7 +229,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '60/minute',
         'user': '300/minute',
-        'login': '5/minute',
+        'login': config('LOGIN_THROTTLE_RATE', default='30/minute'),
+        'password_reset': config('PASSWORD_RESET_THROTTLE_RATE', default='10/minute'),
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',

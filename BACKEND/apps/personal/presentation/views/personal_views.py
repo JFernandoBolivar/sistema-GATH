@@ -93,8 +93,38 @@ class EmpleadoDetailView(APIView):
     patch = put
 
 
+from django.http import HttpResponse
+
+
 class EmpleadoFotoView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('personal.editar_personales')]
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), HasPermission('personal.editar_personales')()]
+        return [IsAuthenticated()]
+
+    @extend_schema(tags=['Personal'], summary='Obtener fotografía de perfil del empleado')
+    def get(self, request, cedula: str):
+        from apps.personal.infrastructure.models.personal_models import EmployeeModel
+        emp = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        if not emp or not emp.profile:
+            return fail("Empleado no encontrado o sin fotografía registrada.", status=404)
+
+        p_clean = emp.profile.strip()
+        if not (any(p_clean.lower().endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.webp', '.gif')) or '/' in p_clean):
+            return fail("El empleado no posee fotografía cargada.", status=404)
+
+        from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+        try:
+            foto_bytes = SeaweedFSStorage().descargar(p_clean)
+            if not foto_bytes:
+                return fail("Fotografía no disponible en almacenamiento.", status=404)
+            ext = p_clean.lower().split('.')[-1]
+            mime = f"image/{ext}" if ext in ('png', 'webp', 'gif') else "image/jpeg"
+            resp = HttpResponse(foto_bytes, content_type=mime)
+            resp['Cache-Control'] = 'private, max-age=3600'
+            return resp
+        except Exception as e:
+            return fail(f"No fue posible recuperar la fotografía: {e}", status=404)
 
     @extend_schema(tags=['Personal'], summary='Subir o actualizar foto de perfil de empleado')
     def post(self, request, cedula: str):
