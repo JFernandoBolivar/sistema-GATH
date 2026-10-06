@@ -10,6 +10,7 @@ const base = {
   apellidos: "Perez",
   file: null,
   fecha_nacimiento: new Date(1990, 0, 1),
+  nacionalidad_id: 1,
   sexoid: 1,
   estadoCivil: 1,
   perfil_salud: {},

@@ -117,6 +117,7 @@ export const empleadoSchema = z.object({
     .nullable(),
   telefonoHabitacion: z.string().trim().optional().nullable(),
   estadoCivilId: z.number().positive().optional().nullable(),
+  nacionalidadId: z.number().int().positive().optional().nullable(),
   carnetPatria: z.string().trim().optional().nullable(),
   datosVivienda: datosViviendaSchema.optional(),
   perfilSalud: perfilSaludSchema.optional(),
@@ -174,6 +175,7 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
     .refine((f) => edadEnAnios(f) >= 0, { message: "La Fecha De Nacimiento No Puede Ser En El Futuro" })
     .refine((f) => edadEnAnios(f) >= 16, { message: "La Edad Mínima Es De 16 Años" }),
   estadoCivilId: idRequerido("Debe Seleccionar Un Estado Civil"),
+  nacionalidadId: idRequerido("Debe Seleccionar Una Nacionalidad"),
   carnetPatria: z
     .string()
     .trim()

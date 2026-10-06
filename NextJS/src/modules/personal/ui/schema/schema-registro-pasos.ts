@@ -18,6 +18,9 @@ const opcionalVacio = (v: unknown) => (v === "" ? undefined : v);
 
 // --- Paso 1: Información básica -------------------------------------------
 export const pasoBasicInfoSchema = z.object({
+  nacionalidad_id: z
+    .number({ message: "Debe Seleccionar Una Nacionalidad" })
+    .refine((val) => val !== 0, { message: "Debe Seleccionar Una Nacionalidad" }),
   cedulaidentidad: z
     .string({ required_error: "Cédula De Identidad Es Requerido" })
     .regex(REGEX.DIGITS, { message: "Solo Se Permiten Números" })

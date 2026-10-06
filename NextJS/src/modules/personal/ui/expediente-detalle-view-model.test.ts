@@ -27,6 +27,8 @@ function catalogosVacios(): CatalogosExpedienteDTO {
     sexos: [],
     estadosCiviles: [],
     organismos: [],
+    nacionalidades: [],
+    parentescos: [],
   };
 }
 
@@ -76,6 +78,11 @@ describe("construirDetalleExpediente", () => {
     expect(vm.salud?.alergias).toEqual([
       { id: 5, nombre: "Penicilina", categoria: "Medicamentos" },
     ]);
+  });
+
+  it("antepone la letra de nacionalidad a la cédula cuando viene del backend", () => {
+    expect(construirDetalleExpediente({ ...empleadoBase(), nacionalidadCodigo: "E" }, catalogosVacios()).cedula).toBe("E-12345678");
+    expect(construirDetalleExpediente(empleadoBase(), catalogosVacios()).cedula).toBe("12345678");
   });
 
   it("cae a 'ID <n>' cuando el catálogo no contiene el id referenciado", () => {

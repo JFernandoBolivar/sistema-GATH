@@ -27,6 +27,7 @@ export function registroPasosADTO(data: RegistroPasosType): GuardarEmpleadoInput
     telefonoMovil: texto(data.telefono_movil),
     telefonoHabitacion: texto(data.telefono_habitacion),
     estadoCivilId: id(data.estadoCivil),
+    nacionalidadId: id(data.nacionalidad_id),
     carnetPatria: texto(data.carnet_patria),
     formacionAcademica: (data.formacion_academica ?? [])
       .filter((f) => id(f.nivel_Academico_id))

@@ -44,5 +44,7 @@ export async function listarCatalogosExpediente(
     sexos: mapCat(c.sexos),
     estadosCiviles: mapCat(c.estadosCiviles),
     organismos: mapCat(c.organismos),
+    nacionalidades: mapCat(c.nacionalidades),
+    parentescos: mapCat(c.parentescos),
   };
 }

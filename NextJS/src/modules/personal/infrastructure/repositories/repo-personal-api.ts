@@ -173,6 +173,7 @@ export const repoPersonalApi: RepoPersonal = {
       estado_civil_id: data.estadoCivilId ?? null,
       carnet_patria: data.carnetPatria ?? null,
     };
+    if (data.nacionalidadId) payload.nacionalidad_id = data.nacionalidadId;
     aplicarAnidados(payload, data);
     const raw = await personalApi.crear(payload);
     return empleadoApiAEntidad(raw);
@@ -189,6 +190,7 @@ export const repoPersonalApi: RepoPersonal = {
     if (data.telefonoHabitacion !== undefined) payload.telefono_habitacion = data.telefonoHabitacion;
     if (data.estadoCivilId !== undefined) payload.estado_civil_id = data.estadoCivilId;
     if (data.carnetPatria !== undefined) payload.carnet_patria = data.carnetPatria;
+    if (data.nacionalidadId) payload.nacionalidad_id = data.nacionalidadId;
     aplicarAnidados(payload, data as GuardarEmpleadoDatos);
 
     const raw = await personalApi.actualizar(cedula, payload);
@@ -219,6 +221,8 @@ export const repoPersonalApi: RepoPersonal = {
       sexos,
       estadosCiviles,
       organismos,
+      nacionalidades,
+      parentescos,
     ] = await Promise.all([
       personalApi.getEstados(),
       personalApi.getMunicipios(),
@@ -242,6 +246,8 @@ export const repoPersonalApi: RepoPersonal = {
       personalApi.getSexos(),
       personalApi.getEstadosCiviles(),
       personalApi.getOrganismosAdscritos(),
+      personalApi.getNacionalidades(),
+      personalApi.getParentescos(),
     ]);
     const aCat = (raw: import("../http/personal-api").CatalogoEmpleadoApiItem[]) =>
       raw.map((x) => ({
@@ -279,6 +285,8 @@ export const repoPersonalApi: RepoPersonal = {
       sexos: aCat(sexos),
       estadosCiviles: aCat(estadosCiviles),
       organismos: aCat(organismos),
+      nacionalidades: aCat(nacionalidades),
+      parentescos: aCat(parentescos),
     };
   },
 };

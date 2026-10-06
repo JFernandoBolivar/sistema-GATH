@@ -17,6 +17,7 @@ const basico = {
   apellidos: "Perez Gutierrez",
   file: null,
   fecha_nacimiento: new Date(1990, 4, 17),
+  nacionalidad_id: 1,
   sexoid: 1,
   estadoCivil: 2,
   correo: "",
@@ -47,6 +48,12 @@ describe("schemas por paso del wizard de registro", () => {
     expect(pasoBasicInfoSchema.safeParse(basico).success).toBe(true);
     const sinSexo = pasoBasicInfoSchema.safeParse({ ...basico, sexoid: 0 });
     expect(sinSexo.success).toBe(false);
+  });
+
+  it("paso 1 exige la nacionalidad (V/E)", () => {
+    const r = pasoBasicInfoSchema.safeParse({ ...basico, nacionalidad_id: 0 });
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0].message).toBe("Debe Seleccionar Una Nacionalidad");
   });
 
   it("paso 1 rechaza menores de 16 años", () => {
@@ -87,6 +94,7 @@ describe("registroPasosADTO", () => {
       correo: null,
       telefonoMovil: null,
       estadoCivilId: 2,
+      nacionalidadId: 1,
       formacionAcademica: [{ nivelAcademicoId: 3, carreraId: 7, mencionId: null, institucionId: 9 }],
       antecedentes: [],
       perfilSalud: { grupoSanguineoId: null, patologiasCronicas: [4] },
@@ -137,6 +145,7 @@ describe("empleadoRegistroSchema (revalidación del alta en el servidor)", () =>
     expect(pasa({ carnetPatria: "12345" })).toBe(false);
     expect(pasa({ carnetPatria: "1234567890" })).toBe(true);
     expect(pasa({ estadoCivilId: null })).toBe(false);
+    expect(pasa({ nacionalidadId: null })).toBe(false);
   });
 
   it("exige edad mínima de 16 años y fecha no futura", () => {

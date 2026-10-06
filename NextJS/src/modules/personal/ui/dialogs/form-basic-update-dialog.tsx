@@ -77,6 +77,7 @@ export default function FormBasicUpdateDialog({
       telefonoHabitacion: empleado.telefonoHabitacion ?? "",
       carnetPatria: empleado.carnetPatria ?? "",
       estadoCivilId: empleado.estadoCivilId ?? undefined,
+      nacionalidadId: empleado.nacionalidadId ?? undefined,
     },
   });
 
@@ -108,6 +109,7 @@ export default function FormBasicUpdateDialog({
           telefonoHabitacion: data.telefonoHabitacion || null,
           carnetPatria: data.carnetPatria || null,
           estadoCivilId: data.estadoCivilId ? Number(data.estadoCivilId) : null,
+          ...(data.nacionalidadId ? { nacionalidadId: Number(data.nacionalidadId) } : {}),
         };
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
@@ -231,6 +233,24 @@ export default function FormBasicUpdateDialog({
                       min="1900-01-01"
                       {...register("fechaNacimiento", { required: true })}
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="nacionalidadId">Nacionalidad *</Label>
+                    <Select
+                      value={watch("nacionalidadId") ? String(watch("nacionalidadId")) : ""}
+                      onValueChange={(v) => setValue("nacionalidadId", Number(v))}
+                    >
+                      <SelectTrigger id="nacionalidadId" className="w-full truncate">
+                        <SelectValue placeholder="V / E" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(catalogos?.nacionalidades ?? []).map((n) => (
+                          <SelectItem key={n.id} value={String(n.id)}>
+                            {n.codigo ? `${n.codigo} - ${n.nombre}` : n.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label htmlFor="sexoId" className="cursor-pointer">

@@ -37,6 +37,7 @@ test.describe("Personal - wizard de registro", () => {
     await page.getByRole("button", { name: "Siguiente", exact: true }).click();
     await expect(page.getByText("Solo Se Permiten Números")).toBeVisible();
     await expect(page.getByText("Debe Seleccionar Un Sexo")).toBeVisible();
+    await expect(page.getByText("Debe Seleccionar Una Nacionalidad")).toBeVisible();
   });
 
   test("opción \"Otra\" en carrera e institución revela el input y exige el nombre", async ({ page }) => {
@@ -48,8 +49,8 @@ test.describe("Personal - wizard de registro", () => {
     await popover.locator("select").nth(1).selectOption("1990");
     await popover.locator("button[data-day]").first().click();
     await page.keyboard.press("Escape");
-    await elegirOpcion(page, page.getByRole("combobox").nth(0));
-    await elegirOpcion(page, page.getByRole("combobox").nth(1));
+    // Nacionalidad (V/E), Sexo y Estado Civil
+    for (const i of [0, 1, 2]) await elegirOpcion(page, page.getByRole("combobox").nth(i));
     await page.getByRole("button", { name: "Siguiente", exact: true }).click();
     await expect(page.getByText("Paso 2: Información Academica")).toBeVisible();
 
@@ -92,8 +93,8 @@ test.describe("Personal - wizard de registro", () => {
     await popover.locator("select").nth(1).selectOption("1990");
     await popover.locator("button[data-day]").first().click();
     await page.keyboard.press("Escape");
-    await elegirOpcion(page, page.getByRole("combobox").nth(0));
-    await elegirOpcion(page, page.getByRole("combobox").nth(1));
+    // Nacionalidad (V/E), Sexo y Estado Civil
+    for (const i of [0, 1, 2]) await elegirOpcion(page, page.getByRole("combobox").nth(i));
     await siguiente();
 
     // Paso 2

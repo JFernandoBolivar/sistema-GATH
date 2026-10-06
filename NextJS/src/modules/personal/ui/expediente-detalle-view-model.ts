@@ -167,7 +167,7 @@ export function construirDetalleExpediente(
     : SIN_DATO;
 
   return {
-    cedula: empleado.cedula,
+    cedula: empleado.nacionalidadCodigo ? `${empleado.nacionalidadCodigo}-${empleado.cedula}` : empleado.cedula,
     nombreCompleto: empleado.nombreCompleto,
     sexo: empleado.sexoNombre || SIN_DATO,
     correo: empleado.correo ?? SIN_DATO,

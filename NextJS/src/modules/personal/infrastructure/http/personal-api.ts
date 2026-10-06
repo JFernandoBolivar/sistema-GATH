@@ -26,6 +26,9 @@ export interface EmpleadoApiItem {
   estado_civil_id: number | null;
   estado_civil_nombre: string | null;
   carnet_patria: string | null;
+  nacionalidad_id?: number | null;
+  nacionalidad_codigo?: string | null;
+  nacionalidad_nombre?: string | null;
   total_anos_apn: number;
   datos_vivienda: Record<string, unknown> | null;
   perfil_salud: Record<string, unknown> | null;
@@ -158,4 +161,9 @@ export const personalApi = {
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/estados-civiles/")),
   getOrganismosAdscritos: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/organizacion/organismos-adscritos/")),
+  getNacionalidades: () =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/nacionalidades/")),
+  getParentescos: () =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/parentescos/")),
 };
+

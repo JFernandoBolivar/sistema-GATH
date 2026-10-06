@@ -45,6 +45,7 @@ const valoresIniciales = {
   apellidos: "",
   file: null,
   fecha_nacimiento: undefined,
+  nacionalidad_id: 0,
   sexoid: 0,
   estadoCivil: 0,
   correo: "",

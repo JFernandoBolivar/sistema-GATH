@@ -88,6 +88,8 @@ export interface CatalogosExpedienteDTO {
   sexos: CatalogoEmpleadoDTO[];
   estadosCiviles: CatalogoEmpleadoDTO[];
   organismos: CatalogoEmpleadoDTO[];
+  nacionalidades: CatalogoEmpleadoDTO[];
+  parentescos: CatalogoEmpleadoDTO[];
 }
 
 export interface EmpleadoDTO {
@@ -105,6 +107,9 @@ export interface EmpleadoDTO {
   estadoCivilId: number | null;
   estadoCivilNombre: string | null;
   carnetPatria: string | null;
+  nacionalidadId?: number | null;
+  nacionalidadCodigo?: string | null;
+  nacionalidadNombre?: string | null;
   totalAnosApn: number;
   datosVivienda?: DatosViviendaDTO | null;
   perfilSalud?: PerfilSaludDTO | null;
@@ -125,6 +130,7 @@ export interface GuardarEmpleadoInputDTO {
   apellidos: string;
   sexoId: number;
   fechaNacimiento: string;
+  nacionalidadId?: number | null;
   correo?: string | null;
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;

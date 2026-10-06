@@ -104,6 +104,8 @@ class RepoPersonalMemoria implements RepoPersonal {
       sexos: [],
       estadosCiviles: [],
       organismos: [],
+      nacionalidades: [],
+      parentescos: [],
     };
   }
 }

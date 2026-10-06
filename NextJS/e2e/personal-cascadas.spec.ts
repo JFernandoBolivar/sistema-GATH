@@ -102,3 +102,16 @@ test.describe("Personal - opción \"Otra\" en diálogos de actualización", () =
     await expect(dialogo.getByRole("alert")).toHaveText("Debe escribir el nombre de la nueva capacitación");
   });
 });
+
+test.describe("Personal - nacionalidad (V/E)", () => {
+  test("el diálogo de información básica precarga la nacionalidad guardada", async ({ page }) => {
+    const sheet = await abrirDetalle(page);
+    await sheet.getByRole("button", { name: "Actualizar Información Basica" }).click();
+    const nacionalidad = page.locator("#nacionalidadId");
+    await expect(nacionalidad).toBeVisible();
+    await expect(nacionalidad).toContainText(/VENEZOLANA|EXTRANJERA/);
+    await nacionalidad.click();
+    await expect(page.getByRole("option")).toHaveCount(2);
+    await page.keyboard.press("Escape");
+  });
+});

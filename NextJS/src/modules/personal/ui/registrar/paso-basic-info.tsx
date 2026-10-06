@@ -161,6 +161,33 @@ export function PasoBasicInfo({
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex gap-2 col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="nacionalidad_id"
+                    render={({ field }) => (
+                      <FormItem className="w-48">
+                        <FormLabel>Nacionalidad *</FormLabel>
+                        <Select
+                          value={field.value ? `${field.value}` : ""}
+                          onValueChange={(v) => field.onChange(Number.parseInt(v))}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full truncate">
+                              <SelectValue placeholder={isLoadingCatalogos ? "Cargando..." : "V / E"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(catalogos?.nacionalidades ?? []).map((n) => (
+                              <SelectItem key={n.id} value={`${n.id}`}>
+                                {n.codigo ? `${n.codigo} - ${n.nombre}` : n.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <div className="flex-1">
                     <InputForm form={form} label="Cedula de Identidad *" nameInput="cedulaidentidad" placeholder="00000000" type="number" />
                   </div>

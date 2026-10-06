@@ -47,6 +47,8 @@ export interface CatalogosExpediente {
   sexos: CatalogoExpediente[];
   estadosCiviles: CatalogoExpediente[];
   organismos: CatalogoExpediente[];
+  nacionalidades: CatalogoExpediente[];
+  parentescos: CatalogoExpediente[];
 }
 
 export interface GuardarEmpleadoDatos {
@@ -59,6 +61,7 @@ export interface GuardarEmpleadoDatos {
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   estadoCivilId?: number | null;
+  nacionalidadId?: number | null;
   carnetPatria?: string | null;
   datosVivienda?: DatosVivienda | null;
   perfilSalud?: PerfilSalud | null;

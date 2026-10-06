@@ -147,6 +147,9 @@ export interface Empleado {
   estadoCivilId: number | null;
   estadoCivilNombre: string | null;
   carnetPatria: string | null;
+  nacionalidadId?: number | null;
+  nacionalidadCodigo?: string | null;
+  nacionalidadNombre?: string | null;
   totalAnosApn: number;
   // Expediente anidado (solo poblado en el detalle, Fase 2.2).
   datosVivienda?: DatosVivienda | null;
