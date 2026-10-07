@@ -40,7 +40,6 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 import { Badge } from "@/shared/ui/components/badge";
-import ExportButton from "@/components/ui/ExportButtonPDF";
 import { DataTable } from "@/shared/ui/components/data-table";
 import Loading from "@/shared/ui/components/loading";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
@@ -48,16 +47,15 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
 import type { CatalogoTiposMovimientoInfo, FiltrosMovimiento } from "../domain/ports/repo-movimientos";
 import {
+  descargarHistorialPdfAction,
   getHistorialGeneralAction,
   getHistorialPorCargoAction,
   getHistorialPorEmpleadoAction,
   getTiposMovimientoDisponiblesAction,
 } from "../infrastructure/actions/movimientos-actions";
 import { getDireccionesGeneralesAction } from "@/modules/organizacion/infrastructure/actions/organizacion-actions";
-import { getCintilloConfigPdfAction, type CintilloConfigPdf } from "../infrastructure/actions/cintillo-pdf-action";
 import { DetalleMovimiento } from "./detalle-movimiento";
 import { construirColumnasMovimientos } from "./movimientos-columns";
-import { ReportMovementsPDF } from "./pdf/report-movements-pdf";
 import {
   consultaHistorialSchema,
   type ConsultaHistorialFormType,
@@ -150,9 +148,11 @@ export default function MovimientosPage() {
   const [movimientos, setMovimientos] = useState<MovimientoCargoDTO[]>([]);
   const [busquedaLibre, setBusquedaLibre] = useState("");
   const [consulta, setConsulta] = useState<TipoConsulta>(null);
+  const [ultimosFiltros, setUltimosFiltros] = useState<FiltrosMovimiento>({});
   const [buscado, setBuscado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [exportandoPdf, setExportandoPdf] = useState(false);
 
   const [viendoDetalle, setViendoDetalle] = useState<MovimientoCargoDTO | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
@@ -164,13 +164,6 @@ export default function MovimientosPage() {
   const [gerencias, setGerencias] = useState<string[]>(
     GERENCIAS_OPCIONES as unknown as string[],
   );
-  // HU 0009: cintillo configurable para el PDF exportado. `null` mientras
-  // carga o si falla -> ReportMovementsPDF cae a sus imágenes estáticas.
-  const [cintilloConfig, setCintilloConfig] = useState<CintilloConfigPdf | null>(null);
-
-  useEffect(() => {
-    getCintilloConfigPdfAction().then(setCintilloConfig);
-  }, []);
 
   useEffect(() => {
     let montado = true;
@@ -287,6 +280,8 @@ export default function MovimientosPage() {
           (!gerencia || gerencia === "ALL") &&
           (!estatus || estatus === "ALL");
 
+        setUltimosFiltros(filtros);
+
         if (soloCedula) {
           setConsulta({ tipo: "empleado", valor: cedula });
           resultado = await getHistorialPorEmpleadoAction(cedula);
@@ -371,17 +366,26 @@ export default function MovimientosPage() {
     });
   }, [movimientos, busquedaLibre]);
 
-  const pdfDocument = useMemo(
-    () => (
-      <ReportMovementsPDF
-        moves={movimientosFiltrados}
-        cedula={consulta?.tipo === "empleado" ? consulta.valor : ""}
-        userName={session?.user?.name}
-        cintilloConfig={cintilloConfig}
-      />
-    ),
-    [movimientosFiltrados, consulta, session?.user?.name, cintilloConfig],
-  );
+  const descargarPdf = async () => {
+    setExportandoPdf(true);
+    try {
+      const resultado = await descargarHistorialPdfAction(ultimosFiltros);
+      if (!(resultado instanceof Blob)) {
+        setError((resultado as { error: string }).error ?? "No fue posible descargar el PDF.");
+        return;
+      }
+      const url = window.URL.createObjectURL(resultado);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `historial-movimientos-${consulta?.tipo === "empleado" ? consulta.valor : "reporte"}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError("No fue posible descargar el PDF.");
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
 
   return (
     <PageLayout
@@ -674,11 +678,14 @@ export default function MovimientosPage() {
                   : `${movimientosFiltrados.length} de ${movimientos.length} movimiento(s)`}
               </Badge>
 
-              <ExportButton
-                document={pdfDocument}
-                fileName={`historial-movimientos-${consulta?.tipo === "empleado" ? consulta.valor : "reporte"}.pdf`}
-                buttonText="Descargar PDF"
-              />
+              <Button
+                type="button"
+                disabled={exportandoPdf}
+                onClick={descargarPdf}
+                className="bg-blue-600 hover:bg-blue-800"
+              >
+                {exportandoPdf ? "Generando archivo…" : "Descargar PDF"}
+              </Button>
             </div>
           </div>
         )}

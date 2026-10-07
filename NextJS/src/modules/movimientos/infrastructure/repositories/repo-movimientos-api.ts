@@ -45,5 +45,18 @@ export const repoMovimientosApi: RepoMovimientos = {
     }
     return raw as any;
   },
+
+  async descargarPdf(filtros?: FiltrosMovimiento) {
+    return movimientosApi.getPdf({
+      cedula: filtros?.cedula,
+      codigo_puesto: filtros?.codigoPuesto,
+      categoria: filtros?.categoria,
+      tipo_movimiento: filtros?.tipoMovimiento,
+      fecha_inicio: filtros?.fechaInicio,
+      fecha_fin: filtros?.fechaFin,
+      gerencia: filtros?.gerencia,
+      estatus: filtros?.estatus,
+    });
+  },
 };
 

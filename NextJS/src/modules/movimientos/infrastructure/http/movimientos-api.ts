@@ -55,5 +55,10 @@ export const movimientosApi = {
 
   getHistorialPorCargo: (codigoPuesto: string) =>
     apiClient.get<any>(`/api/v1/movimientos/cargo/${codigoPuesto}/`),
+
+  getPdf: (filtros?: FiltrosMovimientosApi) =>
+    apiClient.getBlob("/api/v1/movimientos/pdf/", {
+      params: filtros as Record<string, string | number | boolean | undefined | null>,
+    }),
 };
 

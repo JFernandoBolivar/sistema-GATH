@@ -174,7 +174,8 @@ export const apiClient = {
   patchForm: <T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> =>
     request<T>(path, { method: "PATCH", body: formData }, options, true),
 
-  getBlob: (path: string, options?: RequestOptions): Promise<Blob> => requestBlob(path, { method: "GET" }, options),
+  getBlob: (path: string, options?: RequestOptions): Promise<Blob> =>
+    requestBlob(construirRuta(path, options?.params), { method: "GET" }, options),
 
   postBlob: (path: string, body?: JsonBody, options?: RequestOptions): Promise<Blob> =>
     requestBlob(path, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }, options),

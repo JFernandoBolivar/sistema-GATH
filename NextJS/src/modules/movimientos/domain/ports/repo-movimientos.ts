@@ -28,5 +28,7 @@ export interface RepoMovimientos {
   listarHistorialPorCargo(codigoPuesto: string): Promise<MovimientoCargo[]>;
   listarHistorial?(filtros?: FiltrosMovimiento): Promise<MovimientoCargo[]>;
   listarTiposDisponibles?(): Promise<CatalogoTiposMovimientoInfo>;
+  /** PDF del historial generado en backend (ReportLab), reemplaza el render client-side con @react-pdf/renderer. */
+  descargarPdf?(filtros?: FiltrosMovimiento): Promise<Blob>;
 }
 

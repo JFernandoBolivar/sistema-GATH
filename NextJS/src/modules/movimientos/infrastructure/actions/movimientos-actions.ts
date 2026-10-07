@@ -71,6 +71,25 @@ export async function getHistorialGeneralAction(filtros?: FiltrosMovimiento) {
   }
 }
 
+/** PDF del historial generado en backend (ReportLab); reemplaza el render client-side con @react-pdf/renderer. */
+export async function descargarHistorialPdfAction(filtros?: FiltrosMovimiento) {
+  if (!repoMovimientosApi.descargarPdf) {
+    return { error: "Descarga de PDF no disponible." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const resultado = await repoMovimientosApi.descargarPdf(filtros);
+    await logAudit({ traceId, action: "descargarHistorialPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return resultado;
+  } catch (error) {
+    await logAudit({ traceId, action: "descargarHistorialPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
 export async function getTiposMovimientoDisponiblesAction() {
   const traceId = generateTraceId();
   const startedAt = Date.now();
