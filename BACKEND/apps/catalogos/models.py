@@ -12,6 +12,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoPersonalModel,
     TipoProcedenciaModel,
     EstadoCivilModel,
+    NacionalidadModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import (
     EstadoModel,
@@ -35,4 +36,5 @@ __all__ = [
     'CategoriaMovimientoModel',
     'TipoMovimientoModel',
     'EstadoCivilModel',
+    'NacionalidadModel',
 ]

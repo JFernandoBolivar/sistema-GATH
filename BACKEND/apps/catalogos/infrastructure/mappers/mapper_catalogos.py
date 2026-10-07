@@ -13,6 +13,8 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoNominaModel,
     TipoPersonalModel,
     TipoProcedenciaModel,
+    EstadoCivilModel,
+    NacionalidadModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import (
     EstadoModel,
@@ -80,3 +82,16 @@ def tipo_movimiento_a_entidad(modelo: TipoMovimientoModel) -> CatalogoItem:
         nombre=modelo.movimiento,
         extra={'categoria': modelo.categoria.categoria if modelo.categoria_id else None},
     )
+
+
+def estado_civil_a_entidad(modelo: EstadoCivilModel) -> CatalogoItem:
+    return CatalogoItem(id=modelo.pk, nombre=modelo.estadoCivil)
+
+
+def nacionalidad_a_entidad(modelo: NacionalidadModel) -> CatalogoItem:
+    return CatalogoItem(
+        id=modelo.pk,
+        nombre=modelo.nombre,
+        extra={'codigo': modelo.codigo},
+    )
+

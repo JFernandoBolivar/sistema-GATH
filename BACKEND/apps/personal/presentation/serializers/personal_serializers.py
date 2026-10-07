@@ -30,7 +30,12 @@ class EmpleadoSerializer(serializers.Serializer):
     estado_civil_id = serializers.IntegerField(read_only=True, allow_null=True)
     estado_civil_nombre = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria = serializers.CharField(read_only=True, allow_null=True)
+    nacionalidad_id = serializers.IntegerField(read_only=True, default=1)
+    nacionalidad_codigo = serializers.CharField(read_only=True, default="V")
+    nacionalidad_nombre = serializers.CharField(read_only=True, default="VENEZOLANA")
     total_anos_apn = serializers.FloatField(read_only=True)
+    profile = serializers.CharField(read_only=True, allow_null=True, required=False)
+    foto_url = serializers.CharField(read_only=True, allow_null=True, required=False)
     # Expediente anidado (Fase 2.2, `PLAN_REPARACION_GATH.md`): solo viene
     # poblado en el detalle (`GET /api/v1/personal/<cedula>/`); el listado
     # devuelve estos campos vacíos a propósito (ver `_construir_expediente`

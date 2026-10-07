@@ -30,6 +30,12 @@ class EmployeeModel(models.Model):
         blank=True,
         null=True,
     )
+    nacionalidad = models.ForeignKey(
+        'catalogos.NacionalidadModel',
+        models.PROTECT,
+        db_column='nacionalidadId',
+        default=1,
+    )
 
     correo = models.EmailField(blank=True, null=True, unique=True)
     telefono_habitacion = models.CharField(max_length=20, blank=True, null=True)

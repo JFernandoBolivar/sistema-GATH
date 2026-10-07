@@ -38,7 +38,39 @@ def _total_anos_apn_calculado(antecedentes_cerrados) -> float:
     )
 
 
+def _clean_str(val: str | None) -> str | None:
+    if val is None:
+        return None
+    s = str(val).strip()
+    if s.lower() in ("nan", "none", "null", "undefined"):
+        return None
+    return s
+
+
 def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expediente: dict | None = None) -> Empleado:
+    profile_val = getattr(modelo, 'profile', None)
+    foto_url = None
+    if profile_val and isinstance(profile_val, str):
+        p_clean = profile_val.strip()
+        if p_clean.startswith('data:image/'):
+            foto_url = p_clean
+        elif any(p_clean.lower().endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.webp', '.gif')) or '/' in p_clean:
+            try:
+                from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+                import base64
+                foto_bytes = SeaweedFSStorage().descargar(p_clean)
+                if foto_bytes:
+                    ext = p_clean.lower().split('.')[-1]
+                    mime = f"image/{ext}" if ext in ('png', 'webp', 'gif') else "image/jpeg"
+                    foto_url = f"data:{mime};base64,{base64.b64encode(foto_bytes).decode('utf-8')}"
+            except Exception:
+                foto_url = None
+
+    nac_id = getattr(modelo, 'nacionalidad_id', 1) or 1
+    nac_obj = getattr(modelo, 'nacionalidad', None)
+    nac_codigo = getattr(nac_obj, 'codigo', 'V') if nac_obj else 'V'
+    nac_nombre = getattr(nac_obj, 'nombre', 'VENEZOLANA') if nac_obj else 'VENEZOLANA'
+
     return Empleado(
         id=modelo.pk,
         cedula=modelo.cedulaidentidad,
@@ -46,14 +78,19 @@ def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expedi
         apellidos=modelo.apellidos,
         sexo_id=modelo.sexoid_id,
         sexo_nombre=modelo.sexoid.sexo if modelo.sexoid else "",
-        correo=modelo.correo,
-        telefono_movil=modelo.telefono_movil,
-        telefono_habitacion=modelo.telefono_habitacion,
+        correo=_clean_str(modelo.correo),
+        telefono_movil=_clean_str(modelo.telefono_movil),
+        telefono_habitacion=_clean_str(modelo.telefono_habitacion),
         fecha_nacimiento=str(modelo.fecha_nacimiento) if modelo.fecha_nacimiento else None,
         estado_civil_id=modelo.estadoCivil_id,
         estado_civil_nombre=modelo.estadoCivil.estadoCivil if modelo.estadoCivil else None,
-        carnet_patria=modelo.carnet_patria,
+        carnet_patria=_clean_str(modelo.carnet_patria),
+        nacionalidad_id=nac_id,
+        nacionalidad_codigo=nac_codigo,
+        nacionalidad_nombre=nac_nombre,
         total_anos_apn=_total_anos_apn_calculado(antecedentes_cerrados),
+        profile=profile_val,
+        foto_url=foto_url,
         **(expediente or {}),
     )
 
@@ -70,11 +107,16 @@ def vivienda_a_dict(v) -> dict | None:
         return None
     return {
         'estado_id': v.estado_id,
+        'estado_nombre': v.estado.estado if getattr(v, 'estado', None) else None,
         'municipio_id': v.municipio_id,
+        'municipio_nombre': v.municipio.municipio if getattr(v, 'municipio', None) else None,
         'parroquia_id': v.parroquia_id,
+        'parroquia_nombre': v.parroquia.parroquia if getattr(v, 'parroquia', None) else None,
         'direccion_exacta': v.direccion_exacta,
         'condicion_vivienda_id': v.condicion_vivienda_id,
+        'condicion_vivienda_nombre': v.condicion_vivienda.condicion if getattr(v, 'condicion_vivienda', None) else None,
         'codigo_postal_id': v.codigo_postal_id,
+        'codigo_postal_nombre': v.codigo_postal.codigo if getattr(v, 'codigo_postal', None) else None,
     }
 
 
@@ -83,9 +125,13 @@ def salud_a_dict(s) -> dict | None:
         return None
     return {
         'grupo_sanguineo_id': s.grupo_sanguineo_id,
-        'alergias': list(s.alergias.values_list('id', flat=True)),
-        'patologias_cronicas': list(s.patologiaCronica.values_list('id', flat=True)),
-        'discapacidades': list(s.discapacidad.values_list('id', flat=True)),
+        'grupo_sanguineo_nombre': s.grupo_sanguineo.GrupoSanguineo if getattr(s, 'grupo_sanguineo', None) else None,
+        'alergias': list(s.alergias.values_list('id', flat=True)) if hasattr(s, 'alergias') else [],
+        'alergias_nombres': list(s.alergias.values_list('alergia', flat=True)) if hasattr(s, 'alergias') else [],
+        'patologias_cronicas': list(s.patologiaCronica.values_list('id', flat=True)) if hasattr(s, 'patologiaCronica') else [],
+        'patologias_cronicas_nombres': list(s.patologiaCronica.values_list('patologia', flat=True)) if hasattr(s, 'patologiaCronica') else [],
+        'discapacidades': list(s.discapacidad.values_list('id', flat=True)) if hasattr(s, 'discapacidad') else [],
+        'discapacidades_nombres': list(s.discapacidad.values_list('discapacidad', flat=True)) if hasattr(s, 'discapacidad') else [],
     }
 
 
@@ -94,9 +140,13 @@ def perfil_fisico_a_dict(p) -> dict | None:
         return None
     return {
         'talla_camisa_id': p.tallaCamisa_id,
+        'talla_camisa_nombre': p.tallaCamisa.valor if getattr(p, 'tallaCamisa', None) else None,
         'talla_pantalon_id': p.tallaPantalon_id,
+        'talla_pantalon_nombre': p.tallaPantalon.valor if getattr(p, 'tallaPantalon', None) else None,
         'talla_zapatos_id': p.tallaZapatos_id,
+        'talla_zapatos_nombre': p.tallaZapatos.valor if getattr(p, 'tallaZapatos', None) else None,
         'talla_chaqueta_id': p.tallaChaqueta_id,
+        'talla_chaqueta_nombre': p.tallaChaqueta.valor if getattr(p, 'tallaChaqueta', None) else None,
     }
 
 
@@ -104,13 +154,17 @@ def formacion_complementaria_a_dict(f) -> dict:
     return {
         'id': f.pk,
         'capacitacion_id': f.capacitacion_id,
+        'capacitacion_nombre': f.capacitacion.nombre_capacitacion if getattr(f, 'capacitacion', None) else None,
         'institucion_id': f.institucion_id,
+        'institucion_nombre': f.institucion.nombre_institucion if getattr(f, 'institucion', None) else None,
         'fecha_inicio': f.fechaInicio.isoformat() if f.fechaInicio else None,
         'fecha_fin': f.fechaFin.isoformat() if f.fechaFin else None,
         'dias_completados': f.dias_completados,
         'horas_completadas': f.horas_completadas,
         'procedencia_id': f.procedencia_id,
+        'procedencia_nombre': f.procedencia.tipo_procedencia if getattr(f, 'procedencia', None) else None,
         'grupo_id': f.grupo_id,
+        'grupo_nombre': f.grupo.nombre_grupo if getattr(f, 'grupo', None) else None,
     }
 
 
@@ -118,9 +172,13 @@ def formacion_a_dict(f) -> dict:
     return {
         'id': f.pk,
         'nivel_academico_id': f.nivel_academico_id,
+        'nivel_academico_nombre': f.nivel_academico.nivelacademico if getattr(f, 'nivel_academico', None) else None,
         'carrera_id': f.carrera_id,
+        'carrera_nombre': f.carrera.nombre_carrera if getattr(f, 'carrera', None) else None,
         'mencion_id': f.mencion_id,
+        'mencion_nombre': f.mencion.nombre_mencion if getattr(f, 'mencion', None) else None,
         'institucion_id': f.institucion_id,
+        'institucion_nombre': f.institucion.nombre_institucion if getattr(f, 'institucion', None) else None,
     }
 
 
@@ -131,6 +189,7 @@ def contacto_emergencia_a_dict(c) -> dict:
         'apellidos': c.apellidos,
         'telefono': c.telefono,
         'relacion_id': c.relacion_id,
+        'relacion_nombre': c.relacion.descripcion_parentesco if getattr(c, 'relacion', None) else None,
     }
 
 
@@ -138,6 +197,7 @@ def antecedente_a_dict(a) -> dict:
     return {
         'id': a.pk,
         'organismo_id': a.organismo_id,
+        'organismo_nombre': a.organismo.Organismoadscrito if getattr(a, 'organismo', None) else None,
         'fecha_ingreso': str(a.fecha_ingreso) if a.fecha_ingreso else None,
         'fecha_egreso': str(a.fecha_egreso) if a.fecha_egreso else None,
     }
@@ -172,7 +232,7 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
     esta consulta en dos módulos.
     """
     antecedentes_qs = list(
-        AntecedenteServicioModel.objects.filter(empleado=empleado).order_by('fecha_ingreso')
+        AntecedenteServicioModel.objects.filter(empleado=empleado).select_related('organismo').order_by('fecha_ingreso')
     )
     contratos_todos = [
         contrato_a_dict(c)
@@ -277,18 +337,36 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
         pass
 
     return {
-        'datos_vivienda': vivienda_a_dict(DatosViviendaModel.objects.filter(empleado=empleado).first()),
-        'perfil_salud': salud_a_dict(PerfilSaludModel.objects.filter(empleado=empleado).first()),
-        'perfil_fisico': perfil_fisico_a_dict(PerfilFisicoModel.objects.filter(empleado=empleado).first()),
+        'datos_vivienda': vivienda_a_dict(
+            DatosViviendaModel.objects.filter(empleado=empleado)
+            .select_related('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal')
+            .first()
+        ),
+        'perfil_salud': salud_a_dict(
+            PerfilSaludModel.objects.filter(empleado=empleado)
+            .select_related('grupo_sanguineo')
+            .prefetch_related('alergias', 'patologiaCronica', 'discapacidad')
+            .first()
+        ),
+        'perfil_fisico': perfil_fisico_a_dict(
+            PerfilFisicoModel.objects.filter(empleado=empleado)
+            .select_related('tallaCamisa', 'tallaPantalon', 'tallaZapatos', 'tallaChaqueta')
+            .first()
+        ),
         'formacion_academica': [
-            formacion_a_dict(f) for f in FormacionAcademicaModel.objects.filter(empleado=empleado)
+            formacion_a_dict(f)
+            for f in FormacionAcademicaModel.objects.filter(empleado=empleado)
+            .select_related('nivel_academico', 'carrera', 'mencion', 'institucion')
         ],
         'formacion_complementaria': [
             formacion_complementaria_a_dict(f)
             for f in FormacionComplementariaModel.objects.filter(empleado=empleado)
+            .select_related('capacitacion', 'institucion', 'procedencia', 'grupo')
         ],
         'contacto_emergencia': [
-            contacto_emergencia_a_dict(c) for c in ContactoEmergenciaModel.objects.filter(empleado=empleado)
+            contacto_emergencia_a_dict(c)
+            for c in ContactoEmergenciaModel.objects.filter(empleado=empleado)
+            .select_related('relacion')
         ],
         'antecedentes': [antecedente_a_dict(a) for a in antecedentes_qs],
         'contrato_actual': contrato_actual,

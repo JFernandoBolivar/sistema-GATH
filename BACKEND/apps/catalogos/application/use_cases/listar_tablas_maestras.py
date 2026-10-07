@@ -64,3 +64,8 @@ def listar_categorias_movimiento(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
 
 def listar_tipos_movimiento(repo: RepoCatalogos, categoria: str | None = None) -> list[CatalogoItemDTO]:
     return _convertir(repo.listar_tipos_movimiento(categoria=categoria))
+
+
+def listar_nacionalidades(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
+    return _convertir(repo.listar_nacionalidades())
+

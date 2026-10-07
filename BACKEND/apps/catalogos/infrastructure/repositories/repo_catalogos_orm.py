@@ -17,6 +17,7 @@ from apps.catalogos.infrastructure.mappers.mapper_catalogos import (
     tipo_nomina_a_entidad,
     tipo_personal_a_entidad,
     tipo_procedencia_a_entidad,
+    nacionalidad_a_entidad,
 )
 from apps.catalogos.infrastructure.models.catalogo_models import (
     CategoriaMovimientoModel,
@@ -29,6 +30,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoPersonalModel,
     TipoProcedenciaModel,
     EstadoCivilModel,
+    NacionalidadModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import (
     EstadoModel,
@@ -103,3 +105,7 @@ class RepoCatalogosORM:
         if categoria is not None:
             qs = qs.filter(categoria__categoria__iexact=categoria)
         return [tipo_movimiento_a_entidad(t) for t in qs]
+
+    def listar_nacionalidades(self) -> list[CatalogoItem]:
+        return [nacionalidad_a_entidad(n) for n in NacionalidadModel.objects.all().order_by('id')]
+

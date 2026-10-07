@@ -20,7 +20,12 @@ class Empleado:
     estado_civil_id: int | None = None
     estado_civil_nombre: str | None = None
     carnet_patria: str | None = None
+    nacionalidad_id: int = 1
+    nacionalidad_codigo: str = "V"
+    nacionalidad_nombre: str = "VENEZOLANA"
     total_anos_apn: float = 0.0
+    profile: str | None = None
+    foto_url: str | None = None
     # Expediente anidado (Fase 2.2 del plan de reparación): solo se puebla en
     # `obtener_por_cedula` (detalle) — `listar_empleados` sigue devolviendo
     # estos campos vacíos/`None` a propósito, para no cargar N+1 relaciones

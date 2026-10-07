@@ -51,3 +51,7 @@ class RepoCatalogos(Protocol):
 
     def listar_tipos_movimiento(self, categoria: str | None = None) -> list[CatalogoItem]:
         ...
+
+    def listar_nacionalidades(self) -> list[CatalogoItem]:
+        ...
+

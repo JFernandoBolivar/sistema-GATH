@@ -20,7 +20,12 @@ class EmpleadoDTO:
     estado_civil_id: int | None = None
     estado_civil_nombre: str | None = None
     carnet_patria: str | None = None
+    nacionalidad_id: int = 1
+    nacionalidad_codigo: str = "V"
+    nacionalidad_nombre: str = "VENEZOLANA"
     total_anos_apn: float = 0.0
+    profile: str | None = None
+    foto_url: str | None = None
     datos_vivienda: dict | None = None
     perfil_salud: dict | None = None
     perfil_fisico: dict | None = None

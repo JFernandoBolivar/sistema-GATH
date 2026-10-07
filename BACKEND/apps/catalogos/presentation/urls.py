@@ -15,6 +15,7 @@ from apps.catalogos.presentation.views.catalogos_views import (
     TiposNominaListView,
     TiposPersonalListView,
     TiposProcedenciaListView,
+    NacionalidadesListView,
 )
 
 app_name = 'catalogos'
@@ -34,4 +35,5 @@ urlpatterns = [
     path('estados-civiles/', EstadosCivilesListView.as_view(), name='estados-civiles-list'),
     path('categorias-movimiento/', CategoriasMovimientoListView.as_view(), name='categorias-movimiento-list'),
     path('tipos-movimiento/', TiposMovimientoListView.as_view(), name='tipos-movimiento-list'),
+    path('nacionalidades/', NacionalidadesListView.as_view(), name='nacionalidades-list'),
 ]

@@ -155,6 +155,7 @@ class RepoPersonalORM:
                 fecha_nacimiento=datos.get('fecha_nacimiento'),
                 estadoCivil_id=datos.get('estado_civil_id'),
                 carnet_patria=datos.get('carnet_patria'),
+                nacionalidad_id=datos.get('nacionalidad_id', 1) or 1,
             )
             self._guardar_datos_anidados(obj, nested)
         return self.obtener_por_cedula(obj.cedulaidentidad)
@@ -168,6 +169,8 @@ class RepoPersonalORM:
             obj = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
             if not obj:
                 raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
+            if 'nacionalidad_id' in datos and datos['nacionalidad_id']:
+                obj.nacionalidad_id = datos['nacionalidad_id']
             for k, v in datos.items():
                 if hasattr(obj, k):
                     setattr(obj, k, v)

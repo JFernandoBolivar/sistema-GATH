@@ -169,3 +169,19 @@ class TipoMovimientoModel(models.Model):
         return self.movimiento
 
 
+class NacionalidadModel(models.Model):
+    codigo = models.CharField(max_length=2, unique=True)
+    nombre = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        managed = False
+        db_table = 'Nacionalidad'
+        ordering = ['id']
+        verbose_name = 'nacionalidad'
+        verbose_name_plural = 'nacionalidades'
+
+    def __str__(self) -> str:
+        return f"{self.codigo} - {self.nombre}"
+
+
+

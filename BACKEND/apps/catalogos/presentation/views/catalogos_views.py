@@ -27,6 +27,7 @@ from apps.catalogos.application.use_cases.listar_tablas_maestras import (
     listar_tipos_nomina,
     listar_tipos_personal,
     listar_tipos_procedencia,
+    listar_nacionalidades,
 )
 from apps.catalogos.infrastructure.repositories.repo_catalogos_orm import RepoCatalogosORM
 from apps.catalogos.presentation.serializers.catalogos_serializers import (
@@ -214,3 +215,14 @@ class TiposMovimientoListView(APIView):
             tipo.categoria = categoria_obj
             tipo.save(update_fields=['categoria'])
         return ok(CatalogoItemSerializer(tipo_movimiento_a_entidad(tipo)).data, message='Motivo registrado correctamente.', status=201)
+
+
+class NacionalidadesListView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('catalogos.ver')]
+
+    @extend_schema(tags=['Catálogos'], summary='Listar nacionalidades', responses={200: CatalogoItemSerializer(many=True)})
+    def get(self, request):
+        repo = RepoCatalogosORM()
+        dtos = listar_nacionalidades(repo)
+        return ok(CatalogoItemSerializer(dtos, many=True).data)
+

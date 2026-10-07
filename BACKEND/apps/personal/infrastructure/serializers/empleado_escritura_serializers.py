@@ -15,7 +15,7 @@ from datetime import date
 from rest_framework import serializers
 
 from core.infrastructure.serializer_mixins import CleanZerosMixin
-from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, SexoModel
+from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, SexoModel, NacionalidadModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
     DiscapacidadModel,
@@ -141,7 +141,11 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
     estado_civil_id = serializers.PrimaryKeyRelatedField(
         queryset=EstadoCivilModel.objects.all(), required=False, allow_null=True,
     )
+    nacionalidad_id = serializers.PrimaryKeyRelatedField(
+        queryset=NacionalidadModel.objects.all(), required=False, allow_null=True,
+    )
     carnet_patria = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=30)
+
 
     datos_vivienda = DatosViviendaEscrituraSerializer(required=False)
     perfil_salud = PerfilSaludEscrituraSerializer(required=False)
@@ -182,6 +186,8 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
         validado = super().to_internal_value(data)
         if 'estado_civil_id' in validado and validado['estado_civil_id'] is not None:
             validado['estado_civil_id'] = validado['estado_civil_id'].pk
+        if 'nacionalidad_id' in validado and validado['nacionalidad_id'] is not None:
+            validado['nacionalidad_id'] = validado['nacionalidad_id'].pk
         # Aplanar las M2M de salud a ids (el repo espera listas de ids).
         salud = validado.get('perfil_salud')
         if salud:
