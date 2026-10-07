@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'apps.reportes',
     'apps.movimientos',
     'apps.configuracion',
+    'apps.puntocuenta',
 ]
 
 AUTH_USER_MODEL = 'identidad.CuentaModel'

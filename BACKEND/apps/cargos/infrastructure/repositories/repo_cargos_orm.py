@@ -356,6 +356,12 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         if not fila:
             raise NotFoundError(f"Cargo con id {cargo_id} no encontrado")
 
+        # Punto de Cuenta automático (RN-006-01): se captura ANTES de aplicar
+        # los cambios para poder comparar luego de guardar. Un cambio de
+        # denominación/nómina/grado/organismo dentro de la misma Dependencia
+        # NO dispara nada -- solo un cambio real de Dependencia lo hace.
+        dependencia_id_anterior = fila.Dependencia_id
+
         if 'denominacioncargoid' in datos and datos['denominacioncargoid']:
             fila.denominacioncargoid_id = datos['denominacioncargoid']
         if 'denominacioncargoespecificoid' in datos and datos['denominacioncargoespecificoid']:
@@ -376,6 +382,18 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             fila.Coordinacion_id = datos['Coordinacion'] if datos['Coordinacion'] and datos['Coordinacion'] > 0 else None
 
         fila.save()
+
+        if fila.Dependencia_id != dependencia_id_anterior and fila.employee_id is not None:
+            events.cargo_dependencia_cambiada.send(
+                sender=RepoCargosORM,
+                cargo_id=fila.pk,
+                cedula=fila.employee_id,
+                dependencia_anterior_id=dependencia_id_anterior,
+                dependencia_nueva_id=fila.Dependencia_id,
+                motivo_id=datos.get('motivo_id'),
+                usuario_id=usuario_id,
+            )
+
         return self.obtener_cargo(cargo_id)
 
     # ------------------------------------------------------------------
@@ -426,6 +444,12 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             cargo_id=nuevo.pk,
             cedula=empleado_cedula,
             tipo_movimiento='TRASLADO',
+            # Punto de Cuenta automático (RN-006-01): un traslado mueve al
+            # empleado a OTRO código de cargo, cada uno con su propia
+            # Dependencia -- `actual`/`nuevo` ya están cargados en memoria,
+            # no hace falta ninguna consulta extra para comparar.
+            dependencia_anterior_id=actual.Dependencia_id,
+            dependencia_nueva_id=nuevo.Dependencia_id,
             motivo_id=motivo_id,
             usuario_id=usuario_id,
         )

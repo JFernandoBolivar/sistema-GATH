@@ -56,6 +56,10 @@ class ActualizarCargoInputSerializer(serializers.Serializer):
     DireccionGeneral = serializers.IntegerField(required=False, allow_null=True)
     DireccionLinea = serializers.IntegerField(required=False, allow_null=True)
     Coordinacion = serializers.IntegerField(required=False, allow_null=True)
+    # Punto de Cuenta automático (RN-006-01): motivo del cambio cuando esta
+    # actualización incluye un cambio real de Dependencia. Opcional porque
+    # la mayoría de las actualizaciones de cargo no tocan la Dependencia.
+    motivo_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class AsignarCargoInputSerializer(serializers.Serializer):
