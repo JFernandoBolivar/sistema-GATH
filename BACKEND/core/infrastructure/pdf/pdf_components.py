@@ -3,21 +3,50 @@ Componentes reutilizables del motor de reportes PDF (Fase 2.4 del plan de
 reparación). Réplica funcional de `RAC/services/pdf/templates/components.py`,
 simplificada a lo que usa `report_pdf.py` (encabezado con logos
 institucionales, cintillo de pie de página, tabla de datos).
+
+HU 0009 (Cintillo Editable): `create_header()`/`draw_footer()` aceptan un
+`config` opcional (dict plano con primitivas, nunca un modelo/entidad de
+`apps.configuracion` — `core/` no importa de `apps/`, regla B16) con los
+bytes ya descargados de SeaweedFS. `config=None` preserva el comportamiento
+exacto de antes de esta HU (compatibilidad total con cualquier llamador que
+no se haya actualizado). `config['tipo_cintillo'] == 'GENERICO'` renderiza
+la vista neutral de solo lectura (RN-009-01): sin logos institucionales y
+con un título genérico, en vez de inventar un segundo set de imágenes.
 """
 import os
+from io import BytesIO
 from xml.sax.saxutils import escape
 
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 
 from core.infrastructure.pdf.pdf_styles import COLORS, FONTS, get_paragraph_styles, get_table_style
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
 
+NOMBRE_EMPRESA_DEFECTO = "Comisión Nacional de Telecomunicaciones"
+NOMBRE_EMPRESA_DEFECTO_LINEA2 = "(CONATEL)"
+TITULO_GENERICO = "Sistema de Gestión"
+
 
 def _ruta_asset(nombre: str) -> str | None:
     ruta = os.path.join(_ASSETS_DIR, nombre)
     return ruta if os.path.exists(ruta) else None
+
+
+def _imagen_o_asset(config_bytes: bytes | None, nombre_asset: str):
+    """
+    Devuelve una fuente de imagen válida para `reportlab.platypus.Image`
+    (acepta una ruta string o un file-like `BytesIO`, pero NO un
+    `ImageReader` ya instanciado): los bytes de `config` si vienen, si no el
+    asset hardcodeado de respaldo, si no `None`. `draw_footer()` (que usa
+    `canvas.drawImage`, con otra API) envuelve el resultado en `ImageReader`
+    él mismo cuando hace falta.
+    """
+    if config_bytes:
+        return BytesIO(config_bytes)
+    return _ruta_asset(nombre_asset)
 
 
 HEADER_LABELS = {
@@ -50,22 +79,33 @@ HEADER_LABELS = {
 }
 
 
-def create_header(titulo: str, width) -> list:
+def create_header(titulo: str, width, config: dict | None = None) -> list:
     styles = get_paragraph_styles()
     elementos = []
 
-    logo_izq = _ruta_asset('logo01.png')
-    logo_der = _ruta_asset('logo02.png')
+    es_generico = bool(config) and config.get('tipo_cintillo') == 'GENERICO'
+
+    if es_generico:
+        logo_izq = logo_der = None
+        header_text = f"<font size='11'><b>{TITULO_GENERICO}</b></font><br/><font size='11'><b><br/>{titulo.upper()}</b></font>"
+    else:
+        logo_izq = _imagen_o_asset(config.get('logo_principal_bytes') if config else None, 'logo01.png')
+        logo_der = _imagen_o_asset(config.get('logo_secundario_bytes') if config else None, 'logo02.png')
+        nombre_empresa_config = (config or {}).get('nombre_empresa')
+        # El nombre configurado (texto libre de un admin) se escapa antes de
+        # insertarlo en el markup de reportlab; el valor por defecto conserva
+        # el salto de línea del formato legado (institución / "(CONATEL)").
+        linea_empresa = (
+            escape(nombre_empresa_config) if nombre_empresa_config
+            else f"{NOMBRE_EMPRESA_DEFECTO} <br/> {NOMBRE_EMPRESA_DEFECTO_LINEA2}"
+        )
+        header_text = (
+            f"<font size='9'><b>{linea_empresa}</b></font><br/>"
+            f"<font size='11'><b><br/>{titulo.upper()}</b></font>"
+        )
 
     fila = []
     fila.append(Image(logo_izq, width=45 * mm, height=22 * mm, mask='auto') if logo_izq else '')
-
-    institucion = "Comisión Nacional de Telecomunicaciones"
-    institucion2 = "(CONATEL)"
-    header_text = (
-        f"<font size='9'><b>{institucion} <br/> {institucion2}</b></font><br/>"
-        f"<font size='11'><b><br/>{titulo.upper()}</b></font>"
-    )
     fila.append(Paragraph(header_text, styles['Title']))
     fila.append(Image(logo_der, width=30 * mm, height=14 * mm, mask='auto') if logo_der else '')
 
@@ -112,14 +152,18 @@ def create_stats_box(stats: dict, width=None) -> Table | Spacer:
     return table
 
 
-def draw_footer(canvas, doc, page_number: int, total_pages: int, texto: str | None = None) -> None:
+def draw_footer(canvas, doc, page_number: int, total_pages: int, texto: str | None = None, config: dict | None = None) -> None:
     canvas.saveState()
-    cintillo = _ruta_asset('cintillo2.png')
+    es_generico = bool(config) and config.get('tipo_cintillo') == 'GENERICO'
+    cintillo = None if es_generico else _imagen_o_asset(config.get('cintillo_pie_bytes') if config else None, 'cintillo2.png')
     page_width, _page_height = doc.pagesize
 
     if cintillo:
         try:
-            canvas.drawImage(cintillo, 0, 0, width=page_width, height=15 * mm, preserveAspectRatio=False, mask='auto')
+            # `canvas.drawImage` (a diferencia de `platypus.Image`) sí
+            # requiere `ImageReader` explícito para un file-like.
+            cintillo_dibujable = ImageReader(cintillo) if isinstance(cintillo, BytesIO) else cintillo
+            canvas.drawImage(cintillo_dibujable, 0, 0, width=page_width, height=15 * mm, preserveAspectRatio=False, mask='auto')
         except Exception:
             pass
 

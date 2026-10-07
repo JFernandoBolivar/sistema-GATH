@@ -21,7 +21,14 @@ from core.infrastructure.pdf.pdf_components import create_data_table, create_hea
 from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
 
 
-def generar_reporte_pdf(titulo: str, columnas: list[str], filas: list[dict], orientation: str = 'landscape') -> bytes:
+def generar_reporte_pdf(
+    titulo: str, columnas: list[str], filas: list[dict], orientation: str = 'landscape', config: dict | None = None,
+) -> bytes:
+    """
+    `config` (opcional, HU 0009): dict plano con el cintillo configurado
+    (ver `core/infrastructure/pdf/pdf_components.py`). `None` preserva el
+    comportamiento hardcodeado anterior a esta HU.
+    """
     generado_en = datetime.now()
     page_config = PAGE_CONFIG.get(orientation, PAGE_CONFIG['landscape'])
     buffer = BytesIO()
@@ -85,14 +92,14 @@ def generar_reporte_pdf(titulo: str, columnas: list[str], filas: list[dict], ori
 
     def _en_pagina(canvas, doc_):
         canvas.saveState()
-        for el in create_header(titulo, width=doc_.width):
+        for el in create_header(titulo, width=doc_.width, config=config):
             w, h = el.wrap(doc_.width, doc_.topMargin)
             el.drawOn(canvas, doc_.leftMargin, doc_.pagesize[1] - page_config['topMargin'] + 10 * mm)
         canvas.restoreState()
         # `total_pages` no se conoce hasta terminar el build (reportlab necesita
         # dos pasadas para eso, igual que el legado `base_generator.py`, que
         # tampoco lo resolvía) — se muestra solo el número de página actual.
-        draw_footer(canvas, doc_, doc_.page, 0, f"Generado: {generado_en.strftime('%d/%m/%Y %H:%M')}")
+        draw_footer(canvas, doc_, doc_.page, 0, f"Generado: {generado_en.strftime('%d/%m/%Y %H:%M')}", config=config)
 
     doc.build(story, onFirstPage=_en_pagina, onLaterPages=_en_pagina)
 

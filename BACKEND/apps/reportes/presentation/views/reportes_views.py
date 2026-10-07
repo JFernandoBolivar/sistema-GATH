@@ -12,6 +12,7 @@ from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.infrastructure.pdf.report_pdf import generar_reporte_pdf
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
+from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,
     generar_reporte_distribucion_nomina,
@@ -64,7 +65,7 @@ class ReportePersonalActivoPdfView(APIView):
         repo = RepoReportesORM()
         filtros = {k: v for k, v in request.query_params.items()}
         dto = generar_reporte_personal(repo, filtros=filtros)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_personal_activo.pdf')
 
 
@@ -103,7 +104,7 @@ class ReportePasivosPdfView(APIView):
         repo = RepoReportesORM()
         filtros = {k: v for k, v in request.query_params.items()}
         dto = generar_reporte_pasivos(repo, filtros=filtros)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_pasivos.pdf')
 
 
@@ -140,7 +141,7 @@ class ReporteVacantesPdfView(APIView):
     def get(self, request):
         repo = RepoReportesORM()
         dto = generar_reporte_vacantes(repo)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_cargos_vacantes.pdf')
 
 
@@ -176,7 +177,7 @@ class ReporteFamiliaresPdfView(APIView):
         repo = RepoReportesORM()
         filtros = {k: v for k, v in request.query_params.items()}
         dto = generar_reporte_familiares(repo, filtros=filtros)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_familiares.pdf')
 
 
@@ -211,7 +212,7 @@ class ReporteCodigosPdfView(APIView):
         repo = RepoReportesORM()
         filtros = {k: v for k, v in request.query_params.items()}
         dto = generar_reporte_codigos(repo, filtros=filtros)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_codigos.pdf')
 
 
@@ -247,7 +248,7 @@ class ReporteTendenciasPdfView(APIView):
     def get(self, request):
         repo = RepoReportesORM()
         dto = generar_reporte_tendencias(repo)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_tendencias.pdf')
 
 
@@ -283,7 +284,7 @@ class ReporteDistribucionNominaPdfView(APIView):
     def get(self, request):
         repo = RepoReportesORM()
         dto = generar_reporte_distribucion_nomina(repo)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas)
+        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_distribucion_nomina.pdf')
 
 
