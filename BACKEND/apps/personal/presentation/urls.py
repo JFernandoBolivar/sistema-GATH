@@ -6,6 +6,7 @@ from apps.personal.presentation.views.carga_masiva_views import (
 )
 from apps.personal.presentation.views.personal_views import (
     EmpleadoDetailView,
+    EmpleadoDetallePdfView,
     EmpleadoFotoView,
     EmpleadosListView,
 )
@@ -89,5 +90,6 @@ urlpatterns = [
 
     # Detalle de empleado y foto
     path('<str:cedula>/', EmpleadoDetailView.as_view(), name='empleado-detail'),
+    path('<str:cedula>/pdf/', EmpleadoDetallePdfView.as_view(), name='empleado-detail-pdf'),
     path('<str:cedula>/foto/', EmpleadoFotoView.as_view(), name='empleado-foto'),
 ]

@@ -2,6 +2,7 @@
 Vistas delgadas de Personal (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
@@ -15,12 +16,21 @@ from apps.personal.application.use_cases.gestionar_personal import (
 )
 from apps.personal.application.use_cases.listar_personal import listar_personal
 from apps.personal.application.use_cases.obtener_personal import obtener_personal_por_cedula
+from apps.personal.infrastructure.pdf_empleado import construir_pdf_expediente_empleado
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
 from apps.personal.infrastructure.serializers.empleado_escritura_serializers import (
     EmpleadoActualizarSerializer,
     EmpleadoCrearSerializer,
 )
 from apps.personal.presentation.serializers.personal_serializers import EmpleadoSerializer
+
+
+def _respuesta_pdf(pdf_bytes: bytes, nombre_archivo: str) -> HttpResponse:
+    respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
+    respuesta['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+    respuesta['X-Content-Type-Options'] = 'nosniff'
+    respuesta['Cache-Control'] = 'private, no-store'
+    return respuesta
 
 
 class EmpleadosListView(APIView):
@@ -93,7 +103,15 @@ class EmpleadoDetailView(APIView):
     patch = put
 
 
-from django.http import HttpResponse
+class EmpleadoDetallePdfView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('personal.exportar_pdf')]
+
+    @extend_schema(tags=['Personal'], summary='Exportar el expediente de un empleado activo en PDF')
+    def get(self, request, cedula: str):
+        repo = RepoPersonalORM()
+        dto = obtener_personal_por_cedula(repo, cedula=cedula)
+        pdf_bytes = construir_pdf_expediente_empleado(dto, usuario_nombre=str(request.user))
+        return _respuesta_pdf(pdf_bytes, f"expediente-empleado-{cedula}.pdf")
 
 
 class EmpleadoFotoView(APIView):
