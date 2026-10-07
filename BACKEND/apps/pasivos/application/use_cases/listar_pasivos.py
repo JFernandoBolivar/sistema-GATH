@@ -26,6 +26,9 @@ def pasivo_a_dto(p: Pasivo) -> PasivoDTO:
         antecedentes=p.antecedentes,
         contrato_actual=p.contrato_actual,
         cargos_historial=p.cargos_historial,
+        contratos=p.contratos,
+        asignaciones=p.asignaciones,
+        encargadurias=p.encargadurias,
     )
 
 

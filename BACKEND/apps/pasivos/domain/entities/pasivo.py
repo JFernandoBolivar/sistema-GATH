@@ -27,6 +27,9 @@ class Pasivo:
     antecedentes: list = field(default_factory=list)
     contrato_actual: dict | None = None
     cargos_historial: list = field(default_factory=list)
+    contratos: list = field(default_factory=list)
+    asignaciones: list = field(default_factory=list)
+    encargadurias: list = field(default_factory=list)
 
     @property
     def nombre_completo(self) -> str:
