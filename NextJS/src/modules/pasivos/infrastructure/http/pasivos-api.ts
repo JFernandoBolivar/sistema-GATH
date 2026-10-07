@@ -62,6 +62,8 @@ export const pasivosApi = {
       apiClient.get<ApiResponse<PasivoApiItem>>(`/api/v1/pasivos/${cedula}/`),
     ),
 
+  getPdf: (cedula: string) => apiClient.getBlob(`/api/v1/pasivos/${cedula}/pdf/`),
+
   procesarEgreso: (cedula: string, body: ProcesarEgresoApiBody) =>
     single<PasivoApiItem>(
       apiClient.post<ApiResponse<PasivoApiItem>>(`/api/v1/pasivos/${cedula}/procesar-egreso/`, body as unknown as Record<string, unknown>),

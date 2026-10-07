@@ -21,6 +21,10 @@ export const repoPasivosApi: RepoPasivos = {
     return pasivoApiAEntidad(raw);
   },
 
+  async descargarPdf(cedula) {
+    return pasivosApi.getPdf(cedula);
+  },
+
   async procesarEgreso(cedula, input: ProcesarEgresoInput) {
     const raw = await pasivosApi.procesarEgreso(cedula, {
       motivo_movimiento_id: input.motivoMovimientoId,

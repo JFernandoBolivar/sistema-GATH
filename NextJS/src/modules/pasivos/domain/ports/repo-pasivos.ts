@@ -17,4 +17,6 @@ export interface RepoPasivos {
   listarTiposNomina(soloPasivos?: boolean): Promise<CatalogoPasivo[]>;
   /** Catálogos para resolver a nombre el expediente del detalle (vista de detalle). */
   listarCatalogosExpediente(): Promise<CatalogosExpedientePasivo>;
+  /** HU: PDF del expediente generado en backend (ReportLab), reemplaza el render client-side con @react-pdf/renderer. */
+  descargarPdf(cedula: string): Promise<Blob>;
 }

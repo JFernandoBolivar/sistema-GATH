@@ -127,3 +127,23 @@ export async function getCatalogosExpedientePasivoAction() {
     throw error;
   }
 }
+
+/** PDF del expediente generado en backend (ReportLab); reemplaza el render client-side con @react-pdf/renderer. */
+export async function descargarPasivoPdfAction(cedula: string) {
+  const validation = pasivoCedulaSchema.safeParse({ cedula });
+  if (!validation.success) {
+    return { error: "Cédula inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const resultado = await repoPasivosApi.descargarPdf(validation.data.cedula);
+    await logAudit({ traceId, action: "descargarPasivoPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return resultado;
+  } catch (error) {
+    await logAudit({ traceId, action: "descargarPasivoPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}

@@ -32,6 +32,7 @@ function fakeRepo(overrides: Partial<RepoPasivos> = {}): RepoPasivos {
     listarMotivosEgreso: vi.fn(),
     listarTiposNomina: vi.fn(),
     listarCatalogosExpediente: vi.fn().mockResolvedValue(fakeCatalogos()),
+    descargarPdf: vi.fn(),
     ...overrides,
   };
 }

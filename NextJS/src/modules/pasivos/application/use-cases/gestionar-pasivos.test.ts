@@ -67,6 +67,10 @@ class RepoPasivosMemoria implements RepoPasivos {
     return p;
   }
 
+  async descargarPdf() {
+    return new Blob(["%PDF"], { type: "application/pdf" });
+  }
+
   async procesarEgreso(cedula: string, input: { cedula: string; motivoMovimientoId: number; tipoNominaId: number; liberarActivos: boolean }) {
     const nuevo: Pasivo = {
       id: 2,

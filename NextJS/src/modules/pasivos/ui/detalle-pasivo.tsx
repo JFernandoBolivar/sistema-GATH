@@ -31,7 +31,6 @@
  * documenta como brecha, no se fabrica con catálogos a medias.
  */
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { Ambulance, Briefcase, ClipboardCheck, FileDown, GraduationCap, House, Loader2, Shirt, UserRound } from "lucide-react";
 
@@ -62,19 +61,10 @@ import {
 
 import type { CatalogosExpedientePasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
 import {
+  descargarPasivoPdfAction,
   getCatalogosExpedientePasivoAction,
   getPasivoPorCedulaAction,
 } from "../infrastructure/actions/pasivos-actions";
-import { getCintilloConfigPdfAction, type CintilloConfigPdf } from "../infrastructure/actions/cintillo-pdf-action";
-
-const PDFDownloadLink = dynamic(
-  () => import("@react-pdf/renderer").then((m) => m.PDFDownloadLink),
-  { ssr: false, loading: () => <Loader2 className="size-4 animate-spin" aria-hidden="true" /> },
-);
-const ReportePasivoPDF = dynamic(
-  () => import("./pdf/reporte-pasivo-pdf").then((m) => m.ReportePasivoPDF),
-  { ssr: false },
-);
 
 interface DetallePasivoProps {
   cedula: string | null;
@@ -90,13 +80,29 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
   const [catalogos, setCatalogos] = useState<CatalogosExpedientePasivoDTO | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // HU 0009: cintillo configurable para el PDF exportado. `null` mientras
-  // carga o si falla -> ReportePasivoPDF cae a sus imágenes estáticas.
-  const [cintilloConfig, setCintilloConfig] = useState<CintilloConfigPdf | null>(null);
+  const [exportandoPdf, setExportandoPdf] = useState(false);
 
-  useEffect(() => {
-    getCintilloConfigPdfAction().then(setCintilloConfig);
-  }, []);
+  const descargarPdf = async () => {
+    if (!pasivo) return;
+    setExportandoPdf(true);
+    try {
+      const resultado = await descargarPasivoPdfAction(pasivo.cedula);
+      if (!(resultado instanceof Blob)) {
+        setError((resultado as { error: string }).error ?? "No fue posible descargar el PDF.");
+        return;
+      }
+      const url = window.URL.createObjectURL(resultado);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `expediente-pasivo-${pasivo.cedula}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError("No fue posible descargar el PDF.");
+    } finally {
+      setExportandoPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (!open || !cedula || pasivo?.cedula === cedula) return;
@@ -142,17 +148,10 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
                 </div>
               </div>
               {catalogos && puedeExportarPdf && (
-                <PDFDownloadLink
-                  document={<ReportePasivoPDF pasivo={pasivo} catalogos={catalogos} cintilloConfig={cintilloConfig} />}
-                  fileName={`expediente-pasivo-${pasivo.cedula}.pdf`}
-                >
-                  {({ loading }) => (
-                    <Button type="button" variant="outline" size="sm" disabled={loading}>
-                      {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
-                      PDF
-                    </Button>
-                  )}
-                </PDFDownloadLink>
+                <Button type="button" variant="outline" size="sm" disabled={exportandoPdf} onClick={descargarPdf}>
+                  {exportandoPdf ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
+                  PDF
+                </Button>
               )}
             </div>
 
