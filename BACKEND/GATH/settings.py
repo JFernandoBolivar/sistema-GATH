@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'apps.autogestion',
     'apps.reportes',
     'apps.movimientos',
+    'apps.configuracion',
 ]
 
 AUTH_USER_MODEL = 'identidad.CuentaModel'

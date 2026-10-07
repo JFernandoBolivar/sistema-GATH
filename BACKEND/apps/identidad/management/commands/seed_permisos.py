@@ -114,6 +114,12 @@ PERMISOS_CATALOGO = [
     # ─── 12. AUDITORÍA ───
     ("auditoria.ver_logs", "Consultar bitácora de transacciones y auditoría"),
     ("auditoria.ver_seguridad", "Consultar incidentes y bloqueos de seguridad"),
+
+    # ─── 13. CONFIGURACIÓN VISUAL (HU 0009 — Cintillo Editable) ───
+    ("configuracion.editar", "Editar la configuración visual del cintillo institucional (PDFs)"),
+
+    # ─── 14. PUNTO DE CUENTA ───
+    ("puntocuenta.ver", "Consultar los puntos de cuenta generados por cambios de dependencia"),
 ]
 
 # Matriz de asignación por ID de rol conocido
