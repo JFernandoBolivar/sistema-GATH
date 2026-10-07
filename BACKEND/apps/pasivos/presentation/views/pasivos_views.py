@@ -2,6 +2,7 @@
 Vistas delgadas de Pasivos (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permiso `pasivos.ver`.
 """
+from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
@@ -12,11 +13,20 @@ from apps.pasivos.application.dtos.pasivos_dtos import ProcesarEgresoDTO
 from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos
 from apps.pasivos.application.use_cases.obtener_pasivo import obtener_pasivo_por_cedula
 from apps.pasivos.application.use_cases.procesar_egreso import procesar_egreso
+from apps.pasivos.infrastructure.pdf_pasivo import construir_pdf_expediente_pasivo
 from apps.pasivos.infrastructure.repositories.repo_pasivos_orm import RepoPasivosORM
 from apps.pasivos.presentation.serializers.pasivos_serializers import (
     PasivoSerializer,
     ProcesarEgresoInputSerializer,
 )
+
+
+def _respuesta_pdf(pdf_bytes: bytes, nombre_archivo: str) -> HttpResponse:
+    respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
+    respuesta['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+    respuesta['X-Content-Type-Options'] = 'nosniff'
+    respuesta['Cache-Control'] = 'private, no-store'
+    return respuesta
 
 
 class PasivosListView(APIView):
@@ -38,6 +48,17 @@ class PasivoDetailView(APIView):
         repo = RepoPasivosORM()
         dto = obtener_pasivo_por_cedula(repo, cedula=cedula)
         return ok(PasivoSerializer(dto).data)
+
+
+class PasivoDetallePdfView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('pasivos.exportar_pdf')]
+
+    @extend_schema(tags=['Pasivos'], summary='Exportar el expediente de un trabajador pasivo en PDF')
+    def get(self, request, cedula: str):
+        repo = RepoPasivosORM()
+        dto = obtener_pasivo_por_cedula(repo, cedula=cedula)
+        pdf_bytes = construir_pdf_expediente_pasivo(dto)
+        return _respuesta_pdf(pdf_bytes, f"expediente-pasivo-{cedula}.pdf")
 
 
 class ProcesarEgresoView(APIView):
