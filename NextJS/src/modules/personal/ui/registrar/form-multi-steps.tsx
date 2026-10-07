@@ -52,6 +52,7 @@ const valoresIniciales = {
   telefono_movil: "",
   telefono_habitacion: "",
   carnet_patria: "",
+  contacto_emergencia: [],
   formacion_academica: [{ nivel_Academico_id: 0, carrera_id: undefined, mencion_id: undefined, institucion_id: undefined }],
   formacion_complementaria: [],
   antecedentes: [{ organismo_id: undefined, fecha_ingreso: undefined, fecha_egreso: undefined }],

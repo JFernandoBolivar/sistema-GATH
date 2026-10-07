@@ -80,6 +80,30 @@ test.describe("Personal - wizard de registro", () => {
     await expect(page.getByText("Opcional si no posee formación complementaria")).toBeVisible();
   });
 
+  test("paso 1: contactos de emergencia opcionales con validación", async ({ page }) => {
+    await page.getByLabel("Cedula de Identidad *").fill("99999993");
+    await page.getByLabel("Nombre *").fill("Prueba");
+    await page.getByLabel("Apellidos *").fill("Contacto");
+    await page.getByLabel("Fecha de Nacimiento *").click();
+    const popover = page.locator("[data-radix-popper-content-wrapper]");
+    await popover.locator("select").nth(1).selectOption("1990");
+    await popover.locator("button[data-day]").first().click();
+    await page.keyboard.press("Escape");
+    for (const i of [0, 1, 2]) await elegirOpcion(page, page.getByRole("combobox").nth(i));
+
+    await expect(page.getByText("Contactos de Emergencia (Opcional)")).toBeVisible();
+    await page.getByRole("button", { name: "Agregar contacto de emergencia" }).click();
+    await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+    await expect(page.getByText("Debe Seleccionar Un Parentesco")).toBeVisible();
+
+    await page.getByPlaceholder("Maria Jose").fill("Ana");
+    await page.getByPlaceholder("Perez Gutierrez").last().fill("Ruiz");
+    await page.getByPlaceholder("04160000000").last().fill("04121234567");
+    await elegirOpcion(page, page.getByRole("combobox", { name: "Parentesco del contacto 1" }));
+    await page.getByRole("button", { name: "Siguiente", exact: true }).click();
+    await expect(page.getByText("Paso 2: Información Academica")).toBeVisible();
+  });
+
   test("recorre los 7 pasos en el orden del legado", async ({ page }) => {
     test.setTimeout(90_000);
     const siguiente = () => page.getByRole("button", { name: "Siguiente", exact: true }).click();

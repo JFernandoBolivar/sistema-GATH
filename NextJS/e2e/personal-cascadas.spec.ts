@@ -115,3 +115,21 @@ test.describe("Personal - nacionalidad (V/E)", () => {
     await page.keyboard.press("Escape");
   });
 });
+
+test.describe("Personal - contactos de emergencia", () => {
+  test("el diálogo agrega filas y valida antes de guardar", async ({ page }) => {
+    const sheet = await abrirDetalle(page);
+    const tarjeta = sheet.locator('[data-slot="card"]').filter({ hasText: "Contacto de emergencia" });
+    await tarjeta.getByRole("button", { name: /^(Agregar|Actualizar)$/ }).click();
+
+    const dialogo = page.getByRole("dialog").filter({ hasText: "Contactos De Emergencia" });
+    await expect(dialogo).toBeVisible();
+    await dialogo.getByRole("button", { name: "Agregar contacto de emergencia" }).click();
+    // Fila vacía: la validación frena el envío (no se escribe nada en la BD).
+    await dialogo.getByRole("button", { name: "Actualizar", exact: true }).click();
+    await expect(dialogo.getByText("Debe Seleccionar Un Parentesco").last()).toBeVisible();
+    await dialogo.getByRole("combobox").last().click();
+    await expect(page.getByRole("option").first()).toBeVisible();
+    await page.keyboard.press("Escape");
+  });
+});

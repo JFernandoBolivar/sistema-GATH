@@ -85,6 +85,14 @@ describe("construirDetalleExpediente", () => {
     expect(construirDetalleExpediente(empleadoBase(), catalogosVacios()).cedula).toBe("12345678");
   });
 
+  it("resuelve el parentesco del contacto de emergencia con el catálogo", () => {
+    const vm = construirDetalleExpediente(
+      { ...empleadoBase(), contactoEmergencia: [{ nombres: "Ana", apellidos: "Ruiz", telefono: "04121234567", relacionId: 7 }] },
+      { ...catalogosVacios(), parentescos: [{ id: 7, nombre: "MADRE" }] },
+    );
+    expect(vm.contactoEmergencia).toEqual([{ nombreCompleto: "Ana Ruiz", telefono: "04121234567", relacion: "MADRE" }]);
+  });
+
   it("cae a 'ID <n>' cuando el catálogo no contiene el id referenciado", () => {
     const empleado: EmpleadoDTO = {
       ...empleadoBase(),

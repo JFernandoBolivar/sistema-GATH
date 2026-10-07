@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { REGEX } from "@/shared/domain/validation";
+import { contactoEmergenciaFormSchema } from "./schema-contacto-emergencia";
 
 /**
  * Schemas Zod por paso del wizard de registro (`/personal/registrar`), con los
@@ -78,6 +79,10 @@ export const pasoBasicInfoSchema = z.object({
       .max(10, { message: "Debe Maximo 10 Digitos" })
       .optional(),
   ),
+  contacto_emergencia: z
+    .array(contactoEmergenciaFormSchema)
+    .max(5, { message: "Máximo 5 contactos de emergencia" })
+    .optional(),
 });
 export type PasoBasicInfoType = z.infer<typeof pasoBasicInfoSchema>;
 

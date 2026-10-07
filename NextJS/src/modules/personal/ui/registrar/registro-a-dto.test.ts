@@ -103,6 +103,15 @@ describe("registroPasosADTO", () => {
     });
   });
 
+  it("incluye los contactos de emergencia del paso 1", () => {
+    const dto = registroPasosADTO({
+      ...completo,
+      contacto_emergencia: [{ nombres: "Ana", apellidos: "Ruiz", telefono: "04121234567", relacion_id: 7 }],
+    });
+    expect(dto.contactoEmergencia).toEqual([{ nombres: "Ana", apellidos: "Ruiz", telefono: "04121234567", relacionId: 7 }]);
+    expect(empleadoRegistroSchema.safeParse(dto).success).toBe(true);
+  });
+
   it("convierte fechas de formación complementaria a ISO", () => {
     const dto = registroPasosADTO({
       ...completo,

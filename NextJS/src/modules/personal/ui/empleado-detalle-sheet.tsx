@@ -57,6 +57,7 @@ import FormBackgroundUpdateDialog from "./dialogs/form-background-update-dialog"
 import FormBasicUpdateDialog from "./dialogs/form-basic-update-dialog";
 import FormContratoUpdateDialog from "./dialogs/form-contrato-update-dialog";
 import FormDwellingUpdateDialog from "./dialogs/form-dwelling-update-dialog";
+import FormEmergencyContactsUpdateDialog from "./dialogs/form-emergency-contacts-update-dialog";
 import FormHealthProfileUpdateDialog from "./dialogs/form-health-profile-update-dialog";
 import FormPhysicalProfileUpdateDialog from "./dialogs/form-physical-profile-update-dialog";
 import FormSupplementaryTrainingUpdateDialog from "./dialogs/form-supplementary-training-update-dialog";
@@ -536,7 +537,17 @@ export default function EmpleadoDetalleSheet({
             {/* 8. Contacto de Emergencia (Mejora funcional preservada) */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-semibold">Contacto de emergencia</CardTitle>
+                <CardTitle className="flex flex-row items-center justify-between gap-3">
+                  <span className="text-sm font-semibold">Contacto de emergencia</span>
+                  {puedeEditar && (
+                    <FormEmergencyContactsUpdateDialog
+                      empleado={empleado}
+                      catalogos={catalogos}
+                      onGuardado={onGuardado}
+                      triggerLabel={detalle.contactoEmergencia.length === 0 ? "Agregar" : "Actualizar"}
+                    />
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {detalle.contactoEmergencia.length === 0 ? (

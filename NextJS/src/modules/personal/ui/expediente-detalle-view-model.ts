@@ -243,7 +243,7 @@ export function construirDetalleExpediente(
     contactoEmergencia: (empleado.contactoEmergencia ?? []).map((c) => ({
       nombreCompleto: `${c.nombres ?? ""} ${c.apellidos ?? ""}`.trim() || SIN_DATO,
       telefono: c.telefono ?? SIN_DATO,
-      relacion: nombrePorId(undefined, c.relacionId),
+      relacion: nombrePorId(catalogos.parentescos, c.relacionId),
     })),
     antecedentes: (empleado.antecedentes ?? []).map((a) => ({
       fechaIngreso: formatearFecha(a.fechaIngreso),

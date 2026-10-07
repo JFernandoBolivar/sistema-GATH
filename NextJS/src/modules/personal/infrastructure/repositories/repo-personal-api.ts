@@ -92,8 +92,12 @@ function contactoAPI(item: ContactoEmergencia): Record<string, unknown> {
   return out;
 }
 
+/**
+ * `undefined` = no tocar los contactos; `[]` explícito = eliminarlos todos
+ * (el backend reemplaza la lista completa cuando la recibe).
+ */
 function contactoListAPI(list: ContactoEmergencia[] | undefined): Record<string, unknown>[] | null {
-  if (!list || list.length === 0) return null;
+  if (!list) return null;
   return list.map(contactoAPI);
 }
 
@@ -136,7 +140,7 @@ function aplicarAnidados(payload: Record<string, unknown>, data: GuardarEmpleado
   const complementaria = complementariaListAPI(data.formacionComplementaria);
   if (complementaria) payload.formacion_complementaria = complementaria;
   const contacto = contactoListAPI(data.contactoEmergencia);
-  if (contacto) payload.contacto_emergencia = contacto;
+  if (contacto !== null) payload.contacto_emergencia = contacto;
   const antecedentes = antecedenteListAPI(data.antecedentes);
   if (antecedentes) payload.antecedentes = antecedentes;
   const contrato = contratoListAPI(data.contrato);

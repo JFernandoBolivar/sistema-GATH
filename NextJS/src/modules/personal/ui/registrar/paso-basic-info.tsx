@@ -35,6 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { getEmpleadosAction } from "../../infrastructure/actions/personal-actions";
 import { pasoBasicInfoSchema, type PasoBasicInfoType } from "../schema/schema-registro-pasos";
+import { ContactosEmergenciaCampos } from "../contactos-emergencia-campos";
 
 function formatearPeso(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -280,6 +281,15 @@ export function PasoBasicInfo({
                   )}
                 />
               </div>
+            </div>
+            <div className="border rounded-lg p-4 mt-4 flex flex-col gap-3">
+              <div>
+                <h3 className="font-semibold">Contactos de Emergencia (Opcional)</h3>
+                <p className="text-sm text-muted-foreground">
+                  Personas de enlace en caso de contingencias médicas o laborales.
+                </p>
+              </div>
+              <ContactosEmergenciaCampos parentescos={catalogos?.parentescos ?? []} isLoading={isLoadingCatalogos} />
             </div>
             <div className="flex gap-3 justify-end pt-4">
               <Button className="w-full" disabled={validateCedula} variant={validateCedula ? "destructive" : "default"}>

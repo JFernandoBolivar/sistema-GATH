@@ -7,6 +7,7 @@
 import { format } from "date-fns";
 
 import type { GuardarEmpleadoInputDTO } from "../../application/dtos/empleado-dto";
+import { contactosFormADto } from "../schema/schema-contacto-emergencia";
 import type { RegistroPasosType } from "../schema/schema-registro-pasos";
 
 const fecha = (d?: Date | null) => (d ? format(d, "yyyy-MM-dd") : null);
@@ -29,6 +30,7 @@ export function registroPasosADTO(data: RegistroPasosType): GuardarEmpleadoInput
     estadoCivilId: id(data.estadoCivil),
     nacionalidadId: id(data.nacionalidad_id),
     carnetPatria: texto(data.carnet_patria),
+    contactoEmergencia: contactosFormADto(data.contacto_emergencia),
     formacionAcademica: (data.formacion_academica ?? [])
       .filter((f) => id(f.nivel_Academico_id))
       .map((f) => ({
