@@ -88,6 +88,7 @@ PERMISOS_CATALOGO = [
     ("movimientos.registrar_ascenso", "Registrar ascenso de cargo o grado"),
     ("movimientos.registrar_aumento", "Registrar ajuste salarial"),
     ("movimientos.anular", "Anular movimiento laboral registrado"),
+    ("movimientos.exportar_pdf", "Exportar el historial de movimientos en PDF"),
 
     # ─── 9. REPORTES Y CONSTANCIAS ───
     ("reportes.ver", "Acceder al módulo de reportes"),
@@ -171,6 +172,7 @@ ROL_ASIGNACIONES = {
         "movimientos.registrar_traslado",
         "movimientos.registrar_ascenso",
         "movimientos.registrar_aumento",
+        "movimientos.exportar_pdf",
         "reportes.ver",
         "reportes.generar_pdf",
         "reportes.generar_excel",
