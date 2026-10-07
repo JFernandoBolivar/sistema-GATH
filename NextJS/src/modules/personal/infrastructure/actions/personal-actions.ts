@@ -167,3 +167,23 @@ export async function getTiposNominaAction() {
   }
 }
 
+/** PDF del expediente generado en backend (ReportLab); reemplaza el render client-side con @react-pdf/renderer. */
+export async function descargarEmpleadoPdfAction(cedula: string) {
+  const validation = empleadoCedulaSchema.safeParse({ cedula });
+  if (!validation.success) {
+    return { error: "Cédula inválida." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const resultado = await repoPersonalApi.descargarPdf(validation.data.cedula);
+    await logAudit({ traceId, action: "descargarEmpleadoPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return resultado;
+  } catch (error) {
+    await logAudit({ traceId, action: "descargarEmpleadoPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+

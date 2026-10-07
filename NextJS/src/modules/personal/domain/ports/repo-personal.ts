@@ -79,4 +79,6 @@ export interface RepoPersonal {
   crearEmpleado(data: GuardarEmpleadoDatos): Promise<Empleado>;
   actualizarEmpleado(cedula: string, data: Partial<GuardarEmpleadoDatos>): Promise<Empleado>;
   listarCatalogosExpediente(): Promise<CatalogosExpediente>;
+  /** PDF del expediente generado en backend (ReportLab), reemplaza el render client-side con @react-pdf/renderer. */
+  descargarPdf(cedula: string): Promise<Blob>;
 }

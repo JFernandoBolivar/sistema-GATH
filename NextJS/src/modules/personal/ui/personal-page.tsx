@@ -46,6 +46,7 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../application/dtos/empleado-dto";
 import {
+  descargarEmpleadoPdfAction,
   getCatalogosExpedienteAction,
   getEmpleadoPorCedulaAction,
   getEmpleadosAction,
@@ -53,8 +54,6 @@ import {
   subirFotoEmpleadoAction,
 } from "../infrastructure/actions/personal-actions";
 import EmpleadoDetalleSheet from "./empleado-detalle-sheet";
-import { EmpleadoDetallePdf } from "./empleado-detalle-pdf";
-import { getCintilloConfigPdfAction } from "../infrastructure/actions/cintillo-pdf-action";
 import { construirDetalleExpediente } from "./expediente-detalle-view-model";
 import { construirColumnasPersonal } from "./personal-columns";
 import { listadoEmpleadosSchema, type ListadoEmpleadosFormType } from "./schema/schema-empleado";
@@ -186,24 +185,19 @@ export default function PersonalPage() {
     });
   };
 
-  const descargarPdfExpediente = async (empleadoObj: EmpleadoDTO, cats: CatalogosExpedienteDTO) => {
+  const descargarPdfExpediente = async (cedula: string, nombreArchivo: string) => {
     setExportandoPdf(true);
+    setError(null);
     try {
-      const detalleVM = construirDetalleExpediente(empleadoObj, cats);
-      const cintilloConfig = await getCintilloConfigPdfAction();
-      const { pdf } = await import("@react-pdf/renderer");
-      const blob = await pdf(
-        <EmpleadoDetallePdf
-          detalle={detalleVM}
-          generadoPor={session?.user?.name ?? undefined}
-          generadoEn={new Date().toLocaleString("es-VE")}
-          cintilloConfig={cintilloConfig}
-        />,
-      ).toBlob();
-      const url = window.URL.createObjectURL(blob);
+      const resultado = await descargarEmpleadoPdfAction(cedula);
+      if (!(resultado instanceof Blob)) {
+        setError((resultado as { error: string }).error ?? "No fue posible generar el PDF del expediente.");
+        return;
+      }
+      const url = window.URL.createObjectURL(resultado);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${empleadoObj.nombres}-${empleadoObj.apellidos}-expediente.pdf`;
+      a.download = nombreArchivo;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch {
@@ -214,26 +208,12 @@ export default function PersonalPage() {
   };
 
   const onExportarPdf = () => {
-    if (!viendoDetalle || !catalogos) return;
-    descargarPdfExpediente(viendoDetalle, catalogos);
+    if (!viendoDetalle) return;
+    descargarPdfExpediente(viendoDetalle.cedula, `${viendoDetalle.nombres}-${viendoDetalle.apellidos}-expediente.pdf`);
   };
 
   const onExportarPdfDirecto = async (cedula: string) => {
-    if (!catalogos) {
-      setError("Cargando información del catálogo, por favor reintente.");
-      return;
-    }
-    setError(null);
-    try {
-      const emp = await getEmpleadoPorCedulaAction(cedula);
-      if (emp && typeof emp === "object" && !("error" in emp)) {
-        await descargarPdfExpediente(emp as EmpleadoDTO, catalogos);
-      } else {
-        setError("No se pudo obtener el expediente para generar el PDF.");
-      }
-    } catch {
-      setError("Error al obtener datos para PDF.");
-    }
+    await descargarPdfExpediente(cedula, `expediente-${cedula}.pdf`);
   };
 
   const columnas = construirColumnasPersonal(

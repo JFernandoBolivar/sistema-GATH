@@ -62,6 +62,9 @@ class RepoPersonalMemoria implements RepoPersonal {
   async obtenerPorCedula(cedula: string) {
     return this.empleados.find((e) => e.cedula === cedula)!;
   }
+  async descargarPdf() {
+    return new Blob(["%PDF"], { type: "application/pdf" });
+  }
   async crearEmpleado(data: GuardarEmpleadoDatos) {
     const { contrato: _contrato, ...rest } = data;
     const e: Empleado = {

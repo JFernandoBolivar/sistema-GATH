@@ -164,6 +164,10 @@ export const repoPersonalApi: RepoPersonal = {
     return empleadoApiAEntidad(raw);
   },
 
+  async descargarPdf(cedula) {
+    return personalApi.getPdf(cedula);
+  },
+
   async crearEmpleado(data) {
     const payload: Record<string, unknown> = {
       cedula: data.cedula,

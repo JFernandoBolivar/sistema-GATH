@@ -1,11 +1,11 @@
 /**
  * Resuelve los IDs de catálogo del expediente de un empleado a nombres
- * legibles. Función pura (sin React), compartida por la vista de detalle
- * (`empleado-detalle-sheet.tsx`) y la exportación a PDF
- * (`empleado-detalle-pdf.tsx`) para no resolver los mismos catálogos dos
- * veces (regla R3: ui/ no reimplementa lógica de negocio, pero sí puede
- * tener helpers de presentación puros — mismo patrón que
- * `modules/reportes/ui/tendencia-chart-data.ts`).
+ * legibles. Función pura (sin React), usada por la vista de detalle
+ * (`empleado-detalle-sheet.tsx`) -- la exportación a PDF ahora se genera en
+ * backend (`apps.personal.infrastructure.pdf_empleado`, que replica esta
+ * misma lógica de formato en Python) y ya no la consume (regla R3: ui/ no
+ * reimplementa lógica de negocio, pero sí puede tener helpers de
+ * presentación puros — mismo patrón que `modules/reportes/ui/tendencia-chart-data.ts`).
  */
 import { nombrePorId, nombresPorIds } from "@/shared/lib/catalogos";
 import { formatearFecha } from "@/shared/lib/formato-fecha";

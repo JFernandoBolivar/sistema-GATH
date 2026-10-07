@@ -80,6 +80,8 @@ export const personalApi = {
       apiClient.get<ApiResponse<EmpleadoApiItem>>(`/api/v1/personal/${cedula}/`),
     ),
 
+  getPdf: (cedula: string) => apiClient.getBlob(`/api/v1/personal/${cedula}/pdf/`),
+
   crear: (payload: Record<string, unknown>) =>
     single<EmpleadoApiItem>(
       apiClient.post<ApiResponse<EmpleadoApiItem>>("/api/v1/personal/", payload),
