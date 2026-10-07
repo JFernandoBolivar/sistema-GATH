@@ -11,6 +11,7 @@ import juntosPorVida from "$/juntosPorVida.png";
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 import type { CatalogosExpedientePasivoDTO, PasivoDTO } from "../../application/dtos/pasivos-dto";
+import type { CintilloConfigPdf } from "../../infrastructure/actions/cintillo-pdf-action";
 
 const styles = StyleSheet.create({
   page: {
@@ -79,20 +80,30 @@ function fechaLegible(fecha?: string | null): string {
 export function ReportePasivoPDF({
   pasivo,
   catalogos,
+  cintilloConfig,
 }: {
   pasivo: PasivoDTO;
   catalogos: CatalogosExpedientePasivoDTO;
+  /** HU 0009: cintillo configurable. `undefined`/`null` o sin imágenes configuradas -> assets estáticos de respaldo. "GENERICO" oculta los logos institucionales. */
+  cintilloConfig?: CintilloConfigPdf | null;
 }) {
+  const esGenerico = cintilloConfig?.tipoCintillo === "GENERICO";
+  const srcLogoIzq = cintilloConfig?.logoPrincipalUrl ?? logoOAC.src;
+  const srcLogoDer = cintilloConfig?.logoSecundarioUrl ?? juntosPorVida.src;
+  const srcCintilloPie = cintilloConfig?.cintilloPieUrl ?? cintillo.src;
+
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
         <Text style={{ fontSize: 8, textAlign: "right" }}>
           Fecha de generación: {fechaLegible(new Date().toISOString())}
         </Text>
-        <View style={styles.header} fixed>
-          <Image style={styles.logoLeft} src={logoOAC.src} />
-          <Image style={styles.logoRight} src={juntosPorVida.src} />
-        </View>
+        {!esGenerico && (
+          <View style={styles.header} fixed>
+            <Image style={styles.logoLeft} src={srcLogoIzq} />
+            <Image style={styles.logoRight} src={srcLogoDer} />
+          </View>
+        )}
 
         <Text style={styles.title}>INFORMACIÓN DEL JUBILADO/PASIVO</Text>
 
@@ -246,9 +257,11 @@ export function ReportePasivoPDF({
           </View>
         </View>
 
-        <View style={styles.footer} fixed>
-          <Image style={styles.footerImage} src={cintillo.src} />
-        </View>
+        {!esGenerico && (
+          <View style={styles.footer} fixed>
+            <Image style={styles.footerImage} src={srcCintilloPie} />
+          </View>
+        )}
         <Text
           style={styles.pageNumber}
           render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}

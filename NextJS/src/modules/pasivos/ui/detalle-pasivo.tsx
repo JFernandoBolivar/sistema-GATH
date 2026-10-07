@@ -65,6 +65,7 @@ import {
   getCatalogosExpedientePasivoAction,
   getPasivoPorCedulaAction,
 } from "../infrastructure/actions/pasivos-actions";
+import { getCintilloConfigPdfAction, type CintilloConfigPdf } from "../infrastructure/actions/cintillo-pdf-action";
 
 const PDFDownloadLink = dynamic(
   () => import("@react-pdf/renderer").then((m) => m.PDFDownloadLink),
@@ -89,6 +90,13 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
   const [catalogos, setCatalogos] = useState<CatalogosExpedientePasivoDTO | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // HU 0009: cintillo configurable para el PDF exportado. `null` mientras
+  // carga o si falla -> ReportePasivoPDF cae a sus imágenes estáticas.
+  const [cintilloConfig, setCintilloConfig] = useState<CintilloConfigPdf | null>(null);
+
+  useEffect(() => {
+    getCintilloConfigPdfAction().then(setCintilloConfig);
+  }, []);
 
   useEffect(() => {
     if (!open || !cedula || pasivo?.cedula === cedula) return;
@@ -135,7 +143,7 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
               </div>
               {catalogos && puedeExportarPdf && (
                 <PDFDownloadLink
-                  document={<ReportePasivoPDF pasivo={pasivo} catalogos={catalogos} />}
+                  document={<ReportePasivoPDF pasivo={pasivo} catalogos={catalogos} cintilloConfig={cintilloConfig} />}
                   fileName={`expediente-pasivo-${pasivo.cedula}.pdf`}
                 >
                   {({ loading }) => (

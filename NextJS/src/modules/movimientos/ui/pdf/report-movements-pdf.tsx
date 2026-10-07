@@ -1,4 +1,5 @@
 import type { MovimientoCargoDTO } from "../../application/dtos/movimientos-dto";
+import type { CintilloConfigPdf } from "../../infrastructure/actions/cintillo-pdf-action";
 import cintillo from "$/cintillo2.png";
 import juntosPorVida from "$/juntosPorVida.png";
 import logoOAC from "$/logoOAC.png";
@@ -130,11 +131,19 @@ export function ReportMovementsPDF({
   moves,
   cedula,
   userName,
+  cintilloConfig,
 }: {
   moves: MovimientoCargoDTO[];
   cedula: string;
   userName?: string | null;
+  /** HU 0009: cintillo configurable. `undefined`/`null` o sin imágenes configuradas -> assets estáticos de respaldo. "GENERICO" oculta los logos institucionales. */
+  cintilloConfig?: CintilloConfigPdf | null;
 }) {
+  const esGenerico = cintilloConfig?.tipoCintillo === "GENERICO";
+  const srcLogoIzq = cintilloConfig?.logoPrincipalUrl ?? logoOAC.src;
+  const srcLogoDer = cintilloConfig?.logoSecundarioUrl ?? juntosPorVida.src;
+  const srcCintilloPie = cintilloConfig?.cintilloPieUrl ?? cintillo.src;
+
   return (
     <Document>
       <Page size="A4" orientation="landscape" style={styles.page}>
@@ -142,12 +151,14 @@ export function ReportMovementsPDF({
           Usuario: {userName ?? "Sistema"}, Fecha De Generacion:{" "}
           {formatInTimeZone(new Date(), "UTC", "dd/MM/yyyy HH:mm:ss")}
         </Text>
-        <View style={styles.header} fixed>
-          <Image style={styles.logoLeft} src={logoOAC.src} />
-          <View>
-            <Image style={styles.logoRight} src={juntosPorVida.src} />
+        {!esGenerico && (
+          <View style={styles.header} fixed>
+            <Image style={styles.logoLeft} src={srcLogoIzq} />
+            <View>
+              <Image style={styles.logoRight} src={srcLogoDer} />
+            </View>
           </View>
-        </View>
+        )}
 
         <View>
           <Text style={styles.title}>HISTORIAL DE MOVIMIENTOS DEL TRABAJADOR</Text>
@@ -205,9 +216,11 @@ export function ReportMovementsPDF({
           )}
         </View>
 
-        <View style={styles.footer} fixed>
-          <Image style={styles.footerImage} src={cintillo.src} />
-        </View>
+        {!esGenerico && (
+          <View style={styles.footer} fixed>
+            <Image style={styles.footerImage} src={srcCintilloPie} />
+          </View>
+        )}
 
         <Text
           style={styles.pageNumber}

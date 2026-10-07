@@ -54,6 +54,7 @@ import {
   getTiposMovimientoDisponiblesAction,
 } from "../infrastructure/actions/movimientos-actions";
 import { getDireccionesGeneralesAction } from "@/modules/organizacion/infrastructure/actions/organizacion-actions";
+import { getCintilloConfigPdfAction, type CintilloConfigPdf } from "../infrastructure/actions/cintillo-pdf-action";
 import { DetalleMovimiento } from "./detalle-movimiento";
 import { construirColumnasMovimientos } from "./movimientos-columns";
 import { ReportMovementsPDF } from "./pdf/report-movements-pdf";
@@ -163,6 +164,13 @@ export default function MovimientosPage() {
   const [gerencias, setGerencias] = useState<string[]>(
     GERENCIAS_OPCIONES as unknown as string[],
   );
+  // HU 0009: cintillo configurable para el PDF exportado. `null` mientras
+  // carga o si falla -> ReportMovementsPDF cae a sus imágenes estáticas.
+  const [cintilloConfig, setCintilloConfig] = useState<CintilloConfigPdf | null>(null);
+
+  useEffect(() => {
+    getCintilloConfigPdfAction().then(setCintilloConfig);
+  }, []);
 
   useEffect(() => {
     let montado = true;
@@ -369,9 +377,10 @@ export default function MovimientosPage() {
         moves={movimientosFiltrados}
         cedula={consulta?.tipo === "empleado" ? consulta.valor : ""}
         userName={session?.user?.name}
+        cintilloConfig={cintilloConfig}
       />
     ),
-    [movimientosFiltrados, consulta, session?.user?.name],
+    [movimientosFiltrados, consulta, session?.user?.name, cintilloConfig],
   );
 
   return (

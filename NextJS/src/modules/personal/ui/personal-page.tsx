@@ -54,6 +54,7 @@ import {
 } from "../infrastructure/actions/personal-actions";
 import EmpleadoDetalleSheet from "./empleado-detalle-sheet";
 import { EmpleadoDetallePdf } from "./empleado-detalle-pdf";
+import { getCintilloConfigPdfAction } from "../infrastructure/actions/cintillo-pdf-action";
 import { construirDetalleExpediente } from "./expediente-detalle-view-model";
 import { construirColumnasPersonal } from "./personal-columns";
 import { listadoEmpleadosSchema, type ListadoEmpleadosFormType } from "./schema/schema-empleado";
@@ -189,12 +190,14 @@ export default function PersonalPage() {
     setExportandoPdf(true);
     try {
       const detalleVM = construirDetalleExpediente(empleadoObj, cats);
+      const cintilloConfig = await getCintilloConfigPdfAction();
       const { pdf } = await import("@react-pdf/renderer");
       const blob = await pdf(
         <EmpleadoDetallePdf
           detalle={detalleVM}
           generadoPor={session?.user?.name ?? undefined}
           generadoEn={new Date().toLocaleString("es-VE")}
+          cintilloConfig={cintilloConfig}
         />,
       ).toBlob();
       const url = window.URL.createObjectURL(blob);

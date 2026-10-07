@@ -14,8 +14,12 @@
  * que consume `empleado-detalle-sheet.tsx` (regla R3, una sola resolución de
  * catálogos para ambas vistas).
  */
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import cintillo from "$/cintillo2.png";
+import logoOAC from "$/logoOAC.png";
+import juntosPorVida from "$/juntosPorVida.png";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
+import type { CintilloConfigPdf } from "../infrastructure/actions/cintillo-pdf-action";
 import type { DetalleExpedienteViewModel } from "./expediente-detalle-view-model";
 
 const styles = StyleSheet.create({
@@ -23,8 +27,18 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     backgroundColor: "#FFFFFF",
     padding: 30,
+    paddingBottom: 90,
     fontFamily: "Helvetica",
   },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  logoLeft: { width: 210, height: 90 },
+  logoRight: { width: 100, height: 60 },
+  footer: { position: "absolute", bottom: 0, left: 0, right: 0, height: 60 },
+  footerImage: { width: "100%", height: "100%" },
   title: {
     fontSize: 16,
     textAlign: "center",
@@ -124,12 +138,25 @@ interface EmpleadoDetallePdfProps {
   detalle: DetalleExpedienteViewModel;
   generadoPor?: string;
   generadoEn: string;
+  /** HU 0009: cintillo configurable. `undefined`/`null` o sin imágenes configuradas -> assets estáticos de respaldo. "GENERICO" oculta los logos institucionales. Antes de esta HU este documento no tenía membrete institucional (gap P2 de AUDITORIA_CALIDAD_FRONTEND_2026-09-15.md). */
+  cintilloConfig?: CintilloConfigPdf | null;
 }
 
-export function EmpleadoDetallePdf({ detalle, generadoPor, generadoEn }: EmpleadoDetallePdfProps) {
+export function EmpleadoDetallePdf({ detalle, generadoPor, generadoEn, cintilloConfig }: EmpleadoDetallePdfProps) {
+  const esGenerico = cintilloConfig?.tipoCintillo === "GENERICO";
+  const srcLogoIzq = cintilloConfig?.logoPrincipalUrl ?? logoOAC.src;
+  const srcLogoDer = cintilloConfig?.logoSecundarioUrl ?? juntosPorVida.src;
+  const srcCintilloPie = cintilloConfig?.cintilloPieUrl ?? cintillo.src;
+
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
+        {!esGenerico && (
+          <View style={styles.header} fixed>
+            <Image style={styles.logoLeft} src={srcLogoIzq} />
+            <Image style={styles.logoRight} src={srcLogoDer} />
+          </View>
+        )}
         <Text style={{ fontSize: 8, textAlign: "right", marginBottom: 8 }}>
           {generadoPor ? `Usuario: ${generadoPor}, ` : ""}Fecha de generación: {generadoEn}
         </Text>
@@ -294,6 +321,11 @@ export function EmpleadoDetallePdf({ detalle, generadoPor, generadoEn }: Emplead
           </View>
         )}
 
+        {!esGenerico && (
+          <View style={styles.footer} fixed>
+            <Image style={styles.footerImage} src={srcCintilloPie} />
+          </View>
+        )}
         <Text
           style={styles.pageNumber}
           render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
