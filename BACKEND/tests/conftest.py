@@ -33,3 +33,16 @@ def pytest_sessionstart(session):
                 continue
             model._meta.managed = True
             tablas_vistas.add(model._meta.db_table)
+
+
+@pytest.fixture(autouse=True)
+def aislar_cache_throttling(settings):
+    """D-11 / B3.14: Caché aislada en LocMemCache para evitar DatabaseCache en pruebas unitarias y de integración."""
+    from django.core.cache import cache
+    settings.CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'tests-throttling',
+        }
+    }
+    cache.clear()

@@ -11,8 +11,9 @@ from rest_framework import serializers
 
 
 class LoginDocSerializer(serializers.Serializer):
-    """Documenta el cuerpo de `POST /auth/login/` (correo+password o cédula+password)."""
+    """Documenta el cuerpo de `POST /auth/login/` (usuario/correo/cédula + password)."""
 
+    usuario = serializers.CharField(required=False)
     correo = serializers.EmailField(required=False)
     cedula = serializers.CharField(required=False)
     password = serializers.CharField(write_only=True)

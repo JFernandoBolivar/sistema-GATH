@@ -8,6 +8,7 @@ services:
       - ./BACKEND/.env
     environment:
       - DJANGO_DB_HOST=host.docker.internal
+      - FRONTEND_URL=http://localhost:3001
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -33,6 +34,7 @@ services:
       - ./NextJS/.env
     environment:
       - DJANGO_API_SERVER=http://djangoapp:8000
+      - NEXTAUTH_URL=http://localhost:3001
     ports:
       - "3001:3000"
     networks:
@@ -95,8 +97,12 @@ services:
     restart: always
     command: >
       s3 -filer=sw_filer:8888 -port=8333
+      -ip.bind=0.0.0.0
       -allowEmptyFolder=false
-    networks: [storage]
+    networks:
+      storage:
+        aliases:
+          - sw-s3
     depends_on:
       - sw_filer
     deploy:

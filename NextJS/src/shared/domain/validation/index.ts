@@ -26,6 +26,10 @@ export const RIF_MSG = "Formato inválido. Ejemplo: J-12345678-9";
 export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const EMAIL_MSG = "Correo electrónico inválido";
 
+/** Identificador de login: correo electrónico, usuario institucional o cédula venezolana */
+export const USUARIO_LOGIN = /^(?:[^\s@]+@[^\s@]+\.[^\s@]+|[a-zA-Z0-9._-]{3,50})$/;
+export const USUARIO_LOGIN_MSG = "Ingrese un usuario válido, correo institucional o cédula";
+
 /** Teléfono móvil Venezuela: prefijo válido + 7 dígitos. */
 export const PHONE_VE = /^(0414|0412|0416|0422|0424|0426|0415)\d{7}$/;
 export const PHONE_VE_MSG = "Teléfono inválido. Formato: 04121234567";
@@ -74,6 +78,7 @@ export const REGEX = {
   CEDULA_DIGITOS: DIGITS,
   RIF,
   EMAIL,
+  USUARIO_LOGIN,
   PHONE_VE,
   TELEFONO: PHONE_VE,
   PHONE_VE_FIJO,
@@ -93,6 +98,7 @@ export const ERROR = {
   MIN_LENGTH: (min: number) => `Mínimo ${min} caracteres`,
   MAX_LENGTH: (max: number) => `Máximo ${max} caracteres`,
   INVALID_EMAIL: "Correo electrónico inválido",
+  INVALID_USUARIO: "Ingrese un usuario válido, correo institucional o cédula",
   INVALID_PASSWORD:
     "La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial",
   INVALID_CEDULA: "Cédula inválida. Debe ser V/E/J/P/G seguido de 6 a 9 dígitos",

@@ -8,6 +8,7 @@ import { ERROR } from "@/shared/validation/messages";
 export const loginFormSchema = z.object({
   usuario: z
     .string()
+    .trim()
     .min(1, ERROR.REQUIRED)
     .max(100, ERROR.MAX_LENGTH(100))
     .email(ERROR.INVALID_EMAIL),
@@ -15,3 +16,4 @@ export const loginFormSchema = z.object({
 });
 
 export type LoginFormType = z.infer<typeof loginFormSchema>;
+

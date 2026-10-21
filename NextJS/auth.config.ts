@@ -81,10 +81,13 @@ export default {
         const { data, success } = signInSchema.safeParse(credentials);
         if (!success) throw new Error("Invalid credentials.");
 
-        const isEmail = data.email.includes("@");
-        const body = isEmail
-          ? { correo: data.email, password: data.password }
-          : { cedula: data.email, password: data.password };
+        const idLimpio = data.email.trim();
+        const body = {
+          usuario: idLimpio,
+          correo: idLimpio,
+          cedula: idLimpio,
+          password: data.password,
+        };
 
         const loginRes = await fetch(`${BACKEND}api/v1/identidad/auth/login/`, {
           method: "POST",

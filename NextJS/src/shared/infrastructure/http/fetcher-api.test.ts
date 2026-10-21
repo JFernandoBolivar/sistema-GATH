@@ -123,4 +123,19 @@ describe("apiClient (fetcher-api)", () => {
     const url = fetchMock.mock.calls[0]?.[0] as string;
     expect(url).not.toContain("?");
   });
+
+  it("permite peticiones públicas sin cabecera de Authorization cuando skipAuth es true", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        jsonResponse({ status: "success", message: "ok", data: null }, 200),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiClient.post("identidad/auth/solicitar-recuperacion/", { identificador: "test@conatel.gob.ve" }, { skipAuth: true });
+
+    const init = fetchMock.mock.calls[0]?.[1];
+    const headers = ((init?.headers ?? {}) as Record<string, string>);
+    expect(headers["Authorization"]).toBeUndefined();
+    expect(headers["X-Trace-Id"]).toBeDefined();
+  });
 });

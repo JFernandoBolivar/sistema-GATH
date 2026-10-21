@@ -8,6 +8,8 @@ from apps.identidad.presentation.views.auth_views import (
     LogoutView,
     MeView,
     RefreshView,
+    RestablecerPasswordView,
+    SolicitarRecuperacionPasswordView,
 )
 from apps.identidad.presentation.views.cuenta_views import (
     CambiarPasswordView,
@@ -36,6 +38,8 @@ urlpatterns = [
     path('auth/logout/', LogoutView.as_view(), name='auth-logout'),
     path('auth/me/', MeView.as_view(), name='auth-me'),
     path('auth/cambiar-password/', CambiarPasswordView.as_view(), name='auth-cambiar-password'),
+    path('auth/solicitar-recuperacion/', SolicitarRecuperacionPasswordView.as_view(), name='auth-solicitar-recuperacion'),
+    path('auth/restablecer-password/', RestablecerPasswordView.as_view(), name='auth-restablecer-password'),
 
 
     # ─── Catálogo y resolución de permisos (B3.1/B3.2) ───

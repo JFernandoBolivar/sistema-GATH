@@ -13,13 +13,17 @@ import type { SesionBackendPayload } from "../mappers/mapper-sesion";
 export const AUTH_LOGIN_PATH = "api/v1/identidad/auth/login/";
 export const AUTH_LOGOUT_PATH = "api/v1/identidad/auth/logout/";
 export const AUTH_CAMBIAR_PASSWORD_PATH = "api/v1/identidad/auth/cambiar-password/";
+export const AUTH_SOLICITAR_RECUPERACION_PATH = "api/v1/identidad/auth/solicitar-recuperacion/";
+export const AUTH_RESTABLECER_PASSWORD_PATH = "api/v1/identidad/auth/restablecer-password/";
 
 /** POST al endpoint de autenticación; devuelve el `data` del sobre C-1. */
 export async function postLogin(
   credenciales: { usuario: string; password: string },
 ): Promise<SesionBackendPayload> {
   const envelope = await apiClient.post<ApiResponse<SesionBackendPayload>>(AUTH_LOGIN_PATH, {
-    correo: credenciales.usuario,
+    usuario: credenciales.usuario.trim(),
+    correo: credenciales.usuario.trim(),
+    cedula: credenciales.usuario.trim(),
     password: credenciales.password,
   });
   return envelope.data;
@@ -48,3 +52,37 @@ export async function postCambiarPassword(
   });
   return envelope.message;
 }
+
+/** POST al endpoint de solicitud de recuperación de contraseña (público, con skipAuth). */
+export async function postSolicitarRecuperacion(identificador: string): Promise<string> {
+  const frontendUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : (process.env.NEXTAUTH_URL || "http://localhost:3001");
+
+  const envelope = await apiClient.post<ApiResponse<null>>(
+    AUTH_SOLICITAR_RECUPERACION_PATH,
+    { identificador, frontend_url: frontendUrl },
+    { skipAuth: true },
+  );
+  return envelope.message;
+}
+
+/** POST al endpoint de restablecimiento de contraseña (público, con skipAuth). */
+export async function postRestablecerPassword(input: {
+  token: string;
+  passwordNuevo: string;
+  passwordConfirmacion: string;
+}): Promise<string> {
+  const envelope = await apiClient.post<ApiResponse<null>>(
+    AUTH_RESTABLECER_PASSWORD_PATH,
+    {
+      token: input.token,
+      password_nuevo: input.passwordNuevo,
+      password_confirmacion: input.passwordConfirmacion,
+    },
+    { skipAuth: true },
+  );
+  return envelope.message;
+}
+

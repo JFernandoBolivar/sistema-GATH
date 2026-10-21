@@ -11,12 +11,13 @@
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { Eye, EyeOff, KeyRound } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,6 +30,7 @@ import { loginAction } from "../infrastructure/actions/auth-actions";
 export default function LoginForm() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormType>({
     resolver: zodResolver(loginFormSchema),
@@ -69,18 +71,18 @@ export default function LoginForm() {
               name="usuario"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Correo Electrónico:</FormLabel>
+                  <FormLabel className="text-white font-medium">Correo Electrónico:</FormLabel>
                   <FormControl>
                     <Input
                       type="email"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="correo@conatel.gob.ve"
                       {...field}
-                      className="transition-property: all transition-duration: 300ms placeholder:text-white hover:bg-slate-900/20"
+                      className="placeholder:text-white/60 hover:bg-slate-900/20"
                     />
                   </FormControl>
-                  <FormDescription className="text-white">
-                    Introduce tu correo electrónico institucional.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -92,18 +94,36 @@ export default function LoginForm() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contraseña:</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="password"
-                      placeholder="Tu Contraseña"
-                      className="hover:bg-slate-900/20 placeholder:text-white"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription className="text-white">
-                    Coloque su contraseña de acceso.
-                  </FormDescription>
+                  <FormLabel className="text-white font-medium">Contraseña:</FormLabel>
+                  <div className="relative flex items-center">
+                    <FormControl>
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Tu Contraseña"
+                        className="pr-10 hover:bg-slate-900/20 placeholder:text-white"
+                        {...field}
+                      />
+                    </FormControl>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 text-slate-300 hover:text-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 rounded p-0.5"
+                      tabIndex={-1}
+                      aria-label={showPassword ? "Ocultar clave" : "Mostrar clave"}
+                      title={showPassword ? "Ocultar clave" : "Mostrar clave"}
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-end pt-1">
+                    <Link
+                      href="/recuperar-password"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-200 hover:text-white underline-offset-4 hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded-sm"
+                    >
+                      <KeyRound className="size-3.5 text-sky-300" />
+                      <span>¿Olvidaste tu contraseña?</span>
+                    </Link>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

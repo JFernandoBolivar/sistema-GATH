@@ -10,6 +10,12 @@ export interface CambiarPasswordInput {
   readonly passwordNuevo: string;
 }
 
+export interface RestablecerPasswordInput {
+  readonly token: string;
+  readonly passwordNuevo: string;
+  readonly passwordConfirmacion: string;
+}
+
 export interface RepoAutenticacion {
   /** Autentica credenciales contra el backend y devuelve la sesión resultante. */
   iniciarSesion(credenciales: CredencialesLogin): Promise<SesionEntity>;
@@ -17,4 +23,8 @@ export interface RepoAutenticacion {
   cerrarSesion(): Promise<void>;
   /** Cambia la contraseña de la cuenta autenticada; devuelve el mensaje del backend. */
   cambiarPassword(input: CambiarPasswordInput): Promise<string>;
+  /** Solicita el correo de recuperación para el identificador (cédula o correo); devuelve el mensaje del backend. */
+  solicitarRecuperacion(identificador: string): Promise<string>;
+  /** Restablece la contraseña usando el token firmado; devuelve el mensaje del backend. */
+  restablecerPassword(input: RestablecerPasswordInput): Promise<string>;
 }

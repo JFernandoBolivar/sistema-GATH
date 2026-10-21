@@ -27,7 +27,15 @@ import {
   cambiarPasswordFormSchema,
   type CambiarPasswordFormType,
 } from "../../ui/schema/schema-cambiar-password";
+import {
+  solicitarRecuperacionSchema,
+  type SolicitarRecuperacionFormType,
+  restablecerPasswordSchema,
+  type RestablecerPasswordFormType,
+} from "../../ui/schema/schema-recuperar-password";
 import { cambiarPassword } from "../../application/use-cases/cambiar-password";
+import { solicitarRecuperacion } from "../../application/use-cases/solicitar-recuperacion";
+import { restablecerPassword } from "../../application/use-cases/restablecer-password";
 import { cerrarSesion } from "../../application/use-cases/cerrar-sesion";
 import { repoAutenticacionApi } from "../repositories/repo-auth-api";
 
@@ -170,3 +178,59 @@ export async function cambiarPasswordAction(
     return { success: false, message };
   }
 }
+
+export type RecuperacionActionResult =
+  | { success: true; message: string }
+  | { success: false; message: string };
+
+/**
+ * Solicita el envío de instrucciones para restablecer contraseña al correo institucional.
+ */
+export async function solicitarRecuperacionAction(
+  rawData: SolicitarRecuperacionFormType,
+): Promise<RecuperacionActionResult> {
+  const validation = solicitarRecuperacionSchema.safeParse(rawData);
+  if (!validation.success) {
+    return { success: false, message: "Identificador inválido. Ingrese su cédula o correo institucional." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+
+  try {
+    const message = await solicitarRecuperacion(repoAutenticacionApi, validation.data.identificador);
+    await logAudit({ traceId, action: "solicitarRecuperacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message };
+  } catch (error) {
+    await logAudit({ traceId, action: "solicitarRecuperacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    const message = error instanceof Error ? error.message : "No fue posible procesar la solicitud.";
+    return { success: false, message };
+  }
+}
+
+/**
+ * Restablece la contraseña utilizando el token temporal recibido por correo institucional.
+ */
+export async function restablecerPasswordAction(
+  rawData: RestablecerPasswordFormType,
+): Promise<RecuperacionActionResult> {
+  const validation = restablecerPasswordSchema.safeParse(rawData);
+  if (!validation.success) {
+    const errorMsg = validation.error.issues[0]?.message ?? "Datos inválidos para restablecer la contraseña.";
+    return { success: false, message: errorMsg };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+
+  try {
+    const message = await restablecerPassword(repoAutenticacionApi, validation.data);
+    await logAudit({ traceId, action: "restablecerPasswordAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message };
+  } catch (error) {
+    await logAudit({ traceId, action: "restablecerPasswordAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    const message = error instanceof Error ? error.message : "El token es inválido o ha expirado.";
+    return { success: false, message };
+  }
+}
+

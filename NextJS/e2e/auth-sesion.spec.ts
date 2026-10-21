@@ -82,4 +82,35 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     // Debe redirigir de inmediato a /login
     await expect(page).toHaveURL(/\/login/, { timeout: 10_000 });
   });
+
+  test("4. Alternancia del botón de ojo (ver/ocultar) y validación de correo institucional", async ({ page }) => {
+    await page.goto("/login");
+
+    const inputEmail = page.getByLabel(/correo electrónico/i);
+    const inputPassword = page.getByLabel("Contraseña:");
+    const botonOjo = page.getByRole("button", { name: /mostrar clave|ocultar clave/i });
+
+    await expect(inputEmail).toBeVisible();
+    await expect(inputPassword).toBeVisible();
+    await expect(botonOjo).toBeVisible();
+
+    // Llenar contraseña y verificar alternancia de visibilidad
+    await inputPassword.fill("30540767**");
+    await expect(inputPassword).toHaveAttribute("type", "password");
+
+    // Clic en ojo: muestra la contraseña en texto plano
+    await botonOjo.click();
+    await expect(inputPassword).toHaveAttribute("type", "text");
+
+    // Clic en ojo de nuevo: vuelve a ocultar la contraseña
+    await botonOjo.click();
+    await expect(inputPassword).toHaveAttribute("type", "password");
+
+    // Iniciar sesión con el correo institucional completo
+    await inputEmail.fill("hmachado@conatel.gob.ve");
+    await page.getByRole("button", { name: /iniciar sesión/i }).click();
+
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+  });
 });
+

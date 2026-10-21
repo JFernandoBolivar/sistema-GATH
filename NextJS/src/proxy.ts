@@ -5,7 +5,13 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 const { auth: proxy } = NextAuth(authConfig);
 
-const publicRoutes = ["/", "/login", "/register"];
+const publicRoutes = [
+  "/",
+  "/login",
+  "/register",
+  "/recuperar-password",
+  "/restablecer-password",
+];
 
 export default proxy((req) => {
   const { nextUrl, auth } = req;

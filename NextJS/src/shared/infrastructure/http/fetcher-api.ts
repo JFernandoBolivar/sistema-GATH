@@ -29,6 +29,7 @@ export interface RequestOptions {
    * que los filtros de búsqueda nunca llegaban al backend.
    */
   params?: Record<string, string | number | boolean | undefined | null>;
+  skipAuth?: boolean;
 }
 
 function construirRuta(path: string, params?: RequestOptions["params"]): string {
@@ -58,15 +59,19 @@ async function buildHeaders(
   extra: Record<string, string> | undefined,
   traceId: string,
   isForm: boolean,
+  skipAuth = false,
 ): Promise<Record<string, string>> {
-  const token = await getAccessToken();
-  if (!token) throw new SessionExpiredError();
-
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
     "X-Trace-Id": traceId,
     ...extra,
   };
+
+  if (!skipAuth) {
+    const token = await getAccessToken();
+    if (!token) throw new SessionExpiredError();
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   if (!isForm) headers["Content-Type"] = "application/json";
   return headers;
 }
@@ -99,10 +104,10 @@ async function request<T>(
   isForm = false,
 ): Promise<T> {
   const traceId = options.traceId ?? generateTraceId();
-  let headers = await buildHeaders(options.headers, traceId, isForm);
+  let headers = await buildHeaders(options.headers, traceId, isForm, options.skipAuth);
   let response = await doFetch(path, init, headers);
 
-  if (response.status === 401) {
+  if (response.status === 401 && !options.skipAuth) {
     const newToken = await refreshTokens();
     if (!newToken) throw new SessionExpiredError();
     headers = { ...headers, Authorization: `Bearer ${newToken}` };
@@ -128,14 +133,14 @@ async function request<T>(
 
 async function requestBlob(path: string, init: RequestInit = { method: "GET" }, options: RequestOptions = {}): Promise<Blob> {
   const traceId = options.traceId ?? generateTraceId();
-  const headers = await buildHeaders(options.headers, traceId, init.body instanceof FormData);
+  const headers = await buildHeaders(options.headers, traceId, init.body instanceof FormData, options.skipAuth);
   if (init.body && !(init.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
 
   let response = await doFetch(path, init, headers);
 
-  if (response.status === 401) {
+  if (response.status === 401 && !options.skipAuth) {
     const newToken = await refreshTokens();
     if (!newToken) throw new SessionExpiredError();
     response = await doFetch(path, init, { ...headers, Authorization: `Bearer ${newToken}` });
