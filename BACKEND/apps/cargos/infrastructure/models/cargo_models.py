@@ -39,7 +39,11 @@ class AsigTrabajoModel(models.Model):
     employee = models.ForeignKey(
         'personal.EmployeeModel',
         models.SET_NULL,
-        related_name='+',
+        # Inverso `Employee.assignments` (mismo nombre que el legado
+        # `RAC.Employee.assignments`): las rutas de `ReportFieldRegistry`
+        # y `CuentaFilter` (`assignments__Dependencia`, ...) parten de
+        # Employee y lo necesitan. managed=False: no altera el esquema.
+        related_name='assignments',
         to_field='cedulaidentidad',
         db_column='employeeCedula',
         null=True,

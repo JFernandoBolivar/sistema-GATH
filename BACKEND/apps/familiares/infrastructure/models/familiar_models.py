@@ -10,7 +10,9 @@ class EmployeefamilyModel(models.Model):
         'personal.EmployeeModel',
         models.CASCADE,
         db_column='employeeCedula',
-        related_name='+',
+        # Inverso `Employee.carga_familiar` (nombre del legado), usado por la
+        # categoría "familiares" de `ReportFieldRegistry`. managed=False.
+        related_name='carga_familiar',
         to_field='cedulaidentidad',
     )
     cedulaFamiliar = models.CharField(max_length=10, db_column='cedulaFamiliar', blank=True, null=True)
