@@ -1101,12 +1101,24 @@ Hallazgos detectados durante la auditoría de Fases 0-1 que no estaban registrad
 
 ---
 
+### Entrada #041 - Cierre de pendientes de Fase 2 (PLAN_REPARACION_GATH) y actualización de cifras (2026-10-21)
+
+- **Features completadas desde la Entrada #040** (solo constancia; el detalle está en cada commit): recuperar/restablecer contraseña (`06e929b`), portal de autoservicio "Mi Expediente" (`318af1c`), cintillo editable para PDFs — `apps.configuracion`, HU 0009 (`61e1d9a`, `bf0993c`, `31752d0`), Punto de Cuenta automático al cambiar dependencia, RN-006-01 (`c81e0ef`), contactos de emergencia (`47804bc`), nacionalidad V/E del empleado (`fae8bf7`), PDF del expediente de personal/pasivos generado en backend (`d474e8b`, `8668390`).
+- **Fase 2.4 — `ReportFieldRegistry` reparado (`b50a34d`):** 81 de 148 rutas ORM lanzaban `FieldError`. Causa raíz: `assignments__*`/`carga_familiar__*` son accesores inversos desde Employee y `AsigTrabajoModel.employee`/`EmployeefamilyModel.employeecedula` tenían `related_name='+'`; además campos renombrados en el esquema nuevo y estado civil inexistente en familiares. Se restauraron los `related_name` legados (modelos `managed=False`, sin migraciones) y se corrigieron las rutas; arregla de paso `CuentaFilter`. Test de regresión con las 145 rutas.
+- **Carga masiva de expediente — validación de contratos (`d1d4148`):** regla del legado `validate_contrato` portada como función pura `contrato_rules.validar_registro_contrato` (FIJO bloquea altas/cambios, máximo 3, sin otro activo, fechas y solapamiento, egresado exento; n_contrato ajeno con mensaje claro). Re-cargar filas idénticas sigue siendo no-op.
+- **Listado de personal — filtros por estructura (`8408676`):** `dependencia_id`, `direccion_general_id`, `direccion_linea_id`, `coordinacion_id` vía `apps/personal/presentation/filters/personal_filters.py`.
+- **Censo — validación de pregunta/opción (`e9e5624`):** `CensoEmpleadoView.post` valida contra las preguntas activas (cerrada ⇒ opción obligatoria y propia; abierta ⇒ sin opción; sin repetidas) antes de persistir, y el guardado vuelve a ser atómico.
+- **Verificación (cifras reales a esta fecha):** backend `pytest` **464 passed, 4 errors** (los 4 errores son preexistentes: `tests/integration/test_bloqueo_cuentas.py`, FK de `Nacionalidad` ausente en la BD de test); frontend `tsc --noEmit` limpio y Vitest **283/283** (58 archivos); `lint-imports` **58 kept / 12 broken** (los 12 rotos ya existían, cadenas transitivas presentation→infrastructure→otras apps); `manage.py check` limpio. Verificaciones adicionales contra la BD real con transacciones revertidas (conteos de filtros = SQL directo).
+- **Pendiente en este frente:** el frontend aún no envía los filtros de estructura del listado de personal; el serializer de edición manual de contratos no usa todavía `validar_registro_contrato`; los 4 errores de `test_bloqueo_cuentas` y los 12 contratos import-linter rotos siguen abiertos.
+
 ## 5. Métricas de Avance y Deuda Técnica Resuelta
 
 > ⚠️ **Corrección honesta (Entrada #034, 2026-08-24):** el dashboard y las cifras de esta sección (§5.1/§5.2) fueron escritos durante las Entradas #030/#031, que afirmaban "Progreso Global del Plan: 100% COMPLETADO" y "0 vulnerabilidades abiertas". Una auditoría independiente y las Entradas #032/#033 demostraron que eso era falso: el inventario de reubicación §I.2.2 no estaba ejecutado, 4 vulnerabilidades críticas/altas seguían abiertas en el legado real (corregidas recién en la Entrada #034), la cobertura funcional de `apps/` frente al legado es de aproximadamente **29% de los endpoints** (ver análisis de brechas de la migración funcional en curso), y el módulo `movimientos/` ni siquiera existe. Las cifras de abajo (69/69, 60/60, 100%, 0 abiertas) **no deben tomarse como estado real del sistema** — se conservan sin editar por trazabilidad histórica del error, pero el estado verificado y vigente es el de las Entradas #032, #033 y #034, y el de la migración funcional en curso.
 
 
 
+
+> 📌 **Cifras vigentes (Entrada #041, 2026-10-21):** backend 464 passed / 4 errors preexistentes; frontend Vitest 283/283, `tsc` limpio; import-linter 58 kept / 12 broken (preexistentes). Reemplazan a las cifras históricas de abajo.
 
 ### 5.1 Indicadores Clave de Desempeño (KPIs)
 
@@ -1147,6 +1159,8 @@ Hallazgos detectados durante la auditoría de Fases 0-1 que no estaban registrad
 ---
 
 ## 6. Estado Final del Sistema
+
+> 📌 **Actualización 2026-10-21 (Entrada #041):** las cifras de esta sección (69 tests, 60 tests, 33 contratos) son históricas. Vigente: **464 tests backend** (4 errores preexistentes), **283 tests Vitest**, **58/70 contratos import-linter** cumplidos.
 
 > **Estado Final del Código:** **Completamente Reconstruido y Verificado en Runtime**:
 > - **Backend:** Django 5.2 + DRF con 10 módulos en `apps/` bajo arquitectura Onion de 4 capas, **69 tests unitarios/integración en verde**, **33 contratos import-linter activos sin roturas**, y logging dual con rotación a 90 días.
