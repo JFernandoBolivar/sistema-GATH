@@ -47,8 +47,18 @@ def listar_personal(
     busqueda: str | None = None,
     codigo: str | None = None,
     tipo_nomina: str | int | None = None,
+    dependencia_id: int | None = None,
+    direccion_general_id: int | None = None,
+    direccion_linea_id: int | None = None,
+    coordinacion_id: int | None = None,
 ) -> list[EmpleadoDTO]:
     entidades = repo.listar_empleados(
-        busqueda=busqueda, codigo=codigo, tipo_nomina=tipo_nomina
+        busqueda=busqueda,
+        codigo=codigo,
+        tipo_nomina=tipo_nomina,
+        dependencia_id=dependencia_id,
+        direccion_general_id=direccion_general_id,
+        direccion_linea_id=direccion_linea_id,
+        coordinacion_id=coordinacion_id,
     )
     return [_empleado_a_dto(e) for e in entidades]

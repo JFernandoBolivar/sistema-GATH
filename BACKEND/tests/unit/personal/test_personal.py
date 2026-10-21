@@ -27,7 +27,7 @@ class RepoPersonalMemoria:
             )
         ]
 
-    def listar_empleados(self, busqueda=None, codigo=None, tipo_nomina=None):
+    def listar_empleados(self, busqueda=None, codigo=None, tipo_nomina=None, **estructura):
         if busqueda:
             return [
                 e for e in self.empleados

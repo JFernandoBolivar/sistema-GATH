@@ -12,6 +12,10 @@ class RepoPersonal(Protocol):
         busqueda: str | None = None,
         codigo: str | None = None,
         tipo_nomina: str | int | None = None,
+        dependencia_id: int | None = None,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
     ) -> list[Empleado]:
         ...
 

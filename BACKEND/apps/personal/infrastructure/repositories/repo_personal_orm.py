@@ -62,6 +62,10 @@ class RepoPersonalORM:
         busqueda: str | None = None,
         codigo: str | None = None,
         tipo_nomina: str | int | None = None,
+        dependencia_id: int | None = None,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
     ) -> list[Empleado]:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 
@@ -75,6 +79,15 @@ class RepoPersonalORM:
             asig_qs = asig_qs.filter(codigo__icontains=codigo)
         if tipo_nomina:
             asig_qs = asig_qs.filter(tiponominaid_id=tipo_nomina)
+        # Estructura organizativa: un empleado aparece si ALGUNA de sus
+        # asignaciones activas cae en la unidad filtrada.
+        estructura = {
+            'Dependencia_id': dependencia_id,
+            'DireccionGeneral_id': direccion_general_id,
+            'DireccionLinea_id': direccion_linea_id,
+            'Coordinacion_id': coordinacion_id,
+        }
+        asig_qs = asig_qs.filter(**{campo: v for campo, v in estructura.items() if v is not None})
 
         emp_cedulas = asig_qs.values_list('employee_id', flat=True).distinct()
 

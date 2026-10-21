@@ -5,7 +5,7 @@ Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
@@ -22,6 +22,7 @@ from apps.personal.infrastructure.serializers.empleado_escritura_serializers imp
     EmpleadoActualizarSerializer,
     EmpleadoCrearSerializer,
 )
+from apps.personal.presentation.filters.personal_filters import FILTROS_ESTRUCTURA, filtros_listado_personal
 from apps.personal.presentation.serializers.personal_serializers import EmpleadoSerializer
 
 
@@ -41,17 +42,20 @@ class EmpleadosListView(APIView):
             return [IsAuthenticated(), HasPermission('personal.crear')()]
         return [IsAuthenticated(), HasPermission('personal.ver')()]
 
-    @extend_schema(tags=['Personal'], summary='Listar expediente de empleados activos con búsqueda', responses={200: EmpleadoSerializer(many=True)})
+    @extend_schema(
+        tags=['Personal'],
+        summary='Listar expediente de empleados activos con búsqueda y filtros por estructura organizativa',
+        parameters=[
+            OpenApiParameter('q', str, description='Cédula, nombres o apellidos'),
+            OpenApiParameter('codigo', str),
+            OpenApiParameter('tipo_nomina', int),
+            *[OpenApiParameter(nombre, int) for nombre in FILTROS_ESTRUCTURA],
+        ],
+        responses={200: EmpleadoSerializer(many=True)},
+    )
     def get(self, request):
-        busqueda = (
-            request.query_params.get('q')
-            or request.query_params.get('busqueda')
-            or request.query_params.get('cedulaidentidad')
-        )
-        codigo = request.query_params.get('codigo')
-        tipo_nomina = request.query_params.get('tipo_nomina')
         repo = RepoPersonalORM()
-        dtos = listar_personal(repo, busqueda=busqueda, codigo=codigo, tipo_nomina=tipo_nomina)
+        dtos = listar_personal(repo, **filtros_listado_personal(request.query_params))
         return ok(EmpleadoSerializer(dtos, many=True).data)
 
     @extend_schema(
