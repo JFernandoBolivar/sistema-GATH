@@ -40,3 +40,7 @@ backups/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Capturas de pantalla de documentación (entregable aparte, no versionado)
+capturas_sistema/
+capturas_sistema.zip
