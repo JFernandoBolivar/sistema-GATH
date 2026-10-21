@@ -25,8 +25,42 @@ const FORMATO_FECHA_VE = new Intl.DateTimeFormat("es-VE", {
  *   fabrica un "N/A" que oculte un dato realmente inválido del backend).
  */
 export function formatearFecha(fecha: string | null | undefined, valorPorDefecto = "N/A"): string {
-  if (!fecha) return valorPorDefecto;
+  if (!fecha || fecha === "nan") return valorPorDefecto;
   const parsed = new Date(fecha);
   if (Number.isNaN(parsed.getTime())) return fecha;
   return FORMATO_FECHA_VE.format(parsed);
 }
+
+/**
+ * Calcula la edad exacta en años a partir de una fecha ISO o estándar (YYYY-MM-DD).
+ */
+export function calcularEdadExacta(fechaNacimiento: string | null | undefined): number | null {
+  if (!fechaNacimiento || fechaNacimiento === "nan") return null;
+  const birth = new Date(fechaNacimiento);
+  if (Number.isNaN(birth.getTime())) return null;
+  const hoy = new Date();
+  let edad = hoy.getUTCFullYear() - birth.getUTCFullYear();
+  const m = hoy.getUTCMonth() - birth.getUTCMonth();
+  if (m < 0 || (m === 0 && hoy.getUTCDate() < birth.getUTCDate())) {
+    edad--;
+  }
+  return edad >= 0 ? edad : null;
+}
+
+/**
+ * Formatea una fecha de nacimiento a formato legible VE (dd/MM/yyyy)
+ * incorporando la edad en años. Ejemplo: "20/06/2004 (22 años)".
+ */
+export function formatearFechaConEdad(
+  fecha: string | null | undefined,
+  valorPorDefecto = "No posee"
+): string {
+  if (!fecha || fecha === "nan") return valorPorDefecto;
+  const fechaStr = formatearFecha(fecha, valorPorDefecto);
+  if (fechaStr === valorPorDefecto) return valorPorDefecto;
+  const edad = calcularEdadExacta(fecha);
+  if (edad === null) return fechaStr;
+  const etiquetaAnos = edad === 1 ? "1 año" : `${edad} años`;
+  return `${fechaStr} (${etiquetaAnos})`;
+}
+

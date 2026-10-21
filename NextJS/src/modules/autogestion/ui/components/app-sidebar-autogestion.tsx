@@ -62,54 +62,62 @@ export function AppSidebarAutogestion() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
-              {isRacAdmin && (
-                <SidebarMenuItem className="mt-5">
-                  <SidebarMenuButton
-                    onClick={() => toggleSubmenu("Autogestión")}
-                    className="text-sm h-fit cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center">
-                        <BookCheck className="h-[16px]" />
-                        <span className="ml-2 text-sm">Autogestión</span>
-                      </div>
-                      {openSubmenu === "Autogestión" ? (
-                        <ChevronDown size={20} />
-                      ) : (
-                        <ChevronRight size={20} />
-                      )}
+              <SidebarMenuItem className="mt-5">
+                <SidebarMenuButton
+                  onClick={() => toggleSubmenu("Autogestión")}
+                  className="text-sm h-fit cursor-pointer"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center">
+                      <BookCheck className="h-[16px]" />
+                      <span className="ml-2 text-sm">Autogestión</span>
                     </div>
-                  </SidebarMenuButton>
-                  {openSubmenu === "Autogestión" && (
-                    <div className="pl-8 py-1 gap-1 text-sm">
-                      <SidebarMenuButton asChild className="mt-2 text-sm">
-                        <Link href="/autogestion" className="text-sm">
-                          <BookCheck className="h-[32px]" />
-                          Formulario
-                        </Link>
-                      </SidebarMenuButton>
-                      <SidebarMenuButton asChild className="mt-2 text-sm">
-                        <Link
-                          href="/autogestion/consultar"
-                          className="text-sm"
-                        >
-                          <FileSpreadsheet className="h-[32px]" />
-                          Respuestas Encuesta
-                        </Link>
-                      </SidebarMenuButton>
-                      <SidebarMenuButton asChild className="mt-2 text-sm">
-                        <Link
-                          href="/autogestion/metricas"
-                          className="text-sm"
-                        >
-                          <BarChart3 className="h-[32px]" />
-                          Métricas
-                        </Link>
-                      </SidebarMenuButton>
-                    </div>
-                  )}
-                </SidebarMenuItem>
-              )}
+                    {openSubmenu === "Autogestión" ? (
+                      <ChevronDown size={20} />
+                    ) : (
+                      <ChevronRight size={20} />
+                    )}
+                  </div>
+                </SidebarMenuButton>
+                {openSubmenu === "Autogestión" && (
+                  <div className="pl-8 py-1 gap-1 text-sm">
+                    <SidebarMenuButton asChild className="mt-2 text-sm">
+                      <Link href="/autogestion" className="text-sm">
+                        <BookCheck className="h-[16px] mr-2" />
+                        Mi Expediente
+                      </Link>
+                    </SidebarMenuButton>
+                    <SidebarMenuButton asChild className="mt-2 text-sm">
+                      <Link href="/autogestion/censo" className="text-sm">
+                        <Home className="h-[16px] mr-2" />
+                        Censo de Vivienda
+                      </Link>
+                    </SidebarMenuButton>
+                    {isRacAdmin && (
+                      <>
+                        <SidebarMenuButton asChild className="mt-2 text-sm">
+                          <Link
+                            href="/autogestion/consultar"
+                            className="text-sm"
+                          >
+                            <FileSpreadsheet className="h-[16px] mr-2" />
+                            Respuestas Encuesta
+                          </Link>
+                        </SidebarMenuButton>
+                        <SidebarMenuButton asChild className="mt-2 text-sm">
+                          <Link
+                            href="/autogestion/metricas"
+                            className="text-sm"
+                          >
+                            <BarChart3 className="h-[16px] mr-2" />
+                            Métricas
+                          </Link>
+                        </SidebarMenuButton>
+                      </>
+                    )}
+                  </div>
+                )}
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

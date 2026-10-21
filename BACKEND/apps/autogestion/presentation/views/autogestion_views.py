@@ -159,3 +159,121 @@ class CensoExcelView(APIView):
     @extend_schema(tags=['Autogestión'], summary='Exportar respuestas del censo a Excel (GET general)')
     def get(self, request):
         return self._generar_respuesta(None)
+
+
+class MiExpedienteView(APIView):
+    """
+    GET /api/v1/autogestion/mi-expediente/
+    Permite al trabajador autenticado consultar su expediente completo
+    (datos personales, laborales/cargo, salud, vivienda, educación y cargas familiares).
+    Estricta protección Zero-IDOR: se lee exclusivamente request.user.cedula_id.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Autogestión'], summary='Obtener expediente completo del trabajador autenticado')
+    def get(self, request):
+        cedula = getattr(request.user, 'cedula_id', None)
+        if not cedula:
+            return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
+
+        from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
+        from apps.familiares.infrastructure.repositories.repo_familiares_orm import RepoFamiliaresORM
+        from apps.autogestion.application.use_cases.obtener_mi_expediente import obtener_mi_expediente
+        from apps.personal.presentation.serializers.personal_serializers import EmpleadoSerializer
+        from apps.familiares.presentation.serializers.familiares_serializers import FamiliarSerializer
+        from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
+        from apps.carnetizacion.infrastructure.models.carnetizacion_models import MotivosEmisionModel
+        from apps.carnetizacion.presentation.serializers.carnetizacion_serializers import CarnetSerializer
+
+        repo_personal = RepoPersonalORM()
+        repo_familiares = RepoFamiliaresORM()
+
+        dto = obtener_mi_expediente(repo_personal, repo_familiares, str(cedula))
+
+        try:
+            repo_carnet = RepoCarnetizacionORM()
+            carnets = repo_carnet.listar_carnets(empleado_cedula=str(cedula))
+        except Exception:
+            carnets = []
+        carnet_activo = next((c for c in carnets if getattr(c, 'activo', False)), (carnets[0] if carnets else None))
+
+        try:
+            motivos = list(MotivosEmisionModel.objects.all().order_by('id'))
+        except Exception:
+            motivos = []
+
+        return ok({
+            "empleado": EmpleadoSerializer(dto.empleado).data,
+            "familiares": FamiliarSerializer(dto.familiares, many=True).data,
+            "carnet_activo": CarnetSerializer(carnet_activo).data if carnet_activo else None,
+            "carnets": CarnetSerializer(carnets, many=True).data,
+            "motivos_carnet": [{"id": m.pk, "nombre": m.nombre, "descripcion": getattr(m, "descripcion", m.nombre)} for m in motivos],
+        })
+
+
+class SolicitarCarnetView(APIView):
+    """
+    POST /api/v1/autogestion/solicitar-carnet/
+    Permite al trabajador autenticado solicitar / emitir su carnet institucional.
+    Estricta protección Zero-IDOR: se genera exclusivamente para request.user.cedula_id.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Autogestión'], summary='Solicitar o emitir carnet institucional del trabajador')
+    def post(self, request):
+        cedula = getattr(request.user, 'cedula_id', None)
+        if not cedula:
+            return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
+
+        motivo_id = request.data.get('motivo_id')
+        observaciones = request.data.get('observaciones', 'Solicitud desde Portal de Autogestión CONATEL')
+
+        if not motivo_id:
+            from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoModel
+            tiene_previo = CarnetEmitidoModel.objects.filter(employee__cedulaidentidad=str(cedula)).exists()
+            motivo_id = 2 if tiene_previo else 1
+
+        try:
+            from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
+            from apps.carnetizacion.presentation.serializers.carnetizacion_serializers import CarnetSerializer
+
+            repo = RepoCarnetizacionORM()
+            carnet = repo.emitir_carnet(
+                empleado_cedula=str(cedula),
+                motivo_id=int(motivo_id),
+                observaciones=observaciones,
+            )
+            return ok(CarnetSerializer(carnet).data, message="Carnet institucional generado exitosamente", status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return fail(str(e), status=status.HTTP_400_BAD_REQUEST)
+
+
+class MiCarnetPdfView(APIView):
+    """
+    GET /api/v1/autogestion/mi-carnet/pdf/
+    Descarga el PDF del carnet institucional activo del trabajador autenticado.
+    Zero-IDOR: solo permite descargar el carnet perteneciente a request.user.cedula_id.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Autogestión'], summary='Descargar carnet institucional activo en PDF (Zero-IDOR)')
+    def get(self, request):
+        cedula = getattr(request.user, 'cedula_id', None)
+        if not cedula:
+            return fail("El usuario no tiene expediente asociado.", status=404)
+
+        from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
+        from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoModel
+
+        carnet_obj = CarnetEmitidoModel.objects.filter(employee__cedulaidentidad=str(cedula), activo=True).order_by('-fecha_emision').first()
+        if not carnet_obj:
+            return fail("No posee carnet activo emitido.", status=404)
+
+        repo = RepoCarnetizacionORM()
+        pdf_bytes = repo.generar_pdf(carnet_obj.pk)
+        respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
+        respuesta['Content-Disposition'] = f'inline; filename="carnet_conatel_{cedula}.pdf"'
+        respuesta['X-Content-Type-Options'] = 'nosniff'
+        respuesta['Cache-Control'] = 'private, no-store'
+        return respuesta
+

@@ -109,3 +109,70 @@ def test_reporte_censo():
     rep = obtener_reporte_censo_dependencias(repo)
     assert len(rep) == 1
     assert rep[0]['total_empleados'] == 10
+
+
+def test_obtener_mi_expediente_exitoso():
+    from apps.autogestion.application.use_cases.obtener_mi_expediente import obtener_mi_expediente
+    from unittest.mock import MagicMock
+    from apps.personal.domain.entities.empleado import Empleado
+
+    repo_personal = MagicMock()
+    repo_personal.obtener_por_cedula.return_value = Empleado(
+        id=1,
+        cedula="12345678",
+        nombres="Juan",
+        apellidos="Pérez",
+        sexo_id=1,
+        sexo_nombre="MASCULINO",
+        correo="juan@conatel.gob.ve",
+        telefono_movil="04121234567",
+        telefono_habitacion=None,
+        fecha_nacimiento="1990-01-01",
+        estado_civil_id=1,
+        estado_civil_nombre="SOLTERO",
+        carnet_patria="00112233",
+        total_anos_apn=5.0,
+        formacion_academica=[{
+            "id": 1,
+            "carrera_id": 1,
+            "carrera_nombre": "Ingeniería de Telecomunicaciones",
+            "nivel_academico_id": 3,
+            "nivel_academico_nombre": "PREGRADO",
+            "mencion_id": None,
+            "mencion_nombre": None,
+            "institucion_id": 1,
+            "institucion_nombre": "Universidad Central de Venezuela",
+        }],
+        formacion_complementaria=[{
+            "id": 1,
+            "capacitacion_id": 10,
+            "capacitacion_nombre": "Regulación de Espectro Radioeléctrico",
+            "institucion_id": 2,
+            "institucion_nombre": "Centro de Estudios de Telecomunicaciones",
+            "fecha_inicio": "2024-01-15",
+            "fecha_fin": "2024-02-15",
+            "dias_completados": "30",
+            "horas_completadas": "60",
+            "procedencia_id": 1,
+            "procedencia_nombre": "INTERNO",
+            "grupo_id": 1,
+            "grupo_nombre": "TÉCNICO",
+        }],
+    )
+    repo_familiares = MagicMock()
+    repo_familiares.listar_por_empleado.return_value = []
+
+    res = obtener_mi_expediente(repo_personal, repo_familiares, "12345678")
+    assert res.empleado.cedula == "12345678"
+    assert len(res.empleado.formacion_complementaria) == 1
+    assert res.empleado.formacion_complementaria[0]["capacitacion_nombre"] == "Regulación de Espectro Radioeléctrico"
+    assert res.empleado.formacion_academica[0]["carrera_nombre"] == "Ingeniería de Telecomunicaciones"
+
+
+def test_obtener_mi_expediente_cedula_invalida_lanza_error():
+    from apps.autogestion.application.use_cases.obtener_mi_expediente import obtener_mi_expediente
+    from core.domain.exceptions import NotFoundError
+    from unittest.mock import MagicMock
+
+    with pytest.raises(NotFoundError):
+        obtener_mi_expediente(MagicMock(), MagicMock(), "   ")

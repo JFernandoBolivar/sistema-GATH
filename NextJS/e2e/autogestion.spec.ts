@@ -2,7 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
 const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
-const ARTIFACT_DIR = "/home/jbolivar@conatel.gob.ve/.gemini/antigravity-cli/brain/63266b19-0e09-4246-a71d-be18a1b72637/scratch";
+const ARTIFACT_DIR = "/home/jbolivar@conatel.gob.ve/.gemini/antigravity-cli/brain/4f3a6a47-9b0b-47b3-9be1-2c8212a19b56/scratch";
 
 async function login(page: Page) {
   await page.goto("/login");
@@ -30,19 +30,24 @@ test.describe("Autogestión UI - Paridad 100% con referencia", () => {
     // AppSidebarAutogestion
     await expect(page.locator("img[alt='Logo CONATEL']")).toBeVisible();
     await expect(page.getByRole("button", { name: "Autogestión", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Formulario" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Mi Expediente" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Censo de Vivienda" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Respuestas Encuesta" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Métricas" })).toBeVisible();
 
-    // Body content: Either "Autogestión Completada" or the Censo form
-    const isCompleted = await page.getByText("Autogestión Completada").isVisible().catch(() => false);
-    if (isCompleted) {
-      await expect(page.getByText("Autogestión Completada")).toBeVisible();
-      await expect(page.getByText("Cédula:")).toBeVisible();
-    } else {
-      await expect(page.getByRole("heading", { name: "AUTOGESTIÓN DE PERSONAL" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "ENVIAR AUTOGESTIÓN" })).toBeVisible();
-    }
+    // Body content de /autogestion (Mi Expediente)
+    const hasTabs = await page.getByRole("tab", { name: /personal & ubicación/i }).isVisible().catch(() => false);
+    const hasNoExp = await page.getByText("Expediente no disponible").isVisible().catch(() => false);
+    expect(hasTabs || hasNoExp).toBe(true);
+
+    // Navegar a Censo de Vivienda (/autogestion/censo)
+    await page.goto("/autogestion/censo");
+    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+    await expect(
+      page
+        .getByText("Autogestión Completada")
+        .or(page.getByRole("heading", { name: "AUTOGESTIÓN DE PERSONAL" }))
+    ).toBeVisible({ timeout: 15_000 });
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/1_autogestion_formulario.png` });
   });

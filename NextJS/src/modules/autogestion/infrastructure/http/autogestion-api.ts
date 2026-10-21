@@ -13,6 +13,8 @@ import type {
   CodigoPostal,
   ReporteCensoData,
 } from "@/app/types/types";
+import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
+
 
 /**
  * Los catálogos de /api/v1/organizacion/ y /api/v1/catalogos/tipos-nomina/ usan
@@ -133,6 +135,10 @@ export interface SubmitPayload {
 }
 
 export const autogestionApi = {
+  getMiExpediente: async (): Promise<ApiResponse<MiExpedienteDTO>> => {
+    return apiClient.get<ApiResponse<MiExpedienteDTO>>("/api/v1/autogestion/mi-expediente/");
+  },
+
   getPreguntas: async (): Promise<ApiResponse<Pregunta[]>> => {
     return apiClient.get<ApiResponse<Pregunta[]>>("/api/v1/autogestion/preguntas/");
   },
@@ -164,6 +170,14 @@ export const autogestionApi = {
 
   exportarCensoExcel: async (filtros?: any): Promise<Blob> => {
     return apiClient.postBlob("/api/v1/autogestion/censo/export/excel/", { filtros });
+  },
+
+  solicitarCarnet: async (payload: { motivo_id?: number; observaciones?: string }): Promise<ApiResponse<any>> => {
+    return apiClient.post<ApiResponse<any>>("/api/v1/autogestion/solicitar-carnet/", payload as Record<string, unknown>);
+  },
+
+  descargarMiCarnetPdf: async (): Promise<Blob> => {
+    return apiClient.getBlob("/api/v1/autogestion/mi-carnet/pdf/");
   },
 
   // Backward-compatibility aliases for existing repository tests

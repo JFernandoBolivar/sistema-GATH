@@ -6,6 +6,7 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { autogestionApi, type SubmitPayload } from "../http/autogestion-api";
 import type { ItemRespuestaInputDTO } from "../../application/dtos/censo-dto";
+import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
 import { censoCedulaSchema, registrarCensoSchema } from "../../ui/schema/schema-censo";
 
 export async function getSessionCedulaAction(): Promise<string | null> {
@@ -236,3 +237,44 @@ export const getMetricasCensoAction = async () => {
 export const descargarExcelCensoAction = async (): Promise<Blob> => {
   return autogestionApi.exportarCensoExcel();
 };
+
+export const getMiExpedienteAction = async (): Promise<MiExpedienteDTO | null> => {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.getMiExpediente();
+    await logAudit({ traceId, action: "getMiExpedienteAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return res.data;
+  } catch (error) {
+    await logAudit({ traceId, action: "getMiExpedienteAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return null;
+  }
+};
+
+export const solicitarCarnetAction = async (payload: { motivo_id?: number; observaciones?: string }) => {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.solicitarCarnet(payload);
+    await logAudit({ traceId, action: "solicitarCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return {
+      success: true,
+      message: res.message || "Carnet institucional solicitado exitosamente.",
+      data: res.data,
+    };
+  } catch (error: unknown) {
+    await logAudit({ traceId, action: "solicitarCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const message = error instanceof Error ? error.message : "Error al solicitar el carnet institucional.";
+    return {
+      success: false,
+      message,
+    };
+  }
+};
+
+export const descargarMiCarnetPdfAction = async (): Promise<Blob> => {
+  return autogestionApi.descargarMiCarnetPdf();
+};
+

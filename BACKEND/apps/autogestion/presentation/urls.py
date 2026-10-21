@@ -5,13 +5,21 @@ from apps.autogestion.presentation.views.autogestion_views import (
     CensoEmpleadoView,
     CensoExcelView,
     MetricasCensoView,
+    MiCarnetPdfView,
+    MiExpedienteView,
     PreguntasCensoListView,
     ReporteCensoDependenciasView,
+    SolicitarCarnetView,
 )
 
 app_name = 'autogestion'
 
 urlpatterns = [
+    # Mi expediente integral (datos de empleado y cargas familiares)
+    path('mi-expediente/', MiExpedienteView.as_view(), name='mi-expediente'),
+    path('solicitar-carnet/', SolicitarCarnetView.as_view(), name='solicitar-carnet'),
+    path('mi-carnet/pdf/', MiCarnetPdfView.as_view(), name='mi-carnet-pdf'),
+
     # Preguntas activas
     path('preguntas/', PreguntasCensoListView.as_view(), name='censo-preguntas-list'),
 
