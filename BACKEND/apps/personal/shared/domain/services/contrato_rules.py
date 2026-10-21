@@ -24,6 +24,7 @@ Entrada #033 documentó para `USER/services/token_service.py` frente a
 unificar — y es lo que hace este módulo — es la decisión de negocio pura
 (sin ORM), que es la parte con más riesgo real de divergencia silenciosa.
 """
+from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 
@@ -80,3 +81,87 @@ def decidir_estatus_contrato(
 def es_tercer_contrato(cantidad_actual: int, existe_previo: bool) -> bool:
     """El 3er contrato (índice 2, base 0) siempre se marca es_fijo=True."""
     return (not existe_previo) and cantidad_actual == 2
+
+
+# Máximo de contratos por empleado (regla legada: el 3ro es FIJO y no se
+# admiten más; `RAC/serializers/personal_activo_serializers.py::validate_contrato`).
+MAXIMO_CONTRATOS = 3
+
+
+@dataclass(frozen=True)
+class ContratoRegistrado:
+    n_contrato: str
+    es_fijo: bool
+    fecha_ingreso: date | None
+    fecha_culminacion: date | None
+
+
+def validar_registro_contrato(
+    existentes: list[ContratoRegistrado],
+    n_contrato: str,
+    fecha_ingreso: date,
+    fecha_culminacion: date | None,
+    hoy: date,
+    egresado: bool = False,
+) -> str | None:
+    """
+    Decide si se puede registrar/actualizar el contrato `n_contrato` del
+    empleado dados sus contratos `existentes`. Devuelve el mensaje de error,
+    o None si es válido. Réplica de `validate_contrato` del legado:
+
+    - Empleado egresado formalmente: se permite cualquier cambio.
+    - Fila idéntica a un contrato ya registrado: se permite (no-op), para que
+      volver a cargar un expediente ya importado no falle.
+    - Con un contrato FIJO registrado: no se crean ni modifican contratos.
+    - Contrato nuevo: máximo `MAXIMO_CONTRATOS`, y no mientras haya otro
+      activo (sin fecha de culminación o con culminación futura).
+    - Culminación anterior al ingreso, o solapamiento con otro contrato.
+    """
+    if egresado:
+        return None
+
+    previo = next((c for c in existentes if c.n_contrato == n_contrato), None)
+    if previo and previo.fecha_ingreso == fecha_ingreso and (
+        previo.es_fijo or previo.fecha_culminacion == fecha_culminacion
+    ):
+        return None
+
+    fijo = next((c for c in existentes if c.es_fijo), None)
+    if fijo:
+        return (
+            f"El empleado tiene contrato FIJO ({fijo.n_contrato}). No se pueden "
+            "registrar ni modificar contratos hasta un egreso formal."
+        )
+
+    if not previo:
+        if len(existentes) >= MAXIMO_CONTRATOS:
+            return (
+                f"El empleado ya tiene {len(existentes)} contratos registrados "
+                f"(máximo {MAXIMO_CONTRATOS}). No se pueden crear más contratos."
+            )
+        activo = next(
+            (c for c in existentes if c.fecha_culminacion is None or c.fecha_culminacion > hoy),
+            None,
+        )
+        if activo:
+            return (
+                f"El empleado ya tiene un contrato activo ({activo.n_contrato}). "
+                f"No se puede crear {n_contrato} hasta que finalice."
+            )
+
+    fin = fecha_culminacion or hoy
+    if fin < fecha_ingreso:
+        return (
+            f"La fecha de culminación ({fecha_culminacion}) no puede ser anterior "
+            f"a la fecha de ingreso ({fecha_ingreso}) en el contrato {n_contrato}."
+        )
+    for otro in existentes:
+        if otro.n_contrato == n_contrato or not otro.fecha_ingreso:
+            continue
+        otro_fin = otro.fecha_culminacion or hoy
+        if fecha_ingreso <= otro_fin and fin >= otro.fecha_ingreso:
+            return (
+                f"El contrato {n_contrato} ({fecha_ingreso} - {fin}) se solapa con el "
+                f"contrato {otro.n_contrato} ({otro.fecha_ingreso} - {otro_fin})."
+            )
+    return None

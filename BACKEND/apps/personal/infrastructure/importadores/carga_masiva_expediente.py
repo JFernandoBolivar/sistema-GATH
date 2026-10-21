@@ -26,7 +26,15 @@ Corrige, de forma deliberada (no una reproducción mecánica de errores):
 
 Alcance NO cubierto (documentado, ver `expediente_models.py`): perfil físico
 (tallas) y las M2M de salud (alergias/patologías/discapacidades).
+
+Validaciones de contrato (Fase 2 de PLAN_REPARACION_GATH): el legado
+importaba contratos sin validar; aquí cada fila pasa por
+`contrato_rules.validar_registro_contrato` (FIJO, máximo de 3, contrato
+activo, fechas y solapamiento — la misma regla del `validate_contrato` del
+serializer legado) antes de `upsert_contrato`.
 """
+from datetime import date
+
 import pandas as pd
 from django.db import transaction
 
@@ -34,7 +42,9 @@ from core.domain.exceptions import ValidationError
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, ParentescoModel, SexoModel, TipoProcedenciaModel
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
 from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
+from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
 from apps.personal.application.use_cases.upsert_contrato import upsert_contrato
+from apps.personal.shared.domain.services.contrato_rules import ContratoRegistrado, validar_registro_contrato
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
     CarreraModel,
@@ -56,6 +66,7 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
     ContactoEmergenciaModel,
+    ContratoModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
@@ -81,6 +92,36 @@ def _parsear_fecha(valor):
         return pd.to_datetime(valor).date()
     except Exception:
         return None
+
+
+def _validar_contrato_fila(emp_instance, n_contrato: str, fecha_ingreso, fecha_culminacion) -> str | None:
+    """Lee los contratos del empleado y aplica la regla pura de contratos."""
+    ajeno = (
+        ContratoModel.objects.filter(n_contrato=n_contrato)
+        .exclude(antecedente__empleado=emp_instance)
+        .select_related('antecedente__empleado')
+        .first()
+    )
+    if ajeno:
+        duenio = ajeno.antecedente.empleado.cedulaidentidad if ajeno.antecedente_id else 'sin antecedente'
+        return f"El número de contrato {n_contrato} ya pertenece a otro empleado ({duenio})."
+    existentes = [
+        ContratoRegistrado(
+            n_contrato=c.n_contrato,
+            es_fijo=c.es_fijo,
+            fecha_ingreso=c.antecedente.fecha_ingreso if c.antecedente_id else None,
+            fecha_culminacion=c.fecha_culminacion,
+        )
+        for c in ContratoModel.objects.filter(antecedente__empleado=emp_instance).select_related('antecedente')
+    ]
+    return validar_registro_contrato(
+        existentes,
+        n_contrato=n_contrato,
+        fecha_ingreso=fecha_ingreso,
+        fecha_culminacion=fecha_culminacion,
+        hoy=date.today(),
+        egresado=EmployeeEgresadoModel.objects.filter(employee=emp_instance).exists(),
+    )
 
 
 def _construir_cache() -> dict:
@@ -274,8 +315,13 @@ def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) 
 
             if n_contrato_excel and fecha_ingreso_org:
                 politica_obj = cache['politicas'].get(politica_excel)
+                error_contrato = _validar_contrato_fila(
+                    emp_instance, n_contrato_excel, fecha_ingreso_org, fecha_culminacion_excel,
+                )
                 if not politica_obj:
                     errores.append(f"Línea {linea}: política de contrato '{politica_excel}' no encontrada.")
+                elif error_contrato:
+                    errores.append(f"Línea {linea}: {error_contrato}")
                 else:
                     upsert_contrato(repo, cedula=cedula, contrato_data=[{
                         'n_contrato': n_contrato_excel,
