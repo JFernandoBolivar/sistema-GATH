@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.db import transaction
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 
@@ -25,6 +26,52 @@ class PreguntasCensoListView(APIView):
         repo = RepoAutogestionORM()
         preguntas = repo.listar_preguntas_con_detalle()
         return ok(preguntas)
+
+
+def _id_entero(valor) -> int | None:
+    if valor in (None, ''):
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def validar_respuestas_censo(respuestas, preguntas_activas: list[dict]) -> str | None:
+    """
+    Valida las respuestas del censo contra el catálogo real de preguntas
+    activas (`RepoAutogestionORM.listar_preguntas_con_detalle`). Devuelve el
+    primer error o None. Réplica de `CensoViviendaSubmitSerializer.
+    validate_respuestas` del legado (pregunta activa; en las de tipo
+    `cerrada`, opción obligatoria y perteneciente a la pregunta), más: una
+    pregunta abierta no admite opción, y una pregunta no se repite.
+    """
+    if not isinstance(respuestas, list) or not respuestas:
+        return "Debe enviar al menos una respuesta."
+    catalogo = {p['id']: p for p in preguntas_activas}
+    vistas = set()
+    for i, item in enumerate(respuestas, start=1):
+        if not isinstance(item, dict):
+            return f"La respuesta #{i} no tiene el formato esperado."
+        pregunta_id = _id_entero(item.get('pregunta') or item.get('pregunta_id'))
+        pregunta = catalogo.get(pregunta_id)
+        if pregunta is None:
+            return f"La pregunta con id {item.get('pregunta') or item.get('pregunta_id')} no existe o no está activa."
+        if pregunta_id in vistas:
+            return f"La pregunta '{pregunta['enunciado']}' se respondió más de una vez."
+        vistas.add(pregunta_id)
+
+        opcion_crudo = item.get('opcion') or item.get('opcion_id')
+        opcion_id = _id_entero(opcion_crudo)
+        opciones_validas = {o['id'] for o in pregunta['opciones']}
+        if pregunta['tipo']['nombre'] == 'cerrada':
+            if opcion_id is None:
+                return f"Debe seleccionar una opción para '{pregunta['enunciado']}'."
+            if opcion_id not in opciones_validas:
+                return f"La opción {opcion_crudo} no pertenece a la pregunta '{pregunta['enunciado']}'."
+        elif opcion_crudo not in (None, ''):
+            return f"La pregunta '{pregunta['enunciado']}' es de respuesta abierta y no admite opción."
+    return None
 
 
 class CensoEmpleadoView(APIView):
@@ -61,16 +108,20 @@ class CensoEmpleadoView(APIView):
         datos_vivienda = data.get('datos_vivienda')
         respuestas = data.get('respuestas', [])
 
-        if not respuestas:
-            return fail("Debe enviar al menos una respuesta.", status=status.HTTP_400_BAD_REQUEST)
+        # Validar contra el catálogo ANTES de persistir nada (carnet y
+        # vivienda incluidos), y guardar todo o nada como el legado.
+        error = validar_respuestas_censo(respuestas, repo.listar_preguntas_con_detalle())
+        if error:
+            return fail(error, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            detalle = repo.guardar_censo_vivienda(
-                cedula=cedula,
-                carnet_patria=carnet_patria,
-                datos_vivienda=datos_vivienda,
-                respuestas=respuestas,
-            )
+            with transaction.atomic():
+                detalle = repo.guardar_censo_vivienda(
+                    cedula=cedula,
+                    carnet_patria=carnet_patria,
+                    datos_vivienda=datos_vivienda,
+                    respuestas=respuestas,
+                )
             return ok(detalle, message="Censo de vivienda registrado correctamente", status=status.HTTP_201_CREATED)
         except Exception as e:
             return fail(str(e), status=status.HTTP_400_BAD_REQUEST)
