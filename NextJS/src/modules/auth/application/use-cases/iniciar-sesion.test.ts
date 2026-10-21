@@ -15,6 +15,8 @@ function fakeRepo(overrides: Partial<RepoAutenticacion> = {}): RepoAutenticacion
       }),
     cerrarSesion: vi.fn(),
     cambiarPassword: vi.fn(),
+    solicitarRecuperacion: vi.fn(),
+    restablecerPassword: vi.fn(),
     ...overrides,
   };
 }

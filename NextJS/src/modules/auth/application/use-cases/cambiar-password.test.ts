@@ -8,6 +8,8 @@ function fakeRepo(overrides: Partial<RepoAutenticacion> = {}): RepoAutenticacion
     iniciarSesion: vi.fn(),
     cerrarSesion: vi.fn(),
     cambiarPassword: vi.fn().mockResolvedValue("Contraseña actualizada exitosamente."),
+    solicitarRecuperacion: vi.fn(),
+    restablecerPassword: vi.fn(),
     ...overrides,
   };
 }
