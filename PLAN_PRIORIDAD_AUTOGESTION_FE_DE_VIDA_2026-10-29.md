@@ -33,6 +33,165 @@ Orden de prioridad declarado:
 
 ---
 
+## Hoja de ruta y seguimiento
+
+Esta sección ordena el plan por **fases según la prioridad del usuario y las dependencias técnicas reales**. Las etapas A–E de la sección 3 (y las etapas 0–6 del plan hermano `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`, citadas aquí como **R-0 … R-6**) siguen siendo el detalle técnico; las fases solo reagrupan sus tareas. No se duplica el detalle del plan de rediseño.
+
+### Por dónde comenzar
+
+1. **Día 1, en paralelo (Fase 0)**: pedir a TI el **certificado TLS y el dominio** (tarea `C0-TI`; es el camino crítico de la cámara y la PWA) y enviar al usuario las preguntas bloqueantes de arranque (4.3.5 actores de Bienestar, 4.3.10 dominio/certificado, 4.3.2 plazo de ventanas, 4.3.6 regla de aprobación en autogestión). Confirmar el nombre real del rol "BIENSTAR SOCIAL" en `USER_rol` (R6) y ejecutar el conteo de pasivos con cuenta y correo (R7) y la verificación de `permisos_version` (R5) (tarea `V-1`).
+2. **Primera fase de construcción: Fase 1 (Cimientos)**, con las tareas `A4` (roles y permisos nuevos), `A5` (validación y almacenamiento seguro de archivos), `A1` (Celery real y `encolar` que falla cerrado), `A6` y `A8`. Sin `A4` y `A5` no se puede construir la autogestión (B1 y B3 los usan) ni la fe de vida.
+3. **Inmediatamente después, Fase 2 (Autogestión del activo)**: `B1 → B2 → B3 → B4/B5/B6`, `B8`, y en frontend `B9 → B10/B11` junto con `R-1`, `R-2` y `R-6a` (FieldCompare), que son una sola entrega con B10/B11 (el diseño no se hace dos veces). `R-1` puede empezar ya, durante la Fase 1, porque no depende del backend.
+4. **Fase 3 (Notificaciones y correo)** se inicia en cuanto `B3` exista (para engancharse a las transiciones) y puede solaparse con el final de la Fase 2: `A2 → A3 → A7 → B7`.
+5. **Fase 4 (Fe de vida)** arranca con `C1`/`C2`/`C3` en backend apenas A4 y A5 estén listos y la ADR de aprobación directa (R9) esté confirmada; la validación de la cámara en teléfonos (`C13`) espera a `C0` (nginx+TLS).
+6. Correspondencia con las prioridades del usuario: P1 → Fase 2, P2 → Fase 3, P3 → Fase 4, P4 (usuarios por roles y permisos) → Fase 5, P5 (rediseño y PWA) → Fases 2, 4 y 6. Las Fases 0 y 1 no son prioridades nuevas: son prerrequisitos técnicos de las anteriores.
+
+### Leyenda de estados
+
+⏳ Pendiente · 🔄 En proceso · ✅ Culminado · ⛔ Bloqueado (indicar el motivo en Notas)
+
+### Tabla de fases
+
+| Fase | Objetivo | Etapas/tareas del plan (IDs) | Depende de | Esfuerzo | Estado | Inicio | Fin | Notas |
+|---|---|---|---|---|---|---|---|---|
+| **Fase 0** — Arranque y bloqueantes (continua, desde el día 1) | Iniciar lo que depende de terceros: certificado/dominio con TI, respuestas del usuario, verificaciones en BD | `C0-TI`, `R-0`, `V-1` (riesgos R5, R6, R7 de 4.1) | — | S (seguimiento continuo) | ⏳ Pendiente | — | — | Camino crítico: TLS (C0). No bloquea la Fase 1 |
+| **Fase 1** — Cimientos | Permisos y roles nuevos, almacenamiento seguro, Celery real, base de sesión por permisos | `A1`, `A4`, `A5`, `A6`, `A8`, `A-T` | V-1 (nombre real del rol, para A4) | M | ⏳ Pendiente | — | — | Prioridad técnica, no funcional. A2/A3/A7 pasan a la Fase 3 |
+| **Fase 2** — Autogestión del empleado activo (P1) | Solicitud de actualización, ventanas, borrador, soportes obligatorios, visor comparativo campo por campo, aplicación de cambios aprobados | `B1`–`B6`, `B8`–`B12`, `B-T`, `R-1`, `R-2`, `R-6a` | Fase 1 (A4, A5) | L | ⏳ Pendiente | — | — | Sin notificaciones aún (B7 va en Fase 3). Diseño visual con R-1/R-2 |
+| **Fase 3** — Notificaciones en sistema y correo (P2) | Campana/bandeja, outbox, correo asíncrono; conexión con las transiciones de Autogestión y Gestión de Trabajadores | `A2`, `A3`, `A7`, `B7`, `A-T2` | Fase 1 (A1, A4), `B3` | M | ⏳ Pendiente | — | — | Requiere credenciales SMTP institucionales (R11). Puede solaparse con el final de la Fase 2 |
+| **Fase 4** — Fe de vida de pasivos (P3) | Formulario + selfie con cédula en vivo, revisión de Bienestar, doble check + aprobación directa de la Administradora, constancia PDF por correo, acceso del pasivo | `C0`, `C1`–`C15`, `C-T`, `R-3` (= C13), `R-4` (= C0) | Fases 1 y 3, `C0-TI`; ADR de aprobación directa (R9) | L | ⏳ Pendiente | — | — | Backend y UI avanzan en `localhost` sin C0; la validación en teléfonos exige HTTPS. Incluye la conversión de cuentas de pasivos (parte de D5) |
+| **Fase 5** — Usuarios por roles y permisos (P4) | Retirar el acceso por departamento y `nombre_rol` en frontend; alta de usuarios por rol + permisos; invalidación por `permisos_version` | `D1`–`D6` | Fase 1 (A4, A8); idealmente tras Fases 2 y 4 | M | ⏳ Pendiente | — | — | Puede avanzar en paralelo desde A4, pero se despliega después de que los flujos usen los permisos nuevos |
+| **Fase 6** — Rediseño institucional y PWA (P5) | Cierre del sistema visual en el resto de pantallas, PWA instalable y offline | `R-5`, `R-6b`, `R-A` | `C0` (HTTPS real), Fases 2 y 4 | M | ⏳ Pendiente | — | — | R-1 a R-3 ya se entregan dentro de las Fases 2 y 4; no se repiten |
+| **Fase 7** — Endurecimiento y auditoría | Auditoría encadenada, rate limiting, observabilidad, pruebas de seguridad, cierre documental | `E1`–`E6` | Fases 2 a 6 | M | ⏳ Pendiente | — | — | Los specs de axe se agregan por etapa; aquí solo el cierre |
+
+### Tabla de tareas
+
+Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son los de la sección 3; `R-n` corresponde a la etapa n del plan de rediseño/PWA (sin duplicar su detalle). `C0-TI`, `V-1`, `A-T`, `A-T2`, `B-T`, `C-T`, `R-6a`, `R-6b` y `R-A` son identificadores de seguimiento creados aquí para tareas que el plan describe de forma agrupada (trámite con TI, verificaciones, bloques de "Tests" de cada etapa y partes de la etapa 6).
+
+**Fase 0 — Arranque y bloqueantes**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| C0-TI | Solicitar a TI certificado TLS y dominio institucional | Infra | — | ⏳ Pendiente | — | Camino crítico; pregunta 4.3.10 |
+| R-0 | Manual de identidad, `lang="es-VE"`, título, retirar `MarqueeTitle`, SW ajeno en `localhost:3000` | Front | — | ⏳ Pendiente | — | Etapa 0 del plan de rediseño |
+| V-1 | Verificaciones en BD: nombre real del rol, pasivos con cuenta y correo, `permisos_version` (R5, R6, R7) | Back | — | ⏳ Pendiente | — | Insumo de A4 y D5 |
+
+**Fase 1 — Cimientos**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| A1 | Celery real (`GATH/celery.py`, worker/beat en compose, `encolar` falla cerrado) | Back/Infra | — | ⏳ Pendiente | — | |
+| A4 | Roles y permisos nuevos (seed, `RolEspejo`) y `permisos_version` operativo | Back | V-1 | ⏳ Pendiente | — | Crea ANALISTA_BIENESTAR, ADMIN_BIENESTAR, PASIVO |
+| A5 | Validación de archivos (firma real, tamaño, claves uuid) | Back | — | ⏳ Pendiente | — | Incluye corrección aparte de `familiares_views.py` y `carnetizacion_views.py` |
+| A6 | Auditoría: `user_agent` o registro en `estado_nuevo` | Back | — | ⏳ Pendiente | — | |
+| A8 | Helper `puedeVerRuta` y mapa permiso→módulo en `evaluador-iam.ts` | Front | A4 | ⏳ Pendiente | — | Insumo de D1 |
+| A-T | Tests de Fase 1 (contrato de `encolar`, seed idempotente, validación de archivos) | Test | A1, A4, A5 | ⏳ Pendiente | — | Parte de los tests de la etapa A |
+
+**Fase 2 — Autogestión del empleado activo**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| B1 | Modelos, migraciones y semilla de secciones | Back | A4 | ⏳ Pendiente | — | |
+| B2 | Dominio: entidades, estados, puertos | Back | B1 | ⏳ Pendiente | — | |
+| B3 | Casos de uso (solicitar, habilitar, borrador, soporte, enviar, comparativo, decidir, aplicar, expirar, rechazar) | Back | B2, A5 | ⏳ Pendiente | — | `decidir` usa la regla de 2.2 |
+| B4 | Vistas y URLs (trabajador y Bienestar) | Back | B3 | ⏳ Pendiente | — | |
+| B5 | Serializers con lista blanca por sección | Back | B3 | ⏳ Pendiente | — | |
+| B6 | Valor anterior desde la ficha y detección de conflicto | Back | B3 | ⏳ Pendiente | — | |
+| B8 | `MiExpedienteView` con `autogestion.ver_propio` | Back | A4 | ⏳ Pendiente | — | |
+| B9 | Dominio/aplicación/infraestructura frontend y schemas Zod | Front | B4 | ⏳ Pendiente | — | Puede empezar con datos simulados |
+| R-1 | Tokens, tipografía y shell institucional | Front | R-0 | ⏳ Pendiente | — | Etapa 1 del plan de rediseño; puede empezar durante la Fase 1 |
+| R-2 | Pantallas del funcionario: ficha, solicitudes, avisos | Front | R-1 | ⏳ Pendiente | — | Una sola entrega con B10 |
+| B10 | UI trabajador: mis solicitudes, formularios por sección, soportes | Front | B9, R-2 | ⏳ Pendiente | — | |
+| R-6a | `FieldCompare` (componente visual del comparativo) | Front | R-1 | ⏳ Pendiente | — | Parte de la etapa 6 del plan de rediseño |
+| B11 | UI Bienestar: bandeja, habilitar ventana, visor comparativo | Front | B9, R-6a | ⏳ Pendiente | — | |
+| B12 | Estados vacíos, carga, errores y accesibilidad | Front | B10, B11 | ⏳ Pendiente | — | |
+| B-T | Tests de Fase 2 (transiciones, Zero-IDOR, ficha intacta hasta aprobar, E2E) | Test | B4, B11 | ⏳ Pendiente | — | Usar BD de pruebas, nunca la real |
+
+**Fase 3 — Notificaciones en sistema y correo**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| A2 | App `notificaciones` (modelos, casos de uso, API) | Back | A4 | ⏳ Pendiente | — | |
+| A3 | Correo asíncrono con outbox, reintentos y plantillas | Back | A1, A2 | ⏳ Pendiente | — | Requiere SMTP (R11) |
+| A7 | Módulo frontend de notificaciones y campana | Front | A2 | ⏳ Pendiente | — | |
+| B7 | Notificaciones en cada transición de Autogestión y evento outbox | Back | A2, A3, B3 | ⏳ Pendiente | — | Incluye alerta de reemisión de carnet |
+| A-T2 | Tests de notificaciones, outbox y polling | Test | A2, A3, A7 | ⏳ Pendiente | — | |
+
+**Fase 4 — Fe de vida de pasivos**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| C0 | nginx + TLS, un solo origen, cookies Secure, Permissions-Policy | Infra | C0-TI | ⏳ Pendiente | — | Es también R-4 |
+| C1 | Modelos, migraciones, catálogo y plantilla v1 | Back | A4 | ⏳ Pendiente | — | |
+| C2 | Dominio y reglas de doble check / aprobación directa | Back | C1 | ⏳ Pendiente | — | Requiere ADR confirmada (R9) |
+| C3 | Casos de uso (comparecencia, decisión, constancia, verificación, panel) | Back | C2, A5 | ⏳ Pendiente | — | |
+| C4 | PDF de constancia con número, hash y QR | Back | C3 | ⏳ Pendiente | — | |
+| C5 | Vistas y URLs (pasivo y Bienestar) | Back | C3 | ⏳ Pendiente | — | |
+| C6 | Notificaciones y correo con PDF | Back | A2, A3, C5 | ⏳ Pendiente | — | |
+| C7 | Acceso del pasivo: rol PASIVO, hook activo→pasivo, `proxy.ts`; incluye la conversión de cuentas de pasivos (parte de D5) | Back/Front | A4, V-1 | ⏳ Pendiente | — | |
+| C8 | Recordatorios con beat | Back | A1, C3 | ⏳ Pendiente | — | Solo si se define periodicidad (4.3.1) |
+| C9 | Eventos de auditoría de la HU | Back | C3, A6 | ⏳ Pendiente | — | |
+| C10 | Módulo `fe-de-vida` frontend | Front | C5 | ⏳ Pendiente | — | |
+| C11 | Menú del pasivo en Autogestión | Front | C7, R-2 | ⏳ Pendiente | — | |
+| C12 | Formulario según planilla física | Front | C10 | ⏳ Pendiente | — | |
+| C13 | Componente `CapturaCedulaEnVivo` (incluye R-3) | Front | C10 | ⏳ Pendiente | — | Prueba en teléfonos requiere C0 |
+| C14 | Seguimiento: estado, repetición, descarga de constancia | Front | C12 | ⏳ Pendiente | — | |
+| C15 | Vista Bienestar: bandeja, detalle con selfie, botones por permiso | Front | C5, R-6a | ⏳ Pendiente | — | |
+| C-T | Tests de Fase 4 (transiciones, imagen, atomicidad, E2E con cámara falsa, HTTPS real) | Test | C5, C13, C0 | ⏳ Pendiente | — | |
+
+**Fase 5 — Usuarios por roles y permisos**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| D1 | `proxy.ts`, dashboard y sidebars por permisos | Front | A8 | ⏳ Pendiente | — | |
+| D2 | Retirar departamento de `auth.config.ts`/`auth.ts`; re-sincronizar por `permisos_version` | Front | A4 | ⏳ Pendiente | — | |
+| D3 | `departamento` opcional/deprecado en backend de identidad | Back | — | ⏳ Pendiente | — | |
+| D4 | UI de usuarios (cédula + rol + permisos) y matriz de permisos | Front | D3, A4 | ⏳ Pendiente | — | |
+| D5 | Datos: renombrar rol, crear roles, asignar usuarios, convertir cuentas de pasivos | Back | A4, V-1 | ⏳ Pendiente | — | La conversión de pasivos se adelanta a la Fase 4 (C7) |
+| D6 | Tests de regresión rol→rutas (Vitest y Playwright) | Test | D1, D5 | ⏳ Pendiente | — | |
+
+**Fase 6 — Rediseño institucional y PWA**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| R-5 | PWA: manifest, service worker, offline, instalación | Front | C0 | ⏳ Pendiente | — | El SW no cachea `/api/` ni evidencias |
+| R-6b | Sistema visual en consultar, métricas, censo, login y selector de módulos | Front | R-1 | ⏳ Pendiente | — | Resto de la etapa 6 |
+| R-A | Revisión final de accesibilidad con usuarios mayores (axe 0 violaciones) | Test | R-5, R-6b | ⏳ Pendiente | — | |
+
+**Fase 7 — Endurecimiento y auditoría**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| E1 | Auditoría con hash encadenado, user-agent, dispositivo, trace_id | Back | A6 | ⏳ Pendiente | — | |
+| E2 | Rate limiting, antivirus opcional, límites de tamaño | Back/Infra | C0 | ⏳ Pendiente | — | |
+| E3 | Observabilidad del worker y alertas por FALLIDA | Back | A3 | ⏳ Pendiente | — | |
+| E4 | Pruebas de seguridad, cabeceras y CSP | Test | Fases 2–4 | ⏳ Pendiente | — | |
+| E5 | Verificación interna, panel completo, plantillas, política de retención | Back/Front | C3, C15 | ⏳ Pendiente | — | |
+| E6 | Actualizar `ESTADO_SISTEMA` y bitácora | Doc | E1–E5 | ⏳ Pendiente | — | |
+
+### Cómo actualizar
+
+- Al empezar una tarea, cambiar su Estado a 🔄 En proceso y anotar el Responsable; al terminarla, a ✅ Culminado. Si se detiene por un tercero, usar ⛔ Bloqueado y escribir el motivo en Notas.
+- En la tabla de fases, completar Inicio al pasar a 🔄 (fecha `AAAA-MM-DD`) y Fin al pasar a ✅.
+- Una fase pasa a ✅ Culminado solo cuando **todas** sus tareas están en ✅ y se cumple el **criterio de salida** de la(s) etapa(s) que la componen (sección 3; para las tareas R-n, el criterio de la etapa correspondiente del plan de rediseño). Una fase pasa a 🔄 cuando su primera tarea está en proceso.
+- Si cambia el alcance o una dependencia, ajustar también la columna "Depende de" y dejar constancia en Notas.
+
+### Preguntas abiertas que bloquean el inicio de cada fase
+
+Las preguntas completas están en la sección 4.3 y los riesgos en la 4.1.
+
+| Fase | Preguntas/decisiones que la bloquean |
+|---|---|
+| Fase 0 | 4.3.10 (dominio, certificado, acceso desde internet o VPN) |
+| Fase 1 | Nombre real del rol "BIENSTAR SOCIAL" (R6); 4.3.5 (cédulas y cantidad de Analistas y Administradoras) para la asignación de roles |
+| Fase 2 | 4.3.2 (plazo de ventanas y prórrogas); 4.3.6 (regla de aprobación por sección) |
+| Fase 3 | Credenciales y relay SMTP institucional (R11); 4.3.3 (cobertura de correo y alternativa para pasivos sin correo) |
+| Fase 4 | ADR de aprobación directa (R9); 4.3.1 (periodicidad, solo para C8); 4.3.3; 4.3.4 (texto oficial y firmante); 4.3.7 (respaldo de cámara); 4.3.8 (campos editables de la planilla); 4.3.11 (retención de la selfie); 4.3.12 (sobrevivientes); 4.3.13 (primera vez vs renovación) |
+| Fase 5 | 4.3.5; confirmación de la lista de usuarios a reasignar |
+| Fase 6 | Preguntas P1–P4 de la sección 7 del plan de rediseño (manual de identidad, colores, fuente, dominio) |
+| Fase 7 | 4.3.9 (MFA); 4.3.11 (política de retención) |
+
+---
+
 ## 1. Auditoría: estado actual vs requerido
 
 Leyenda: Existe / Parcial / No existe. Rutas relativas a `BACKEND/` o `NextJS/`.
@@ -277,6 +436,22 @@ La selfie con la cédula **no es una subida de archivo**. Diseño:
 ## 3. Plan por etapas
 
 Tallas: S = ≤2 días, M = 3–6 días, L = 7–12 días (un desarrollador; sin considerar bloqueos externos). Dependencias entre etapas indicadas.
+
+**Correspondencia Etapa → Fase** (ver "Hoja de ruta y seguimiento"; las etapas conservan su ID y contenido, las fases solo reordenan por prioridad y dependencias):
+
+| Etapa / tareas | Fase |
+|---|---|
+| A1, A4, A5, A6, A8 | Fase 1 |
+| B1–B6, B8–B12 | Fase 2 |
+| A2, A3, A7, B7 | Fase 3 |
+| C0 (la solicitud a TI, `C0-TI`, va en la Fase 0), C1–C15 | Fase 4 |
+| D1–D4, D6 | Fase 5 |
+| D5 | Fase 5 (la conversión de cuentas de pasivos se adelanta a la Fase 4, tarea C7) |
+| E1–E6 | Fase 7 |
+| Plan de rediseño: R-0 | Fase 0 |
+| Plan de rediseño: R-1, R-2, R-6a (FieldCompare) | Fase 2 |
+| Plan de rediseño: R-3 (= C13), R-4 (= C0) | Fase 4 |
+| Plan de rediseño: R-5, R-6b | Fase 6 |
 
 ### Etapa A — Base: permisos, Celery operativo, notificaciones (talla L)
 
