@@ -2,7 +2,7 @@ asgiref==3.9.2
 attrs==25.3.0
 certifi==2025.8.3
 charset-normalizer==3.4.3
-Django==5.2.7
+Django==5.2.8
 django-cors-headers==4.9.0
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
@@ -43,6 +43,8 @@ argon2-cffi>=23.1
 # donde SeaweedFS es un servicio real desplegado, no un plan a futuro). Hallazgo CRIT-01 de
 # AUDITORIA_CALIDAD_BACKEND_2026-09-15.md: esta librería faltaba aquí pese a ser requerida.
 boto3==1.35.36
+# redis: cliente que usa django.core.cache.backends.redis.RedisCache (D-11, caché de throttling).
+redis==5.2.1
 
 # --- Tooling de calidad (B1.4, D-12) ---
 # pytest + pytest-django: suite de pruebas (tests unitarios de dominio sin BD).

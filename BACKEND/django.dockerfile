@@ -1,4 +1,7 @@
-FROM python:3.11-slim
+FROM python:3.14.10
+# Logs de Django sin búfer (si no, `docker logs` queda vacío) y sin .pyc en la imagen.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 # Instalar dependencias del sistema necesarias para psycopg2
 RUN apt-get update && apt-get install -y \
     postgresql-client \
@@ -10,11 +13,12 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/Django
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-#RUN chmod +x wait-for-postgres.py
+# sed: quita los CRLF que deja un checkout en Windows (autocrlf), o sh no lo ejecuta.
+RUN sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
 
 EXPOSE 8000
-#CMD ["bash", "-c", "python3 wait-for-postgres.py && python3 manage.py runserver 0.0.0.0:8000"]
-# Usar comando directo con python
- CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
+# Espera a PostgreSQL y aplica migraciones en cada arranque, antes del CMD.
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]

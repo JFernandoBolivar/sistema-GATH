@@ -9,6 +9,7 @@ services:
     environment:
       - DJANGO_DB_HOST=host.docker.internal
       - FRONTEND_URL=http://localhost:3001
+      - REDIS_URL=redis://:${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}@redis:6379/0
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -17,6 +18,10 @@ services:
           - djangoapp
       broker:
       storage:
+      cache:
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "8001:8000"
     volumes:
@@ -125,6 +130,30 @@ services:
       resources:
         limits: { memory: 768M }
 
+  # ── Redis (caché de Django / throttling, D-11) ─────────────────────────────
+  # Sin puertos al host y en red interna, igual que el broker. Sin persistencia:
+  # solo guarda contadores de ventanas cortas, perderlos al reiniciar no importa.
+  redis:
+    image: redis:7.4-alpine
+    container_name: gath_redis
+    restart: always
+    environment:
+      # redis-cli toma la clave de REDISCLI_AUTH (lo usa el healthcheck).
+      REDISCLI_AUTH: ${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$REDISCLI_AUTH" --maxmemory 256mb --maxmemory-policy volatile-lru --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [cache]
+    deploy:
+      resources:
+        limits: { memory: 384M }
+
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:latest
@@ -160,5 +189,8 @@ networks:
     driver: bridge
     internal: true
   broker:
+    driver: bridge
+    internal: true
+  cache:
     driver: bridge
     internal: true

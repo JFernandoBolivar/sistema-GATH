@@ -1,13 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // La imagen Docker (etapa runner) arranca con .next/standalone/server.js.
+  output: "standalone",
   experimental: {
     serverActions: {
       bodySizeLimit: "25mb",
     },
   },
-  allowedDevOrigins: ["http://172.16.10.209:3000", "http://172.16.26.48:3000"],
+  // Orígenes extra para el servidor de desarrollo (lista separada por comas).
+  allowedDevOrigins: (process.env.ALLOWED_DEV_ORIGINS ?? "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
 };
 
 export default nextConfig;
