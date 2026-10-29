@@ -26,6 +26,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Opcion, Pregunta } from "@/app/types/types";
+import type { DatosViviendaPayload } from "@/modules/autogestion/infrastructure/http/autogestion-api";
 import {
   getSessionCedulaAction,
   consultarCensoEmpleadoAction,
@@ -54,18 +55,16 @@ export default function AutogestionPage() {
   const [estadoId, setEstadoId] = useState<string>();
   const [municipioId, setMunicipioId] = useState<string>();
 
-  const { data: cedula, isLoading: isLoadingCedula } = useSWR(
-    "session-cedula",
-    () => getSessionCedulaAction(),
+  const { data: cedula, isLoading: isLoadingCedula } = useSWR("session-cedula", () =>
+    getSessionCedulaAction(),
   );
 
   const {
     data: censoData,
     isLoading: isLoadingCenso,
     mutate: mutateCenso,
-  } = useSWR(
-    cedula ? ["censo-consulta", cedula] : null,
-    () => consultarCensoEmpleadoAction(cedula!),
+  } = useSWR(cedula ? ["censo-consulta", cedula] : null, () =>
+    consultarCensoEmpleadoAction(cedula!),
   );
 
   const { data: preguntasData, isLoading: isLoadingPreguntas } = useSWR(
@@ -73,10 +72,7 @@ export default function AutogestionPage() {
     () => getPreguntasAction(),
   );
 
-  const { data: states, isLoading: isLoadingStates } = useSWR(
-    "states",
-    () => getStatesAction(),
-  );
+  const { data: states, isLoading: isLoadingStates } = useSWR("states", () => getStatesAction());
 
   const { data: municipalitys, isLoading: isLoadingMunicipalitys } = useSWR(
     estadoId ? ["municipalitys", estadoId] : null,
@@ -163,7 +159,7 @@ export default function AutogestionPage() {
         };
       });
 
-      const vivienda = values["datos_vivienda"] as Record<string, any> | undefined;
+      const vivienda = values["datos_vivienda"] as DatosViviendaPayload | undefined;
 
       const response = await enviarAutogestionAction(carnetPatria, vivienda, respuestas);
       if (response.success) {
@@ -193,12 +189,10 @@ export default function AutogestionPage() {
                   <ClipboardCheck className="size-12 text-emerald-600" />
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-emerald-800">
-                Autogestión Completada
-              </h2>
+              <h2 className="text-2xl font-bold text-emerald-800">Autogestión Completada</h2>
               <p className="text-emerald-700 max-w-md mx-auto">
-                Ya has completado el formulario de autogestión de personal. No es
-                necesario que lo realices nuevamente.
+                Ya has completado el formulario de autogestión de personal. No es necesario que lo
+                realices nuevamente.
               </p>
             </CardContent>
           </Card>
@@ -233,7 +227,7 @@ export default function AutogestionPage() {
                     </span>
                   </div>
                   <div className="flex flex-col gap-2">
-                    {miCenso.preguntas?.map((r: any, i: number) => (
+                    {miCenso.preguntas?.map((r, i) => (
                       <div
                         key={i}
                         className="flex items-start gap-2 text-sm bg-gray-50 rounded p-2"
@@ -261,11 +255,8 @@ export default function AutogestionPage() {
                         </span>
                       </div>
                       <div className="flex flex-col gap-2">
-                        {miCenso.cargos.map((cargo: any, i: number) => (
-                          <div
-                            key={i}
-                            className="text-sm bg-gray-50 rounded p-3 gap-1"
-                          >
+                        {miCenso.cargos.map((cargo, i) => (
+                          <div key={i} className="text-sm bg-gray-50 rounded p-3 gap-1">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-mono text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">
                                 {cargo.codigo}
@@ -275,9 +266,7 @@ export default function AutogestionPage() {
                               </span>
                             </div>
                             <div className="text-xs text-gray-600 mt-1.5 ml-1 flex flex-col gap-0.5">
-                              {cargo.Dependencia && (
-                                <span>{cargo.Dependencia.dependencia}</span>
-                              )}
+                              {cargo.Dependencia && <span>{cargo.Dependencia.dependencia}</span>}
                               {cargo.DireccionGeneral && (
                                 <span>
                                   <span className="text-gray-500">{" > "}</span>
@@ -312,8 +301,8 @@ export default function AutogestionPage() {
           <Card className="p-6 md:p-10 bg-white border border-gray-200 shadow-lg rounded-lg">
             {isDev && yaRespondio && (
               <div className="border-2 border-yellow-400/45 bg-yellow-100/40 rounded-sm p-3 mb-6 text-sm text-yellow-700">
-                [DEV] El usuario ya respondió este censo. El formulario se muestra solo
-                por estar en modo desarrollo.
+                [DEV] El usuario ya respondió este censo. El formulario se muestra solo por estar en
+                modo desarrollo.
               </div>
             )}
 
@@ -321,21 +310,15 @@ export default function AutogestionPage() {
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
                 AUTOGESTIÓN DE PERSONAL
               </h1>
-              <p className="mt-2 text-sm text-gray-600">
-                Oficina de Gestión Humana - CONATEL
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                * Indica que la pregunta es obligatoria
-              </p>
+              <p className="mt-2 text-sm text-gray-600">Oficina de Gestión Humana - CONATEL</p>
+              <p className="text-xs text-gray-500 mt-1">* Indica que la pregunta es obligatoria</p>
             </div>
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
                 {preguntasPrincipales.map((pregunta) => {
                   const tipo =
-                    typeof pregunta.tipo === "string"
-                      ? pregunta.tipo
-                      : pregunta.tipo?.nombre;
+                    typeof pregunta.tipo === "string" ? pregunta.tipo : pregunta.tipo?.nombre;
 
                   if (tipo === "cerrada" && pregunta.opciones?.length === 1) {
                     return (
@@ -356,10 +339,12 @@ export default function AutogestionPage() {
                           form={form}
                           nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
                           label={`${pregunta.enunciado} *`}
-                          options={(pregunta.opciones || []).map((op: Opcion | any) => ({
-                            value: String(op.id),
-                            label: op.tipo_opcion || op.texto,
-                          }))}
+                          options={(pregunta.opciones || []).map(
+                            (op: Opcion & { texto?: string }) => ({
+                              value: String(op.id),
+                              label: op.tipo_opcion || op.texto || "",
+                            }),
+                          )}
                         />
                       </div>
                     );
@@ -440,9 +425,7 @@ export default function AutogestionPage() {
                             <SelectTrigger className="w-full truncate">
                               <SelectValue
                                 placeholder={
-                                  isLoadingStates
-                                    ? "Cargando Estados"
-                                    : "Seleccione un Estado"
+                                  isLoadingStates ? "Cargando Estados" : "Seleccione un Estado"
                                 }
                               />
                             </SelectTrigger>
@@ -537,9 +520,7 @@ export default function AutogestionPage() {
 
                   <FormField
                     control={form.control}
-                    name={
-                      "datos_vivienda.condicion_vivienda_id" as FieldPath<DynamicFormValues>
-                    }
+                    name={"datos_vivienda.condicion_vivienda_id" as FieldPath<DynamicFormValues>}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Condición de Vivienda *</FormLabel>
@@ -592,9 +573,7 @@ export default function AutogestionPage() {
 
                   <FormField
                     control={form.control}
-                    name={
-                      "datos_vivienda.codigo_postal_id" as FieldPath<DynamicFormValues>
-                    }
+                    name={"datos_vivienda.codigo_postal_id" as FieldPath<DynamicFormValues>}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Código Postal</FormLabel>
@@ -641,9 +620,8 @@ export default function AutogestionPage() {
                 ))}
 
                 <p className="text-xs text-gray-600 text-justify">
-                  La información suministrada es estrictamente confidencial y de uso
-                  exclusivo interno para los fines institucionales de la Oficina de
-                  Gestión Humana.
+                  La información suministrada es estrictamente confidencial y de uso exclusivo
+                  interno para los fines institucionales de la Oficina de Gestión Humana.
                 </p>
 
                 <Button

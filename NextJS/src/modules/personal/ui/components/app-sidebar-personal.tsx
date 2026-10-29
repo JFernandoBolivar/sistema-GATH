@@ -49,24 +49,22 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-
-type Permission = {
-  roleAccept: string[];
-  departmentAccept: string[];
-};
+import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
 
 type SubMenuItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  permission?: Permission;
+  /** Código de permiso requerido (sin él, visible para todos). */
+  permiso?: string;
 };
 
 type MenuItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  permission?: Permission;
+  /** Código de permiso requerido (sin él, visible para todos). */
+  permiso?: string;
   subMenu?: SubMenuItem[];
 };
 
@@ -77,10 +75,7 @@ const items: MenuItem[] = [
     icon: Home,
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO", "BIENSTAR SOCIAL", "RECEPCIONISTA"],
-      departmentAccept: ["RAC"],
-    },
+    
     title: "Personal Trabajador",
     url: "#",
     icon: User,
@@ -89,45 +84,30 @@ const items: MenuItem[] = [
         title: "Agregar Trabajador",
         url: "/personal/registrar",
         icon: UserPlus,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "personal.crear",
       },
       {
         title: "Consultar/Actualizar",
         url: "/personal/consultar",
         icon: ListCheck,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO", "BIENSTAR SOCIAL", "RECEPCIONISTA"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "personal.ver",
       },
       {
         title: "Agregar Familiar",
         url: "/familiares/registrar",
         icon: ContactRound,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "BIENSTAR SOCIAL"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "familiares.crear",
       },
       {
         title: "Consultar Familiar",
         url: "/familiares/consultar",
         icon: BookUser,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "BIENSTAR SOCIAL", "RECEPCIONISTA"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "familiares.ver",
       },
     ],
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-      departmentAccept: ["RAC"],
-    },
+    
     title: "Ub. Administrativas",
     url: "#",
     icon: SignpostBig,
@@ -136,45 +116,30 @@ const items: MenuItem[] = [
         title: "Crear Ub. Administrativa",
         url: "/organizacion/crear-ubicacion",
         icon: ArrowRightFromLine,
-        permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "organizacion.crear",
       },
       {
         title: "Crear Direcciones",
         url: "/organizacion/crear-ubicacion-administrativa-direccion",
         icon: MoveDownRight,
-        permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "organizacion.crear",
       },
       {
         title: "Consultar Ub. Admnistrativas",
         url: "/organizacion/listado-ubicacion-administrativa",
         icon: List,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "organizacion.ver",
       },
       {
         title: "Actualizar Ub. Admnistrativas",
         url: "/organizacion/actualizar-ubicacion",
         icon: Boxes,
-        permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "organizacion.editar",
       },
     ],
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-      departmentAccept: ["RAC"],
-    },
+    
     title: "Gestión De Codigos",
     url: "#",
     icon: Badge,
@@ -183,27 +148,18 @@ const items: MenuItem[] = [
         title: "Crear Nuevo Código",
         url: "/cargos/crear-codigo",
         icon: BadgePlus,
-        permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "cargos.crear",
       },
       {
         title: "Consultar/Actualizar",
         url: "/cargos",
         icon: List,
-        permission: {
-          roleAccept: ["ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "cargos.ver",
       },
     ],
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "BIENSTAR SOCIAL"],
-      departmentAccept: ["RAC"],
-    },
+    
     title: "Movimientos",
     url: "#",
     icon: ArrowRightLeft,
@@ -212,72 +168,48 @@ const items: MenuItem[] = [
         title: "Asignar Cargo",
         url: "/movimientos/asignar-codigo",
         icon: BriefcaseBusiness,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "cargos.asignar",
       },
       {
         title: "Asignar Cargo Esp",
         url: "/movimientos/asignar-codigo-especial",
         icon: Briefcase,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "cargos.asignar",
       },
       {
         title: "Asignar Encargaduría",
         url: "/movimientos/prestamo-cargo",
         icon: ArrowRightLeft,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "cargos.prestar",
       },
       {
         title: "Cambiar Cargo",
         url: "/movimientos/cambiar-codigo",
         icon: BriefcaseConveyorBelt,
-        permission: {
-          roleAccept: ["ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "movimientos.registrar_traslado",
       },
       {
         title: "Cambiar Estatus",
         url: "/movimientos/cambiar-estatus",
         icon: FileChartLine,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "cargos.editar",
       },
       {
         title: "Egresar/Pasivo",
         url: "/movimientos/cambiar-pasivo",
         icon: BookCheck,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "pasivos.cambiar_condicion",
       },
       {
         title: "Consultar Movimientos",
         url: "/movimientos",
         icon: ListCheck,
-        permission: {
-          roleAccept: ["ADMINISTRADOR", "BIENSTAR SOCIAL"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "movimientos.ver",
       },
     ],
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-      departmentAccept: ["RAC"],
-    },
+    
     icon: BarChart3,
     title: "Reportes",
     url: "#",
@@ -286,54 +218,36 @@ const items: MenuItem[] = [
         title: "Consultar Trabajador",
         url: "/reportes/empleados",
         icon: IdCard,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "reportes.ver",
       },
       {
         title: "Consultar Familiares",
         url: "/reportes/familiares",
         icon: NotebookTabs,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "reportes.ver",
       },
       {
         title: "Consultar Egresados",
         url: "/reportes/egresados",
         icon: DoorOpen,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "reportes.ver",
       },
       {
         title: "Consultar Cargos",
         url: "/reportes/codigos",
         icon: BookKey,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "reportes.ver",
       },
     ],
   },
   {
-    permission: {
-      roleAccept: ["ADMINISTRADOR"],
-      departmentAccept: ["RAC"],
-    },
+    permiso: "configuracion.editar",
     icon: FolderOpenDot,
     title: "Retroalimentación",
     url: "/retroalimentacion",
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR", "PRESUPUESTO", "BIENSTAR SOCIAL"],
-      departmentAccept: ["RAC"],
-    },
+    
     icon: BookCheck,
     title: "Autogestión",
     url: "#",
@@ -347,19 +261,13 @@ const items: MenuItem[] = [
         title: "Respuestas Encuesta",
         url: "/autogestion/consultar",
         icon: FileSpreadsheet,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR", "BIENSTAR SOCIAL"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "autogestion.censo_ver_todos",
       },
       {
         title: "Métricas",
         url: "/autogestion/metricas",
         icon: BarChart3,
-        permission: {
-          roleAccept: ["ADMINISTRADOR"],
-          departmentAccept: ["RAC"],
-        },
+        permiso: "autogestion.censo_ver_todos",
       },
     ],
   },
@@ -392,42 +300,7 @@ export function AppSidebarPersonal() {
 
   const isAdmin = session?.user?.role?.nombre_rol === "ADMINISTRADOR";
 
-  const checkPermission = (item: MenuItem | SubMenuItem): boolean => {
-    if (isAdmin) return true;
-    if (!item.permission) return true;
-
-    const hasRolePermission = item.permission.roleAccept.includes(
-      session?.user?.role?.nombre_rol || "",
-    );
-
-    const hasDepartmentPermission = item.permission.departmentAccept.includes(
-      session?.user?.department?.nombre_departamento || "",
-    );
-
-    return hasRolePermission && hasDepartmentPermission;
-  };
-
-  const filteredItems = items
-    .filter((item) => {
-      if (!checkPermission(item)) return false;
-      if (!item.subMenu) return true;
-      const filteredSubMenu = item.subMenu.filter((subItem) => {
-        return checkPermission(subItem);
-      });
-      return filteredSubMenu.length > 0;
-    })
-    .map((item) => {
-      if (item.subMenu) {
-        const filteredSubMenu = item.subMenu.filter((subItem) =>
-          checkPermission(subItem),
-        );
-        return {
-          ...item,
-          subMenu: filteredSubMenu,
-        };
-      }
-      return item;
-    });
+  const filteredItems = filtrarMenuPorPermisos(items, session?.user?.permisos);
 
   return (
     <Sidebar>

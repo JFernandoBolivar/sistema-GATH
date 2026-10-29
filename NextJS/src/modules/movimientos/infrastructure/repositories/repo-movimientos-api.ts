@@ -1,7 +1,11 @@
 /**
  * Implementación del repositorio de Movimientos usando la API REST.
  */
-import type { FiltrosMovimiento, RepoMovimientos } from "../../domain/ports/repo-movimientos";
+import type {
+  CatalogoTiposMovimientoInfo,
+  FiltrosMovimiento,
+  RepoMovimientos,
+} from "../../domain/ports/repo-movimientos";
 import { movimientosApi, type MovimientoApiItem } from "../http/movimientos-api";
 import { movimientoApiAEntidad } from "../mappers/mapper-movimientos";
 
@@ -41,9 +45,9 @@ export const repoMovimientosApi: RepoMovimientos = {
   async listarTiposDisponibles() {
     const raw = await movimientosApi.getTiposDisponibles();
     if (raw && typeof raw === "object" && "data" in raw) {
-      return (raw as { data: any }).data;
+      return (raw as { data: CatalogoTiposMovimientoInfo }).data;
     }
-    return raw as any;
+    return raw as CatalogoTiposMovimientoInfo;
   },
 
   async descargarPdf(filtros?: FiltrosMovimiento) {
@@ -59,4 +63,3 @@ export const repoMovimientosApi: RepoMovimientos = {
     });
   },
 };
-

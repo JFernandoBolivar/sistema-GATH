@@ -7,19 +7,8 @@ import { Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import {
@@ -95,7 +84,7 @@ export default function FormBasicUpdateDialog({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
     startTransition(async () => {
       setError(null);
       try {
@@ -155,7 +144,11 @@ export default function FormBasicUpdateDialog({
           <CardContent>
             <CardAction className="text-gray-500 mb-3">Información Basica</CardAction>
 
-            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-destructive mb-3">
+                {error}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="gap-6">
@@ -264,10 +257,12 @@ export default function FormBasicUpdateDialog({
                         <SelectValue placeholder="Seleccione un Genero" />
                       </SelectTrigger>
                       <SelectContent>
-                        {(catalogos?.sexos ?? [
-                          { id: 1, nombre: "MASCULINO" },
-                          { id: 2, nombre: "FEMENINO" },
-                        ]).map((s) => (
+                        {(
+                          catalogos?.sexos ?? [
+                            { id: 1, nombre: "MASCULINO" },
+                            { id: 2, nombre: "FEMENINO" },
+                          ]
+                        ).map((s) => (
                           <SelectItem key={s.id} value={String(s.id)}>
                             {s.nombre}
                           </SelectItem>

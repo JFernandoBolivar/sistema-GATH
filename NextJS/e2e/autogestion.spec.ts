@@ -1,15 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
+import { iniciarSesionE2E } from "./credenciales";
 const ARTIFACT_DIR = "/home/jbolivar@conatel.gob.ve/.gemini/antigravity-cli/brain/4f3a6a47-9b0b-47b3-9be1-2c8212a19b56/scratch";
 
 async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel(/correo electrónico/i).fill(EMAIL);
-  await page.getByLabel(/contraseña/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+  await iniciarSesionE2E(page);
 }
 
 test.describe("Autogestión UI - Paridad 100% con referencia", () => {
@@ -31,14 +26,14 @@ test.describe("Autogestión UI - Paridad 100% con referencia", () => {
     await expect(page.locator("img[alt='Logo CONATEL']")).toBeVisible();
     await expect(page.getByRole("button", { name: "Autogestión", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Mi Expediente" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Censo de Vivienda" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Censo de Vivienda" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Respuestas Encuesta" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Métricas" })).toBeVisible();
 
     // Body content de /autogestion (Mi Expediente)
-    const hasTabs = await page.getByRole("tab", { name: /personal & ubicación/i }).isVisible().catch(() => false);
-    const hasNoExp = await page.getByText("Expediente no disponible").isVisible().catch(() => false);
-    expect(hasTabs || hasNoExp).toBe(true);
+    await expect(
+      page.getByRole("tab", { name: /datos personales/i }).or(page.getByText("Expediente no disponible")),
+    ).toBeVisible({ timeout: 30_000 });
 
     // Navegar a Censo de Vivienda (/autogestion/censo)
     await page.goto("/autogestion/censo");

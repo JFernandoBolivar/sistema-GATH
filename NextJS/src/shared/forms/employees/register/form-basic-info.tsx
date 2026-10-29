@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatInTimeZone } from "date-fns-tz";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   getEmployeeInfo,
@@ -12,13 +12,7 @@ import {
 import InputForm from "@/components/input-form";
 import { SelectForm } from "@/components/select-form";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -29,11 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -48,31 +38,29 @@ import Image from "next/image";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import useSWR from "swr";
-import { BasicInfoType, schemaBasicInfo } from "@/shared/schemas/employees/register/schema-basic-info";
+import {
+  BasicInfoType,
+  schemaBasicInfo,
+} from "@/shared/schemas/employees/register/schema-basic-info";
 type Props = {
-  onSubmit: (values: BasicInfoType) => void
-  defaultValues: BasicInfoType
-  title?: string
-  employeeType?: string
-}
+  onSubmit: (values: BasicInfoType) => void;
+  defaultValues: BasicInfoType;
+  title?: string;
+  employeeType?: string;
+};
 export function FormBasicInfo({
   onSubmit,
   defaultValues,
   title = "Registrar Nuevo Trabajador",
   employeeType = "trabajador",
 }: Props) {
-  const [photoPreview, setPhotoPreview] = useState<string | null | undefined>(
-    null,
-  );
+  const [photoPreview, setPhotoPreview] = useState<string | null | undefined>(null);
   const [file, setFile] = useState<File | null>(null);
   const { data: maritalStatus, isLoading: isLoadingMaritalStatus } = useSWR(
     "maritalStatus",
     async () => await getMaritalstatus(),
   );
-  const { data: sex, isLoading: isLoadingSex } = useSWR(
-    "sex",
-    async () => await getSex(),
-  );
+  const { data: sex, isLoading: isLoadingSex } = useSWR("sex", async () => await getSex());
   const form = useForm({
     resolver: zodResolver(schemaBasicInfo),
     defaultValues,
@@ -97,13 +85,11 @@ export function FormBasicInfo({
     () => getEmployeeInfo(employee),
   );
 
-  const validateCedula = useMemo(() => {
-    if (!searchEmployee || searchEmployee.data === undefined) return false;
-    return (
-      !Array.isArray(searchEmployee.data) &&
-      typeof searchEmployee.data === "object"
-    );
-  }, [searchEmployee]);
+  const validateCedula =
+    !!searchEmployee &&
+    searchEmployee.data !== undefined &&
+    !Array.isArray(searchEmployee.data) &&
+    typeof searchEmployee.data === "object";
 
   const lastCedulaToast = useRef<string>("");
   useEffect(() => {
@@ -120,14 +106,9 @@ export function FormBasicInfo({
       </CardHeader>
 
       <CardContent>
-        <CardAction className="text-gray-500">
-          Paso 1: Información Basica
-        </CardAction>
+        <CardAction className="text-gray-500">Paso 1: Información Basica</CardAction>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmitFormity)}
-            autoComplete="off"
-          >
+          <form onSubmit={form.handleSubmit(onSubmitFormity)} autoComplete="off">
             <div className="gap-4">
               <div className="border rounded-lg p-4 gap-3">
                 <Label>Foto del Trabajador</Label>
@@ -147,12 +128,7 @@ export function FormBasicInfo({
                       <X className="size-4" />
                     </Button>
                     <div className="text-center w-full">
-                      {
-                        validateWeight(
-                          file?.size ? file.size : 0,
-                          5 * 1024 * 1024,
-                        ).formattedSize
-                      }
+                      {validateWeight(file?.size ? file.size : 0, 5 * 1024 * 1024).formattedSize}
                     </div>
                   </div>
                 ) : (
@@ -160,9 +136,7 @@ export function FormBasicInfo({
                     <FormField
                       control={form.control}
                       name="file"
-                      render={({
-                        field: { value, onChange, ...fieldProps },
-                      }) => (
+                      render={({ field: { value, onChange, ...fieldProps } }) => (
                         <FormItem className="w-full h-full text-center flex flex-col justify-center items-center">
                           <Upload className="size-8 text-gray-400" />
                           <FormLabel className="text-center p-1.5 bg-gray-300 text-black rounded-2xl  cursor-pointer">
@@ -246,11 +220,7 @@ export function FormBasicInfo({
                           <FormControl>
                             <Button variant={"outline"} className="font-light">
                               {field.value ? (
-                                formatInTimeZone(
-                                  field.value,
-                                  "UTC",
-                                  "dd/MM/yyy",
-                                )
+                                formatInTimeZone(field.value, "UTC", "dd/MM/yyy")
                               ) : (
                                 <span>Selecciona una fecha</span>
                               )}
@@ -260,9 +230,7 @@ export function FormBasicInfo({
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
-                            selected={
-                              field.value ? new Date(field.value) : undefined
-                            }
+                            selected={field.value ? new Date(field.value) : undefined}
                             mode="single"
                             onSelect={(date) => field.onChange(date)}
                             disabled={(date: Date) =>
@@ -348,9 +316,7 @@ export function FormBasicInfo({
                 disabled={validateCedula}
                 variant={validateCedula ? "destructive" : "default"}
               >
-                {validateCedula
-                  ? "Trabajador ya se encuentra registrado"
-                  : "Siguiente"}
+                {validateCedula ? "Trabajador ya se encuentra registrado" : "Siguiente"}
               </Button>
             </div>
           </form>

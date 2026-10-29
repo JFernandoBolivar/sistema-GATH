@@ -1,10 +1,14 @@
 import { test, expect } from "@playwright/test";
 
-const EMAIL = "hmachado@conatel.gob.ve";
-const PASSWORD = "Conatel123*";
+import { EMAIL, PASSWORD } from "./credenciales";
 const ARTIFACT_DIR = "/home/jbolivar@conatel.gob.ve/.gemini/antigravity-cli/brain/4f3a6a47-9b0b-47b3-9be1-2c8212a19b56/scratch";
 
 test.describe("Portal de Autogestión CONATEL Rediseñado", () => {
+  // Depende de un expediente con cursos, carnet activo y datos reales de un
+  // trabajador concreto: la cuenta E2E no los tiene. Definir E2E_EXPEDIENTE_COMPLETO=1
+  // solo con credenciales de ese trabajador.
+  test.skip(!process.env.E2E_EXPEDIENTE_COMPLETO, "requiere cuenta con expediente completo");
+
   test("Carga expediente de trabajador, cursos institucionales, carnet digital y marco legal", async ({ page }) => {
     // 1. Iniciar sesión con el trabajador titular
     await page.goto("/login");

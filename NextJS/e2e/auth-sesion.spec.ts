@@ -1,14 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
 
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
+import { EMAIL, PASSWORD, iniciarSesionE2E } from "./credenciales";
 
 async function iniciarSesion(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel(/correo electrónico/i).fill(EMAIL);
-  await page.getByLabel(/contraseña/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+  await iniciarSesionE2E(page);
 }
 
 test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () => {
@@ -95,7 +90,7 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await expect(botonOjo).toBeVisible();
 
     // Llenar contraseña y verificar alternancia de visibilidad
-    await inputPassword.fill("30540767**");
+    await inputPassword.fill(PASSWORD);
     await expect(inputPassword).toHaveAttribute("type", "password");
 
     // Clic en ojo: muestra la contraseña en texto plano
@@ -107,7 +102,7 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await expect(inputPassword).toHaveAttribute("type", "password");
 
     // Iniciar sesión con el correo institucional completo
-    await inputEmail.fill("hmachado@conatel.gob.ve");
+    await inputEmail.fill(EMAIL);
     await page.getByRole("button", { name: /iniciar sesión/i }).click();
 
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });

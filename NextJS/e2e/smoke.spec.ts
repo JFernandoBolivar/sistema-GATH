@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { iniciarSesionE2E } from "./credenciales";
+
 /**
  * Smoke test E2E de verificación final: backend Django + frontend NextJS
  * contra una base de datos real (originalmente corrido contra NUEVABD-GATH,
@@ -20,9 +22,6 @@ import { test, expect, type Page } from "@playwright/test";
  * BD real antes de ejecutar este archivo (ver E2E_BASE_URL en
  * playwright.config.ts).
  */
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
-
 const RUTAS = [
   "usuarios",
   "personal",
@@ -39,18 +38,17 @@ const RUTAS = [
 ] as const;
 
 async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel(/correo electrónico/i).fill(EMAIL);
-  await page.getByLabel(/contraseña/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/dashboard|\/inicio|\/$/, { timeout: 15_000 });
+  await iniciarSesionE2E(page);
 }
 
 /** Sin overlay de error de Next.js, sin 500, con contenido real (no un shell vacío). */
 async function assertPaginaCargaSinError(page: Page, ruta: string) {
   await expect(page.locator("text=/application error/i")).toHaveCount(0);
   const bodyText = await page.locator("body").innerText();
-  expect(bodyText.trim().length, `la ruta /${ruta} debería renderizar contenido real, no un shell vacío`).toBeGreaterThan(20);
+  expect(
+    bodyText.trim().length,
+    `la ruta /${ruta} debería renderizar contenido real, no un shell vacío`,
+  ).toBeGreaterThan(20);
   expect(bodyText).not.toMatch(/unhandled runtime error/i);
 }
 
@@ -68,38 +66,40 @@ test.describe("Smoke E2E — sistema migrado contra NUEVABD-GATH", () => {
     });
   }
 
-  test("personal: la tabla lista empleados reales y el detalle del expediente abre", async ({ page }) => {
-    await page.goto("/personal");
+  test("personal: la tabla lista empleados reales y el detalle del expediente abre", async ({
+    page,
+  }) => {
+    await page.goto("/personal/consultar");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     const filas = page.locator("table tbody tr");
-    await expect(filas.first()).toBeVisible({ timeout: 15_000 });
+    await expect(filas.first()).toBeVisible({ timeout: 45_000 });
     await expect(filas).not.toHaveCount(0);
 
-    // El botón "Ver detalle" (ícono Eye) es el primer botón de acciones de la fila
-    // cuando el rol tiene personal.ver_detalle (ADMINISTRADOR lo tiene).
-    const primeraFila = filas.first();
-    const botonesAccion = primeraFila.locator("button");
-    await expect(botonesAccion.first()).toBeVisible();
-    await botonesAccion.first().click();
+    // Las acciones de fila están en un menú ("Abrir Menu" -> "Ver Detalles").
+    await filas.first().getByRole("button", { name: /abrir menu/i }).click();
+    await page.getByText("Ver Detalles").click();
 
-    await expect(page.getByText("Expediente del trabajador")).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByRole("dialog").getByRole("heading", { name: "Información Detallada Del Trabajador" }),
+    ).toBeVisible({ timeout: 60_000 });
   });
 
-  test("reportes: cambiar de pestaña a Tendencias muestra la gráfica", async ({ page }) => {
+  test("reportes: /reportes muestra la gráfica de distribución", async ({ page }) => {
+    // La versión con pestañas (reportes-page.tsx) ya no está enrutada: /reportes
+    // renderiza ReportDistribution.
     await page.goto("/reportes");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
-    await page.getByRole("tab", { name: "Tendencias" }).click();
-    await expect(page.getByText(/ingresos y egresos de personal/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Distribución por Departamento")).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
-  test("carnetizacion: cambiar de pestaña a Estadísticas muestra contenido", async ({ page }) => {
-    await page.goto("/carnetizacion");
+  test("carnetizacion: /carnetizacion/estadisticas muestra contenido", async ({ page }) => {
+    await page.goto("/carnetizacion/estadisticas");
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
-    await page.getByRole("tab", { name: "Estadísticas" }).click();
-    await page.waitForTimeout(500);
-    await assertPaginaCargaSinError(page, "carnetizacion (tab estadisticas)");
+    await assertPaginaCargaSinError(page, "carnetizacion/estadisticas");
   });
 });

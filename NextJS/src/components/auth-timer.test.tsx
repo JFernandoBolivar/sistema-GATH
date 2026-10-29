@@ -48,14 +48,14 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
 
     render(<AuthController />);
     expect(
-      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
+      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i),
     ).not.toBeInTheDocument();
   });
 
   it("muestra el diálogo de advertencia tras 14 minutos de inactividad", () => {
     vi.mocked(useSession).mockReturnValue({
       data: {
-        user: { id: "1", name: "Test User" } as any,
+        user: { id: "1", name: "Test User" } as never,
         expires: "2099-01-01",
       },
       status: "authenticated",
@@ -69,28 +69,22 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
       vi.advanceTimersByTime(14 * 60 * 1000 - 1000);
     });
     expect(
-      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
+      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i),
     ).not.toBeInTheDocument();
 
     // A los 14 minutos exactos (IDLE_TIMEOUT - GRACE_PERIOD) aparece
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(
-      screen.getByText(/Tu sesión está por cerrarse por inactividad/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Permanecer en la sesión/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /Cerrar sesión/i })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Tu sesión está por cerrarse por inactividad/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Permanecer en la sesión/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Cerrar sesión/i })).toBeInTheDocument();
   });
 
   it("hace logout si transcurre el período de gracia de 60 segundos sin interacción", async () => {
     vi.mocked(useSession).mockReturnValue({
       data: {
-        user: { id: "1", name: "Test User" } as any,
+        user: { id: "1", name: "Test User" } as never,
         expires: "2099-01-01",
       },
       status: "authenticated",
@@ -115,7 +109,7 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
   it("al presionar 'Permanecer en la sesión' llama a extenderSesionAction y oculta el diálogo", async () => {
     vi.mocked(useSession).mockReturnValue({
       data: {
-        user: { id: "1", name: "Test User" } as any,
+        user: { id: "1", name: "Test User" } as never,
         expires: "2099-01-01",
       },
       status: "authenticated",
@@ -139,14 +133,14 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
 
     expect(mockExtenderSesionAction).toHaveBeenCalled();
     expect(
-      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
+      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i),
     ).not.toBeInTheDocument();
   });
 
   it("al presionar 'Cerrar sesión' llama a cerrarSesionAction inmediatamente y oculta el diálogo", async () => {
     vi.mocked(useSession).mockReturnValue({
       data: {
-        user: { id: "1", name: "Test User" } as any,
+        user: { id: "1", name: "Test User" } as never,
         expires: "2099-01-01",
       },
       status: "authenticated",
@@ -170,14 +164,14 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
 
     expect(mockCerrarSesionAction).toHaveBeenCalled();
     expect(
-      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
+      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i),
     ).not.toBeInTheDocument();
   });
 
   it("la actividad del usuario (mousemove, keypress) antes de los 14 minutos reinicia el contador de inactividad", () => {
     vi.mocked(useSession).mockReturnValue({
       data: {
-        user: { id: "1", name: "Test User" } as any,
+        user: { id: "1", name: "Test User" } as never,
         expires: "2099-01-01",
       },
       status: "authenticated",
@@ -203,7 +197,7 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
 
     // Como se reinició, a los 10 minutos no debe mostrarse aún
     expect(
-      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i)
+      screen.queryByText(/Tu sesión está por cerrarse por inactividad/i),
     ).not.toBeInTheDocument();
 
     // Avanzar 4 minutos más (14 min desde la última actividad)
@@ -212,15 +206,13 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
     });
 
     // Ahora sí debe mostrarse
-    expect(
-      screen.getByText(/Tu sesión está por cerrarse por inactividad/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Tu sesión está por cerrarse por inactividad/i)).toBeInTheDocument();
   });
 
   it("la cuenta regresiva decrece segundo a segundo en el aviso", () => {
     vi.mocked(useSession).mockReturnValue({
       data: {
-        user: { id: "1", name: "Test User" } as any,
+        user: { id: "1", name: "Test User" } as never,
         expires: "2099-01-01",
       },
       status: "authenticated",
@@ -247,7 +239,7 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
   it("la actividad pasiva mientras el modal está abierto no descarta el aviso", () => {
     vi.mocked(useSession).mockReturnValue({
       data: {
-        user: { id: "1", name: "Test User" } as any,
+        user: { id: "1", name: "Test User" } as never,
         expires: "2099-01-01",
       },
       status: "authenticated",
@@ -261,9 +253,7 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
       vi.advanceTimersByTime(14 * 60 * 1000);
     });
 
-    expect(
-      screen.getByText(/Tu sesión está por cerrarse por inactividad/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Tu sesión está por cerrarse por inactividad/i)).toBeInTheDocument();
 
     // Eventos pasivos del usuario mientras el modal está abierto
     act(() => {
@@ -272,8 +262,31 @@ describe("AuthController (temporizador de inactividad de 15 minutos)", () => {
     });
 
     // El diálogo DEBE permanecer abierto (exige acción explícita en los botones)
-    expect(
-      screen.getByText(/Tu sesión está por cerrarse por inactividad/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Tu sesión está por cerrarse por inactividad/i)).toBeInTheDocument();
+  });
+
+  it("llama useSession de forma incondicional en cada render (rules-of-hooks)", () => {
+    vi.mocked(useSession).mockReturnValue({
+      data: null,
+      status: "unauthenticated",
+      update: vi.fn(),
+    });
+
+    const { rerender } = render(<AuthController />);
+    rerender(<AuthController />);
+
+    expect(vi.mocked(useSession)).toHaveBeenCalledTimes(2);
+  });
+
+  it("no oculta el error de useSession: se propaga al error boundary", () => {
+    vi.mocked(useSession).mockImplementation(() => {
+      throw new Error("sin SessionProvider");
+    });
+    const consola = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() => render(<AuthController />)).toThrow("sin SessionProvider");
+    expect(mockCerrarSesionAction).not.toHaveBeenCalled();
+
+    consola.mockRestore();
   });
 });

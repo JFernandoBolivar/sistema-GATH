@@ -1,9 +1,15 @@
 /**
  * Mappers para convertir datos de Autogestión a entidades de dominio.
  */
-import type { MetricasCenso, PreguntaCenso, ReporteDependenciaCenso, RespuestaCenso } from "../../domain/entities/censo";
+import type {
+  MetricasCenso,
+  PreguntaCenso,
+  ReporteDependenciaCenso,
+  RespuestaCenso,
+} from "../../domain/entities/censo";
 import type {
   MetricasCensoApiItem,
+  OpcionCensoCompat,
   PreguntaCensoApiItem,
   ReporteDependenciaApiItem,
   RespuestaCensoApiItem,
@@ -13,14 +19,17 @@ export function preguntaApiAEntidad(raw: PreguntaCensoApiItem): PreguntaCenso {
   return {
     id: raw.id,
     enunciado: raw.enunciado,
-    tipo: typeof raw.tipo === "string" ? raw.tipo : (raw.tipo as any)?.nombre,
+    tipo:
+      typeof raw.tipo === "string"
+        ? raw.tipo
+        : ((raw.tipo as unknown as { nombre?: string } | null)?.nombre ?? ""),
     orden: raw.orden,
     activo: raw.activo,
     validacion: raw.validacion,
-    opciones: (raw.opciones || []).map((o: any) => ({
+    opciones: (raw.opciones || []).map((o: OpcionCensoCompat) => ({
       id: o.id,
-      texto: o.texto || o.tipo_opcion,
-      orden: o.orden,
+      texto: o.texto || o.tipo_opcion || "",
+      orden: o.orden ?? 0,
     })),
   };
 }
@@ -37,7 +46,9 @@ export function respuestaApiAEntidad(raw: RespuestaCensoApiItem): RespuestaCenso
   };
 }
 
-export function reporteDependenciaApiAEntidad(raw: ReporteDependenciaApiItem): ReporteDependenciaCenso {
+export function reporteDependenciaApiAEntidad(
+  raw: ReporteDependenciaApiItem,
+): ReporteDependenciaCenso {
   return {
     dependenciaId: raw.dependencia_id,
     dependencia: raw.dependencia,

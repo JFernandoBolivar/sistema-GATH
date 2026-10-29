@@ -20,15 +20,15 @@ import type {
   CargoAsignado,
 } from "../../domain/entities/empleado";
 
-export interface DatosViviendaDTO extends DatosVivienda {}
-export interface PerfilSaludDTO extends PerfilSalud {}
-export interface PerfilFisicoDTO extends PerfilFisico {}
-export interface FormacionAcademicaDTO extends FormacionAcademica {}
-export interface FormacionComplementariaDTO extends FormacionComplementaria {}
-export interface ContactoEmergenciaDTO extends ContactoEmergencia {}
-export interface AntecedenteDTO extends Antecedente {}
-export interface ContratoDTO extends Contrato {}
-export interface CargoAsignadoDTO extends CargoAsignado {}
+export type DatosViviendaDTO = DatosVivienda;
+export type PerfilSaludDTO = PerfilSalud;
+export type PerfilFisicoDTO = PerfilFisico;
+export type FormacionAcademicaDTO = FormacionAcademica;
+export type FormacionComplementariaDTO = FormacionComplementaria;
+export type ContactoEmergenciaDTO = ContactoEmergencia;
+export type AntecedenteDTO = Antecedente;
+export type ContratoDTO = Contrato;
+export type CargoAsignadoDTO = CargoAsignado;
 
 export interface EncargaduriaDTO {
   id: number;

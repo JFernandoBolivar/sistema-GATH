@@ -27,17 +27,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-
-type Permission = {
-  roleAccept: string[];
-  departmentAccept: string[];
-};
+import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
 
 type MenuItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  permission?: Permission;
+  /** Código de permiso requerido (sin él, visible para todos). */
+  permiso?: string;
   subMenu?: SubMenuItem[];
 };
 
@@ -45,7 +42,8 @@ type SubMenuItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  permission?: Permission;
+  /** Código de permiso requerido (sin él, visible para todos). */
+  permiso?: string;
 };
 
 const items: MenuItem[] = [
@@ -55,10 +53,7 @@ const items: MenuItem[] = [
     icon: Home,
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-      departmentAccept: ["Carnetizacion"],
-    },
+    
     title: "Carnets",
     url: "#",
     icon: IdCard,
@@ -67,27 +62,18 @@ const items: MenuItem[] = [
         title: "Buscar Personal",
         url: "/carnetizacion/buscar",
         icon: Search,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["Carnetizacion"],
-        },
+        permiso: "carnetizacion.ver",
       },
     ],
   },
   {
-    permission: {
-      roleAccept: ["ADMINISTRADOR"],
-      departmentAccept: ["Carnetizacion"],
-    },
+    permiso: "carnetizacion.ver",
     title: "Estadísticas",
     url: "/carnetizacion/estadisticas",
     icon: BarChart3,
   },
   {
-    permission: {
-      roleAccept: ["ADMINISTRADOR"],
-      departmentAccept: ["Carnetizacion"],
-    },
+    permiso: "carnetizacion.disenar",
     title: "Plantillas",
     url: "/carnetizacion/plantillas",
     icon: Palette,
@@ -106,44 +92,7 @@ export function AppSidebarCarnetizacion() {
   };
   const { data: session } = useSession();
 
-  const checkPermission = (item: MenuItem | SubMenuItem): boolean => {
-    if (!item.permission) return true;
-
-    // Administrador siempre tiene acceso total
-    if (session?.user?.role?.nombre_rol === "ADMINISTRADOR") return true;
-
-    const hasRolePermission = item.permission.roleAccept.includes(
-      session?.user?.role?.nombre_rol || "",
-    );
-
-    const hasDepartmentPermission = item.permission.departmentAccept.includes(
-      session?.user?.department?.nombre_departamento || "",
-    );
-
-    return hasRolePermission && hasDepartmentPermission;
-  };
-
-  const filteredItems = items
-    .filter((item) => {
-      if (!checkPermission(item)) return false;
-      if (!item.subMenu) return true;
-      const filteredSubMenu = item.subMenu.filter((subItem) => {
-        return checkPermission(subItem);
-      });
-      return filteredSubMenu.length > 0;
-    })
-    .map((item) => {
-      if (item.subMenu) {
-        const filteredSubMenu = item.subMenu.filter((subItem) =>
-          checkPermission(subItem),
-        );
-        return {
-          ...item,
-          subMenu: filteredSubMenu,
-        };
-      }
-      return item;
-    });
+  const filteredItems = filtrarMenuPorPermisos(items, session?.user?.permisos);
 
   return (
     <Sidebar>

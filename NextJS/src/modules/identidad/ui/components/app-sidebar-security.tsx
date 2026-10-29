@@ -29,17 +29,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-
-type Permission = {
-  roleAccept: string[];
-  departmentAccept: string[];
-};
+import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
 
 type MenuItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  permission?: Permission;
+  /** Código de permiso requerido (sin él, visible para todos). */
+  permiso?: string;
   subMenu?: SubMenuItem[];
 };
 
@@ -47,7 +44,8 @@ type SubMenuItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  permission?: Permission;
+  /** Código de permiso requerido (sin él, visible para todos). */
+  permiso?: string;
 };
 
 const items: MenuItem[] = [
@@ -57,10 +55,7 @@ const items: MenuItem[] = [
     icon: Home,
   },
   {
-    permission: {
-      roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-      departmentAccept: ["Seguridad"],
-    },
+    
     title: "Gestionar Usuarios",
     url: "#",
     icon: User,
@@ -69,27 +64,18 @@ const items: MenuItem[] = [
         title: "Registrar",
         url: "/usuarios/registrar",
         icon: PersonStanding,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["Seguridad"],
-        },
+        permiso: "identidad.crear_usuarios",
       },
       {
         title: "Modificar",
         url: "/usuarios/modificar",
         icon: ListCheck,
-        permission: {
-          roleAccept: ["ANALISTA", "ADMINISTRADOR"],
-          departmentAccept: ["Seguridad"],
-        },
+        permiso: "identidad.editar_usuarios",
       },
     ],
   },
   {
-    permission: {
-      roleAccept: ["ADMINISTRADOR"],
-      departmentAccept: ["Seguridad"],
-    },
+    
     title: "Gestionar Roles",
     url: "#",
     icon: IdCard,
@@ -98,19 +84,13 @@ const items: MenuItem[] = [
         title: "Registrar",
         url: "/usuarios/roles/registrar",
         icon: BadgePlus,
-        permission: {
-          roleAccept: ["ADMINISTRADOR"],
-          departmentAccept: ["Seguridad"],
-        },
+        permiso: "identidad.crear_roles",
       },
       {
         title: "Consultar",
         url: "/usuarios/roles",
         icon: List,
-        permission: {
-          roleAccept: ["ADMINISTRADOR"],
-          departmentAccept: ["Seguridad"],
-        },
+        permiso: "identidad.editar_roles",
       },
     ],
   },
@@ -128,41 +108,7 @@ export function AppSidebarSecurity() {
   };
   const { data: session } = useSession();
 
-  const checkPermission = (item: MenuItem | SubMenuItem): boolean => {
-    if (!item.permission) return true;
-
-    const userRole = session?.user?.role?.nombre_rol || "";
-    const userDept = session?.user?.department?.nombre_departamento || "";
-
-    if (userRole === "ADMINISTRADOR") return true;
-
-    const hasRolePermission = item.permission.roleAccept.includes(userRole);
-    const hasDepartmentPermission = item.permission.departmentAccept.includes(userDept);
-
-    return hasRolePermission && hasDepartmentPermission;
-  };
-
-  const filteredItems = items
-    .filter((item) => {
-      if (!checkPermission(item)) return false;
-      if (!item.subMenu) return true;
-      const filteredSubMenu = item.subMenu.filter((subItem) => {
-        return checkPermission(subItem);
-      });
-      return filteredSubMenu.length > 0;
-    })
-    .map((item) => {
-      if (item.subMenu) {
-        const filteredSubMenu = item.subMenu.filter((subItem) =>
-          checkPermission(subItem),
-        );
-        return {
-          ...item,
-          subMenu: filteredSubMenu,
-        };
-      }
-      return item;
-    });
+  const filteredItems = filtrarMenuPorPermisos(items, session?.user?.permisos);
 
   return (
     <Sidebar>

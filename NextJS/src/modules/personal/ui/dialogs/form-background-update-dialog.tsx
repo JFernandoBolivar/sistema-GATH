@@ -6,19 +6,8 @@ import { ArrowBigDownDash, ArrowBigUpDash, Loader2, Plus, Trash2, X } from "luci
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
@@ -41,6 +30,17 @@ interface FormBackgroundUpdateDialogProps {
   triggerLabel?: string;
 }
 
+interface AntecedenteFormItem {
+  id?: number;
+  organismoId?: number;
+  fechaIngreso: string;
+  fechaEgreso: string;
+}
+
+interface FormBackgroundValues {
+  antecedentes: AntecedenteFormItem[];
+}
+
 export default function FormBackgroundUpdateDialog({
   empleado,
   catalogos,
@@ -52,36 +52,39 @@ export default function FormBackgroundUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { control, register, handleSubmit, setValue, watch, reset } = useForm({
-    defaultValues: {
-      antecedentes: (empleado.antecedentes ?? []).length > 0
-        ? (empleado.antecedentes ?? []).map((a) => ({
-            id: a.id,
-            organismoId: a.organismoId ?? undefined,
-            fechaIngreso: a.fechaIngreso ?? "",
-            fechaEgreso: a.fechaEgreso ?? "",
-          }))
-        : [{ organismoId: undefined, fechaIngreso: "", fechaEgreso: "" }],
+  const { control, register, handleSubmit, setValue, watch, reset } = useForm<FormBackgroundValues>(
+    {
+      defaultValues: {
+        antecedentes:
+          (empleado.antecedentes ?? []).length > 0
+            ? (empleado.antecedentes ?? []).map((a) => ({
+                id: a.id,
+                organismoId: a.organismoId ?? undefined,
+                fechaIngreso: a.fechaIngreso ?? "",
+                fechaEgreso: a.fechaEgreso ?? "",
+              }))
+            : [{ organismoId: undefined, fechaIngreso: "", fechaEgreso: "" }],
+      },
     },
-  });
+  );
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "antecedentes",
   });
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: FormBackgroundValues) => {
     startTransition(async () => {
       setError(null);
 
       const rawItems = data.antecedentes || [];
       const hasPartial = rawItems.some(
-        (a: any) =>
-          (a.organismoId || a.fechaIngreso || a.fechaEgreso) &&
-          (!a.organismoId || !a.fechaIngreso)
+        (a) =>
+          (a.organismoId || a.fechaIngreso || a.fechaEgreso) && (!a.organismoId || !a.fechaIngreso),
       );
       if (hasPartial) {
-        const msg = "Por favor complete el Organismo y la Fecha de Inicio en los antecedentes agregados.";
+        const msg =
+          "Por favor complete el Organismo y la Fecha de Inicio en los antecedentes agregados.";
         setError(msg);
         toast.error(msg);
         return;
@@ -90,8 +93,8 @@ export default function FormBackgroundUpdateDialog({
       try {
         const payload = {
           antecedentes: rawItems
-            .filter((a: any) => a.organismoId && a.fechaIngreso)
-            .map((a: any) => ({
+            .filter((a) => a.organismoId && a.fechaIngreso)
+            .map((a) => ({
               id: a.id,
               organismoId: Number(a.organismoId),
               fechaIngreso: a.fechaIngreso,
@@ -136,12 +139,18 @@ export default function FormBackgroundUpdateDialog({
           <CardContent className="pt-0">
             <CardAction className="text-gray-600 mb-3">Datos Laborales</CardAction>
 
-            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-destructive mb-3">
+                {error}
+              </p>
+            )}
 
             <form className="flex flex-col gap-2" onSubmit={handleSubmit(onSubmit)}>
               <div className="flex justify-end gap-2 mr-4 items-center">
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="clean" className="text-xs mb-1">Limpiar</Label>
+                  <Label htmlFor="clean" className="text-xs mb-1">
+                    Limpiar
+                  </Label>
                   <Button
                     id="clean"
                     variant="destructive"
@@ -149,11 +158,7 @@ export default function FormBackgroundUpdateDialog({
                     size="icon"
                     className="cursor-pointer size-8"
                     onClick={() => {
-                      remove(
-                        fields
-                          .filter((_, idx) => idx !== 0)
-                          .map((_, idx) => idx + 1)
-                      );
+                      remove(fields.filter((_, idx) => idx !== 0).map((_, idx) => idx + 1));
                       reset({
                         antecedentes: [
                           {
@@ -170,7 +175,9 @@ export default function FormBackgroundUpdateDialog({
                 </div>
 
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="add" className="text-xs mb-1">Agregar</Label>
+                  <Label htmlFor="add" className="text-xs mb-1">
+                    Agregar
+                  </Label>
                   <Button
                     id="add"
                     variant="default"
@@ -191,9 +198,7 @@ export default function FormBackgroundUpdateDialog({
               </div>
 
               <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
-                <h1 className="text-gray-600 text-sm mb-3">
-                  Opcional si no posee antecedentes
-                </h1>
+                <h1 className="text-gray-600 text-sm mb-3">Opcional si no posee antecedentes</h1>
                 <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (
                     <div
@@ -227,8 +232,14 @@ export default function FormBackgroundUpdateDialog({
                       <div className="flex-1 min-w-[200px]">
                         <Label>Organismo</Label>
                         <Select
-                          value={watch(`antecedentes.${index}.organismoId`) ? String(watch(`antecedentes.${index}.organismoId`)) : undefined}
-                          onValueChange={(v) => setValue(`antecedentes.${index}.organismoId`, Number(v))}
+                          value={
+                            watch(`antecedentes.${index}.organismoId`)
+                              ? String(watch(`antecedentes.${index}.organismoId`))
+                              : undefined
+                          }
+                          onValueChange={(v) =>
+                            setValue(`antecedentes.${index}.organismoId`, Number(v))
+                          }
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Seleccione un Organismo" />
@@ -259,10 +270,7 @@ export default function FormBackgroundUpdateDialog({
                 </div>
               </div>
 
-              <Button
-                className="mt-4 w-full cursor-pointer"
-                disabled={isPending}
-              >
+              <Button className="mt-4 w-full cursor-pointer" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
                 {isPending ? "Actualizando Información" : "Actualizar"}
               </Button>

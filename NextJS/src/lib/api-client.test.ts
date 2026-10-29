@@ -2,14 +2,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { AuthSessionExpiredError } from "./auth-errors";
 
 // Mock de cookies de Next.js
-const cookieStoreMap = new Map<string, { value: string; options?: any }>();
+const cookieStoreMap = new Map<string, { value: string; options?: Record<string, unknown> }>();
 
 const mockCookieStore = {
   get: vi.fn((name: string) => {
     const entry = cookieStoreMap.get(name);
     return entry ? { name, value: entry.value } : undefined;
   }),
-  set: vi.fn((name: string, value: string, options?: any) => {
+  set: vi.fn((name: string, value: string, options?: Record<string, unknown>) => {
     cookieStoreMap.set(name, { value, options });
   }),
   getAll: vi.fn(() => {
@@ -32,18 +32,14 @@ vi.mock("#/auth", () => ({
 
 // react cache mock para entorno de pruebas
 vi.mock("react", async (importOriginal) => {
-  const actual: any = await importOriginal();
+  const actual = await importOriginal<typeof import("react")>();
   return {
     ...actual,
-    cache: (fn: any) => fn,
+    cache: <T>(fn: T) => fn,
   };
 });
 
-import {
-  ensureValidAccessToken,
-  refreshTokens,
-  apiFetch,
-} from "./api-client";
+import { ensureValidAccessToken, refreshTokens, apiFetch } from "./api-client";
 
 describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
   beforeEach(() => {
@@ -88,7 +84,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ refresh: "valid-refresh-token" }),
-      })
+      }),
     );
 
     // Debe haber fijado dj_access y dj_refresh con atributos HttpOnly
@@ -100,7 +96,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
         sameSite: "lax",
         maxAge: 15 * 60,
         path: "/",
-      })
+      }),
     );
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       "dj_refresh",
@@ -110,7 +106,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
         sameSite: "lax",
         maxAge: 8 * 60 * 60,
         path: "/",
-      })
+      }),
     );
   });
 
@@ -138,12 +134,12 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       "dj_access",
       "",
-      expect.objectContaining({ maxAge: 0 })
+      expect.objectContaining({ maxAge: 0 }),
     );
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       "dj_refresh",
       "",
-      expect.objectContaining({ maxAge: 0 })
+      expect.objectContaining({ maxAge: 0 }),
     );
   });
 
@@ -156,7 +152,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    const data = await apiFetch<any>("api/v1/personal/empleados/");
+    const data = await apiFetch<unknown>("api/v1/personal/empleados/");
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining("api/v1/personal/empleados/"),
@@ -164,7 +160,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
         headers: expect.objectContaining({
           Authorization: "Bearer access-token-abc",
         }),
-      })
+      }),
     );
     expect(data).toEqual({ status: "success", data: [{ id: 1, nombre: "Test" }] });
   });
@@ -174,7 +170,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
     cookieStoreMap.set("dj_refresh", { value: "valid-refresh-token" });
 
     let fetchCount = 0;
-    const mockFetch = vi.fn().mockImplementation(async (url: string, options: any) => {
+    const mockFetch = vi.fn().mockImplementation(async (url: string, options: RequestInit) => {
       fetchCount++;
       if (url.includes("api/v1/identidad/auth/refresh/")) {
         return {
@@ -203,7 +199,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
 
     vi.stubGlobal("fetch", mockFetch);
 
-    const result = await apiFetch<any>("api/v1/reportes/nomina/");
+    const result = await apiFetch<unknown>("api/v1/reportes/nomina/");
 
     expect(result).toEqual({ status: "success", message: "Acceso concedido tras refresco" });
     // Verificamos que el reintento se hizo con el nuevo token refrescado
@@ -213,7 +209,7 @@ describe("api-client (Gestión de tokens por sesión y refresh token)", () => {
         headers: expect.objectContaining({
           Authorization: "Bearer refreshed-token-xyz",
         }),
-      })
+      }),
     );
   });
 

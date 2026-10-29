@@ -27,6 +27,7 @@ export default function InicioPage() {
 
   useEffect(() => {
     if (session?.user?.debeCambiarPassword) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- abre el diálogo cuando la sesión (asíncrona) lo exige
       setShowChangePassword(true);
     }
   }, [session?.user?.debeCambiarPassword]);

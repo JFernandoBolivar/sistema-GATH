@@ -5,15 +5,10 @@ import { test, expect, type Page } from "@playwright/test";
  * pasos con paridad de textos respecto al legado. NO envía el último paso,
  * para no crear registros en la BD real.
  */
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
+import { iniciarSesionE2E } from "./credenciales";
 
 async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel(/correo electrónico/i).fill(EMAIL);
-  await page.getByLabel(/contraseña/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+  await iniciarSesionE2E(page);
 }
 
 /** Combobox dentro del FormItem cuyo label contiene `label` (el Combobox no recibe el id del label). */

@@ -246,18 +246,15 @@ export const repoCatalogosApi: RepoCatalogos = {
 
   async listarOrganismosAdscritos() {
     const raw = await catalogosApi.getOrganismosAdscritos();
-    const list = Array.isArray(raw) ? raw : (raw as any)?.data ?? [];
-    return list.map(catalogoApiAEntidad);
+    return raw.map(catalogoApiAEntidad);
   },
   async crearOrganismoAdscrito(datos) {
     const raw = await catalogosApi.crearOrganismoAdscrito(datos);
-    const item = (raw as any)?.data ?? raw;
-    return catalogoApiAEntidad(item);
+    return catalogoApiAEntidad(raw);
   },
   async actualizarOrganismoAdscrito(id, datos) {
     const raw = await catalogosApi.actualizarOrganismoAdscrito(id, datos);
-    const item = (raw as any)?.data ?? raw;
-    return catalogoApiAEntidad(item);
+    return catalogoApiAEntidad(raw);
   },
   async eliminarOrganismoAdscrito(id) {
     await catalogosApi.eliminarOrganismoAdscrito(id);

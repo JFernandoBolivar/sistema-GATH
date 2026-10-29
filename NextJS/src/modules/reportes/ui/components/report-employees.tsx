@@ -53,15 +53,12 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { CalendarIcon, Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { useState, useTransition } from "react";
 import {
   schemaReportEmployee,
@@ -99,10 +96,7 @@ export default function ReportEmployee() {
     directionLineId ? ["coordination", directionLineId] : null,
     async () => await getCoordination(directionLineId!),
   );
-  const { data: sex, isLoading: isLoadingSex } = useSWR(
-    "sex",
-    async () => await getSex(),
-  );
+  const { data: sex, isLoading: isLoadingSex } = useSWR("sex", async () => await getSex());
   const { data: patology, isLoading: isLoadingPatology } = useSWR(
     "patology",
     async () => await getPatologys(),
@@ -119,18 +113,12 @@ export default function ReportEmployee() {
     "cargoEspecifico",
     async () => await getCargoEspecifico(),
   );
-  const { data: cargo, isLoading: isLoadingCargo } = useSWR(
-    "cargo",
-    async () => await getCargo(),
-  );
+  const { data: cargo, isLoading: isLoadingCargo } = useSWR("cargo", async () => await getCargo());
   const { data: nomina, isLoading: isLoadingNomina } = useSWR(
     "nominaGeneral",
     async () => await getNominaGeneral(),
   );
-  const { data: grado, isLoading: isLoadingGrado } = useSWR(
-    "grado",
-    async () => await getGrado(),
-  );
+  const { data: grado, isLoading: isLoadingGrado } = useSWR("grado", async () => await getGrado());
 
   const { data: academyLevel, isLoading: isLoadingAcademyLevel } = useSWR(
     "academyLevel",
@@ -177,10 +165,10 @@ export default function ReportEmployee() {
     "organismoAdsFather",
     async () => await getOrganismosAdsFather(),
   );
-  const {
-    data: conditionDwelling,
-    isLoading: isLoadingStatesConditionDwelling,
-  } = useSWR("conditionDwelling", async () => await getConditionDwelling());
+  const { data: conditionDwelling, isLoading: isLoadingStatesConditionDwelling } = useSWR(
+    "conditionDwelling",
+    async () => await getConditionDwelling(),
+  );
 
   const form = useForm<SchemaReportEmployeeType>({
     resolver: zodResolver(schemaReportEmployee),
@@ -228,9 +216,7 @@ export default function ReportEmployee() {
   });
 
   if (!session) {
-    return (
-      <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />
-    );
+    return <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />;
   }
 
   const handleClean = () => {
@@ -254,9 +240,8 @@ export default function ReportEmployee() {
     });
   };
 
-  const esAdmin =
-    session?.user?.role?.nombre_rol === "ADMINISTRADOR" ||
-    session?.user?.role?.id === 1;
+  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
+  const esAdmin = tienePermiso(session?.user?.permisos, "*");
 
   return (
     <Card className="bg-white">
@@ -318,9 +303,7 @@ export default function ReportEmployee() {
                           name="filtros.direccion_general_id"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>
-                                Dirección / Gerencia / Oficina / Coordinación
-                              </FormLabel>
+                              <FormLabel>Dirección / Gerencia / Oficina / Coordinación</FormLabel>
                               <FormControl>
                                 <Combobox
                                   options={(directionGeneral?.data ?? []).map((general) => ({
@@ -424,9 +407,7 @@ export default function ReportEmployee() {
                           name="filtros.cargo_especifico_id"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>
-                                Denominación De Cargo Específico
-                              </FormLabel>
+                              <FormLabel>Denominación De Cargo Específico</FormLabel>
                               <FormControl>
                                 <Combobox
                                   options={(cargoEspecifico?.data ?? []).map((c) => ({
@@ -528,9 +509,7 @@ export default function ReportEmployee() {
                                   <SelectTrigger className="w-full truncate">
                                     <SelectValue
                                       placeholder={`${
-                                        isLoadingGrado
-                                          ? "Cargando Grados"
-                                          : "Seleccione un Grado"
+                                        isLoadingGrado ? "Cargando Grados" : "Seleccione un Grado"
                                       }`}
                                     />
                                   </SelectTrigger>
@@ -636,7 +615,8 @@ export default function ReportEmployee() {
                                 <SelectContent>
                                   {patology?.data.map((v, i) => (
                                     <SelectItem value={`${v.id}`} key={i}>
-                                      {v.categoria?.nombre_categoria || "General"} - {v.patologia || v.nombre}
+                                      {v.categoria?.nombre_categoria || "General"} -{" "}
+                                      {v.patologia || v.nombre}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -670,7 +650,8 @@ export default function ReportEmployee() {
                                 <SelectContent>
                                   {disability?.data.map((v, i) => (
                                     <SelectItem value={`${v.id}`} key={i}>
-                                      {v.categoria?.nombre_categoria || "General"} - {v.discapacidad || v.nombre}
+                                      {v.categoria?.nombre_categoria || "General"} -{" "}
+                                      {v.discapacidad || v.nombre}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -797,18 +778,12 @@ export default function ReportEmployee() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Capacitación</FormLabel>
-                              <Select
-                                onValueChange={(v) =>
-                                  field.onChange(Number.parseInt(v))
-                                }
-                              >
+                              <Select onValueChange={(v) => field.onChange(Number.parseInt(v))}>
                                 <FormControl>
                                   <SelectTrigger className="w-full truncate">
                                     <SelectValue
                                       placeholder={
-                                        isLoadingCapacitaciones
-                                          ? "Cargando..."
-                                          : "Seleccione"
+                                        isLoadingCapacitaciones ? "Cargando..." : "Seleccione"
                                       }
                                     />
                                   </SelectTrigger>
@@ -831,18 +806,12 @@ export default function ReportEmployee() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Procedencia</FormLabel>
-                              <Select
-                                onValueChange={(v) =>
-                                  field.onChange(Number.parseInt(v))
-                                }
-                              >
+                              <Select onValueChange={(v) => field.onChange(Number.parseInt(v))}>
                                 <FormControl>
                                   <SelectTrigger className="w-full truncate">
                                     <SelectValue
                                       placeholder={
-                                        isLoadingTiposProcedencia
-                                          ? "Cargando..."
-                                          : "Seleccione"
+                                        isLoadingTiposProcedencia ? "Cargando..." : "Seleccione"
                                       }
                                     />
                                   </SelectTrigger>
@@ -865,19 +834,11 @@ export default function ReportEmployee() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Grupo</FormLabel>
-                              <Select
-                                onValueChange={(v) =>
-                                  field.onChange(Number.parseInt(v))
-                                }
-                              >
+                              <Select onValueChange={(v) => field.onChange(Number.parseInt(v))}>
                                 <FormControl>
                                   <SelectTrigger className="w-full truncate">
                                     <SelectValue
-                                      placeholder={
-                                        isLoadingGrupos
-                                          ? "Cargando..."
-                                          : "Seleccione"
-                                      }
+                                      placeholder={isLoadingGrupos ? "Cargando..." : "Seleccione"}
                                     />
                                   </SelectTrigger>
                                 </FormControl>
@@ -914,9 +875,7 @@ export default function ReportEmployee() {
                                   <SelectTrigger className="w-full truncate">
                                     <SelectValue
                                       placeholder={`${
-                                        isLoadingSex
-                                          ? "Cargando Géneros"
-                                          : "Seleccione un Género"
+                                        isLoadingSex ? "Cargando Géneros" : "Seleccione un Género"
                                       }`}
                                     />
                                   </SelectTrigger>
@@ -1026,11 +985,7 @@ export default function ReportEmployee() {
                                       className="font-light w-full justify-between"
                                     >
                                       {field.value ? (
-                                        formatInTimeZone(
-                                          field.value,
-                                          "UTC",
-                                          "dd/MM/yyyy",
-                                        )
+                                        formatInTimeZone(field.value, "UTC", "dd/MM/yyyy")
                                       ) : (
                                         <span>Selecciona una fecha</span>
                                       )}
@@ -1038,21 +993,13 @@ export default function ReportEmployee() {
                                     </Button>
                                   </FormControl>
                                 </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
+                                <PopoverContent className="w-auto p-0" align="start">
                                   <Calendar
-                                    selected={
-                                      field.value
-                                        ? new Date(field.value)
-                                        : undefined
-                                    }
+                                    selected={field.value ? new Date(field.value) : undefined}
                                     mode="single"
                                     onSelect={(date) => field.onChange(date)}
                                     disabled={(date: Date) =>
-                                      date > new Date() ||
-                                      date < new Date("1900-01-01")
+                                      date > new Date() || date < new Date("1900-01-01")
                                     }
                                     captionLayout="dropdown"
                                   />
@@ -1076,11 +1023,7 @@ export default function ReportEmployee() {
                                       className="font-light w-full justify-between"
                                     >
                                       {field.value ? (
-                                        formatInTimeZone(
-                                          field.value,
-                                          "UTC",
-                                          "dd/MM/yyyy",
-                                        )
+                                        formatInTimeZone(field.value, "UTC", "dd/MM/yyyy")
                                       ) : (
                                         <span>Selecciona una fecha</span>
                                       )}
@@ -1088,21 +1031,13 @@ export default function ReportEmployee() {
                                     </Button>
                                   </FormControl>
                                 </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
+                                <PopoverContent className="w-auto p-0" align="start">
                                   <Calendar
-                                    selected={
-                                      field.value
-                                        ? new Date(field.value)
-                                        : undefined
-                                    }
+                                    selected={field.value ? new Date(field.value) : undefined}
                                     mode="single"
                                     onSelect={(date) => field.onChange(date)}
                                     disabled={(date: Date) =>
-                                      date > new Date() ||
-                                      date < new Date("1900-01-01")
+                                      date > new Date() || date < new Date("1900-01-01")
                                     }
                                     captionLayout="dropdown"
                                   />
@@ -1126,11 +1061,7 @@ export default function ReportEmployee() {
                                       className="font-light w-full justify-between"
                                     >
                                       {field.value ? (
-                                        formatInTimeZone(
-                                          field.value,
-                                          "UTC",
-                                          "dd/MM/yyyy",
-                                        )
+                                        formatInTimeZone(field.value, "UTC", "dd/MM/yyyy")
                                       ) : (
                                         <span>Selecciona una fecha</span>
                                       )}
@@ -1138,21 +1069,13 @@ export default function ReportEmployee() {
                                     </Button>
                                   </FormControl>
                                 </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
+                                <PopoverContent className="w-auto p-0" align="start">
                                   <Calendar
-                                    selected={
-                                      field.value
-                                        ? new Date(field.value)
-                                        : undefined
-                                    }
+                                    selected={field.value ? new Date(field.value) : undefined}
                                     mode="single"
                                     onSelect={(date) => field.onChange(date)}
                                     disabled={(date: Date) =>
-                                      date > new Date() ||
-                                      date < new Date("1900-01-01")
+                                      date > new Date() || date < new Date("1900-01-01")
                                     }
                                     captionLayout="dropdown"
                                   />
@@ -1176,11 +1099,7 @@ export default function ReportEmployee() {
                                       className="font-light w-full justify-between"
                                     >
                                       {field.value ? (
-                                        formatInTimeZone(
-                                          field.value,
-                                          "UTC",
-                                          "dd/MM/yyyy",
-                                        )
+                                        formatInTimeZone(field.value, "UTC", "dd/MM/yyyy")
                                       ) : (
                                         <span>Selecciona una fecha</span>
                                       )}
@@ -1188,21 +1107,13 @@ export default function ReportEmployee() {
                                     </Button>
                                   </FormControl>
                                 </PopoverTrigger>
-                                <PopoverContent
-                                  className="w-auto p-0"
-                                  align="start"
-                                >
+                                <PopoverContent className="w-auto p-0" align="start">
                                   <Calendar
-                                    selected={
-                                      field.value
-                                        ? new Date(field.value)
-                                        : undefined
-                                    }
+                                    selected={field.value ? new Date(field.value) : undefined}
                                     mode="single"
                                     onSelect={(date) => field.onChange(date)}
                                     disabled={(date: Date) =>
-                                      date > new Date() ||
-                                      date < new Date("1900-01-01")
+                                      date > new Date() || date < new Date("1900-01-01")
                                     }
                                     captionLayout="dropdown"
                                   />

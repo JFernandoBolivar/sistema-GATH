@@ -6,19 +6,8 @@ import { Loader2, Plus, Trash, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Label } from "@/shared/ui/components/label";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
@@ -29,7 +18,11 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 
-import type { CatalogoEmpleadoDTO, CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
+import type {
+  CatalogoEmpleadoDTO,
+  CatalogosExpedienteDTO,
+  EmpleadoDTO,
+} from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
 import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 import { ID_OTRA, esNivelNoPosee } from "../catalogo-otra";
@@ -52,7 +45,10 @@ function SelectDependiente({
   respaldo: CatalogoEmpleadoDTO[];
   permitirOtra: boolean;
 }) {
-  const { opciones, isLoading } = useCatalogoDependiente(tipo, padreId, { valorActual: value, respaldo });
+  const { opciones, isLoading } = useCatalogoDependiente(tipo, padreId, {
+    valorActual: value,
+    respaldo,
+  });
   return (
     <Select value={value ? String(value) : ""} onValueChange={(v) => onChange(Number(v))}>
       <SelectTrigger className="w-full">
@@ -68,6 +64,21 @@ function SelectDependiente({
       </SelectContent>
     </Select>
   );
+}
+
+interface FormacionAcademicaFormItem {
+  id?: number;
+  nivelAcademicoId?: number;
+  carreraId?: number;
+  mencionId?: number;
+  institucionId?: number;
+  nuevaCarreraNombre: string;
+  nuevaMencionNombre: string;
+  nuevaInstitucionNombre: string;
+}
+
+interface FormAcademicTrainingValues {
+  formacionAcademica: FormacionAcademicaFormItem[];
 }
 
 interface FormAcademicTrainingUpdateDialogProps {
@@ -89,20 +100,31 @@ export default function FormAcademicTrainingUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { control, register, handleSubmit, setValue, watch } = useForm({
+  const { control, register, handleSubmit, setValue, watch } = useForm<FormAcademicTrainingValues>({
     defaultValues: {
-      formacionAcademica: (empleado.formacionAcademica ?? []).length > 0
-        ? (empleado.formacionAcademica ?? []).map((fa) => ({
-            id: fa.id,
-            nivelAcademicoId: fa.nivelAcademicoId ?? undefined,
-            carreraId: fa.carreraId ?? undefined,
-            mencionId: fa.mencionId ?? undefined,
-            institucionId: fa.institucionId ?? undefined,
-            nuevaCarreraNombre: "",
-            nuevaMencionNombre: "",
-            nuevaInstitucionNombre: "",
-          }))
-        : [{ nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined, nuevaCarreraNombre: "", nuevaMencionNombre: "", nuevaInstitucionNombre: "" }],
+      formacionAcademica:
+        (empleado.formacionAcademica ?? []).length > 0
+          ? (empleado.formacionAcademica ?? []).map((fa) => ({
+              id: fa.id,
+              nivelAcademicoId: fa.nivelAcademicoId ?? undefined,
+              carreraId: fa.carreraId ?? undefined,
+              mencionId: fa.mencionId ?? undefined,
+              institucionId: fa.institucionId ?? undefined,
+              nuevaCarreraNombre: "",
+              nuevaMencionNombre: "",
+              nuevaInstitucionNombre: "",
+            }))
+          : [
+              {
+                nivelAcademicoId: undefined,
+                carreraId: undefined,
+                mencionId: undefined,
+                institucionId: undefined,
+                nuevaCarreraNombre: "",
+                nuevaMencionNombre: "",
+                nuevaInstitucionNombre: "",
+              },
+            ],
     },
   });
 
@@ -111,18 +133,19 @@ export default function FormAcademicTrainingUpdateDialog({
     name: "formacionAcademica",
   });
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: FormAcademicTrainingValues) => {
     startTransition(async () => {
       setError(null);
 
       const rawItems = data.formacionAcademica || [];
       const hasPartial = rawItems.some(
-        (fa: any) =>
+        (fa) =>
           (fa.nivelAcademicoId || fa.carreraId || fa.institucionId || fa.mencionId) &&
-          (!fa.nivelAcademicoId || !fa.institucionId)
+          (!fa.nivelAcademicoId || !fa.institucionId),
       );
       if (hasPartial) {
-        const msg = "Por favor complete el Nivel Académico y la Institución en las formaciones académicas agregadas.";
+        const msg =
+          "Por favor complete el Nivel Académico y la Institución en las formaciones académicas agregadas.";
         setError(msg);
         toast.error(msg);
         return;
@@ -130,17 +153,25 @@ export default function FormAcademicTrainingUpdateDialog({
 
       // Opción "Otra": crear/reutilizar carrera, mención o institución nueva antes de guardar.
       const pendientes: PendienteOtra[] = [];
-      rawItems.forEach((fa: any) => {
+      rawItems.forEach((fa) => {
         if (Number(fa.carreraId) === ID_OTRA) {
           pendientes.push({
-            solicitud: { tipo: "carreras", nombre: fa.nuevaCarreraNombre ?? "", padreId: Number(fa.nivelAcademicoId) },
+            solicitud: {
+              tipo: "carreras",
+              nombre: fa.nuevaCarreraNombre ?? "",
+              padreId: Number(fa.nivelAcademicoId),
+            },
             faltaNombre: "Debe escribir el nombre de la nueva carrera",
             asignar: (id) => (fa.carreraId = id),
           });
         }
         if (Number(fa.mencionId) === ID_OTRA) {
           pendientes.push({
-            solicitud: { tipo: "menciones", nombre: fa.nuevaMencionNombre ?? "", padreId: Number(fa.carreraId) },
+            solicitud: {
+              tipo: "menciones",
+              nombre: fa.nuevaMencionNombre ?? "",
+              padreId: Number(fa.carreraId),
+            },
             faltaNombre: "Debe escribir el nombre de la nueva mención",
             asignar: (id) => (fa.mencionId = id),
           });
@@ -163,8 +194,8 @@ export default function FormAcademicTrainingUpdateDialog({
       try {
         const payload = {
           formacionAcademica: rawItems
-            .filter((fa: any) => fa.nivelAcademicoId && fa.institucionId)
-            .map((fa: any) => ({
+            .filter((fa) => fa.nivelAcademicoId && fa.institucionId)
+            .map((fa) => ({
               id: fa.id,
               nivelAcademicoId: Number(fa.nivelAcademicoId),
               carreraId: fa.carreraId ? Number(fa.carreraId) : null,
@@ -210,12 +241,18 @@ export default function FormAcademicTrainingUpdateDialog({
           <CardContent>
             <CardAction className="text-gray-500 mb-3">Información Academica</CardAction>
 
-            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-destructive mb-3">
+                {error}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-2">
               <div className="flex justify-end gap-2 mr-4 items-center">
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="clean" className="text-xs mb-1">Limpiar</Label>
+                  <Label htmlFor="clean" className="text-xs mb-1">
+                    Limpiar
+                  </Label>
                   <Button
                     id="clean"
                     variant="destructive"
@@ -225,7 +262,15 @@ export default function FormAcademicTrainingUpdateDialog({
                     onClick={() => {
                       remove(fields.filter((_, i) => i !== 0).map((_, i) => i + 1));
                       setValue("formacionAcademica", [
-                        { nivelAcademicoId: undefined, carreraId: undefined, mencionId: undefined, institucionId: undefined, nuevaCarreraNombre: "", nuevaMencionNombre: "", nuevaInstitucionNombre: "" },
+                        {
+                          nivelAcademicoId: undefined,
+                          carreraId: undefined,
+                          mencionId: undefined,
+                          institucionId: undefined,
+                          nuevaCarreraNombre: "",
+                          nuevaMencionNombre: "",
+                          nuevaInstitucionNombre: "",
+                        },
                       ]);
                     }}
                   >
@@ -233,7 +278,9 @@ export default function FormAcademicTrainingUpdateDialog({
                   </Button>
                 </div>
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="add" className="text-xs mb-1">Agregar</Label>
+                  <Label htmlFor="add" className="text-xs mb-1">
+                    Agregar
+                  </Label>
                   <Button
                     id="add"
                     variant="default"
@@ -263,11 +310,18 @@ export default function FormAcademicTrainingUpdateDialog({
                 </h1>
                 <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 items-start border-b pb-3 mb-2 w-full">
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 items-start border-b pb-3 mb-2 w-full"
+                    >
                       <div className="min-w-0">
                         <Label className="text-xs">{index + 1}. Nivel Academico</Label>
                         <Select
-                          value={watch(`formacionAcademica.${index}.nivelAcademicoId`) ? String(watch(`formacionAcademica.${index}.nivelAcademicoId`)) : undefined}
+                          value={
+                            watch(`formacionAcademica.${index}.nivelAcademicoId`)
+                              ? String(watch(`formacionAcademica.${index}.nivelAcademicoId`))
+                              : undefined
+                          }
                           onValueChange={(v) => {
                             setValue(`formacionAcademica.${index}.nivelAcademicoId`, Number(v));
                             setValue(`formacionAcademica.${index}.carreraId`, 0);
@@ -302,7 +356,9 @@ export default function FormAcademicTrainingUpdateDialog({
                             Number(watch(`formacionAcademica.${index}.nivelAcademicoId`)) > 0 &&
                             !esNivelNoPosee(
                               catalogos?.nivelesAcademicos.find(
-                                (n) => n.id === Number(watch(`formacionAcademica.${index}.nivelAcademicoId`)),
+                                (n) =>
+                                  n.id ===
+                                  Number(watch(`formacionAcademica.${index}.nivelAcademicoId`)),
                               )?.nombre,
                             )
                           }
@@ -338,8 +394,14 @@ export default function FormAcademicTrainingUpdateDialog({
                       <div className="min-w-0">
                         <Label className="text-xs">Institución (Opcional)</Label>
                         <Select
-                          value={watch(`formacionAcademica.${index}.institucionId`) ? String(watch(`formacionAcademica.${index}.institucionId`)) : undefined}
-                          onValueChange={(v) => setValue(`formacionAcademica.${index}.institucionId`, Number(v))}
+                          value={
+                            watch(`formacionAcademica.${index}.institucionId`)
+                              ? String(watch(`formacionAcademica.${index}.institucionId`))
+                              : undefined
+                          }
+                          onValueChange={(v) =>
+                            setValue(`formacionAcademica.${index}.institucionId`, Number(v))
+                          }
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Seleccione" />
@@ -378,10 +440,7 @@ export default function FormAcademicTrainingUpdateDialog({
                 </div>
               </div>
 
-              <Button
-                className="mt-4 w-full cursor-pointer"
-                disabled={isPending}
-              >
+              <Button className="mt-4 w-full cursor-pointer" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
                 {isPending ? "Actualizando Información" : "Actualizar"}
               </Button>

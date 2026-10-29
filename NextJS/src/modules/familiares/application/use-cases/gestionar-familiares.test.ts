@@ -31,7 +31,7 @@ class RepoFamiliaresMemoria implements RepoFamiliares {
   async obtenerPorId(id: number) {
     return this.familiares.find((f) => f.id === id)!;
   }
-  async crearFamiliar(data: any) {
+  async crearFamiliar(data: Omit<Familiar, "id" | "parentescoNombre" | "sexoNombre">) {
     const f: Familiar = {
       id: 2,
       ...data,
@@ -41,7 +41,7 @@ class RepoFamiliaresMemoria implements RepoFamiliares {
     this.familiares.push(f);
     return f;
   }
-  async actualizarFamiliar(id: number, data: any) {
+  async actualizarFamiliar(id: number, data: Partial<Familiar>) {
     const f = this.familiares.find((x) => x.id === id)!;
     Object.assign(f, data);
     return f;

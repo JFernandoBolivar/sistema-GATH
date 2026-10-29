@@ -20,16 +20,16 @@ export interface CatalogoPasivoDTO {
   nombre: string;
 }
 
-export interface DatosViviendaPasivoDTO extends DatosViviendaPasivo {}
-export interface PerfilSaludPasivoDTO extends PerfilSaludPasivo {}
-export interface PerfilFisicoPasivoDTO extends PerfilFisicoPasivo {}
-export interface FormacionAcademicaPasivoDTO extends FormacionAcademicaPasivo {}
-export interface ContactoEmergenciaPasivoDTO extends ContactoEmergenciaPasivo {}
-export interface AntecedentePasivoDTO extends AntecedentePasivo {}
-export interface ContratoActualPasivoDTO extends ContratoActualPasivo {}
-export interface CargoHistorialPasivoDTO extends CargoHistorialPasivo {}
+export type DatosViviendaPasivoDTO = DatosViviendaPasivo;
+export type PerfilSaludPasivoDTO = PerfilSaludPasivo;
+export type PerfilFisicoPasivoDTO = PerfilFisicoPasivo;
+export type FormacionAcademicaPasivoDTO = FormacionAcademicaPasivo;
+export type ContactoEmergenciaPasivoDTO = ContactoEmergenciaPasivo;
+export type AntecedentePasivoDTO = AntecedentePasivo;
+export type ContratoActualPasivoDTO = ContratoActualPasivo;
+export type CargoHistorialPasivoDTO = CargoHistorialPasivo;
 
-export interface CatalogosExpedientePasivoDTO extends CatalogosExpedientePasivo {}
+export type CatalogosExpedientePasivoDTO = CatalogosExpedientePasivo;
 
 export interface PasivoDTO {
   id: number;

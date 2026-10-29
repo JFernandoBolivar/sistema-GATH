@@ -8,7 +8,12 @@ import { HealthType } from "@/shared/schemas/employees/register/schema-health_pr
 import { PhysicalProfileType } from "@/shared/schemas/employees/register/schema-physical_profile";
 import { DwellingType } from "@/shared/schemas/employees/register/schema-dwelling";
 import { ApiResponse } from "@/app/types/types";
-import { createCarrera, createInstitucion, createMencion, createOrganismoAdscrito } from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
+import {
+  createCarrera,
+  createInstitucion,
+  createMencion,
+  createOrganismoAdscrito,
+} from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac";
 import { AuthSessionExpiredError } from "@/lib/auth-errors";
 import { redirect } from "next/navigation";
 import { subirFotoEmpleadoAction } from "@/modules/personal/infrastructure/actions/personal-actions";
@@ -47,7 +52,7 @@ export async function registerEmployeeSteps(
       antecedentes,
     } = data;
 
-    let formacionAcademicaProcesada = formacion_academica
+    const formacionAcademicaProcesada = formacion_academica
       ? await Promise.all(
           formacion_academica.map(async (item) => {
             let processed = { ...item };
@@ -58,27 +63,59 @@ export async function registerEmployeeSteps(
                 item.nivel_Academico_id,
               );
               if (result.status === "success" && result.data?.id) {
-                processed = { ...processed, carrera_id: result.data.id, nueva_carrera_nombre: undefined };
+                processed = {
+                  ...processed,
+                  carrera_id: result.data.id,
+                  nueva_carrera_nombre: undefined,
+                };
               } else {
-                processed = { ...processed, carrera_id: undefined, nueva_carrera_nombre: undefined };
+                processed = {
+                  ...processed,
+                  carrera_id: undefined,
+                  nueva_carrera_nombre: undefined,
+                };
               }
             }
 
             if (item.institucion_id === -1 && item.nueva_institucion_nombre?.trim()) {
               const result = await createInstitucion(item.nueva_institucion_nombre.trim());
               if (result.status === "success" && result.data?.id) {
-                processed = { ...processed, institucion_id: result.data.id, nueva_institucion_nombre: undefined };
+                processed = {
+                  ...processed,
+                  institucion_id: result.data.id,
+                  nueva_institucion_nombre: undefined,
+                };
               } else {
-                processed = { ...processed, institucion_id: undefined, nueva_institucion_nombre: undefined };
+                processed = {
+                  ...processed,
+                  institucion_id: undefined,
+                  nueva_institucion_nombre: undefined,
+                };
               }
             }
 
-            if (item.mencion_id === -1 && item.nueva_mencion_nombre?.trim() && typeof processed.carrera_id === "number" && processed.carrera_id > 0) {
-              const result = await createMencion(item.nueva_mencion_nombre.trim(), processed.carrera_id);
+            if (
+              item.mencion_id === -1 &&
+              item.nueva_mencion_nombre?.trim() &&
+              typeof processed.carrera_id === "number" &&
+              processed.carrera_id > 0
+            ) {
+              const result = await createMencion(
+                item.nueva_mencion_nombre.trim(),
+                processed.carrera_id,
+              );
               if (result.status === "success" && result.data?.[0]?.id) {
-                processed = { ...processed, mencion_id: result.data[0].id, nueva_mencion_nombre: undefined };
+                processed = {
+                  ...processed,
+                  mencion_id: result.data[0].id,
+                  nueva_mencion_nombre: undefined,
+                };
               } else {
-                processed = { ...processed, mencion_id: undefined, nueva_mencion_nombre: undefined };
+                processed = {
+                  ...processed,
+                  mencion_id: undefined,
+                  nueva_mencion_nombre: undefined,
+                };
               }
             }
 
@@ -94,9 +131,17 @@ export async function registerEmployeeSteps(
             if (item.organismo_id === -1 && item.nuevo_organismo_nombre?.trim()) {
               const result = await createOrganismoAdscrito(item.nuevo_organismo_nombre.trim());
               if (result.status === "success" && result.data?.id) {
-                processed = { ...processed, organismo_id: result.data.id, nuevo_organismo_nombre: undefined };
+                processed = {
+                  ...processed,
+                  organismo_id: result.data.id,
+                  nuevo_organismo_nombre: undefined,
+                };
               } else {
-                processed = { ...processed, organismo_id: undefined, nuevo_organismo_nombre: undefined };
+                processed = {
+                  ...processed,
+                  organismo_id: undefined,
+                  nuevo_organismo_nombre: undefined,
+                };
               }
             }
             return processed;
@@ -121,15 +166,12 @@ export async function registerEmployeeSteps(
       antecedentes: antecedentesProcesados,
     };
 
-    const getEmployee = await apiFetch<ApiResponse<never>>(
-      `employees_register/`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          ...payloadEmployee,
-        }),
-      },
-    );
+    const getEmployee = await apiFetch<ApiResponse<never>>(`employees_register/`, {
+      method: "POST",
+      body: JSON.stringify({
+        ...payloadEmployee,
+      }),
+    });
     if (data.file && data.cedulaidentidad) {
       const formData = new FormData();
       formData.append("file", data.file);

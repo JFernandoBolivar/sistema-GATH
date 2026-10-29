@@ -5,16 +5,11 @@ import { test, expect, type Page } from "@playwright/test";
  * (Estado -> Municipio -> Parroquia / Código Postal y Nivel -> Carrera -> Mención).
  * Solo abre y navega los selects: NO guarda, para no modificar la BD real.
  */
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
+import { iniciarSesionE2E } from "./credenciales";
 const CEDULA = "30540767";
 
 async function abrirDetalle(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel(/correo electrónico/i).fill(EMAIL);
-  await page.getByLabel(/contraseña/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+  await iniciarSesionE2E(page);
 
   await page.goto("/personal/consultar");
   await page.getByPlaceholder("buscar cedula...").fill(CEDULA);

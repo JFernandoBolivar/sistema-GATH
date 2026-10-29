@@ -14,6 +14,7 @@ import { signInSchema } from "@/lib/zod";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
+import { authCookieSecure } from "@/shared/commons/auth-cookies";
 
 const BACKEND = DJANGO_API_SERVER;
 
@@ -62,6 +63,7 @@ interface MeData {
   is_active: boolean;
   debe_cambiar_password: boolean;
   permisos: string[];
+  rol_nombre?: string | null;
 }
 
 async function apiGet<T>(path: string, token: string): Promise<T> {
@@ -102,34 +104,53 @@ export default {
 
         // C-2: fijar cookies HttpOnly para apiClient
         const cookieStore = await cookies();
-        const secure = process.env.NODE_ENV === "production";
+        const secure = authCookieSecure();
         cookieStore.set("dj_access", tokens.access, {
-          httpOnly: true, secure, sameSite: "lax", maxAge: 15 * 60, path: "/",
+          httpOnly: true,
+          secure,
+          sameSite: "lax",
+          maxAge: 15 * 60,
+          path: "/",
         });
         cookieStore.set("dj_refresh", tokens.refresh, {
-          httpOnly: true, secure, sameSite: "lax", maxAge: 8 * 60 * 60, path: "/",
+          httpOnly: true,
+          secure,
+          sameSite: "lax",
+          maxAge: 8 * 60 * 60,
+          path: "/",
         });
 
         // Resolver permisos desde /me/
         let permisos: string[] = [];
+        let nombreRolMe = "";
         try {
           const me = await apiGet<MeData>("api/v1/identidad/auth/me/", tokens.access);
           permisos = me.permisos || [];
-        } catch { /* permisos vacíos si /me/ falla */ }
+          nombreRolMe = me.rol_nombre || "";
+        } catch {
+          /* permisos vacíos si /me/ falla */
+        }
 
         // Resolver nombre_rol y nombre_departamento desde catálogos
-        let nombreRol = "";
+        let nombreRol = nombreRolMe;
         let nombreDepartamento = "";
         try {
           const roles = await apiGet<RolItem[]>("api/v1/identidad/roles/", tokens.access);
           const rol = roles.find((r) => r.id === usuario.rol_id);
-          nombreRol = rol?.nombre_rol || "";
-        } catch { /* vacío */ }
+          nombreRol = rol?.nombre_rol || nombreRol;
+        } catch {
+          /* vacío */
+        }
         try {
-          const departamentos = await apiGet<DepartamentoItem[]>("api/v1/identidad/departamentos/", tokens.access);
+          const departamentos = await apiGet<DepartamentoItem[]>(
+            "api/v1/identidad/departamentos/",
+            tokens.access,
+          );
           const dept = departamentos.find((d) => d.id === usuario.departamento_id);
           nombreDepartamento = dept?.nombre_departamento || dept?.nombre || "";
-        } catch { /* vacío */ }
+        } catch {
+          /* vacío */
+        }
 
         return {
           id: String(usuario.id),

@@ -17,9 +17,10 @@ export const AUTH_SOLICITAR_RECUPERACION_PATH = "api/v1/identidad/auth/solicitar
 export const AUTH_RESTABLECER_PASSWORD_PATH = "api/v1/identidad/auth/restablecer-password/";
 
 /** POST al endpoint de autenticación; devuelve el `data` del sobre C-1. */
-export async function postLogin(
-  credenciales: { usuario: string; password: string },
-): Promise<SesionBackendPayload> {
+export async function postLogin(credenciales: {
+  usuario: string;
+  password: string;
+}): Promise<SesionBackendPayload> {
   const envelope = await apiClient.post<ApiResponse<SesionBackendPayload>>(AUTH_LOGIN_PATH, {
     usuario: credenciales.usuario.trim(),
     correo: credenciales.usuario.trim(),
@@ -43,9 +44,10 @@ export async function postLogout(): Promise<void> {
 }
 
 /** POST al endpoint de cambio de contraseña; devuelve el mensaje del backend. */
-export async function postCambiarPassword(
-  input: { passwordActual: string; passwordNuevo: string },
-): Promise<string> {
+export async function postCambiarPassword(input: {
+  passwordActual: string;
+  passwordNuevo: string;
+}): Promise<string> {
   const envelope = await apiClient.post<ApiResponse<null>>(AUTH_CAMBIAR_PASSWORD_PATH, {
     password_actual: input.passwordActual,
     password_nuevo: input.passwordNuevo,
@@ -56,9 +58,10 @@ export async function postCambiarPassword(
 /** POST al endpoint de solicitud de recuperación de contraseña (público, con skipAuth). */
 export async function postSolicitarRecuperacion(identificador: string): Promise<string> {
   const frontendUrl =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : (process.env.NEXTAUTH_URL || "http://localhost:3001");
+    typeof window !== "undefined" ? window.location.origin : process.env.NEXTAUTH_URL;
+  if (!frontendUrl) {
+    throw new Error("Falta NEXTAUTH_URL: no se puede construir el enlace de recuperación.");
+  }
 
   const envelope = await apiClient.post<ApiResponse<null>>(
     AUTH_SOLICITAR_RECUPERACION_PATH,
@@ -85,4 +88,3 @@ export async function postRestablecerPassword(input: {
   );
   return envelope.message;
 }
-

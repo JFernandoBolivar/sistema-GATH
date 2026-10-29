@@ -1,12 +1,13 @@
 /**
  * Casos de uso de Creación, Edición y Eliminación de Familiar (Reglas R2, R4).
  */
+import type { Familiar } from "../../domain/entities/familiar";
 import type { RepoFamiliares } from "../../domain/ports/repo-familiares";
 import type { FamiliarDTO, GuardarFamiliarInputDTO } from "../dtos/familiar-dto";
 
 export async function crearFamiliar(
   repo: RepoFamiliares,
-  input: GuardarFamiliarInputDTO
+  input: GuardarFamiliarInputDTO,
 ): Promise<FamiliarDTO> {
   const e = await repo.crearFamiliar({
     empleadoCedula: input.empleadoCedula,
@@ -51,9 +52,9 @@ export async function crearFamiliar(
 export async function actualizarFamiliar(
   repo: RepoFamiliares,
   id: number,
-  data: Partial<GuardarFamiliarInputDTO>
+  data: Partial<GuardarFamiliarInputDTO>,
 ): Promise<FamiliarDTO> {
-  const e = await repo.actualizarFamiliar(id, data as any);
+  const e = await repo.actualizarFamiliar(id, data as Partial<Familiar>);
   return {
     id: e.id,
     empleadoCedula: e.empleadoCedula,
@@ -76,9 +77,6 @@ export async function actualizarFamiliar(
   };
 }
 
-export async function eliminarFamiliar(
-  repo: RepoFamiliares,
-  id: number
-): Promise<void> {
+export async function eliminarFamiliar(repo: RepoFamiliares, id: number): Promise<void> {
   await repo.eliminarFamiliar(id);
 }

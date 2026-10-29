@@ -16,6 +16,7 @@
  * `inicio/page.tsx`, `error.tsx`/`global-error.tsx`) ya dependía de él.
  */
 import { cookies } from "next/headers";
+import { authCookieSecure } from "@/shared/commons/auth-cookies";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -58,14 +59,29 @@ export async function loginAction(rawData: LoginFormType): Promise<LoginActionRe
     });
 
     if (result?.error) {
-      await logAudit({ traceId, action: "loginAction", status: "FAILED", durationMs: Date.now() - startedAt });
+      await logAudit({
+        traceId,
+        action: "loginAction",
+        status: "FAILED",
+        durationMs: Date.now() - startedAt,
+      });
       return { error: "Credenciales inválidas o cuenta bloqueada." };
     }
 
-    await logAudit({ traceId, action: "loginAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "loginAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return { success: "Inicio de sesión exitoso" };
   } catch (error) {
-    await logAudit({ traceId, action: "loginAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "loginAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
 
     if (error instanceof AuthError) {
@@ -93,9 +109,21 @@ const AUTH_COOKIE_PREFIXES = [
 
 async function limpiarCookiesSesion(): Promise<void> {
   const cookieStore = await cookies();
-  const secure = process.env.NODE_ENV === "production";
-  cookieStore.set("dj_access", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
-  cookieStore.set("dj_refresh", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
+  const secure = authCookieSecure();
+  cookieStore.set("dj_access", "", {
+    maxAge: 0,
+    path: "/",
+    secure,
+    httpOnly: true,
+    sameSite: "lax",
+  });
+  cookieStore.set("dj_refresh", "", {
+    maxAge: 0,
+    path: "/",
+    secure,
+    httpOnly: true,
+    sameSite: "lax",
+  });
   for (const c of cookieStore.getAll()) {
     if (AUTH_COOKIE_PREFIXES.some((prefix) => c.name.startsWith(prefix))) {
       cookieStore.set(c.name, "", {
@@ -123,7 +151,12 @@ export async function cerrarSesionAction(): Promise<{ success: true }> {
   await limpiarCookiesSesion();
   await signOut({ redirect: false });
 
-  await logAudit({ traceId, action: "cerrarSesionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+  await logAudit({
+    traceId,
+    action: "cerrarSesionAction",
+    status: "SUCCESS",
+    durationMs: Date.now() - startedAt,
+  });
   return { success: true };
 }
 
@@ -150,8 +183,7 @@ export async function extenderSesionAction(): Promise<{ success: boolean }> {
 export const extendSessionAction = extenderSesionAction;
 
 export type CambiarPasswordActionResult =
-  | { success: true; message: string }
-  | { success: false; message: string };
+  { success: true; message: string } | { success: false; message: string };
 
 export async function cambiarPasswordAction(
   rawData: CambiarPasswordFormType,
@@ -169,19 +201,29 @@ export async function cambiarPasswordAction(
       passwordActual: validation.data.current_password,
       passwordNuevo: validation.data.new_password,
     });
-    await logAudit({ traceId, action: "cambiarPasswordAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "cambiarPasswordAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return { success: true, message };
   } catch (error) {
-    await logAudit({ traceId, action: "cambiarPasswordAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "cambiarPasswordAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
-    const message = error instanceof Error ? error.message : "No fue posible cambiar la contraseña.";
+    const message =
+      error instanceof Error ? error.message : "No fue posible cambiar la contraseña.";
     return { success: false, message };
   }
 }
 
 export type RecuperacionActionResult =
-  | { success: true; message: string }
-  | { success: false; message: string };
+  { success: true; message: string } | { success: false; message: string };
 
 /**
  * Solicita el envío de instrucciones para restablecer contraseña al correo institucional.
@@ -191,19 +233,36 @@ export async function solicitarRecuperacionAction(
 ): Promise<RecuperacionActionResult> {
   const validation = solicitarRecuperacionSchema.safeParse(rawData);
   if (!validation.success) {
-    return { success: false, message: "Identificador inválido. Ingrese su cédula o correo institucional." };
+    return {
+      success: false,
+      message: "Identificador inválido. Ingrese su cédula o correo institucional.",
+    };
   }
 
   const traceId = generateTraceId();
   const startedAt = Date.now();
 
   try {
-    const message = await solicitarRecuperacion(repoAutenticacionApi, validation.data.identificador);
-    await logAudit({ traceId, action: "solicitarRecuperacionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    const message = await solicitarRecuperacion(
+      repoAutenticacionApi,
+      validation.data.identificador,
+    );
+    await logAudit({
+      traceId,
+      action: "solicitarRecuperacionAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return { success: true, message };
   } catch (error) {
-    await logAudit({ traceId, action: "solicitarRecuperacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    const message = error instanceof Error ? error.message : "No fue posible procesar la solicitud.";
+    await logAudit({
+      traceId,
+      action: "solicitarRecuperacionAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    const message =
+      error instanceof Error ? error.message : "No fue posible procesar la solicitud.";
     return { success: false, message };
   }
 }
@@ -216,7 +275,8 @@ export async function restablecerPasswordAction(
 ): Promise<RecuperacionActionResult> {
   const validation = restablecerPasswordSchema.safeParse(rawData);
   if (!validation.success) {
-    const errorMsg = validation.error.issues[0]?.message ?? "Datos inválidos para restablecer la contraseña.";
+    const errorMsg =
+      validation.error.issues[0]?.message ?? "Datos inválidos para restablecer la contraseña.";
     return { success: false, message: errorMsg };
   }
 
@@ -225,12 +285,21 @@ export async function restablecerPasswordAction(
 
   try {
     const message = await restablecerPassword(repoAutenticacionApi, validation.data);
-    await logAudit({ traceId, action: "restablecerPasswordAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "restablecerPasswordAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return { success: true, message };
   } catch (error) {
-    await logAudit({ traceId, action: "restablecerPasswordAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "restablecerPasswordAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     const message = error instanceof Error ? error.message : "El token es inválido o ha expirado.";
     return { success: false, message };
   }
 }
-

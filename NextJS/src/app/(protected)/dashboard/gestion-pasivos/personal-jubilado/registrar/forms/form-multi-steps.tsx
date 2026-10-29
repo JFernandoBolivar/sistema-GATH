@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment, @typescript-eslint/no-explicit-any --
+   stub legado del formulario multi-paso (GAP #4); se retira con el dashboard en la Fase 8. */
 // @ts-nocheck
 "use client";
 // Stub de compatibilidad para el formulario multi-paso legado (GAP #4, cerrado como 'no aplica')
@@ -35,12 +37,7 @@ type Values = [
   FormFormity<PhysicalProfileType>,
   FormFormity<DwellingType>,
   ReturnFormity<
-    BasicInfoType &
-      AcademyType &
-      BackgroundType &
-      HealthType &
-      PhysicalProfileType &
-      DwellingType
+    BasicInfoType & AcademyType & BackgroundType & HealthType & PhysicalProfileType & DwellingType
   >,
 ];
 
@@ -58,7 +55,12 @@ const schema: SchemaFormity<Values> = [
         estadoCivil: [0, []],
       }),
       render: ({ values, onNext }) => (
-        <FormBasicInfo defaultValues={values} onSubmit={onNext} title="Registrar Jubilado/Pensionado" employeeType="jubilado/pensionado" />
+        <FormBasicInfo
+          defaultValues={values}
+          onSubmit={onNext}
+          title="Registrar Jubilado/Pensionado"
+          employeeType="jubilado/pensionado"
+        />
       ),
     },
   },
@@ -78,12 +80,7 @@ const schema: SchemaFormity<Values> = [
           [],
         ],
       }),
-      render: ({ values, onNext }) => (
-        <FormAcademyLevel
-          defaultValues={values}
-          onSubmit={onNext}
-        />
-      ),
+      render: ({ values, onNext }) => <FormAcademyLevel defaultValues={values} onSubmit={onNext} />,
     },
   },
   {
@@ -100,9 +97,7 @@ const schema: SchemaFormity<Values> = [
           [],
         ],
       }),
-      render: ({ values, onNext }) => (
-        <FormBackground defaultValues={values} onSubmit={onNext} />
-      ),
+      render: ({ values, onNext }) => <FormBackground defaultValues={values} onSubmit={onNext} />,
     },
   },
   {
@@ -118,9 +113,7 @@ const schema: SchemaFormity<Values> = [
           [],
         ],
       }),
-      render: ({ values, onNext }) => (
-        <FormHealth defaultValues={values} onSubmit={onNext} />
-      ),
+      render: ({ values, onNext }) => <FormHealth defaultValues={values} onSubmit={onNext} />,
     },
   },
   {
@@ -128,17 +121,15 @@ const schema: SchemaFormity<Values> = [
       values: () => ({
         perfil_fisico: [
           {
-          tallaCamisa: 0,
-          tallaPantalon: 0,
-          tallaZapatos: 0,
-          tallaChaqueta: 0,
+            tallaCamisa: 0,
+            tallaPantalon: 0,
+            tallaZapatos: 0,
+            tallaChaqueta: 0,
           },
           [],
         ],
       }),
-      render: ({ values, onNext }) => (
-        <FormPhysical defaultValues={values} onSubmit={onNext} />
-      ),
+      render: ({ values, onNext }) => <FormPhysical defaultValues={values} onSubmit={onNext} />,
     },
   },
   {
@@ -156,9 +147,7 @@ const schema: SchemaFormity<Values> = [
           [],
         ],
       }),
-      render: ({ values, onNext }) => (
-        <FormDwelling defaultValues={values} onSubmit={onNext} />
-      ),
+      render: ({ values, onNext }) => <FormDwelling defaultValues={values} onSubmit={onNext} />,
     },
   },
   {
@@ -183,10 +172,7 @@ export default function MultiStepForm() {
 
   if (isPending) {
     return (
-      <Loading
-        promiseMessage="Registrando Nuevo Trabajador"
-        className="w-full h-full m-auto"
-      />
+      <Loading promiseMessage="Registrando Nuevo Trabajador" className="w-full h-full m-auto" />
     );
   }
   return <Formity schema={schema} onReturn={onReturn} />;

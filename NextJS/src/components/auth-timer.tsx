@@ -12,26 +12,12 @@ import { Button } from "@/components/ui/button";
 export const IDLE_TIMEOUT = 15 * 60 * 1000;
 export const GRACE_PERIOD = 60 * 1000;
 
-const ACTIVITY_EVENTS = [
-  "mousedown",
-  "mousemove",
-  "keypress",
-  "scroll",
-  "touchstart",
-];
+const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
 
 export function AuthController() {
-  const [hasError, setHasError] = useState(false);
-
-  let sessionHookResult: { data: ReturnType<typeof useSession>["data"] };
-  try {
-    sessionHookResult = { data: useSession().data };
-  } catch {
-    sessionHookResult = { data: null };
-    if (!hasError) setHasError(true);
-  }
-
-  const session = sessionHookResult.data;
+  // Hook incondicional (rules-of-hooks). Sin SessionProvider, next-auth lanza y
+  // el error boundary de la app lo captura; no se traga el error aquí.
+  const { data: session } = useSession();
   const sessionUserId = session?.user?.id ?? null;
 
   const [showAlert, setShowAlert] = useState(false);
@@ -53,42 +39,47 @@ export function AuthController() {
   // sin depender de que `session` cambie identidad entre renders (evita
   // reiniciar timers a mitad de cuenta regresiva).
   const handleLogoutRef = useRef<() => Promise<void>>(async () => {});
-  handleLogoutRef.current = async () => {
-    clearAllTimers();
-    modalOpenRef.current = false;
-    setShowAlert(false);
-    await cerrarSesionAction();
-    window.location.href = "/login";
-  };
-
   const startIdleTimerRef = useRef<() => void>(() => {});
-  startIdleTimerRef.current = () => {
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(() => {
-      modalOpenRef.current = true;
-      setShowAlert(true);
-      setSecondsLeft(GRACE_PERIOD / 1000);
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      countdownRef.current = setInterval(() => {
-        setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
-      }, 1000);
-      if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
-      graceTimerRef.current = setTimeout(() => {
-        handleLogoutRef.current();
-      }, GRACE_PERIOD);
-      // El aviso aparece GRACE_PERIOD antes de cumplirse IDLE_TIMEOUT, para
-      // que el cierre de sesión real ocurra exactamente a los 15 minutos
-      // de inactividad continuada (no 15 min + 1 min).
-    }, IDLE_TIMEOUT - GRACE_PERIOD);
-  };
-
   const handleActivityRef = useRef<() => void>(() => {});
-  handleActivityRef.current = () => {
-    // Mientras el modal está abierto, la sesión solo se extiende con una
-    // decisión explícita del usuario (botones), no con actividad pasiva.
-    if (modalOpenRef.current) return;
-    startIdleTimerRef.current();
-  };
+
+  // Las refs se actualizan en un efecto (no durante el render) en cada commit,
+  // antes del efecto de montaje que las consume.
+  useEffect(() => {
+    handleLogoutRef.current = async () => {
+      clearAllTimers();
+      modalOpenRef.current = false;
+      setShowAlert(false);
+      await cerrarSesionAction();
+      window.location.href = "/login";
+    };
+
+    startIdleTimerRef.current = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        modalOpenRef.current = true;
+        setShowAlert(true);
+        setSecondsLeft(GRACE_PERIOD / 1000);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+          setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+        }, 1000);
+        if (graceTimerRef.current) clearTimeout(graceTimerRef.current);
+        graceTimerRef.current = setTimeout(() => {
+          handleLogoutRef.current();
+        }, GRACE_PERIOD);
+        // El aviso aparece GRACE_PERIOD antes de cumplirse IDLE_TIMEOUT, para
+        // que el cierre de sesión real ocurra exactamente a los 15 minutos
+        // de inactividad continuada (no 15 min + 1 min).
+      }, IDLE_TIMEOUT - GRACE_PERIOD);
+    };
+
+    handleActivityRef.current = () => {
+      // Mientras el modal está abierto, la sesión solo se extiende con una
+      // decisión explícita del usuario (botones), no con actividad pasiva.
+      if (modalOpenRef.current) return;
+      startIdleTimerRef.current();
+    };
+  });
 
   const handleLogout = () => handleLogoutRef.current();
 
@@ -102,29 +93,17 @@ export function AuthController() {
   };
 
   useEffect(() => {
-    if (hasError) {
-      cerrarSesionAction().then(() => {
-        window.location.href = "/login";
-      });
-      return;
-    }
     if (!sessionUserId) return;
     const onActivity = () => handleActivityRef.current();
-    ACTIVITY_EVENTS.forEach((event) =>
-      document.addEventListener(event, onActivity),
-    );
+    ACTIVITY_EVENTS.forEach((event) => document.addEventListener(event, onActivity));
     startIdleTimerRef.current();
     return () => {
-      ACTIVITY_EVENTS.forEach((event) =>
-        document.removeEventListener(event, onActivity),
-      );
+      ACTIVITY_EVENTS.forEach((event) => document.removeEventListener(event, onActivity));
       clearAllTimers();
       modalOpenRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionUserId, hasError]);
+  }, [sessionUserId]);
 
-  if (hasError) return null;
   if (!session) return null;
 
   return (
@@ -145,11 +124,7 @@ export function AuthController() {
             Se cerrará automáticamente en {secondsLeft} segundos.
           </span>
           <div className="flex flex-col gap-2 mt-2">
-            <Button
-              type="button"
-              className="cursor-pointer"
-              onClick={handleStaySignedIn}
-            >
+            <Button type="button" className="cursor-pointer" onClick={handleStaySignedIn}>
               Permanecer en la sesión
             </Button>
             <Button

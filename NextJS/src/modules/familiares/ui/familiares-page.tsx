@@ -39,9 +39,8 @@ import { familiaresPorEmpleadoSchema } from "./schema/schema-familiar";
 export default function FamiliaresPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const esRecepcionista = session?.user?.role?.nombre_rol === "RECEPCIONISTA";
-  const puedeEditar = !esRecepcionista && tienePermiso(permisos, "familiares.editar");
-  const puedeEliminar = !esRecepcionista && tienePermiso(permisos, "familiares.eliminar");
+  const puedeEditar = tienePermiso(permisos, "familiares.editar");
+  const puedeEliminar = tienePermiso(permisos, "familiares.eliminar");
 
   const [familiares, setFamiliares] = useState<FamiliarDTO[]>([]);
   const [empleadoCedula, setEmpleadoCedula] = useState<string>("");
@@ -95,7 +94,12 @@ export default function FamiliaresPage() {
   };
 
   const onEliminar = (familiar: FamiliarDTO) => {
-    if (!window.confirm(`¿Eliminar la carga familiar de ${familiar.primerNombre} ${familiar.primerApellido}?`)) return;
+    if (
+      !window.confirm(
+        `¿Eliminar la carga familiar de ${familiar.primerNombre} ${familiar.primerApellido}?`,
+      )
+    )
+      return;
     startTransition(async () => {
       setError(null);
       const resultado = await eliminarFamiliarAction(familiar.id);
@@ -110,10 +114,7 @@ export default function FamiliaresPage() {
   const columnas = construirColumnasFamiliares(puedeEliminar, onVerDetalle, onEliminar);
 
   return (
-    <PageLayout
-      title="Consultar Familiar"
-      description="Consulte El Familiar Del Trabajador"
-    >
+    <PageLayout title="Consultar Familiar" description="Consulte El Familiar Del Trabajador">
       <div className="flex flex-col gap-4 mt-2">
         <Card className="bg-white">
           <CardContent className="p-4 bg-white">
@@ -155,7 +156,11 @@ export default function FamiliaresPage() {
           </CardContent>
         </Card>
 
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         {isPending ? (
           <div className="py-6">

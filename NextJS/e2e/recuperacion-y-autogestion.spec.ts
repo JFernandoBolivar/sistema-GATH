@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
+import { iniciarSesionE2E } from "./credenciales";
 const ARTIFACT_DIR = "/home/jbolivar@conatel.gob.ve/.gemini/antigravity-cli/brain/4f3a6a47-9b0b-47b3-9be1-2c8212a19b56/scratch";
 
 test.describe("Recuperación de Contraseña y Autogestión Integral E2E", () => {
@@ -48,11 +47,7 @@ test.describe("Recuperación de Contraseña y Autogestión Integral E2E", () => 
 
   test("4. Autogestión: /autogestion muestra Mi Expediente y sidebar con accesos correctos", async ({ page }) => {
     // Iniciar sesión
-    await page.goto("/login");
-    await page.getByLabel(/correo electrónico/i).fill(EMAIL);
-    await page.getByLabel(/contraseña/i).fill(PASSWORD);
-    await page.getByRole("button", { name: /iniciar sesión/i }).click();
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    await iniciarSesionE2E(page);
 
     // Navegar a /autogestion
     await page.goto("/autogestion");
@@ -89,7 +84,7 @@ test.describe("Recuperación de Contraseña y Autogestión Integral E2E", () => 
       page
         .getByText("Autogestión Completada")
         .or(page.getByRole("heading", { name: "AUTOGESTIÓN DE PERSONAL" }))
-    ).toBeVisible({ timeout: 15_000 });
+    ).toBeVisible({ timeout: 100_000 });
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/e2e_censo_vivienda.png` });
   });

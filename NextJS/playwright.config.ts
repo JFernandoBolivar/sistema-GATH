@@ -7,8 +7,10 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  // El backend de desarrollo (runserver) tarda ~7 s en listar todo el personal y
+  // las Server Actions de Next se ejecutan en serie: se amplían los plazos.
+  timeout: 120_000,
+  expect: { timeout: 20_000 },
   fullyParallel: false,
   retries: 0,
   reporter: [["list"], ["json", { outputFile: "e2e-results/results.json" }]],

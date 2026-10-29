@@ -6,19 +6,8 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Label } from "@/shared/ui/components/label";
 import {
   Select,
@@ -87,7 +76,7 @@ export default function FormPhysicalProfileUpdateDialog({
     }
   }, [open, empleado.perfilFisico, setValue]);
 
-  const onSubmit = (data: any) => {
+  const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
     startTransition(async () => {
       setError(null);
       try {
@@ -122,7 +111,10 @@ export default function FormPhysicalProfileUpdateDialog({
   const tallas = catalogos?.tallas ?? [];
   const tipos = catalogos?.tiposPrenda ?? [];
   const normalizar = (s: string) =>
-    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
 
   const tipoCamisaId = tipos.find((tp) => normalizar(tp.nombre).includes("camisa"))?.id;
   const tipoPantalonId = tipos.find((tp) => normalizar(tp.nombre).includes("pantalon"))?.id;
@@ -130,19 +122,39 @@ export default function FormPhysicalProfileUpdateDialog({
   const tipoChaquetaId = tipos.find((tp) => normalizar(tp.nombre).includes("chaqueta"))?.id;
 
   const camisas = useMemo(
-    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("camisa") || (tipoCamisaId && t.tipoPrendaId === tipoCamisaId)),
+    () =>
+      tallas.filter(
+        (t) =>
+          normalizar(t.tipoPrendaNombre ?? "").includes("camisa") ||
+          (tipoCamisaId && t.tipoPrendaId === tipoCamisaId),
+      ),
     [tallas, tipoCamisaId],
   );
   const pantalones = useMemo(
-    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("pantalon") || (tipoPantalonId && t.tipoPrendaId === tipoPantalonId)),
+    () =>
+      tallas.filter(
+        (t) =>
+          normalizar(t.tipoPrendaNombre ?? "").includes("pantalon") ||
+          (tipoPantalonId && t.tipoPrendaId === tipoPantalonId),
+      ),
     [tallas, tipoPantalonId],
   );
   const zapatos = useMemo(
-    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("zapato") || (tipoZapatoId && t.tipoPrendaId === tipoZapatoId)),
+    () =>
+      tallas.filter(
+        (t) =>
+          normalizar(t.tipoPrendaNombre ?? "").includes("zapato") ||
+          (tipoZapatoId && t.tipoPrendaId === tipoZapatoId),
+      ),
     [tallas, tipoZapatoId],
   );
   const chaquetas = useMemo(
-    () => tallas.filter((t) => normalizar(t.tipoPrendaNombre ?? "").includes("chaqueta") || (tipoChaquetaId && t.tipoPrendaId === tipoChaquetaId)),
+    () =>
+      tallas.filter(
+        (t) =>
+          normalizar(t.tipoPrendaNombre ?? "").includes("chaqueta") ||
+          (tipoChaquetaId && t.tipoPrendaId === tipoChaquetaId),
+      ),
     [tallas, tipoChaquetaId],
   );
 
@@ -170,9 +182,7 @@ export default function FormPhysicalProfileUpdateDialog({
             <CardAction className="text-gray-600 mb-3">Datos De Vestimenta</CardAction>
 
             {error && (
-              <div className="rounded bg-red-100 p-2 text-sm text-red-700 mb-3">
-                {error}
-              </div>
+              <div className="rounded bg-red-100 p-2 text-sm text-red-700 mb-3">{error}</div>
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
@@ -180,7 +190,9 @@ export default function FormPhysicalProfileUpdateDialog({
                 <Label htmlFor="tallaCamisaId">Talla De Camisa</Label>
                 <Select
                   value={tallaCamisaId ? String(tallaCamisaId) : ""}
-                  onValueChange={(val) => setValue("tallaCamisaId", val ? Number(val) : (undefined as any))}
+                  onValueChange={(val) =>
+                    setValue("tallaCamisaId", val ? Number(val) : (undefined as unknown as number))
+                  }
                 >
                   <SelectTrigger id="tallaCamisaId" className="w-full">
                     <SelectValue placeholder="Seleccione una talla" />
@@ -188,7 +200,9 @@ export default function FormPhysicalProfileUpdateDialog({
                   <SelectContent>
                     {Object.entries(camisasGrouped).map(([region, items]) => (
                       <SelectGroup key={region}>
-                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">
+                          {region}
+                        </SelectLabel>
                         {items.map((t) => (
                           <SelectItem key={t.id} value={String(t.id)}>
                             {t.nombre}
@@ -204,7 +218,12 @@ export default function FormPhysicalProfileUpdateDialog({
                 <Label htmlFor="tallaPantalonId">Talla De Pantalón</Label>
                 <Select
                   value={tallaPantalonId ? String(tallaPantalonId) : ""}
-                  onValueChange={(val) => setValue("tallaPantalonId", val ? Number(val) : (undefined as any))}
+                  onValueChange={(val) =>
+                    setValue(
+                      "tallaPantalonId",
+                      val ? Number(val) : (undefined as unknown as number),
+                    )
+                  }
                 >
                   <SelectTrigger id="tallaPantalonId" className="w-full">
                     <SelectValue placeholder="Seleccione una talla" />
@@ -212,7 +231,9 @@ export default function FormPhysicalProfileUpdateDialog({
                   <SelectContent>
                     {Object.entries(pantalonesGrouped).map(([region, items]) => (
                       <SelectGroup key={region}>
-                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">
+                          {region}
+                        </SelectLabel>
                         {items.map((t) => (
                           <SelectItem key={t.id} value={String(t.id)}>
                             {t.nombre}
@@ -228,7 +249,9 @@ export default function FormPhysicalProfileUpdateDialog({
                 <Label htmlFor="tallaZapatosId">Talla De Zapatos</Label>
                 <Select
                   value={tallaZapatosId ? String(tallaZapatosId) : ""}
-                  onValueChange={(val) => setValue("tallaZapatosId", val ? Number(val) : (undefined as any))}
+                  onValueChange={(val) =>
+                    setValue("tallaZapatosId", val ? Number(val) : (undefined as unknown as number))
+                  }
                 >
                   <SelectTrigger id="tallaZapatosId" className="w-full">
                     <SelectValue placeholder="Seleccione una talla" />
@@ -236,7 +259,9 @@ export default function FormPhysicalProfileUpdateDialog({
                   <SelectContent>
                     {Object.entries(zapatosGrouped).map(([region, items]) => (
                       <SelectGroup key={region}>
-                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">
+                          {region}
+                        </SelectLabel>
                         {items.map((t) => (
                           <SelectItem key={t.id} value={String(t.id)}>
                             {t.nombre}
@@ -252,7 +277,12 @@ export default function FormPhysicalProfileUpdateDialog({
                 <Label htmlFor="tallaChaquetaId">Talla De Chaqueta</Label>
                 <Select
                   value={tallaChaquetaId ? String(tallaChaquetaId) : ""}
-                  onValueChange={(val) => setValue("tallaChaquetaId", val ? Number(val) : (undefined as any))}
+                  onValueChange={(val) =>
+                    setValue(
+                      "tallaChaquetaId",
+                      val ? Number(val) : (undefined as unknown as number),
+                    )
+                  }
                 >
                   <SelectTrigger id="tallaChaquetaId" className="w-full">
                     <SelectValue placeholder="Seleccione una talla" />
@@ -260,7 +290,9 @@ export default function FormPhysicalProfileUpdateDialog({
                   <SelectContent>
                     {Object.entries(chaquetasGrouped).map(([region, items]) => (
                       <SelectGroup key={region}>
-                        <SelectLabel className="text-xs font-bold text-muted-foreground">{region}</SelectLabel>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">
+                          {region}
+                        </SelectLabel>
                         {items.map((t) => (
                           <SelectItem key={t.id} value={String(t.id)}>
                             {t.nombre}
@@ -272,10 +304,7 @@ export default function FormPhysicalProfileUpdateDialog({
                 </Select>
               </div>
 
-              <Button
-                className="w-full col-span-2 cursor-pointer mt-3"
-                disabled={isPending}
-              >
+              <Button className="w-full col-span-2 cursor-pointer mt-3" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isPending ? "Actualizando Información" : "Actualizar"}
               </Button>

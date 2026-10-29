@@ -40,11 +40,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { useState, useTransition } from "react";
-import {
-  schemaReportLeaving,
-  type SchemaReportLeavingType,
-} from "../schema/report-schema-leaving";
+import { schemaReportLeaving, type SchemaReportLeavingType } from "../schema/report-schema-leaving";
 import Loading from "@/shared/ui/components/loading";
 
 export default function ReportLeaving() {
@@ -72,27 +70,18 @@ export default function ReportLeaving() {
     directionLineId ? ["coordination", directionLineId] : null,
     async () => await getCoordination(directionLineId!),
   );
-  const { data: sex, isLoading: isLoadingSex } = useSWR(
-    "sex",
-    async () => await getSex(),
-  );
+  const { data: sex, isLoading: isLoadingSex } = useSWR("sex", async () => await getSex());
 
   const { data: cargoEspecifico, isLoading: isLoadingCargoEspecifico } = useSWR(
     "cargoEspecifico",
     async () => await getCargoEspecifico(),
   );
-  const { data: cargo, isLoading: isLoadingCargo } = useSWR(
-    "cargo",
-    async () => await getCargo(),
-  );
+  const { data: cargo, isLoading: isLoadingCargo } = useSWR("cargo", async () => await getCargo());
   const { data: nomina, isLoading: isLoadingNomina } = useSWR(
     "nomina",
     async () => await getNominaGeneral(),
   );
-  const { data: grado, isLoading: isLoadingGrado } = useSWR(
-    "grado",
-    async () => await getGrado(),
-  );
+  const { data: grado, isLoading: isLoadingGrado } = useSWR("grado", async () => await getGrado());
 
   const form = useForm<SchemaReportLeavingType>({
     resolver: zodResolver(schemaReportLeaving),
@@ -122,9 +111,7 @@ export default function ReportLeaving() {
   });
 
   if (!session) {
-    return (
-      <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />
-    );
+    return <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />;
   }
 
   const handleClean = () => {
@@ -148,9 +135,8 @@ export default function ReportLeaving() {
     });
   };
 
-  const esAdmin =
-    session?.user?.role?.nombre_rol === "ADMINISTRADOR" ||
-    session?.user?.role?.id === 1;
+  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
+  const esAdmin = tienePermiso(session?.user?.permisos, "*");
 
   return (
     <Card className="bg-white">
@@ -159,10 +145,7 @@ export default function ReportLeaving() {
           {isPending ? (
             <Loading promiseMessage="Consultando Reporte" />
           ) : (
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="grid grid-cols-3 gap-4"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="h-[600px] w-full pr-3">
                   <div className="grid grid-cols-2 gap-3">
@@ -212,9 +195,7 @@ export default function ReportLeaving() {
                           name="filtros.direccion_general_id"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>
-                                Dirección / Gerencia / Oficina
-                              </FormLabel>
+                              <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
                               <FormControl>
                                 <Combobox
                                   options={(directionGeneral?.data ?? []).map((general) => ({
@@ -316,9 +297,7 @@ export default function ReportLeaving() {
                         name="filtros.cargo_especifico_id"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>
-                              Denominación De Cargo Específico
-                            </FormLabel>
+                            <FormLabel>Denominación De Cargo Específico</FormLabel>
                             <FormControl>
                               <Combobox
                                 options={(cargoEspecifico?.data ?? []).map((c) => ({
@@ -420,9 +399,7 @@ export default function ReportLeaving() {
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
                                     placeholder={`${
-                                      isLoadingGrado
-                                        ? "Cargando Grados"
-                                        : "Seleccione un Grado"
+                                      isLoadingGrado ? "Cargando Grados" : "Seleccione un Grado"
                                     }`}
                                   />
                                 </SelectTrigger>
@@ -442,9 +419,7 @@ export default function ReportLeaving() {
                     </fieldset>
 
                     <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-black">
-                      <legend className="text-black font-semibold px-1">
-                        Información Básica
-                      </legend>
+                      <legend className="text-black font-semibold px-1">Información Básica</legend>
                       <FormField
                         control={form.control}
                         name="filtros.sexo_id"
@@ -460,9 +435,7 @@ export default function ReportLeaving() {
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
                                     placeholder={`${
-                                      isLoadingSex
-                                        ? "Cargando Géneros"
-                                        : "Seleccione un Género"
+                                      isLoadingSex ? "Cargando Géneros" : "Seleccione un Género"
                                     }`}
                                   />
                                 </SelectTrigger>
@@ -519,9 +492,7 @@ export default function ReportLeaving() {
                     </fieldset>
 
                     <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-gray-600 col-span-2">
-                      <legend className="text-gray-800 font-semibold px-1">
-                        Fecha De Egreso
-                      </legend>
+                      <legend className="text-gray-800 font-semibold px-1">Fecha De Egreso</legend>
                       <div className="grid grid-cols-2 gap-3">
                         <FormDate
                           form={form}

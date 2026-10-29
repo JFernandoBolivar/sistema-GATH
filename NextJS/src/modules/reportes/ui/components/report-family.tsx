@@ -44,11 +44,9 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSession } from "next-auth/react";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { useState, useTransition } from "react";
-import {
-  schemaReportFamily,
-  type SchemaReportFamilyType,
-} from "../schema/report-schema-family";
+import { schemaReportFamily, type SchemaReportFamilyType } from "../schema/report-schema-family";
 import Loading from "@/shared/ui/components/loading";
 import { Download, Eraser, Search } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -67,10 +65,10 @@ export default function ReportFamily() {
     "dependency",
     async () => await getDependency(),
   );
-  const {
-    data: conditionDwelling,
-    isLoading: isLoadingStatesConditionDwelling,
-  } = useSWR("conditionDwelling", async () => await getConditionDwelling());
+  const { data: conditionDwelling, isLoading: isLoadingStatesConditionDwelling } = useSWR(
+    "conditionDwelling",
+    async () => await getConditionDwelling(),
+  );
   const { data: directionGeneral, isLoading: isLoadingDirectionGeneral } = useSWR(
     dependencyId ? ["directionGeneral", dependencyId] : null,
     async () => await getDirectionGeneralById(dependencyId),
@@ -84,10 +82,7 @@ export default function ReportFamily() {
     directionLineId ? ["coordination", directionLineId] : null,
     async () => await getCoordination(directionLineId!),
   );
-  const { data: sex, isLoading: isLoadingSex } = useSWR(
-    "sex",
-    async () => await getSex(),
-  );
+  const { data: sex, isLoading: isLoadingSex } = useSWR("sex", async () => await getSex());
   const { data: patology, isLoading: isLoadingPatology } = useSWR(
     "patology",
     async () => await getPatologys(),
@@ -128,10 +123,7 @@ export default function ReportFamily() {
     municipalityId ? ["parish", municipalityId] : null,
     async () => await getParish(municipalityId!),
   );
-  const { data: parent } = useSWR(
-    "parent",
-    async () => getParent(),
-  );
+  const { data: parent } = useSWR("parent", async () => getParent());
 
   const form = useForm<SchemaReportFamilyType>({
     resolver: zodResolver(schemaReportFamily),
@@ -171,9 +163,7 @@ export default function ReportFamily() {
   });
 
   if (!session) {
-    return (
-      <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />
-    );
+    return <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />;
   }
 
   const onSubmit = (data: SchemaReportFamilyType) => {
@@ -197,9 +187,8 @@ export default function ReportFamily() {
     setReportListFamilysBlob(undefined);
   };
 
-  const esAdmin =
-    session?.user?.role?.nombre_rol === "ADMINISTRADOR" ||
-    session?.user?.role?.id === 1;
+  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
+  const esAdmin = tienePermiso(session?.user?.permisos, "*");
 
   return (
     <Card className="bg-white">
@@ -262,9 +251,7 @@ export default function ReportFamily() {
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
                                     placeholder={`${
-                                      isLoadingSex
-                                        ? "Cargando Géneros"
-                                        : "Seleccione un Género"
+                                      isLoadingSex ? "Cargando Géneros" : "Seleccione un Género"
                                     }`}
                                   />
                                 </SelectTrigger>
@@ -383,7 +370,8 @@ export default function ReportFamily() {
                               <SelectContent>
                                 {patology?.data.map((v, i) => (
                                   <SelectItem value={`${v.id}`} key={i}>
-                                    {v.categoria?.nombre_categoria || "General"} - {v.patologia || v.nombre}
+                                    {v.categoria?.nombre_categoria || "General"} -{" "}
+                                    {v.patologia || v.nombre}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -417,7 +405,8 @@ export default function ReportFamily() {
                               <SelectContent>
                                 {disability?.data.map((v, i) => (
                                   <SelectItem value={`${v.id}`} key={i}>
-                                    {v.categoria?.nombre_categoria || "General"} - {v.discapacidad || v.nombre}
+                                    {v.categoria?.nombre_categoria || "General"} -{" "}
+                                    {v.discapacidad || v.nombre}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -668,9 +657,7 @@ export default function ReportFamily() {
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
                                     placeholder={`${
-                                      isLoadingSex
-                                        ? "Cargando Géneros"
-                                        : "Seleccione un Género"
+                                      isLoadingSex ? "Cargando Géneros" : "Seleccione un Género"
                                     }`}
                                   />
                                 </SelectTrigger>
@@ -775,8 +762,8 @@ export default function ReportFamily() {
                             <FormControl>
                               <Combobox
                                 options={(states?.data ?? []).map((s) => ({
-                                    value: String(s.id),
-                                    label: s.estado || s.nombre,
+                                  value: String(s.id),
+                                  label: s.estado || s.nombre,
                                 }))}
                                 value={field.value ? String(field.value) : ""}
                                 onChange={(value) => {

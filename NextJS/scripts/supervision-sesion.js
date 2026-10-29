@@ -2,10 +2,22 @@ const fs = require("fs");
 const path = require("path");
 const { chromium } = require("@playwright/test");
 
-const LOG_FILE = "/tmp/supervision-frontend.log";
-const BASE_URL = process.env.APP_URL || "http://localhost:3001";
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
+const os = require("os");
+
+function requerida(nombre) {
+  const valor = process.env[nombre];
+  if (!valor) {
+    process.stderr.write("Falta la variable de entorno " + nombre + "\n");
+    process.exit(1);
+  }
+  return valor;
+}
+
+const LOG_FILE =
+  process.env.SUPERVISION_LOG_FILE || path.join(os.tmpdir(), "supervision-frontend.log");
+const BASE_URL = requerida("APP_URL");
+const EMAIL = requerida("E2E_ADMIN_EMAIL");
+const PASSWORD = requerida("E2E_ADMIN_PASSWORD");
 
 function writeLog(message) {
   const timestamp = new Date().toISOString();
@@ -102,7 +114,9 @@ async function main() {
     await initialPage.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 20000 });
 
     writeLog(`>>> SESIÓN INICIADA EXITOSAMENTE. URL actual: ${initialPage.url()} <<<`);
-    writeLog(">>> CONTROL TOTAL CEDIDO AL USUARIO HUMANO. Supervisando pasivamente en background. <<<");
+    writeLog(
+      ">>> CONTROL TOTAL CEDIDO AL USUARIO HUMANO. Supervisando pasivamente en background. <<<",
+    );
   } catch (error) {
     writeLog(`[ALERTA DURANTE LOGIN] ${error.message}`);
     writeLog("Dejando la ventana abierta para inspección manual por el usuario.");

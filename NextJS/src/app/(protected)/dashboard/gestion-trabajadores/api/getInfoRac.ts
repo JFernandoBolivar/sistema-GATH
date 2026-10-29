@@ -53,9 +53,7 @@ import {
 import { apiFetch, apiFetchBlob } from "@/lib/api-client";
 import { apiFetchGet } from "@/lib/utils";
 
-export const getAcademyLevel = async (): Promise<
-  ApiResponse<AcademyLevel[]>
-> => {
+export const getAcademyLevel = async (): Promise<ApiResponse<AcademyLevel[]>> => {
   return await apiFetchGet<AcademyLevel[]>(`listar-nivel-academico`);
 };
 export const getStatus = async (): Promise<ApiResponse<Status[]>> => {
@@ -79,14 +77,10 @@ export const getGrado = async (): Promise<ApiResponse<Grado[]>> => {
   return await apiFetchGet<Grado[]>(`listar-grado/`);
 };
 
-export const getOrganismosAds = async (): Promise<
-  ApiResponse<OrganismosAds[]>
-> => {
+export const getOrganismosAds = async (): Promise<ApiResponse<OrganismosAds[]>> => {
   return await apiFetchGet<OrganismosAds[]>(`organismos-adscritos/`);
 };
-export const getOrganismosAdsFather = async (): Promise<
-  ApiResponse<OrganismosAds[]>
-> => {
+export const getOrganismosAdsFather = async (): Promise<ApiResponse<OrganismosAds[]>> => {
   return await apiFetchGet<OrganismosAds[]>(`organismos-adscritos/padre/`);
 };
 export const getNomina = async (): Promise<ApiResponse<Nomina[]>> => {
@@ -108,9 +102,7 @@ export const getCargoEspecifico = async (): Promise<ApiResponse<Cargo[]>> => {
 export const getStates = async (): Promise<ApiResponse<States[]>> => {
   return await apiFetchGet<States[]>(`direccion/estados/`);
 };
-export const getMunicipalitys = async (
-  id: string,
-): Promise<ApiResponse<Municipality[]>> => {
+export const getMunicipalitys = async (id: string): Promise<ApiResponse<Municipality[]>> => {
   return await apiFetchGet<Municipality[]>(`direccion/municipios/${id}/`);
 };
 
@@ -118,30 +110,35 @@ export const getParish = async (id: string): Promise<ApiResponse<Parish[]>> => {
   return await apiFetchGet<Parish[]>(`direccion/parroquias/${id}/`);
 };
 
-export const getCodigo = async (): Promise<
-  ApiResponse<Code[] | ErrorFetch>
-> => {
+export const getCodigo = async (): Promise<ApiResponse<Code[] | ErrorFetch>> => {
   return await apiFetchGet<Code[]>(`listar-codigos/`);
 };
 
-export const getEmployeeById = async (
-  id: string,
-): Promise<ApiResponse<EmployeeData>> => {
-  const res = await apiFetchGet<any>(`api/v1/personal/${id}/`);
-  if (res?.data && typeof res.data === "object") {
-    res.data.cedulaidentidad = res.data.cedulaidentidad || res.data.cedula;
-    res.data.contrato = res.data.contrato || res.data.contratos || (res.data.contrato_actual ? [res.data.contrato_actual] : []);
-  }
-  return res as ApiResponse<EmployeeData>;
+/** Forma cruda de /api/v1/personal/<id>/ antes de normalizar al shape legado. */
+interface PersonalCrudo {
+  cedula?: string;
+  cedulaidentidad?: string;
+  contrato?: unknown;
+  contratos?: unknown;
+  contrato_actual?: unknown;
+  [clave: string]: unknown;
+}
+
+function normalizarPersonal(data: PersonalCrudo) {
+  data.cedulaidentidad = data.cedulaidentidad || data.cedula;
+  data.contrato =
+    data.contrato || data.contratos || (data.contrato_actual ? [data.contrato_actual] : []);
+}
+
+export const getEmployeeById = async (id: string): Promise<ApiResponse<EmployeeData>> => {
+  const res = await apiFetchGet<PersonalCrudo>(`api/v1/personal/${id}/`);
+  if (res?.data && typeof res.data === "object") normalizarPersonal(res.data);
+  return res as unknown as ApiResponse<EmployeeData>;
 };
-export const getPasiveById = async (
-  id: string,
-): Promise<ApiResponse<EmployeeData>> => {
+export const getPasiveById = async (id: string): Promise<ApiResponse<EmployeeData>> => {
   return await apiFetchGet<EmployeeData>(`employee/pasivo/${id}/`);
 };
-export const getEmployeeData = async (): Promise<
-  ApiResponse<EmployeeData[]>
-> => {
+export const getEmployeeData = async (): Promise<ApiResponse<EmployeeData[]>> => {
   return await apiFetchGet<EmployeeData[]>(`Employee/cargos/`);
 };
 export const getEmployeeDataSearch = async ({
@@ -184,25 +181,17 @@ export const getCodeListSearchFree = async ({
 }): Promise<ApiResponse<Code[]>> => {
   return await apiFetchGet<Code[]>(`cargos/vacantes/?${searchParams}`);
 };
-export const getReportTypePerson = async (): Promise<
-  ApiResponse<ReportTypePerson[]>
-> => {
+export const getReportTypePerson = async (): Promise<ApiResponse<ReportTypePerson[]>> => {
   return await apiFetchGet<ReportTypePerson[]>(`reporte-personal/`);
 };
-export const getReportStatus = async (): Promise<
-  ApiResponse<ReportStatus[]>
-> => {
+export const getReportStatus = async (): Promise<ApiResponse<ReportStatus[]>> => {
   return await apiFetchGet<ReportStatus[]>(`estatus/reportes/`);
 };
 
-export const getReportTypeNomina = async (): Promise<
-  ApiResponse<ReportTypeNomina[]>
-> => {
+export const getReportTypeNomina = async (): Promise<ApiResponse<ReportTypeNomina[]>> => {
   return await apiFetchGet<ReportTypeNomina[]>(`tiponomina/reportes/`);
 };
-export const getBloodGroup = async (): Promise<
-  ApiResponse<BloodGroupType[]>
-> => {
+export const getBloodGroup = async (): Promise<ApiResponse<BloodGroupType[]>> => {
   return await apiFetchGet<BloodGroupType[]>(`listar-grupoSanguineos/`);
 };
 
@@ -210,15 +199,11 @@ export const getPatologys = async (): Promise<ApiResponse<PatologysType[]>> => {
   return await apiFetchGet<PatologysType[]>(`Patologias/`);
 };
 
-export const getDisability = async (): Promise<
-  ApiResponse<DisabilitysType[]>
-> => {
+export const getDisability = async (): Promise<ApiResponse<DisabilitysType[]>> => {
   return await apiFetchGet<DisabilitysType[]>(`Discapacidades/`);
 };
 
-export const getCategory = async (
-  type: "discapacidad" | "alergias" | "patologias",
-) => {
+export const getCategory = async (type: "discapacidad" | "alergias" | "patologias") => {
   return await apiFetchGet<Category[]>(`${type}/categorias`);
 };
 export const getAllergies = async (): Promise<ApiResponse<allergies[]>> => {
@@ -249,9 +234,7 @@ export const getRegionTalla = async (): Promise<ApiResponse<RegionTalla[]>> => {
   return await apiFetchGet<RegionTalla[]>(`listar-region-talla/`);
 };
 
-export const getMaritalstatus = async (): Promise<
-  ApiResponse<MaritalStatusType[]>
-> => {
+export const getMaritalstatus = async (): Promise<ApiResponse<MaritalStatusType[]>> => {
   return await apiFetchGet<MaritalStatusType[]>(`listar-estadoCivil/`);
 };
 
@@ -259,74 +242,51 @@ export const getParent = async (): Promise<ApiResponse<ParentType[]>> => {
   return await apiFetchGet<ParentType[]>(`Parentesco/`);
 };
 
-export const getDirectionGeneral = async (): Promise<
-  ApiResponse<DirectionGeneral[]>
-> => {
+export const getDirectionGeneral = async (): Promise<ApiResponse<DirectionGeneral[]>> => {
   return await apiFetchGet<DirectionGeneral[]>(`listar-DireccionGeneral/`);
 };
 
-export const getDirectionLine = async (
-  id: string,
-): Promise<ApiResponse<DirectionLine[]>> => {
+export const getDirectionLine = async (id: string): Promise<ApiResponse<DirectionLine[]>> => {
   return await apiFetchGet<DirectionLine[]>(`listar-DireccionLinea/${id}/`);
 };
 
-export const getCoordination = async (
-  id: string,
-): Promise<ApiResponse<Coordination[]>> => {
+export const getCoordination = async (id: string): Promise<ApiResponse<Coordination[]>> => {
   return await apiFetchGet<Coordination[]>(`listar-Coordinacion/${id}/`);
 };
 
-export const getEmployeeInfo = async (
-  id: string,
-): Promise<ApiResponse<EmployeeInfo>> => {
+export const getEmployeeInfo = async (id: string): Promise<ApiResponse<EmployeeInfo>> => {
   try {
     const cleanCedula = id ? id.trim().replace(/^[VEJPG]-?/i, "") : id;
-    const res = await apiFetchGet<any>(`api/v1/personal/${cleanCedula}/`);
-    if (res?.data && typeof res.data === "object") {
-      res.data.cedulaidentidad = res.data.cedulaidentidad || res.data.cedula;
-      res.data.contrato = res.data.contrato || res.data.contratos || (res.data.contrato_actual ? [res.data.contrato_actual] : []);
-    }
-    return res as ApiResponse<EmployeeInfo>;
+    const res = await apiFetchGet<PersonalCrudo>(`api/v1/personal/${cleanCedula}/`);
+    if (res?.data && typeof res.data === "object") normalizarPersonal(res.data);
+    return res as unknown as ApiResponse<EmployeeInfo>;
   } catch (error) {
     console.error("Error en getEmployeeInfo:", error);
     return {
       status: "error",
       message: error instanceof Error ? error.message : "Error al consultar trabajador",
-      data: null as any,
+      data: null as unknown as EmployeeInfo,
     };
   }
 };
 
-export const getCodeByDirectionGeneral = async (
-  id: string,
-): Promise<ApiResponse<Code[]>> => {
+export const getCodeByDirectionGeneral = async (id: string): Promise<ApiResponse<Code[]>> => {
   return await apiFetchGet<Code[]>(`cargo_DreccionGeneral/${id}/`);
 };
-export const getCodeByDirectionGeneralAll = async (
-  id: string,
-): Promise<ApiResponse<Code[]>> => {
+export const getCodeByDirectionGeneralAll = async (id: string): Promise<ApiResponse<Code[]>> => {
   return await apiFetchGet<Code[]>(`cargos/Direccion_general/${id}/`);
 };
 
-export const getCodeByDirectionLine = async (
-  id: string,
-): Promise<ApiResponse<Code[]>> => {
+export const getCodeByDirectionLine = async (id: string): Promise<ApiResponse<Code[]>> => {
   return await apiFetchGet<Code[]>(`cargo_DreccionLinea/${id}/`);
 };
-export const getCodeByDirectionLineAll = async (
-  id: string,
-): Promise<ApiResponse<Code[]>> => {
+export const getCodeByDirectionLineAll = async (id: string): Promise<ApiResponse<Code[]>> => {
   return await apiFetchGet<Code[]>(`cargos/Direccion_linea/${id}/`);
 };
-export const getCodeByCoordination = async (
-  id: string,
-): Promise<ApiResponse<Code[]>> => {
+export const getCodeByCoordination = async (id: string): Promise<ApiResponse<Code[]>> => {
   return await apiFetchGet<Code[]>(`cargo_coordinacion/${id}/`);
 };
-export const getCodeByCoordinationAll = async (
-  id: string,
-): Promise<ApiResponse<Code[]>> => {
+export const getCodeByCoordinationAll = async (id: string): Promise<ApiResponse<Code[]>> => {
   return await apiFetchGet<Code[]>(`cargos/coordinacion/${id}/`);
 };
 export const getCarrera = async (nivelAcademicoId?: number): Promise<ApiResponse<Carrera[]>> => {
@@ -381,14 +341,10 @@ export const createOrganismoAdscrito = async (
   });
 };
 
-export const getMencion = async (
-  id: string,
-): Promise<ApiResponse<Mencion[]>> => {
+export const getMencion = async (id: string): Promise<ApiResponse<Mencion[]>> => {
   return await apiFetchGet<Mencion[]>(`Menciones/${id}/`);
 };
-export const getConditionDwelling = async (): Promise<
-  ApiResponse<ConditionDwelling[]>
-> => {
+export const getConditionDwelling = async (): Promise<ApiResponse<ConditionDwelling[]>> => {
   return await apiFetchGet<ConditionDwelling[]>(`condicion_vivienda/`);
 };
 
@@ -397,9 +353,11 @@ export const getSex = async (): Promise<ApiResponse<Sex[]>> => {
 };
 
 export const getPoliticas = async (): Promise<ApiResponse<Politica[]>> => {
-  const res = await apiFetchGet<any[]>(`api/v1/personal/catalogos/politicas/`);
+  const res = await apiFetchGet<{ nombre?: string; tipo_politica?: string }[]>(
+    `api/v1/personal/catalogos/politicas/`,
+  );
   if (res?.data && Array.isArray(res.data)) {
-    res.data = res.data.map((item: any) => ({
+    res.data = res.data.map((item) => ({
       ...item,
       tipo_politica: item.nombre || item.tipo_politica,
     }));
@@ -410,9 +368,7 @@ export const getPoliticas = async (): Promise<ApiResponse<Politica[]>> => {
 export const getReasonLeaving = async (): Promise<ApiResponse<Motion[]>> => {
   return await apiFetchGet<Motion[]>(`motivos/egreso/`);
 };
-export const getReasonLeavingPasive = async (): Promise<
-  ApiResponse<Motion[]>
-> => {
+export const getReasonLeavingPasive = async (): Promise<ApiResponse<Motion[]>> => {
   return await apiFetchGet<Motion[]>(`motivos/egreso/fallecimineto/`);
 };
 export const getInternalReason = async (): Promise<ApiResponse<Motion[]>> => {
@@ -421,25 +377,17 @@ export const getInternalReason = async (): Promise<ApiResponse<Motion[]>> => {
 export const getMotionReason = async (): Promise<ApiResponse<Motion[]>> => {
   return await apiFetchGet<Motion[]>(`motivos/movimiento/`);
 };
-export const getReportConfigEmployee = async (): Promise<
-  ApiResponse<ReportConfig>
-> => {
+export const getReportConfigEmployee = async (): Promise<ApiResponse<ReportConfig>> => {
   return await apiFetchGet<ReportConfig>(`employee/reports/config/`);
 };
-export const getReportConfigFamily = async (): Promise<
-  ApiResponse<ReportConfig>
-> => {
+export const getReportConfigFamily = async (): Promise<ApiResponse<ReportConfig>> => {
   return await apiFetchGet<ReportConfig>(`family/reports/config/`);
 };
-export const getReportConfigLeaving = async (): Promise<
-  ApiResponse<ReportConfig>
-> => {
+export const getReportConfigLeaving = async (): Promise<ApiResponse<ReportConfig>> => {
   return await apiFetchGet<ReportConfig>(`graduate/reports/config/`);
 };
 
-export const getNominaGeneral = async (): Promise<
-  ApiResponse<NominaGeneral[]>
-> => {
+export const getNominaGeneral = async (): Promise<ApiResponse<NominaGeneral[]>> => {
   return await apiFetchGet<NominaGeneral[]>(`nomina/general/`);
 };
 export const getDependency = async (): Promise<ApiResponse<Dependency[]>> => {
@@ -452,9 +400,7 @@ export const postReport = async <T>(values: T): Promise<globalThis.Blob> => {
     body: JSON.stringify(values),
   });
 };
-export const postReportPasivo = async <T>(
-  values: T,
-): Promise<globalThis.Blob> => {
+export const postReportPasivo = async <T>(values: T): Promise<globalThis.Blob> => {
   return await apiFetchBlob(`reports/pasivo/`, {
     method: "POST",
     body: JSON.stringify(values),
@@ -464,15 +410,11 @@ export const getRegion = async (): Promise<ApiResponse<Region[]>> => {
   return await apiFetchGet<Region[]>(`direccion/regiones/`);
 };
 
-export const getCodigosPostales = async (
-  id: string,
-): Promise<ApiResponse<CodigoPostal[]>> => {
+export const getCodigosPostales = async (id: string): Promise<ApiResponse<CodigoPostal[]>> => {
   return await apiFetchGet<CodigoPostal[]>(`direccion/codigos_postales/${id}/`);
 };
 
-export const getStateByRegion = async (
-  id: number,
-): Promise<ApiResponse<States[]>> => {
+export const getStateByRegion = async (id: number): Promise<ApiResponse<States[]>> => {
   return await apiFetchGet<States[]>(`direccion/estado/${id}/`);
 };
 
@@ -500,9 +442,7 @@ export const getInstituciones = async (): Promise<
   return await apiFetchGet<{ id: number; nombre_institucion: string }[]>(`instituciones/`);
 };
 
-export const getTiposProcedencia = async (): Promise<
-  ApiResponse<TipoProcedencia[]>
-> => {
+export const getTiposProcedencia = async (): Promise<ApiResponse<TipoProcedencia[]>> => {
   return await apiFetchGet<TipoProcedencia[]>(`tiposProcedencia/`);
 };
 export const getFamilyEmployee = async ({
@@ -510,21 +450,19 @@ export const getFamilyEmployee = async ({
 }: {
   searchParams: string | undefined;
 }): Promise<ApiResponse<Family[]>> => {
-  const url = searchParams
-    ? `Employeefamily/?${searchParams}`
-    : `Employeefamily/`;
+  const url = searchParams ? `Employeefamily/?${searchParams}` : `Employeefamily/`;
   return await apiFetchGet<Family[]>(url);
 };
 
 export const getFamilyDocuments = async (
   familyId: number,
-): Promise<ApiResponse<{ id: number; document_type: string; file: string; uploaded_at: string }[]>> => {
+): Promise<
+  ApiResponse<{ id: number; document_type: string; file: string; uploaded_at: string }[]>
+> => {
   return await apiFetchGet(`Employeefamily/${familyId}/documentos/list/`);
 };
 
-export const getMotivosEncargaduria = async (): Promise<
-  ApiResponse<MotivoEncargaduria[]>
-> => {
+export const getMotivosEncargaduria = async (): Promise<ApiResponse<MotivoEncargaduria[]>> => {
   return await apiFetchGet<MotivoEncargaduria[]>(`motivos/encargaduria/`);
 };
 

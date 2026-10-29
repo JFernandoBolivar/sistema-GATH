@@ -1,31 +1,20 @@
-import NextAuth from "next-auth";
-import authConfig from "../auth.config";
+import { auth as proxy } from "../auth";
 import { NextResponse } from "next/server";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { esPerfilAutogestion, esPerfilRecepcionista } from "@/shared/lib/perfil-acceso";
 
-const { auth: proxy } = NextAuth(authConfig);
-
-const publicRoutes = [
-  "/",
-  "/login",
-  "/register",
-  "/recuperar-password",
-  "/restablecer-password",
-];
+// Se usa `auth` de ../auth (con los callbacks jwt/session): con `NextAuth(authConfig)`
+// a secas la sesión del proxy no incluía `permisos` ni `role`, y los perfiles de
+// autogestión/recepcionista nunca se detectaban.
+const publicRoutes = ["/", "/login", "/register", "/recuperar-password", "/restablecer-password"];
 
 export default proxy((req) => {
   const { nextUrl, auth } = req;
   const isLoggedIn = !!auth?.user;
   const permisos = auth?.user?.permisos;
 
-  const esAutogestion =
-    auth?.user?.role?.nombre_rol === "AUTOGESTION" ||
-    auth?.user?.department?.nombre_departamento === "AUTOGESTION" ||
-    (tienePermiso(permisos, "autogestion.censo") && !tienePermiso(permisos, "personal.ver"));
-
-  const esRecepcionista =
-    auth?.user?.role?.nombre_rol === "RECEPCIONISTA" ||
-    (tienePermiso(permisos, "personal.ver") && !tienePermiso(permisos, "personal.crear"));
+  // Perfiles derivados de permisos por código (R16), no del nombre del rol.
+  const esAutogestion = esPerfilAutogestion(permisos);
+  const esRecepcionista = esPerfilRecepcionista(permisos);
 
   // Rutas que puede abrir un recepcionista / usuario de solo lectura.
   // El legado de "empleado"/"pasivo"/"familiares" (listado + detalle) ya se
@@ -50,6 +39,13 @@ export default proxy((req) => {
     return NextResponse.next();
   }
 
+  // Proxy de archivos autenticados (src/app/api/v1): el Route Handler responde
+  // 401 sin cookie y Django valida el token; no se redirige a /login ni se
+  // aplica el filtrado de rutas por perfil (autogestión necesita su foto).
+  if (nextUrl.pathname.startsWith("/api/v1/")) {
+    return NextResponse.next();
+  }
+
   if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
@@ -65,22 +61,16 @@ export default proxy((req) => {
   }
 
   if (isLoggedIn && esAutogestion) {
-    if (
-      !nextUrl.pathname.startsWith("/autogestion") &&
-      !nextUrl.pathname.startsWith("/api/auth")
-    ) {
+    if (!nextUrl.pathname.startsWith("/autogestion") && !nextUrl.pathname.startsWith("/api/auth")) {
       return NextResponse.redirect(new URL("/autogestion", nextUrl));
     }
   }
 
   if (isLoggedIn && esRecepcionista) {
     const ruta =
-      nextUrl.pathname.length > 1
-        ? nextUrl.pathname.replace(/\/+$/, "")
-        : nextUrl.pathname;
+      nextUrl.pathname.length > 1 ? nextUrl.pathname.replace(/\/+$/, "") : nextUrl.pathname;
 
-    const permitida =
-      RUTAS_RECEPCIONISTA.includes(ruta) || ruta.startsWith("/api/auth");
+    const permitida = RUTAS_RECEPCIONISTA.includes(ruta) || ruta.startsWith("/api/auth");
 
     if (!permitida) {
       return NextResponse.redirect(new URL("/dashboard", nextUrl));

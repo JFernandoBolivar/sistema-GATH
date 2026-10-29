@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import Loading from "@/shared/ui/components/loading";
 import { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -36,6 +37,8 @@ type Department = {
   href: string;
   color: string;
   alt: string;
+  /** Permiso requerido para ver el módulo (R16: por código, no por rol/departamento). */
+  permiso: string;
 };
 const departments: Department[] = [
   {
@@ -45,6 +48,7 @@ const departments: Department[] = [
     href: "/usuarios",
     color: "bg-green-500",
     alt: "Sección de seguridad y privacidad.",
+    permiso: "identidad.crear_usuarios",
   },
   {
     id: "RAC",
@@ -53,6 +57,7 @@ const departments: Department[] = [
     href: "/personal",
     color: "bg-green-500",
     alt: "Human Resources Department",
+    permiso: "personal.ver",
   },
   {
     id: "Carnetizacion",
@@ -61,6 +66,7 @@ const departments: Department[] = [
     href: "/carnetizacion",
     color: "bg-blue-500",
     alt: "Sistema de Carnetización",
+    permiso: "carnetizacion.ver",
   },
   {
     id: "AUTOGESTION",
@@ -69,6 +75,7 @@ const departments: Department[] = [
     href: "/autogestion",
     color: "bg-emerald-500",
     alt: "Autogestión de Personal",
+    permiso: "autogestion.ver_propio",
   },
 ];
 
@@ -90,6 +97,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (session?.user?.debeCambiarPassword) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- abre el diálogo cuando la sesión (asíncrona) lo exige
       setShowChangePassword(true);
     }
   }, [session?.user?.debeCambiarPassword]);
@@ -125,11 +133,7 @@ export default function Dashboard() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mx-8 ">
         {departments
-          .filter(
-            (d) =>
-              session?.user?.role?.nombre_rol === "ADMINISTRADOR" ||
-              d.id === session?.user?.department?.nombre_departamento,
-          )
+          .filter((d) => tienePermiso(session?.user?.permisos, d.permiso))
           .map((department, index) => (
             <Card
               key={index}
@@ -154,9 +158,7 @@ export default function Dashboard() {
                   <CardTitle className="text-xl">{department.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center h-full">
-                  <p className="text-sm text-gray-700">
-                    Tienes acceso a este departamento.
-                  </p>
+                  <p className="text-sm text-gray-700">Tienes acceso a este departamento.</p>
                 </CardContent>
               </Card>
             </Card>
@@ -178,16 +180,13 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Cambiar Contraseña</DialogTitle>
             <DialogDescription>
-              Debe cambiar su contraseña para continuar. Esta es una medida de
-              seguridad obligatoria.
+              Debe cambiar su contraseña para continuar. Esta es una medida de seguridad
+              obligatoria.
             </DialogDescription>
           </DialogHeader>
 
           <Form {...changeForm}>
-            <form
-              onSubmit={changeForm.handleSubmit(onChangePassword)}
-              className="gap-4"
-            >
+            <form onSubmit={changeForm.handleSubmit(onChangePassword)} className="gap-4">
               <FormField
                 control={changeForm.control}
                 name="current_password"
@@ -227,11 +226,7 @@ export default function Dashboard() {
                   </FormItem>
                 )}
               />
-              <Button
-                type="submit"
-                disabled={isChangingPass}
-                className="w-full"
-              >
+              <Button type="submit" disabled={isChangingPass} className="w-full">
                 {isChangingPass ? "Cambiando..." : "Cambiar Contraseña"}
               </Button>
             </form>

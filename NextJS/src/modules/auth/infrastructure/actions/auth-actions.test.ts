@@ -1,12 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-const cookieStoreMap = new Map<string, { value: string; options?: any }>();
+const cookieStoreMap = new Map<string, { value: string; options?: Record<string, unknown> }>();
 const mockCookieStore = {
   get: vi.fn((name: string) => {
     const entry = cookieStoreMap.get(name);
     return entry ? { name, value: entry.value } : undefined;
   }),
-  set: vi.fn((name: string, value: string, options?: any) => {
+  set: vi.fn((name: string, value: string, options?: Record<string, unknown>) => {
     cookieStoreMap.set(name, { value, options });
   }),
   getAll: vi.fn(() => {
@@ -29,8 +29,8 @@ const mockSignOut = vi.fn().mockResolvedValue(undefined);
 const mockSignIn = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("#/auth", () => ({
-  signIn: (...args: any[]) => mockSignIn(...args),
-  signOut: (...args: any[]) => mockSignOut(...args),
+  signIn: (...args: unknown[]) => mockSignIn(...args),
+  signOut: (...args: unknown[]) => mockSignOut(...args),
   auth: vi.fn(),
 }));
 
@@ -47,11 +47,7 @@ vi.mock("../../application/use-cases/cerrar-sesion", () => ({
   cerrarSesion: vi.fn().mockResolvedValue(undefined),
 }));
 
-import {
-  extenderSesionAction,
-  cerrarSesionAction,
-  limpiarCookiesAuthAction,
-} from "./auth-actions";
+import { extenderSesionAction, cerrarSesionAction, limpiarCookiesAuthAction } from "./auth-actions";
 
 describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () => {
   beforeEach(() => {
@@ -86,12 +82,12 @@ describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () =>
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       "dj_access",
       "",
-      expect.objectContaining({ maxAge: 0 })
+      expect.objectContaining({ maxAge: 0 }),
     );
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       "dj_refresh",
       "",
-      expect.objectContaining({ maxAge: 0 })
+      expect.objectContaining({ maxAge: 0 }),
     );
   });
 
@@ -106,7 +102,7 @@ describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () =>
     expect(mockCookieStore.set).toHaveBeenCalledWith(
       "dj_access",
       "",
-      expect.objectContaining({ maxAge: 0 })
+      expect.objectContaining({ maxAge: 0 }),
     );
   });
 });

@@ -1,9 +1,10 @@
-"use server"
+"use server";
 import { cookies } from "next/headers";
 import { auth } from "#/auth";
 import { AuthSessionExpiredError } from "./auth-errors";
 import { cache } from "react";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
+import { authCookieSecure } from "@/shared/commons/auth-cookies";
 
 const AUTH_COOKIE_PREFIXES = [
   "authjs.session-token",
@@ -17,9 +18,21 @@ const AUTH_COOKIE_PREFIXES = [
 ];
 
 function deleteAuthCookies(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  const secure = process.env.NODE_ENV === "production";
-  cookieStore.set("dj_access", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
-  cookieStore.set("dj_refresh", "", { maxAge: 0, path: "/", secure, httpOnly: true, sameSite: "lax" });
+  const secure = authCookieSecure();
+  cookieStore.set("dj_access", "", {
+    maxAge: 0,
+    path: "/",
+    secure,
+    httpOnly: true,
+    sameSite: "lax",
+  });
+  cookieStore.set("dj_refresh", "", {
+    maxAge: 0,
+    path: "/",
+    secure,
+    httpOnly: true,
+    sameSite: "lax",
+  });
   const allCookies = cookieStore.getAll();
   for (const c of allCookies) {
     if (AUTH_COOKIE_PREFIXES.some((prefix) => c.name.startsWith(prefix))) {
@@ -43,14 +56,11 @@ async function throwAuthExpired(): Promise<never> {
 const executeRefresh = cache(async (refreshToken: string): Promise<string | null> => {
   try {
     const cookieStore = await cookies();
-    const refreshResponse = await fetch(
-      `${DJANGO_API_SERVER}api/v1/identidad/auth/refresh/`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
-      },
-    );
+    const refreshResponse = await fetch(`${DJANGO_API_SERVER}api/v1/identidad/auth/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
 
     if (!refreshResponse.ok) {
       deleteAuthCookies(cookieStore);
@@ -66,7 +76,7 @@ const executeRefresh = cache(async (refreshToken: string): Promise<string | null
 
     cookieStore.set("dj_access", tokenPayload.access, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: authCookieSecure(),
       sameSite: "lax",
       maxAge: 15 * 60,
       path: "/",
@@ -75,7 +85,7 @@ const executeRefresh = cache(async (refreshToken: string): Promise<string | null
     if (tokenPayload.refresh) {
       cookieStore.set("dj_refresh", tokenPayload.refresh, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
+        secure: authCookieSecure(),
         sameSite: "lax",
         maxAge: 8 * 60 * 60,
         path: "/",
@@ -126,10 +136,7 @@ function buildApiUrl(url: string): string {
   return `${DJANGO_API_SERVER}${cleanUrl}`;
 }
 
-export async function apiFetch<T>(
-  url: string,
-  options?: RequestInit,
-): Promise<T> {
+export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const headers = await getAuthHeaders();
   if (!headers) await throwAuthExpired();
 
@@ -138,10 +145,7 @@ export async function apiFetch<T>(
     headers: { ...options?.headers, ...headers },
   };
 
-  const response = await fetch(
-    buildApiUrl(url),
-    requestOptions,
-  );
+  const response = await fetch(buildApiUrl(url), requestOptions);
 
   if (response.status !== 401) {
     return response.json();
@@ -159,10 +163,7 @@ export async function apiFetch<T>(
     },
   };
 
-  const retryResponse = await fetch(
-    buildApiUrl(url),
-    retryOptions,
-  );
+  const retryResponse = await fetch(buildApiUrl(url), retryOptions);
 
   return retryResponse.json();
 }
@@ -183,10 +184,7 @@ export async function apiFetchFormData<T>(
     headers: restHeaders,
   };
 
-  const response = await fetch(
-    buildApiUrl(url),
-    requestOptions,
-  );
+  const response = await fetch(buildApiUrl(url), requestOptions);
 
   if (response.status !== 401) {
     return response.json();
@@ -203,18 +201,12 @@ export async function apiFetchFormData<T>(
     },
   };
 
-  const retryResponse = await fetch(
-    buildApiUrl(url),
-    retryOptions,
-  );
+  const retryResponse = await fetch(buildApiUrl(url), retryOptions);
 
   return retryResponse.json();
 }
 
-export async function apiFetchBlob(
-  url: string,
-  options?: RequestInit,
-): Promise<globalThis.Blob> {
+export async function apiFetchBlob(url: string, options?: RequestInit): Promise<globalThis.Blob> {
   const headers = await getAuthHeaders();
   if (!headers) await throwAuthExpired();
 
@@ -223,10 +215,7 @@ export async function apiFetchBlob(
     headers: { ...options?.headers, ...headers },
   };
 
-  const response = await fetch(
-    buildApiUrl(url),
-    requestOptions,
-  );
+  const response = await fetch(buildApiUrl(url), requestOptions);
 
   if (response.status !== 401) {
     return response.blob();
@@ -244,10 +233,7 @@ export async function apiFetchBlob(
     },
   };
 
-  const retryResponse = await fetch(
-    buildApiUrl(url),
-    retryOptions,
-  );
+  const retryResponse = await fetch(buildApiUrl(url), retryOptions);
 
   return retryResponse.blob();
 }

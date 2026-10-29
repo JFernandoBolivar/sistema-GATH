@@ -24,6 +24,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 export function AppSidebarAutogestion() {
   const { data: session } = useSession();
@@ -33,10 +34,7 @@ export function AppSidebarAutogestion() {
     setOpenSubmenu(openSubmenu === title ? null : title);
   };
 
-  const isRacAdmin =
-    session?.user?.role?.nombre_rol === "ADMINISTRADOR" ||
-    (session?.user?.role?.nombre_rol === "PRESUPUESTO" &&
-      session?.user?.department?.nombre_departamento === "RAC");
+  const isRacAdmin = tienePermiso(session?.user?.permisos, "autogestion.censo_ver_todos");
 
   return (
     <Sidebar>

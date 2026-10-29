@@ -4,7 +4,14 @@ import { auth } from "#/auth";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
-import { autogestionApi, type SubmitPayload } from "../http/autogestion-api";
+import type { Pregunta } from "@/app/types/types";
+import {
+  autogestionApi,
+  type DatosViviendaPayload,
+  type FiltrosExportCenso,
+  type OpcionCensoCompat,
+  type SubmitPayload,
+} from "../http/autogestion-api";
 import type { ItemRespuestaInputDTO } from "../../application/dtos/censo-dto";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
 import { censoCedulaSchema, registrarCensoSchema } from "../../ui/schema/schema-censo";
@@ -19,10 +26,20 @@ export async function getPreguntasAction() {
   const startedAt = Date.now();
   try {
     const res = await autogestionApi.getPreguntas();
-    await logAudit({ traceId, action: "getPreguntasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "getPreguntasAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return res;
   } catch (error) {
-    await logAudit({ traceId, action: "getPreguntasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "getPreguntasAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
     throw error;
   }
@@ -33,10 +50,20 @@ export async function consultarCensoEmpleadoAction(cedula?: string) {
   const startedAt = Date.now();
   try {
     const res = await autogestionApi.consultarCensoEmpleado(cedula);
-    await logAudit({ traceId, action: "consultarCensoEmpleadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "consultarCensoEmpleadoAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return res;
   } catch (error) {
-    await logAudit({ traceId, action: "consultarCensoEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "consultarCensoEmpleadoAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
     throw error;
   }
@@ -44,7 +71,7 @@ export async function consultarCensoEmpleadoAction(cedula?: string) {
 
 export async function enviarAutogestionAction(
   carnetPatria: string,
-  datosVivienda: any | undefined,
+  datosVivienda: DatosViviendaPayload | undefined,
   respuestas: { pregunta: number; opcion: number | null; respuesta: string }[],
 ) {
   const traceId = generateTraceId();
@@ -66,14 +93,25 @@ export async function enviarAutogestionAction(
     };
 
     const res = await autogestionApi.submitCensoVivienda(cedula, payload);
-    await logAudit({ traceId, action: "enviarAutogestionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "enviarAutogestionAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
 
     return {
-      success: res?.status === "success" || true,
+      // apiClient lanza ante respuestas no exitosas: llegar aquí es éxito.
+      success: true,
       message: res?.message || "Formulario enviado exitosamente.",
     };
   } catch (error) {
-    await logAudit({ traceId, action: "enviarAutogestionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "enviarAutogestionAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
     return {
       success: false,
@@ -87,26 +125,46 @@ export async function getReporteCensoDependenciasAction(searchParams?: string) {
   const startedAt = Date.now();
   try {
     const res = await autogestionApi.getReporteCensoDependencias(searchParams);
-    await logAudit({ traceId, action: "getReporteCensoDependenciasAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "getReporteCensoDependenciasAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return res;
   } catch (error) {
-    await logAudit({ traceId, action: "getReporteCensoDependenciasAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "getReporteCensoDependenciasAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
     throw error;
   }
 }
 
-export async function exportarCensoExcelAction(filtros?: any) {
+export async function exportarCensoExcelAction(filtros?: FiltrosExportCenso) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
     const blob = await autogestionApi.exportarCensoExcel(filtros);
     const arrayBuffer = await blob.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
-    await logAudit({ traceId, action: "exportarCensoExcelAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "exportarCensoExcelAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return { success: true as const, data: base64 };
   } catch (error) {
-    await logAudit({ traceId, action: "exportarCensoExcelAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "exportarCensoExcelAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
     return { success: false as const, error: "Error al generar el archivo Excel" };
   }
@@ -156,14 +214,19 @@ export async function getNominaGeneralAction() {
 // Aliases for compatibility
 export const getPreguntasCensoAction = async () => {
   const res = await getPreguntasAction();
-  return (res.data || []).map((p: any) => ({
+  const preguntas = (res.data || []) as (Pregunta & { orden?: number; activo?: boolean })[];
+  return preguntas.map((p) => ({
     id: p.id,
     enunciado: p.enunciado,
-    tipo: typeof p.tipo === "string" ? p.tipo : p.tipo?.nombre,
-    orden: p.orden,
-    activo: p.activo,
+    tipo: p.tipo?.nombre ?? "",
+    orden: p.orden ?? 0,
+    activo: p.activo ?? true,
     validacion: p.validacion,
-    opciones: (p.opciones || []).map((o: any) => ({ id: o.id, texto: o.tipo_opcion || o.texto, orden: o.orden })),
+    opciones: (p.opciones || []).map((o: OpcionCensoCompat) => ({
+      id: o.id,
+      texto: o.tipo_opcion || o.texto || "",
+      orden: o.orden ?? 0,
+    })),
   }));
 };
 
@@ -174,7 +237,7 @@ export const getMiCensoAction = async () => {
   const res = await consultarCensoEmpleadoAction(cedula);
   const censo = res.data?.[0];
   if (!censo) return [];
-  return (censo.preguntas || []).map((p: any) => ({
+  return (censo.preguntas || []).map((p) => ({
     id: p.id,
     preguntaId: p.id,
     preguntaEnunciado: p.pregunta,
@@ -208,7 +271,7 @@ export const obtenerCensoPorCedulaAction = async (cedula: string) => {
   const res = await consultarCensoEmpleadoAction(cedula);
   const censo = res.data?.[0];
   if (!censo) return [];
-  return (censo.preguntas || []).map((p: any) => ({
+  return (censo.preguntas || []).map((p) => ({
     id: p.id,
     preguntaId: p.id,
     preguntaEnunciado: p.pregunta,
@@ -225,7 +288,7 @@ export const getMetricasCensoAction = async () => {
   return {
     totalEmpleadosCensados: d?.total_empleados_censados || 0,
     totalRespuestas: d?.total_respuestas || 0,
-    porDependencia: (d?.bar_chart || []).map((b: any, idx: number) => ({
+    porDependencia: (d?.bar_chart || []).map((b, idx) => ({
       dependenciaId: idx + 1,
       dependencia: b.key,
       totalEmpleados: b.total,
@@ -243,30 +306,54 @@ export const getMiExpedienteAction = async (): Promise<MiExpedienteDTO | null> =
   const startedAt = Date.now();
   try {
     const res = await autogestionApi.getMiExpediente();
-    await logAudit({ traceId, action: "getMiExpedienteAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "getMiExpedienteAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return res.data;
   } catch (error) {
-    await logAudit({ traceId, action: "getMiExpedienteAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "getMiExpedienteAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
     return null;
   }
 };
 
-export const solicitarCarnetAction = async (payload: { motivo_id?: number; observaciones?: string }) => {
+export const solicitarCarnetAction = async (payload: {
+  motivo_id?: number;
+  observaciones?: string;
+}) => {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
     const res = await autogestionApi.solicitarCarnet(payload);
-    await logAudit({ traceId, action: "solicitarCarnetAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "solicitarCarnetAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
     return {
       success: true,
       message: res.message || "Carnet institucional solicitado exitosamente.",
       data: res.data,
     };
   } catch (error: unknown) {
-    await logAudit({ traceId, action: "solicitarCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({
+      traceId,
+      action: "solicitarCarnetAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
     handleSessionExpired(error);
-    const message = error instanceof Error ? error.message : "Error al solicitar el carnet institucional.";
+    const message =
+      error instanceof Error ? error.message : "Error al solicitar el carnet institucional.";
     return {
       success: false,
       message,
@@ -277,4 +364,3 @@ export const solicitarCarnetAction = async (payload: { motivo_id?: number; obser
 export const descargarMiCarnetPdfAction = async (): Promise<Blob> => {
   return autogestionApi.descargarMiCarnetPdf();
 };
-

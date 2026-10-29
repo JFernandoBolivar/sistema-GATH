@@ -43,6 +43,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Utilidades de Node (CommonJS), no forman parte de la app.
+      "scripts/**",
     ],
   },
 ];

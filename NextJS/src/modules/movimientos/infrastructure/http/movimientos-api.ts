@@ -43,22 +43,20 @@ export interface CatalogoTiposMovimientoApi {
 
 export const movimientosApi = {
   getHistorial: (filtros?: FiltrosMovimientosApi) =>
-    apiClient.get<any>("/api/v1/movimientos/", {
+    apiClient.get<unknown>("/api/v1/movimientos/", {
       params: filtros as Record<string, string | number | boolean | undefined | null>,
     }),
 
-  getTiposDisponibles: () =>
-    apiClient.get<any>("/api/v1/movimientos/tipos/"),
+  getTiposDisponibles: () => apiClient.get<unknown>("/api/v1/movimientos/tipos/"),
 
   getHistorialPorEmpleado: (cedula: string) =>
-    apiClient.get<any>(`/api/v1/movimientos/empleado/${cedula}/`),
+    apiClient.get<unknown>(`/api/v1/movimientos/empleado/${cedula}/`),
 
   getHistorialPorCargo: (codigoPuesto: string) =>
-    apiClient.get<any>(`/api/v1/movimientos/cargo/${codigoPuesto}/`),
+    apiClient.get<unknown>(`/api/v1/movimientos/cargo/${codigoPuesto}/`),
 
   getPdf: (filtros?: FiltrosMovimientosApi) =>
     apiClient.getBlob("/api/v1/movimientos/pdf/", {
       params: filtros as Record<string, string | number | boolean | undefined | null>,
     }),
 };
-

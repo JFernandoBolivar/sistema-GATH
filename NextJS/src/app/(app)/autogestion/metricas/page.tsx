@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useMemo } from "react";
+import { useState } from "react";
 import useSWR from "swr";
 
 import PageLayout from "@/components/layout/page-layout";
@@ -17,20 +17,19 @@ export default function MetricasPage() {
   const reporteSearchParams = useReporteStore((s) => s.searchParams);
 
   const { data: reportData } = useSWR(
-    reporteSearchParams
-      ? ["reporte-censo", reporteSearchParams]
-      : ["reporte-censo"],
+    reporteSearchParams ? ["reporte-censo", reporteSearchParams] : ["reporte-censo"],
     () => getReporteCensoDependenciasAction(reporteSearchParams || undefined),
     { revalidateOnFocus: false },
   );
 
-  const prevReportRef = useRef<ReporteCensoData | undefined>(undefined);
-  const displayReportData = useMemo(() => {
-    if (reportData?.data) {
-      prevReportRef.current = reportData.data;
-    }
-    return prevReportRef.current;
-  }, [reportData?.data]);
+  // Conserva el último reporte válido mientras llega el siguiente (o si una
+  // recarga falla). Estado derivado durante el render, sin leer refs.
+  const [displayReportData, setDisplayReportData] = useState<ReporteCensoData | undefined>(
+    undefined,
+  );
+  if (reportData?.data && reportData.data !== displayReportData) {
+    setDisplayReportData(reportData.data);
+  }
 
   return (
     <PageLayout
@@ -38,52 +37,48 @@ export default function MetricasPage() {
       description="Visualización de progreso del censo de vivienda"
     >
       <div className="flex flex-col gap-4">
-        {displayReportData && (
+        {displayReportData &&
           (() => {
-            const pieTotal = displayReportData.pie_chart.reduce(
-              (acc, d) => acc + d.value,
-              0,
-            );
+            const pieTotal = displayReportData.pie_chart.reduce((acc, d) => acc + d.value, 0);
             const pieChartData = displayReportData.pie_chart.map((d) => ({
               name: d.name,
               value: pieTotal > 0 ? (d.value / pieTotal) * 100 : 0,
             }));
 
-            const respondidos = displayReportData.pie_chart.find(
-              (d) => d.name === "Respondido",
-            )?.value ?? 0;
-            const noRespondidos = displayReportData.pie_chart.find(
-              (d) => d.name === "No Respondido",
-            )?.value ?? 0;
+            const respondidos =
+              displayReportData.pie_chart.find((d) => d.name === "Respondido")?.value ?? 0;
+            const noRespondidos =
+              displayReportData.pie_chart.find((d) => d.name === "No Respondido")?.value ?? 0;
 
             const totalRespondidos = displayReportData.bar_chart.reduce(
-              (acc, b) => acc + b.respondidos, 0,
+              (acc, b) => acc + b.respondidos,
+              0,
             );
             const totalNoRespondidos = displayReportData.bar_chart.reduce(
-              (acc, b) => acc + b.no_respondidos, 0,
+              (acc, b) => acc + b.no_respondidos,
+              0,
             );
 
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card className="bg-white">
                   <CardHeader>
-                    <CardTitle className="text-sm font-medium">
-                      Progreso del Censo
-                    </CardTitle>
+                    <CardTitle className="text-sm font-medium">Progreso del Censo</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col items-center">
-                    <DonutChartCenterText
-                      data={pieChartData}
-                      total={pieTotal}
-                    />
+                    <DonutChartCenterText data={pieChartData} total={pieTotal} />
                     <div className="flex gap-6 mt-4 text-sm">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-[#7e4cfe]" />
-                        <span>Respondido: <strong>{respondidos}</strong></span>
+                        <span>
+                          Respondido: <strong>{respondidos}</strong>
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-[#b597ff]" />
-                        <span>No Respondido: <strong>{noRespondidos}</strong></span>
+                        <span>
+                          No Respondido: <strong>{noRespondidos}</strong>
+                        </span>
                       </div>
                     </div>
                   </CardContent>
@@ -105,19 +100,22 @@ export default function MetricasPage() {
                     <div className="flex gap-6 mt-4 text-sm justify-center">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-violet-300" />
-                        <span>Respondido: <strong>{totalRespondidos}</strong></span>
+                        <span>
+                          Respondido: <strong>{totalRespondidos}</strong>
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full bg-rose-400" />
-                        <span>No Respondido: <strong>{totalNoRespondidos}</strong></span>
+                        <span>
+                          No Respondido: <strong>{totalNoRespondidos}</strong>
+                        </span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
             );
-          })()
-        )}
+          })()}
 
         {!displayReportData && (
           <Card className="bg-white">

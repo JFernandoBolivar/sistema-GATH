@@ -30,12 +30,7 @@ import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/shared/ui/components/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
 import { FileUpload } from "@/shared/ui/components/file-upload";
 
 import {
@@ -144,6 +139,7 @@ export function DetalleFamiliar({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al abrir el diálogo
       cargarDocumentos();
     } else {
       setDocumentos(null);
@@ -151,19 +147,27 @@ export function DetalleFamiliar({
   }, [open, familiar.id]);
 
   const fa = familiar.formacionAcademica;
-  const nivelNombre = catalogos?.nivelesAcademicos.find((n) => n.id === fa?.nivelAcademicoId)?.nombre ?? SIN_DATO;
+  const nivelNombre =
+    catalogos?.nivelesAcademicos.find((n) => n.id === fa?.nivelAcademicoId)?.nombre ?? SIN_DATO;
   const carreraNombre = catalogos?.carreras.find((c) => c.id === fa?.carreraId)?.nombre ?? SIN_DATO;
-  const mencionNombre = catalogos?.menciones.find((m) => m.id === fa?.mencionId)?.nombre ?? SIN_DATO;
-  const instNombre = catalogos?.instituciones.find((i) => i.id === fa?.institucionId)?.nombre ?? SIN_DATO;
+  const mencionNombre =
+    catalogos?.menciones.find((m) => m.id === fa?.mencionId)?.nombre ?? SIN_DATO;
+  const instNombre =
+    catalogos?.instituciones.find((i) => i.id === fa?.institucionId)?.nombre ?? SIN_DATO;
 
   const pf = familiar.perfilFisico;
-  const camisaNombre = catalogos?.tallas.find((t) => t.id === pf?.tallaCamisaId)?.nombre ?? SIN_DATO;
-  const pantalonNombre = catalogos?.tallas.find((t) => t.id === pf?.tallaPantalonId)?.nombre ?? SIN_DATO;
-  const zapatosNombre = catalogos?.tallas.find((t) => t.id === pf?.tallaZapatosId)?.nombre ?? SIN_DATO;
-  const chaquetaNombre = catalogos?.tallas.find((t) => t.id === pf?.tallaChaquetaId)?.nombre ?? SIN_DATO;
+  const camisaNombre =
+    catalogos?.tallas.find((t) => t.id === pf?.tallaCamisaId)?.nombre ?? SIN_DATO;
+  const pantalonNombre =
+    catalogos?.tallas.find((t) => t.id === pf?.tallaPantalonId)?.nombre ?? SIN_DATO;
+  const zapatosNombre =
+    catalogos?.tallas.find((t) => t.id === pf?.tallaZapatosId)?.nombre ?? SIN_DATO;
+  const chaquetaNombre =
+    catalogos?.tallas.find((t) => t.id === pf?.tallaChaquetaId)?.nombre ?? SIN_DATO;
 
   const ps = familiar.perfilSalud;
-  const sangreNombre = catalogos?.gruposSanguineos.find((g) => g.id === ps?.grupoSanguineoId)?.nombre ?? SIN_DATO;
+  const sangreNombre =
+    catalogos?.gruposSanguineos.find((g) => g.id === ps?.grupoSanguineoId)?.nombre ?? SIN_DATO;
   const patologiasNombres = (ps?.patologiasCronicas ?? [])
     .map((id) => catalogos?.patologias.find((p) => p.id === id)?.nombre)
     .filter(Boolean);
@@ -174,8 +178,9 @@ export function DetalleFamiliar({
     .map((id) => catalogos?.alergias.find((a) => a.id === id)?.nombre)
     .filter(Boolean);
 
-  const esHijo = familiar.parentescoNombre?.toUpperCase().includes("HIJO") ||
-                 familiar.parentescoNombre?.toUpperCase().includes("HIJA");
+  const esHijo =
+    familiar.parentescoNombre?.toUpperCase().includes("HIJO") ||
+    familiar.parentescoNombre?.toUpperCase().includes("HIJA");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -192,14 +197,15 @@ export function DetalleFamiliar({
                 <UserRound className="size-6 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="font-semibold text-base">
-                    {familiar.primerNombre} {familiar.segundoNombre ?? ""} {familiar.primerApellido} {familiar.segundoApellido ?? ""}
+                    {familiar.primerNombre} {familiar.segundoNombre ?? ""} {familiar.primerApellido}{" "}
+                    {familiar.segundoApellido ?? ""}
                   </p>
-                  <p className="text-xs text-muted-foreground">Cédula: {familiar.cedulaFamiliar ?? SIN_DATO}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Cédula: {familiar.cedulaFamiliar ?? SIN_DATO}
+                  </p>
                 </div>
               </div>
-              {puedeEditar && (
-                <FamiliarFormDialog familiar={familiar} onGuardado={onGuardado} />
-              )}
+              {puedeEditar && <FamiliarFormDialog familiar={familiar} onGuardado={onGuardado} />}
             </div>
 
             {/* 1. INFORMACIÓN BÁSICA */}
@@ -250,7 +256,9 @@ export function DetalleFamiliar({
                   <span className="text-muted-foreground">Labora en la Institución</span>
                   <div>
                     <Badge variant={familiar.mismoEnte ? "default" : "destructive"}>
-                      {familiar.mismoEnte ? "Trabaja en la Institucion" : "No Trabaja en la Institucion"}
+                      {familiar.mismoEnte
+                        ? "Trabaja en la Institucion"
+                        : "No Trabaja en la Institucion"}
                     </Badge>
                   </div>
 
@@ -353,7 +361,9 @@ export function DetalleFamiliar({
                   <CardTitle className="text-sm font-bold">Observaciones</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm">
-                  <p className="text-muted-foreground whitespace-pre-wrap">{familiar.observaciones}</p>
+                  <p className="text-muted-foreground whitespace-pre-wrap">
+                    {familiar.observaciones}
+                  </p>
                 </CardContent>
               </Card>
             )}
@@ -371,9 +381,13 @@ export function DetalleFamiliar({
                     <Loader2 className="size-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : errorDocs ? (
-                  <p role="alert" className="text-sm text-destructive">{errorDocs}</p>
+                  <p role="alert" className="text-sm text-destructive">
+                    {errorDocs}
+                  </p>
                 ) : !documentos?.length ? (
-                  <p className="text-sm text-muted-foreground">No hay documentos registrados para este familiar.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No hay documentos registrados para este familiar.
+                  </p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {documentos.map((d) => (
@@ -384,7 +398,9 @@ export function DetalleFamiliar({
                         <div className="flex items-center gap-2">
                           <FileText className="size-4 text-primary" />
                           <span className="font-medium">{etiquetaDocumento(d.tipoDocumento)}</span>
-                          <span className="text-xs text-muted-foreground">({formatearFecha(d.fechaSubida)})</span>
+                          <span className="text-xs text-muted-foreground">
+                            ({formatearFecha(d.fechaSubida)})
+                          </span>
                         </div>
                         {d.rutaArchivo && (
                           <Button size="sm" variant="ghost" asChild>
@@ -400,7 +416,9 @@ export function DetalleFamiliar({
 
                 {puedeEditar && (
                   <div className="border-t pt-3 flex flex-col gap-3">
-                    <h4 className="text-xs font-semibold uppercase text-muted-foreground">Subir nuevo documento</h4>
+                    <h4 className="text-xs font-semibold uppercase text-muted-foreground">
+                      Subir nuevo documento
+                    </h4>
                     <FamilyDocumentUploader
                       familiarId={familiar.id}
                       documentType="cedula"

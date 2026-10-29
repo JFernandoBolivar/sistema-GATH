@@ -3,7 +3,7 @@
 /**
  * Página de listado y consulta de personal — 100% paridad visual y funcional
  * con el sistema de referencia (`gestion-trabajadores/personal-trabajador/consultar/page.tsx`).
- * 
+ *
  * Filtros de búsqueda idénticos:
  * - "Buscar Cédula" (placeholder: "buscar cedula...")
  * - "Buscar Código De Trabajador" (placeholder: "buscar codigo de trabajador...")
@@ -61,7 +61,7 @@ import { listadoEmpleadosSchema, type ListadoEmpleadosFormType } from "./schema/
 export default function PersonalPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const esAdmin = tienePermiso(permisos, "*") || session?.user?.role?.nombre_rol === "ADMINISTRADOR";
+  const esAdmin = tienePermiso(permisos, "*");
   const puedeCrear = esAdmin || tienePermiso(permisos, "personal.crear");
   const puedeEditar = esAdmin || tienePermiso(permisos, "personal.editar_personales");
   const puedeVerDetalle = esAdmin || tienePermiso(permisos, "personal.ver_detalle");
@@ -89,31 +89,43 @@ export default function PersonalPage() {
     },
   });
 
+  // Solo la última consulta puede actualizar la tabla: el listado inicial
+  // completo es lento y, si terminaba después de una búsqueda, la pisaba.
+  const ultimaConsultaRef = useRef(0);
+  const catalogosRef = useRef<CatalogosExpedienteDTO | null>(null);
+
+  const asegurarCatalogos = async () => {
+    if (catalogosRef.current) return;
+    try {
+      const cat = await getCatalogosExpedienteAction();
+      catalogosRef.current = cat;
+      setCatalogos(cat);
+    } catch {
+      // El detalle se muestra igual sin catálogos resueltos.
+    }
+  };
+
   const cargar = (filtros?: ListadoEmpleadosFormType) => {
+    const consulta = ++ultimaConsultaRef.current;
     setCargandoPersonal(true);
     startTransition(async () => {
       setError(null);
       try {
         const data = await getEmpleadosAction(filtros);
-        setEmpleados(data);
+        if (consulta === ultimaConsultaRef.current) setEmpleados(data);
       } catch {
-        setError("No fue posible cargar el personal.");
+        if (consulta === ultimaConsultaRef.current) setError("No fue posible cargar el personal.");
       } finally {
-        setCargandoPersonal(false);
+        if (consulta === ultimaConsultaRef.current) setCargandoPersonal(false);
       }
+      // Tras el primer listado, precarga los catálogos del expediente (pesados y
+      // en serie con el resto de Server Actions) para que el detalle abra rápido.
+      if (consulta === 1) await asegurarCatalogos();
     });
   };
 
   useEffect(() => {
     cargar();
-
-    startTransition(async () => {
-      try {
-        setCatalogos(await getCatalogosExpedienteAction());
-      } catch {
-        // Silencioso
-      }
-    });
 
     setCargandoNominas(true);
     startTransition(async () => {
@@ -151,6 +163,7 @@ export default function PersonalPage() {
     setViendoDetalle(null);
     startTransition(async () => {
       setError(null);
+      await asegurarCatalogos();
       const resultado = await getEmpleadoPorCedulaAction(cedula);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         setError((resultado as { error: string }).error);
@@ -191,7 +204,9 @@ export default function PersonalPage() {
     try {
       const resultado = await descargarEmpleadoPdfAction(cedula);
       if (!(resultado instanceof Blob)) {
-        setError((resultado as { error: string }).error ?? "No fue posible generar el PDF del expediente.");
+        setError(
+          (resultado as { error: string }).error ?? "No fue posible generar el PDF del expediente.",
+        );
         return;
       }
       const url = window.URL.createObjectURL(resultado);
@@ -209,7 +224,10 @@ export default function PersonalPage() {
 
   const onExportarPdf = () => {
     if (!viendoDetalle) return;
-    descargarPdfExpediente(viendoDetalle.cedula, `${viendoDetalle.nombres}-${viendoDetalle.apellidos}-expediente.pdf`);
+    descargarPdfExpediente(
+      viendoDetalle.cedula,
+      `${viendoDetalle.nombres}-${viendoDetalle.apellidos}-expediente.pdf`,
+    );
   };
 
   const onExportarPdfDirecto = async (cedula: string) => {
@@ -226,10 +244,7 @@ export default function PersonalPage() {
   );
 
   return (
-    <PageLayout
-      title="Consultar Trabajador"
-      description="Información Detallada Del Trabajador"
-    >
+    <PageLayout title="Consultar Trabajador" description="Información Detallada Del Trabajador">
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSearch)}
@@ -285,7 +300,9 @@ export default function PersonalPage() {
                     <FormControl>
                       <SelectTrigger className="w-[220px] truncate bg-white">
                         <SelectValue
-                          placeholder={cargandoNominas ? "Cargando Nominas" : "Seleccione un Tipo de Nomina"}
+                          placeholder={
+                            cargandoNominas ? "Cargando Nominas" : "Seleccione un Tipo de Nomina"
+                          }
                         />
                       </SelectTrigger>
                     </FormControl>
@@ -314,7 +331,11 @@ export default function PersonalPage() {
               Limpiar <Eraser className="size-4 ml-1" />
             </Button>
             {puedeCrear && (
-              <Button asChild variant="outline" className="cursor-pointer self-end ml-auto border-blue-600 text-blue-600 hover:bg-blue-50">
+              <Button
+                asChild
+                variant="outline"
+                className="cursor-pointer self-end ml-auto border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
                 <Link href="/personal/registrar">
                   <Plus className="size-4 mr-1" /> Nuevo Trabajador
                 </Link>
@@ -324,18 +345,24 @@ export default function PersonalPage() {
         </form>
       </Form>
 
-      {error && <p role="alert" className="text-sm text-destructive mb-2">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive mb-2">
+          {error}
+        </p>
+      )}
 
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFotoSeleccionada} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onFotoSeleccionada}
+      />
 
       {cargandoPersonal ? (
         <Loading promiseMessage="Cargando Información" />
       ) : (
-        <DataTable
-          columns={columnas}
-          data={empleados}
-          emptyMessage="Sin empleados."
-        />
+        <DataTable columns={columnas} data={empleados} emptyMessage="Sin empleados." />
       )}
 
       <EmpleadoDetalleSheet
@@ -346,7 +373,9 @@ export default function PersonalPage() {
         }}
         empleado={viendoDetalle}
         catalogos={catalogos}
-        detalle={viendoDetalle && catalogos ? construirDetalleExpediente(viendoDetalle, catalogos) : null}
+        detalle={
+          viendoDetalle && catalogos ? construirDetalleExpediente(viendoDetalle, catalogos) : null
+        }
         onExportarPdf={onExportarPdf}
         onGuardado={() => {
           cargar(form.getValues());

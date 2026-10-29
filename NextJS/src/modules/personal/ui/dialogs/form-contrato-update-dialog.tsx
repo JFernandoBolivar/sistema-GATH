@@ -7,18 +7,8 @@ import { toast } from "sonner";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
@@ -52,11 +42,12 @@ export default function FormContratoUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const initialContratos = (empleado.contratos && empleado.contratos.length > 0)
-    ? empleado.contratos
-    : empleado.contratoActual
-    ? [empleado.contratoActual]
-    : [];
+  const initialContratos =
+    empleado.contratos && empleado.contratos.length > 0
+      ? empleado.contratos
+      : empleado.contratoActual
+        ? [empleado.contratoActual]
+        : [];
 
   interface ContratoFormItem {
     id?: number;
@@ -71,16 +62,17 @@ export default function FormContratoUpdateDialog({
     contrato: ContratoFormItem[];
   }>({
     defaultValues: {
-      contrato: initialContratos.length > 0
-        ? initialContratos.map((c) => ({
-            id: c.id,
-            nContrato: c.nContrato ?? "",
-            fechaIngreso: c.fechaIngreso ?? "",
-            fechaCulminacion: c.fechaCulminacion ?? "",
-            politicaId: c.politicaId ?? undefined,
-            esFijo: c.esFijo ?? false,
-          }))
-        : [],
+      contrato:
+        initialContratos.length > 0
+          ? initialContratos.map((c) => ({
+              id: c.id,
+              nContrato: c.nContrato ?? "",
+              fechaIngreso: c.fechaIngreso ?? "",
+              fechaCulminacion: c.fechaCulminacion ?? "",
+              politicaId: c.politicaId ?? undefined,
+              esFijo: c.esFijo ?? false,
+            }))
+          : [],
     },
   });
 
@@ -89,15 +81,13 @@ export default function FormContratoUpdateDialog({
     name: "contrato",
   });
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: { contrato: ContratoFormItem[] }) => {
     startTransition(async () => {
       setError(null);
 
       const rawItems = data.contrato || [];
       const hasPartial = rawItems.some(
-        (c: any) =>
-          (c.nContrato || c.fechaCulminacion || c.politicaId) &&
-          !c.fechaIngreso
+        (c) => (c.nContrato || c.fechaCulminacion || c.politicaId) && !c.fechaIngreso,
       );
       if (hasPartial) {
         const msg = "Por favor complete la Fecha de Inicio en los contratos agregados.";
@@ -109,8 +99,8 @@ export default function FormContratoUpdateDialog({
       try {
         const payload = {
           contrato: rawItems
-            .filter((c: any) => c.fechaIngreso)
-            .map((c: any) => ({
+            .filter((c) => c.fechaIngreso)
+            .map((c) => ({
               id: c.id,
               nContrato: c.nContrato || null,
               fechaIngreso: c.fechaIngreso,
@@ -155,12 +145,18 @@ export default function FormContratoUpdateDialog({
           </CardHeader>
 
           <CardContent className="pt-0">
-            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-destructive mb-3">
+                {error}
+              </p>
+            )}
 
             <form className="flex flex-col gap-2" onSubmit={handleSubmit(onSubmit)}>
               <div className="flex justify-end gap-2 mr-4 items-center">
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="add" className="text-xs mb-1">Agregar</Label>
+                  <Label htmlFor="add" className="text-xs mb-1">
+                    Agregar
+                  </Label>
                   <Button
                     id="add"
                     variant="default"
@@ -205,9 +201,7 @@ export default function FormContratoUpdateDialog({
                         )}
 
                         <div className="flex flex-col">
-                          <Label className="text-xs">
-                            {index + 1}. N° Contrato
-                          </Label>
+                          <Label className="text-xs">{index + 1}. N° Contrato</Label>
                           <Input
                             {...register(`contrato.${index}.nContrato` as const)}
                             readOnly={isExisting}
@@ -226,7 +220,9 @@ export default function FormContratoUpdateDialog({
                             min="1930-01-01"
                             disabled={isVencido}
                             className="h-9 text-xs"
-                            {...register(`contrato.${index}.fechaIngreso` as const, { required: true })}
+                            {...register(`contrato.${index}.fechaIngreso` as const, {
+                              required: true,
+                            })}
                           />
                         </div>
 
@@ -244,8 +240,14 @@ export default function FormContratoUpdateDialog({
                         <div className="flex flex-col">
                           <Label className="text-xs">Política</Label>
                           <Select
-                            value={watch(`contrato.${index}.politicaId`) ? String(watch(`contrato.${index}.politicaId`)) : undefined}
-                            onValueChange={(v) => setValue(`contrato.${index}.politicaId`, Number(v))}
+                            value={
+                              watch(`contrato.${index}.politicaId`)
+                                ? String(watch(`contrato.${index}.politicaId`))
+                                : undefined
+                            }
+                            onValueChange={(v) =>
+                              setValue(`contrato.${index}.politicaId`, Number(v))
+                            }
                             disabled={isVencido}
                           >
                             <SelectTrigger className="w-full h-9 text-xs">
@@ -280,10 +282,7 @@ export default function FormContratoUpdateDialog({
                 </div>
               </div>
 
-              <Button
-                className="mt-4 w-full cursor-pointer"
-                disabled={isPending}
-              >
+              <Button className="mt-4 w-full cursor-pointer" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
                 {isPending ? "Actualizando..." : "Guardar Cambios"}
               </Button>

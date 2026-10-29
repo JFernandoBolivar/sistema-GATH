@@ -173,16 +173,19 @@ export const getBloodGroup = async () => {
   );
 };
 
+// El DTO de catálogos no trae categoría: los reportes usan una única "General".
+const CATEGORIA_GENERAL = { id: 1, nombre_categoria: "General" } as const;
+
 export const getPatologys = async () => {
   const items = await getPatologiasAction();
   return wrap(
-    items.map((p: any) => ({
+    items.map((p) => ({
       id: p.id,
       patologia: p.nombre,
       nombre: p.nombre,
       categoria: {
-        id: p.categoriaId ?? 1,
-        nombre_categoria: p.categoriaNombre || "General",
+        id: CATEGORIA_GENERAL.id,
+        nombre_categoria: CATEGORIA_GENERAL.nombre_categoria,
       },
     })),
   );
@@ -191,13 +194,13 @@ export const getPatologys = async () => {
 export const getDisability = async () => {
   const items = await getDiscapacidadesAction();
   return wrap(
-    items.map((d: any) => ({
+    items.map((d) => ({
       id: d.id,
       discapacidad: d.nombre,
       nombre: d.nombre,
       categoria: {
-        id: d.categoriaId ?? 1,
-        nombre_categoria: d.categoriaNombre || "General",
+        id: CATEGORIA_GENERAL.id,
+        nombre_categoria: CATEGORIA_GENERAL.nombre_categoria,
       },
     })),
   );

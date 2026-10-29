@@ -1,15 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
-const EMAIL = process.env.E2E_ADMIN_EMAIL || "usuario.prueba.e2e@conatel.gob.ve";
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD || "E2eSmokeTest!2026";
+import { iniciarSesionE2E } from "./credenciales";
 const ARTIFACT_DIR = "/home/jbolivar@conatel.gob.ve/.gemini/antigravity-cli/brain/63266b19-0e09-4246-a71d-be18a1b72637/scratch";
 
 async function login(page: Page) {
-  await page.goto("/login");
-  await page.getByLabel(/correo electrónico/i).fill(EMAIL);
-  await page.getByLabel(/contraseña/i).fill(PASSWORD);
-  await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+  await iniciarSesionE2E(page);
 }
 
 test.describe("Carnetización UI - Paridad 100% con referencia", () => {
@@ -113,7 +108,7 @@ test.describe("Carnetización UI - Paridad 100% con referencia", () => {
 
     // Verificar plantilla existente
     await expect(page.getByText("PLANTILLA OFICIAL")).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Activa")).toBeVisible();
+    await expect(page.getByText("Activa", { exact: true }).first()).toBeVisible();
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/4_carnetizacion_plantillas.png` });
   });

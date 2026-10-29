@@ -54,7 +54,24 @@ interface ContratoInlineFormProps {
   className?: string;
 }
 
-export function ContratoInlineForm({ employee, politicas, onSuccess, className }: ContratoInlineFormProps) {
+interface ContratoConEstatus {
+  estatus?: { estatus?: string } | null;
+  estatusNombre?: string;
+  estatus_nombre?: string;
+}
+
+/** Un contrato está vigente salvo que su estatus sea VENCIDO o CULMINADO. */
+function esContratoVigente(c: ContratoConEstatus | null | undefined): boolean {
+  const est = c?.estatus?.estatus || c?.estatusNombre || c?.estatus_nombre || "";
+  return est !== "VENCIDO" && est !== "CULMINADO";
+}
+
+export function ContratoInlineForm({
+  employee,
+  politicas,
+  onSuccess,
+  className,
+}: ContratoInlineFormProps) {
   const [showContratoForm, setShowContratoForm] = useState(false);
   const [hasActiveContrato, setHasActiveContrato] = useState(false);
   const [contratoData, setContratoData] = useState({
@@ -78,12 +95,14 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
               id: p.id,
               tipo_politica: p.nombre,
               nombre: p.nombre,
-            }))
+            })),
           );
         }
       })
       .catch(() => {});
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [politicas]);
 
   const politicasList = useMemo(() => {
@@ -111,10 +130,7 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
     }
 
     if (Array.isArray(employee.contrato) && employee.contrato.length > 0) {
-      const hasActive = employee.contrato.some((c: any) => {
-        const est = c?.estatus?.estatus || c?.estatusNombre || c?.estatus_nombre || "";
-        return est !== "VENCIDO" && est !== "CULMINADO";
-      });
+      const hasActive = employee.contrato.some(esContratoVigente);
       if (hasActive) {
         setHasActiveContrato(true);
         setShowContratoForm(false);
@@ -128,22 +144,23 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
       const fullEmployee = await getEmpleadoPorCedulaAction(cedula);
       if (cancelled) return;
       if (fullEmployee && "cedula" in fullEmployee) {
-        const contratos = (fullEmployee.contratos ?? (fullEmployee.contratoActual ? [fullEmployee.contratoActual] : [])) as unknown as Contrato[];
+        const contratos = (fullEmployee.contratos ??
+          (fullEmployee.contratoActual
+            ? [fullEmployee.contratoActual]
+            : [])) as unknown as Contrato[];
         setFullContrato(contratos || []);
         const hasActive =
           (fullEmployee.contratoActual &&
             fullEmployee.contratoActual.estatusNombre !== "VENCIDO" &&
             fullEmployee.contratoActual.estatusNombre !== "CULMINADO") ||
-          contratos.some((c: any) => {
-            const est = c?.estatus?.estatus || c?.estatusNombre || c?.estatus_nombre || "";
-            return est !== "VENCIDO" && est !== "CULMINADO";
-          });
+          contratos.some(esContratoVigente);
         setHasActiveContrato(!!hasActive);
         if (!hasActive) {
           setShowContratoForm(true);
           const firstPolitica = politicasList[0];
           const initials =
-            (firstPolitica?.tipo_politica || firstPolitica?.nombre)?.charAt(0)?.toUpperCase() || "C";
+            (firstPolitica?.tipo_politica || firstPolitica?.nombre)?.charAt(0)?.toUpperCase() ||
+            "C";
           const count = (contratos.length || 0) + 1;
           setContratoData((prev) => ({
             ...prev,
@@ -155,13 +172,16 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
         }
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [employee, cedula, politicasList, onSuccess]);
 
   const generateNContrato = (empCedula: string, politicaId: number) => {
     const selectedPolitica = politicasList.find((p) => p.id === politicaId);
     const initials =
-      (selectedPolitica?.tipo_politica || selectedPolitica?.nombre)?.charAt(0)?.toUpperCase() || "C";
+      (selectedPolitica?.tipo_politica || selectedPolitica?.nombre)?.charAt(0)?.toUpperCase() ||
+      "C";
     const count = (fullContrato.length || 0) + 1;
     return `${initials}-${empCedula}-${String(count).padStart(2, "0")}`;
   };
@@ -213,7 +233,9 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
   if (!employee || !showContratoForm || hasActiveContrato) return null;
 
   return (
-    <div className={`border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3 ${className ?? ""}`}>
+    <div
+      className={`border-2 border-yellow-400/45 bg-yellow-100/40 p-4 rounded-sm gap-3 ${className ?? ""}`}
+    >
       <Label className="text-lg font-bold">El trabajador no tiene contrato activo</Label>
       <p className="text-sm">Debe registrar un contrato antes de asignar el cargo.</p>
       <div className="grid grid-cols-2 gap-3">
@@ -286,14 +308,20 @@ export function ContratoInlineForm({ employee, politicas, onSuccess, className }
               <Calendar
                 mode="single"
                 selected={contratoData.fecha_culminacion}
-                onSelect={(d) => d && setContratoData((prev) => ({ ...prev, fecha_culminacion: d }))}
+                onSelect={(d) =>
+                  d && setContratoData((prev) => ({ ...prev, fecha_culminacion: d }))
+                }
                 disabled={(d) => d < new Date("1900-01-01")}
               />
             </PopoverContent>
           </Popover>
         </div>
       </div>
-      <Button onClick={handleSaveContrato} disabled={savingContrato} className="w-full cursor-pointer mt-3">
+      <Button
+        onClick={handleSaveContrato}
+        disabled={savingContrato}
+        className="w-full cursor-pointer mt-3"
+      >
         {savingContrato ? "Guardando..." : "Guardar Contrato"}
       </Button>
     </div>

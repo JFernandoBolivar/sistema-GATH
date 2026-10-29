@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { RepoCargos } from "../../domain/ports/repo-cargos";
+import type {
+  ActualizarCargoInput,
+  CrearCargoEspecialInput,
+  RepoCargos,
+} from "../../domain/ports/repo-cargos";
 import {
   CatalogoCargoItem,
   CargoAsignacion,
@@ -64,10 +68,10 @@ class RepoCargosMemoria implements RepoCargos {
     c.estaVacante = true;
     return c;
   }
-  async asignarCargoEspecial(input: any) {
+  async asignarCargoEspecial(_input: CrearCargoEspecialInput) {
     return this.cargos[0];
   }
-  async actualizarCargo(cargoId: number, input: any) {
+  async actualizarCargo(cargoId: number, input: ActualizarCargoInput) {
     const c = this.cargos.find((x) => x.id === cargoId)!;
     if (input.denominacioncargoid) c.denominacionId = input.denominacioncargoid;
     if (input.denominacioncargoespecificoid) c.especificaId = input.denominacioncargoespecificoid;
@@ -98,7 +102,13 @@ class RepoCargosMemoria implements RepoCargos {
   async listarPrestamos(): Promise<PrestamoCargo[]> {
     return this.prestamos;
   }
-  async crearPrestamo(input: { cedulaEncargado: string; cargoId: number; motivoId: number; fechaInicio: string; fechaFin: string }) {
+  async crearPrestamo(input: {
+    cedulaEncargado: string;
+    cargoId: number;
+    motivoId: number;
+    fechaInicio: string;
+    fechaFin: string;
+  }) {
     const p: PrestamoCargo = {
       id: this.prestamos.length + 1,
       empleadoEncargadoCedula: input.cedulaEncargado,
@@ -126,7 +136,11 @@ class RepoCargosMemoria implements RepoCargos {
     return p;
   }
   async crearDenominacion(input: { nombre: string; orden: number }) {
-    const d: DenominacionCargo = { id: this.denominaciones.length + 1, nombre: input.nombre, orden: input.orden };
+    const d: DenominacionCargo = {
+      id: this.denominaciones.length + 1,
+      nombre: input.nombre,
+      orden: input.orden,
+    };
     this.denominaciones.push(d);
     return d;
   }
@@ -265,7 +279,13 @@ describe("Casos de uso de Cargos", () => {
 
   it("crearPrestamo, listarPrestamos y finalizarPrestamo funcionan", async () => {
     const repo = new RepoCargosMemoria();
-    const creado = await crearPrestamo(repo, { cedulaEncargado: "12345678", cargoId: 1, motivoId: 5, fechaInicio: "2026-01-01", fechaFin: "2026-02-01" });
+    const creado = await crearPrestamo(repo, {
+      cedulaEncargado: "12345678",
+      cargoId: 1,
+      motivoId: 5,
+      fechaInicio: "2026-01-01",
+      fechaFin: "2026-02-01",
+    });
     expect(creado.estaFinalizada).toBe(false);
     expect((await listarPrestamos(repo)).length).toBe(1);
     const finalizado = await finalizarPrestamo(repo, creado.id);

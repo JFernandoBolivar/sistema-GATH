@@ -86,6 +86,7 @@ export default function CatalogoItemDialog({
 
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetea el formulario al abrir el diálogo
     setNombreItem(itemEditando?.nombre ?? "");
     setCategoriaIdSeleccionada("");
     setRegionIdSeleccionada("");
@@ -95,14 +96,24 @@ export default function CatalogoItemDialog({
     setNuevaCategoriaNombre("");
 
     if (codigo === "alergias") {
-      getCategoriasAlergiaAction().then(setCategoriasSalud).catch(() => {});
+      getCategoriasAlergiaAction()
+        .then(setCategoriasSalud)
+        .catch(() => {});
     } else if (codigo === "patologias") {
-      getCategoriasPatologiaAction().then(setCategoriasSalud).catch(() => {});
+      getCategoriasPatologiaAction()
+        .then(setCategoriasSalud)
+        .catch(() => {});
     } else if (codigo === "discapacidades") {
-      getCategoriasDiscapacidadAction().then(setCategoriasSalud).catch(() => {});
+      getCategoriasDiscapacidadAction()
+        .then(setCategoriasSalud)
+        .catch(() => {});
     } else if (codigo === "tallas") {
-      getRegionesTallaAction().then(setRegionesTallaOpciones).catch(() => {});
-      getTiposPrendaAction().then(setTiposPrendaOpciones).catch(() => {});
+      getRegionesTallaAction()
+        .then(setRegionesTallaOpciones)
+        .catch(() => {});
+      getTiposPrendaAction()
+        .then(setTiposPrendaOpciones)
+        .catch(() => {});
     }
   }, [open, codigo, itemEditando]);
 
@@ -129,8 +140,8 @@ export default function CatalogoItemDialog({
           codigo === "alergias"
             ? await getCategoriasAlergiaAction()
             : codigo === "patologias"
-            ? await getCategoriasPatologiaAction()
-            : await getCategoriasDiscapacidadAction();
+              ? await getCategoriasPatologiaAction()
+              : await getCategoriasDiscapacidadAction();
         setCategoriasSalud(list);
         if (res.item) setCategoriaIdSeleccionada(String(res.item.id));
       } else {
@@ -215,7 +226,9 @@ export default function CatalogoItemDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{itemEditando ? "Editar registro en" : "Nuevo registro en"} {etiqueta}</DialogTitle>
+          <DialogTitle>
+            {itemEditando ? "Editar registro en" : "Nuevo registro en"} {etiqueta}
+          </DialogTitle>
           <DialogDescription>
             {itemEditando
               ? "Modifique los datos del elemento seleccionado."
@@ -228,10 +241,10 @@ export default function CatalogoItemDialog({
               {codigo === "regiones-talla"
                 ? "Código de Región (máx. 10 car.)"
                 : codigo === "tallas"
-                ? "Valor de Talla (ej. M, 38, XL)"
-                : codigo === "organismos-adscritos"
-                ? "Nombre del Organismo Adscrito"
-                : "Nombre / Descripción"}
+                  ? "Valor de Talla (ej. M, 38, XL)"
+                  : codigo === "organismos-adscritos"
+                    ? "Nombre del Organismo Adscrito"
+                    : "Nombre / Descripción"}
             </Label>
             <Input
               id="nombreItem"
@@ -241,12 +254,14 @@ export default function CatalogoItemDialog({
                 codigo === "regiones-talla"
                   ? "Ej. ADULTO"
                   : codigo === "tallas"
-                  ? "Ej. M o 38"
-                  : codigo === "organismos-adscritos"
-                  ? "Ej. CONATEL, VTV, CANTV"
-                  : "Nombre..."
+                    ? "Ej. M o 38"
+                    : codigo === "organismos-adscritos"
+                      ? "Ej. CONATEL, VTV, CANTV"
+                      : "Nombre..."
               }
-              maxLength={codigo === "regiones-talla" ? 10 : codigo === "organismos-adscritos" ? 50 : 100}
+              maxLength={
+                codigo === "regiones-talla" ? 10 : codigo === "organismos-adscritos" ? 50 : 100
+              }
               disabled={isPending}
               required
             />
@@ -273,7 +288,12 @@ export default function CatalogoItemDialog({
                     onChange={(e) => setNuevaCategoriaNombre(e.target.value)}
                     disabled={isPending}
                   />
-                  <Button type="button" size="sm" onClick={handleCrearCategoriaRapida} disabled={isPending}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCrearCategoriaRapida}
+                    disabled={isPending}
+                  >
                     Crear
                   </Button>
                 </div>
@@ -313,7 +333,10 @@ export default function CatalogoItemDialog({
               </div>
               <div>
                 <Label htmlFor="prendaSelect">Tipo de Prenda</Label>
-                <Select value={tipoPrendaIdSeleccionada} onValueChange={setTipoPrendaIdSeleccionada}>
+                <Select
+                  value={tipoPrendaIdSeleccionada}
+                  onValueChange={setTipoPrendaIdSeleccionada}
+                >
                   <SelectTrigger id="prendaSelect">
                     <SelectValue placeholder="Seleccione tipo de prenda" />
                   </SelectTrigger>
@@ -343,7 +366,12 @@ export default function CatalogoItemDialog({
           )}
 
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isPending}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onOpenChange(false)}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={isPending}>

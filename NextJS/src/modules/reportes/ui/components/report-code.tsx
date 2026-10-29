@@ -39,11 +39,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { useState, useTransition } from "react";
-import {
-  schemaReportCode,
-  type SchemaReportCodeType,
-} from "../schema/schemaReportCode";
+import { schemaReportCode, type SchemaReportCodeType } from "../schema/schemaReportCode";
 import Loading from "@/shared/ui/components/loading";
 
 export default function ReportCode() {
@@ -55,16 +53,13 @@ export default function ReportCode() {
     "statusReport",
     async () => await getStatusReport(),
   );
-  const [directionGeneralId, setDirectionGeneralId] = useState<string | null>(
-    null,
-  );
+  const [directionGeneralId, setDirectionGeneralId] = useState<string | null>(null);
   const [directionLineId, setDirectionLineId] = useState<string | null>(null);
 
-  const { data: directionGeneral, isLoading: isLoadingDirectionGeneral } =
-    useSWR(
-      dependencyId ? ["directionGeneral", dependencyId] : null,
-      async () => await getDirectionGeneralById(dependencyId),
-    );
+  const { data: directionGeneral, isLoading: isLoadingDirectionGeneral } = useSWR(
+    dependencyId ? ["directionGeneral", dependencyId] : null,
+    async () => await getDirectionGeneralById(dependencyId),
+  );
   const { data: dependency, isLoading: isLoadingDependency } = useSWR(
     "dependency",
     async () => await getDependency(),
@@ -82,17 +77,12 @@ export default function ReportCode() {
     "cargoEspecifico",
     async () => await getCargoEspecifico(),
   );
-  const { data: cargo, isLoading: isLoadingCargo } = useSWR(
-    "cargo",
-    async () => await getCargo(),
-  );
+  const { data: cargo, isLoading: isLoadingCargo } = useSWR("cargo", async () => await getCargo());
   const { data: nomina, isLoading: isLoadingNomina } = useSWR(
     "nomina",
     async () => await getNominaGeneral(),
   );
-  const { data: grado, isLoading: isLoadingGrado } = useSWR("grado", async () =>
-    getGrado(),
-  );
+  const { data: grado, isLoading: isLoadingGrado } = useSWR("grado", async () => getGrado());
   const { data: organismoAds, isLoading: isLoadingOrganismoAds } = useSWR(
     "organismoAds",
     async () => await getOrganismosAdsFather(),
@@ -125,9 +115,7 @@ export default function ReportCode() {
   });
 
   if (!session) {
-    return (
-      <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />
-    );
+    return <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />;
   }
 
   const onSubmit = (data: SchemaReportCodeType) => {
@@ -151,9 +139,8 @@ export default function ReportCode() {
     setReportListCodeBlob(undefined);
   };
 
-  const esAdmin =
-    session?.user?.role?.nombre_rol === "ADMINISTRADOR" ||
-    session?.user?.role?.id === 1;
+  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
+  const esAdmin = tienePermiso(session?.user?.permisos, "*");
 
   return (
     <Card className="bg-white">
@@ -162,10 +149,7 @@ export default function ReportCode() {
           {isPending ? (
             <Loading promiseMessage="Consultando Reporte" />
           ) : (
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="grid grid-cols-3 gap-4"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="w-full">
                   <div className="flex flex-row w-full gap-2">
@@ -199,10 +183,7 @@ export default function ReportCode() {
                                 </FormControl>
                                 <SelectContent>
                                   {dependency?.data.map((dependencia, i) => (
-                                    <SelectItem
-                                      key={i}
-                                      value={`${dependencia.id}`}
-                                    >
+                                    <SelectItem key={i} value={`${dependencia.id}`}>
                                       {dependencia.dependencia}
                                     </SelectItem>
                                   ))}
@@ -217,9 +198,7 @@ export default function ReportCode() {
                           name="filtros.general_id"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>
-                                Dirección / Gerencia / Oficina
-                              </FormLabel>
+                              <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
                               <FormControl>
                                 <Combobox
                                   options={(directionGeneral?.data ?? []).map((general) => ({
@@ -307,17 +286,13 @@ export default function ReportCode() {
                     )}
 
                     <fieldset className="flex flex-col w-full gap-3 border-2 p-2 rounded-sm border-red-800">
-                      <legend className="text-red-900 font-semibold">
-                        Información De Cargo
-                      </legend>
+                      <legend className="text-red-900 font-semibold">Información De Cargo</legend>
                       <FormField
                         control={form.control}
                         name="filtros.cargo_especifico_id"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>
-                              Denominación De Cargo Específico
-                            </FormLabel>
+                            <FormLabel>Denominación De Cargo Específico</FormLabel>
                             <FormControl>
                               <Combobox
                                 options={(cargoEspecifico?.data ?? []).map((cargo) => ({
@@ -419,9 +394,7 @@ export default function ReportCode() {
                                 <SelectTrigger className="w-full truncate">
                                   <SelectValue
                                     placeholder={`${
-                                      isLoadingGrado
-                                        ? "Cargando Grados"
-                                        : "Seleccione un Grado"
+                                      isLoadingGrado ? "Cargando Grados" : "Seleccione un Grado"
                                     }`}
                                   />
                                 </SelectTrigger>

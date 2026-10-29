@@ -12,9 +12,9 @@ import type {
   ConditionDwelling,
   CodigoPostal,
   ReporteCensoData,
+  BarChartItem,
 } from "@/app/types/types";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
-
 
 /**
  * Los catálogos de /api/v1/organizacion/ y /api/v1/catalogos/tipos-nomina/ usan
@@ -97,6 +97,37 @@ export interface MetricasCensoApiItem {
   por_dependencia: ReporteDependenciaApiItem[];
 }
 
+/** Cargo que devuelve /censo/consultar/ (relaciones anidadas del backend). */
+export interface CensoCargoApiItem {
+  codigo?: string;
+  denominacioncargo?: { cargo?: string } | null;
+  Dependencia?: { dependencia: string } | null;
+  DireccionGeneral?: { direccion_general: string } | null;
+  DireccionLinea?: { direccion_linea: string } | null;
+  Coordinacion?: { coordinacion: string } | null;
+}
+
+export type DatosViviendaPayload = NonNullable<SubmitPayload["datos_vivienda"]>;
+
+/** Respuesta cruda de /censo/metricas/ (solo los campos que se consumen). */
+export interface MetricasCensoResponse {
+  total_empleados_censados?: number;
+  total_respuestas?: number;
+  bar_chart?: BarChartItem[];
+}
+
+/** Filtros del export Excel: pares clave/valor serializables a JSON. */
+export type FiltrosExportCenso = Record<string, unknown>;
+
+/** Opción tal como llega del backend: `texto` (nuevo) o `tipo_opcion` (legado). */
+export type OpcionCensoCompat = Pick<OpcionPreguntaApiItem, "id"> &
+  Partial<Omit<OpcionPreguntaApiItem, "id">> & { tipo_opcion?: string };
+
+/** Vivienda tal como la devuelve /censo/consultar/ (código postal expandido). */
+export type CensoViviendaApiItem = DatosViviendaPayload & {
+  codigo_postal?: { codigo?: string } | null;
+};
+
 export interface CensoEmpleadoItem {
   id: number;
   cedula: string;
@@ -104,8 +135,8 @@ export interface CensoEmpleadoItem {
   apellidos: string;
   fecha_nacimiento: string | null;
   carnet_patria: string | null;
-  cargos: any[];
-  datos_vivienda: any | null;
+  cargos: CensoCargoApiItem[];
+  datos_vivienda: CensoViviendaApiItem | null;
   total_apn: { years: number; months: number; days: number };
   fecha_ingreso_organismo: string | null;
   preguntas: {
@@ -150,30 +181,41 @@ export const autogestionApi = {
     return apiClient.get<ApiResponse<CensoEmpleadoItem[]>>(url);
   },
 
-  submitCensoVivienda: async (cedula: string, payload: SubmitPayload): Promise<ApiResponse<any>> => {
-    return apiClient.post<ApiResponse<any>>(
+  submitCensoVivienda: async (
+    cedula: string,
+    payload: SubmitPayload,
+  ): Promise<ApiResponse<null>> => {
+    return apiClient.post<ApiResponse<null>>(
       `/api/v1/autogestion/censo/${encodeURIComponent(cedula)}/`,
       payload as unknown as Record<string, unknown>,
     );
   },
 
-  getReporteCensoDependencias: async (searchParams?: string): Promise<ApiResponse<ReporteCensoData>> => {
+  getReporteCensoDependencias: async (
+    searchParams?: string,
+  ): Promise<ApiResponse<ReporteCensoData>> => {
     const url = searchParams
       ? `/api/v1/autogestion/censo/reporte-dependencias/?${searchParams}`
       : `/api/v1/autogestion/censo/reporte-dependencias/`;
     return apiClient.get<ApiResponse<ReporteCensoData>>(url);
   },
 
-  getMetricas: async (): Promise<ApiResponse<any>> => {
-    return apiClient.get<ApiResponse<any>>("/api/v1/autogestion/censo/metricas/");
+  getMetricas: async (): Promise<ApiResponse<MetricasCensoResponse>> => {
+    return apiClient.get<ApiResponse<MetricasCensoResponse>>("/api/v1/autogestion/censo/metricas/");
   },
 
-  exportarCensoExcel: async (filtros?: any): Promise<Blob> => {
+  exportarCensoExcel: async (filtros?: FiltrosExportCenso): Promise<Blob> => {
     return apiClient.postBlob("/api/v1/autogestion/censo/export/excel/", { filtros });
   },
 
-  solicitarCarnet: async (payload: { motivo_id?: number; observaciones?: string }): Promise<ApiResponse<any>> => {
-    return apiClient.post<ApiResponse<any>>("/api/v1/autogestion/solicitar-carnet/", payload as Record<string, unknown>);
+  solicitarCarnet: async (payload: {
+    motivo_id?: number;
+    observaciones?: string;
+  }): Promise<ApiResponse<null>> => {
+    return apiClient.post<ApiResponse<null>>(
+      "/api/v1/autogestion/solicitar-carnet/",
+      payload as Record<string, unknown>,
+    );
   },
 
   descargarMiCarnetPdf: async (): Promise<Blob> => {
@@ -182,7 +224,9 @@ export const autogestionApi = {
 
   // Backward-compatibility aliases for existing repository tests
   getCensoDeEmpleado: async (cedula: string): Promise<RespuestaCensoApiItem[]> => {
-    const res = await apiClient.get<ApiResponse<CensoEmpleadoItem[]>>(`/api/v1/autogestion/censo/consultar/${encodeURIComponent(cedula)}/`);
+    const res = await apiClient.get<ApiResponse<CensoEmpleadoItem[]>>(
+      `/api/v1/autogestion/censo/consultar/${encodeURIComponent(cedula)}/`,
+    );
     const censo = res.data?.[0];
     if (!censo) return [];
     return (censo.preguntas || []).map((p) => ({
@@ -196,10 +240,16 @@ export const autogestionApi = {
     }));
   },
 
-  registrarRespuestas: async (cedula: string, respuestas: Array<Record<string, unknown>>): Promise<RespuestaCensoApiItem[]> => {
+  registrarRespuestas: async (
+    cedula: string,
+    respuestas: Array<Record<string, unknown>>,
+  ): Promise<RespuestaCensoApiItem[]> => {
     const formatted = respuestas.map((r) => ({
       pregunta: Number(r.pregunta_id || r.pregunta),
-      opcion: r.opcion_id !== undefined ? (r.opcion_id as number | null) : (r.opcion as number | null) ?? null,
+      opcion:
+        r.opcion_id !== undefined
+          ? (r.opcion_id as number | null)
+          : ((r.opcion as number | null) ?? null),
       respuesta: String(r.respuesta || r.respuesta_texto || ""),
     }));
     await autogestionApi.submitCensoVivienda(cedula, { carnet_patria: "", respuestas: formatted });
@@ -227,35 +277,53 @@ export const autogestionApi = {
   },
 
   getMunicipalitys: async (estadoId: string | number): Promise<ApiResponse<Municipality[]>> => {
-    return apiClient.get<ApiResponse<Municipality[]>>(`/api/v1/catalogos/municipios/?estado_id=${estadoId}`);
+    return apiClient.get<ApiResponse<Municipality[]>>(
+      `/api/v1/catalogos/municipios/?estado_id=${estadoId}`,
+    );
   },
 
   getParish: async (municipioId: string | number): Promise<ApiResponse<Parish[]>> => {
-    return apiClient.get<ApiResponse<Parish[]>>(`/api/v1/catalogos/parroquias/?municipio_id=${municipioId}`);
+    return apiClient.get<ApiResponse<Parish[]>>(
+      `/api/v1/catalogos/parroquias/?municipio_id=${municipioId}`,
+    );
   },
 
   getConditionDwelling: async (): Promise<ApiResponse<ConditionDwelling[]>> => {
-    return apiClient.get<ApiResponse<ConditionDwelling[]>>("/api/v1/personal/catalogos/condiciones-vivienda/");
+    return apiClient.get<ApiResponse<ConditionDwelling[]>>(
+      "/api/v1/personal/catalogos/condiciones-vivienda/",
+    );
   },
 
   getCodigosPostales: async (estadoId: string | number): Promise<ApiResponse<CodigoPostal[]>> => {
-    return apiClient.get<ApiResponse<CodigoPostal[]>>(`/api/v1/personal/catalogos/codigos-postales/?estado_id=${estadoId}`);
+    return apiClient.get<ApiResponse<CodigoPostal[]>>(
+      `/api/v1/personal/catalogos/codigos-postales/?estado_id=${estadoId}`,
+    );
   },
 
   getDependency: async (): Promise<ApiResponse<DependenciaApiItem[]>> => {
     return apiClient.get<ApiResponse<DependenciaApiItem[]>>("/api/v1/organizacion/dependencias/");
   },
 
-  getDirectionGeneralById: async (dependenciaId: string | number): Promise<ApiResponse<DireccionGeneralApiItem[]>> => {
-    return apiClient.get<ApiResponse<DireccionGeneralApiItem[]>>(`/api/v1/organizacion/direcciones-generales/?dependencia_id=${dependenciaId}`);
+  getDirectionGeneralById: async (
+    dependenciaId: string | number,
+  ): Promise<ApiResponse<DireccionGeneralApiItem[]>> => {
+    return apiClient.get<ApiResponse<DireccionGeneralApiItem[]>>(
+      `/api/v1/organizacion/direcciones-generales/?dependencia_id=${dependenciaId}`,
+    );
   },
 
-  getDirectionLine: async (dgId: string | number): Promise<ApiResponse<DireccionLineaApiItem[]>> => {
-    return apiClient.get<ApiResponse<DireccionLineaApiItem[]>>(`/api/v1/organizacion/direcciones-linea/?direccion_general_id=${dgId}`);
+  getDirectionLine: async (
+    dgId: string | number,
+  ): Promise<ApiResponse<DireccionLineaApiItem[]>> => {
+    return apiClient.get<ApiResponse<DireccionLineaApiItem[]>>(
+      `/api/v1/organizacion/direcciones-linea/?direccion_general_id=${dgId}`,
+    );
   },
 
   getCoordination: async (dlId: string | number): Promise<ApiResponse<CoordinacionApiItem[]>> => {
-    return apiClient.get<ApiResponse<CoordinacionApiItem[]>>(`/api/v1/organizacion/coordinaciones/?direccion_linea_id=${dlId}`);
+    return apiClient.get<ApiResponse<CoordinacionApiItem[]>>(
+      `/api/v1/organizacion/coordinaciones/?direccion_linea_id=${dlId}`,
+    );
   },
 
   getNominaGeneral: async (): Promise<ApiResponse<TipoNominaApiItem[]>> => {

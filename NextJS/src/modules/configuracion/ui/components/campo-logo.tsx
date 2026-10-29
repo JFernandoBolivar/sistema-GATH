@@ -33,8 +33,11 @@ export function CampoLogoUpload({
   const [previewLocal, setPreviewLocal] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Sincroniza un recurso externo (object URL) con el archivo elegido; el
+  // setState es inevitable porque la URL solo existe en el efecto (con su revoke).
   useEffect(() => {
     if (!archivo) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewLocal(null);
       return;
     }
@@ -94,7 +97,8 @@ export function CampoLogoUpload({
       </div>
       {deshabilitado && (
         <p className="text-xs text-muted-foreground">
-          Deshabilitado: el cintillo genérico es de solo lectura (RN-009-01). Seleccione "Fijo" para editar las imágenes.
+          Deshabilitado: el cintillo genérico es de solo lectura (RN-009-01). Seleccione
+          &quot;Fijo&quot; para editar las imágenes.
         </p>
       )}
     </div>

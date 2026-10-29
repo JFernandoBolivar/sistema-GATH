@@ -22,13 +22,7 @@ import { useSession } from "next-auth/react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -45,7 +39,10 @@ import Loading from "@/shared/ui/components/loading";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
-import type { CatalogoTiposMovimientoInfo, FiltrosMovimiento } from "../domain/ports/repo-movimientos";
+import type {
+  CatalogoTiposMovimientoInfo,
+  FiltrosMovimiento,
+} from "../domain/ports/repo-movimientos";
 import {
   descargarHistorialPdfAction,
   getHistorialGeneralAction,
@@ -56,10 +53,7 @@ import {
 import { getDireccionesGeneralesAction } from "@/modules/organizacion/infrastructure/actions/organizacion-actions";
 import { DetalleMovimiento } from "./detalle-movimiento";
 import { construirColumnasMovimientos } from "./movimientos-columns";
-import {
-  consultaHistorialSchema,
-  type ConsultaHistorialFormType,
-} from "./schema/schema-historial";
+import { consultaHistorialSchema, type ConsultaHistorialFormType } from "./schema/schema-historial";
 
 const CATEGORIAS_INICIALES = [
   "INGRESO",
@@ -128,21 +122,14 @@ const GERENCIAS_OPCIONES = [
   "CONSEJO DIRECTIVO",
 ] as const;
 
-const ESTATUS_CARGO = [
-  "ACTIVO",
-  "PASIVO",
-  "VACANTE",
-  "SUSPENDIDO",
-  "EGRESADO",
-] as const;
+const ESTATUS_CARGO = ["ACTIVO", "PASIVO", "VACANTE", "SUSPENDIDO", "EGRESADO"] as const;
 
 type TipoConsulta = { tipo: "empleado" | "cargo" | "general"; valor: string } | null;
 
 export default function MovimientosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const esAdmin =
-    tienePermiso(permisos, "*") || session?.user?.role?.nombre_rol === "ADMINISTRADOR";
+  const esAdmin = tienePermiso(permisos, "*");
   const puedeVer = esAdmin || tienePermiso(permisos, "movimientos.ver");
 
   const [movimientos, setMovimientos] = useState<MovimientoCargoDTO[]>([]);
@@ -161,9 +148,7 @@ export default function MovimientosPage() {
     categorias: CATEGORIAS_INICIALES,
     motivos_por_categoria: MOTIVOS_POR_CATEGORIA_INICIALES,
   });
-  const [gerencias, setGerencias] = useState<string[]>(
-    GERENCIAS_OPCIONES as unknown as string[],
-  );
+  const [gerencias, setGerencias] = useState<string[]>(GERENCIAS_OPCIONES as unknown as string[]);
 
   useEffect(() => {
     let montado = true;
@@ -179,8 +164,7 @@ export default function MovimientosPage() {
         ) {
           setCatalogoTipos({
             categorias: data.categorias,
-            motivos_por_categoria:
-              data.motivos_por_categoria ?? MOTIVOS_POR_CATEGORIA_INICIALES,
+            motivos_por_categoria: data.motivos_por_categoria ?? MOTIVOS_POR_CATEGORIA_INICIALES,
           });
         }
       })
@@ -190,8 +174,8 @@ export default function MovimientosPage() {
       .then((dirs) => {
         if (montado && Array.isArray(dirs) && dirs.length > 0) {
           const nombres = dirs
-            .map((d: any) => d.nombre)
-            .filter((n: any): n is string => typeof n === "string" && n.trim().length > 0);
+            .map((d) => d.nombre)
+            .filter((n): n is string => typeof n === "string" && n.trim().length > 0);
           if (nombres.length > 0) {
             setGerencias(nombres);
           }
@@ -343,10 +327,7 @@ export default function MovimientosPage() {
     setDetalleAbierto(true);
   };
 
-  const columnas = useMemo(
-    () => construirColumnasMovimientos(onVerDetalle, puedeVer),
-    [puedeVer],
-  );
+  const columnas = useMemo(() => construirColumnasMovimientos(onVerDetalle, puedeVer), [puedeVer]);
 
   const movimientosFiltrados = useMemo(() => {
     if (!busquedaLibre.trim()) return movimientos;
@@ -398,7 +379,8 @@ export default function MovimientosPage() {
             role="alert"
             className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive font-medium"
           >
-            No tiene permisos suficientes para consultar el historial de movimientos de personal (se requiere movimientos.ver).
+            No tiene permisos suficientes para consultar el historial de movimientos de personal (se
+            requiere movimientos.ver).
           </div>
         )}
 
@@ -409,11 +391,7 @@ export default function MovimientosPage() {
           </div>
 
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSearch)}
-              className="flex flex-col gap-4"
-              noValidate
-            >
+            <form onSubmit={form.handleSubmit(onSearch)} className="flex flex-col gap-4" noValidate>
               {/* Fila 1: Cédula, Código Puesto, Categoría de Movimiento, Motivo Específico */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField
@@ -639,11 +617,7 @@ export default function MovimientosPage() {
                 >
                   Limpiar <Eraser className="size-4 ml-1.5" />
                 </Button>
-                <Button
-                  type="submit"
-                  className="cursor-pointer"
-                  disabled={isPending || !puedeVer}
-                >
+                <Button type="submit" className="cursor-pointer" disabled={isPending || !puedeVer}>
                   Buscar <Search className="size-4 ml-1.5" />
                 </Button>
               </div>

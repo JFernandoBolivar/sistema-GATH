@@ -6,19 +6,8 @@ import { Loader2, Plus, Trash, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
@@ -43,6 +32,23 @@ interface FormSupplementaryTrainingUpdateDialogProps {
   triggerLabel?: string;
 }
 
+interface FormacionComplementariaFormItem {
+  id?: number;
+  capacitacionId?: number;
+  institucionId?: number;
+  fechaInicio: string;
+  fechaFin: string;
+  procedenciaId?: number;
+  grupoId?: number;
+  horasCompletadas: string;
+  nuevaCapacitacionNombre: string;
+  nuevaInstitucionNombre: string;
+}
+
+interface FormSupplementaryTrainingValues {
+  formacionComplementaria: FormacionComplementariaFormItem[];
+}
+
 export default function FormSupplementaryTrainingUpdateDialog({
   empleado,
   catalogos,
@@ -54,42 +60,61 @@ export default function FormSupplementaryTrainingUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { control, register, handleSubmit, setValue, watch } = useForm({
-    defaultValues: {
-      formacionComplementaria: (empleado.formacionComplementaria ?? []).length > 0
-        ? (empleado.formacionComplementaria ?? []).map((fc) => ({
-            id: fc.id,
-            capacitacionId: fc.capacitacionId ?? undefined,
-            institucionId: fc.institucionId ?? undefined,
-            fechaInicio: fc.fechaInicio ?? "",
-            fechaFin: fc.fechaFin ?? "",
-            procedenciaId: fc.procedenciaId ?? undefined,
-            grupoId: fc.grupoId ?? undefined,
-            horasCompletadas: fc.horasCompletadas ?? "",
-            nuevaCapacitacionNombre: "",
-            nuevaInstitucionNombre: "",
-          }))
-        : [{ capacitacionId: undefined, institucionId: undefined, fechaInicio: "", fechaFin: "", procedenciaId: undefined, grupoId: undefined, horasCompletadas: "", nuevaCapacitacionNombre: "", nuevaInstitucionNombre: "" }],
-    },
-  });
+  const { control, register, handleSubmit, setValue, watch } =
+    useForm<FormSupplementaryTrainingValues>({
+      defaultValues: {
+        formacionComplementaria:
+          (empleado.formacionComplementaria ?? []).length > 0
+            ? (empleado.formacionComplementaria ?? []).map((fc) => ({
+                id: fc.id,
+                capacitacionId: fc.capacitacionId ?? undefined,
+                institucionId: fc.institucionId ?? undefined,
+                fechaInicio: fc.fechaInicio ?? "",
+                fechaFin: fc.fechaFin ?? "",
+                procedenciaId: fc.procedenciaId ?? undefined,
+                grupoId: fc.grupoId ?? undefined,
+                horasCompletadas: fc.horasCompletadas ?? "",
+                nuevaCapacitacionNombre: "",
+                nuevaInstitucionNombre: "",
+              }))
+            : [
+                {
+                  capacitacionId: undefined,
+                  institucionId: undefined,
+                  fechaInicio: "",
+                  fechaFin: "",
+                  procedenciaId: undefined,
+                  grupoId: undefined,
+                  horasCompletadas: "",
+                  nuevaCapacitacionNombre: "",
+                  nuevaInstitucionNombre: "",
+                },
+              ],
+      },
+    });
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "formacionComplementaria",
   });
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data: FormSupplementaryTrainingValues) => {
     startTransition(async () => {
       setError(null);
 
       const rawItems = data.formacionComplementaria || [];
       const hasPartial = rawItems.some(
-        (fc: any) =>
-          (fc.capacitacionId || fc.institucionId || fc.fechaInicio || fc.fechaFin || fc.horasCompletadas) &&
-          (!fc.capacitacionId || !fc.institucionId)
+        (fc) =>
+          (fc.capacitacionId ||
+            fc.institucionId ||
+            fc.fechaInicio ||
+            fc.fechaFin ||
+            fc.horasCompletadas) &&
+          (!fc.capacitacionId || !fc.institucionId),
       );
       if (hasPartial) {
-        const msg = "Por favor complete la Capacitación y la Institución en las capacitaciones agregadas.";
+        const msg =
+          "Por favor complete la Capacitación y la Institución en las capacitaciones agregadas.";
         setError(msg);
         toast.error(msg);
         return;
@@ -97,7 +122,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
 
       // Opción "Otra": crear/reutilizar la capacitación o institución nueva antes de guardar.
       const pendientes: PendienteOtra[] = [];
-      rawItems.forEach((fc: any) => {
+      rawItems.forEach((fc) => {
         if (Number(fc.capacitacionId) === ID_OTRA) {
           pendientes.push({
             solicitud: { tipo: "capacitaciones", nombre: fc.nuevaCapacitacionNombre ?? "" },
@@ -123,8 +148,8 @@ export default function FormSupplementaryTrainingUpdateDialog({
       try {
         const payload = {
           formacionComplementaria: rawItems
-            .filter((fc: any) => fc.capacitacionId && fc.institucionId)
-            .map((fc: any) => ({
+            .filter((fc) => fc.capacitacionId && fc.institucionId)
+            .map((fc) => ({
               id: fc.id,
               capacitacionId: Number(fc.capacitacionId),
               institucionId: Number(fc.institucionId),
@@ -175,12 +200,18 @@ export default function FormSupplementaryTrainingUpdateDialog({
               Datos De Formación Complementaria
             </CardAction>
 
-            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-destructive mb-3">
+                {error}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-2">
               <div className="flex justify-end gap-2 mr-4 items-center">
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="clean" className="text-xs mb-1">Limpiar</Label>
+                  <Label htmlFor="clean" className="text-xs mb-1">
+                    Limpiar
+                  </Label>
                   <Button
                     id="clean"
                     variant="destructive"
@@ -190,7 +221,17 @@ export default function FormSupplementaryTrainingUpdateDialog({
                     onClick={() => {
                       remove(fields.filter((_, i) => i !== 0).map((_, i) => i + 1));
                       setValue("formacionComplementaria", [
-                        { capacitacionId: undefined, institucionId: undefined, fechaInicio: "", fechaFin: "", procedenciaId: undefined, grupoId: undefined, horasCompletadas: "", nuevaCapacitacionNombre: "", nuevaInstitucionNombre: "" },
+                        {
+                          capacitacionId: undefined,
+                          institucionId: undefined,
+                          fechaInicio: "",
+                          fechaFin: "",
+                          procedenciaId: undefined,
+                          grupoId: undefined,
+                          horasCompletadas: "",
+                          nuevaCapacitacionNombre: "",
+                          nuevaInstitucionNombre: "",
+                        },
                       ]);
                     }}
                   >
@@ -198,7 +239,9 @@ export default function FormSupplementaryTrainingUpdateDialog({
                   </Button>
                 </div>
                 <div className="flex flex-col items-center justify-center">
-                  <Label htmlFor="add" className="text-xs mb-1">Agregar</Label>
+                  <Label htmlFor="add" className="text-xs mb-1">
+                    Agregar
+                  </Label>
                   <Button
                     id="add"
                     variant="default"
@@ -230,7 +273,10 @@ export default function FormSupplementaryTrainingUpdateDialog({
                 </h1>
                 <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (
-                    <div key={field.id} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[140px_140px_1fr_1fr_120px_80px_auto] gap-2 items-start border-b pb-3 mb-2 w-full">
+                    <div
+                      key={field.id}
+                      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[140px_140px_1fr_1fr_120px_80px_auto] gap-2 items-start border-b pb-3 mb-2 w-full"
+                    >
                       <div>
                         <Label className="text-xs">{index + 1}. Fecha Inicio</Label>
                         <Input
@@ -256,8 +302,14 @@ export default function FormSupplementaryTrainingUpdateDialog({
                       <div className="min-w-0">
                         <Label className="text-xs">Capacitación</Label>
                         <Select
-                          value={watch(`formacionComplementaria.${index}.capacitacionId`) ? String(watch(`formacionComplementaria.${index}.capacitacionId`)) : undefined}
-                          onValueChange={(v) => setValue(`formacionComplementaria.${index}.capacitacionId`, Number(v))}
+                          value={
+                            watch(`formacionComplementaria.${index}.capacitacionId`)
+                              ? String(watch(`formacionComplementaria.${index}.capacitacionId`))
+                              : undefined
+                          }
+                          onValueChange={(v) =>
+                            setValue(`formacionComplementaria.${index}.capacitacionId`, Number(v))
+                          }
                         >
                           <SelectTrigger className="w-full h-9 text-xs">
                             <SelectValue placeholder="Seleccione" />
@@ -271,11 +323,14 @@ export default function FormSupplementaryTrainingUpdateDialog({
                             <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
                           </SelectContent>
                         </Select>
-                        {Number(watch(`formacionComplementaria.${index}.capacitacionId`)) === ID_OTRA && (
+                        {Number(watch(`formacionComplementaria.${index}.capacitacionId`)) ===
+                          ID_OTRA && (
                           <Input
                             className="mt-1 h-8 text-xs"
                             placeholder="Nueva capacitación..."
-                            {...register(`formacionComplementaria.${index}.nuevaCapacitacionNombre`)}
+                            {...register(
+                              `formacionComplementaria.${index}.nuevaCapacitacionNombre`,
+                            )}
                           />
                         )}
                       </div>
@@ -283,8 +338,14 @@ export default function FormSupplementaryTrainingUpdateDialog({
                       <div className="min-w-0">
                         <Label className="text-xs">Institución</Label>
                         <Select
-                          value={watch(`formacionComplementaria.${index}.institucionId`) ? String(watch(`formacionComplementaria.${index}.institucionId`)) : undefined}
-                          onValueChange={(v) => setValue(`formacionComplementaria.${index}.institucionId`, Number(v))}
+                          value={
+                            watch(`formacionComplementaria.${index}.institucionId`)
+                              ? String(watch(`formacionComplementaria.${index}.institucionId`))
+                              : undefined
+                          }
+                          onValueChange={(v) =>
+                            setValue(`formacionComplementaria.${index}.institucionId`, Number(v))
+                          }
                         >
                           <SelectTrigger className="w-full h-9 text-xs">
                             <SelectValue placeholder="Seleccione" />
@@ -298,7 +359,8 @@ export default function FormSupplementaryTrainingUpdateDialog({
                             <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
                           </SelectContent>
                         </Select>
-                        {Number(watch(`formacionComplementaria.${index}.institucionId`)) === ID_OTRA && (
+                        {Number(watch(`formacionComplementaria.${index}.institucionId`)) ===
+                          ID_OTRA && (
                           <Input
                             className="mt-1 h-8 text-xs"
                             placeholder="Nueva institución..."
@@ -310,8 +372,14 @@ export default function FormSupplementaryTrainingUpdateDialog({
                       <div>
                         <Label className="text-xs">Procedencia</Label>
                         <Select
-                          value={watch(`formacionComplementaria.${index}.procedenciaId`) ? String(watch(`formacionComplementaria.${index}.procedenciaId`)) : undefined}
-                          onValueChange={(v) => setValue(`formacionComplementaria.${index}.procedenciaId`, Number(v))}
+                          value={
+                            watch(`formacionComplementaria.${index}.procedenciaId`)
+                              ? String(watch(`formacionComplementaria.${index}.procedenciaId`))
+                              : undefined
+                          }
+                          onValueChange={(v) =>
+                            setValue(`formacionComplementaria.${index}.procedenciaId`, Number(v))
+                          }
                         >
                           <SelectTrigger className="w-full h-9 text-xs">
                             <SelectValue placeholder="Seleccione" />
@@ -331,7 +399,9 @@ export default function FormSupplementaryTrainingUpdateDialog({
                         <Input
                           placeholder="40"
                           className="h-9 text-xs"
-                          {...register(`formacionComplementaria.${index}.horasCompletadas` as const)}
+                          {...register(
+                            `formacionComplementaria.${index}.horasCompletadas` as const,
+                          )}
                         />
                       </div>
 
@@ -351,10 +421,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
                 </div>
               </div>
 
-              <Button
-                className="mt-4 w-full cursor-pointer"
-                disabled={isPending}
-              >
+              <Button className="mt-4 w-full cursor-pointer" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
                 {isPending ? "Actualizando Información" : "Actualizar"}
               </Button>

@@ -6,19 +6,8 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import {
@@ -82,7 +71,7 @@ export default function FormDwellingUpdateDialog({
     respaldo: catalogos?.codigosPostales,
   });
 
-  const onSubmit = (data: any) => {
+  const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
     startTransition(async () => {
       setError(null);
       try {
@@ -133,7 +122,11 @@ export default function FormDwellingUpdateDialog({
           <CardContent className="gap-3">
             <CardAction className="text-gray-500 mb-3">Datos De Vivienda</CardAction>
 
-            {error && <p role="alert" className="text-sm text-destructive mb-3">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-destructive mb-3">
+                {error}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
               <div>
@@ -213,7 +206,9 @@ export default function FormDwellingUpdateDialog({
               <div>
                 <Label htmlFor="condicionViviendaId">Condicion De Vivienda *</Label>
                 <Select
-                  value={watch("condicionViviendaId") ? String(watch("condicionViviendaId")) : undefined}
+                  value={
+                    watch("condicionViviendaId") ? String(watch("condicionViviendaId")) : undefined
+                  }
                   onValueChange={(v) => setValue("condicionViviendaId", Number(v))}
                 >
                   <SelectTrigger id="condicionViviendaId" className="w-full truncate">

@@ -63,16 +63,13 @@ export function SelectForm<T extends FieldValues, D>({
             <FormControl>
               <Select
                 onValueChange={(value) => {
-                  onCustomChange ? onCustomChange(value) : field.onChange(value);
+                  if (onCustomChange) onCustomChange(value);
+                  else field.onChange(value);
                 }}
                 value={selectedValue ?? field.value?.toString() ?? ""}
               >
-                <SelectTrigger
-                  className={`${cn(clasNameSelect)} w-full truncate`}
-                >
-                  <SelectValue
-                    placeholder={isLoading ? "Cargando..." : placeholder}
-                  />
+                <SelectTrigger className={`${cn(clasNameSelect)} w-full truncate`}>
+                  <SelectValue placeholder={isLoading ? "Cargando..." : placeholder} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
@@ -88,9 +85,7 @@ export function SelectForm<T extends FieldValues, D>({
                 </SelectContent>
               </Select>
             </FormControl>
-            {description !== undefined && (
-              <FormDescription>{description}</FormDescription>
-            )}
+            {description !== undefined && <FormDescription>{description}</FormDescription>}
             <FormMessage />
           </FormItem>
         )}

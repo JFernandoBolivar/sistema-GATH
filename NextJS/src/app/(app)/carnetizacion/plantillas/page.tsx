@@ -3,14 +3,7 @@ import PageLayout from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Loader2,
-  Palette,
-  CheckCircle2,
-  XCircle,
-  Star,
-  ImagePlus,
-} from "lucide-react";
+import { Loader2, Palette, CheckCircle2, XCircle, Star, ImagePlus } from "lucide-react";
 import { useState, useRef, useTransition, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,10 +18,6 @@ import { schemaPlantilla } from "@/modules/carnetizacion/ui/schema/schema-carnet
 import PlantillaUploadForm from "@/modules/carnetizacion/ui/components/plantilla-upload-form";
 import type { Plantilla } from "@/modules/carnetizacion/domain/entities/carnet";
 
-const DJANGO_URL =
-  process.env.NEXT_PUBLIC_DJANGO_API_URL?.replace(/\/api\/?$/, "") ||
-  "http://localhost:8000";
-
 export default function PlantillasPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState("");
@@ -36,10 +25,11 @@ export default function PlantillasPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPendingUpload, startTransitionUpload] = useTransition();
 
-  const { data: plantillas, isLoading, mutate } = useSWR(
-    "plantillas-carnet",
-    getPlantillasCarnetAction,
-  );
+  const {
+    data: plantillas,
+    isLoading,
+    mutate,
+  } = useSWR("plantillas-carnet", getPlantillasCarnetAction);
 
   const form = useForm({
     resolver: zodResolver(schemaPlantilla),
@@ -56,21 +46,24 @@ export default function PlantillasPage() {
     reader.readAsDataURL(file);
   };
 
-  const onSubmit = useCallback((values: { nombre: string; imagen: File }) => {
-    startTransitionUpload(async () => {
-      const result = await subirPlantillaCarnetAction(values.nombre, values.imagen);
-      if (result && !("error" in result)) {
-        toast.success("Plantilla subida exitosamente");
-        form.reset({ nombre: "", imagen: undefined });
-        setPreview(null);
-        setFileName("");
-        setFileInputKey((k) => k + 1);
-        mutate();
-      } else {
-        toast.error((result as { error?: string })?.error || "Error al subir la plantilla");
-      }
-    });
-  }, [mutate, form]);
+  const onSubmit = useCallback(
+    (values: { nombre: string; imagen: File }) => {
+      startTransitionUpload(async () => {
+        const result = await subirPlantillaCarnetAction(values.nombre, values.imagen);
+        if (result && !("error" in result)) {
+          toast.success("Plantilla subida exitosamente");
+          form.reset({ nombre: "", imagen: undefined });
+          setPreview(null);
+          setFileName("");
+          setFileInputKey((k) => k + 1);
+          mutate();
+        } else {
+          toast.error((result as { error?: string })?.error || "Error al subir la plantilla");
+        }
+      });
+    },
+    [mutate, form],
+  );
 
   const activarPlantilla = (id: number) => {
     startTransitionUpload(async () => {
@@ -122,34 +115,30 @@ export default function PlantillasPage() {
         </Card>
 
         <div className="lg:col-span-2 flex flex-col gap-3">
-          {!plantillas || (plantillas as any[]).length === 0 ? (
+          {!plantillas || plantillas.length === 0 ? (
             <Card className="shadow-sm">
               <CardContent className="text-center py-12">
                 <Palette className="size-14 mx-auto text-gray-300" />
-                <p className="text-lg font-medium text-gray-500 mt-4">
-                  Sin plantillas
-                </p>
+                <p className="text-lg font-medium text-gray-500 mt-4">Sin plantillas</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Sube la primera plantilla usando el formulario
                 </p>
               </CardContent>
             </Card>
           ) : (
-            (plantillas as any[]).map((p: any) => {
-              const imagenUrl = p.imagenUrl || p.imagen_url;
+            plantillas.map((p) => {
+              const imagenUrl = p.imagenUrl;
               return (
                 <Card
                   key={p.id}
-                  className={`shadow-sm transition-all ${
-                    p.activo ? "ring-2 ring-blue-400" : ""
-                  }`}
+                  className={`shadow-sm transition-all ${p.activo ? "ring-2 ring-blue-400" : ""}`}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       <div className="w-24 h-16 rounded-md overflow-hidden border bg-gray-50 flex-shrink-0">
                         {imagenUrl ? (
                           <img
-                            src={imagenUrl.startsWith("http") ? imagenUrl : `${DJANGO_URL}${imagenUrl}`}
+                            src={imagenUrl}
                             alt={p.nombre}
                             className="w-full h-full object-cover"
                           />
@@ -175,7 +164,8 @@ export default function PlantillasPage() {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Subida el {new Date(p.creado).toLocaleDateString("es-ES", {
+                          Subida el{" "}
+                          {new Date(p.creado).toLocaleDateString("es-ES", {
                             day: "numeric",
                             month: "long",
                             year: "numeric",

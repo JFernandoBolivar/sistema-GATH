@@ -6,20 +6,9 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/components/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/shared/ui/components/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Label } from "@/shared/ui/components/label";
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
@@ -113,7 +102,7 @@ export default function FormHealthProfileUpdateDialog({
     );
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
     startTransition(async () => {
       setError(null);
       try {
@@ -151,7 +140,10 @@ export default function FormHealthProfileUpdateDialog({
   const alergias = catalogos?.alergias ?? [];
 
   const patologiasAgrupadas = useMemo(() => agruparSaludPorCategoria(patologias), [patologias]);
-  const discapacidadesAgrupadas = useMemo(() => agruparSaludPorCategoria(discapacidades), [discapacidades]);
+  const discapacidadesAgrupadas = useMemo(
+    () => agruparSaludPorCategoria(discapacidades),
+    [discapacidades],
+  );
   const alergiasAgrupadas = useMemo(() => agruparSaludPorCategoria(alergias), [alergias]);
 
   return (
@@ -173,9 +165,7 @@ export default function FormHealthProfileUpdateDialog({
             <CardAction className="text-gray-500 mb-3">Perfil De Salud</CardAction>
 
             {error && (
-              <div className="rounded bg-red-100 p-2 text-sm text-red-700 mb-3">
-                {error}
-              </div>
+              <div className="rounded bg-red-100 p-2 text-sm text-red-700 mb-3">{error}</div>
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="gap-4 flex flex-col">
@@ -184,7 +174,10 @@ export default function FormHealthProfileUpdateDialog({
                 <Select
                   value={grupoSanguineoId ? String(grupoSanguineoId) : ""}
                   onValueChange={(val) =>
-                    setValue("grupoSanguineoId", val ? Number(val) : (undefined as any))
+                    setValue(
+                      "grupoSanguineoId",
+                      val ? Number(val) : (undefined as unknown as number),
+                    )
                   }
                 >
                   <SelectTrigger id="grupoSanguineoId" className="w-full truncate">
@@ -267,7 +260,9 @@ export default function FormHealthProfileUpdateDialog({
                         </div>
                       ))}
                       {discapacidades.length === 0 && (
-                        <p className="text-xs text-muted-foreground">Sin discapacidades registradas</p>
+                        <p className="text-xs text-muted-foreground">
+                          Sin discapacidades registradas
+                        </p>
                       )}
                     </div>
                   </div>
@@ -309,10 +304,7 @@ export default function FormHealthProfileUpdateDialog({
                 </div>
               </div>
 
-              <Button
-                className="w-full cursor-pointer mt-4"
-                disabled={isPending}
-              >
+              <Button className="w-full cursor-pointer mt-4" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
                 {isPending ? "Actualizando Información" : "Actualizar"}
               </Button>
