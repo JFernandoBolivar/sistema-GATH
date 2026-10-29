@@ -5,7 +5,6 @@ Compatibilidad 100% con la UI de referencia y la nueva arquitectura.
 """
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
 from django.http import HttpResponse
@@ -13,8 +12,20 @@ from drf_spectacular.utils import extend_schema
 
 from core.presentation.envelope import ok, fail
 from core.presentation.permissions import EsPropiaCedulaOTienePermiso, HasPermission
+from apps.autogestion.application.use_cases.obtener_mi_expediente import (
+    obtener_mi_carnet_pdf,
+    obtener_mi_expediente,
+    solicitar_mi_carnet,
+)
 from apps.autogestion.infrastructure.repositories.repo_autogestion_orm import (
     RepoAutogestionORM,
+)
+from apps.autogestion.infrastructure.repositories.repo_portal_trabajador_orm import (
+    RepoPortalTrabajadorORM,
+)
+from apps.autogestion.infrastructure.serializers.mi_expediente_serializers import (
+    serializar_carnet,
+    serializar_mi_expediente,
 )
 
 
@@ -114,17 +125,17 @@ class CensoEmpleadoView(APIView):
         if error:
             return fail(error, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            with transaction.atomic():
-                detalle = repo.guardar_censo_vivienda(
-                    cedula=cedula,
-                    carnet_patria=carnet_patria,
-                    datos_vivienda=datos_vivienda,
-                    respuestas=respuestas,
-                )
-            return ok(detalle, message="Censo de vivienda registrado correctamente", status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return fail(str(e), status=status.HTTP_400_BAD_REQUEST)
+        # Sin `except Exception`: los errores de dominio los traduce el handler
+        # global (4xx con su mensaje) y cualquier otro fallo queda como 500
+        # genérico con traza en el log; nunca se devuelve `str(e)` al cliente.
+        with transaction.atomic():
+            detalle = repo.guardar_censo_vivienda(
+                cedula=cedula,
+                carnet_patria=carnet_patria,
+                datos_vivienda=datos_vivienda,
+                respuestas=respuestas,
+            )
+        return ok(detalle, message="Censo de vivienda registrado correctamente", status=status.HTTP_201_CREATED)
 
 
 class CensoConsultarView(APIView):
@@ -227,39 +238,8 @@ class MiExpedienteView(APIView):
         if not cedula:
             return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
 
-        from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
-        from apps.familiares.infrastructure.repositories.repo_familiares_orm import RepoFamiliaresORM
-        from apps.autogestion.application.use_cases.obtener_mi_expediente import obtener_mi_expediente
-        from apps.personal.presentation.serializers.personal_serializers import EmpleadoSerializer
-        from apps.familiares.presentation.serializers.familiares_serializers import FamiliarSerializer
-        from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
-        from apps.carnetizacion.infrastructure.models.carnetizacion_models import MotivosEmisionModel
-        from apps.carnetizacion.presentation.serializers.carnetizacion_serializers import CarnetSerializer
-
-        repo_personal = RepoPersonalORM()
-        repo_familiares = RepoFamiliaresORM()
-
-        dto = obtener_mi_expediente(repo_personal, repo_familiares, str(cedula))
-
-        try:
-            repo_carnet = RepoCarnetizacionORM()
-            carnets = repo_carnet.listar_carnets(empleado_cedula=str(cedula))
-        except Exception:
-            carnets = []
-        carnet_activo = next((c for c in carnets if getattr(c, 'activo', False)), (carnets[0] if carnets else None))
-
-        try:
-            motivos = list(MotivosEmisionModel.objects.all().order_by('id'))
-        except Exception:
-            motivos = []
-
-        return ok({
-            "empleado": EmpleadoSerializer(dto.empleado).data,
-            "familiares": FamiliarSerializer(dto.familiares, many=True).data,
-            "carnet_activo": CarnetSerializer(carnet_activo).data if carnet_activo else None,
-            "carnets": CarnetSerializer(carnets, many=True).data,
-            "motivos_carnet": [{"id": m.pk, "nombre": m.nombre, "descripcion": getattr(m, "descripcion", m.nombre)} for m in motivos],
-        })
+        dto = obtener_mi_expediente(RepoPortalTrabajadorORM(), str(cedula))
+        return ok(serializar_mi_expediente(dto))
 
 
 class SolicitarCarnetView(APIView):
@@ -276,27 +256,17 @@ class SolicitarCarnetView(APIView):
         if not cedula:
             return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
 
-        motivo_id = request.data.get('motivo_id')
-        observaciones = request.data.get('observaciones', 'Solicitud desde Portal de Autogestión CONATEL')
-
-        if not motivo_id:
-            from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoModel
-            tiene_previo = CarnetEmitidoModel.objects.filter(employee__cedulaidentidad=str(cedula)).exists()
-            motivo_id = 2 if tiene_previo else 1
-
-        try:
-            from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
-            from apps.carnetizacion.presentation.serializers.carnetizacion_serializers import CarnetSerializer
-
-            repo = RepoCarnetizacionORM()
-            carnet = repo.emitir_carnet(
-                empleado_cedula=str(cedula),
-                motivo_id=int(motivo_id),
-                observaciones=observaciones,
-            )
-            return ok(CarnetSerializer(carnet).data, message="Carnet institucional generado exitosamente", status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return fail(str(e), status=status.HTTP_400_BAD_REQUEST)
+        carnet = solicitar_mi_carnet(
+            RepoPortalTrabajadorORM(),
+            str(cedula),
+            motivo_id=request.data.get('motivo_id'),
+            observaciones=request.data.get('observaciones'),
+        )
+        return ok(
+            serializar_carnet(carnet),
+            message="Carnet institucional generado exitosamente",
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class MiCarnetPdfView(APIView):
@@ -313,15 +283,7 @@ class MiCarnetPdfView(APIView):
         if not cedula:
             return fail("El usuario no tiene expediente asociado.", status=404)
 
-        from apps.carnetizacion.infrastructure.repositories.repo_carnetizacion_orm import RepoCarnetizacionORM
-        from apps.carnetizacion.infrastructure.models.carnetizacion_models import CarnetEmitidoModel
-
-        carnet_obj = CarnetEmitidoModel.objects.filter(employee__cedulaidentidad=str(cedula), activo=True).order_by('-fecha_emision').first()
-        if not carnet_obj:
-            return fail("No posee carnet activo emitido.", status=404)
-
-        repo = RepoCarnetizacionORM()
-        pdf_bytes = repo.generar_pdf(carnet_obj.pk)
+        pdf_bytes = obtener_mi_carnet_pdf(RepoPortalTrabajadorORM(), str(cedula))
         respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
         respuesta['Content-Disposition'] = f'inline; filename="carnet_conatel_{cedula}.pdf"'
         respuesta['X-Content-Type-Options'] = 'nosniff'

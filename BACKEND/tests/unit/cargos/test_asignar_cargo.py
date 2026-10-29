@@ -54,7 +54,7 @@ class RepoCargosMemoria:
             raise ValidationError('Esta nómina no permite generación automática de códigos especiales.')
         nuevo = CargoAsignacion(
             id=self.siguiente_id,
-            codigo=f"CS_0001",
+            codigo="CS_0001",
             empleado_cedula=datos['cedula_empleado'],
             denominacion_id=datos['denominacion_id'],
             denominacion_nombre='ANALISTA',

@@ -133,9 +133,7 @@ def repo_con_matriz(crear_permiso):
 # `RepoDepartamentos` y `RepoCuentaAuth` — no los repositorios ORM (D-09/B21).
 # ─────────────────────────────────────────────────────────────────────────
 from apps.identidad.domain.entities.cuenta import Cuenta
-from apps.identidad.domain.entities.departamento import Departamento
 from apps.identidad.domain.entities.rol import Rol as RolEntidad
-from apps.identidad.domain.entities.titular_sesion import TitularSesion
 
 
 class RepoCuentasMemoria:

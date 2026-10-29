@@ -22,8 +22,17 @@ from apps.identidad.application.use_cases.emitir_tokens_sesion import (
 from apps.identidad.application.use_cases.obtener_permisos_de_cuenta import (
     obtener_permisos_de_cuenta,
 )
+from apps.identidad.application.use_cases.restablecer_password import (
+    restablecer_password,
+)
 from apps.identidad.application.use_cases.rotar_tokens_sesion import (
     rotar_tokens_sesion,
+)
+from apps.identidad.application.use_cases.solicitar_recuperacion_password import (
+    solicitar_recuperacion_password,
+)
+from apps.identidad.infrastructure.emails.recuperacion_email import (
+    enviar_correo_recuperacion,
 )
 from apps.identidad.infrastructure.providers.bloqueos_login import (
     anotar_intento_fallido,
@@ -33,9 +42,15 @@ from apps.identidad.infrastructure.providers.bloqueos_login import (
 from apps.identidad.infrastructure.repositories.repo_cuenta_auth_orm import (
     RepoCuentaAuthORM,
 )
+from apps.identidad.infrastructure.providers.validadores_password import (
+    validar_fortaleza_django,
+)
 from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 from apps.identidad.infrastructure.repositories.repo_permisos_orm import (
     RepoPermisosORM,
+)
+from apps.identidad.infrastructure.repositories.repo_recuperacion_password_orm import (
+    RepoRecuperacionPasswordORM,
 )
 from apps.identidad.infrastructure.serializers.auth_serializers import (
     LoginDocSerializer,
@@ -43,6 +58,10 @@ from apps.identidad.infrastructure.serializers.auth_serializers import (
 )
 from apps.identidad.infrastructure.serializers.cuenta_lectura_serializers import (
     CuentaLecturaSerializer,
+)
+from apps.identidad.infrastructure.tokens.password_reset_token import (
+    generar_token_recuperacion,
+    validar_token_recuperacion,
 )
 from apps.identidad.presentation.serializers.recuperacion_password_serializers import (
     RestablecerPasswordSerializer,
@@ -54,6 +73,22 @@ from core.presentation.envelope import fail, ok
 from core.presentation.schema import MensajeRespuestaSerializer
 
 logger = logging.getLogger('security_backend')
+
+
+def _base_frontend_confiable(candidata: str | None) -> str:
+    """URL base del frontend para el enlace de recuperación.
+
+    Solo se acepta una URL enviada por el cliente (`frontend_url`/cabecera
+    Origin) si es uno de los orígenes de confianza (`CORS_ALLOWED_ORIGINS`);
+    en otro caso se usa `FRONTEND_URL`. Sin esto, cualquiera podía pedir la
+    recuperación de la cuenta de otra persona con `frontend_url` apuntando a un
+    dominio propio y la víctima recibiría un enlace legítimo (con token válido)
+    hacia el sitio del atacante.
+    """
+    candidata = (candidata or '').strip().rstrip('/')
+    if candidata and candidata in settings.CORS_ALLOWED_ORIGINS:
+        return candidata
+    return settings.FRONTEND_URL.rstrip('/')
 
 
 def _nombre_cookie_refresh() -> str:
@@ -217,8 +252,15 @@ class MeView(APIView):
 
         permisos = obtener_permisos_de_cuenta(RepoPermisosORM(), cuenta.cedula)
 
+        titular = RepoCuentaAuthORM().obtener_titular_por_id(request.user.pk)
         return ok(
-            {**usuario_data, 'permisos': sorted(permisos.codigos)},
+            {
+                **usuario_data,
+                # Nombre del rol sin exigir `identidad.ver_roles` (el listado de roles
+                # lo exige y los roles de operación no lo tienen).
+                'rol_nombre': titular.rol_nombre if titular else None,
+                'permisos': sorted(permisos.codigos),
+            },
             'Datos del usuario obtenidos correctamente.',
         )
 
@@ -236,19 +278,20 @@ class SolicitarRecuperacionPasswordView(APIView):
         responses={200: MensajeRespuestaSerializer, 400: MensajeRespuestaSerializer, 429: MensajeRespuestaSerializer},
     )
     def post(self, request):
-        from apps.identidad.application.use_cases.solicitar_recuperacion_password import (
-            solicitar_recuperacion_password,
-        )
-        from apps.identidad.presentation.serializers.recuperacion_password_serializers import (
-            SolicitarRecuperacionSerializer,
-        )
-
         serializer = SolicitarRecuperacionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         identificador = serializer.validated_data['identificador']
-        base_frontend = serializer.validated_data.get('frontend_url') or request.headers.get('Origin') or None
+        base_frontend = _base_frontend_confiable(
+            serializer.validated_data.get('frontend_url') or request.headers.get('Origin')
+        )
 
-        mensaje = solicitar_recuperacion_password(identificador, base_frontend=base_frontend)
+        mensaje = solicitar_recuperacion_password(
+            RepoRecuperacionPasswordORM(),
+            identificador,
+            base_frontend=base_frontend,
+            enviar_email_fn=enviar_correo_recuperacion,
+            generar_token_fn=generar_token_recuperacion,
+        )
         return ok(message=mensaje)
 
 
@@ -265,20 +308,16 @@ class RestablecerPasswordView(APIView):
         responses={200: MensajeRespuestaSerializer, 400: MensajeRespuestaSerializer, 429: MensajeRespuestaSerializer},
     )
     def post(self, request):
-        from apps.identidad.application.use_cases.restablecer_password import (
-            restablecer_password,
-        )
-        from apps.identidad.presentation.serializers.recuperacion_password_serializers import (
-            RestablecerPasswordSerializer,
-        )
-
         serializer = RestablecerPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         mensaje = restablecer_password(
+            RepoRecuperacionPasswordORM(),
             token=serializer.validated_data['token'],
             password_nuevo=serializer.validated_data['password_nuevo'],
             password_confirmacion=serializer.validated_data['password_confirmacion'],
+            validar_token_fn=validar_token_recuperacion,
+            validar_fortaleza_fn=validar_fortaleza_django,
         )
         return ok(message=mensaje)
 

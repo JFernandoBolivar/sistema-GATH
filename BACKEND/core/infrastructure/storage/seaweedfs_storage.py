@@ -16,7 +16,7 @@ import os
 from io import BytesIO
 from typing import Optional
 
-from core.domain.exceptions import AlmacenamientoNoDisponible
+from core.domain.exceptions import AlmacenamientoNoDisponible, NotFoundError
 
 logger = logging.getLogger('gath.storage')
 
@@ -88,6 +88,25 @@ class SeaweedFSStorage:
             raise AlmacenamientoNoDisponible(
                 "No fue posible descargar el archivo del almacenamiento."
             ) from exc
+
+    def descargar_flujo(self, clave: str, tamano_bloque: int = 64 * 1024):
+        """Abre el objeto y devuelve un iterador de bloques (para streaming HTTP).
+
+        La apertura ocurre aquí (no de forma perezosa) para que un objeto
+        inexistente o un almacén caído falle antes de enviar cabeceras.
+        """
+        client = self._get_client()
+        try:
+            resp = client.get_object(Bucket=self.bucket_name, Key=clave)
+        except Exception as exc:
+            logger.error("Error al abrir objeto %s de SeaweedFS: %s", clave, exc)
+            codigo = getattr(exc, 'response', {}).get('Error', {}).get('Code') if hasattr(exc, 'response') else None
+            if codigo in ('NoSuchKey', '404'):
+                raise NotFoundError("El archivo solicitado no existe.") from exc
+            raise AlmacenamientoNoDisponible(
+                "No fue posible descargar el archivo del almacenamiento."
+            ) from exc
+        return resp['Body'].iter_chunks(chunk_size=tamano_bloque)
 
     def url_firmada(self, clave: str, expira_segundos: int = 300) -> str:
         """Genera una URL prefirmada temporal para visualización/descarga segura (D-01)."""

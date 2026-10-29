@@ -2,7 +2,7 @@
 Helpers de cookies JWT HttpOnly (B2.17, Contrato C-2).
 
 R-10 CERRADO (BITACORA_RECONSTRUCCION.md, Entrada #035): `GATH/settings.py` y
-`SIGEP/settings.py` declaran ahora `SIMPLE_JWT['AUTH_COOKIE'] = 'dj_access'` /
+`GATH/settings.py` declaran ahora `SIMPLE_JWT['AUTH_COOKIE'] = 'dj_access'` /
 `AUTH_COOKIE_REFRESH = 'dj_refresh'`, alineados con el Contrato C-2 y con el
 frontend (`NextJS/src/lib/api-client.ts`,
 `NextJS/src/shared/infrastructure/http/fetcher-api.ts`). Estos helpers siguen

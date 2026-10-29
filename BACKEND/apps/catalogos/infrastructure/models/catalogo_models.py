@@ -63,7 +63,7 @@ class TipoNominaModel(models.Model):
 
 
 class ParentescoModel(models.Model):
-    descripcion_parentesco = models.CharField(max_length=50, unique=True, db_column='descripcion_parentesco')
+    descripcion_parentesco = models.CharField(max_length=100, unique=True, db_column='descripcion_parentesco')
 
     class Meta:
         managed = False

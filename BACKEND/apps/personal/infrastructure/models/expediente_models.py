@@ -97,7 +97,7 @@ class DatosViviendaModel(models.Model):
         'personal.CondicionViviendaModel', models.PROTECT, db_column='condicionViviendaId', related_name='+',
     )
     codigo_postal = models.ForeignKey(
-        'personal.CodigoPostalModel', models.CASCADE, db_column='codigo_postal_id', related_name='+',
+        'personal.CodigoPostalModel', models.PROTECT, db_column='codigo_postal_id', related_name='+',
     )
 
     class Meta:

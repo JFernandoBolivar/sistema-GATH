@@ -2,7 +2,6 @@
 Tests unitarios del script de rotación de logs de auditoría (D-04).
 """
 import gzip
-import time
 from pathlib import Path
 from scripts.rotate_audit_logs import rotar_directorio_logs
 

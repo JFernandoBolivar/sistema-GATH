@@ -8,11 +8,9 @@ Verifica:
 5. Segregación de funciones por Deny en usuario.
 6. Fail-closed S2 ante códigos inexistentes o vacíos.
 """
-import pytest
 
 from apps.identidad.application.dtos.permisos_dto import ActorSesionDTO
 from apps.identidad.application.use_cases.resolver_permisos import (
-    resolver_politica_actor,
     tiene_permiso,
 )
 from apps.identidad.domain.entities.politica_acceso import PoliticaAcceso

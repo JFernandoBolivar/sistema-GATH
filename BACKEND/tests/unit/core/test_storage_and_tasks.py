@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.domain.exceptions import AlmacenamientoNoDisponible
+from core.domain.exceptions import AlmacenamientoNoDisponible, ColaTareasNoDisponible
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.infrastructure.tasks.celery_queue import CeleryTaskQueue
 
@@ -67,7 +67,23 @@ def test_seaweedfs_storage_sube_correctamente_cuando_el_cliente_s3_funciona():
     assert cliente_falso.put_object.call_args.kwargs["Key"] == "documentos/cedula.pdf"
 
 
-def test_celery_task_queue_simulated_dispatch():
+def test_celery_task_queue_sin_app_falla_explicito_en_vez_de_simular_exito():
+    """Antes devolvía "simulated-task-..." aparentando que la tarea se encoló."""
     queue = CeleryTaskQueue()
-    task_id = queue.encolar("gath.generar_carnet_pdf", carnet_id=123)
-    assert "simulated-task-gath.generar_carnet_pdf" in task_id
+    with patch.dict(sys.modules, {"GATH.celery": None}):
+        with pytest.raises(ColaTareasNoDisponible):
+            queue.encolar("gath.generar_carnet_pdf", carnet_id=123)
+
+
+def test_celery_task_queue_encola_con_la_app_inyectada():
+    app = MagicMock()
+    app.send_task.return_value.id = "abc-123"
+    assert CeleryTaskQueue(celery_app=app).encolar("gath.tarea", x=1) == "abc-123"
+    app.send_task.assert_called_once_with("gath.tarea", kwargs={"x": 1})
+
+
+def test_celery_task_queue_traduce_fallo_del_broker():
+    app = MagicMock()
+    app.send_task.side_effect = ConnectionError("broker caído")
+    with pytest.raises(ColaTareasNoDisponible):
+        CeleryTaskQueue(celery_app=app).encolar("gath.tarea")

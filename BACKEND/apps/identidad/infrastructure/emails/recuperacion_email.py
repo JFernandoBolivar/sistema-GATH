@@ -11,7 +11,7 @@ logger = logging.getLogger('security_backend')
 def enviar_correo_recuperacion(destinatario: str, nombre_completo: str, enlace: str) -> None:
     """Envía un correo institucional con el enlace y token de recuperación de contraseña."""
     asunto = "[GATH - CONATEL] Solicitud de Restablecimiento de Contraseña"
-    remitente = getattr(settings, 'DEFAULT_FROM_EMAIL', 'conatelenlinea@conatel.gob.ve')
+    remitente = settings.DEFAULT_FROM_EMAIL
 
     texto_plano = f"""
 Estimado(a) {nombre_completo},

@@ -13,7 +13,6 @@ from apps.autogestion.infrastructure.mappers.mapper_autogestion import (
 from apps.autogestion.infrastructure.models.autogestion_models import (
     PreguntasEncuestasModel,
     RespuestasEncuestaModel,
-    OpcionesPreguntaModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.models.expediente_models import DatosViviendaModel
@@ -96,15 +95,56 @@ class RepoAutogestionORM:
             EmployeeModel.objects.filter(cedulaidentidad__in=empleados_cedulas)
             .order_by('cedulaidentidad')
         )
-        return [self._serializar_censo_empleado(emp) for emp in empleados]
-
-    def _serializar_censo_empleado(self, emp: EmployeeModel) -> dict:
-        cargos_qs = (
-            AsigTrabajoModel.objects.filter(employee_id=emp.cedulaidentidad)
-            .select_related(
-                'denominacioncargoid', 'denominacioncargoespecificoid',
-                'Dependencia', 'DireccionGeneral', 'DireccionLinea', 'Coordinacion', 'tiponominaid'
+        # Carga en bloque (3 consultas en total) en vez de 3 por empleado.
+        empleados = list(empleados)
+        cedulas = [e.cedulaidentidad for e in empleados]
+        ids = [e.pk for e in empleados]
+        cargos_por_cedula: dict = {}
+        for c in self._qs_cargos_censo().filter(employee_id__in=cedulas):
+            cargos_por_cedula.setdefault(c.employee_id, []).append(c)
+        vivienda_por_id: dict = {}
+        for v in self._qs_vivienda_censo().filter(empleado_id__in=ids):
+            vivienda_por_id.setdefault(v.empleado_id, v)
+        respuestas_por_cedula: dict = {}
+        for r in self._qs_respuestas_censo().filter(empleado_id__in=cedulas):
+            respuestas_por_cedula.setdefault(r.empleado_id, []).append(r)
+        return [
+            self._serializar_censo_empleado(
+                emp,
+                cargos=cargos_por_cedula.get(emp.cedulaidentidad, []),
+                vivienda=vivienda_por_id.get(emp.pk),
+                respuestas=respuestas_por_cedula.get(emp.cedulaidentidad, []),
             )
+            for emp in empleados
+        ]
+
+    @staticmethod
+    def _qs_cargos_censo():
+        return AsigTrabajoModel.objects.select_related(
+            'denominacioncargoid', 'denominacioncargoespecificoid',
+            'Dependencia', 'DireccionGeneral', 'DireccionLinea', 'Coordinacion', 'tiponominaid'
+        )
+
+    @staticmethod
+    def _qs_vivienda_censo():
+        return DatosViviendaModel.objects.select_related(
+            'estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal'
+        )
+
+    @staticmethod
+    def _qs_respuestas_censo():
+        return RespuestasEncuestaModel.objects.select_related(
+            'pregunta', 'pregunta__tipo', 'opcion'
+        ).order_by('pregunta__orden')
+
+    def _serializar_censo_empleado(
+        self, emp: EmployeeModel, cargos=None, vivienda=None, respuestas=None,
+    ) -> dict:
+        """`cargos`/`vivienda`/`respuestas` precargados evitan N+1 en listados."""
+        precargado = cargos is not None
+        cargos_qs = (
+            cargos if precargado
+            else self._qs_cargos_censo().filter(employee_id=emp.cedulaidentidad)
         )
         cargos = []
         for c in cargos_qs:
@@ -145,11 +185,8 @@ class RepoAutogestionORM:
                 } if c.tiponominaid else None,
             })
 
-        vivienda = (
-            DatosViviendaModel.objects.filter(empleado_id=emp.id)
-            .select_related('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal')
-            .first()
-        )
+        if not precargado:
+            vivienda = self._qs_vivienda_censo().filter(empleado_id=emp.id).first()
         datos_vivienda = None
         if vivienda:
             datos_vivienda = {
@@ -177,11 +214,8 @@ class RepoAutogestionORM:
                 } if vivienda.codigo_postal else None,
             }
 
-        respuestas = (
-            RespuestasEncuestaModel.objects.filter(empleado_id=emp.cedulaidentidad)
-            .select_related('pregunta', 'pregunta__tipo', 'opcion')
-            .order_by('pregunta__orden')
-        )
+        if not precargado:
+            respuestas = self._qs_respuestas_censo().filter(empleado_id=emp.cedulaidentidad)
         preguntas = [
             {
                 'id': r.pregunta_id,

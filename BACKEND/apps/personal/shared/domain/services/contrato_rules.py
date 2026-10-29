@@ -7,14 +7,14 @@ Módulo puro (sin Django, sin ORM — regla B1): extrae la parte de
 datos, para que sea la ÚNICA fuente de la regla de negocio, compartida por:
 
   - `RAC/services/profile_services.py::upsert_contrato` (legado, sigue
-    operando bajo `SIGEP.settings` sobre los modelos de `RAC`).
+    operando bajo `GATH.settings` sobre los modelos de `RAC`).
   - `apps/personal/application/use_cases/upsert_contrato.py` (nuevo, opera
     bajo `GATH.settings` sobre los modelos espejo de `apps.personal`).
 
 ⚠️ Por qué NO es un re-export físico como R-01/R-02/R-04/R-05/R-06: se
 intentó y se verificó empíricamente (antes de escribir este módulo) que
 `RAC` no está en `INSTALLED_APPS` de `GATH.settings` ni viceversa
-(`apps.personal` no está en `INSTALLED_APPS` de `SIGEP.settings`), y que
+(`apps.personal` no está en `INSTALLED_APPS` de `GATH.settings`), y que
 Django exige que todo modelo ORM pertenezca a una app instalada
 (`RuntimeError` al importar un modelo de una app no instalada). Por lo
 tanto NINGUNA función que toque los modelos ORM de contratos puede ser

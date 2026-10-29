@@ -6,6 +6,16 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
+from drf_spectacular.types import OpenApiTypes
+
+from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.presentation.archivos import (
+    MAX_BYTES_DOCUMENTO,
+    TIPOS_DOCUMENTO,
+    clave_segura,
+    respuesta_archivo,
+    validar_archivo,
+)
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.familiares.application.use_cases.gestionar_familiar import (
@@ -16,6 +26,7 @@ from apps.familiares.application.use_cases.gestionar_familiar import (
 from apps.familiares.application.use_cases.listar_familiares import (
     listar_documentos_familiar,
     listar_familiares_por_empleado,
+    obtener_clave_documento_familiar,
     obtener_familiar_por_id,
     subir_documento_familiar,
 )
@@ -114,12 +125,23 @@ class DocumentosFamiliarListView(APIView):
         if not archivo:
             return fail('No se proporcionó ningún archivo', status=400)
 
-        from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-
-        storage = SeaweedFSStorage()
-        clave = f"familiares/{familiar_id}_{tipo_documento}_{archivo.name}"
-        storage.subir(clave, archivo.read(), archivo.content_type)
+        contenido, tipo, ext = validar_archivo(archivo, TIPOS_DOCUMENTO, MAX_BYTES_DOCUMENTO)
+        clave = clave_segura(f"familiares/{familiar_id}", ext)
+        SeaweedFSStorage().subir(clave, contenido, tipo.mime)
 
         repo = RepoFamiliaresORM()
         dto = subir_documento_familiar(repo, familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave)
         return ok(DocumentoFamiliarSerializer(dto).data)
+
+
+class DocumentoFamiliarArchivoView(APIView):
+    """GET /api/v1/familiares/<familiar_id>/documentos/<documento_id>/archivo/ — binario."""
+    permission_classes = [IsAuthenticated, HasPermission('familiares.ver')]
+
+    @extend_schema(tags=['Familiares'], summary='Descargar el archivo de un documento anexo (binario)',
+                   responses={200: OpenApiTypes.BINARY})
+    def get(self, request, familiar_id: int, documento_id: int):
+        clave = obtener_clave_documento_familiar(
+            RepoFamiliaresORM(), familiar_id=familiar_id, documento_id=documento_id,
+        )
+        return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-store')

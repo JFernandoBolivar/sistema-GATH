@@ -17,7 +17,7 @@ class EmployeeEgresadoModel(models.Model):
     fecha_egreso = models.DateTimeField(auto_now_add=True)
     motivo_egreso = models.ForeignKey(
         'catalogos.TipoMovimientoModel',
-        models.DO_NOTHING,
+        models.PROTECT,
         db_column='motivoEgresoId',
     )
 

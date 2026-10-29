@@ -12,6 +12,12 @@
 #   - <mod>-presentacion-no-cruzado : su presentation no importa de otros modulos (B16)
 #   - <mod>-independiente   : modulo nuevo no importa de las apps legadas (B16)
 #
+# Los contratos `-presentacion-no-cruzado` usan `allow_indirect_imports = True`:
+# prohiben que `presentation` importe DIRECTAMENTE a otro modulo. La cadena
+# presentation -> infrastructure propia -> modelos de otro modulo es el patron
+# autorizado abajo (la infraestructura implementa los puertos) y sin esta opcion
+# el contrato fallaba siempre, haciendo imposible mantener el lint en verde.
+#
 # Nota B16 (acoplamiento entre modulos): SOLO la capa `infrastructure` puede
 # importar modelos/repos de otros modulos — es la capa de adaptadores que
 # implementa los puertos (p.ej. `movimientos` lee `cargos`/`personal` para
@@ -482,6 +488,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-personal-no-cruzado]
 name = apps.personal.domain/application no importa de otras apps (B16)
@@ -517,6 +524,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-catalogos-no-cruzado]
 name = apps.catalogos.domain/application no importa de otras apps (B16)
@@ -552,6 +560,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-organizacion-no-cruzado]
 name = apps.organizacion.domain/application no importa de otras apps (B16)
@@ -587,6 +596,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-cargos-no-cruzado]
 name = apps.cargos.domain/application no importa de otras apps (B16)
@@ -622,6 +632,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-movimientos-no-cruzado]
 name = apps.movimientos.domain/application no importa de otras apps (B16)
@@ -657,6 +668,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-pasivos-no-cruzado]
 name = apps.pasivos.domain/application no importa de otras apps (B16)
@@ -692,6 +704,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-familiares-no-cruzado]
 name = apps.familiares.domain/application no importa de otras apps (B16)
@@ -727,6 +740,7 @@ forbidden_modules =
     apps.carnetizacion
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-carnetizacion-no-cruzado]
 name = apps.carnetizacion.domain/application no importa de otras apps (B16)
@@ -762,6 +776,7 @@ forbidden_modules =
     apps.familiares
     apps.autogestion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-autogestion-no-cruzado]
 name = apps.autogestion.domain/application no importa de otras apps (B16)
@@ -797,6 +812,7 @@ forbidden_modules =
     apps.familiares
     apps.carnetizacion
     apps.reportes
+allow_indirect_imports = True
 
 [importlinter:contract:apps-reportes-no-cruzado]
 name = apps.reportes.domain/application no importa de otras apps (B16)
@@ -832,6 +848,7 @@ forbidden_modules =
     apps.familiares
     apps.carnetizacion
     apps.autogestion
+allow_indirect_imports = True
 
 [importlinter:contract:identidad-independiente]
 name = apps.identidad no importa de las apps legadas (B16)

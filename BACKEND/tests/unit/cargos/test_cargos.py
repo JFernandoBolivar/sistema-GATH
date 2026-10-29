@@ -1,13 +1,11 @@
 """
 Tests unitarios del módulo cargos (Arquitectura Onion pura sin BD).
 """
-import pytest
 
 from apps.cargos.application.use_cases.asignar_cargo import asignar_cargo, desasignar_cargo
 from apps.cargos.application.use_cases.listar_cargos import listar_cargos
 from apps.cargos.application.use_cases.listar_denominaciones import (
     listar_denominaciones,
-    listar_denominaciones_especificas,
 )
 from apps.cargos.domain.entities.cargo_asignacion import CargoAsignacion
 from apps.cargos.domain.entities.denominacion_cargo import DenominacionCargo

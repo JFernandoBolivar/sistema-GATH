@@ -4,7 +4,7 @@ Módulo de auditoría dual (B2.8, D-04, Contrato C-5).
 Destino 1 — Base de Datos: inserta en `auditoria_log` (append-only).
 Destino 2 — Archivo TXT: `logs/backend/audit_backend.txt` con rotación diaria,
 compresión gzip y retención de 90 días, configurado en el dict `LOGGING` de
-`SIGEP/settings.py` (B1.12). El logger 'audit_backend' emite la línea
+`GATH/settings.py` (B1.12). El logger 'audit_backend' emite la línea
 estructurada con formato fijo de §I.4.7; el formatter añade el timestamp.
 """
 import logging

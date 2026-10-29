@@ -26,5 +26,9 @@ class RepoFamiliares(Protocol):
     def listar_documentos(self, familiar_id: int) -> list[DocumentoFamiliar]:
         ...
 
+    def obtener_clave_documento(self, familiar_id: int, documento_id: int) -> str | None:
+        """Clave del objeto del documento (None si no existe o no es de ese familiar)."""
+        ...
+
     def crear_documento(self, familiar_id: int, tipo_documento: str, clave: str) -> DocumentoFamiliar:
         ...

@@ -14,6 +14,7 @@ No se porta `generar_vista_previa`/`generar_vista_previa_html` (conversión a
 PNG vía `pdf2image`, que requiere el binario `poppler` instalado en el
 sistema) — el PDF generado aquí ya sirve como vista previa descargable.
 """
+import logging
 from dataclasses import dataclass
 from io import BytesIO
 
@@ -25,6 +26,8 @@ from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
+
+logger = logging.getLogger('gath.carnetizacion')
 
 CARNET_WIDTH = 5.5 * cm
 CARNET_HEIGHT = 8.56 * cm
@@ -143,7 +146,7 @@ def _dibujar_foto(c: canvas.Canvas, foto_bytes: bytes | None, x: float, y: float
             c.drawImage(ImageReader(recorte_buffer), x, y, ancho, alto, preserveAspectRatio=True, anchor="c")
             return
         except Exception:
-            pass
+            logger.warning("No se pudo dibujar la foto del carnet; se usa el placeholder.", exc_info=True)
     _dibujar_placeholder_foto(c, x, y, ancho, alto)
 
 
@@ -159,6 +162,7 @@ def generar_carnet_pdf(datos: DatosCarnetPdf) -> bytes:
         try:
             c.drawImage(ImageReader(datos.plantilla_path), 0, 0, CARNET_WIDTH, CARNET_HEIGHT, preserveAspectRatio=False, anchor="c")
         except Exception:
+            logger.warning("No se pudo dibujar la plantilla del carnet; se usa el fondo de emergencia.", exc_info=True)
             _dibujar_fondo_emergencia(c)
     else:
         _dibujar_fondo_emergencia(c)

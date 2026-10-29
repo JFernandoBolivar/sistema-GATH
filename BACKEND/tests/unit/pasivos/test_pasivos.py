@@ -8,7 +8,7 @@ from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos
 from apps.pasivos.application.use_cases.obtener_pasivo import obtener_pasivo_por_cedula
 from apps.pasivos.application.use_cases.procesar_egreso import procesar_egreso
 from apps.pasivos.domain.entities.pasivo import Pasivo
-from core.domain.exceptions import NotFoundError, ValidationError
+from core.domain.exceptions import ValidationError
 
 
 class RepoPasivosMemoria:

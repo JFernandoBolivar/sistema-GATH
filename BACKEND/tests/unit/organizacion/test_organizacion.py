@@ -1,7 +1,6 @@
 """
 Tests unitarios del módulo organización (Arquitectura Onion pura sin BD).
 """
-import pytest
 
 from apps.organizacion.application.use_cases.listar_coordinaciones import listar_coordinaciones
 from apps.organizacion.application.use_cases.listar_dependencias import listar_dependencias

@@ -48,7 +48,7 @@ class EmployeeMovementHistoryModel(models.Model):
     )
     fecha_movimiento = models.DateTimeField(auto_now_add=True)
     ejecutado_por = models.ForeignKey(
-        'identidad.CuentaModel', models.SET_NULL, related_name='+', null=True, blank=True,
+        'identidad.CuentaModel', models.PROTECT, related_name='+',
     )
 
     class Meta:

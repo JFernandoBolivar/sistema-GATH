@@ -13,6 +13,7 @@ no se haya actualizado). `config['tipo_cintillo'] == 'GENERICO'` renderiza
 la vista neutral de solo lectura (RN-009-01): sin logos institucionales y
 con un título genérico, en vez de inventar un segundo set de imágenes.
 """
+import logging
 import os
 from io import BytesIO
 from xml.sax.saxutils import escape
@@ -22,6 +23,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.platypus import Image, Paragraph, Spacer, Table, TableStyle
 
 from core.infrastructure.pdf.pdf_styles import COLORS, FONTS, get_paragraph_styles, get_table_style
+
+logger = logging.getLogger('gath.pdf')
 
 _ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
 
@@ -165,7 +168,7 @@ def draw_footer(canvas, doc, page_number: int, total_pages: int, texto: str | No
             cintillo_dibujable = ImageReader(cintillo) if isinstance(cintillo, BytesIO) else cintillo
             canvas.drawImage(cintillo_dibujable, 0, 0, width=page_width, height=15 * mm, preserveAspectRatio=False, mask='auto')
         except Exception:
-            pass
+            logger.warning("No se pudo dibujar el cintillo del pie de página del PDF.", exc_info=True)
 
     texto_pagina = f"Página {page_number} de {total_pages}" if total_pages else f"Página {page_number}"
     canvas.setFont(*FONTS['small'])

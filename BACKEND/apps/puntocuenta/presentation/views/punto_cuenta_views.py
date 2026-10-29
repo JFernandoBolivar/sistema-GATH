@@ -8,11 +8,14 @@ diseño leniente: ver `infrastructure/receivers.py`).
 """
 import logging
 
+from django.urls import reverse
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
 from core.domain.exceptions import AlmacenamientoNoDisponible, NotFoundError
+from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
@@ -42,7 +45,7 @@ class PuntoCuentaListView(APIView):
 
 class PuntoCuentaDocumentoView(APIView):
     """
-    GET /api/v1/puntocuenta/<int:id>/documento/ — URL firmada de descarga.
+    GET /api/v1/puntocuenta/<int:id>/documento/ — ruta de descarga (`.../archivo/`).
     Si el PDF automático falló al crearse (`documento_pdf_clave is None`),
     lo regenera en este momento (leniente: la creación del registro ya
     quedó garantizada antes; esto solo reintenta la parte secundaria).
@@ -65,9 +68,17 @@ class PuntoCuentaDocumentoView(APIView):
             except AlmacenamientoNoDisponible:
                 return fail("El documento no pudo generarse: el almacenamiento no está disponible en este momento.", status=503)
 
-        try:
-            url = SeaweedFSStorage().url_firmada(dto.documento_pdf_clave, expira_segundos=300)
-        except AlmacenamientoNoDisponible:
-            return fail("No fue posible generar la URL de descarga del documento.", status=503)
+        return ok({'url': reverse('puntocuenta:puntocuenta_documento_archivo', kwargs={'id': dto.id})})
 
-        return ok({'url': url})
+
+class PuntoCuentaDocumentoArchivoView(APIView):
+    """GET /api/v1/puntocuenta/<int:id>/documento/archivo/ — PDF por streaming (autenticado)."""
+    permission_classes = [IsAuthenticated, HasPermission('puntocuenta.ver')]
+
+    @extend_schema(tags=['Punto de Cuenta'], summary='Descargar el PDF del punto de cuenta (binario)',
+                   responses={200: OpenApiTypes.BINARY})
+    def get(self, request, id: int):
+        dto = obtener_punto_cuenta(RepoPuntoCuentaORM(), id)
+        if dto is None or not dto.documento_pdf_clave:
+            raise NotFoundError("El documento del punto de cuenta no está disponible.")
+        return respuesta_archivo(SeaweedFSStorage(), dto.documento_pdf_clave, cache='private, no-store')

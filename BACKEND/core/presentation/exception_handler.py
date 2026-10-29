@@ -25,6 +25,7 @@ from rest_framework.views import exception_handler as drf_exception_handler
 
 from core.domain.exceptions import (
     AlmacenamientoNoDisponible,
+    ColaTareasNoDisponible,
     ConflictError,
     DomainError,
     NotFoundError,
@@ -41,6 +42,7 @@ _STATUS_POR_EXCEPCION = (
     (PermissionDeniedError, 403),
     (ConflictError, 409),
     (AlmacenamientoNoDisponible, 503),
+    (ColaTareasNoDisponible, 503),
 )
 
 

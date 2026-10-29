@@ -7,7 +7,6 @@ implementación del puerto `core.domain.ports.ResolutorPermisos` que consume
 `IdentidadConfig.ready()` — el kernel jamás importa de apps (B16); es la app
 la que empuja su implementación al `core.infrastructure.providers`.
 """
-from core.domain.ports import ResolutorPermisos
 from core.infrastructure.providers import registrar_resolutor_permisos
 
 from apps.identidad.application.dtos.permisos_dto import ActorSesionDTO

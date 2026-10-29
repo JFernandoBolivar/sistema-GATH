@@ -155,7 +155,7 @@ class TipoPrendaModel(models.Model):
 
 class RegionTallaModel(models.Model):
     """Región de tallas (adulto, juvenil, niño, etc.)."""
-    codigo = models.CharField(max_length=10, unique=True)
+    codigo = models.CharField(max_length=20, unique=True)
     descripcion = models.CharField(max_length=100, blank=True, null=True)
 
     class Meta:
@@ -171,14 +171,14 @@ class RegionTallaModel(models.Model):
 
 class TallaModel(models.Model):
     """Talla de prenda (valor + región + tipo de prenda)."""
-    valor = models.CharField(max_length=20)
+    valor = models.CharField(max_length=50)
     region = models.ForeignKey(
         RegionTallaModel, models.PROTECT, db_column='region_id',
-        null=True, blank=True, related_name='+',
+        related_name='+',
     )
     tipo_prenda = models.ForeignKey(
         TipoPrendaModel, models.PROTECT, db_column='tipo_prenda_id',
-        null=True, blank=True, related_name='tallas',
+        related_name='tallas',
     )
 
     class Meta:
@@ -209,7 +209,7 @@ class CapacitacionModel(models.Model):
 
 class GrupoCapacitacionModel(models.Model):
     """Grupo de capacitaciones. Referenciado por `formacion_complementaria.grupo_id`."""
-    nombre_grupo = models.CharField(max_length=200, unique=True)
+    nombre_grupo = models.CharField(max_length=50, unique=True)
 
     class Meta:
         managed = False
@@ -224,10 +224,10 @@ class GrupoCapacitacionModel(models.Model):
 
 class AlergiaModel(models.Model):
     """Catálogo de alergias (M2M de perfil de salud)."""
-    alergia = models.CharField(max_length=200)
+    alergia = models.CharField(max_length=100)
     categoria = models.ForeignKey(
         'personal.CategoriaAlergiaModel', models.PROTECT, db_column='categoriaId',
-        null=True, blank=True, related_name='+',
+        related_name='+',
     )
 
     class Meta:
@@ -243,7 +243,7 @@ class AlergiaModel(models.Model):
 
 class CategoriaAlergiaModel(models.Model):
     """Categoría de alergias."""
-    nombre_categoria = models.CharField(max_length=200, unique=True)
+    nombre_categoria = models.CharField(max_length=100, unique=True)
 
     class Meta:
         managed = False
@@ -258,7 +258,7 @@ class CategoriaAlergiaModel(models.Model):
 
 class CategoriaPatologiaModel(models.Model):
     """Categoría de patologías."""
-    nombre_categoria = models.CharField(max_length=200, unique=True)
+    nombre_categoria = models.CharField(max_length=100, unique=True)
 
     class Meta:
         managed = False
@@ -276,7 +276,7 @@ class PatologiaCronicaModel(models.Model):
     patologia = models.CharField(max_length=200)
     categoria = models.ForeignKey(
         'personal.CategoriaPatologiaModel', models.PROTECT, db_column='categoriaId',
-        null=True, blank=True, related_name='+',
+        related_name='+',
     )
 
     class Meta:
@@ -292,7 +292,7 @@ class PatologiaCronicaModel(models.Model):
 
 class CategoriaDiscapacidadModel(models.Model):
     """Categoría de discapacidades."""
-    nombre_categoria = models.CharField(max_length=200, unique=True)
+    nombre_categoria = models.CharField(max_length=100, unique=True)
 
     class Meta:
         managed = False
@@ -310,7 +310,7 @@ class DiscapacidadModel(models.Model):
     discapacidad = models.CharField(max_length=200)
     categoria = models.ForeignKey(
         'personal.CategoriaDiscapacidadModel', models.PROTECT, db_column='categoriaId',
-        null=True, blank=True, related_name='+',
+        related_name='+',
     )
 
     class Meta:

@@ -23,7 +23,7 @@ class MotivosEmisionModel(models.Model):
 class CarnetEmitidoModel(models.Model):
     employee = models.ForeignKey(
         'personal.EmployeeModel',
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='+',
         db_column='employeeId',
     )

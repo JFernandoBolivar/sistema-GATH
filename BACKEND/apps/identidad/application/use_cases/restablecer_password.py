@@ -5,25 +5,23 @@ Valida el token firmado, comprueba que la cuenta esté activa, que el token no h
 sido utilizado previamente (comparando el hash truncado), verifica la fortaleza de
 la nueva contraseña, actualiza las credenciales e incrementa permisos_version
 para revocar sesiones anteriores.
+
+Puro (B4): el repositorio, el validador del token y el de fortaleza se inyectan;
+los adaptadores reales los cablea la vista.
 """
 from typing import Callable
 
-from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
-from apps.identidad.infrastructure.providers.validadores_password import (
-    validar_fortaleza_django,
-)
-from apps.identidad.infrastructure.tokens.password_reset_token import (
-    validar_token_recuperacion,
-)
+from apps.identidad.domain.ports.repo_recuperacion_password import RepoRecuperacionPassword
 from core.domain.exceptions import ValidationError
 
 
 def restablecer_password(
+    repo: RepoRecuperacionPassword,
     token: str,
     password_nuevo: str,
     password_confirmacion: str,
-    validar_token_fn: Callable[[str], tuple[int, str, str]] = validar_token_recuperacion,
-    validar_fortaleza_fn: Callable[[str], None] = validar_fortaleza_django,
+    validar_token_fn: Callable[[str], tuple[int, str, str]],
+    validar_fortaleza_fn: Callable[[str], None],
 ) -> str:
     """Valida el token y actualiza la contraseña de la cuenta."""
     if not password_nuevo or not password_confirmacion:
@@ -34,22 +32,18 @@ def restablecer_password(
 
     cuenta_id, cedula, hash_slice = validar_token_fn(token)
 
-    cuenta = CuentaModel.objects.select_related("cedula").filter(pk=cuenta_id).first()
-    if not cuenta or not cuenta.is_active or str(cuenta.cedula_id) != str(cedula):
+    cuenta = repo.obtener_por_id(cuenta_id)
+    if not cuenta or not cuenta.activa or cuenta.cedula != str(cedula):
         raise ValidationError("La cuenta asociada al enlace no es válida o se encuentra inactiva.")
 
     # Protección anti-replay: si la contraseña ya fue cambiada, el hash no coincidirá
-    if (cuenta.password or "")[:16] != hash_slice:
+    if cuenta.password_hash[:16] != hash_slice:
         raise ValidationError(
             "Este enlace de recuperación ya ha sido utilizado previamente o ha quedado invalidado."
         )
 
-    # Validar fortaleza
     validar_fortaleza_fn(password_nuevo)
 
-    # Establecer nueva contraseña y revocar sesiones activas anteriores
-    cuenta.set_password(password_nuevo)
-    cuenta.permisos_version = (cuenta.permisos_version or 0) + 1
-    cuenta.save(update_fields=["password", "permisos_version"])
+    repo.restablecer_password(cuenta.id, password_nuevo)
 
     return "Su contraseña ha sido restablecida exitosamente. Ya puede iniciar sesión con sus nuevas credenciales."

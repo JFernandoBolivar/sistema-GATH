@@ -16,6 +16,7 @@ class EmployeeModel(models.Model):
         max_digits=5,
         decimal_places=2,
         default=0.00,
+        null=True,
         editable=False,
     )
     sexoid = models.ForeignKey(

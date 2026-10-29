@@ -4,13 +4,19 @@ Vistas delgadas de Configuración Visual (Reglas B4, B7) — HU 0009.
 GET: cualquier usuario autenticado (lo consumen otros módulos/PDFs para
 pintar el cintillo). PUT y subida de logos: permiso `configuracion.editar`.
 """
-import logging
-
+from django.urls import reverse
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
-from core.domain.exceptions import AlmacenamientoNoDisponible
+from core.presentation.archivos import (
+    MAX_BYTES_IMAGEN,
+    TIPOS_IMAGEN,
+    clave_segura,
+    respuesta_archivo,
+    validar_archivo,
+)
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from core.presentation.schema import MensajeRespuestaSerializer
@@ -30,8 +36,6 @@ from apps.configuracion.infrastructure.serializers.configuracion_visual_lectura_
     ConfiguracionVisualSerializer,
 )
 
-logger = logging.getLogger('gath.configuracion')
-
 # Clave en SeaweedFS -> nombre de campo del modelo (mismo prefijo "configuracion/" para
 # todos, un logo distinto por campo).
 _CAMPO_POR_SLUG = {
@@ -41,25 +45,21 @@ _CAMPO_POR_SLUG = {
 }
 
 
-def _url_firmada_o_none(clave: str | None) -> str | None:
-    """Genera la URL prefirmada de una clave; `None` si no hay clave o si el
-    almacenamiento no está disponible (leniente: un fallo de SeaweedFS no debe
-    tumbar la lectura de la configuración, solo esa imagen puntual)."""
+def _url_logo(slug: str, clave: str | None) -> str | None:
+    """Ruta de la API que sirve la imagen (autenticada, por Django); `None` si
+    no hay imagen cargada. Nunca se entrega al navegador una URL de SeaweedFS
+    (su host pertenece a la red interna de Docker)."""
     if not clave:
         return None
-    try:
-        return SeaweedFSStorage().url_firmada(clave, expira_segundos=3600)
-    except AlmacenamientoNoDisponible:
-        logger.warning("No fue posible generar la URL firmada para %s (almacenamiento no disponible).", clave)
-        return None
+    return reverse('configuracion:configuracion_visual_logo', kwargs={'campo': slug})
 
 
 def _dto_con_urls(dto) -> dict:
     return {
         **dto.__dict__,
-        'logo_principal_url': _url_firmada_o_none(dto.logo_principal_clave),
-        'logo_secundario_url': _url_firmada_o_none(dto.logo_secundario_clave),
-        'cintillo_pie_url': _url_firmada_o_none(dto.cintillo_pie_clave),
+        'logo_principal_url': _url_logo('logo-principal', dto.logo_principal_clave),
+        'logo_secundario_url': _url_logo('logo-secundario', dto.logo_secundario_clave),
+        'cintillo_pie_url': _url_logo('cintillo-pie', dto.cintillo_pie_clave),
     }
 
 
@@ -91,8 +91,27 @@ class ConfiguracionVisualView(APIView):
 
 
 class ConfiguracionVisualLogoView(APIView):
-    """POST /api/v1/configuracion/visual/logo/<slug:campo>/ — multipart, campo "file"."""
-    permission_classes = [IsAuthenticated, HasPermission('configuracion.editar')]
+    """
+    GET  /api/v1/configuracion/visual/logo/<slug:campo>/ — sirve la imagen (autenticado).
+    POST /api/v1/configuracion/visual/logo/<slug:campo>/ — multipart, campo "file".
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), HasPermission('configuracion.editar')()]
+        return [IsAuthenticated()]
+
+    @extend_schema(tags=['Configuración'], summary='Obtener una imagen del cintillo (binario)',
+                   responses={200: OpenApiTypes.BINARY, 404: MensajeRespuestaSerializer})
+    def get(self, request, campo: str):
+        nombre_campo = _CAMPO_POR_SLUG.get(campo)
+        if nombre_campo is None:
+            return fail(f"Imagen inválida: {campo}.", status=400)
+        dto = obtener_configuracion_visual(RepoConfiguracionVisualORM())
+        clave = getattr(dto, nombre_campo)
+        if not clave:
+            return fail("La imagen no está cargada.", status=404)
+        return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-cache')
 
     @extend_schema(tags=['Configuración'], summary='Subir una imagen del cintillo (logo principal/secundario o pie)',
                    responses={200: ConfiguracionVisualSerializer, 400: MensajeRespuestaSerializer})
@@ -105,8 +124,9 @@ class ConfiguracionVisualLogoView(APIView):
         if not archivo:
             return fail('No se proporcionó ningún archivo.', status=400)
 
-        clave = f"configuracion/{campo}_{archivo.name}"
-        SeaweedFSStorage().subir(clave, archivo.read(), archivo.content_type)
+        contenido, tipo, ext = validar_archivo(archivo, TIPOS_IMAGEN, MAX_BYTES_IMAGEN)
+        clave = clave_segura(f"configuracion/{campo}", ext)
+        SeaweedFSStorage().subir(clave, contenido, tipo.mime)
 
         dto = guardar_logo_configuracion(
             RepoConfiguracionVisualORM(), nombre_campo, clave, usuario_id=request.user.pk,

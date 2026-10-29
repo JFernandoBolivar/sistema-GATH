@@ -69,3 +69,10 @@ def subir_documento_familiar(
 ) -> DocumentoFamiliarDTO:
     entidad = repo.crear_documento(familiar_id=familiar_id, tipo_documento=tipo_documento, clave=clave)
     return _documento_a_dto(entidad)
+
+
+def obtener_clave_documento_familiar(repo: RepoFamiliares, familiar_id: int, documento_id: int) -> str:
+    clave = repo.obtener_clave_documento(familiar_id=familiar_id, documento_id=documento_id)
+    if not clave:
+        raise NotFoundError("Documento no encontrado.")
+    return clave

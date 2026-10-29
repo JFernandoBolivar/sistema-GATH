@@ -36,3 +36,11 @@ class AlmacenamientoNoDisponible(DomainError):
     excepción, `SeaweedFSStorage` fallaba en silencio (cliente no disponible)
     y devolvía valores que aparentaban éxito sin persistir ningún dato.
     """
+
+
+class ColaTareasNoDisponible(DomainError):
+    """
+    La cola de tareas asíncronas (Celery/RabbitMQ) no está configurada o no
+    acepta tareas (503). Se lanza en vez de simular un éxito: encolar una
+    tarea que nadie ejecutará es un fallo silencioso.
+    """

@@ -8,7 +8,10 @@ from drf_spectacular.utils import extend_schema
 
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
-from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
+from apps.catalogos.infrastructure.models.catalogo_models import (
+    CategoriaMovimientoModel,
+    TipoMovimientoModel,
+)
 from apps.catalogos.infrastructure.mappers.mapper_catalogos import tipo_movimiento_a_entidad
 from apps.catalogos.application.use_cases.listar_geografia import (
     listar_estados,

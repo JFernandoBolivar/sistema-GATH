@@ -13,7 +13,7 @@ class UsuarioPermisoModel(BaseModel):
     Excepciones y permisos directos por usuario (Modelo PBAC / AWS IAM).
     """
 
-    cedula = models.CharField(max_length=20, unique=True, db_index=True)
+    cedula = models.CharField(max_length=20, unique=True)
     permisos_custom = models.JSONField(
         default=dict,
         blank=True,

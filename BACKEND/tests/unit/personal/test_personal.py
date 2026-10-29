@@ -1,7 +1,6 @@
 """
 Tests unitarios del módulo personal (Arquitectura Onion pura sin BD).
 """
-import pytest
 
 from apps.personal.application.use_cases.gestionar_personal import (
     actualizar_empleado,

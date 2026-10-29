@@ -6,6 +6,7 @@ embebido en el JWT contra `CuentaModel` para revalidar `is_active` y
 recuperar los claims (`cedula`, `rol`) en cada rotación (corrige ALTA-08).
 """
 import re
+from django.conf import settings
 from django.db.models import Q
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
@@ -36,7 +37,7 @@ class RepoCuentaAuthORM:
         val = str(correo).strip()
         query = Q(correo__iexact=val)
         if '@' not in val:
-            query |= Q(correo__iexact=f'{val}@conatel.gob.ve')
+            query |= Q(correo__iexact=f'{val}@{settings.DOMINIO_CORREO_INSTITUCIONAL}')
             query |= Q(correo__istartswith=f'{val}@')
         query |= Q(cedulaidentidad=val)
         ced_clean = re.sub(r'^[VEve]-?', '', val).replace('.', '').strip()
@@ -54,7 +55,7 @@ class RepoCuentaAuthORM:
 
         query = Q(cedula__correo__iexact=val)
         if '@' not in val:
-            query |= Q(cedula__correo__iexact=f'{val}@conatel.gob.ve')
+            query |= Q(cedula__correo__iexact=f'{val}@{settings.DOMINIO_CORREO_INSTITUCIONAL}')
             query |= Q(cedula__correo__istartswith=f'{val}@')
 
         query |= Q(cedula__cedulaidentidad=val)

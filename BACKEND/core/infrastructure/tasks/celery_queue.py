@@ -8,6 +8,8 @@ directamente (regla B20: desacoplamiento del framework asíncrono).
 import logging
 from typing import Any
 
+from core.domain.exceptions import ColaTareasNoDisponible
+
 logger = logging.getLogger('gath.tasks')
 
 
@@ -23,6 +25,7 @@ class CeleryTaskQueue:
                 from GATH.celery import app as default_app
                 self._celery_app = default_app
             except ImportError:
+                logger.error("GATH.celery no es importable: la cola de tareas no está disponible.")
                 self._celery_app = None
         return self._celery_app
 
@@ -36,8 +39,10 @@ class CeleryTaskQueue:
                 return str(async_result.id)
             except Exception as exc:
                 logger.error("Error al encolar tarea Celery %s: %s", nombre_tarea, exc)
-                raise
-        # Simulación síncrona si Celery no está activo (en pruebas o standalone)
-        simulated_id = f"simulated-task-{nombre_tarea}"
-        logger.info("Modo simulado: tarea %s registrada con ID: %s", nombre_tarea, simulated_id)
-        return simulated_id
+                raise ColaTareasNoDisponible(
+                    "No fue posible encolar la tarea en segundo plano."
+                ) from exc
+        # Sin app Celery no hay quien ejecute la tarea: fallar explícito en vez
+        # de devolver un task_id inventado que aparente éxito.
+        logger.error("No hay app Celery configurada: no se pudo encolar %s.", nombre_tarea)
+        raise ColaTareasNoDisponible("El servicio de tareas en segundo plano no está disponible.")

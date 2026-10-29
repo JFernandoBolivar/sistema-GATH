@@ -1,7 +1,6 @@
 """
 Tests unitarios del módulo reportes (Arquitectura Onion pura sin BD).
 """
-import pytest
 
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,

@@ -1,11 +1,13 @@
 """
 Repositorio ORM de Carnetización (Reglas B4, B7).
 """
+import os
+import logging
 import hashlib
 import base64
-import hashlib
 from io import BytesIO
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from pdf2image import convert_from_bytes
@@ -21,7 +23,6 @@ from apps.carnetizacion.infrastructure.mappers.mapper_carnetizacion import (
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoModel,
     CarnetTemplateModel,
-    MotivosEmisionModel,
 )
 from apps.carnetizacion.infrastructure.pdf.carnet_pdf import DatosCarnetPdf, generar_carnet_pdf
 
@@ -29,6 +30,8 @@ from apps.carnetizacion.infrastructure.pdf.carnet_pdf import DatosCarnetPdf, gen
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+
+logger = logging.getLogger('gath.carnetizacion')
 
 
 class RepoCarnetizacionORM:
@@ -61,21 +64,29 @@ class RepoCarnetizacionORM:
         if not empleado:
             raise NotFoundError(f"Empleado con cédula {empleado_cedula} no encontrado")
 
-        # Desactivar cualquier carnet activo previo del trabajador
-        CarnetEmitidoModel.objects.filter(employee=empleado, activo=True).update(activo=False)
-
         now = timezone.now()
         raw = f"{empleado_cedula}|{motivo_id}|{now.isoformat()}|{settings.SECRET_KEY}"
         sec_hash = hashlib.sha256(raw.encode('utf-8')).hexdigest()
 
-        obj = CarnetEmitidoModel.objects.create(
-            employee=empleado,
-            motivo_id=motivo_id,
-            security_hash=sec_hash,
-            observaciones=observaciones,
-            activo=True,
-        )
+        # Atómico: si el alta falla, el trabajador no pierde su carnet activo previo.
+        with transaction.atomic():
+            CarnetEmitidoModel.objects.filter(employee=empleado, activo=True).update(activo=False)
+            obj = CarnetEmitidoModel.objects.create(
+                employee=empleado,
+                motivo_id=motivo_id,
+                security_hash=sec_hash,
+                observaciones=observaciones,
+                activo=True,
+            )
         return self.obtener_por_id(obj.pk)
+
+    def empleado_existe(self, cedula: str) -> bool:
+        return EmployeeModel.objects.filter(cedulaidentidad=cedula).exists()
+
+    def registrar_foto_perfil(self, cedula: str, clave: str) -> None:
+        """Guarda la clave (SeaweedFS) de la foto de perfil usada por el carnet."""
+        if not EmployeeModel.objects.filter(cedulaidentidad=cedula).update(profile=clave):
+            raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
 
     def listar_plantillas(self) -> list[PlantillaCarnet]:
         qs = CarnetTemplateModel.objects.all().order_by('-activo', '-creado')
@@ -95,6 +106,18 @@ class RepoCarnetizacionORM:
             CarnetTemplateModel.objects.all().update(activo=False)
         obj = CarnetTemplateModel.objects.create(nombre=nombre, imagen=imagen, activo=activar)
         return plantilla_a_entidad(obj)
+
+    def ruta_imagen_plantilla(self, plantilla_id: int) -> str:
+        obj = CarnetTemplateModel.objects.filter(pk=plantilla_id).first()
+        if obj is None or not obj.imagen:
+            raise NotFoundError(f"Plantilla con id {plantilla_id} sin imagen")
+        try:
+            ruta = obj.imagen.path
+        except Exception as exc:  # almacenamiento sin ruta local
+            raise NotFoundError("Imagen de plantilla no disponible") from exc
+        if not os.path.isfile(ruta):
+            raise NotFoundError("Imagen de plantilla no disponible")
+        return ruta
 
     def generar_pdf(self, carnet_id: int, nombre_override: str | None = None) -> bytes:
         fila = (
@@ -123,6 +146,7 @@ class RepoCarnetizacionORM:
             try:
                 foto_bytes = SeaweedFSStorage().descargar(empleado.profile) or None
             except Exception:
+                logger.warning("No se pudo leer la foto del empleado para el carnet.", exc_info=True)
                 foto_bytes = None
 
         plantilla = CarnetTemplateModel.objects.filter(activo=True).first()
@@ -131,6 +155,7 @@ class RepoCarnetizacionORM:
             try:
                 plantilla_path = plantilla.imagen.path
             except Exception:
+                logger.warning("No se pudo resolver la ruta de la plantilla activa del carnet.", exc_info=True)
                 plantilla_path = None
 
         nombre = nombre_override or (f"{empleado.nombres} {empleado.apellidos}".strip() if empleado else '')
@@ -167,6 +192,7 @@ class RepoCarnetizacionORM:
             try:
                 foto_bytes = SeaweedFSStorage().descargar(empleado.profile) or None
             except Exception:
+                logger.warning("No se pudo leer la foto del empleado para el carnet.", exc_info=True)
                 foto_bytes = None
 
         plantilla = CarnetTemplateModel.objects.filter(activo=True).first()
@@ -175,6 +201,7 @@ class RepoCarnetizacionORM:
             try:
                 plantilla_path = plantilla.imagen.path
             except Exception:
+                logger.warning("No se pudo resolver la ruta de la plantilla activa del carnet.", exc_info=True)
                 plantilla_path = None
 
         nombre = nombre_override or f"{empleado.nombres} {empleado.apellidos}".strip()
@@ -190,7 +217,7 @@ class RepoCarnetizacionORM:
         )
         pdf_bytes = generar_carnet_pdf(datos)
 
-        images = convert_from_bytes(pdf_bytes, dpi=150, fmt="png")
+        images = convert_from_bytes(pdf_bytes, dpi=150, fmt="png", poppler_path=settings.POPPLER_PATH)
         if not images:
             return "<div class='alert alert-danger'>Error generando vista previa</div>"
 

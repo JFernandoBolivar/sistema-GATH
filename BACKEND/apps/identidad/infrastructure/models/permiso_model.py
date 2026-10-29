@@ -12,7 +12,7 @@ from core.infrastructure.models.base import BaseModel
 class PermisoModel(BaseModel):
     """Catálogo de permisos `[modulo].[accion]` (~80 códigos en B9)."""
 
-    codigo = models.CharField(max_length=100, unique=True, db_index=True)
+    codigo = models.CharField(max_length=100, unique=True)
     nombre = models.CharField(max_length=200)
 
     class Meta:
@@ -34,10 +34,11 @@ class RolPermisoModel(BaseModel):
     migración de roles a permisología granular es B9.
     """
 
-    rol_id = models.IntegerField(db_index=True)
+    # Sin db_index: uq_rol_permiso (rol_id, permiso) ya indexa por `rol_id` (prefijo).
+    rol_id = models.IntegerField()
     permiso = models.ForeignKey(
         PermisoModel,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='asignaciones',
     )
 

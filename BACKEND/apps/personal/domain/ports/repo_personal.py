@@ -30,3 +30,7 @@ class RepoPersonal(Protocol):
 
     def guardar_foto(self, cedula: str, clave: str) -> None:
         ...
+
+    def obtener_clave_foto(self, cedula: str) -> str | None:
+        """Clave del objeto de la foto del empleado, o None si no tiene/no existe."""
+        ...

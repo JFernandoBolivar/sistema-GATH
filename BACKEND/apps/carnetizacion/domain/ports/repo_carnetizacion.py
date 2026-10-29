@@ -30,6 +30,17 @@ class RepoCarnetizacion(Protocol):
         """Sube una plantilla de diseño de carnet (paridad con `plantillas` del legado)."""
         ...
 
+    def ruta_imagen_plantilla(self, plantilla_id: int) -> str:
+        """Ruta local de la imagen de la plantilla; NotFoundError si no existe."""
+        ...
+
+    def empleado_existe(self, cedula: str) -> bool:
+        ...
+
+    def registrar_foto_perfil(self, cedula: str, clave: str) -> None:
+        """Guarda la clave de la foto de perfil del empleado; NotFoundError si no existe."""
+        ...
+
     def generar_pdf(self, carnet_id: int) -> bytes:
         """
         Genera el PDF físico del carnet (QR + foto + plantilla, Fase 2.3 del

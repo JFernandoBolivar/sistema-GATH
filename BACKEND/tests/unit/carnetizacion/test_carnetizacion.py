@@ -12,7 +12,6 @@ from apps.carnetizacion.application.use_cases.listar_carnets import emitir_carne
 from apps.carnetizacion.application.use_cases.revocar_carnet import revocar_carnet
 from apps.carnetizacion.application.use_cases.validar_carnet import (
     validar_carnet_por_hash,
-    validar_carnet_por_id,
 )
 from core.domain.exceptions import NotFoundError
 from apps.carnetizacion.domain.entities.carnet import Carnet

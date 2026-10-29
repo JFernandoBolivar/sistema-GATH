@@ -31,7 +31,9 @@ def plantilla_a_entidad(modelo: CarnetTemplateModel) -> PlantillaCarnet:
     return PlantillaCarnet(
         id=modelo.pk,
         nombre=modelo.nombre,
-        imagen_url=str(modelo.imagen.url) if modelo.imagen else "",
+        imagen_url=(
+            f"/api/v1/carnetizacion/plantillas/{modelo.pk}/imagen/" if modelo.imagen else ""
+        ),
         activo=modelo.activo,
         creado=str(modelo.creado),
     )

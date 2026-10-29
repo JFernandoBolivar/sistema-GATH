@@ -131,6 +131,13 @@ class RepoFamiliaresORM:
         qs = FamilyDocumentModel.objects.filter(familymember_id=familiar_id).order_by('-uploaded_at')
         return [documento_familiar_a_entidad(d) for d in qs]
 
+    def obtener_clave_documento(self, familiar_id: int, documento_id: int) -> str | None:
+        return (
+            FamilyDocumentModel.objects.filter(pk=documento_id, familymember_id=familiar_id)
+            .values_list('file', flat=True)
+            .first()
+        ) or None
+
     def crear_documento(self, familiar_id: int, tipo_documento: str, clave: str) -> DocumentoFamiliar:
         obj = FamilyDocumentModel.objects.create(
             familymember_id=familiar_id, document_type=tipo_documento, file=clave,

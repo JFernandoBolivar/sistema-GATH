@@ -4,7 +4,6 @@ Tests unitarios del módulo familiares (Arquitectura Onion pura sin BD).
 import pytest
 
 from apps.familiares.application.use_cases.gestionar_familiar import (
-    actualizar_familiar,
     eliminar_familiar,
     registrar_familiar,
 )

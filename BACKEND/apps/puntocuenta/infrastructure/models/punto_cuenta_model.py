@@ -23,7 +23,7 @@ class PuntoCuentaModel(BaseModel):
     dependencia_destino_id = models.IntegerField(null=True, blank=True)
     motivo_id = models.IntegerField(null=True, blank=True)
     usuario_id = models.IntegerField(null=True, blank=True)
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)  # Meta.ordering = -fecha
     documento_pdf_clave = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:

@@ -116,8 +116,11 @@ def test_obtener_mi_expediente_exitoso():
     from unittest.mock import MagicMock
     from apps.personal.domain.entities.empleado import Empleado
 
-    repo_personal = MagicMock()
-    repo_personal.obtener_por_cedula.return_value = Empleado(
+    repo_portal = MagicMock()
+    repo_portal.listar_familiares.return_value = []
+    repo_portal.listar_carnets.return_value = []
+    repo_portal.listar_motivos_carnet.return_value = []
+    repo_portal.obtener_empleado.return_value = Empleado(
         id=1,
         cedula="12345678",
         nombres="Juan",
@@ -159,10 +162,7 @@ def test_obtener_mi_expediente_exitoso():
             "grupo_nombre": "TÉCNICO",
         }],
     )
-    repo_familiares = MagicMock()
-    repo_familiares.listar_por_empleado.return_value = []
-
-    res = obtener_mi_expediente(repo_personal, repo_familiares, "12345678")
+    res = obtener_mi_expediente(repo_portal, "12345678")
     assert res.empleado.cedula == "12345678"
     assert len(res.empleado.formacion_complementaria) == 1
     assert res.empleado.formacion_complementaria[0]["capacitacion_nombre"] == "Regulación de Espectro Radioeléctrico"
@@ -175,4 +175,4 @@ def test_obtener_mi_expediente_cedula_invalida_lanza_error():
     from unittest.mock import MagicMock
 
     with pytest.raises(NotFoundError):
-        obtener_mi_expediente(MagicMock(), MagicMock(), "   ")
+        obtener_mi_expediente(MagicMock(), "   ")

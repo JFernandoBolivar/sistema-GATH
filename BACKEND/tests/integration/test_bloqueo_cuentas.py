@@ -13,14 +13,14 @@ import pytest
 from django.core.cache import cache
 from rest_framework.test import APIClient
 
-from apps.identidad.infrastructure.models.intento_fallido_model import (
-    IntentoFallidoModel,
-)
 from apps.identidad.infrastructure.repositories.repo_bloqueos_cache_db import (
     PREFIJO_CLAVE,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-from apps.catalogos.infrastructure.models.catalogo_models import SexoModel
+from apps.catalogos.infrastructure.models.catalogo_models import (
+    NacionalidadModel,
+    SexoModel,
+)
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
 
 URL_LOGIN = '/api/v1/identidad/auth/login/'
@@ -72,6 +72,9 @@ def capturar_security_backend():
 def cuenta_login(db):
     """Cuenta real de acceso (Employee + CuentaModel) bajo arquitectura Onion."""
     sexo, _ = SexoModel.objects.get_or_create(id=1, defaults={'sexo': 'FEMENINO'})
+    # `EmployeeModel.nacionalidad` tiene default=1: en la BD de test (sin datos
+    # semilla) ese registro debe existir o el INSERT viola la FK.
+    NacionalidadModel.objects.get_or_create(id=1, defaults={'codigo': 'V', 'nombre': 'VENEZOLANO'})
     empleado, _ = EmployeeModel.objects.get_or_create(
         cedulaidentidad='20111234',
         defaults={

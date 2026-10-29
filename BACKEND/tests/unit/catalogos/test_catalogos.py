@@ -1,22 +1,18 @@
 """
 Tests unitarios del módulo catálogos (Arquitectura Onion pura sin BD).
 """
-import pytest
 
 from apps.catalogos.application.use_cases.listar_geografia import (
     listar_estados,
     listar_municipios,
     listar_parroquias,
-    listar_regiones,
 )
 from apps.catalogos.application.use_cases.listar_tablas_maestras import (
     listar_categorias_movimiento,
-    listar_estatus,
     listar_parentescos,
     listar_sexos,
     listar_tipos_movimiento,
     listar_tipos_nomina,
-    listar_tipos_personal,
 )
 from apps.catalogos.domain.entities.catalogo_item import CatalogoItem
 from apps.catalogos.domain.entities.geografia import Estado, Municipio, Parroquia, Region

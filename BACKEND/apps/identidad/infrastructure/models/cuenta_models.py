@@ -60,14 +60,15 @@ class CuentaModel(AbstractBaseUser):
 
     cedula = models.OneToOneField(
         'personal.EmployeeModel',
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
+        related_name='cuenta',
         to_field='cedulaidentidad',
         db_column='cedula',
         unique=True,
     )
     departamento = models.ForeignKey(
         DepartamentoModel,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         db_column='departamento_id',

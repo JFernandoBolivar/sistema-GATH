@@ -20,7 +20,7 @@ class CedulaFamiliar:
     valor: str
 
     def __post_init__(self):
-        cedula = Cedula(self.valor)
+        Cedula(self.valor)  # valida el formato; lanza ValidationError si es inválido
 
     @property
     def cedula(self) -> Cedula:

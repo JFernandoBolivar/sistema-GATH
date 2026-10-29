@@ -22,7 +22,8 @@ class AuditoriaLog(models.Model):
     actor_id = models.IntegerField(null=True, blank=True)
     actor_cedula = models.CharField(max_length=15, blank=True, default='')
     actor_rol = models.CharField(max_length=50, blank=True, default='')
-    modulo = models.CharField(max_length=50, db_index=True)
+    # Sin db_index propio: el índice compuesto (modulo, accion) cubre filtros por `modulo`.
+    modulo = models.CharField(max_length=50)
     accion = models.CharField(max_length=100, db_index=True)
     recurso_tipo = models.CharField(max_length=50, blank=True, default='')
     recurso_id = models.CharField(max_length=64, blank=True, default='')
@@ -37,7 +38,6 @@ class AuditoriaLog(models.Model):
         ordering = ['-fecha_hora']
         indexes = [
             models.Index(fields=['modulo', 'accion']),
-            models.Index(fields=['trace_id']),
         ]
 
     def __str__(self) -> str:

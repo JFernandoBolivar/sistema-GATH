@@ -8,7 +8,7 @@ class RepoReportesORM:
     def reporte_personal_activo(self, filtros: dict) -> ResultadoReporte:
         from apps.personal.infrastructure.models.personal_models import EmployeeModel
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-        qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil').all()
+        qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad').all()
         filtros = filtros or {}
         if filtros.get('sexo_id'):
             qs = qs.filter(sexoid_id=filtros['sexo_id'])

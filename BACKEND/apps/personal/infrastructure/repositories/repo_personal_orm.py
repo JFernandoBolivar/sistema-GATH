@@ -93,7 +93,7 @@ class RepoPersonalORM:
 
         qs = EmployeeModel.objects.filter(
             cedulaidentidad__in=emp_cedulas
-        ).select_related('sexoid', 'estadoCivil').order_by('-fecha_actualizacion')
+        ).select_related('sexoid', 'estadoCivil', 'nacionalidad').order_by('-fecha_actualizacion')
 
         if busqueda:
             qs = qs.filter(
@@ -127,7 +127,7 @@ class RepoPersonalORM:
     def obtener_por_cedula(self, cedula: str) -> Empleado | None:
         cedula_str = str(cedula).strip() if cedula else ""
         cedula_limpia = "".join(filter(str.isdigit, cedula_str)) if cedula_str else ""
-        qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil')
+        qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad')
         fila = (
             qs.filter(cedulaidentidad=cedula_str).first()
             or (qs.filter(cedulaidentidad=cedula_limpia).first() if cedula_limpia else None)
@@ -175,6 +175,10 @@ class RepoPersonalORM:
 
     def guardar_foto(self, cedula: str, clave: str) -> None:
         EmployeeModel.objects.filter(cedulaidentidad=cedula).update(profile=clave)
+
+    def obtener_clave_foto(self, cedula: str) -> str | None:
+        valor = EmployeeModel.objects.filter(cedulaidentidad=cedula).values_list('profile', flat=True).first()
+        return valor.strip() if valor and isinstance(valor, str) and valor.strip() else None
 
     def actualizar_empleado(self, cedula: str, datos: dict) -> Empleado:
         nested = self._pop_nested(datos)

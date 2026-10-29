@@ -1,6 +1,8 @@
 """
 Mappers de Familiares.
 """
+from django.urls import reverse
+
 from apps.familiares.domain.entities.documento_familiar import DocumentoFamiliar
 from apps.familiares.domain.entities.familiar import Familiar
 from apps.familiares.infrastructure.models.familiar_models import (
@@ -46,15 +48,16 @@ def familiar_a_entidad(modelo: EmployeefamilyModel) -> Familiar:
 
 def documento_familiar_a_entidad(modelo: FamilyDocumentModel) -> DocumentoFamiliar:
     """
-    `file` guarda solo la clave del objeto en SeaweedFS (mismo patrón que
-    `EmpleadoFotoView`/`guardar_foto`, no el `FileField` local de Django) --
-    la URL se resuelve como firmada temporal, nunca como ruta local expuesta.
+    `file` guarda solo la clave del objeto en SeaweedFS (no el `FileField`
+    local de Django). `ruta_archivo` es la ruta de la API que sirve el archivo
+    (autenticada y con permiso `familiares.ver`); nunca una URL de SeaweedFS.
     """
     ruta = ""
     if modelo.file:
-        from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-
-        ruta = SeaweedFSStorage().url_firmada(modelo.file.name, expira_segundos=86400)
+        ruta = reverse(
+            'familiares:documento-archivo',
+            kwargs={'familiar_id': modelo.familymember_id, 'documento_id': modelo.pk},
+        )
     return DocumentoFamiliar(
         id=modelo.pk,
         familiar_id=modelo.familymember_id,

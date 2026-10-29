@@ -15,10 +15,10 @@ from datetime import datetime
 from io import BytesIO
 
 from reportlab.lib.units import mm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import SimpleDocTemplate, Spacer
 
 from core.infrastructure.pdf.pdf_components import create_data_table, create_header, draw_footer
-from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
+from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG
 
 
 def generar_reporte_pdf(

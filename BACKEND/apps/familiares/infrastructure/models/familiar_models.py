@@ -8,7 +8,7 @@ class EmployeefamilyModel(models.Model):
     id = models.AutoField(primary_key=True)
     employeecedula = models.ForeignKey(
         'personal.EmployeeModel',
-        models.CASCADE,
+        models.PROTECT,
         db_column='employeeCedula',
         # Inverso `Employee.carga_familiar` (nombre del legado), usado por la
         # categoría "familiares" de `ReportFieldRegistry`. managed=False.

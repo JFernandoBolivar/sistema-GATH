@@ -10,7 +10,7 @@ Las implementaciones concretas viven en `infrastructure/` de cada capa
 (p. ej. `core/infrastructure/storage/seaweedfs_storage.py` para `FileStorage`,
 diferido a la Fase B5).
 """
-from typing import Any, Protocol, TypeVar
+from typing import Any, Iterator, Protocol, TypeVar
 
 T = TypeVar('T')
 ID = TypeVar('ID')
@@ -42,6 +42,8 @@ class FileStorage(Protocol):
     def subir(self, clave: str, contenido: bytes, mime_type: str) -> str: ...
 
     def descargar(self, clave: str) -> bytes: ...
+
+    def descargar_flujo(self, clave: str, tamano_bloque: int = 65536) -> Iterator[bytes]: ...
 
     def url_firmada(self, clave: str, expira_segundos: int = 300) -> str: ...
 

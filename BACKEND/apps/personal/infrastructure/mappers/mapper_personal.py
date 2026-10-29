@@ -1,6 +1,10 @@
 """
 Mappers de Personal.
 """
+import logging
+
+from django.urls import reverse
+
 from apps.personal.domain.entities.empleado import Empleado
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
@@ -14,6 +18,10 @@ from apps.personal.infrastructure.models.expediente_models import (
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.shared.domain.services.tiempo_servicio import calcular_total_apn
+
+logger = logging.getLogger('gath.personal')
+
+_EXT_FOTO = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
 
 
 def _total_anos_apn_calculado(antecedentes_cerrados) -> float:
@@ -47,6 +55,12 @@ def _clean_str(val: str | None) -> str | None:
     return s
 
 
+def ruta_foto(cedula: str, clave: str) -> str:
+    """Ruta de la API (autenticada) que sirve la foto del empleado."""
+    version = clave.rsplit('/', 1)[-1].split('.')[0]
+    return reverse('personal:empleado-foto', kwargs={'cedula': cedula}) + f"?v={version}"
+
+
 def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expediente: dict | None = None) -> Empleado:
     profile_val = getattr(modelo, 'profile', None)
     foto_url = None
@@ -54,17 +68,12 @@ def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expedi
         p_clean = profile_val.strip()
         if p_clean.startswith('data:image/'):
             foto_url = p_clean
-        elif any(p_clean.lower().endswith(ext) for ext in ('.jpg', '.jpeg', '.png', '.webp', '.gif')) or '/' in p_clean:
-            try:
-                from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-                import base64
-                foto_bytes = SeaweedFSStorage().descargar(p_clean)
-                if foto_bytes:
-                    ext = p_clean.lower().split('.')[-1]
-                    mime = f"image/{ext}" if ext in ('png', 'webp', 'gif') else "image/jpeg"
-                    foto_url = f"data:{mime};base64,{base64.b64encode(foto_bytes).decode('utf-8')}"
-            except Exception:
-                foto_url = None
+        elif any(p_clean.lower().endswith(ext) for ext in _EXT_FOTO) or '/' in p_clean:
+            # Ruta de la API que sirve la foto (autenticada, por Django). `v`
+            # cambia con la clave (UUID) para que el navegador no use una foto
+            # vieja tras actualizarla. No se descarga nada de SeaweedFS aquí:
+            # este mapper corre una vez por empleado en los listados.
+            foto_url = ruta_foto(modelo.cedulaidentidad, p_clean)
 
     nac_id = getattr(modelo, 'nacionalidad_id', 1) or 1
     nac_obj = getattr(modelo, 'nacionalidad', None)
@@ -334,7 +343,8 @@ def construir_expediente(empleado: EmployeeModel) -> dict:
                 'fecha_fin': str(p.fecha_fin) if p.fecha_fin else None,
             })
     except Exception:
-        pass
+        # El expediente se entrega sin el bloque de préstamos de cargo, pero el fallo debe quedar registrado.
+        logger.exception("No fue posible armar los préstamos de cargo del expediente.")
 
     return {
         'datos_vivienda': vivienda_a_dict(

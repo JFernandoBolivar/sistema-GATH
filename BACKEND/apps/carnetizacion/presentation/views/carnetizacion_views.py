@@ -8,7 +8,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
-from core.presentation.envelope import ok
+from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.presentation.archivos import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
+from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet
 from apps.carnetizacion.application.use_cases.gestionar_plantillas import (
@@ -133,6 +135,25 @@ class ActivarPlantillaView(APIView):
         return ok(PlantillaCarnetSerializer(dto).data)
 
 
+class PlantillaImagenView(APIView):
+    """GET /api/v1/carnetizacion/plantillas/<id>/imagen/ — imagen de la plantilla (autenticado)."""
+
+    permission_classes = [IsAuthenticated, HasPermission('carnetizacion.ver')]
+
+    @extend_schema(tags=['Carnetización'], summary='Imagen de una plantilla de carnet (binario)', responses={(200, 'image/*'): OpenApiTypes.BINARY})
+    def get(self, request, plantilla_id: int):
+        import mimetypes
+        from django.http import FileResponse
+        ruta = RepoCarnetizacionORM().ruta_imagen_plantilla(plantilla_id)
+        tipo = mimetypes.guess_type(ruta)[0] or 'application/octet-stream'
+        if not tipo.startswith('image/'):
+            tipo = 'application/octet-stream'
+        resp = FileResponse(open(ruta, 'rb'), content_type=tipo)
+        resp['Cache-Control'] = 'private, max-age=3600'
+        resp['X-Content-Type-Options'] = 'nosniff'
+        return resp
+
+
 class EstadisticasCarnetsView(APIView):
     """GET /api/v1/carnetizacion/estadisticas/ — paridad con el legado `estadisticas`."""
 
@@ -210,21 +231,16 @@ class CarnetSubirFotoView(APIView):
         if not archivo:
             return fail('No se envió ninguna foto', status=400)
 
-        from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-        from apps.personal.infrastructure.models.personal_models import EmployeeModel
-
-        empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
-        if not empleado:
+        repo = RepoCarnetizacionORM()
+        if not repo.empleado_existe(cedula):
             return fail(f"Empleado con cédula {cedula} no encontrado", status=404)
 
-        contenido = archivo.read()
-        clave = f"perfiles/{cedula}_{archivo.name}"
-        SeaweedFSStorage().subir(clave, contenido, archivo.content_type)
-        empleado.profile = clave
-        empleado.save(update_fields=['profile'])
+        contenido, tipo, ext = validar_archivo(archivo, TIPOS_IMAGEN, MAX_BYTES_IMAGEN)
+        clave = clave_segura('perfiles', ext)
+        SeaweedFSStorage().subir(clave, contenido, tipo.mime)
+        repo.registrar_foto_perfil(cedula, clave)
 
         nombre = request.data.get('nombre')
-        repo = RepoCarnetizacionORM()
         html = repo.generar_vista_previa(cedula=cedula, nombre_override=nombre, foto_bytes=contenido)
         return ok({"vista_previa": html, "filename": archivo.name, "message": "Foto subida exitosamente"})
 

@@ -18,9 +18,7 @@ class IntentoFallidoModel(BaseModel):
         BLOQUEO_APLICADO = 'bloqueo_aplicado'
 
     # Cédula de identidad venezolana (máximo 10 caracteres)
-    cedula = models.CharField(max_length=10, db_index=True)
-
-
+    cedula = models.CharField(max_length=10)
     fecha_hora = models.DateTimeField(auto_now_add=True, db_index=True)
     ip = models.GenericIPAddressField(null=True, blank=True)
     resultado = models.CharField(
@@ -32,6 +30,10 @@ class IntentoFallidoModel(BaseModel):
     class Meta:
         db_table = 'identidad_intento_fallido'
         ordering = ['-fecha_hora']
+        indexes = [
+            # `bloqueos_previos`: cedula + resultado + ventana de fecha_hora.
+            models.Index(fields=['cedula', 'fecha_hora'], name='idx_intento_cedula_fecha'),
+        ]
         verbose_name = 'intento fallido'
         verbose_name_plural = 'intentos fallidos'
 
