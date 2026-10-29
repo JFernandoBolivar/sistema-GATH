@@ -19,6 +19,9 @@ from apps.identidad.application.use_cases.cerrar_sesion import cerrar_sesion
 from apps.identidad.application.use_cases.emitir_tokens_sesion import (
     emitir_tokens_sesion,
 )
+from apps.identidad.application.use_cases.obtener_condicion_trabajador import (
+    obtener_condicion_trabajador,
+)
 from apps.identidad.application.use_cases.obtener_permisos_de_cuenta import (
     obtener_permisos_de_cuenta,
 )
@@ -44,6 +47,9 @@ from apps.identidad.infrastructure.repositories.repo_cuenta_auth_orm import (
 )
 from apps.identidad.infrastructure.providers.validadores_password import (
     validar_fortaleza_django,
+)
+from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm import (
+    RepoCondicionTrabajadorORM,
 )
 from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 from apps.identidad.infrastructure.repositories.repo_permisos_orm import (
@@ -261,6 +267,10 @@ class MeView(APIView):
                 # lo exige y los roles de operación no lo tienen).
                 'rol_nombre': titular.rol_nombre if titular else None,
                 'permisos': sorted(permisos.codigos),
+                # Dato derivado (no es un rol): ACTIVO | PASIVO | SIN_ASIGNACION.
+                'condicion_trabajador': obtener_condicion_trabajador(
+                    RepoCondicionTrabajadorORM(), cuenta.cedula
+                ).value,
             },
             'Datos del usuario obtenidos correctamente.',
         )

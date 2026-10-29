@@ -27,6 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.djRefresh = user.djRefresh;
         token.debeCambiarPassword = user.debeCambiarPassword || false;
         token.permisos = user.permisos || [];
+        token.condicionTrabajador = user.condicionTrabajador || "SIN_ASIGNACION";
       }
       if (trigger === "update" && updatedSession) {
         if (updatedSession.debeCambiarPassword !== undefined) {
@@ -48,6 +49,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.dependency = token.dependency;
         session.user.debeCambiarPassword = token.debeCambiarPassword as boolean;
         session.user.permisos = (token.permisos as string[]) || [];
+        session.user.condicionTrabajador =
+          (token.condicionTrabajador as string | undefined) || "SIN_ASIGNACION";
       }
       return session;
     },

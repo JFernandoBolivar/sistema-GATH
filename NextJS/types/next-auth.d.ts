@@ -32,6 +32,8 @@ declare module "next-auth" {
       };
       debeCambiarPassword: boolean;
       permisos: string[];
+      /** ACTIVO | PASIVO | SIN_ASIGNACION: dato derivado en servidor, no un rol. */
+      condicionTrabajador: string;
     } & DefaultSession["user"];
   }
   interface User {
@@ -65,6 +67,7 @@ declare module "next-auth" {
     djAccess: string;
     djRefresh: string;
     permisos?: string[];
+    condicionTrabajador?: string;
   }
 }
 
@@ -98,5 +101,6 @@ declare module "next-auth/jwt" {
     };
     debeCambiarPassword?: boolean;
     permisos?: string[];
+    condicionTrabajador?: string;
   }
 }

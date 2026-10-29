@@ -312,6 +312,10 @@ ROL_ASIGNACIONES[3] += [
     "autogestion.solicitar_actualizacion",
     "autogestion.editar_borrador",
     "autogestion.subir_soporte",
+    # Fe de vida: el permiso lo tiene todo AUTOGESTION; que el trabajador sea pasivo es su
+    # CONDICIÓN (dato derivado, validado en servidor), no un rol.
+    "fe_de_vida.solicitar",
+    "fe_de_vida.ver_propia",
 ]
 ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] += ["fe_de_vida.verificar_constancia"]
 for _rol_id in (2, 3, 4, ROL_BIENESTAR_SOCIAL_ID, 9):
@@ -325,16 +329,6 @@ ROLES_NUEVOS = {
     "ADMIN_BIENESTAR": (
         "Administradora de Bienestar: check de la Administradora, aprobación directa y parametrización.",
         ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] + PERMISOS_BIENESTAR_ADMIN,
-    ),
-    "PASIVO": (
-        "Personal pasivo (jubilado/pensionado): fe de vida y consulta propia, sin carnet ni censo laboral.",
-        [
-            "autogestion.ver_propio",
-            "autogestion.subir_soporte",
-            "fe_de_vida.solicitar",
-            "fe_de_vida.ver_propia",
-            NOTIFICACIONES_PROPIAS,
-        ],
     ),
 }
 # ADMINISTRADOR conserva todo el catálogo (incluidos los códigos nuevos).

@@ -30,3 +30,34 @@ describe("menú por permisos", () => {
     expect(filtrarMenuPorPermisos(MENU, ["*"])).toHaveLength(3);
   });
 });
+
+describe("menú por permiso + condición del trabajador", () => {
+  const MENU_AUTOGESTION = [
+    { title: "Mi expediente", permiso: "autogestion.ver_propio" },
+    { title: "Fe de vida", permiso: "fe_de_vida.solicitar", condicion: "PASIVO" as const },
+    { title: "Censo", permiso: "autogestion.censo_ver_propio", condicion: "ACTIVO" as const },
+    { title: "Carnet", permiso: "carnetizacion.reimprimir", condicion: "ACTIVO" as const },
+  ];
+  const PERMISOS = [
+    "autogestion.ver_propio",
+    "autogestion.censo_ver_propio",
+    "carnetizacion.reimprimir",
+    "fe_de_vida.solicitar",
+  ];
+  const titulos = (c?: string | null) =>
+    filtrarMenuPorPermisos(MENU_AUTOGESTION, PERMISOS, c).map((i) => i.title);
+
+  it("pasivo ve fe de vida y no lo exclusivo de activos", () => {
+    expect(titulos("PASIVO")).toEqual(["Mi expediente", "Fe de vida"]);
+  });
+  it("activo ve censo y carnet y no fe de vida", () => {
+    expect(titulos("ACTIVO")).toEqual(["Mi expediente", "Censo", "Carnet"]);
+  });
+  it("condición desconocida o ausente oculta las entradas condicionadas (fail-closed)", () => {
+    expect(titulos("SIN_ASIGNACION")).toEqual(["Mi expediente"]);
+    expect(titulos(undefined)).toEqual(["Mi expediente"]);
+  });
+  it("tener la condición sin el permiso no basta", () => {
+    expect(puedeVerItemMenu([], "fe_de_vida.solicitar", "PASIVO", "PASIVO")).toBe(false);
+  });
+});

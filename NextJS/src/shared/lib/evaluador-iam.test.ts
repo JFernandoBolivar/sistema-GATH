@@ -6,6 +6,9 @@ import {
   puedeVerRuta,
   modulosAccesibles,
   moduloDePermiso,
+  cumpleCondicion,
+  puedeVerFeDeVidaPropia,
+  puedeVerEntradaDeActivo,
 } from './evaluador-iam';
 
 describe('Evaluador IAM PBAC Frontend', () => {
@@ -139,5 +142,25 @@ describe('Acceso por ruta (A8)', () => {
     expect(moduloDePermiso('Fe_De_Vida.revisar')).toBe('fe_de_vida');
     expect(modulosAccesibles(['personal.ver', 'reportes.ver'])).toEqual(['personal', 'reportes']);
     expect(modulosAccesibles([])).toEqual([]);
+  });
+});
+
+describe("condición del trabajador", () => {
+  it("cumpleCondicion: sin exigencia pasa; con exigencia compara y falla cerrado", () => {
+    expect(cumpleCondicion(undefined, null)).toBe(true);
+    expect(cumpleCondicion("PASIVO", "pasivo")).toBe(true);
+    expect(cumpleCondicion("PASIVO", "ACTIVO")).toBe(false);
+    expect(cumpleCondicion("ACTIVO", "SIN_ASIGNACION")).toBe(false);
+    expect(cumpleCondicion("ACTIVO", undefined)).toBe(false);
+  });
+  it("fe de vida: permiso Y condición PASIVO", () => {
+    expect(puedeVerFeDeVidaPropia(["fe_de_vida.solicitar"], "PASIVO")).toBe(true);
+    expect(puedeVerFeDeVidaPropia(["fe_de_vida.solicitar"], "ACTIVO")).toBe(false);
+    expect(puedeVerFeDeVidaPropia([], "PASIVO")).toBe(false);
+  });
+  it("entradas de activos: permiso Y condición ACTIVO", () => {
+    const p = ["autogestion.censo_ver_propio"];
+    expect(puedeVerEntradaDeActivo(p, "autogestion.censo_ver_propio", "ACTIVO")).toBe(true);
+    expect(puedeVerEntradaDeActivo(p, "autogestion.censo_ver_propio", "PASIVO")).toBe(false);
   });
 });

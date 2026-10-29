@@ -135,3 +135,15 @@ class ReportFieldRegistry(Protocol):
     def categorias_disponibles(self) -> list[str]: ...
 
     def tipos_reporte(self) -> set[str]: ...
+
+
+class ResolutorCondicionTrabajador(Protocol):
+    """
+    Puerto del resolutor de la condición del trabajador (`ACTIVO`/`PASIVO`/`SIN_ASIGNACION`).
+
+    La condición es un dato derivado de la asignación laboral, no un permiso ni un rol.
+    `apps.identidad` registra su implementación en `AppConfig.ready()`; el kernel solo
+    conoce el contrato (regla B16).
+    """
+
+    def condicion_de(self, cedula: str) -> str: ...

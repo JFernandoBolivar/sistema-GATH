@@ -67,15 +67,16 @@ def test_matriz_de_bienestar_respeta_el_doble_check():
 
 
 @pytest.mark.django_db
-def test_rol_pasivo_solo_tiene_lo_propio():
+def test_no_existe_rol_pasivo_y_autogestion_tiene_fe_de_vida_propia():
+    RolModel.objects.create(id=3, nombre_rol='AUTOGESTION')
     _seed()
-    pasivo = _codigos('PASIVO')
+    assert not RolModel.objects.filter(nombre_rol='PASIVO').exists()
+    autogestion = _codigos('AUTOGESTION')
     assert {
         'fe_de_vida.solicitar', 'fe_de_vida.ver_propia',
         'autogestion.subir_soporte', 'notificaciones.ver_propias',
-    } <= pasivo
-    assert not any(c.startswith(('carnetizacion.', 'personal.', 'bienestar.')) for c in pasivo)
-    assert 'autogestion.censo_ver_propio' not in pasivo
+    } <= autogestion
+    assert not any(c.startswith(('carnetizacion.', 'personal.', 'bienestar.')) for c in autogestion)
 
 
 @pytest.mark.django_db

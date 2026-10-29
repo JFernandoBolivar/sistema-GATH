@@ -17,7 +17,10 @@ import logging
 
 from rest_framework.permissions import BasePermission
 
-from core.infrastructure.providers import obtener_resolutor_permisos
+from core.infrastructure.providers import (
+    obtener_resolutor_condicion,
+    obtener_resolutor_permisos,
+)
 
 # Canal de seguridad (settings.LOGGING → logs/backend/security_backend.txt).
 logger_seguridad = logging.getLogger('security_backend')
@@ -73,6 +76,38 @@ def HasPermission(codigo: str):
 
     _HasPermission.__name__ = f'HasPermission_{codigo.replace(".", "_")}'
     return _HasPermission
+
+
+def RequiereCondicion(condicion: str):
+    """
+    Guard por CONDICION del trabajador (`'PASIVO'`, `'ACTIVO'`), calculada en servidor desde
+    su asignacion laboral (nunca desde el token ni el cliente). Se combina con `HasPermission`:
+
+        permission_classes = [IsAuthenticated, HasPermission('fe_de_vida.solicitar'),
+                              RequiereCondicion('PASIVO')]
+
+    Fallo cerrado: sin resolutor registrado o sin cedula resoluble, deniega.
+    """
+
+    class _RequiereCondicion(BasePermission):
+        message = f"Disponible solo para trabajadores en condición {condicion}."
+
+        def has_permission(self, request, view) -> bool:
+            user = request.user
+            if not user or not user.is_authenticated:
+                return False
+            resolutor = obtener_resolutor_condicion()
+            cedula = _cedula_de_usuario(user)
+            if resolutor is None or not cedula:
+                logger_seguridad.warning(
+                    'RequiereCondicion("%s") denegado: sin resolutor o sin cédula (usuario %s).',
+                    condicion, getattr(user, 'pk', None),
+                )
+                return False
+            return resolutor.condicion_de(cedula) == condicion
+
+    _RequiereCondicion.__name__ = f'RequiereCondicion_{condicion}'
+    return _RequiereCondicion
 
 
 def IsOwnerOrHasPermission(codigo: str, campo_propietario: str = 'cuenta_id'):

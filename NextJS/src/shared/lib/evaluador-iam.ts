@@ -83,6 +83,44 @@ export function tienePermiso(
 }
 
 /**
+ * Condición del trabajador (dato derivado en servidor, `/auth/me/` →
+ * `condicion_trabajador`): ser activo o pasivo NO es un rol ni un permiso. Un único rol
+ * AUTOGESTION sirve a ambos; la condición decide qué entradas se muestran.
+ */
+export type CondicionTrabajador = "ACTIVO" | "PASIVO";
+
+/**
+ * ¿Cumple la sesión la condición exigida por una entrada? Sin condición exigida: sí.
+ * Con condición exigida y condición desconocida/SIN_ASIGNACION: no (fail-closed).
+ */
+export function cumpleCondicion(
+  requerida: CondicionTrabajador | undefined,
+  condicionTrabajador: string | null | undefined,
+): boolean {
+  if (!requerida) return true;
+  return (condicionTrabajador ?? "").trim().toUpperCase() === requerida;
+}
+
+/** Fe de vida del pasivo: permiso `fe_de_vida.solicitar` Y condición PASIVO. */
+export function puedeVerFeDeVidaPropia(
+  permisos: string[] | null | undefined,
+  condicionTrabajador: string | null | undefined,
+): boolean {
+  return (
+    tienePermiso(permisos, "fe_de_vida.solicitar") && cumpleCondicion("PASIVO", condicionTrabajador)
+  );
+}
+
+/** Entradas exclusivas de activos (censo propio, solicitud de carnet): permiso Y condición ACTIVO. */
+export function puedeVerEntradaDeActivo(
+  permisos: string[] | null | undefined,
+  codigoPermiso: string,
+  condicionTrabajador: string | null | undefined,
+): boolean {
+  return tienePermiso(permisos, codigoPermiso) && cumpleCondicion("ACTIVO", condicionTrabajador);
+}
+
+/**
  * Acceso por ruta (Etapa A8, insumo de la etapa D): cada módulo de primer nivel
  * declara los permisos "de entrada" (basta uno) y el primer segmento de la URL
  * se mapea al módulo. Una ruta fuera del mapa (inicio, dashboard, login…) no

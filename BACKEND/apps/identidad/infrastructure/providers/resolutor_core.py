@@ -7,12 +7,21 @@ implementación del puerto `core.domain.ports.ResolutorPermisos` que consume
 `IdentidadConfig.ready()` — el kernel jamás importa de apps (B16); es la app
 la que empuja su implementación al `core.infrastructure.providers`.
 """
-from core.infrastructure.providers import registrar_resolutor_permisos
+from core.infrastructure.providers import (
+    registrar_resolutor_condicion,
+    registrar_resolutor_permisos,
+)
 
 from apps.identidad.application.dtos.permisos_dto import ActorSesionDTO
 from apps.identidad.application.use_cases.resolver_permisos import (
     resolver_permisos,
     tiene_permiso,
+)
+from apps.identidad.application.use_cases.obtener_condicion_trabajador import (
+    obtener_condicion_trabajador,
+)
+from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm import (
+    RepoCondicionTrabajadorORM,
 )
 from apps.identidad.infrastructure.repositories.repo_permisos_orm import (
     RepoPermisosORM,
@@ -47,6 +56,17 @@ class ResolutorIdentidad:
         return resolver_permisos(self._repo, actor)
 
 
+class ResolutorCondicionIdentidad:
+    """Implementa `ResolutorCondicionTrabajador` con los datos de personal (ACTIVO/PASIVO)."""
+
+    def __init__(self, repo=None):
+        self._repo = repo or RepoCondicionTrabajadorORM()
+
+    def condicion_de(self, cedula: str) -> str:
+        return obtener_condicion_trabajador(self._repo, cedula).value
+
+
 def registrar_resolutor_en_kernel() -> None:
     """Registra la implementación del módulo en el provider del kernel."""
     registrar_resolutor_permisos(ResolutorIdentidad())
+    registrar_resolutor_condicion(ResolutorCondicionIdentidad())

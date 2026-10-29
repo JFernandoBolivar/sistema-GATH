@@ -64,6 +64,7 @@ interface MeData {
   debe_cambiar_password: boolean;
   permisos: string[];
   rol_nombre?: string | null;
+  condicion_trabajador?: string | null;
 }
 
 async function apiGet<T>(path: string, token: string): Promise<T> {
@@ -123,10 +124,12 @@ export default {
         // Resolver permisos desde /me/
         let permisos: string[] = [];
         let nombreRolMe = "";
+        let condicionTrabajador = "SIN_ASIGNACION";
         try {
           const me = await apiGet<MeData>("api/v1/identidad/auth/me/", tokens.access);
           permisos = me.permisos || [];
           nombreRolMe = me.rol_nombre || "";
+          condicionTrabajador = me.condicion_trabajador || "SIN_ASIGNACION";
         } catch {
           /* permisos vacíos si /me/ falla */
         }
@@ -168,6 +171,7 @@ export default {
           djAccess: tokens.access,
           djRefresh: tokens.refresh,
           permisos,
+          condicionTrabajador,
         };
       },
     }),

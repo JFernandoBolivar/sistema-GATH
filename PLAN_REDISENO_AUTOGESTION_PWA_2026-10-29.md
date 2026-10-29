@@ -368,10 +368,10 @@ Certificado: ver preguntas P4 (CA institucional vs Let's Encrypt; si el servidor
 Esfuerzo: S ≤ 1 día, M 2-4 días, L 1-2 semanas (un desarrollador). Orden pensado para entregar valor visible pronto sin bloquear al plan funcional.
 
 ### Etapa 0 — Decisiones y limpieza previa (S)
-- Obtener manual de identidad/colores/fuente/íconos (P1-P3); confirmar dominio y certificado (P4).
+- No existe manual de identidad (decisión 2026-10-29): se usa la paleta provisional (P1 resuelta); P2-P3 siguen abiertas; Infraestructura dará acceso externo y gestiona dominio y certificado (P4, no bloquea).
 - Desregistrar el SW ajeno de `localhost:3000` en los equipos de desarrollo (1.2).
 - Corregir `lang="es-VE"`, título, retirar `MarqueeTitle` (`src/app/layout.tsx`, `src/components/marquee-title.tsx`).
-- Salida: manual recibido o decisión de usar la paleta provisional; navegador sin SW residual.
+- Salida: paleta provisional confirmada (no hay manual); navegador sin SW residual.
 
 ### Etapa 1 — Tokens, tipografía y shell institucional (M)
 - Modificar: `src/app/globals.css` (tokens 2.2, foco global, tipografía), `src/app/layout.tsx` (`next/font`, `ThemeProvider`, quitar fondo `bg.jpg`, `viewport`), `src/components/ui/{button,input,tabs}.tsx` (alturas), `src/app/(app)/layout.tsx` (toasts con colores AA, ver D12).
@@ -422,12 +422,12 @@ Cara al pasivo, PENDIENTE_SEGUNDO_CHECK se muestra como "En revisión final" (no
 |---|---|
 | Mi ficha | `autogestion.ver_propio` |
 | Solicitar actualización / Mis solicitudes | `autogestion.solicitar_actualizacion` (+ `autogestion.editar_borrador`, `autogestion.subir_soporte` dentro del formulario) |
-| Fe de vida (menú del pasivo) | `fe_de_vida.solicitar` y `fe_de_vida.ver_propia` |
+| Fe de vida (menú del pasivo) | `fe_de_vida.solicitar` y `fe_de_vida.ver_propia` Y condición PASIVO |
 | Notificaciones | `notificaciones.ver_propias` |
-| Mi carnet, Censo | los de carnet/censo existentes (se ocultan al rol PASIVO) |
+| Mi carnet, Censo | los de carnet/censo existentes, solo con condición ACTIVO (se ocultan a los pasivos) |
 | Visor comparativo / bandeja Bienestar | `bienestar.revisar_actualizacion`, `fe_de_vida.revisar`; selfie solo con `fe_de_vida.ver_evidencia`; botones de check solo con `bienestar.check_analista` / `bienestar.check_administradora` y `fe_de_vida.check_analista` / `fe_de_vida.check_administradora`; "Aprobación directa" solo con `bienestar.aprobar_directo` / `fe_de_vida.aprobar_directo` (justificación obligatoria) |
 | Respuestas de encuesta, Métricas (administración) | permisos propios del módulo; reemplazan la condición `isRacAdmin` de `app-sidebar-autogestion.tsx` |
-Perfil "activo" vs "pasivo" = presencia del rol `PASIVO` o de sus permisos (el plan funcional crea el rol, 2.4); mientras A4 no esté desplegado, el shell lee permisos con un mapa en `shared/lib/evaluador-iam.ts` (A8) y no hardcodea roles.
+Perfil "activo" vs "pasivo" = **condición del trabajador** (`condicion_trabajador` en `/auth/me/` y en la sesión; dato derivado, validado en servidor), no un rol: no existe rol `PASIVO`; un solo rol `AUTOGESTION` sirve a ambos. El shell combina `tienePermiso` con `cumpleCondicion` (`shared/lib/evaluador-iam.ts`, `permiso-menu.ts`, A9) y no hardcodea roles.
 
 **d) Mapa de etapas (para no duplicar trabajo).**
 | Etapa de este plan | Se apoya en / coincide con (plan funcional) | Qué hago aquí y qué NO |
@@ -460,14 +460,14 @@ Perfil "activo" vs "pasivo" = presencia del rol `PASIVO` o de sus permisos (el p
 | Foto de rostro y cédula son datos sensibles. | Mínimo en cliente (sin IndexedDB, revocar blobs), aviso de privacidad, transporte TLS; almacenamiento y retención definidos en el plan funcional y la normativa aplicable. |
 | Colores/logo/fuentes no oficiales o sin licencia. | Etapa 0; usar solo activos aportados por CONATEL y fuentes libres. |
 | Deriva de a11y al faltar axe en el repo. | Instalar `@axe-core/playwright` en etapa 2 y añadir al CI. |
-| Usuario con cuenta administrador vs. pasivo: perfil derivado de permisos aún inexistente para "pasivo". | El plan funcional crea el rol `PASIVO` y permisos `fe_de_vida.*` (A4/C7); mi shell consume esos códigos. |
+| Usuario con cuenta administrador vs. pasivo: perfil derivado de la condición del trabajador. | Resuelto (A9): `condicion_trabajador` en `/me/` y la sesión; la fe de vida exige permiso `fe_de_vida.*` Y condición PASIVO. No hay rol `PASIVO`. |
 | **Posible bug a verificar:** con la cuenta E2E (rol ADMINISTRADOR, sin departamento) `/autogestion`, `/autogestion/censo` solo mostraron esqueletos de carga a los 6 s (`rd_ficha_desk.png`, `rd_censo_desk.png`). Puede ser que la cuenta no tenga expediente/cédula en `Employee`, una petición que no resuelve o un estado de error sin pantalla. | Incluirlo en el recorrido por roles del plan funcional (D/E): probar con una cuenta AUTOGESTION con expediente real, revisar red/consola y exigir en la etapa 2 estados explícitos (cargando con límite, vacío y error con "Reintentar") en vez de esqueleto infinito. |
 
 ### Preguntas para el usuario
-- P1. ¿Existe el manual de identidad institucional de CONATEL/MPPCI (colores oficiales en hex/Pantone, uso del cintillo, logo vectorial)? Sin él se usa la paleta provisional de 2.2.
+- P1. (RESUELTA 2026-10-29: no existe; se usa la paleta provisional.) ¿Existe el manual de identidad institucional de CONATEL/MPPCI (colores oficiales en hex/Pantone, uso del cintillo, logo vectorial)? Sin él se usa la paleta provisional de 2.2.
 - P2. ¿Pueden entregar el isotipo en vector (SVG/AI) o PNG ≥ 1024×1024 para íconos PWA? Los PNG actuales de `public/` (`logoNuevo.png`, `logoNuevos.png`, `logoOAC.png`) hay que validar su calidad.
 - P3. ¿Hay una tipografía oficial licenciada? Si no, se adopta Source Sans 3 / Noto Sans (libres).
-- P4. (Asunto de Infraestructura al desplegar; no bloquea el desarrollo.) ¿Cuál será el dominio y el certificado TLS (CA institucional/estatal, Let's Encrypt, autofirmado interno)? ¿El servidor es alcanzable desde internet o solo desde la red interna/VPN? ¿Los jubilados acceden desde fuera de la red de CONATEL?
+- P4. (Asunto de Infraestructura al desplegar; no bloquea el desarrollo. Decisión 2026-10-29: Infraestructura dará acceso externo al sistema.) ¿Cuál será el dominio y el certificado TLS (CA institucional/estatal, Let's Encrypt, autofirmado interno)? ¿El servidor es alcanzable desde internet o solo desde la red interna/VPN? ¿Los jubilados acceden desde fuera de la red de CONATEL?
 - P5. (Despliegue, a cargo de Infraestructura.) ¿Quién administra el servidor para desplegar nginx y rotar certificados, y puede aceptarse una ventana de mantenimiento por el cambio de cookies?
 - P6. Dispositivos objetivo: ¿versión mínima de Android y iOS, navegadores (Chrome, Safari, Samsung Internet), gama de teléfonos? ¿Hay equipos de prueba reales?
 - P7. ¿Se puede probar con 2-3 jubilados reales antes del cierre (tamaño de texto, comprensión del flujo)? ¿Se necesita atención asistida en sede (quiosco con tableta)?
