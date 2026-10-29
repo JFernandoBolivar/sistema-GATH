@@ -43,7 +43,7 @@ Estas decisiones prevalecen sobre cualquier texto anterior de este documento y d
 
 **D. Otras respuestas.** Renombrar el rol "BIENSTAR SOCIAL" a "BIENESTAR SOCIAL" (`B14`). Los usuarios de Bienestar (varias analistas y varias administradoras) los crea y asigna el usuario manualmente: **no hay tarea de asignación automática**. Remitente de correo `gath@conatel.gob.ve` vía `mail.conatel.gob.ve` (ya en `.env`). Los pasivos sin correo los carga RRHH (el login es por correo): reporte de pasivos sin correo o sin cuenta (`C16`). La constancia lleva el nombre de quien aprobó, **sin firma digitalizada ni sello**; el QR de verificación interna se mantiene como propuesta. La selfie **se conserva**. Infraestructura dará acceso externo al sistema. No hay manual de identidad visual (el rediseño usa la paleta provisional). MFA (HU-0011) queda para una fase posterior, fuera de este ciclo.
 
-**E. Pensionados por sobrevivencia, auditor y roles.** Los pensionados por sobrevivencia **sí existen y deben hacer fe de vida**: el sistema debe dar de alta al familiar beneficiario como **personal pasivo** (tarea `C20`, 4.3.12 RESUELTA). El **AUDITOR** queda confirmado como **solo lectura** de todos los módulos y de la bitácora. **Sigue pendiente de confirmar** la estructura de roles propuesta restante (`JEFE_RRHH`, `ADMIN_BIENESTAR`, `ANALISTA_BIENESTAR`, captación; 4.3.14, matriz 2.4, tarea `D7`). Además hay una propuesta de formato de constancia y correo pendiente de confirmación (2.11).
+**E. Pensionados por sobrevivencia, auditor y roles.** Los pensionados por sobrevivencia **sí existen y deben hacer fe de vida**: el sistema debe dar de alta al familiar beneficiario como **personal pasivo** (tarea `C20`, 4.3.12 RESUELTA). El **AUDITOR** queda confirmado como **solo lectura** de todos los módulos y de la bitácora. **Sigue pendiente de confirmar** la estructura de roles propuesta restante (`JEFE_RRHH`, `ADMIN_BIENESTAR`, `ANALISTA_BIENESTAR`, captación; 4.3.14, matriz 2.4, tarea `D7`). El formato de constancia y correo (2.11) quedó **confirmado** el 2026-10-29.
 
 ---
 
@@ -53,7 +53,7 @@ Esta sección ordena el plan por **fases según la prioridad del usuario y las d
 
 ### Por dónde comenzar
 
-1. **Día 1, en paralelo (Fase 0)**: las preguntas bloqueantes de arranque (4.3.2, 4.3.5, 4.3.6) quedaron **RESUELTAS** el 2026-10-29 (0.1); solo sigue abierta 4.3.14 (más la propuesta 2.11), que no bloquean las Fases 1 a 3. Todo el desarrollo y las pruebas se hacen en `http://localhost:3001` (contexto seguro: cámara y PWA funcionan sin certificado). *Nota de despliegue (no es acción del día 1 ni del desarrollo)*: el TLS/dominio/nginx de producción lo gestiona Infraestructura cuando se despliegue (ver `C0`). Confirmar el nombre real del rol "BIENSTAR SOCIAL" en `USER_rol` (R6) y ejecutar el conteo de pasivos con cuenta y correo (R7) y la verificación de `permisos_version` (R5) (tarea `V-1`).
+1. **Día 1, en paralelo (Fase 0)**: las preguntas bloqueantes de arranque (4.3.2, 4.3.5, 4.3.6) quedaron **RESUELTAS** el 2026-10-29 (0.1); solo sigue abierta 4.3.14, que no bloquea las Fases 1 a 3. Todo el desarrollo y las pruebas se hacen en `http://localhost:3001` (contexto seguro: cámara y PWA funcionan sin certificado). *Nota de despliegue (no es acción del día 1 ni del desarrollo)*: el TLS/dominio/nginx de producción lo gestiona Infraestructura cuando se despliegue (ver `C0`). Confirmar el nombre real del rol "BIENSTAR SOCIAL" en `USER_rol` (R6) y ejecutar el conteo de pasivos con cuenta y correo (R7) y la verificación de `permisos_version` (R5) (tarea `V-1`).
 2. **Primera fase de construcción: Fase 1 (Cimientos)**, con las tareas `A4` (roles y permisos nuevos), `A5` (validación y almacenamiento seguro de archivos), `A1` (Celery real y `encolar` que falla cerrado), `A6` y `A8`. Sin `A4` y `A5` no se puede construir la autogestión (B1 y B3 los usan) ni la fe de vida.
 3. **Inmediatamente después, Fase 2 (Autogestión del activo)**: `B1 → B2 → B3 → B4/B5/B6`, `B8`, `B13` (datos complementarios), `B14` (renombre del rol) y en frontend `B9 → B10/B11` junto con `R-1`, `R-2` y `R-6a` (FieldCompare), que son una sola entrega con B10/B11 (el diseño no se hace dos veces). `R-1` puede empezar ya, durante la Fase 1, porque no depende del backend.
 4. **Fase 3 (Notificaciones y correo)** se inicia en cuanto `B3` exista (para engancharse a las transiciones) y puede solaparse con el final de la Fase 2: `A2 → A3 → A7 → B7`.
@@ -141,9 +141,9 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | C1 | Modelos, migraciones, catálogo y plantilla v1: `ProcesoFeDeVida`, `ProrrogaProceso`, `SolicitudFeDeVida` ligada a un proceso (una por pasivo y proceso), evidencia, decisiones, constancia | Back | A4, B1, C20 | ⏳ Pendiente | — | Reutiliza `CambioPropuesto` de B1; no crea tablas de hijos/contactos/vivienda |
 | C2 | Dominio y reglas de doble check / aprobación directa, estados del proceso (BORRADOR/ABIERTO/CERRADO) y regla de prórroga | Back | C1 | ⏳ Pendiente | — | Requiere ADR confirmada (R9) |
 | C3 | Casos de uso (comparecencia dentro de un proceso abierto o con prórroga, decisión, constancia, verificación, panel) | Back | C2, A5 | ⏳ Pendiente | — | |
-| C4 | PDF de constancia según la propuesta 2.11 (número, hash y QR; nombre y cédula de quien(es) aprobaron; sin firma digitalizada ni sello) | Back | C3 | ⏳ Pendiente | — | |
+| C4 | PDF de constancia según 2.11 (confirmado) (número, hash y QR; nombre y cédula de quien(es) aprobaron; sin firma digitalizada ni sello) | Back | C3 | ⏳ Pendiente | — | |
 | C5 | Vistas y URLs (pasivo y Bienestar) | Back | C3 | ⏳ Pendiente | — | |
-| C6 | Notificaciones y correo con PDF (formato propuesto en 2.11: copia al correo alternativo, enlace de descarga en el sistema) | Back | A2, A3, C5 | ⏳ Pendiente | — | |
+| C6 | Notificaciones y correo con PDF (formato confirmado en 2.11: copia al correo alternativo, enlace de descarga en el sistema) | Back | A2, A3, C5 | ⏳ Pendiente | — | |
 | C7 | Acceso del pasivo: asegurar que cada pasivo tenga cuenta AUTOGESTION activa y correo; `proxy.ts` y menú por permiso + condición (A9). Sin rol nuevo ni conversión de cuentas | Back/Front | A4, A9, V-1 | ⏳ Pendiente | — | |
 | C8 | Recordatorios previos al cierre, configurables por proceso, con beat | Back | A1, C3, C17 | ⏳ Pendiente | — | Sin periodicidad fija: cada proceso define si hay recordatorios y cuándo (4.3.1 resuelta) |
 | C9 | Eventos de auditoría de la HU | Back | C3, A6 | ⏳ Pendiente | — | |
@@ -207,7 +207,7 @@ Las preguntas completas están en la sección 4.3 y los riesgos en la 4.1.
 | Fase 1 | (Cerrada.) Nombre real del rol "BIENSTAR SOCIAL" (R6) se verifica en `V-1`/`B14` |
 | Fase 2 | Ninguna: 4.3.2 (plazo configurable y prorrogable) y 4.3.6 (una sola aprobación) quedaron RESUELTAS el 2026-10-29 |
 | Fase 3 | Probar el relay SMTP institucional (R11; remitente `gath@conatel.gob.ve` ya en `.env`); 4.3.3 resuelta (RRHH carga los correos faltantes) |
-| Fase 4 | ADR de aprobación directa (R9); confirmación del formato de constancia y correo (2.11, propuesta). Resueltas: 4.3.1, 4.3.3, 4.3.4, 4.3.7, 4.3.8, 4.3.11, 4.3.12, 4.3.13 |
+| Fase 4 | ADR de aprobación directa (R9). Resueltas: formato de constancia y correo (2.11); 4.3.1, 4.3.3, 4.3.4, 4.3.7, 4.3.8, 4.3.11, 4.3.12, 4.3.13 |
 | Fase 5 | 4.3.14 (estructura de roles propuesta, abierta; solo bloquea `D7`) |
 | Fase 6 | P1 resuelta (no hay manual de identidad, se usa la paleta provisional); P2, P3 y P6–P10 de la sección 7 del plan de rediseño; P4 la resuelve Infraestructura (dará acceso externo) |
 | Fase 7 | Ninguna (4.3.9: MFA queda para una fase posterior, fuera de este ciclo); 4.3.11 resuelta (la selfie se conserva) |
@@ -530,7 +530,7 @@ El correo (institucional/login y alternativo) es un dato que el sistema debe ges
 - Acceso por puerto de dominio `RepoDatosComplementarios` (Onion) con implementación ORM; la lectura se expone en la ficha (`MiExpedienteView`) y en `/me/`; la escritura se hace por el flujo de autogestión (sección contacto, aprobada por una persona), por la fe de vida (al `VALIDADA`) y por RRHH directamente.
 - Tarea: **`B13`** (Fase 2).
 
-### 2.11 Constancia y correo (propuesta pendiente de confirmación del usuario)
+### 2.11 Constancia y correo (CONFIRMADO por el usuario el 2026-10-29)
 
 Formato propuesto; no se implementa `C4`/`C6` definitivamente hasta que el usuario lo confirme.
 
