@@ -5,6 +5,9 @@
 set -e
 
 python3 wait-for-postgres.py
-python3 manage.py migrate --noinput
+# Worker y beat comparten imagen pero no migran (SKIP_MIGRATE=1): solo django lo hace.
+if [ "${SKIP_MIGRATE:-0}" != "1" ]; then
+  python3 manage.py migrate --noinput
+fi
 
 exec "$@"

@@ -18,6 +18,9 @@ from apps.identidad.infrastructure.models.permiso_model import (
 from apps.identidad.infrastructure.models.usuario_permiso_model import (
     UsuarioPermisoModel,
 )
+from apps.identidad.infrastructure.models.permisos_version_model import (
+    PermisosVersionModel,
+)
 from apps.identidad.infrastructure.models.cuenta_models import (
     CuentaModel,
     RolModel,
@@ -29,6 +32,7 @@ __all__ = [
     'RolPermisoModel',
     'IntentoFallidoModel',
     'UsuarioPermisoModel',
+    'PermisosVersionModel',
     'CuentaEspejo',
     'RolEspejo',
     'CuentaModel',

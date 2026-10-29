@@ -22,6 +22,9 @@ from apps.identidad.infrastructure.models.permiso_model import (
     PermisoModel,
     RolPermisoModel,
 )
+from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
+    RepoPermisosVersionORM,
+)
 from apps.identidad.infrastructure.models.usuario_permiso_model import (
     UsuarioPermisoModel,
 )
@@ -154,6 +157,9 @@ class RepoPermisosORM:
                 'version': nueva_version,
             },
         )
+
+        # Cambió la política individual: las sesiones vigentes de la cuenta se invalidan.
+        RepoPermisosVersionORM().incrementar_por_cedula(cedula)
 
         return UsuarioPermisos(
             cedula=cedula,

@@ -45,10 +45,17 @@ def rotar_tokens_sesion(repo: RepoCuentaAuth, refresh_token_str: str) -> TokensE
     if titular is None or not titular.is_active:
         raise PermissionDeniedError('La cuenta no existe o está inactiva.')
 
+    if int(refresh_actual.payload.get('permisos_version', 1)) < titular.permisos_version:
+        raise PermissionDeniedError(
+            'Sus permisos cambiaron; inicie sesión nuevamente para aplicar los cambios.'
+        )
+
     objeto_orm = repo.obtener_objeto_autenticable(titular_id)
     if objeto_orm is None:
         raise PermissionDeniedError('La cuenta no existe o está inactiva.')
-    nuevos = emitir_tokens_sesion(objeto_orm, titular.cedula, titular.rol_nombre)
+    nuevos = emitir_tokens_sesion(
+        objeto_orm, titular.cedula, titular.rol_nombre, titular.permisos_version
+    )
 
     # Blacklist del token anterior (ROTATE_REFRESH_TOKENS/BLACKLIST_AFTER_ROTATION
     # de SIMPLE_JWT): un token ya usado no debe poder rotar de nuevo.

@@ -3,6 +3,11 @@ Autenticación JWT por Header Bearer y Cookie HttpOnly (Reglas B1.3, B26).
 """
 from django.conf import settings
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken
+
+from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
+    RepoPermisosVersionORM,
+)
 
 
 class CookieJWTAuthentication(JWTAuthentication):
@@ -30,3 +35,16 @@ class CookieJWTAuthentication(JWTAuthentication):
 
         validated_token = self.get_validated_token(raw_token)
         return self.get_user(validated_token), validated_token
+
+    def get_user(self, validated_token):
+        """
+        Además de validar firma y vigencia, rechaza el token si la versión de
+        permisos de la cuenta (claim `permisos_version`) quedó atrás: cambió su
+        rol, sus ajustes individuales o su contraseña (Etapa A4). Un token sin
+        el claim (emitido antes de A4) cuenta como versión 1.
+        """
+        user = super().get_user(validated_token)
+        version_token = int(validated_token.payload.get('permisos_version', 1))
+        if version_token < RepoPermisosVersionORM().obtener(user.pk):
+            raise InvalidToken('La sesión fue invalidada por un cambio de permisos.')
+        return user

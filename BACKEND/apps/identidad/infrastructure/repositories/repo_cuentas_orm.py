@@ -24,6 +24,9 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.identidad.domain.entities.cuenta import Cuenta
 from apps.identidad.infrastructure.mappers.mapper_cuenta import cuenta_a_entidad
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
+    RepoPermisosVersionORM,
+)
 from core.domain.exceptions import NotFoundError
 
 
@@ -75,10 +78,14 @@ class RepoCuentasORM:
 
     def guardar(self, cuenta: Cuenta) -> Cuenta:
         fila = CuentaModel.objects.get(pk=cuenta.id)
+        rol_anterior = fila.rol_id
+        activa_anterior = fila.is_active
         fila.departamento_id = cuenta.departamento_id
         fila.rol_id = cuenta.rol_id
         fila.is_active = cuenta.is_active
         fila.save()
+        if rol_anterior != cuenta.rol_id or activa_anterior != cuenta.is_active:
+            RepoPermisosVersionORM().incrementar_cuenta(fila.pk)
         return cuenta_a_entidad(self._queryset().get(pk=fila.pk))
 
     def verificar_password(self, id: int, password_plano: str) -> bool:

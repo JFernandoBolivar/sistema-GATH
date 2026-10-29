@@ -9,7 +9,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-from core.presentation.archivos import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
+from core.infrastructure.storage.validacion_archivo import MAX_BYTES_IMAGEN, TIPOS_IMAGEN, clave_segura, validar_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.carnetizacion.application.use_cases.generar_pdf_carnet import generar_pdf_carnet

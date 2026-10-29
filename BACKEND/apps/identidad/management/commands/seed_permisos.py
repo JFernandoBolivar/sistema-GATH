@@ -12,6 +12,10 @@ from apps.identidad.infrastructure.models.permiso_model import (
     RolPermisoModel,
 )
 from apps.identidad.infrastructure.legado.cuenta_models import RolEspejo
+from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
+    RepoPermisosVersionORM,
+)
+from apps.identidad.infrastructure.repositories.repo_roles_orm import RepoRolesORM
 
 # Catálogo taxonómico de permisos del Sistema GATH: [modulo].[accion]
 PERMISOS_CATALOGO = [
@@ -121,6 +125,39 @@ PERMISOS_CATALOGO = [
 
     # ─── 14. PUNTO DE CUENTA ───
     ("puntocuenta.ver", "Consultar los puntos de cuenta generados por cambios de dependencia"),
+
+    # ─── 15. AUTOGESTIÓN: solicitudes de actualización (PLAN_PRIORIDAD §2.4) ───
+    ("autogestion.solicitar_actualizacion", "Solicitar la actualización de sus datos (flujo con revisión de Bienestar)"),
+    ("autogestion.editar_borrador", "Editar su borrador de actualización mientras la ventana está habilitada"),
+    ("autogestion.subir_soporte", "Subir soportes propios (títulos, actas) a una solicitud"),
+
+    # ─── 16. BIENESTAR SOCIAL: revisión de actualizaciones ───
+    ("bienestar.ver_solicitudes", "Consultar las solicitudes de actualización de los trabajadores"),
+    ("bienestar.habilitar_ventana", "Habilitar o cerrar la ventana de actualización de un trabajador"),
+    ("bienestar.revisar_actualizacion", "Revisar, observar o rechazar una solicitud de actualización"),
+    ("bienestar.check_analista", "Dar el check de la Analista en una actualización con doble aprobación"),
+    ("bienestar.check_administradora", "Dar el check de la Administradora en una actualización con doble aprobación"),
+    ("bienestar.aprobar_directo", "Aprobación directa de la Administradora (justificación obligatoria)"),
+    ("bienestar.configurar_secciones", "Configurar las secciones que exigen doble aprobación"),
+
+    # ─── 17. FE DE VIDA DE PASIVOS ───
+    ("fe_de_vida.solicitar", "Enviar su solicitud de fe de vida (pasivo)"),
+    ("fe_de_vida.ver_propia", "Consultar el estado y la constancia de su fe de vida"),
+    ("fe_de_vida.revisar", "Revisar evidencia, rechazar o pedir repetición de una fe de vida"),
+    ("fe_de_vida.check_analista", "Dar el check de la Analista en una fe de vida"),
+    ("fe_de_vida.check_administradora", "Dar el check de la Administradora en una fe de vida"),
+    ("fe_de_vida.aprobar_directo", "Validar una fe de vida por aprobación directa de la Administradora"),
+    ("fe_de_vida.ver_evidencia", "Ver la foto de evidencia de una fe de vida (URL prefirmada corta)"),
+    ("fe_de_vida.verificar_constancia", "Verificar internamente una constancia de fe de vida"),
+    ("fe_de_vida.ver_panel", "Consultar el panel de fe de vida de Bienestar"),
+    ("fe_de_vida.configurar_plantilla", "Editar la plantilla de la constancia de fe de vida"),
+
+    # ─── 18. NOTIFICACIONES ───
+    ("notificaciones.ver_propias", "Consultar y marcar como leídas sus notificaciones"),
+    ("notificaciones.administrar", "Administrar el correo saliente (reintentos y fallidas)"),
+
+    # ─── 12b. AUDITORÍA (ampliación) ───
+    ("auditoria.exportar", "Exportar la bitácora de auditoría"),
 ]
 
 # Matriz de asignación por ID de rol conocido
@@ -239,9 +276,80 @@ ROL_ASIGNACIONES = {
     ],
 }
 
+# ─── Roles nuevos (PLAN_PRIORIDAD §2.4) ─────────────────────────────────────
+# Se crean por nombre (el id lo asigna la secuencia de USER_rol) si no existen; el
+# seed nunca renombra ni mueve usuarios de roles existentes.
+ROL_BIENESTAR_SOCIAL_ID = 5
+NOTIFICACIONES_PROPIAS = "notificaciones.ver_propias"
+
+PERMISOS_BIENESTAR_ANALISTA = [
+    "bienestar.ver_solicitudes",
+    "bienestar.habilitar_ventana",
+    "bienestar.revisar_actualizacion",
+    "bienestar.check_analista",
+    "fe_de_vida.revisar",
+    "fe_de_vida.check_analista",
+    "fe_de_vida.ver_evidencia",
+    "fe_de_vida.verificar_constancia",
+    "fe_de_vida.ver_panel",
+]
+# La Administradora NO hereda los checks de la Analista: el doble check exige dos
+# personas distintas (para validar sola existe la aprobación directa, auditada).
+PERMISOS_BIENESTAR_ADMIN = [
+    p for p in PERMISOS_BIENESTAR_ANALISTA if p not in ("bienestar.check_analista", "fe_de_vida.check_analista")
+] + [
+    "bienestar.check_administradora",
+    "bienestar.aprobar_directo",
+    "bienestar.configurar_secciones",
+    "fe_de_vida.check_administradora",
+    "fe_de_vida.aprobar_directo",
+    "fe_de_vida.configurar_plantilla",
+]
+
+# Ampliaciones aditivas a roles existentes (por id).
+ROL_ASIGNACIONES[2] += ["fe_de_vida.verificar_constancia"]
+ROL_ASIGNACIONES[3] += [
+    "autogestion.solicitar_actualizacion",
+    "autogestion.editar_borrador",
+    "autogestion.subir_soporte",
+]
+ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] += ["fe_de_vida.verificar_constancia"]
+for _rol_id in (2, 3, 4, ROL_BIENESTAR_SOCIAL_ID, 9):
+    ROL_ASIGNACIONES[_rol_id].append(NOTIFICACIONES_PROPIAS)
+
+ROLES_NUEVOS = {
+    "ANALISTA_BIENESTAR": (
+        "Analista de Bienestar: revisa actualizaciones y fe de vida (check de la Analista). Nunca aprueba directo.",
+        ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] + PERMISOS_BIENESTAR_ANALISTA,
+    ),
+    "ADMIN_BIENESTAR": (
+        "Administradora de Bienestar: check de la Administradora, aprobación directa y parametrización.",
+        ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] + PERMISOS_BIENESTAR_ADMIN,
+    ),
+    "PASIVO": (
+        "Personal pasivo (jubilado/pensionado): fe de vida y consulta propia, sin carnet ni censo laboral.",
+        [
+            "autogestion.ver_propio",
+            "autogestion.subir_soporte",
+            "fe_de_vida.solicitar",
+            "fe_de_vida.ver_propia",
+            NOTIFICACIONES_PROPIAS,
+        ],
+    ),
+}
+# ADMINISTRADOR conserva todo el catálogo (incluidos los códigos nuevos).
+ROL_ASIGNACIONES[1] = [p[0] for p in PERMISOS_CATALOGO]
+
 
 class Command(BaseCommand):
     help = "Puebla el catálogo taxonómico de permisos y la matriz inicial de roles en apps.identidad"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--no-invalidar-sesiones",
+            action="store_true",
+            help="No sube permisos_version de las cuentas de los roles cuya matriz cambió.",
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Iniciando seed de catálogo de permisos..."))
@@ -270,11 +378,25 @@ class Command(BaseCommand):
                 )
             )
 
-            # 2. Asignación a Roles
+            # 2a. Roles nuevos (aditivo: solo se inserta lo que falta, por nombre)
+            repo_roles = RepoRolesORM()
+            roles_creados = 0
+            for nombre, (descripcion, _codigos) in ROLES_NUEVOS.items():
+                if not repo_roles.existe_nombre(nombre):
+                    repo_roles.crear(nombre, descripcion)
+                    roles_creados += 1
+            self.stdout.write(f"Roles nuevos creados: {roles_creados} de {len(ROLES_NUEVOS)}.")
+
+            # 2b. Asignación a Roles
             asignaciones_creadas = 0
             roles_existentes = {r.id: r.nombre_rol for r in RolEspejo.objects.all()}
+            asignaciones = dict(ROL_ASIGNACIONES)
+            ids_por_nombre = {nombre: rid for rid, nombre in roles_existentes.items()}
+            for nombre, (_descripcion, codigos) in ROLES_NUEVOS.items():
+                asignaciones[ids_por_nombre[nombre]] = codigos
 
-            for rol_id, codigos in ROL_ASIGNACIONES.items():
+            roles_modificados = []
+            for rol_id, codigos in asignaciones.items():
                 if rol_id not in roles_existentes:
                     self.stdout.write(
                         self.style.WARNING(
@@ -284,6 +406,7 @@ class Command(BaseCommand):
                     continue
 
                 nombre_rol = roles_existentes[rol_id]
+                nuevas_del_rol = 0
                 for codigo in codigos:
                     permiso_obj = permiso_objs.get(codigo)
                     if not permiso_obj:
@@ -295,10 +418,18 @@ class Command(BaseCommand):
                     )
                     if created:
                         asignaciones_creadas += 1
+                        nuevas_del_rol += 1
+                if nuevas_del_rol:
+                    roles_modificados.append(rol_id)
 
                 self.stdout.write(
                     f" - Rol '{nombre_rol}' (ID {rol_id}): {len(codigos)} permisos vinculados."
                 )
+
+            if roles_modificados and not options["no_invalidar_sesiones"]:
+                repo_version = RepoPermisosVersionORM()
+                cuentas = sum(repo_version.incrementar_por_rol(rid) for rid in roles_modificados)
+                self.stdout.write(f"Sesiones invalidadas por cambio de matriz: {cuentas} cuentas.")
 
             self.stdout.write(
                 self.style.SUCCESS(

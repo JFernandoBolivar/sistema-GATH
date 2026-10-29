@@ -10,13 +10,13 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
-from core.presentation.archivos import (
+from core.infrastructure.storage.validacion_archivo import (
     MAX_BYTES_IMAGEN,
     TIPOS_IMAGEN,
     clave_segura,
-    respuesta_archivo,
     validar_archivo,
 )
+from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from core.presentation.schema import MensajeRespuestaSerializer

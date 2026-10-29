@@ -206,6 +206,35 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
 # Dominio que se completa cuando el usuario inicia sesión con su correo sin dominio (usuario -> usuario@dominio).
 DOMINIO_CORREO_INSTITUCIONAL = config('DOMINIO_CORREO_INSTITUCIONAL', default='conatel.gob.ve')
 
+# ─── Celery (Etapa A1, D-02) ─────────────────────────────────────────────────
+# Broker RabbitMQ (vhost `gath`): compose.yml arma CELERY_BROKER_URL desde
+# RABBITMQ_USER/RABBITMQ_PASS. Resultados en Redis (db 1): sin tablas nuevas ni
+# migraciones; solo guarda el estado de tareas con expiración corta.
+# Sin CELERY_BROKER_URL (Django fuera de Docker) `CeleryTaskQueue.encolar` falla
+# cerrado con ColaTareasNoDisponible; nunca simula un task_id.
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='') or None
+CELERY_RESULT_EXPIRES = 3600
+CELERY_TASK_DEFAULT_QUEUE = 'gath'
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_TIME_LIMIT = 300
+CELERY_TASK_SOFT_TIME_LIMIT = 270
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# Falla rápido al publicar si RabbitMQ no responde (la vista responde 503, no se cuelga).
+CELERY_BROKER_TRANSPORT_OPTIONS = {'confirm_publish': True, 'socket_timeout': 5}
+CELERY_BROKER_CONNECTION_TIMEOUT = 5
+CELERY_TASK_PUBLISH_RETRY_POLICY = {'max_retries': 1, 'interval_start': 0, 'interval_step': 0.2, 'interval_max': 0.5}
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
+# Tareas periódicas (beat): lista estática en código, sin tablas (django-celery-beat
+# se evalúa cuando haya calendarios editables desde la UI).
+CELERY_BEAT_SCHEDULE = {}
+
 # D-11 (revisado 2026-10-28): Redis es la caché del despliegue. compose.yml
 # arma REDIS_URL para el contenedor django. Sin REDIS_URL (Django fuera de
 # Docker) se usa la tabla de PostgreSQL (`manage.py createcachetable`).

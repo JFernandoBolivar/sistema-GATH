@@ -170,6 +170,7 @@ class LoginView(APIView):
             cuenta,
             cedula=str(cuenta.cedula_id) if cuenta.cedula_id else None,
             rol_nombre=cuenta.rol.nombre_rol if cuenta.rol_id else None,
+            permisos_version=repo_auth.obtener_titular_por_id(cuenta.pk).permisos_version,
         )
 
         repo = RepoCuentasORM()

@@ -1,6 +1,9 @@
 """Repositorio ORM del flujo de recuperación de contraseña (implementa el puerto homónimo)."""
 from apps.identidad.domain.entities.cuenta_recuperacion import CuentaRecuperacion
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
+    RepoPermisosVersionORM,
+)
 
 
 def _a_entidad(fila: CuentaModel) -> CuentaRecuperacion:
@@ -35,5 +38,6 @@ class RepoRecuperacionPasswordORM:
     def restablecer_password(self, cuenta_id: int, password_nuevo: str) -> None:
         cuenta = CuentaModel.objects.get(pk=cuenta_id)
         cuenta.set_password(password_nuevo)
-        cuenta.permisos_version = (cuenta.permisos_version or 0) + 1
-        cuenta.save(update_fields=['password', 'permisos_version'])
+        cuenta.save(update_fields=['password'])
+        # `USER_cuenta` es legada: la versión vive en su tabla propia (revoca sesiones previas).
+        RepoPermisosVersionORM().incrementar_cuenta(cuenta.pk)

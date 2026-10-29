@@ -20,3 +20,5 @@ class TitularSesion:
     cedula: str | None
     rol_nombre: str | None
     is_active: bool = True
+    # Versión de permisos vigente de la cuenta; el JWT la lleva como claim y se invalida si cambia.
+    permisos_version: int = 1

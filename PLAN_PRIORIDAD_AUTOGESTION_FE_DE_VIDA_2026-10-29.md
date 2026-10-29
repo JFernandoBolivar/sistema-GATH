@@ -55,7 +55,7 @@ Esta sección ordena el plan por **fases según la prioridad del usuario y las d
 | Fase | Objetivo | Etapas/tareas del plan (IDs) | Depende de | Esfuerzo | Estado | Inicio | Fin | Notas |
 |---|---|---|---|---|---|---|---|---|
 | **Fase 0** — Arranque y bloqueantes (continua, desde el día 1) | Iniciar lo que depende de terceros: respuestas del usuario y verificaciones en BD | `R-0`, `V-1` (riesgos R5, R6, R7 de 4.1) | — | S (seguimiento continuo) | ⏳ Pendiente | — | — | Sin camino crítico de infraestructura: el HTTPS de producción (`C0`) es de Infraestructura y no bloquea ninguna fase |
-| **Fase 1** — Cimientos | Permisos y roles nuevos, almacenamiento seguro, Celery real, base de sesión por permisos | `A1`, `A4`, `A5`, `A6`, `A8`, `A-T` | V-1 (nombre real del rol, para A4) | M | ⏳ Pendiente | — | — | Prioridad técnica, no funcional. A2/A3/A7 pasan a la Fase 3 |
+| **Fase 1** — Cimientos | Permisos y roles nuevos, almacenamiento seguro, Celery real, base de sesión por permisos | `A1`, `A4`, `A5`, `A6`, `A8`, `A-T` | V-1 (nombre real del rol, para A4) | M | ✅ Culminado | 2026-10-29 | 2026-10-29 | Prioridad técnica, no funcional. A2/A3/A7 pasan a la Fase 3 |
 | **Fase 2** — Autogestión del empleado activo (P1) | Solicitud de actualización, ventanas, borrador, soportes obligatorios, visor comparativo campo por campo, aplicación de cambios aprobados | `B1`–`B6`, `B8`–`B12`, `B-T`, `R-1`, `R-2`, `R-6a` | Fase 1 (A4, A5) | L | ⏳ Pendiente | — | — | Sin notificaciones aún (B7 va en Fase 3). Diseño visual con R-1/R-2 |
 | **Fase 3** — Notificaciones en sistema y correo (P2) | Campana/bandeja, outbox, correo asíncrono; conexión con las transiciones de Autogestión y Gestión de Trabajadores | `A2`, `A3`, `A7`, `B7`, `A-T2` | Fase 1 (A1, A4), `B3` | M | ⏳ Pendiente | — | — | Requiere credenciales SMTP institucionales (R11). Puede solaparse con el final de la Fase 2 |
 | **Fase 4** — Fe de vida de pasivos (P3) | Formulario + selfie con cédula (cámara en vivo o subida de archivo), revisión de Bienestar, doble check + aprobación directa de la Administradora, constancia PDF por correo, acceso del pasivo | `C1`–`C15`, `C-T`, `R-3` (= C13); `C0` queda como requisito de despliegue de Infraestructura (fuera del camino crítico) | Fases 1 y 3; ADR de aprobación directa (R9) | L | ⏳ Pendiente | — | — | Backend, UI y pruebas (incluida la cámara) avanzan en `localhost`; la vía de subida de archivo cubre cualquier equipo sin cámara o sin contexto seguro. Incluye la conversión de cuentas de pasivos (parte de D5) |
@@ -78,12 +78,12 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
-| A1 | Celery real (`GATH/celery.py`, worker/beat en compose, `encolar` falla cerrado) | Back/Infra | — | ⏳ Pendiente | — | |
-| A4 | Roles y permisos nuevos (seed, `RolEspejo`) y `permisos_version` operativo | Back | V-1 | ⏳ Pendiente | — | Crea ANALISTA_BIENESTAR, ADMIN_BIENESTAR, PASIVO |
-| A5 | Validación de archivos (firma real, tamaño, claves uuid) | Back | — | ⏳ Pendiente | — | Incluye corrección aparte de `familiares_views.py` y `carnetizacion_views.py` |
-| A6 | Auditoría: `user_agent` o registro en `estado_nuevo` | Back | — | ⏳ Pendiente | — | |
-| A8 | Helper `puedeVerRuta` y mapa permiso→módulo en `evaluador-iam.ts` | Front | A4 | ⏳ Pendiente | — | Insumo de D1 |
-| A-T | Tests de Fase 1 (contrato de `encolar`, seed idempotente, validación de archivos) | Test | A1, A4, A5 | ⏳ Pendiente | — | Parte de los tests de la etapa A |
+| A1 | Celery real (`GATH/celery.py`, worker/beat en compose, `encolar` falla cerrado) | Back/Infra | — | ✅ Culminado | — | |
+| A4 | Roles y permisos nuevos (seed, `RolEspejo`) y `permisos_version` operativo | Back | V-1 | ✅ Culminado | — | Crea ANALISTA_BIENESTAR, ADMIN_BIENESTAR, PASIVO |
+| A5 | Validación de archivos (firma real, tamaño, claves uuid) | Back | — | ✅ Culminado | — | Incluye corrección aparte de `familiares_views.py` y `carnetizacion_views.py` |
+| A6 | Auditoría: `user_agent` o registro en `estado_nuevo` | Back | — | ✅ Culminado | — | |
+| A8 | Helper `puedeVerRuta` y mapa permiso→módulo en `evaluador-iam.ts` | Front | A4 | ✅ Culminado | — | Insumo de D1. Helper listo (evaluador-iam.ts); su uso en proxy.ts queda para D1 |
+| A-T | Tests de Fase 1 (contrato de `encolar`, seed idempotente, validación de archivos) | Test | A1, A4, A5 | ✅ Culminado | — | Parte de los tests de la etapa A |
 
 **Fase 2 — Autogestión del empleado activo**
 

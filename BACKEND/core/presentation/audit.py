@@ -14,6 +14,14 @@ from core.infrastructure.models.auditoria import AuditoriaLog
 logger = logging.getLogger('audit_backend')
 
 
+def origen_de_peticion(request) -> dict:
+    """`ip_origen` y `user_agent` de la petición, listos para `registrar_auditoria(**...)`."""
+    return {
+        'ip_origen': request.META.get('REMOTE_ADDR') or None,
+        'user_agent': (request.META.get('HTTP_USER_AGENT') or '')[:255],
+    }
+
+
 def registrar_auditoria(
     *,
     trace_id: str,
@@ -26,6 +34,7 @@ def registrar_auditoria(
     recurso_tipo: str = '',
     recurso_id: str = '',
     ip_origen: str | None = None,
+    user_agent: str = '',
     estado_previo: dict | None = None,
     estado_nuevo: dict | None = None,
 ) -> AuditoriaLog:
@@ -40,14 +49,15 @@ def registrar_auditoria(
         recurso_tipo=recurso_tipo,
         recurso_id=recurso_id,
         ip_origen=ip_origen,
+        user_agent=(user_agent or '')[:255],
         estado_previo=estado_previo,
         estado_nuevo=estado_nuevo,
         resultado=resultado,
     )
 
     logger.info(
-        '[TRACE:%s] [ACTOR:%s|%s] [IP:%s] [ACTION:%s.%s] [TARGET:%s#%s] [STATUS:%s]',
-        trace_id, actor_cedula or actor_id, actor_rol, ip_origen or '-',
+        '[TRACE:%s] [ACTOR:%s|%s] [IP:%s] [UA:%s] [ACTION:%s.%s] [TARGET:%s#%s] [STATUS:%s]',
+        trace_id, actor_cedula or actor_id, actor_rol, ip_origen or '-', (user_agent or '-')[:120],
         modulo, accion, recurso_tipo, recurso_id, resultado,
     )
     return registro

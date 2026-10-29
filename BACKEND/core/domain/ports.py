@@ -75,6 +75,8 @@ class AuditLogger(Protocol):
         resultado: str,
         estado_previo: dict | None = None,
         estado_nuevo: dict | None = None,
+        ip_origen: str | None = None,
+        user_agent: str = '',
     ) -> None: ...
 
 

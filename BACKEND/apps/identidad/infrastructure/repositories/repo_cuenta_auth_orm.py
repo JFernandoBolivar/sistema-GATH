@@ -12,6 +12,9 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 from apps.identidad.domain.entities.titular_sesion import TitularSesion
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
+    RepoPermisosVersionORM,
+)
 
 
 class RepoCuentaAuthORM:
@@ -26,6 +29,7 @@ class RepoCuentaAuthORM:
             cedula=str(fila.cedula_id) if fila.cedula_id is not None else None,
             rol_nombre=fila.rol.nombre_rol if fila.rol_id else None,
             is_active=fila.is_active,
+            permisos_version=RepoPermisosVersionORM().obtener(fila.pk),
         )
 
     def obtener_objeto_autenticable(self, id: int) -> object | None:

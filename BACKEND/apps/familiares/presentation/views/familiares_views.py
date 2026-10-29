@@ -9,13 +9,13 @@ from drf_spectacular.utils import extend_schema
 from drf_spectacular.types import OpenApiTypes
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-from core.presentation.archivos import (
+from core.infrastructure.storage.validacion_archivo import (
     MAX_BYTES_DOCUMENTO,
     TIPOS_DOCUMENTO,
     clave_segura,
-    respuesta_archivo,
     validar_archivo,
 )
+from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.familiares.application.use_cases.gestionar_familiar import (

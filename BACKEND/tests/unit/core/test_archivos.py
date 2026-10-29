@@ -14,13 +14,13 @@ from rest_framework.test import APIRequestFactory
 
 from core.domain.exceptions import AlmacenamientoNoDisponible, NotFoundError, ValidationError
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-from core.presentation.archivos import (
+from core.infrastructure.storage.validacion_archivo import (
     MAX_BYTES_IMAGEN,
     TIPOS_IMAGEN,
     clave_segura,
-    respuesta_archivo,
     validar_archivo,
 )
+from core.presentation.archivos import respuesta_archivo
 
 JPEG = b"\xff\xd8\xff\xe0" + b"0" * 32
 PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 32

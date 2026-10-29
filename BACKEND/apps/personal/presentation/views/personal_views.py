@@ -8,13 +8,13 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
-from core.presentation.archivos import (
+from core.infrastructure.storage.validacion_archivo import (
     MAX_BYTES_IMAGEN,
     TIPOS_IMAGEN,
     clave_segura,
-    respuesta_archivo,
     validar_archivo,
 )
+from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.personal.application.use_cases.gestionar_personal import (

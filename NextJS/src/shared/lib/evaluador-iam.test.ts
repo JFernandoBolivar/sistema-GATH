@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { puede, patronesCandidatos, tienePermiso } from './evaluador-iam';
+import {
+  puede,
+  patronesCandidatos,
+  tienePermiso,
+  puedeVerRuta,
+  modulosAccesibles,
+  moduloDePermiso,
+} from './evaluador-iam';
 
 describe('Evaluador IAM PBAC Frontend', () => {
   it('genera correctamente los patrones candidatos', () => {
@@ -92,5 +99,45 @@ describe('tienePermiso (lista plana de codigos resuelta por el backend)', () => 
     expect(tienePermiso(undefined, 'personal.crear')).toBe(false);
     expect(tienePermiso([], 'personal.crear')).toBe(false);
     expect(tienePermiso(['*'], '')).toBe(false);
+  });
+});
+
+describe('Acceso por ruta (A8)', () => {
+  it('rutas sin módulo mapeado quedan abiertas a toda sesión', () => {
+    expect(puedeVerRuta([], '/inicio')).toBe(true);
+    expect(puedeVerRuta([], '/dashboard')).toBe(true);
+    expect(puedeVerRuta([], '/')).toBe(true);
+  });
+
+  it('exige el permiso de entrada del módulo (fail-closed)', () => {
+    expect(puedeVerRuta(['personal.ver'], '/personal/lista')).toBe(true);
+    expect(puedeVerRuta(['pasivos.ver'], '/personal')).toBe(false);
+    expect(puedeVerRuta(null, '/personal')).toBe(false);
+    expect(puedeVerRuta(undefined, '/reportes/exportar')).toBe(false);
+  });
+
+  it('ignora query, hash, mayúsculas y barra final', () => {
+    expect(puedeVerRuta(['cargos.ver'], '/Cargos/?q=1#x')).toBe(true);
+    expect(puedeVerRuta([], '/Cargos/?q=1')).toBe(false);
+  });
+
+  it('basta uno de los permisos de entrada y respeta comodines', () => {
+    expect(puedeVerRuta(['identidad.crear_usuarios'], '/usuarios')).toBe(true);
+    expect(puedeVerRuta(['autogestion.censo_ver_propio'], '/autogestion')).toBe(true);
+    expect(puedeVerRuta(['*'], '/usuarios')).toBe(true);
+    expect(puedeVerRuta(['personal.*'], '/personal')).toBe(true);
+  });
+
+  it('cubre las rutas nuevas de bienestar, fe de vida y notificaciones', () => {
+    expect(puedeVerRuta(['bienestar.ver_solicitudes'], '/bienestar')).toBe(true);
+    expect(puedeVerRuta(['fe_de_vida.solicitar'], '/fe-de-vida')).toBe(true);
+    expect(puedeVerRuta(['fe_de_vida.solicitar'], '/bienestar')).toBe(false);
+    expect(puedeVerRuta(['notificaciones.ver_propias'], '/notificaciones')).toBe(true);
+  });
+
+  it('deriva el módulo de un código y los módulos accesibles', () => {
+    expect(moduloDePermiso('Fe_De_Vida.revisar')).toBe('fe_de_vida');
+    expect(modulosAccesibles(['personal.ver', 'reportes.ver'])).toEqual(['personal', 'reportes']);
+    expect(modulosAccesibles([])).toEqual([]);
   });
 });

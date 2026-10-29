@@ -28,6 +28,8 @@ class AuditoriaLog(models.Model):
     recurso_tipo = models.CharField(max_length=50, blank=True, default='')
     recurso_id = models.CharField(max_length=64, blank=True, default='')
     ip_origen = models.GenericIPAddressField(null=True, blank=True)
+    # Cabecera User-Agent de la petición (recortada); ayuda a distinguir dispositivos (Etapa A6/E1).
+    user_agent = models.CharField(max_length=255, blank=True, default='')
     estado_previo = models.JSONField(null=True, blank=True)
     estado_nuevo = models.JSONField(null=True, blank=True)
     resultado = models.CharField(max_length=20, choices=Resultado.choices, default=Resultado.SUCCESS)

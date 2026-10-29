@@ -26,11 +26,13 @@ from apps.identidad.application.dtos.token_dto import TokensEmitidosDTO
 
 
 def emitir_tokens_sesion(
-    titular_orm, cedula: str | None, rol_nombre: str | None
+    titular_orm, cedula: str | None, rol_nombre: str | None, permisos_version: int = 1
 ) -> TokensEmitidosDTO:
     """Emite el par access/refresh para `titular_orm`, embebiendo los claims."""
     refresh = RefreshToken.for_user(titular_orm)
     refresh['cedula'] = cedula
     refresh['rol'] = rol_nombre
+    # Claim de invalidación: si la versión de la cuenta sube, este token deja de valer.
+    refresh['permisos_version'] = permisos_version
 
     return TokensEmitidosDTO(access=str(refresh.access_token), refresh=str(refresh))

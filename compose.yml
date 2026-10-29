@@ -1,3 +1,11 @@
+x-backend-env: &backend-env
+  DJANGO_DB_HOST: host.docker.internal
+  FRONTEND_URL: http://localhost:3001
+  REDIS_URL: redis://:${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}@redis:6379/0
+  # Celery (A1): broker RabbitMQ (vhost gath) y resultados en Redis db 1.
+  CELERY_BROKER_URL: amqp://${RABBITMQ_USER:?RABBITMQ_USER no definido (ver .env.example)}:${RABBITMQ_PASS:?RABBITMQ_PASS no definido (ver .env.example)}@rabbitmq:5672/gath
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASS}@redis:6379/1
+
 services:
   django:
     container_name: django-App
@@ -6,10 +14,8 @@ services:
       dockerfile: django.dockerfile
     env_file:
       - ./BACKEND/.env
-    environment:
-      - DJANGO_DB_HOST=host.docker.internal
-      - FRONTEND_URL=http://localhost:3001
-      - REDIS_URL=redis://:${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}@redis:6379/0
+    image: gath-backend:latest
+    environment: *backend-env
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -28,6 +34,61 @@ services:
       - staticfiles:/app/Django/staticfiles
       - "/opt/gath/BACKEND/media:/app/Django/media"
       - "/opt/gath/BACKEND/staticfiles:/app/Django/staticfiles"
+    restart: always
+
+  # ── Celery (A1): misma imagen que django, sin puertos al host ───────────────
+  # No corren `migrate` (SKIP_MIGRATE=1): solo django aplica migraciones.
+  celery_worker:
+    container_name: gath_celery_worker
+    image: gath-backend:latest
+    build:
+      context: ./BACKEND
+      dockerfile: django.dockerfile
+    env_file:
+      - ./BACKEND/.env
+    environment:
+      <<: *backend-env
+      SKIP_MIGRATE: "1"
+    command: ["celery", "-A", "GATH", "worker", "-Q", "gath", "-l", "info", "--concurrency=2"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [backend, broker, storage, cache]
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A GATH inspect ping -d celery@$$HOSTNAME -t 5 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 40s
+    restart: always
+
+  celery_beat:
+    container_name: gath_celery_beat
+    image: gath-backend:latest
+    build:
+      context: ./BACKEND
+      dockerfile: django.dockerfile
+    env_file:
+      - ./BACKEND/.env
+    environment:
+      <<: *backend-env
+      SKIP_MIGRATE: "1"
+    command: ["celery", "-A", "GATH", "beat", "-l", "info", "-s", "/tmp/celerybeat-schedule", "--pidfile=/tmp/celerybeat.pid"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [backend, broker, cache]
+    depends_on:
+      - celery_worker
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid && kill -0 $$(cat /tmp/celerybeat.pid)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: always
 
   nextjs:

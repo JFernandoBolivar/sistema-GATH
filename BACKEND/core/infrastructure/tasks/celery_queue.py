@@ -8,6 +8,8 @@ directamente (regla B20: desacoplamiento del framework asíncrono).
 import logging
 from typing import Any
 
+from django.conf import settings
+
 from core.domain.exceptions import ColaTareasNoDisponible
 
 logger = logging.getLogger('gath.tasks')
@@ -21,6 +23,9 @@ class CeleryTaskQueue:
 
     def _get_app(self):
         if self._celery_app is None:
+            if not getattr(settings, 'CELERY_BROKER_URL', ''):
+                logger.error("CELERY_BROKER_URL no está configurada: la cola de tareas no está disponible.")
+                return None
             try:
                 from GATH.celery import app as default_app
                 self._celery_app = default_app

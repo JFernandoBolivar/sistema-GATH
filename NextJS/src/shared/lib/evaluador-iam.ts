@@ -81,3 +81,78 @@ export function tienePermiso(
 
   return false;
 }
+
+/**
+ * Acceso por ruta (Etapa A8, insumo de la etapa D): cada módulo de primer nivel
+ * declara los permisos "de entrada" (basta uno) y el primer segmento de la URL
+ * se mapea al módulo. Una ruta fuera del mapa (inicio, dashboard, login…) no
+ * exige permiso: queda abierta a cualquier sesión autenticada. La decisión
+ * final de seguridad sigue en el backend (`HasPermission`); esto solo evita
+ * mostrar navegación o rutas que el backend rechazaría.
+ */
+export const RUTA_A_MODULO: Record<string, string> = {
+  personal: 'personal',
+  pasivos: 'pasivos',
+  cargos: 'cargos',
+  carnetizacion: 'carnetizacion',
+  catalogos: 'catalogos',
+  configuracion: 'configuracion',
+  familiares: 'familiares',
+  movimientos: 'movimientos',
+  organizacion: 'organizacion',
+  reportes: 'reportes',
+  usuarios: 'identidad',
+  autogestion: 'autogestion',
+  notificaciones: 'notificaciones',
+  bienestar: 'bienestar',
+  'fe-de-vida': 'fe_de_vida',
+};
+
+export const PERMISOS_DE_ENTRADA: Record<string, string[]> = {
+  personal: ['personal.ver'],
+  pasivos: ['pasivos.ver'],
+  cargos: ['cargos.ver'],
+  carnetizacion: ['carnetizacion.ver'],
+  catalogos: ['catalogos.ver'],
+  configuracion: ['configuracion.editar'],
+  familiares: ['familiares.ver'],
+  movimientos: ['movimientos.ver'],
+  organizacion: ['organizacion.ver'],
+  reportes: ['reportes.ver'],
+  identidad: [
+    'identidad.ver_usuarios',
+    'identidad.crear_usuarios',
+    'identidad.editar_usuarios',
+    'identidad.ver_roles',
+  ],
+  autogestion: [
+    'autogestion.ver_propio',
+    'autogestion.censo_ver_propio',
+    'autogestion.censo_ver_todos',
+  ],
+  notificaciones: ['notificaciones.ver_propias'],
+  bienestar: ['bienestar.ver_solicitudes'],
+  fe_de_vida: ['fe_de_vida.solicitar', 'fe_de_vida.ver_propia', 'fe_de_vida.ver_panel'],
+};
+
+/** Módulo de un código de permiso (`personal.ver` → `personal`). */
+export function moduloDePermiso(codigo: string): string {
+  return codigo.trim().toLowerCase().split('.')[0] ?? '';
+}
+
+/** Módulos a los que la sesión tiene acceso de entrada. */
+export function modulosAccesibles(permisos: string[] | null | undefined): string[] {
+  return Object.keys(PERMISOS_DE_ENTRADA).filter((modulo) =>
+    PERMISOS_DE_ENTRADA[modulo].some((codigo) => tienePermiso(permisos, codigo)),
+  );
+}
+
+/** ¿Puede la sesión abrir esta ruta? Fail-closed en módulos mapeados; abierta si no hay módulo. */
+export function puedeVerRuta(permisos: string[] | null | undefined, ruta: string): boolean {
+  const limpia = ruta.split(/[?#]/)[0].toLowerCase();
+  const segmento = limpia.split('/').filter(Boolean)[0];
+  if (!segmento) return true;
+  const modulo = RUTA_A_MODULO[segmento];
+  if (!modulo) return true;
+  return (PERMISOS_DE_ENTRADA[modulo] ?? []).some((codigo) => tienePermiso(permisos, codigo));
+}
