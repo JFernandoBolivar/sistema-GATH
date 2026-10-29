@@ -1,55 +1,63 @@
 ---
 name: uso-librerias-backend
-description: Cómo se configuran y usan en GATH las librerías no triviales del backend — Celery con broker RabbitMQ, caché y throttling con DatabaseCache sobre PostgreSQL (fallo cerrado), drf-spectacular, django-filter, Argon2 y corsheaders. La autenticación JWT/simplejwt tiene su propia skill.
+description: Cómo se configuran y usan en GATH las librerías no triviales del backend — Celery 5.6.3 con broker RabbitMQ y resultados en Redis db 1, caché y throttling con Redis (fallback a DatabaseCache en PostgreSQL con fallo cerrado), drf-spectacular, django-filter, Argon2 y corsheaders. La autenticación JWT/simplejwt tiene su propia skill.
 ---
 
 # Uso de librerías (Backend)
 
 ## Contexto GATH
 
-Proyecto **GATH** — Gestión y Administración de Talento Humano (CONATEL). Stack verificado en `BACKEND/requirements.txt`: Django **5.2.7**, DRF **3.16.1**, `simplejwt` **5.5.1**, `drf-spectacular` **0.28.0**, `django-filter` **25.1**, `django-cors-headers` **4.9.0**, `celery` **5.3.4** (instalado, **sin app ni broker**), PostgreSQL **externo en servidor dedicado** (**D-03**, no está en `compose.yml`).
-Decisiones que gobiernan esta skill: **D-02** (Celery con broker **RabbitMQ** `amqp://` y resultados en PostgreSQL vía `django-celery-results`), **D-11** (`DatabaseCache` en PostgreSQL para los contadores de throttling, con **fallo cerrado**), **D-04** (auditoría dual DB + TXT), **D-12** (`pytest` + `pytest-django`), **D-06** (`/api/v1/`).
-Esta skill fue heredada de otro proyecto y **reconciliada** para GATH; el registro literal de la adaptación está en `PLAN_RECONSTRUCCION_ONION.v1.md` **§0.6.1** (fila `uso-librerias-backend`: *"El broker es RabbitMQ (no Redis) y el backend de throttling es DatabaseCache sobre PostgreSQL con fallo cerrado (D-11)"*).
+Proyecto **GATH** — Gestión y Administración de Talento Humano (CONATEL). Stack verificado en `BACKEND/requirements.txt`: Django **5.2.8**, DRF **3.16.1**, `simplejwt` **5.5.1**, `drf-spectacular` **0.28.0**, `django-filter` **25.1**, `django-cors-headers` **4.9.0**, `celery` **5.6.3** (serie con soporte oficial de Python 3.14), `redis` **5.2.1**, imagen base `python:3.14.10` y PostgreSQL **externo en servidor dedicado** (**D-03**, no está en `compose.yml`).
+Decisiones que gobiernan esta skill: **D-02** (Celery 5.6.3 con broker **RabbitMQ** `amqp://` vhost `gath` y resultados en Redis db 1 vía `CELERY_RESULT_BACKEND`), **D-11** (Caché y contadores de throttling en **Redis** vía `REDIS_URL`, con fallback a `DatabaseCache` sobre PostgreSQL con `MAX_ENTRIES=100000`, siempre con **fallo cerrado**), **D-04** (auditoría dual DB + TXT), **D-12** (`pytest` + `pytest-django`), **D-06** (`/api/v1/`).
 
-> **Nada de Redis, en ninguna forma.** D-02 y D-11 evitaron deliberadamente añadir un cuarto almacén: broker RabbitMQ, resultados en PostgreSQL y caché en PostgreSQL.
+> **Redis en infraestructura (`compose.yml`):** Se declara el servicio `redis:7.4-alpine` en red interna (sin puertos al host y sin persistencia) para caché y throttling (`REDIS_URL`, db 0) y resultados de tareas de Celery (`CELERY_RESULT_BACKEND`, db 1). El broker de mensajería sigue siendo exclusivamente RabbitMQ (vhost `gath`).
 
 ---
 
 Skill de referencia rápida para saber cómo se configura e integra cada librería de `BACKEND/requirements.txt` con comportamiento no trivial. Para JWT/simplejwt ver [[autenticacion-permisos-jwt]]. Para el router de la BD externa RECAUDACION ver [[integracion-bd-recaudacion]] (es arquitectura de datos, no una "librería" per se). Para dónde vive cada archivo, ver [[arquitectura-onion-feature-scream]].
 
-> **Estado de partida — verifícalo antes de afirmar nada.** Hoy en `BACKEND/SIGEP/settings.py` **no existe** ningún bloque `CACHES`, ningún `DEFAULT_THROTTLE_CLASSES`/`DEFAULT_THROTTLE_RATES`, ningún `PASSWORD_HASHERS`, ningún `SPECTACULAR_SETTINGS` ni ningún `DEFAULT_FILTER_BACKENDS`; no hay `SIGEP/celery.py` y `grep -rn 'shared_task\|\.delay('` sobre `BACKEND/` da **cero** resultados. Todo lo que sigue se **construye**; no lo describas como algo que ya está y sólo hay que "activar".
+> **Paquete de configuración:** El paquete de configuración del backend se llama **`GATH/`** (`GATH/settings.py`, `GATH/celery.py`, `GATH/urls.py`, `GATH/wsgi.py`).
 
 ---
 
 ## Celery
 
-### Configuración objetivo (`SIGEP/celery.py`) — D-02
+### Configuración (`GATH/celery.py` y `GATH/settings.py`) — D-02
 
-No existe todavía. Se crea en la fase **B1.8** del plan (fijar la serie de `celery` validada contra Django 5.2, añadir `django-celery-results` y `django-celery-beat`). El bosquejo autoritativo es `infra-fase2/celery-app.sketch.py` (**no lo modifiques**), reflejado en `FASE2_PROPUESTA_TECNICA.md` §12.6 y §12.9:
+Celery 5.6.3 opera con broker RabbitMQ (vhost `gath`) y persistencia efímera de resultados en Redis (db 1):
 
 ```python
-# BACKEND/SIGEP/celery.py
-app = Celery('gath')
-app.conf.update(
-    broker_url=config('CELERY_BROKER_URL'),      # amqp://... — sin default: si falta, falla al arrancar
-    result_backend='django-db',                   # django-celery-results en PostgreSQL; no hace falta Redis
-    task_acks_late=True,                          # ack DESPUÉS de ejecutar (B23)
-    task_reject_on_worker_lost=True,              # si el worker muere, el mensaje se reencola
-    worker_prefetch_multiplier=1,                 # nadie acapara mensajes
-    broker_transport_options={'confirm_publish': True},
-    broker_connection_retry_on_startup=True,
-    task_time_limit=300, task_soft_time_limit=270,
-    task_serializer='json', accept_content=['json'],
-)
+# BACKEND/GATH/settings.py
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='') or None
+CELERY_RESULT_EXPIRES = 3600
+CELERY_TASK_DEFAULT_QUEUE = 'gath'
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_TIME_LIMIT = 300
+CELERY_TASK_SOFT_TIME_LIMIT = 270
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_TRANSPORT_OPTIONS = {'confirm_publish': True, 'socket_timeout': 5}
+CELERY_BROKER_CONNECTION_TIMEOUT = 5
+CELERY_TASK_PUBLISH_RETRY_POLICY = {'max_retries': 1, 'interval_start': 0, 'interval_step': 0.2, 'interval_max': 0.5}
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
 ```
 
-- **Broker: RabbitMQ** con colas durables `quorum` (`x-queue-type: quorum`), vhost propio, usuario sin permisos de administración y **sin publicar `5672` ni `15672`** al host (compose endurecido en `infra-fase2/compose.fase2.yml`).
-- **Resultados: `django-db`** (`django-celery-results`), no el broker.
-- **Credenciales del broker por entorno, sin valor por defecto** (**CRIT-03**, D-03): `CELERY_BROKER_URL` se lee del entorno y si falta la app **no arranca**. Hoy `BACKEND/.env.example` sólo declara las variables de PostgreSQL y `NESTJS_URL`: añadir la del broker es parte de B1.8.
-- **Periódicas: `django-celery-beat`** con `CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'`. El calendario vive en la base y se ajusta sin desplegar; el `beat_schedule` del bosquejo es **semilla, no fuente de verdad**. Todavía **no hay ninguna tarea periódica en producción**.
-- **Topología de colas:** el plan (**B5.14**, §III.3) fija `default`, `reportes`, `cargas`, `archivos`. `FASE2_PROPUESTA_TECNICA.md` §12.6 propone otro juego de nombres (`sync`, `docs`, `mail`, `maint`) para el alcance de Fase 2. **Antes de crear una cola nueva, confirma qué nomenclatura rige** — son dos documentos y no coinciden (ver "Pendientes" al final).
-
-> El paquete de configuración se llama hoy `SIGEP/`. El plan lo referencia como `config/`; mientras no se ejecute el renombrado, lee `config/` como "el paquete de settings del proyecto".
+- **Broker: RabbitMQ** con vhost `gath` (`amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/gath`), credenciales por entorno sin defaults, sin publicar puertos al host en `compose.yml`.
+- **Resultados: Redis db 1** (`redis://:${REDIS_PASS}@redis:6379/1`), sin tablas nuevas ni migraciones en PostgreSQL; almacena estados con expiración corta (3600 s).
+- **Servicios `celery_worker` y `celery_beat`:** Ambos corren sobre la misma imagen del backend (`gath-backend:latest` construida desde `BACKEND/django.dockerfile`) y comparten variables de entorno `x-backend-env`.
+  - Worker: `celery -A GATH worker -Q gath -l info --concurrency=2`
+  - Beat: `celery -A GATH beat -l info -s /tmp/celerybeat-schedule --pidfile=/tmp/celerybeat.pid`
+- **Migraciones y arranque (`docker-entrypoint.sh`):**
+  - `docker-entrypoint.sh` espera a PostgreSQL (`wait-for-postgres.py`) y corre `manage.py migrate --noinput` salvo si `SKIP_MIGRATE=1`.
+  - `celery_worker` y `celery_beat` configuran `SKIP_MIGRATE: "1"` para no ejecutar migraciones al arrancar.
+  - *Advertencia de concurrencia:* Si se escalan varias réplicas del contenedor `django`, correr `migrate` en el entrypoint genera race conditions y debe extraerse a un paso deliberado de despliegue.
+- **Tareas periódicas (beat):** `CELERY_BEAT_SCHEDULE` estático en `settings.py` (expiración de ventanas de autogestión, avisos de expiración y reprocesamiento de outbox de correo).
 
 ### Firma canónica de una tarea
 
@@ -99,74 +107,86 @@ Toda operación que pueda pasar de **3 s** (cargas masivas de Excel, PDFs, repor
 {"data": {"tarea_id": "<UUID>"}}
 ```
 
-y el frontend sondea `GET /api/v1/tareas/{id}/`, cuyo estado es uno de `pendiente | en_proceso | completada | fallida` (respaldado por `django-celery-results`). No hagas que una vista espere el resultado de la tarea.
+y el frontend sondea `GET /api/v1/tareas/{id}/`, cuyo estado es uno de `pendiente | en_proceso | completada | fallida` (respaldado por Celery result backend). No hagas que una vista espere el resultado de la tarea.
 
 ---
 
-## Caché y throttling — `DatabaseCache` sobre PostgreSQL (D-11)
+## Caché y throttling — Redis con fallback a `DatabaseCache` (D-11)
 
-**No existe hoy.** La ausencia de `CACHES` en `SIGEP/settings.py` **es el hallazgo ALTA-17**: sin backend declarado DRF usa `LocMemCache`, los contadores viven en la memoria de cada worker de gunicorn y un límite de "5 por minuto" con 4 workers es en realidad 20 por minuto, además de reiniciarse en cada despliegue. Se construye en la fase **B0.10**, junto con el throttling que lo necesita (**ALTA-04**):
+Configuración oficial en `BACKEND/GATH/settings.py` (revisado 2026-10-28):
 
 ```python
-# SIGEP/settings.py
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'gath_cache',          # tabla creada con: python manage.py createcachetable
-        'OPTIONS': {
-            'IGNORE_EXCEPTIONS': False,    # FALLO CERRADO (D-11): si la caché no responde, se deniega
-        },
-    },
-}
+# BACKEND/GATH/settings.py
+_REDIS_URL = config('REDIS_URL', default='')
+if _REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _REDIS_URL,
+            'KEY_PREFIX': 'gath',
+            # Si Redis cae, la petición falla en 2 s en vez de quedar colgada.
+            'OPTIONS': {'socket_connect_timeout': 2, 'socket_timeout': 2},
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache_table',
+            # El default de Django (300) se supera con ~100 usuarios activos:
+            # al purgar se borran contadores de throttling y el límite se pierde.
+            'OPTIONS': {'MAX_ENTRIES': 100_000},
+        }
+    }
 ```
 
 ```python
 REST_FRAMEWORK = {
-    'DEFAULT_THROTTLE_CLASSES': ['rest_framework.throttling.ScopedRateThrottle'],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
     'DEFAULT_THROTTLE_RATES': {
-        # un comentario por scope justificando el número, siempre
-        'login': '5/min',            # ALTA-04: contención de fuerza bruta en autenticación
-        'cambiar-password': '5/min', # misma superficie, misma tasa
+        'anon': '60/minute',
+        'user': '300/minute',
+        'login': config('LOGIN_THROTTLE_RATE', default='30/minute'),
+        'password_reset': config('PASSWORD_RESET_THROTTLE_RATE', default='10/minute'),
     },
 }
 ```
 
-**Fallo cerrado, no abierto.** Es la diferencia de criterio con la versión heredada de esta skill (ver la sección de regla anulada). Un contador de seguridad que no puede contar debe **notarse y denegar**: un endpoint de autenticación sin límite es una puerta abierta, no una degradación aceptable. Concretamente: `IGNORE_EXCEPTIONS` en `False` para este uso, y la excepción se propaga.
+**Fallo cerrado, no abierto:**  
+Ambos backends fallan cerrado: si la caché no responde, el throttling responde 500 en lugar de dejar el login sin límite. Un contador de seguridad que no puede verificar la tasa debe **denegar**: un endpoint de autenticación sin límite es una vulnerabilidad grave.
 
-- El bloqueo progresivo de cuentas tras 5 intentos fallidos (**B3.12**) se apoya en esta misma caché y registra el incidente en `logs/backend/security_backend.txt` y en DB.
-- **No hay ninguna caché de negocio** (catálogos geográficos, servicios, etc.): cero `cache.get`/`cache.set`/`@cache_page` en el backend. No asumas que hay algo que invalidar al modificar un catálogo.
-- Si algún día se introduce la **primera caché de negocio**, ahí sí cabe discutir tolerar la caída del almacén — pero es una decisión distinta de D-11, que gobierna sólo los contadores de seguridad. Documéntala aparte; no la deduzcas de este bloque.
-- La tabla `gath_cache` vive en el PostgreSQL externo (**D-03**): el `createcachetable` es un paso de despliegue, no algo que ocurra solo.
-
-En los tests, la caché de throttling se **aísla** (`override_settings(CACHES=...)` con `LocMemCache`) para no consumir cupos reales ni dejar residuos que hagan fallar tests posteriores sin relación aparente. Ver [[testing-backend-django]]; el framework de tests en GATH es `pytest` + `pytest-django` (**D-12**).
+- **Redis en despliegue:** `compose.yml` declara el servicio `redis:7.4-alpine` y pasa `REDIS_URL: redis://:${REDIS_PASS}@redis:6379/0` a los contenedores.
+- **Fallback en desarrollo:** Si `REDIS_URL` no está definida (ej. ejecución de Django fuera de Docker), se usa `DatabaseCache` con tabla `django_cache_table` creada mediante `python manage.py createcachetable`. `MAX_ENTRIES=100000` evita que Django purgue contadores tempranamente al superar 300 entradas.
+- **Caché de negocio:** Cero `cache.get`/`cache.set`/`@cache_page` en el backend sin previo diseño formal.
+- En los tests, la caché de throttling se **aísla** (`override_settings(CACHES=...)` con `LocMemCache`) para no consumir cupos reales ni dejar residuos entre ejecuciones ([[testing-backend-django]]).
 
 ---
 
 ## drf-spectacular
 
-`drf_spectacular` está en `INSTALLED_APPS` y `REST_FRAMEWORK['DEFAULT_SCHEMA_CLASS']` ya apunta a su `AutoSchema`, pero **no hay bloque `SPECTACULAR_SETTINGS`**: se crea en **B1.14**.
+`drf_spectacular` está configurado en `INSTALLED_APPS` y `REST_FRAMEWORK['DEFAULT_SCHEMA_CLASS'] = 'drf_spectacular.openapi.AutoSchema'`.
 
 ```python
 SPECTACULAR_SETTINGS = {
-    ...
-    'ENUM_NAME_OVERRIDES': {
-        # necesario porque drf-spectacular no resuelve el acceso anidado a .choices
-        # de un TextChoices definido dentro de una clase de modelo
-        'EstatusEmpleadoEnum': 'apps.personal.infrastructure.models.empleado_model.EmpleadoModel.Estatus',
-        # ... (uno por cada TextChoices reutilizado en más de un lugar)
-    },
+    'TITLE': 'GATH API - Gestión y Administración de Talento Humano',
+    'DESCRIPTION': 'API RESTful del Sistema GATH (CONATEL)',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'ENUM_NAME_OVERRIDES': {},
 }
 ```
 
-**Regla al añadir un `TextChoices` que se reutilice en más de un modelo/serializer** (**B25**): agrégalo a `ENUM_NAME_OVERRIDES` con un nombre explícito, o drf-spectacular generará nombres colisionantes o genéricos (`Enum1`, `Enum2`) en el esquema OpenAPI. La validación del esquema OpenAPI 3.0 corre en CI (**B6.9**), así que una colisión rompe el pipeline.
-
-Exposición del esquema — estado real en `SIGEP/urls.py`: `/api/schema/`, `/api/docs/` y `/api/redoc/` ya exigen sesión válida más rol administrativo (`PERMISOS_DOCUMENTACION = [IsAuthenticated, EsAdministrador]`, fase **B0.11** por **ALTA-14**). **Queda pendiente** la restricción por red/IP y mover el prefijo de `/admin/` a variable de entorno; el objetivo del plan es además condicionarlo a `settings.EXPOSE_API_DOCS` (default: sólo `DEBUG`), setting que **todavía no existe**.
+**Regla al añadir un `TextChoices` que se reutilice en más de un modelo/serializer** (**B25**): agrégalo a `ENUM_NAME_OVERRIDES` con un nombre explícito, o drf-spectacular generará nombres colisionantes o genéricos (`Enum1`, `Enum2`) en el esquema OpenAPI. La validación del esquema OpenAPI 3.0 corre en CI (**B6.9**).
 
 ---
 
 ## django-filter
 
-`django_filters` está en `INSTALLED_APPS`, pero `REST_FRAMEWORK` **no declara `DEFAULT_FILTER_BACKENDS`** — la librería no filtra nada hoy. La configuración objetivo:
+Configuración en `REST_FRAMEWORK`:
 
 ```python
 REST_FRAMEWORK = {
@@ -184,7 +204,7 @@ Los `FilterSet` de GATH viven en `apps/[modulo]/presentation/filters/[entidad]_f
 
 ## argon2 / password hashers
 
-**No existe hoy `PASSWORD_HASHERS` en `settings.py`** (rige el orden por defecto de Django: PBKDF2 primero) y **`argon2-cffi` no está en `requirements.txt`**: sin ese paquete, `Argon2PasswordHasher` no puede usarse. Ambas cosas se resuelven en **B1.13**:
+Configuración en `GATH/settings.py` con `argon2-cffi` en `requirements.txt`:
 
 ```python
 PASSWORD_HASHERS = [
@@ -196,42 +216,32 @@ PASSWORD_HASHERS = [
 ]
 ```
 
-Argon2 es el hasher activo (primero de la lista = el que Django usa para crear hashes nuevos); los demás sólo permiten **leer y re-hashear** contraseñas antiguas. En GATH esto no es teórico: las cuentas existentes están hasheadas con PBKDF2, así que **PBKDF2 no puede salir de la lista** o esos usuarios no podrán volver a entrar. No reordenes esta lista sin entender que afecta la compatibilidad con los hashes ya almacenados.
+Argon2 es el hasher activo (primero de la lista); los demás sólo permiten **leer y re-hashear** contraseñas antiguas. Las cuentas existentes migradas están hasheadas con PBKDF2, por lo que **PBKDF2 no puede salir de la lista**.
 
 ---
 
 ## corsheaders
 
-Estado real en `SIGEP/settings.py`: `CORS_ALLOWED_ORIGINS` es una **lista de IPs y hostnames escritos a mano en el código** (incluyendo duplicados), y el bloque `CORS_ALLOWED_HEADERS` de 9 cabeceras **se ignora en silencio** porque `django-cors-headers` lee `CORS_ALLOW_HEADERS` (verificado en `settings.py`; catalogado como **MED-19** en `PLAN_RECONSTRUCCION_ONION.md`, hallazgo que no aparece en la lista de la v1). Ambos se corrigen al parametrizar el settings, **B1.3**:
+Configuración en `GATH/settings.py`:
 
 ```python
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv(), default='')
 if DEBUG and not CORS_ALLOWED_ORIGINS:
     CORS_ALLOW_ALL_ORIGINS = True   # sólo en desarrollo y sólo si la lista está vacía
-CORS_ALLOW_HEADERS = [...]          # el nombre correcto del setting, no CORS_ALLOWED_HEADERS
+CORS_ALLOW_CREDENTIALS = True       # necesario porque el access token viaja en cookie HttpOnly
 ```
 
-En producción `CORS_ALLOWED_ORIGINS` viene **siempre** por variable de entorno: sin IPs en el código, sin `testserver` en `ALLOWED_HOSTS`. El fallback a "permitir todo" sólo aplica con `DEBUG=True` — y ojo: hoy `DEBUG` está **fijado a `True` en el código** (`settings.py`), así que ese fallback no es una red de seguridad de desarrollo mientras B1.3 no lo lleve al entorno. `CORS_ALLOW_CREDENTIALS = True` es necesario porque el access token viaja en cookie `HttpOnly` ([[autenticacion-permisos-jwt]]).
+En producción `CORS_ALLOWED_ORIGINS` viene **siempre** por variable de entorno: sin IPs en el código. `CORS_ALLOW_CREDENTIALS = True` es obligatorio para que el navegador comparta las cookies HttpOnly (`dj_access`, `dj_refresh`) en las peticiones cross-origin ([[autenticacion-permisos-jwt]]).
 
 ---
 
-### ⚠️ Regla anulada respecto a la versión heredada
+### ⚠️ Reglas anuladas y aclaraciones de arquitectura
 
-**1. El broker y la caché eran Redis, y la caché fallaba abierto.** La versión original de esta skill traía:
+1. **Redis como caché y backend de resultados (D-11, D-02):**  
+   Redis (`redis:7.4-alpine`) está presente en `compose.yml` en red interna (servicio `redis`, sin exponer puertos al host y sin persistencia) para caché/throttling (`REDIS_URL`, db 0) y resultados efímeros de Celery (`CELERY_RESULT_BACKEND`, db 1). El broker de mensajería se mantiene exclusivamente en RabbitMQ (`amqp://`, vhost `gath`). El principio de **fallo cerrado** (S1/S2) se mantiene inalterado: si la caché no responde, el throttling deniega la petición (500), jamás dejando los endpoints desprotegidos.
 
-```python
-CACHES = {'default': {
-    'BACKEND': 'django_redis.cache.RedisCache',
-    'LOCATION': 'redis://redis:6379/1',
-    'OPTIONS': {'IGNORE_EXCEPTIONS': True},   # falla abierto si Redis cae
-}}
-```
-
-...con Celery apuntando a `redis://.../0` como broker **y** como result backend, y la instrucción explícita de *"seguir ese mismo criterio de fallo abierto para cualquier caché nueva"*.
-
-**Todo eso queda anulado en GATH.** **D-02** pone el broker en **RabbitMQ** (`amqp://`) con resultados en PostgreSQL, y **D-11** pone los contadores en **`DatabaseCache` sobre PostgreSQL con fallo cerrado**. No se instala `django-redis`, no se declara un servicio `redis` en el compose y no se usa `redis://` en ninguna URL. El motivo es doble: no añadir un cuarto almacén que respaldar y monitorear, y no dejar que un endpoint de autenticación quede sin límite porque el almacén de contadores no respondió. Si encuentras código o documentación que hable de Redis en GATH, está desactualizado.
-
-**2. Existía una excepción para llamar `.delay()` desde una vista.** La versión heredada permitía un despacho directo desde la capa de entrega cuando la acción era explícita del usuario y no había escritura de dominio. **En GATH no hay excepción**: **B20** prohíbe que el caso de uso importe Celery (se encola por el puerto `TaskQueue`) y **B22** obliga a que todo despacho originado por un cambio de estado vaya dentro de `transaction.on_commit()`. Una vista no despacha tareas: invoca un caso de uso.
+2. **Prohibición estricta de `.delay()` desde vistas o casos de uso:**  
+   **B20** prohíbe que el caso de uso importe Celery (se encola por el puerto `TaskQueue`) y **B22** obliga a que todo despacho originado por un cambio de estado vaya dentro de `transaction.on_commit()`. Una vista no despacha tareas directamente: invoca un caso de uso.
 
 ---
 
@@ -265,9 +275,9 @@ Registra la entrada correspondiente en `ENUM_NAME_OVERRIDES` de `SPECTACULAR_SET
 @skill agrega throttling a [endpoint]
 ```
 
-1. Verifica que `CACHES` con `DatabaseCache` exista y que la tabla `gath_cache` esté creada (`createcachetable`); si no, ese es el primer paso (**B0.10**, **ALTA-17**, **D-11**).
+1. Verifica que `CACHES` esté configurado (Redis mediante `REDIS_URL` o tabla `django_cache_table` creada con `createcachetable` para `DatabaseCache`) (**D-11**).
 2. Usa `ScopedRateThrottle` con un `throttle_scope` propio y **un comentario que justifique el número** en `DEFAULT_THROTTLE_RATES`.
-3. Mantén `IGNORE_EXCEPTIONS: False`: fallo cerrado.
+3. Mantén el principio de **fallo cerrado**.
 4. Aísla la caché en los tests para no consumir cupos reales ([[testing-backend-django]]).
 
 ---
@@ -276,6 +286,6 @@ Registra la entrada correspondiente en `ENUM_NAME_OVERRIDES` de `SPECTACULAR_SET
 
 | Tema | Discrepancia entre fuentes | Qué falta decidir |
 |---|---|---|
-| Versión de `celery` | `requirements.txt`: `5.3.4` · `PLAN_RECONSTRUCCION_ONION` B1.8: serie **5.5.x** validada contra Django 5.2 · `FASE2_PROPUESTA_TECNICA.md` §12.9: `5.4.*` | Qué serie se fija al ejecutar B1.8 |
-| Nombres de las colas | Plan §III.3 / B5.14: `default`, `reportes`, `cargas`, `archivos` · `FASE2_PROPUESTA_TECNICA.md` §12.6: `sync`, `docs`, `mail`, `maint` | Nomenclatura única antes de crear la primera cola |
-| Variables de entorno del broker | `BACKEND/.env.example` no declara `CELERY_BROKER_URL` ni credenciales de RabbitMQ | Añadirlas en B1.8, sin valores por defecto (**CRIT-03**) |
+| Versión de `celery` | Resuelto: fijada serie **5.6.3** en `requirements.txt` por compatibilidad con Python 3.14. | Mantener actualizada según soporte LTS |
+| Nombres de las colas | Plan §III.3 / B5.14: `default`, `reportes`, `cargas`, `archivos` · `compose.yml` actual: `gath` | Nomenclatura definitiva de colas adicionales |
+| Variables de entorno del broker | Parámetros definidos en `compose.yml` (`CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `REDIS_URL`) | Completar documentación en `.env.example` raíz |
