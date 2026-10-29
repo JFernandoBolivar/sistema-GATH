@@ -15,7 +15,7 @@ Orden de prioridad declarado:
 
 1. Culminar Autogestión del activo (ficha integral, ventanas habilitadas por Bienestar Social, soportes obligatorios, visor comparativo campo por campo).
 2. Notificaciones en sistema (campana/bandeja) y correo, para Autogestión y para Gestión de Trabajadores (Bienestar Social).
-3. Acceso de pasivos a Autogestión con menú "Solicitud o renovación de acta de comparecencia / fe de vida" (formulario + foto en vivo con la cédula en mano).
+3. Acceso de pasivos a Autogestión con menú "Solicitud o renovación de acta de comparecencia / fe de vida" (formulario + foto con la cédula en mano, por cámara en vivo o subiendo una foto ya tomada).
 4. Regla de aprobación: flujo normal con **doble aprobación** (Analista de Bienestar Social y Administradora/Jefa, en orden indistinto, como en la HU); excepción: la Administradora puede aprobar sola por **aprobación directa** (justificada y auditada). La Analista nunca valida sola.
 5. Gestión de usuarios por **roles y permisos**, ya no por roles y departamentos.
 
@@ -29,7 +29,7 @@ Orden de prioridad declarado:
 - Un pasivo **sigue siendo un `Employee`** (el pase solo crea otra `AsigTrabajo` con tipo de personal PASIVO). El login **no** consulta tipo de personal, solo `is_active`; por tanto, si el pasivo conserva su `Cuenta`, puede entrar. Hay que verificar en BD cuántos pasivos tienen cuenta y correo.
 - Autorización: el backend ya es por permisos (`HasPermission`), con casi **cero** `nombre_rol` en duro. La deuda de roles/departamento está en el **frontend**: ~39 usos de `nombre_rol`, ~14 de `nombre_departamento`/`department` y el `proxy.ts`.
 - Los permisos de Autogestión existentes no cubren el flujo nuevo, y el rol 5 "BIENSTAR SOCIAL" (nombre mal escrito, 1 cuenta) no distingue Analista de Administradora.
-- La Fe de Vida requiere cámara en vivo: `getUserMedia` solo opera en contexto seguro y hoy se sirve por HTTP (3001/8001). **Bloqueante de infraestructura: nginx con TLS** (no existe en `compose.yml`).
+- La Fe de Vida admite **dos vías equivalentes** para la foto (cámara en vivo con `getUserMedia`, o subida de una foto ya tomada). `getUserMedia` solo opera en contexto seguro: `http://localhost:3001` lo es, así que todo el desarrollo y las pruebas se hacen en local sin certificado. El HTTPS/nginx de **producción** es un requisito de despliegue a cargo de Infraestructura (ver tarea `C0`): no es tarea del desarrollo ni bloquea ninguna fase, y la falta de cámara nunca bloquea el flujo porque siempre existe la vía de subida de archivo.
 
 ---
 
@@ -39,11 +39,11 @@ Esta sección ordena el plan por **fases según la prioridad del usuario y las d
 
 ### Por dónde comenzar
 
-1. **Día 1, en paralelo (Fase 0)**: pedir a TI el **certificado TLS y el dominio** (tarea `C0-TI`; es el camino crítico de la cámara y la PWA) y enviar al usuario las preguntas bloqueantes de arranque (4.3.5 actores de Bienestar, 4.3.10 dominio/certificado, 4.3.2 plazo de ventanas, 4.3.6 regla de aprobación en autogestión). Confirmar el nombre real del rol "BIENSTAR SOCIAL" en `USER_rol` (R6) y ejecutar el conteo de pasivos con cuenta y correo (R7) y la verificación de `permisos_version` (R5) (tarea `V-1`).
+1. **Día 1, en paralelo (Fase 0)**: enviar al usuario las preguntas bloqueantes de arranque (4.3.5 actores de Bienestar, 4.3.2 plazo de ventanas, 4.3.6 regla de aprobación en autogestión). Todo el desarrollo y las pruebas se hacen en `http://localhost:3001` (contexto seguro: cámara y PWA funcionan sin certificado). *Nota de despliegue (no es acción del día 1 ni del desarrollo)*: el TLS/dominio/nginx de producción lo gestiona Infraestructura cuando se despliegue (ver `C0`). Confirmar el nombre real del rol "BIENSTAR SOCIAL" en `USER_rol` (R6) y ejecutar el conteo de pasivos con cuenta y correo (R7) y la verificación de `permisos_version` (R5) (tarea `V-1`).
 2. **Primera fase de construcción: Fase 1 (Cimientos)**, con las tareas `A4` (roles y permisos nuevos), `A5` (validación y almacenamiento seguro de archivos), `A1` (Celery real y `encolar` que falla cerrado), `A6` y `A8`. Sin `A4` y `A5` no se puede construir la autogestión (B1 y B3 los usan) ni la fe de vida.
 3. **Inmediatamente después, Fase 2 (Autogestión del activo)**: `B1 → B2 → B3 → B4/B5/B6`, `B8`, y en frontend `B9 → B10/B11` junto con `R-1`, `R-2` y `R-6a` (FieldCompare), que son una sola entrega con B10/B11 (el diseño no se hace dos veces). `R-1` puede empezar ya, durante la Fase 1, porque no depende del backend.
 4. **Fase 3 (Notificaciones y correo)** se inicia en cuanto `B3` exista (para engancharse a las transiciones) y puede solaparse con el final de la Fase 2: `A2 → A3 → A7 → B7`.
-5. **Fase 4 (Fe de vida)** arranca con `C1`/`C2`/`C3` en backend apenas A4 y A5 estén listos y la ADR de aprobación directa (R9) esté confirmada; la validación de la cámara en teléfonos (`C13`) espera a `C0` (nginx+TLS).
+5. **Fase 4 (Fe de vida)** arranca con `C1`/`C2`/`C3` en backend apenas A4 y A5 estén listos y la ADR de aprobación directa (R9) esté confirmada; `C13` (captura con dos vías) se desarrolla y prueba en `localhost`; no espera a `C0`. Opcional: para probar en un teléfono durante el desarrollo, tenga en cuenta que el teléfono accediendo por IP/HTTP **no** es contexto seguro, por lo que allí aplica la vía de subida de archivo.
 6. Correspondencia con las prioridades del usuario: P1 → Fase 2, P2 → Fase 3, P3 → Fase 4, P4 (usuarios por roles y permisos) → Fase 5, P5 (rediseño y PWA) → Fases 2, 4 y 6. Las Fases 0 y 1 no son prioridades nuevas: son prerrequisitos técnicos de las anteriores.
 
 ### Leyenda de estados
@@ -54,24 +54,23 @@ Esta sección ordena el plan por **fases según la prioridad del usuario y las d
 
 | Fase | Objetivo | Etapas/tareas del plan (IDs) | Depende de | Esfuerzo | Estado | Inicio | Fin | Notas |
 |---|---|---|---|---|---|---|---|---|
-| **Fase 0** — Arranque y bloqueantes (continua, desde el día 1) | Iniciar lo que depende de terceros: certificado/dominio con TI, respuestas del usuario, verificaciones en BD | `C0-TI`, `R-0`, `V-1` (riesgos R5, R6, R7 de 4.1) | — | S (seguimiento continuo) | ⏳ Pendiente | — | — | Camino crítico: TLS (C0). No bloquea la Fase 1 |
+| **Fase 0** — Arranque y bloqueantes (continua, desde el día 1) | Iniciar lo que depende de terceros: respuestas del usuario y verificaciones en BD | `R-0`, `V-1` (riesgos R5, R6, R7 de 4.1) | — | S (seguimiento continuo) | ⏳ Pendiente | — | — | Sin camino crítico de infraestructura: el HTTPS de producción (`C0`) es de Infraestructura y no bloquea ninguna fase |
 | **Fase 1** — Cimientos | Permisos y roles nuevos, almacenamiento seguro, Celery real, base de sesión por permisos | `A1`, `A4`, `A5`, `A6`, `A8`, `A-T` | V-1 (nombre real del rol, para A4) | M | ⏳ Pendiente | — | — | Prioridad técnica, no funcional. A2/A3/A7 pasan a la Fase 3 |
 | **Fase 2** — Autogestión del empleado activo (P1) | Solicitud de actualización, ventanas, borrador, soportes obligatorios, visor comparativo campo por campo, aplicación de cambios aprobados | `B1`–`B6`, `B8`–`B12`, `B-T`, `R-1`, `R-2`, `R-6a` | Fase 1 (A4, A5) | L | ⏳ Pendiente | — | — | Sin notificaciones aún (B7 va en Fase 3). Diseño visual con R-1/R-2 |
 | **Fase 3** — Notificaciones en sistema y correo (P2) | Campana/bandeja, outbox, correo asíncrono; conexión con las transiciones de Autogestión y Gestión de Trabajadores | `A2`, `A3`, `A7`, `B7`, `A-T2` | Fase 1 (A1, A4), `B3` | M | ⏳ Pendiente | — | — | Requiere credenciales SMTP institucionales (R11). Puede solaparse con el final de la Fase 2 |
-| **Fase 4** — Fe de vida de pasivos (P3) | Formulario + selfie con cédula en vivo, revisión de Bienestar, doble check + aprobación directa de la Administradora, constancia PDF por correo, acceso del pasivo | `C0`, `C1`–`C15`, `C-T`, `R-3` (= C13), `R-4` (= C0) | Fases 1 y 3, `C0-TI`; ADR de aprobación directa (R9) | L | ⏳ Pendiente | — | — | Backend y UI avanzan en `localhost` sin C0; la validación en teléfonos exige HTTPS. Incluye la conversión de cuentas de pasivos (parte de D5) |
+| **Fase 4** — Fe de vida de pasivos (P3) | Formulario + selfie con cédula (cámara en vivo o subida de archivo), revisión de Bienestar, doble check + aprobación directa de la Administradora, constancia PDF por correo, acceso del pasivo | `C1`–`C15`, `C-T`, `R-3` (= C13); `C0` queda como requisito de despliegue de Infraestructura (fuera del camino crítico) | Fases 1 y 3; ADR de aprobación directa (R9) | L | ⏳ Pendiente | — | — | Backend, UI y pruebas (incluida la cámara) avanzan en `localhost`; la vía de subida de archivo cubre cualquier equipo sin cámara o sin contexto seguro. Incluye la conversión de cuentas de pasivos (parte de D5) |
 | **Fase 5** — Usuarios por roles y permisos (P4) | Retirar el acceso por departamento y `nombre_rol` en frontend; alta de usuarios por rol + permisos; invalidación por `permisos_version` | `D1`–`D6` | Fase 1 (A4, A8); idealmente tras Fases 2 y 4 | M | ⏳ Pendiente | — | — | Puede avanzar en paralelo desde A4, pero se despliega después de que los flujos usen los permisos nuevos |
-| **Fase 6** — Rediseño institucional y PWA (P5) | Cierre del sistema visual en el resto de pantallas, PWA instalable y offline | `R-5`, `R-6b`, `R-A` | `C0` (HTTPS real), Fases 2 y 4 | M | ⏳ Pendiente | — | — | R-1 a R-3 ya se entregan dentro de las Fases 2 y 4; no se repiten |
+| **Fase 6** — Rediseño institucional y PWA (P5) | Cierre del sistema visual en el resto de pantallas, PWA instalable y offline | `R-5`, `R-6b`, `R-A` | Fases 2 y 4 (la PWA se prueba en `localhost`; el HTTPS de producción es de Infraestructura, ver `C0`) | M | ⏳ Pendiente | — | — | R-1 a R-3 ya se entregan dentro de las Fases 2 y 4; no se repiten |
 | **Fase 7** — Endurecimiento y auditoría | Auditoría encadenada, rate limiting, observabilidad, pruebas de seguridad, cierre documental | `E1`–`E6` | Fases 2 a 6 | M | ⏳ Pendiente | — | — | Los specs de axe se agregan por etapa; aquí solo el cierre |
 
 ### Tabla de tareas
 
-Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son los de la sección 3; `R-n` corresponde a la etapa n del plan de rediseño/PWA (sin duplicar su detalle). `C0-TI`, `V-1`, `A-T`, `A-T2`, `B-T`, `C-T`, `R-6a`, `R-6b` y `R-A` son identificadores de seguimiento creados aquí para tareas que el plan describe de forma agrupada (trámite con TI, verificaciones, bloques de "Tests" de cada etapa y partes de la etapa 6).
+Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son los de la sección 3; `R-n` corresponde a la etapa n del plan de rediseño/PWA (sin duplicar su detalle). `V-1`, `A-T`, `A-T2`, `B-T`, `C-T`, `R-6a`, `R-6b` y `R-A` son identificadores de seguimiento creados aquí para tareas que el plan describe de forma agrupada (verificaciones, bloques de "Tests" de cada etapa y partes de la etapa 6).
 
 **Fase 0 — Arranque y bloqueantes**
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
-| C0-TI | Solicitar a TI certificado TLS y dominio institucional | Infra | — | ⏳ Pendiente | — | Camino crítico; pregunta 4.3.10 |
 | R-0 | Manual de identidad, `lang="es-VE"`, título, retirar `MarqueeTitle`, SW ajeno en `localhost:3000` | Front | — | ⏳ Pendiente | — | Etapa 0 del plan de rediseño |
 | V-1 | Verificaciones en BD: nombre real del rol, pasivos con cuenta y correo, `permisos_version` (R5, R6, R7) | Back | — | ⏳ Pendiente | — | Insumo de A4 y D5 |
 
@@ -120,7 +119,7 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
-| C0 | nginx + TLS, un solo origen, cookies Secure, Permissions-Policy | Infra | C0-TI | ⏳ Pendiente | — | Es también R-4 |
+| C0 | Requisito de despliegue a cargo de Infraestructura: HTTPS en producción (nginx + TLS, un solo origen, cookies Secure, Permissions-Policy) | Infra (despliegue) | — | ⏳ Pendiente (a cargo de Infraestructura) | Infraestructura | Fuera del camino crítico; no bloquea ninguna fase. Es también R-4. Ver checklist de despliegue en la Etapa C |
 | C1 | Modelos, migraciones, catálogo y plantilla v1 | Back | A4 | ⏳ Pendiente | — | |
 | C2 | Dominio y reglas de doble check / aprobación directa | Back | C1 | ⏳ Pendiente | — | Requiere ADR confirmada (R9) |
 | C3 | Casos de uso (comparecencia, decisión, constancia, verificación, panel) | Back | C2, A5 | ⏳ Pendiente | — | |
@@ -133,10 +132,10 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | C10 | Módulo `fe-de-vida` frontend | Front | C5 | ⏳ Pendiente | — | |
 | C11 | Menú del pasivo en Autogestión | Front | C7, R-2 | ⏳ Pendiente | — | |
 | C12 | Formulario según planilla física | Front | C10 | ⏳ Pendiente | — | |
-| C13 | Componente `CapturaCedulaEnVivo` (incluye R-3) | Front | C10 | ⏳ Pendiente | — | Prueba en teléfonos requiere C0 |
+| C13 | Componente de captura con dos vías: cámara en vivo o subida de foto (antes `CapturaCedulaEnVivo`; incluye R-3) | Front | C10 | ⏳ Pendiente | — | Se prueba en `localhost`; sin cámara/contexto seguro ofrece siempre "Subir una foto" |
 | C14 | Seguimiento: estado, repetición, descarga de constancia | Front | C12 | ⏳ Pendiente | — | |
 | C15 | Vista Bienestar: bandeja, detalle con selfie, botones por permiso | Front | C5, R-6a | ⏳ Pendiente | — | |
-| C-T | Tests de Fase 4 (transiciones, imagen, atomicidad, E2E con cámara falsa, HTTPS real) | Test | C5, C13, C0 | ⏳ Pendiente | — | |
+| C-T | Tests de Fase 4 (transiciones, imagen, atomicidad, E2E con cámara falsa y E2E con subida de archivo sin cámara, rechazo de archivo inválido) | Test | C5, C13 | ⏳ Pendiente | — | |
 
 **Fase 5 — Usuarios por roles y permisos**
 
@@ -153,7 +152,7 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
-| R-5 | PWA: manifest, service worker, offline, instalación | Front | C0 | ⏳ Pendiente | — | El SW no cachea `/api/` ni evidencias |
+| R-5 | PWA: manifest, service worker, offline, instalación | Front | — | ⏳ Pendiente | — | Se prueba en `localhost`; el SW no cachea `/api/` ni evidencias |
 | R-6b | Sistema visual en consultar, métricas, censo, login y selector de módulos | Front | R-1 | ⏳ Pendiente | — | Resto de la etapa 6 |
 | R-A | Revisión final de accesibilidad con usuarios mayores (axe 0 violaciones) | Test | R-5, R-6b | ⏳ Pendiente | — | |
 
@@ -162,7 +161,7 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
 | E1 | Auditoría con hash encadenado, user-agent, dispositivo, trace_id | Back | A6 | ⏳ Pendiente | — | |
-| E2 | Rate limiting, antivirus opcional, límites de tamaño | Back/Infra | C0 | ⏳ Pendiente | — | |
+| E2 | Rate limiting, antivirus opcional, límites de tamaño | Back/Infra | — | ⏳ Pendiente | — | |
 | E3 | Observabilidad del worker y alertas por FALLIDA | Back | A3 | ⏳ Pendiente | — | |
 | E4 | Pruebas de seguridad, cabeceras y CSP | Test | Fases 2–4 | ⏳ Pendiente | — | |
 | E5 | Verificación interna, panel completo, plantillas, política de retención | Back/Front | C3, C15 | ⏳ Pendiente | — | |
@@ -181,11 +180,11 @@ Las preguntas completas están en la sección 4.3 y los riesgos en la 4.1.
 
 | Fase | Preguntas/decisiones que la bloquean |
 |---|---|
-| Fase 0 | 4.3.10 (dominio, certificado, acceso desde internet o VPN) |
+| Fase 0 | Ninguna de infraestructura (4.3.10 dominio/certificado es asunto de despliegue de Infraestructura, no bloquea) |
 | Fase 1 | Nombre real del rol "BIENSTAR SOCIAL" (R6); 4.3.5 (cédulas y cantidad de Analistas y Administradoras) para la asignación de roles |
 | Fase 2 | 4.3.2 (plazo de ventanas y prórrogas); 4.3.6 (regla de aprobación por sección) |
 | Fase 3 | Credenciales y relay SMTP institucional (R11); 4.3.3 (cobertura de correo y alternativa para pasivos sin correo) |
-| Fase 4 | ADR de aprobación directa (R9); 4.3.1 (periodicidad, solo para C8); 4.3.3; 4.3.4 (texto oficial y firmante); 4.3.7 (respaldo de cámara); 4.3.8 (campos editables de la planilla); 4.3.11 (retención de la selfie); 4.3.12 (sobrevivientes); 4.3.13 (primera vez vs renovación) |
+| Fase 4 | ADR de aprobación directa (R9); 4.3.1 (periodicidad, solo para C8); 4.3.3; 4.3.4 (texto oficial y firmante); 4.3.7 (resuelta: dos vías, ver 2.6); 4.3.8 (campos editables de la planilla); 4.3.11 (retención de la selfie); 4.3.12 (sobrevivientes); 4.3.13 (primera vez vs renovación) |
 | Fase 5 | 4.3.5; confirmación de la lista de usuarios a reasignar |
 | Fase 6 | Preguntas P1–P4 de la sección 7 del plan de rediseño (manual de identidad, colores, fuente, dominio) |
 | Fase 7 | 4.3.9 (MFA); 4.3.11 (política de retención) |
@@ -231,8 +230,8 @@ Leyenda: Existe / Parcial / No existe. Rutas relativas a `BACKEND/` o `NextJS/`.
 | Rol/permisos para el pasivo | No existe | El rol 3 AUTOGESTION (`seed_permisos.py:188-194`) solo da `ver_propio`, `actualizar_propio`, censo; no hay código de fe de vida. Además un pasivo no debe ver "Mi carnet" activo ni el censo laboral |
 | Datos de contacto del pasivo | Parcial | `Employee.correo` (unique) y teléfonos existen; cobertura real de correo en pasivos desconocida (pregunta abierta 4.3) |
 | Foto del pasivo | Parcial | `Employee.profile` (clave S3); se usa para el carnet; la selfie con cédula debe ser un artefacto distinto y de acceso restringido (ver 2.6) |
-| Captura de cámara en el navegador | No existe | Sin `getUserMedia`, sin `capture=`, sin `manifest`/`serviceWorker` en `src/` ni `public/` (solo `src/proxy.ts` coincide por "manifest" en el matcher) |
-| Contexto seguro (HTTPS) | No existe | `compose.yml:11` `FRONTEND_URL=http://localhost:3001`, `:42` `NEXTAUTH_URL=http://localhost:3001`, `:25` `8001:8000`, `:44` `3001:3000`. No hay servicio nginx en `compose.yml`. En `localhost` el navegador permite cámara; desde la red institucional (IP o dominio por HTTP) **no**. Bloqueante |
+| Captura de foto en el navegador (cámara o subida) | No existe | Sin `getUserMedia`, sin `capture=`, sin input de subida de la foto, sin `manifest`/`serviceWorker` en `src/` ni `public/` (solo `src/proxy.ts` coincide por "manifest" en el matcher) |
+| Contexto seguro (HTTPS) | No existe | `compose.yml:11` `FRONTEND_URL=http://localhost:3001`, `:42` `NEXTAUTH_URL=http://localhost:3001`, `:25` `8001:8000`, `:44` `3001:3000`. No hay servicio nginx en `compose.yml`. En `localhost` el navegador permite cámara, por lo que el desarrollo y las pruebas locales no necesitan certificado. Desde la red institucional (IP o dominio por HTTP) la cámara no está disponible: ahí aplica la vía de subida de archivo. El HTTPS de producción es requisito de despliegue de Infraestructura, no bloqueante del desarrollo |
 | PDF de constancia | Parcial | Motor ReportLab reutilizable: `core/infrastructure/pdf/{report_pdf,pdf_components,pdf_styles}.py`; cintillo configurable (HU 0009, `apps/configuracion`); ejemplo de PDF por entidad: `apps/pasivos/infrastructure/pdf_pasivo.py`. Falta plantilla de constancia con número, hash y QR (RN-11); `qrcode` ya está en `requirements.txt` |
 | Almacenamiento | Existe (con brechas) | `core/infrastructure/storage/seaweedfs_storage.py:subir/descargar/url_firmada` (boto3, falla cerrado a 503, URL prefirmada 300 s). Brechas: sin validación de MIME real, tamaño máximo, extensión ni antivirus; claves construidas con `archivo.name` del cliente (`familiares_views.py:120`, `carnetizacion_views.py:221`): riesgo de colisión y de nombres hostiles. El prefijo `familiares/` está denegado en `media_views.py:36` |
 
@@ -326,7 +325,7 @@ Fe de vida (en `apps/fe_de_vida/infrastructure/models/`):
 - `TipoPensionJubilacionModel` (catálogo): `categoria` (PENSION_SOBREVIVIENTE, PENSION_INVALIDEZ, JUBILACION_ESPECIAL, JUBILACION_ORDINARIA), según los dos bloques de la planilla física. Resolver desde `motivo_egreso` cuando sea posible; si no, el pasivo lo declara y Bienestar lo corrige.
 - `ActaFeDeVidaModel`: `id`, `numero` correlativo único (`FV-AAAA-NNNNNN`), `cedula`, `tipo_pension`, `tipo_jubilacion`, `datos_beneficiario` (JSON snapshot de la planilla: apellidos y nombres, cédula, fecha de nacimiento, teléfono de habitación, celular, correo, persona de contacto + celular, dirección, área de adscripción, cargo), `tiene_hijos`, `estado`, `idempotency_key` único, `version`, `evidencia_hash`, `origen_dato` (SISTEMA|CONFIRMADO_MANUAL, RN-14), `plantilla_version`, `fecha_solicitud`, `fecha_validacion`, `vence_el` (si se define periodicidad).
 - `HijoActaModel`: `acta` FK, nombres, cédula, teléfonos, correo (tabla de la planilla).
-- `EvidenciaFeDeVidaModel`: `acta` FK, `clave_s3` (objeto privado), `mime`, `sha256`, `ancho`, `alto`, `metadatos_captura` (JSON: user-agent, método `getUserMedia|capture`, resolución, resultados de validación de calidad), `intento` (n).
+- `EvidenciaFeDeVidaModel`: `acta` FK, `clave_s3` (objeto privado), `mime`, `sha256`, `ancho`, `alto`, `origen_evidencia` (`CAMARA` | `ARCHIVO`, visible para Bienestar al revisar y registrado en auditoría), `metadatos_captura` (JSON: user-agent, método `getUserMedia|capture|file`, resolución, resultados de validación de calidad), `intento` (n).
 - `DecisionActaModel`: `acta` FK, `actor_id`, `actor_cedula`, `rol`, `tipo` (CHECK_ANALISTA|CHECK_ADMINISTRADORA|APROBACION_DIRECTA|RECHAZA|SOLICITA_REPETICION), `motivo` (obligatorio en rechazo, repetición y aprobación directa; opcional en los checks normales), `fecha`; inmutable.
 - `ConstanciaFeDeVidaModel`: `acta` 1:1, `numero`, `codigo_verificacion`, `sha256_pdf`, `clave_s3_pdf`, `plantilla_version`, `fecha_emision`, `enviada_a`, `estado_envio`.
 - `PlantillaActaModel`: versionada (RN-19) con texto oficial de la constancia y campos de la planilla (RN-20). Semilla inicial con el texto observado en `constancia de fe de vida.jpeg`: "Se hace constar que el día [fecha] compareció el/la ciudadano(a) [nombre], titular de la C.I. [cédula], ante la Oficina de Gestión Humana de CONATEL para dejar constancia de su fe de vida", con nombre, cédula y firma del funcionario que certifica. **Texto oficial exacto a confirmar** (pregunta 4.3).
@@ -394,24 +393,25 @@ ADMINISTRADOR conserva todo (el seed ya le asigna el catálogo completo, `seed_p
 - **Idempotencia**: `idempotency_key = f"{tipo}:{entidad_id}:{destinatario}:{canal}"`.
 - No se envían datos sensibles ni imágenes por correo; la selfie jamás se adjunta.
 
-### 2.6 Fe de vida: captura de cámara en vivo (requisito nuevo)
+### 2.6 Fe de vida: foto con dos vías equivalentes (decisión del usuario, 2026-10-29)
 
-La selfie con la cédula **no es una subida de archivo**. Diseño:
+La foto (selfie sosteniendo la cédula) tiene **dos vías equivalentes**: (a) **tomarla con la cámara en vivo** (`getUserMedia`, con `<input capture="user">` como alternativa en móviles) o (b) **subir una foto ya tomada** (input file, JPG/PNG, con las mismas validaciones de tipo, tamaño y calidad mínima en servidor). La falta de cámara, el permiso denegado, el contexto no seguro o cualquier error de cámara **nunca bloquea el flujo**: la UI siempre ofrece "Subir una foto" y la propone automáticamente si la cámara no está disponible. Se registra el origen de la evidencia (`CAMARA` | `ARCHIVO`) en el modelo y en la auditoría para que Bienestar lo vea al revisar. Diseño:
 
-1. **Detección y permiso**: `navigator.mediaDevices?.getUserMedia` disponible y `window.isSecureContext === true`. Si falta cualquiera, mostrar el motivo (sin HTTPS, sin cámara, permiso denegado) y habilitar el **respaldo** `<input type="file" accept="image/*" capture="user">` (en teléfono abre la cámara frontal nativa; en PC puede abrir el selector de archivos). Política: el respaldo se acepta solo desde captura (en móvil), y el backend registra en `metadatos_captura` el método (`getUserMedia` vs `capture`) para que Bienestar lo vea. Pendiente de confirmar si el respaldo en PC con archivo del disco se permite (pregunta 4.3.7); por defecto **no**.
+1. **Detección y permiso**: `navigator.mediaDevices?.getUserMedia` disponible y `window.isSecureContext === true`. Si falta cualquiera, mostrar el motivo (sin HTTPS, sin cámara, permiso denegado) y proponer automáticamente la **vía de subida** ("Subir una foto", `<input type="file" accept="image/jpeg,image/png">`), que además está siempre visible como alternativa. `<input capture="user">` sirve como alternativa en móviles para abrir la cámara nativa. Ambas vías son válidas para aprobar; el backend registra `origen_evidencia` (`CAMARA` | `ARCHIVO`) y el método en `metadatos_captura` para que Bienestar lo vea. (Pregunta 4.3.7 resuelta por el usuario: se permite la subida de archivo.)
 2. **Flujo UI**: pantalla "Cámara" con `<video playsinline muted autoplay>`, `facingMode: 'user'` (ideal 1280x720, con `enumerateDevices` y selector si hay varias cámaras), guía superpuesta (óvalo para rostro y rectángulo para el anverso de la cédula), botón "Tomar foto" que dibuja el frame en `<canvas>` y exporta JPEG (calidad 0.85, máx. 1600 px de lado), **vista previa**, "Repetir toma" (reabre el stream) y "Usar esta foto". Detener todos los tracks al salir (`track.stop()`) y al cambiar de pestaña.
 3. **Validación básica en cliente antes de enviar** (sin OCR, sin biometría, RN-02): resolución mínima, brillo medio y varianza por canvas (poco iluminada/borrosa), `FaceDetector` experimental solo si existe (se trata como ayuda, no como bloqueo), y confirmación explícita del usuario "se ve mi rostro y el frente de mi cédula legible". Informar con mensajes claros; nunca bloquear sin explicación.
-4. **Validación en servidor (autoridad)**: tamaño máximo (p. ej. 5 MB), MIME **real** por firma de bytes con Pillow (JPEG/PNG), re-codificación con Pillow para descartar polyglots y borrar EXIF/GPS, dimensiones mínimas, hash SHA-256, `idempotency_key` por intento; si el almacenamiento falla se revierte toda la transacción (RN-05, `AlmacenamientoNoDisponible` ya da 503). Rechazos por calidad generan `EVIDENCIA_RECHAZADA_POR_CALIDAD` en auditoría.
+4. **Validación en servidor (autoridad, idéntica para ambas vías)**: tamaño máximo (p. ej. 5 MB), MIME **real** por firma de bytes con Pillow (JPEG/PNG), re-codificación con Pillow para descartar polyglots y borrar EXIF/GPS, dimensiones mínimas (calidad mínima), hash SHA-256, `idempotency_key` por intento; si el almacenamiento falla se revierte toda la transacción (RN-05, `AlmacenamientoNoDisponible` ya da 503). Rechazos por calidad generan `EVIDENCIA_RECHAZADA_POR_CALIDAD` en auditoría.
 5. **Almacenamiento y privacidad**: bucket/prefijo privado `fe_de_vida/<acta>/<intento>.jpg`; acceso solo con URL prefirmada de 60–120 s emitida a quien tenga `fe_de_vida.ver_evidencia` y con evento de auditoría de acceso (RN-12); nunca por `media_views`; sin imagen en logs (RN-04, solo hash y clave). Retención como documento de RRHH sin purga automática (RN-21).
 6. **Subida**: `multipart/form-data` (o base64 solo si fuese inevitable) a `POST /api/v1/fe-de-vida/solicitudes/`; formulario y foto en una sola transacción.
 
-**Dependencia/bloqueante de infraestructura**: `getUserMedia` y la instalación PWA exigen contexto seguro (HTTPS o `localhost`). Hoy el sistema se sirve por HTTP en `3001` (Next) y `8001` (Django) (`compose.yml:11,25,42,44`) y no existe servicio nginx. Sin esto, la cámara **solo funcionará en la propia máquina del servidor**, y en los teléfonos/PCs de los pasivos fallará siempre. Requisitos:
+**Requisito de despliegue a cargo de Infraestructura (no bloquea el desarrollo)**: `getUserMedia` y la instalación PWA exigen contexto seguro (HTTPS o `localhost`). `http://localhost:3001` es contexto seguro, así que todas las pruebas se hacen en local sin certificado. Para producción, el TLS/dominio/nginx lo gestiona el equipo de Infraestructura cuando se despliegue; si aún no existiera, la cámara no estaría disponible en los equipos de los pasivos pero la vía de subida de archivo seguiría permitiendo completar el trámite. Opcional en desarrollo: un teléfono accediendo por IP/HTTP no es contexto seguro; allí aplica la vía de subida. **Checklist de despliegue** (a cargo de Infraestructura):
 
 - Servicio `nginx` en `compose.yml` con TLS (certificado institucional o emitido por la CA de CONATEL / Let's Encrypt si hay dominio público), puertos 443 (y 80 solo para redirección), proxy a `nextjs:3000` y `django:8000` bajo un mismo origen (`/api/` → Django, resto → Next), cabeceras `Strict-Transport-Security`, `X-Forwarded-Proto`, `client_max_body_size` acorde a los soportes y a la selfie (≥10 MB), timeouts.
 - Actualizar `FRONTEND_URL`, `NEXTAUTH_URL`/`AUTH_URL`, `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, cookies `Secure` y `SECURE_PROXY_SSL_HEADER`; dejar de publicar 3001/8001 al host.
+- Variables `DJANGO_COOKIE_SECURE`, `AUTH_COOKIE_SECURE`, `NEXTAUTH_URL` con https, hosts/CORS y CSP/HSTS coherentes con el nuevo origen.
 - Cabecera `Permissions-Policy: camera=(self)` (sin esto algunos navegadores restringen la cámara).
 - Skill de apoyo: `despliegue-docker-django-nextjs` (nginx, usuario no root, sin puertos al host para broker/almacén).
-- La instalación como PWA (manifest, service worker, íconos, estrategia de caché, offline) la define `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`; este plan solo depende de que exista el HTTPS y de que el service worker **no cachee** `/api/` ni las vistas de evidencia.
+- La instalación como PWA (manifest, service worker, íconos, estrategia de caché, offline) la define `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`; este plan solo depende (en producción) de que exista el HTTPS y de que el service worker **no cachee** `/api/` ni las vistas de evidencia.
 
 ### 2.7 Celery real con RabbitMQ
 
@@ -444,13 +444,14 @@ Tallas: S = ≤2 días, M = 3–6 días, L = 7–12 días (un desarrollador; sin
 | A1, A4, A5, A6, A8 | Fase 1 |
 | B1–B6, B8–B12 | Fase 2 |
 | A2, A3, A7, B7 | Fase 3 |
-| C0 (la solicitud a TI, `C0-TI`, va en la Fase 0), C1–C15 | Fase 4 |
+| C1–C15 (C0 es requisito de despliegue de Infraestructura, fuera de las fases) | Fase 4 |
 | D1–D4, D6 | Fase 5 |
 | D5 | Fase 5 (la conversión de cuentas de pasivos se adelanta a la Fase 4, tarea C7) |
 | E1–E6 | Fase 7 |
 | Plan de rediseño: R-0 | Fase 0 |
 | Plan de rediseño: R-1, R-2, R-6a (FieldCompare) | Fase 2 |
-| Plan de rediseño: R-3 (= C13), R-4 (= C0) | Fase 4 |
+| Plan de rediseño: R-3 (= C13) | Fase 4 |
+| Plan de rediseño: R-4 (= C0, requisito de despliegue de Infraestructura) | Fuera de las fases (no bloquea) |
 | Plan de rediseño: R-5, R-6b | Fase 6 |
 
 ### Etapa A — Base: permisos, Celery operativo, notificaciones (talla L)
@@ -499,12 +500,12 @@ Depende de A.
 
 **Criterio de salida**: flujo E2E verde; la ficha activa no varía hasta la aprobación; cada campo aprobado/rechazado queda con actor y motivo en `CambioPropuesto` y en `AuditoriaLog`; notificaciones en campana y correo funcionando para ambos lados; solo 3 secciones con soporte obligatorio no se envían sin él.
 
-### Etapa C — Fe de vida de pasivos (talla L, bloqueada parcialmente por HTTPS)
+### Etapa C — Fe de vida de pasivos (talla L)
 
-Depende de A (notificaciones, outbox, almacenamiento seguro, permisos) y, para la cámara, del **bloqueante nginx+TLS (C0)**.
+Depende de A (notificaciones, outbox, almacenamiento seguro, permisos). Se desarrolla y prueba en `http://localhost:3001`; no depende de C0.
 
-**C0. Infraestructura (talla M, bloqueante para producción; no para desarrollo en `localhost`)**
-- Servicio `nginx` con TLS en `compose.yml`, certificado y dominio acordados con TI de CONATEL, un solo origen, variables de URL/CORS/CSRF/cookies `Secure`, `Permissions-Policy: camera=(self)`, límites de cuerpo. Verificación: `window.isSecureContext === true` desde un teléfono y una PC de otra máquina de la red.
+**C0. Requisito de despliegue a cargo de Infraestructura: HTTPS en producción (estado propio; fuera del camino crítico; no bloquea ninguna fase)**
+- Servicio `nginx` con TLS, certificado y dominio acordados por Infraestructura con TI de CONATEL, un solo origen. Checklist de despliegue: `DJANGO_COOKIE_SECURE`, `AUTH_COOKIE_SECURE`, `NEXTAUTH_URL` con https, hosts/CORS/CSRF, CSP/HSTS, `Permissions-Policy: camera=(self)`, límites de cuerpo. Verificación en producción: `window.isSecureContext === true` desde otro equipo de la red.
 
 **Backend (`apps/fe_de_vida`)**
 - C1. Modelos de 2.3 y migraciones; catálogo `TipoPensionJubilacion`; `PlantillaActa` v1 (formato de la planilla física y texto de la constancia).
@@ -517,19 +518,19 @@ Depende de A (notificaciones, outbox, almacenamiento seguro, permisos) y, para l
 - C6. Notificaciones y correo: al enviar (a Bienestar), al pedir repetición/rechazar (al pasivo con el motivo) y al `VALIDADA` (al pasivo, notificación + correo con PDF adjunto desde el worker; auditoría del envío, RN-13 y HU-0006; **no** se envía a Bienestar copia de la selfie).
 - C7. Acceso del pasivo: rol `PASIVO` y hook de transición activo→pasivo; ajuste de `proxy.ts` para que el pasivo vea solo el módulo Autogestión con el menú de fe de vida; verificar que el login admite cuentas con tipo de personal PASIVO (hoy no lo bloquea).
 - C8. Recordatorios programados (HU-0005) con beat: cada N días antes del vencimiento, **solo si** el usuario define la periodicidad (pregunta 4.3.1); si no, queda desactivado.
-- C9. Auditoría de los eventos de la HU (`COMPARECENCIA_INICIADA`, `EVIDENCIA_CAPTURADA`, `EVIDENCIA_RECHAZADA_POR_CALIDAD`, `COMPARECENCIA_ENVIADA_A_REVISION`, `COMPARECENCIA_REINICIADA`, decisiones (incluye `APROBACION_DIRECTA_ADMINISTRADORA` con motivo), acceso a evidencia, emisión y envío de constancia).
+- C9. Auditoría de los eventos de la HU (`COMPARECENCIA_INICIADA`, `EVIDENCIA_CAPTURADA` (con `origen_evidencia` = `CAMARA` | `ARCHIVO`), `EVIDENCIA_RECHAZADA_POR_CALIDAD`, `COMPARECENCIA_ENVIADA_A_REVISION`, `COMPARECENCIA_REINICIADA`, decisiones (incluye `APROBACION_DIRECTA_ADMINISTRADORA` con motivo), acceso a evidencia, emisión y envío de constancia).
 
 **Frontend**
 - C10. Módulo `src/modules/fe-de-vida/{domain,application,infrastructure,ui}`.
 - C11. Menú del pasivo en Autogestión: "Solicitud o renovación de acta de comparecencia / fe de vida".
 - C12. Formulario según la planilla física (`solicitud de fe de vida1.jpeg`): tipo de pensión/jubilación, datos del beneficiario (precargados y editables donde corresponda), contacto alterno, dirección, área de adscripción y cargo (solo lectura si vienen del sistema), "¿tiene hijos?" + tabla dinámica de hijos (nombres, cédula, teléfonos, correo), react-hook-form + Zod.
-- C13. **Componente `CapturaCedulaEnVivo`** (2.6): detección de cámara y de contexto seguro, `getUserMedia`, selector de cámara, guía superpuesta, toma, vista previa, repetir, validación básica y fallback `capture="user"`; limpieza de tracks; mensajes de error por caso (`NotAllowedError`, `NotFoundError`, `NotReadableError`, contexto inseguro). Envío con `FormData`.
+- C13. **Componente de captura con dos vías** (antes `CapturaCedulaEnVivo`; 2.6): pestaña/paso "Cámara" (detección de cámara y de contexto seguro, `getUserMedia`, selector de cámara, guía superpuesta, toma, vista previa, repetir, validación básica, `capture="user"` en móviles; limpieza de tracks) y pestaña/paso "Subir foto" (input file JPG/PNG con validación de tipo/tamaño en cliente y vista previa). Cualquier error de cámara (`NotAllowedError`, `NotFoundError`, `NotReadableError`, contexto inseguro) muestra su mensaje y ofrece "Subir una foto"; si la cámara no está disponible se propone automáticamente. Envío con `FormData` incluyendo `origen_evidencia` (`CAMARA` | `ARCHIVO`).
 - C14. Seguimiento: estado de la solicitud, motivo de rechazo o repetición, botón "Repetir toma", descarga de la constancia PDF; campana de notificaciones.
-- C15. Vista Bienestar en Gestión de Trabajadores: bandeja y panel (HU-0010), detalle con selfie (URL prefirmada en `<img>` sin caché), datos del beneficiario y botones según permiso: Analista (**Aprobar (check)** / Rechazar / Solicitar repetición, con motivo) y Administradora (**Aprobar (check)** / **Aprobación directa**, con justificación obligatoria / Rechazar / Solicitar repetición); indicadores "Pendiente del segundo check" (indicando de quién falta) y "Aprobada por vía directa de la Administradora" en el acta, el historial y el registro.
+- C15. Vista Bienestar en Gestión de Trabajadores: bandeja y panel (HU-0010), detalle con selfie (URL prefirmada en `<img>` sin caché) e indicador del origen de la evidencia (Cámara | Archivo subido), datos del beneficiario y botones según permiso: Analista (**Aprobar (check)** / Rechazar / Solicitar repetición, con motivo) y Administradora (**Aprobar (check)** / **Aprobación directa**, con justificación obligatoria / Rechazar / Solicitar repetición); indicadores "Pendiente del segundo check" (indicando de quién falta) y "Aprobada por vía directa de la Administradora" en el acta, el historial y el registro.
 
-**Tests**: unit de transiciones (incluye: doble check en ambos órdenes, Analista->Administradora y Administradora->Analista, llega a `VALIDADA`; la Analista sola no valida y queda en `PENDIENTE_SEGUNDO_CHECK`; el mismo actor no cuenta dos veces; la aprobación directa exige permiso `fe_de_vida.aprobar_directo` y justificación, y genera el evento `APROBACION_DIRECTA_ADMINISTRADORA`; la Analista recibe 403 al intentar aprobación directa; rechazo y repetición exigen motivo), atomicidad (si falla S3 no queda acta huérfana), idempotencia por `idempotency_key`, validación de imagen (MIME falso, tamaño, EXIF), permisos y Zero-IDOR, PDF generado con hash y número únicos, correo con adjunto (backend de correo en memoria), auditoría de eventos; Vitest de schemas y del componente de cámara con `navigator.mediaDevices` simulado (permiso denegado, sin cámara, contexto inseguro); E2E Playwright con cámara falsa (`--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`) sobre `localhost`.
+**Tests**: unit de transiciones (incluye: doble check en ambos órdenes, Analista->Administradora y Administradora->Analista, llega a `VALIDADA`; la Analista sola no valida y queda en `PENDIENTE_SEGUNDO_CHECK`; el mismo actor no cuenta dos veces; la aprobación directa exige permiso `fe_de_vida.aprobar_directo` y justificación, y genera el evento `APROBACION_DIRECTA_ADMINISTRADORA`; la Analista recibe 403 al intentar aprobación directa; rechazo y repetición exigen motivo), atomicidad (si falla S3 no queda acta huérfana), idempotencia por `idempotency_key`, validación de imagen (MIME falso, tamaño, EXIF, calidad mínima), registro de `origen_evidencia` (`CAMARA` | `ARCHIVO`), **rechazo de archivo inválido** (tipo no permitido, demasiado grande, resolución insuficiente), permisos y Zero-IDOR, PDF generado con hash y número únicos, correo con adjunto (backend de correo en memoria), auditoría de eventos; Vitest de schemas y del componente de captura con `navigator.mediaDevices` simulado (permiso denegado, sin cámara, contexto inseguro: en cada caso se ofrece "Subir una foto"); E2E Playwright con cámara falsa (`--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`) sobre `localhost`; **E2E del flujo completo con subida de archivo sin cámara**; **test de rechazo de archivo inválido**.
 
-**Criterio de salida**: el pasivo inicia sesión, completa el formulario, captura la foto en vivo en teléfono y PC **bajo HTTPS real**, la repite y la envía; Bienestar la ve; el doble check (Analista y Administradora, en cualquier orden) lleva a `VALIDADA`, la Analista sola no valida, y la aprobación directa de la Administradora funciona con justificación, auditoría y marca visible en el acta; se genera la constancia PDF con número y QR; el pasivo recibe notificación y correo con PDF; rechazo y repetición con motivo funcionan; toda acción queda en auditoría; no hay imágenes en logs.
+**Criterio de salida**: el pasivo inicia sesión, completa el formulario, aporta la foto por cualquiera de las dos vías (cámara en vivo o subida de archivo; verificado en `localhost`), la repite si hace falta y la envía, sin que la falta de cámara lo bloquee; Bienestar la ve, con el origen de la evidencia (Cámara | Archivo); el doble check (Analista y Administradora, en cualquier orden) lleva a `VALIDADA`, la Analista sola no valida, y la aprobación directa de la Administradora funciona con justificación, auditoría y marca visible en el acta; se genera la constancia PDF con número y QR; el pasivo recibe notificación y correo con PDF; rechazo y repetición con motivo funcionan; toda acción queda en auditoría; no hay imágenes en logs.
 
 ### Etapa D — Usuarios por roles y permisos (talla M)
 
@@ -557,7 +558,7 @@ Puede avanzar en paralelo con B/C a partir de A4, pero se **despliega** después
 
 ### Cronograma relativo y camino crítico
 
-`A (L)` → `B (L)` y `C0 (M, en paralelo desde el día 1, depende de TI)` → `C (L)` → `D (M, desplegable en paralelo desde A4)` → `E (M)`. El camino crítico real es **C0 (nginx + TLS)**, que depende de TI/certificados: se debe pedir el certificado y el dominio al inicio de la etapa A.
+`A (L)` → `B (L)` → `C (L)` → `D (M, desplegable en paralelo desde A4)` → `E (M)`. El camino crítico es la secuencia de desarrollo A → B → C → D → E; el HTTPS de producción (`C0`) lo gestiona Infraestructura al desplegar y **no** forma parte del camino crítico.
 
 ---
 
@@ -567,7 +568,7 @@ Puede avanzar en paralelo con B/C a partir de A4, pero se **despliega** después
 
 | # | Riesgo / bloqueante | Mitigación |
 |---|---|---|
-| R1 | **HTTPS ausente**: sin nginx+TLS la cámara no funciona desde otros equipos y no se instala la PWA | C0 al inicio; pedir certificado/dominio a TI; en desarrollo usar `localhost` |
+| R1 | **HTTPS de producción a cargo de Infraestructura** (severidad baja, no bloqueante): sin nginx+TLS la cámara no está disponible desde otros equipos y no se instala la PWA | Todo el desarrollo y las pruebas en `localhost` (contexto seguro); la vía de subida de archivo cubre los equipos sin cámara; checklist de despliegue en `C0` |
 | R2 | `CeleryTaskQueue` simula éxito hoy | Falla cerrada (A1); test de contrato |
 | R3 | Tablas legadas `managed=False` (`Employee`, vivienda, formación, familiares): escribir mal rompe datos reales | Escritura solo por puertos/repos existentes, en transacción, con `valor_anterior` y detección de conflicto; ensayo con copia de BD |
 | R4 | `Employee.correo` es unique: un cambio de correo puede colisionar | Validar unicidad al proponer y al aplicar; mensaje claro |
@@ -593,10 +594,10 @@ Postulación y onboarding con credenciales temporales; carnet de dos caras; sinc
 4. **Texto oficial exacto de la constancia** y quién firma/certifica (nombre y cargo del funcionario); ¿lleva sello y firma digitalizada? ¿QR de verificación interno es aceptable?
 5. **Identidad de los actores**: ¿cuáles son las cédulas de la Analista y de la Administradora de Bienestar Social en BD? ¿cuántas analistas habrá? ¿existe más de una administradora? ¿puede haber auditor (HU-0003) y quién?
 6. **Regla de aprobación en autogestión**: ¿se aplica el mismo esquema (doble aprobación normal + aprobación directa de la Administradora) en todas las secciones, o se relaja a una sola aprobación en contacto y vivienda?
-7. **Respaldo de cámara**: ¿se permite en PC adjuntar un archivo del disco si falla `getUserMedia`, o debe ser siempre captura en vivo (recomendado: solo captura)?
+7. **Respaldo de cámara** (RESUELTA, decisión del usuario 2026-10-29): la foto tiene dos vías equivalentes, cámara en vivo o subida de archivo; la falta de cámara nunca bloquea el flujo.
 8. **Datos de la planilla**: ¿qué campos son editables por el pasivo y cuáles deben venir del sistema (RN-14)? ¿"huellas" y "firma" de la planilla física se sustituyen por la selfie con cédula en la versión digital? (el plan asume que sí)
 9. **MFA de la HU-0011** (obligatorio para gestores, administradores y auditores): ¿se incluye ahora? Implicaría TOTP u otro segundo factor para Bienestar y administradores; la skill `autenticacion-permisos-allauth` lo contempla, pero cambia el modelo de sesión actual (simplejwt). Recomendación: **fuera de este ciclo**, marcar como Etapa F si el usuario lo exige.
-10. **Dominio y certificado TLS**: ¿hay dominio institucional (p. ej. `gath.conatel.gob.ve`) y quién emite el certificado? ¿la aplicación será accesible desde internet (los pasivos están fuera de la red interna) o solo por VPN? Esto último define si los pasivos podrán usarla desde su casa.
+10. **Dominio y certificado TLS (asunto de despliegue de Infraestructura; no bloquea el desarrollo)**: ¿hay dominio institucional (p. ej. `gath.conatel.gob.ve`) y quién emite el certificado? ¿la aplicación será accesible desde internet (los pasivos están fuera de la red interna) o solo por VPN? Esto último define si los pasivos podrán usarla desde su casa.
 11. **Retención y destino de la selfie** tras la validación: ¿se conserva la evidencia (RN-21, sin plazo fijo) o se elimina tras emitir la constancia? Política de CONATEL pendiente (RN-04 pide minimizar).
 12. **Pensión por sobrevivencia**: el beneficiario puede ser un familiar que no tiene `Employee` propio (`procesar_egreso.py` deja fuera `ejecutar_creacion_sobrevivientes`). ¿Cómo se identifica y entra al sistema ese beneficiario?
 13. **Sobre "Solicitud o renovación"**: ¿la primera vez y las renovaciones son el mismo flujo, con solo la fecha como diferencia? (el plan asume que sí).
@@ -607,7 +608,7 @@ Postulación y onboarding con credenciales temporales; carnet de dos caras; sinc
 
 | HU | Título resumido | Etapa | Nota |
 |---|---|---|---|
-| HU-0001 | Comparecencia en línea con selfie sosteniendo la cédula | C (C3, C5, C12, C13) | Cambia a **captura en vivo**; atomicidad, idempotencia, validación de calidad y auditoría incluidas; 5 eventos de auditoría en C9 |
+| HU-0001 | Comparecencia en línea con selfie sosteniendo la cédula | C (C3, C5, C12, C13) | La HU dice "captura de selfie"; por decisión del usuario (2026-10-29) se **amplía a "captura o carga"** (cámara en vivo o subida de archivo, con registro del origen); atomicidad, idempotencia, validación de calidad y auditoría incluidas; 5 eventos de auditoría en C9 |
 | HU-0002 | Revisión y doble check en orden indistinto | C (C2, C3, C15) | **Coincide** con la HU (doble check, orden indistinto). Única divergencia: excepción de **aprobación directa** de la Administradora. Requiere ADR |
 | HU-0003 | Auditor consulta trazabilidad inalterable | E (E1) | Auditoría básica desde A/C; hash de encadenamiento y consulta de solo lectura en E |
 | HU-0004 | Administrador configura roles, permisos, plantillas y reglas | A (A4), D, C1 | Roles y permisos en A/D; plantillas versionadas básicas en C1; interfaz completa en E5 |
@@ -624,4 +625,4 @@ Postulación y onboarding con credenciales temporales; carnet de dos caras; sinc
 
 Reglas de negocio de la HU: RN-01, 02, 04, 05, 06, 09–15, 19–23 se conservan; RN-03, RN-07 y RN-22 se **conservan** (doble check) y se complementan con la excepción de aprobación directa de la Administradora; RN-08B y RN-18 (legacy) y RN-16 (MFA) quedan fuera de alcance por ahora.
 
-Trazabilidad de las prioridades del usuario: P1 → Etapa B; P2 → Etapa A (infra) y notificaciones por flujo en B y C; P3 → Etapa C (+C0 HTTPS); P4 → sección 2.2, implementada en B3 y C2/C3/C15; P5 → Etapa D (+A4). La PWA y el rediseño visual: `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`.
+Trazabilidad de las prioridades del usuario: P1 → Etapa B; P2 → Etapa A (infra) y notificaciones por flujo en B y C; P3 → Etapa C (el HTTPS de producción, C0, es de Infraestructura); P4 → sección 2.2, implementada en B3 y C2/C3/C15; P5 → Etapa D (+A4). La PWA y el rediseño visual: `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`.

@@ -66,7 +66,7 @@ Dentro del alcance de la Fase 2 se adelanta lo siguiente:
 1. **Autogestión del empleado activo:** ficha integral, solicitudes de actualización, soportes obligatorios y aprobación campo por campo por Bienestar Social.
 2. **Notificaciones** en Autogestión y Gestión de Trabajadores, y correo con PDF.
 3. **Fe de vida del personal pasivo** (requerimiento nuevo):
-   - Formulario más selfie con la cédula, tomada **con la cámara en vivo** del dispositivo.
+   - Formulario más selfie con la cédula, con **dos vías equivalentes**: cámara en vivo o subida de una foto ya tomada (la falta de cámara nunca bloquea; se registra el origen CAMARA | ARCHIVO).
    - Revisión por Bienestar Social: aprobar, rechazar o pedir repetición.
    - Al aprobarse, constancia en PDF por correo y notificación.
 4. **Regla de aprobación:** flujo normal con doble check (Analista y Administradora de Bienestar Social, orden indistinto), como en la HU (RN-03/RN-22); excepción: la Administradora puede aprobar sola por aprobación directa (justificación obligatoria, permiso `fe_de_vida.aprobar_directo` y auditoría propia). La Analista nunca valida sola. La aprobación directa es la única divergencia con la HU y hay que formalizarla.
@@ -76,7 +76,7 @@ Dentro del alcance de la Fase 2 se adelanta lo siguiente:
 Se posponen: postulación y onboarding, planillas prellenadas, carnet de dos caras y sincronización con SIGESP.
 
 Planes para revisión, aún no implementados:
-- `PLAN_PRIORIDAD_AUTOGESTION_FE_DE_VIDA_2026-10-29.md`: auditoría, máquinas de estado, modelo de datos, matriz de permisos, etapas A–E (más C0 nginx/TLS), 13 preguntas abiertas y trazabilidad HU-0001 a HU-0014.
-- `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`: diagnóstico visual, dirección institucional, wireframes (incluido el flujo de cámara), accesibilidad para usuarios mayores, PWA y etapas alineadas con el plan anterior.
+- `PLAN_PRIORIDAD_AUTOGESTION_FE_DE_VIDA_2026-10-29.md`: auditoría, máquinas de estado, modelo de datos, matriz de permisos, etapas A–E (más C0, requisito de despliegue de Infraestructura: HTTPS en producción), 13 preguntas abiertas y trazabilidad HU-0001 a HU-0014.
+- `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`: diagnóstico visual, dirección institucional, wireframes (incluido el flujo de captura con cámara o subida de foto), accesibilidad para usuarios mayores, PWA y etapas alineadas con el plan anterior.
 
-**Camino crítico:** Celery y permisos (A) → solicitudes de autogestión (B) → fe de vida (C, **requiere HTTPS/nginx**: pedir certificado y dominio a TI desde ya) → usuarios por permisos (D) → endurecimiento (E).
+**Camino crítico:** Celery y permisos (A) → solicitudes de autogestión (B) → fe de vida (C, con cámara o subida de foto; se desarrolla y prueba en `localhost`) → usuarios por permisos (D) → endurecimiento (E). El HTTPS/nginx de producción lo gestiona Infraestructura al desplegar y **no** es parte del camino crítico.

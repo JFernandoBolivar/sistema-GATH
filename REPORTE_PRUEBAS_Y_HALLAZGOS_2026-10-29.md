@@ -108,7 +108,7 @@ Bugs que salieron del recorrido, todos corregidos:
 
 | # | Pendiente | Sev. |
 |---|---|---|
-| 1 | No hay HTTPS (nginx + TLS): bloquea la cámara (`getUserMedia`), la PWA y las cookies `Secure` | Alta |
+| 1 | No hay HTTPS en producción (nginx + TLS): requisito de despliegue a cargo de Infraestructura. No bloquea el desarrollo: `localhost` es contexto seguro y la foto de fe de vida tiene vía de subida de archivo | Baja (no bloqueante) |
 | 2 | No existe la app Celery (`GATH/celery.py`), ni worker ni beat: hoy no hay tareas asíncronas | Alta |
 | 3 | Rotar las credenciales de prueba que siguen en el historial de git (`E2eSmokeTest!2026` y otras) | Alta |
 | 4 | `GET /personal/<cedula>/foto/` solo exige estar autenticado: cualquier usuario ve la foto de cualquier empleado | Media |
