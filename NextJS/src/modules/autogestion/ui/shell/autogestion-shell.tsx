@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { modulosAccesibles } from "@/shared/lib/evaluador-iam";
 import { esPerfilAutogestion } from "@/shared/lib/perfil-acceso";
 import { itemActivo, itemsVisibles, type ItemNavAutogestion } from "./nav-autogestion";
+import { CampanaNotificaciones } from "@/modules/notificaciones/ui/campana-notificaciones";
 import { ControlTamanoTexto } from "./control-tamano-texto";
 
 const MAX_EN_BARRA = 4;
@@ -131,6 +132,7 @@ export function AutogestionShell({ children }: Readonly<{ children: ReactNode }>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <ControlTamanoTexto condicionTrabajador={condicion} />
+            <CampanaNotificaciones variante="oscura" />
             <AlternarTema />
             <span className="mx-1 hidden h-6 w-px bg-white/30 sm:block" aria-hidden />
             <div className="hidden max-w-56 text-right sm:block">

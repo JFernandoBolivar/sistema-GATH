@@ -68,7 +68,7 @@ export default function NuevaSolicitudPage() {
         titulo="Solicitar actualización de datos"
         descripcion="Elija qué datos necesita actualizar y cuéntenos el motivo. Bienestar Social le habilitará un plazo para cargar los cambios y sus soportes."
       />
-      {isLoading ? <VistaCargando mensaje="Cargando las secciones disponibles…" /> : null}
+      {isLoading ? <VistaCargando mensaje="Cargando las secciones disponibles…" onReintentar={() => mutate()} /> : null}
       {error ? (
         <VistaError
           mensaje="No se pudieron cargar las secciones disponibles."

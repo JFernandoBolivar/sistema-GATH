@@ -38,7 +38,7 @@ import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 import { ScrollArea, ScrollBar } from "@/shared/ui/components/scroll-area";
-import { Skeleton } from "@/shared/ui/components/skeleton";
+import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import { InfoRow } from "@/shared/ui/components/info-row";
 import { formatearFecha, formatearFechaConEdad } from "@/shared/lib/formato-fecha";
 import {
@@ -99,20 +99,21 @@ export default function MiExpedienteView() {
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto animate-pulse">
-        <Skeleton className="h-48 w-full rounded-2xl" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-12 rounded-xl" />
-        </div>
-        <Skeleton className="h-96 w-full rounded-2xl" />
+      <div className="p-4 md:p-6 max-w-7xl mx-auto">
+        <VistaCargando mensaje="Cargando su ficha…" onReintentar={() => mutate()} />
       </div>
     );
   }
 
-  if (error || !data || !data.empleado) {
+  if (error) {
+    return (
+      <div className="p-4 md:p-6 max-w-4xl mx-auto">
+        <VistaError mensaje="No se pudo cargar su ficha." onReintentar={() => mutate()} />
+      </div>
+    );
+  }
+
+  if (!data || !data.empleado) {
     return (
       <div className="p-6 max-w-4xl mx-auto mt-10">
         <Card className="border-danger/40 bg-danger-soft text-center p-8 rounded-2xl shadow-xl">

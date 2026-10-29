@@ -44,7 +44,7 @@ export default function SolicitudDetallePage({ id }: { id: string }) {
     </Link>
   );
 
-  if (isLoading) return <VistaCargando mensaje="Cargando la solicitud…" />;
+  if (isLoading) return <VistaCargando mensaje="Cargando la solicitud…" onReintentar={() => mutate()} />;
   if (error || !data) {
     return (
       <div className="flex flex-col gap-4">

@@ -124,7 +124,7 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
     });
   }
 
-  if (isLoading) return <VistaCargando mensaje="Cargando sus datos actuales…" />;
+  if (isLoading) return <VistaCargando mensaje="Cargando sus datos actuales…" onReintentar={() => mutate()} />;
   if (error || !ficha) {
     return (
       <VistaError

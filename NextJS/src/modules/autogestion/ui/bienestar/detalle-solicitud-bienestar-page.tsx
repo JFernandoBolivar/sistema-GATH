@@ -56,7 +56,7 @@ export default function DetalleSolicitudBienestarPage({ id }: { id: string }) {
   if (isLoading)
     return (
       <div className="p-4 md:p-6">
-        <VistaCargando mensaje="Cargando la solicitud…" />
+        <VistaCargando mensaje="Cargando la solicitud…" onReintentar={() => mutate()} />
       </div>
     );
   if (error || !data) {

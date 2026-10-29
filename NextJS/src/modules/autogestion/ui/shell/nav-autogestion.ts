@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   FileSpreadsheet,
   FilePenLine,
   Home,
@@ -53,6 +54,14 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
     permiso: "autogestion.ver_propio",
     condicion: "ACTIVO",
     excluir: ["/autogestion/solicitudes/nueva"],
+  },
+  {
+    id: "notificaciones",
+    etiqueta: "Notificaciones",
+    href: "/autogestion/notificaciones",
+    icono: Bell,
+    permiso: "notificaciones.ver_propias",
+    secundario: true,
   },
   {
     id: "censo",

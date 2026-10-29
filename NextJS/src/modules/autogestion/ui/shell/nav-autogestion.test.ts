@@ -35,8 +35,14 @@ describe("itemsVisibles", () => {
   it("las entradas administrativas dependen de su permiso", () => {
     expect(ids(["autogestion.censo_ver_todos"], null)).toEqual(["inicio", "encuesta", "metricas"]);
   });
-  it("el comodín del módulo concede todo lo permitido por condición", () => {
-    expect(ids(["autogestion.*"], "ACTIVO")).toHaveLength(ITEMS_NAV_AUTOGESTION.length);
+  it("el comodín del módulo concede todo lo de autogestión (Notificaciones es de otro módulo)", () => {
+    expect(ids(["autogestion.*"], "ACTIVO")).toHaveLength(ITEMS_NAV_AUTOGESTION.length - 1);
+    expect(ids(["autogestion.*"], "ACTIVO")).not.toContain("notificaciones");
+  });
+  it("Notificaciones solo aparece con el permiso notificaciones.ver_propias", () => {
+    expect(ids(["notificaciones.ver_propias"], null)).toEqual(["inicio", "notificaciones"]);
+    expect(ids(["autogestion.ver_propio"], "ACTIVO")).not.toContain("notificaciones");
+    expect(ids(["notificaciones.*"], null)).toContain("notificaciones");
   });
 });
 

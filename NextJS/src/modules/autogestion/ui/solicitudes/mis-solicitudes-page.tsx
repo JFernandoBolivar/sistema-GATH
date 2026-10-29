@@ -54,7 +54,7 @@ function ListaSolicitudes({
   cargando: boolean;
   recargar: () => void;
 }) {
-  if (cargando) return <VistaCargando mensaje="Cargando sus solicitudes…" />;
+  if (cargando) return <VistaCargando mensaje="Cargando sus solicitudes…" onReintentar={recargar} />;
   if (!datos)
     return <VistaError mensaje="No se pudieron cargar sus solicitudes." onReintentar={recargar} />;
   if (datos.length === 0) {

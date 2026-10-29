@@ -1,5 +1,6 @@
 "use client";
 
+import { CampanaNotificaciones } from "@/modules/notificaciones/ui/campana-notificaciones";
 import { SignOut } from "@/components/signout-button";
 import { Breadcrumb, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,10 @@ export function HeaderLayout({
         </div>
       </div>
 
-      <SignOut />
+      <div className="flex items-center gap-2">
+        <CampanaNotificaciones variante="oscura" />
+        <SignOut />
+      </div>
     </header>
   );
 }

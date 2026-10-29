@@ -117,11 +117,11 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | B10 | UI trabajador: mis solicitudes, formularios por sección, soportes | Front | B9, R-2 | 🔄 En proceso | — | |
 | R-6a | `FieldCompare` (componente visual del comparativo) | Front | R-1 | 🔄 En proceso | — | Parte de la etapa 6 del plan de rediseño. 2026-10-29: `field-compare.tsx` y visor comparativo con test |
 | B11 | UI Bienestar: bandeja, habilitar ventana con plazo y prórroga, visor comparativo | Front | B9, R-6a | 🔄 En proceso | — | |
-| B12 | Estados vacíos, carga, errores y accesibilidad | Front | B10, B11 | 🔄 En proceso | — | |
+| B12 | Estados vacíos, carga, errores y accesibilidad | Front | B10, B11 | 🔄 En proceso | — | 2026-10-29: VistaCargando con límite de 20 s y Reintentar en todas las pantallas de solicitudes/Bienestar; ficha con error explícito. Falta validar con E2E/axe |
 | B13 | Tabla complementaria propia `datos_complementarios_trabajador` (cédula única, `correo_alternativo`, `tiene_hijos`, `actualizado_en/por`; `managed=True`, Onion completo: entidad, puerto, repo, caso de uso, serializer) y exposición en la ficha y en el formulario de contacto de autogestión; gestión de ambos correos (institucional/login y alternativo) para todo el personal | Back/Front | A4 | ✅ Culminado | — | `Employee` es legada (`managed=False`, sin ALTER) y no tiene campo reutilizable (2.10). La usa también la fe de vida (C12, C19) |
 | B14 | Renombrar el rol "BIENSTAR SOCIAL" a "BIENESTAR SOCIAL": script con respaldo previo de `USER_rol`, UPDATE idempotente y cambio de los literales del frontend en el mismo despliegue | Back/Front | V-1 | ✅ Culminado | — | Reemplaza el renombre que estaba en D5. Los usuarios de Bienestar los asigna el usuario a mano (sin tarea automática) |
 | B15 | Componente compartido `CapturaFoto` (detecta cámara: tomar foto en PC/teléfono o subir archivo; sin cámara o sin permiso nunca bloquea) integrado en autogestión, registro y edición de personal y carnetización; lo reutiliza la fe de vida (C13) | Front/Test | — | 🔄 En proceso | — | Requisito del usuario 2026-10-29 |
-| B-T | Tests de Fase 2 (transiciones, prórroga, aprobación de una sola persona, Zero-IDOR, ficha intacta hasta aprobar, datos complementarios, rol renombrado, E2E) | Test | B4, B11, B13, B14 | 🔄 En proceso | — | Usar BD de pruebas, nunca la real. Backend verificado en vivo 2026-10-29 (flujo de 21 pasos OK; datos de prueba eliminados); falta frontend |
+| B-T | Tests de Fase 2 (transiciones, prórroga, aprobación de una sola persona, Zero-IDOR, ficha intacta hasta aprobar, datos complementarios, rol renombrado, E2E) | Test | B4, B11, B13, B14 | 🔄 En proceso | — | Backend verificado en vivo (21 pasos) y 630 tests. Creado `e2e/accesibilidad.spec.ts`. BLOQUEADO para E2E hasta tener `NextJS/.env.test.local` con E2E_ADMIN/TRAB/BIEN |
 
 **Fase 3 — Notificaciones en sistema y correo**
 
@@ -129,9 +129,9 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 |---|---|---|---|---|---|---|
 | A2 | App `notificaciones` (modelos, casos de uso, API) | Back | A4 | ✅ Culminado | — | 2026-10-29: app, migración 0001, API; tests en verde |
 | A3 | Correo asíncrono con outbox, reintentos y plantillas | Back | A1, A2 | 🔄 En proceso | — | Remitente `gath@conatel.gob.ve` / `mail.conatel.gob.ve` (ya en `.env`); probar relay (R11). Outbox, reintentos y reproceso en beat listos y probados; solo falta probar el relay real (R11) |
-| A7 | Módulo frontend de notificaciones y campana | Front | A2 | ⏳ Pendiente | — | 2026-10-29: aún no existe código (sin módulo ni campana) |
+| A7 | Módulo frontend de notificaciones y campana | Front | A2 | ✅ Culminado | — | 2026-10-29: módulo `src/modules/notificaciones`, campana (shell de autogestión y header general), bandeja `/autogestion/notificaciones`; polling 60 s solo con permiso `notificaciones.ver_propias`; enlaces solo internos |
 | B7 | Notificaciones en cada transición de Autogestión y evento outbox | Back | A2, A3, B3 | ✅ Culminado | — | Incluye alerta de reemisión de carnet. 2026-10-29: receivers de autogestión y aviso de ventanas por expirar en beat |
-| A-T2 | Tests de notificaciones, outbox y polling | Test | A2, A3, A7 | 🔄 En proceso | — | Backend: ~44 tests en verde (unit + integración); falta la parte de frontend (A7) |
+| A-T2 | Tests de notificaciones, outbox y polling | Test | A2, A3, A7 | 🔄 En proceso | — | Backend ~44 tests y frontend 18 tests nuevos en verde (Vitest 428/428); falta E2E de la campana con credenciales de prueba |
 
 **Fase 4 — Fe de vida de pasivos**
 

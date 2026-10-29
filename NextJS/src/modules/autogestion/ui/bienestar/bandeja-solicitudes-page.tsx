@@ -106,7 +106,7 @@ export default function BandejaSolicitudesPage() {
         </Button>
       </form>
 
-      {isLoading ? <VistaCargando mensaje="Cargando solicitudes…" /> : null}
+      {isLoading ? <VistaCargando mensaje="Cargando solicitudes…" onReintentar={() => mutate()} /> : null}
       {error ? (
         <VistaError
           mensaje="No se pudo cargar la bandeja de solicitudes."
