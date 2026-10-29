@@ -41,6 +41,9 @@ class RepoPortalMemoria:
         self.emitidos.append((cedula, motivo_id, observaciones))
         return MagicMock(id=99)
 
+    def obtener_datos_complementarios(self, cedula):
+        return None
+
     def generar_pdf_carnet_activo(self, cedula):
         return self.pdf
 

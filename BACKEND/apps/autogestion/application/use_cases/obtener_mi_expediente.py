@@ -21,6 +21,7 @@ class MiExpedienteDTO:
     familiares: list[Any]
     carnets: list[Any] = field(default_factory=list)
     motivos_carnet: list[dict] = field(default_factory=list)
+    datos_complementarios: Any = None
 
     @property
     def carnet_activo(self):
@@ -45,6 +46,7 @@ def obtener_mi_expediente(repo: RepoPortalTrabajador, cedula: str) -> MiExpedien
         familiares=repo.listar_familiares(cedula),
         carnets=repo.listar_carnets(cedula),
         motivos_carnet=repo.listar_motivos_carnet(),
+        datos_complementarios=repo.obtener_datos_complementarios(cedula),
     )
 
 

@@ -6,6 +6,9 @@ repositorios de personal, familiares y carnetización (B16, ver .importlinter).
 """
 import logging
 
+from apps.autogestion.infrastructure.repositories.repo_secciones_complementarios_orm import (
+    RepoDatosComplementariosORM,
+)
 from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     CarnetEmitidoModel,
     MotivosEmisionModel,
@@ -43,6 +46,9 @@ class RepoPortalTrabajadorORM:
         return RepoCarnetizacionORM().emitir_carnet(
             empleado_cedula=cedula, motivo_id=motivo_id, observaciones=observaciones,
         )
+
+    def obtener_datos_complementarios(self, cedula: str):
+        return RepoDatosComplementariosORM().obtener(cedula)
 
     def generar_pdf_carnet_activo(self, cedula: str) -> bytes | None:
         carnet = (

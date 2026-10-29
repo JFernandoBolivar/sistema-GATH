@@ -229,8 +229,9 @@ class MiExpedienteView(APIView):
     Permite al trabajador autenticado consultar su expediente completo
     (datos personales, laborales/cargo, salud, vivienda, educación y cargas familiares).
     Estricta protección Zero-IDOR: se lee exclusivamente request.user.cedula_id.
+    Permiso `autogestion.ver_propio` (B8).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.ver_propio')]
 
     @extend_schema(tags=['Autogestión'], summary='Obtener expediente completo del trabajador autenticado')
     def get(self, request):

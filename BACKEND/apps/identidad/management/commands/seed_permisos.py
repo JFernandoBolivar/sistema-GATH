@@ -11,6 +11,7 @@ from apps.identidad.infrastructure.models.permiso_model import (
     PermisoModel,
     RolPermisoModel,
 )
+from apps.identidad.infrastructure.models.usuario_permiso_model import UsuarioPermisoModel
 from apps.identidad.infrastructure.legado.cuenta_models import RolEspejo
 from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
     RepoPermisosVersionORM,
@@ -135,10 +136,9 @@ PERMISOS_CATALOGO = [
     ("bienestar.ver_solicitudes", "Consultar las solicitudes de actualización de los trabajadores"),
     ("bienestar.habilitar_ventana", "Habilitar o cerrar la ventana de actualización de un trabajador"),
     ("bienestar.revisar_actualizacion", "Revisar, observar o rechazar una solicitud de actualización"),
-    ("bienestar.check_analista", "Dar el check de la Analista en una actualización con doble aprobación"),
-    ("bienestar.check_administradora", "Dar el check de la Administradora en una actualización con doble aprobación"),
-    ("bienestar.aprobar_directo", "Aprobación directa de la Administradora (justificación obligatoria)"),
-    ("bienestar.configurar_secciones", "Configurar las secciones que exigen doble aprobación"),
+    ("bienestar.aprobar", "Aprobar (total o parcialmente) o rechazar una actualización de datos: decide UNA sola persona"),
+    ("bienestar.prorrogar_ventana", "Prorrogar el plazo de una ventana de actualización de datos"),
+    ("bienestar.configurar_secciones", "Configurar las secciones autogestionables (soporte obligatorio, activas)"),
 
     # ─── 17. FE DE VIDA DE PASIVOS ───
     ("fe_de_vida.solicitar", "Enviar su solicitud de fe de vida (pasivo)"),
@@ -282,24 +282,26 @@ ROL_ASIGNACIONES = {
 ROL_BIENESTAR_SOCIAL_ID = 5
 NOTIFICACIONES_PROPIAS = "notificaciones.ver_propias"
 
+# Autogestión (PLAN §2.4 actualizado): UNA sola persona aprueba, así que Analista y Administradora
+# tienen EL MISMO permiso `bienestar.aprobar`; ya no hay checks por rol ni aprobación directa en
+# autogestión (siguen en la fe de vida con `fe_de_vida.*`).
 PERMISOS_BIENESTAR_ANALISTA = [
     "bienestar.ver_solicitudes",
     "bienestar.habilitar_ventana",
     "bienestar.revisar_actualizacion",
-    "bienestar.check_analista",
+    "bienestar.aprobar",
+    "bienestar.prorrogar_ventana",
     "fe_de_vida.revisar",
     "fe_de_vida.check_analista",
     "fe_de_vida.ver_evidencia",
     "fe_de_vida.verificar_constancia",
     "fe_de_vida.ver_panel",
 ]
-# La Administradora NO hereda los checks de la Analista: el doble check exige dos
+# La Administradora NO hereda el check de la Analista de la fe de vida: ese doble check exige dos
 # personas distintas (para validar sola existe la aprobación directa, auditada).
 PERMISOS_BIENESTAR_ADMIN = [
-    p for p in PERMISOS_BIENESTAR_ANALISTA if p not in ("bienestar.check_analista", "fe_de_vida.check_analista")
+    p for p in PERMISOS_BIENESTAR_ANALISTA if p != "fe_de_vida.check_analista"
 ] + [
-    "bienestar.check_administradora",
-    "bienestar.aprobar_directo",
     "bienestar.configurar_secciones",
     "fe_de_vida.check_administradora",
     "fe_de_vida.aprobar_directo",
@@ -307,7 +309,17 @@ PERMISOS_BIENESTAR_ADMIN = [
 ]
 
 # Ampliaciones aditivas a roles existentes (por id).
+# Permisos de autogestión por solicitud que se retiran (PLAN §2.4: reemplazados por `bienestar.aprobar`).
+# Revisado el 2026-10-29: ningún código del backend ni del frontend los referencia; solo los tenían
+# ANALISTA_BIENESTAR / ADMIN_BIENESTAR (y ADMINISTRADOR). El seed los retira de forma idempotente,
+# salvo que algún usuario tenga una excepción individual que los cite (entonces los conserva y avisa).
+PERMISOS_RETIRADOS = ("bienestar.check_analista", "bienestar.check_administradora", "bienestar.aprobar_directo")
+
 ROL_ASIGNACIONES[2] += ["fe_de_vida.verificar_constancia"]
+# B8: «Mi expediente» exige `autogestion.ver_propio`; todo trabajador con cuenta ve su propia ficha,
+# así que se añade (aditivo) a los roles de personal que antes entraban solo por IsAuthenticated.
+for _rol_id in (2, 4, 9):
+    ROL_ASIGNACIONES[_rol_id].append("autogestion.ver_propio")
 ROL_ASIGNACIONES[3] += [
     "autogestion.solicitar_actualizacion",
     "autogestion.editar_borrador",
@@ -317,7 +329,7 @@ ROL_ASIGNACIONES[3] += [
     "fe_de_vida.solicitar",
     "fe_de_vida.ver_propia",
 ]
-ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] += ["fe_de_vida.verificar_constancia"]
+ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] += ["fe_de_vida.verificar_constancia", "autogestion.ver_propio"]
 for _rol_id in (2, 3, 4, ROL_BIENESTAR_SOCIAL_ID, 9):
     ROL_ASIGNACIONES[_rol_id].append(NOTIFICACIONES_PROPIAS)
 
@@ -380,6 +392,7 @@ class Command(BaseCommand):
                     repo_roles.crear(nombre, descripcion)
                     roles_creados += 1
             self.stdout.write(f"Roles nuevos creados: {roles_creados} de {len(ROLES_NUEVOS)}.")
+            roles_retirados = self._retirar_permisos()
 
             # 2b. Asignación a Roles
             asignaciones_creadas = 0
@@ -420,6 +433,7 @@ class Command(BaseCommand):
                     f" - Rol '{nombre_rol}' (ID {rol_id}): {len(codigos)} permisos vinculados."
                 )
 
+            roles_modificados = sorted(set(roles_modificados) | set(roles_retirados))
             if roles_modificados and not options["no_invalidar_sesiones"]:
                 repo_version = RepoPermisosVersionORM()
                 cuentas = sum(repo_version.incrementar_por_rol(rid) for rid in roles_modificados)
@@ -430,3 +444,19 @@ class Command(BaseCommand):
                     f"Matriz rol-permiso actualizada. Total nuevas asignaciones: {asignaciones_creadas}."
                 )
             )
+
+    def _retirar_permisos(self) -> list[int]:
+        """Retira de la BD los permisos obsoletos (PERMISOS_RETIRADOS). Idempotente. Devuelve los roles afectados."""
+        roles_afectados: set[int] = set()
+        for codigo in PERMISOS_RETIRADOS:
+            permiso = PermisoModel.objects.filter(codigo=codigo).first()
+            if permiso is None:
+                continue
+            if UsuarioPermisoModel.objects.filter(permisos_custom__icontains=codigo).exists():
+                self.stdout.write(self.style.WARNING(f"Permiso {codigo} conservado: hay excepciones de usuario que lo citan."))
+                continue
+            roles_afectados |= set(RolPermisoModel.objects.filter(permiso=permiso).values_list("rol_id", flat=True))
+            RolPermisoModel.objects.filter(permiso=permiso).delete()
+            permiso.delete()
+            self.stdout.write(self.style.SUCCESS(f"Permiso obsoleto retirado: {codigo}."))
+        return sorted(roles_afectados)

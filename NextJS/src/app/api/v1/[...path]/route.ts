@@ -5,7 +5,7 @@ import { DJANGO_API_SERVER } from "@/shared/commons/api";
 /**
  * Proxy de lectura en tiempo de ejecución para archivos que el backend sirve
  * con streaming autenticado (logos de configuración visual, fotos de personal,
- * documentos de familiares y de punto de cuenta). El navegador nunca recibe
+ * documentos de familiares, de punto de cuenta y soportes de autogestión). El navegador nunca recibe
  * URLs del almacén de objetos: pide estas rutas al mismo origen y este handler
  * las reenvía a Django con la cookie `dj_access` como `Authorization: Bearer`
  * (`CookieJWTAuthentication` acepta ambos). Solo GET y solo prefijos de la
@@ -17,6 +17,8 @@ const RUTAS_PERMITIDAS: readonly RegExp[] = [
   /^familiares\/[^/]+\/documentos\/[^/]+\/archivo\/?$/,
   /^carnetizacion\/plantillas\/\d+\/imagen\/?$/,
   /^puntocuenta\/[^/]+\/documento\/archivo\/?$/,
+  // Soportes de las solicitudes de actualización de datos (Django valida dueño o Bienestar).
+  /^autogestion\/soportes\/[0-9a-f-]{36}\/archivo\/?$/,
 ];
 
 // Cabeceras de la respuesta original que se propagan al navegador.

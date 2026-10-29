@@ -62,6 +62,9 @@ describe("proxy /api/v1 (archivos autenticados)", () => {
     "usuarios/me/",
     "personal/../usuarios/foto/",
     "configuracion/visual/logo/otro/",
+    "autogestion/soportes/no-es-uuid/archivo/",
+    "autogestion/solicitudes/0197c9a0-1b2c-7d3e-8f40-123456789abc/",
+    "autogestion/mi-expediente/",
   ])("rechaza rutas fuera de la lista blanca: %s", async (ruta) => {
     const res = await pedir(ruta, "tok");
     expect(res.status).toBe(404);
@@ -72,6 +75,7 @@ describe("proxy /api/v1 (archivos autenticados)", () => {
     "configuracion/visual/logo/logo-principal/",
     "familiares/9/documentos/4/archivo/",
     "puntocuenta/7/documento/archivo/",
+    "autogestion/soportes/0197c9a0-1b2c-7d3e-8f40-123456789abc/archivo/",
   ])("permite %s", async (ruta) => {
     fetchMock.mockResolvedValue(new Response("x", { status: 200 }));
     const res = await pedir(ruta, "tok");

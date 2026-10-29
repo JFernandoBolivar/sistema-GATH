@@ -233,7 +233,13 @@ CELERY_TASK_PUBLISH_RETRY_POLICY = {'max_retries': 1, 'interval_start': 0, 'inte
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
 # Tareas periódicas (beat): lista estática en código, sin tablas (django-celery-beat
 # se evalúa cuando haya calendarios editables desde la UI).
-CELERY_BEAT_SCHEDULE = {}
+CELERY_BEAT_SCHEDULE = {
+    # Autogestión (B3): marca EXPIRADA toda ventana de actualización vencida (idempotente).
+    'autogestion-expirar-ventanas': {
+        'task': 'autogestion.expirar_ventanas',
+        'schedule': 900.0,  # cada 15 minutos
+    },
+}
 
 # D-11 (revisado 2026-10-28): Redis es la caché del despliegue. compose.yml
 # arma REDIS_URL para el contenedor django. Sin REDIS_URL (Django fuera de

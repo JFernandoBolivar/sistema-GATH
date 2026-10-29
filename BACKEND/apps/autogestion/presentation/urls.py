@@ -12,9 +12,54 @@ from apps.autogestion.presentation.views.autogestion_views import (
     SolicitarCarnetView,
 )
 
+from apps.autogestion.presentation.views.solicitud_bienestar_views import (
+    BandejaView,
+    ComparativoView,
+    DatosComplementariosRRHHView,
+    DecidirView,
+    DetalleBienestarView,
+    HabilitarVentanaView,
+    ProrrogarVentanaView,
+    RechazarView,
+    SeccionConfigurarView,
+)
+from apps.autogestion.presentation.views.solicitud_trabajador_views import (
+    BorradorView,
+    EnviarSolicitudView,
+    MisDatosComplementariosView,
+    SeccionesView,
+    SolicitudDetalleView,
+    SolicitudesView,
+    SoporteArchivoView,
+    SoporteBorrarView,
+    SoportesView,
+)
+
 app_name = 'autogestion'
 
 urlpatterns = [
+    # Actualización de datos por solicitud (trabajador ACTIVO)
+    path('solicitudes/', SolicitudesView.as_view(), name='solicitudes'),
+    path('solicitudes/<uuid:solicitud_id>/', SolicitudDetalleView.as_view(), name='solicitud-detalle'),
+    path('solicitudes/<uuid:solicitud_id>/borrador/', BorradorView.as_view(), name='solicitud-borrador'),
+    path('solicitudes/<uuid:solicitud_id>/soportes/', SoportesView.as_view(), name='solicitud-soportes'),
+    path('solicitudes/<uuid:solicitud_id>/soportes/<uuid:soporte_id>/', SoporteBorrarView.as_view(), name='solicitud-soporte-borrar'),
+    path('solicitudes/<uuid:solicitud_id>/enviar/', EnviarSolicitudView.as_view(), name='solicitud-enviar'),
+    path('soportes/<uuid:soporte_id>/archivo/', SoporteArchivoView.as_view(), name='soporte-archivo'),
+    path('secciones/', SeccionesView.as_view(), name='secciones'),
+    path('mis-datos-complementarios/', MisDatosComplementariosView.as_view(), name='mis-datos-complementarios'),
+
+    # Bienestar Social
+    path('bienestar/solicitudes/', BandejaView.as_view(), name='bienestar-bandeja'),
+    path('bienestar/solicitudes/<uuid:solicitud_id>/', DetalleBienestarView.as_view(), name='bienestar-detalle'),
+    path('bienestar/solicitudes/<uuid:solicitud_id>/comparativo/', ComparativoView.as_view(), name='bienestar-comparativo'),
+    path('bienestar/solicitudes/<uuid:solicitud_id>/habilitar/', HabilitarVentanaView.as_view(), name='bienestar-habilitar'),
+    path('bienestar/solicitudes/<uuid:solicitud_id>/prorrogar/', ProrrogarVentanaView.as_view(), name='bienestar-prorrogar'),
+    path('bienestar/solicitudes/<uuid:solicitud_id>/decidir/', DecidirView.as_view(), name='bienestar-decidir'),
+    path('bienestar/solicitudes/<uuid:solicitud_id>/rechazar/', RechazarView.as_view(), name='bienestar-rechazar'),
+    path('bienestar/secciones/<str:codigo>/', SeccionConfigurarView.as_view(), name='bienestar-seccion'),
+    path('datos-complementarios/<str:cedula>/', DatosComplementariosRRHHView.as_view(), name='datos-complementarios'),
+
     # Mi expediente integral (datos de empleado y cargas familiares)
     path('mi-expediente/', MiExpedienteView.as_view(), name='mi-expediente'),
     path('solicitar-carnet/', SolicitarCarnetView.as_view(), name='solicitar-carnet'),

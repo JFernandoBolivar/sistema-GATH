@@ -8,6 +8,14 @@ from apps.familiares.presentation.serializers.familiares_serializers import Fami
 from apps.personal.presentation.serializers.personal_serializers import EmpleadoSerializer
 
 
+def _complementarios(datos) -> dict:
+    """Correo alternativo y «¿tiene hijos?» (B13); sin declarar = nulos."""
+    return {
+        'correo_alternativo': getattr(datos, 'correo_alternativo', None),
+        'tiene_hijos': getattr(datos, 'tiene_hijos', None),
+    }
+
+
 def serializar_mi_expediente(dto) -> dict:
     carnet_activo = dto.carnet_activo
     return {
@@ -16,6 +24,7 @@ def serializar_mi_expediente(dto) -> dict:
         'carnet_activo': CarnetSerializer(carnet_activo).data if carnet_activo else None,
         'carnets': CarnetSerializer(dto.carnets, many=True).data,
         'motivos_carnet': dto.motivos_carnet,
+        'datos_complementarios': _complementarios(dto.datos_complementarios),
     }
 
 

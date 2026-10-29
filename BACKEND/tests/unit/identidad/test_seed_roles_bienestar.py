@@ -7,7 +7,7 @@ from django.core.management import call_command
 
 from apps.identidad.infrastructure.models.cuenta_models import RolModel
 from apps.identidad.infrastructure.models.permiso_model import PermisoModel, RolPermisoModel
-from apps.identidad.management.commands.seed_permisos import PERMISOS_CATALOGO, ROLES_NUEVOS
+from apps.identidad.management.commands.seed_permisos import PERMISOS_CATALOGO, PERMISOS_RETIRADOS, ROLES_NUEVOS
 
 
 def _seed():
@@ -45,25 +45,41 @@ def test_seed_crea_roles_y_permisos_y_es_idempotente():
 
 
 @pytest.mark.django_db
-def test_matriz_de_bienestar_respeta_el_doble_check():
+def test_matriz_de_bienestar_una_sola_persona_aprueba_la_autogestion():
     _seed()
     analista = _codigos('ANALISTA_BIENESTAR')
     admin = _codigos('ADMIN_BIENESTAR')
 
-    assert {'fe_de_vida.check_analista', 'bienestar.check_analista', 'fe_de_vida.revisar'} <= analista
-    # La Analista nunca aprueba directo ni da el check de la Administradora.
-    assert not analista & {
-        'fe_de_vida.aprobar_directo', 'bienestar.aprobar_directo',
-        'fe_de_vida.check_administradora', 'bienestar.check_administradora',
+    aprobacion = {
+        'bienestar.aprobar', 'bienestar.habilitar_ventana', 'bienestar.prorrogar_ventana',
+        'bienestar.revisar_actualizacion', 'bienestar.ver_solicitudes',
     }
+    # Autogestión: Analista y Administradora tienen el MISMO permiso de aprobación (una sola persona).
+    assert aprobacion <= analista and aprobacion <= admin
+    assert {'fe_de_vida.check_analista', 'fe_de_vida.revisar'} <= analista
+    # La fe de vida conserva el doble check: la Analista nunca aprueba directo ni da el check de la Administradora.
+    assert not analista & {'fe_de_vida.aprobar_directo', 'fe_de_vida.check_administradora'}
     assert {
         'fe_de_vida.check_administradora', 'fe_de_vida.aprobar_directo',
-        'bienestar.aprobar_directo', 'bienestar.habilitar_ventana',
         'fe_de_vida.configurar_plantilla', 'bienestar.configurar_secciones',
     } <= admin
-    # La Administradora no da el check de la Analista: el doble check exige dos personas.
-    assert not admin & {'fe_de_vida.check_analista', 'bienestar.check_analista'}
-    assert {'notificaciones.ver_propias', 'personal.ver_salud'} <= analista & admin
+    assert not admin & {'fe_de_vida.check_analista'}
+    assert {'notificaciones.ver_propias', 'personal.ver_salud', 'autogestion.ver_propio'} <= analista & admin
+    # Permisos obsoletos de la doble aprobación en autogestión: ya no existen.
+    for obsoleto in PERMISOS_RETIRADOS:
+        assert obsoleto not in analista | admin
+        assert not PermisoModel.objects.filter(codigo=obsoleto).exists()
+
+
+@pytest.mark.django_db
+def test_seed_retira_los_permisos_obsoletos_ya_asignados():
+    rol = RolModel.objects.create(id=13, nombre_rol='ANALISTA_BIENESTAR')
+    viejo = PermisoModel.objects.create(codigo='bienestar.check_analista', nombre='viejo')
+    RolPermisoModel.objects.create(rol_id=rol.id, permiso=viejo)
+    salida = _seed()
+    assert 'Permiso obsoleto retirado: bienestar.check_analista' in salida
+    assert not PermisoModel.objects.filter(codigo='bienestar.check_analista').exists()
+    assert 'Permiso obsoleto retirado' not in _seed()  # idempotente
 
 
 @pytest.mark.django_db

@@ -39,7 +39,7 @@ muestre. Esto es clave para el alcance: un rol de sólo consulta implementado
 | 2 | ANALISTA | 7 | | 2 | Seguridad | 1 |
 | 3 | AUTOGESTION | 867 | | 3 | AUTOGESTION | 867 |
 | 4 | PRESUPUESTO | 1 | | 5 | RAC | 13 |
-| 5 | BIENSTAR SOCIAL | 1 | | | | |
+| 5 | BIENESTAR SOCIAL | 1 | | | | |
 
 ### Lo que ya existe y NO se toca
 

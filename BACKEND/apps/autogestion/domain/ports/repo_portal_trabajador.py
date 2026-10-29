@@ -28,6 +28,10 @@ class RepoPortalTrabajador(Protocol):
     def emitir_carnet(self, cedula: str, motivo_id: int, observaciones: str) -> Any:
         ...
 
+    def obtener_datos_complementarios(self, cedula: str) -> Any | None:
+        """Correo alternativo y «¿tiene hijos?» (tabla propia B13), o None si no los declaró."""
+        ...
+
     def generar_pdf_carnet_activo(self, cedula: str) -> bytes | None:
         """PDF del carnet activo del trabajador, o None si no tiene carnet activo."""
         ...

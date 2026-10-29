@@ -40,9 +40,9 @@ class Rol(models.Model):
     descripcion_rol = models.TextField(null=True, blank=True)
 ```
 
-Roles en producción: `ADMINISTRADOR`, `ANALISTA`, `PRESUPUESTO`, `BIENSTAR SOCIAL`, `RECEPCIONISTA`, `AUTOGESTION`. La Fase 2 agrega `CAPTACION` y `DIRECCION_GENERAL` (`FASE2_PROPUESTA_TECNICA.md` §7.1).
+Roles en producción: `ADMINISTRADOR`, `ANALISTA`, `PRESUPUESTO`, `BIENESTAR SOCIAL`, `RECEPCIONISTA`, `AUTOGESTION`. La Fase 2 agrega `CAPTACION` y `DIRECCION_GENERAL` (`FASE2_PROPUESTA_TECNICA.md` §7.1).
 
-⚠️ **La etiqueta `BIENSTAR SOCIAL` está mal escrita en producción** (falta la «E» de *BIENESTAR*) **y se conserva a propósito**: la decisión **DEC-8** de la Fase 2 rechaza la migración de datos y opta por identificar el rol por un `codigo` estable (`BIENESTAR_SOCIAL`) desacoplado de la etiqueta visible. **Nunca escribas el nombre correcto en el código nuevo y el incorrecto en el viejo**: quedarían dos roles conviviendo y las habilitaciones fallarían en silencio.
+✅ **La etiqueta del rol 5 se corrigió** de «BIENSTAR SOCIAL» a `BIENESTAR SOCIAL` (tarea B14, 2026-10-29): UPDATE de dato con respaldo mediante `python manage.py renombrar_rol_bienestar` (idempotente). El rol se identifica por id y por permisos; no compares por `nombre_rol` en código nuevo.
 
 > **Estado real vs. objetivo.** `Rol.codigo` **todavía no existe** en el modelo: hoy solo hay `nombre_rol`. Añadirlo como slug único es un pendiente de la Fase 2 (`FASE2_PROPUESTA_TECNICA.md` §5.5, tabla de §14). No importes `Rol.codigo` sin verificar antes que la migración ya está aplicada.
 
