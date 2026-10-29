@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
+import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
 import { useForm } from "react-hook-form";
-import Image from "next/image";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
@@ -18,14 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
-}
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import {
@@ -51,9 +43,7 @@ export default function FormBasicUpdateDialog({
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, setValue, watch } = useForm({
     defaultValues: {
@@ -69,20 +59,6 @@ export default function FormBasicUpdateDialog({
       nacionalidadId: empleado.nacionalidadId ?? undefined,
     },
   });
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleRemovePhoto = () => {
-    setSelectedFile(null);
-    setPhotoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
 
   const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
     startTransition(async () => {
@@ -153,51 +129,12 @@ export default function FormBasicUpdateDialog({
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="gap-6">
                 <div className="border rounded-lg p-4 gap-3">
-                  <Label>Foto del Trabajador</Label>
-                  {photoPreview ? (
-                    <div className="relative w-full h-40 p-2">
-                      <Image
-                        height={150}
-                        width={100}
-                        src={photoPreview || "/placeholder.svg"}
-                        alt="Preview"
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleRemovePhoto}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 size-6 flex items-center justify-center"
-                      >
-                        <X className="size-4" />
-                      </Button>
-                      <div className="text-center w-full text-xs text-muted-foreground mt-1">
-                        {selectedFile ? formatFileSize(selectedFile.size) : ""}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                      <div className="w-full h-full text-center flex flex-col justify-center items-center">
-                        <Upload className="size-8 text-gray-400" />
-                        <Label
-                          htmlFor="photoUpload"
-                          className="text-center p-1.5 bg-gray-300 text-black rounded-2xl cursor-pointer mt-2"
-                        >
-                          Haz clic aqui para seleccionar foto
-                        </Label>
-                        <input
-                          id="photoUpload"
-                          ref={fileInputRef}
-                          type="file"
-                          accept=".png,.jpeg,.jpg"
-                          className="hidden"
-                          onChange={handleFileChange}
-                        />
-                        <span className="text-xs text-muted-foreground mt-2">
-                          PNG, JPG hasta 5MB
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  <CapturaFoto
+                    etiqueta="Foto del Trabajador"
+                    nombreArchivo="foto-trabajador.jpg"
+                    disabled={isPending}
+                    onChange={(foto) => setSelectedFile(foto)}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mt-4">

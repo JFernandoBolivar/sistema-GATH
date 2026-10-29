@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { AuthSessionExpiredError } from "./auth-errors";
 
+// La configuración global (vitest.setup.ts) sustituye este módulo; aquí se prueba el real.
+vi.unmock("@/lib/api-client");
+
 // Mock de cookies de Next.js
 const cookieStoreMap = new Map<string, { value: string; options?: Record<string, unknown> }>();
 

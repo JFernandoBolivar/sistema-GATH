@@ -290,7 +290,7 @@ export const autogestionApi = {
 
   getConditionDwelling: async (): Promise<ApiResponse<ConditionDwelling[]>> => {
     return apiClient.get<ApiResponse<ConditionDwelling[]>>(
-      "/api/v1/personal/catalogos/condiciones-vivienda/",
+      "/api/v1/autogestion/catalogos/condiciones-vivienda/",
     );
   },
 

@@ -1,5 +1,5 @@
-import MiExpedienteView from "@/modules/autogestion/ui/mi-expediente-view";
+import AutogestionInicio from "@/modules/autogestion/ui/inicio/autogestion-inicio";
 
 export default function AutogestionPage() {
-  return <MiExpedienteView />;
+  return <AutogestionInicio />;
 }

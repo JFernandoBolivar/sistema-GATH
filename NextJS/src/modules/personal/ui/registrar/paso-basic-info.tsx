@@ -5,11 +5,11 @@
  * `shared/forms/employees/register/form-basic-info.tsx` del legado).
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
+import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatInTimeZone } from "date-fns-tz";
-import { CalendarIcon, Upload, X } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import useSWR from "swr";
 
@@ -21,14 +21,11 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/u
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/shared/ui/components/form";
-import { Input } from "@/shared/ui/components/input";
-import { Label } from "@/shared/ui/components/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/components/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 
@@ -36,12 +33,6 @@ import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto
 import { getEmpleadosAction } from "../../infrastructure/actions/personal-actions";
 import { pasoBasicInfoSchema, type PasoBasicInfoType } from "../schema/schema-registro-pasos";
 import { ContactosEmergenciaCampos } from "../contactos-emergencia-campos";
-
-function formatearPeso(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-}
 
 export function PasoBasicInfo({
   defaultValues,
@@ -54,21 +45,12 @@ export function PasoBasicInfo({
   catalogos: CatalogosExpedienteDTO | null;
   isLoadingCatalogos: boolean;
 }) {
-  const [photoPreview, setPhotoPreview] = useState<string | null>(
-    defaultValues.file ? URL.createObjectURL(defaultValues.file) : null,
-  );
   const [file, setFile] = useState<File | null>(defaultValues.file ?? null);
 
   const form = useForm<PasoBasicInfoType>({
     resolver: zodResolver(pasoBasicInfoSchema),
     defaultValues: defaultValues as PasoBasicInfoType,
   });
-
-  const handleRemovePhoto = () => {
-    setPhotoPreview(null);
-    setFile(null);
-    form.setValue("file", null);
-  };
 
   const cedula = useWatch({ control: form.control, name: "cedulaidentidad" }) ?? "";
   const cedulaLimpia = cedula.trim();
@@ -105,60 +87,15 @@ export function PasoBasicInfo({
           <form onSubmit={form.handleSubmit(onSubmitPaso)} autoComplete="off">
             <div className="gap-4">
               <div className="border rounded-lg p-4 gap-3">
-                <Label>Foto del Trabajador</Label>
-                {photoPreview ? (
-                  <div className="relative w-full h-40 p-2">
-                    <Image
-                      height={150}
-                      width={100}
-                      unoptimized
-                      src={photoPreview}
-                      alt="Preview"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <X className="size-4" />
-                    </Button>
-                    <div className="text-center w-full">{formatearPeso(file?.size ?? 0)}</div>
-                  </div>
-                ) : (
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                    <FormField
-                      control={form.control}
-                      name="file"
-                      render={({ field: { value: _value, onChange, ...fieldProps } }) => (
-                        <FormItem className="w-full h-full text-center flex flex-col justify-center items-center">
-                          <Upload className="size-8 text-gray-400" />
-                          <FormLabel className="text-center p-1.5 bg-gray-300 text-black rounded-2xl  cursor-pointer">
-                            Haz clic aqui para seleccionar foto
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              {...fieldProps}
-                              type="file"
-                              accept=".png,.jpeg,.jpg"
-                              className="hidden"
-                              onChange={(event) => {
-                                const elegido = event.target.files?.[0] ?? null;
-                                onChange(elegido);
-                                if (elegido) {
-                                  setFile(elegido);
-                                  setPhotoPreview(URL.createObjectURL(elegido));
-                                }
-                              }}
-                            />
-                          </FormControl>
-                          <FormDescription>PNG, JPG hasta 5MB</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
+                <CapturaFoto
+                  etiqueta="Foto del Trabajador"
+                  valorInicial={file}
+                  nombreArchivo="foto-trabajador.jpg"
+                  onChange={(foto) => {
+                    setFile(foto);
+                    form.setValue("file", foto);
+                  }}
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex gap-2 col-span-2">

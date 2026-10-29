@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition, Suspense, useEffect } from "react";
+import { useState, useTransition, Suspense, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +8,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 import { Camera, Download, IdCard, Loader2, Lock, Printer, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -61,7 +62,7 @@ function GenerarCarnetContent() {
   const [extraSolicitudes, setExtraSolicitudes] = useState(0);
   const [isPendingGenerar, startTransitionGenerar] = useTransition();
   const [isPendingFoto, startTransitionFoto] = useTransition();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fotoNueva, setFotoNueva] = useState<File | null>(null);
 
   const form = useForm<GenerarValues>({
     resolver: zodResolver(schemaGenerar),
@@ -232,24 +233,19 @@ function GenerarCarnetContent() {
                 labelKey="nombre"
               />
 
-              <div>
-                <label htmlFor="input-foto" className="text-sm font-medium">Foto</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    id="input-foto"
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleFotoUpload(file);
-                    }}
-                  />
+              <div className="flex flex-col gap-2">
+                <CapturaFoto
+                  etiqueta="Foto"
+                  nombreArchivo="foto-carnet.jpg"
+                  disabled={isPendingFoto}
+                  onChange={(foto) => setFotoNueva(foto)}
+                />
+                {fotoNueva ? (
                   <Button
+                    type="button"
                     variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
+                    className="w-fit"
+                    onClick={() => handleFotoUpload(fotoNueva)}
                     disabled={isPendingFoto}
                   >
                     {isPendingFoto ? (
@@ -257,9 +253,9 @@ function GenerarCarnetContent() {
                     ) : (
                       <Upload className="size-4 mr-1" />
                     )}
-                    Subir Foto
+                    Guardar foto
                   </Button>
-                </div>
+                ) : null}
               </div>
 
               <Button

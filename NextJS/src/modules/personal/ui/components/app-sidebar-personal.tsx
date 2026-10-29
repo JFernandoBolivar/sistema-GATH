@@ -247,6 +247,20 @@ const items: MenuItem[] = [
     url: "/retroalimentacion",
   },
   {
+    permiso: "bienestar.ver_solicitudes",
+    icon: ListCheck,
+    title: "Bienestar Social",
+    url: "#",
+    subMenu: [
+      {
+        title: "Solicitudes de actualización",
+        url: "/personal/bienestar/solicitudes",
+        icon: ListCheck,
+        permiso: "bienestar.ver_solicitudes",
+      },
+    ],
+  },
+  {
     
     icon: BookCheck,
     title: "Autogestión",
@@ -280,6 +294,7 @@ export function AppSidebarPersonal() {
     if (pathname?.startsWith("/cargos")) return "Gestión De Codigos";
     if (pathname?.startsWith("/organizacion")) return "Ub. Administrativas";
     if (pathname?.startsWith("/reportes")) return "Reportes";
+    if (pathname?.startsWith("/personal/bienestar")) return "Bienestar Social";
     if (pathname?.startsWith("/autogestion")) return "Autogestión";
     return "Personal Trabajador";
   }, [pathname]);
@@ -397,7 +412,7 @@ export function AppSidebarPersonal() {
             <div className="p-2 border-b-3 rounded-2xl">
               <div className="flex flex-col">
                 <h1 className="font-semibold">{session.user.name}</h1>
-                <h2 className="text-sm text-gray-400 font-bold">
+                <h2 className="text-sm text-muted-foreground font-bold">
                   C.I: {session.user.cedula}
                 </h2>
               </div>
@@ -405,7 +420,7 @@ export function AppSidebarPersonal() {
                 <h2 className="font-semibold">
                   Rol: {session.user.role.nombre_rol}
                 </h2>
-                <h1 className="text-sm text-gray-400 font-bold">
+                <h1 className="text-sm text-muted-foreground font-bold">
                   Departamento: {session.user.department?.nombre_departamento || "Sin Departamento"}
                 </h1>
               </div>

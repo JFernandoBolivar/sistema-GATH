@@ -85,7 +85,7 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
-| R-0 | Paleta provisional (no hay manual de identidad), `lang="es-VE"`, título, retirar `MarqueeTitle`, SW ajeno en `localhost:3000` | Front | — | ⏳ Pendiente | — | Etapa 0 del plan de rediseño. Decisión 2026-10-29: no existe manual de identidad visual |
+| R-0 | Paleta provisional (no hay manual de identidad), `lang="es-VE"`, título, retirar `MarqueeTitle`, SW ajeno en `localhost:3000` | Front | — | 🔄 En proceso | — | Etapa 0 del plan de rediseño. Decisión 2026-10-29: no existe manual de identidad visual. 2026-10-29: MarqueeTitle retirado y layout raíz ajustado; falta verificar SW ajeno |
 | V-1 | Verificaciones en BD: nombre real del rol, pasivos con cuenta y correo, `permisos_version` (R5, R6, R7) | Back | — | ⏳ Pendiente | — | Insumo de A4, B14 y C16. Ya verificado (2026-10-29, solo lectura): `Employee` no tiene campo de correo alternativo ni de hijos (ver 2.10) |
 
 **Fase 1 — Cimientos**
@@ -112,10 +112,10 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | B6 | Valor anterior desde la ficha y detección de conflicto | Back | B3 | ✅ Culminado | — | |
 | B8 | `MiExpedienteView` con `autogestion.ver_propio` | Back | A4 | ✅ Culminado | — | |
 | B9 | Dominio/aplicación/infraestructura frontend y schemas Zod | Front | B4 | 🔄 En proceso | — | Puede empezar con datos simulados |
-| R-1 | Tokens, tipografía y shell institucional | Front | R-0 | ⏳ Pendiente | — | Etapa 1 del plan de rediseño; puede empezar durante la Fase 1 |
-| R-2 | Pantallas del funcionario: ficha, solicitudes, avisos | Front | R-1 | ⏳ Pendiente | — | Una sola entrega con B10 |
+| R-1 | Tokens, tipografía y shell institucional | Front | R-0 | 🔄 En proceso | — | Etapa 1 del plan de rediseño; puede empezar durante la Fase 1. 2026-10-29: shell (`ui/shell/`), tokens, tema y botones/inputs ajustados |
+| R-2 | Pantallas del funcionario: ficha, solicitudes, avisos | Front | R-1 | 🔄 En proceso | — | Una sola entrega con B10. 2026-10-29: rutas ficha y solicitudes creadas; falta notificaciones (A7) |
 | B10 | UI trabajador: mis solicitudes, formularios por sección, soportes | Front | B9, R-2 | 🔄 En proceso | — | |
-| R-6a | `FieldCompare` (componente visual del comparativo) | Front | R-1 | ⏳ Pendiente | — | Parte de la etapa 6 del plan de rediseño |
+| R-6a | `FieldCompare` (componente visual del comparativo) | Front | R-1 | 🔄 En proceso | — | Parte de la etapa 6 del plan de rediseño. 2026-10-29: `field-compare.tsx` y visor comparativo con test |
 | B11 | UI Bienestar: bandeja, habilitar ventana con plazo y prórroga, visor comparativo | Front | B9, R-6a | 🔄 En proceso | — | |
 | B12 | Estados vacíos, carga, errores y accesibilidad | Front | B10, B11 | 🔄 En proceso | — | |
 | B13 | Tabla complementaria propia `datos_complementarios_trabajador` (cédula única, `correo_alternativo`, `tiene_hijos`, `actualizado_en/por`; `managed=True`, Onion completo: entidad, puerto, repo, caso de uso, serializer) y exposición en la ficha y en el formulario de contacto de autogestión; gestión de ambos correos (institucional/login y alternativo) para todo el personal | Back/Front | A4 | ✅ Culminado | — | `Employee` es legada (`managed=False`, sin ALTER) y no tiene campo reutilizable (2.10). La usa también la fe de vida (C12, C19) |
@@ -127,11 +127,11 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
-| A2 | App `notificaciones` (modelos, casos de uso, API) | Back | A4 | 🔄 En proceso | — | |
-| A3 | Correo asíncrono con outbox, reintentos y plantillas | Back | A1, A2 | 🔄 En proceso | — | Remitente `gath@conatel.gob.ve` / `mail.conatel.gob.ve` (ya en `.env`); probar relay (R11) |
-| A7 | Módulo frontend de notificaciones y campana | Front | A2 | 🔄 En proceso | — | |
-| B7 | Notificaciones en cada transición de Autogestión y evento outbox | Back | A2, A3, B3 | 🔄 En proceso | — | Incluye alerta de reemisión de carnet |
-| A-T2 | Tests de notificaciones, outbox y polling | Test | A2, A3, A7 | 🔄 En proceso | — | |
+| A2 | App `notificaciones` (modelos, casos de uso, API) | Back | A4 | ✅ Culminado | — | 2026-10-29: app, migración 0001, API; tests en verde |
+| A3 | Correo asíncrono con outbox, reintentos y plantillas | Back | A1, A2 | 🔄 En proceso | — | Remitente `gath@conatel.gob.ve` / `mail.conatel.gob.ve` (ya en `.env`); probar relay (R11). Outbox, reintentos y reproceso en beat listos y probados; solo falta probar el relay real (R11) |
+| A7 | Módulo frontend de notificaciones y campana | Front | A2 | ⏳ Pendiente | — | 2026-10-29: aún no existe código (sin módulo ni campana) |
+| B7 | Notificaciones en cada transición de Autogestión y evento outbox | Back | A2, A3, B3 | ✅ Culminado | — | Incluye alerta de reemisión de carnet. 2026-10-29: receivers de autogestión y aviso de ventanas por expirar en beat |
+| A-T2 | Tests de notificaciones, outbox y polling | Test | A2, A3, A7 | 🔄 En proceso | — | Backend: ~44 tests en verde (unit + integración); falta la parte de frontend (A7) |
 
 **Fase 4 — Fe de vida de pasivos**
 

@@ -57,6 +57,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/components/dialog";
+import { BotonSolicitarActualizacion } from "./solicitudes/boton-solicitar-actualizacion";
 import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
 
 import {
@@ -114,13 +115,13 @@ export default function MiExpedienteView() {
   if (error || !data || !data.empleado) {
     return (
       <div className="p-6 max-w-4xl mx-auto mt-10">
-        <Card className="border-red-500/30 bg-red-950/20 text-center p-8 rounded-2xl shadow-xl">
+        <Card className="border-danger/40 bg-danger-soft text-center p-8 rounded-2xl shadow-xl">
           <CardHeader>
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/30 flex items-center justify-center mb-3">
-              <ShieldAlert className="w-7 h-7 text-red-400" />
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-danger/10 border border-danger/30 flex items-center justify-center mb-3">
+              <ShieldAlert className="w-7 h-7 text-danger" aria-hidden />
             </div>
-            <CardTitle className="text-xl font-bold text-white">Expediente no disponible</CardTitle>
-            <CardDescription className="text-slate-300 max-w-md mx-auto pt-2">
+            <CardTitle className="text-xl font-bold text-foreground">Expediente no disponible</CardTitle>
+            <CardDescription className="text-muted-foreground max-w-md mx-auto pt-2">
               No fue posible recuperar su expediente de trabajador. Verifique que su cuenta institucional
               esté vinculada a su cédula en el sistema o comuníquese con la Gerencia de Gestión del Talento Humano.
             </CardDescription>
@@ -239,7 +240,7 @@ export default function MiExpedienteView() {
       )}
 
       {/* Cabecera Institucional CONATEL */}
-      <Card className="overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500">
+      <Card className="overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0">
         <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-6 md:p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 h-1.5 w-48 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 rounded-bl-full opacity-80" />
 
@@ -339,6 +340,8 @@ export default function MiExpedienteView() {
         </div>
       </Card>
 
+      <BotonSolicitarActualizacion />
+
       {/* Navegación por Pestañas con ScrollArea de shadcn */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
         <ScrollArea className="w-full whitespace-nowrap pb-2">
@@ -397,6 +400,23 @@ export default function MiExpedienteView() {
                 <InfoRow label="Teléfono Móvil" value={empleado.telefono_movil} emptyText="No posee" />
                 <InfoRow label="Teléfono Habitación" value={empleado.telefono_habitacion} emptyText="No posee" />
                 <InfoRow label="Correo Institucional" value={empleado.correo} emptyText="No posee" />
+                <InfoRow
+                  label="Correo alternativo"
+                  value={data.datos_complementarios?.correo_alternativo}
+                  emptyText="No declarado"
+                />
+                <InfoRow
+                  label="¿Tiene hijos?"
+                  value={
+                    data.datos_complementarios?.tiene_hijos === null ||
+                    data.datos_complementarios?.tiene_hijos === undefined
+                      ? null
+                      : data.datos_complementarios.tiene_hijos
+                        ? "Sí"
+                        : "No"
+                  }
+                  emptyText="No declarado"
+                />
               </CardContent>
             </Card>
 

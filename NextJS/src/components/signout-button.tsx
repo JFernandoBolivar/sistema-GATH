@@ -23,8 +23,10 @@ export function SignOut() {
       variant={"destructive"}
       onClick={handleSignOut}
       disabled={isLoggingOut}
+      aria-label="Cerrar sesión"
+      title="Cerrar sesión"
     >
-      <LogOut />
+      <LogOut aria-hidden />
     </Button>
   );
 }

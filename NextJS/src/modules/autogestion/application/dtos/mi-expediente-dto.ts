@@ -204,4 +204,9 @@ export interface MiExpedienteDTO {
   carnet_activo?: CarnetItem | null;
   carnets?: CarnetItem[];
   motivos_carnet?: MotivoCarnetItem[];
+  /** Correo alternativo y «¿tiene hijos?» (tabla complementaria, B13); nulos si no se han declarado. */
+  datos_complementarios?: {
+    correo_alternativo: string | null;
+    tiene_hijos: boolean | null;
+  } | null;
 }
