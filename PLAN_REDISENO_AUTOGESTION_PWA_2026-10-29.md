@@ -407,8 +407,8 @@ Regla general: el plan funcional manda en negocio, backend, permisos, estados e 
 | Tipo | Estados del backend | Texto sugerido en pantalla |
 |---|---|---|
 | Solicitud de actualización | SOLICITADA, HABILITADA, ENVIADA, APROBADA, APROBADA_PARCIAL, RECHAZADA, EXPIRADA | Solicitada; Habilitada para editar; Enviada; Aprobada; Aprobada en parte; Rechazada; Vencida |
-| Fe de vida | BORRADOR, PENDIENTE_REVISION, APROBADA_POR_ANALISTA, VALIDADA, RECHAZADA, REPETICION_SOLICITADA, EXPIRADA, ARCHIVADA | Borrador; En revisión; En revisión final; Validada; Rechazada; Debe repetir la foto; Vencida; Archivada |
-Cara al pasivo, APROBADA_POR_ANALISTA se muestra como "En revisión final" (no expone la jerarquía interna); REPETICION_SOLICITADA lleva el botón "Repetir toma" y el motivo visible (C14). El pasivo nunca ve la palabra "recomendada".
+| Fe de vida | BORRADOR, PENDIENTE_REVISION, PENDIENTE_SEGUNDO_CHECK, VALIDADA, RECHAZADA, REPETICION_SOLICITADA, EXPIRADA, ARCHIVADA | Borrador; En revisión; En revisión final; Validada; Rechazada; Debe repetir la foto; Vencida; Archivada |
+Cara al pasivo, PENDIENTE_SEGUNDO_CHECK se muestra como "En revisión final" (no expone la jerarquía interna); REPETICION_SOLICITADA lleva el botón "Repetir toma" y el motivo visible (C14). El pasivo nunca ve la palabra "recomendada".
 
 **b) Rutas.** Mantengo `/autogestion/ficha`, `/solicitudes`, `/solicitudes/nueva`, `/notificaciones`, `/carnet`. La fe de vida vive en `/autogestion/fe-de-vida` (menú "Solicitud o renovación de acta de comparecencia / fe de vida", C11) como ruta delgada que monta `src/modules/fe-de-vida/ui/**` (módulo de C10, no dentro de `modules/autogestion`); las piezas visuales genéricas (`StatusBadge`, `PageHeader`, `StepForm`, `FieldCompare`) quedan en `src/shared/ui/` y las importan ambos módulos. Las rutas del revisor (bandeja y visor) las define el plan funcional (B y C15, en Gestión de Trabajadores); mi `FieldCompare` es el componente visual que usan.
 
@@ -420,7 +420,7 @@ Cara al pasivo, APROBADA_POR_ANALISTA se muestra como "En revisión final" (no e
 | Fe de vida (menú del pasivo) | `fe_de_vida.solicitar` y `fe_de_vida.ver_propia` |
 | Notificaciones | `notificaciones.ver_propias` |
 | Mi carnet, Censo | los de carnet/censo existentes (se ocultan al rol PASIVO) |
-| Visor comparativo / bandeja Bienestar | `bienestar.revisar_actualizacion`, `fe_de_vida.revisar`; selfie solo con `fe_de_vida.ver_evidencia`; botón de aprobación final solo con `bienestar.aprobar_final` / `fe_de_vida.aprobar_final` |
+| Visor comparativo / bandeja Bienestar | `bienestar.revisar_actualizacion`, `fe_de_vida.revisar`; selfie solo con `fe_de_vida.ver_evidencia`; botones de check solo con `bienestar.check_analista` / `bienestar.check_administradora` y `fe_de_vida.check_analista` / `fe_de_vida.check_administradora`; "Aprobación directa" solo con `bienestar.aprobar_directo` / `fe_de_vida.aprobar_directo` (justificación obligatoria) |
 | Respuestas de encuesta, Métricas (administración) | permisos propios del módulo; reemplazan la condición `isRacAdmin` de `app-sidebar-autogestion.tsx` |
 Perfil "activo" vs "pasivo" = presencia del rol `PASIVO` o de sus permisos (el plan funcional crea el rol, 2.4); mientras A4 no esté desplegado, el shell lee permisos con un mapa en `shared/lib/evaluador-iam.ts` (A8) y no hardcodea roles.
 
@@ -433,7 +433,7 @@ Perfil "activo" vs "pasivo" = presencia del rol `PASIVO` o de sus permisos (el p
 | 3 Cámara (interfaz) | **C13** (`CapturaCedulaEnVivo`) y C12 | Mi sección 3.3 es la especificación visual/UX de C13; el componente se llama `CapturaCedulaEnVivo` (renombro `CameraCapture`) y se implementa una vez, dentro de la etapa C. Aquí no hay captura propia. |
 | 4 nginx + TLS | **C0** (idéntico) | Esta etapa se elimina como tarea propia: se ejecuta como C0 (M, camino crítico, depende de TI). Solo añado aquí los criterios que PWA exige además (CSP `worker-src`, `media-src blob:`, `Service-Worker-Allowed`, HSTS) para que se incluyan en C0. |
 | 5 PWA | **C0** (precondición) y E4 (cabeceras/CSP) | manifest, SW, `/offline`, instalación; no depende del backend, solo del HTTPS para probar instalación real. |
-| 6 Visor comparativo y admin | **B (`/comparativo/`, decidir)**, **C15** y E5 | `FieldCompare` y estilo de la bandeja; reglas de aprobación (Analista recomienda, Administradora cierra) son de C2/C3. |
+| 6 Visor comparativo y admin | **B (`/comparativo/`, decidir)**, **C15** y E5 | `FieldCompare` y estilo de la bandeja; reglas de aprobación (doble check Analista + Administradora en orden indistinto; excepción de aprobación directa de la Administradora) son de C2/C3. |
 | Accesibilidad con axe | **E4** (pruebas de seguridad) y tests por etapa | Los specs de axe se agregan por etapa en `e2e/specs/accesibilidad.spec.ts`; no esperar a E. |
 
 **e) Orden combinado recomendado.** C0 se pide a TI desde el día 1 (certificado y dominio). En paralelo: A (backend/notificaciones/permisos) y mi Etapa 1 (shell visual). Luego B + mi Etapa 2 como una sola entrega; C + mi Etapa 3 (cámara) como una sola entrega, validando la cámara en HTTPS cuando C0 esté; mi Etapa 5 (PWA) tras C0; D reutiliza el shell por permisos; E incluye el cierre de a11y y CSP. Esto adelanta el valor visible (Etapa 1) sin esperar a A.

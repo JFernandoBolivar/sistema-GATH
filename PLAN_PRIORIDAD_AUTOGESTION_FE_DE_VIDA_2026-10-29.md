@@ -16,7 +16,7 @@ Orden de prioridad declarado:
 1. Culminar Autogestión del activo (ficha integral, ventanas habilitadas por Bienestar Social, soportes obligatorios, visor comparativo campo por campo).
 2. Notificaciones en sistema (campana/bandeja) y correo, para Autogestión y para Gestión de Trabajadores (Bienestar Social).
 3. Acceso de pasivos a Autogestión con menú "Solicitud o renovación de acta de comparecencia / fe de vida" (formulario + foto en vivo con la cédula en mano).
-4. Regla de aprobación: Administradora (Jefa) aprueba sola; Analista no cierra sin la Administradora.
+4. Regla de aprobación: flujo normal con **doble aprobación** (Analista de Bienestar Social y Administradora/Jefa, en orden indistinto, como en la HU); excepción: la Administradora puede aprobar sola por **aprobación directa** (justificada y auditada). La Analista nunca valida sola.
 5. Gestión de usuarios por **roles y permisos**, ya no por roles y departamentos.
 
 **Se pospone** (siguen en Fase 2, solo cambian de orden): postulación digital y onboarding con credenciales temporales, carnet de dos caras y diseñador visual, sincronización GATH→SIGESP (bandeja de eventos de nómina), asignación atómica de cargo por Presupuesto y puntos de cuenta. Excepción: el hook "Actualización de datos aprobada" hacia nómina (E5 del diagrama de SIGESP) queda como evento registrado en outbox pero sin transmisión hasta que se retome SIGESP.
@@ -116,34 +116,40 @@ Reglas: una solicitud abierta por trabajador y sección (restricción única par
 
 ### 2.2 Máquina de estados: Fe de vida, adaptada a la regla del usuario
 
-Estados: `BORRADOR → PENDIENTE_REVISION → (EN_REVISION_ANALISTA) → APROBADA_ANALISTA / ... → VALIDADA`; `RECHAZADA`; `REPETICION_SOLICITADA`; `ARCHIVADA`; `EXPIRADA` (no atendida / vencida, opcional).
+Estados: `BORRADOR → PENDIENTE_REVISION → PENDIENTE_SEGUNDO_CHECK → VALIDADA`; `RECHAZADA`; `REPETICION_SOLICITADA`; `ARCHIVADA`; `EXPIRADA` (no atendida / vencida, opcional).
 
 ```
 BORRADOR ──envío──> PENDIENTE_REVISION
-PENDIENTE_REVISION ──Analista: recomienda aprobar (con justificación)──> APROBADA_POR_ANALISTA (pendiente de la Administradora)
-PENDIENTE_REVISION ──Administradora: aprueba──> VALIDADA        (sin pasar por la analista)
-APROBADA_POR_ANALISTA ──Administradora: aprueba──> VALIDADA
-APROBADA_POR_ANALISTA ──Administradora: devuelve/rechaza/pide repetición──> RECHAZADA | REPETICION_SOLICITADA
-PENDIENTE_REVISION | APROBADA_POR_ANALISTA ──Analista o Administradora: rechaza (motivo)──> RECHAZADA
-PENDIENTE_REVISION | APROBADA_POR_ANALISTA ──Analista o Administradora: solicita repetición (motivo)──> REPETICION_SOLICITADA
-REPETICION_SOLICITADA ──pasivo reenvía nueva toma──> PENDIENTE_REVISION  (nueva versión; la anterior queda en historial)
+# Flujo normal: doble check, orden indistinto (RN-03, RN-22)
+PENDIENTE_REVISION ──primer check (Analista o Administradora, quien llegue primero)──> PENDIENTE_SEGUNDO_CHECK
+PENDIENTE_SEGUNDO_CHECK ──segundo check (el otro rol; el mismo actor no cuenta dos veces)──> VALIDADA
+# Excepción: aprobación directa de la Administradora (justificación obligatoria)
+PENDIENTE_REVISION | PENDIENTE_SEGUNDO_CHECK ──Administradora: aprobación directa (fe_de_vida.aprobar_directo)──> VALIDADA
+# Rechazo / repetición: cualquiera de las dos, con motivo obligatorio
+PENDIENTE_REVISION | PENDIENTE_SEGUNDO_CHECK ──Analista o Administradora: rechaza (motivo)──> RECHAZADA
+PENDIENTE_REVISION | PENDIENTE_SEGUNDO_CHECK ──Analista o Administradora: solicita repetición (motivo)──> REPETICION_SOLICITADA
+REPETICION_SOLICITADA ──pasivo reenvía nueva toma──> PENDIENTE_REVISION  (nueva versión; los checks previos quedan en historial y no se reutilizan)
 VALIDADA ──(genera PDF, notifica y envía correo)──> VALIDADA con constancia emitida; luego ARCHIVADA por política
 ```
 
-Regla de decisión (decisión del usuario, **prevalece** sobre la HU): la transición a `VALIDADA` solo puede ejecutarla quien tenga `fe_de_vida.aprobar_final` (Administradora de Bienestar Social). La Analista, con `fe_de_vida.revisar`, puede dejar la solicitud en `APROBADA_POR_ANALISTA`, rechazar o pedir repetición, pero **nunca** validar de forma definitiva. La Administradora no requiere el paso previo de la analista.
+Regla de decisión (aclarada por el usuario):
+1. **Flujo normal**: se requieren **ambas** aprobaciones, la de la Analista de Bienestar Social (`fe_de_vida.check_analista`) y la de la Administradora (Jefa) de Bienestar Social (`fe_de_vida.check_administradora`), en cualquier orden. El primer check lleva el acta a `PENDIENTE_SEGUNDO_CHECK`; el segundo, a `VALIDADA`, lo que dispara notificación y correo con el PDF.
+2. **Excepción, aprobación directa**: cuando sea necesario, la Administradora puede aprobar sola, sin la revisión de la Analista. Exige permiso `fe_de_vida.aprobar_directo` (solo rol `ADMIN_BIENESTAR`), **justificación obligatoria**, evento de auditoría propio `APROBACION_DIRECTA_ADMINISTRADORA` (con motivo) y que el acta y el historial muestren "Aprobada por vía directa de la Administradora".
+3. La Analista **nunca** valida sola: su check deja el acta en `PENDIENTE_SEGUNDO_CHECK`. Rechazar o solicitar repetición lo puede hacer cualquiera de las dos, siempre con justificación.
 
-**Divergencia con la HU a formalizar con el usuario (decisión pendiente):**
+**Divergencia con la HU (a confirmar en la ADR):** la regla coincide con la HU (doble check, orden indistinto, RN-03, RN-22, `PENDIENTE_CHECK → PENDIENTE_SEGUNDO_CHECK → VALIDADA`, RN-07). La **única divergencia de fondo** es la excepción de aprobación directa de la Administradora; además hay ajustes menores:
 
-| Aspecto | HU (HU-0001/0002/0009) | Regla del usuario |
+| Aspecto | HU (HU-0001/0002/0009) | Plan |
 |---|---|---|
-| Doble check | Obligatorio, ambos, orden indistinto (RN-03, RN-22, estados `PENDIENTE_CHECK → PENDIENTE_SEGUNDO_CHECK → VALIDADA`, RN-07) | Basta la Administradora; la analista nunca cierra sola |
-| Escalamiento | La analista puede escalar al Jefe de División (RN-15) | Equivale a "dejar APROBADA_POR_ANALISTA / pedir decisión a la Administradora" |
-| Tercera salida | No hay "solicitar repetición" (solo APROBADA/RECHAZADA, RN-07) | Se agrega `REPETICION_SOLICITADA` con motivo |
+| Doble check | Obligatorio, ambos, orden indistinto (RN-03, RN-22, RN-07) | Igual: flujo normal con ambos checks en orden indistinto |
+| **Aprobación directa** | No existe | **Divergencia**: la Administradora puede aprobar sola con justificación, permiso propio y auditoría `APROBACION_DIRECTA_ADMINISTRADORA` |
+| Escalamiento | La analista puede escalar al Jefe de División (RN-15) | Se expresa como su check (queda en `PENDIENTE_SEGUNDO_CHECK`) o pedir decisión a la Administradora; la aprobación directa cubre el caso urgente |
+| Tercera salida | No hay "solicitar repetición" (solo APROBADA/RECHAZADA, RN-07) | Se agrega `REPETICION_SOLICITADA` con motivo (ampliación) |
 | Título del aprobador final | "Jefe de División de Bienestar Social" | "Administradora (Jefa) de Bienestar Social" |
 
-Propuesta: documentar en una ADR corta (`DECISIONES_FE_DE_VIDA.md`, a crear en la etapa C) que RN-03/RN-07/RN-22 se reemplazan por esta regla; conservar de la HU lo no divergente (RN-01 comparación manual, RN-02 calidad mínima, RN-15 justificación obligatoria, RN-05 atomicidad, RN-06 idempotencia, RN-10/RN-12 auditoría, RN-11 trazabilidad documental, RN-13 envío automático, RN-19/20 plantillas versionadas y campos del formato físico, RN-21 retención sin plazo fijo, RN-23 verificación interna).
+Propuesta: documentar en una ADR corta (`DECISIONES_FE_DE_VIDA.md`, a crear en la etapa C) que RN-03/RN-22/RN-07 se **mantienen** y se **complementan** con la excepción de aprobación directa (permiso, justificación, auditoría y marca visible en el acta); conservar de la HU lo demás (RN-01 comparación manual, RN-02 calidad mínima, RN-15 justificación obligatoria, RN-05 atomicidad, RN-06 idempotencia, RN-10/RN-12 auditoría, RN-11 trazabilidad documental, RN-13 envío automático, RN-19/20 plantillas versionadas y campos del formato físico, RN-21 retención sin plazo fijo, RN-23 verificación interna).
 
-**¿Aplica también a las solicitudes de autogestión?** Recomendación: **sí, con matiz** para mantener un solo modelo mental de Bienestar Social. Aprobación de campos de **contacto y vivienda**: cualquiera de las dos puede aprobar de forma definitiva (bajo riesgo, alto volumen: ~867 cuentas AUTOGESTION). Aprobación de **formación académica, grupo familiar y foto de carnet** (alto impacto, tocan nómina/seguro HCM, y piden soporte legal): la Analista deja "visto bueno" por campo y la Administradora aplica; la Administradora puede aprobar directamente. Se implementa con un parámetro por sección (`requiere_aprobacion_final: bool`) en el catálogo de secciones, de modo que el usuario pueda ajustarlo sin cambiar código. Pendiente de confirmar (pregunta 4.1.6).
+**¿Aplica también a las solicitudes de autogestión?** Propuesta: **sí, el mismo esquema** para mantener un solo modelo mental de Bienestar Social. Flujo normal: **doble aprobación** por campo/solicitud (Analista y Administradora, orden indistinto; el primer check deja la solicitud en `PENDIENTE_SEGUNDO_CHECK` y el segundo la aprueba y aplica los cambios). Excepción: la Administradora puede aprobar directamente, con justificación obligatoria, permiso `bienestar.aprobar_directo`, evento de auditoría `APROBACION_DIRECTA_ADMINISTRADORA` y marca visible en el historial. La Analista nunca aprueba sola. Rechazar o pedir corrección: cualquiera de las dos, con motivo. Se implementa con un parámetro por sección (`requiere_doble_aprobacion: bool`, por defecto `true`) en el catálogo de secciones; solo si el usuario decide relajarlo en secciones de bajo riesgo (contacto, vivienda; ~867 cuentas AUTOGESTION) se pone en `false`, sin cambiar código. Pendiente de confirmar (pregunta 4.1.6).
 
 ### 2.3 Modelo de datos nuevo (tablas `managed=True`; no se tocan legadas salvo al aplicar cambios aprobados)
 
@@ -154,7 +160,7 @@ Autogestión (en `apps/autogestion/infrastructure/models/`):
 - `SolicitudActualizacionModel`: `id`, `cedula` (CharField, no FK dura a legada, indexado, coherente con el patrón `rol_id` entero de `RolPermisoModel`), `estado`, `secciones_solicitadas` (JSON), `motivo`, `ventana_inicio`, `ventana_fin`, `habilitada_por`, `decidida_por`, `motivo_decision`, `version`, `fecha_envio`, `fecha_decision`.
 - `CambioPropuestoModel`: `solicitud` FK, `seccion` (contacto|vivienda|formacion|familiar|foto), `entidad_destino`, `entidad_id`, `campo`, `valor_anterior` (JSON), `valor_propuesto` (JSON), `decision` (PENDIENTE|APROBADO|RECHAZADO), `motivo_decision`, `decidido_por`, `fecha_decision`.
 - `SoporteDocumentalModel`: `solicitud`/`cambio` FK, `tipo` (TITULO|ACTA_NACIMIENTO|CONSTANCIA|OTRO), `clave_s3`, `mime_real`, `tamano_bytes`, `sha256`, `nombre_original`. Una sección con soporte obligatorio no se puede enviar sin al menos un soporte.
-- `SeccionAutogestionableModel` (catálogo configurable): `codigo`, `nombre`, `requiere_soporte`, `requiere_aprobacion_final`, `activa`. Semilla con la tabla de la propuesta.
+- `SeccionAutogestionableModel` (catálogo configurable): `codigo`, `nombre`, `requiere_soporte`, `requiere_doble_aprobacion`, `activa`. Semilla con la tabla de la propuesta.
 
 Fe de vida (en `apps/fe_de_vida/infrastructure/models/`):
 
@@ -162,7 +168,7 @@ Fe de vida (en `apps/fe_de_vida/infrastructure/models/`):
 - `ActaFeDeVidaModel`: `id`, `numero` correlativo único (`FV-AAAA-NNNNNN`), `cedula`, `tipo_pension`, `tipo_jubilacion`, `datos_beneficiario` (JSON snapshot de la planilla: apellidos y nombres, cédula, fecha de nacimiento, teléfono de habitación, celular, correo, persona de contacto + celular, dirección, área de adscripción, cargo), `tiene_hijos`, `estado`, `idempotency_key` único, `version`, `evidencia_hash`, `origen_dato` (SISTEMA|CONFIRMADO_MANUAL, RN-14), `plantilla_version`, `fecha_solicitud`, `fecha_validacion`, `vence_el` (si se define periodicidad).
 - `HijoActaModel`: `acta` FK, nombres, cédula, teléfonos, correo (tabla de la planilla).
 - `EvidenciaFeDeVidaModel`: `acta` FK, `clave_s3` (objeto privado), `mime`, `sha256`, `ancho`, `alto`, `metadatos_captura` (JSON: user-agent, método `getUserMedia|capture`, resolución, resultados de validación de calidad), `intento` (n).
-- `DecisionActaModel`: `acta` FK, `actor_id`, `actor_cedula`, `rol`, `tipo` (RECOMIENDA_APROBAR|APRUEBA_FINAL|RECHAZA|SOLICITA_REPETICION), `motivo` (obligatorio salvo aprobación final), `fecha`; inmutable.
+- `DecisionActaModel`: `acta` FK, `actor_id`, `actor_cedula`, `rol`, `tipo` (CHECK_ANALISTA|CHECK_ADMINISTRADORA|APROBACION_DIRECTA|RECHAZA|SOLICITA_REPETICION), `motivo` (obligatorio en rechazo, repetición y aprobación directa; opcional en los checks normales), `fecha`; inmutable.
 - `ConstanciaFeDeVidaModel`: `acta` 1:1, `numero`, `codigo_verificacion`, `sha256_pdf`, `clave_s3_pdf`, `plantilla_version`, `fecha_emision`, `enviada_a`, `estado_envio`.
 - `PlantillaActaModel`: versionada (RN-19) con texto oficial de la constancia y campos de la planilla (RN-20). Semilla inicial con el texto observado en `constancia de fe de vida.jpeg`: "Se hace constar que el día [fecha] compareció el/la ciudadano(a) [nombre], titular de la C.I. [cédula], ante la Oficina de Gestión Humana de CONATEL para dejar constancia de su fe de vida", con nombre, cédula y firma del funcionario que certifica. **Texto oficial exacto a confirmar** (pregunta 4.3).
 
@@ -183,8 +189,8 @@ Roles (tabla `USER_rol`, `managed=False`; se insertan filas con migración de da
 | Rol | Acción | Notas |
 |---|---|---|
 | `BIENESTAR_SOCIAL` (id 5, renombrar desde "BIENSTAR SOCIAL") | Corregir nombre | Pasa a ser el rol base de personal de Bienestar (lectura, censo, reportes) |
-| `ANALISTA_BIENESTAR` | Crear | Hereda lo del rol 5 + `bienestar.*` de revisión, `fe_de_vida.revisar` |
-| `ADMIN_BIENESTAR` | Crear | Todo lo anterior + `fe_de_vida.aprobar_final`, `bienestar.aprobar_final`, `bienestar.habilitar_ventana`, parametrización |
+| `ANALISTA_BIENESTAR` | Crear | Hereda lo del rol 5 + `bienestar.*` de revisión, `fe_de_vida.revisar`, `fe_de_vida.check_analista`, `bienestar.check_analista` (nunca aprobación directa) |
+| `ADMIN_BIENESTAR` | Crear | Todo lo anterior + `fe_de_vida.check_administradora`, `fe_de_vida.aprobar_directo`, `bienestar.check_administradora`, `bienestar.aprobar_directo`, `bienestar.habilitar_ventana`, parametrización |
 | `PASIVO` | Crear (recomendado) | Mejor que reutilizar `AUTOGESTION`: permisos distintos (sin carnet, sin censo laboral), invalidación/menú independientes y métricas separables |
 | `AUTOGESTION` | Mantener | Activos; sumar `autogestion.solicitar_actualizacion`, etc. |
 
@@ -201,12 +207,16 @@ Nuevos códigos (se agregan a `PERMISOS_CATALOGO` de `seed_permisos.py`, convenc
 | `bienestar.ver_solicitudes` | ANALISTA_BIENESTAR, ADMIN_BIENESTAR |
 | `bienestar.habilitar_ventana` | ANALISTA_BIENESTAR, ADMIN_BIENESTAR |
 | `bienestar.revisar_actualizacion` | ANALISTA_BIENESTAR, ADMIN_BIENESTAR |
-| `bienestar.aprobar_final` (aplica a secciones con `requiere_aprobacion_final`) | ADMIN_BIENESTAR |
+| `bienestar.check_analista` (check como Analista; aplica a secciones con `requiere_doble_aprobacion`) | ANALISTA_BIENESTAR |
+| `bienestar.check_administradora` (check como Administradora) | ADMIN_BIENESTAR |
+| `bienestar.aprobar_directo` (aprobación directa, justificación obligatoria y auditoría) | ADMIN_BIENESTAR |
 | `bienestar.configurar_secciones` | ADMIN_BIENESTAR, ADMINISTRADOR |
 | `fe_de_vida.solicitar` | PASIVO |
 | `fe_de_vida.ver_propia` | PASIVO |
-| `fe_de_vida.revisar` (ver evidencia, recomendar, rechazar, pedir repetición) | ANALISTA_BIENESTAR, ADMIN_BIENESTAR |
-| `fe_de_vida.aprobar_final` | ADMIN_BIENESTAR |
+| `fe_de_vida.revisar` (ver evidencia, rechazar, pedir repetición; no aprueba por sí solo) | ANALISTA_BIENESTAR, ADMIN_BIENESTAR |
+| `fe_de_vida.check_analista` (check de la Analista; deja el acta en `PENDIENTE_SEGUNDO_CHECK`, o la valida si ya existe el check de la Administradora) | ANALISTA_BIENESTAR |
+| `fe_de_vida.check_administradora` (check de la Administradora, orden indistinto) | ADMIN_BIENESTAR |
+| `fe_de_vida.aprobar_directo` (excepción: la Administradora valida sola; justificación obligatoria, auditoría `APROBACION_DIRECTA_ADMINISTRADORA`) | ADMIN_BIENESTAR |
 | `fe_de_vida.ver_evidencia` (URL prefirmada corta de la selfie) | ANALISTA_BIENESTAR, ADMIN_BIENESTAR, auditor |
 | `fe_de_vida.verificar_constancia` (RN-23, interna) | Bienestar, RRHH |
 | `fe_de_vida.ver_panel` (HU-0010) | ANALISTA_BIENESTAR, ADMIN_BIENESTAR |
@@ -295,7 +305,7 @@ Depende de A.
 **Backend (`apps/autogestion`)**
 - B1. Modelos de 2.3 (`SolicitudActualizacion`, `CambioPropuesto`, `SoporteDocumental`, `SeccionAutogestionable`) + migraciones + semilla de secciones.
 - B2. Dominio: entidades, VO de estado/transiciones, errores; puertos `RepoSolicitudes`, `RepoSoportes`, `AplicadorCambios` (puerto hacia `personal`/`familiares`, sin importar sus modelos).
-- B3. Casos de uso: `solicitar_actualizacion`, `habilitar_ventana`, `guardar_borrador`, `adjuntar_soporte`, `enviar_solicitud` (valida soportes obligatorios y secciones habilitadas), `obtener_comparativo`, `decidir_cambios` (por campo, con la regla de aprobación 2.2), `aplicar_cambios_aprobados` (transacción, lock de fila de `Employee`/familiar, valida unicidad de correo), `expirar_ventanas` (tarea beat), `rechazar_solicitud`.
+- B3. Casos de uso: `solicitar_actualizacion`, `habilitar_ventana`, `guardar_borrador`, `adjuntar_soporte`, `enviar_solicitud` (valida soportes obligatorios y secciones habilitadas), `obtener_comparativo`, `decidir_cambios` (por campo, con la regla de aprobación 2.2: doble aprobación normal o aprobación directa de la Administradora), `aplicar_cambios_aprobados` (transacción, lock de fila de `Employee`/familiar, valida unicidad de correo), `expirar_ventanas` (tarea beat), `rechazar_solicitud`.
 - B4. Vistas/URLs (todas con `HasPermission` y Zero-IDOR por `request.user.cedula_id`):
   - Trabajador: `GET/POST /autogestion/solicitudes/`, `GET /autogestion/solicitudes/{id}/`, `PUT /{id}/borrador/`, `POST /{id}/soportes/`, `POST /{id}/enviar/`.
   - Bienestar: `GET /autogestion/bienestar/solicitudes/`, `POST /{id}/habilitar/`, `GET /{id}/comparativo/`, `POST /{id}/decidir/`, `POST /{id}/rechazar/`.
@@ -323,8 +333,8 @@ Depende de A (notificaciones, outbox, almacenamiento seguro, permisos) y, para l
 
 **Backend (`apps/fe_de_vida`)**
 - C1. Modelos de 2.3 y migraciones; catálogo `TipoPensionJubilacion`; `PlantillaActa` v1 (formato de la planilla física y texto de la constancia).
-- C2. Dominio: entidades, VO de estado y transiciones (2.2), reglas puras (quién puede decidir qué según permisos entregados al caso de uso, no por nombre de rol).
-- C3. Casos de uso: `registrar_comparecencia` (atómico, idempotente: planilla + evidencia + estado, RN-05/06), `validar_calidad_evidencia` (servidor), `decidir_acta` (`RECOMIENDA_APROBAR` | `APRUEBA_FINAL` | `RECHAZA` | `SOLICITA_REPETICION`), `reenviar_tras_repeticion`, `emitir_constancia` (PDF + hash + QR + número, RN-11), `verificar_constancia` (interna, RN-23), `listar_panel`.
+- C2. Dominio: entidades, VO de estado y transiciones (2.2), reglas puras (quién puede decidir qué según permisos entregados al caso de uso, no por nombre de rol). Reglas puras: dos checks de roles distintos llevan a `VALIDADA`; un mismo actor no cuenta dos veces; la aprobación directa exige permiso y motivo.
+- C3. Casos de uso: `registrar_comparecencia` (atómico, idempotente: planilla + evidencia + estado, RN-05/06), `validar_calidad_evidencia` (servidor), `decidir_acta` (`CHECK_ANALISTA` | `CHECK_ADMINISTRADORA` | `APROBACION_DIRECTA` | `RECHAZA` | `SOLICITA_REPETICION`), `reenviar_tras_repeticion`, `emitir_constancia` (PDF + hash + QR + número, RN-11), `verificar_constancia` (interna, RN-23), `listar_panel`.
 - C4. PDF de constancia: nuevo generador en `apps/fe_de_vida/infrastructure/pdf/constancia_pdf.py` reutilizando `core/infrastructure/pdf/{pdf_components,pdf_styles}` y el cintillo de `apps/configuracion`; incluye datos del beneficiario, tipo de pensión/jubilación, fecha, nombre/cédula del funcionario que certifica y espacio de firma, número y QR de verificación; se guarda en S3 y su `sha256` en BD.
 - C5. Vistas/URLs:
   - Pasivo: `GET /fe-de-vida/mi-estado/` (datos precargados desde `Employee`/`EmployeeEgresado`, RN-14), `POST /fe-de-vida/solicitudes/`, `GET /fe-de-vida/solicitudes/{id}/`, `POST /{id}/reenviar/`, `GET /fe-de-vida/solicitudes/{id}/constancia/` (descarga propia).
@@ -332,7 +342,7 @@ Depende de A (notificaciones, outbox, almacenamiento seguro, permisos) y, para l
 - C6. Notificaciones y correo: al enviar (a Bienestar), al pedir repetición/rechazar (al pasivo con el motivo) y al `VALIDADA` (al pasivo, notificación + correo con PDF adjunto desde el worker; auditoría del envío, RN-13 y HU-0006; **no** se envía a Bienestar copia de la selfie).
 - C7. Acceso del pasivo: rol `PASIVO` y hook de transición activo→pasivo; ajuste de `proxy.ts` para que el pasivo vea solo el módulo Autogestión con el menú de fe de vida; verificar que el login admite cuentas con tipo de personal PASIVO (hoy no lo bloquea).
 - C8. Recordatorios programados (HU-0005) con beat: cada N días antes del vencimiento, **solo si** el usuario define la periodicidad (pregunta 4.3.1); si no, queda desactivado.
-- C9. Auditoría de los eventos de la HU (`COMPARECENCIA_INICIADA`, `EVIDENCIA_CAPTURADA`, `EVIDENCIA_RECHAZADA_POR_CALIDAD`, `COMPARECENCIA_ENVIADA_A_REVISION`, `COMPARECENCIA_REINICIADA`, decisiones, acceso a evidencia, emisión y envío de constancia).
+- C9. Auditoría de los eventos de la HU (`COMPARECENCIA_INICIADA`, `EVIDENCIA_CAPTURADA`, `EVIDENCIA_RECHAZADA_POR_CALIDAD`, `COMPARECENCIA_ENVIADA_A_REVISION`, `COMPARECENCIA_REINICIADA`, decisiones (incluye `APROBACION_DIRECTA_ADMINISTRADORA` con motivo), acceso a evidencia, emisión y envío de constancia).
 
 **Frontend**
 - C10. Módulo `src/modules/fe-de-vida/{domain,application,infrastructure,ui}`.
@@ -340,11 +350,11 @@ Depende de A (notificaciones, outbox, almacenamiento seguro, permisos) y, para l
 - C12. Formulario según la planilla física (`solicitud de fe de vida1.jpeg`): tipo de pensión/jubilación, datos del beneficiario (precargados y editables donde corresponda), contacto alterno, dirección, área de adscripción y cargo (solo lectura si vienen del sistema), "¿tiene hijos?" + tabla dinámica de hijos (nombres, cédula, teléfonos, correo), react-hook-form + Zod.
 - C13. **Componente `CapturaCedulaEnVivo`** (2.6): detección de cámara y de contexto seguro, `getUserMedia`, selector de cámara, guía superpuesta, toma, vista previa, repetir, validación básica y fallback `capture="user"`; limpieza de tracks; mensajes de error por caso (`NotAllowedError`, `NotFoundError`, `NotReadableError`, contexto inseguro). Envío con `FormData`.
 - C14. Seguimiento: estado de la solicitud, motivo de rechazo o repetición, botón "Repetir toma", descarga de la constancia PDF; campana de notificaciones.
-- C15. Vista Bienestar en Gestión de Trabajadores: bandeja y panel (HU-0010), detalle con selfie (URL prefirmada en `<img>` sin caché), datos del beneficiario y botones según permiso: Analista (Recomendar aprobación / Rechazar / Solicitar repetición, con motivo) y Administradora (**Aprobar y emitir constancia** / Rechazar / Solicitar repetición); indicador claro de "Pendiente de la Administradora".
+- C15. Vista Bienestar en Gestión de Trabajadores: bandeja y panel (HU-0010), detalle con selfie (URL prefirmada en `<img>` sin caché), datos del beneficiario y botones según permiso: Analista (**Aprobar (check)** / Rechazar / Solicitar repetición, con motivo) y Administradora (**Aprobar (check)** / **Aprobación directa**, con justificación obligatoria / Rechazar / Solicitar repetición); indicadores "Pendiente del segundo check" (indicando de quién falta) y "Aprobada por vía directa de la Administradora" en el acta, el historial y el registro.
 
-**Tests**: unit de transiciones (incluye que la Analista no puede llegar a `VALIDADA`, la Administradora sí directamente), atomicidad (si falla S3 no queda acta huérfana), idempotencia por `idempotency_key`, validación de imagen (MIME falso, tamaño, EXIF), permisos y Zero-IDOR, PDF generado con hash y número únicos, correo con adjunto (backend de correo en memoria), auditoría de eventos; Vitest de schemas y del componente de cámara con `navigator.mediaDevices` simulado (permiso denegado, sin cámara, contexto inseguro); E2E Playwright con cámara falsa (`--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`) sobre `localhost`.
+**Tests**: unit de transiciones (incluye: doble check en ambos órdenes, Analista->Administradora y Administradora->Analista, llega a `VALIDADA`; la Analista sola no valida y queda en `PENDIENTE_SEGUNDO_CHECK`; el mismo actor no cuenta dos veces; la aprobación directa exige permiso `fe_de_vida.aprobar_directo` y justificación, y genera el evento `APROBACION_DIRECTA_ADMINISTRADORA`; la Analista recibe 403 al intentar aprobación directa; rechazo y repetición exigen motivo), atomicidad (si falla S3 no queda acta huérfana), idempotencia por `idempotency_key`, validación de imagen (MIME falso, tamaño, EXIF), permisos y Zero-IDOR, PDF generado con hash y número únicos, correo con adjunto (backend de correo en memoria), auditoría de eventos; Vitest de schemas y del componente de cámara con `navigator.mediaDevices` simulado (permiso denegado, sin cámara, contexto inseguro); E2E Playwright con cámara falsa (`--use-fake-device-for-media-stream --use-fake-ui-for-media-stream`) sobre `localhost`.
 
-**Criterio de salida**: el pasivo inicia sesión, completa el formulario, captura la foto en vivo en teléfono y PC **bajo HTTPS real**, la repite y la envía; Bienestar la ve; Analista recomienda y Administradora valida (y también el camino directo de la Administradora); se genera la constancia PDF con número y QR; el pasivo recibe notificación y correo con PDF; rechazo y repetición con motivo funcionan; toda acción queda en auditoría; no hay imágenes en logs.
+**Criterio de salida**: el pasivo inicia sesión, completa el formulario, captura la foto en vivo en teléfono y PC **bajo HTTPS real**, la repite y la envía; Bienestar la ve; el doble check (Analista y Administradora, en cualquier orden) lleva a `VALIDADA`, la Analista sola no valida, y la aprobación directa de la Administradora funciona con justificación, auditoría y marca visible en el acta; se genera la constancia PDF con número y QR; el pasivo recibe notificación y correo con PDF; rechazo y repetición con motivo funcionan; toda acción queda en auditoría; no hay imágenes en logs.
 
 ### Etapa D — Usuarios por roles y permisos (talla M)
 
@@ -390,7 +400,7 @@ Puede avanzar en paralelo con B/C a partir de A4, pero se **despliega** después
 | R6 | Nombre del rol "BIENSTAR SOCIAL" mal escrito y referenciado por literal en el frontend | Confirmar valor real; renombrar y migrar frontend en el mismo despliegue |
 | R7 | Pasivos sin cuenta/sin correo: la fe de vida no se podría recibir | Consulta SQL de cobertura; plan de alta masiva de cuentas PASIVO (requiere correo o canal alterno) |
 | R8 | Privacidad de la selfie + cédula (dato personal sensible) | Bucket privado, URLs cortas, auditoría de acceso, sin logs de imagen, retención definida por CONATEL |
-| R9 | Divergencia con la HU en el doble check | ADR y aprobación del usuario antes de implementar C2 |
+| R9 | Única divergencia con la HU: la aprobación directa de la Administradora | ADR y confirmación del usuario antes de implementar C2; permiso, justificación y auditoría propios |
 | R10 | Falsificación (foto de foto, tercero): la HU descarta biometría/liveness; el control es la revisión humana | Documentar el alcance; guía y reto visual en pantalla (p. ej. código corto escrito en un papel) como mejora opcional futura |
 | R11 | SMTP institucional sin credenciales por defecto (`EMAIL_HOST_PASSWORD=''`) y posible filtrado de adjuntos | Probar el relay con TI; considerar enlace de descarga autenticado además del adjunto |
 | R12 | Carga de 867 cuentas con polling | Endpoint de conteo ligero con caché Redis corta; intervalo ≥30 s |
@@ -407,7 +417,7 @@ Postulación y onboarding con credenciales temporales; carnet de dos caras; sinc
 3. **Cobertura de correo en pasivos**: ¿cuántos tienen correo y cuenta? Se propone ejecutar un conteo sobre la BD. ¿Qué hacer con los que no tienen correo (entrega presencial, otro canal)?
 4. **Texto oficial exacto de la constancia** y quién firma/certifica (nombre y cargo del funcionario); ¿lleva sello y firma digitalizada? ¿QR de verificación interno es aceptable?
 5. **Identidad de los actores**: ¿cuáles son las cédulas de la Analista y de la Administradora de Bienestar Social en BD? ¿cuántas analistas habrá? ¿existe más de una administradora? ¿puede haber auditor (HU-0003) y quién?
-6. **Regla de aprobación en autogestión**: ¿se aplica la misma regla (propuesta: sí en formación, familiares y foto; contacto y vivienda con una sola aprobación) o la Analista aprueba todo en autogestión?
+6. **Regla de aprobación en autogestión**: ¿se aplica el mismo esquema (doble aprobación normal + aprobación directa de la Administradora) en todas las secciones, o se relaja a una sola aprobación en contacto y vivienda?
 7. **Respaldo de cámara**: ¿se permite en PC adjuntar un archivo del disco si falla `getUserMedia`, o debe ser siempre captura en vivo (recomendado: solo captura)?
 8. **Datos de la planilla**: ¿qué campos son editables por el pasivo y cuáles deben venir del sistema (RN-14)? ¿"huellas" y "firma" de la planilla física se sustituyen por la selfie con cédula en la versión digital? (el plan asume que sí)
 9. **MFA de la HU-0011** (obligatorio para gestores, administradores y auditores): ¿se incluye ahora? Implicaría TOTP u otro segundo factor para Bienestar y administradores; la skill `autenticacion-permisos-allauth` lo contempla, pero cambia el modelo de sesión actual (simplejwt). Recomendación: **fuera de este ciclo**, marcar como Etapa F si el usuario lo exige.
@@ -423,20 +433,20 @@ Postulación y onboarding con credenciales temporales; carnet de dos caras; sinc
 | HU | Título resumido | Etapa | Nota |
 |---|---|---|---|
 | HU-0001 | Comparecencia en línea con selfie sosteniendo la cédula | C (C3, C5, C12, C13) | Cambia a **captura en vivo**; atomicidad, idempotencia, validación de calidad y auditoría incluidas; 5 eventos de auditoría en C9 |
-| HU-0002 | Revisión y doble check en orden indistinto | C (C2, C3, C15) | **Divergencia**: se reemplaza por la regla del usuario (Administradora aprueba sola; Analista no cierra). Requiere ADR |
+| HU-0002 | Revisión y doble check en orden indistinto | C (C2, C3, C15) | **Coincide** con la HU (doble check, orden indistinto). Única divergencia: excepción de **aprobación directa** de la Administradora. Requiere ADR |
 | HU-0003 | Auditor consulta trazabilidad inalterable | E (E1) | Auditoría básica desde A/C; hash de encadenamiento y consulta de solo lectura en E |
 | HU-0004 | Administrador configura roles, permisos, plantillas y reglas | A (A4), D, C1 | Roles y permisos en A/D; plantillas versionadas básicas en C1; interfaz completa en E5 |
 | HU-0005 | Recordatorios y notificaciones automáticas con outbox | A (A2, A3), C8 | Notificaciones en sistema y correo en A; recordatorios de plazos en C8 condicionados a la periodicidad (pregunta 4.3.1) |
-| HU-0006 | Envío automático de la constancia PDF por correo | C (C4, C6) | Al `VALIDADA` (Administradora). No se copia a Bienestar con datos sensibles; se notifica en sistema |
+| HU-0006 | Envío automático de la constancia PDF por correo | C (C4, C6) | Al `VALIDADA` (segundo check o aprobación directa). No se copia a Bienestar con datos sensibles; se notifica en sistema |
 | HU-0007 | Verificación interna de constancias por código/QR | C (C3) y E (E5) | Código, hash y QR en C; pantalla pulida en E |
 | HU-0008 | Sincronizar datos del Sistema de RRHH | Fuera de alcance por ahora | Los datos oficiales ya están en la BD de GATH (`Employee`, `EmployeeEgresado`); se consultan directamente (RN-14). Si hubiera una fuente externa real, se retoma con `integracion-bd-externa` |
-| HU-0009 | Analista revisa y escala al Jefe de División | C (C2, C3, C15) | El "escalamiento" se expresa como `APROBADA_POR_ANALISTA` + decisión de la Administradora |
+| HU-0009 | Analista revisa y escala al Jefe de División | C (C2, C3, C15) | El "escalamiento" se expresa como el check de la Analista (`PENDIENTE_SEGUNDO_CHECK`) + check de la Administradora, o aprobación directa |
 | HU-0010 | Panel de estado de comparecencias | E (E5), esqueleto en C15 | Lista y contadores básicos en C; panel completo en E |
 | HU-0011 | Autenticación con credenciales seguras y MFA | Parcial: D y E2; **MFA fuera de alcance por ahora** | Bloqueo por intentos ya existe (`auth_views.py:100-130`, `repo_bloqueos_cache_db.py`); MFA sujeto a pregunta 4.3.9 |
 | HU-0012 | Integración con el legacy (outbox, circuit breaker, idempotencia) | Fuera de alcance por ahora | Se aprovecha el outbox de A para notificaciones; la sincronización hacia SIGESP queda en la parte pospuesta de la Fase 2 |
 | HU-0013 | Plantillas del acta versionadas (Sobreviviente Especial, Invalidez Ordinaria…) | C1 (v1) y E5 | Una plantilla inicial según la planilla física y la constancia; gestor completo en E |
 | HU-0014 | Retención documental sin plazo fijo | E (E5) | Se documenta la política (RN-21); no hay purga automática; el cumplimiento depende de la respuesta 4.3.11 |
 
-Reglas de negocio de la HU: RN-01, 02, 04, 05, 06, 09–15, 19–23 se conservan; RN-03, RN-07 y RN-22 se **sustituyen** por la regla del usuario; RN-08B y RN-18 (legacy) y RN-16 (MFA) quedan fuera de alcance por ahora.
+Reglas de negocio de la HU: RN-01, 02, 04, 05, 06, 09–15, 19–23 se conservan; RN-03, RN-07 y RN-22 se **conservan** (doble check) y se complementan con la excepción de aprobación directa de la Administradora; RN-08B y RN-18 (legacy) y RN-16 (MFA) quedan fuera de alcance por ahora.
 
 Trazabilidad de las prioridades del usuario: P1 → Etapa B; P2 → Etapa A (infra) y notificaciones por flujo en B y C; P3 → Etapa C (+C0 HTTPS); P4 → sección 2.2, implementada en B3 y C2/C3/C15; P5 → Etapa D (+A4). La PWA y el rediseño visual: `PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md`.

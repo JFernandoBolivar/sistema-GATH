@@ -69,7 +69,7 @@ Dentro del alcance de la Fase 2 se adelanta lo siguiente:
    - Formulario más selfie con la cédula, tomada **con la cámara en vivo** del dispositivo.
    - Revisión por Bienestar Social: aprobar, rechazar o pedir repetición.
    - Al aprobarse, constancia en PDF por correo y notificación.
-4. **Regla de aprobación:** la Administradora de Bienestar Social puede aprobar sola; la Analista no puede cerrar sin la Administradora. Esto difiere de la HU (RN-03/RN-22) y hay que formalizarlo.
+4. **Regla de aprobación:** flujo normal con doble check (Analista y Administradora de Bienestar Social, orden indistinto), como en la HU (RN-03/RN-22); excepción: la Administradora puede aprobar sola por aprobación directa (justificación obligatoria, permiso `fe_de_vida.aprobar_directo` y auditoría propia). La Analista nunca valida sola. La aprobación directa es la única divergencia con la HU y hay que formalizarla.
 5. **Usuarios por roles y permisos**, sin depender de departamentos. Ya avanzó en menús, selector y `proxy.ts`.
 6. **Rediseño institucional de Autogestión y PWA.**
 
