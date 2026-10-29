@@ -71,7 +71,7 @@ Esta sección ordena el plan por **fases según la prioridad del usuario y las d
 | **Fase 0** — Arranque y bloqueantes (continua, desde el día 1) | Iniciar lo que depende de terceros: respuestas del usuario y verificaciones en BD | `R-0`, `V-1` (riesgos R5, R6, R7 de 4.1) | — | S (seguimiento continuo) | ⏳ Pendiente | — | — | Sin camino crítico de infraestructura: el HTTPS de producción (`C0`) es de Infraestructura y no bloquea ninguna fase |
 | **Fase 1** — Cimientos | Permisos y roles nuevos, almacenamiento seguro, Celery real, base de sesión por permisos | `A1`, `A4`, `A5`, `A6`, `A8`, `A-T` | V-1 (nombre real del rol, para A4) | M | ✅ Culminado | 2026-10-29 | 2026-10-29 | Prioridad técnica, no funcional. A2/A3/A7 pasan a la Fase 3 |
 | **Fase 2** — Autogestión del empleado activo (P1) | Solicitud iniciada por el trabajador, ventana habilitada por Bienestar con plazo y prórroga, borrador, soportes obligatorios, visor comparativo campo por campo, aprobación de una sola persona, aplicación de cambios aprobados; datos complementarios (correo alternativo, tiene hijos) y renombre del rol | `B1`–`B6`, `B8`–`B14`, `B-T`, `R-1`, `R-2`, `R-6a` | Fase 1 (A4, A5) | L | 🔄 En proceso | 2026-10-29 | — | Sin notificaciones aún (B7 va en Fase 3). Diseño visual con R-1/R-2. Incluye `B13` (tabla complementaria, la usa también la fe de vida) y `B14` (renombre del rol a BIENESTAR SOCIAL) |
-| **Fase 3** — Notificaciones en sistema y correo (P2) | Campana/bandeja, outbox, correo asíncrono; conexión con las transiciones de Autogestión y Gestión de Trabajadores | `A2`, `A3`, `A7`, `B7`, `A-T2` | Fase 1 (A1, A4), `B3` | M | ⏳ Pendiente | — | — | Remitente `gath@conatel.gob.ve` vía `mail.conatel.gob.ve` (ya en `.env`); falta probar el relay y los adjuntos (R11). Puede solaparse con el final de la Fase 2 |
+| **Fase 3** — Notificaciones en sistema y correo (P2) | Campana/bandeja, outbox, correo asíncrono; conexión con las transiciones de Autogestión y Gestión de Trabajadores | `A2`, `A3`, `A7`, `B7`, `A-T2` | Fase 1 (A1, A4), `B3` | M | 🔄 En proceso | 2026-10-29 | — | Remitente `gath@conatel.gob.ve` vía `mail.conatel.gob.ve` (ya en `.env`); falta probar el relay y los adjuntos (R11). Puede solaparse con el final de la Fase 2 |
 | **Fase 4** — Fe de vida de pasivos (P3) | Procesos/períodos que gestiona Bienestar (apertura, cierre, prórrogas), formulario + selfie con cédula (cámara en vivo o subida de archivo), revisión de Bienestar, doble check + aprobación directa de la Administradora, aplicación de lo aprobado a los datos reales, constancia PDF por correo, acceso del pasivo, reporte de pasivos sin correo | `C1`–`C20`, `C-T`, `R-3` (= C13); `C0` queda como requisito de despliegue de Infraestructura (fuera del camino crítico) | Fases 1, 2 (`B3`, `B13`) y 3; ADR de aprobación directa (R9) | L | ⏳ Pendiente | — | — | Backend, UI y pruebas (incluida la cámara) avanzan en `localhost`; la vía de subida de archivo cubre cualquier equipo sin cámara o sin contexto seguro. Incluye `C20` (alta de pensionados por sobrevivencia como pasivos, antes de los flujos de fe de vida), el alta de cuentas AUTOGESTION faltantes de pasivos y el reporte de pasivos sin correo para RRHH (`C7`, `C16`) |
 | **Fase 5** — Usuarios por roles y permisos (P4) | Retirar el acceso por departamento y `nombre_rol` en frontend; alta de usuarios por rol + permisos; invalidación por `permisos_version`; estructura de roles confirmada | `D1`–`D7` | Fase 1 (A4, A8); idealmente tras Fases 2 y 4 | M | ⏳ Pendiente | — | — | Puede avanzar en paralelo desde A4, pero se despliega después de que los flujos usen los permisos nuevos. `D7` desbloqueada (estructura de roles confirmada 2026-10-29) |
 | **Fase 6** — Rediseño institucional y PWA (P5) | Cierre del sistema visual en el resto de pantallas, PWA instalable y offline | `R-5`, `R-6b`, `R-A` | Fases 2 y 4 (la PWA se prueba en `localhost`; el HTTPS de producción es de Infraestructura, ver `C0`) | M | ⏳ Pendiente | — | — | R-1 a R-3 ya se entregan dentro de las Fases 2 y 4; no se repiten |
@@ -111,13 +111,13 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | B5 | Serializers con lista blanca por sección | Back | B3 | ✅ Culminado | — | |
 | B6 | Valor anterior desde la ficha y detección de conflicto | Back | B3 | ✅ Culminado | — | |
 | B8 | `MiExpedienteView` con `autogestion.ver_propio` | Back | A4 | ✅ Culminado | — | |
-| B9 | Dominio/aplicación/infraestructura frontend y schemas Zod | Front | B4 | ⏳ Pendiente | — | Puede empezar con datos simulados |
+| B9 | Dominio/aplicación/infraestructura frontend y schemas Zod | Front | B4 | 🔄 En proceso | — | Puede empezar con datos simulados |
 | R-1 | Tokens, tipografía y shell institucional | Front | R-0 | ⏳ Pendiente | — | Etapa 1 del plan de rediseño; puede empezar durante la Fase 1 |
 | R-2 | Pantallas del funcionario: ficha, solicitudes, avisos | Front | R-1 | ⏳ Pendiente | — | Una sola entrega con B10 |
-| B10 | UI trabajador: mis solicitudes, formularios por sección, soportes | Front | B9, R-2 | ⏳ Pendiente | — | |
+| B10 | UI trabajador: mis solicitudes, formularios por sección, soportes | Front | B9, R-2 | 🔄 En proceso | — | |
 | R-6a | `FieldCompare` (componente visual del comparativo) | Front | R-1 | ⏳ Pendiente | — | Parte de la etapa 6 del plan de rediseño |
-| B11 | UI Bienestar: bandeja, habilitar ventana con plazo y prórroga, visor comparativo | Front | B9, R-6a | ⏳ Pendiente | — | |
-| B12 | Estados vacíos, carga, errores y accesibilidad | Front | B10, B11 | ⏳ Pendiente | — | |
+| B11 | UI Bienestar: bandeja, habilitar ventana con plazo y prórroga, visor comparativo | Front | B9, R-6a | 🔄 En proceso | — | |
+| B12 | Estados vacíos, carga, errores y accesibilidad | Front | B10, B11 | 🔄 En proceso | — | |
 | B13 | Tabla complementaria propia `datos_complementarios_trabajador` (cédula única, `correo_alternativo`, `tiene_hijos`, `actualizado_en/por`; `managed=True`, Onion completo: entidad, puerto, repo, caso de uso, serializer) y exposición en la ficha y en el formulario de contacto de autogestión; gestión de ambos correos (institucional/login y alternativo) para todo el personal | Back/Front | A4 | ✅ Culminado | — | `Employee` es legada (`managed=False`, sin ALTER) y no tiene campo reutilizable (2.10). La usa también la fe de vida (C12, C19) |
 | B14 | Renombrar el rol "BIENSTAR SOCIAL" a "BIENESTAR SOCIAL": script con respaldo previo de `USER_rol`, UPDATE idempotente y cambio de los literales del frontend en el mismo despliegue | Back/Front | V-1 | ✅ Culminado | — | Reemplaza el renombre que estaba en D5. Los usuarios de Bienestar los asigna el usuario a mano (sin tarea automática) |
 | B15 | Componente compartido `CapturaFoto` (detecta cámara: tomar foto en PC/teléfono o subir archivo; sin cámara o sin permiso nunca bloquea) integrado en autogestión, registro y edición de personal y carnetización; lo reutiliza la fe de vida (C13) | Front/Test | — | 🔄 En proceso | — | Requisito del usuario 2026-10-29 |
@@ -127,11 +127,11 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
-| A2 | App `notificaciones` (modelos, casos de uso, API) | Back | A4 | ⏳ Pendiente | — | |
-| A3 | Correo asíncrono con outbox, reintentos y plantillas | Back | A1, A2 | ⏳ Pendiente | — | Remitente `gath@conatel.gob.ve` / `mail.conatel.gob.ve` (ya en `.env`); probar relay (R11) |
-| A7 | Módulo frontend de notificaciones y campana | Front | A2 | ⏳ Pendiente | — | |
-| B7 | Notificaciones en cada transición de Autogestión y evento outbox | Back | A2, A3, B3 | ⏳ Pendiente | — | Incluye alerta de reemisión de carnet |
-| A-T2 | Tests de notificaciones, outbox y polling | Test | A2, A3, A7 | ⏳ Pendiente | — | |
+| A2 | App `notificaciones` (modelos, casos de uso, API) | Back | A4 | 🔄 En proceso | — | |
+| A3 | Correo asíncrono con outbox, reintentos y plantillas | Back | A1, A2 | 🔄 En proceso | — | Remitente `gath@conatel.gob.ve` / `mail.conatel.gob.ve` (ya en `.env`); probar relay (R11) |
+| A7 | Módulo frontend de notificaciones y campana | Front | A2 | 🔄 En proceso | — | |
+| B7 | Notificaciones en cada transición de Autogestión y evento outbox | Back | A2, A3, B3 | 🔄 En proceso | — | Incluye alerta de reemisión de carnet |
+| A-T2 | Tests de notificaciones, outbox y polling | Test | A2, A3, A7 | 🔄 En proceso | — | |
 
 **Fase 4 — Fe de vida de pasivos**
 
