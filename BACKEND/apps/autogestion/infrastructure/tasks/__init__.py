@@ -1,1 +1,1 @@
-from . import expirar_ventanas_tasks  # noqa: F401  (registra la tarea en el worker y el beat)
+from . import avisar_ventanas_tasks, expirar_ventanas_tasks  # noqa: F401  (registra las tareas en el worker y el beat)

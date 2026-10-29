@@ -89,6 +89,17 @@ class SeaweedFSStorage:
                 "No fue posible descargar el archivo del almacenamiento."
             ) from exc
 
+    def eliminar(self, clave: str) -> None:
+        """Borra un objeto. Idempotente: S3 responde 204 aunque la clave ya no exista."""
+        client = self._get_client()
+        try:
+            client.delete_object(Bucket=self.bucket_name, Key=clave)
+        except Exception as exc:
+            logger.error("Error al eliminar objeto %s de SeaweedFS: %s", clave, exc)
+            raise AlmacenamientoNoDisponible(
+                "No fue posible eliminar el archivo del almacenamiento."
+            ) from exc
+
     def descargar_flujo(self, clave: str, tamano_bloque: int = 64 * 1024):
         """Abre el objeto y devuelve un iterador de bloques (para streaming HTTP).
 

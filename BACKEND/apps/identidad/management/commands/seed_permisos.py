@@ -224,6 +224,7 @@ ROL_ASIGNACIONES = {
 
     # 3: AUTOGESTION -> Servicios y censo del propio empleado
     3: [
+        "catalogos.ver",  # tablas de referencia (estados, parentescos...) que usan los formularios; NUNCA personal.ver
         "autogestion.ver_propio",
         "autogestion.actualizar_propio",
         "autogestion.censo_ver_propio",

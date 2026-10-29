@@ -983,3 +983,89 @@ forbidden_modules =
     boto3
     PIL
     requests
+
+[importlinter:contract:apps-notificaciones-domain-puro]
+name = apps.notificaciones.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.notificaciones.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-notificaciones-application-puro]
+name = apps.notificaciones.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.notificaciones.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-notificaciones-capas]
+name = capas del modulo notificaciones apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.notificaciones.presentation
+    apps.notificaciones.infrastructure
+    apps.notificaciones.application
+    apps.notificaciones.domain
+
+[importlinter:contract:apps-notificaciones-no-cruzado]
+name = apps.notificaciones.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.notificaciones.domain
+    apps.notificaciones.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.reportes
+    apps.autogestion
+
+[importlinter:contract:apps-notificaciones-presentacion-no-cruzado]
+name = apps.notificaciones.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.notificaciones.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.reportes
+    apps.autogestion
+allow_indirect_imports = True
+
+[importlinter:contract:notificaciones-independiente]
+name = apps.notificaciones no importa de las apps legadas ni de autogestion (B16)
+type = forbidden
+source_modules =
+    apps.notificaciones
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+    apps.autogestion
+allow_indirect_imports = True

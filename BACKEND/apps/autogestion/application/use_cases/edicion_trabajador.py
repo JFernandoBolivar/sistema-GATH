@@ -125,6 +125,7 @@ def adjuntar_soporte(
     if es_foto:
         for previo in existentes:  # una sola foto vigente: reemplaza la anterior
             repo_soportes.eliminar(previo.id)
+            almacen.eliminar(previo.clave_s3)
         repo_cambios.eliminar_de_seccion(ORIGEN_ACTUALIZACION, solicitud.id, seccion)
     elif len(existentes) >= MAX_SOPORTES_POR_SECCION:
         raise ValidationError(f"Máximo {MAX_SOPORTES_POR_SECCION} soportes por sección.")
@@ -147,9 +148,10 @@ def adjuntar_soporte(
 
 
 def eliminar_soporte(
-    repo: RepoSolicitudes, repo_soportes: RepoSoportes, repo_cambios: RepoCambiosPropuestos,
+    repo: RepoSolicitudes, repo_soportes: RepoSoportes, repo_cambios: RepoCambiosPropuestos, almacen: FileStorage,
     *, solicitud_id: str, soporte_id: str, cedula: str, ahora: datetime,
 ) -> None:
+    """Quita el soporte del borrador y borra su objeto del almacén (sin dejar huérfanos)."""
     solicitud = obtener_solicitud_propia(repo, solicitud_id, cedula, bloquear=True)
     solicitud.exigir_ventana_vigente(ahora)
     soporte = repo_soportes.obtener(soporte_id)
@@ -158,6 +160,7 @@ def eliminar_soporte(
     repo_soportes.eliminar(soporte_id)
     if soporte.seccion == Seccion.FOTO.value:
         repo_cambios.eliminar_de_seccion(ORIGEN_ACTUALIZACION, solicitud.id, soporte.seccion)
+    almacen.eliminar(soporte.clave_s3)  # al final: si el almacén falla (503) se revierte toda la operación
 
 
 def enviar_solicitud(

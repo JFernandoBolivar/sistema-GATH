@@ -185,7 +185,7 @@ class SoporteBorrarView(APIView):
         cedula = cedula_de_sesion(request)
         with transaction.atomic():
             eliminar_soporte(
-                RepoSolicitudesORM(), RepoSoportesORM(), RepoCambiosPropuestosORM(),
+                RepoSolicitudesORM(), RepoSoportesORM(), RepoCambiosPropuestosORM(), SeaweedFSStorage(),
                 solicitud_id=str(solicitud_id), soporte_id=str(soporte_id), cedula=cedula, ahora=ahora(),
             )
             auditar(request, 'SOPORTE_ELIMINADO', str(solicitud_id), None, {'soporte_id': str(soporte_id)})

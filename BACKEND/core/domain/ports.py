@@ -12,6 +12,8 @@ diferido a la Fase B5).
 """
 from typing import Any, Iterator, Protocol, TypeVar
 
+from core.domain.notificaciones import SolicitudNotificacion
+
 T = TypeVar('T')
 ID = TypeVar('ID')
 
@@ -46,6 +48,22 @@ class FileStorage(Protocol):
     def descargar_flujo(self, clave: str, tamano_bloque: int = 65536) -> Iterator[bytes]: ...
 
     def url_firmada(self, clave: str, expira_segundos: int = 300) -> str: ...
+
+    def eliminar(self, clave: str) -> None:
+        """Borra el objeto (idempotente: una clave inexistente no es error)."""
+        ...
+
+
+class Notificador(Protocol):
+    """
+    Puerto transversal de notificaciones (campana + correo). Lo implementa `apps.notificaciones`
+    y lo registra en `core.infrastructure.providers`; los módulos de negocio solo piden notificar
+    con una `SolicitudNotificacion` y nunca importan la app de notificaciones (B16).
+    """
+
+    def notificar(self, solicitud: 'SolicitudNotificacion') -> int:
+        """Crea las notificaciones (y el correo, si se pidió) en la transacción vigente. Devuelve cuántas creó."""
+        ...
 
 
 class TaskQueue(Protocol):

@@ -77,6 +77,12 @@ class RepoSolicitudesORM:
         )
         return [solicitud_a_entidad(m) for m in qs]
 
+    def listar_habilitadas_por_vencer(self, ahora: datetime, hasta: datetime) -> list[SolicitudActualizacion]:
+        qs = SolicitudActualizacionModel.objects.filter(
+            estado=EstadoSolicitud.HABILITADA.value, ventana_fin__gte=ahora, ventana_fin__lte=hasta,
+        )
+        return [solicitud_a_entidad(m) for m in qs]
+
     def agregar_prorroga(self, prorroga: ProrrogaVentana) -> ProrrogaVentana:
         m = ProrrogaVentanaModel.objects.create(
             solicitud_id=prorroga.solicitud_id, fecha_fin_anterior=prorroga.fecha_fin_anterior,

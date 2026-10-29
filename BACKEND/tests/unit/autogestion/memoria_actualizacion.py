@@ -54,6 +54,9 @@ class RepoSolicitudesMem:
     def listar_habilitadas_vencidas(self, ahora):
         return [s for s in self.filas.values() if s.estado is EstadoSolicitud.HABILITADA and s.ventana_fin < ahora]
 
+    def listar_habilitadas_por_vencer(self, ahora, hasta):
+        return [s for s in self.filas.values() if s.estado is EstadoSolicitud.HABILITADA and ahora <= s.ventana_fin <= hasta]
+
     def agregar_prorroga(self, prorroga):
         self.prorrogas.append(prorroga)
         return prorroga
@@ -170,6 +173,9 @@ class AlmacenMem:
     def subir(self, clave, contenido, mime_type):
         self.objetos[clave] = contenido
         return clave
+
+    def eliminar(self, clave):
+        self.objetos.pop(clave, None)
 
 
 class PublicadorMem:

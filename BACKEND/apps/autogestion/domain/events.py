@@ -1,10 +1,11 @@
 """
 Eventos de dominio de la autogestión: PUNTOS DE EXTENSIÓN para las notificaciones (B7, Fase 3).
 
-Los casos de uso publican estos eventos por el puerto `PublicadorEventos`; hoy el adaptador de
-infraestructura solo emite una señal Django tras el commit. En la Fase 3 un receiver creará la
-notificación en campana y el correo (outbox) sin tocar los casos de uso. Dos eventos llevan una
-acción posterior ya prevista:
+Los casos de uso publican estos eventos por el puerto `PublicadorEventos`; el adaptador de
+infraestructura emite una señal DENTRO de la transacción (de ahí la notificación y el outbox de correo
+quedan atómicos con el hecho de negocio, B7) y otra tras el commit. El receiver traduce cada evento a
+notificaciones por el puerto `Notificador` del kernel (domain/services/notificaciones_eventos.py).
+Dos eventos llevan una acción posterior ya prevista:
 
 - `ACTUALIZACION_APROBADA`: encolar el evento hacia SIGESP (outbox, sin transmitir aún).
 - `FOTO_APROBADA`: alertar a Carnetización de la necesidad de reemitir el carnet.
@@ -23,6 +24,7 @@ class TipoEvento(str, Enum):
     ACTUALIZACION_APROBADA = 'autogestion.actualizacion_aprobada'  # total o parcial -> trabajador + outbox SIGESP
     FOTO_APROBADA = 'autogestion.foto_aprobada'                  # -> alerta de reemisión a Carnetización
     VENTANA_EXPIRADA = 'autogestion.ventana_expirada'            # -> avisar al trabajador
+    VENTANA_POR_EXPIRAR = 'autogestion.ventana_por_expirar'      # -> recordatorio al trabajador (beat, N horas antes)
 
 
 @dataclass(frozen=True)

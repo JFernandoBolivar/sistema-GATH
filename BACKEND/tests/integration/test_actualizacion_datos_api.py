@@ -55,6 +55,9 @@ class AlmacenFalso:
         self.objetos[clave] = contenido
         return clave
 
+    def eliminar(self, clave):
+        self.objetos.pop(clave, None)
+
     def descargar_flujo(self, clave, tamano_bloque=65536):
         yield self.objetos[clave]
 

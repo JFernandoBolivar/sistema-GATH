@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'apps.pasivos',
     'apps.carnetizacion',
     'apps.autogestion',
+    'apps.notificaciones',
     'apps.reportes',
     'apps.movimientos',
     'apps.configuracion',
@@ -201,6 +202,13 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+# Un relay que no responde no debe colgar al worker: falla a los 20 s y el outbox reintenta.
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=20, cast=int)
+# Outbox de correo (A3): intentos antes de marcar FALLIDO y base del backoff exponencial (60, 120, 240, 480 s...).
+NOTIFICACIONES_CORREO_MAX_INTENTOS = config('NOTIFICACIONES_CORREO_MAX_INTENTOS', default=5, cast=int)
+NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS = config('NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS', default=60, cast=int)
+# Autogestión (B7): horas de antelación del aviso «su ventana está por expirar».
+AUTOGESTION_AVISO_EXPIRACION_HORAS = config('AUTOGESTION_AVISO_EXPIRACION_HORAS', default=24, cast=int)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
 # Dominio que se completa cuando el usuario inicia sesión con su correo sin dominio (usuario -> usuario@dominio).
@@ -238,6 +246,16 @@ CELERY_BEAT_SCHEDULE = {
     'autogestion-expirar-ventanas': {
         'task': 'autogestion.expirar_ventanas',
         'schedule': 900.0,  # cada 15 minutos
+    },
+    # Autogestión (B7): avisa al trabajador cuando su ventana expira en menos de N horas (idempotente).
+    'autogestion-avisar-ventanas-por-expirar': {
+        'task': 'autogestion.avisar_ventanas_por_expirar',
+        'schedule': 1800.0,  # cada 30 minutos
+    },
+    # Notificaciones (A3): reprograma los correos PENDIENTES que nadie envió (broker o worker caídos).
+    'notificaciones-reprocesar-outbox': {
+        'task': 'notificaciones.reprocesar_outbox',
+        'schedule': 300.0,  # cada 5 minutos
     },
 }
 

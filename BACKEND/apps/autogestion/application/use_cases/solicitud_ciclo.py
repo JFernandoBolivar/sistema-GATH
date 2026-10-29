@@ -2,7 +2,7 @@
 Ciclo de vida de la solicitud de actualización (PLAN_PRIORIDAD §2.1, B3):
 solicitar -> habilitar ventana -> prorrogar -> expirar. Casos de uso puros: reciben puertos.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from apps.autogestion.domain.entities.solicitud_actualizacion import ProrrogaVentana, SolicitudActualizacion
 from apps.autogestion.domain.events import EventoAutogestion, PublicadorEventos, TipoEvento
@@ -108,6 +108,22 @@ def expirar_ventanas(repo: RepoSolicitudes, publicador: PublicadorEventos, ahora
         ))
         expiradas += 1
     return expiradas
+
+
+def avisar_ventanas_por_expirar(repo: RepoSolicitudes, publicador: PublicadorEventos, ahora: datetime, horas: int = 24) -> int:
+    """
+    Tarea periódica: recordatorio a quien tiene una ventana que vence en menos de `horas`. No cambia
+    estado; es idempotente porque el receptor deduplica por (solicitud, fecha fin): una prórroga
+    cambia la fecha y vuelve a armar el aviso.
+    """
+    avisadas = 0
+    for solicitud in repo.listar_habilitadas_por_vencer(ahora, ahora + timedelta(hours=horas)):
+        publicador.publicar(EventoAutogestion(
+            TipoEvento.VENTANA_POR_EXPIRAR, solicitud.id, solicitud.cedula, '',
+            {'ventana_fin': solicitud.ventana_fin.isoformat()},
+        ))
+        avisadas += 1
+    return avisadas
 
 
 def exigir_version(solicitud: SolicitudActualizacion, version: int | None) -> None:
