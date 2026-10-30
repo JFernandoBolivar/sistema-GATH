@@ -17,7 +17,8 @@ class TipoEvento(str, Enum):
     VALIDADA = 'fe_de_vida.validada'                          # -> constancia + correo (C4/C6)
     APROBACION_DIRECTA = 'fe_de_vida.aprobacion_directa'      # auditoría APROBACION_DIRECTA_ADMINISTRADORA
     RECHAZADA = 'fe_de_vida.rechazada'
-    REPETICION_SOLICITADA = 'fe_de_vida.repeticion_solicitada'
+    DEVUELTA = 'fe_de_vida.devuelta'                          # -> avisar al pasivo (corregir y reenviar)
+    RECORDATORIO_CIERRE = 'fe_de_vida.recordatorio_cierre'    # -> avisar al pasivo sin solicitud enviada (C8)
     EXPIRADA = 'fe_de_vida.expirada'
     EVIDENCIA_CONSULTADA = 'fe_de_vida.evidencia_consultada'  # auditoría de acceso a la foto (RN-12)
 

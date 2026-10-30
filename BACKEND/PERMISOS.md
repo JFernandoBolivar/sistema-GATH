@@ -174,7 +174,7 @@ Catálogo maestro de 91 permisos oficiales registrados en `PERMISOS_CATALOGO`.
 |---|---|
 | `fe_de_vida.solicitar` | Enviar su solicitud de fe de vida (pasivo) |
 | `fe_de_vida.ver_propia` | Consultar el estado y la constancia de su fe de vida |
-| `fe_de_vida.revisar` | Revisar evidencia, rechazar o pedir repetición de una fe de vida |
+| `fe_de_vida.revisar` | Revisar evidencia, rechazar (definitivo) o devolver para corrección una fe de vida |
 | `fe_de_vida.check_analista` | Dar el check de la Analista en una fe de vida |
 | `fe_de_vida.check_administradora` | Dar el check de la Administradora en una fe de vida |
 | `fe_de_vida.aprobar_directo` | Validar una fe de vida por aprobación directa de la Administradora |
@@ -182,6 +182,9 @@ Catálogo maestro de 91 permisos oficiales registrados en `PERMISOS_CATALOGO`.
 | `fe_de_vida.verificar_constancia` | Verificar internamente una constancia de fe de vida |
 | `fe_de_vida.ver_panel` | Consultar el panel de fe de vida de Bienestar |
 | `fe_de_vida.configurar_plantilla` | Editar la plantilla de la constancia de fe de vida |
+| `fe_de_vida.gestionar_procesos` | Crear, editar (en borrador), abrir y cerrar procesos de fe de vida y fijar su alcance por tipo de pensión (solo ADMIN_BIENESTAR) |
+| `fe_de_vida.prorrogar` | Conceder prórrogas individuales o generales (solo ADMIN_BIENESTAR) |
+| `fe_de_vida.ver_cobertura` | Consultar el reporte de pasivos sin correo o sin cuenta |
 
 ### 1.17 Notificaciones (`notificaciones`)
 | Código de Permiso | Descripción Oficial |
@@ -203,7 +206,7 @@ Catálogo maestro de 91 permisos oficiales registrados en `PERMISOS_CATALOGO`.
 | **PRESUPUESTO** | 4 | **12** | Planificación presupuestaria: consulta de personal (activos y pasivos), estructura organizativa, asignación de cargos, reportes y estadísticas. |
 | **BIENESTAR SOCIAL** | 5 | **19** | Atención social: salud médica (PII protegido), familiares, censos y reportes. Verificación de constancias de fe de vida. |
 | **RECEPCIONISTA** | 9 | **6** | Consulta básica en taquilla: visualización y ficha detallada de personal y familiares sin capacidad de exportación PDF ni edición. |
-| **ANALISTA_BIENESTAR** | *(Dinámico)* | **28** | Analista operativa de Bienestar: rol BIENESTAR SOCIAL + revisión de actualizaciones (aprobar/observar), gestión de ventanas y fe de vida con `fe_de_vida.check_analista`. Nunca aprueba directo la fe de vida. |
+| **ANALISTA_BIENESTAR** | *(Dinámico)* | **28** | Analista operativa de Bienestar: rol BIENESTAR SOCIAL + revisión de actualizaciones (aprobar/observar), gestión de ventanas y fe de vida con `fe_de_vida.check_analista`. Nunca aprueba directo la fe de vida y NO gestiona procesos ni prórrogas (decisión H; el seed retira esas asignaciones de forma idempotente). |
 | **ADMIN_BIENESTAR** | *(Dinámico)* | **31** | Administradora de Bienestar: rol BIENESTAR SOCIAL + aprobación de actualizaciones, parametrización de secciones, fe de vida con `fe_de_vida.check_administradora`, aprobación directa y plantilla de constancia. |
 
 ---
@@ -339,6 +342,9 @@ Abreviaturas de columnas:
 | **`fe_de_vida.verificar_constancia`** | ✅ | ✅ | | | ✅ | | ✅ | ✅ |
 | **`fe_de_vida.ver_panel`** | ✅ | | | | | | ✅ | ✅ |
 | **`fe_de_vida.configurar_plantilla`** | ✅ | | | | | | | ✅ |
+| **`fe_de_vida.gestionar_procesos`** | ✅ | | | | | | | ✅ |
+| **`fe_de_vida.prorrogar`** | ✅ | | | | | | | ✅ |
+| **`fe_de_vida.ver_cobertura`** | ✅ | | | | | | ✅ | ✅ |
 | **`notificaciones.ver_propias`** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **`notificaciones.administrar`** | ✅ | | | | | | | |
 | **TOTAL PERMISOS** | **91** | **53** | **10** | **12** | **19** | **6** | **28** | **31** |

@@ -55,6 +55,14 @@ def respuesta_pagina(total: int, datos_consulta, resultados: list) -> dict:
     return pagina(total, limite, desplazamiento, resultados)
 
 
+def nombres_de_tipos(*procesos) -> dict[int, str]:
+    """Nombre de cada tipo de pensión citado por los procesos (una sola consulta)."""
+    from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
+
+    ids = sorted({t for p in procesos for t in p.tipos_nomina})
+    return LectorAlcanceORM().nombres_tipos(ids) if ids else {}
+
+
 def rol_de_revision(request, *, exigir_check: bool = False) -> RolRevision:
     """
     Rol con que actúa el revisor, derivado de su PERMISO (no de un nombre de rol). Un revisor sin ningún

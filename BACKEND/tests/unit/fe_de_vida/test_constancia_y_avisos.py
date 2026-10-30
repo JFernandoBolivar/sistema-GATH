@@ -135,7 +135,7 @@ def test_primer_check_avisa_al_otro_rol(m):
 
 
 def test_repeticion_y_rechazo_llevan_motivo_y_correo(m):
-    for tipo in (TipoEvento.REPETICION_SOLICITADA, TipoEvento.RECHAZADA):
+    for tipo in (TipoEvento.DEVUELTA, TipoEvento.RECHAZADA):
         [aviso] = solicitudes_de_evento(_evento(m, tipo, motivo='foto borrosa', envio=1))
         assert 'foto borrosa' in aviso.mensaje and aviso.correo and aviso.cedula_destino == PASIVO
     assert solicitudes_de_evento(_evento(m, TipoEvento.EVIDENCIA_CONSULTADA)) == []

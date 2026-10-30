@@ -14,6 +14,7 @@ from apps.fe_de_vida.domain.events import PublicadorEventos, PublicadorNulo, Tip
 from apps.fe_de_vida.domain.ports.repos import (
     RepoCambiosActa,
     RepoProcesos,
+    LectorAlcance,
     RepoSolicitudesFeDeVida,
     ValidadorCambiosActa,
     VerificadorPasivo,
@@ -33,14 +34,16 @@ def _exigir_ventana(repo_proc: RepoProcesos, proceso_id: str, cedula: str, ahora
 
 def iniciar_solicitud(
     repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, verificador: VerificadorPasivo,
-    *, proceso_id: str, cedula: str, ahora: datetime,
+    alcance: LectorAlcance, *, proceso_id: str, cedula: str, ahora: datetime,
 ) -> SolicitudFeDeVida:
-    """Crea (o devuelve) la única solicitud del pasivo en el proceso. Solo pasivos y solo con plazo vigente."""
+    """Crea (o devuelve) la única solicitud del pasivo en el proceso. Solo pasivos dentro del alcance y con plazo vigente."""
     if not verificador.es_pasivo(cedula):
         raise PermissionDeniedError("La fe de vida es solo para personal pasivo.")
     existente = repo_sol.obtener_de(proceso_id, cedula)
     if existente is not None:
         return existente
+    if not obtener_proceso(repo_proc, proceso_id).aplica_a(alcance.tipo_nomina_de(cedula)):
+        raise PermissionDeniedError("Este proceso de fe de vida no aplica a su tipo de pensión.")
     _exigir_ventana(repo_proc, proceso_id, cedula, ahora)
     return repo_sol.crear(SolicitudFeDeVida(id='', proceso_id=proceso_id, cedula=cedula))
 
@@ -103,7 +106,7 @@ def enviar_solicitud(
     repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, cedula: str, ahora: datetime,
 ) -> SolicitudFeDeVida:
-    """BORRADOR o REPETICION_SOLICITADA -> PENDIENTE_REVISION; exige foto y proceso abierto o prórroga vigente."""
+    """BORRADOR o DEVUELTA -> PENDIENTE_REVISION; exige foto y proceso abierto o prórroga vigente."""
     solicitud = obtener_solicitud_propia(repo_sol, solicitud_id, cedula, bloquear=True)
     _exigir_ventana(repo_proc, solicitud.proceso_id, cedula, ahora)
     enviada = repo_sol.guardar(solicitud.enviar(ahora), solicitud.version)
@@ -113,12 +116,12 @@ def enviar_solicitud(
 
 def iniciar_solicitud_vigente(
     repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, verificador: VerificadorPasivo,
-    *, cedula: str, ahora: datetime,
+    alcance: LectorAlcance, *, cedula: str, ahora: datetime,
 ) -> SolicitudFeDeVida:
     """Inicia (o devuelve) la solicitud del pasivo en el proceso vigente para él."""
-    vigente = obtener_proceso_vigente(repo_proc, repo_sol, cedula=cedula, ahora=ahora)
+    vigente = obtener_proceso_vigente(repo_proc, repo_sol, alcance, cedula=cedula, ahora=ahora)
     if vigente is None:
         raise ConflictError("No hay un proceso de fe de vida disponible para usted en este momento.")
     return iniciar_solicitud(
-        repo_proc, repo_sol, verificador, proceso_id=vigente.proceso.id, cedula=cedula, ahora=ahora,
+        repo_proc, repo_sol, verificador, alcance, proceso_id=vigente.proceso.id, cedula=cedula, ahora=ahora,
     )

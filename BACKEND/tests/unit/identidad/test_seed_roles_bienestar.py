@@ -112,3 +112,18 @@ def test_seed_sube_permisos_version_solo_si_la_matriz_cambio():
     with patch(ruta, return_value=1) as bump:
         call_command('seed_permisos', '--no-invalidar-sesiones', stdout=StringIO())
     bump.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_gestionar_procesos_y_prorrogar_son_solo_de_la_administradora_y_el_seed_los_retira_de_la_analista():
+    analista = RolModel.objects.create(id=13, nombre_rol='ANALISTA_BIENESTAR')
+    for codigo in ('fe_de_vida.gestionar_procesos', 'fe_de_vida.prorrogar'):  # asignación heredada de un seed anterior
+        permiso = PermisoModel.objects.create(codigo=codigo, nombre=codigo)
+        RolPermisoModel.objects.create(rol_id=analista.id, permiso=permiso)
+    salida = _seed()
+    assert 'Asignaciones retiradas de ANALISTA_BIENESTAR: 2' in salida
+    assert 'Asignaciones retiradas' not in _seed()  # idempotente
+    nuevos = {'fe_de_vida.gestionar_procesos', 'fe_de_vida.prorrogar'}
+    assert not nuevos & _codigos('ANALISTA_BIENESTAR')
+    assert {'fe_de_vida.revisar', 'fe_de_vida.ver_panel', 'fe_de_vida.ver_cobertura'} <= _codigos('ANALISTA_BIENESTAR')
+    assert nuevos <= _codigos('ADMIN_BIENESTAR')

@@ -59,6 +59,7 @@ class SolicitudFeDeVida:
     decisiones: tuple[DecisionFeDeVida, ...] = ()
     fecha_envio: datetime | None = None
     fecha_validacion: datetime | None = None
+    requiere_nueva_foto: bool = False  # la devolución exige una foto nueva (la vigente pasó al historial)
 
     # ── Consultas ──
     @property
@@ -90,7 +91,10 @@ class SolicitudFeDeVida:
         if not self.evidencia_clave:
             raise ValidationError("Debe tomar o subir la foto con su cédula antes de enviar.")
         validar_transicion_solicitud(self.estado, EstadoSolicitud.PENDIENTE_REVISION)
-        return replace(self, estado=EstadoSolicitud.PENDIENTE_REVISION, envios=self.envios + 1, fecha_envio=ahora)
+        return replace(
+            self, estado=EstadoSolicitud.PENDIENTE_REVISION, envios=self.envios + 1, fecha_envio=ahora,
+            requiere_nueva_foto=False,
+        )
 
     # ── Revisión de Bienestar ──
     def _exigir_revisable(self, actor: ActorRevision) -> None:
@@ -149,9 +153,17 @@ class SolicitudFeDeVida:
     def rechazar(self, actor: ActorRevision, motivo: str, ahora: datetime) -> 'SolicitudFeDeVida':
         return self._cerrar_con_motivo(actor, motivo, ahora, TipoDecision.RECHAZO, EstadoSolicitud.RECHAZADA)
 
-    def solicitar_repeticion(self, actor: ActorRevision, motivo: str, ahora: datetime) -> 'SolicitudFeDeVida':
-        """El pasivo debe tomar una nueva foto: la evidencia vigente pasa al historial y los checks no se reutilizan."""
-        nueva = self._cerrar_con_motivo(actor, motivo, ahora, TipoDecision.REPETICION, EstadoSolicitud.REPETICION_SOLICITADA)
+    def devolver(
+        self, actor: ActorRevision, motivo: str, ahora: datetime, requiere_nueva_foto: bool = False,
+    ) -> 'SolicitudFeDeVida':
+        """
+        Devuelta para corrección (motivo obligatorio): el pasivo corrige los datos del acta y, si el revisor lo
+        pide, la foto (entonces la vigente pasa al historial). Los checks no se reutilizan al reenviar.
+        """
+        nueva = self._cerrar_con_motivo(actor, motivo, ahora, TipoDecision.DEVOLUCION, EstadoSolicitud.DEVUELTA)
+        nueva = replace(nueva, requiere_nueva_foto=requiere_nueva_foto)
+        if not requiere_nueva_foto:
+            return nueva
         return replace(
             nueva, evidencia_clave='', evidencia_sha256='', evidencia_mime='', evidencia_tamano=0,
             origen_evidencia=None, metadatos_captura={},

@@ -3,19 +3,29 @@ from django.db import transaction
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.views import APIView
 
+from apps.fe_de_vida.application.use_cases._comun import obtener_proceso
 from apps.fe_de_vida.application.use_cases.consultas import listar_procesos, listar_prorrogas
-from apps.fe_de_vida.application.use_cases.procesos import abrir_proceso, cerrar_proceso, crear_proceso, prorrogar_proceso
+from apps.fe_de_vida.application.use_cases.procesos import (
+    abrir_proceso,
+    cerrar_proceso,
+    crear_proceso,
+    editar_proceso,
+    prorrogar_proceso,
+)
+from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
 from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesFeDeVidaORM
 from apps.fe_de_vida.infrastructure.signals import PublicadorSenales
 from apps.fe_de_vida.presentation.permissions import fe_de_vida_permissions as permisos
 from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     CrearProcesoSerializer,
+    EditarProcesoSerializer,
     FiltroProcesosSerializer,
     PaginaSerializer,
     ProcesoSerializer,
     ProrrogarSerializer,
     ProrrogaSerializer,
+    TipoPensionSerializer,
     a_dict_proceso,
     a_dict_prorroga,
 )
@@ -24,6 +34,7 @@ from apps.fe_de_vida.presentation.views._comun import (
     ahora,
     auditar,
     cedula_de_sesion,
+    nombres_de_tipos,
     parametros_pagina,
     respuesta_pagina,
     validar_entrada,
@@ -56,7 +67,8 @@ class ProcesosView(APIView):
         procesos, total = listar_procesos(
             RepoProcesosORM(), estado=filtros.get('estado'), limite=limite, desplazamiento=desplazamiento,
         )
-        return ok(respuesta_pagina(total, filtros, [a_dict_proceso(p) for p in procesos]))
+        nombres = nombres_de_tipos(*procesos)
+        return ok(respuesta_pagina(total, filtros, [a_dict_proceso(p, nombres) for p in procesos]))
 
     @extend_schema(tags=TAG, summary='Crear un proceso (queda en BORRADOR)', request=CrearProcesoSerializer,
                    responses={201: ProcesoSerializer, **ERRORES})
@@ -64,13 +76,49 @@ class ProcesosView(APIView):
         datos = validar_entrada(CrearProcesoSerializer, request.data)
         with transaction.atomic():
             proceso = crear_proceso(
-                RepoProcesosORM(), nombre=datos['nombre'], fecha_apertura=datos['fecha_apertura'],
+                RepoProcesosORM(), LectorAlcanceORM(), nombre=datos['nombre'], fecha_apertura=datos['fecha_apertura'],
                 fecha_cierre=datos['fecha_cierre'], actor=cedula_de_sesion(request),
+                tipos_nomina=tuple(datos.get('tipos_nomina', ())),
+                dias_recordatorio=tuple(datos.get('dias_recordatorio', ())),
             )
             auditar(request, 'PROCESO_CREADO', proceso.id, None,
                     {'nombre': proceso.nombre, 'apertura': proceso.fecha_apertura.isoformat(),
-                     'cierre': proceso.fecha_cierre.isoformat()}, recurso_tipo=RECURSO_PROCESO)
-        return ok(a_dict_proceso(proceso), 'Proceso creado.', status=201)
+                     'cierre': proceso.fecha_cierre.isoformat(), 'tipos_nomina': list(proceso.tipos_nomina),
+                     'dias_recordatorio': list(proceso.dias_recordatorio)}, recurso_tipo=RECURSO_PROCESO)
+        return ok(a_dict_proceso(proceso, nombres_de_tipos(proceso)), 'Proceso creado.', status=201)
+
+
+class ProcesoView(APIView):
+    """PATCH edita el proceso (BORRADOR: todo; ABIERTO: solo recordatorios). Solo gestionar procesos."""
+
+    permission_classes = permisos.permisos_bienestar(permisos.GESTIONAR_PROCESOS)
+
+    @extend_schema(
+        tags=TAG, summary='Editar el proceso (alcance, fechas, recordatorios)', request=EditarProcesoSerializer,
+        responses={200: ProcesoSerializer, **ERRORES},
+    )
+    def patch(self, request, proceso_id):
+        datos = dict(validar_entrada(EditarProcesoSerializer, request.data))
+        with transaction.atomic():
+            repo = RepoProcesosORM()
+            previo = obtener_proceso(repo, str(proceso_id))
+            proceso = editar_proceso(repo, LectorAlcanceORM(), proceso_id=str(proceso_id), cambios=datos)
+            auditar(request, 'PROCESO_EDITADO', proceso.id,
+                    {'tipos_nomina': list(previo.tipos_nomina), 'dias_recordatorio': list(previo.dias_recordatorio)},
+                    {'campos': sorted(datos), 'tipos_nomina': list(proceso.tipos_nomina),
+                     'dias_recordatorio': list(proceso.dias_recordatorio)}, recurso_tipo=RECURSO_PROCESO)
+        return ok(a_dict_proceso(proceso, nombres_de_tipos(proceso)), 'Proceso actualizado.')
+
+
+class TiposPensionView(APIView):
+    """Catálogo para elegir el alcance: tipos de nómina usados por asignaciones PASIVO (por consulta)."""
+
+    permission_classes = permisos.permisos_bienestar(permisos.GESTIONAR_PROCESOS, permisos.PRORROGAR, permisos.VER_PANEL)
+
+    @extend_schema(tags=TAG, summary='Tipos de pensión disponibles para el alcance',
+                   responses={200: TipoPensionSerializer(many=True), 403: MensajeRespuestaSerializer})
+    def get(self, request):
+        return ok([{'id': t.id, 'nombre': t.nombre} for t in LectorAlcanceORM().tipos_pension()])
 
 
 class AbrirProcesoView(APIView):
@@ -84,7 +132,7 @@ class AbrirProcesoView(APIView):
             )
             auditar(request, 'PROCESO_ABIERTO', proceso.id, {'estado': 'BORRADOR'}, {'estado': proceso.estado.value},
                     recurso_tipo=RECURSO_PROCESO)
-        return ok(a_dict_proceso(proceso), 'Proceso abierto.')
+        return ok(a_dict_proceso(proceso, nombres_de_tipos(proceso)), 'Proceso abierto.')
 
 
 class CerrarProcesoView(APIView):
@@ -103,14 +151,17 @@ class CerrarProcesoView(APIView):
             )
             auditar(request, 'PROCESO_CERRADO', proceso.id, {'estado': 'ABIERTO'},
                     {'estado': proceso.estado.value, 'expiradas': expiradas}, recurso_tipo=RECURSO_PROCESO)
-        return ok(a_dict_proceso(proceso), 'Proceso cerrado.')
+        return ok(a_dict_proceso(proceso, nombres_de_tipos(proceso)), 'Proceso cerrado.')
 
 
 class ProrrogasView(APIView):
     """GET historial de prórrogas del proceso; POST concede una (individual con cédula, general sin ella)."""
 
     def get_permissions(self):
-        return [p() for p in permisos.permisos_bienestar(permisos.PRORROGAR, permisos.GESTIONAR_PROCESOS)]
+        codigos = (permisos.PRORROGAR, permisos.GESTIONAR_PROCESOS)
+        if self.request.method == 'GET':
+            codigos += (permisos.VER_PANEL,)
+        return [p() for p in permisos.permisos_bienestar(*codigos)]
 
     @extend_schema(tags=TAG, summary='Prórrogas del proceso (paginado)', parameters=PARAMETROS_PAGINA,
                    responses={200: ProrrogaSerializer(many=True), **ERRORES})

@@ -129,6 +129,28 @@ class AplicadorMem:
         return self.cuantos
 
 
+class AlcanceMem:
+    """Tipo de nómina por cédula y catálogo de pasivos (ids 1 y 2); `tipos` mapea cédula -> tipo."""
+
+    CATALOGO = {1: 'JUBILADO', 2: 'PENSIONADO'}
+
+    def __init__(self, tipos=None):
+        self.tipos = tipos if tipos is not None else {PASIVO: 1, OTRO_PASIVO: 2}
+
+    def tipo_nomina_de(self, cedula):
+        return self.tipos.get(cedula)
+
+    def cedulas_en_alcance(self, tipos_nomina):
+        return sorted(c for c, t in self.tipos.items() if not tipos_nomina or t in tipos_nomina)
+
+    def tipos_pension(self):
+        from apps.fe_de_vida.domain.entities.pasivo import TipoPension
+        return [TipoPension(i, n) for i, n in self.CATALOGO.items()]
+
+    def nombres_tipos(self, ids):
+        return {i: self.CATALOGO[i] for i in ids if i in self.CATALOGO}
+
+
 class VerificadorMem:
     def __init__(self, pasivos=(PASIVO, OTRO_PASIVO)):
         self.pasivos = set(pasivos)
@@ -182,6 +204,7 @@ class Mundo:
 
         self.procesos, self.solicitudes, self.cambios = RepoProcesosMem(), RepoSolicitudesMem(), RepoCambiosActaMem()
         self.validador, self.aplicador, self.verificador = ValidadorMem(), AplicadorMem(), VerificadorMem()
+        self.alcance = AlcanceMem()
         self.storage, self.publicador = StorageMem(), PublicadorMem()
         self.proceso = abrir_proceso(
             self.procesos, self.publicador, proceso_id=crear_proceso(
@@ -193,7 +216,7 @@ class Mundo:
         """Camino feliz del pasivo hasta PENDIENTE_REVISION."""
         from apps.fe_de_vida.application.use_cases import solicitudes_pasivo as sp
 
-        s = sp.iniciar_solicitud(self.procesos, self.solicitudes, self.verificador, proceso_id=self.proceso.id, cedula=cedula, ahora=AHORA)
+        s = sp.iniciar_solicitud(self.procesos, self.solicitudes, self.verificador, self.alcance, proceso_id=self.proceso.id, cedula=cedula, ahora=AHORA)
         sp.subir_evidencia(
             self.procesos, self.solicitudes, self.storage, solicitud_id=s.id, cedula=cedula,
             contenido=b'\xff\xd8\xffselfie', mime='image/jpeg', origen='CAMARA', metadatos=None, ahora=AHORA,

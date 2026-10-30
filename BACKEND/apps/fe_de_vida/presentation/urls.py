@@ -14,7 +14,9 @@ from apps.fe_de_vida.presentation.views.pasivo_views import (
 from apps.fe_de_vida.presentation.views.proceso_views import (
     AbrirProcesoView,
     CerrarProcesoView,
+    ProcesoView,
     ProcesosView,
+    TiposPensionView,
     ProrrogasView,
 )
 from apps.fe_de_vida.presentation.views.revision_views import (
@@ -22,9 +24,9 @@ from apps.fe_de_vida.presentation.views.revision_views import (
     BandejaView,
     CheckView,
     DetalleRevisionView,
+    DevolverView,
     EvidenciaUrlView,
     RechazarView,
-    SolicitarRepeticionView,
 )
 
 app_name = 'fe_de_vida'
@@ -46,9 +48,11 @@ urlpatterns = [
     path('solicitudes/<uuid:solicitud_id>/check/', CheckView.as_view(), name='check'),
     path('solicitudes/<uuid:solicitud_id>/aprobar-directo/', AprobarDirectoView.as_view(), name='aprobar_directo'),
     path('solicitudes/<uuid:solicitud_id>/rechazar/', RechazarView.as_view(), name='rechazar'),
-    path('solicitudes/<uuid:solicitud_id>/solicitar-repeticion/', SolicitarRepeticionView.as_view(), name='solicitar_repeticion'),
+    path('solicitudes/<uuid:solicitud_id>/devolver/', DevolverView.as_view(), name='devolver'),
     # Procesos y prórrogas
     path('procesos/', ProcesosView.as_view(), name='procesos'),
+    path('procesos/tipos-pension/', TiposPensionView.as_view(), name='tipos_pension'),
+    path('procesos/<uuid:proceso_id>/', ProcesoView.as_view(), name='proceso'),
     path('procesos/<uuid:proceso_id>/abrir/', AbrirProcesoView.as_view(), name='abrir_proceso'),
     path('procesos/<uuid:proceso_id>/cerrar/', CerrarProcesoView.as_view(), name='cerrar_proceso'),
     path('procesos/<uuid:proceso_id>/prorrogas/', ProrrogasView.as_view(), name='prorrogas'),

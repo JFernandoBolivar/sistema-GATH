@@ -23,6 +23,7 @@ from apps.fe_de_vida.application.use_cases.solicitudes_pasivo import (
 )
 from apps.fe_de_vida.infrastructure.adaptadores_autogestion import RepoCambiosActaORM, ValidadorCambiosActaORM
 from apps.fe_de_vida.infrastructure.imagen_evidencia import sanear_imagen
+from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
 from apps.fe_de_vida.infrastructure.repositories.repo_constancias_orm import RepoConstanciasORM
 from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesFeDeVidaORM
@@ -49,6 +50,7 @@ from apps.fe_de_vida.presentation.views._comun import (
     ahora,
     auditar,
     cedula_de_sesion,
+    nombres_de_tipos,
     parametros_pagina,
     respuesta_pagina,
     resumen,
@@ -78,8 +80,10 @@ class ProcesoVigenteView(APIView):
     )
     def get(self, request):
         cedula = cedula_de_sesion(request)
-        vigente = obtener_proceso_vigente(RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), cedula=cedula, ahora=ahora())
-        return ok(a_dict_vigente(vigente) if vigente else None)
+        vigente = obtener_proceso_vigente(
+            RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), LectorAlcanceORM(), cedula=cedula, ahora=ahora(),
+        )
+        return ok(a_dict_vigente(vigente, nombres_de_tipos(vigente.proceso)) if vigente else None)
 
 
 class IniciarSolicitudView(APIView):
@@ -93,7 +97,8 @@ class IniciarSolicitudView(APIView):
         cedula = cedula_de_sesion(request)
         with transaction.atomic():
             solicitud = iniciar_solicitud_vigente(
-                RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), VerificadorPasivoKernel(), cedula=cedula, ahora=ahora(),
+                RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), VerificadorPasivoKernel(), LectorAlcanceORM(),
+                cedula=cedula, ahora=ahora(),
             )
             auditar(request, 'SOLICITUD_INICIADA', solicitud.id, None, resumen(solicitud))
         return ok(a_dict_solicitud(solicitud), 'Solicitud de fe de vida iniciada.')

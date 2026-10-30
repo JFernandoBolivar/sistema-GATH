@@ -3,8 +3,8 @@ Estados y máquinas de transición de la fe de vida (PLAN_PRIORIDAD §2.2). Sin 
 
 Proceso:    BORRADOR -> ABIERTO -> CERRADO
 Solicitud:  BORRADOR -> PENDIENTE_REVISION -> PENDIENTE_SEGUNDO_CHECK -> VALIDADA -> ARCHIVADA
-            PENDIENTE_* -> RECHAZADA | REPETICION_SOLICITADA (motivo obligatorio)
-            REPETICION_SOLICITADA -> PENDIENTE_REVISION (reenvío) | EXPIRADA
+            PENDIENTE_* -> RECHAZADA (definitivo) | DEVUELTA (devuelta para corrección); motivo obligatorio en ambas
+            DEVUELTA -> PENDIENTE_REVISION (reenvío) | EXPIRADA
             BORRADOR -> EXPIRADA (el proceso cerró sin prórroga); EXPIRADA -> BORRADOR (prórroga posterior)
 """
 from enum import Enum
@@ -31,7 +31,7 @@ class EstadoSolicitud(str, Enum):
     PENDIENTE_SEGUNDO_CHECK = 'PENDIENTE_SEGUNDO_CHECK'
     VALIDADA = 'VALIDADA'
     RECHAZADA = 'RECHAZADA'
-    REPETICION_SOLICITADA = 'REPETICION_SOLICITADA'
+    DEVUELTA = 'DEVUELTA'
     EXPIRADA = 'EXPIRADA'
     ARCHIVADA = 'ARCHIVADA'
 
@@ -39,16 +39,16 @@ class EstadoSolicitud(str, Enum):
 E = EstadoSolicitud
 TRANSICIONES_SOLICITUD: dict[EstadoSolicitud, frozenset[EstadoSolicitud]] = {
     E.BORRADOR: frozenset({E.PENDIENTE_REVISION, E.EXPIRADA}),
-    E.PENDIENTE_REVISION: frozenset({E.PENDIENTE_SEGUNDO_CHECK, E.VALIDADA, E.RECHAZADA, E.REPETICION_SOLICITADA}),
-    E.PENDIENTE_SEGUNDO_CHECK: frozenset({E.VALIDADA, E.RECHAZADA, E.REPETICION_SOLICITADA}),
-    E.REPETICION_SOLICITADA: frozenset({E.PENDIENTE_REVISION, E.EXPIRADA}),
+    E.PENDIENTE_REVISION: frozenset({E.PENDIENTE_SEGUNDO_CHECK, E.VALIDADA, E.RECHAZADA, E.DEVUELTA}),
+    E.PENDIENTE_SEGUNDO_CHECK: frozenset({E.VALIDADA, E.RECHAZADA, E.DEVUELTA}),
+    E.DEVUELTA: frozenset({E.PENDIENTE_REVISION, E.EXPIRADA}),
     E.VALIDADA: frozenset({E.ARCHIVADA}),
     E.RECHAZADA: frozenset(),
     E.EXPIRADA: frozenset({E.BORRADOR}),
     E.ARCHIVADA: frozenset(),
 }
 ESTADOS_REVISABLES = frozenset({E.PENDIENTE_REVISION, E.PENDIENTE_SEGUNDO_CHECK})
-ESTADOS_EDITABLES = frozenset({E.BORRADOR, E.REPETICION_SOLICITADA})
+ESTADOS_EDITABLES = frozenset({E.BORRADOR, E.DEVUELTA})
 
 
 class RolRevision(str, Enum):
@@ -60,7 +60,7 @@ class TipoDecision(str, Enum):
     CHECK = 'CHECK'
     APROBACION_DIRECTA = 'APROBACION_DIRECTA'
     RECHAZO = 'RECHAZO'
-    REPETICION = 'REPETICION'
+    DEVOLUCION = 'DEVOLUCION'
 
 
 class ViaAprobacion(str, Enum):

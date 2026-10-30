@@ -22,6 +22,7 @@ from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaPro
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 from apps.fe_de_vida.domain.events import PublicadorEventos, PublicadorNulo, TipoEvento
 from apps.fe_de_vida.domain.ports.repos import (
+    LectorAlcance,
     LectorPasivos,
     LectorValorActual,
     RepoCambiosActa,
@@ -39,11 +40,17 @@ EXPIRA_URL_EVIDENCIA_SEGUNDOS = 90  # URL prefirmada corta (60-120 s, §2.6)
 
 # ── Pasivo ──
 def obtener_proceso_vigente(
-    repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, *, cedula: str, ahora: datetime,
+    repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, alcance: LectorAlcance, *, cedula: str,
+    ahora: datetime,
 ) -> ProcesoVigente | None:
-    """El proceso en que el pasivo puede actuar hoy: abierto y en plazo, o con prórroga vigente que lo alcance."""
+    """
+    El proceso en que el pasivo puede actuar hoy: abierto y en plazo, o con prórroga vigente que lo alcance,
+    y cuyo alcance (tipos de pensión) lo incluya.
+    """
     candidatos = {p.id: p for p in repo_proc.listar('ABIERTO') if p.en_plazo(ahora)}
     candidatos.update({p.id: p for p in repo_proc.listar_con_prorroga_vigente(cedula, ahora)})
+    tipo = alcance.tipo_nomina_de(cedula)
+    candidatos = {i: p for i, p in candidatos.items() if p.aplica_a(tipo)}
     if not candidatos:
         return None
     proceso = max(candidatos.values(), key=lambda p: p.fecha_apertura)

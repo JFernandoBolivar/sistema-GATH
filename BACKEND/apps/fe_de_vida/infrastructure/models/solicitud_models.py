@@ -16,7 +16,7 @@ class SolicitudFeDeVidaModel(BaseModel):
         PENDIENTE_SEGUNDO_CHECK = 'PENDIENTE_SEGUNDO_CHECK'
         VALIDADA = 'VALIDADA'
         RECHAZADA = 'RECHAZADA'
-        REPETICION_SOLICITADA = 'REPETICION_SOLICITADA'
+        DEVUELTA = 'DEVUELTA'
         EXPIRADA = 'EXPIRADA'
         ARCHIVADA = 'ARCHIVADA'
 
@@ -43,6 +43,7 @@ class SolicitudFeDeVidaModel(BaseModel):
     via_aprobacion = models.CharField(max_length=24, choices=Via.choices, blank=True, default='')
     fecha_envio = models.DateTimeField(null=True, blank=True)
     fecha_validacion = models.DateTimeField(null=True, blank=True)
+    requiere_nueva_foto = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'fe_de_vida_solicitud'
@@ -59,13 +60,13 @@ class SolicitudFeDeVidaModel(BaseModel):
 
 
 class DecisionFeDeVidaModel(BaseModel):
-    """Historial inmutable de checks, aprobaciones directas, rechazos y repeticiones."""
+    """Historial inmutable de checks, aprobaciones directas, rechazos y devoluciones."""
 
     class Tipo(models.TextChoices):
         CHECK = 'CHECK'
         APROBACION_DIRECTA = 'APROBACION_DIRECTA'
         RECHAZO = 'RECHAZO'
-        REPETICION = 'REPETICION'
+        DEVOLUCION = 'DEVOLUCION'
 
     class Rol(models.TextChoices):
         ANALISTA = 'ANALISTA'

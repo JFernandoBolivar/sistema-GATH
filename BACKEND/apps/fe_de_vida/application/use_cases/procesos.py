@@ -7,7 +7,7 @@ from datetime import datetime
 from apps.fe_de_vida.application.use_cases._comun import evento, obtener_proceso
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.domain.events import EventoFeDeVida, PublicadorEventos, PublicadorNulo, TipoEvento
-from apps.fe_de_vida.domain.ports.repos import RepoProcesos, RepoSolicitudesFeDeVida
+from apps.fe_de_vida.domain.ports.repos import LectorAlcance, RepoProcesos, RepoSolicitudesFeDeVida
 from apps.fe_de_vida.domain.services.reglas_proceso import prorroga_vigente
 from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud
 from core.domain.exceptions import ConflictError, ValidationError
@@ -15,13 +15,51 @@ from core.domain.exceptions import ConflictError, ValidationError
 SISTEMA = ''  # actor vacío = cierre automático por beat
 
 
+def _exigir_tipos_validos(alcance: LectorAlcance | None, tipos_nomina) -> None:
+    """El alcance solo admite tipos de pensión que existen entre los pasivos (catálogo por consulta)."""
+    if not tipos_nomina:
+        return
+    if alcance is None:
+        raise ValidationError("No se pudo validar el alcance del proceso.")
+    validos = {t.id for t in alcance.tipos_pension()}
+    desconocidos = sorted(set(tipos_nomina) - validos)
+    if desconocidos:
+        raise ValidationError(f"Tipo(s) de pensión no válido(s) para el alcance: {desconocidos}.")
+
+
 def crear_proceso(
-    repo: RepoProcesos, *, nombre: str, fecha_apertura: datetime, fecha_cierre: datetime, actor: str,
+    repo: RepoProcesos, alcance: LectorAlcance | None = None, *, nombre: str, fecha_apertura: datetime,
+    fecha_cierre: datetime, actor: str, tipos_nomina: tuple[int, ...] = (), dias_recordatorio: tuple[int, ...] = (),
 ) -> ProcesoFeDeVida:
-    return repo.crear(ProcesoFeDeVida(
+    """`tipos_nomina` vacío = el proceso aplica a todos los pasivos; `dias_recordatorio` vacío = sin recordatorios."""
+    proceso = ProcesoFeDeVida(
         id='', nombre=nombre.strip() if nombre else nombre, fecha_apertura=fecha_apertura,
-        fecha_cierre=fecha_cierre, creado_por=actor,
-    ))
+        fecha_cierre=fecha_cierre, creado_por=actor, tipos_nomina=tuple(tipos_nomina),
+        dias_recordatorio=tuple(dias_recordatorio),
+    )
+    _exigir_tipos_validos(alcance, proceso.tipos_nomina)
+    return repo.crear(proceso)
+
+
+def editar_proceso(
+    repo: RepoProcesos, alcance: LectorAlcance | None = None, *, proceso_id: str, cambios: dict,
+) -> ProcesoFeDeVida:
+    """
+    Edita nombre, fechas, alcance (`tipos_nomina`) y recordatorios mientras el proceso es BORRADOR; abierto,
+    solo los recordatorios. `cambios` trae únicamente los campos a modificar.
+    """
+    permitidos = {'nombre', 'fecha_apertura', 'fecha_cierre', 'tipos_nomina', 'dias_recordatorio'}
+    if not cambios or set(cambios) - permitidos:
+        raise ValidationError("Indique al menos un campo editable del proceso.")
+    cambios = dict(cambios)
+    if cambios.get('nombre'):
+        cambios['nombre'] = cambios['nombre'].strip()
+    for campo in ('tipos_nomina', 'dias_recordatorio'):
+        if campo in cambios:
+            cambios[campo] = tuple(cambios[campo])
+    proceso = obtener_proceso(repo, proceso_id, bloquear=True).editar(**cambios)
+    _exigir_tipos_validos(alcance, proceso.tipos_nomina if 'tipos_nomina' in cambios else ())
+    return repo.guardar(proceso)
 
 
 def abrir_proceso(
@@ -39,7 +77,7 @@ def cerrar_proceso(
     *, proceso_id: str, actor: str, ahora: datetime,
 ) -> tuple[ProcesoFeDeVida, int]:
     """
-    Cierra el proceso. Las solicitudes en BORRADOR o REPETICION_SOLICITADA que no tengan una prórroga
+    Cierra el proceso. Las solicitudes en BORRADOR o DEVUELTA que no tengan una prórroga
     vigente pasan a EXPIRADA (sin sanción automática); las ya enviadas siguen su revisión normal.
     Devuelve (proceso, cuántas expiraron).
     """
@@ -47,7 +85,7 @@ def cerrar_proceso(
     proceso = repo.guardar(obtener_proceso(repo, proceso_id, bloquear=True).cerrar(actor, ahora))
     prorrogas = repo.listar_prorrogas(proceso.id)
     abiertas = repo_sol.listar_de_proceso(
-        proceso.id, (EstadoSolicitud.BORRADOR.value, EstadoSolicitud.REPETICION_SOLICITADA.value),
+        proceso.id, (EstadoSolicitud.BORRADOR.value, EstadoSolicitud.DEVUELTA.value),
     )
     expiradas = 0
     for s in abiertas:
@@ -100,3 +138,38 @@ def prorrogar_proceso(
         detalle={'general': prorroga.general, 'hasta': nueva_fecha_limite.isoformat(), 'motivo': prorroga.motivo},
     ))
     return prorroga
+
+
+ESTADOS_SIN_ENVIAR = frozenset({EstadoSolicitud.BORRADOR, EstadoSolicitud.DEVUELTA, EstadoSolicitud.EXPIRADA})
+
+
+def enviar_recordatorios(
+    repo: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, alcance: LectorAlcance,
+    publicador: PublicadorEventos | None = None, *, ahora: datetime,
+) -> int:
+    """
+    C8 (beat diario): en cada proceso ABIERTO y en plazo, si faltan exactamente N días para el cierre y N está
+    en `dias_recordatorio`, avisa a los pasivos del alcance que no tienen solicitud enviada. `ahora` debe venir
+    en la zona horaria local. Idempotente: el aviso lleva (proceso, N) y el notificador no repite por
+    destinatario. Devuelve cuántos avisos solicitó.
+    """
+    publicador = publicador or PublicadorNulo()
+    avisos = 0
+    for proceso in repo.listar(EstadoProceso.ABIERTO.value):
+        if not proceso.en_plazo(ahora) or not proceso.dias_recordatorio:
+            continue
+        faltan = (proceso.fecha_cierre.astimezone(ahora.tzinfo).date() - ahora.date()).days
+        if faltan not in proceso.dias_recordatorio:
+            continue
+        enviadas = {
+            s.cedula for s in repo_sol.listar_de_proceso(proceso.id) if s.estado not in ESTADOS_SIN_ENVIAR
+        }
+        for cedula in alcance.cedulas_en_alcance(proceso.tipos_nomina):
+            if cedula in enviadas:
+                continue
+            publicador.publicar(EventoFeDeVida(
+                TipoEvento.RECORDATORIO_CIERRE, proceso.id, cedula=cedula,
+                detalle={'dias': faltan, 'cierre': proceso.fecha_cierre.isoformat(), 'nombre': proceso.nombre},
+            ))
+            avisos += 1
+    return avisos

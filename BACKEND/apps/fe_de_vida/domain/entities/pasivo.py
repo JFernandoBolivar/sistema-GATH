@@ -12,6 +12,12 @@ class DatosPasivo:
 
 
 @dataclass(frozen=True)
+class TipoPension:
+    id: int
+    nombre: str
+
+
+@dataclass(frozen=True)
 class PasivoCobertura:
     cedula: str
     nombre_completo: str

@@ -14,6 +14,7 @@ def _campos(p: ProcesoFeDeVida) -> dict:
         'nombre': p.nombre, 'fecha_apertura': p.fecha_apertura, 'fecha_cierre': p.fecha_cierre,
         'estado': p.estado.value, 'creado_por': p.creado_por, 'abierto_por': p.abierto_por,
         'cerrado_por': p.cerrado_por, 'fecha_cierre_real': p.fecha_cierre_real,
+        'tipos_nomina': list(p.tipos_nomina), 'dias_recordatorio': list(p.dias_recordatorio),
     }
 
 

@@ -46,7 +46,7 @@ CORREO_ALTERNO = 'alterno@correo.test'
 PERMISOS_PASIVO = {'fe_de_vida.solicitar', 'fe_de_vida.ver_propia'}
 PERMISOS_ANALISTA = {
     'fe_de_vida.revisar', 'fe_de_vida.check_analista', 'fe_de_vida.ver_evidencia', 'fe_de_vida.ver_panel',
-    'fe_de_vida.prorrogar', 'fe_de_vida.ver_cobertura', 'fe_de_vida.verificar_constancia',
+    'fe_de_vida.ver_cobertura', 'fe_de_vida.verificar_constancia',
 }
 PERMISOS_ADMINISTRADORA = {
     'fe_de_vida.revisar', 'fe_de_vida.check_administradora', 'fe_de_vida.aprobar_directo', 'fe_de_vida.ver_evidencia',
@@ -108,7 +108,7 @@ def datos(db):
     sexo = SexoModel.objects.create(sexo='F')
     estatus = EstatusModel.objects.create(estatus='ACTIVO')
     pasivo, activo = TipoPersonalModel.objects.create(tipo_personal='PASIVO'), TipoPersonalModel.objects.create(tipo_personal='ACTIVO')
-    nomina = TipoNominaModel.objects.create(nomina='JUBILADO')
+    nomina = TipoNominaModel.objects.create(nomina='JUBILADO', es_activo=False)  # pasivos = es_activo False
     dc, dce = DenominacionCargoModel.objects.create(cargo='ANALISTA'), DenominacionCargoEspecificoModel.objects.create(cargo='ANALISTA I')
     rol = RolModel.objects.create(nombre_rol='PRUEBA')
     filas = ((PASIVO, 'MARIA', 'PEREZ', f'{PASIVO}@correo.test', pasivo), (OTRO_PASIVO, 'JUAN', 'GOMEZ', f'{OTRO_PASIVO}@correo.test', pasivo),
@@ -296,10 +296,10 @@ def test_aprobacion_directa_exige_justificacion_y_certifica_solo_a_la_administra
 def test_repeticion_y_rechazo_notifican_con_motivo(pasivo, analista, administradora):
     pid = proceso_abierto(administradora)
     sid = solicitud_enviada(pasivo, pid)
-    assert analista.post(f'{BASE}/solicitudes/{sid}/solicitar-repeticion/', {'motivo': ''}, format='json').status_code == 400
-    r = analista.post(f'{BASE}/solicitudes/{sid}/solicitar-repeticion/', {'motivo': 'Foto borrosa'}, format='json')
-    assert cuerpo(r)['estado'] == 'REPETICION_SOLICITADA'
-    aviso = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.repeticion_solicitada'][0]
+    assert analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': ''}, format='json').status_code == 400
+    r = analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'Foto borrosa'}, format='json')
+    assert cuerpo(r)['estado'] == 'DEVUELTA'
+    aviso = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.devuelta'][0]
     assert 'Foto borrosa' in aviso.mensaje and aviso.cedula_destino == PASIVO
     # reenvío tras la repetición: nueva foto, aviso de "reenviada" a Bienestar
     assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'ARCHIVO'}, format='multipart').status_code == 200
@@ -409,7 +409,8 @@ def test_procesos_crear_listar_prorrogar_y_cerrar(administradora, analista, pasi
     assert cuerpo(pasivo.get(f'{BASE}/procesos/vigente/')) is None
     assert cuerpo(pasivo.get(f'{BASE}/mis-solicitudes/{sid}/'))['solicitud']['estado'] == 'EXPIRADA'
     # prórroga individual: rehabilita la solicitud y devuelve el proceso como vigente solo para esa cédula
-    r = analista.post(f'{BASE}/procesos/{pid}/prorrogas/', {
+    assert analista.post(f'{BASE}/procesos/{pid}/prorrogas/', {}, format='json').status_code == 403
+    r = administradora.post(f'{BASE}/procesos/{pid}/prorrogas/', {
         'nueva_fecha_limite': (ahora + timedelta(days=3)).isoformat(), 'motivo': 'Viaje', 'cedula': PASIVO,
     }, format='json')
     assert r.status_code == 201 and cuerpo(r)['general'] is False
@@ -418,7 +419,7 @@ def test_procesos_crear_listar_prorrogar_y_cerrar(administradora, analista, pasi
     listado = cuerpo(analista.get(f'{BASE}/procesos/{pid}/prorrogas/'))
     assert listado['count'] == 1 and listado['results'][0]['cedula'] == PASIVO
     assert AuditoriaLog.objects.filter(accion='PRORROGA_CONCEDIDA').exists()
-    assert analista.post(f'{BASE}/procesos/{pid}/prorrogas/', {'nueva_fecha_limite': 'ayer', 'motivo': 'x'}, format='json').status_code == 400
+    assert administradora.post(f'{BASE}/procesos/{pid}/prorrogas/', {'nueva_fecha_limite': 'ayer', 'motivo': 'x'}, format='json').status_code == 400
 
 
 def test_beat_cierra_procesos_vencidos_y_expira_solicitudes_sin_enviar(datos):
@@ -466,3 +467,222 @@ def test_aplicador_c19_aprueba_y_escribe_en_la_ficha_real(datos, administradora)
     # los cambios quedaron marcados como aprobados: ya no hay pendientes que decidir
     pendientes = [c for c in RepoCambiosActaORM().listar(str(solicitud.id))]
     assert len(pendientes) == 1
+
+
+# ── Decisión H: devolver para corrección ──
+def test_devolver_exige_motivo_conserva_o_retira_la_foto_y_permite_corregir_y_reenviar(pasivo, analista, administradora):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    assert analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': ' '}, format='json').status_code == 400
+    assert analista.post(f'{BASE}/solicitudes/{sid}/solicitar-repeticion/', {'motivo': 'x'}, format='json').status_code == 404
+    r = analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'Teléfono ilegible'}, format='json')
+    d = cuerpo(r)
+    assert r.status_code == 200 and d['estado'] == 'DEVUELTA' and d['requiere_nueva_foto'] is False and d['tiene_evidencia'] is True
+    aviso = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.devuelta'][0]
+    assert 'devuelta para corrección' in aviso.titulo and 'Teléfono ilegible' in aviso.mensaje
+    # corrige los datos del acta (sin foto nueva) y reenvía
+    r = pasivo.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': [{
+        'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'telefono_movil', 'valor': '04148888888',
+    }]}, format='json')
+    assert r.status_code == 200
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/').status_code == 200
+    # devolución con foto nueva: sin foto no reenvía
+    r = administradora.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'Foto borrosa', 'requiere_nueva_foto': True}, format='json')
+    assert cuerpo(r)['requiere_nueva_foto'] is True and cuerpo(r)['tiene_evidencia'] is False
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/').status_code == 400
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'ARCHIVO'}, format='multipart').status_code == 200
+    assert cuerpo(pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/'))['requiere_nueva_foto'] is False
+    assert AuditoriaLog.objects.filter(accion='SOLICITUD_DEVUELTA').count() == 2
+
+
+def test_rechazar_es_definitivo_y_exige_motivo(pasivo, analista, administradora):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    assert analista.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': ''}, format='json').status_code == 400
+    assert cuerpo(analista.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': 'Falsa'}, format='json'))['estado'] == 'RECHAZADA'
+    assert pasivo.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': []}, format='json').status_code == 400
+    assert analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'x'}, format='json').status_code == 409
+
+
+def test_permisos_de_procesos_y_prorrogas_son_solo_de_la_administradora(analista, administradora, pasivo):
+    pid = proceso_abierto(administradora)
+    assert analista.post(f'{BASE}/procesos/', {}, format='json').status_code == 403
+    assert analista.patch(f'{BASE}/procesos/{pid}/', {'dias_recordatorio': [1]}, format='json').status_code == 403
+    assert analista.post(f'{BASE}/procesos/{pid}/abrir/').status_code == 403
+    assert analista.post(f'{BASE}/procesos/{pid}/prorrogas/', {}, format='json').status_code == 403
+    assert analista.get(f'{BASE}/procesos/{pid}/prorrogas/').status_code == 200   # el panel sí las consulta
+    assert analista.get(f'{BASE}/procesos/tipos-pension/').status_code == 200
+    assert pasivo.get(f'{BASE}/procesos/tipos-pension/').status_code == 403
+
+
+# ── Decisión H: alcance por tipo de pensión ──
+@pytest.fixture
+def pensionado(datos):
+    """Segundo tipo de pensión; OTRO_PASIVO pasa a ser pensionado. Hay además una nómina activa (no de pasivos)."""
+    tipo = TipoNominaModel.objects.create(nomina='PENSIONADO', es_activo=False)
+    TipoNominaModel.objects.create(nomina='OBREROS', es_activo=True)
+    AsigTrabajoModel.objects.filter(employee_id=OTRO_PASIVO).update(tiponominaid=tipo)
+    return tipo
+
+
+def crear_proceso(admin, **extra):
+    ahora = timezone.now()
+    return admin.post(f'{BASE}/procesos/', {
+        'nombre': 'Alcance', 'fecha_apertura': (ahora - timedelta(days=1)).isoformat(),
+        'fecha_cierre': (ahora + timedelta(days=30)).isoformat(), **extra,
+    }, format='json')
+
+
+def test_catalogo_tipos_pension_devuelve_solo_nominas_de_pasivos(administradora, pensionado, datos):
+    r = administradora.get(f'{BASE}/procesos/tipos-pension/')
+    assert r.status_code == 200
+    assert cuerpo(r) == [{'id': datos.id, 'nombre': 'JUBILADO'}, {'id': pensionado.id, 'nombre': 'PENSIONADO'}]
+
+
+def test_alcance_rechaza_nomina_activa_o_inexistente_y_acepta_las_de_pasivos(administradora, pensionado, datos):
+    activa = TipoNominaModel.objects.get(nomina='OBREROS')
+    assert crear_proceso(administradora, tipos_nomina=[activa.id]).status_code == 400
+    assert crear_proceso(administradora, tipos_nomina=[99999]).status_code == 400
+    assert crear_proceso(administradora, tipos_nomina=[0]).status_code == 400
+    r = crear_proceso(administradora, tipos_nomina=[pensionado.id], dias_recordatorio=[1, 7, 3])
+    assert r.status_code == 201
+    assert cuerpo(r)['tipos_nomina'] == [{'id': pensionado.id, 'nombre': 'PENSIONADO'}]
+    assert cuerpo(r)['dias_recordatorio'] == [7, 3, 1]
+    assert crear_proceso(administradora, dias_recordatorio=[3, 3]).status_code == 400
+    assert crear_proceso(administradora, dias_recordatorio=[0]).status_code == 400
+    assert cuerpo(crear_proceso(administradora))['tipos_nomina'] == []
+
+
+def test_solo_los_pasivos_del_alcance_ven_inician_y_envian(administradora, pasivo, otro_pasivo, pensionado, datos):
+    pid = cuerpo(crear_proceso(administradora, tipos_nomina=[pensionado.id]))['id']
+    assert administradora.post(f'{BASE}/procesos/{pid}/abrir/').status_code == 200
+    # PASIVO es JUBILADO: fuera del alcance. OTRO_PASIVO es PENSIONADO: dentro.
+    assert cuerpo(pasivo.get(f'{BASE}/procesos/vigente/')) is None
+    assert pasivo.post(f'{BASE}/procesos/vigente/solicitud/').status_code == 409
+    vigente = cuerpo(otro_pasivo.get(f'{BASE}/procesos/vigente/'))
+    assert vigente['proceso']['tipos_nomina'] == [{'id': pensionado.id, 'nombre': 'PENSIONADO'}]
+    assert otro_pasivo.post(f'{BASE}/procesos/vigente/solicitud/').status_code == 200
+    assert pasivo.post(f'{BASE}/procesos/{pid}/abrir/').status_code == 403
+
+
+def test_proceso_sin_alcance_aplica_a_todos_los_pasivos(administradora, pasivo, otro_pasivo, pensionado):
+    pid = proceso_abierto(administradora)
+    assert cuerpo(pasivo.get(f'{BASE}/procesos/vigente/')) is not None
+    assert cuerpo(otro_pasivo.get(f'{BASE}/procesos/vigente/'))['proceso']['id'] == pid
+
+
+def test_editar_proceso_alcance_en_borrador_y_solo_recordatorios_si_esta_abierto(administradora, pensionado, datos):
+    import uuid
+    pid = cuerpo(crear_proceso(administradora, tipos_nomina=[datos.id]))['id']
+    r = administradora.patch(f'{BASE}/procesos/{pid}/', {'tipos_nomina': [pensionado.id], 'nombre': ' Nuevo '}, format='json')
+    assert r.status_code == 200 and cuerpo(r)['tipos_nomina'][0]['id'] == pensionado.id and cuerpo(r)['nombre'] == 'Nuevo'
+    assert cuerpo(administradora.patch(f'{BASE}/procesos/{pid}/', {'tipos_nomina': []}, format='json'))['tipos_nomina'] == []
+    assert administradora.patch(f'{BASE}/procesos/{pid}/', {}, format='json').status_code == 400
+    activa = TipoNominaModel.objects.get(nomina='OBREROS')
+    assert administradora.patch(f'{BASE}/procesos/{pid}/', {'tipos_nomina': [activa.id]}, format='json').status_code == 400
+    administradora.post(f'{BASE}/procesos/{pid}/abrir/')
+    assert administradora.patch(f'{BASE}/procesos/{pid}/', {'tipos_nomina': [datos.id]}, format='json').status_code == 409
+    assert cuerpo(administradora.patch(f'{BASE}/procesos/{pid}/', {'dias_recordatorio': [2]}, format='json'))['dias_recordatorio'] == [2]
+    administradora.post(f'{BASE}/procesos/{pid}/cerrar/')
+    assert administradora.patch(f'{BASE}/procesos/{pid}/', {'dias_recordatorio': [1]}, format='json').status_code == 409
+    assert administradora.patch(f'{BASE}/procesos/{uuid.uuid4()}/', {'nombre': 'x'}, format='json').status_code == 404
+    assert AuditoriaLog.objects.filter(accion='PROCESO_EDITADO').exists()
+
+
+def test_cobertura_respeta_el_filtro_por_tipo_de_pension(analista, pensionado, datos):
+    r = analista.get(f'{BASE}/cobertura/pasivos/?tipo_nomina_id={pensionado.id}&sin_cuenta=true')
+    assert [f['cedula'] for f in cuerpo(r)['results']] == [OTRO_PASIVO]
+
+
+# ── C8: recordatorios previos al cierre ──
+def test_beat_de_recordatorios_avisa_solo_a_pasivos_del_alcance_sin_solicitud_enviada(administradora, pasivo, otro_pasivo, pensionado):
+    from apps.fe_de_vida.infrastructure.tasks.recordatorios_tasks import enviar_recordatorios_tarea
+    ahora = timezone.now()
+    todos = cuerpo(crear_proceso(administradora, dias_recordatorio=[7, 3]))['id']
+    administradora.post(f'{BASE}/procesos/{todos}/abrir/')
+    ProcesoFeDeVidaModel.objects.filter(pk=todos).update(fecha_cierre=ahora + timedelta(days=3))
+    assert enviar_recordatorios_tarea() == 3   # PASIVO, OTRO_PASIVO y SIN_CORREO (todos pasivos)
+    recordatorios = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.recordatorio_cierre']
+    assert {a.cedula_destino for a in recordatorios} == {PASIVO, OTRO_PASIVO, SIN_CORREO}
+    assert {(a.ref_id, a.clave) for a in recordatorios} == {(todos, '3')} and all(a.correo for a in recordatorios)
+    # quien ya envió deja de recibirlos
+    solicitud_enviada(pasivo, todos)
+    NotificadorFalso.enviadas.clear()
+    assert enviar_recordatorios_tarea() == 2
+    # fuera de umbral (faltan 5 días) no avisa
+    ProcesoFeDeVidaModel.objects.filter(pk=todos).update(fecha_cierre=ahora + timedelta(days=5))
+    assert enviar_recordatorios_tarea() == 0
+
+
+def test_beat_de_recordatorios_respeta_alcance_y_proceso_sin_recordatorios(administradora, pensionado, datos):
+    from apps.fe_de_vida.infrastructure.tasks.recordatorios_tasks import enviar_recordatorios_tarea
+    ahora = timezone.now()
+    acotado = cuerpo(crear_proceso(administradora, tipos_nomina=[pensionado.id], dias_recordatorio=[1]))['id']
+    sin = cuerpo(crear_proceso(administradora))['id']
+    for pid in (acotado, sin):
+        administradora.post(f'{BASE}/procesos/{pid}/abrir/')
+        ProcesoFeDeVidaModel.objects.filter(pk=pid).update(fecha_cierre=ahora + timedelta(days=1))
+    assert enviar_recordatorios_tarea() == 1
+    assert [a.cedula_destino for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.recordatorio_cierre'] == [OTRO_PASIVO]
+
+
+# ── C7: acceso del pasivo ──
+def test_pasivo_con_cuenta_accede_a_las_rutas_del_pasivo_y_no_a_las_del_activo(administradora, pasivo, datos):
+    proceso_abierto(administradora)
+    assert pasivo.get(f'{BASE}/procesos/vigente/').status_code == 200
+    assert pasivo.get(f'{BASE}/mis-solicitudes/').status_code == 200
+    # rutas del trabajador activo (autogestión) exigen condición ACTIVO
+    assert pasivo.post('/api/v1/autogestion/solicitudes/', {}, format='json').status_code == 403
+
+
+def test_un_activo_con_los_permisos_del_pasivo_no_accede_a_la_fe_de_vida(datos):
+    activo = cliente(ACTIVO, PERMISOS_PASIVO, 9)
+    assert activo.get(f'{BASE}/procesos/vigente/').status_code == 403
+    assert activo.get(f'{BASE}/mis-solicitudes/').status_code == 403
+    assert activo.post(f'{BASE}/procesos/vigente/solicitud/').status_code == 403
+
+
+# ── Plan 2.9 / decisión C: lista blanca propia del acta (identidad corregible) ──
+def test_acta_permite_corregir_nombres_apellidos_y_fecha_de_nacimiento_y_se_aplican_al_validar(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    pid = proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    cambios = [{'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': campo, 'valor': valor}
+               for campo, valor in (('nombres', 'MARÍA JOSÉ'), ('apellidos', 'PÉREZ DÍAZ'), ('fecha_nacimiento', '1950-03-04'))]
+    r = pasivo.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json')
+    assert r.status_code == 200 and len(cuerpo(r)['cambios']) == 3
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'CAMARA'}, format='multipart').status_code == 200
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/').status_code == 200
+    detalle = cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/'))
+    assert {c['campo']: c['valor_actual'] for c in detalle['cambios']}['nombres'] == 'MARIA'
+    analista.post(f'{BASE}/solicitudes/{sid}/check/')
+    with django_capture_on_commit_callbacks(execute=True):
+        assert cuerpo(administradora.post(f'{BASE}/solicitudes/{sid}/check/'))['estado'] == 'VALIDADA'
+    e = EmployeeModel.objects.get(cedulaidentidad=PASIVO)
+    assert (e.nombres, e.apellidos, str(e.fecha_nacimiento)) == ('MARÍA JOSÉ', 'PÉREZ DÍAZ', '1950-03-04')
+
+
+@pytest.mark.parametrize('seccion,entidad,campo,valor', [
+    ('identidad', 'employee', 'cedulaidentidad', '9999999'),
+    ('identidad', 'employee', 'correo', 'x@y.zz'),
+    ('contacto', 'employee', 'nombres', 'OTRO'),          # sección equivocada
+    ('identidad', 'employee', 'telefono_movil', '04140000000'),
+    ('identidad', 'datos_vivienda', 'nombres', 'X'),
+    ('identidad', 'employee', 'fecha_nacimiento', '2999-01-01'),
+    ('identidad', 'employee', 'nombres', ''),
+])
+def test_acta_rechaza_campos_fuera_de_la_lista_blanca_de_fe_de_vida(pasivo, administradora, seccion, entidad, campo, valor):
+    proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    r = pasivo.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': [
+        {'seccion': seccion, 'entidad': entidad, 'accion': 'MODIFICAR', 'campo': campo, 'valor': valor}]}, format='json')
+    assert r.status_code == 400
+
+
+def test_la_lista_blanca_de_autogestion_no_cambia():
+    from apps.autogestion.domain.value_objects.secciones import CAMPOS_POR_SECCION
+    from apps.fe_de_vida.infrastructure.adaptadores_autogestion import CAMPOS_ACTA
+    assert 'identidad' not in CAMPOS_POR_SECCION and 'nombres' not in CAMPOS_POR_SECCION['contacto']['employee']
+    assert CAMPOS_ACTA['identidad']['employee'] == {'nombres', 'apellidos', 'fecha_nacimiento'}
+    assert CAMPOS_ACTA['contacto']['employee'] == CAMPOS_POR_SECCION['contacto']['employee']

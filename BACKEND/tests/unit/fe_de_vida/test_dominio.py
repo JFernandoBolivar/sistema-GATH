@@ -160,7 +160,7 @@ def test_no_se_revisa_la_propia_fe_de_vida():
 
 
 def test_check_solo_en_estados_revisables():
-    for e in (E.BORRADOR, E.VALIDADA, E.RECHAZADA, E.REPETICION_SOLICITADA, E.EXPIRADA, E.ARCHIVADA):
+    for e in (E.BORRADOR, E.VALIDADA, E.RECHAZADA, E.DEVUELTA, E.EXPIRADA, E.ARCHIVADA):
         with pytest.raises(ConflictError):
             solicitud(e).dar_check(ANALISTA, AHORA)
 
@@ -196,12 +196,12 @@ def test_rechazo_y_repeticion_exigen_motivo():
     with pytest.raises(ValidationError):
         pendiente().rechazar(ANALISTA, ' ', AHORA)
     with pytest.raises(ValidationError):
-        pendiente().solicitar_repeticion(ANALISTA, '', AHORA)
+        pendiente().devolver(ANALISTA, '', AHORA)
 
 
 def test_repeticion_limpia_la_foto_conserva_historial_y_no_reutiliza_checks():
-    s = pendiente().dar_check(ANALISTA, AHORA).solicitar_repeticion(ADMINISTRADORA, 'rostro cortado', AHORA)
-    assert s.estado is E.REPETICION_SOLICITADA and s.evidencia_clave == '' and s.evidencias_previas == ('k/1.jpg',)
+    s = pendiente().dar_check(ANALISTA, AHORA).devolver(ADMINISTRADORA, 'rostro cortado', AHORA, requiere_nueva_foto=True)
+    assert s.estado is E.DEVUELTA and s.evidencia_clave == '' and s.evidencias_previas == ('k/1.jpg',)
     with pytest.raises(ValidationError):  # sin nueva foto no puede reenviar
         s.enviar(AHORA)
     s2 = s.con_evidencia(OrigenEvidencia.CAMARA, 'k/2.jpg', 'h2', 'image/jpeg', 5).enviar(AHORA)
@@ -214,7 +214,7 @@ def test_repeticion_limpia_la_foto_conserva_historial_y_no_reutiliza_checks():
 # ── Máquina de estados ──
 def test_expirar_solo_borrador_o_repeticion_y_rehabilitar_solo_expirada():
     assert solicitud().expirar().estado is E.EXPIRADA
-    assert solicitud(E.REPETICION_SOLICITADA).expirar().estado is E.EXPIRADA
+    assert solicitud(E.DEVUELTA).expirar().estado is E.EXPIRADA
     for e in (E.PENDIENTE_REVISION, E.PENDIENTE_SEGUNDO_CHECK, E.VALIDADA, E.RECHAZADA):
         with pytest.raises(ConflictError):
             solicitud(e).expirar()

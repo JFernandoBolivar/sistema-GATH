@@ -250,6 +250,8 @@ CELERY_TASK_PUBLISH_RETRY_POLICY = {'max_retries': 1, 'interval_start': 0, 'inte
 CELERY_BROKER_CONNECTION_MAX_RETRIES = 1
 # Tareas periódicas (beat): lista estática en código, sin tablas (django-celery-beat
 # se evalúa cuando haya calendarios editables desde la UI).
+from celery.schedules import crontab  # noqa: E402
+
 CELERY_BEAT_SCHEDULE = {
     # Autogestión (B3): marca EXPIRADA toda ventana de actualización vencida (idempotente).
     'autogestion-expirar-ventanas': {
@@ -265,6 +267,11 @@ CELERY_BEAT_SCHEDULE = {
     'fe-de-vida-cerrar-procesos-vencidos': {
         'task': 'fe_de_vida.cerrar_procesos_vencidos',
         'schedule': 900.0,  # cada 15 minutos
+    },
+    # Fe de vida (C8): recordatorios previos al cierre, configurables por proceso (una vez al día).
+    'fe-de-vida-enviar-recordatorios': {
+        'task': 'fe_de_vida.enviar_recordatorios',
+        'schedule': crontab(hour=8, minute=0),
     },
     # Notificaciones (A3): reprograma los correos PENDIENTES que nadie envió (broker o worker caídos).
     'notificaciones-reprocesar-outbox': {

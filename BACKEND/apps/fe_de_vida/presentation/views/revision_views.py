@@ -16,7 +16,7 @@ from apps.fe_de_vida.application.use_cases.revision import (
     aprobar_directo,
     dar_check,
     rechazar,
-    solicitar_repeticion,
+    devolver,
 )
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
 from apps.fe_de_vida.domain.value_objects.estados import RolRevision
@@ -33,6 +33,7 @@ from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     DetalleRevisionSerializer,
     FiltroBandejaSerializer,
     JustificacionSerializer,
+    DevolverSerializer,
     MotivoSerializer,
     SolicitudSerializer,
     UrlEvidenciaSerializer,
@@ -179,17 +180,22 @@ class RechazarView(APIView):
         return ok(a_dict_solicitud(solicitud), 'Fe de vida rechazada.')
 
 
-class SolicitarRepeticionView(APIView):
+class DevolverView(APIView):
     permission_classes = permisos.permisos_bienestar(permisos.REVISAR)
 
-    @extend_schema(tags=TAG, summary='Pedir al pasivo que repita la foto (motivo obligatorio)',
-                   request=MotivoSerializer, responses={200: SolicitudSerializer, **ERRORES})
+    @extend_schema(
+        tags=TAG, summary='Devolver la fe de vida para corrección (motivo obligatorio)',
+        description='El pasivo corrige los datos del acta y reenvía. `requiere_nueva_foto`: además debe cambiar la foto.',
+        request=DevolverSerializer, responses={200: SolicitudSerializer, **ERRORES},
+    )
     def post(self, request, solicitud_id):
-        datos = validar_entrada(MotivoSerializer, request.data)
+        datos = validar_entrada(DevolverSerializer, request.data)
         with transaction.atomic():
-            solicitud = solicitar_repeticion(
+            solicitud = devolver(
                 RepoSolicitudesFeDeVidaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id),
-                actor=actor_revision(request), motivo=datos['motivo'], ahora=ahora(),
+                actor=actor_revision(request), motivo=datos['motivo'],
+                requiere_nueva_foto=datos['requiere_nueva_foto'], ahora=ahora(),
             )
-            auditar(request, 'REPETICION_SOLICITADA', solicitud.id, None, {**resumen(solicitud), 'motivo': datos['motivo']})
-        return ok(a_dict_solicitud(solicitud), 'Repetición de la foto solicitada.')
+            auditar(request, 'SOLICITUD_DEVUELTA', solicitud.id, None,
+                    {**resumen(solicitud), 'motivo': datos['motivo'], 'requiere_nueva_foto': datos['requiere_nueva_foto']})
+        return ok(a_dict_solicitud(solicitud), 'Fe de vida devuelta para corrección.')

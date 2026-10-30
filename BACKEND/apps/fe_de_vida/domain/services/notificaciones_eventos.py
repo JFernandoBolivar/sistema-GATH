@@ -25,7 +25,8 @@ ENLACE_PASIVO = '/fe-de-vida'
 PLANTILLA_ENLACE_BIENESTAR = '/personal/bienestar/fe-de-vida/{id}'
 
 ASUNTO_RECIBIDA = 'Fe de vida recibida - GATH CONATEL'
-ASUNTO_REPETICION = 'Debe repetir su foto de fe de vida - GATH CONATEL'
+ASUNTO_DEVUELTA = 'Su fe de vida fue devuelta para corrección - GATH CONATEL'
+ASUNTO_RECORDATORIO = 'Recordatorio: fe de vida pendiente - GATH CONATEL'
 ASUNTO_RECHAZADA = 'Su fe de vida fue rechazada - GATH CONATEL'
 ASUNTO_VALIDADA = 'Constancia de Fe de Vida {proceso} - CONATEL'
 
@@ -65,7 +66,7 @@ def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -
                 **a_bienestar, tipo=e.tipo.value, permiso_destino=PERMISO_REVISAR,
                 titulo='Fe de vida reenviada para revisar' if reenvio else 'Nueva fe de vida para revisar',
                 mensaje=(f'El pasivo C.I. {e.cedula} ' + (
-                    'reenvió su fe de vida con la foto repetida.' if reenvio else 'envió su fe de vida para revisión.')),
+                    'reenvió su fe de vida corregida.' if reenvio else 'envió su fe de vida para revisión.')),
             ),
         ]
     if e.tipo is TipoEvento.PRIMER_CHECK:
@@ -76,11 +77,24 @@ def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -
             **a_bienestar, tipo=e.tipo.value, permiso_destino=permiso, titulo='Fe de vida pendiente de segundo check',
             mensaje=f'La fe de vida del pasivo C.I. {e.cedula} ya tiene un check y espera el suyo.',
         )]
-    if e.tipo is TipoEvento.REPETICION_SOLICITADA:
+    if e.tipo is TipoEvento.DEVUELTA:
+        foto = ' Además debe tomar o subir una foto nueva con su cédula.' if d.get('requiere_nueva_foto') else ''
         return [SolicitudNotificacion(
-            **al_pasivo, tipo=e.tipo.value, titulo='Debe repetir su foto de fe de vida',
-            mensaje=f'Bienestar Social le pide repetir la foto con su cédula. Motivo: {d.get("motivo", "no indicado")}.',
-            correo=CorreoSolicitado(ASUNTO_REPETICION),
+            **al_pasivo, tipo=e.tipo.value, titulo='Su fe de vida fue devuelta para corrección',
+            mensaje=(f'Bienestar Social devolvió su fe de vida para corrección. Motivo: {d.get("motivo", "no indicado")}.'
+                     f'{foto} Corríjala y reenvíela.'),
+            correo=CorreoSolicitado(ASUNTO_DEVUELTA),
+        )]
+    if e.tipo is TipoEvento.RECORDATORIO_CIERRE:
+        dias = d.get('dias')
+        cuando = 'mañana' if dias == 1 else f'en {dias} días'
+        return [SolicitudNotificacion(
+            tipo=e.tipo.value, ref_tipo='proceso_fe_de_vida', ref_id=e.proceso_id, clave=str(dias),
+            cedula_destino=e.cedula, enlace=ENLACE_PASIVO, modulo=MODULO_PASIVO,
+            titulo='Recuerde cumplir su fe de vida',
+            mensaje=(f'El proceso "{d.get("nombre", "")}" cierra {cuando} y aún no ha enviado su fe de vida. '
+                     'Ingrese al sistema para completarla.'),
+            correo=CorreoSolicitado(ASUNTO_RECORDATORIO),
         )]
     if e.tipo is TipoEvento.RECHAZADA:
         return [SolicitudNotificacion(

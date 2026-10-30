@@ -1,6 +1,6 @@
 """
 Revisión de Bienestar (C3): doble check en orden indistinto, aprobación directa de la Administradora,
-rechazo y solicitud de repetición. Al quedar VALIDADA aplica el acta a los datos reales (C19). Sin Django.
+rechazo definitivo y devolución para corrección. Al quedar VALIDADA aplica el acta a los datos reales (C19). Sin Django.
 """
 from datetime import datetime
 
@@ -62,13 +62,15 @@ def rechazar(
     return guardada
 
 
-def solicitar_repeticion(
+def devolver(
     repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
-    *, solicitud_id: str, actor: ActorRevision, motivo: str, ahora: datetime,
+    *, solicitud_id: str, actor: ActorRevision, motivo: str, requiere_nueva_foto: bool = False, ahora: datetime,
 ) -> SolicitudFeDeVida:
+    """Devuelve el acta para corrección (motivo obligatorio); la foto nueva solo se exige si el revisor lo pide."""
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
-    guardada = repo.guardar(solicitud.solicitar_repeticion(actor, motivo, ahora), solicitud.version)
-    (publicador or PublicadorNulo()).publicar(
-        evento(TipoEvento.REPETICION_SOLICITADA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios),
-    )
+    guardada = repo.guardar(solicitud.devolver(actor, motivo, ahora, requiere_nueva_foto), solicitud.version)
+    (publicador or PublicadorNulo()).publicar(evento(
+        TipoEvento.DEVUELTA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios,
+        requiere_nueva_foto=requiere_nueva_foto,
+    ))
     return guardada

@@ -5,7 +5,7 @@ from typing import Protocol
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.constancia import Certificador, ConstanciaFeDeVida, PlantillaConstancia
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja, FiltroCobertura
-from apps.fe_de_vida.domain.entities.pasivo import DatosPasivo, PasivoCobertura
+from apps.fe_de_vida.domain.entities.pasivo import DatosPasivo, PasivoCobertura, TipoPension
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 
@@ -30,6 +30,24 @@ class RepoProcesos(Protocol):
     def agregar_prorroga(self, prorroga: ProrrogaProceso) -> ProrrogaProceso: ...
 
     def listar_prorrogas(self, proceso_id: str) -> list[ProrrogaProceso]: ...
+
+
+class LectorAlcance(Protocol):
+    """Alcance de los procesos por tipo de pensión (TipoNomina de la asignación PASIVO). Todo se resuelve por consulta."""
+
+    def tipo_nomina_de(self, cedula: str) -> int | None:
+        """Tipo de nómina de la asignación PASIVO vigente del trabajador (None si no tiene)."""
+        ...
+
+    def cedulas_en_alcance(self, tipos_nomina: tuple[int, ...]) -> list[str]:
+        """Cédulas de los pasivos dentro del alcance (`tipos_nomina` vacío = todos los pasivos)."""
+        ...
+
+    def tipos_pension(self) -> list[TipoPension]:
+        """Catálogo: nóminas de pasivos (TipoNomina con es_activo = False)."""
+        ...
+
+    def nombres_tipos(self, ids: list[int]) -> dict[int, str]: ...
 
 
 class RepoSolicitudesFeDeVida(Protocol):

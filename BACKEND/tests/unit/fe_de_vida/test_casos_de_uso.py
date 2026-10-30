@@ -23,7 +23,7 @@ def m():
 
 
 def iniciar(m, cedula=PASIVO, ahora=AHORA):
-    return sp.iniciar_solicitud(m.procesos, m.solicitudes, m.verificador, proceso_id=m.proceso.id, cedula=cedula, ahora=ahora)
+    return sp.iniciar_solicitud(m.procesos, m.solicitudes, m.verificador, m.alcance, proceso_id=m.proceso.id, cedula=cedula, ahora=ahora)
 
 
 # ── Procesos (C17) ──
@@ -233,17 +233,17 @@ def test_rechazo_y_repeticion_con_motivo_y_sin_aplicar(m):
     m.verificador.pasivos.add('888')
     s1, s2 = m.solicitud_enviada(), m.solicitud_enviada(OTRO_PASIVO)
     r = revision.rechazar(m.solicitudes, m.publicador, solicitud_id=s1.id, actor=ANALISTA, motivo='no es la persona', ahora=AHORA)
-    rep = revision.solicitar_repeticion(m.solicitudes, m.publicador, solicitud_id=s2.id, actor=OTRA_ADMINISTRADORA, motivo='borrosa', ahora=AHORA)
-    assert r.estado is E.RECHAZADA and rep.estado is E.REPETICION_SOLICITADA and m.aplicador.llamadas == []
+    rep = revision.devolver(m.solicitudes, m.publicador, solicitud_id=s2.id, actor=OTRA_ADMINISTRADORA, motivo='borrosa', ahora=AHORA)
+    assert r.estado is E.RECHAZADA and rep.estado is E.DEVUELTA and m.aplicador.llamadas == []
     s3 = m.solicitud_enviada('888')
     with pytest.raises(ValidationError):
         revision.rechazar(m.solicitudes, solicitud_id=s3.id, actor=ANALISTA, motivo='', ahora=AHORA)
-    assert {'fe_de_vida.rechazada', 'fe_de_vida.repeticion_solicitada'} <= set(m.publicador.tipos())
+    assert {'fe_de_vida.rechazada', 'fe_de_vida.devuelta'} <= set(m.publicador.tipos())
 
 
 def test_flujo_de_repeticion_completo_hasta_validada(m):
     s = m.solicitud_enviada()
-    revision.solicitar_repeticion(m.solicitudes, solicitud_id=s.id, actor=ANALISTA, motivo='sin cédula visible', ahora=AHORA)
+    revision.devolver(m.solicitudes, solicitud_id=s.id, actor=ANALISTA, motivo='sin cédula visible', ahora=AHORA)
     sp.subir_evidencia(m.procesos, m.solicitudes, m.storage, solicitud_id=s.id, cedula=PASIVO,
                        contenido=b'nueva', mime='image/jpeg', origen='ARCHIVO', metadatos=None, ahora=AHORA)
     sp.enviar_solicitud(m.procesos, m.solicitudes, solicitud_id=s.id, cedula=PASIVO, ahora=AHORA)
@@ -286,16 +286,16 @@ def test_paginacion_tiene_tope_y_defecto():
 
 
 def test_proceso_vigente_por_plazo_y_por_prorroga(m):
-    vigente = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=PASIVO, ahora=AHORA)
+    vigente = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=PASIVO, ahora=AHORA)
     assert vigente.proceso.id == m.proceso.id and vigente.puede_enviar and vigente.solicitud is None
     despues = CIERRE + timedelta(days=1)
-    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=PASIVO, ahora=despues) is None
+    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=PASIVO, ahora=despues) is None
     procesos.prorrogar_proceso(
         m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO, nueva_fecha_limite=despues + timedelta(days=5),
         motivo='viaje', actor=ANALISTA.cedula, ahora=despues,
     )
-    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=PASIVO, ahora=despues).puede_enviar
-    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=OTRO_PASIVO, ahora=despues) is None
+    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=PASIVO, ahora=despues).puede_enviar
+    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=OTRO_PASIVO, ahora=despues) is None
 
 
 def test_url_evidencia_sin_foto_falla(m):

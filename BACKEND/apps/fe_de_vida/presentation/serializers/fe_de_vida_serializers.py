@@ -15,6 +15,8 @@ from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSo
 ACCIONES_CAMBIO = ('MODIFICAR', 'CREAR')
 MAX_CAMBIOS_BORRADOR = 60
 MAX_LONGITUD_MOTIVO = 500
+MAX_TIPOS = 50
+MAX_RECORDATORIOS = 10
 
 
 # ── Entrada: parámetros de consulta ──
@@ -84,10 +86,35 @@ class JustificacionSerializer(serializers.Serializer):
     justificacion = serializers.CharField(max_length=MAX_LONGITUD_MOTIVO)
 
 
-class CrearProcesoSerializer(serializers.Serializer):
+class DevolverSerializer(MotivoSerializer):
+    requiere_nueva_foto = serializers.BooleanField(
+        required=False, default=False, help_text='true: el pasivo debe tomar o subir una foto nueva.',
+    )
+
+
+class _ConfiguracionProcesoMixin(serializers.Serializer):
+    tipos_nomina = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False, max_length=MAX_TIPOS,
+        help_text='Ids de TipoNomina (ver procesos/tipos-pension/). Vacía u omitida = todos los pasivos.',
+    )
+    dias_recordatorio = serializers.ListField(
+        child=serializers.IntegerField(min_value=1, max_value=365), required=False, max_length=MAX_RECORDATORIOS,
+        help_text='Días antes del cierre en que se avisa (p. ej. [7, 3, 1]). Vacía u omitida = sin recordatorios.',
+    )
+
+
+class CrearProcesoSerializer(_ConfiguracionProcesoMixin):
     nombre = serializers.CharField(max_length=160)
     fecha_apertura = serializers.DateTimeField()
     fecha_cierre = serializers.DateTimeField()
+
+
+class EditarProcesoSerializer(_ConfiguracionProcesoMixin):
+    """PATCH: solo los campos enviados. En BORRADOR admite todo; ABIERTO, solo `dias_recordatorio`."""
+
+    nombre = serializers.CharField(max_length=160, required=False)
+    fecha_apertura = serializers.DateTimeField(required=False)
+    fecha_cierre = serializers.DateTimeField(required=False)
 
 
 class ProrrogarSerializer(serializers.Serializer):
@@ -122,6 +149,7 @@ class SolicitudSerializer(serializers.Serializer):
     via_aprobacion = serializers.CharField(allow_null=True)
     fecha_envio = serializers.DateTimeField(allow_null=True)
     fecha_validacion = serializers.DateTimeField(allow_null=True)
+    requiere_nueva_foto = serializers.BooleanField()
     decisiones = DecisionSerializer(many=True)
 
 
@@ -151,6 +179,11 @@ class DetalleRevisionSerializer(serializers.Serializer):
     cambios = CambioComparadoSerializer(many=True)
 
 
+class TipoPensionSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+
+
 class ProcesoSerializer(serializers.Serializer):
     id = serializers.CharField()
     nombre = serializers.CharField()
@@ -158,6 +191,8 @@ class ProcesoSerializer(serializers.Serializer):
     fecha_apertura = serializers.DateTimeField()
     fecha_cierre = serializers.DateTimeField()
     fecha_cierre_real = serializers.DateTimeField(allow_null=True)
+    tipos_nomina = TipoPensionSerializer(many=True, help_text='Alcance; lista vacía = todos los pasivos.')
+    dias_recordatorio = serializers.ListField(child=serializers.IntegerField())
 
 
 class ProcesoVigenteSerializer(serializers.Serializer):
@@ -213,6 +248,7 @@ def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None) -> dict:
         'envios': s.envios, 'origen_evidencia': s.origen_evidencia.value if s.origen_evidencia else None,
         'tiene_evidencia': bool(s.evidencia_clave), 'via_aprobacion': s.via_aprobacion.value if s.via_aprobacion else None,
         'fecha_envio': s.fecha_envio, 'fecha_validacion': s.fecha_validacion,
+        'requiere_nueva_foto': s.requiere_nueva_foto,
         'decisiones': [
             {'tipo': d.tipo.value, 'rol': d.rol.value, 'actor_cedula': d.actor_cedula, 'envio': d.envio,
              'motivo': d.motivo, 'fecha': d.fecha}
@@ -242,16 +278,20 @@ def a_dict_revision(d: DetalleRevision) -> dict:
     }
 
 
-def a_dict_proceso(p: ProcesoFeDeVida) -> dict:
+def a_dict_proceso(p: ProcesoFeDeVida, nombres_tipos: dict[int, str] | None = None) -> dict:
+    """`nombres_tipos` (id -> nombre) los resuelve la vista por consulta; sin nombre se devuelve el id como texto."""
+    nombres = nombres_tipos or {}
     return {
         'id': p.id, 'nombre': p.nombre, 'estado': p.estado.value, 'fecha_apertura': p.fecha_apertura,
         'fecha_cierre': p.fecha_cierre, 'fecha_cierre_real': p.fecha_cierre_real,
+        'tipos_nomina': [{'id': t, 'nombre': nombres.get(t, str(t))} for t in p.tipos_nomina],
+        'dias_recordatorio': list(p.dias_recordatorio),
     }
 
 
-def a_dict_vigente(v: ProcesoVigente) -> dict:
+def a_dict_vigente(v: ProcesoVigente, nombres_tipos: dict[int, str] | None = None) -> dict:
     return {
-        'proceso': a_dict_proceso(v.proceso), 'solicitud': a_dict_solicitud(v.solicitud) if v.solicitud else None,
+        'proceso': a_dict_proceso(v.proceso, nombres_tipos), 'solicitud': a_dict_solicitud(v.solicitud) if v.solicitud else None,
         'puede_enviar': v.puede_enviar,
     }
 

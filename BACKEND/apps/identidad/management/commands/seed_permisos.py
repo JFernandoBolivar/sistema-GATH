@@ -304,8 +304,6 @@ PERMISOS_BIENESTAR_ANALISTA = [
     "fe_de_vida.ver_evidencia",
     "fe_de_vida.verificar_constancia",
     "fe_de_vida.ver_panel",
-    "fe_de_vida.gestionar_procesos",
-    "fe_de_vida.prorrogar",
     "fe_de_vida.ver_cobertura",
 ]
 # La Administradora NO hereda el check de la Analista de la fe de vida: ese doble check exige dos
@@ -314,6 +312,9 @@ PERMISOS_BIENESTAR_ADMIN = [
     p for p in PERMISOS_BIENESTAR_ANALISTA if p != "fe_de_vida.check_analista"
 ] + [
     "bienestar.configurar_secciones",
+    # Decisión H: crear/abrir/cerrar procesos y conceder prórrogas es solo de la Administradora.
+    "fe_de_vida.gestionar_procesos",
+    "fe_de_vida.prorrogar",
     "fe_de_vida.check_administradora",
     "fe_de_vida.aprobar_directo",
     "fe_de_vida.configurar_plantilla",
@@ -325,6 +326,12 @@ PERMISOS_BIENESTAR_ADMIN = [
 # ANALISTA_BIENESTAR / ADMIN_BIENESTAR (y ADMINISTRADOR). El seed los retira de forma idempotente,
 # salvo que algún usuario tenga una excepción individual que los cite (entonces los conserva y avisa).
 PERMISOS_RETIRADOS = ("bienestar.check_analista", "bienestar.check_administradora", "bienestar.aprobar_directo")
+
+# Asignaciones que se retiran de un rol (por nombre) sin borrar el permiso del catálogo. Idempotente; no toca
+# excepciones individuales de usuario.
+ASIGNACIONES_RETIRADAS = {
+    "ANALISTA_BIENESTAR": ("fe_de_vida.gestionar_procesos", "fe_de_vida.prorrogar"),
+}
 
 ROL_ASIGNACIONES[2] += ["fe_de_vida.verificar_constancia"]
 # B8: «Mi expediente» exige `autogestion.ver_propio`; todo trabajador con cuenta ve su propia ficha,
@@ -443,6 +450,15 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f" - Rol '{nombre_rol}' (ID {rol_id}): {len(codigos)} permisos vinculados."
                 )
+
+            for nombre, codigos in ASIGNACIONES_RETIRADAS.items():
+                rol_id = ids_por_nombre.get(nombre)
+                if rol_id is None:
+                    continue
+                borradas, _ = RolPermisoModel.objects.filter(rol_id=rol_id, permiso__codigo__in=codigos).delete()
+                if borradas:
+                    roles_modificados.append(rol_id)
+                    self.stdout.write(self.style.SUCCESS(f"Asignaciones retiradas de {nombre}: {borradas}."))
 
             roles_modificados = sorted(set(roles_modificados) | set(roles_retirados))
             if roles_modificados and not options["no_invalidar_sesiones"]:

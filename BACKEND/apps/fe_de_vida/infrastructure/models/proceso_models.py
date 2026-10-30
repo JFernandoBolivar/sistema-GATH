@@ -18,6 +18,10 @@ class ProcesoFeDeVidaModel(BaseModel):
     abierto_por = models.CharField(max_length=15, blank=True, default='')
     cerrado_por = models.CharField(max_length=15, blank=True, default='')
     fecha_cierre_real = models.DateTimeField(null=True, blank=True)
+    # Alcance: ids de TipoNomina (vacío = todos los pasivos). Sin FK: el catálogo es legado y de solo lectura.
+    tipos_nomina = models.JSONField(default=list, blank=True)
+    # Días antes del cierre en que se avisa a los pasivos pendientes (vacío = sin recordatorios).
+    dias_recordatorio = models.JSONField(default=list, blank=True)
 
     class Meta:
         db_table = 'fe_de_vida_proceso'

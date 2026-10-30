@@ -16,6 +16,7 @@ def proceso_a_entidad(m) -> ProcesoFeDeVida:
         id=str(m.pk), nombre=m.nombre, fecha_apertura=m.fecha_apertura, fecha_cierre=m.fecha_cierre,
         estado=EstadoProceso(m.estado), creado_por=m.creado_por, abierto_por=m.abierto_por,
         cerrado_por=m.cerrado_por, fecha_cierre_real=m.fecha_cierre_real,
+        tipos_nomina=tuple(m.tipos_nomina or ()), dias_recordatorio=tuple(m.dias_recordatorio or ()),
     )
 
 
@@ -43,7 +44,7 @@ def solicitud_a_entidad(m) -> SolicitudFeDeVida:
         evidencias_previas=tuple(m.evidencias_previas or ()),
         via_aprobacion=ViaAprobacion(m.via_aprobacion) if m.via_aprobacion else None,
         decisiones=tuple(decision_a_entidad(d) for d in m.decisiones.all().order_by('fecha', 'created_at')),
-        fecha_envio=m.fecha_envio, fecha_validacion=m.fecha_validacion,
+        fecha_envio=m.fecha_envio, fecha_validacion=m.fecha_validacion, requiere_nueva_foto=m.requiere_nueva_foto,
     )
 
 
@@ -56,4 +57,5 @@ def campos_solicitud(s: SolicitudFeDeVida) -> dict:
         'metadatos_captura': s.metadatos_captura, 'evidencias_previas': list(s.evidencias_previas),
         'via_aprobacion': s.via_aprobacion.value if s.via_aprobacion else '',
         'fecha_envio': s.fecha_envio, 'fecha_validacion': s.fecha_validacion,
+        'requiere_nueva_foto': s.requiere_nueva_foto,
     }

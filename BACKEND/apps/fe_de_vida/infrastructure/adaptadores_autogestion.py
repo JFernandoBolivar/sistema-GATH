@@ -10,13 +10,49 @@ from datetime import datetime
 from apps.autogestion.application.use_cases.decision_bienestar import aplicar_cambios_aprobados
 from apps.autogestion.domain.entities.solicitud_actualizacion import CambioPropuesto
 from apps.autogestion.domain.services.validacion_cambios import validar_estructura, validar_registro_nuevo, validar_valor
-from apps.autogestion.domain.value_objects.secciones import CAMPO_REGISTRO_NUEVO, Accion, DecisionCambio
+from apps.autogestion.domain.value_objects.secciones import (
+    CAMPO_REGISTRO_NUEVO,
+    CAMPOS_POR_SECCION,
+    CAMPOS_PROHIBIDOS,
+    ENTIDADES_UNICAS,
+    Accion,
+    DecisionCambio,
+)
 from apps.autogestion.infrastructure.repositories.aplicador_cambios_orm import AplicadorCambiosORM
 from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.autogestion.infrastructure.repositories.repo_cambios_soportes_orm import RepoCambiosPropuestosORM
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.value_objects.estados import ORIGEN_FE_DE_VIDA
+from apps.fe_de_vida.domain.value_objects.lista_blanca import CAMPOS_ADICIONALES_ACTA
 from core.domain.exceptions import NotFoundError, ValidationError
+
+
+def _unir_listas() -> dict[str, dict[str, frozenset[str]]]:
+    """Lista blanca del acta = la de autogestión + los campos adicionales de fe de vida (sin modificar la original)."""
+    unida = {sec: dict(ents) for sec, ents in CAMPOS_POR_SECCION.items()}
+    for seccion, entidades in CAMPOS_ADICIONALES_ACTA.items():
+        destino = unida.setdefault(seccion, {})
+        for entidad, campos in entidades.items():
+            destino[entidad] = destino.get(entidad, frozenset()) | campos
+    return unida
+
+
+CAMPOS_ACTA = _unir_listas()
+
+
+def _validar_estructura_acta(seccion: str, entidad: str, accion: Accion, campo: str, entidad_id) -> None:
+    """Estructura contra la lista blanca de fe de vida. El CREAR sigue las reglas de autogestión (no crea identidad)."""
+    if accion is Accion.CREAR:
+        validar_estructura(seccion, entidad, accion, campo, entidad_id)
+        return
+    if campo not in CAMPOS_ACTA.get(seccion, {}).get(entidad, frozenset()):
+        if str(campo).lower() in CAMPOS_PROHIBIDOS:
+            raise ValidationError(f"El campo '{campo}' no es modificable en la fe de vida.")
+        raise ValidationError(f"El campo '{campo}' de '{entidad}' no es modificable en la sección '{seccion}'.")
+    if entidad in ENTIDADES_UNICAS and entidad_id is not None:
+        raise ValidationError(f"'{entidad}' es un registro único: no lleva identificador.")
+    if entidad not in ENTIDADES_UNICAS and entidad_id is None:
+        raise ValidationError(f"Debe indicar el identificador del registro de '{entidad}' a modificar.")
 
 
 def _a_cambio_propuesto(solicitud_id: str, c: CambioActa) -> CambioPropuesto:
@@ -48,7 +84,7 @@ class RepoCambiosActaORM:
 
 
 class ValidadorCambiosActaORM:
-    """Misma lista blanca y validación de valores que la autogestión del activo."""
+    """Lista blanca propia del acta (la de autogestión más nombres, apellidos y fecha de nacimiento) y la misma validación de valores."""
 
     def __init__(self):
         self._lector = LectorFichaORM()
@@ -59,7 +95,7 @@ class ValidadorCambiosActaORM:
         except ValueError:
             raise ValidationError(f"Acción inválida: '{cambio.accion}'.") from None
         entidad_id = str(cambio.entidad_id) if cambio.entidad_id not in (None, '') else None
-        validar_estructura(cambio.seccion, cambio.entidad_destino, accion, cambio.campo, entidad_id)
+        _validar_estructura_acta(cambio.seccion, cambio.entidad_destino, accion, cambio.campo, entidad_id)
         if accion is Accion.CREAR:
             valor = validar_registro_nuevo(cambio.seccion, cambio.entidad_destino, cambio.valor_propuesto)
             self._lector.validar_referencias(valor)
