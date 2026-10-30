@@ -1,7 +1,7 @@
 """
 Constancia de fe de vida en PDF (C4, PLAN §2.11) con el motor ReportLab del kernel (encabezado y pie
-institucionales de `core/infrastructure/pdf`). Lleva número, código de verificación y QR de verificación
-interna, y el nombre y la cédula de quien(es) certifican, como en la planilla física (sin cargo ni vía de
+institucionales de `core/infrastructure/pdf`). Lleva número y QR de verificación interna (el código de
+verificación va solo dentro del QR), y el nombre y la cédula de quien(es) certifican, como en la planilla física (sin cargo ni vía de
 aprobación). Sin firma digitalizada, sin sello y sin la selfie. El título va solo en el cuerpo, no en el encabezado.
 """
 from io import BytesIO
@@ -72,7 +72,7 @@ class GeneradorConstanciaPDF:
         datos = Paragraph(
             f'<b>Constancia N.° {escape(constancia.numero)}</b><br/>'
             f'Emitida el {emitida_en.strftime("%d/%m/%Y %H:%M")}<br/>'
-            f'Código de verificación:<br/><font size="6">{escape(constancia.codigo_verificacion)}</font>',
+            'Escanee el código QR para verificar su autenticidad.',
             estilos['TableCell'],
         )
         pie = Table([[_qr(url_verificacion), datos]], colWidths=[LADO_QR_MM * mm + 4 * mm, None])
