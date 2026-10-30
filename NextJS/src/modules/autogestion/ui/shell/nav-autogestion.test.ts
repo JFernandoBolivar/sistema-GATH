@@ -35,8 +35,9 @@ describe("itemsVisibles", () => {
   it("las entradas administrativas dependen de su permiso", () => {
     expect(ids(["autogestion.censo_ver_todos"], null)).toEqual(["inicio", "encuesta", "metricas"]);
   });
-  it("el comodín del módulo concede todo lo de autogestión (Notificaciones es de otro módulo)", () => {
-    expect(ids(["autogestion.*"], "ACTIVO")).toHaveLength(ITEMS_NAV_AUTOGESTION.length - 1);
+  it("el comodín del módulo concede todo lo de autogestión (Notificaciones y Fe de vida son de otros módulos)", () => {
+    expect(ids(["autogestion.*"], "ACTIVO")).toHaveLength(ITEMS_NAV_AUTOGESTION.length - 2);
+    expect(ids(["autogestion.*"], "ACTIVO")).not.toContain("fe-de-vida");
     expect(ids(["autogestion.*"], "ACTIVO")).not.toContain("notificaciones");
   });
   it("Notificaciones solo aparece con el permiso notificaciones.ver_propias", () => {
@@ -57,5 +58,19 @@ describe("itemActivo", () => {
     expect(itemActivo(por("solicitudes"), "/autogestion/solicitudes/abc")).toBe(true);
     expect(itemActivo(por("solicitudes"), "/autogestion/solicitudes/nueva")).toBe(false);
     expect(itemActivo(por("solicitar"), "/autogestion/solicitudes/nueva")).toBe(true);
+  });
+});
+
+describe("entrada «Fe de vida» (permiso + condición PASIVO)", () => {
+  const permisos = ["autogestion.ver_propio", "fe_de_vida.solicitar", "fe_de_vida.ver_propia"];
+  it("el pasivo con el permiso la ve", () => {
+    expect(ids(permisos, "PASIVO")).toContain("fe-de-vida");
+  });
+  it("un activo con los mismos permisos no la ve (la condición manda, no el rol)", () => {
+    expect(ids(permisos, "ACTIVO")).not.toContain("fe-de-vida");
+    expect(ids(permisos, null)).not.toContain("fe-de-vida");
+  });
+  it("un pasivo sin el permiso tampoco", () => {
+    expect(ids(["autogestion.ver_propio"], "PASIVO")).not.toContain("fe-de-vida");
   });
 });

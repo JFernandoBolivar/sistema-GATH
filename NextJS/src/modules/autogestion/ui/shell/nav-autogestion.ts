@@ -3,6 +3,7 @@ import {
   Bell,
   FileSpreadsheet,
   FilePenLine,
+  HeartPulse,
   Home,
   ListChecks,
   UserRound,
@@ -54,6 +55,14 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
     permiso: "autogestion.ver_propio",
     condicion: "ACTIVO",
     excluir: ["/autogestion/solicitudes/nueva"],
+  },
+  {
+    id: "fe-de-vida",
+    etiqueta: "Fe de vida",
+    href: "/autogestion/fe-de-vida",
+    icono: HeartPulse,
+    permiso: "fe_de_vida.solicitar",
+    condicion: "PASIVO",
   },
   {
     id: "notificaciones",
