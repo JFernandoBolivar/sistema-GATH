@@ -88,3 +88,33 @@ def fechas_de_ingreso(antecedente_model, empleado_pks) -> dict:
         )
         fechas.update({fila['empleado_id']: fila['ultimo'] for fila in filas})
     return fechas
+
+
+def ingresos_por_empleado(antecedente_model, empleado_pks) -> dict:
+    """Todas las fechas de ingreso (ascendentes, sin nulos) por PK de empleado, en lotes."""
+    ingresos: dict = {}
+    for lote in en_lotes(list(empleado_pks)):
+        filas = (
+            antecedente_model.objects
+            .filter(empleado__in=lote, fecha_ingreso__isnull=False)
+            .order_by('empleado_id', 'fecha_ingreso')
+            .values_list('empleado_id', 'fecha_ingreso')
+        )
+        for empleado_id, fecha in filas:
+            ingresos.setdefault(empleado_id, []).append(fecha)
+    return ingresos
+
+
+def ingreso_previo_a(fechas_ingreso: list, fecha_egreso):
+    """
+    Ingreso que corresponde a un egreso: el más reciente que no sea posterior a
+    él (con reingresos, cada egreso muestra su propio ingreso). Sin fecha de
+    egreso, el reingreso más reciente; sin ingresos previos, `None`.
+    """
+    if not fechas_ingreso:
+        return None
+    if fecha_egreso is None:
+        return fechas_ingreso[-1]
+    limite = fecha_egreso.date() if hasattr(fecha_egreso, 'date') else fecha_egreso
+    previos = [f for f in fechas_ingreso if f <= limite]
+    return previos[-1] if previos else None

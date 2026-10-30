@@ -241,6 +241,19 @@ def test_egresos_muestra_el_reingreso_mas_reciente(escenario):
     assert fila_a['ultimo_cargo'] == 'ANALISTA'
 
 
+def test_egresos_cada_egreso_muestra_su_propio_ingreso(escenario):
+    # A egresó en 2017 (tras ingresar en 2015), reingresó en 2018 y volvió a egresar:
+    # cada fila de egreso muestra el ingreso anterior a ese egreso.
+    primer_egreso = EmployeeEgresadoModel.objects.get(pk=escenario['egreso_a'].pk)
+    primer_egreso.pk = None
+    primer_egreso.save()
+    EmployeeEgresadoModel.objects.filter(pk=primer_egreso.pk).update(
+        fecha_egreso=datetime.datetime(2017, 1, 1, tzinfo=datetime.timezone.utc))
+
+    fechas = sorted(f['fecha_ingreso'] for f in _egresos().filas if f['cedula'] == 'V100')
+    assert fechas == ['01/01/2015', '01/06/2018']
+
+
 def test_egresos_sin_snapshot_usa_la_asignacion_vigente(escenario):
     reporte = _egresos()
 

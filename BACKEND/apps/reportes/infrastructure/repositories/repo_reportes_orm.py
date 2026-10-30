@@ -15,6 +15,8 @@ from apps.reportes.infrastructure.repositories.consultas_reporte import (
     elegir_asignaciones,
     en_lotes,
     fechas_de_ingreso,
+    ingreso_previo_a,
+    ingresos_por_empleado,
     pagina_con_metadatos,
 )
 
@@ -176,7 +178,8 @@ class RepoReportesORM:
 
         cedulas = [p.employee_id for p in pagina]
         pks_empleado = [p.employee.pk for p in pagina if p.employee_id]
-        antecedentes = fechas_de_ingreso(AntecedenteServicioModel, pks_empleado)
+        # Cada egreso muestra el ingreso anterior a él (decisión del usuario 2026-10-30).
+        ingresos = ingresos_por_empleado(AntecedenteServicioModel, pks_empleado)
 
         # Snapshot del cargo al egreso: una por egreso, la de PK más reciente.
         cargos_snapshot = {}
@@ -195,7 +198,7 @@ class RepoReportesORM:
         filas = []
         for idx, p in enumerate(pagina, start=1):
             emp = p.employee
-            f_ing = antecedentes.get(emp.pk) if emp else None
+            f_ing = ingreso_previo_a(ingresos.get(emp.pk, []), p.fecha_egreso) if emp else None
             f_egr = p.fecha_egreso.strftime('%d/%m/%Y') if p.fecha_egreso else 'N/A'
 
             ultimo_cargo = ''
