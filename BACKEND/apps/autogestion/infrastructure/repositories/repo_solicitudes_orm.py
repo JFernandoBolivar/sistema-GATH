@@ -6,7 +6,7 @@ from datetime import datetime
 from django.db import IntegrityError, transaction
 
 from apps.autogestion.domain.entities.solicitud_actualizacion import ProrrogaVentana, SolicitudActualizacion
-from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
+from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES
 from apps.autogestion.infrastructure.mappers.mapper_solicitudes import (
     campos_de_solicitud,
     prorroga_a_entidad,
@@ -59,27 +59,28 @@ class RepoSolicitudesORM:
             qs = qs.filter(seccion__in=secciones)
         qs.delete()
 
-    def listar_de_cedula(self, cedula: str) -> list[SolicitudActualizacion]:
-        return [solicitud_a_entidad(m) for m in SolicitudActualizacionModel.objects.filter(cedula=cedula)]
-
-    def listar(self, estado, cedula, limite, desplazamiento):
+    def listar(self, estado, cedula, limite, desplazamiento, desde=None, hasta=None):
         qs = SolicitudActualizacionModel.objects.all()
         if estado:
             qs = qs.filter(estado=estado)
         if cedula:
             qs = qs.filter(cedula=cedula)
+        if desde:
+            qs = qs.filter(created_at__date__gte=desde)
+        if hasta:
+            qs = qs.filter(created_at__date__lte=hasta)
         total = qs.count()
         return [solicitud_a_entidad(m) for m in qs[desplazamiento:desplazamiento + limite]], total
 
     def listar_habilitadas_vencidas(self, ahora: datetime) -> list[SolicitudActualizacion]:
         qs = SolicitudActualizacionModel.objects.filter(
-            estado=EstadoSolicitud.HABILITADA.value, ventana_fin__lt=ahora,
+            estado__in=[e.value for e in ESTADOS_EDITABLES], ventana_fin__lt=ahora,
         )
         return [solicitud_a_entidad(m) for m in qs]
 
     def listar_habilitadas_por_vencer(self, ahora: datetime, hasta: datetime) -> list[SolicitudActualizacion]:
         qs = SolicitudActualizacionModel.objects.filter(
-            estado=EstadoSolicitud.HABILITADA.value, ventana_fin__gte=ahora, ventana_fin__lte=hasta,
+            estado__in=[e.value for e in ESTADOS_EDITABLES], ventana_fin__gte=ahora, ventana_fin__lte=hasta,
         )
         return [solicitud_a_entidad(m) for m in qs]
 

@@ -36,21 +36,34 @@ export function textoTiempoRestante(t: TiempoRestante): string {
   return `${Math.max(t.minutos, 1)} min`;
 }
 
-/** El trabajador solo edita con la ventana HABILITADA y vigente. */
+/** Estados en que el trabajador edita dentro de un plazo: habilitada o devuelta por Bienestar. */
+export function esEditable(solicitud: SolicitudEntity): boolean {
+  return solicitud.estado === "HABILITADA" || solicitud.estado === "DEVUELTA";
+}
+
+/** El trabajador solo edita con la ventana HABILITADA o DEVUELTA y vigente. */
 export function puedeEditarBorrador(solicitud: SolicitudEntity, ahora: Date): boolean {
-  return solicitud.estado === "HABILITADA" && !tiempoRestante(solicitud.ventanaFin, ahora).vencida;
+  return esEditable(solicitud) && !tiempoRestante(solicitud.ventanaFin, ahora).vencida;
+}
+
+/** Campo (`entidad.campo`) que el trabajador puede editar en esta ventana. */
+export function campoHabilitado(solicitud: Pick<SolicitudEntity, "camposHabilitados">, clave: string): boolean {
+  return solicitud.camposHabilitados.includes(clave);
 }
 
 export function esFinal(solicitud: SolicitudEntity): boolean {
   return ESTADOS_FINALES.includes(solicitud.estado);
 }
 
-/** Bienestar solo habilita una solicitud SOLICITADA y prorroga una HABILITADA. */
+/** Bienestar habilita una SOLICITADA, prorroga una HABILITADA o DEVUELTA y devuelve una ENVIADA. */
 export function puedeHabilitar(solicitud: SolicitudEntity): boolean {
   return solicitud.estado === "SOLICITADA";
 }
 export function puedeProrrogar(solicitud: SolicitudEntity): boolean {
-  return solicitud.estado === "HABILITADA";
+  return esEditable(solicitud);
+}
+export function puedeDevolver(solicitud: SolicitudEntity): boolean {
+  return solicitud.estado === "ENVIADA";
 }
 export function puedeDecidir(solicitud: SolicitudEntity): boolean {
   return solicitud.estado === "ENVIADA";

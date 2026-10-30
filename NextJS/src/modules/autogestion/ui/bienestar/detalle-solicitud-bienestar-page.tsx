@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, CalendarClock, CalendarPlus, XCircle } from "lucide-react";
+import { ArrowLeft, CalendarClock, CalendarPlus, Undo2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { PageHeader } from "@/shared/ui/components/page-header";
@@ -13,11 +13,12 @@ import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados"
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import {
   puedeDecidir,
+  puedeDevolver,
   puedeHabilitar,
   puedeProrrogar,
   puedeRechazarTotal,
 } from "../../domain/services/reglas-solicitud";
-import { nombreSeccion } from "../../domain/value-objects/campos-seccion";
+import { etiquetaClaveCampo } from "../../domain/value-objects/campos-seccion";
 import {
   obtenerComparativoAction,
   obtenerDetalleBienestarAction,
@@ -26,14 +27,21 @@ import { PRESENTACION_ESTADO } from "../estado-solicitud-ui";
 import { formatearFechaHora } from "../formato-solicitud";
 import { hitosSolicitud } from "../solicitudes/hitos-solicitud";
 import { VentanaPlazo } from "../solicitudes/ventana-plazo";
-import { DialogoHabilitar, DialogoProrrogar, DialogoRechazarSolicitud } from "./dialogos-ventana";
+import {
+  DialogoDevolverSolicitud,
+  DialogoHabilitar,
+  DialogoProrrogar,
+  DialogoRechazarSolicitud,
+} from "./dialogos-ventana";
 import { VisorComparativo } from "./visor-comparativo";
 
 /** Detalle de una solicitud para Bienestar: acciones de plazo, línea de tiempo y visor comparativo. */
 export default function DetalleSolicitudBienestarPage({ id }: { id: string }) {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const [dialogo, setDialogo] = useState<"habilitar" | "prorrogar" | "rechazar" | null>(null);
+  const [dialogo, setDialogo] = useState<
+    "habilitar" | "prorrogar" | "rechazar" | "devolver" | null
+  >(null);
 
   const { data, error, isLoading, mutate } = useSWR(["bienestar-detalle", id], async () => {
     // Sin el permiso de revisión (solo lectura) se cae al detalle simple.
@@ -79,13 +87,19 @@ export default function DetalleSolicitudBienestarPage({ id }: { id: string }) {
       <PageHeader
         migas={volver}
         titulo={`Solicitud de la cédula ${data.cedula}`}
-        descripcion={`Secciones: ${data.seccionesSolicitadas.map(nombreSeccion).join(", ")}. Solicitada el ${formatearFechaHora(data.fechaSolicitud)}.`}
+        descripcion={`Campos: ${data.camposSolicitados.map(etiquetaClaveCampo).join(", ")}. Solicitada el ${formatearFechaHora(data.fechaSolicitud)}.`}
         accion={<StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} className="text-base" />}
       />
 
       <div className="rounded-lg border bg-card p-4">
         <p className="text-sm font-medium text-muted-foreground">Motivo del trabajador</p>
         <p className="text-base">{data.motivo}</p>
+        {data.motivoDevolucion ? (
+          <p className="mt-2 text-base">
+            <span className="font-medium">Última devolución:</span> {data.motivoDevolucion}
+            {data.devueltaPor ? ` (por ${data.devueltaPor})` : ""}
+          </p>
+        ) : null}
         {data.motivoDecision ? (
           <p className="mt-2 text-base">
             <span className="font-medium">Resolución:</span> {data.motivoDecision}
@@ -105,6 +119,11 @@ export default function DetalleSolicitudBienestarPage({ id }: { id: string }) {
             <CalendarClock aria-hidden /> Prorrogar plazo
           </Button>
         ) : null}
+        {puedeDevolver(data) && puedeAprobar && !esPropia ? (
+          <Button size="lg" variant="outline" onClick={() => setDialogo("devolver")}>
+            <Undo2 aria-hidden /> Devolver al trabajador
+          </Button>
+        ) : null}
         {puedeRechazarTotal(data) &&
         puedeRevisar &&
         (data.estado !== "ENVIADA" || (puedeAprobar && !esPropia)) ? (
@@ -114,7 +133,7 @@ export default function DetalleSolicitudBienestarPage({ id }: { id: string }) {
         ) : null}
       </div>
 
-      {data.estado === "HABILITADA" ? <VentanaPlazo ventanaFin={data.ventanaFin} /> : null}
+      {data.estado === "HABILITADA" || data.estado === "DEVUELTA" ? <VentanaPlazo ventanaFin={data.ventanaFin} /> : null}
 
       <section aria-labelledby="avance-b" className="rounded-xl border bg-card p-5">
         <h2 id="avance-b" className="mb-4 text-xl font-bold">
@@ -164,6 +183,12 @@ export default function DetalleSolicitudBienestarPage({ id }: { id: string }) {
         solicitud={data}
         abierto={dialogo === "prorrogar"}
         onAbiertoChange={(a) => setDialogo(a ? "prorrogar" : null)}
+        onHecho={recargar}
+      />
+      <DialogoDevolverSolicitud
+        solicitud={data}
+        abierto={dialogo === "devolver"}
+        onAbiertoChange={(a) => setDialogo(a ? "devolver" : null)}
         onHecho={recargar}
       />
       <DialogoRechazarSolicitud

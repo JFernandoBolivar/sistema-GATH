@@ -252,6 +252,27 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
   },
 };
 
+/** Identificador de un campo solicitable: `entidad.campo` (igual que el servidor). */
+export function claveCampo(entidad: string, campo: string): string {
+  return `${entidad}.${campo}`;
+}
+
+/** Sección que agrupa un campo solicitable (`entidad.campo`), si existe. */
+export function seccionDeCampo(clave: string): SeccionCodigo | undefined {
+  for (const seccion of Object.values(SECCIONES_DEF)) {
+    for (const e of seccion.entidades) {
+      if (e.campos.some((c) => claveCampo(e.entidad, c.campo) === clave)) return seccion.codigo;
+    }
+  }
+  return undefined;
+}
+
+/** Etiqueta legible de un campo solicitable `entidad.campo`. */
+export function etiquetaClaveCampo(clave: string): string {
+  const [entidad, ...resto] = clave.split(".");
+  return etiquetaCampo(resto.join("."), entidad);
+}
+
 export function esSeccionConocida(codigo: string): codigo is SeccionCodigo {
   return codigo in SECCIONES_DEF;
 }

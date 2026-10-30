@@ -43,9 +43,23 @@ export function hitosSolicitud(s: SolicitudEntity): HitoLineaTiempo[] {
     },
     {
       id: "enviada",
-      titulo: "Cambios enviados a Bienestar Social",
+      titulo:
+        s.estado === "DEVUELTA"
+          ? "Devuelta para corregir"
+          : s.motivoDevolucion
+            ? "Cambios reenviados a Bienestar Social"
+            : "Cambios enviados a Bienestar Social",
       fecha: enviada ? formatearFechaHora(s.fechaEnvio) : null,
-      estado: s.estado === "ENVIADA" ? "actual" : enviada ? "hecho" : "pendiente",
+      estado:
+        s.estado === "ENVIADA" || s.estado === "DEVUELTA"
+          ? "actual"
+          : enviada
+            ? "hecho"
+            : "pendiente",
+      detalle:
+        s.estado === "DEVUELTA"
+          ? `Bienestar Social la devolvió el ${formatearFechaHora(s.fechaDevolucion)}: ${s.motivoDevolucion}`
+          : undefined,
     },
     {
       id: "resolucion",

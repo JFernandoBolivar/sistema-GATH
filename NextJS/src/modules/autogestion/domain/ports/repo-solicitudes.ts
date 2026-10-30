@@ -16,6 +16,15 @@ export interface FiltrosBandeja {
   offset: number;
 }
 
+/** Filtros de «Mis solicitudes»: estado y rango (inclusivo, AAAA-MM-DD) de la fecha de solicitud. */
+export interface FiltrosMisSolicitudes {
+  estado?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  limit: number;
+  offset: number;
+}
+
 export interface SoporteNuevo {
   seccion: string;
   tipo: string;
@@ -31,9 +40,9 @@ export interface DecisionCambios {
 /** Puerto de las solicitudes de actualización (trabajador y Bienestar). */
 export interface RepoSolicitudes {
   // Trabajador
-  listarMias(): Promise<SolicitudEntity[]>;
+  listarMias(filtros: FiltrosMisSolicitudes): Promise<PaginaSolicitudesEntity>;
   obtenerMia(id: string): Promise<SolicitudDetalleEntity>;
-  solicitar(secciones: string[], motivo: string): Promise<SolicitudEntity>;
+  solicitar(campos: string[], motivo: string): Promise<SolicitudEntity>;
   guardarBorrador(
     id: string,
     cambios: ItemBorrador[],
@@ -51,5 +60,6 @@ export interface RepoSolicitudes {
   habilitar(id: string, plazoDias: number, secciones?: string[]): Promise<SolicitudEntity>;
   prorrogar(id: string, nuevaFechaFin: string, motivo: string): Promise<SolicitudEntity>;
   decidir(id: string, decision: DecisionCambios): Promise<SolicitudDetalleEntity>;
+  devolver(id: string, motivo: string, version?: number): Promise<SolicitudEntity>;
   rechazar(id: string, motivo: string, version?: number): Promise<SolicitudEntity>;
 }

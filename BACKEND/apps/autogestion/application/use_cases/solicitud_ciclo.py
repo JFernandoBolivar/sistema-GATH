@@ -7,7 +7,9 @@ from datetime import datetime, timedelta
 from apps.autogestion.domain.entities.solicitud_actualizacion import ProrrogaVentana, SolicitudActualizacion
 from apps.autogestion.domain.events import EventoAutogestion, PublicadorEventos, TipoEvento
 from apps.autogestion.domain.ports.repo_solicitudes import RepoSecciones, RepoSolicitudes
-from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
+from apps.autogestion.domain.services.validacion_motivo import validar_motivo_solicitud
+from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES, EstadoSolicitud
+from apps.autogestion.domain.value_objects.secciones import SECCION_DE_CAMPO, campos_de_secciones, secciones_de_campos
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
 MOTIVO_MAX = 500
@@ -31,25 +33,33 @@ def obtener_solicitud(repo: RepoSolicitudes, solicitud_id: str, bloquear: bool =
 
 def solicitar_actualizacion(
     repo: RepoSolicitudes, secciones_repo: RepoSecciones, publicador: PublicadorEventos,
-    *, cedula: str, secciones: list[str], motivo: str,
+    *, cedula: str, motivo: str, campos: list[str] | None = None, secciones: list[str] | None = None,
 ) -> SolicitudActualizacion:
-    """El trabajador pide actualizar secciones; queda SOLICITADA hasta que Bienestar habilite la ventana."""
+    """
+    El trabajador pide actualizar CAMPOS concretos (`entidad.campo`, decisión G); queda SOLICITADA hasta que
+    Bienestar habilite la ventana. `secciones` (sin `campos`) pide todos los campos de esas secciones.
+    """
     if not cedula:
         raise NotFoundError("El usuario no tiene un expediente de trabajador asociado.")
-    motivo = _texto_obligatorio(motivo, 'motivo')
-    secciones = tuple(dict.fromkeys(secciones or ()))
-    if not secciones:
-        raise ValidationError("Debe indicar al menos una sección a actualizar.")
+    motivo = validar_motivo_solicitud(motivo)
+    campos = tuple(dict.fromkeys(campos or campos_de_secciones(secciones or ())))
+    if not campos:
+        raise ValidationError("Debe indicar al menos un campo a actualizar.")
+    desconocidos = sorted(set(campos) - set(SECCION_DE_CAMPO))
+    if desconocidos:
+        raise ValidationError(f"Campos no autogestionables: {', '.join(desconocidos)}.")
+    secciones = secciones_de_campos(campos)
     activas = {s.codigo for s in secciones_repo.listar(solo_activas=True)}
-    desconocidas = sorted(set(secciones) - activas)
-    if desconocidas:
-        raise ValidationError(f"Secciones no autogestionables: {', '.join(desconocidas)}.")
+    inactivas = sorted(set(secciones) - activas)
+    if inactivas:
+        raise ValidationError(f"Secciones no autogestionables: {', '.join(inactivas)}.")
     nueva = SolicitudActualizacion(
         id='', cedula=cedula, estado=EstadoSolicitud.SOLICITADA, secciones_solicitadas=secciones, motivo=motivo,
+        campos_solicitados=campos,
     )
     creada = repo.crear(nueva)  # ConflictError si hay una abierta en alguna de las secciones
     publicador.publicar(EventoAutogestion(
-        TipoEvento.SOLICITUD_CREADA, creada.id, cedula, cedula, {'secciones': list(secciones)},
+        TipoEvento.SOLICITUD_CREADA, creada.id, cedula, cedula, {'secciones': list(secciones), 'campos': list(campos)},
     ))
     return creada
 
@@ -98,7 +108,7 @@ def expirar_ventanas(repo: RepoSolicitudes, publicador: PublicadorEventos, ahora
     expiradas = 0
     for candidata in repo.listar_habilitadas_vencidas(ahora):
         solicitud = repo.obtener(candidata.id, bloquear=True)
-        if solicitud is None or solicitud.estado is not EstadoSolicitud.HABILITADA or solicitud.ventana_vigente(ahora):
+        if solicitud is None or solicitud.estado not in ESTADOS_EDITABLES or solicitud.ventana_vigente(ahora):
             continue
         repo.guardar(solicitud.expirar(), solicitud.version)
         repo.liberar_secciones(solicitud.id)

@@ -12,7 +12,10 @@ import type {
 export interface RepoAutogestion {
   listarPreguntas(): Promise<PreguntaCenso[]>;
   obtenerCensoDeEmpleado(cedula: string): Promise<RespuestaCenso[]>;
-  registrarRespuestasCenso(cedula: string, respuestas: ItemRespuestaCenso[]): Promise<RespuestaCenso[]>;
+  registrarRespuestasCenso(
+    cedula: string,
+    respuestas: ItemRespuestaCenso[],
+  ): Promise<RespuestaCenso[]>;
   obtenerReporteDependencias(): Promise<ReporteDependenciaCenso[]>;
   obtenerMetricasCenso(): Promise<MetricasCenso>;
   descargarExcelCenso(): Promise<Blob>;

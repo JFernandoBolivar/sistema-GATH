@@ -2,8 +2,8 @@
 Traduce un `EventoAutogestion` a las notificaciones que debe generar (B7). Puro: sin Django ni ORM.
 
 Destinatarios de Bienestar y Carnetización se expresan por PERMISO (nunca por nombre de rol); el
-trabajador se identifica por su cédula. Los eventos de aprobación/rechazo y de ventana
-habilitada/prorrogada llevan además correo. `clave` identifica cada ocurrencia repetible (la fecha fin
+trabajador se identifica por su cédula. Todos los eventos dirigidos al trabajador llevan además correo
+(al correo de acceso). `clave` identifica cada ocurrencia repetible (la fecha fin
 de la ventana) para que reprocesar el evento no duplique avisos.
 """
 from datetime import datetime
@@ -44,7 +44,12 @@ def _secciones(codigos) -> str:
     return ', '.join(ETIQUETAS_SECCION.get(c, c) for c in (codigos or [])) or 'sus datos'
 
 
-def solicitudes_de_evento(e: EventoAutogestion) -> list[SolicitudNotificacion]:
+def _correo_bienestar(asunto: str, activo: bool) -> CorreoSolicitado | None:
+    return CorreoSolicitado(asunto) if activo else None
+
+
+def solicitudes_de_evento(e: EventoAutogestion, correo_a_bienestar: bool = False) -> list[SolicitudNotificacion]:
+    """`correo_a_bienestar` (ajuste de infraestructura) agrega el correo a los avisos que reciben las cuentas de Bienestar."""
     d, ref = e.detalle, e.solicitud_id
     comunes = {'tipo': e.tipo.value, 'ref_tipo': REF_TIPO, 'ref_id': ref}
     al_trabajador = {**comunes, 'cedula_destino': e.cedula, 'enlace': enlace_trabajador(ref)}
@@ -56,6 +61,7 @@ def solicitudes_de_evento(e: EventoAutogestion) -> list[SolicitudNotificacion]:
             modulo='personal',
             titulo='Nueva solicitud de actualización de datos',
             mensaje=f'El trabajador C.I. {e.cedula} solicitó actualizar: {_secciones(d.get("secciones"))}. Falta habilitar la ventana.',
+            correo=_correo_bienestar('Nueva solicitud de actualización de datos - GATH CONATEL', correo_a_bienestar),
         )]
     if e.tipo is TipoEvento.VENTANA_HABILITADA:
         return [SolicitudNotificacion(
@@ -76,6 +82,22 @@ def solicitudes_de_evento(e: EventoAutogestion) -> list[SolicitudNotificacion]:
             modulo='personal',
             titulo='Solicitud de actualización lista para revisar',
             mensaje=f'El trabajador C.I. {e.cedula} envió su actualización de datos para revisión.',
+            correo=_correo_bienestar('Actualización de datos lista para revisar - GATH CONATEL', correo_a_bienestar),
+        )]
+    if e.tipo is TipoEvento.SOLICITUD_DEVUELTA:
+        return [SolicitudNotificacion(
+            **al_trabajador, clave=d.get('fecha', ''), titulo='Su solicitud de actualización fue devuelta',
+            mensaje=(f'Bienestar Social devolvió su solicitud para que la corrija. Motivo: {d.get("motivo", "no indicado")}. '
+                     f'Puede corregirla y reenviarla hasta el {_fecha(fin)}.'),
+            correo=CorreoSolicitado('Solicitud de actualización de datos devuelta - GATH CONATEL'),
+        )]
+    if e.tipo is TipoEvento.CORRECCION_REENVIADA:
+        return [SolicitudNotificacion(
+            **comunes, permiso_destino=PERMISO_APROBAR, excluir_cedulas=(e.actor_cedula,), enlace=enlace_bienestar(ref),
+            modulo='personal', clave=d.get('fecha', ''),
+            titulo='Corrección de actualización reenviada',
+            mensaje=f'El trabajador C.I. {e.cedula} corrigió y reenvió su actualización de datos para revisión.',
+            correo=_correo_bienestar('Corrección de actualización de datos reenviada - GATH CONATEL', correo_a_bienestar),
         )]
     if e.tipo is TipoEvento.ACTUALIZACION_APROBADA:
         total = d.get('estado') == 'APROBADA'
@@ -97,11 +119,13 @@ def solicitudes_de_evento(e: EventoAutogestion) -> list[SolicitudNotificacion]:
         return [SolicitudNotificacion(
             **al_trabajador, clave=fin, titulo='Su plazo de actualización está por vencer',
             mensaje=f'La ventana para actualizar sus datos vence el {_fecha(fin)}. Envíe su solicitud antes de esa fecha.',
+            correo=CorreoSolicitado('Su plazo de actualización de datos está por vencer - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.VENTANA_EXPIRADA:
         return [SolicitudNotificacion(
             **al_trabajador, clave=fin, titulo='Su plazo de actualización venció',
             mensaje='La ventana de actualización de sus datos expiró sin enviarse. Puede solicitar una nueva.',
+            correo=CorreoSolicitado('Plazo de actualización de datos vencido - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.FOTO_APROBADA:
         return [SolicitudNotificacion(

@@ -19,11 +19,13 @@ import {
 import type { SolicitudDetalleDTO } from "../../application/dtos/solicitud-dto";
 import { nombreSeccion } from "../../domain/value-objects/campos-seccion";
 import {
+  devolverSolicitudAction,
   habilitarVentanaAction,
   prorrogarVentanaAction,
   rechazarSolicitudAction,
 } from "../../infrastructure/actions/solicitudes-actions";
 import {
+  devolucionSchema,
   habilitarVentanaSchema,
   prorrogaSchema,
   rechazoSchema,
@@ -204,6 +206,7 @@ export function DialogoProrrogar({ solicitud, abierto, onAbiertoChange, onHecho 
               Motivo de la prórroga
             </label>
             <Textarea
+              className="resize-none"
               id="motivo-prorroga"
               rows={3}
               maxLength={500}
@@ -228,13 +231,34 @@ export function DialogoProrrogar({ solicitud, abierto, onAbiertoChange, onHecho 
   );
 }
 
-/** Rechazo total de la solicitud, con motivo obligatorio. */
-export function DialogoRechazarSolicitud({
+interface DialogoMotivoProps extends BaseProps {
+  idBase: string;
+  titulo: string;
+  descripcion: string;
+  etiqueta: string;
+  textoAccion: string;
+  textoEnCurso: string;
+  destructivo?: boolean;
+  esquema: typeof rechazoSchema | typeof devolucionSchema;
+  ejecutar: (id: string, motivo: string) => ReturnType<typeof rechazarSolicitudAction>;
+}
+
+/** Diálogo de una decisión de Bienestar con un único motivo obligatorio (rechazar o devolver). */
+function DialogoMotivo({
   solicitud,
   abierto,
   onAbiertoChange,
   onHecho,
-}: BaseProps) {
+  idBase,
+  titulo,
+  descripcion,
+  etiqueta,
+  textoAccion,
+  textoEnCurso,
+  destructivo,
+  esquema,
+  ejecutar,
+}: DialogoMotivoProps) {
   const [confirmando, setConfirmando] = useState(false);
   const {
     register,
@@ -243,13 +267,13 @@ export function DialogoRechazarSolicitud({
     reset,
     formState: { errors },
   } = useForm<RechazoValores>({
-    resolver: zodResolver(rechazoSchema),
+    resolver: zodResolver(esquema),
     defaultValues: { motivo: "" },
   });
 
   async function enviar(v: RechazoValores) {
     setConfirmando(true);
-    const res = await rechazarSolicitudAction(solicitud.id, v.motivo);
+    const res = await ejecutar(solicitud.id, v.motivo);
     setConfirmando(false);
     if (res.ok) {
       toast.success(res.mensaje);
@@ -265,37 +289,71 @@ export function DialogoRechazarSolicitud({
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Rechazar la solicitud completa</DialogTitle>
-          <DialogDescription>
-            No se aplicará ningún cambio a la ficha. El trabajador verá el motivo que escriba.
-          </DialogDescription>
+          <DialogTitle>{titulo}</DialogTitle>
+          <DialogDescription>{descripcion}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(enviar)} noValidate className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="motivo-rechazo" className="text-base font-medium">
-              Motivo del rechazo
+            <label htmlFor={`motivo-${idBase}`} className="text-base font-medium">
+              {etiqueta}
             </label>
             <Textarea
-              id="motivo-rechazo"
+              id={`motivo-${idBase}`}
               rows={4}
               maxLength={500}
+              className="resize-none"
               aria-invalid={errors.motivo ? true : undefined}
-              aria-describedby={errors.motivo ? "motivo-rechazo-error" : undefined}
+              aria-describedby={errors.motivo ? `motivo-${idBase}-error` : undefined}
               {...register("motivo")}
             />
-            <MensajeError id="motivo-rechazo-error" texto={errors.motivo?.message} />
+            <MensajeError id={`motivo-${idBase}-error`} texto={errors.motivo?.message} />
           </div>
-          <MensajeError id="rechazo-root" texto={errors.root?.message} />
+          <MensajeError id={`${idBase}-root`} texto={errors.root?.message} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onAbiertoChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" variant="destructive" disabled={confirmando}>
-              {confirmando ? "Rechazando…" : "Rechazar solicitud"}
+            <Button type="submit" variant={destructivo ? "destructive" : "default"} disabled={confirmando}>
+              {confirmando ? textoEnCurso : textoAccion}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Rechazo total de la solicitud, con motivo obligatorio. */
+export function DialogoRechazarSolicitud(props: BaseProps) {
+  return (
+    <DialogoMotivo
+      {...props}
+      idBase="rechazo"
+      titulo="Rechazar la solicitud completa"
+      descripcion="No se aplicará ningún cambio a la ficha. El trabajador verá el motivo que escriba."
+      etiqueta="Motivo del rechazo"
+      textoAccion="Rechazar solicitud"
+      textoEnCurso="Rechazando…"
+      destructivo
+      esquema={rechazoSchema}
+      ejecutar={rechazarSolicitudAction}
+    />
+  );
+}
+
+/** Devolución al trabajador (ENVIADA -> DEVUELTA) con motivo obligatorio. */
+export function DialogoDevolverSolicitud(props: BaseProps) {
+  return (
+    <DialogoMotivo
+      {...props}
+      idBase="devolucion"
+      titulo="Devolver la solicitud al trabajador"
+      descripcion="El trabajador verá el motivo, corregirá dentro del plazo vigente y reenviará la solicitud. No se aplica ningún cambio a la ficha."
+      etiqueta="Motivo de la devolución"
+      textoAccion="Devolver solicitud"
+      textoEnCurso="Devolviendo…"
+      esquema={devolucionSchema}
+      ejecutar={devolverSolicitudAction}
+    />
   );
 }

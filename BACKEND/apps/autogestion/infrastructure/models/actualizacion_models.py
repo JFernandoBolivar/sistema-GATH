@@ -15,6 +15,7 @@ class SolicitudActualizacionModel(BaseModel):
         SOLICITADA = 'SOLICITADA'
         HABILITADA = 'HABILITADA'
         ENVIADA = 'ENVIADA'
+        DEVUELTA = 'DEVUELTA'
         APROBADA = 'APROBADA'
         APROBADA_PARCIAL = 'APROBADA_PARCIAL'
         RECHAZADA = 'RECHAZADA'
@@ -34,6 +35,11 @@ class SolicitudActualizacionModel(BaseModel):
     version = models.PositiveIntegerField(default=1)
     fecha_envio = models.DateTimeField(null=True, blank=True)
     fecha_decision = models.DateTimeField(null=True, blank=True)
+    campos_solicitados = models.JSONField(default=list, blank=True)  # `entidad.campo` (decisión G)
+    campos_habilitados = models.JSONField(default=list, blank=True)
+    motivo_devolucion = models.TextField(blank=True, default='')
+    devuelta_por = models.CharField(max_length=15, blank=True, default='')
+    fecha_devolucion = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'autogestion_solicitud_actualizacion'

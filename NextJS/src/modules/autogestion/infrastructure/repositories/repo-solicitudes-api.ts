@@ -10,14 +10,22 @@ import {
 } from "../mappers/mapper-solicitudes";
 
 export const repoSolicitudesApi: RepoSolicitudes = {
-  async listarMias() {
-    return (await solicitudesApi.listarMias()).data.map(mapperSolicitud);
+  async listarMias({ fechaDesde, fechaHasta, ...resto }) {
+    return mapperPagina(
+      (
+        await solicitudesApi.listarMias({
+          ...resto,
+          fecha_desde: fechaDesde,
+          fecha_hasta: fechaHasta,
+        })
+      ).data,
+    );
   },
   async obtenerMia(id) {
     return mapperDetalle((await solicitudesApi.obtenerMia(id)).data);
   },
-  async solicitar(secciones, motivo) {
-    return mapperSolicitud((await solicitudesApi.solicitar(secciones, motivo)).data);
+  async solicitar(campos, motivo) {
+    return mapperSolicitud((await solicitudesApi.solicitar(campos, motivo)).data);
   },
   async guardarBorrador(id, cambios, version) {
     return mapperDetalle((await solicitudesApi.guardarBorrador(id, cambios, version)).data);
@@ -70,6 +78,9 @@ export const repoSolicitudesApi: RepoSolicitudes = {
         })
       ).data,
     );
+  },
+  async devolver(id, motivo, version) {
+    return mapperSolicitud((await solicitudesApi.devolver(id, motivo, version)).data);
   },
   async rechazar(id, motivo, version) {
     return mapperSolicitud((await solicitudesApi.rechazar(id, motivo, version)).data);

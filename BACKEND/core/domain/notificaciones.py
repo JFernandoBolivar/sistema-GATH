@@ -40,7 +40,7 @@ class AdjuntoCorreo:
 
 @dataclass(frozen=True)
 class CorreoSolicitado:
-    """Correo que acompaña a la notificación; el destinatario sale de la cédula destino (correo principal)."""
+    """Correo que acompaña a la notificación; cada destinatario (una cédula o todas las cuentas con el permiso) lo recibe en su correo de acceso."""
 
     asunto: str
     adjuntos: tuple[AdjuntoCorreo, ...] = ()
@@ -75,6 +75,4 @@ class SolicitudNotificacion:
             raise ValidationError('La notificación debe tener una cédula destino o un permiso destino (solo uno).')
         if not self.tipo or not self.titulo.strip() or not self.mensaje.strip():
             raise ValidationError('La notificación requiere tipo, título y mensaje.')
-        if self.correo is not None and not self.cedula_destino:
-            raise ValidationError('El correo solo aplica a notificaciones dirigidas a una persona.')
         validar_enlace_interno(self.enlace)

@@ -10,7 +10,11 @@ import {
   reemplazarRegistrosDeEntidad,
   type RegistroBorrador,
 } from "../../domain/services/borrador";
-import { etiquetaCampo, type EntidadDef } from "../../domain/value-objects/campos-seccion";
+import {
+  claveCampo,
+  etiquetaCampo,
+  type EntidadDef,
+} from "../../domain/value-objects/campos-seccion";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
 import { esquemaDeEntidad } from "../schema/schema-solicitud";
 import { formatearValor, type NombresCatalogo } from "../formato-solicitud";
@@ -23,6 +27,8 @@ interface Props {
   ficha: MiExpedienteDTO;
   items: ItemBorrador[];
   nombres: NombresCatalogo;
+  /** Campos `entidad.campo` que Bienestar habilitó: solo ellos se editan (decisión G). */
+  camposHabilitados: string[];
   onItems: (items: ItemBorrador[]) => void;
 }
 
@@ -38,7 +44,28 @@ function resumenCambios(valores: Record<string, unknown>, nombres: NombresCatalo
 }
 
 /** Edita los registros de una entidad dentro del borrador (modificar existentes o proponer uno nuevo). */
-export function EditorEntidad({ seccion, definicion, ficha, items, nombres, onItems }: Props) {
+export function EditorEntidad({
+  seccion,
+  definicion: definicionCompleta,
+  ficha,
+  items,
+  nombres,
+  camposHabilitados,
+  onItems,
+}: Props) {
+  const definicion = useMemo<EntidadDef>(
+    () => ({
+      ...definicionCompleta,
+      campos: definicionCompleta.campos.filter((c) =>
+        camposHabilitados.includes(claveCampo(definicionCompleta.entidad, c.campo)),
+      ),
+    }),
+    [definicionCompleta, camposHabilitados],
+  );
+  // Crear un registro nuevo exige tener habilitados todos sus campos obligatorios.
+  const puedeCrear = definicionCompleta.campos
+    .filter((c) => c.requeridoAlCrear)
+    .every((c) => camposHabilitados.includes(claveCampo(definicionCompleta.entidad, c.campo)));
   const [abierto, setAbierto] = useState<Abierto>(null);
   const esquema = esquemaDeEntidad(seccion, definicion.entidad);
   const vigentes = useMemo(
@@ -52,7 +79,7 @@ export function EditorEntidad({ seccion, definicion, ficha, items, nombres, onIt
       ),
     [items, seccion, definicion.entidad],
   );
-  if (!esquema) return null;
+  if (!esquema || definicion.campos.length === 0) return null;
 
   const modificaciones = registros.filter((r) => r.accion === "MODIFICAR");
   const nuevos = registros.filter((r) => r.accion === "CREAR");
@@ -189,13 +216,18 @@ export function EditorEntidad({ seccion, definicion, ficha, items, nombres, onIt
               {resumenCambios(nuevos[0].valores, nombres)}
             </p>
           ) : null}
+          {!puedeCrear ? (
+            <p className="mt-2 text-sm text-warning">
+              Para registrar este dato debió solicitar todos sus campos obligatorios.
+            </p>
+          ) : null}
           <div className="mt-3 flex gap-2">
             {nuevos[0] ? (
               <Button type="button" variant="outline" size="sm" onClick={() => quitarNuevo(0)}>
                 <Undo2 aria-hidden /> Quitar registro
               </Button>
             ) : null}
-            {abierto === null ? (
+            {abierto === null && puedeCrear ? (
               <Button
                 type="button"
                 variant="outline"
@@ -251,7 +283,7 @@ export function EditorEntidad({ seccion, definicion, ficha, items, nombres, onIt
         />
       ) : null}
 
-      {definicion.creable && !definicion.unica && abierto === null ? (
+      {definicion.creable && !definicion.unica && abierto === null && puedeCrear ? (
         <Button
           type="button"
           variant="outline"

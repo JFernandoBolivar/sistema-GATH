@@ -3,6 +3,7 @@ import type { RepoSolicitudes } from "../../domain/ports/repo-solicitudes";
 import { cambioFake, detalleFake, solicitudFake } from "../../domain/services/fixtures-solicitud";
 import {
   decidirCambios,
+  devolverSolicitud,
   habilitarVentana,
   listarBandeja,
   prorrogarVentana,
@@ -10,9 +11,39 @@ import {
 } from "./gestionar-solicitud-bienestar";
 import {
   enviarSolicitud,
+  listarMisSolicitudes,
   solicitarActualizacion,
   subirSoporte,
 } from "./gestionar-solicitud-trabajador";
+
+describe("listarMisSolicitudes", () => {
+  it("pagina en el servidor: 10 por defecto, tope 50 y omite filtros vacíos", async () => {
+    const repo = fakeRepo({
+      listarMias: vi.fn().mockResolvedValue({ count: 0, limit: 10, offset: 0, results: [] }),
+    });
+    await listarMisSolicitudes(repo);
+    expect(repo.listarMias).toHaveBeenLastCalledWith({
+      estado: undefined,
+      fechaDesde: undefined,
+      fechaHasta: undefined,
+      limit: 10,
+      offset: 0,
+    });
+    await listarMisSolicitudes(repo, {
+      estado: "ENVIADA",
+      fechaDesde: "2026-01-01",
+      limit: 500,
+      offset: -5,
+    });
+    expect(repo.listarMias).toHaveBeenLastCalledWith({
+      estado: "ENVIADA",
+      fechaDesde: "2026-01-01",
+      fechaHasta: undefined,
+      limit: 50,
+      offset: 0,
+    });
+  });
+});
 
 function fakeRepo(sobre: Partial<RepoSolicitudes> = {}): RepoSolicitudes {
   return {
@@ -25,38 +56,58 @@ function fakeRepo(sobre: Partial<RepoSolicitudes> = {}): RepoSolicitudes {
     enviar: vi.fn().mockResolvedValue(solicitudFake({ estado: "ENVIADA" })),
     listarSecciones: vi.fn().mockResolvedValue([]),
     obtenerMisDatosComplementarios: vi.fn(),
-    listarBandeja: vi.fn().mockResolvedValue({ count: 0, limit: 20, offset: 0, results: [] }),
+    listarBandeja: vi.fn().mockResolvedValue({ count: 0, limit: 10, offset: 0, results: [] }),
     obtenerDetalle: vi.fn(),
     obtenerComparativo: vi.fn(),
     habilitar: vi.fn().mockResolvedValue(solicitudFake({ estado: "HABILITADA" })),
     prorrogar: vi.fn().mockResolvedValue(solicitudFake({ estado: "HABILITADA" })),
     decidir: vi.fn(),
+    devolver: vi.fn().mockResolvedValue(solicitudFake({ estado: "DEVUELTA" })),
     rechazar: vi.fn().mockResolvedValue(solicitudFake({ estado: "RECHAZADA" })),
     ...sobre,
   };
 }
 
 describe("solicitarActualizacion", () => {
-  it("quita secciones repetidas y recorta el motivo", async () => {
+  it("quita campos repetidos y recorta el motivo", async () => {
     const repo = fakeRepo();
     await solicitarActualizacion(repo, {
-      secciones: ["contacto", "contacto"],
-      motivo: "  Cambio de número  ",
+      campos: ["employee.telefono_movil", "employee.telefono_movil"],
+      motivo: "  Cambié de número de teléfono móvil  ",
     });
-    expect(repo.solicitar).toHaveBeenCalledWith(["contacto"], "Cambio de número");
+    expect(repo.solicitar).toHaveBeenCalledWith(
+      ["employee.telefono_movil"],
+      "Cambié de número de teléfono móvil",
+    );
   });
-  it("rechaza sin secciones, con sección desconocida o sin motivo", async () => {
+  it("rechaza sin campos, con campo desconocido (incluido el correo institucional) o motivo corto", async () => {
     const repo = fakeRepo();
-    await expect(solicitarActualizacion(repo, { secciones: [], motivo: "x" })).rejects.toThrow(
-      /al menos una sección/,
+    const motivo = "Cambié de número de teléfono móvil";
+    await expect(solicitarActualizacion(repo, { campos: [], motivo })).rejects.toThrow(
+      /al menos un campo/,
     );
     await expect(
-      solicitarActualizacion(repo, { secciones: ["cargo"], motivo: "x" }),
+      solicitarActualizacion(repo, { campos: ["employee.correo"], motivo }),
     ).rejects.toThrow(/no es autogestionable/);
     await expect(
-      solicitarActualizacion(repo, { secciones: ["foto"], motivo: " " }),
+      solicitarActualizacion(repo, { campos: ["employee.profile"], motivo: " " }),
     ).rejects.toThrow(/motivo/);
+    await expect(
+      solicitarActualizacion(repo, {
+        campos: ["employee.profile"],
+        motivo: "solo cuatro palabras bien",
+      }),
+    ).rejects.toThrow(/5 palabras/);
     expect(repo.solicitar).not.toHaveBeenCalled();
+  });
+});
+
+describe("devolverSolicitud", () => {
+  it("exige motivo y delega en el repositorio", async () => {
+    const repo = fakeRepo();
+    await expect(devolverSolicitud(repo, "id", "  ")).rejects.toThrow(/motivo/);
+    await devolverSolicitud(repo, "id", " Falta la constancia ");
+    expect(repo.devolver).toHaveBeenCalledWith("id", "Falta la constancia");
   });
 });
 
@@ -90,15 +141,13 @@ describe("enviarSolicitud", () => {
   ];
   it("bloquea el envío sin soporte obligatorio", async () => {
     const repo = fakeRepo({
-      obtenerMia: vi
-        .fn()
-        .mockResolvedValue(
-          detalleFake({
-            estado: "HABILITADA",
-            seccionesHabilitadas: ["formacion"],
-            cambios: [cambioFake({ seccion: "formacion" })],
-          }),
-        ),
+      obtenerMia: vi.fn().mockResolvedValue(
+        detalleFake({
+          estado: "HABILITADA",
+          seccionesHabilitadas: ["formacion"],
+          cambios: [cambioFake({ seccion: "formacion" })],
+        }),
+      ),
       listarSecciones: vi.fn().mockResolvedValue(catalogo),
     });
     await expect(enviarSolicitud(repo, "id")).rejects.toThrow(/exige adjuntar/);
@@ -124,7 +173,7 @@ describe("Bienestar", () => {
     expect(repo.listarBandeja).toHaveBeenCalledWith({
       estado: undefined,
       cedula: undefined,
-      limit: 100,
+      limit: 50,
       offset: 0,
     });
   });

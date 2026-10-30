@@ -9,13 +9,14 @@ import type {
 
 export const PLAZO_MIN_DIAS = 1;
 export const PLAZO_MAX_DIAS = 90;
-export const LIMITE_BANDEJA = 20;
+export const LIMITE_BANDEJA = 10;
+export const LIMITE_MAXIMO_BANDEJA = 50;
 
 export async function listarBandeja(
   repo: RepoSolicitudes,
   filtros: Partial<FiltrosBandeja> = {},
 ): Promise<PaginaSolicitudesDTO> {
-  const limit = Math.min(Math.max(filtros.limit ?? LIMITE_BANDEJA, 1), 100);
+  const limit = Math.min(Math.max(filtros.limit ?? LIMITE_BANDEJA, 1), LIMITE_MAXIMO_BANDEJA);
   const offset = Math.max(filtros.offset ?? 0, 0);
   return repo.listarBandeja({
     estado: filtros.estado || undefined,
@@ -95,6 +96,16 @@ export async function decidirCambios(
     decisiones: entrada.decisiones.filter((d) => pendientes.has(d.cambioId)),
     motivoGeneral: entrada.motivoGeneral?.trim() || undefined,
   });
+}
+
+/** Bienestar devuelve una solicitud ENVIADA con motivo obligatorio; el trabajador corrige y reenvía. */
+export async function devolverSolicitud(
+  repo: RepoSolicitudes,
+  id: string,
+  motivo: string,
+): Promise<SolicitudDTO> {
+  if (!motivo.trim()) throw new Error("Indique el motivo de la devolución.");
+  return repo.devolver(id, motivo.trim());
 }
 
 export async function rechazarSolicitud(

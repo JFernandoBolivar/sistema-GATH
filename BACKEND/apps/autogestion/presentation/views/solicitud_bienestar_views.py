@@ -11,6 +11,8 @@ from rest_framework.views import APIView
 
 from apps.autogestion.application.dtos.actualizacion_dtos import DecisionCampoDTO
 from apps.autogestion.application.use_cases.consultas_gestion import (
+    LIMITE_DEFECTO,
+    LIMITE_MAX,
     configurar_seccion,
     guardar_datos_complementarios,
     listar_bandeja,
@@ -18,6 +20,7 @@ from apps.autogestion.application.use_cases.consultas_gestion import (
 )
 from apps.autogestion.application.use_cases.decision_bienestar import (
     decidir_cambios,
+    devolver_solicitud,
     obtener_comparativo,
     obtener_detalle,
     rechazar_solicitud,
@@ -46,6 +49,8 @@ from apps.autogestion.presentation.serializers.actualizacion_serializers import 
     DatosComplementariosSerializer,
     DecidirCambiosSerializer,
     DetalleSolicitudSerializer,
+    FiltrosListaSolicitudesSerializer,
+    DevolverSolicitudSerializer,
     HabilitarVentanaSerializer,
     ListaSolicitudesSerializer,
     ProrrogarVentanaSerializer,
@@ -86,21 +91,27 @@ class BandejaView(APIView):
     @extend_schema(
         tags=TAG, summary='Bandeja de solicitudes de actualización',
         parameters=[
-            OpenApiParameter('estado', str, description='SOLICITADA, HABILITADA, ENVIADA, APROBADA, APROBADA_PARCIAL, RECHAZADA o EXPIRADA'),
+            OpenApiParameter('estado', str, description='SOLICITADA, HABILITADA, ENVIADA, APROBADA, APROBADA_PARCIAL, RECHAZADA, DEVUELTA o EXPIRADA'),
             OpenApiParameter('cedula', str, description='Cédula del trabajador'),
-            OpenApiParameter('limit', int, description='Por defecto 20, máximo 100'),
+            OpenApiParameter('limit', int, description='Por defecto 10, máximo 50'),
             OpenApiParameter('offset', int),
+            OpenApiParameter('fecha_desde', str, description='AAAA-MM-DD'),
+            OpenApiParameter('fecha_hasta', str, description='AAAA-MM-DD'),
         ],
         responses={200: ListaSolicitudesSerializer, 403: MensajeRespuestaSerializer},
     )
     def get(self, request):
-        limite, desplazamiento = _entero(request.query_params.get('limit'), 20), _entero(request.query_params.get('offset'), 0)
+        limite, desplazamiento = _entero(request.query_params.get('limit'), LIMITE_DEFECTO), _entero(request.query_params.get('offset'), 0)
+        fechas = validar_entrada(FiltrosListaSolicitudesSerializer, {
+            k: v for k, v in request.query_params.items() if k in ('fecha_desde', 'fecha_hasta')
+        })
         solicitudes, total = listar_bandeja(
             RepoSolicitudesORM(), estado=request.query_params.get('estado'),
             cedula=request.query_params.get('cedula'), limite=limite, desplazamiento=desplazamiento,
+            desde=fechas.get('fecha_desde'), hasta=fechas.get('fecha_hasta'),
         )
         return ok({
-            'count': total, 'limit': max(1, min(limite, 100)), 'offset': max(0, desplazamiento),
+            'count': total, 'limit': max(1, min(limite, LIMITE_MAX)), 'offset': max(0, desplazamiento),
             'results': [a_dict_solicitud(s) for s in solicitudes],
         })
 
@@ -227,6 +238,27 @@ class RechazarView(APIView):
             auditar(request, 'SOLICITUD_RECHAZADA', solicitud.id, {'estado': actual.estado.value},
                     {**resumen(solicitud), 'motivo': datos['motivo']})
         return ok(serializar_solicitud(solicitud), 'Solicitud rechazada.')
+
+
+class DevolverView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('bienestar.aprobar')]
+
+    @extend_schema(
+        tags=TAG, summary='Devolver la solicitud enviada al trabajador para que corrija (motivo obligatorio)',
+        description='ENVIADA -> DEVUELTA. El trabajador ve el motivo, corrige dentro del plazo vigente y reenvía. '
+                    'Si el plazo venció, Bienestar puede prorrogarlo.',
+        request=DevolverSolicitudSerializer, responses={200: SolicitudSerializer, **ERRORES},
+    )
+    def post(self, request, solicitud_id):
+        datos = validar_entrada(DevolverSolicitudSerializer, request.data)
+        with transaction.atomic():
+            solicitud = devolver_solicitud(
+                RepoSolicitudesORM(), PublicadorSenales(), solicitud_id=str(solicitud_id),
+                motivo=datos['motivo'], version=datos.get('version'), actor=cedula_de_sesion(request), ahora=ahora(),
+            )
+            auditar(request, 'SOLICITUD_DEVUELTA', solicitud.id, {'estado': 'ENVIADA'},
+                    {**resumen(solicitud), 'motivo': datos['motivo']})
+        return ok(serializar_solicitud(solicitud), 'Solicitud devuelta al trabajador.')
 
 
 class SeccionConfigurarView(APIView):

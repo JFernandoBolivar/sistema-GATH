@@ -7,6 +7,7 @@ export const ESTADOS_SOLICITUD = [
   "SOLICITADA",
   "HABILITADA",
   "ENVIADA",
+  "DEVUELTA",
   "APROBADA",
   "APROBADA_PARCIAL",
   "RECHAZADA",
@@ -48,6 +49,14 @@ export interface SolicitudEntity {
   fechaSolicitud: string | null;
   fechaEnvio: string | null;
   fechaDecision: string | null;
+  /** Campos `entidad.campo` que el trabajador pidió (decisión G). */
+  camposSolicitados: string[];
+  /** Únicos campos que el trabajador puede editar mientras dure la ventana. */
+  camposHabilitados: string[];
+  /** Motivo de la última devolución de Bienestar (se conserva al reenviar). */
+  motivoDevolucion: string;
+  devueltaPor: string;
+  fechaDevolucion: string | null;
 }
 
 export type ValorCambio = string | number | boolean | null | Record<string, unknown>;

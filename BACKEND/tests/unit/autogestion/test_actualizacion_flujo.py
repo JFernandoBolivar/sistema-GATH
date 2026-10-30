@@ -34,7 +34,7 @@ def tel(valor, campo='telefono_movil'):
 
 
 def solicitar(m, secciones=('contacto',), cedula=TRABAJADOR):
-    return solicitar_actualizacion(m.solicitudes, m.secciones, m.publicador, cedula=cedula, secciones=list(secciones), motivo='Cambié de número')
+    return solicitar_actualizacion(m.solicitudes, m.secciones, m.publicador, cedula=cedula, secciones=list(secciones), motivo='Cambié de número de teléfono móvil hace poco')
 
 
 def habilitar(m, sol, dias=5, secciones=None):

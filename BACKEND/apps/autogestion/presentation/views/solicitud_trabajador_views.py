@@ -6,13 +6,15 @@ responden por el sobre C-1. La cédula sale siempre de la sesión (Zero-IDOR).
 """
 from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.autogestion.application.dtos.actualizacion_dtos import ItemCambioDTO
 from apps.autogestion.application.use_cases.consultas_gestion import (
+    LIMITE_DEFECTO,
+    LIMITE_MAX,
     listar_mis_solicitudes,
     listar_secciones,
     obtener_clave_soporte,
@@ -42,13 +44,16 @@ from apps.autogestion.presentation.serializers.actualizacion_serializers import 
     DatosComplementariosSerializer,
     DetalleSolicitudSerializer,
     EnviarSolicitudSerializer,
+    FiltrosListaSolicitudesSerializer,
     GuardarBorradorSerializer,
+    ListaSolicitudesSerializer,
     SeccionAutogestionableSerializer,
     SolicitarActualizacionSerializer,
     SolicitudSerializer,
     SoporteSerializer,
     SubirSoporteSerializer,
     a_dict_soporte,
+    a_dict_solicitud,
     serializar_detalle,
     serializar_solicitud,
 )
@@ -92,14 +97,31 @@ class SolicitudesView(APIView):
             return [c() for c in permisos_trabajador('autogestion.solicitar_actualizacion')]
         return [IsAuthenticated(), HasPermission('autogestion.ver_propio')()]
 
-    @extend_schema(tags=TAG, summary='Mis solicitudes de actualización', responses={200: SolicitudSerializer(many=True)})
+    @extend_schema(
+        tags=TAG, summary='Mis solicitudes de actualización (paginadas)',
+        parameters=[
+            OpenApiParameter('estado', str), OpenApiParameter('fecha_desde', str, description='AAAA-MM-DD'),
+            OpenApiParameter('fecha_hasta', str, description='AAAA-MM-DD'),
+            OpenApiParameter('limit', int, description='Por defecto 10, máximo 50'), OpenApiParameter('offset', int),
+        ],
+        responses={200: ListaSolicitudesSerializer},
+    )
     def get(self, request):
-        solicitudes = listar_mis_solicitudes(RepoSolicitudesORM(), cedula_de_sesion(request))
-        return ok([serializar_solicitud(s) for s in solicitudes])
+        f = validar_entrada(FiltrosListaSolicitudesSerializer, request.query_params)
+        limite = min(f.get('limit', LIMITE_DEFECTO), LIMITE_MAX)
+        desplazamiento = f.get('offset', 0)
+        solicitudes, total = listar_mis_solicitudes(
+            RepoSolicitudesORM(), cedula_de_sesion(request), estado=f.get('estado') or None,
+            desde=f.get('fecha_desde'), hasta=f.get('fecha_hasta'), limite=limite, desplazamiento=desplazamiento,
+        )
+        return ok({
+            'count': total, 'limit': limite, 'offset': desplazamiento,
+            'results': [a_dict_solicitud(s) for s in solicitudes],
+        })
 
     @extend_schema(
         tags=TAG, summary='Solicitar la actualización de mis datos',
-        description='Crea la solicitud en estado SOLICITADA (secciones y motivo). Bienestar Social habilita después la ventana.',
+        description='Crea la solicitud en estado SOLICITADA (campos concretos y un solo motivo). Bienestar Social habilita después la ventana.',
         request=SolicitarActualizacionSerializer, responses={201: SolicitudSerializer, **ERRORES},
     )
     def post(self, request):
@@ -108,10 +130,11 @@ class SolicitudesView(APIView):
         with transaction.atomic():
             solicitud = solicitar_actualizacion(
                 RepoSolicitudesORM(), RepoSeccionesORM(), PublicadorSenales(),
-                cedula=cedula, secciones=datos['secciones'], motivo=datos['motivo'],
+                cedula=cedula, campos=datos.get('campos'), secciones=datos.get('secciones'), motivo=datos['motivo'],
             )
             auditar(request, 'SOLICITUD_CREADA', solicitud.id, None,
-                    {**resumen(solicitud), 'secciones': list(solicitud.secciones_solicitadas)})
+                    {**resumen(solicitud), 'secciones': list(solicitud.secciones_solicitadas),
+                     'campos': list(solicitud.campos_solicitados)})
         return ok(serializar_solicitud(solicitud), 'Solicitud registrada. Bienestar Social habilitará la ventana.', status=201)
 
 
@@ -129,7 +152,7 @@ class BorradorView(APIView):
 
     @extend_schema(
         tags=TAG, summary='Guardar el borrador de cambios (reemplaza el anterior)',
-        description='Solo con la ventana HABILITADA y vigente. La ficha real NO cambia. La foto se carga por /soportes/.',
+        description='Solo con la ventana HABILITADA o DEVUELTA y vigente, y solo los campos habilitados. La ficha real NO cambia. La foto se carga por /soportes/.',
         request=GuardarBorradorSerializer, responses={200: DetalleSolicitudSerializer, **ERRORES},
     )
     def put(self, request, solicitud_id):
@@ -204,12 +227,13 @@ class EnviarSolicitudView(APIView):
         datos = validar_entrada(EnviarSolicitudSerializer, request.data or {})
         cedula = cedula_de_sesion(request)
         with transaction.atomic():
+            estado_previo = obtener_solicitud_propia(RepoSolicitudesORM(), str(solicitud_id), cedula).estado.value
             solicitud = enviar_solicitud(
                 RepoSolicitudesORM(), RepoCambiosPropuestosORM(), RepoSoportesORM(), RepoSeccionesORM(),
                 PublicadorSenales(), solicitud_id=str(solicitud_id), cedula=cedula,
                 version=datos.get('version'), ahora=ahora(),
             )
-            auditar(request, 'SOLICITUD_ENVIADA', solicitud.id, {'estado': 'HABILITADA'}, resumen(solicitud))
+            auditar(request, 'SOLICITUD_ENVIADA', solicitud.id, {'estado': estado_previo}, resumen(solicitud))
         return ok(serializar_solicitud(solicitud), 'Solicitud enviada a Bienestar Social.')
 
 

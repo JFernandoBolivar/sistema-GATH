@@ -45,7 +45,7 @@ interface Props {
   onActualizar: () => void;
 }
 
-/** Edición del borrador por sección dentro de la ventana habilitada; la ficha real no cambia hasta la aprobación. */
+/** Edición del borrador dentro de la ventana habilitada (o devuelta), solo de los campos habilitados; la ficha real no cambia hasta la aprobación. */
 export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
   const {
     data: ficha,
@@ -168,6 +168,7 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
                     ficha={ficha}
                     items={items}
                     nombres={nombres}
+                    camposHabilitados={detalle.camposHabilitados}
                     onItems={setItems}
                   />
                 ))}

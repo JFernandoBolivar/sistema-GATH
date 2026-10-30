@@ -12,7 +12,7 @@ export function solicitudFake(parcial: Partial<SolicitudEntity> = {}): Solicitud
     estado: "SOLICITADA",
     seccionesSolicitadas: ["contacto"],
     seccionesHabilitadas: [],
-    motivo: "Cambié de número",
+    motivo: "Cambié de número de teléfono móvil",
     ventanaInicio: null,
     ventanaFin: null,
     plazoDias: null,
@@ -23,6 +23,11 @@ export function solicitudFake(parcial: Partial<SolicitudEntity> = {}): Solicitud
     fechaSolicitud: "2026-10-01T12:00:00Z",
     fechaEnvio: null,
     fechaDecision: null,
+    camposSolicitados: ["employee.telefono_movil"],
+    camposHabilitados: [],
+    motivoDevolucion: "",
+    devueltaPor: "",
+    fechaDevolucion: null,
     ...parcial,
   };
 }

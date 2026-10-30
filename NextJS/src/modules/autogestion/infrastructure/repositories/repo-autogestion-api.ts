@@ -2,7 +2,11 @@
  * Implementación del repositorio de Autogestión usando la API REST.
  */
 import type { RepoAutogestion } from "../../domain/ports/repo-autogestion";
-import { autogestionApi, type PreguntaCensoApiItem, type MetricasCensoApiItem } from "../http/autogestion-api";
+import {
+  autogestionApi,
+  type PreguntaCensoApiItem,
+  type MetricasCensoApiItem,
+} from "../http/autogestion-api";
 import {
   metricasApiAEntidad,
   preguntaApiAEntidad,

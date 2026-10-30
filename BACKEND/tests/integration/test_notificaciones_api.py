@@ -206,13 +206,15 @@ def test_solicitud_creada_notifica_a_bienestar_y_habilitar_notifica_al_trabajado
     trabajador = cliente(TRABAJADOR, PERMISOS_TRAB, 1)
     bienestar = cliente(ANALISTA, {'bienestar.habilitar_ventana', 'bienestar.ver_solicitudes', 'notificaciones.ver_propias'}, 2)
     with django_capture_on_commit_callbacks(execute=False):
-        r = trabajador.post(f'{AG}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'Cambio de número'}, format='json')
+        r = trabajador.post(f'{AG}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'Cambié mi número de teléfono móvil'}, format='json')
     assert r.status_code == 201, r.content
     sid = data(r)['id']
     # Bienestar (por permiso) recibe el aviso; el trabajador, no; el inactivo y el denegado, tampoco.
     destinos = set(NotificacionModel.objects.filter(tipo='autogestion.solicitud_creada').values_list('destinatario_cedula', flat=True))
     assert destinos == {ANALISTA, EXTRA}
     assert data(bienestar.get(f'{BASE}/conteo/?modulo=personal'))['no_leidas'] == 1
+    # Por defecto Bienestar solo recibe el aviso en el sistema (correo pendiente de confirmar).
+    assert not EventoOutboxModel.objects.filter(destinatario_cedula=ANALISTA).exists()
 
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         r = bienestar.post(f'{AG}/bienestar/solicitudes/{sid}/habilitar/', {'plazo_dias': 7}, format='json')
@@ -247,7 +249,7 @@ def test_un_fallo_al_notificar_no_tumba_la_operacion_de_negocio(mundo, monkeypat
     monkeypatch.setattr('apps.autogestion.infrastructure.receivers.solicitudes_de_evento', MagicMock(side_effect=RuntimeError('boom')))
     with django_capture_on_commit_callbacks(execute=False):
         r = cliente(TRABAJADOR, PERMISOS_TRAB, 1).post(
-            f'{AG}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'Cambio'}, format='json')
+            f'{AG}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'Cambié mi número de teléfono móvil'}, format='json')
     assert r.status_code == 201 and SolicitudActualizacionModel.objects.count() == 1
 
 
@@ -323,8 +325,18 @@ def test_ventana_por_expirar_avisa_una_sola_vez_y_se_rearma_con_la_prorroga(mund
     assert avisar_ventanas_por_expirar_tarea() == 1  # la tarea corre cada 30 min...
     avisos = NotificacionModel.objects.filter(tipo='autogestion.ventana_por_expirar')
     assert avisos.count() == 1 and avisos[0].destinatario_cedula == TRABAJADOR  # ...pero el aviso no se repite
-    assert not EventoOutboxModel.objects.exists()  # solo en el sistema
+    assert EventoOutboxModel.objects.count() == 1  # también por correo (B16), sin duplicarse
     SolicitudActualizacionModel.objects.filter(pk=sol.pk).update(ventana_fin=ahora + timedelta(hours=20))  # prórroga
     avisar_ventanas_por_expirar_tarea()
     assert avisos.count() == 2
     assert lejana.cedula == OTRO and not avisos.filter(destinatario_cedula=OTRO).exists()
+
+
+def test_con_el_ajuste_activado_bienestar_tambien_recibe_correo_de_acceso(mundo, settings, django_capture_on_commit_callbacks):
+    settings.NOTIFICAR_BIENESTAR_POR_CORREO = True
+    trabajador = cliente(TRABAJADOR, PERMISOS_TRAB, 1)
+    with django_capture_on_commit_callbacks(execute=False):
+        r = trabajador.post(f'{AG}/solicitudes/', {'campos': ['employee.telefono_movil'], 'motivo': 'Cambié mi número de teléfono móvil'}, format='json')
+    assert r.status_code == 201, r.content
+    assert EventoOutboxModel.objects.filter(destinatario=f'{ANALISTA}@conatel.gob.ve', destinatario_cedula=ANALISTA).count() == 1
+    assert not EventoOutboxModel.objects.filter(destinatario_cedula=TRABAJADOR).exists()

@@ -1,7 +1,7 @@
 """
 Puertos de persistencia de la solicitud de actualización (Reglas B1, B21, D-09).
 """
-from datetime import datetime
+from datetime import date, datetime
 from typing import Protocol
 
 from apps.autogestion.domain.entities.solicitud_actualizacion import (
@@ -31,9 +31,12 @@ class RepoSolicitudes(Protocol):
         """Libera la reserva de secciones (todas si `secciones` es None)."""
         ...
 
-    def listar_de_cedula(self, cedula: str) -> list[SolicitudActualizacion]: ...
-
-    def listar(self, estado: str | None, cedula: str | None, limite: int, desplazamiento: int) -> tuple[list[SolicitudActualizacion], int]: ...
+    def listar(
+        self, estado: str | None, cedula: str | None, limite: int, desplazamiento: int,
+        desde: date | None = None, hasta: date | None = None,
+    ) -> tuple[list[SolicitudActualizacion], int]:
+        """Página y total filtrados por estado, cédula y rango (inclusivo) de la fecha de solicitud."""
+        ...
 
     def listar_habilitadas_vencidas(self, ahora: datetime) -> list[SolicitudActualizacion]: ...
 

@@ -12,14 +12,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { cumpleCondicion } from "@/shared/lib/evaluador-iam";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
-import { SECCIONES_DEF, esSeccionConocida } from "../../domain/value-objects/campos-seccion";
+import {
+  SECCIONES_DEF,
+  claveCampo,
+  esSeccionConocida,
+} from "../../domain/value-objects/campos-seccion";
+import {
+  MOTIVO_MAX_CARACTERES,
+  MOTIVO_MIN_MSG,
+} from "../../domain/services/validar-motivo";
 import {
   listarSeccionesAction,
   solicitarActualizacionAction,
 } from "../../infrastructure/actions/solicitudes-actions";
 import { solicitudNuevaSchema, type SolicitudNuevaValores } from "../schema/schema-solicitud";
 
-/** «Solicitar actualización»: elegir las secciones a actualizar y explicar el motivo. */
+/** «Solicitar actualización»: elegir los campos concretos a actualizar y explicar el motivo. */
 export default function NuevaSolicitudPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -37,7 +45,7 @@ export default function NuevaSolicitudPage() {
     formState: { errors, isSubmitting },
   } = useForm<SolicitudNuevaValores>({
     resolver: zodResolver(solicitudNuevaSchema),
-    defaultValues: { secciones: [], motivo: "" },
+    defaultValues: { campos: [], motivo: "" },
   });
 
   async function enviar(valores: SolicitudNuevaValores) {
@@ -68,7 +76,7 @@ export default function NuevaSolicitudPage() {
         titulo="Solicitar actualización de datos"
         descripcion="Elija qué datos necesita actualizar y cuéntenos el motivo. Bienestar Social le habilitará un plazo para cargar los cambios y sus soportes."
       />
-      {isLoading ? <VistaCargando mensaje="Cargando las secciones disponibles…" onReintentar={() => mutate()} /> : null}
+      {isLoading ? <VistaCargando mensaje="Cargando los campos disponibles…" onReintentar={() => mutate()} /> : null}
       {error ? (
         <VistaError
           mensaje="No se pudieron cargar las secciones disponibles."
@@ -79,52 +87,68 @@ export default function NuevaSolicitudPage() {
         <form onSubmit={handleSubmit(enviar)} noValidate className="flex flex-col gap-6">
           <fieldset className="flex flex-col gap-3">
             <legend className="text-lg font-semibold">¿Qué datos desea actualizar?</legend>
+            <p className="text-sm text-muted-foreground">
+              Marque solo los campos que necesita cambiar. Las secciones únicamente los agrupan. Su
+              correo institucional lo cambia Recursos Humanos, no puede solicitarlo aquí.
+            </p>
             <Controller
               control={control}
-              name="secciones"
+              name="campos"
               render={({ field }) => (
-                <ul className="flex flex-col gap-3">
+                <ul className="flex flex-col gap-4">
                   {data
                     .filter((s) => esSeccionConocida(s.codigo))
                     .map((s) => {
-                      const marcada = field.value.includes(s.codigo as never);
                       const def = SECCIONES_DEF[s.codigo as keyof typeof SECCIONES_DEF];
                       return (
-                        <li key={s.codigo}>
-                          <label className="flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border bg-card p-4 has-[:checked]:border-primary has-[:checked]:bg-accent">
-                            <Checkbox
-                              checked={marcada}
-                              onCheckedChange={(v) =>
-                                field.onChange(
-                                  v
-                                    ? [...field.value, s.codigo]
-                                    : field.value.filter((x) => x !== s.codigo),
-                                )
-                              }
-                              className="mt-1 size-5"
-                              aria-label={s.nombre}
-                            />
-                            <span>
-                              <span className="block text-base font-semibold">{def.nombre}</span>
-                              <span className="block text-sm text-muted-foreground">
-                                {def.descripcion}
-                              </span>
-                              {s.requiereSoporte ? (
-                                <span className="mt-1 block text-sm font-medium text-warning">
-                                  Exige adjuntar un soporte
-                                </span>
-                              ) : null}
-                            </span>
-                          </label>
+                        <li key={s.codigo} className="rounded-lg border bg-card p-4">
+                          <p className="text-base font-semibold">{def.nombre}</p>
+                          <p className="text-sm text-muted-foreground">{def.descripcion}</p>
+                          {s.requiereSoporte ? (
+                            <p className="mt-1 text-sm font-medium text-warning">
+                              Exige adjuntar un soporte
+                            </p>
+                          ) : null}
+                          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {def.entidades.flatMap((e) =>
+                              e.campos.map((c) => {
+                                const clave = claveCampo(e.entidad, c.campo);
+                                const marcado = field.value.includes(clave);
+                                return (
+                                  <li key={clave}>
+                                    <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 has-[:checked]:border-primary has-[:checked]:bg-accent">
+                                      <Checkbox
+                                        checked={marcado}
+                                        onCheckedChange={(v) =>
+                                          field.onChange(
+                                            v
+                                              ? [...field.value, clave]
+                                              : field.value.filter((x) => x !== clave),
+                                          )
+                                        }
+                                        className="size-5"
+                                        aria-label={`${def.nombre}: ${c.etiqueta}`}
+                                      />
+                                      <span className="text-base">
+                                        {e.unica || e.campos.length === 1
+                                          ? c.etiqueta
+                                          : `${e.etiqueta}: ${c.etiqueta}`}
+                                      </span>
+                                    </label>
+                                  </li>
+                                );
+                              }),
+                            )}
+                          </ul>
                         </li>
                       );
                     })}
                 </ul>
               )}
             />
-            {errors.secciones ? (
+            {errors.campos ? (
               <p role="alert" className="text-sm font-medium text-danger">
-                {errors.secciones.message}
+                {errors.campos.message}
               </p>
             ) : null}
           </fieldset>
@@ -136,11 +160,13 @@ export default function NuevaSolicitudPage() {
             <Textarea
               id="motivo"
               rows={4}
-              maxLength={500}
+              maxLength={MOTIVO_MAX_CARACTERES}
+              className="resize-none"
               aria-invalid={errors.motivo ? true : undefined}
               aria-describedby={errors.motivo ? "motivo-error" : undefined}
               {...register("motivo")}
             />
+            <p className="text-sm text-muted-foreground">{MOTIVO_MIN_MSG}.</p>
             {errors.motivo ? (
               <p id="motivo-error" className="text-sm font-medium text-danger">
                 {errors.motivo.message}

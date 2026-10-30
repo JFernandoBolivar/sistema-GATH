@@ -111,7 +111,7 @@ def data(respuesta):
 
 
 def solicitar(c, secciones=('contacto', 'familiar', 'foto')):
-    r = c.post(f'{BASE}/solicitudes/', {'secciones': list(secciones), 'motivo': 'Actualizo mis datos'}, format='json')
+    r = c.post(f'{BASE}/solicitudes/', {'secciones': list(secciones), 'motivo': 'Actualizo mis datos de contacto personal'}, format='json')
     assert r.status_code == 201, r.content
     return data(r)['id']
 
@@ -239,20 +239,20 @@ def test_zero_idor_cada_trabajador_ve_solo_lo_suyo(trabajador, datos):
     assert otro.get(f'{BASE}/solicitudes/{sid}/').status_code == 404
     assert otro.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': []}, format='json').status_code == 404
     assert otro.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json').status_code == 404
-    assert data(otro.get(f'{BASE}/solicitudes/')) == []
-    assert len(data(trabajador.get(f'{BASE}/solicitudes/'))) == 1
+    assert data(otro.get(f'{BASE}/solicitudes/'))['results'] == []
+    assert data(trabajador.get(f'{BASE}/solicitudes/'))['count'] == 1
     # La cédula del cuerpo se ignora: la solicitud nace con la de la sesión.
-    r = otro.post(f'{BASE}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'x', 'cedula': TRABAJADOR}, format='json')
+    r = otro.post(f'{BASE}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'solicitud de un trabajador ajeno', 'cedula': TRABAJADOR}, format='json')
     assert data(r)['cedula'] == OTRO
 
 
 def test_nadie_aprueba_su_propia_solicitud_y_hay_una_abierta_por_seccion(trabajador, analista, datos):
     solicitar(trabajador, ('contacto',))
-    r = trabajador.post(f'{BASE}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'otra'}, format='json')
+    r = trabajador.post(f'{BASE}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'otra solicitud distinta de la anterior'}, format='json')
     assert r.status_code == 409
     # Bienestar que también es trabajador no puede decidir lo suyo.
     ambos = cliente(TRABAJADOR, PERMISOS_TRABAJADOR | PERMISOS_BIENESTAR, 1)
-    sid = data(ambos.get(f'{BASE}/solicitudes/'))[0]['id']
+    sid = data(ambos.get(f'{BASE}/solicitudes/'))['results'][0]['id']
     habilitar(ambos, sid)
     ambos.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [
         {'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'telefono_movil', 'valor': '04245556677'},
@@ -313,3 +313,54 @@ def test_secciones_publicas_y_configurables_solo_con_permiso(trabajador, datos):
     assert r.status_code == 200 and data(r)['requiere_soporte'] is True
     assert admin.patch(f'{BASE}/bienestar/secciones/inexistente/', {'activa': False}, format='json').status_code == 404
 
+
+
+def test_campo_por_campo_motivo_devuelta_y_reenvio(trabajador, analista, datos):
+    CAMBIO = {'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'telefono_movil', 'valor': '04245556677'}
+    # Motivo corto o campo del correo institucional: 400.
+    corto = trabajador.post(f'{BASE}/solicitudes/', {'campos': ['employee.telefono_movil'], 'motivo': 'cambio'}, format='json')
+    assert corto.status_code == 400
+    correo = trabajador.post(f'{BASE}/solicitudes/', {'campos': ['employee.correo'], 'motivo': 'quiero cambiar mi correo institucional'}, format='json')
+    assert correo.status_code == 400
+    r = trabajador.post(f'{BASE}/solicitudes/', {'campos': ['employee.telefono_movil'], 'motivo': 'Cambié de número de teléfono móvil'}, format='json')
+    assert r.status_code == 201 and data(r)['campos_solicitados'] == ['employee.telefono_movil']
+    sid = data(r)['id']
+    assert data(habilitar(analista, sid) and analista.get(f'{BASE}/bienestar/solicitudes/{sid}/'))['campos_habilitados'] == ['employee.telefono_movil']
+    # Un campo de la misma sección que no se pidió se rechaza en el servidor.
+    ajeno = dict(CAMBIO, campo='telefono_habitacion', valor='02129998877')
+    assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [ajeno]}, format='json').status_code == 400
+    assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [CAMBIO]}, format='json').status_code == 200
+    assert trabajador.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json').status_code == 200
+    # Devolver exige motivo y permiso de decisión; el trabajador corrige y reenvía.
+    assert trabajador.post(f'{BASE}/bienestar/solicitudes/{sid}/devolver/', {'motivo': 'x'}, format='json').status_code == 403
+    assert analista.post(f'{BASE}/bienestar/solicitudes/{sid}/devolver/', {'motivo': ''}, format='json').status_code == 400
+    r = analista.post(f'{BASE}/bienestar/solicitudes/{sid}/devolver/', {'motivo': 'El número no coincide'}, format='json')
+    assert r.status_code == 200 and data(r)['estado'] == 'DEVUELTA'
+    propia = data(trabajador.get(f'{BASE}/solicitudes/{sid}/'))
+    assert propia['motivo_devolucion'] == 'El número no coincide'
+    corregido = dict(CAMBIO, valor='04165554433')
+    assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [corregido]}, format='json').status_code == 200
+    r = trabajador.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json')
+    assert r.status_code == 200 and data(r)['estado'] == 'ENVIADA'
+    # La bandeja pagina de a 10 por defecto y con tope de 50.
+    lista = data(analista.get(f'{BASE}/bienestar/solicitudes/?limit=500'))
+    assert lista['limit'] == 50
+    assert data(analista.get(f'{BASE}/bienestar/solicitudes/'))['limit'] == 10
+
+
+def test_mis_solicitudes_paginan_en_servidor_y_filtran_por_estado_y_fechas(trabajador, analista):
+    sid = solicitar(trabajador, ('contacto',))
+    habilitar(analista, sid)
+    hoy = timezone.localdate().isoformat()
+    base = f'{BASE}/solicitudes/'
+    p = data(trabajador.get(base))
+    assert (p['count'], p['limit'], p['offset']) == (1, 10, 0)
+    assert data(trabajador.get(base + '?limit=500'))['limit'] == 50
+    assert data(trabajador.get(base + '?estado=HABILITADA'))['count'] == 1
+    assert data(trabajador.get(base + '?estado=SOLICITADA'))['count'] == 0
+    assert data(trabajador.get(f'{base}?fecha_desde={hoy}&fecha_hasta={hoy}'))['count'] == 1
+    assert data(trabajador.get(base + '?fecha_hasta=2000-01-01'))['count'] == 0
+    assert data(trabajador.get(base + '?offset=1'))['results'] == []
+    assert trabajador.get(base + '?estado=XYZ').status_code == 400
+    assert trabajador.get(f'{base}?fecha_desde={hoy}&fecha_hasta=2000-01-01').status_code == 400
+    assert trabajador.get(base + '?fecha_desde=ayer').status_code == 400

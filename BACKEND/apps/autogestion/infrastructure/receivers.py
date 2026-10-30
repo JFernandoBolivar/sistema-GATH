@@ -8,6 +8,7 @@ y la operación principal continúa.
 """
 import logging
 
+from django.conf import settings
 from django.db import transaction
 from django.dispatch import receiver
 
@@ -26,7 +27,8 @@ def notificar_evento_autogestion(sender, evento, **kwargs):
         return
     try:
         with transaction.atomic():
-            for solicitud in solicitudes_de_evento(evento):
+            correo_bienestar = getattr(settings, 'NOTIFICAR_BIENESTAR_POR_CORREO', False)
+            for solicitud in solicitudes_de_evento(evento, correo_bienestar):
                 notificador.notificar(solicitud)
     except Exception:  # noqa: BLE001
         logger.exception('no se pudieron generar las notificaciones del evento %s', evento.tipo.value)

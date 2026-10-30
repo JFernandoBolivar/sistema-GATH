@@ -13,8 +13,25 @@ ACCIONES = ('MODIFICAR', 'CREAR')
 
 # ── Entrada ──
 class SolicitarActualizacionSerializer(serializers.Serializer):
-    secciones = serializers.ListField(child=serializers.CharField(max_length=30), allow_empty=False, max_length=10)
-    motivo = serializers.CharField(max_length=500)
+    campos = serializers.ListField(
+        child=serializers.CharField(max_length=80), required=False, allow_empty=False, max_length=60,
+        help_text="Campos a actualizar con formato `entidad.campo` (p. ej. `employee.telefono_movil`). Las secciones solo agrupan.",
+    )
+    secciones = serializers.ListField(
+        child=serializers.CharField(max_length=30), required=False, allow_empty=False, max_length=10,
+        help_text='Alternativa sin `campos`: pide todos los campos de esas secciones.',
+    )
+    motivo = serializers.CharField(max_length=500, help_text='Un solo motivo: mínimo 5 palabras y 20 caracteres.')
+
+
+class FiltrosListaSolicitudesSerializer(serializers.Serializer):
+    """Query string de las listas de solicitudes (propias y bandeja de Bienestar)."""
+
+    estado = serializers.CharField(required=False, allow_blank=True)
+    fecha_desde = serializers.DateField(required=False, help_text='Inclusive, AAAA-MM-DD (fecha de solicitud).')
+    fecha_hasta = serializers.DateField(required=False, help_text='Inclusive, AAAA-MM-DD.')
+    limit = serializers.IntegerField(required=False, min_value=1)
+    offset = serializers.IntegerField(required=False, min_value=0)
 
 
 class HabilitarVentanaSerializer(serializers.Serializer):
@@ -73,6 +90,11 @@ class RechazarSolicitudSerializer(serializers.Serializer):
     version = serializers.IntegerField(required=False, min_value=1)
 
 
+class DevolverSolicitudSerializer(serializers.Serializer):
+    motivo = serializers.CharField(max_length=500, help_text='Obligatorio: lo ve el trabajador para corregir.')
+    version = serializers.IntegerField(required=False, min_value=1)
+
+
 class ConfigurarSeccionSerializer(serializers.Serializer):
     requiere_soporte = serializers.BooleanField(required=False)
     activa = serializers.BooleanField(required=False)
@@ -87,7 +109,7 @@ class DatosComplementariosEscrituraSerializer(serializers.Serializer):
 class SolicitudSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     cedula = serializers.CharField()
-    estado = serializers.CharField(help_text='SOLICITADA | HABILITADA | ENVIADA | APROBADA | APROBADA_PARCIAL | RECHAZADA | EXPIRADA')
+    estado = serializers.CharField(help_text='SOLICITADA | HABILITADA | ENVIADA | DEVUELTA | APROBADA | APROBADA_PARCIAL | RECHAZADA | EXPIRADA')
     secciones_solicitadas = serializers.ListField(child=serializers.CharField())
     secciones_habilitadas = serializers.ListField(child=serializers.CharField())
     motivo = serializers.CharField()
@@ -101,6 +123,11 @@ class SolicitudSerializer(serializers.Serializer):
     fecha_solicitud = serializers.DateTimeField(allow_null=True)
     fecha_envio = serializers.DateTimeField(allow_null=True)
     fecha_decision = serializers.DateTimeField(allow_null=True)
+    campos_solicitados = serializers.ListField(child=serializers.CharField(), help_text='`entidad.campo` pedidos por el trabajador.')
+    campos_habilitados = serializers.ListField(child=serializers.CharField(), help_text='Únicos campos que el trabajador puede editar.')
+    motivo_devolucion = serializers.CharField(help_text='Motivo de la última devolución de Bienestar.')
+    devuelta_por = serializers.CharField()
+    fecha_devolucion = serializers.DateTimeField(allow_null=True)
 
 
 class CambioPropuestoSerializer(serializers.Serializer):
@@ -177,6 +204,8 @@ def a_dict_solicitud(s) -> dict:
         'plazo_dias': s.plazo_dias, 'habilitada_por': s.habilitada_por, 'decidida_por': s.decidida_por,
         'motivo_decision': s.motivo_decision, 'version': s.version, 'fecha_solicitud': s.fecha_solicitud,
         'fecha_envio': s.fecha_envio, 'fecha_decision': s.fecha_decision,
+        'campos_solicitados': list(s.campos_solicitados), 'campos_habilitados': list(s.campos_habilitados),
+        'motivo_devolucion': s.motivo_devolucion, 'devuelta_por': s.devuelta_por, 'fecha_devolucion': s.fecha_devolucion,
     }
 
 

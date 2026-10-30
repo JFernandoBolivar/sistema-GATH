@@ -5,7 +5,7 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { ClaveCatalogo } from "../../domain/value-objects/campos-seccion";
 import type { OpcionCatalogo } from "../../domain/ports/repo-catalogos-autogestion";
-import type { FiltrosBandeja } from "../../domain/ports/repo-solicitudes";
+import type { FiltrosBandeja, FiltrosMisSolicitudes } from "../../domain/ports/repo-solicitudes";
 import type {
   DatosComplementariosDTO,
   DecisionCampoDTO,
@@ -30,6 +30,7 @@ import {
 } from "../../application/use-cases/gestionar-solicitud-trabajador";
 import {
   decidirCambios,
+  devolverSolicitud,
   habilitarVentana,
   listarBandeja,
   obtenerComparativo,
@@ -74,9 +75,11 @@ async function ejecutar<T>(
 }
 
 // ── Trabajador ──
-export async function listarMisSolicitudesAction(): Promise<ResultadoAccion<SolicitudDTO[]>> {
+export async function listarMisSolicitudesAction(
+  filtros: Partial<FiltrosMisSolicitudes> = {},
+): Promise<ResultadoAccion<PaginaSolicitudesDTO>> {
   return ejecutar("listarMisSolicitudesAction", "", "No se pudieron cargar sus solicitudes.", () =>
-    listarMisSolicitudes(repoSolicitudesApi),
+    listarMisSolicitudes(repoSolicitudesApi, filtros),
   );
 }
 
@@ -106,7 +109,7 @@ export async function obtenerMisDatosComplementariosAction(): Promise<
 }
 
 export async function solicitarActualizacionAction(entrada: {
-  secciones: string[];
+  campos: string[];
   motivo: string;
 }): Promise<ResultadoAccion<SolicitudDTO>> {
   return ejecutar(
@@ -242,6 +245,18 @@ export async function decidirCambiosAction(
     "Decisión registrada.",
     "No se pudo registrar la decisión.",
     () => decidirCambios(repoSolicitudesApi, idValido(id), entrada),
+  );
+}
+
+export async function devolverSolicitudAction(
+  id: string,
+  motivo: string,
+): Promise<ResultadoAccion<SolicitudDTO>> {
+  return ejecutar(
+    "devolverSolicitudAction",
+    "Solicitud devuelta al trabajador.",
+    "No se pudo devolver la solicitud.",
+    () => devolverSolicitud(repoSolicitudesApi, idValido(id), motivo),
   );
 }
 

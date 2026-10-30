@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
-import { nombreSeccion } from "../../domain/value-objects/campos-seccion";
+import { etiquetaClaveCampo } from "../../domain/value-objects/campos-seccion";
 import { LIMITE_BANDEJA } from "../../application/use-cases/gestionar-solicitud-bienestar";
 import { listarBandejaAction } from "../../infrastructure/actions/solicitudes-actions";
 import { OPCIONES_FILTRO_ESTADO, PRESENTACION_ESTADO } from "../estado-solicitud-ui";
@@ -131,7 +131,7 @@ export default function BandejaSolicitudesPage() {
                     Cédula
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
-                    Secciones
+                    Campos solicitados
                   </th>
                   <th scope="col" className="px-4 py-3 font-semibold">
                     Solicitada
@@ -151,7 +151,7 @@ export default function BandejaSolicitudesPage() {
                     <tr key={s.id} className="border-b last:border-0">
                       <td className="px-4 py-3 font-medium">{s.cedula}</td>
                       <td className="px-4 py-3">
-                        {s.seccionesSolicitadas.map(nombreSeccion).join(", ")}
+                        {s.camposSolicitados.map(etiquetaClaveCampo).join(", ")}
                       </td>
                       <td className="px-4 py-3">{formatearFechaHora(s.fechaSolicitud)}</td>
                       <td className="px-4 py-3">

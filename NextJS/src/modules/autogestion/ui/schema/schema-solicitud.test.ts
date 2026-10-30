@@ -6,32 +6,49 @@ import {
   formacionSchema,
   habilitarVentanaSchema,
   prorrogaSchema,
+  devolucionSchema,
   rechazoSchema,
   solicitudNuevaSchema,
   viviendaSchema,
 } from "./schema-solicitud";
 
 describe("solicitudNuevaSchema", () => {
-  it("exige al menos una sección y un motivo", () => {
-    expect(solicitudNuevaSchema.safeParse({ secciones: [], motivo: "x" }).success).toBe(false);
-    expect(solicitudNuevaSchema.safeParse({ secciones: ["contacto"], motivo: "  " }).success).toBe(
-      false,
-    );
+  const motivo = "Cambié de número de teléfono móvil";
+  it("exige al menos un campo y un motivo de 5 palabras y 20 caracteres", () => {
+    expect(solicitudNuevaSchema.safeParse({ campos: [], motivo }).success).toBe(false);
     expect(
-      solicitudNuevaSchema.safeParse({ secciones: ["contacto"], motivo: "Cambié de número" })
+      solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo: "  " }).success,
+    ).toBe(false);
+    expect(
+      solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo: "Cambié de número" })
         .success,
+    ).toBe(false); // 3 palabras
+    expect(
+      solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo: "a b c d e" })
+        .success,
+    ).toBe(false); // 5 palabras pero menos de 20 caracteres
+    expect(
+      solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo }).success,
     ).toBe(true);
   });
-  it("rechaza secciones desconocidas, HTML y motivos largos", () => {
-    expect(solicitudNuevaSchema.safeParse({ secciones: ["cargo"], motivo: "x" }).success).toBe(
+  it("rechaza campos desconocidos (el correo institucional), HTML y motivos largos", () => {
+    expect(solicitudNuevaSchema.safeParse({ campos: ["employee.correo"], motivo }).success).toBe(
       false,
     );
     expect(
-      solicitudNuevaSchema.safeParse({ secciones: ["foto"], motivo: "<b>x</b>" }).success,
+      solicitudNuevaSchema.safeParse({ campos: ["employee.profile"], motivo: "<b>cambio de foto de perfil</b>" })
+        .success,
     ).toBe(false);
     expect(
-      solicitudNuevaSchema.safeParse({ secciones: ["foto"], motivo: "a".repeat(501) }).success,
+      solicitudNuevaSchema.safeParse({ campos: ["employee.profile"], motivo: "a ".repeat(260) })
+        .success,
     ).toBe(false);
+  });
+  it("el correo alternativo sí es solicitable", () => {
+    expect(
+      solicitudNuevaSchema.safeParse({ campos: ["datos_complementarios.correo_alternativo"], motivo })
+        .success,
+    ).toBe(true);
   });
 });
 
@@ -135,5 +152,12 @@ describe("esquemas de Bienestar", () => {
   it("el rechazo total exige motivo", () => {
     expect(rechazoSchema.safeParse({ motivo: "" }).success).toBe(false);
     expect(rechazoSchema.safeParse({ motivo: "Soporte ilegible" }).success).toBe(true);
+  });
+});
+
+describe("devolucionSchema", () => {
+  it("exige motivo", () => {
+    expect(devolucionSchema.safeParse({ motivo: "" }).success).toBe(false);
+    expect(devolucionSchema.safeParse({ motivo: "Falta la constancia" }).success).toBe(true);
   });
 });

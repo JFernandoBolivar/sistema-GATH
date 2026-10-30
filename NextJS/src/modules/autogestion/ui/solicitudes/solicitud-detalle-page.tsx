@@ -8,7 +8,7 @@ import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import { puedeEditarBorrador } from "../../domain/services/reglas-solicitud";
-import { nombreSeccion } from "../../domain/value-objects/campos-seccion";
+import { etiquetaClaveCampo } from "../../domain/value-objects/campos-seccion";
 import {
   listarSeccionesAction,
   obtenerMiSolicitudAction,
@@ -62,7 +62,7 @@ export default function SolicitudDetallePage({ id }: { id: string }) {
       <PageHeader
         migas={volver}
         titulo="Mi solicitud de actualización"
-        descripcion={`Secciones: ${data.seccionesSolicitadas.map(nombreSeccion).join(", ")}. Solicitada el ${formatearFechaHora(data.fechaSolicitud)}.`}
+        descripcion={`Campos solicitados: ${data.camposSolicitados.map(etiquetaClaveCampo).join(", ")}. Solicitada el ${formatearFechaHora(data.fechaSolicitud)}.`}
         accion={<StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} className="text-base" />}
       />
 
@@ -71,7 +71,17 @@ export default function SolicitudDetallePage({ id }: { id: string }) {
         <p className="mt-2 text-sm text-muted-foreground">Motivo indicado: {data.motivo}</p>
       </div>
 
-      {data.estado === "HABILITADA" ? <VentanaPlazo ventanaFin={data.ventanaFin} /> : null}
+      {data.estado === "DEVUELTA" ? (
+        <div role="status" className="rounded-lg border border-warning/40 bg-warning-soft p-4">
+          <p className="font-semibold">Bienestar Social devolvió su solicitud para corregirla</p>
+          <p className="mt-1 text-base">Motivo: {data.motivoDevolucion}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Corrija lo indicado y reenvíela antes de que venza el plazo.
+          </p>
+        </div>
+      ) : null}
+
+      {data.estado === "HABILITADA" || data.estado === "DEVUELTA" ? <VentanaPlazo ventanaFin={data.ventanaFin} /> : null}
 
       <section aria-labelledby="avance" className="rounded-xl border bg-card p-5">
         <h2 id="avance" className="mb-4 text-xl font-bold">
@@ -89,7 +99,7 @@ export default function SolicitudDetallePage({ id }: { id: string }) {
         ) : null}
       </section>
 
-      {data.estado === "HABILITADA" && !editable ? (
+      {(data.estado === "HABILITADA" || data.estado === "DEVUELTA") && !editable ? (
         <VistaError mensaje="El plazo venció. Ya no puede editar; solicite una nueva actualización si lo necesita." />
       ) : null}
 

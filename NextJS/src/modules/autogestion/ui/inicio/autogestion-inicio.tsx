@@ -71,13 +71,16 @@ export default function AutogestionInicio() {
   const esActivo = cumpleCondicion("ACTIVO", session?.user?.condicionTrabajador);
   const verSolicitudes = esActivo && tienePermiso(permisos, "autogestion.ver_propio");
 
-  const { data: solicitudes } = useSWR(verSolicitudes ? "mis-solicitudes" : null, async () => {
-    const res = await listarMisSolicitudesAction();
-    if (!res.ok) throw new Error(res.mensaje);
-    return res.datos;
-  });
+  const { data: solicitudes } = useSWR(
+    verSolicitudes ? "mis-solicitudes-inicio" : null,
+    async () => {
+      const res = await listarMisSolicitudesAction();
+      if (!res.ok) throw new Error(res.mensaje);
+      return res.datos.results;
+    },
+  );
 
-  const abierta = solicitudes?.find((s) => s.estado === "HABILITADA");
+  const abierta = solicitudes?.find((s) => s.estado === "HABILITADA" || s.estado === "DEVUELTA");
   const enCurso =
     solicitudes?.filter((s) => s.estado === "SOLICITADA" || s.estado === "ENVIADA").length ?? 0;
   const restante = abierta ? tiempoRestante(abierta.ventanaFin, ahora) : null;

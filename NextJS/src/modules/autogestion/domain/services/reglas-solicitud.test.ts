@@ -3,6 +3,8 @@ import {
   puedeDecidir,
   puedeEditarBorrador,
   puedeHabilitar,
+  campoHabilitado,
+  puedeDevolver,
   puedeProrrogar,
   puedeRechazarTotal,
   seccionesSinSoporte,
@@ -47,6 +49,22 @@ describe("transiciones permitidas", () => {
         AHORA,
       ),
     ).toBe(false);
+  });
+  it("también se edita una solicitud DEVUELTA dentro del plazo y solo los campos habilitados", () => {
+    const dev = solicitudFake({
+      estado: "DEVUELTA",
+      ventanaFin: "2026-10-20T00:00:00Z",
+      camposHabilitados: ["employee.telefono_movil"],
+    });
+    expect(puedeEditarBorrador(dev, AHORA)).toBe(true);
+    expect(puedeEditarBorrador({ ...dev, ventanaFin: "2026-10-01T00:00:00Z" }, AHORA)).toBe(false);
+    expect(campoHabilitado(dev, "employee.telefono_movil")).toBe(true);
+    expect(campoHabilitado(dev, "employee.telefono_habitacion")).toBe(false);
+  });
+  it("Bienestar devuelve solo una ENVIADA y prorroga también una DEVUELTA", () => {
+    expect(puedeDevolver(solicitudFake({ estado: "ENVIADA" }))).toBe(true);
+    expect(puedeDevolver(solicitudFake({ estado: "DEVUELTA" }))).toBe(false);
+    expect(puedeProrrogar(solicitudFake({ estado: "DEVUELTA" }))).toBe(true);
   });
   it("Bienestar habilita SOLICITADA, prorroga HABILITADA y decide ENVIADA", () => {
     expect(puedeHabilitar(solicitudFake({ estado: "SOLICITADA" }))).toBe(true);

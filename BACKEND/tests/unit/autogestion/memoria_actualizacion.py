@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 
 from apps.autogestion.domain.entities.solicitud_actualizacion import SeccionAutogestionable
-from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
+from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES, EstadoSolicitud
 from core.domain.exceptions import ConflictError
 
 AHORA = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
@@ -44,18 +44,19 @@ class RepoSolicitudesMem:
             if sid == solicitud_id and (secciones is None or clave[1] in secciones):
                 del self.reservas[clave]
 
-    def listar_de_cedula(self, cedula):
-        return [s for s in self.filas.values() if s.cedula == cedula]
-
-    def listar(self, estado, cedula, limite, desplazamiento):
-        items = [s for s in self.filas.values() if (not estado or s.estado.value == estado) and (not cedula or s.cedula == cedula)]
+    def listar(self, estado, cedula, limite, desplazamiento, desde=None, hasta=None):
+        items = [
+            s for s in self.filas.values()
+            if (not estado or s.estado.value == estado) and (not cedula or s.cedula == cedula)
+            and (not desde or s.fecha_solicitud.date() >= desde) and (not hasta or s.fecha_solicitud.date() <= hasta)
+        ]
         return items[desplazamiento:desplazamiento + limite], len(items)
 
     def listar_habilitadas_vencidas(self, ahora):
-        return [s for s in self.filas.values() if s.estado is EstadoSolicitud.HABILITADA and s.ventana_fin < ahora]
+        return [s for s in self.filas.values() if s.estado in ESTADOS_EDITABLES and s.ventana_fin < ahora]
 
     def listar_habilitadas_por_vencer(self, ahora, hasta):
-        return [s for s in self.filas.values() if s.estado is EstadoSolicitud.HABILITADA and ahora <= s.ventana_fin <= hasta]
+        return [s for s in self.filas.values() if s.estado in ESTADOS_EDITABLES and ahora <= s.ventana_fin <= hasta]
 
     def agregar_prorroga(self, prorroga):
         self.prorrogas.append(prorroga)

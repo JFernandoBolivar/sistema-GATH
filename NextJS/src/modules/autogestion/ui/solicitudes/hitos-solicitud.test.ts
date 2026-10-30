@@ -37,6 +37,23 @@ describe("hitosSolicitud", () => {
       "resolucion:pendiente",
     ]);
   });
+  it("DEVUELTA: el paso actual es el envío y muestra el motivo de la devolución", () => {
+    const dev = solicitudFake({
+      estado: "DEVUELTA",
+      ventanaInicio: "2026-10-02T00:00:00Z",
+      ventanaFin: "2026-10-20T00:00:00Z",
+      fechaEnvio: "2026-10-05T00:00:00Z",
+      motivoDevolucion: "Falta la constancia",
+      fechaDevolucion: "2026-10-06T00:00:00Z",
+    });
+    expect(estados(dev)).toEqual([
+      "solicitada:hecho",
+      "habilitada:hecho",
+      "enviada:actual",
+      "resolucion:pendiente",
+    ]);
+    expect(hitosSolicitud(dev)[2].detalle).toContain("Falta la constancia");
+  });
   it("APROBADA completa todo; RECHAZADA temprana se resume en dos hitos", () => {
     const aprobada = solicitudFake({
       estado: "APROBADA",

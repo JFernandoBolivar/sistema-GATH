@@ -69,6 +69,34 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
     'foto': {'employee': frozenset({'profile'})},
 }
 
+
+
+def clave_campo(entidad: str, campo: str) -> str:
+    """Identificador de un campo solicitable: `entidad.campo` (B16, decisión G)."""
+    return f'{entidad}.{campo}'
+
+
+# Todo campo solicitable -> sección que lo agrupa (las secciones solo agrupan en la interfaz).
+SECCION_DE_CAMPO: dict[str, str] = {
+    clave_campo(entidad, campo): seccion
+    for seccion, entidades in CAMPOS_POR_SECCION.items()
+    for entidad, campos in entidades.items()
+    for campo in campos
+}
+
+
+def campos_de_secciones(secciones) -> tuple[str, ...]:
+    """Todos los campos de las secciones indicadas (compatibilidad con solicitudes por sección entera)."""
+    elegidas = set(secciones)
+    return tuple(c for c, s in SECCION_DE_CAMPO.items() if s in elegidas)
+
+
+def secciones_de_campos(campos) -> tuple[str, ...]:
+    """Secciones que agrupan los campos, en el orden del catálogo de secciones."""
+    usadas = {SECCION_DE_CAMPO[c] for c in campos}
+    return tuple(s.value for s in Seccion if s.value in usadas)
+
+
 # Campos obligatorios al CREAR un registro nuevo.
 REQUERIDOS_AL_CREAR: dict[str, frozenset[str]] = {
     'datos_vivienda': frozenset({

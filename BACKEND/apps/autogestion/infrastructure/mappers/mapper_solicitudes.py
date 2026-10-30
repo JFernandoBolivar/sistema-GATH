@@ -21,6 +21,8 @@ def solicitud_a_entidad(m) -> SolicitudActualizacion:
         ventana_inicio=m.ventana_inicio, ventana_fin=m.ventana_fin, plazo_dias=m.plazo_dias,
         habilitada_por=m.habilitada_por, decidida_por=m.decidida_por, motivo_decision=m.motivo_decision,
         version=m.version, fecha_solicitud=m.created_at, fecha_envio=m.fecha_envio, fecha_decision=m.fecha_decision,
+        campos_solicitados=tuple(m.campos_solicitados or ()), campos_habilitados=tuple(m.campos_habilitados or ()),
+        motivo_devolucion=m.motivo_devolucion, devuelta_por=m.devuelta_por, fecha_devolucion=m.fecha_devolucion,
     )
 
 
@@ -31,6 +33,8 @@ def campos_de_solicitud(s: SolicitudActualizacion) -> dict:
         'ventana_inicio': s.ventana_inicio, 'ventana_fin': s.ventana_fin, 'plazo_dias': s.plazo_dias,
         'habilitada_por': s.habilitada_por, 'decidida_por': s.decidida_por,
         'motivo_decision': s.motivo_decision, 'fecha_envio': s.fecha_envio, 'fecha_decision': s.fecha_decision,
+        'campos_solicitados': list(s.campos_solicitados), 'campos_habilitados': list(s.campos_habilitados),
+        'motivo_devolucion': s.motivo_devolucion, 'devuelta_por': s.devuelta_por, 'fecha_devolucion': s.fecha_devolucion,
     }
 
 

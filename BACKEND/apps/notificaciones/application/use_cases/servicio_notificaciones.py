@@ -56,7 +56,8 @@ class ServicioNotificaciones:
         for c in destinatarios:
             self._cache.invalidar(c)
         if s.correo is not None and creadas:
-            self._correo(s, destinatarios[0])
+            for c in destinatarios:  # una persona o cada cuenta con el permiso; el outbox deduplica por destinatario
+                self._correo(s, c)
         return creadas
 
     def _correo(self, s: SolicitudNotificacion, cedula: str) -> None:

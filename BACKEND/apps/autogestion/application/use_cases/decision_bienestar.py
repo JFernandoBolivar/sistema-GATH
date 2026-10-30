@@ -161,3 +161,24 @@ def rechazar_solicitud(
     ))
     return guardada
 
+
+
+def devolver_solicitud(
+    repo: RepoSolicitudes, publicador: PublicadorEventos,
+    *, solicitud_id: str, motivo: str, version: int | None, actor: str, ahora: datetime,
+) -> SolicitudActualizacion:
+    """
+    Bienestar devuelve una ENVIADA al trabajador con motivo obligatorio; los cambios del borrador se conservan y
+    el trabajador corrige dentro del plazo vigente (Bienestar puede prorrogarlo) y reenvía.
+    """
+    motivo = _texto_obligatorio(motivo, 'motivo de la devolución')
+    solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
+    exigir_version(solicitud, version)
+    devuelta = solicitud.devolver(actor, motivo, ahora)
+    guardada = repo.guardar(devuelta, solicitud.version)
+    publicador.publicar(EventoAutogestion(
+        TipoEvento.SOLICITUD_DEVUELTA, solicitud.id, solicitud.cedula, actor,
+        {'motivo': motivo, 'ventana_fin': guardada.ventana_fin.isoformat() if guardada.ventana_fin else '',
+         'fecha': ahora.isoformat()},
+    ))
+    return guardada

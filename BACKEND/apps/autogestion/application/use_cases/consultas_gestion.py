@@ -1,6 +1,8 @@
 """
 Consultas de solicitudes, catálogo de secciones y datos complementarios (B3, B13).
 """
+from datetime import date
+
 from apps.autogestion.domain.entities.solicitud_actualizacion import (
     DatosComplementarios,
     SeccionAutogestionable,
@@ -17,23 +19,44 @@ from apps.autogestion.domain.services.validacion_cambios import validar_valor
 from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
 from core.domain.exceptions import NotFoundError, ValidationError
 
-LIMITE_MAX = 100
+LIMITE_DEFECTO = 10
+LIMITE_MAX = 50
 
 
-def listar_mis_solicitudes(repo: RepoSolicitudes, cedula: str) -> list[SolicitudActualizacion]:
-    return repo.listar_de_cedula(cedula)
-
-
-def listar_bandeja(
+def _listar_acotado(
     repo: RepoSolicitudes, *, estado: str | None, cedula: str | None, limite: int, desplazamiento: int,
+    desde: date | None, hasta: date | None,
 ) -> tuple[list[SolicitudActualizacion], int]:
+    """Filtros validados y página acotada en el servidor (10 por defecto, tope 50)."""
     if estado:
         try:
             estado = EstadoSolicitud(estado).value
         except ValueError:
             raise ValidationError(f"Estado inválido: '{estado}'.") from None
+    if desde and hasta and desde > hasta:
+        raise ValidationError("La fecha inicial no puede ser posterior a la final.")
     limite = max(1, min(limite, LIMITE_MAX))
-    return repo.listar(estado, (cedula or '').strip() or None, limite, max(0, desplazamiento))
+    return repo.listar(estado, cedula, limite, max(0, desplazamiento), desde, hasta)
+
+
+def listar_mis_solicitudes(
+    repo: RepoSolicitudes, cedula: str, *, estado: str | None = None, desde: date | None = None,
+    hasta: date | None = None, limite: int = LIMITE_DEFECTO, desplazamiento: int = 0,
+) -> tuple[list[SolicitudActualizacion], int]:
+    """Solicitudes de la cédula de la sesión (Zero-IDOR: la cédula nunca viene del cliente)."""
+    return _listar_acotado(
+        repo, estado=estado, cedula=cedula, limite=limite, desplazamiento=desplazamiento, desde=desde, hasta=hasta,
+    )
+
+
+def listar_bandeja(
+    repo: RepoSolicitudes, *, estado: str | None, cedula: str | None, limite: int, desplazamiento: int,
+    desde: date | None = None, hasta: date | None = None,
+) -> tuple[list[SolicitudActualizacion], int]:
+    return _listar_acotado(
+        repo, estado=estado, cedula=(cedula or '').strip() or None, limite=limite, desplazamiento=desplazamiento,
+        desde=desde, hasta=hasta,
+    )
 
 
 def listar_secciones(repo: RepoSecciones, solo_activas: bool = True) -> list[SeccionAutogestionable]:

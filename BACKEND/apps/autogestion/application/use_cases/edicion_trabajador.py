@@ -26,6 +26,7 @@ from apps.autogestion.domain.services.validacion_cambios import (
     validar_registro_nuevo,
     validar_valor,
 )
+from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
 from apps.autogestion.domain.value_objects.secciones import (
     CAMPO_REGISTRO_NUEVO,
     ORIGEN_ACTUALIZACION,
@@ -33,6 +34,7 @@ from apps.autogestion.domain.value_objects.secciones import (
     Accion,
     Seccion,
     TipoSoporte,
+    clave_campo,
 )
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.domain.ports import FileStorage
@@ -46,6 +48,12 @@ def obtener_solicitud_propia(repo: RepoSolicitudes, solicitud_id: str, cedula: s
     if solicitud.cedula != cedula:
         raise NotFoundError("La solicitud de actualización no existe.")  # no revela que existe
     return solicitud
+
+
+def _exigir_campo_habilitado(solicitud: SolicitudActualizacion, entidad: str, campo: str) -> None:
+    """Decisión G: solo se edita lo que el trabajador pidió y Bienestar habilitó, campo por campo."""
+    if clave_campo(entidad, campo) not in solicitud.campos_habilitados:
+        raise ValidationError(f"El campo '{campo}' de '{entidad}' no fue solicitado ni habilitado en esta solicitud.")
 
 
 def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lector: LectorFicha, ya_vistos: set) -> CambioPropuesto | None:
@@ -62,10 +70,13 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
 
     if accion is Accion.CREAR:
         valor = validar_registro_nuevo(item.seccion, item.entidad, item.valor)
+        for campo in valor:
+            _exigir_campo_habilitado(solicitud, item.entidad, campo)
         lector.validar_referencias(valor)
         clave = (item.entidad, None, CAMPO_REGISTRO_NUEVO, str(sorted(valor.items())))
         anterior = None
     else:
+        _exigir_campo_habilitado(solicitud, item.entidad, item.campo)
         if entidad_id is not None and not lector.pertenece_al_trabajador(solicitud.cedula, item.entidad, entidad_id):
             raise NotFoundError(f"El registro {entidad_id} de '{item.entidad}' no pertenece al trabajador.")
         if item.entidad == 'datos_vivienda' and not lector.existe_registro_unico(solicitud.cedula, item.entidad):
@@ -182,8 +193,10 @@ def enviar_solicitud(
     if faltan:
         raise ValidationError(f"Falta el soporte obligatorio en: {', '.join(faltan)}.")
     guardada = repo.guardar(enviada, solicitud.version)
+    reenvio = solicitud.estado is EstadoSolicitud.DEVUELTA
     publicador.publicar(EventoAutogestion(
-        TipoEvento.SOLICITUD_ENVIADA, solicitud.id, solicitud.cedula, cedula,
-        {'secciones': sorted({c.seccion for c in cambios}), 'cambios': len(cambios)},
+        TipoEvento.CORRECCION_REENVIADA if reenvio else TipoEvento.SOLICITUD_ENVIADA,
+        solicitud.id, solicitud.cedula, cedula,
+        {'secciones': sorted({c.seccion for c in cambios}), 'cambios': len(cambios), 'fecha': ahora.isoformat()},
     ))
     return guardada

@@ -25,6 +25,11 @@ export interface SolicitudApi {
   fecha_solicitud: string | null;
   fecha_envio: string | null;
   fecha_decision: string | null;
+  campos_solicitados: string[];
+  campos_habilitados: string[];
+  motivo_devolucion: string;
+  devuelta_por: string;
+  fecha_devolucion: string | null;
 }
 
 export interface CambioApi {
@@ -114,11 +119,17 @@ function cuerpoBorrador(cambios: ItemBorrador[], version?: number): Record<strin
 
 export const solicitudesApi = {
   // Trabajador
-  listarMias: () => apiClient.get<ApiResponse<SolicitudApi[]>>(`${BASE}/solicitudes/`),
+  listarMias: (params: {
+    estado?: string;
+    fecha_desde?: string;
+    fecha_hasta?: string;
+    limit: number;
+    offset: number;
+  }) => apiClient.get<ApiResponse<PaginaSolicitudesApi>>(`${BASE}/solicitudes/`, { params }),
   obtenerMia: (id: string) =>
     apiClient.get<ApiResponse<DetalleSolicitudApi>>(`${BASE}/solicitudes/${id}/`),
-  solicitar: (secciones: string[], motivo: string) =>
-    apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/solicitudes/`, { secciones, motivo }),
+  solicitar: (campos: string[], motivo: string) =>
+    apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/solicitudes/`, { campos, motivo }),
   guardarBorrador: (id: string, cambios: ItemBorrador[], version?: number) =>
     apiClient.put<ApiResponse<DetalleSolicitudApi>>(
       `${BASE}/solicitudes/${id}/borrador/`,
@@ -163,6 +174,11 @@ export const solicitudesApi = {
       `${BASE}/bienestar/solicitudes/${id}/decidir/`,
       cuerpo as unknown as Record<string, unknown>,
     ),
+  devolver: (id: string, motivo: string, version?: number) =>
+    apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/bienestar/solicitudes/${id}/devolver/`, {
+      motivo,
+      ...(version !== undefined ? { version } : {}),
+    }),
   rechazar: (id: string, motivo: string, version?: number) =>
     apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/bienestar/solicitudes/${id}/rechazar/`, {
       motivo,

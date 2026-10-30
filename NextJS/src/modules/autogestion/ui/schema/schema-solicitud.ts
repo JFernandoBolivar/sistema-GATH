@@ -7,7 +7,8 @@ import {
   NO_HTML,
   NO_HTML_MSG,
 } from "@/shared/validation";
-import { SECCIONES } from "../../domain/entities/solicitud-actualizacion";
+import { seccionDeCampo } from "../../domain/value-objects/campos-seccion";
+import { errorDeMotivo } from "../../domain/services/validar-motivo";
 import {
   PLAZO_MAX_DIAS,
   PLAZO_MIN_DIAS,
@@ -56,9 +57,21 @@ const idCatalogoOpcional = z
   .transform((v) => (v === "" || v === null || v === undefined ? null : Number(v)));
 
 // ── Solicitud ──
+/** Motivo único: mínimo 5 palabras y 20 caracteres (igual que el servidor). */
+const motivoSolicitud = z
+  .string({ required_error: "El motivo es obligatorio" })
+  .superRefine((valor, ctx) => {
+    const error = errorDeMotivo(valor);
+    if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, message: error });
+  })
+  .transform((v) => v.trim())
+  .refine((v) => NO_HTML.test(v), NO_HTML_MSG);
+
 export const solicitudNuevaSchema = z.object({
-  secciones: z.array(z.enum(SECCIONES)).min(1, "Elija al menos una sección para actualizar"),
-  motivo: textoRequerido("El motivo", MOTIVO_MAX),
+  campos: z
+    .array(z.string().refine((c) => seccionDeCampo(c) !== undefined, "Campo no autogestionable"))
+    .min(1, "Elija al menos un campo para actualizar"),
+  motivo: motivoSolicitud,
 });
 export type SolicitudNuevaValores = z.infer<typeof solicitudNuevaSchema>;
 
@@ -154,6 +167,11 @@ export const rechazoSchema = z.object({
   motivo: textoRequerido("El motivo del rechazo", MOTIVO_MAX),
 });
 export type RechazoValores = z.infer<typeof rechazoSchema>;
+
+export const devolucionSchema = z.object({
+  motivo: textoRequerido("El motivo de la devolución", MOTIVO_MAX),
+});
+export type DevolucionValores = z.infer<typeof devolucionSchema>;
 
 /** Filtros de la bandeja de Bienestar. */
 export const filtrosBandejaSchema = z.object({

@@ -20,6 +20,8 @@ class TipoEvento(str, Enum):
     VENTANA_HABILITADA = 'autogestion.ventana_habilitada'        # -> avisar al trabajador
     VENTANA_PRORROGADA = 'autogestion.ventana_prorrogada'        # -> avisar al trabajador
     SOLICITUD_ENVIADA = 'autogestion.solicitud_enviada'          # -> avisar a Bienestar (bienestar.aprobar)
+    SOLICITUD_DEVUELTA = 'autogestion.solicitud_devuelta'        # -> avisar al trabajador (con motivo) que corrija
+    CORRECCION_REENVIADA = 'autogestion.correccion_reenviada'    # -> avisar a Bienestar (bienestar.aprobar)
     SOLICITUD_RECHAZADA = 'autogestion.solicitud_rechazada'      # -> avisar al trabajador
     ACTUALIZACION_APROBADA = 'autogestion.actualizacion_aprobada'  # total o parcial -> trabajador + outbox SIGESP
     FOTO_APROBADA = 'autogestion.foto_aprobada'                  # -> alerta de reemisión a Carnetización

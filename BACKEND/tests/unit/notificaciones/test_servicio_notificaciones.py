@@ -61,6 +61,20 @@ def test_con_correo_escribe_el_outbox_y_programa_el_envio_una_sola_vez():
     assert msg.adjuntos[0].contenido_b64 and msg.idempotency_key.endswith(':trab@conatel.gob.ve:EMAIL')
 
 
+def test_correo_a_un_grupo_llega_a_cada_cuenta_con_el_permiso_y_no_se_duplica():
+    servicio, _, outbox, _, plan = montar(
+        por_permiso={'a.b': ['1', '2', '3']}, correos={'1': 'uno@x.com', '2': 'dos@x.com'},
+    )
+    s = SolicitudNotificacion(
+        tipo='t', titulo='T', mensaje='M', permiso_destino='a.b', ref_id='r', excluir_cedulas=('3',),
+        correo=CorreoSolicitado('Asunto'),
+    )
+    servicio.notificar(s)
+    servicio.notificar(s)
+    assert sorted(m.destinatario for m in outbox.filas.values()) == ['dos@x.com', 'uno@x.com']
+    assert len(plan.programados) == 2
+
+
 def test_sin_correo_la_notificacion_en_el_sistema_si_se_crea():
     servicio, repo, outbox, *_ = montar()
     servicio.notificar(SolicitudNotificacion(
@@ -81,7 +95,6 @@ def test_notificar_invalida_la_cache_del_contador():
     dict(cedula_destino='1', permiso_destino='a.b'),             # ambos
     dict(cedula_destino='1', enlace='https://malo.com'),         # enlace externo
     dict(cedula_destino='1', enlace='//malo.com'),
-    dict(permiso_destino='a.b', correo=CorreoSolicitado('A')),   # correo a un grupo
 ])
 def test_solicitud_invalida_se_rechaza(kwargs):
     with pytest.raises(ValidationError):

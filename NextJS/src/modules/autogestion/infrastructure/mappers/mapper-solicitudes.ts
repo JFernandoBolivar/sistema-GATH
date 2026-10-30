@@ -58,6 +58,11 @@ export function mapperSolicitud(r: SolicitudApi): SolicitudEntity {
     fechaSolicitud: r.fecha_solicitud,
     fechaEnvio: r.fecha_envio,
     fechaDecision: r.fecha_decision,
+    camposSolicitados: r.campos_solicitados ?? [],
+    camposHabilitados: r.campos_habilitados ?? [],
+    motivoDevolucion: r.motivo_devolucion ?? "",
+    devueltaPor: r.devuelta_por ?? "",
+    fechaDevolucion: r.fecha_devolucion ?? null,
   };
 }
 

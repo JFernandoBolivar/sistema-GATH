@@ -245,6 +245,7 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
                         <Textarea
                           id={`${idCampo}-motivo`}
                           rows={2}
+                          className="resize-none"
                           maxLength={500}
                           value={e.motivo}
                           onChange={(ev) =>
@@ -288,6 +289,7 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
               <Textarea
                 id="motivo-general"
                 rows={3}
+                className="resize-none"
                 maxLength={500}
                 value={motivoGeneral}
                 onChange={(ev) => setMotivoGeneral(ev.target.value)}

@@ -1,19 +1,33 @@
-import type { RepoSolicitudes, SoporteNuevo } from "../../domain/ports/repo-solicitudes";
-import { SECCIONES } from "../../domain/entities/solicitud-actualizacion";
+import type {
+  FiltrosMisSolicitudes,
+  RepoSolicitudes,
+  SoporteNuevo,
+} from "../../domain/ports/repo-solicitudes";
+import { LIMITE_BANDEJA, LIMITE_MAXIMO_BANDEJA } from "./gestionar-solicitud-bienestar";
+import { seccionDeCampo } from "../../domain/value-objects/campos-seccion";
+import { errorDeMotivo } from "../../domain/services/validar-motivo";
 import { validarArchivoSoporte } from "../../domain/services/validar-soporte";
 import { validarEnvio } from "../../domain/services/reglas-solicitud";
 import type {
   ItemBorradorDTO,
+  PaginaSolicitudesDTO,
   SolicitudDTO,
   SolicitudDetalleDTO,
   SoporteDTO,
 } from "../dtos/solicitud-dto";
 
-const MOTIVO_MAX = 500;
-const SECCIONES_VALIDAS: readonly string[] = SECCIONES;
-
-export async function listarMisSolicitudes(repo: RepoSolicitudes): Promise<SolicitudDTO[]> {
-  return repo.listarMias();
+/** Página de las solicitudes propias: 10 por defecto, tope 50; filtros vacíos se omiten. */
+export async function listarMisSolicitudes(
+  repo: RepoSolicitudes,
+  filtros: Partial<FiltrosMisSolicitudes> = {},
+): Promise<PaginaSolicitudesDTO> {
+  return repo.listarMias({
+    estado: filtros.estado || undefined,
+    fechaDesde: filtros.fechaDesde || undefined,
+    fechaHasta: filtros.fechaHasta || undefined,
+    limit: Math.min(Math.max(filtros.limit ?? LIMITE_BANDEJA, 1), LIMITE_MAXIMO_BANDEJA),
+    offset: Math.max(filtros.offset ?? 0, 0),
+  });
 }
 
 export async function obtenerMiSolicitud(
@@ -32,20 +46,18 @@ export async function obtenerMisDatosComplementarios(repo: RepoSolicitudes) {
   return repo.obtenerMisDatosComplementarios();
 }
 
-/** El trabajador pide actualizar secciones indicando el motivo; Bienestar habilita después la ventana. */
+/** El trabajador pide actualizar CAMPOS concretos con un solo motivo; Bienestar habilita después la ventana. */
 export async function solicitarActualizacion(
   repo: RepoSolicitudes,
-  entrada: { secciones: string[]; motivo: string },
+  entrada: { campos: string[]; motivo: string },
 ): Promise<SolicitudDTO> {
-  const secciones = [...new Set(entrada.secciones)];
-  if (secciones.length === 0) throw new Error("Elija al menos una sección para actualizar.");
-  const desconocida = secciones.find((s) => !SECCIONES_VALIDAS.includes(s));
-  if (desconocida) throw new Error(`La sección «${desconocida}» no es autogestionable.`);
-  const motivo = entrada.motivo.trim();
-  if (!motivo) throw new Error("Indique el motivo de la actualización.");
-  if (motivo.length > MOTIVO_MAX)
-    throw new Error(`El motivo no puede superar ${MOTIVO_MAX} caracteres.`);
-  return repo.solicitar(secciones, motivo);
+  const campos = [...new Set(entrada.campos)];
+  if (campos.length === 0) throw new Error("Elija al menos un campo para actualizar.");
+  const desconocido = campos.find((c) => !seccionDeCampo(c));
+  if (desconocido) throw new Error(`El campo «${desconocido}» no es autogestionable.`);
+  const errorMotivo = errorDeMotivo(entrada.motivo);
+  if (errorMotivo) throw new Error(`${errorMotivo}.`);
+  return repo.solicitar(campos, entrada.motivo.trim());
 }
 
 /** Reemplaza el borrador completo de la solicitud (la ficha real no cambia hasta la aprobación). */

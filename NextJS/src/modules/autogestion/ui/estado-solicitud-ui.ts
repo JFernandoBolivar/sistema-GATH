@@ -6,6 +6,7 @@ import {
   Clock,
   FileSearch,
   PencilLine,
+  Undo2,
   type LucideIcon,
 } from "lucide-react";
 import type { TonoEstado } from "@/shared/ui/components/status-badge";
@@ -39,6 +40,13 @@ export const PRESENTACION_ESTADO: Record<EstadoSolicitud, PresentacionEstado> = 
     tono: "info",
     icono: FileSearch,
     ayuda: "Bienestar Social está revisando sus cambios campo por campo.",
+  },
+  DEVUELTA: {
+    texto: "Devuelta para corregir",
+    tono: "warning",
+    icono: Undo2,
+    ayuda:
+      "Bienestar Social le devolvió la solicitud con un motivo. Corrija lo indicado y reenvíela dentro del plazo.",
   },
   APROBADA: {
     texto: "Aprobada",

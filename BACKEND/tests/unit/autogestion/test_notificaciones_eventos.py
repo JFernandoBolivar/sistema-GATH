@@ -46,6 +46,9 @@ def test_solicitud_enviada_avisa_a_quienes_pueden_aprobar():
     (TipoEvento.ACTUALIZACION_APROBADA, {'estado': 'APROBADA', 'aprobados': 2, 'total': 2}),
     (TipoEvento.ACTUALIZACION_APROBADA, {'estado': 'APROBADA_PARCIAL', 'aprobados': 1, 'total': 2}),
     (TipoEvento.SOLICITUD_RECHAZADA, {'motivo': 'Falta soporte'}),
+    (TipoEvento.SOLICITUD_DEVUELTA, {'motivo': 'Falta la constancia', 'ventana_fin': '2026-11-05T20:00:00+00:00', 'fecha': 'f1'}),
+    (TipoEvento.VENTANA_POR_EXPIRAR, {'ventana_fin': '2026-11-05T20:00:00+00:00'}),
+    (TipoEvento.VENTANA_EXPIRADA, {'ventana_fin': '2026-11-05T20:00:00+00:00'}),
 ])
 def test_eventos_al_trabajador_llevan_correo(tipo, detalle):
     s = solo(tipo, detalle)
@@ -53,10 +56,16 @@ def test_eventos_al_trabajador_llevan_correo(tipo, detalle):
     assert s.enlace == f'/autogestion/solicitudes/{SID}' and s.ref_id == SID
 
 
-@pytest.mark.parametrize('tipo', [TipoEvento.VENTANA_POR_EXPIRAR, TipoEvento.VENTANA_EXPIRADA])
-def test_recordatorio_y_expiracion_solo_en_el_sistema(tipo):
-    s = solo(tipo, {'ventana_fin': '2026-11-05T20:00:00+00:00'}, actor='')
-    assert s.cedula_destino == TRABAJADOR and s.correo is None
+def test_devuelta_lleva_el_motivo_y_cada_devolucion_tiene_su_clave():
+    a = solo(TipoEvento.SOLICITUD_DEVUELTA, {'motivo': 'Falta la constancia', 'ventana_fin': '2026-11-05T20:00:00+00:00', 'fecha': 'f1'})
+    b = solo(TipoEvento.SOLICITUD_DEVUELTA, {'motivo': 'Otra vez', 'ventana_fin': '2026-11-05T20:00:00+00:00', 'fecha': 'f2'})
+    assert 'Falta la constancia' in a.mensaje and a.clave != b.clave and a.modulo == 'autogestion'
+
+
+def test_correccion_reenviada_avisa_a_bienestar_en_su_modulo_y_con_clave_propia():
+    s = solo(TipoEvento.CORRECCION_REENVIADA, {'fecha': 'f1'}, actor=TRABAJADOR)
+    assert s.permiso_destino == 'bienestar.aprobar' and s.modulo == 'personal' and s.correo is None
+    assert TRABAJADOR in s.excluir_cedulas and s.clave == 'f1'
 
 
 def test_fechas_en_hora_de_venezuela_y_clave_por_ocurrencia():
@@ -125,3 +134,11 @@ def test_reemplazar_la_foto_borra_la_anterior_del_almacen():
             nombre_original='yo.jpg', ahora=AHORA,
         )
     assert len(m.almacen.objetos) == 1
+
+
+@pytest.mark.parametrize('tipo', [TipoEvento.SOLICITUD_CREADA, TipoEvento.SOLICITUD_ENVIADA, TipoEvento.CORRECCION_REENVIADA])
+def test_correo_a_bienestar_solo_con_el_ajuste_activado(tipo):
+    apagado = solicitudes_de_evento(evento(tipo, {'fecha': 'f1'}, TRABAJADOR))[0]
+    encendido = solicitudes_de_evento(evento(tipo, {'fecha': 'f1'}, TRABAJADOR), correo_a_bienestar=True)[0]
+    assert apagado.correo is None and encendido.correo is not None and 'CONATEL' in encendido.correo.asunto
+    assert encendido.permiso_destino and not encendido.cedula_destino

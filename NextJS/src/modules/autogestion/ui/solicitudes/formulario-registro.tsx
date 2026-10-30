@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import { useEffect, useId, useMemo } from "react";
 import { useForm, type FieldValues, type Resolver } from "react-hook-form";
-import type { ZodTypeAny } from "zod";
+import { ZodObject, type ZodTypeAny } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,9 +60,18 @@ export function FormularioRegistro({
     (esquema as { shape?: Record<string, unknown> }).shape ?? {},
   );
   const campos = definicion.campos.filter((c) => camposDelEsquema.includes(c.campo));
+  // Solo se validan los campos que la solicitud habilitó (la definición ya viene filtrada).
+  const esquemaActivo = useMemo(
+    () =>
+      esquema instanceof ZodObject
+        ? esquema.pick(Object.fromEntries(campos.map((c) => [c.campo, true as const])))
+        : esquema,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `campos` depende solo de la definición
+    [esquema, definicion],
+  );
 
   const form = useForm<Valores>({
-    resolver: resolverZod(esquema),
+    resolver: resolverZod(esquemaActivo),
     defaultValues: Object.fromEntries(campos.map((c) => [c.campo, valorATexto(inicial[c.campo])])),
   });
   const { register, handleSubmit, watch, setValue, formState } = form;
@@ -138,7 +147,7 @@ export function FormularioRegistro({
       <div key={c.campo} className="flex flex-col gap-1.5">
         {etiqueta}
         {c.tipo === "textarea" ? (
-          <Textarea rows={3} {...comunes} {...register(c.campo)} />
+          <Textarea rows={3} className="resize-none" {...comunes} {...register(c.campo)} />
         ) : (
           <Input
             type={
