@@ -3,16 +3,22 @@ Preparación de los filtros del reporte de personal (G3), sin BD ni Django.
 
 Cubre: los ~30 filtros del formulario llegan al registro como lookups, la
 conversión de edad/APN/fechas, el rechazo de filtros desconocidos (400 y no
-descarte silencioso), la validación de rangos, y `agrupar_por`/`tipo_reporte`.
+descarte silencioso), los **valores extremos** (que antes daban 500), la
+validación de rangos, `agrupar_por`/`tipo_reporte` y el permiso de estructura
+organizativa (M7).
 """
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
 from apps.reportes.domain.services.filtros_reporte_personal import (
+    EDAD_MAXIMA_PERMITIDA,
+    EDAD_MINIMA_PERMITIDA,
+    ENTERO_MAXIMO_EXCLUSIVO,
     preparar_consulta_personal,
 )
-from core.domain.exceptions import ValidationError
+from core.domain.exceptions import PermissionDeniedError, ValidationError
 from core.infrastructure.report_field_registry import ReportFieldRegistryORM
 
 HOY = date(2026, 10, 30)
@@ -65,7 +71,9 @@ def test_todos_los_filtros_del_formulario_se_traducen(configuracion):
         'grupo_id': '25',
     }
 
-    consulta = preparar_consulta_personal(filtros, configuracion, hoy=HOY)
+    consulta = preparar_consulta_personal(
+        filtros, configuracion, puede_filtrar_estructura=True, hoy=HOY
+    )
 
     esperados = {
         'assignments__Dependencia': 3,
@@ -84,8 +92,8 @@ def test_todos_los_filtros_del_formulario_se_traducen(configuracion):
         'formacion_academica__nivel_academico': 15,
         'formacion_academica__carrera': 16,
         'formacion_academica__mencion': 17,
-        'total_anos_apn__gte': 5,
-        'total_anos_apn__lte': 20,
+        'total_anos_apn__gte': Decimal('5'),
+        'total_anos_apn__lte': Decimal('20'),
         'fecha_nacimiento__lte': date(1996, 10, 30),
         'fecha_nacimiento__gte': date(1975, 10, 31),
         'antecedentes_servicio__fecha_ingreso__gte': date(2010, 1, 1),
@@ -160,6 +168,103 @@ def test_edad_min_en_29_de_febrero(configuracion):
     assert consulta.lookups == {'fecha_nacimiento__lte': date(2027, 2, 28)}
 
 
+# ─── A1: valores extremos → 400, nunca 500 ────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    'edad',
+    ['3000', str(EDAD_MAXIMA_PERMITIDA + 1), '-1', '99999999999999999999'],
+)
+def test_edad_fuera_de_rango_falla(configuracion, edad):
+    with pytest.raises(ValidationError) as exc:
+        preparar_consulta_personal({'edad_min': edad}, configuracion, hoy=HOY)
+    assert 'edad_min' in str(exc.value)
+
+
+def test_edad_en_los_limites_se_acepta(configuracion):
+    minima = preparar_consulta_personal(
+        {'edad_min': str(EDAD_MINIMA_PERMITIDA)}, configuracion, hoy=HOY
+    )
+    maxima = preparar_consulta_personal(
+        {'edad_min': str(EDAD_MAXIMA_PERMITIDA)}, configuracion, hoy=HOY
+    )
+    assert minima.lookups == {'fecha_nacimiento__lte': HOY}
+    assert maxima.lookups == {'fecha_nacimiento__lte': date(1876, 10, 30)}
+
+
+def test_edad_con_anio_negativo_no_revienta(configuracion):
+    """Antes `_restar_anios` levantaba ValueError (500) con 3000."""
+    with pytest.raises(ValidationError):
+        preparar_consulta_personal({'edad_max': '3000'}, configuracion, hoy=HOY)
+
+
+def test_restar_anios_con_anio_imposible_da_error_de_validacion():
+    """La guarda de `_restar_anios` cubre años fuera del rango de `date`."""
+    from apps.reportes.domain.services.filtros_reporte_personal import _restar_anios
+
+    with pytest.raises(ValidationError):
+        _restar_anios(date(2026, 10, 30), 3000)
+
+
+@pytest.mark.parametrize('valor', ['NaN', 'sNaN', 'Infinity', '-Infinity'])
+def test_decimal_no_finito_falla(configuracion, valor):
+    with pytest.raises(ValidationError) as exc:
+        preparar_consulta_personal({'apn_min': valor}, configuracion, hoy=HOY)
+    assert 'apn_min' in str(exc.value)
+
+
+def test_decimal_fuera_de_rango_falla(configuracion):
+    with pytest.raises(ValidationError):
+        preparar_consulta_personal({'apn_min': '1e999'}, configuracion, hoy=HOY)
+
+
+def test_decimal_valido_se_convierte(configuracion):
+    consulta = preparar_consulta_personal({'apn_min': '5.5'}, configuracion, hoy=HOY)
+    assert consulta.lookups == {'total_anos_apn__gte': Decimal('5.5')}
+
+
+@pytest.mark.parametrize('valor', ['1_0', '10.0', '0x10', '1e3', '-5', '0'])
+def test_identificador_invalido_falla(configuracion, valor):
+    with pytest.raises(ValidationError):
+        preparar_consulta_personal({'sexo_id': valor}, configuracion, hoy=HOY)
+
+
+@pytest.mark.parametrize(
+    'valor',
+    [
+        '١٢٣',  # dígitos arábigo-índicos: `str.isdigit()` los acepta, `int()` también
+        '１２３',  # dígitos de ancho completo
+        '³',  # superíndice: es dígito Unicode, no decimal
+    ],
+)
+def test_identificador_con_digitos_no_ascii_falla(configuracion, valor):
+    """B5/revisión: solo dígitos ASCII cuentan como identificador."""
+    with pytest.raises(ValidationError) as exc:
+        preparar_consulta_personal({'sexo_id': valor}, configuracion, hoy=HOY)
+    assert 'sexo_id' in str(exc.value)
+
+
+def test_entero_de_miles_de_digitos_no_revienta(configuracion):
+    """`int()` lanza ValueError con cadenas de más de ~4300 dígitos: debe ser 400."""
+    with pytest.raises(ValidationError):
+        preparar_consulta_personal({'sexo_id': '9' * 5000}, configuracion, hoy=HOY)
+
+
+def test_identificador_en_el_limite_superior_del_int4_falla(configuracion):
+    with pytest.raises(ValidationError) as exc:
+        preparar_consulta_personal(
+            {'sexo_id': str(ENTERO_MAXIMO_EXCLUSIVO)}, configuracion, hoy=HOY
+        )
+    assert 'sexo_id' in str(exc.value)
+
+
+def test_identificador_en_el_limite_superior_valido_se_acepta(configuracion):
+    consulta = preparar_consulta_personal(
+        {'sexo_id': str(ENTERO_MAXIMO_EXCLUSIVO - 1)}, configuracion, hoy=HOY
+    )
+    assert consulta.lookups == {'sexoid': ENTERO_MAXIMO_EXCLUSIVO - 1}
+
+
 def test_tipo_reporte_conteo_exige_agrupacion(configuracion):
     with pytest.raises(ValidationError):
         preparar_consulta_personal({'tipo_reporte': 'conteo'}, configuracion, hoy=HOY)
@@ -177,8 +282,10 @@ def test_tipo_reporte_conteo_resuelve_la_ruta_de_agrupacion(configuracion):
 
 
 def test_tipo_reporte_invalido_falla(configuracion):
-    with pytest.raises(ValidationError):
+    """B6: el mensaje lo produce la entidad, no el servicio."""
+    with pytest.raises(ValidationError) as exc:
         preparar_consulta_personal({'tipo_reporte': 'resumen'}, configuracion, hoy=HOY)
+    assert 'Tipo de reporte no válido' in str(exc.value)
 
 
 def test_agrupacion_inexistente_falla(configuracion):
@@ -193,6 +300,14 @@ def test_lista_con_agrupacion_resuelve_la_ruta_del_grupo(configuracion):
     assert consulta.agrupar_por_ruta == 'assignments__tiponominaid__nomina'
 
 
+def test_las_agrupaciones_por_cargo_grado_usan_el_texto_del_catalogo(configuracion):
+    """M3: agrupar no debe devolver IDs de FK en el PDF."""
+    campos = configuracion['campos_permitidos']
+    assert campos['cargo'] == 'assignments__denominacioncargoid__cargo'
+    assert campos['cargo_especifico'] == 'assignments__denominacioncargoespecificoid__cargo'
+    assert campos['grado'] == 'assignments__gradoid__grado'
+
+
 def test_las_claves_de_control_no_son_filtros(configuracion):
     consulta = preparar_consulta_personal(
         {
@@ -205,3 +320,37 @@ def test_las_claves_de_control_no_son_filtros(configuracion):
         hoy=HOY,
     )
     assert consulta.lookups == {}
+
+
+# ─── M7: la estructura organizativa exige permiso en el servidor ──────────────
+
+
+@pytest.mark.parametrize(
+    'filtro',
+    [
+        {'dependencia_id': '1'},
+        {'direccion_general_id': '2'},
+        {'direccion_linea_id': '3'},
+        {'coordinacion_id': '4'},
+    ],
+)
+def test_filtros_de_estructura_sin_permiso_dan_403(configuracion, filtro):
+    with pytest.raises(PermissionDeniedError) as exc:
+        preparar_consulta_personal(
+            filtro, configuracion, puede_filtrar_estructura=False, hoy=HOY
+        )
+    assert 'estructura organizativa' in str(exc.value)
+
+
+def test_filtros_de_estructura_con_permiso_pasan(configuracion):
+    consulta = preparar_consulta_personal(
+        {'dependencia_id': '1'}, configuracion, puede_filtrar_estructura=True, hoy=HOY
+    )
+    assert consulta.lookups == {'assignments__Dependencia': 1}
+
+
+def test_otros_filtros_pasan_sin_el_permiso_de_estructura(configuracion):
+    consulta = preparar_consulta_personal(
+        {'sexo_id': '2'}, configuracion, puede_filtrar_estructura=False, hoy=HOY
+    )
+    assert consulta.lookups == {'sexoid': 2}

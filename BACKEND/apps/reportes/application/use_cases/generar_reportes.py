@@ -26,15 +26,24 @@ def generar_reporte_personal(
     repo: RepoReportes,
     filtros: dict,
     registro: ReportFieldRegistry,
+    puede_filtrar_estructura: bool,
+    limite: int,
     hoy: date | None = None,
 ) -> ResultadoReporteDTO:
-    """Valida los filtros contra el registro de campos y ejecuta la consulta."""
+    """Valida los filtros contra el registro de campos y ejecuta la consulta.
+
+    `puede_filtrar_estructura` es la decisión ya evaluada del permiso
+    `organizacion.ver` (el motor IAM no vive en este módulo); el dominio aplica
+    la regla. `limite` lo fija quien conoce el formato de salida (un PDF nunca
+    se genera sin tope) y es obligatorio: `0` significa «sin tope».
+    """
     consulta = preparar_consulta_personal(
         filtros=filtros,
         configuracion=registro.configuracion('empleados'),
+        puede_filtrar_estructura=puede_filtrar_estructura,
         hoy=hoy,
     )
-    entidad = repo.reporte_personal_activo(consulta)
+    entidad = repo.reporte_personal_activo(consulta, limite)
     return _resultado_a_dto(entidad)
 
 

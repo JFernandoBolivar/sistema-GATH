@@ -212,8 +212,13 @@ NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS = config('NOTIFICACIONES_CORREO_BACKOFF_S
 AUTOGESTION_AVISO_EXPIRACION_HORAS = config('AUTOGESTION_AVISO_EXPIRACION_HORAS', default=24, cast=int)
 # Reportes (G3): tope de filas de un reporte descargable (PDF/Excel/JSON). Es un
 # límite de tamaño del documento, no de paginación: se avisa en la UI con
-# `truncado` cuando se alcanza. 0 o negativo = sin tope.
+# `truncado` cuando se alcanza. 0 o negativo = sin tope (JSON/Excel).
 REPORTES_MAX_FILAS = config('REPORTES_MAX_FILAS', default=5000, cast=int)
+# Un PDF nunca se genera sin tope (no hay paginación posible en el documento):
+# este valor siempre es positivo, aunque el operador configure 0 o negativo.
+REPORTES_MAX_FILAS_PDF = max(
+    config('REPORTES_MAX_FILAS_PDF', default=5000, cast=int), 1
+)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
 # Fe de vida: calidad mínima de la selfie (lado menor, px) y base del QR de verificación de la constancia.

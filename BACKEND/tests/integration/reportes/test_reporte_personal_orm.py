@@ -39,7 +39,7 @@ from apps.personal.infrastructure.models.expediente_models import (
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.reportes.application.use_cases.generar_reportes import generar_reporte_personal
 from apps.reportes.infrastructure.repositories.repo_reportes_orm import RepoReportesORM
-from core.domain.exceptions import ValidationError
+from core.domain.exceptions import PermissionDeniedError, ValidationError
 from core.infrastructure.report_field_registry import ReportFieldRegistryORM
 
 pytestmark = pytest.mark.django_db
@@ -68,11 +68,11 @@ def escenario():
     discapacidad = DiscapacidadModel.objects.create(
         discapacidad='MOTORA', categoria=categoria_discapacidad)
 
-    def crear_empleado(cedula, sexo, nacimiento, apn, con_discapacidad=False):
+    def crear_empleado(cedula, sexo, nacimiento, apn, con_discapacidad=False, apellidos='Apellido'):
         empleado = EmployeeModel.objects.create(
             cedulaidentidad=cedula,
             nombres=f'Nombre {cedula}',
-            apellidos='Apellido',
+            apellidos=apellidos,
             fecha_nacimiento=nacimiento,
             total_anos_apn=apn,
             sexoid=sexo,
@@ -115,14 +115,17 @@ def escenario():
         'discapacidad': discapacidad,
         'joven': joven,
         'mayor': mayor,
+        'crear': crear_empleado,
     }
 
 
-def _generar(filtros=None, hoy=HOY):
+def _generar(filtros=None, hoy=HOY, limite=5000, puede_filtrar_estructura=True):
     return generar_reporte_personal(
         RepoReportesORM(),
         filtros=filtros or {},
         registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=puede_filtrar_estructura,
+        limite=limite,
         hoy=hoy,
     )
 
@@ -187,9 +190,8 @@ def test_filtro_por_fecha_de_ingreso(escenario):
     assert _generar({'fecha_ingreso_Desde': '2021-01-01'}).filas == []
 
 
-def test_tope_de_filas_configurable_y_avisado(escenario, settings):
-    settings.REPORTES_MAX_FILAS = 1
-    reporte = _generar()
+def test_tope_de_filas_configurable_y_avisado(escenario):
+    reporte = _generar(limite=1)
 
     assert reporte.total_registros == 1
     assert reporte.metadatos['total_encontrados'] == 2
@@ -197,9 +199,56 @@ def test_tope_de_filas_configurable_y_avisado(escenario, settings):
     assert reporte.metadatos['truncado'] is True
 
 
-def test_sin_tope_cuando_el_setting_es_cero(escenario, settings):
-    settings.REPORTES_MAX_FILAS = 0
-    reporte = _generar()
+def test_un_reporte_truncado_trae_los_datos_de_su_propia_pagina(escenario):
+    """M5: la página truncada no pierde código ni fecha de ingreso de sus filas.
+
+    El empleado que ordena primero por apellido se inserta al final: antes la
+    subconsulta del LIMIT sin ORDER BY devolvía otra fila y la página salía con
+    «S/D» y «N/A».
+    """
+    from apps.personal.infrastructure.models.expediente_models import (
+        AntecedenteServicioModel,
+    )
+
+    alvarez = escenario['crear'](
+        'V050', escenario['femenino'], datetime.date(1990, 1, 1), 5, apellidos='Alvarez'
+    )
+    AntecedenteServicioModel.objects.create(
+        empleado=alvarez, fecha_ingreso=datetime.date(2017, 3, 1))
+
+    reporte = _generar(limite=1)
+
+    assert len(reporte.filas) == 1
+    fila = reporte.filas[0]
+    assert fila['cedula'] == 'V050'
+    assert fila['codigo'] == 'C-V050'
+    assert fila['fecha_ingreso'] == '01/03/2017'
+    assert reporte.metadatos['truncado'] is True
+
+
+def test_la_fecha_de_ingreso_es_el_reingreso_mas_reciente(escenario):
+    """MEDIA 3: se muestra la fecha del último reingreso, no la del primero."""
+    from apps.personal.infrastructure.models.expediente_models import (
+        AntecedenteServicioModel,
+    )
+
+    joven = escenario['joven']
+    AntecedenteServicioModel.objects.create(
+        empleado=joven, fecha_ingreso=datetime.date(2015, 1, 1))
+    AntecedenteServicioModel.objects.create(
+        empleado=joven, fecha_ingreso=datetime.date(2018, 6, 1))
+
+    fila = next(f for f in _generar().filas if f['cedula'] == 'V100')
+    assert fila['fecha_ingreso'] == '01/06/2018'
+
+
+def test_sin_antecedentes_la_fecha_de_ingreso_es_na(escenario):
+    fila = next(f for f in _generar().filas if f['cedula'] == 'V200')
+    assert fila['fecha_ingreso'] == 'N/A'
+
+
+def test_sin_tope_cuando_el_limite_es_cero(escenario):
+    reporte = _generar(limite=0)
 
     assert reporte.total_registros == 2
     assert reporte.metadatos['truncado'] is False
@@ -211,6 +260,51 @@ def test_conteo_agrupado_por_direccion_general(escenario):
     assert reporte.columnas == ['direccion_general', 'total']
     assert reporte.filas == [{'direccion_general': 'OFICINA DE GESTION HUMANA', 'total': 2}]
     assert reporte.metadatos['agrupar_por'] == 'direccion_general'
+
+
+def test_conteo_por_cargo_devuelve_el_nombre_del_catalogo(escenario):
+    """M3: agrupar por cargo/grado debe mostrar el texto, no el id de la FK."""
+    reporte = _generar({'tipo_reporte': 'conteo', 'agrupar_por': 'cargo'})
+
+    assert reporte.filas == [{'cargo': 'ANALISTA', 'total': 2}]
+
+    por_grado = _generar({'tipo_reporte': 'conteo', 'agrupar_por': 'grado'})
+    assert por_grado.filas == [{'grado': 'GRADO 1', 'total': 2}]
+
+    por_especifico = _generar(
+        {'tipo_reporte': 'conteo', 'agrupar_por': 'cargo_especifico'}
+    )
+    assert por_especifico.filas == [{'cargo_especifico': 'ANALISTA I', 'total': 2}]
+
+
+def test_conteo_no_duplica_empleados_con_dos_asignaciones(escenario):
+    """M2: `Count('pk', distinct=True)` cuenta empleados, no filas del join."""
+    AsigTrabajoModel.objects.create(
+        employee=escenario['joven'],
+        codigo='C-V100-B',
+        denominacioncargoid=escenario['cargo'],
+        denominacioncargoespecificoid=escenario['cargo_especifico'],
+        tiponominaid=escenario['nomina'],
+        estatusid=EstatusModel.objects.get(estatus='ACTIVO'),
+        Dependencia=escenario['dependencia'],
+        DireccionGeneral=escenario['direccion'],
+    )
+
+    reporte = _generar({'tipo_reporte': 'conteo', 'agrupar_por': 'direccion_general'})
+
+    assert reporte.filas == [{'direccion_general': 'OFICINA DE GESTION HUMANA', 'total': 2}]
+
+
+def test_filtros_de_estructura_sin_permiso_dan_403(escenario):
+    """M7: el caso de uso (no la vista) exige `organizacion.ver`."""
+    with pytest.raises(PermissionDeniedError):
+        _generar(
+            {'dependencia_id': escenario['dependencia'].pk},
+            puede_filtrar_estructura=False,
+        )
+
+    # Sin filtros de estructura, un usuario sin ese permiso sí obtiene el reporte.
+    assert sorted(_cedulas(_generar(puede_filtrar_estructura=False))) == ['V100', 'V200']
 
 
 def test_filtro_desconocido_lanza_error_de_validacion(escenario):

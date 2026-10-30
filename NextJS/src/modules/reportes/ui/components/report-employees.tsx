@@ -65,6 +65,7 @@ import {
   puedeGenerarReportePdf,
 } from "../../application/use-cases/permisos-reporte";
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
+import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
 import { avisoTopeDeFilas } from "../reportes-aviso-tope";
 import {
   schemaReportEmployee,
@@ -78,7 +79,7 @@ export default function ReportEmployee() {
   const [regionId, setRegionId] = useState<number>(0);
 
   const [isPending, startTransition] = useTransition();
-  const [reportListEmployee, setReportListEmployeeBlob] = useState<string>();
+  const pdf = usePdfBlobUrl();
   const [avisoTope, setAvisoTope] = useState<string | null>(null);
   const [stateId, setStateId] = useState<string>();
   const { data: session } = useSession();
@@ -206,8 +207,8 @@ export default function ReportEmployee() {
         edad_max: undefined,
         fecha_ingreso_Desde: undefined,
         fecha_ingreso_Hasta: undefined,
-        fecha_apn_Desde: undefined,
-        fecha_apn_Hasta: undefined,
+        // «Fecha APN desde/hasta» está oculta en el formulario (M8): el mapeo
+        // del backend se conserva hasta que RRHH defina qué significa «Fecha APN».
         region_id: undefined,
         estado_id: undefined,
         municipio_id: undefined,
@@ -226,19 +227,9 @@ export default function ReportEmployee() {
     return <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />;
   }
 
-  const revocarPdf = () => {
-    if (reportListEmployee) URL.revokeObjectURL(reportListEmployee);
-    setReportListEmployeeBlob(undefined);
-  };
-
-  const fijarPdf = (blob: Blob) => {
-    if (reportListEmployee) URL.revokeObjectURL(reportListEmployee);
-    setReportListEmployeeBlob(URL.createObjectURL(blob));
-  };
-
   const handleClean = () => {
     form.reset();
-    revocarPdf();
+    pdf.limpiar();
     setAvisoTope(null);
   };
 
@@ -252,7 +243,7 @@ export default function ReportEmployee() {
     startTransition(async () => {
       try {
         const resultado = await postReport<SchemaReportEmployeeType>(data);
-        fijarPdf(resultado.blob);
+        pdf.fijar(resultado.blob);
         const aviso = avisoTopeDeFilas(resultado);
         setAvisoTope(aviso);
         if (aviso) toast.warning(aviso);
@@ -1096,82 +1087,11 @@ export default function ReportEmployee() {
                             </FormItem>
                           )}
                         />
-                        <FormField
-                          control={form.control}
-                          name="filtros.fecha_apn_Desde"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Fecha De APN Desde</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant="outline"
-                                      className="font-light w-full justify-between"
-                                    >
-                                      {field.value ? (
-                                        formatInTimeZone(field.value, "UTC", "dd/MM/yyyy")
-                                      ) : (
-                                        <span>Selecciona una fecha</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto size-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    mode="single"
-                                    onSelect={(date) => field.onChange(date)}
-                                    disabled={(date: Date) =>
-                                      date > new Date() || date < new Date("1900-01-01")
-                                    }
-                                    captionLayout="dropdown"
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="filtros.fecha_apn_Hasta"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Fecha De APN Hasta</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant="outline"
-                                      className="font-light w-full justify-between"
-                                    >
-                                      {field.value ? (
-                                        formatInTimeZone(field.value, "UTC", "dd/MM/yyyy")
-                                      ) : (
-                                        <span>Selecciona una fecha</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto size-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    mode="single"
-                                    onSelect={(date) => field.onChange(date)}
-                                    disabled={(date: Date) =>
-                                      date > new Date() || date < new Date("1900-01-01")
-                                    }
-                                    captionLayout="dropdown"
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {/* «Fecha APN desde/hasta» se oculta (M8): hoy filtra
+                            por `antecedentes_servicio.fecha_ingreso`, igual que
+                            «Fecha de ingreso», y da resultados engañosos. RRHH
+                            debe confirmar qué significa «Fecha APN»; el mapeo del
+                            backend se conserva. «Años APN» no se toca. */}
                       </fieldset>
 
                       <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-emerald-800">
@@ -1350,9 +1270,9 @@ export default function ReportEmployee() {
                     : "Consultar Reporte General"}
                   <Search className="ml-2 size-4" />
                 </Button>
-                {reportListEmployee && (
+                {pdf.url && (
                   <a
-                    href={reportListEmployee}
+                    href={pdf.url}
                     download={`Reporte_Empleados ${formatInTimeZone(
                       new Date(),
                       "UTC",

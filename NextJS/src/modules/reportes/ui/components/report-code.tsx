@@ -46,13 +46,14 @@ import {
   puedeGenerarReportePdf,
 } from "../../application/use-cases/permisos-reporte";
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
+import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
 import { avisoTopeDeFilas } from "../reportes-aviso-tope";
 import { schemaReportCode, type SchemaReportCodeType } from "../schema/schemaReportCode";
 import Loading from "@/shared/ui/components/loading";
 
 export default function ReportCode() {
   const [isPending, startTransition] = useTransition();
-  const [reportListCode, setReportListCodeBlob] = useState<string>();
+  const pdf = usePdfBlobUrl();
   const [avisoTope, setAvisoTope] = useState<string | null>(null);
   const { data: session } = useSession();
   const [dependencyId, setDependencyId] = useState<number>(0);
@@ -135,8 +136,7 @@ export default function ReportCode() {
     startTransition(async () => {
       try {
         const resultado = await postReport<SchemaReportCodeType>(data);
-        if (reportListCode) URL.revokeObjectURL(reportListCode);
-        setReportListCodeBlob(URL.createObjectURL(resultado.blob));
+        pdf.fijar(resultado.blob);
         const aviso = avisoTopeDeFilas(resultado);
         setAvisoTope(aviso);
         if (aviso) toast.warning(aviso);
@@ -155,8 +155,7 @@ export default function ReportCode() {
 
   const handleClean = () => {
     form.reset();
-    if (reportListCode) URL.revokeObjectURL(reportListCode);
-    setReportListCodeBlob(undefined);
+    pdf.limpiar();
     setAvisoTope(null);
   };
 
@@ -525,9 +524,9 @@ export default function ReportCode() {
                     : "Consultar Reporte General"}
                   <Search />
                 </Button>
-                {reportListCode && (
+                {pdf.url && (
                   <a
-                    href={reportListCode}
+                    href={pdf.url}
                     download={`Reporte_Cargos ${formatInTimeZone(
                       new Date(),
                       "UTC",

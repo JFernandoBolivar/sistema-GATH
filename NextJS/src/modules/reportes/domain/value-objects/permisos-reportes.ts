@@ -10,12 +10,12 @@ export const PERMISO_REPORTES = {
   generarPdf: "reportes.generar_pdf",
   generarExcel: "reportes.generar_excel",
   estadisticas: "reportes.estadisticas",
+  /**
+   * Filtros de estructura organizativa (Nivel, Dirección General, Dirección de
+   * Línea, Coordinación). No se ocultan por rol: se muestran a quien puede
+   * consultar la estructura, que es el permiso que exigen los catálogos del
+   * backend (`organizacion.ver`) y que el caso de uso valida también en el
+   * servidor (M7).
+   */
+  estructuraOrganizativa: "organizacion.ver",
 } as const;
-
-/**
- * Filtros de estructura organizativa (Nivel, Dirección General, Dirección de
- * Línea, Coordinación). No se ocultan por rol: se muestran a quien puede
- * consultar la estructura, que es el permiso que exigen los catálogos del
- * backend (`organizacion.ver`) para llenar los selects.
- */
-export const PERMISO_ESTRUCTURA_ORGANIZATIVA = "organizacion.ver";

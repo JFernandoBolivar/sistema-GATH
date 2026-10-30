@@ -43,6 +43,9 @@ describe("permisos del reporte de trabajador", () => {
   it("oculta los filtros de estructura sin organizacion.ver", () => {
     expect(puedeFiltrarEstructuraOrganizativa(["reportes.ver"])).toBe(false);
     expect(puedeFiltrarEstructuraOrganizativa(["organizacion.ver"])).toBe(true);
+    expect(puedeFiltrarEstructuraOrganizativa([PERMISO_REPORTES.estructuraOrganizativa])).toBe(
+      true,
+    );
   });
 
   it("falla cerrado sin sesión o sin permisos", () => {

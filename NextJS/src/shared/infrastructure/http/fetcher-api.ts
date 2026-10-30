@@ -131,9 +131,18 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-async function requestBlobConRespuesta(path: string, init: RequestInit = { method: "GET" }, options: RequestOptions = {}): Promise<{ blob: Blob; headers: Headers; status: number }> {
+async function requestBlobConRespuesta(
+  path: string,
+  init: RequestInit = { method: "GET" },
+  options: RequestOptions = {},
+): Promise<{ blob: Blob; headers: Headers; status: number }> {
   const traceId = options.traceId ?? generateTraceId();
-  const headers = await buildHeaders(options.headers, traceId, init.body instanceof FormData, options.skipAuth);
+  const headers = await buildHeaders(
+    options.headers,
+    traceId,
+    init.body instanceof FormData,
+    options.skipAuth,
+  );
   if (init.body && !(init.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
@@ -146,17 +155,26 @@ async function requestBlobConRespuesta(path: string, init: RequestInit = { metho
     response = await doFetch(path, init, { ...headers, Authorization: `Bearer ${newToken}` });
   }
 
-  if (response.status === 403) {
-    throw new ApiHttpError("No tienes permiso para ejecutar esta acción", 403);
-  }
   if (!response.ok) {
-    throw new ApiHttpError(`Error ${response.status} al descargar el recurso`, response.status);
+    // El mensaje del backend (400/403/5xx) es el que debe ver el usuario; el
+    // de reserva solo se usa si el cuerpo no trae uno.
+    const mensaje = await extractErrorMessage(
+      response,
+      response.status === 403
+        ? "No tienes permiso para ejecutar esta acción"
+        : `Error ${response.status} al descargar el recurso`,
+    );
+    throw new ApiHttpError(mensaje, response.status);
   }
 
   return { blob: await response.blob(), headers: response.headers, status: response.status };
 }
 
-async function requestBlob(path: string, init: RequestInit = { method: "GET" }, options: RequestOptions = {}): Promise<Blob> {
+async function requestBlob(
+  path: string,
+  init: RequestInit = { method: "GET" },
+  options: RequestOptions = {},
+): Promise<Blob> {
   const { blob } = await requestBlobConRespuesta(path, init, options);
   return blob;
 }
@@ -168,15 +186,28 @@ export const apiClient = {
     request<T>(construirRuta(path, options?.params), { method: "GET" }, options),
 
   post: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
-    request<T>(path, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }, options),
+    request<T>(
+      path,
+      { method: "POST", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
 
   put: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
-    request<T>(path, { method: "PUT", body: body != null ? JSON.stringify(body) : undefined }, options),
+    request<T>(
+      path,
+      { method: "PUT", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
 
   patch: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
-    request<T>(path, { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined }, options),
+    request<T>(
+      path,
+      { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
 
-  delete: <T>(path: string, options?: RequestOptions): Promise<T> => request<T>(path, { method: "DELETE" }, options),
+  delete: <T>(path: string, options?: RequestOptions): Promise<T> =>
+    request<T>(path, { method: "DELETE" }, options),
 
   postForm: <T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> =>
     request<T>(path, { method: "POST", body: formData }, options, true),
@@ -195,6 +226,9 @@ export const apiClient = {
     requestBlobConRespuesta(construirRuta(path, options?.params), { method: "GET" }, options),
 
   postBlob: (path: string, body?: JsonBody, options?: RequestOptions): Promise<Blob> =>
-    requestBlob(path, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }, options),
+    requestBlob(
+      path,
+      { method: "POST", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
 };
-

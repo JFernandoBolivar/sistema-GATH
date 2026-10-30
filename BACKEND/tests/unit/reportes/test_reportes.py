@@ -4,6 +4,8 @@ Tests unitarios del módulo reportes (Arquitectura Onion pura sin BD).
 
 from datetime import date
 
+import pytest
+
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,
     generar_reporte_distribucion_nomina,
@@ -14,21 +16,24 @@ from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_vacantes,
 )
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
+from core.domain.exceptions import PermissionDeniedError
 from core.infrastructure.report_field_registry import ReportFieldRegistryORM
 
 
 class RepoReportesMemoria:
     def __init__(self):
         self.consulta_personal = None
+        self.limite_recibido = None
 
-    def reporte_personal_activo(self, consulta):
+    def reporte_personal_activo(self, consulta, limite):
         self.consulta_personal = consulta
+        self.limite_recibido = limite
         return ResultadoReporte(
             titulo="Reporte Personal Activo",
             columnas=['cedula', 'nombres', 'apellidos'],
             filas=[{'cedula': '12345678', 'nombres': 'Juan', 'apellidos': 'Pérez'}],
             total_registros=1,
-            metadatos={'truncado': False, 'total_encontrados': 1, 'limite': 5000},
+            metadatos={'truncado': False, 'total_encontrados': 1, 'limite': limite},
         )
 
     def reporte_egresos_pasivos(self, filtros):
@@ -82,7 +87,13 @@ class RepoReportesMemoria:
 
 def test_generar_reporte_personal():
     repo = RepoReportesMemoria()
-    rep = generar_reporte_personal(repo, filtros={}, registro=ReportFieldRegistryORM())
+    rep = generar_reporte_personal(
+        repo,
+        filtros={},
+        registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=True,
+        limite=5000,
+    )
     assert rep.total_registros == 1
     assert rep.filas[0]['cedula'] == '12345678'
 
@@ -93,6 +104,8 @@ def test_reporte_personal_entrega_los_filtros_ya_traducidos_al_repositorio():
         repo,
         filtros={'sexo_id': '2', 'edad_min': '30'},
         registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=True,
+        limite=0,
         hoy=date(2026, 10, 30),
     )
     assert repo.consulta_personal.lookups == {
@@ -101,10 +114,52 @@ def test_reporte_personal_entrega_los_filtros_ya_traducidos_al_repositorio():
     }
 
 
+def test_reporte_personal_propaga_el_limite_al_repositorio():
+    """M5: el tope lo decide quien conoce el formato (PDF ≠ JSON/Excel)."""
+    repo = RepoReportesMemoria()
+    generar_reporte_personal(
+        repo,
+        filtros={},
+        registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=True,
+        limite=5000,
+    )
+    assert repo.limite_recibido == 5000
+
+
 def test_reporte_personal_propaga_los_metadatos_del_tope_de_filas():
     repo = RepoReportesMemoria()
-    rep = generar_reporte_personal(repo, filtros={}, registro=ReportFieldRegistryORM())
+    rep = generar_reporte_personal(
+        repo,
+        filtros={},
+        registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=True,
+        limite=5000,
+    )
     assert rep.metadatos == {'truncado': False, 'total_encontrados': 1, 'limite': 5000}
+
+
+def test_reporte_personal_exige_el_permiso_de_estructura():
+    """M7: la regla se aplica en el caso de uso, sin pasar por la vista."""
+    repo = RepoReportesMemoria()
+    with pytest.raises(PermissionDeniedError):
+        generar_reporte_personal(
+            repo,
+            filtros={'dependencia_id': '1'},
+            registro=ReportFieldRegistryORM(),
+            puede_filtrar_estructura=False,
+            limite=5000,
+        )
+    assert repo.consulta_personal is None
+
+    generar_reporte_personal(
+        repo,
+        filtros={'dependencia_id': '1'},
+        registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=True,
+        limite=5000,
+    )
+    assert repo.consulta_personal.lookups == {'assignments__Dependencia': 1}
 
 
 def test_generar_reporte_pasivos():

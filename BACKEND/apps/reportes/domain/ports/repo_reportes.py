@@ -8,7 +8,9 @@ from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
 
 
 class RepoReportes(Protocol):
-    def reporte_personal_activo(self, consulta: ConsultaReportePersonal) -> ResultadoReporte:
+    def reporte_personal_activo(
+        self, consulta: ConsultaReportePersonal, limite: int
+    ) -> ResultadoReporte:
         ...
 
     def reporte_egresos_pasivos(self, filtros: dict) -> ResultadoReporte:

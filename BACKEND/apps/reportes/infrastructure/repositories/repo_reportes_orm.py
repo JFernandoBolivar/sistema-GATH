@@ -6,16 +6,16 @@ from core.domain.exceptions import ValidationError
 from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
 
-# Tope de filas del REPORTE (no es un listado paginado): configurable por
-# setting, nunca fijo en el código. Con 0 o negativo no se aplica tope.
-SETTING_LIMITE_REPORTE = 'REPORTES_MAX_FILAS'
-LIMITE_POR_DEFECTO = 5000
+# Tamaño de lote al traer asignaciones/antecedentes de la página: acota el
+# `IN (...)` del SQL sin cambiar el resultado.
+TAMANO_DE_LOTE = 500
 
 
-def _limite_de_filas() -> int:
-    from django.conf import settings
-
-    return int(getattr(settings, SETTING_LIMITE_REPORTE, LIMITE_POR_DEFECTO) or 0)
+def _en_lotes(valores: list) -> list[list]:
+    return [
+        valores[inicio:inicio + TAMANO_DE_LOTE]
+        for inicio in range(0, len(valores), TAMANO_DE_LOTE)
+    ]
 
 
 def _etiqueta_de_grupo(valor) -> str:
@@ -32,8 +32,10 @@ def _conteo_personal(qs, consulta: ConsultaReportePersonal, metadatos: dict) -> 
 
     try:
         conteos = (
+            # `distinct=True`: el queryset base puede traer una fila por
+            # asignación/título; el conteo es de empleados, no de filas.
             qs.values(consulta.agrupar_por_ruta)
-            .annotate(total=Count('pk'))
+            .annotate(total=Count('pk', distinct=True))
             .order_by('-total')
         )
         filas = [
@@ -59,7 +61,11 @@ def _conteo_personal(qs, consulta: ConsultaReportePersonal, metadatos: dict) -> 
 
 
 class RepoReportesORM:
-    def reporte_personal_activo(self, consulta: ConsultaReportePersonal) -> ResultadoReporte:
+    def reporte_personal_activo(
+        self, consulta: ConsultaReportePersonal, limite: int
+    ) -> ResultadoReporte:
+        from django.db.models import Max
+
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         from apps.personal.infrastructure.models.expediente_models import (
             AntecedenteServicioModel,
@@ -73,7 +79,6 @@ class RepoReportesORM:
             qs = qs.filter(**consulta.lookups).distinct()
 
         total_encontrados = qs.count()
-        limite = _limite_de_filas()
         metadatos = {
             'total_encontrados': total_encontrados,
             'limite': limite,
@@ -89,23 +94,42 @@ class RepoReportesORM:
         # una relación multivaluada (asignaciones, títulos) duplicaría filas por
         # empleado al combinarse con `distinct()`. `agrupar_por` se aplica al
         # `conteo`, que es donde tiene sentido, y viaja en los metadatos.
-        qs = qs.order_by('apellidos', 'nombres')
+        # La cédula es el desempate: sin él, dos empleados con el mismo nombre
+        # podrían entrar o salir del tope de forma distinta entre consultas.
+        qs = qs.order_by('apellidos', 'nombres', 'cedulaidentidad')
 
         empleados_list = list(qs[:limite] if limite > 0 else qs)
-        asigs = {
-            a.employee_id: a
-            for a in AsigTrabajoModel.objects.filter(employee__in=empleados_list)
-            .select_related('denominacioncargoid', 'tiponominaid', 'OrganismoAdscritoid')
-        }
-        antecedentes = {
-            ant.empleado_id: ant.fecha_ingreso
-            for ant in AntecedenteServicioModel.objects.filter(empleado__in=empleados_list).order_by('fecha_ingreso')
-        }
+
+        # Asignaciones y antecedentes se piden SOLO para los empleados de la
+        # página ya materializada, en lotes acotados: la subconsulta anterior
+        # (`qs.order_by().values(...)[:limite]`) aplicaba el LIMIT sin ORDER BY,
+        # así que en reportes truncados podía traer datos de otros empleados y
+        # la página salía con «S/D» y «N/A».
+        # `AsigTrabajo.employee` apunta a la cédula; `AntecedenteServicio.empleado`
+        # apunta a la PK de `Employee` (así están declaradas las FK legadas).
+        asigs = {}
+        antecedentes = {}
+        for lote in _en_lotes(empleados_list):
+            asigs.update({
+                a.employee_id: a
+                for a in AsigTrabajoModel.objects.filter(
+                    employee__in=[e.cedulaidentidad for e in lote]
+                ).select_related('denominacioncargoid', 'tiponominaid', 'OrganismoAdscritoid')
+            })
+            # `Max`: la fecha de ingreso del reporte es la del REINGRESO MÁS
+            # RECIENTE del trabajador (no la del primer antecedente). Decisión
+            # explícita: antes dependía del orden en que el ORM devolvía las filas.
+            antecedentes.update({
+                fila['empleado_id']: fila['ultimo']
+                for fila in AntecedenteServicioModel.objects.filter(
+                    empleado__in=[e.pk for e in lote]
+                ).values('empleado_id').annotate(ultimo=Max('fecha_ingreso'))
+            })
 
         filas = []
         for idx, e in enumerate(empleados_list, start=1):
             asig = asigs.get(e.cedulaidentidad)
-            f_ing = antecedentes.get(e.cedulaidentidad)
+            f_ing = antecedentes.get(e.pk)
             filas.append({
                 '#': str(idx),
                 'codigo': asig.codigo if asig else 'S/D',

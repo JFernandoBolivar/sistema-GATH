@@ -5,10 +5,7 @@
  */
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
-import {
-  PERMISO_ESTRUCTURA_ORGANIZATIVA,
-  PERMISO_REPORTES,
-} from "../../domain/value-objects/permisos-reportes";
+import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
 
 export function puedeVerReportes(permisos: string[] | null | undefined): boolean {
   return tienePermiso(permisos, PERMISO_REPORTES.ver);
@@ -22,8 +19,6 @@ export function puedeGenerarReporteExcel(permisos: string[] | null | undefined):
   return tienePermiso(permisos, PERMISO_REPORTES.generarExcel);
 }
 
-export function puedeFiltrarEstructuraOrganizativa(
-  permisos: string[] | null | undefined,
-): boolean {
-  return tienePermiso(permisos, PERMISO_ESTRUCTURA_ORGANIZATIVA);
+export function puedeFiltrarEstructuraOrganizativa(permisos: string[] | null | undefined): boolean {
+  return tienePermiso(permisos, PERMISO_REPORTES.estructuraOrganizativa);
 }

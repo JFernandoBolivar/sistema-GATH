@@ -41,14 +41,19 @@ import { formatInTimeZone } from "date-fns-tz";
 import { Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { puedeFiltrarEstructuraOrganizativa } from "../../application/use-cases/permisos-reporte";
+import {
+  puedeFiltrarEstructuraOrganizativa,
+  puedeGenerarReportePdf,
+} from "../../application/use-cases/permisos-reporte";
+import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
+import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
 import { useState, useTransition } from "react";
 import { schemaReportLeaving, type SchemaReportLeavingType } from "../schema/report-schema-leaving";
 import Loading from "@/shared/ui/components/loading";
 
 export default function ReportLeaving() {
   const [isPending, startTransition] = useTransition();
-  const [reportListLeaving, setReportListLeavingBlob] = useState<string>();
+  const pdf = usePdfBlobUrl();
   const { data: session } = useSession();
   const [dependencyId, setDependencyId] = useState<number>(0);
 
@@ -115,16 +120,17 @@ export default function ReportLeaving() {
     return <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />;
   }
 
-  const handleClean = () => {
-    form.reset();
-    setReportListLeavingBlob(undefined);
-  };
-
   const onSubmit = (data: SchemaReportLeavingType) => {
+    if (!puedePdf) {
+      toast.error(
+        `No tiene permiso para generar reportes en PDF (se requiere ${PERMISO_REPORTES.generarPdf}).`,
+      );
+      return;
+    }
     startTransition(async () => {
       try {
-        const { blob } = await postReport<SchemaReportLeavingType>(data);        const urlBlob = URL.createObjectURL(blob);
-        setReportListLeavingBlob(urlBlob);
+        const { blob } = await postReport<SchemaReportLeavingType>(data);
+        pdf.fijar(blob);
         // El formulario NO se limpia: el usuario conserva los filtros elegidos.
         toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
       } catch (err) {
@@ -137,9 +143,15 @@ export default function ReportLeaving() {
     });
   };
 
+  const handleClean = () => {
+    form.reset();
+    pdf.limpiar();
+  };
+
   // Los filtros de estructura solo se ofrecen a quien puede consultar la
   // estructura organizativa (`organizacion.ver`). Nunca por rol ni por "*".
   const puedeEstructura = puedeFiltrarEstructuraOrganizativa(session?.user?.permisos);
+  const puedePdf = puedeGenerarReportePdf(session?.user?.permisos);
 
   return (
     <Card className="bg-white">
@@ -149,6 +161,15 @@ export default function ReportLeaving() {
             <Loading promiseMessage="Consultando Reporte" />
           ) : (
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-3 gap-4">
+              {!puedePdf && (
+                <p
+                  role="alert"
+                  className="col-span-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                >
+                  No tiene permiso para generar reportes en PDF (se requiere{" "}
+                  {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
+                </p>
+              )}
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="h-[600px] w-full pr-3">
                   <div className="grid grid-cols-2 gap-3">
@@ -514,15 +535,15 @@ export default function ReportLeaving() {
               </div>
 
               <div className="flex flex-row gap-2 flex-1 w-full col-span-3 pt-2">
-                <Button type="submit" className="flex-1 cursor-pointer">
+                <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"
                     : "Consultar Reporte General"}
                   <Search className="ml-2 size-4" />
                 </Button>
-                {reportListLeaving && (
+                {pdf.url && (
                   <a
-                    href={reportListLeaving}
+                    href={pdf.url}
                     download={`Reporte_Egresados ${formatInTimeZone(
                       new Date(),
                       "UTC",

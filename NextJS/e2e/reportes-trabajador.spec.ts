@@ -50,9 +50,7 @@ test.describe("Reporte de trabajador (G1–G3)", () => {
   test("G1: los filtros de estructura organizativa están visibles", async ({ page }) => {
     await expect(page.getByText("Dirección Administrativa")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("Nivel", { exact: true })).toBeVisible();
-    await expect(
-      page.getByText("Dirección / Gerencia / Oficina / Coordinación"),
-    ).toBeVisible();
+    await expect(page.getByText("Dirección / Gerencia / Oficina / Coordinación")).toBeVisible();
     await expect(page.getByText("División / Coordinación")).toBeVisible();
     await expect(page.getByText("Coordinación", { exact: true })).toBeVisible();
   });
@@ -78,14 +76,16 @@ test.describe("Reporte de trabajador (G1–G3)", () => {
     await expect(descargar).toHaveAttribute("href", /^blob:/);
   });
 
-  test("G2: si el backend rechaza el reporte, se ve el error y no se pierden los filtros", async ({
+  test("M1: el mensaje real del backend llega a la UI y no se pierden los filtros", async ({
     page,
   }) => {
+    // Texto tal como lo devuelve el backend en un 400.
+    const mensaje = "Filtros no válidos para el reporte de personal: campo_inventado.";
     await page.route("**/api/reports/pdf", (route) =>
       route.fulfill({
-        status: 403,
+        status: 400,
         contentType: "application/json",
-        body: JSON.stringify({ error: "No tienes permiso para ejecutar esta acción" }),
+        body: JSON.stringify({ error: mensaje }),
       }),
     );
 
@@ -94,8 +94,49 @@ test.describe("Reporte de trabajador (G1–G3)", () => {
     await page.getByRole("button", { name: /Consultar Reporte/i }).click();
 
     const aviso = page.locator("[data-sonner-toast]");
-    await expect(aviso).toContainText(/permiso/i, { timeout: 20_000 });
+    await expect(aviso).toContainText(mensaje, { timeout: 20_000 });
     await expect(edad).toHaveValue("30");
+  });
+
+  test("M1: el proxy devuelve el mensaje del backend en un 400 (no «Error 400…»)", async ({
+    page,
+  }) => {
+    const respuesta = await page.request.post("/api/reports/pdf", {
+      data: { categoria: "empleados", filtros: { campo_inventado: "1" } },
+    });
+
+    expect(respuesta.status()).toBe(400);
+    const cuerpo = (await respuesta.json()) as { error?: string };
+    expect(cuerpo.error).toContain("campo_inventado");
+    expect(cuerpo.error).not.toContain("Error 400 al descargar");
+  });
+
+  test("A1: un valor extremo da 400 con mensaje, no 500", async ({ page }) => {
+    for (const [query, esperado] of [
+      ["?edad_min=3000", "edad_min"],
+      ["?apn_min=NaN", "apn_min"],
+      ["?apn_min=Infinity", "apn_min"],
+      ["?sexo_id=1_0", "sexo_id"],
+      ["?sexo_id=2147483648", "sexo_id"],
+    ] as const) {
+      const respuesta = await consultarBackend(page, query);
+      expect(respuesta.status(), `${query} debe ser 400`).toBe(400);
+      const cuerpo = (await respuesta.json()) as { message?: string };
+      expect(cuerpo.message).toContain(esperado);
+    }
+  });
+
+  test("A1: la edad en los límites sigue siendo válida", async ({ page }) => {
+    const respuesta = await consultarBackend(page, "?edad_min=150");
+    expect(respuesta.status()).toBe(200);
+    expect((await respuesta.json()).data.total_registros).toBe(0);
+  });
+
+  test("M8: «Fecha APN» está oculta y «Años APN» se mantiene", async ({ page }) => {
+    await expect(page.getByText(/Años Mínimos En La APN/i)).toBeVisible();
+    await expect(page.getByText(/Años Máximos En La APN/i)).toBeVisible();
+    await expect(page.getByText(/Fecha De APN Desde/i)).toHaveCount(0);
+    await expect(page.getByText(/Fecha De APN Hasta/i)).toHaveCount(0);
   });
 
   test("G3: la UI avisa cuando el reporte alcanza el tope de filas", async ({ page }) => {
@@ -129,8 +170,8 @@ test.describe("Reporte de trabajador (G1–G3)", () => {
     const totalSinFiltros = (await sinFiltros.json()).data.total_registros as number;
     expect(totalSinFiltros).toBeGreaterThan(0);
 
-    // Edad imposible: el filtro debe aplicarse, no ignorarse.
-    const edadImposible = await consultarBackend(page, "?edad_min=999");
+    // Edad extrema pero válida: el filtro debe aplicarse, no ignorarse.
+    const edadImposible = await consultarBackend(page, "?edad_min=149");
     expect(edadImposible.status()).toBe(200);
     expect((await edadImposible.json()).data.total_registros).toBe(0);
 
@@ -180,6 +221,65 @@ test.describe("G1: sin organizacion.ver los filtros no se ofrecen", () => {
     await expect(page.getByText(/Consultar Reporte/i).first()).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("Dirección Administrativa")).toHaveCount(0);
   });
+
+  test("M7: sin organizacion.ver el backend rechaza filtrar por estructura (403)", async ({
+    page,
+  }) => {
+    test.skip(!BIEN_EMAIL || !BIEN_PASSWORD, "faltan las credenciales E2E de Bienestar");
+
+    await iniciarSesionComo(page, BIEN_EMAIL as string, BIEN_PASSWORD as string);
+    const token = await tokenDeAcceso(page);
+    const cabeceras = { Authorization: `Bearer ${token}` };
+
+    const conEstructura = await page.request.get(
+      `${DJANGO}/api/v1/reportes/personal-activo/?dependencia_id=1`,
+      { headers: cabeceras },
+    );
+    expect(conEstructura.status()).toBe(403);
+    expect((await conEstructura.json()).message).toContain("estructura organizativa");
+
+    // Sin filtros de estructura, el mismo perfil sí obtiene el reporte.
+    const sinEstructura = await page.request.get(`${DJANGO}/api/v1/reportes/personal-activo/`, {
+      headers: cabeceras,
+    });
+    expect(sinEstructura.status()).toBe(200);
+  });
+});
+
+test.describe("M7: el deny individual gana al allow del rol", () => {
+  const DENY_EMAIL = process.env.E2E_DENY_EMAIL;
+  const DENY_PASSWORD = process.env.E2E_DENY_PASSWORD;
+
+  /**
+   * Cuenta de verificación temporal (creada para esta prueba): rol ADMINISTRADOR
+   * (allow de rol con `organizacion.ver`) + deny individual de
+   * `organizacion.ver` aplicado con `RepoPermisosORM.guardar_override_usuario`.
+   * Antes del arreglo, `permisos_de_usuario` devolvía solo `allow` y el filtro
+   * pasaba (fail-open).
+   */
+  test("con allow de rol y deny individual, el filtro da 403 y el resto del reporte pasa", async ({
+    page,
+  }) => {
+    test.skip(!DENY_EMAIL || !DENY_PASSWORD, "faltan las credenciales E2E del usuario con deny");
+
+    await iniciarSesionComo(page, DENY_EMAIL as string, DENY_PASSWORD as string);
+    const token = await tokenDeAcceso(page);
+    const cabeceras = { Authorization: `Bearer ${token}` };
+
+    const conEstructura = await page.request.get(
+      `${DJANGO}/api/v1/reportes/personal-activo/?dependencia_id=1`,
+      { headers: cabeceras },
+    );
+    expect(conEstructura.status()).toBe(403);
+    expect((await conEstructura.json()).message).toContain("estructura organizativa");
+
+    // Cualquier otro filtro (sin estructura) sigue permitido.
+    const sinEstructura = await page.request.get(
+      `${DJANGO}/api/v1/reportes/personal-activo/?sexo_id=2`,
+      { headers: cabeceras },
+    );
+    expect(sinEstructura.status()).toBe(200);
+  });
 });
 
 test.describe("G2: el permiso reportes.generar_pdf se exige y se respeta", () => {
@@ -192,10 +292,9 @@ test.describe("G2: el permiso reportes.generar_pdf se exige y se respeta", () =>
     await iniciarSesionComo(page, TRAB_EMAIL as string, TRAB_PASSWORD as string);
 
     const token = await tokenDeAcceso(page);
-    const backend = await page.request.get(
-      `${DJANGO}/api/v1/reportes/personal-activo/pdf/`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const backend = await page.request.get(`${DJANGO}/api/v1/reportes/personal-activo/pdf/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     expect(backend.status()).toBe(403);
 
     // Y el listado del reporte exige `reportes.ver`: tampoco se sirve.

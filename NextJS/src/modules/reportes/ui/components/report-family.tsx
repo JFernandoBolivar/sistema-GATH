@@ -45,7 +45,12 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { puedeFiltrarEstructuraOrganizativa } from "../../application/use-cases/permisos-reporte";
+import {
+  puedeFiltrarEstructuraOrganizativa,
+  puedeGenerarReportePdf,
+} from "../../application/use-cases/permisos-reporte";
+import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
+import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
 import { useState, useTransition } from "react";
 import { schemaReportFamily, type SchemaReportFamilyType } from "../schema/report-schema-family";
 import Loading from "@/shared/ui/components/loading";
@@ -55,7 +60,7 @@ import { formatInTimeZone } from "date-fns-tz";
 
 export default function ReportFamily() {
   const [isPending, startTransition] = useTransition();
-  const [reportListFamilys, setReportListFamilysBlob] = useState<string>();
+  const pdf = usePdfBlobUrl();
   const [stateId, setStateId] = useState<string>();
   const { data: session } = useSession();
   const [dependencyId, setDependencyId] = useState<number>(0);
@@ -168,14 +173,16 @@ export default function ReportFamily() {
   }
 
   const onSubmit = (data: SchemaReportFamilyType) => {
-    const payload: SchemaReportFamilyType = {
-      ...data,
-    };
+    if (!puedePdf) {
+      toast.error(
+        `No tiene permiso para generar reportes en PDF (se requiere ${PERMISO_REPORTES.generarPdf}).`,
+      );
+      return;
+    }
     startTransition(async () => {
       try {
-        const { blob } = await postReport<SchemaReportFamilyType>(payload);
-        const urlBlob = URL.createObjectURL(blob);
-        setReportListFamilysBlob(urlBlob);
+        const { blob } = await postReport<SchemaReportFamilyType>(data);
+        pdf.fijar(blob);
         // El formulario NO se limpia: el usuario conserva los filtros elegidos.
         toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
       } catch (err) {
@@ -190,12 +197,13 @@ export default function ReportFamily() {
 
   const handleClean = () => {
     form.reset();
-    setReportListFamilysBlob(undefined);
+    pdf.limpiar();
   };
 
   // Los filtros de estructura solo se ofrecen a quien puede consultar la
   // estructura organizativa (`organizacion.ver`). Nunca por rol ni por "*".
   const puedeEstructura = puedeFiltrarEstructuraOrganizativa(session?.user?.permisos);
+  const puedePdf = puedeGenerarReportePdf(session?.user?.permisos);
 
   return (
     <Card className="bg-white">
@@ -208,6 +216,15 @@ export default function ReportFamily() {
               onSubmit={form.handleSubmit(onSubmit)}
               className="grid grid-cols-3 min-h-max gap-4"
             >
+              {!puedePdf && (
+                <p
+                  role="alert"
+                  className="col-span-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                >
+                  No tiene permiso para generar reportes en PDF (se requiere{" "}
+                  {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
+                </p>
+              )}
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="h-[600px] w-full pr-3">
                   <div className="grid grid-cols-2 gap-3">
@@ -889,15 +906,15 @@ export default function ReportFamily() {
               </div>
 
               <div className="flex flex-row gap-2 flex-1 w-full col-span-3 pt-2">
-                <Button type="submit" className="flex-1 cursor-pointer">
+                <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"
                     : "Consultar Reporte General"}
                   <Search className="ml-2 size-4" />
                 </Button>
-                {reportListFamilys && (
+                {pdf.url && (
                   <a
-                    href={reportListFamilys}
+                    href={pdf.url}
                     download={`Reporte_Familiares ${formatInTimeZone(
                       new Date(),
                       "UTC",

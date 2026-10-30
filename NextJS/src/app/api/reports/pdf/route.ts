@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
-import { ApiHttpError } from "@/shared/infrastructure/http/errors";
+import { ApiHttpError, SessionExpiredError } from "@/shared/infrastructure/http/errors";
 
 /**
  * Proxy de generación de reportes (PDF) hacia Django.
  *
  * - Reenvía TODOS los filtros del formulario y, para el reporte de personal,
- *   también `agrupar_por`/`tipo_reporte` (antes se descartaban en silencio).
+ *   también `agrupar_por`/`tipo_reporte`.
  * - No se traga el error: devuelve el mensaje y el estado real del backend
- *   (403 sin `reportes.generar_pdf`, 400 de filtro inválido, 5xx) para que la
- *   UI pueda mostrarlo.
+ *   (403 sin `reportes.generar_pdf`, 401 de sesión, 400 de filtro inválido,
+ *   5xx) para que la UI pueda mostrarlo.
  * - Propaga las cabeceras `X-Reporte-*` con el aviso de tope de filas.
  */
 const RUTA_POR_CATEGORIA: Record<string, string> = {
+  empleados: "/api/v1/reportes/personal-activo/pdf/",
   familiares: "/api/v1/reportes/familiares/pdf/",
   egresados: "/api/v1/reportes/pasivos/pdf/",
   asignaciones: "/api/v1/reportes/codigos/pdf/",
@@ -21,7 +22,7 @@ const RUTA_POR_CATEGORIA: Record<string, string> = {
   distribucion: "/api/v1/reportes/distribucion-nomina/pdf/",
 };
 
-const RUTA_PERSONAL = "/api/v1/reportes/personal-activo/pdf/";
+const CATEGORIA_POR_DEFECTO = "empleados";
 
 /** Categorías cuyo backend aplica agrupación y tipo de reporte. */
 const CATEGORIAS_CON_AGRUPACION = new Set(["empleados"]);
@@ -33,6 +34,7 @@ const CABECERAS_DE_METADATOS = [
 ] as const;
 
 const MENSAJE_GENERICO = "No fue posible generar el archivo PDF del reporte.";
+const MENSAJE_SESION_EXPIRADA = "La sesión expiró. Vuelva a iniciar sesión.";
 
 function aplanarFiltros(filtros: unknown): Record<string, string | number | boolean> {
   const params: Record<string, string | number | boolean> = {};
@@ -64,10 +66,21 @@ export async function POST(req: NextRequest) {
       tipo_reporte?: string;
     };
 
-    const categoria = body.categoria ?? "empleados";
-    const path = RUTA_POR_CATEGORIA[categoria] ?? RUTA_PERSONAL;
-    const params = aplanarFiltros(body.filtros);
+    const categoria = body.categoria ?? CATEGORIA_POR_DEFECTO;
+    const path = RUTA_POR_CATEGORIA[categoria];
+    if (!path) {
+      // Una categoría desconocida no debe caer en el reporte de personal.
+      return NextResponse.json(
+        {
+          error: `Categoría de reporte no válida: «${categoria}». Válidas: ${Object.keys(
+            RUTA_POR_CATEGORIA,
+          ).join(", ")}.`,
+        },
+        { status: 400 },
+      );
+    }
 
+    const params = aplanarFiltros(body.filtros);
     if (CATEGORIAS_CON_AGRUPACION.has(categoria)) {
       if (body.agrupar_por) params.agrupar_por = body.agrupar_por;
       if (body.tipo_reporte) params.tipo_reporte = body.tipo_reporte;
@@ -88,9 +101,12 @@ export async function POST(req: NextRequest) {
 
     return new NextResponse(arrayBuffer, { status: 200, headers });
   } catch (error) {
+    console.error("Error al generar PDF de reporte:", error);
+    if (error instanceof SessionExpiredError) {
+      return NextResponse.json({ error: MENSAJE_SESION_EXPIRADA }, { status: 401 });
+    }
     const status = error instanceof ApiHttpError ? error.status : 500;
     const mensaje = error instanceof ApiHttpError ? error.message : MENSAJE_GENERICO;
-    console.error("Error al generar PDF de reporte:", error);
     return NextResponse.json({ error: mensaje }, { status });
   }
 }
