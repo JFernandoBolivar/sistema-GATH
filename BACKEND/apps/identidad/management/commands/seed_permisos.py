@@ -25,6 +25,8 @@ PERMISOS_CATALOGO = [
     ("identidad.crear_usuarios", "Registrar nuevos usuarios en el sistema"),
     ("identidad.editar_usuarios", "Modificar datos de usuarios existentes"),
     ("identidad.desactivar_usuarios", "Activar o desactivar cuentas de usuario"),
+    ("identidad.restablecer_acceso", "Restablecer el acceso de un trabajador (repone la contraseña inicial)"),
+    ("identidad.cambiar_correo_acceso", "Elegir el correo de acceso de un trabajador (pase a pasivo)"),
     ("identidad.cambiar_password", "Forzar o gestionar cambio de contraseña"),
     ("identidad.ver_roles", "Consultar roles existentes"),
     ("identidad.crear_roles", "Crear nuevos roles institucionales"),
@@ -172,6 +174,8 @@ ROL_ASIGNACIONES = {
     2: [
         "identidad.ver_usuarios",
         "identidad.ver_roles",
+        "identidad.restablecer_acceso",
+        "identidad.cambiar_correo_acceso",
         "organizacion.ver",
         "organizacion.crear",
         "organizacion.editar",

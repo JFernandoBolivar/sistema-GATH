@@ -40,6 +40,9 @@ import { restablecerPassword } from "../../application/use-cases/restablecer-pas
 import { cerrarSesion } from "../../application/use-cases/cerrar-sesion";
 import { repoAutenticacionApi } from "../repositories/repo-auth-api";
 
+const MENSAJE_PASSWORD_INICIAL_VENCIDA =
+  "Su contraseña inicial venció. Use ¿Olvidó su contraseña? o pida a RRHH restablecer el acceso.";
+
 export type LoginActionResult = { success: string } | { error: string };
 
 export async function loginAction(rawData: LoginFormType): Promise<LoginActionResult> {
@@ -65,6 +68,9 @@ export async function loginAction(rawData: LoginFormType): Promise<LoginActionRe
         status: "FAILED",
         durationMs: Date.now() - startedAt,
       });
+      if ((result as { code?: string }).code === "password_inicial_vencida") {
+        return { error: MENSAJE_PASSWORD_INICIAL_VENCIDA };
+      }
       return { error: "Credenciales inválidas o cuenta bloqueada." };
     }
 
@@ -85,6 +91,9 @@ export async function loginAction(rawData: LoginFormType): Promise<LoginActionRe
     handleSessionExpired(error);
 
     if (error instanceof AuthError) {
+      if ((error as { code?: string }).code === "password_inicial_vencida") {
+        return { error: MENSAJE_PASSWORD_INICIAL_VENCIDA };
+      }
       return { error: "Credenciales inválidas o cuenta bloqueada." };
     }
     return { error: "No fue posible iniciar sesión. Intente de nuevo." };

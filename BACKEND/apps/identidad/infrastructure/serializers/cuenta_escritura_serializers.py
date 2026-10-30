@@ -49,3 +49,15 @@ class CambiarPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError({'password_nuevo': 'La nueva contraseña es requerida.'})
         return {'password_actual': current, 'password_nuevo': new}
 
+
+
+class CambiarCorreoAccesoSerializer(serializers.Serializer):
+    """Elección del correo de acceso: el institucional actual, el alternativo del trabajador u otro."""
+
+    fuente = serializers.ChoiceField(choices=['INSTITUCIONAL', 'ALTERNATIVO', 'OTRO'])
+    correo = serializers.EmailField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if attrs['fuente'] == 'OTRO' and not attrs.get('correo'):
+            raise serializers.ValidationError({'correo': 'Indique el correo cuando la fuente es OTRO.'})
+        return attrs

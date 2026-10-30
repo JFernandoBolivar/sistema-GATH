@@ -17,6 +17,10 @@ class RepoCuentas(Protocol):
         """Una cuenta por su PK, o None si no existe."""
         ...
 
+    def obtener_por_cedula(self, cedula: str) -> Cuenta | None:
+        """La cuenta de una cédula, o None si no tiene."""
+        ...
+
     def existe_cuenta_para_cedula(self, cedula: str) -> bool:
         """¿Ya existe una cuenta de acceso para esta cédula de empleado?"""
         ...

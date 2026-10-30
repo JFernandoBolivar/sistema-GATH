@@ -8,6 +8,7 @@ propio, exige sesión + contraseña actual) y CRIT-05 (alta de cuenta exige
 permiso administrativo, ninguna cuenta puede autoasignarse creando otra sin
 autorización).
 """
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
@@ -22,14 +23,26 @@ from apps.identidad.application.use_cases.cambiar_estado_usuario import (
     cambiar_estado_usuario,
 )
 from apps.identidad.application.use_cases.cambiar_password import cambiar_password
+from apps.identidad.application.use_cases.cambiar_correo_acceso import cambiar_correo_acceso
 from apps.identidad.application.use_cases.editar_usuario import editar_usuario
+from apps.identidad.application.use_cases.restablecer_acceso import restablecer_acceso
 from apps.identidad.application.use_cases.registrar_usuario import registrar_usuario
+from apps.identidad.infrastructure.receivers import aprovisionar_por_cedula
+from apps.identidad.infrastructure.repositories.repo_correo_acceso_orm import RepoCorreoAccesoORM
+from apps.identidad.infrastructure.repositories.repo_password_inicial_orm import (
+    RepoPasswordInicialORM,
+)
+from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
+    RepoPermisosVersionORM,
+)
+from apps.identidad.infrastructure.signals import publicar_evento_identidad
 from apps.identidad.infrastructure.providers.validadores_password import (
     validar_fortaleza_django,
 )
 from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 from apps.identidad.infrastructure.serializers.cuenta_escritura_serializers import (
     ActualizarCuentaSerializer,
+    CambiarCorreoAccesoSerializer,
     CambiarEstadoCuentaSerializer,
     CambiarPasswordSerializer,
     RegistrarCuentaSerializer,
@@ -39,8 +52,10 @@ from apps.identidad.infrastructure.serializers.cuenta_lectura_serializers import
 )
 from apps.identidad.presentation.permissions.identidad_permissions import (
     PERMISO_CREAR_USUARIOS,
+    PERMISO_CAMBIAR_CORREO_ACCESO,
     PERMISO_DESACTIVAR_USUARIOS,
     PERMISO_EDITAR_USUARIOS,
+    PERMISO_RESTABLECER_ACCESO,
     PERMISO_VER_USUARIOS,
 )
 from core.presentation.envelope import ok
@@ -235,5 +250,88 @@ class CambiarPasswordView(views.APIView):
                 password_nuevo=datos['password_nuevo'],
             ),
             validar_fortaleza=validar_fortaleza_django,
+            publicar=publicar_evento_identidad,
         )
         return ok(message='Contraseña actualizada exitosamente.')
+
+
+class UsuarioRestablecerAccesoView(views.APIView):
+    """POST /api/v1/identidad/usuarios/{id}/restablecer-acceso/ — repone la contraseña inicial (D8)."""
+
+    permission_classes = [IsAuthenticated, PERMISO_RESTABLECER_ACCESO]
+
+    @extend_schema(
+        tags=['Identidad'],
+        summary='Restablece el acceso de un trabajador',
+        description=(
+            'Repone la cédula como contraseña inicial con 7 días nuevos, exige cambiarla en el próximo '
+            'ingreso, revoca las sesiones abiertas y avisa por correo al trabajador.'
+        ),
+        request=None,
+        responses={
+            200: CuentaLecturaSerializer,
+            400: MensajeRespuestaSerializer,
+            403: MensajeRespuestaSerializer,
+            404: MensajeRespuestaSerializer,
+        },
+    )
+    def post(self, request, id: int):
+        repo = RepoCuentasORM()
+        cuenta = restablecer_acceso(
+            repo,
+            RepoPasswordInicialORM(),
+            RepoPermisosVersionORM(),
+            publicar_evento_identidad,
+            id,
+            timezone.now(),
+        )
+        return ok(
+            CuentaLecturaSerializer(repo.obtener_por_id(cuenta.id), context={'repo': repo}).data,
+            'Acceso restablecido: la contraseña inicial vuelve a ser la cédula y vence en 7 días.',
+        )
+
+
+class CorreoAccesoView(views.APIView):
+    """POST /api/v1/identidad/cuentas/{cedula}/correo-acceso/ — RRHH elige el correo de acceso (D8)."""
+
+    permission_classes = [IsAuthenticated, PERMISO_CAMBIAR_CORREO_ACCESO]
+
+    @extend_schema(
+        tags=['Identidad'],
+        summary='Elige el correo de acceso de un trabajador (pase a pasivo)',
+        description=(
+            'fuente=INSTITUCIONAL conserva el correo actual; ALTERNATIVO usa el correo alternativo que '
+            'declaró el trabajador; OTRO usa el indicado. Avisa al correo elegido y, si el pasivo o '
+            'sobreviviente no tenía cuenta, la crea (rol AUTOGESTION, contraseña inicial = cédula).'
+        ),
+        request=CambiarCorreoAccesoSerializer,
+        responses={
+            200: MensajeRespuestaSerializer,
+            400: MensajeRespuestaSerializer,
+            403: MensajeRespuestaSerializer,
+            404: MensajeRespuestaSerializer,
+            409: MensajeRespuestaSerializer,
+        },
+    )
+    def post(self, request, cedula: str):
+        serializer = CambiarCorreoAccesoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+
+        resultado = cambiar_correo_acceso(
+            RepoCorreoAccesoORM(),
+            RepoCuentasORM(),
+            publicar_evento_identidad,
+            aprovisionar_por_cedula,
+            cedula=cedula,
+            fuente=datos['fuente'],
+            correo=datos.get('correo'),
+        )
+        return ok(
+            {
+                'correo': resultado.correo,
+                'cuenta_creada': resultado.cuenta_creada,
+                'avisado': resultado.avisado,
+            },
+            'Correo de acceso registrado.',
+        )

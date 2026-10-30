@@ -41,6 +41,11 @@ export const repoUsuariosApi: RepoUsuarios = {
     return mapperUsuario(row);
   },
 
+  async restablecerAcceso(id: number) {
+    const row = await usuariosApi.restablecerAcceso(id);
+    return mapperUsuario(row);
+  },
+
   async listarDepartamentos() {
     const rows = await usuariosApi.getDepartamentos();
     return rows.map(mapperDepartamento);

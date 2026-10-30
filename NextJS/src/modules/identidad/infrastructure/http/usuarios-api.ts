@@ -91,6 +91,9 @@ export const usuariosApi = {
   cambiarEstado: (id: number, body: { is_active: boolean }) =>
     single<UsuarioApiItem>(apiClient.patch<ApiResponse<UsuarioApiItem>>(`${USUARIOS_PATH}${id}/estado/`, body)),
 
+  restablecerAcceso: (id: number) =>
+    single<UsuarioApiItem>(apiClient.post<ApiResponse<UsuarioApiItem>>(`${USUARIOS_PATH}${id}/restablecer-acceso/`, {})),
+
   getRoles: () =>
     list<RolApiItem>(apiClient.get<ApiResponse<RolApiItem[]>>(ROLES_PATH)),
 

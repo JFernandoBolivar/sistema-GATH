@@ -13,10 +13,12 @@ from apps.identidad.presentation.views.auth_views import (
 )
 from apps.identidad.presentation.views.cuenta_views import (
     CambiarPasswordView,
+    CorreoAccesoView,
     UsuarioCambiarEstadoView,
     UsuarioEditarView,
     UsuarioListView,
     UsuarioRegistrarView,
+    UsuarioRestablecerAccesoView,
 )
 from apps.identidad.presentation.views.departamento_views import DepartamentoListView
 from apps.identidad.presentation.views.permiso_views import (
@@ -56,6 +58,13 @@ urlpatterns = [
     path('usuarios/cambiar-password/', CambiarPasswordView.as_view(), name='usuarios-cambiar-password'),
     path('usuarios/<int:id>/', UsuarioEditarView.as_view(), name='usuarios-editar'),
     path('usuarios/<int:id>/estado/', UsuarioCambiarEstadoView.as_view(), name='usuarios-cambiar-estado'),
+
+    path(
+        'usuarios/<int:id>/restablecer-acceso/',
+        UsuarioRestablecerAccesoView.as_view(),
+        name='usuarios-restablecer-acceso',
+    ),
+    path('cuentas/<str:cedula>/correo-acceso/', CorreoAccesoView.as_view(), name='cuentas-correo-acceso'),
 
     # ─── Catálogo de roles (CRIT-12) ───
     path('roles/', RolListCrearView.as_view(), name='roles-lista-crear'),

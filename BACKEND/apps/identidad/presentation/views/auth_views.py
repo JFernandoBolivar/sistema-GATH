@@ -13,6 +13,7 @@ import logging
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -39,6 +40,13 @@ from apps.identidad.application.use_cases.solicitar_recuperacion_password import
 from apps.identidad.infrastructure.emails.recuperacion_email import (
     enviar_correo_recuperacion,
 )
+from apps.identidad.domain.services.politica_password_inicial import (
+    MENSAJE_PASSWORD_INICIAL_VENCIDA,
+)
+from apps.identidad.infrastructure.repositories.repo_password_inicial_orm import (
+    RepoPasswordInicialORM,
+)
+from apps.identidad.infrastructure.signals import publicar_evento_identidad
 from apps.identidad.infrastructure.providers.bloqueos_login import (
     anotar_intento_fallido,
     limpiar_bloqueo,
@@ -176,6 +184,12 @@ class LoginView(APIView):
             logger.error('Error en autenticación: %s', e)
             anotar_intento_fallido(cedula_registro, ip_cliente)
             return fail('Error procesando la solicitud de autenticación.', 401)
+
+        # Contraseña inicial (la cédula) vencida a los 7 días (D8). Se evalúa DESPUÉS de comprobar la
+        # clave, para no revelar a quien no la conoce que la cuenta existe ni su estado.
+        vence_en = RepoPasswordInicialORM().vencimiento(cuenta.pk)
+        if vence_en is not None and vence_en <= timezone.now():
+            return fail(MENSAJE_PASSWORD_INICIAL_VENCIDA, 401, {'password_inicial_vencida': True})
 
         limpiar_bloqueo(cedula_registro)
         limpiar_bloqueo(identificador)
@@ -337,6 +351,7 @@ class RestablecerPasswordView(APIView):
             password_confirmacion=serializer.validated_data['password_confirmacion'],
             validar_token_fn=validar_token_recuperacion,
             validar_fortaleza_fn=validar_fortaleza_django,
+            publicar=publicar_evento_identidad,
         )
         return ok(message=mensaje)
 

@@ -31,6 +31,8 @@ export interface RepoUsuarios {
   crear(input: UsuarioRegistrarInput): Promise<UsuarioEntity>;
   editar(id: number, input: UsuarioEditarInput): Promise<UsuarioEntity>;
   cambiarEstado(id: number, isActive: boolean): Promise<UsuarioEntity>;
+  /** D8: repone la cédula como contraseña inicial (7 días), revoca sesiones y avisa por correo. */
+  restablecerAcceso(id: number): Promise<UsuarioEntity>;
   listarDepartamentos(): Promise<DepartamentoEntity[]>;
   listarPermisos(): Promise<PermisoEntity[]>;
 }

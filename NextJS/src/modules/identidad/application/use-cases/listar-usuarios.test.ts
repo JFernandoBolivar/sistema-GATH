@@ -9,6 +9,7 @@ function fakeRepo(rows: Awaited<ReturnType<RepoUsuarios["getAll"]>> = []): RepoU
     crear: vi.fn(),
     editar: vi.fn(),
     cambiarEstado: vi.fn(),
+    restablecerAcceso: vi.fn(),
     listarDepartamentos: vi.fn(),
     listarPermisos: vi.fn(),
   };

@@ -11,6 +11,7 @@ los adaptadores reales los cablea la vista.
 """
 from typing import Callable
 
+from apps.identidad.domain.events import EventoIdentidad, MotivoCambioPassword, TipoEventoIdentidad
 from apps.identidad.domain.ports.repo_recuperacion_password import RepoRecuperacionPassword
 from core.domain.exceptions import ValidationError
 
@@ -22,6 +23,7 @@ def restablecer_password(
     password_confirmacion: str,
     validar_token_fn: Callable[[str], tuple[int, str, str]],
     validar_fortaleza_fn: Callable[[str], None],
+    publicar: Callable[[EventoIdentidad], None] | None = None,
 ) -> str:
     """Valida el token y actualiza la contraseña de la cuenta."""
     if not password_nuevo or not password_confirmacion:
@@ -45,5 +47,10 @@ def restablecer_password(
     validar_fortaleza_fn(password_nuevo)
 
     repo.restablecer_password(cuenta.id, password_nuevo)
+    if publicar is not None:
+        publicar(EventoIdentidad(
+            tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula=cuenta.cedula,
+            motivo=MotivoCambioPassword.ENLACE.value,
+        ))
 
     return "Su contraseña ha sido restablecida exitosamente. Ya puede iniciar sesión con sus nuevas credenciales."

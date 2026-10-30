@@ -21,6 +21,7 @@ import {
   cambiarEstadoUsuario,
   editarUsuario,
   registrarUsuario,
+  restablecerAccesoUsuario,
 } from "../../application/use-cases/gestionar-usuario";
 import { listarRoles } from "../../application/use-cases/gestionar-roles";
 import {
@@ -137,6 +138,26 @@ export async function cambiarEstadoUsuarioAction(id: number, isActive: boolean) 
     return usuario;
   } catch (error) {
     await logAudit({ traceId, action: "cambiarEstadoUsuarioAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+/** D8: «Restablecer acceso» (RRHH). El permiso lo exige el backend (`identidad.restablecer_acceso`). */
+export async function restablecerAccesoAction(id: number) {
+  const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
+  if (!idValido.success) {
+    return { error: "Usuario inválido." };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const usuario = await restablecerAccesoUsuario(repoUsuariosApi, idValido.data.usuarioId);
+    await logAudit({ traceId, action: "restablecerAccesoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return usuario;
+  } catch (error) {
+    await logAudit({ traceId, action: "restablecerAccesoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

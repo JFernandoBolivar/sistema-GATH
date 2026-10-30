@@ -13,10 +13,16 @@ import { cookies } from "next/headers";
 import { signInSchema } from "@/lib/zod";
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { CredentialsSignin } from "next-auth";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
 import { authCookieSecure } from "@/shared/commons/auth-cookies";
 
 const BACKEND = DJANGO_API_SERVER;
+
+/** D8: la contraseña inicial (la cédula) venció a los 7 días; el mensaje claro llega a la pantalla de login. */
+class PasswordInicialVencida extends CredentialsSignin {
+  code = "password_inicial_vencida";
+}
 
 interface BackendEnvelope<T> {
   status: string;
@@ -98,7 +104,11 @@ export default {
           body: JSON.stringify(body),
         });
 
-        if (!loginRes.ok) throw new Error("Authentication failed");
+        if (!loginRes.ok) {
+          const cuerpo = (await loginRes.json().catch(() => null)) as { data?: { password_inicial_vencida?: boolean } } | null;
+          if (cuerpo?.data?.password_inicial_vencida) throw new PasswordInicialVencida();
+          throw new Error("Authentication failed");
+        }
 
         const loginEnvelope = (await loginRes.json()) as BackendEnvelope<LoginData>;
         const { usuario, tokens } = loginEnvelope.data;

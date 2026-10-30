@@ -64,6 +64,7 @@ import {
   getPermisosAction,
   getRolesAction,
   listarUsuariosAction,
+  restablecerAccesoAction,
 } from "../infrastructure/actions/usuario-actions";
 import RolDialog from "./rol-dialog";
 import { construirColumnasRoles } from "./roles-columns";
@@ -77,6 +78,7 @@ export default function UsuariosPage() {
   const puedeCrearUsuario = tienePermiso(permisos, "identidad.crear_usuarios");
   const puedeEditarUsuario = tienePermiso(permisos, "identidad.editar_usuarios");
   const puedeDesactivarUsuario = tienePermiso(permisos, "identidad.desactivar_usuarios");
+  const puedeRestablecerAcceso = tienePermiso(permisos, "identidad.restablecer_acceso");
   const puedeVerRoles = tienePermiso(permisos, "identidad.ver_roles");
   const puedeCrearRol = tienePermiso(permisos, "identidad.crear_roles");
   const puedeEditarRol = tienePermiso(permisos, "identidad.editar_roles");
@@ -96,6 +98,7 @@ export default function UsuariosPage() {
   const [rolEditando, setRolEditando] = useState<RolDTO | null>(null);
   const [dialogoRolAbierto, setDialogoRolAbierto] = useState(false);
   const [rolEliminando, setRolEliminando] = useState<RolDTO | null>(null);
+  const [usuarioRestableciendo, setUsuarioRestableciendo] = useState<UsuarioDTO | null>(null);
 
   const filtroForm = useForm<UsuariosFiltrosType>({
     resolver: zodResolver(usuariosFiltrosSchema),
@@ -153,6 +156,21 @@ export default function UsuariosPage() {
     });
   };
 
+  const onRestablecerAcceso = () => {
+    if (!usuarioRestableciendo) return;
+    const usuario = usuarioRestableciendo;
+    startTransition(async () => {
+      const resultado = await restablecerAccesoAction(usuario.id);
+      if (resultado && typeof resultado === "object" && "error" in resultado) {
+        toast.error((resultado as { error: string }).error);
+      } else {
+        toast.success("Acceso restablecido. La contraseña inicial es la cédula y vence en 7 días.");
+        cargarUsuarios();
+      }
+      setUsuarioRestableciendo(null);
+    });
+  };
+
   const onEliminarRol = () => {
     if (!rolEliminando) return;
     const rol = rolEliminando;
@@ -173,11 +191,13 @@ export default function UsuariosPage() {
     roles,
     puedeEditarUsuario,
     puedeDesactivarUsuario,
+    puedeRestablecerAcceso,
     (u) => {
       setUsuarioEditando(u);
       setDialogoUsuarioAbierto(true);
     },
     onCambiarEstado,
+    (u) => setUsuarioRestableciendo(u),
   );
 
   const columnasPermisos: ColumnDef<PermisoDTO>[] = [
@@ -302,6 +322,32 @@ export default function UsuariosPage() {
         rolEditando={rolEditando}
         onGuardado={cargarRoles}
       />
+
+      <AlertDialog open={!!usuarioRestableciendo} onOpenChange={(open) => !open && setUsuarioRestableciendo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Restablecer el acceso de {usuarioRestableciendo?.nombres} {usuarioRestableciendo?.apellidos}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Su contraseña volverá a ser su cédula durante 7 días y deberá cambiarla al ingresar. Se cerrarán sus
+              sesiones abiertas y recibirá un aviso por correo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                onRestablecerAcceso();
+              }}
+            >
+              {isPending ? "Restableciendo..." : "Restablecer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!rolEliminando} onOpenChange={(open) => !open && setRolEliminando(null)}>
         <AlertDialogContent>

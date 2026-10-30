@@ -11,7 +11,7 @@ import { construirColumnasRoles } from "./roles-columns";
 describe("Identidad PBAC Gating", () => {
   describe("construirColumnasUsuarios", () => {
     it("debe generar 7 columnas incluyendo columna de acciones", () => {
-      const cols = construirColumnasUsuarios([], [], true, true, vi.fn(), vi.fn());
+      const cols = construirColumnasUsuarios([], [], true, true, true, vi.fn(), vi.fn(), vi.fn());
       expect(cols).toHaveLength(7);
       const colAcciones = cols.find((c) => c.id === "actions");
       expect(colAcciones).toBeDefined();
@@ -19,7 +19,7 @@ describe("Identidad PBAC Gating", () => {
     });
 
     it("debe generar columnas con puedeEditar=false y puedeDesactivar=false", () => {
-      const cols = construirColumnasUsuarios([], [], false, false, vi.fn(), vi.fn());
+      const cols = construirColumnasUsuarios([], [], false, false, false, vi.fn(), vi.fn(), vi.fn());
       expect(cols).toHaveLength(7);
       const colAcciones = cols.find((c) => c.id === "actions");
       expect(colAcciones).toBeDefined();

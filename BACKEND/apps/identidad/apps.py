@@ -19,3 +19,4 @@ class IdentidadConfig(AppConfig):
         )
 
         registrar_resolutor_en_kernel()
+        import apps.identidad.infrastructure.receivers  # noqa: F401  (ciclo de vida de cuentas, D8)

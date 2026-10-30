@@ -8,7 +8,7 @@
  * editar) en vez de botones de ícono sueltos.
  */
 import type { ColumnDef } from "@tanstack/react-table";
-import { CheckCircle2, Copy, MoreHorizontal, Pencil, RotateCcw } from "lucide-react";
+import { CheckCircle2, Copy, KeyRound, MoreHorizontal, Pencil, RotateCcw } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -28,14 +28,18 @@ function AccionesCell({
   usuario,
   puedeEditar,
   puedeDesactivar,
+  puedeRestablecer,
   onEditar,
   onCambiarEstado,
+  onRestablecerAcceso,
 }: {
   usuario: UsuarioDTO;
   puedeEditar: boolean;
   puedeDesactivar: boolean;
+  puedeRestablecer: boolean;
   onEditar: (usuario: UsuarioDTO) => void;
   onCambiarEstado: (usuario: UsuarioDTO) => void;
+  onRestablecerAcceso: (usuario: UsuarioDTO) => void;
 }) {
   return (
     <DropdownMenu>
@@ -50,10 +54,15 @@ function AccionesCell({
         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(usuario.cedula)}>
           <Copy className="size-4" aria-hidden="true" /> Copiar cédula
         </DropdownMenuItem>
-        {(puedeEditar || puedeDesactivar) && <DropdownMenuSeparator />}
+        {(puedeEditar || puedeDesactivar || puedeRestablecer) && <DropdownMenuSeparator />}
         {puedeEditar && (
           <DropdownMenuItem onClick={() => onEditar(usuario)}>
             <Pencil className="size-4" aria-hidden="true" /> Editar
+          </DropdownMenuItem>
+        )}
+        {puedeRestablecer && usuario.isActive && (
+          <DropdownMenuItem onClick={() => onRestablecerAcceso(usuario)}>
+            <KeyRound className="size-4" aria-hidden="true" /> Restablecer acceso
           </DropdownMenuItem>
         )}
         {puedeDesactivar && (
@@ -79,8 +88,10 @@ export function construirColumnasUsuarios(
   roles: RolDTO[],
   puedeEditar: boolean,
   puedeDesactivar: boolean,
+  puedeRestablecer: boolean,
   onEditar: (usuario: UsuarioDTO) => void,
   onCambiarEstado: (usuario: UsuarioDTO) => void,
+  onRestablecerAcceso: (usuario: UsuarioDTO) => void,
 ): ColumnDef<UsuarioDTO>[] {
   const nombreDepartamento = (id: number | null) => departamentos.find((d) => d.id === id)?.nombre ?? "—";
   const nombreRol = (id: number | null) => roles.find((r) => r.id === id)?.nombreRol ?? "—";
@@ -128,8 +139,10 @@ export function construirColumnasUsuarios(
           usuario={row.original}
           puedeEditar={puedeEditar}
           puedeDesactivar={puedeDesactivar}
+          puedeRestablecer={puedeRestablecer}
           onEditar={onEditar}
           onCambiarEstado={onCambiarEstado}
+          onRestablecerAcceso={onRestablecerAcceso}
         />
       ),
     },

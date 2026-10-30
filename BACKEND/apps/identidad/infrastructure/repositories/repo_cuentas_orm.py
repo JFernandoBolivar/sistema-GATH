@@ -24,6 +24,9 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.identidad.domain.entities.cuenta import Cuenta
 from apps.identidad.infrastructure.mappers.mapper_cuenta import cuenta_a_entidad
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+from apps.identidad.infrastructure.repositories.repo_password_inicial_orm import (
+    RepoPasswordInicialORM,
+)
 from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
     RepoPermisosVersionORM,
 )
@@ -38,6 +41,10 @@ class RepoCuentasORM:
 
     def obtener_por_id(self, id: int) -> Cuenta | None:
         fila = self._queryset().filter(pk=id).first()
+        return cuenta_a_entidad(fila) if fila else None
+
+    def obtener_por_cedula(self, cedula: str) -> Cuenta | None:
+        fila = self._queryset().filter(cedula_id=cedula).first()
         return cuenta_a_entidad(fila) if fila else None
 
     def existe_cuenta_para_cedula(self, cedula: str) -> bool:
@@ -96,3 +103,5 @@ class RepoCuentasORM:
         fila = CuentaModel.objects.get(pk=id)
         fila.set_password(password_nuevo)
         fila.save()
+        # Una contraseña elegida deja de ser la inicial (D8); `restablecer_acceso` la vuelve a emitir.
+        RepoPasswordInicialORM().limpiar(fila.pk)

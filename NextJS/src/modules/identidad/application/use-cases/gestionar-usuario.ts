@@ -61,3 +61,7 @@ export async function cambiarEstadoUsuario(
   const entidad = await repo.cambiarEstado(id, isActive);
   return aDto(entidad);
 }
+
+export async function restablecerAccesoUsuario(repo: RepoUsuarios, id: number): Promise<UsuarioDTO> {
+  return aDto(await repo.restablecerAcceso(id));
+}
