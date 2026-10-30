@@ -3,7 +3,8 @@ import {
   accionesDisponibles,
   esEditablePorPasivo,
   motivoDeEstado,
-  parsearDiasRecordatorio,
+  describirDiaRecordatorio,
+  normalizarDiasRecordatorio,
   primerCheck,
   requiereFotoNueva,
 } from "./reglas";
@@ -79,13 +80,19 @@ describe("estado y motivo", () => {
   });
 });
 
-describe("parsearDiasRecordatorio", () => {
+describe("normalizarDiasRecordatorio", () => {
   it("ordena de mayor a menor y quita repetidos", () => {
-    expect(parsearDiasRecordatorio("1, 7 3;7")).toEqual([7, 3, 1]);
+    expect(normalizarDiasRecordatorio([1, 7, 3, 7])).toEqual([7, 3, 1]);
   });
-  it("vacío = sin recordatorios; inválido = null", () => {
-    expect(parsearDiasRecordatorio("")).toEqual([]);
-    expect(parsearDiasRecordatorio("7, x")).toBeNull();
-    expect(parsearDiasRecordatorio("0")).toBeNull();
+  it("descarta valores fuera de 1..365 o no enteros", () => {
+    expect(normalizarDiasRecordatorio([0, 366, 2.5, 5])).toEqual([5]);
+    expect(normalizarDiasRecordatorio([])).toEqual([]);
+  });
+});
+
+describe("describirDiaRecordatorio", () => {
+  it("usa singular y plural", () => {
+    expect(describirDiaRecordatorio(1)).toBe("1 día antes");
+    expect(describirDiaRecordatorio(7)).toBe("7 días antes");
   });
 });

@@ -10,6 +10,7 @@ import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import type { ProcesoDTO } from "../../application/dtos/fe-de-vida-dto";
 import type { DatosProceso } from "../../domain/ports/repo-fe-de-vida";
+import { describirDiaRecordatorio } from "../../domain/services/reglas";
 import { LIMITE_PAGINA, PERMISOS_FE_DE_VIDA } from "../../domain/value-objects/estados";
 import {
   abrirProcesoAction,
@@ -108,11 +109,23 @@ export default function ProcesosPage() {
                 <div><dt className="text-sm text-muted-foreground">Cierre</dt><dd>{formatearFechaHora(p.cierre)}</dd></div>
                 <div>
                   <dt className="text-sm text-muted-foreground">Alcance</dt>
-                  <dd>{p.tiposNomina.length === 0 ? "Todos los pasivos" : p.tiposNomina.map((t) => t.nombre).join(", ")}</dd>
+                  <dd>
+                    {p.tiposNomina.length === 0 ? (
+                      "Todos los pasivos"
+                    ) : (
+                      <ListaEtiquetas textos={p.tiposNomina.map((t) => t.nombre)} />
+                    )}
+                  </dd>
                 </div>
                 <div>
-                  <dt className="text-sm text-muted-foreground">Recordatorios (días antes)</dt>
-                  <dd>{p.diasRecordatorio.length === 0 ? "Sin recordatorios" : p.diasRecordatorio.join(", ")}</dd>
+                  <dt className="text-sm text-muted-foreground">Recordatorios antes del cierre</dt>
+                  <dd>
+                    {p.diasRecordatorio.length === 0 ? (
+                      "Sin recordatorios"
+                    ) : (
+                      <ListaEtiquetas textos={p.diasRecordatorio.map(describirDiaRecordatorio)} />
+                    )}
+                  </dd>
                 </div>
               </dl>
               <div className="flex flex-wrap gap-2">
@@ -161,5 +174,18 @@ export default function ProcesosPage() {
       ) : null}
       {dialogo?.tipo === "prorrogas" ? <DialogoProrrogas proceso={dialogo.proceso} onCerrar={() => setDialogo(null)} /> : null}
     </div>
+  );
+}
+
+/** Valores múltiples como etiquetas en lugar de texto separado por comas. */
+function ListaEtiquetas({ textos }: { textos: readonly string[] }) {
+  return (
+    <ul className="mt-1 flex flex-wrap gap-1.5">
+      {textos.map((texto) => (
+        <li key={texto} className="rounded-md border bg-muted px-2 py-0.5 text-sm font-medium">
+          {texto}
+        </li>
+      ))}
+    </ul>
   );
 }

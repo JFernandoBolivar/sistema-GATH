@@ -49,7 +49,7 @@ describe("procesoSchema", () => {
     cierre: "2026-12-01T08:00",
     todos: true,
     tiposNomina: [] as number[],
-    diasRecordatorio: "7, 3, 1",
+    diasRecordatorio: [7, 3, 1],
   };
   it("acepta alcance «Todos» sin tipos", () => {
     expect(procesoSchema.safeParse(base).success).toBe(true);
@@ -60,8 +60,10 @@ describe("procesoSchema", () => {
   });
   it("el cierre debe ser posterior a la apertura y los días válidos", () => {
     expect(procesoSchema.safeParse({ ...base, cierre: base.apertura }).success).toBe(false);
-    expect(procesoSchema.safeParse({ ...base, diasRecordatorio: "siete" }).success).toBe(false);
-    expect(procesoSchema.safeParse({ ...base, diasRecordatorio: "" }).success).toBe(true);
+    expect(procesoSchema.safeParse({ ...base, diasRecordatorio: [0] }).success).toBe(false);
+    expect(procesoSchema.safeParse({ ...base, diasRecordatorio: [366] }).success).toBe(false);
+    expect(procesoSchema.safeParse({ ...base, diasRecordatorio: [2.5] }).success).toBe(false);
+    expect(procesoSchema.safeParse({ ...base, diasRecordatorio: [] }).success).toBe(true);
   });
 });
 

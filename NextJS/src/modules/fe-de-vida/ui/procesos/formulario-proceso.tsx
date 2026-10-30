@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,11 @@ import {
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import type { ProcesoDTO } from "../../application/dtos/fe-de-vida-dto";
 import type { DatosProceso } from "../../domain/ports/repo-fe-de-vida";
-import { parsearDiasRecordatorio } from "../../domain/services/reglas";
+import { normalizarDiasRecordatorio } from "../../domain/services/reglas";
 import { listarTiposPensionAction } from "../../infrastructure/actions/fe-de-vida-actions";
 import { aInputLocal } from "../comun/formato";
 import { procesoSchema, type ProcesoValores } from "../schema/schema-fe-de-vida";
+import { SelectorDiasRecordatorio } from "./selector-dias-recordatorio";
 
 /** Del formulario a los datos del caso de uso: «Todos» = lista vacía de tipos. */
 export function valoresADatosProceso(v: ProcesoValores): DatosProceso {
@@ -28,7 +29,7 @@ export function valoresADatosProceso(v: ProcesoValores): DatosProceso {
     apertura: v.apertura,
     cierre: v.cierre,
     tiposNomina: v.todos ? [] : v.tiposNomina,
-    diasRecordatorio: parsearDiasRecordatorio(v.diasRecordatorio) ?? [],
+    diasRecordatorio: normalizarDiasRecordatorio(v.diasRecordatorio),
   };
 }
 
@@ -60,7 +61,7 @@ export function FormularioProceso({ proceso, pendiente, onCerrar, onGuardar }: P
       cierre: aInputLocal(proceso?.cierre),
       todos: !proceso || proceso.tiposNomina.length === 0,
       tiposNomina: proceso?.tiposNomina.map((t) => t.id) ?? [],
-      diasRecordatorio: proceso?.diasRecordatorio.join(", ") ?? "",
+      diasRecordatorio: proceso ? [...proceso.diasRecordatorio] : [],
     },
   });
   const todos = useWatch({ control, name: "todos" });
@@ -129,12 +130,17 @@ export function FormularioProceso({ proceso, pendiente, onCerrar, onGuardar }: P
             ) : null}
             {error("tiposNomina", "p-tipos-e")}
           </fieldset>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="p-dias" className="text-base font-medium">Días de recordatorio antes del cierre</label>
-            <Input id="p-dias" placeholder="7, 3, 1" aria-describedby="p-dias-a p-dias-e" {...register("diasRecordatorio")} />
-            <p id="p-dias-a" className="text-sm text-muted-foreground">Déjelo vacío si no desea recordatorios.</p>
-            {error("diasRecordatorio", "p-dias-e")}
-          </div>
+          <Controller
+            control={control}
+            name="diasRecordatorio"
+            render={({ field }) => (
+              <SelectorDiasRecordatorio
+                valor={field.value}
+                onCambiar={(dias) => field.onChange(normalizarDiasRecordatorio(dias))}
+                error={errors.diasRecordatorio ? "Revise los días de recordatorio." : undefined}
+              />
+            )}
+          />
           <DialogFooter>
             <Button type="button" variant="outline" className="min-h-11" onClick={onCerrar} disabled={pendiente}>Cancelar</Button>
             <Button type="submit" className="min-h-11" disabled={pendiente}>{pendiente ? "Guardando…" : "Guardar"}</Button>

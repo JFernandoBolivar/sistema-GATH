@@ -78,18 +78,19 @@ export function accionesDisponibles(
   };
 }
 
-/** «7, 3, 1» → [7, 3, 1] (enteros positivos únicos, de mayor a menor); `null` si hay un valor inválido. */
-export function parsearDiasRecordatorio(texto: string): number[] | null {
-  const partes = texto
-    .split(/[,\s;]+/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const dias: number[] = [];
-  for (const p of partes) {
-    if (!/^\d{1,3}$/.test(p)) return null;
-    const n = Number(p);
-    if (n < 1) return null;
-    if (!dias.includes(n)) dias.push(n);
-  }
-  return dias.sort((a, b) => b - a);
+/** Días sugeridos para los recordatorios previos al cierre (de mayor a menor). */
+export const DIAS_RECORDATORIO_SUGERIDOS: readonly number[] = [30, 15, 7, 3, 1];
+/** Mismo tope que el servidor (`MAX_DIAS_RECORDATORIO` del dominio de procesos). */
+export const MAX_DIAS_RECORDATORIO = 365;
+
+/** Enteros válidos (1..MAX), sin repetir y de mayor a menor. */
+export function normalizarDiasRecordatorio(dias: readonly number[]): number[] {
+  return [...new Set(dias)]
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= MAX_DIAS_RECORDATORIO)
+    .sort((a, b) => b - a);
+}
+
+/** 1 → «1 día antes»; 7 → «7 días antes». */
+export function describirDiaRecordatorio(dias: number): string {
+  return `${dias} ${dias === 1 ? "día" : "días"} antes`;
 }

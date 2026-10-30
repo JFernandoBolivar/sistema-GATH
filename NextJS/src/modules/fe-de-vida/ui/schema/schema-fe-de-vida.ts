@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { EMAIL, EMAIL_MSG, NO_HTML, NO_HTML_MSG } from "@/shared/validation";
-import { parsearDiasRecordatorio } from "../../domain/services/reglas";
+import { MAX_DIAS_RECORDATORIO } from "../../domain/services/reglas";
 import { MAX_LONGITUD_MOTIVO } from "../../domain/value-objects/estados";
 
 /** Mismo criterio que el servidor: +, dígitos, espacios y guiones. */
@@ -83,7 +83,14 @@ export const procesoSchema = z
     cierre: z.string().min(1, "El cierre es obligatorio"),
     todos: z.boolean(),
     tiposNomina: z.array(z.number().int().positive()),
-    diasRecordatorio: z.string().trim(),
+    diasRecordatorio: z
+      .array(
+        z
+          .number()
+          .int("Use días enteros")
+          .min(1, "El mínimo es 1 día")
+          .max(MAX_DIAS_RECORDATORIO, `El máximo es ${MAX_DIAS_RECORDATORIO} días`),
+      ),
   })
   .superRefine((v, ctx) => {
     if (v.apertura && v.cierre && v.cierre <= v.apertura) {
@@ -98,13 +105,6 @@ export const procesoSchema = z
         code: z.ZodIssueCode.custom,
         message: "Elija al menos un tipo de pensión o marque «Todos»",
         path: ["tiposNomina"],
-      });
-    }
-    if (v.diasRecordatorio && parsearDiasRecordatorio(v.diasRecordatorio) === null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Use números de días separados por coma. Ejemplo: 7, 3, 1",
-        path: ["diasRecordatorio"],
       });
     }
   });
