@@ -1,21 +1,22 @@
 """
 Repositorio ORM de Reportes (Reglas B4, B7).
+
+Todos los reportes aplican las mismas reglas (G11), centralizadas en
+`consultas_reporte`: página materializada una sola vez con `limite` y
+metadatos de truncado, orden total y determinista (con desempate por PK),
+asignación vigente por empleado (ACTIVA o la más reciente) y fecha de ingreso =
+reingreso más reciente. Los datos relacionados se traen en lotes (sin N+1).
 """
 from core.domain.exceptions import ValidationError
 
 from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
-
-# Tamaño de lote al traer asignaciones/antecedentes de la página: acota el
-# `IN (...)` del SQL sin cambiar el resultado.
-TAMANO_DE_LOTE = 500
-
-
-def _en_lotes(valores: list) -> list[list]:
-    return [
-        valores[inicio:inicio + TAMANO_DE_LOTE]
-        for inicio in range(0, len(valores), TAMANO_DE_LOTE)
-    ]
+from apps.reportes.infrastructure.repositories.consultas_reporte import (
+    elegir_asignaciones,
+    en_lotes,
+    fechas_de_ingreso,
+    pagina_con_metadatos,
+)
 
 
 def _etiqueta_de_grupo(valor) -> str:
@@ -60,12 +61,24 @@ def _conteo_personal(qs, consulta: ConsultaReportePersonal, metadatos: dict) -> 
     )
 
 
+def _asignaciones_por_cedula(AsigTrabajoModel, cedulas) -> dict:
+    """Asignación vigente por cédula, en lotes (`ACTIVA` o la más reciente)."""
+    elegidas = {}
+    for lote in en_lotes(list(cedulas)):
+        elegidas.update(elegir_asignaciones(
+            AsigTrabajoModel.objects
+            .filter(employee__in=lote)
+            .select_related(
+                'denominacioncargoid', 'tiponominaid', 'OrganismoAdscritoid', 'estatusid',
+            )
+        ))
+    return elegidas
+
+
 class RepoReportesORM:
     def reporte_personal_activo(
         self, consulta: ConsultaReportePersonal, limite: int
     ) -> ResultadoReporte:
-        from django.db.models import Max
-
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         from apps.personal.infrastructure.models.expediente_models import (
             AntecedenteServicioModel,
@@ -78,56 +91,29 @@ class RepoReportesORM:
             # relaciones multivaluadas (asignaciones, familiares, títulos).
             qs = qs.filter(**consulta.lookups).distinct()
 
-        total_encontrados = qs.count()
-        metadatos = {
-            'total_encontrados': total_encontrados,
-            'limite': limite,
-            'truncado': bool(limite > 0 and total_encontrados > limite),
-            'tipo_reporte': consulta.tipo_reporte,
-            'agrupar_por': consulta.agrupar_por,
-        }
-
         if consulta.tipo_reporte == 'conteo':
+            metadatos = {
+                'total_encontrados': qs.count(),
+                'limite': limite,
+                'truncado': False,
+                'tipo_reporte': consulta.tipo_reporte,
+                'agrupar_por': consulta.agrupar_por,
+            }
             return _conteo_personal(qs, consulta, metadatos)
 
-        # En `lista` el documento se ordena por apellidos y nombres: ordenar por
-        # una relación multivaluada (asignaciones, títulos) duplicaría filas por
-        # empleado al combinarse con `distinct()`. `agrupar_por` se aplica al
-        # `conteo`, que es donde tiene sentido, y viaja en los metadatos.
-        # La cédula es el desempate: sin él, dos empleados con el mismo nombre
-        # podrían entrar o salir del tope de forma distinta entre consultas.
+        # Orden total: apellidos, nombres y cédula como desempate. Sin él, dos
+        # empleados homónimos podrían entrar o salir del tope entre ejecuciones.
         qs = qs.order_by('apellidos', 'nombres', 'cedulaidentidad')
+        pagina, metadatos = pagina_con_metadatos(qs, limite)
+        metadatos.update({'tipo_reporte': consulta.tipo_reporte, 'agrupar_por': consulta.agrupar_por})
 
-        empleados_list = list(qs[:limite] if limite > 0 else qs)
-
-        # Asignaciones y antecedentes se piden SOLO para los empleados de la
-        # página ya materializada, en lotes acotados: la subconsulta anterior
-        # (`qs.order_by().values(...)[:limite]`) aplicaba el LIMIT sin ORDER BY,
-        # así que en reportes truncados podía traer datos de otros empleados y
-        # la página salía con «S/D» y «N/A».
-        # `AsigTrabajo.employee` apunta a la cédula; `AntecedenteServicio.empleado`
-        # apunta a la PK de `Employee` (así están declaradas las FK legadas).
-        asigs = {}
-        antecedentes = {}
-        for lote in _en_lotes(empleados_list):
-            asigs.update({
-                a.employee_id: a
-                for a in AsigTrabajoModel.objects.filter(
-                    employee__in=[e.cedulaidentidad for e in lote]
-                ).select_related('denominacioncargoid', 'tiponominaid', 'OrganismoAdscritoid')
-            })
-            # `Max`: la fecha de ingreso del reporte es la del REINGRESO MÁS
-            # RECIENTE del trabajador (no la del primer antecedente). Decisión
-            # explícita: antes dependía del orden en que el ORM devolvía las filas.
-            antecedentes.update({
-                fila['empleado_id']: fila['ultimo']
-                for fila in AntecedenteServicioModel.objects.filter(
-                    empleado__in=[e.pk for e in lote]
-                ).values('empleado_id').annotate(ultimo=Max('fecha_ingreso'))
-            })
+        cedulas = [e.cedulaidentidad for e in pagina]
+        pks = [e.pk for e in pagina]
+        asigs = _asignaciones_por_cedula(AsigTrabajoModel, cedulas)
+        antecedentes = fechas_de_ingreso(AntecedenteServicioModel, pks)
 
         filas = []
-        for idx, e in enumerate(empleados_list, start=1):
+        for idx, e in enumerate(pagina, start=1):
             asig = asigs.get(e.cedulaidentidad)
             f_ing = antecedentes.get(e.pk)
             filas.append({
@@ -154,10 +140,16 @@ class RepoReportesORM:
             metadatos=metadatos,
         )
 
-    def reporte_egresos_pasivos(self, filtros: dict) -> ResultadoReporte:
+    def reporte_egresos_pasivos(self, filtros: dict, limite: int) -> ResultadoReporte:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-        from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
-        from apps.personal.infrastructure.models.expediente_models import AntecedenteServicioModel
+        from apps.pasivos.infrastructure.models.pasivo_models import (
+            CargoEgresadoModel,
+            EmployeeEgresadoModel,
+        )
+        from apps.personal.infrastructure.models.expediente_models import (
+            AntecedenteServicioModel,
+        )
+
         qs = EmployeeEgresadoModel.objects.select_related('employee', 'motivo_egreso').all()
 
         filtros = filtros or {}
@@ -178,27 +170,48 @@ class RepoReportesORM:
         if any(k in filtros for k in ('cargo_id', 'nomina_id', 'dependencia_id')):
             qs = qs.distinct()
 
+        # Orden total: apellidos, nombres, cédula y PK del egreso como desempate.
+        qs = qs.order_by('employee__apellidos', 'employee__nombres', 'employee_id', 'pk')
+        pagina, metadatos = pagina_con_metadatos(qs, limite)
+
+        cedulas = [p.employee_id for p in pagina]
+        pks_empleado = [p.employee.pk for p in pagina if p.employee_id]
+        antecedentes = fechas_de_ingreso(AntecedenteServicioModel, pks_empleado)
+
+        # Snapshot del cargo al egreso: una por egreso, la de PK más reciente.
+        cargos_snapshot = {}
+        for lote in en_lotes([p.pk for p in pagina]):
+            for cargo in (
+                CargoEgresadoModel.objects
+                .filter(egreso_id__in=lote)
+                .select_related('denominacioncargoid')
+                .order_by('egreso_id', '-pk')
+            ):
+                cargos_snapshot.setdefault(cargo.egreso_id, cargo)
+
+        # Sin snapshot, el cargo de la asignación vigente del empleado.
+        asigs = _asignaciones_por_cedula(AsigTrabajoModel, cedulas)
+
         filas = []
-        for idx, p in enumerate(qs[:500], start=1):
+        for idx, p in enumerate(pagina, start=1):
             emp = p.employee
-            ant = AntecedenteServicioModel.objects.filter(empleado=emp).order_by('fecha_ingreso').first() if emp else None
-            f_ing = ant.fecha_ingreso.strftime('%d/%m/%Y') if ant and ant.fecha_ingreso else 'N/A'
+            f_ing = antecedentes.get(emp.pk) if emp else None
             f_egr = p.fecha_egreso.strftime('%d/%m/%Y') if p.fecha_egreso else 'N/A'
 
             ultimo_cargo = ''
-            historial = p.cargos_historial.select_related('denominacioncargoid').first()
-            if historial and historial.denominacioncargoid:
-                ultimo_cargo = historial.denominacioncargoid.cargo
-            elif emp:
-                asig = AsigTrabajoModel.objects.filter(employee=emp).select_related('denominacioncargoid').first()
-                if asig and asig.denominacioncargoid:
+            cargo_snapshot = cargos_snapshot.get(p.pk)
+            if cargo_snapshot and cargo_snapshot.denominacioncargoid_id:
+                ultimo_cargo = cargo_snapshot.denominacioncargoid.cargo
+            else:
+                asig = asigs.get(p.employee_id)
+                if asig and asig.denominacioncargoid_id:
                     ultimo_cargo = asig.denominacioncargoid.cargo
 
             filas.append({
                 '#': str(idx),
                 'cedula': str(p.employee_id),
                 'nombre_completo': f"{emp.nombres} {emp.apellidos}".strip() if emp else '',
-                'fecha_ingreso': f_ing,
+                'fecha_ingreso': f_ing.strftime('%d/%m/%Y') if f_ing else 'N/A',
                 'fecha_egreso': f_egr,
                 'motivo_egreso': str(p.motivo_egreso.movimiento) if p.motivo_egreso else '',
                 'ultimo_cargo': ultimo_cargo or 'N/A',
@@ -209,18 +222,26 @@ class RepoReportesORM:
             columnas=['#', 'cedula', 'nombre_completo', 'fecha_ingreso', 'fecha_egreso', 'motivo_egreso', 'ultimo_cargo'],
             filas=filas,
             total_registros=len(filas),
+            metadatos=metadatos,
         )
 
-    def reporte_cargos_vacantes(self, dependencias_ids: list[int] | None = None) -> ResultadoReporte:
+    def reporte_cargos_vacantes(
+        self, limite: int, dependencias_ids: list[int] | None = None
+    ) -> ResultadoReporte:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+
         qs = AsigTrabajoModel.objects.filter(employee__isnull=True).select_related(
             'Dependencia', 'DireccionGeneral', 'denominacioncargoid'
         )
         if dependencias_ids:
             qs = qs.filter(Dependencia_id__in=dependencias_ids)
 
+        # Código del cargo y PK como desempate: orden total y estable.
+        qs = qs.order_by('codigo', 'pk')
+        pagina, metadatos = pagina_con_metadatos(qs, limite)
+
         filas = []
-        for idx, c in enumerate(qs[:500], start=1):
+        for idx, c in enumerate(pagina, start=1):
             filas.append({
                 '#': str(idx),
                 'id': c.pk,
@@ -234,10 +255,12 @@ class RepoReportesORM:
             columnas=['#', 'id', 'denominacion', 'dependencia', 'codigo_nomina'],
             filas=filas,
             total_registros=len(filas),
+            metadatos=metadatos,
         )
 
-    def reporte_familiares(self, filtros: dict) -> ResultadoReporte:
+    def reporte_familiares(self, filtros: dict, limite: int) -> ResultadoReporte:
         from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+
         qs = EmployeefamilyModel.objects.select_related('employeecedula', 'parentesco', 'sexo').all()
 
         filtros = filtros or {}
@@ -248,8 +271,15 @@ class RepoReportesORM:
         if filtros.get('cedula_empleado'):
             qs = qs.filter(employeecedula_id=filtros['cedula_empleado'])
 
+        # Apellidos/nombres del trabajador, luego los del familiar y PK.
+        qs = qs.order_by(
+            'employeecedula__apellidos', 'employeecedula__nombres', 'employeecedula_id',
+            'primer_apellido', 'primer_nombre', 'pk',
+        )
+        pagina, metadatos = pagina_con_metadatos(qs, limite)
+
         filas = []
-        for idx, f in enumerate(qs[:500], start=1):
+        for idx, f in enumerate(pagina, start=1):
             emp = f.employeecedula
             f_nac = f.fechanacimiento.strftime('%d/%m/%Y') if f.fechanacimiento else 'N/A'
             filas.append({
@@ -268,10 +298,12 @@ class RepoReportesORM:
             columnas=['#', 'cedula_empleado', 'nombre_empleado', 'cedula_familiar', 'nombre_familiar', 'parentesco', 'fecha_nacimiento', 'sexo'],
             filas=filas,
             total_registros=len(filas),
+            metadatos=metadatos,
         )
 
-    def reporte_codigos(self, filtros: dict) -> ResultadoReporte:
+    def reporte_codigos(self, filtros: dict, limite: int) -> ResultadoReporte:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+
         qs = AsigTrabajoModel.objects.select_related(
             'employee', 'denominacioncargoid', 'denominacioncargoespecificoid', 'gradoid',
             'tiponominaid', 'OrganismoAdscritoid', 'estatusid', 'Dependencia', 'DireccionGeneral',
@@ -291,8 +323,12 @@ class RepoReportesORM:
         if filtros.get('estatus_id'):
             qs = qs.filter(estatusid_id=filtros['estatus_id'])
 
+        # Código del cargo y PK como desempate: orden total y estable.
+        qs = qs.order_by('codigo', 'pk')
+        pagina, metadatos = pagina_con_metadatos(qs, limite)
+
         filas = []
-        for idx, c in enumerate(qs[:500], start=1):
+        for idx, c in enumerate(pagina, start=1):
             emp = c.employee
             filas.append({
                 '#': str(idx),
@@ -312,6 +348,7 @@ class RepoReportesORM:
             columnas=['#', 'codigo', 'cedula', 'empleado', 'cargo', 'cargo_especifico', 'grado', 'tipo_nomina', 'organismo_adscrito', 'estatus'],
             filas=filas,
             total_registros=len(filas),
+            metadatos=metadatos,
         )
 
     def reporte_tendencias_personal(self) -> ResultadoReporte:

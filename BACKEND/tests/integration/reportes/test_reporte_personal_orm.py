@@ -247,6 +247,55 @@ def test_sin_antecedentes_la_fecha_de_ingreso_es_na(escenario):
     assert fila['fecha_ingreso'] == 'N/A'
 
 
+def _nueva_asignacion(escenario, empleado, codigo, estatus, actualizada_en):
+    asignacion = AsigTrabajoModel.objects.create(
+        employee=empleado,
+        codigo=codigo,
+        denominacioncargoid=escenario['cargo'],
+        denominacioncargoespecificoid=escenario['cargo_especifico'],
+        tiponominaid=escenario['nomina'],
+        estatusid=estatus,
+        Dependencia=escenario['dependencia'],
+        DireccionGeneral=escenario['direccion'],
+    )
+    AsigTrabajoModel.objects.filter(pk=asignacion.pk).update(
+        fecha_actualizacion=actualizada_en)
+    return asignacion
+
+
+def test_muestra_la_asignacion_activa_aunque_haya_una_mas_reciente(escenario):
+    """Con varias asignaciones gana la ACTIVA, no la última creada."""
+    inactivo = EstatusModel.objects.create(estatus='EGRESADO')
+    joven = escenario['joven']
+    activa = AsigTrabajoModel.objects.get(employee=joven)
+    AsigTrabajoModel.objects.filter(pk=activa.pk).update(
+        fecha_actualizacion=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc))
+    _nueva_asignacion(
+        escenario, joven, 'C-V100-INACTIVA', inactivo,
+        datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    fila = next(f for f in _generar().filas if f['cedula'] == 'V100')
+    assert fila['codigo'] == 'C-V100'
+
+
+def test_sin_asignacion_activa_usa_la_mas_reciente(escenario):
+    inactivo = EstatusModel.objects.create(estatus='EGRESADO')
+    mayor = escenario['mayor']
+    vieja = AsigTrabajoModel.objects.get(employee=mayor)
+    AsigTrabajoModel.objects.filter(pk=vieja.pk).update(
+        estatusid=inactivo,
+        fecha_actualizacion=datetime.datetime(2019, 1, 1, tzinfo=datetime.timezone.utc),
+    )
+    _nueva_asignacion(
+        escenario, mayor, 'C-V200-NUEVA', inactivo,
+        datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    fila = next(f for f in _generar().filas if f['cedula'] == 'V200')
+    assert fila['codigo'] == 'C-V200-NUEVA'
+
+
 def test_sin_tope_cuando_el_limite_es_cero(escenario):
     reporte = _generar(limite=0)
 

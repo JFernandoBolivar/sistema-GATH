@@ -47,6 +47,7 @@ import {
 } from "../../application/use-cases/permisos-reporte";
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
 import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
+import { avisoTopeDeFilas } from "../reportes-aviso-tope";
 import { useState, useTransition } from "react";
 import { schemaReportLeaving, type SchemaReportLeavingType } from "../schema/report-schema-leaving";
 import Loading from "@/shared/ui/components/loading";
@@ -54,6 +55,7 @@ import Loading from "@/shared/ui/components/loading";
 export default function ReportLeaving() {
   const [isPending, startTransition] = useTransition();
   const pdf = usePdfBlobUrl();
+  const [avisoTope, setAvisoTope] = useState<string | null>(null);
   const { data: session } = useSession();
   const [dependencyId, setDependencyId] = useState<number>(0);
 
@@ -129,11 +131,15 @@ export default function ReportLeaving() {
     }
     startTransition(async () => {
       try {
-        const { blob } = await postReport<SchemaReportLeavingType>(data);
-        pdf.fijar(blob);
+        const resultado = await postReport<SchemaReportLeavingType>(data);
+        pdf.fijar(resultado.blob);
+        const aviso = avisoTopeDeFilas(resultado);
+        setAvisoTope(aviso);
         // El formulario NO se limpia: el usuario conserva los filtros elegidos.
-        toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
+        if (aviso) toast.warning(aviso);
+        else toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
       } catch (err) {
+        setAvisoTope(null);
         toast.error(
           err instanceof Error && err.message
             ? err.message
@@ -146,6 +152,7 @@ export default function ReportLeaving() {
   const handleClean = () => {
     form.reset();
     pdf.limpiar();
+    setAvisoTope(null);
   };
 
   // Los filtros de estructura solo se ofrecen a quien puede consultar la
@@ -168,6 +175,14 @@ export default function ReportLeaving() {
                 >
                   No tiene permiso para generar reportes en PDF (se requiere{" "}
                   {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
+                </p>
+              )}
+              {avisoTope && (
+                <p
+                  role="status"
+                  className="col-span-3 rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+                >
+                  {avisoTope}
                 </p>
               )}
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">

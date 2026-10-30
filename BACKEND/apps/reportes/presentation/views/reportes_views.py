@@ -125,9 +125,11 @@ class ReportePasivosView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Generar reporte de personal pasivo y egresados', responses={200: ResultadoReporteSerializer})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_pasivos(repo, filtros=filtros)
+        dto = generar_reporte_pasivos(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=False),
+        )
         return ok(ResultadoReporteSerializer(dto).data)
 
 
@@ -138,11 +140,13 @@ class ReportePasivosPdfView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de pasivos en PDF', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_pasivos(repo, filtros=filtros)
+        dto = generar_reporte_pasivos(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=True),
+        )
         pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_pasivos.pdf')
+        return _respuesta_pdf(pdf_bytes, 'reporte_pasivos.pdf', dto.metadatos)
 
 
 class ReportePasivosExcelView(APIView):
@@ -152,11 +156,13 @@ class ReportePasivosExcelView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de pasivos en Excel', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_pasivos(repo, filtros=filtros)
+        dto = generar_reporte_pasivos(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=False),
+        )
         excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_pasivos.xlsx')
+        return _respuesta_excel(excel_bytes, 'reporte_pasivos.xlsx', dto.metadatos)
 
 
 class ReporteVacantesView(APIView):
@@ -164,8 +170,9 @@ class ReporteVacantesView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Generar reporte de cargos vacantes', responses={200: ResultadoReporteSerializer})
     def get(self, request):
-        repo = RepoReportesORM()
-        dto = generar_reporte_vacantes(repo)
+        dto = generar_reporte_vacantes(
+            RepoReportesORM(), limite=limite_de_reporte(para_pdf=False)
+        )
         return ok(ResultadoReporteSerializer(dto).data)
 
 
@@ -176,10 +183,11 @@ class ReporteVacantesPdfView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de cargos vacantes en PDF', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        dto = generar_reporte_vacantes(repo)
+        dto = generar_reporte_vacantes(
+            RepoReportesORM(), limite=limite_de_reporte(para_pdf=True)
+        )
         pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_cargos_vacantes.pdf')
+        return _respuesta_pdf(pdf_bytes, 'reporte_cargos_vacantes.pdf', dto.metadatos)
 
 
 class ReporteVacantesExcelView(APIView):
@@ -189,10 +197,11 @@ class ReporteVacantesExcelView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de cargos vacantes en Excel', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        dto = generar_reporte_vacantes(repo)
+        dto = generar_reporte_vacantes(
+            RepoReportesORM(), limite=limite_de_reporte(para_pdf=False)
+        )
         excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_cargos_vacantes.xlsx')
+        return _respuesta_excel(excel_bytes, 'reporte_cargos_vacantes.xlsx', dto.metadatos)
 
 
 class ReporteFamiliaresView(APIView):
@@ -200,9 +209,11 @@ class ReporteFamiliaresView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Generar reporte de familiares (cargas familiares)', responses={200: ResultadoReporteSerializer})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_familiares(repo, filtros=filtros)
+        dto = generar_reporte_familiares(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=False),
+        )
         return ok(ResultadoReporteSerializer(dto).data)
 
 
@@ -211,11 +222,13 @@ class ReporteFamiliaresPdfView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de familiares en PDF', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_familiares(repo, filtros=filtros)
+        dto = generar_reporte_familiares(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=True),
+        )
         pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_familiares.pdf')
+        return _respuesta_pdf(pdf_bytes, 'reporte_familiares.pdf', dto.metadatos)
 
 
 class ReporteFamiliaresExcelView(APIView):
@@ -223,11 +236,13 @@ class ReporteFamiliaresExcelView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de familiares en Excel', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_familiares(repo, filtros=filtros)
+        dto = generar_reporte_familiares(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=False),
+        )
         excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_familiares.xlsx')
+        return _respuesta_excel(excel_bytes, 'reporte_familiares.xlsx', dto.metadatos)
 
 
 class ReporteCodigosView(APIView):
@@ -235,9 +250,11 @@ class ReporteCodigosView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Generar reporte de códigos de cargo (asignaciones)', responses={200: ResultadoReporteSerializer})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_codigos(repo, filtros=filtros)
+        dto = generar_reporte_codigos(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=False),
+        )
         return ok(ResultadoReporteSerializer(dto).data)
 
 
@@ -246,11 +263,13 @@ class ReporteCodigosPdfView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de códigos de cargo en PDF', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_codigos(repo, filtros=filtros)
+        dto = generar_reporte_codigos(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=True),
+        )
         pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_codigos.pdf')
+        return _respuesta_pdf(pdf_bytes, 'reporte_codigos.pdf', dto.metadatos)
 
 
 class ReporteCodigosExcelView(APIView):
@@ -258,11 +277,13 @@ class ReporteCodigosExcelView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de códigos de cargo en Excel', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_codigos(repo, filtros=filtros)
+        dto = generar_reporte_codigos(
+            RepoReportesORM(),
+            filtros=request.query_params.dict(),
+            limite=limite_de_reporte(para_pdf=False),
+        )
         excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_codigos.xlsx')
+        return _respuesta_excel(excel_bytes, 'reporte_codigos.xlsx', dto.metadatos)
 
 
 class ReporteTendenciasView(APIView):

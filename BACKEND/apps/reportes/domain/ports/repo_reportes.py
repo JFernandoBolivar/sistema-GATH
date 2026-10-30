@@ -13,16 +13,18 @@ class RepoReportes(Protocol):
     ) -> ResultadoReporte:
         ...
 
-    def reporte_egresos_pasivos(self, filtros: dict) -> ResultadoReporte:
+    def reporte_egresos_pasivos(self, filtros: dict, limite: int) -> ResultadoReporte:
         ...
 
-    def reporte_cargos_vacantes(self, dependencias_ids: list[int] | None = None) -> ResultadoReporte:
+    def reporte_cargos_vacantes(
+        self, limite: int, dependencias_ids: list[int] | None = None
+    ) -> ResultadoReporte:
         ...
 
-    def reporte_familiares(self, filtros: dict) -> ResultadoReporte:
+    def reporte_familiares(self, filtros: dict, limite: int) -> ResultadoReporte:
         ...
 
-    def reporte_codigos(self, filtros: dict) -> ResultadoReporte:
+    def reporte_codigos(self, filtros: dict, limite: int) -> ResultadoReporte:
         ...
 
     def reporte_tendencias_personal(self) -> ResultadoReporte:

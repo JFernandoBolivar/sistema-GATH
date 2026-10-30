@@ -305,6 +305,80 @@ test.describe("G2: el permiso reportes.generar_pdf se exige y se respeta", () =>
   });
 });
 
+test.describe("G11: resto de reportes (tope, orden y datos)", () => {
+  const FORMULARIOS = [
+    { nombre: "códigos", ruta: "/reportes/codigos" },
+    { nombre: "familiares", ruta: "/reportes/familiares" },
+    { nombre: "egresados", ruta: "/reportes/egresados" },
+  ] as const;
+
+  for (const { nombre, ruta } of FORMULARIOS) {
+    test(`${nombre}: avisa cuando el documento alcanza el tope de filas`, async ({ page }) => {
+      await iniciarSesionComo(page, EMAIL, PASSWORD);
+      await page.goto(ruta);
+      await page.waitForLoadState("networkidle").catch(() => {});
+
+      await page.route("**/api/reports/pdf", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/pdf",
+          headers: {
+            "X-Reporte-Truncado": "true",
+            "X-Reporte-Limite": "5000",
+            "X-Reporte-Total-Registros": "6123",
+          },
+          body: "%PDF-1.4\n%%EOF\n",
+        }),
+      );
+
+      await page.getByRole("button", { name: /Consultar Reporte/i }).click();
+
+      const aviso = page.getByRole("status").filter({ hasText: /tope de/i });
+      await expect(aviso).toContainText(/tope de 5\.000 filas/i, { timeout: 20_000 });
+      await expect(page.getByRole("link", { name: /Descargar Reporte/i })).toBeVisible();
+    });
+  }
+
+  test("cada reporte se genera en PDF y Excel con sus cabeceras de tope", async ({ page }) => {
+    await iniciarSesionComo(page, EMAIL, PASSWORD);
+    const token = await tokenDeAcceso(page);
+    const cabeceras = { Authorization: `Bearer ${token}` };
+
+    for (const reporte of ["pasivos", "cargos-vacantes", "familiares", "codigos"]) {
+      for (const formato of ["pdf", "excel"]) {
+        const respuesta = await page.request.get(
+          `${DJANGO}/api/v1/reportes/${reporte}/${formato}/`,
+          { headers: cabeceras },
+        );
+        expect(respuesta.status(), `${reporte}/${formato}`).toBe(200);
+        expect(respuesta.headers()["x-reporte-truncado"], `${reporte}/${formato}`).toBe("false");
+        expect(
+          Number(respuesta.headers()["x-reporte-limite"]),
+          `${reporte}/${formato}`,
+        ).toBeGreaterThan(0);
+        expect(
+          Number(respuesta.headers()["x-reporte-total-registros"]),
+          `${reporte}/${formato}`,
+        ).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  test("el reporte de egresos responde con metadatos de truncado", async ({ page }) => {
+    await iniciarSesionComo(page, EMAIL, PASSWORD);
+    const egresos = await page.request.get(`${DJANGO}/api/v1/reportes/pasivos/`, {
+      headers: { Authorization: `Bearer ${await tokenDeAcceso(page)}` },
+    });
+    expect(egresos.status()).toBe(200);
+    const datos = (await egresos.json()).data as {
+      metadatos: Record<string, unknown>;
+    };
+    expect(datos.metadatos).toHaveProperty("total_encontrados");
+    expect(datos.metadatos).toHaveProperty("truncado");
+    expect(datos.metadatos).toHaveProperty("limite");
+  });
+});
+
 test.describe("G4: configuración visual en el menú", () => {
   test("el menú abre /configuracion/visual con su permiso", async ({ page }) => {
     await iniciarSesionComo(page, EMAIL, PASSWORD);

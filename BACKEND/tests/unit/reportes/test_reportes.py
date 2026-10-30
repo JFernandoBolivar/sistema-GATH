@@ -36,36 +36,40 @@ class RepoReportesMemoria:
             metadatos={'truncado': False, 'total_encontrados': 1, 'limite': limite},
         )
 
-    def reporte_egresos_pasivos(self, filtros):
+    def reporte_egresos_pasivos(self, filtros, limite):
         return ResultadoReporte(
             titulo="Reporte Pasivos",
             columnas=['cedula', 'motivo_egreso'],
             filas=[{'cedula': '5555555', 'motivo_egreso': 'JUBILACION'}],
             total_registros=1,
+            metadatos={'truncado': False, 'total_encontrados': 1, 'limite': limite},
         )
 
-    def reporte_cargos_vacantes(self, dependencias_ids=None):
+    def reporte_cargos_vacantes(self, limite, dependencias_ids=None):
         return ResultadoReporte(
             titulo="Reporte Vacantes",
             columnas=['id', 'denominacion'],
             filas=[{'id': 100, 'denominacion': 'ANALISTA I'}],
             total_registros=1,
+            metadatos={'truncado': False, 'total_encontrados': 1, 'limite': limite},
         )
 
-    def reporte_familiares(self, filtros):
+    def reporte_familiares(self, filtros, limite):
         return ResultadoReporte(
             titulo="Reporte de Familiares",
             columnas=['cedula_familiar', 'nombres', 'parentesco'],
             filas=[{'cedula_familiar': '99999999', 'nombres': 'Ana Pérez', 'parentesco': 'HIJO(A)'}],
             total_registros=1,
+            metadatos={'truncado': False, 'total_encontrados': 1, 'limite': limite},
         )
 
-    def reporte_codigos(self, filtros):
+    def reporte_codigos(self, filtros, limite):
         return ResultadoReporte(
             titulo="Reporte de Códigos de Cargo (Asignaciones)",
             columnas=['codigo', 'cargo'],
             filas=[{'codigo': 'COD-001', 'cargo': 'ANALISTA I'}],
             total_registros=1,
+            metadatos={'truncado': False, 'total_encontrados': 1, 'limite': limite},
         )
 
     def reporte_tendencias_personal(self):
@@ -164,28 +168,29 @@ def test_reporte_personal_exige_el_permiso_de_estructura():
 
 def test_generar_reporte_pasivos():
     repo = RepoReportesMemoria()
-    rep = generar_reporte_pasivos(repo, filtros={})
+    rep = generar_reporte_pasivos(repo, filtros={}, limite=5000)
     assert rep.total_registros == 1
     assert rep.filas[0]['motivo_egreso'] == 'JUBILACION'
+    assert rep.metadatos['limite'] == 5000
 
 
 def test_generar_reporte_vacantes():
     repo = RepoReportesMemoria()
-    rep = generar_reporte_vacantes(repo)
+    rep = generar_reporte_vacantes(repo, limite=5000)
     assert rep.total_registros == 1
     assert rep.filas[0]['denominacion'] == 'ANALISTA I'
 
 
 def test_generar_reporte_familiares():
     repo = RepoReportesMemoria()
-    rep = generar_reporte_familiares(repo, filtros={})
+    rep = generar_reporte_familiares(repo, filtros={}, limite=5000)
     assert rep.total_registros == 1
     assert rep.filas[0]['parentesco'] == 'HIJO(A)'
 
 
 def test_generar_reporte_codigos():
     repo = RepoReportesMemoria()
-    rep = generar_reporte_codigos(repo, filtros={})
+    rep = generar_reporte_codigos(repo, filtros={}, limite=5000)
     assert rep.total_registros == 1
     assert rep.filas[0]['codigo'] == 'COD-001'
 

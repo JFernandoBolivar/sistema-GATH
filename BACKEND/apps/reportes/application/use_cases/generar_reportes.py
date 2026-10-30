@@ -47,25 +47,31 @@ def generar_reporte_personal(
     return _resultado_a_dto(entidad)
 
 
-def generar_reporte_pasivos(repo: RepoReportes, filtros: dict) -> ResultadoReporteDTO:
-    entidad = repo.reporte_egresos_pasivos(filtros=filtros)
+def generar_reporte_pasivos(
+    repo: RepoReportes, filtros: dict, limite: int
+) -> ResultadoReporteDTO:
+    entidad = repo.reporte_egresos_pasivos(filtros=filtros, limite=limite)
     return _resultado_a_dto(entidad)
 
 
 def generar_reporte_vacantes(
-    repo: RepoReportes, dependencias_ids: list[int] | None = None
+    repo: RepoReportes, limite: int, dependencias_ids: list[int] | None = None
 ) -> ResultadoReporteDTO:
-    entidad = repo.reporte_cargos_vacantes(dependencias_ids=dependencias_ids)
+    entidad = repo.reporte_cargos_vacantes(limite, dependencias_ids=dependencias_ids)
     return _resultado_a_dto(entidad)
 
 
-def generar_reporte_familiares(repo: RepoReportes, filtros: dict) -> ResultadoReporteDTO:
-    entidad = repo.reporte_familiares(filtros=filtros)
+def generar_reporte_familiares(
+    repo: RepoReportes, filtros: dict, limite: int
+) -> ResultadoReporteDTO:
+    entidad = repo.reporte_familiares(filtros=filtros, limite=limite)
     return _resultado_a_dto(entidad)
 
 
-def generar_reporte_codigos(repo: RepoReportes, filtros: dict) -> ResultadoReporteDTO:
-    entidad = repo.reporte_codigos(filtros=filtros)
+def generar_reporte_codigos(
+    repo: RepoReportes, filtros: dict, limite: int
+) -> ResultadoReporteDTO:
+    entidad = repo.reporte_codigos(filtros=filtros, limite=limite)
     return _resultado_a_dto(entidad)
 
 
