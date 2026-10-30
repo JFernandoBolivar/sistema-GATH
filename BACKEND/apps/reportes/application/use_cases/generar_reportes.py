@@ -1,9 +1,15 @@
 """
 Casos de uso para generación de reportes institucionales.
 """
+from datetime import date
+
 from apps.reportes.application.dtos.reportes_dtos import ResultadoReporteDTO
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
 from apps.reportes.domain.ports.repo_reportes import RepoReportes
+from apps.reportes.domain.services.filtros_reporte_personal import (
+    preparar_consulta_personal,
+)
+from core.domain.ports import ReportFieldRegistry
 
 
 def _resultado_a_dto(r: ResultadoReporte) -> ResultadoReporteDTO:
@@ -16,8 +22,19 @@ def _resultado_a_dto(r: ResultadoReporte) -> ResultadoReporteDTO:
     )
 
 
-def generar_reporte_personal(repo: RepoReportes, filtros: dict) -> ResultadoReporteDTO:
-    entidad = repo.reporte_personal_activo(filtros=filtros)
+def generar_reporte_personal(
+    repo: RepoReportes,
+    filtros: dict,
+    registro: ReportFieldRegistry,
+    hoy: date | None = None,
+) -> ResultadoReporteDTO:
+    """Valida los filtros contra el registro de campos y ejecuta la consulta."""
+    consulta = preparar_consulta_personal(
+        filtros=filtros,
+        configuracion=registro.configuracion('empleados'),
+        hoy=hoy,
+    )
+    entidad = repo.reporte_personal_activo(consulta)
     return _resultado_a_dto(entidad)
 
 

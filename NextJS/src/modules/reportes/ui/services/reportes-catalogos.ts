@@ -378,8 +378,24 @@ export const getReportTypeNomina = async () => {
   );
 };
 
-export const postReport = async <T>(values: T): Promise<globalThis.Blob> => {
-  const response = await fetch("/api/reports/pdf/", {
+export interface ResultadoReportePdf {
+  blob: Blob;
+  /** Total de registros que cumplen los filtros (antes del tope). */
+  total: number | null;
+  /** Tope de filas configurado en el backend. */
+  limite: number | null;
+  /** `true` si el documento se cortó al alcanzar el tope. */
+  truncado: boolean;
+}
+
+function numeroDeCabecera(valor: string | null): number | null {
+  if (valor === null || valor.trim() === "") return null;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+export const postReport = async <T>(values: T): Promise<ResultadoReportePdf> => {
+  const response = await fetch("/api/reports/pdf", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -388,10 +404,16 @@ export const postReport = async <T>(values: T): Promise<globalThis.Blob> => {
   });
 
   if (!response.ok) {
-    throw new Error("Error al generar el reporte en PDF.");
+    const cuerpo = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(cuerpo?.error?.trim() || "Error al generar el reporte en PDF.");
   }
 
-  return await response.blob();
+  return {
+    blob: await response.blob(),
+    total: numeroDeCabecera(response.headers.get("X-Reporte-Total-Registros")),
+    limite: numeroDeCabecera(response.headers.get("X-Reporte-Limite")),
+    truncado: response.headers.get("X-Reporte-Truncado") === "true",
+  };
 };
 
 export const postReportPasivo = postReport;

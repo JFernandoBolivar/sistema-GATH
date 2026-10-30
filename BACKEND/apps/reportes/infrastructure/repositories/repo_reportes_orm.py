@@ -1,47 +1,97 @@
 """
 Repositorio ORM de Reportes (Reglas B4, B7).
 """
+from core.domain.exceptions import ValidationError
+
+from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
+
+# Tope de filas del REPORTE (no es un listado paginado): configurable por
+# setting, nunca fijo en el código. Con 0 o negativo no se aplica tope.
+SETTING_LIMITE_REPORTE = 'REPORTES_MAX_FILAS'
+LIMITE_POR_DEFECTO = 5000
+
+
+def _limite_de_filas() -> int:
+    from django.conf import settings
+
+    return int(getattr(settings, SETTING_LIMITE_REPORTE, LIMITE_POR_DEFECTO) or 0)
+
+
+def _etiqueta_de_grupo(valor) -> str:
+    """Etiqueta legible de un grupo (el registro usa rutas de texto; un FK da su id)."""
+    if valor is None or str(valor).strip() == '':
+        return 'Sin especificar'
+    return str(valor)
+
+
+def _conteo_personal(qs, consulta: ConsultaReportePersonal, metadatos: dict) -> ResultadoReporte:
+    """`tipo_reporte='conteo'`: agrupa por el campo elegido y cuenta."""
+    from django.core.exceptions import FieldError
+    from django.db.models import Count
+
+    try:
+        conteos = (
+            qs.values(consulta.agrupar_por_ruta)
+            .annotate(total=Count('pk'))
+            .order_by('-total')
+        )
+        filas = [
+            {
+                consulta.agrupar_por: _etiqueta_de_grupo(c.get(consulta.agrupar_por_ruta)),
+                'total': c['total'],
+            }
+            for c in conteos
+        ]
+    except (FieldError, TypeError) as exc:
+        raise ValidationError(
+            f'No se puede agrupar el reporte por «{consulta.agrupar_por}».'
+        ) from exc
+
+    metadatos['truncado'] = False
+    return ResultadoReporte(
+        titulo=f'Conteo de Personal Activo por {consulta.agrupar_por}',
+        columnas=[consulta.agrupar_por, 'total'],
+        filas=filas,
+        total_registros=len(filas),
+        metadatos=metadatos,
+    )
 
 
 class RepoReportesORM:
-    def reporte_personal_activo(self, filtros: dict) -> ResultadoReporte:
-        from apps.personal.infrastructure.models.personal_models import EmployeeModel
+    def reporte_personal_activo(self, consulta: ConsultaReportePersonal) -> ResultadoReporte:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+        from apps.personal.infrastructure.models.expediente_models import (
+            AntecedenteServicioModel,
+        )
+        from apps.personal.infrastructure.models.personal_models import EmployeeModel
+
         qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad').all()
-        filtros = filtros or {}
-        if filtros.get('sexo_id'):
-            qs = qs.filter(sexoid_id=filtros['sexo_id'])
-        if filtros.get('estado_civil_id'):
-            qs = qs.filter(estadoCivil_id=filtros['estado_civil_id'])
+        if consulta.lookups:
+            # `distinct()`: los filtros por estructura/salud/formación navegan
+            # relaciones multivaluadas (asignaciones, familiares, títulos).
+            qs = qs.filter(**consulta.lookups).distinct()
 
-        asig_filtros = {}
-        if filtros.get('dependencia_id'):
-            asig_filtros['Dependencia_id'] = filtros['dependencia_id']
-        if filtros.get('direccion_general_id'):
-            asig_filtros['DireccionGeneral_id'] = filtros['direccion_general_id']
-        if filtros.get('direccion_linea_id'):
-            asig_filtros['DireccionLinea_id'] = filtros['direccion_linea_id']
-        if filtros.get('coordinacion_id'):
-            asig_filtros['Coordinacion_id'] = filtros['coordinacion_id']
-        if filtros.get('nomina_id'):
-            asig_filtros['tiponominaid_id'] = filtros['nomina_id']
-        if filtros.get('grado_id'):
-            asig_filtros['gradoid_id'] = filtros['grado_id']
-        if filtros.get('cargo_id'):
-            asig_filtros['denominacioncargoid_id'] = filtros['cargo_id']
-        if filtros.get('cargo_especifico_id'):
-            asig_filtros['denominacioncargoespecificoid_id'] = filtros['cargo_especifico_id']
-        if filtros.get('OrganismoAdscrito_id'):
-            asig_filtros['OrganismoAdscritoid_id'] = filtros['OrganismoAdscrito_id']
+        total_encontrados = qs.count()
+        limite = _limite_de_filas()
+        metadatos = {
+            'total_encontrados': total_encontrados,
+            'limite': limite,
+            'truncado': bool(limite > 0 and total_encontrados > limite),
+            'tipo_reporte': consulta.tipo_reporte,
+            'agrupar_por': consulta.agrupar_por,
+        }
 
-        from apps.personal.infrastructure.models.expediente_models import AntecedenteServicioModel
+        if consulta.tipo_reporte == 'conteo':
+            return _conteo_personal(qs, consulta, metadatos)
 
-        if asig_filtros:
-            cedulas = AsigTrabajoModel.objects.filter(**asig_filtros).exclude(employee__isnull=True).values_list('employee_id', flat=True)
-            qs = qs.filter(cedulaidentidad__in=cedulas)
+        # En `lista` el documento se ordena por apellidos y nombres: ordenar por
+        # una relación multivaluada (asignaciones, títulos) duplicaría filas por
+        # empleado al combinarse con `distinct()`. `agrupar_por` se aplica al
+        # `conteo`, que es donde tiene sentido, y viaja en los metadatos.
+        qs = qs.order_by('apellidos', 'nombres')
 
-        empleados_list = list(qs[:500])
+        empleados_list = list(qs[:limite] if limite > 0 else qs)
         asigs = {
             a.employee_id: a
             for a in AsigTrabajoModel.objects.filter(employee__in=empleados_list)
@@ -66,7 +116,10 @@ class RepoReportesORM:
                 'sexo': e.sexoid.sexo if e.sexoid else '',
                 'tipo_nomina': asig.tiponominaid.nomina if asig and asig.tiponominaid else 'S/D',
                 'cargo': asig.denominacioncargoid.cargo if asig and asig.denominacioncargoid else 'S/D',
-                'organismo_adscrito': asig.OrganismoAdscritoid.nombre if asig and asig.OrganismoAdscritoid else 'CONATEL',
+                'organismo_adscrito': (
+                    asig.OrganismoAdscritoid.Organismoadscrito
+                    if asig and asig.OrganismoAdscritoid else 'CONATEL'
+                ),
             })
 
         return ResultadoReporte(
@@ -74,6 +127,7 @@ class RepoReportesORM:
             columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito'],
             filas=filas,
             total_registros=len(filas),
+            metadatos=metadatos,
         )
 
     def reporte_egresos_pasivos(self, filtros: dict) -> ResultadoReporte:
@@ -122,7 +176,7 @@ class RepoReportesORM:
                 'nombre_completo': f"{emp.nombres} {emp.apellidos}".strip() if emp else '',
                 'fecha_ingreso': f_ing,
                 'fecha_egreso': f_egr,
-                'motivo_egreso': str(p.motivo_egreso.motivo) if p.motivo_egreso else '',
+                'motivo_egreso': str(p.motivo_egreso.movimiento) if p.motivo_egreso else '',
                 'ultimo_cargo': ultimo_cargo or 'N/A',
             })
 
@@ -225,7 +279,7 @@ class RepoReportesORM:
                 'cargo_especifico': c.denominacioncargoespecificoid.cargo if c.denominacioncargoespecificoid_id else '',
                 'grado': c.gradoid.grado if c.gradoid_id else '',
                 'tipo_nomina': c.tiponominaid.nomina if c.tiponominaid_id else '',
-                'organismo_adscrito': c.OrganismoAdscritoid.nombre if c.OrganismoAdscritoid_id else 'CONATEL',
+                'organismo_adscrito': c.OrganismoAdscritoid.Organismoadscrito if c.OrganismoAdscritoid_id else 'CONATEL',
                 'estatus': c.estatusid.estatus if c.estatusid_id else '',
             })
 

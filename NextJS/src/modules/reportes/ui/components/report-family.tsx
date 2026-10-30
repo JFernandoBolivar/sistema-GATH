@@ -44,7 +44,8 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSession } from "next-auth/react";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { toast } from "sonner";
+import { puedeFiltrarEstructuraOrganizativa } from "../../application/use-cases/permisos-reporte";
 import { useState, useTransition } from "react";
 import { schemaReportFamily, type SchemaReportFamilyType } from "../schema/report-schema-family";
 import Loading from "@/shared/ui/components/loading";
@@ -172,12 +173,17 @@ export default function ReportFamily() {
     };
     startTransition(async () => {
       try {
-        const response = await postReport<SchemaReportFamilyType>(payload);
-        const urlBlob = URL.createObjectURL(response);
+        const { blob } = await postReport<SchemaReportFamilyType>(payload);
+        const urlBlob = URL.createObjectURL(blob);
         setReportListFamilysBlob(urlBlob);
-        form.reset();
+        // El formulario NO se limpia: el usuario conserva los filtros elegidos.
+        toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
       } catch (err) {
-        console.error("Error generando reporte:", err);
+        toast.error(
+          err instanceof Error && err.message
+            ? err.message
+            : "No fue posible generar el reporte. Intente de nuevo.",
+        );
       }
     });
   };
@@ -187,8 +193,9 @@ export default function ReportFamily() {
     setReportListFamilysBlob(undefined);
   };
 
-  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
-  const esAdmin = tienePermiso(session?.user?.permisos, "*");
+  // Los filtros de estructura solo se ofrecen a quien puede consultar la
+  // estructura organizativa (`organizacion.ver`). Nunca por rol ni por "*".
+  const puedeEstructura = puedeFiltrarEstructuraOrganizativa(session?.user?.permisos);
 
   return (
     <Card className="bg-white">
@@ -417,7 +424,7 @@ export default function ReportFamily() {
                       />
                     </fieldset>
 
-                    {esAdmin && (
+                    {puedeEstructura && (
                       <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 col-span-2">
                         <legend className="text-green-800 font-semibold px-1">
                           Dirección Administrativa Del Empleado

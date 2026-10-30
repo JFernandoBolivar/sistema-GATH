@@ -210,6 +210,10 @@ NOTIFICACIONES_CORREO_MAX_INTENTOS = config('NOTIFICACIONES_CORREO_MAX_INTENTOS'
 NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS = config('NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS', default=60, cast=int)
 # Autogestión (B7): horas de antelación del aviso «su ventana está por expirar».
 AUTOGESTION_AVISO_EXPIRACION_HORAS = config('AUTOGESTION_AVISO_EXPIRACION_HORAS', default=24, cast=int)
+# Reportes (G3): tope de filas de un reporte descargable (PDF/Excel/JSON). Es un
+# límite de tamaño del documento, no de paginación: se avisa en la UI con
+# `truncado` cuando se alcanza. 0 o negativo = sin tope.
+REPORTES_MAX_FILAS = config('REPORTES_MAX_FILAS', default=5000, cast=int)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
 # Fe de vida: calidad mínima de la selfie (lado menor, px) y base del QR de verificación de la constancia.
@@ -325,12 +329,12 @@ REST_FRAMEWORK = {
         'user': '300/minute',
         'login': config('LOGIN_THROTTLE_RATE', default='30/minute'),
         'password_reset': config('PASSWORD_RESET_THROTTLE_RATE', default='10/minute'),
+        # Fe de vida: verificación pública de constancias (QR), por IP.
+        'fe_de_vida_verificacion_publica': config('FE_DE_VIDA_VERIFICACION_PUBLICA_THROTTLE_RATE', default='30/minute'),
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
-        # Fe de vida: verificación pública de constancias (QR), por IP.
-        'fe_de_vida_verificacion_publica': config('FE_DE_VIDA_VERIFICACION_PUBLICA_THROTTLE_RATE', default='30/minute'),
     # B2.4 (C-1, S6): toda excepción sale por el sobre unificado, sin filtrar
     # detalle interno al cliente.
     'EXCEPTION_HANDLER': 'core.presentation.exception_handler.custom_exception_handler',

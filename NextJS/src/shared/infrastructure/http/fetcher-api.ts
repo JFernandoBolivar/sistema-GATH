@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { auth } from "#/auth";
 import { refreshTokens } from "@/lib/api-client";
 import { DJANGO_API_SERVER } from "@/shared/commons/api";
-import { SessionExpiredError } from "./errors";
+import { SessionExpiredError, ApiHttpError } from "./errors";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 
 /**
@@ -115,7 +115,7 @@ async function request<T>(
   }
 
   if (response.status === 403) {
-    throw new Error("No tienes permiso para ejecutar esta acción");
+    throw new ApiHttpError("No tienes permiso para ejecutar esta acción", 403);
   }
 
   if (!response.ok) {
@@ -123,7 +123,7 @@ async function request<T>(
       response,
       `Error ${response.status} al comunicarse con el servidor`,
     );
-    throw new Error(message);
+    throw new ApiHttpError(message, response.status);
   }
 
   if (response.status === 204) return undefined as T;
@@ -131,7 +131,7 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-async function requestBlob(path: string, init: RequestInit = { method: "GET" }, options: RequestOptions = {}): Promise<Blob> {
+async function requestBlobConRespuesta(path: string, init: RequestInit = { method: "GET" }, options: RequestOptions = {}): Promise<{ blob: Blob; headers: Headers; status: number }> {
   const traceId = options.traceId ?? generateTraceId();
   const headers = await buildHeaders(options.headers, traceId, init.body instanceof FormData, options.skipAuth);
   if (init.body && !(init.body instanceof FormData)) {
@@ -147,13 +147,18 @@ async function requestBlob(path: string, init: RequestInit = { method: "GET" }, 
   }
 
   if (response.status === 403) {
-    throw new Error("No tienes permiso para ejecutar esta acción");
+    throw new ApiHttpError("No tienes permiso para ejecutar esta acción", 403);
   }
   if (!response.ok) {
-    throw new Error(`Error ${response.status} al descargar el recurso`);
+    throw new ApiHttpError(`Error ${response.status} al descargar el recurso`, response.status);
   }
 
-  return response.blob();
+  return { blob: await response.blob(), headers: response.headers, status: response.status };
+}
+
+async function requestBlob(path: string, init: RequestInit = { method: "GET" }, options: RequestOptions = {}): Promise<Blob> {
+  const { blob } = await requestBlobConRespuesta(path, init, options);
+  return blob;
 }
 
 type JsonBody = Record<string, unknown> | unknown[];
@@ -181,6 +186,13 @@ export const apiClient = {
 
   getBlob: (path: string, options?: RequestOptions): Promise<Blob> =>
     requestBlob(construirRuta(path, options?.params), { method: "GET" }, options),
+
+  /**
+   * Como `getBlob`, pero devuelve también las cabeceras de la respuesta para
+   * poder trasladar metadatos (p. ej. `X-Reporte-Truncado` de los reportes).
+   */
+  getBlobConRespuesta: (path: string, options?: RequestOptions) =>
+    requestBlobConRespuesta(construirRuta(path, options?.params), { method: "GET" }, options),
 
   postBlob: (path: string, body?: JsonBody, options?: RequestOptions): Promise<Blob> =>
     requestBlob(path, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }, options),

@@ -31,6 +31,7 @@ import {
   LucideIcon,
   MoveDownRight,
   NotebookTabs,
+  Palette,
   SignpostBig,
   User,
   UserPlus,
@@ -249,6 +250,12 @@ const items: MenuItem[] = [
         permiso: "reportes.ver",
       },
     ],
+  },
+  {
+    permiso: "configuracion.editar",
+    icon: Palette,
+    title: "Configuración visual",
+    url: "/configuracion/visual",
   },
   {
     permiso: "configuracion.editar",

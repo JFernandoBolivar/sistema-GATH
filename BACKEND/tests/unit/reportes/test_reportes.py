@@ -2,6 +2,8 @@
 Tests unitarios del módulo reportes (Arquitectura Onion pura sin BD).
 """
 
+from datetime import date
+
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,
     generar_reporte_distribucion_nomina,
@@ -12,15 +14,21 @@ from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_vacantes,
 )
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
+from core.infrastructure.report_field_registry import ReportFieldRegistryORM
 
 
 class RepoReportesMemoria:
-    def reporte_personal_activo(self, filtros):
+    def __init__(self):
+        self.consulta_personal = None
+
+    def reporte_personal_activo(self, consulta):
+        self.consulta_personal = consulta
         return ResultadoReporte(
             titulo="Reporte Personal Activo",
             columnas=['cedula', 'nombres', 'apellidos'],
             filas=[{'cedula': '12345678', 'nombres': 'Juan', 'apellidos': 'Pérez'}],
             total_registros=1,
+            metadatos={'truncado': False, 'total_encontrados': 1, 'limite': 5000},
         )
 
     def reporte_egresos_pasivos(self, filtros):
@@ -74,9 +82,29 @@ class RepoReportesMemoria:
 
 def test_generar_reporte_personal():
     repo = RepoReportesMemoria()
-    rep = generar_reporte_personal(repo, filtros={})
+    rep = generar_reporte_personal(repo, filtros={}, registro=ReportFieldRegistryORM())
     assert rep.total_registros == 1
     assert rep.filas[0]['cedula'] == '12345678'
+
+
+def test_reporte_personal_entrega_los_filtros_ya_traducidos_al_repositorio():
+    repo = RepoReportesMemoria()
+    generar_reporte_personal(
+        repo,
+        filtros={'sexo_id': '2', 'edad_min': '30'},
+        registro=ReportFieldRegistryORM(),
+        hoy=date(2026, 10, 30),
+    )
+    assert repo.consulta_personal.lookups == {
+        'sexoid': 2,
+        'fecha_nacimiento__lte': date(1996, 10, 30),
+    }
+
+
+def test_reporte_personal_propaga_los_metadatos_del_tope_de_filas():
+    repo = RepoReportesMemoria()
+    rep = generar_reporte_personal(repo, filtros={}, registro=ReportFieldRegistryORM())
+    assert rep.metadatos == {'truncado': False, 'total_encontrados': 1, 'limite': 5000}
 
 
 def test_generar_reporte_pasivos():

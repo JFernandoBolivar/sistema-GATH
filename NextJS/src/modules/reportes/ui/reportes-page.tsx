@@ -13,6 +13,7 @@ import { BarChart3, FileDown, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { PERMISO_REPORTES } from "../domain/value-objects/permisos-reportes";
 import { Button } from "@/shared/ui/components/button";
 import {
   Card,
@@ -114,10 +115,10 @@ function BotonesExportacion({
 export default function ReportesPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeVer = tienePermiso(permisos, "reportes.ver");
-  const puedePdf = tienePermiso(permisos, "reportes.generar_pdf");
-  const puedeExcel = tienePermiso(permisos, "reportes.generar_excel");
-  const puedeEstadisticas = tienePermiso(permisos, "reportes.estadisticas");
+  const puedeVer = tienePermiso(permisos, PERMISO_REPORTES.ver);
+  const puedePdf = tienePermiso(permisos, PERMISO_REPORTES.generarPdf);
+  const puedeExcel = tienePermiso(permisos, PERMISO_REPORTES.generarExcel);
+  const puedeEstadisticas = tienePermiso(permisos, PERMISO_REPORTES.estadisticas);
 
   const [tab, setTab] = useState<Tab>("personal");
   const [personal, setPersonal] = useState<ReporteItemPersonalDTO[]>([]);
@@ -239,7 +240,7 @@ export default function ReportesPage() {
 
       {!puedeVer && (
         <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive font-medium">
-          No tiene permisos suficientes para consultar reportes (se requiere reportes.ver).
+          No tiene permisos suficientes para consultar reportes (se requiere {PERMISO_REPORTES.ver}).
         </div>
       )}
 

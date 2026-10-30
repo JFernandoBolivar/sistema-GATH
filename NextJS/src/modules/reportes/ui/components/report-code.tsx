@@ -39,14 +39,21 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { toast } from "sonner";
 import { useState, useTransition } from "react";
+import {
+  puedeFiltrarEstructuraOrganizativa,
+  puedeGenerarReportePdf,
+} from "../../application/use-cases/permisos-reporte";
+import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
+import { avisoTopeDeFilas } from "../reportes-aviso-tope";
 import { schemaReportCode, type SchemaReportCodeType } from "../schema/schemaReportCode";
 import Loading from "@/shared/ui/components/loading";
 
 export default function ReportCode() {
   const [isPending, startTransition] = useTransition();
   const [reportListCode, setReportListCodeBlob] = useState<string>();
+  const [avisoTope, setAvisoTope] = useState<string | null>(null);
   const { data: session } = useSession();
   const [dependencyId, setDependencyId] = useState<number>(0);
   const { data: statusNomina, isLoading: isLoadingStatusNomina } = useSWR(
@@ -119,28 +126,44 @@ export default function ReportCode() {
   }
 
   const onSubmit = (data: SchemaReportCodeType) => {
+    if (!puedePdf) {
+      toast.error(
+        `No tiene permiso para generar reportes en PDF (se requiere ${PERMISO_REPORTES.generarPdf}).`,
+      );
+      return;
+    }
     startTransition(async () => {
       try {
-        const payload: SchemaReportCodeType = {
-          ...data,
-        };
-        const response = await postReport<SchemaReportCodeType>(payload);
-        const urlBlob = URL.createObjectURL(response);
-        setReportListCodeBlob(urlBlob);
-        form.reset();
+        const resultado = await postReport<SchemaReportCodeType>(data);
+        if (reportListCode) URL.revokeObjectURL(reportListCode);
+        setReportListCodeBlob(URL.createObjectURL(resultado.blob));
+        const aviso = avisoTopeDeFilas(resultado);
+        setAvisoTope(aviso);
+        if (aviso) toast.warning(aviso);
+        else toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
+        // El formulario NO se limpia: el usuario conserva los filtros elegidos.
       } catch (err) {
-        console.error("Error al generar el reporte:", err);
+        setAvisoTope(null);
+        toast.error(
+          err instanceof Error && err.message
+            ? err.message
+            : "No fue posible generar el reporte. Intente de nuevo.",
+        );
       }
     });
   };
 
   const handleClean = () => {
     form.reset();
+    if (reportListCode) URL.revokeObjectURL(reportListCode);
     setReportListCodeBlob(undefined);
+    setAvisoTope(null);
   };
 
-  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
-  const esAdmin = tienePermiso(session?.user?.permisos, "*");
+  // Los filtros de estructura solo se ofrecen a quien puede consultar la
+  // estructura organizativa (`organizacion.ver`). Nunca por rol ni por "*".
+  const puedeEstructura = puedeFiltrarEstructuraOrganizativa(session?.user?.permisos);
+  const puedePdf = puedeGenerarReportePdf(session?.user?.permisos);
 
   return (
     <Card className="bg-white">
@@ -150,10 +173,27 @@ export default function ReportCode() {
             <Loading promiseMessage="Consultando Reporte" />
           ) : (
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-3 gap-4">
+              {!puedePdf && (
+                <p
+                  role="alert"
+                  className="col-span-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                >
+                  No tiene permiso para generar reportes en PDF (se requiere{" "}
+                  {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
+                </p>
+              )}
+              {avisoTope && (
+                <p
+                  role="status"
+                  className="col-span-3 rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+                >
+                  {avisoTope}
+                </p>
+              )}
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="w-full">
                   <div className="flex flex-row w-full gap-2">
-                    {esAdmin && (
+                    {puedeEstructura && (
                       <fieldset className="flex flex-col w-full gap-3 border-2 p-2 rounded-sm border-green-600">
                         <legend className="text-green-800 font-semibold">
                           Dirección Administrativa{" "}
@@ -479,7 +519,7 @@ export default function ReportCode() {
                 </ScrollArea>
               </div>
               <div className="flex flex-row gap-2 flex-1 w-full col-span-3">
-                <Button className="flex-1 cursor-pointer" type="submit">
+                <Button className="flex-1 cursor-pointer" type="submit" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"
                     : "Consultar Reporte General"}

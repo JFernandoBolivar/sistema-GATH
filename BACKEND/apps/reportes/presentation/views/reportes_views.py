@@ -10,6 +10,7 @@ from drf_spectacular.utils import extend_schema
 
 from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.infrastructure.pdf.report_pdf import generar_reporte_pdf
+from core.infrastructure.report_field_registry import ReportFieldRegistryORM
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
@@ -26,22 +27,47 @@ from apps.reportes.infrastructure.repositories.repo_reportes_orm import RepoRepo
 from apps.reportes.presentation.serializers.reportes_serializers import ResultadoReporteSerializer
 
 
-def _respuesta_pdf(pdf_bytes: bytes, nombre_archivo: str) -> HttpResponse:
+def _respuesta_pdf(pdf_bytes: bytes, nombre_archivo: str, metadatos: dict | None = None) -> HttpResponse:
     respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
     respuesta['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
     respuesta['X-Content-Type-Options'] = 'nosniff'
     respuesta['Cache-Control'] = 'private, no-store'
+    _cabeceras_de_metadatos(respuesta, metadatos)
     return respuesta
 
 
-def _respuesta_excel(excel_bytes: bytes, nombre_archivo: str) -> HttpResponse:
+def _respuesta_excel(excel_bytes: bytes, nombre_archivo: str, metadatos: dict | None = None) -> HttpResponse:
     respuesta = HttpResponse(
         excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     respuesta['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
     respuesta['X-Content-Type-Options'] = 'nosniff'
     respuesta['Cache-Control'] = 'private, no-store'
+    _cabeceras_de_metadatos(respuesta, metadatos)
     return respuesta
+
+
+def _cabeceras_de_metadatos(respuesta: HttpResponse, metadatos: dict | None) -> None:
+    """Expone el tamaño del resultado al frontend (aviso de tope de filas)."""
+    if not metadatos:
+        return
+    total = metadatos.get('total_encontrados')
+    if total is not None:
+        respuesta['X-Reporte-Total-Registros'] = str(total)
+    if metadatos.get('limite') is not None:
+        respuesta['X-Reporte-Limite'] = str(metadatos['limite'])
+    respuesta['X-Reporte-Truncado'] = 'true' if metadatos.get('truncado') else 'false'
+
+
+def _generar_reporte_personal(request):
+    """Único punto de entrada de las tres variantes (JSON, PDF, Excel)."""
+    return generar_reporte_personal(
+        RepoReportesORM(),
+        # `.dict()`: un valor escalar por clave (con `dict(query_params)` cada
+        # valor llegaría como lista y la validación de tipos lo rechazaría).
+        filtros=request.query_params.dict(),
+        registro=ReportFieldRegistryORM(),
+    )
 
 
 class ReportePersonalActivoView(APIView):
@@ -49,9 +75,7 @@ class ReportePersonalActivoView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Generar reporte consolidado de personal activo', responses={200: ResultadoReporteSerializer})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_personal(repo, filtros=filtros)
+        dto = _generar_reporte_personal(request)
         return ok(ResultadoReporteSerializer(dto).data)
 
 
@@ -62,11 +86,9 @@ class ReportePersonalActivoPdfView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de personal activo en PDF', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_personal(repo, filtros=filtros)
+        dto = _generar_reporte_personal(request)
         pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_personal_activo.pdf')
+        return _respuesta_pdf(pdf_bytes, 'reporte_personal_activo.pdf', dto.metadatos)
 
 
 class ReportePersonalActivoExcelView(APIView):
@@ -76,11 +98,9 @@ class ReportePersonalActivoExcelView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de personal activo en Excel', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        repo = RepoReportesORM()
-        filtros = {k: v for k, v in request.query_params.items()}
-        dto = generar_reporte_personal(repo, filtros=filtros)
+        dto = _generar_reporte_personal(request)
         excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_personal_activo.xlsx')
+        return _respuesta_excel(excel_bytes, 'reporte_personal_activo.xlsx', dto.metadatos)
 
 
 class ReportePasivosView(APIView):

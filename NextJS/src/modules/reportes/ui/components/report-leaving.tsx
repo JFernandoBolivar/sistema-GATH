@@ -40,7 +40,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { toast } from "sonner";
+import { puedeFiltrarEstructuraOrganizativa } from "../../application/use-cases/permisos-reporte";
 import { useState, useTransition } from "react";
 import { schemaReportLeaving, type SchemaReportLeavingType } from "../schema/report-schema-leaving";
 import Loading from "@/shared/ui/components/loading";
@@ -122,21 +123,23 @@ export default function ReportLeaving() {
   const onSubmit = (data: SchemaReportLeavingType) => {
     startTransition(async () => {
       try {
-        const payload: SchemaReportLeavingType = {
-          ...data,
-        };
-        const response = await postReport<SchemaReportLeavingType>(payload);
-        const urlBlob = URL.createObjectURL(response);
+        const { blob } = await postReport<SchemaReportLeavingType>(data);        const urlBlob = URL.createObjectURL(blob);
         setReportListLeavingBlob(urlBlob);
-        form.reset();
+        // El formulario NO se limpia: el usuario conserva los filtros elegidos.
+        toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
       } catch (err) {
-        console.error("Error al generar el reporte:", err);
+        toast.error(
+          err instanceof Error && err.message
+            ? err.message
+            : "No fue posible generar el reporte. Intente de nuevo.",
+        );
       }
     });
   };
 
-  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
-  const esAdmin = tienePermiso(session?.user?.permisos, "*");
+  // Los filtros de estructura solo se ofrecen a quien puede consultar la
+  // estructura organizativa (`organizacion.ver`). Nunca por rol ni por "*".
+  const puedeEstructura = puedeFiltrarEstructuraOrganizativa(session?.user?.permisos);
 
   return (
     <Card className="bg-white">
@@ -149,7 +152,7 @@ export default function ReportLeaving() {
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="h-[600px] w-full pr-3">
                   <div className="grid grid-cols-2 gap-3">
-                    {esAdmin && (
+                    {puedeEstructura && (
                       <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 col-span-2">
                         <legend className="text-green-800 font-semibold px-1">
                           Dirección Administrativa

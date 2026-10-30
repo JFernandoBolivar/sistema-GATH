@@ -58,8 +58,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { CalendarIcon, Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { toast } from "sonner";
 import { useState, useTransition } from "react";
+import {
+  puedeFiltrarEstructuraOrganizativa,
+  puedeGenerarReportePdf,
+} from "../../application/use-cases/permisos-reporte";
+import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
+import { avisoTopeDeFilas } from "../reportes-aviso-tope";
 import {
   schemaReportEmployee,
   type SchemaReportEmployeeType,
@@ -73,6 +79,7 @@ export default function ReportEmployee() {
 
   const [isPending, startTransition] = useTransition();
   const [reportListEmployee, setReportListEmployeeBlob] = useState<string>();
+  const [avisoTope, setAvisoTope] = useState<string | null>(null);
   const [stateId, setStateId] = useState<string>();
   const { data: session } = useSession();
   const [dependencyId, setDependencyId] = useState<number>(0);
@@ -219,29 +226,54 @@ export default function ReportEmployee() {
     return <Loading promiseMessage="Validando Sesión Para Generar El Reporte" />;
   }
 
-  const handleClean = () => {
-    form.reset();
+  const revocarPdf = () => {
+    if (reportListEmployee) URL.revokeObjectURL(reportListEmployee);
     setReportListEmployeeBlob(undefined);
   };
 
+  const fijarPdf = (blob: Blob) => {
+    if (reportListEmployee) URL.revokeObjectURL(reportListEmployee);
+    setReportListEmployeeBlob(URL.createObjectURL(blob));
+  };
+
+  const handleClean = () => {
+    form.reset();
+    revocarPdf();
+    setAvisoTope(null);
+  };
+
   const onSubmit = (data: SchemaReportEmployeeType) => {
+    if (!puedePdf) {
+      toast.error(
+        `No tiene permiso para generar reportes en PDF (se requiere ${PERMISO_REPORTES.generarPdf}).`,
+      );
+      return;
+    }
     startTransition(async () => {
       try {
-        const payload: SchemaReportEmployeeType = {
-          ...data,
-        };
-        const response = await postReport<SchemaReportEmployeeType>(payload);
-        const urlBlob = URL.createObjectURL(response);
-        setReportListEmployeeBlob(urlBlob);
-        form.reset();
+        const resultado = await postReport<SchemaReportEmployeeType>(data);
+        fijarPdf(resultado.blob);
+        const aviso = avisoTopeDeFilas(resultado);
+        setAvisoTope(aviso);
+        if (aviso) toast.warning(aviso);
+        else toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
+        // El formulario NO se limpia: el usuario conserva los filtros elegidos.
       } catch (err) {
-        console.error("Error al generar el reporte:", err);
+        setAvisoTope(null);
+        toast.error(
+          err instanceof Error && err.message
+            ? err.message
+            : "No fue posible generar el reporte. Intente de nuevo.",
+        );
       }
     });
   };
 
-  // Filtro de dirección administrativa: solo para quien tiene acceso total ("*").
-  const esAdmin = tienePermiso(session?.user?.permisos, "*");
+  // Los filtros de estructura solo se ofrecen a quien puede consultar la
+  // estructura organizativa (`organizacion.ver`), que es lo que exigen los
+  // catálogos del backend. Nunca por nombre de rol ni por el comodín "*".
+  const puedeEstructura = puedeFiltrarEstructuraOrganizativa(session?.user?.permisos);
+  const puedePdf = puedeGenerarReportePdf(session?.user?.permisos);
 
   return (
     <Card className="bg-white">
@@ -254,10 +286,27 @@ export default function ReportEmployee() {
               onSubmit={form.handleSubmit(onSubmit)}
               className="grid grid-cols-3 min-h-max gap-4"
             >
+              {!puedePdf && (
+                <p
+                  role="alert"
+                  className="col-span-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                >
+                  No tiene permiso para generar reportes en PDF (se requiere{" "}
+                  {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
+                </p>
+              )}
+              {avisoTope && (
+                <p
+                  role="status"
+                  className="col-span-3 rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+                >
+                  {avisoTope}
+                </p>
+              )}
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="h-[600px] w-full pr-3">
                   <div className="flex flex-col gap-4">
-                    {esAdmin && (
+                    {puedeEstructura && (
                       <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600">
                         <legend className="text-green-800 font-semibold px-1">
                           Dirección Administrativa
@@ -1295,7 +1344,7 @@ export default function ReportEmployee() {
               </div>
 
               <div className="flex flex-row gap-2 flex-1 w-full col-span-3 pt-2">
-                <Button type="submit" className="flex-1 cursor-pointer">
+                <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"
                     : "Consultar Reporte General"}
