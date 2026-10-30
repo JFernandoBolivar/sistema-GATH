@@ -163,3 +163,30 @@ def test_ventana_expirada_permite_reintentar_sin_penalidad(
     assert cache_data and cache_data.get('intentos') == 1
 
 
+
+
+# ── Login solo por correo (decisión 2026-10-29) ─────────────────────────────
+
+
+@pytest.mark.django_db
+def test_login_por_correo_exacto_sin_distinguir_mayusculas(cliente, cuenta_login):
+    resp = intentar_login(cliente, cuenta_login['correo'].upper(), PASSWORD)
+    assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('campo', ['cedula', 'usuario', 'correo'])
+def test_login_con_cedula_se_rechaza(cliente, cuenta_login, campo):
+    resp = cliente.post(
+        URL_LOGIN, {campo: cuenta_login['cedula'], 'password': PASSWORD}, format='json'
+    )
+    assert resp.status_code == 400
+    assert 'dj_access' not in resp.cookies
+
+
+@pytest.mark.django_db
+def test_login_con_parte_local_del_correo_se_rechaza(cliente, cuenta_login):
+    parte_local = cuenta_login['correo'].split('@')[0]
+    resp = intentar_login(cliente, parte_local, PASSWORD)
+    assert resp.status_code == 400
+    assert 'dj_access' not in resp.cookies

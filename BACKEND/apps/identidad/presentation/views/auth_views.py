@@ -11,6 +11,8 @@ endpoint de perfil de sesión que el gap analysis marcó como faltante.
 import logging
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -117,16 +119,22 @@ class LoginView(APIView):
                    429: MensajeRespuestaSerializer},
     )
     def post(self, request):
-        identificador = (
-            request.data.get('usuario')
-            or request.data.get('correo')
+        # Login solo por correo y contraseña (decisión 2026-10-29): la cédula y la
+        # parte local del correo ya no identifican una cuenta.
+        identificador = str(
+            request.data.get('correo')
             or request.data.get('email')
-            or request.data.get('cedula')
-        )
+            or request.data.get('usuario')
+            or ''
+        ).strip()
         password = request.data.get('password')
 
         if not password or not identificador:
             return fail('Credenciales requeridas.', 400)
+        try:
+            validate_email(identificador)
+        except DjangoValidationError:
+            return fail('Ingrese su correo electrónico.', 400)
 
         ip_cliente = request.META.get('REMOTE_ADDR')
 
@@ -145,7 +153,7 @@ class LoginView(APIView):
             )
 
         try:
-            cuenta = repo_auth.obtener_cuenta_por_identificador(identificador)
+            cuenta = repo_auth.obtener_cuenta_por_correo(identificador)
 
             if not cuenta or not cuenta.is_active:
                 anotar_intento_fallido(cedula_registro, ip_cliente)

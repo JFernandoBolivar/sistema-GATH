@@ -33,13 +33,12 @@ class RepoCuentaAuth(Protocol):
         """Cédula de un empleado por su correo, o `None` si no existe (B7)."""
         ...
 
-    def obtener_cuenta_por_email_o_cedula(
-        self, correo: str | None, cedula: str | None
-    ) -> object | None:
+    def obtener_cuenta_por_correo(self, correo: str) -> object | None:
         """
-        Cuenta autenticable por correo del empleado o por cédula directa,
-        o `None` si no existe (B7). Devuelve la instancia del modelo con su
-        rol precargado; es el único objeto que el flujo de login inspecciona
-        para `check_password` / `is_active` / claims del rol.
+        Cuenta autenticable por el correo exacto del empleado (sin distinguir
+        mayúsculas), o `None` si no existe. El login es solo por correo: no se
+        acepta cédula ni la parte local del correo. Devuelve la instancia del
+        modelo con su rol precargado; es el único objeto que el flujo de login
+        inspecciona para `check_password` / `is_active` / claims del rol.
         """
         ...
