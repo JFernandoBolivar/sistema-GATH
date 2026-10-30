@@ -14,6 +14,14 @@ class RepoSobrevivientes(Protocol):
         """`True` si el titular tiene un egreso cuyo motivo es fallecimiento."""
         ...
 
+    def resolver_tipo_nomina_sobrevivencia(self, tipo_nomina_id: int | None) -> int:
+        """
+        Devuelve el `TipoNomina` de pensionados por sobrevivencia. Con `None`
+        usa el del catálogo (nómina de sobrevivientes); con un id, valida que
+        sea de pensión por sobrevivencia o lanza `ValidationError`/`NotFoundError`.
+        """
+        ...
+
     def listar_familiares_beneficiarios(
         self, cedula_titular: str, familiar_ids: tuple[int, ...] | None = None
     ) -> list[FamiliarBeneficiario]:

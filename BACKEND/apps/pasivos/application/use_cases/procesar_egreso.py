@@ -26,7 +26,11 @@ from apps.pasivos.application.use_cases.listar_pasivos import pasivo_a_dto
 from apps.pasivos.domain.ports.repo_pasivos import RepoPasivos
 
 
-def procesar_egreso(repo: RepoPasivos, dto: ProcesarEgresoDTO) -> PasivoDTO:
+def procesar_egreso(
+    repo: RepoPasivos,
+    dto: ProcesarEgresoDTO,
+    sobrevivientes_out: list | None = None,
+) -> PasivoDTO:
     entidad = repo.procesar_egreso_a_pasivo(
         cedula=dto.cedula,
         motivo_movimiento_id=dto.motivo_movimiento_id,
@@ -35,13 +39,16 @@ def procesar_egreso(repo: RepoPasivos, dto: ProcesarEgresoDTO) -> PasivoDTO:
         usuario_id=dto.usuario_id,
     )
     if dto.sobrevivientes_familiar_ids:
-        ejecutar_creacion_sobrevivientes(
+        # La nómina del titular no aplica al beneficiario: se usa la de
+        # pensionados por sobrevivencia del catálogo (tipo_nomina_id=None).
+        resultados = ejecutar_creacion_sobrevivientes(
             repo,
             CrearSobrevivientesDTO(
                 cedula_titular=dto.cedula,
-                tipo_nomina_id=dto.tipo_nomina_id,
                 familiar_ids=dto.sobrevivientes_familiar_ids,
                 usuario_id=dto.usuario_id,
             ),
         )
+        if sobrevivientes_out is not None:
+            sobrevivientes_out.extend(resultados)
     return pasivo_a_dto(entidad)

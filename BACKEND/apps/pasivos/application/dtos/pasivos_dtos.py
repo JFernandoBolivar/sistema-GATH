@@ -44,6 +44,6 @@ class ProcesarEgresoDTO:
 @dataclass(frozen=True)
 class CrearSobrevivientesDTO:
     cedula_titular: str
-    tipo_nomina_id: int
+    tipo_nomina_id: int | None = None
     familiar_ids: tuple[int, ...] | None = None
     usuario_id: int | None = None

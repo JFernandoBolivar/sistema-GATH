@@ -21,6 +21,9 @@ def ejecutar_creacion_sobrevivientes(
             'no se puede dar de alta una pensión de sobrevivencia.'
         )
 
+    # Regla: activo/pasivo = tipoPersonal; el tipo de pensionado es la nómina.
+    tipo_nomina_id = repo.resolver_tipo_nomina_sobrevivencia(dto.tipo_nomina_id)
+
     familiares = repo.listar_familiares_beneficiarios(dto.cedula_titular, dto.familiar_ids)
     if dto.familiar_ids:
         faltantes = set(dto.familiar_ids) - {f.id for f in familiares}
@@ -42,7 +45,7 @@ def ejecutar_creacion_sobrevivientes(
         repo.crear_pasivo_sobreviviente(
             cedula_titular=dto.cedula_titular,
             familiar_id=f.id,
-            tipo_nomina_id=dto.tipo_nomina_id,
+            tipo_nomina_id=tipo_nomina_id,
             usuario_id=dto.usuario_id,
         )
         for f in familiares

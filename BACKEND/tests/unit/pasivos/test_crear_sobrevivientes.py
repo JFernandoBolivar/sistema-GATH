@@ -25,6 +25,14 @@ class RepoSobrevivientesMemoria:
         ]
         self.pasivos = set(ya_pasivos)
         self.altas: list[str] = []
+        self.nominas: list[int] = []
+
+    def resolver_tipo_nomina_sobrevivencia(self, tipo_nomina_id):
+        if tipo_nomina_id is None:
+            return 9
+        if tipo_nomina_id != 9:
+            raise ValidationError('La nómina no es de pensión por sobrevivencia.')
+        return 9
 
     def titular_fallecido(self, cedula_titular):
         return cedula_titular in self.fallecidos
@@ -40,11 +48,12 @@ class RepoSobrevivientesMemoria:
             return ResultadoAltaSobreviviente(f.cedula, f.nombres, False, "P-1")
         self.pasivos.add(f.cedula)
         self.altas.append(f.cedula)
+        self.nominas.append(tipo_nomina_id)
         return ResultadoAltaSobreviviente(f.cedula, f.nombres, True, "P-1")
 
 
 def _dto(**kw):
-    base = dict(cedula_titular="V1", tipo_nomina_id=5, usuario_id=9)
+    base = dict(cedula_titular="V1", tipo_nomina_id=9, usuario_id=9)
     base.update(kw)
     return CrearSobrevivientesDTO(**base)
 
@@ -122,3 +131,31 @@ def test_procesar_egreso_sin_ids_no_toca_sobrevivientes():
     repo = RepoEgresoMemoria()
     procesar_egreso(repo, ProcesarEgresoDTO(cedula="V1", motivo_movimiento_id=1, tipo_nomina_id=5))
     assert repo.altas == []
+
+
+def test_nomina_por_defecto_es_la_de_sobrevivencia():
+    repo = RepoSobrevivientesMemoria()
+    ejecutar_creacion_sobrevivientes(repo, _dto(tipo_nomina_id=None))
+    assert repo.nominas == [9]
+
+
+def test_nomina_que_no_es_de_sobrevivencia_se_rechaza():
+    repo = RepoSobrevivientesMemoria()
+    with pytest.raises(ValidationError):
+        ejecutar_creacion_sobrevivientes(repo, _dto(tipo_nomina_id=15))
+    assert repo.altas == []
+
+
+def test_egreso_usa_nomina_de_sobrevivencia_no_la_del_titular():
+    repo = RepoEgresoMemoria()
+    procesar_egreso(repo, ProcesarEgresoDTO(
+        cedula="V1", motivo_movimiento_id=1, tipo_nomina_id=15, sobrevivientes_familiar_ids=(1,)))
+    assert repo.nominas == [9]
+
+
+def test_egreso_devuelve_resultados_para_auditoria():
+    repo = RepoEgresoMemoria()
+    salida: list = []
+    procesar_egreso(repo, ProcesarEgresoDTO(
+        cedula="V1", motivo_movimiento_id=1, tipo_nomina_id=15, sobrevivientes_familiar_ids=(1,)), salida)
+    assert [r.cedula for r in salida] == ["V100"]

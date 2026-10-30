@@ -18,16 +18,17 @@ Supuestos (el legado `RAC/services/egreso_services.py` no está en el repo):
 """
 from django.db import transaction
 
+from apps.cargos.domain import events
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
+    TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.organizacion.infrastructure.models.organizacion_models import DireccionGeneralModel
 from apps.pasivos.domain.entities.sobreviviente import (
-    TIPO_PENSION_SOBREVIVIENTE,
     FamiliarBeneficiario,
     ResultadoAltaSobreviviente,
 )
@@ -53,6 +54,21 @@ def _unir(*partes: str | None) -> str:
 
 
 class RepoSobrevivientesORM:
+    def resolver_tipo_nomina_sobrevivencia(self, tipo_nomina_id: int | None) -> int:
+        if tipo_nomina_id is None:
+            nomina = TipoNominaModel.objects.filter(nomina__icontains='SOBREVIV').order_by('pk').first()
+            if not nomina:
+                raise ValidationError(
+                    'No existe en el catálogo una nómina de pensionados por sobrevivencia.')
+            return nomina.pk
+        nomina = TipoNominaModel.objects.filter(pk=tipo_nomina_id).first()
+        if not nomina:
+            raise NotFoundError(f'Tipo de nómina {tipo_nomina_id} no encontrado.')
+        if 'SOBREVIV' not in nomina.nomina.upper():
+            raise ValidationError(
+                f'La nómina "{nomina.nomina}" no es de pensión por sobrevivencia.')
+        return nomina.pk
+
     def titular_fallecido(self, cedula_titular: str) -> bool:
         return EmployeeEgresadoModel.objects.filter(
             employee_id=cedula_titular, motivo_egreso__movimiento__icontains='fallec'
@@ -139,11 +155,22 @@ class RepoSobrevivientesORM:
             Dependencia=dg.dependenciaId if dg else None,
             DireccionGeneral=dg,
             OrganismoAdscritoid=base['OrganismoAdscritoid'],
-            observaciones=(
-                f'{TIPO_PENSION_SOBREVIVIENTE}. Titular fallecido: {cedula_titular}. '
-                f'Parentesco: {familiar.parentesco}.'
-            ),
+            observaciones=f'Titular fallecido: {cedula_titular}. Parentesco: {familiar.parentesco}.',
         )
+        # Movimiento en el historial del beneficiario (apps.movimientos lo
+        # registra por el receiver del evento). Motivo: "PENSION POR
+        # SOBREVIVIENTE" del catálogo TipoMovimiento (None si no existe).
+        if usuario_id is not None:
+            motivo = TipoMovimientoModel.objects.filter(
+                movimiento__icontains='PENSION POR SOBREVIV').order_by('pk').first()
+            events.cargo_movimiento_ejecutado.send(
+                sender=RepoSobrevivientesORM,
+                cargo_id=asig.pk,
+                cedula=cedula,
+                tipo_movimiento='INGRESO',
+                motivo_id=motivo.pk if motivo else None,
+                usuario_id=usuario_id,
+            )
         return ResultadoAltaSobreviviente(cedula, nombre, True, asig.codigo)
 
     def _cargo_base_del_titular(self, cedula_titular: str) -> dict:

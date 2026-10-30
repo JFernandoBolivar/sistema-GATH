@@ -80,7 +80,10 @@ class ProcesarEgresoInputSerializer(serializers.Serializer):
 class CrearSobrevivientesInputSerializer(serializers.Serializer):
     """C20: alta de pensionados por sobrevivencia de un titular fallecido."""
 
-    tipo_nomina_id = serializers.IntegerField(required=True)
+    tipo_nomina_id = serializers.IntegerField(
+        required=False, allow_null=True, default=None,
+        help_text='Debe ser una nómina de pensión por sobrevivencia; si se omite se usa la del catálogo.',
+    )
     familiar_ids = serializers.ListField(
         child=serializers.IntegerField(), required=False, allow_empty=False,
         help_text='Si se omite, se usan los familiares marcados como herederos.',
