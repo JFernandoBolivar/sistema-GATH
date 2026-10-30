@@ -60,20 +60,22 @@ def solicitudes_de_evento(e: EventoAutogestion, correo_a_bienestar: bool = False
             **comunes, permiso_destino=PERMISO_HABILITAR, excluir_cedulas=(e.actor_cedula,), enlace=enlace_bienestar(ref),
             modulo='personal',
             titulo='Nueva solicitud de actualización de datos',
-            mensaje=f'El trabajador C.I. {e.cedula} solicitó actualizar: {_secciones(d.get("secciones"))}. Falta habilitar la ventana.',
+            mensaje=f'El trabajador C.I. {e.cedula} solicitó actualizar: {_secciones(d.get("secciones"))}. Para que pueda continuar, debe habilitar su ventana de actualización.',
             correo=_correo_bienestar('Nueva solicitud de actualización de datos - GATH CONATEL', correo_a_bienestar),
         )]
     if e.tipo is TipoEvento.VENTANA_HABILITADA:
         return [SolicitudNotificacion(
             **al_trabajador, clave=fin, titulo='Actualización de datos habilitada',
-            mensaje=(f'Bienestar Social habilitó la actualización de: {_secciones(d.get("secciones"))}. '
-                     f'Tiene hasta el {_fecha(fin)} para completarla y enviarla.'),
+            mensaje=(f'Bienestar Social habilitó la actualización de los siguientes datos: {_secciones(d.get("secciones"))}. '
+                     'Para completarla, ingrese al sistema, registre la información y envíela a revisión. '
+                     f'Usted dispone de plazo hasta el {_fecha(fin)}.'),
             correo=CorreoSolicitado('Actualización de datos habilitada - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.VENTANA_PRORROGADA:
         return [SolicitudNotificacion(
             **al_trabajador, clave=fin, titulo='Plazo de actualización extendido',
-            mensaje=f'Bienestar Social extendió su plazo hasta el {_fecha(fin)}. Motivo: {d.get("motivo", "")}'.strip(),
+            mensaje=(f'Bienestar Social extendió el plazo de su actualización de datos hasta el {_fecha(fin)}. '
+                     f'Motivo: {d.get("motivo", "no indicado")}. Ingrese al sistema para completarla y enviarla antes de esa fecha.'),
             correo=CorreoSolicitado('Plazo de actualización de datos extendido - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.SOLICITUD_ENVIADA:
@@ -81,14 +83,15 @@ def solicitudes_de_evento(e: EventoAutogestion, correo_a_bienestar: bool = False
             **comunes, permiso_destino=PERMISO_APROBAR, excluir_cedulas=(e.actor_cedula,), enlace=enlace_bienestar(ref),
             modulo='personal',
             titulo='Solicitud de actualización lista para revisar',
-            mensaje=f'El trabajador C.I. {e.cedula} envió su actualización de datos para revisión.',
+            mensaje=f'El trabajador C.I. {e.cedula} envió su actualización de datos y está pendiente de su revisión. Ingrese al sistema para aprobarla, rechazarla o devolverla.',
             correo=_correo_bienestar('Actualización de datos lista para revisar - GATH CONATEL', correo_a_bienestar),
         )]
     if e.tipo is TipoEvento.SOLICITUD_DEVUELTA:
         return [SolicitudNotificacion(
             **al_trabajador, clave=d.get('fecha', ''), titulo='Su solicitud de actualización fue devuelta',
-            mensaje=(f'Bienestar Social devolvió su solicitud para que la corrija. Motivo: {d.get("motivo", "no indicado")}. '
-                     f'Puede corregirla y reenviarla hasta el {_fecha(fin)}.'),
+            mensaje=(f'Bienestar Social devolvió su solicitud de actualización de datos para que la corrija. '
+                     f'Motivo: {d.get("motivo", "no indicado")}. '
+                     f'Ingrese al sistema, realice la corrección y reenvíela a más tardar el {_fecha(fin)}.'),
             correo=CorreoSolicitado('Solicitud de actualización de datos devuelta - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.CORRECCION_REENVIADA:
@@ -96,41 +99,42 @@ def solicitudes_de_evento(e: EventoAutogestion, correo_a_bienestar: bool = False
             **comunes, permiso_destino=PERMISO_APROBAR, excluir_cedulas=(e.actor_cedula,), enlace=enlace_bienestar(ref),
             modulo='personal', clave=d.get('fecha', ''),
             titulo='Corrección de actualización reenviada',
-            mensaje=f'El trabajador C.I. {e.cedula} corrigió y reenvió su actualización de datos para revisión.',
+            mensaje=f'El trabajador C.I. {e.cedula} corrigió y reenvió su actualización de datos, que está pendiente de su revisión. Ingrese al sistema para revisarla.',
             correo=_correo_bienestar('Corrección de actualización de datos reenviada - GATH CONATEL', correo_a_bienestar),
         )]
     if e.tipo is TipoEvento.ACTUALIZACION_APROBADA:
         total = d.get('estado') == 'APROBADA'
         cuerpo = ('Todos los cambios propuestos fueron aprobados.' if total else
-                  f'Se aprobaron {d.get("aprobados", 0)} de {d.get("total", 0)} cambios; consulte el detalle de lo rechazado.')
+                  f'Se aprobaron {d.get("aprobados", 0)} de {d.get("total", 0)} cambios propuestos. Ingrese al sistema para consultar el detalle de los cambios no aprobados y sus motivos.')
         return [SolicitudNotificacion(
             **al_trabajador, titulo='Actualización de datos aprobada' if total else 'Actualización de datos aprobada parcialmente',
-            mensaje=f'Su solicitud fue revisada. {cuerpo}',
+            mensaje=f'Bienestar Social revisó su solicitud de actualización de datos. {cuerpo}',
             correo=CorreoSolicitado('Actualización de datos aprobada - GATH CONATEL' if total
                                     else 'Actualización de datos aprobada parcialmente - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.SOLICITUD_RECHAZADA:
         return [SolicitudNotificacion(
             **al_trabajador, titulo='Actualización de datos rechazada',
-            mensaje=f'Su solicitud fue rechazada. Motivo: {d.get("motivo", "no indicado")}',
+            mensaje=(f'Bienestar Social rechazó su solicitud de actualización de datos. Motivo: {d.get("motivo", "no indicado")}. '
+                     'Si lo requiere, puede presentar una nueva solicitud desde el sistema.'),
             correo=CorreoSolicitado('Actualización de datos rechazada - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.VENTANA_POR_EXPIRAR:
         return [SolicitudNotificacion(
             **al_trabajador, clave=fin, titulo='Su plazo de actualización está por vencer',
-            mensaje=f'La ventana para actualizar sus datos vence el {_fecha(fin)}. Envíe su solicitud antes de esa fecha.',
+            mensaje=f'El plazo para actualizar sus datos vence el {_fecha(fin)}. Ingrese al sistema y envíe su solicitud antes de esa fecha.',
             correo=CorreoSolicitado('Su plazo de actualización de datos está por vencer - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.VENTANA_EXPIRADA:
         return [SolicitudNotificacion(
             **al_trabajador, clave=fin, titulo='Su plazo de actualización venció',
-            mensaje='La ventana de actualización de sus datos expiró sin enviarse. Puede solicitar una nueva.',
+            mensaje='El plazo para actualizar sus datos venció sin que la solicitud fuera enviada. Si aún lo requiere, ingrese al sistema y presente una nueva solicitud.',
             correo=CorreoSolicitado('Plazo de actualización de datos vencido - GATH CONATEL'),
         )]
     if e.tipo is TipoEvento.FOTO_APROBADA:
         return [SolicitudNotificacion(
             **comunes, permiso_destino=PERMISO_CARNETIZACION, enlace='/carnetizacion/generar', modulo='carnetizacion',
             titulo='Reemisión de carnet pendiente',
-            mensaje=f'El trabajador C.I. {e.cedula} actualizó su foto: su carnet debe reemitirse.',
+            mensaje=f'El trabajador C.I. {e.cedula} actualizó su foto, por lo que su carnet debe reemitirse. Ingrese al sistema para generarlo.',
         )]
     return []

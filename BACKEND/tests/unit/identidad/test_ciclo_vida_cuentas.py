@@ -245,7 +245,7 @@ def test_el_evento_se_traduce_en_aviso_por_correo():
     ))
 
     assert s.cedula_destino == '123'
-    assert s.correo is not None and s.correo.asunto.startswith('[GATH]')
+    assert s.correo is not None and s.correo.asunto.endswith('GATH CONATEL')
     assert 'enlace de recuperación' in s.mensaje
 
 

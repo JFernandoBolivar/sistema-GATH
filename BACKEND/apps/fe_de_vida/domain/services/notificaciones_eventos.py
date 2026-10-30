@@ -22,13 +22,13 @@ TIPO_RECIBIDA = 'fe_de_vida.solicitud_recibida'     # copia del aviso de envío 
 TIPO_VALIDADA = TipoEvento.VALIDADA.value
 
 ENLACE_PASIVO = '/fe-de-vida'
-PLANTILLA_ENLACE_BIENESTAR = '/personal/bienestar/fe-de-vida/{id}'
+PLANTILLA_ENLACE_BIENESTAR = '/personal/fe-de-vida/{id}'
 
-ASUNTO_RECIBIDA = 'Fe de vida recibida - GATH CONATEL'
+ASUNTO_RECIBIDA = 'Hemos recibido su fe de vida - GATH CONATEL'
 ASUNTO_DEVUELTA = 'Su fe de vida fue devuelta para corrección - GATH CONATEL'
 ASUNTO_RECORDATORIO = 'Recordatorio: fe de vida pendiente - GATH CONATEL'
 ASUNTO_RECHAZADA = 'Su fe de vida fue rechazada - GATH CONATEL'
-ASUNTO_VALIDADA = 'Constancia de Fe de Vida {proceso} - CONATEL'
+ASUNTO_VALIDADA = 'Constancia de Fe de Vida validada: {proceso} - GATH CONATEL'
 
 # Rol que da el primer check -> permiso de quien debe dar el segundo.
 PERMISO_SEGUNDO_CHECK = {
@@ -59,14 +59,16 @@ def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -
         return [
             SolicitudNotificacion(
                 **al_pasivo, tipo=TIPO_RECIBIDA, titulo='Su fe de vida fue recibida',
-                mensaje='Bienestar Social recibió su fe de vida y la revisará. Le avisaremos el resultado.',
+                mensaje=('Bienestar Social recibió su fe de vida y la someterá a revisión. No necesita realizar ninguna otra acción por ahora; '
+                         'le notificaremos el resultado por este mismo medio.'),
                 correo=CorreoSolicitado(ASUNTO_RECIBIDA),
             ),
             SolicitudNotificacion(
                 **a_bienestar, tipo=e.tipo.value, permiso_destino=PERMISO_REVISAR,
                 titulo='Fe de vida reenviada para revisar' if reenvio else 'Nueva fe de vida para revisar',
                 mensaje=(f'El pasivo C.I. {e.cedula} ' + (
-                    'reenvió su fe de vida corregida.' if reenvio else 'envió su fe de vida para revisión.')),
+                    'reenvió su fe de vida corregida y está pendiente de revisión.' if reenvio
+                    else 'envió su fe de vida y está pendiente de revisión.') + ' Ingrese al sistema para revisarla.'),
             ),
         ]
     if e.tipo is TipoEvento.PRIMER_CHECK:
@@ -75,14 +77,14 @@ def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -
             return []
         return [SolicitudNotificacion(
             **a_bienestar, tipo=e.tipo.value, permiso_destino=permiso, titulo='Fe de vida pendiente de segundo check',
-            mensaje=f'La fe de vida del pasivo C.I. {e.cedula} ya tiene un check y espera el suyo.',
+            mensaje=f'La fe de vida del pasivo C.I. {e.cedula} ya cuenta con un primer check y está pendiente de su revisión para completar la validación.',
         )]
     if e.tipo is TipoEvento.DEVUELTA:
-        foto = ' Además debe tomar o subir una foto nueva con su cédula.' if d.get('requiere_nueva_foto') else ''
+        foto = ' Además, debe tomar o subir una foto nueva sosteniendo su cédula.' if d.get('requiere_nueva_foto') else ''
         return [SolicitudNotificacion(
             **al_pasivo, tipo=e.tipo.value, titulo='Su fe de vida fue devuelta para corrección',
             mensaje=(f'Bienestar Social devolvió su fe de vida para corrección. Motivo: {d.get("motivo", "no indicado")}.'
-                     f'{foto} Corríjala y reenvíela.'),
+                     f'{foto} Ingrese al sistema, corrija lo indicado y reenvíela cuanto antes.'),
             correo=CorreoSolicitado(ASUNTO_DEVUELTA),
         )]
     if e.tipo is TipoEvento.RECORDATORIO_CIERRE:
@@ -92,14 +94,15 @@ def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -
             tipo=e.tipo.value, ref_tipo='proceso_fe_de_vida', ref_id=e.proceso_id, clave=str(dias),
             cedula_destino=e.cedula, enlace=ENLACE_PASIVO, modulo=MODULO_PASIVO,
             titulo='Recuerde cumplir su fe de vida',
-            mensaje=(f'El proceso "{d.get("nombre", "")}" cierra {cuando} y aún no ha enviado su fe de vida. '
-                     'Ingrese al sistema para completarla.'),
+            mensaje=(f'El proceso "{d.get("nombre", "")}" cierra {cuando} y, a la fecha, usted no ha enviado su fe de vida. '
+                     'Ingrese al sistema, complete el acta con su foto y envíela antes del cierre.'),
             correo=CorreoSolicitado(ASUNTO_RECORDATORIO),
         )]
     if e.tipo is TipoEvento.RECHAZADA:
         return [SolicitudNotificacion(
             **al_pasivo, tipo=e.tipo.value, titulo='Su fe de vida fue rechazada',
-            mensaje=f'Bienestar Social rechazó su fe de vida. Motivo: {d.get("motivo", "no indicado")}.',
+            mensaje=(f'Bienestar Social rechazó su fe de vida. Motivo: {d.get("motivo", "no indicado")}. '
+                     'Para más información, comuníquese con la Oficina de Gestión Humana.'),
             correo=CorreoSolicitado(ASUNTO_RECHAZADA),
         )]
     return []
@@ -114,7 +117,8 @@ def notificacion_validada(
     return SolicitudNotificacion(
         tipo=TIPO_VALIDADA, ref_tipo=REF_TIPO, ref_id=e.solicitud_id, cedula_destino=e.cedula,
         enlace=ENLACE_PASIVO, modulo=MODULO_PASIVO, titulo='Su fe de vida fue validada',
-        mensaje=(f'Su fe de vida del proceso "{proceso_nombre}" fue validada. Constancia N.° {numero}: '
-                 'puede descargarla desde el sistema. Este es un aviso automático.'),
+        mensaje=(f'Le informamos que su fe de vida del proceso "{proceso_nombre}" fue validada satisfactoriamente. '
+                 f'Se emitió la Constancia de Fe de Vida N.° {numero}, que se adjunta a este correo en formato PDF '
+                 'y que también puede descargar desde el sistema. Conserve este documento.'),
         correo=CorreoSolicitado(ASUNTO_VALIDADA.format(proceso=proceso_nombre), adjuntos=adjuntos, copia_a=correos_copia),
     )
