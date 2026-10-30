@@ -165,6 +165,18 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | C19 | Aplicar al aprobarse el acta los cambios propuestos a los datos reales (nombres, apellidos, fecha de nacimiento, teléfonos, correo alternativo, contacto de emergencia, vivienda, hijos nuevos y corregidos, tiene_hijos), reutilizando `aplicar_cambios_aprobados` de B3 en una transacción | Back | C3, B3, B13 | 🔄 En proceso | — | 2026-10-29: aplicador implementado vía CambioPropuesto (origen FE_DE_VIDA) y aplicar_cambios_aprobados; falta test de integración con BD |
 | C-T | Tests de Fase 4 (transiciones, procesos y prórrogas, aplicación de cambios al aprobar, imagen, atomicidad, E2E con cámara falsa y E2E con subida de archivo sin cámara, rechazo de archivo inválido) | Test | C5, C13, C17, C19 | ⏳ Pendiente | — | |
 
+**Regresiones y pendientes de Gestión de Trabajadores (auditoría 2026-10-29, `AUDITORIA_GESTION_TRABAJADORES_2026-10-29.md`)**
+
+| ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
+|---|---|---|---|---|---|---|
+| G1 | Reporte de trabajador: restaurar filtros de estructura organizativa (ocultos desde 09eaaa1 por `tienePermiso(permisos,"*")`; usar un permiso por código) | Front | — | ⏳ Pendiente | — | Roto, S. `report-employees.tsx:244`, `report-code.tsx:143` |
+| G2 | Reporte de trabajador: el PDF no se genera o el error no se ve (`onSubmit` solo hace console.error y resetea el formulario); mostrar error, confirmar permiso `reportes.generar_pdf` | Front/Back | — | ⏳ Pendiente | — | Roto, S |
+| G3 | Reporte de trabajador: el backend solo aplica ~11 de ~30 filtros del formulario y descarta agrupar_por/tipo_reporte; tope de 500 filas sin aviso | Back | G1 | ⏳ Pendiente | — | Parcial, L |
+| G4 | HU 0009: entrada de menú para `/configuracion/visual` con su permiso; carnet y fe de vida deben usar el cintillo configurable | Front/Back | — | ⏳ Pendiente | — | Parcial, S+M |
+| G5 | HU 0006 punto de cuenta: pantalla para ver/descargar, aviso de éxito, disparo según RN-006-01 (Gerencia u Oficina), revisar cambio de cargo y pase a pasivo, plantilla del formato con los datos del trabajador | Front/Back | — | ⏳ Pendiente | — | Parcial, L |
+| G6 | HU 0008 movimientos: imprimir en el PDF los filtros aplicados, exportar a Excel, validar RN-008-01 también en backend, quitar tope silencioso de 300 filas (paginación) | Front/Back | — | ⏳ Pendiente | — | Parcial, M |
+| G7 | Eliminar el código legado duplicado de `src/app/(protected)/dashboard` | Front | D1 | ⏳ Pendiente | — | Deuda, S. Tiempo de servicio y antecedentes: OK, sin regresión |
+
 **Fase 5 — Usuarios por roles y permisos**
 
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
