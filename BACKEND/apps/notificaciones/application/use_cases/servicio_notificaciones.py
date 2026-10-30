@@ -49,7 +49,7 @@ class ServicioNotificaciones:
         creadas = self._repo.crear_muchas([
             Notificacion(
                 id='', destinatario_cedula=c, tipo=s.tipo, titulo=s.titulo, mensaje=s.mensaje,
-                enlace=s.enlace, ref_tipo=s.ref_tipo, ref_id=s.ref_id, clave_unica=clave,
+                enlace=s.enlace, ref_tipo=s.ref_tipo, ref_id=s.ref_id, clave_unica=clave, modulo=s.modulo,
             )
             for c in destinatarios
         ])

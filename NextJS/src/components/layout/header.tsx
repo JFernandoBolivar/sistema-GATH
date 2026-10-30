@@ -1,5 +1,6 @@
 "use client";
 
+import type { ModuloNotificaciones } from "@/modules/notificaciones/domain/entities/notificacion";
 import { CampanaNotificaciones } from "@/modules/notificaciones/ui/campana-notificaciones";
 import { SignOut } from "@/components/signout-button";
 import { BotonCambiarPassword } from "@/modules/auth/ui/boton-cambiar-password";
@@ -21,10 +22,16 @@ export function HeaderLayout({
   children,
   title,
   subtitle,
+  moduloNotificaciones,
+  rutaNotificaciones,
 }: Readonly<{
   children: React.ReactNode;
   title: string;
   subtitle?: string;
+  /** Bandeja que muestra la campana de esta cabecera. */
+  moduloNotificaciones: ModuloNotificaciones;
+  /** Página de notificaciones del módulo actual («Ver todas»). */
+  rutaNotificaciones: string;
 }>) {
   const { data: session } = useSession();
   const isRac = session?.user?.department?.nombre_departamento === "RAC";
@@ -83,7 +90,11 @@ export function HeaderLayout({
       </div>
 
       <div className="flex items-center gap-2">
-        <CampanaNotificaciones variante="oscura" modoBandeja="panel" />
+        <CampanaNotificaciones
+          variante="oscura"
+          modulo={moduloNotificaciones}
+          rutaBandeja={rutaNotificaciones}
+        />
         <BotonCambiarPassword variante="oscura" />
         <SignOut />
       </div>

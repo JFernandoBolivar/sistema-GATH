@@ -9,6 +9,11 @@ from dataclasses import dataclass
 from core.domain.exceptions import ValidationError
 
 
+# Ámbitos de la bandeja: cada notificación pertenece a UN módulo y solo se ve en la bandeja de ese módulo.
+MODULOS_NOTIFICACION = ('autogestion', 'personal', 'pasivos', 'carnetizacion', 'seguridad')
+MODULO_POR_DEFECTO = 'autogestion'
+
+
 def validar_enlace_interno(enlace: str) -> str:
     """El enlace es una ruta relativa del propio sistema: nunca un esquema ni un host externo."""
     if not enlace:
@@ -61,8 +66,11 @@ class SolicitudNotificacion:
     clave: str = ''
     excluir_cedulas: tuple[str, ...] = ()
     correo: CorreoSolicitado | None = None
+    modulo: str = MODULO_POR_DEFECTO  # bandeja en que aparece; se fija en el origen
 
     def __post_init__(self):
+        if self.modulo not in MODULOS_NOTIFICACION:
+            raise ValidationError(f'Módulo de notificación desconocido: {self.modulo}.')
         if bool(self.cedula_destino) == bool(self.permiso_destino):
             raise ValidationError('La notificación debe tener una cédula destino o un permiso destino (solo uno).')
         if not self.tipo or not self.titulo.strip() or not self.mensaje.strip():

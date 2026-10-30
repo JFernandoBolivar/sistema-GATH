@@ -18,6 +18,8 @@ export default function CarnetizacionLayout({
         <HeaderLayout
           title="Sistema de Carnetización"
           subtitle="Generación y Gestión de Carnets del Personal - CONATEL"
+          moduloNotificaciones="carnetizacion"
+          rutaNotificaciones="/carnetizacion/notificaciones"
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>

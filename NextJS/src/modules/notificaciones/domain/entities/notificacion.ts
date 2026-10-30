@@ -30,3 +30,7 @@ export function enlaceInterno(enlace: string | null | undefined): string | null 
   if (!valor.startsWith("/") || valor.startsWith("//") || valor.includes("\\")) return null;
   return valor;
 }
+
+/** Bandeja a la que pertenece una notificación; cada módulo solo muestra las suyas. */
+export type ModuloNotificaciones =
+  "autogestion" | "personal" | "pasivos" | "carnetizacion" | "seguridad";

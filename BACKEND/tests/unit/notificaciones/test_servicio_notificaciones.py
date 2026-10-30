@@ -71,9 +71,9 @@ def test_sin_correo_la_notificacion_en_el_sistema_si_se_crea():
 
 def test_notificar_invalida_la_cache_del_contador():
     servicio, _, _, cache, _ = montar()
-    cache.guardar('9', 0)
+    cache.guardar('9', 'autogestion', 0)
     servicio.notificar(SolicitudNotificacion(tipo='t', titulo='T', mensaje='M', cedula_destino='9'))
-    assert cache.obtener('9') is None
+    assert cache.obtener('9', 'autogestion') is None
 
 
 @pytest.mark.parametrize('kwargs', [
@@ -100,13 +100,13 @@ def test_bandeja_es_propia_cuenta_y_marca_leidas_con_cache():
     for ref in ('1', '2', '3'):
         servicio.notificar(SolicitudNotificacion(tipo='t', titulo='T', mensaje='M', cedula_destino='9', ref_id=ref))
     servicio.notificar(SolicitudNotificacion(tipo='t', titulo='T', mensaje='M', cedula_destino='8', ref_id='1'))
-    assert conteo_no_leidas(repo, cache, '9') == 3
-    assert conteo_no_leidas(repo, cache, '9') == 3 and repo.consultas == 1  # segunda lectura: caché
+    assert conteo_no_leidas(repo, cache, '9', 'autogestion') == 3
+    assert conteo_no_leidas(repo, cache, '9', 'autogestion') == 3 and repo.consultas == 1  # segunda lectura: caché
     marcar_leida(repo, cache, '9', repo.filas[0].id, AHORA)
-    assert conteo_no_leidas(repo, cache, '9') == 2
-    _, total, limite, _ = listar_notificaciones(repo, '9', solo_no_leidas=True, limite=500)
-    assert total == 2 and limite == 100
-    assert marcar_todas_leidas(repo, cache, '9', AHORA) == 2 and conteo_no_leidas(repo, cache, '9') == 0
+    assert conteo_no_leidas(repo, cache, '9', 'autogestion') == 2
+    _, total, limite, _ = listar_notificaciones(repo, '9', 'autogestion', solo_no_leidas=True, limite=500)
+    assert total == 2 and limite == 50
+    assert marcar_todas_leidas(repo, cache, '9', 'autogestion', AHORA) == 2 and conteo_no_leidas(repo, cache, '9', 'autogestion') == 0
 
 
 def test_zero_idor_una_notificacion_ajena_es_inexistente():
@@ -115,3 +115,52 @@ def test_zero_idor_una_notificacion_ajena_es_inexistente():
     with pytest.raises(NotFoundError):
         marcar_leida(repo, cache, '9', repo.filas[0].id, AHORA)
     assert not repo.filas[0].leida
+
+
+def test_listado_filtra_por_texto_tipo_y_leida_y_acota_el_limite():
+    servicio, repo, _, cache, _ = montar()
+    servicio.notificar(SolicitudNotificacion(tipo='a', titulo='Ventana abierta', mensaje='M', cedula_destino='9', ref_id='1'))
+    servicio.notificar(SolicitudNotificacion(tipo='b', titulo='Otro', mensaje='con VENTANA', cedula_destino='9', ref_id='2'))
+    servicio.notificar(SolicitudNotificacion(tipo='b', titulo='Zeta', mensaje='M', cedula_destino='9', ref_id='3'))
+    servicio.notificar(SolicitudNotificacion(tipo='a', titulo='Ventana ajena', mensaje='M', cedula_destino='8', ref_id='1'))
+    marcar_leida(repo, cache, '9', repo.filas[0].id, AHORA)
+    assert listar_notificaciones(repo, '9', 'autogestion', q='ventana')[1] == 2
+    assert listar_notificaciones(repo, '9', 'autogestion', tipo='b')[1] == 2
+    assert listar_notificaciones(repo, '9', 'autogestion', leida=True)[1] == 1
+    assert listar_notificaciones(repo, '9', 'autogestion', leida=False, tipo='b', q='zeta')[1] == 1
+    assert listar_notificaciones(repo, '9', 'autogestion', limite=0)[2] == 1 and listar_notificaciones(repo, '9', 'autogestion', limite=51)[2] == 50
+
+
+def test_listado_rechaza_rango_de_fechas_invertido():
+    from datetime import date
+
+    from core.domain.exceptions import ValidationError
+    _, repo, _, _, _ = montar()
+    with pytest.raises(ValidationError):
+        listar_notificaciones(repo, '9', 'autogestion', desde=date(2026, 5, 2), hasta=date(2026, 5, 1))
+
+
+def test_cada_bandeja_solo_ve_las_de_su_modulo_y_el_limite_por_defecto_es_10():
+    servicio, repo, _, cache, _ = montar()
+    servicio.notificar(SolicitudNotificacion(tipo='t', titulo='T', mensaje='M', cedula_destino='9', ref_id='1', modulo='personal'))
+    for i in range(12):
+        servicio.notificar(SolicitudNotificacion(tipo='t', titulo='T', mensaje='M', cedula_destino='9', ref_id=f'a{i}'))
+    pagina, total, limite, _ = listar_notificaciones(repo, '9', 'autogestion')
+    assert total == 12 and limite == 10 and len(pagina) == 10
+    assert listar_notificaciones(repo, '9', 'personal')[1] == 1
+    assert listar_notificaciones(repo, '9', 'carnetizacion')[1] == 0
+    assert conteo_no_leidas(repo, cache, '9', 'personal') == 1 and conteo_no_leidas(repo, cache, '9', 'autogestion') == 12
+    assert marcar_todas_leidas(repo, cache, '9', 'personal', AHORA) == 1
+    assert conteo_no_leidas(repo, cache, '9', 'autogestion') == 12  # la otra bandeja no se toca
+
+
+def test_el_modulo_es_obligatorio_y_debe_ser_conocido():
+    from core.domain.exceptions import ValidationError
+    _, repo, _, cache, _ = montar()
+    for malo in ('', 'inventado'):
+        with pytest.raises(ValidationError):
+            listar_notificaciones(repo, '9', malo)
+        with pytest.raises(ValidationError):
+            conteo_no_leidas(repo, cache, '9', malo)
+    with pytest.raises(ValidationError):
+        SolicitudNotificacion(tipo='t', titulo='T', mensaje='M', cedula_destino='9', modulo='inventado')

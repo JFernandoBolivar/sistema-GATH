@@ -3,16 +3,16 @@ import { notificacionesApi } from "../http/notificaciones-api";
 import { mapperPaginaNotificaciones } from "../mappers/mapper-notificaciones";
 
 export const repoNotificacionesApi: RepoNotificaciones = {
-  async listar(filtros = {}) {
+  async listar(filtros) {
     return mapperPaginaNotificaciones((await notificacionesApi.listar(filtros)).data);
   },
-  async contarNoLeidas() {
-    return (await notificacionesApi.contar()).data.no_leidas;
+  async contarNoLeidas(modulo) {
+    return (await notificacionesApi.contar(modulo)).data.no_leidas;
   },
   async marcarLeida(id) {
     await notificacionesApi.marcarLeida(id);
   },
-  async marcarTodasLeidas() {
-    return (await notificacionesApi.marcarTodasLeidas()).data.marcadas;
+  async marcarTodasLeidas(modulo) {
+    return (await notificacionesApi.marcarTodasLeidas(modulo)).data.marcadas;
   },
 };

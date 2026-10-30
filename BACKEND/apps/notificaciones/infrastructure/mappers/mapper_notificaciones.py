@@ -9,7 +9,7 @@ def notificacion_a_entidad(m: NotificacionModel) -> Notificacion:
     return Notificacion(
         id=str(m.pk), destinatario_cedula=m.destinatario_cedula, tipo=m.tipo, titulo=m.titulo, mensaje=m.mensaje,
         enlace=m.enlace, ref_tipo=m.ref_tipo, ref_id=m.ref_id, leida=m.leida, fecha_lectura=m.fecha_lectura,
-        creada_en=m.created_at, clave_unica=m.clave_unica or '',
+        creada_en=m.created_at, clave_unica=m.clave_unica or '', modulo=m.modulo,
     )
 
 

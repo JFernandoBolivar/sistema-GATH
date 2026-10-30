@@ -51,8 +51,19 @@ describe("enlaceInterno", () => {
 describe("listarNotificaciones", () => {
   it("acota el límite y el desplazamiento antes de llamar al repositorio", async () => {
     const repo = repoFalso();
-    await listarNotificaciones(repo, { limite: 5000, desplazamiento: -4 });
-    expect(repo.listar).toHaveBeenCalledWith({ limite: 100, desplazamiento: 0 });
+    await listarNotificaciones(repo, { modulo: "personal", limite: 5000, desplazamiento: -4 });
+    expect(repo.listar).toHaveBeenCalledWith({ modulo: "personal", limite: 50, desplazamiento: 0 });
+  });
+  it("pide 10 por página por defecto y respeta los filtros recibidos", async () => {
+    const repo = repoFalso();
+    await listarNotificaciones(repo, { modulo: "autogestion", q: "x", leida: false });
+    expect(repo.listar).toHaveBeenCalledWith({
+      modulo: "autogestion",
+      q: "x",
+      leida: false,
+      limite: 10,
+      desplazamiento: 0,
+    });
   });
   it("neutraliza enlaces no internos en el DTO", async () => {
     const repo = repoFalso({
@@ -63,7 +74,7 @@ describe("listarNotificaciones", () => {
         resultados: [notif({ enlace: "https://externo.com" }), notif({ id: "b" })],
       }),
     });
-    const pagina = await listarNotificaciones(repo);
+    const pagina = await listarNotificaciones(repo, { modulo: "autogestion" });
     expect(pagina.resultados[0].enlace).toBeNull();
     expect(pagina.resultados[1].enlace).toBe("/autogestion");
   });
@@ -71,8 +82,15 @@ describe("listarNotificaciones", () => {
 
 describe("contarNoLeidas", () => {
   it("devuelve el conteo y nunca un valor negativo", async () => {
-    expect(await contarNoLeidas(repoFalso())).toBe(3);
-    expect(await contarNoLeidas(repoFalso({ contarNoLeidas: vi.fn().mockResolvedValue(-2) }))).toBe(0);
+    const repo = repoFalso();
+    expect(await contarNoLeidas(repo, "personal")).toBe(3);
+    expect(repo.contarNoLeidas).toHaveBeenCalledWith("personal");
+    expect(
+      await contarNoLeidas(
+        repoFalso({ contarNoLeidas: vi.fn().mockResolvedValue(-2) }),
+        "personal",
+      ),
+    ).toBe(0);
   });
 });
 
@@ -91,6 +109,8 @@ describe("marcarNotificacionLeida", () => {
 
 describe("marcarTodasLeidas", () => {
   it("devuelve cuántas se marcaron", async () => {
-    expect(await marcarTodasLeidas(repoFalso())).toBe(3);
+    const repo = repoFalso();
+    expect(await marcarTodasLeidas(repo, "personal")).toBe(3);
+    expect(repo.marcarTodasLeidas).toHaveBeenCalledWith("personal");
   });
 });

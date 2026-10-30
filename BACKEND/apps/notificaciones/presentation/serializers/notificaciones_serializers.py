@@ -4,6 +4,7 @@ from rest_framework import serializers
 class NotificacionSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     tipo = serializers.CharField(help_text='Código del hecho, p. ej. autogestion.ventana_habilitada')
+    modulo = serializers.CharField(help_text='Bandeja en que aparece (autogestion, personal, ...)')
     titulo = serializers.CharField()
     mensaje = serializers.CharField()
     enlace = serializers.CharField(help_text='Ruta interna relativa del frontend ("" si no hay)')
@@ -36,7 +37,7 @@ class MarcadasLeidasSerializer(serializers.Serializer):
 
 def a_dict_notificacion(n) -> dict:
     return {
-        'id': n.id, 'tipo': n.tipo, 'titulo': n.titulo, 'mensaje': n.mensaje, 'enlace': n.enlace,
+        'id': n.id, 'tipo': n.tipo, 'modulo': n.modulo, 'titulo': n.titulo, 'mensaje': n.mensaje, 'enlace': n.enlace,
         'ref_tipo': n.ref_tipo, 'ref_id': n.ref_id, 'leida': n.leida,
         'fecha_lectura': n.fecha_lectura, 'creada_en': n.creada_en,
     }

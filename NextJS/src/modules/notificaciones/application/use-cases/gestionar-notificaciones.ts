@@ -1,11 +1,17 @@
-import { enlaceInterno, type NotificacionEntity } from "../../domain/entities/notificacion";
+import {
+  enlaceInterno,
+  type ModuloNotificaciones,
+  type NotificacionEntity,
+} from "../../domain/entities/notificacion";
 import type {
   FiltrosNotificaciones,
   RepoNotificaciones,
 } from "../../domain/ports/repo-notificaciones";
 import type { NotificacionDTO, PaginaNotificacionesDTO } from "../dtos/notificacion-dto";
 
-const LIMITE_MAXIMO = 100;
+/** Tamaño de página por defecto y techo (el servidor también lo acota a 50). */
+export const LIMITE_PREDETERMINADO = 10;
+export const LIMITE_MAXIMO = 50;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function aDTO(n: NotificacionEntity): NotificacionDTO {
@@ -23,9 +29,12 @@ function aDTO(n: NotificacionEntity): NotificacionDTO {
 
 export async function listarNotificaciones(
   repo: RepoNotificaciones,
-  filtros: FiltrosNotificaciones = {},
+  filtros: FiltrosNotificaciones,
 ): Promise<PaginaNotificacionesDTO> {
-  const limite = Math.min(Math.max(Math.trunc(filtros.limite ?? 20), 1), LIMITE_MAXIMO);
+  const limite = Math.min(
+    Math.max(Math.trunc(filtros.limite ?? LIMITE_PREDETERMINADO), 1),
+    LIMITE_MAXIMO,
+  );
   const desplazamiento = Math.max(Math.trunc(filtros.desplazamiento ?? 0), 0);
   const pagina = await repo.listar({ ...filtros, limite, desplazamiento });
   return {
@@ -36,8 +45,11 @@ export async function listarNotificaciones(
   };
 }
 
-export async function contarNoLeidas(repo: RepoNotificaciones): Promise<number> {
-  return Math.max(await repo.contarNoLeidas(), 0);
+export async function contarNoLeidas(
+  repo: RepoNotificaciones,
+  modulo: ModuloNotificaciones,
+): Promise<number> {
+  return Math.max(await repo.contarNoLeidas(modulo), 0);
 }
 
 export async function marcarNotificacionLeida(repo: RepoNotificaciones, id: string): Promise<void> {
@@ -45,6 +57,9 @@ export async function marcarNotificacionLeida(repo: RepoNotificaciones, id: stri
   await repo.marcarLeida(id);
 }
 
-export async function marcarTodasLeidas(repo: RepoNotificaciones): Promise<number> {
-  return repo.marcarTodasLeidas();
+export async function marcarTodasLeidas(
+  repo: RepoNotificaciones,
+  modulo: ModuloNotificaciones,
+): Promise<number> {
+  return repo.marcarTodasLeidas(modulo);
 }

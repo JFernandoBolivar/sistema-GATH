@@ -18,6 +18,8 @@ export default function FamiliaresLayout({
         <HeaderLayout
           title="Gestión Administrativa de Talento Humano - GATH"
           subtitle="Cargas Familiares de los Trabajadores"
+          moduloNotificaciones="personal"
+          rutaNotificaciones="/personal/notificaciones"
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>

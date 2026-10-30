@@ -4,6 +4,7 @@
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import { queryParams } from "@/shared/infrastructure/http/query-params";
+import type { FiltrosNotificaciones } from "../../domain/ports/repo-notificaciones";
 import type { ApiResponse } from "@/shared/types/api-response";
 
 const BASE = "/api/v1/notificaciones";
@@ -16,6 +17,7 @@ export interface NotificacionApi {
   enlace: string;
   ref_tipo: string;
   ref_id: string;
+  modulo?: string;
   leida: boolean;
   fecha_lectura: string | null;
   creada_en: string;
@@ -29,17 +31,25 @@ export interface PaginaNotificacionesApi {
 }
 
 export const notificacionesApi = {
-  listar: (filtros: { soloNoLeidas?: boolean; limite?: number; desplazamiento?: number }) =>
+  listar: (filtros: FiltrosNotificaciones) =>
     apiClient.get<ApiResponse<PaginaNotificacionesApi>>(
       `${BASE}/${queryParams({
-        no_leidas: filtros.soloNoLeidas ? "1" : undefined,
+        modulo: filtros.modulo,
+        leida: filtros.leida === undefined ? undefined : filtros.leida ? "si" : "no",
+        q: filtros.q?.trim(),
+        tipo: filtros.tipo,
+        desde: filtros.desde,
+        hasta: filtros.hasta,
         limit: filtros.limite,
         offset: filtros.desplazamiento,
       })}`,
     ),
-  contar: () => apiClient.get<ApiResponse<{ no_leidas: number }>>(`${BASE}/conteo/`),
+  contar: (modulo: string) =>
+    apiClient.get<ApiResponse<{ no_leidas: number }>>(`${BASE}/conteo/${queryParams({ modulo })}`),
   marcarLeida: (id: string) =>
     apiClient.post<ApiResponse<{ id: string; leida: boolean }>>(`${BASE}/${id}/leer/`),
-  marcarTodasLeidas: () =>
-    apiClient.post<ApiResponse<{ marcadas: number }>>(`${BASE}/leer-todas/`),
+  marcarTodasLeidas: (modulo: string) =>
+    apiClient.post<ApiResponse<{ marcadas: number }>>(
+      `${BASE}/leer-todas/${queryParams({ modulo })}`,
+    ),
 };

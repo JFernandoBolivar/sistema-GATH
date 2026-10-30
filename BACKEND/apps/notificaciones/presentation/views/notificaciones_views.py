@@ -3,13 +3,14 @@ Bandeja del propio usuario (campana). Zero-IDOR: la cédula SIEMPRE sale de la s
 nunca de la URL ni del cuerpo; una notificación ajena responde 404 igual que una inexistente.
 Vistas delgadas: sin ORM (B7).
 """
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.notificaciones.application.use_cases.gestionar_notificaciones import (
+    LIMITE_PREDETERMINADO,
     conteo_no_leidas,
     listar_notificaciones,
     marcar_leida,
@@ -24,7 +25,7 @@ from apps.notificaciones.presentation.serializers.notificaciones_serializers imp
     MarcadasLeidasSerializer,
     a_dict_notificacion,
 )
-from core.domain.exceptions import NotFoundError
+from core.domain.exceptions import NotFoundError, ValidationError
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 from core.presentation.schema import MensajeRespuestaSerializer
@@ -48,24 +49,52 @@ def _entero(valor, defecto: int) -> int:
         return defecto
 
 
+def _fecha(valor, nombre: str) -> date | None:
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(str(valor))
+    except ValueError:
+        raise ValidationError(f'La fecha "{nombre}" debe tener formato AAAA-MM-DD.')
+
+
+def _tri_estado(valor) -> bool | None:
+    """sí/no/todas: cualquier otro valor (o ausente) equivale a todas."""
+    v = str(valor or '').lower()
+    if v in ('1', 'true', 'si', 'sí'):
+        return True
+    if v in ('0', 'false', 'no'):
+        return False
+    return None
+
+
 class NotificacionesView(APIView):
     permission_classes = PERMISOS
 
     @extend_schema(
         tags=TAG, summary='Mis notificaciones (paginadas, más recientes primero)',
         parameters=[
-            OpenApiParameter('no_leidas', bool, description='1/true: solo las no leídas'),
-            OpenApiParameter('limit', int, description='Por defecto 20, máximo 100'),
+            OpenApiParameter('modulo', str, required=True, description='Bandeja: autogestion | personal | pasivos | carnetizacion | seguridad'),
+            OpenApiParameter('no_leidas', bool, description='1/true: solo las no leídas (atajo de leida=no)'),
+            OpenApiParameter('leida', str, description='si | no | vacío (todas)'),
+            OpenApiParameter('q', str, description='Texto en título o mensaje (icontains, máx. 100 caracteres)'),
+            OpenApiParameter('tipo', str, description='Código exacto del tipo de notificación'),
+            OpenApiParameter('desde', str, description='AAAA-MM-DD, inclusive, sobre creada_en'),
+            OpenApiParameter('hasta', str, description='AAAA-MM-DD, inclusive, sobre creada_en'),
+            OpenApiParameter('limit', int, description='Por defecto 10, máximo 50 (se acota)'),
             OpenApiParameter('offset', int),
         ],
-        responses={200: ListaNotificacionesSerializer, **ERRORES},
+        responses={200: ListaNotificacionesSerializer, 400: MensajeRespuestaSerializer, **ERRORES},
     )
     def get(self, request):
+        p = request.query_params
         pagina, total, limite, desplazamiento = listar_notificaciones(
-            RepoNotificacionesORM(), _cedula_de_sesion(request),
-            solo_no_leidas=str(request.query_params.get('no_leidas', '')).lower() in ('1', 'true', 'si', 'sí'),
-            limite=_entero(request.query_params.get('limit'), 20),
-            desplazamiento=_entero(request.query_params.get('offset'), 0),
+            RepoNotificacionesORM(), _cedula_de_sesion(request), p.get('modulo', ''),
+            solo_no_leidas=_tri_estado(p.get('no_leidas')) is True,
+            limite=_entero(p.get('limit'), LIMITE_PREDETERMINADO),
+            desplazamiento=_entero(p.get('offset'), 0),
+            q=p.get('q', ''), tipo=p.get('tipo', ''), leida=_tri_estado(p.get('leida')),
+            desde=_fecha(p.get('desde'), 'desde'), hasta=_fecha(p.get('hasta'), 'hasta'),
         )
         return ok({
             'count': total, 'limit': limite, 'offset': desplazamiento,
@@ -77,11 +106,12 @@ class ConteoNoLeidasView(APIView):
     permission_classes = PERMISOS
 
     @extend_schema(
-        tags=TAG, summary='Contador de no leídas (ligero, para el polling de la campana)',
+        tags=TAG, summary='Contador de no leídas de un módulo (ligero, para el polling de la campana)',
+        parameters=[OpenApiParameter('modulo', str, required=True)],
         responses={200: ConteoNoLeidasSerializer, **ERRORES},
     )
     def get(self, request):
-        total = conteo_no_leidas(RepoNotificacionesORM(), CacheConteoDjango(), _cedula_de_sesion(request))
+        total = conteo_no_leidas(RepoNotificacionesORM(), CacheConteoDjango(), _cedula_de_sesion(request), request.query_params.get('modulo', ''))
         return ok({'no_leidas': total})
 
 
@@ -104,11 +134,13 @@ class LeerTodasView(APIView):
     permission_classes = PERMISOS
 
     @extend_schema(
-        tags=TAG, summary='Marcar todas mis notificaciones como leídas',
+        tags=TAG, summary='Marcar todas mis notificaciones de un módulo como leídas',
+        parameters=[OpenApiParameter('modulo', str, required=True)],
         request=None, responses={200: MarcadasLeidasSerializer, **ERRORES},
     )
     def post(self, request):
         marcadas = marcar_todas_leidas(
-            RepoNotificacionesORM(), CacheConteoDjango(), _cedula_de_sesion(request), datetime.now(timezone.utc),
+            RepoNotificacionesORM(), CacheConteoDjango(), _cedula_de_sesion(request),
+            request.query_params.get('modulo', ''), datetime.now(timezone.utc),
         )
         return ok({'marcadas': marcadas}, 'Notificaciones marcadas como leídas.')

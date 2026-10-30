@@ -19,13 +19,20 @@ class RepoNotifMem:
         self.filas += nuevas
         return len(nuevas)
 
-    def listar(self, cedula, solo_no_leidas, limite, desplazamiento):
-        propias = [n for n in self.filas if n.destinatario_cedula == cedula and not (solo_no_leidas and n.leida)]
+    def listar(self, cedula, filtro, limite, desplazamiento):
+        q = filtro.q.lower()
+        propias = [
+            n for n in self.filas
+            if n.destinatario_cedula == cedula and n.modulo == filtro.modulo
+            and (filtro.leida is None or n.leida == filtro.leida)
+            and (not filtro.tipo or n.tipo == filtro.tipo)
+            and (not q or q in n.titulo.lower() or q in n.mensaje.lower())
+        ]
         return propias[desplazamiento:desplazamiento + limite], len(propias)
 
-    def contar_no_leidas(self, cedula):
+    def contar_no_leidas(self, cedula, modulo):
         self.consultas += 1
-        return sum(1 for n in self.filas if n.destinatario_cedula == cedula and not n.leida)
+        return sum(1 for n in self.filas if n.destinatario_cedula == cedula and n.modulo == modulo and not n.leida)
 
     def marcar_leida(self, cedula, notificacion_id, ahora):
         for i, n in enumerate(self.filas):
@@ -34,10 +41,10 @@ class RepoNotifMem:
                 return True
         return False
 
-    def marcar_todas_leidas(self, cedula, ahora):
+    def marcar_todas_leidas(self, cedula, modulo, ahora):
         marcadas = 0
         for i, n in enumerate(self.filas):
-            if n.destinatario_cedula == cedula and not n.leida:
+            if n.destinatario_cedula == cedula and n.modulo == modulo and not n.leida:
                 self.filas[i] = replace(n, leida=True, fecha_lectura=ahora)
                 marcadas += 1
         return marcadas
@@ -86,14 +93,15 @@ class CacheMem:
     def __init__(self):
         self.datos = {}
 
-    def obtener(self, cedula):
-        return self.datos.get(cedula)
+    def obtener(self, cedula, modulo):
+        return self.datos.get((cedula, modulo))
 
-    def guardar(self, cedula, total):
-        self.datos[cedula] = total
+    def guardar(self, cedula, modulo, total):
+        self.datos[(cedula, modulo)] = total
 
     def invalidar(self, cedula):
-        self.datos.pop(cedula, None)
+        for k in [k for k in self.datos if k[0] == cedula]:
+            del self.datos[k]
 
 
 class PlanificadorMem:

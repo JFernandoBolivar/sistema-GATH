@@ -1,6 +1,8 @@
 "use server";
 
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import type { ModuloNotificaciones } from "../../domain/entities/notificacion";
+import type { FiltrosNotificaciones } from "../../domain/ports/repo-notificaciones";
 import type {
   PaginaNotificacionesDTO,
   ResultadoNotificacion,
@@ -30,19 +32,19 @@ async function ejecutar<T>(
   }
 }
 
-export async function listarNotificacionesAction(filtros?: {
-  soloNoLeidas?: boolean;
-  limite?: number;
-  desplazamiento?: number;
-}): Promise<ResultadoNotificacion<PaginaNotificacionesDTO>> {
+export async function listarNotificacionesAction(
+  filtros: FiltrosNotificaciones,
+): Promise<ResultadoNotificacion<PaginaNotificacionesDTO>> {
   return ejecutar("", "No se pudieron cargar sus notificaciones.", () =>
     listarNotificaciones(repoNotificacionesApi, filtros),
   );
 }
 
-export async function contarNoLeidasAction(): Promise<ResultadoNotificacion<number>> {
+export async function contarNoLeidasAction(
+  modulo: ModuloNotificaciones,
+): Promise<ResultadoNotificacion<number>> {
   return ejecutar("", "No se pudo consultar el número de notificaciones.", () =>
-    contarNoLeidas(repoNotificacionesApi),
+    contarNoLeidas(repoNotificacionesApi, modulo),
   );
 }
 
@@ -57,10 +59,12 @@ export async function marcarLeidaAction(id: string): Promise<ResultadoNotificaci
   );
 }
 
-export async function marcarTodasLeidasAction(): Promise<ResultadoNotificacion<number>> {
+export async function marcarTodasLeidasAction(
+  modulo: ModuloNotificaciones,
+): Promise<ResultadoNotificacion<number>> {
   return ejecutar(
     "Notificaciones marcadas como leídas.",
     "No se pudieron marcar las notificaciones.",
-    () => marcarTodasLeidas(repoNotificacionesApi),
+    () => marcarTodasLeidas(repoNotificacionesApi, modulo),
   );
 }

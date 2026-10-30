@@ -1,4 +1,7 @@
+from django.db.models import Q
+
 from apps.notificaciones.domain.entities.notificacion import Notificacion
+from apps.notificaciones.domain.ports.repo_notificaciones import FiltroNotificaciones
 from apps.notificaciones.infrastructure.mappers.mapper_notificaciones import notificacion_a_entidad
 from apps.notificaciones.infrastructure.models.notificacion_model import NotificacionModel
 
@@ -26,7 +29,7 @@ class RepoNotificacionesORM:
         nuevas = [
             NotificacionModel(
                 destinatario_cedula=n.destinatario_cedula, tipo=n.tipo, titulo=n.titulo, mensaje=n.mensaje,
-                enlace=n.enlace, ref_tipo=n.ref_tipo, ref_id=n.ref_id, clave_unica=n.clave_unica or None,
+                enlace=n.enlace, ref_tipo=n.ref_tipo, ref_id=n.ref_id, clave_unica=n.clave_unica or None, modulo=n.modulo,
             )
             for n in notificaciones
             if (n.destinatario_cedula, n.clave_unica) not in existentes
@@ -35,15 +38,23 @@ class RepoNotificacionesORM:
         NotificacionModel.objects.bulk_create(nuevas, ignore_conflicts=True)
         return len(nuevas)
 
-    def listar(self, cedula, solo_no_leidas, limite, desplazamiento):
-        qs = NotificacionModel.objects.filter(destinatario_cedula=cedula)
-        if solo_no_leidas:
-            qs = qs.filter(leida=False)
+    def listar(self, cedula, filtro: FiltroNotificaciones, limite, desplazamiento):
+        qs = NotificacionModel.objects.filter(destinatario_cedula=cedula, modulo=filtro.modulo)
+        if filtro.leida is not None:
+            qs = qs.filter(leida=filtro.leida)
+        if filtro.tipo:
+            qs = qs.filter(tipo=filtro.tipo)
+        if filtro.q:
+            qs = qs.filter(Q(titulo__icontains=filtro.q) | Q(mensaje__icontains=filtro.q))
+        if filtro.desde:
+            qs = qs.filter(created_at__date__gte=filtro.desde)
+        if filtro.hasta:
+            qs = qs.filter(created_at__date__lte=filtro.hasta)
         total = qs.count()
         return [notificacion_a_entidad(m) for m in qs.order_by('-created_at', '-id')[desplazamiento:desplazamiento + limite]], total
 
-    def contar_no_leidas(self, cedula: str) -> int:
-        return NotificacionModel.objects.filter(destinatario_cedula=cedula, leida=False).count()
+    def contar_no_leidas(self, cedula: str, modulo: str) -> int:
+        return NotificacionModel.objects.filter(destinatario_cedula=cedula, modulo=modulo, leida=False).count()
 
     def marcar_leida(self, cedula, notificacion_id, ahora) -> bool:
         qs = _por_id(cedula, notificacion_id)
@@ -52,7 +63,7 @@ class RepoNotificacionesORM:
         qs.filter(leida=False).update(leida=True, fecha_lectura=ahora)
         return True
 
-    def marcar_todas_leidas(self, cedula, ahora) -> int:
-        return NotificacionModel.objects.filter(destinatario_cedula=cedula, leida=False).update(
+    def marcar_todas_leidas(self, cedula, modulo, ahora) -> int:
+        return NotificacionModel.objects.filter(destinatario_cedula=cedula, modulo=modulo, leida=False).update(
             leida=True, fecha_lectura=ahora,
         )

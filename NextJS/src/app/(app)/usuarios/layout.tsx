@@ -15,7 +15,11 @@ export default function SeguridadLayout({
     <SidebarProvider>
       <AppSidebarSecurity />
       <SidebarInset className="bg-transparent">
-        <HeaderLayout title="Gestión De Usuarios">
+        <HeaderLayout
+          title="Gestión De Usuarios"
+          moduloNotificaciones="seguridad"
+          rutaNotificaciones="/usuarios/notificaciones"
+>
           <SidebarTrigger className="text-black-600 scale-110" />
         </HeaderLayout>
         <main className="w-full h-full overflow-hidden">{children}</main>

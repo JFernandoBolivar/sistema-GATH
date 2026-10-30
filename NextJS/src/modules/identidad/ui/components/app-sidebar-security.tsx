@@ -1,5 +1,6 @@
 "use client";
 import {
+  Bell,
   BadgePlus,
   BookCheck,
   ChevronDown,
@@ -53,6 +54,12 @@ const items: MenuItem[] = [
     title: "Inicio",
     url: "/dashboard",
     icon: Home,
+  },
+  {
+    permiso: "notificaciones.ver_propias",
+    title: "Notificaciones",
+    url: "/usuarios/notificaciones",
+    icon: Bell,
   },
   {
     

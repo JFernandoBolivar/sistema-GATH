@@ -97,36 +97,84 @@ def crear(cedula, n=1, **extra):
 def test_listar_conteo_y_marcar_leidas_solo_de_la_sesion(db, django_capture_on_commit_callbacks):
     mias, ajenas = crear(TRABAJADOR, 3), crear(OTRO, 2)
     c = cliente(TRABAJADOR)
-    assert data(c.get(f'{BASE}/conteo/')) == {'no_leidas': 3}
-    pagina = data(c.get(f'{BASE}/?limit=2'))
+    assert data(c.get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 3}
+    pagina = data(c.get(f'{BASE}/?modulo=autogestion&limit=2'))
     assert pagina['count'] == 3 and len(pagina['results']) == 2 and pagina['limit'] == 2
 
     with django_capture_on_commit_callbacks(execute=True):  # la invalidación de la caché ocurre tras el commit
         r = c.post(f'{BASE}/{mias[0].id}/leer/')
         assert r.status_code == 200 and data(r)['leida'] is True
         assert c.post(f'{BASE}/{mias[0].id}/leer/').status_code == 200  # idempotente
-    assert data(c.get(f'{BASE}/conteo/')) == {'no_leidas': 2}  # la caché se invalidó
-    assert data(c.get(f'{BASE}/?no_leidas=1'))['count'] == 2
+    assert data(c.get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 2}  # la caché se invalidó
+    assert data(c.get(f'{BASE}/?modulo=autogestion&no_leidas=1'))['count'] == 2
 
     with django_capture_on_commit_callbacks(execute=True):
-        assert data(c.post(f'{BASE}/leer-todas/'))['marcadas'] == 2
-    assert data(c.get(f'{BASE}/conteo/')) == {'no_leidas': 0}
+        assert data(c.post(f'{BASE}/leer-todas/?modulo=autogestion'))['marcadas'] == 2
+    assert data(c.get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 0}
     assert NotificacionModel.objects.filter(destinatario_cedula=OTRO, leida=False).count() == 2
     assert ajenas[0].leida is False
+
+
+def test_listado_filtros_limite_y_fechas(db):
+    mias = crear(TRABAJADOR, 4)
+    crear(OTRO, 2)
+    NotificacionModel.objects.filter(pk=mias[0].pk).update(tipo='especial', titulo='Ventana Especial', leida=True)
+    NotificacionModel.objects.filter(pk=mias[1].pk).update(created_at=timezone.now() - timedelta(days=10))
+    c = cliente(TRABAJADOR)
+    assert data(c.get(f'{BASE}/?modulo=autogestion&q=especial'))['count'] == 1
+    assert data(c.get(f'{BASE}/?modulo=autogestion&tipo=especial'))['count'] == 1
+    assert data(c.get(f'{BASE}/?modulo=autogestion&leida=si'))['count'] == 1
+    assert data(c.get(f'{BASE}/?modulo=autogestion&leida=no'))['count'] == 3
+    assert data(c.get(f'{BASE}/?modulo=autogestion&leida='))['count'] == 4
+    assert data(c.get(f'{BASE}/?modulo=autogestion&desde={timezone.localdate().isoformat()}'))['count'] == 3
+    assert data(c.get(f'{BASE}/?modulo=autogestion&hasta={(timezone.localdate() - timedelta(days=5)).isoformat()}'))['count'] == 1
+    pagina = data(c.get(f'{BASE}/?modulo=autogestion&limit=500&offset=1'))
+    assert pagina['limit'] == 50 and pagina['offset'] == 1 and len(pagina['results']) == 3
+    fechas = [n['creada_en'] for n in data(c.get(f'{BASE}/?modulo=autogestion'))['results']]
+    assert fechas == sorted(fechas, reverse=True)
+    assert c.get(f'{BASE}/?modulo=autogestion&desde=ayer').status_code == 400
+    assert c.get(f'{BASE}/?modulo=autogestion&desde=2026-05-02&hasta=2026-05-01').status_code == 400
+
+
+def test_aislamiento_por_modulo_en_listado_conteo_y_leer_todas(db, django_capture_on_commit_callbacks):
+    crear(TRABAJADOR, 3)
+    crear(TRABAJADOR, 2, modulo='personal')
+    c = cliente(TRABAJADOR)
+    assert data(c.get(f'{BASE}/?modulo=personal'))['count'] == 2
+    assert data(c.get(f'{BASE}/?modulo=autogestion'))['count'] == 3
+    assert data(c.get(f'{BASE}/?modulo=carnetizacion'))['count'] == 0
+    assert data(c.get(f'{BASE}/conteo/?modulo=personal')) == {'no_leidas': 2}
+    assert data(c.get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 3}
+    with django_capture_on_commit_callbacks(execute=True):
+        assert data(c.post(f'{BASE}/leer-todas/?modulo=personal'))['marcadas'] == 2
+    assert data(c.get(f'{BASE}/conteo/?modulo=personal')) == {'no_leidas': 0}
+    assert data(c.get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 3}
+    for url in (f'{BASE}/', f'{BASE}/?modulo=zzz', f'{BASE}/conteo/'):
+        assert c.get(url).status_code == 400
+    assert c.post(f'{BASE}/leer-todas/').status_code == 400
+
+
+def test_pagina_por_defecto_10_y_tope_50(db):
+    crear(TRABAJADOR, 55)
+    c = cliente(TRABAJADOR)
+    p = data(c.get(f'{BASE}/?modulo=autogestion'))
+    assert p['limit'] == 10 and len(p['results']) == 10 and p['count'] == 55
+    p = data(c.get(f'{BASE}/?modulo=autogestion&limit=500'))
+    assert p['limit'] == 50 and len(p['results']) == 50
 
 
 def test_zero_idor_no_se_puede_leer_ni_marcar_la_notificacion_de_otro(db):
     ajena = crear(OTRO)[0]
     c = cliente(TRABAJADOR)
     assert c.post(f'{BASE}/{ajena.id}/leer/').status_code == 404
-    assert c.get(f'{BASE}/?cedula={OTRO}').json()['data']['count'] == 0  # el filtro por cédula no existe
+    assert c.get(f'{BASE}/?modulo=autogestion&cedula={OTRO}').json()['data']['count'] == 0  # el filtro por cédula no existe
     ajena.refresh_from_db()
     assert ajena.leida is False
 
 
 def test_sin_permiso_o_sin_sesion_se_deniega(db):
-    assert cliente(TRABAJADOR, permisos=()).get(f'{BASE}/conteo/').status_code == 403
-    assert APIClient().get(f'{BASE}/').status_code in (401, 403)
+    assert cliente(TRABAJADOR, permisos=()).get(f'{BASE}/conteo/?modulo=autogestion').status_code == 403
+    assert APIClient().get(f'{BASE}/?modulo=autogestion').status_code in (401, 403)
 
 
 def test_conteo_degrada_a_la_bd_si_la_cache_falla(db, monkeypatch):
@@ -134,7 +182,7 @@ def test_conteo_degrada_a_la_bd_si_la_cache_falla(db, monkeypatch):
     roto = MagicMock(side_effect=ConnectionError('redis caído'))
     # Solo la caché del contador falla (el throttling de DRF usa la caché real de las pruebas).
     monkeypatch.setattr('apps.notificaciones.infrastructure.cache_conteo_django.cache', MagicMock(get=roto, set=roto, delete=roto))
-    assert data(cliente(TRABAJADOR).get(f'{BASE}/conteo/')) == {'no_leidas': 2}
+    assert data(cliente(TRABAJADOR).get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 2}
 
 
 # ─── Destinatarios por permiso ───────────────────────────────────────────────────────────────────
@@ -164,7 +212,7 @@ def test_solicitud_creada_notifica_a_bienestar_y_habilitar_notifica_al_trabajado
     # Bienestar (por permiso) recibe el aviso; el trabajador, no; el inactivo y el denegado, tampoco.
     destinos = set(NotificacionModel.objects.filter(tipo='autogestion.solicitud_creada').values_list('destinatario_cedula', flat=True))
     assert destinos == {ANALISTA, EXTRA}
-    assert data(bienestar.get(f'{BASE}/conteo/'))['no_leidas'] == 1
+    assert data(bienestar.get(f'{BASE}/conteo/?modulo=personal'))['no_leidas'] == 1
 
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         r = bienestar.post(f'{AG}/bienestar/solicitudes/{sid}/habilitar/', {'plazo_dias': 7}, format='json')

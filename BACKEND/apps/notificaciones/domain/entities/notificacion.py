@@ -18,3 +18,4 @@ class Notificacion:
     fecha_lectura: datetime | None = None
     creada_en: datetime | None = None
     clave_unica: str = ''
+    modulo: str = 'autogestion'

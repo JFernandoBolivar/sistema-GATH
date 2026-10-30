@@ -53,6 +53,7 @@ def solicitudes_de_evento(e: EventoAutogestion) -> list[SolicitudNotificacion]:
     if e.tipo is TipoEvento.SOLICITUD_CREADA:
         return [SolicitudNotificacion(
             **comunes, permiso_destino=PERMISO_HABILITAR, excluir_cedulas=(e.actor_cedula,), enlace=enlace_bienestar(ref),
+            modulo='personal',
             titulo='Nueva solicitud de actualización de datos',
             mensaje=f'El trabajador C.I. {e.cedula} solicitó actualizar: {_secciones(d.get("secciones"))}. Falta habilitar la ventana.',
         )]
@@ -72,6 +73,7 @@ def solicitudes_de_evento(e: EventoAutogestion) -> list[SolicitudNotificacion]:
     if e.tipo is TipoEvento.SOLICITUD_ENVIADA:
         return [SolicitudNotificacion(
             **comunes, permiso_destino=PERMISO_APROBAR, excluir_cedulas=(e.actor_cedula,), enlace=enlace_bienestar(ref),
+            modulo='personal',
             titulo='Solicitud de actualización lista para revisar',
             mensaje=f'El trabajador C.I. {e.cedula} envió su actualización de datos para revisión.',
         )]
@@ -103,7 +105,7 @@ def solicitudes_de_evento(e: EventoAutogestion) -> list[SolicitudNotificacion]:
         )]
     if e.tipo is TipoEvento.FOTO_APROBADA:
         return [SolicitudNotificacion(
-            **comunes, permiso_destino=PERMISO_CARNETIZACION, enlace='/carnetizacion/generar',
+            **comunes, permiso_destino=PERMISO_CARNETIZACION, enlace='/carnetizacion/generar', modulo='carnetizacion',
             titulo='Reemisión de carnet pendiente',
             mensaje=f'El trabajador C.I. {e.cedula} actualizó su foto: su carnet debe reemitirse.',
         )]

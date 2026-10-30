@@ -133,7 +133,11 @@ export function AutogestionShell({ children }: Readonly<{ children: ReactNode }>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <ControlTamanoTexto condicionTrabajador={condicion} />
-            <CampanaNotificaciones variante="oscura" modoBandeja="pagina" />
+            <CampanaNotificaciones
+              variante="oscura"
+              modulo="autogestion"
+              rutaBandeja="/autogestion/notificaciones"
+            />
             <BotonCambiarPassword variante="oscura" />
             <AlternarTema />
             <span className="mx-1 hidden h-6 w-px bg-white/30 sm:block" aria-hidden />

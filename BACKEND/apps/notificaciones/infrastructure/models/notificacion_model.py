@@ -16,6 +16,8 @@ class NotificacionModel(BaseModel):
     enlace = models.CharField(max_length=300, blank=True, default='')  # ruta interna relativa
     ref_tipo = models.CharField(max_length=40, blank=True, default='')
     ref_id = models.CharField(max_length=64, blank=True, default='')
+    # Bandeja (módulo) en que se muestra; se fija en el origen. Las filas previas son del trabajador.
+    modulo = models.CharField(max_length=30, default='autogestion')
     leida = models.BooleanField(default=False)
     fecha_lectura = models.DateTimeField(null=True, blank=True)
     # Dedupe por destinatario: el mismo hecho no genera dos avisos (nulo = sin dedupe).
@@ -26,6 +28,7 @@ class NotificacionModel(BaseModel):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['destinatario_cedula', 'leida', '-created_at'], name='notif_dest_leida_idx'),
+            models.Index(fields=['destinatario_cedula', 'modulo', 'leida', '-created_at'], name='notif_dest_mod_leida_idx'),
             models.Index(fields=['ref_tipo', 'ref_id'], name='notif_ref_idx'),
         ]
         constraints = [

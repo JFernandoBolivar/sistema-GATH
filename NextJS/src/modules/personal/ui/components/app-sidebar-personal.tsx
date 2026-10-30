@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Bell,
   ArrowRightFromLine,
   ArrowRightLeft,
   Badge,
@@ -73,6 +74,12 @@ const items: MenuItem[] = [
     title: "Inicio",
     url: "/dashboard",
     icon: Home,
+  },
+  {
+    permiso: "notificaciones.ver_propias",
+    title: "Notificaciones",
+    url: "/personal/notificaciones",
+    icon: Bell,
   },
   {
     

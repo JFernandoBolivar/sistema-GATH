@@ -18,6 +18,8 @@ export default function OrganizacionLayout({
         <HeaderLayout
           title="Gestión Administrativa de Talento Humano - GATH"
           subtitle="Gestiona y Visualiza la Información de los Trabajadores en Conatel"
+          moduloNotificaciones="personal"
+          rutaNotificaciones="/personal/notificaciones"
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>

@@ -1,5 +1,6 @@
 "use client";
 import {
+  Bell,
   ChevronDown,
   ChevronRight,
   Home,
@@ -51,6 +52,12 @@ const items: MenuItem[] = [
     title: "Inicio",
     url: "/dashboard",
     icon: Home,
+  },
+  {
+    permiso: "notificaciones.ver_propias",
+    title: "Notificaciones",
+    url: "/carnetizacion/notificaciones",
+    icon: Bell,
   },
   {
     
