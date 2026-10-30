@@ -71,3 +71,24 @@ class ProcesarEgresoInputSerializer(serializers.Serializer):
     motivo_movimiento_id = serializers.IntegerField(required=True)
     tipo_nomina_id = serializers.IntegerField(required=True)
     liberar_activos = serializers.BooleanField(required=False, default=True)
+    sobrevivientes_familiar_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list,
+        help_text='C20: familiares a dar de alta como pensionados por sobrevivencia (motivo fallecimiento).',
+    )
+
+
+class CrearSobrevivientesInputSerializer(serializers.Serializer):
+    """C20: alta de pensionados por sobrevivencia de un titular fallecido."""
+
+    tipo_nomina_id = serializers.IntegerField(required=True)
+    familiar_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=False,
+        help_text='Si se omite, se usan los familiares marcados como herederos.',
+    )
+
+
+class ResultadoSobrevivienteSerializer(serializers.Serializer):
+    cedula = serializers.CharField(read_only=True)
+    nombre_completo = serializers.CharField(read_only=True)
+    creado = serializers.BooleanField(read_only=True)
+    codigo_asignacion = serializers.CharField(read_only=True, allow_null=True)

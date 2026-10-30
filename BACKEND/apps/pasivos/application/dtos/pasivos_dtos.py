@@ -36,3 +36,14 @@ class ProcesarEgresoDTO:
     tipo_nomina_id: int
     liberar_activos: bool = True
     usuario_id: int | None = None
+    # C20: si se indican, tras el egreso se da de alta a estos familiares como
+    # pensionados por sobrevivencia (el motivo debe ser fallecimiento).
+    sobrevivientes_familiar_ids: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class CrearSobrevivientesDTO:
+    cedula_titular: str
+    tipo_nomina_id: int
+    familiar_ids: tuple[int, ...] | None = None
+    usuario_id: int | None = None

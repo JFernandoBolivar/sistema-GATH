@@ -1069,3 +1069,92 @@ forbidden_modules =
     AUTOGESTION
     apps.autogestion
 allow_indirect_imports = True
+
+
+[importlinter:contract:apps-fe_de_vida-domain-puro]
+name = apps.fe_de_vida.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.fe_de_vida.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-fe_de_vida-application-puro]
+name = apps.fe_de_vida.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.fe_de_vida.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-fe_de_vida-capas]
+name = capas del modulo fe_de_vida apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.fe_de_vida.presentation
+    apps.fe_de_vida.infrastructure
+    apps.fe_de_vida.application
+    apps.fe_de_vida.domain
+
+[importlinter:contract:apps-fe_de_vida-no-cruzado]
+name = apps.fe_de_vida.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.fe_de_vida.domain
+    apps.fe_de_vida.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.reportes
+    apps.autogestion
+    apps.notificaciones
+
+[importlinter:contract:apps-fe_de_vida-presentacion-no-cruzado]
+name = apps.fe_de_vida.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.fe_de_vida.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.reportes
+    apps.autogestion
+    apps.notificaciones
+allow_indirect_imports = True
+
+[importlinter:contract:fe_de_vida-independiente]
+name = apps.fe_de_vida no importa de las apps legadas (B16; su infrastructure SI reutiliza autogestion)
+type = forbidden
+source_modules =
+    apps.fe_de_vida
+forbidden_modules =
+    RAC
+    USER
+    CARNETIZACION
+    AUTOGESTION
+    apps.notificaciones
+allow_indirect_imports = True

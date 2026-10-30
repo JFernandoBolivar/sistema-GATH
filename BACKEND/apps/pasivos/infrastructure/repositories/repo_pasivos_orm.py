@@ -5,9 +5,11 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
+from core.domain.exceptions import NotFoundError, ValidationError
 from apps.cargos.domain import events
 from apps.pasivos.domain.entities.pasivo import Pasivo
+from apps.pasivos.infrastructure.codigo_pasivo import generar_codigo_pasivo
+from apps.pasivos.infrastructure.repositories.repo_sobrevivientes_orm import RepoSobrevivientesORM
 from apps.pasivos.infrastructure.mappers.mapper_pasivos import (
     pasivo_a_entidad,
     pasivo_desde_asignacion,
@@ -23,10 +25,6 @@ from apps.pasivos.infrastructure.models.pasivo_models import (
 # `apps.autogestion.infrastructure.repositories.repo_autogestion_orm` — la
 # transición activo→pasivo orquesta datos de varios módulos por diseño
 # (ver PLAN_REPARACION_GATH.md, Fase 2.1).
-from apps.cargos.domain.services.generacion_codigo import (
-    generar_prefijo_nomina,
-    siguiente_codigo_especial,
-)
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
@@ -43,7 +41,7 @@ from apps.personal.infrastructure.models.expediente_models import (
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
-class RepoPasivosORM:
+class RepoPasivosORM(RepoSobrevivientesORM):
     def listar_pasivos(self, busqueda: str | None = None) -> list[Pasivo]:
         por_cedula: dict[str, Pasivo] = {}
 
@@ -203,9 +201,6 @@ class RepoPasivosORM:
         # documentado hasta ahora, reutilizando el mismo evento que emite
         # `RepoCargosORM.asignar_cargo_a_empleado` — `apps.movimientos` no
         # distingue de qué módulo vino el cambio de cargo.
-        # `ejecutar_creacion_sobrevivientes` (alta de un familiar como nuevo
-        # empleado pensionado por sobrevivencia) sigue deliberadamente fuera
-        # de este alcance: es una feature separada y más grande.
         if usuario_id is not None:
             events.cargo_movimiento_ejecutado.send(
                 sender=RepoPasivosORM,
@@ -238,14 +233,4 @@ class RepoPasivosORM:
             contrato.save(update_fields=['estatus'])
 
     def _generar_codigo_pasivo(self, tipo_nomina: TipoNominaModel) -> str:
-        prefijo = generar_prefijo_nomina(tipo_nomina.nomina)
-        ultimo = (
-            AsigTrabajoModel.objects.filter(codigo__startswith=prefijo)
-            .order_by('-codigo')
-            .values_list('codigo', flat=True)
-            .first()
-        )
-        codigo = siguiente_codigo_especial(prefijo, ultimo)
-        if AsigTrabajoModel.objects.filter(codigo=codigo).exists():
-            raise ConflictError(f"El código generado {codigo} ya está en uso.")
-        return codigo
+        return generar_codigo_pasivo(tipo_nomina)

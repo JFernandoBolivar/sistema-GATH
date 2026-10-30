@@ -2,6 +2,7 @@
 Vistas delgadas de Pasivos (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permiso `pasivos.ver`.
 """
+from django.db import transaction
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -9,15 +10,18 @@ from drf_spectacular.utils import extend_schema
 
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
-from apps.pasivos.application.dtos.pasivos_dtos import ProcesarEgresoDTO
+from apps.pasivos.application.dtos.pasivos_dtos import CrearSobrevivientesDTO, ProcesarEgresoDTO
+from apps.pasivos.application.use_cases.crear_sobrevivientes import ejecutar_creacion_sobrevivientes
 from apps.pasivos.application.use_cases.listar_pasivos import listar_pasivos
 from apps.pasivos.application.use_cases.obtener_pasivo import obtener_pasivo_por_cedula
 from apps.pasivos.application.use_cases.procesar_egreso import procesar_egreso
 from apps.pasivos.infrastructure.pdf_pasivo import construir_pdf_expediente_pasivo
 from apps.pasivos.infrastructure.repositories.repo_pasivos_orm import RepoPasivosORM
 from apps.pasivos.presentation.serializers.pasivos_serializers import (
+    CrearSobrevivientesInputSerializer,
     PasivoSerializer,
     ProcesarEgresoInputSerializer,
+    ResultadoSobrevivienteSerializer,
 )
 
 
@@ -83,14 +87,53 @@ class ProcesarEgresoView(APIView):
         datos = serializer.validated_data
 
         repo = RepoPasivosORM()
-        dto = procesar_egreso(
-            repo,
-            ProcesarEgresoDTO(
-                cedula=cedula,
-                motivo_movimiento_id=datos['motivo_movimiento_id'],
+        # Atómico: egreso + alta de sobrevivientes (C20) se confirman juntos.
+        with transaction.atomic():
+            dto = procesar_egreso(
+                repo,
+                ProcesarEgresoDTO(
+                    cedula=cedula,
+                    motivo_movimiento_id=datos['motivo_movimiento_id'],
+                    tipo_nomina_id=datos['tipo_nomina_id'],
+                    liberar_activos=datos['liberar_activos'],
+                    usuario_id=request.user.pk,
+                    sobrevivientes_familiar_ids=tuple(datos['sobrevivientes_familiar_ids']),
+                ),
+            )
+        return ok(PasivoSerializer(dto).data, 'Transición a pasivo procesada correctamente.')
+
+
+class CrearSobrevivientesView(APIView):
+    """
+    POST /api/v1/pasivos/<cedula>/sobrevivientes/ — C20: da de alta como
+    personal pasivo a los familiares beneficiarios de un titular fallecido.
+    No crea cuenta de usuario (C7/C16, tras cargar el correo).
+    """
+
+    permission_classes = [IsAuthenticated, HasPermission('pasivos.crear')]
+
+    @extend_schema(
+        tags=['Pasivos'],
+        summary='Dar de alta pensionados por sobrevivencia',
+        request=CrearSobrevivientesInputSerializer,
+        responses={201: ResultadoSobrevivienteSerializer(many=True)},
+    )
+    def post(self, request, cedula: str):
+        serializer = CrearSobrevivientesInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+        ids = datos.get('familiar_ids')
+        resultados = ejecutar_creacion_sobrevivientes(
+            RepoPasivosORM(),
+            CrearSobrevivientesDTO(
+                cedula_titular=cedula,
                 tipo_nomina_id=datos['tipo_nomina_id'],
-                liberar_activos=datos['liberar_activos'],
+                familiar_ids=tuple(ids) if ids else None,
                 usuario_id=request.user.pk,
             ),
         )
-        return ok(PasivoSerializer(dto).data, 'Transición a pasivo procesada correctamente.')
+        return ok(
+            ResultadoSobrevivienteSerializer(resultados, many=True).data,
+            'Pensionados por sobrevivencia procesados.',
+            status=201,
+        )

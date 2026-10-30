@@ -151,6 +151,9 @@ PERMISOS_CATALOGO = [
     ("fe_de_vida.verificar_constancia", "Verificar internamente una constancia de fe de vida"),
     ("fe_de_vida.ver_panel", "Consultar el panel de fe de vida de Bienestar"),
     ("fe_de_vida.configurar_plantilla", "Editar la plantilla de la constancia de fe de vida"),
+    ("fe_de_vida.gestionar_procesos", "Crear, abrir y cerrar procesos de fe de vida"),
+    ("fe_de_vida.prorrogar", "Conceder prórrogas (individual o general) en un proceso de fe de vida"),
+    ("fe_de_vida.ver_cobertura", "Consultar la cobertura de un proceso de fe de vida (quién cumplió y quién no)"),
 
     # ─── 18. NOTIFICACIONES ───
     ("notificaciones.ver_propias", "Consultar y marcar como leídas sus notificaciones"),
@@ -297,6 +300,9 @@ PERMISOS_BIENESTAR_ANALISTA = [
     "fe_de_vida.ver_evidencia",
     "fe_de_vida.verificar_constancia",
     "fe_de_vida.ver_panel",
+    "fe_de_vida.gestionar_procesos",
+    "fe_de_vida.prorrogar",
+    "fe_de_vida.ver_cobertura",
 ]
 # La Administradora NO hereda el check de la Analista de la fe de vida: ese doble check exige dos
 # personas distintas (para validar sola existe la aprobación directa, auditada).

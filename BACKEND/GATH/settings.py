@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.carnetizacion',
     'apps.autogestion',
     'apps.notificaciones',
+    'apps.fe_de_vida',
     'apps.reportes',
     'apps.movimientos',
     'apps.configuracion',
