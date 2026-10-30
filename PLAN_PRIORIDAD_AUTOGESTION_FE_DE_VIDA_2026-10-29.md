@@ -190,7 +190,7 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | E1 | Auditoría con hash encadenado, user-agent, dispositivo, trace_id | Back | A6 | ⏳ Pendiente | — | |
 | E2 | Rate limiting, antivirus opcional, límites de tamaño | Back/Infra | — | ⏳ Pendiente | — | |
 | E3 | Observabilidad del worker y alertas por FALLIDA | Back | A3 | ⏳ Pendiente | — | |
-| E4 | Pruebas de seguridad, cabeceras y CSP | Test | Fases 2–4 | ⏳ Pendiente | — | |
+| E4 | Pruebas de seguridad, cabeceras y CSP | Test | Fases 2–4 | ⏳ Pendiente | — | Hallazgo 2026-10-29: tras cada despliegue, las pestañas abiertas fallan con «Failed to find Server Action» y caen en la pantalla «Error al cargar la aplicación»; detectar ese error y recargar la página sola |
 | E5 | Verificación interna, panel completo, plantillas, política de retención | Back/Front | C3, C15 | ⏳ Pendiente | — | |
 | E6 | Actualizar `ESTADO_SISTEMA` y bitácora | Doc | E1–E5 | ⏳ Pendiente | — | |
 
