@@ -5,6 +5,7 @@ import {
   motivoDeEstado,
   describirDiaRecordatorio,
   normalizarDiasRecordatorio,
+  oficinaDeAdscripcion,
   primerCheck,
   requiereFotoNueva,
 } from "./reglas";
@@ -12,7 +13,10 @@ import { decisionFake, solicitudFake } from "./fixtures-fe-de-vida";
 
 describe("accionesDisponibles", () => {
   it("el analista puede dar check, devolver y rechazar, pero no aprobar directo", () => {
-    const a = accionesDisponibles(solicitudFake(), ["fe_de_vida.revisar", "fe_de_vida.check_analista"]);
+    const a = accionesDisponibles(solicitudFake(), [
+      "fe_de_vida.revisar",
+      "fe_de_vida.check_analista",
+    ]);
     expect(a).toEqual({ check: true, aprobarDirecto: false, devolver: true, rechazar: true });
   });
   it("la administradora ve aprobación directa", () => {
@@ -68,13 +72,20 @@ describe("estado y motivo", () => {
   });
   it("pide foto nueva si no hay o si la devolución lo exigió", () => {
     expect(requiereFotoNueva(solicitudFake({ tieneEvidencia: false }))).toBe(true);
-    expect(requiereFotoNueva(solicitudFake({ estado: "DEVUELTA", requiereNuevaFoto: false }))).toBe(false);
-    expect(requiereFotoNueva(solicitudFake({ estado: "DEVUELTA", requiereNuevaFoto: true }))).toBe(true);
+    expect(requiereFotoNueva(solicitudFake({ estado: "DEVUELTA", requiereNuevaFoto: false }))).toBe(
+      false,
+    );
+    expect(requiereFotoNueva(solicitudFake({ estado: "DEVUELTA", requiereNuevaFoto: true }))).toBe(
+      true,
+    );
   });
   it("primerCheck toma el del envío en curso", () => {
     const s = solicitudFake({
       envios: 2,
-      decisiones: [decisionFake({ envio: 1, actorCedula: "1" }), decisionFake({ envio: 2, actorCedula: "2" })],
+      decisiones: [
+        decisionFake({ envio: 1, actorCedula: "1" }),
+        decisionFake({ envio: 2, actorCedula: "2" }),
+      ],
     });
     expect(primerCheck(s)?.actorCedula).toBe("2");
   });
@@ -94,5 +105,31 @@ describe("describirDiaRecordatorio", () => {
   it("usa singular y plural", () => {
     expect(describirDiaRecordatorio(1)).toBe("1 día antes");
     expect(describirDiaRecordatorio(7)).toBe("7 días antes");
+  });
+});
+
+describe("oficinaDeAdscripcion", () => {
+  it("toma el nivel más específico disponible", () => {
+    expect(
+      oficinaDeAdscripcion({
+        dependencia: "NIVEL DE APOYO",
+        direccion_general: "OFICINA DE GESTIÓN HUMANA",
+        direccion_linea: "N/A",
+        coordinacion: "COORDINACIÓN DE BIENESTAR SOCIAL",
+      }),
+    ).toBe("COORDINACIÓN DE BIENESTAR SOCIAL");
+  });
+  it("salta los niveles vacíos o «N/A»", () => {
+    expect(
+      oficinaDeAdscripcion({
+        dependencia: "NIVEL DE APOYO",
+        direccion_general: "OFICINA X",
+        coordinacion: "N/A",
+      }),
+    ).toBe("OFICINA X");
+  });
+  it("sin niveles devuelve null", () => {
+    expect(oficinaDeAdscripcion(undefined)).toBeNull();
+    expect(oficinaDeAdscripcion({ dependencia: "N/A" })).toBeNull();
   });
 });

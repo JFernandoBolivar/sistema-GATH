@@ -6,16 +6,25 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { MiExpedienteDTO } from "@/modules/autogestion/application/dtos/mi-expediente-dto";
+import { oficinaDeAdscripcion } from "../../domain/services/reglas";
 import { datosContactoSchema, type DatosContactoValores } from "../schema/schema-fe-de-vida";
 
 interface Props {
   ficha: MiExpedienteDTO;
-  valoresIniciales: Partial<Omit<DatosContactoValores, "tieneHijos">> & { tieneHijos?: "si" | "no" | "" };
+  valoresIniciales: Partial<Omit<DatosContactoValores, "tieneHijos">> & {
+    tieneHijos?: "si" | "no" | "";
+  };
   guardando: boolean;
   onContinuar: (valores: DatosContactoValores) => void;
 }
 
-function DatoSoloLectura({ etiqueta, valor }: { etiqueta: string; valor: string | null | undefined }) {
+function DatoSoloLectura({
+  etiqueta,
+  valor,
+}: {
+  etiqueta: string;
+  valor: string | null | undefined;
+}) {
   return (
     <div className="rounded-md bg-muted p-3">
       <dt className="text-sm font-medium text-muted-foreground">{etiqueta}</dt>
@@ -56,11 +65,14 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
           <DatoSoloLectura etiqueta="Nombres y apellidos" valor={e.nombre_completo} />
           <DatoSoloLectura etiqueta="Fecha de nacimiento" valor={e.fecha_nacimiento} />
           <DatoSoloLectura etiqueta="Correo principal (para ingresar)" valor={e.correo} />
-          <DatoSoloLectura etiqueta="Tipo de pensión o jubilación" valor={asignacion?.tipo_nomina} />
+          <DatoSoloLectura
+            etiqueta="Tipo de pensión o jubilación"
+            valor={asignacion?.tipo_nomina}
+          />
           <DatoSoloLectura etiqueta="Cargo" valor={asignacion?.denominacion_cargo} />
           <DatoSoloLectura
-            etiqueta="Área de adscripción"
-            valor={asignacion?.dependencia || asignacion?.direccion_general}
+            etiqueta="Oficina de adscripción"
+            valor={oficinaDeAdscripcion(asignacion)}
           />
         </dl>
       </section>
@@ -129,7 +141,10 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
         </div>
       </section>
 
-      <fieldset className="flex flex-col gap-2" aria-describedby={errors.tieneHijos ? "fv-hijos-error" : undefined}>
+      <fieldset
+        className="flex flex-col gap-2"
+        aria-describedby={errors.tieneHijos ? "fv-hijos-error" : undefined}
+      >
         <legend className="text-xl font-semibold">¿Tiene hijos?</legend>
         <div className="flex flex-wrap gap-3">
           {(

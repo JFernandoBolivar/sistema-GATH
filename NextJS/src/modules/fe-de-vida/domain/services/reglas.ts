@@ -57,7 +57,8 @@ export function accionesDisponibles(
   permisos: readonly string[] | null | undefined,
   cedulaActor?: string | null,
 ): AccionesRevision {
-  if (!esRevisable(s)) return { check: false, aprobarDirecto: false, devolver: false, rechazar: false };
+  if (!esRevisable(s))
+    return { check: false, aprobarDirecto: false, devolver: false, rechazar: false };
   const esAnalista = tiene(permisos, PERMISOS_FE_DE_VIDA.checkAnalista);
   const esAdmin = tiene(permisos, PERMISOS_FE_DE_VIDA.checkAdministradora);
   let check = esAnalista || esAdmin;
@@ -93,4 +94,34 @@ export function normalizarDiasRecordatorio(dias: readonly number[]): number[] {
 /** 1 → «1 día antes»; 7 → «7 días antes». */
 export function describirDiaRecordatorio(dias: number): string {
   return `${dias} ${dias === 1 ? "día" : "días"} antes`;
+}
+
+/** Niveles de la estructura organizativa de una asignación (del más general al más específico). */
+export interface NivelesEstructura {
+  dependencia?: string | null;
+  direccion_general?: string | null;
+  direccion_linea?: string | null;
+  coordinacion?: string | null;
+}
+
+/** Valores que el servidor usa para «sin dato» en los niveles de estructura. */
+const SIN_NIVEL = new Set(["", "N/A"]);
+
+/**
+ * Oficina de adscripción: el nivel más específico que tenga la asignación
+ * (coordinación → dirección de línea → dirección general → dependencia).
+ */
+export function oficinaDeAdscripcion(niveles: NivelesEstructura | undefined): string | null {
+  if (!niveles) return null;
+  const candidatos = [
+    niveles.coordinacion,
+    niveles.direccion_linea,
+    niveles.direccion_general,
+    niveles.dependencia,
+  ];
+  for (const valor of candidatos) {
+    const limpio = valor?.trim() ?? "";
+    if (!SIN_NIVEL.has(limpio.toUpperCase())) return limpio;
+  }
+  return null;
 }
