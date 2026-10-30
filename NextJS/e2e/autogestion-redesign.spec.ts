@@ -17,7 +17,7 @@ test.describe("Portal de Autogestión CONATEL Rediseñado", () => {
     await page.getByRole("button", { name: /iniciar sesión/i }).click();
 
     // Esperar redirección al dashboard
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/inicio/, { timeout: 15_000 });
 
     // 2. Navegar a /autogestion
     await page.goto("/autogestion");

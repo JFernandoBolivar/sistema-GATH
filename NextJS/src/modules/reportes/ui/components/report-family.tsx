@@ -51,7 +51,7 @@ import {
 } from "../../application/use-cases/permisos-reporte";
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
 import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
-import { avisoTopeDeFilas } from "../reportes-aviso-tope";
+import { avisoTopeDeFilas } from "@/shared/lib/aviso-tope";
 import { useState, useTransition } from "react";
 import { schemaReportFamily, type SchemaReportFamilyType } from "../schema/report-schema-family";
 import Loading from "@/shared/ui/components/loading";

@@ -22,11 +22,6 @@ import {
 import InputForm from "@/components/input-form"
 import RadioGroupForm from "@/components/form-radio-group"
 import CheckboxForm from "@/components/form-checkbox"
-import {
-  getEmployeeInfo,
-  getEmployeeById,
-} from "@/app/(protected)/dashboard/gestion-trabajadores/api/getInfoRac"
-import { EmployeeInfo } from "@/app/types/types"
 import { formatInTimeZone } from "date-fns-tz"
 import {
   censoViviendaSchema,
@@ -37,7 +32,7 @@ import {
   SITUACION_HABITACIONAL_OPTIONS,
   REHABILITACION_OPTIONS,
 } from "@/schemas/censo-vivienda"
-import { useEmployeeSearch } from "@/shared/hooks/useEmployeeSearch"
+import { useBusquedaEmpleado } from "@/modules/personal/ui/hooks/use-busqueda-empleado"
 import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner"
 
 function calcular_anios_servicio(fecha_ingreso: string | null): string {
@@ -104,59 +99,49 @@ export default function CensoViviendaPage() {
     },
   })
 
-  const { employee, isLoading, hasSearched, search } = useEmployeeSearch<EmployeeInfo>({
-    searchFn: getEmployeeInfo,
-    onFound: (emp) => {
-      form.setValue("cedula_identidad", emp.cedulaidentidad)
-      form.setValue("nombres", emp.nombres)
-      form.setValue("apellidos", emp.apellidos)
-      if (emp.estadoCivil?.estadoCivil) {
-        form.setValue("estado_civil", emp.estadoCivil.estadoCivil)
-      }
-      if (emp.datos_vivienda?.direccion_exacta) {
-        form.setValue("direccion", emp.datos_vivienda.direccion_exacta)
-      }
-    },
-  })
+  const { empleado, cargando, yaBusco, error: errorBusqueda, buscar } = useBusquedaEmpleado()
 
   useEffect(() => {
-    if (!employee) return
-    let cancelled = false
-    ;(async () => {
-      if (employee.contrato && employee.contrato.length > 0) {
-        const ultimo = employee.contrato[employee.contrato.length - 1]
-        if (ultimo.fecha_ingreso) {
-          form.setValue("fecha_ingreso", formatInTimeZone(new Date(ultimo.fecha_ingreso + "T00:00:00"), "UTC", "dd/MM/yyyy"))
-        }
-        if (ultimo.politica?.tipo_politica) {
-          form.setValue("tipo_nomina", ultimo.politica.tipo_politica)
-        }
-        form.setValue("anios_servicio_conatel", calcular_anios_servicio(employee.contrato[0].fecha_ingreso))
-      }
-      const full = await getEmployeeById(employee.cedulaidentidad)
-      if (cancelled) return
-      if (full.data && !Array.isArray(full.data)) {
-        form.setValue("anios_servicio_apn", full.data.anos_apn?.toString() || "")
-        form.setValue("telefono", full.data.telefono_movil || full.data.telefono_habitacion || "")
-        if (full.data.asignaciones?.[0]) {
-          const dep =
-            full.data.asignaciones[0].Dependencia?.dependencia ||
-            full.data.asignaciones[0].DireccionGeneral?.direccion_general ||
-            ""
-          form.setValue("gerencia", dep)
-        }
-      }
-    })()
-    return () => { cancelled = true }
-  }, [employee, form]);
+    if (!empleado) return
+
+    form.setValue("cedula_identidad", empleado.cedula)
+    form.setValue("nombres", empleado.nombres)
+    form.setValue("apellidos", empleado.apellidos)
+    if (empleado.estadoCivilNombre) {
+      form.setValue("estado_civil", empleado.estadoCivilNombre)
+    }
+    if (empleado.datosVivienda?.direccionExacta) {
+      form.setValue("direccion", empleado.datosVivienda.direccionExacta)
+    }
+
+    const contratos = empleado.contratos ?? []
+    const ultimo = contratos[contratos.length - 1]
+    if (ultimo?.fechaIngreso) {
+      form.setValue("fecha_ingreso", formatInTimeZone(new Date(ultimo.fechaIngreso + "T00:00:00"), "UTC", "dd/MM/yyyy"))
+    }
+    if (ultimo?.politicaNombre) {
+      form.setValue("tipo_nomina", ultimo.politicaNombre)
+    }
+    if (contratos[0]?.fechaIngreso) {
+      form.setValue("anios_servicio_conatel", calcular_anios_servicio(contratos[0].fechaIngreso))
+    }
+
+    form.setValue("anios_servicio_apn", empleado.totalAnosApn?.toString() || "")
+    form.setValue("telefono", empleado.telefonoMovil || empleado.telefonoHabitacion || "")
+
+    const asignacion = empleado.asignaciones?.[0]
+    if (asignacion) {
+      form.setValue("gerencia", asignacion.dependencia || asignacion.direccionGeneral || "")
+    }
+  }, [empleado, form]);
 
   const handle_search = () => {
     if (!search_cedula) return
     form.reset()
-    search(search_cedula)
+    buscar(search_cedula)
   }
 
-  function onSubmit(values: CensoViviendaValues) {
+  function onSubmit() {
     startTransition(async () => {
       try {
         toast.success(
@@ -205,11 +190,11 @@ export default function CensoViviendaPage() {
             </div>
             <Button
               onClick={handle_search}
-              disabled={isLoading || !search_cedula}
+              disabled={cargando || !search_cedula}
               className="self-end cursor-pointer"
               variant="secondary"
             >
-              {isLoading ? (
+              {cargando ? (
                 "Buscando..."
               ) : (
                 <>
@@ -221,12 +206,13 @@ export default function CensoViviendaPage() {
           </div>
 
           <EmployeeInfoBanner
-            employee={employee}
-            hasSearched={hasSearched}
-            isLoading={isLoading}
+            employee={empleado}
+            hasSearched={yaBusco}
+            isLoading={cargando}
+            errorMessage={errorBusqueda ?? undefined}
           />
 
-          {employee && (
+          {empleado && (
             <div className="border-2 border-blue-200 bg-blue-50 rounded-md p-4 mb-6 gap-2">
               <h3 className="font-bold text-sm text-blue-900 border-b border-blue-200 pb-1 mb-2">
                 DATOS DEL TRABAJADOR
@@ -235,7 +221,7 @@ export default function CensoViviendaPage() {
                 <InfoRow
                   icon={User}
                   label="Nombre"
-                  value={`${employee.nombres} ${employee.apellidos}`}
+                  value={`${empleado.nombres} ${empleado.apellidos}`}
                 />
                 <InfoRow
                   icon={User}

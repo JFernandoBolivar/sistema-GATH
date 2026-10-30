@@ -36,7 +36,13 @@ def _fecha(v) -> str:
 
 
 def construir_pdf_historial_movimientos(
-    movimientos: list[MovimientoCargoDTO], cedula: str | None, usuario_nombre: str | None = None,
+    movimientos: list[MovimientoCargoDTO],
+    filtros: list[tuple[str, str]] | None = None,
+    usuario_nombre: str | None = None,
+    *,
+    total_encontrados: int | None = None,
+    limite: int = 0,
+    truncado: bool = False,
 ) -> bytes:
     generado_en = datetime.now()
     page_config = PAGE_CONFIG['landscape']
@@ -62,13 +68,25 @@ def construir_pdf_historial_movimientos(
     story = [
         Paragraph(escape(texto_generacion), styles['CenterSmall']),
         Spacer(1, 6),
-        Paragraph(
-            f"<b>{'Cédula' if cedula else 'Criterio'}:</b> "
-            f"{escape(cedula) if cedula else 'Historial General de Movimientos'}",
-            styles['TableCell'],
-        ),
-        Spacer(1, 6),
+        Paragraph('<b>Filtros aplicados</b>', styles['TableCell']),
     ]
+    if filtros:
+        for etiqueta, valor in filtros:
+            story.append(Paragraph(
+                f"<b>{escape(etiqueta)}:</b> {escape(valor)}", styles['TableCell'],
+            ))
+    else:
+        story.append(Paragraph('Sin filtros: historial general de movimientos.', styles['TableCell']))
+    story.append(Spacer(1, 6))
+
+    if truncado:
+        story.append(Paragraph(
+            f"<b>Aviso:</b> el reporte llegó al tope de {limite} filas e incluye "
+            f"{len(movimientos)} de {total_encontrados or len(movimientos)} movimientos. "
+            "Aplique más filtros para ver el resto.",
+            styles['TableCell'],
+        ))
+        story.append(Spacer(1, 6))
 
     if movimientos:
         columnas = ['#', 'Código', 'Fecha', 'Tipo Movimiento', 'Denominación', 'Cargo Específico', 'Grado', 'Estatus', 'Modificado Por']

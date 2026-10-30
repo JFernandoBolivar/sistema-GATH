@@ -53,7 +53,7 @@ export function AppSidebarAutogestion() {
             <SidebarMenu>
               <SidebarMenuItem className="mt-2">
                 <SidebarMenuButton asChild>
-                  <Link href="/dashboard" className="flex items-center text-sm">
+                  <Link href="/inicio" className="flex items-center text-sm">
                     <Home className="size-4" />
                     <span>Inicio</span>
                   </Link>

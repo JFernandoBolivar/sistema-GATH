@@ -3,8 +3,14 @@ Casos de uso de consulta del historial de movimientos de cargo (Fase 2.5
 del plan de reparación). Réplica funcional de
 `RAC/views/historial_views.py::listar_historial_cargo`.
 """
-from apps.movimientos.application.dtos.movimientos_dtos import MovimientoCargoDTO
+from apps.movimientos.application.dtos.movimientos_dtos import (
+    DocumentoMovimientosDTO,
+    MovimientoCargoDTO,
+    PaginaMovimientosDTO,
+)
 from apps.movimientos.domain.ports.repo_movimientos import RepoMovimientos
+from apps.movimientos.domain.value_objects.filtros_historial import FiltrosHistorial
+from apps.movimientos.domain.value_objects.paginacion import Paginacion
 
 
 def _a_dto(entidad) -> MovimientoCargoDTO:
@@ -37,3 +43,34 @@ def listar_historial_por_empleado(repo: RepoMovimientos, cedula: str) -> list[Mo
 
 def listar_historial_por_cargo(repo: RepoMovimientos, codigo_puesto: str) -> list[MovimientoCargoDTO]:
     return [_a_dto(e) for e in repo.listar_historial_por_cargo(codigo_puesto)]
+
+
+def consultar_historial(
+    repo: RepoMovimientos, parametros: dict, paginacion: Paginacion
+) -> PaginaMovimientosDTO:
+    """Página del historial validada (RN-008-01) y paginada en el servidor."""
+    filtros = FiltrosHistorial.desde_parametros(parametros)
+    entidades, total = repo.listar_historial(
+        filtros, limite=paginacion.tamano, offset=paginacion.offset
+    )
+    return PaginaMovimientosDTO(
+        resultados=[_a_dto(e) for e in entidades],
+        total=total,
+        pagina=paginacion.pagina,
+        tamano=paginacion.tamano,
+    )
+
+
+def exportar_historial(
+    repo: RepoMovimientos, parametros: dict, limite: int
+) -> DocumentoMovimientosDTO:
+    """Contenido del PDF/Excel: filas, filtros legibles y aviso de truncado."""
+    filtros = FiltrosHistorial.desde_parametros(parametros)
+    entidades, total = repo.listar_historial(filtros, limite=limite, offset=0)
+    return DocumentoMovimientosDTO(
+        movimientos=[_a_dto(e) for e in entidades],
+        filtros=filtros.como_etiquetas(),
+        total_encontrados=total,
+        limite=limite,
+        truncado=bool(limite > 0 and total > limite),
+    )

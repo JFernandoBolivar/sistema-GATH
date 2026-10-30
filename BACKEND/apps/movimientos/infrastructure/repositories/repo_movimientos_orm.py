@@ -97,41 +97,43 @@ class RepoMovimientosORM:
 
     def listar_historial(
         self,
-        cedula: str | None = None,
-        codigo_puesto: str | None = None,
-        categoria: str | None = None,
-        tipo_movimiento: str | None = None,
-        fecha_inicio: str | None = None,
-        fecha_fin: str | None = None,
-        gerencia: str | None = None,
-        estatus: str | None = None,
-        limit: int = 300,
-    ) -> list[MovimientoCargo]:
+        filtros,
+        limite: int,
+        offset: int = 0,
+    ) -> tuple[list[MovimientoCargo], int]:
+        """Página del historial con orden total (fecha y PK) y total de coincidencias."""
         from django.db.models import Q
+
         qs = EmployeeMovementHistoryModel.objects.select_related(*_SELECT_RELATED)
-        if cedula:
-            qs = qs.filter(empleado__cedulaidentidad=cedula)
-        if codigo_puesto:
-            qs = qs.filter(codigo_puesto__icontains=codigo_puesto)
-        if categoria:
+        if filtros.cedula:
+            qs = qs.filter(empleado__cedulaidentidad=filtros.cedula)
+        if filtros.codigo_puesto:
+            qs = qs.filter(codigo_puesto__icontains=filtros.codigo_puesto)
+        if filtros.categoria:
             qs = qs.filter(
-                Q(tipo_movimiento__iexact=categoria)
-                | Q(motivo__categoria__categoria__iexact=categoria)
+                Q(tipo_movimiento__iexact=filtros.categoria)
+                | Q(motivo__categoria__categoria__iexact=filtros.categoria)
             )
-        if tipo_movimiento:
+        if filtros.tipo_movimiento:
             qs = qs.filter(
-                Q(tipo_movimiento__iexact=tipo_movimiento)
-                | Q(motivo__movimiento__icontains=tipo_movimiento)
+                Q(tipo_movimiento__iexact=filtros.tipo_movimiento)
+                | Q(motivo__movimiento__icontains=filtros.tipo_movimiento)
             )
-        if fecha_inicio:
-            qs = qs.filter(fecha_movimiento__date__gte=fecha_inicio)
-        if fecha_fin:
-            qs = qs.filter(fecha_movimiento__date__lte=fecha_fin)
-        if gerencia:
-            qs = qs.filter(DireccionGeneralid__direccion_general__icontains=gerencia)
-        if estatus:
-            qs = qs.filter(estatus__estatus__icontains=estatus)
-        return [movimiento_a_entidad(m) for m in qs[:limit]]
+        if filtros.fecha_inicio:
+            qs = qs.filter(fecha_movimiento__date__gte=filtros.fecha_inicio)
+        if filtros.fecha_fin:
+            qs = qs.filter(fecha_movimiento__date__lte=filtros.fecha_fin)
+        if filtros.gerencia:
+            qs = qs.filter(DireccionGeneralid__direccion_general__icontains=filtros.gerencia)
+        if filtros.estatus:
+            qs = qs.filter(estatus__estatus__icontains=filtros.estatus)
+
+        # Orden total y determinista: el movimiento más reciente primero y la PK
+        # como desempate (dos movimientos del mismo instante no cambian de lugar).
+        qs = qs.order_by('-fecha_movimiento', '-pk')
+        total = qs.count()
+        pagina = qs[offset:offset + limite] if limite > 0 else qs[offset:]
+        return [movimiento_a_entidad(m) for m in pagina], total
 
     def listar_tipos_movimiento_disponibles(self) -> dict:
         """

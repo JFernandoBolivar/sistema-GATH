@@ -40,6 +40,7 @@ import {
 } from "@/shared/infrastructure/actions/catalog-actions";
 
 import { getDistribucionNominaAction } from "@/modules/reportes/infrastructure/actions/reportes-actions";
+import { metadatosDeTruncado } from "@/shared/lib/encabezados-reporte";
 
 export interface ApiResponse<T> {
   status: string;
@@ -388,12 +389,6 @@ export interface ResultadoReportePdf {
   truncado: boolean;
 }
 
-function numeroDeCabecera(valor: string | null): number | null {
-  if (valor === null || valor.trim() === "") return null;
-  const numero = Number(valor);
-  return Number.isFinite(numero) ? numero : null;
-}
-
 export const postReport = async <T>(values: T): Promise<ResultadoReportePdf> => {
   const response = await fetch("/api/reports/pdf", {
     method: "POST",
@@ -410,9 +405,7 @@ export const postReport = async <T>(values: T): Promise<ResultadoReportePdf> => 
 
   return {
     blob: await response.blob(),
-    total: numeroDeCabecera(response.headers.get("X-Reporte-Total-Registros")),
-    limite: numeroDeCabecera(response.headers.get("X-Reporte-Limite")),
-    truncado: response.headers.get("X-Reporte-Truncado") === "true",
+    ...metadatosDeTruncado(response.headers),
   };
 };
 

@@ -2,7 +2,14 @@
  * Casos de uso de Consulta de Movimientos (Reglas R2, R4).
  */
 import type { FiltrosMovimiento, RepoMovimientos } from "../../domain/ports/repo-movimientos";
-import type { MovimientoCargoDTO } from "../dtos/movimientos-dto";
+import type { PaginaHistorial } from "../../domain/value-objects/resultado-historial";
+import type {
+  MovimientoCargoDTO,
+  PaginaMovimientosDTO,
+} from "../dtos/movimientos-dto";
+
+export const PAGINA_POR_DEFECTO = 1;
+export const TAMANO_POR_DEFECTO = 10;
 
 export async function listarHistorialPorEmpleado(
   repo: RepoMovimientos,
@@ -23,18 +30,20 @@ export async function listarHistorialPorCargo(
 export async function listarHistorialGeneral(
   repo: RepoMovimientos,
   filtros?: FiltrosMovimiento,
-): Promise<MovimientoCargoDTO[]> {
+  pagina: number = PAGINA_POR_DEFECTO,
+  tamano: number = TAMANO_POR_DEFECTO,
+): Promise<PaginaMovimientosDTO> {
   if (repo.listarHistorial) {
-    const entidades = await repo.listarHistorial(filtros);
-    return entidades.map(aDto);
+    return aPaginaDto(await repo.listarHistorial(filtros, pagina, tamano));
   }
-  if (filtros?.cedula) {
-    return listarHistorialPorEmpleado(repo, filtros.cedula);
-  }
-  if (filtros?.codigoPuesto) {
-    return listarHistorialPorCargo(repo, filtros.codigoPuesto);
-  }
-  return [];
+  // Dobles sin paginación (no debería ocurrir con el backend actual).
+  const entidades = filtros?.cedula
+    ? await repo.listarHistorialPorEmpleado(filtros.cedula)
+    : filtros?.codigoPuesto
+      ? await repo.listarHistorialPorCargo(filtros.codigoPuesto)
+      : [];
+  const items = entidades.map(aDto);
+  return { resultados: items, total: items.length, pagina: 1, tamano: items.length, totalPaginas: 1 };
 }
 
 export async function listarTiposMovimientoDisponibles(
@@ -44,6 +53,16 @@ export async function listarTiposMovimientoDisponibles(
     return repo.listarTiposDisponibles();
   }
   return null;
+}
+
+function aPaginaDto(pagina: PaginaHistorial): PaginaMovimientosDTO {
+  return {
+    resultados: pagina.items.map(aDto),
+    total: pagina.total,
+    pagina: pagina.pagina,
+    tamano: pagina.tamano,
+    totalPaginas: pagina.totalPaginas,
+  };
 }
 
 function aDto(e: Awaited<ReturnType<RepoMovimientos["listarHistorialPorEmpleado"]>>[number]): MovimientoCargoDTO {

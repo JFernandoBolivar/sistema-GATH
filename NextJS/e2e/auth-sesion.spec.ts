@@ -26,6 +26,11 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await page.clock.install();
     await iniciarSesion(page);
     await page.waitForLoadState("domcontentloaded");
+    // El temporizador de inactividad se monta con la hidratación: esperar la
+    // pantalla de inicio evita adelantar el reloj antes de que exista.
+    await expect(
+      page.getByRole("heading", { name: /Sistema de Informaci/i }),
+    ).toBeVisible({ timeout: 20_000 });
 
     // A. Antes de los 14 minutos no debe existir el modal de advertencia
     await expect(page.getByText(/Tu sesión está por cerrarse por inactividad/i)).toHaveCount(0);
@@ -48,7 +53,7 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
 
     // El diálogo debe cerrarse y el usuario continúa autenticado
     await expect(modalAviso).toHaveCount(0);
-    expect(page.url()).toContain("/dashboard");
+    expect(page.url()).toContain("/inicio");
 
     // E. Avanzamos nuevamente 14 minutos: el modal debe reaparecer
     await page.clock.fastForward(14 * 60 * 1000);
@@ -65,6 +70,9 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await page.clock.install();
     await iniciarSesion(page);
     await page.waitForLoadState("domcontentloaded");
+    await expect(
+      page.getByRole("heading", { name: /Sistema de Informaci/i }),
+    ).toBeVisible({ timeout: 20_000 });
 
     // Avanzamos 14 minutos para gatillar el aviso
     await page.clock.fastForward(14 * 60 * 1000);
@@ -105,7 +113,7 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await inputEmail.fill(EMAIL);
     await page.getByRole("button", { name: /iniciar sesión/i }).click();
 
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/inicio/, { timeout: 15_000 });
   });
 });
 

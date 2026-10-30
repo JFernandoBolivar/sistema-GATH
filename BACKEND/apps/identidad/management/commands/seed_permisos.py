@@ -96,6 +96,8 @@ PERMISOS_CATALOGO = [
     ("movimientos.registrar_aumento", "Registrar ajuste salarial"),
     ("movimientos.anular", "Anular movimiento laboral registrado"),
     ("movimientos.exportar_pdf", "Exportar el historial de movimientos en PDF"),
+    ("movimientos.exportar_excel", "Exportar el historial de movimientos en Excel"),
+    ("personal.recibir_avisos_movimientos", "Recibir avisos de movimientos del personal (ingreso, traslado, egreso, cambio de cargo o de estatus)"),
 
     # ─── 9. REPORTES Y CONSTANCIAS ───
     ("reportes.ver", "Acceder al módulo de reportes"),
@@ -217,6 +219,8 @@ ROL_ASIGNACIONES = {
         "movimientos.registrar_ascenso",
         "movimientos.registrar_aumento",
         "movimientos.exportar_pdf",
+        "movimientos.exportar_excel",
+        "personal.recibir_avisos_movimientos",
         "reportes.ver",
         "reportes.generar_pdf",
         "reportes.generar_excel",
@@ -270,6 +274,7 @@ ROL_ASIGNACIONES = {
         "reportes.ver",
         "reportes.generar_pdf",
         "reportes.generar_excel",
+        "personal.recibir_avisos_movimientos",
     ],
 
     # 9: RECEPCIONISTA -> Estricta consulta de personal y familiares (PLAN_ROL_RECEPCIONISTA).

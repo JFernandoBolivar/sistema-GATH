@@ -27,10 +27,14 @@ export default proxy((req) => {
   // tiene gating de permisos -- oculta editar/eliminar sin
   // familiares.editar/eliminar, que este rol no tiene -- y una vista de
   // detalle equivalente a la del legado), por lo que se redirige a los
-  // módulos nuevos. "/dashboard" se conserva como shell/selector de inicio
-  // (aún no tiene equivalente en la arquitectura nueva).
+  // módulos nuevos. El shell legado "/dashboard" se retiró (G7): ahora es una
+  // redirección a "/inicio", el selector de inicio de la arquitectura nueva.
+  const RUTA_INICIO = "/inicio";
+  const RUTA_LEGADA_DASHBOARD = "/dashboard";
+
+  // Rutas que puede abrir un recepcionista / usuario de solo lectura.
   const RUTAS_RECEPCIONISTA = [
-    "/dashboard",
+    RUTA_INICIO,
     "/personal",
     "/pasivos",
     "/familiares",
@@ -58,12 +62,17 @@ export default proxy((req) => {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 
+  // Enlaces y marcadores del shell legado `(protected)/dashboard` (G7).
+  if (nextUrl.pathname === RUTA_LEGADA_DASHBOARD) {
+    return NextResponse.redirect(new URL(RUTA_INICIO, nextUrl));
+  }
+
   if (publicRoutes.includes(nextUrl.pathname) && isLoggedIn) {
     if (esAutogestion) {
       return NextResponse.redirect(new URL("/autogestion", nextUrl));
     }
     if (esRecepcionista) {
-      return NextResponse.redirect(new URL("/dashboard", nextUrl));
+      return NextResponse.redirect(new URL(RUTA_INICIO, nextUrl));
     }
     return NextResponse.redirect(new URL("/inicio", nextUrl));
   }
@@ -81,7 +90,7 @@ export default proxy((req) => {
     const permitida = RUTAS_RECEPCIONISTA.includes(ruta) || ruta.startsWith("/api/auth");
 
     if (!permitida) {
-      return NextResponse.redirect(new URL("/dashboard", nextUrl));
+      return NextResponse.redirect(new URL(RUTA_INICIO, nextUrl));
     }
   }
 

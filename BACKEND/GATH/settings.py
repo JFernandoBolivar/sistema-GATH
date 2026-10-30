@@ -231,6 +231,9 @@ DOMINIO_CORREO_INSTITUCIONAL = config('DOMINIO_CORREO_INSTITUCIONAL', default='c
 # Autogestión: si Bienestar además recibe por correo (correo de acceso) los avisos de solicitud nueva,
 # actualización enviada y corrección reenviada. Pendiente de confirmar: por defecto solo en el sistema.
 NOTIFICAR_BIENESTAR_POR_CORREO = config('NOTIFICAR_BIENESTAR_POR_CORREO', default=False, cast=bool)
+# G8: correo de los avisos de movimientos de personal. POR CONFIRMAR: por defecto
+# solo se notifica en el sistema (mismo patrón que el ajuste de Bienestar).
+NOTIFICAR_MOVIMIENTOS_POR_CORREO = config('NOTIFICAR_MOVIMIENTOS_POR_CORREO', default=False, cast=bool)
 
 # ─── Celery (Etapa A1, D-02) ─────────────────────────────────────────────────
 # Broker RabbitMQ (vhost `gath`): compose.yml arma CELERY_BROKER_URL desde

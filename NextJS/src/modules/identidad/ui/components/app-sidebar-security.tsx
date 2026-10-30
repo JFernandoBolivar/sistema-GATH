@@ -52,7 +52,7 @@ type SubMenuItem = {
 const items: MenuItem[] = [
   {
     title: "Inicio",
-    url: "/dashboard",
+    url: "/inicio",
     icon: Home,
   },
   {

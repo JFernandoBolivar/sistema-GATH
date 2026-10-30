@@ -48,6 +48,21 @@ class RepoMovimientosMemoria:
     def listar_historial_por_cargo(self, codigo_puesto):
         return [r for r in self.registros if r.codigo_puesto == codigo_puesto]
 
+    def listar_historial(self, filtros, limite, offset=0):
+        filas = self.registros
+        if filtros.cedula:
+            filas = [f for f in filas if f.empleado_cedula == filtros.cedula]
+        if filtros.codigo_puesto:
+            filas = [f for f in filas if filtros.codigo_puesto in f.codigo_puesto]
+        if filtros.tipo_movimiento:
+            filas = [f for f in filas if f.tipo_movimiento == filtros.tipo_movimiento]
+        total = len(filas)
+        pagina = filas[offset:offset + limite] if limite else filas[offset:]
+        return pagina, total
+
+    def listar_tipos_movimiento_disponibles(self):
+        return {'categorias': ['INGRESO'], 'motivos_por_categoria': {'INGRESO': ['INGRESO']}}
+
 
 def test_registrar_movimiento_devuelve_dto_con_los_datos_del_evento():
     repo = RepoMovimientosMemoria()

@@ -19,6 +19,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eraser, Filter, Search, SlidersHorizontal } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
@@ -38,22 +39,23 @@ import { DataTable } from "@/shared/ui/components/data-table";
 import Loading from "@/shared/ui/components/loading";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
-import type { MovimientoCargoDTO } from "../application/dtos/movimientos-dto";
+import type { MovimientoCargoDTO, PaginaMovimientosDTO } from "../application/dtos/movimientos-dto";
 import type {
   CatalogoTiposMovimientoInfo,
   FiltrosMovimiento,
 } from "../domain/ports/repo-movimientos";
 import {
-  descargarHistorialPdfAction,
   getHistorialGeneralAction,
-  getHistorialPorCargoAction,
-  getHistorialPorEmpleadoAction,
   getTiposMovimientoDisponiblesAction,
 } from "../infrastructure/actions/movimientos-actions";
 import { getDireccionesGeneralesAction } from "@/modules/organizacion/infrastructure/actions/organizacion-actions";
+import { avisoTopeDeFilas } from "@/shared/lib/aviso-tope";
+import { descargarHistorialMovimientos } from "./services/descargas-movimientos";
 import { DetalleMovimiento } from "./detalle-movimiento";
 import { construirColumnasMovimientos } from "./movimientos-columns";
 import { consultaHistorialSchema, type ConsultaHistorialFormType } from "./schema/schema-historial";
+
+const TAMANO_PAGINA = 10;
 
 const CATEGORIAS_INICIALES = [
   "INGRESO",
@@ -140,6 +142,11 @@ export default function MovimientosPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [exportandoExcel, setExportandoExcel] = useState(false);
+  const [avisoTope, setAvisoTope] = useState<string | null>(null);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalMovimientos, setTotalMovimientos] = useState(0);
 
   const [viendoDetalle, setViendoDetalle] = useState<MovimientoCargoDTO | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
@@ -210,7 +217,7 @@ export default function MovimientosPage() {
     return catalogoTipos.motivos_por_categoria[categoriaSeleccionada] ?? [];
   }, [categoriaSeleccionada, catalogoTipos]);
 
-  const onSearch = (values: ConsultaHistorialFormType) => {
+  const onSearch = (values: ConsultaHistorialFormType, paginaDestino = 1) => {
     const cedula = values.cedulaidentidad?.trim();
     const codigo = values.codigoPuesto?.trim();
     const categoria = values.categoria?.trim();
@@ -242,53 +249,27 @@ export default function MovimientosPage() {
         if (gerencia && gerencia !== "ALL") filtros.gerencia = gerencia;
         if (estatus && estatus !== "ALL") filtros.estatus = estatus;
 
-        let resultado: MovimientoCargoDTO[] | { error: string };
-
-        const soloCedula =
-          cedula &&
-          !codigo &&
-          (!categoria || categoria === "ALL") &&
-          (!tipo || tipo === "ALL") &&
-          !fechaInicio &&
-          !fechaFin &&
-          (!gerencia || gerencia === "ALL") &&
-          (!estatus || estatus === "ALL");
-
-        const soloCodigo =
-          codigo &&
-          !cedula &&
-          (!categoria || categoria === "ALL") &&
-          (!tipo || tipo === "ALL") &&
-          !fechaInicio &&
-          !fechaFin &&
-          (!gerencia || gerencia === "ALL") &&
-          (!estatus || estatus === "ALL");
-
+        const partesResumen = [
+          cedula ? `Cédula: ${cedula}` : "",
+          codigo ? `Puesto: ${codigo}` : "",
+          categoria && categoria !== "ALL" ? `Categoría: ${categoria}` : "",
+          tipo && tipo !== "ALL" ? `Motivo: ${tipo}` : "",
+          gerencia && gerencia !== "ALL" ? `Gerencia: ${gerencia}` : "",
+          fechaInicio ? `Desde: ${fechaInicio}` : "",
+          fechaFin ? `Hasta: ${fechaFin}` : "",
+          estatus && estatus !== "ALL" ? `Estatus: ${estatus}` : "",
+        ].filter(Boolean);
+        setConsulta({
+          tipo: "general",
+          valor: partesResumen.length > 0 ? partesResumen.join(", ") : "Historial General",
+        });
         setUltimosFiltros(filtros);
 
-        if (soloCedula) {
-          setConsulta({ tipo: "empleado", valor: cedula });
-          resultado = await getHistorialPorEmpleadoAction(cedula);
-        } else if (soloCodigo) {
-          setConsulta({ tipo: "cargo", valor: codigo.toUpperCase() });
-          resultado = await getHistorialPorCargoAction(codigo.toUpperCase());
-        } else {
-          const partesResumen = [
-            cedula ? `Cédula: ${cedula}` : "",
-            codigo ? `Puesto: ${codigo}` : "",
-            categoria && categoria !== "ALL" ? `Categoría: ${categoria}` : "",
-            tipo && tipo !== "ALL" ? `Motivo: ${tipo}` : "",
-            gerencia && gerencia !== "ALL" ? `Gerencia: ${gerencia}` : "",
-            fechaInicio ? `Desde: ${fechaInicio}` : "",
-            fechaFin ? `Hasta: ${fechaFin}` : "",
-            estatus && estatus !== "ALL" ? `Estatus: ${estatus}` : "",
-          ].filter(Boolean);
-          setConsulta({
-            tipo: "general",
-            valor: partesResumen.length > 0 ? partesResumen.join(", ") : "Historial General",
-          });
-          resultado = await getHistorialGeneralAction(filtros);
-        }
+        const resultado = await getHistorialGeneralAction(
+          filtros,
+          paginaDestino,
+          TAMANO_PAGINA,
+        );
 
         if (resultado && typeof resultado === "object" && "error" in resultado) {
           setError((resultado as { error: string }).error);
@@ -296,12 +277,21 @@ export default function MovimientosPage() {
           return;
         }
 
-        setMovimientos((resultado as MovimientoCargoDTO[]) ?? []);
+        const pagina = resultado as PaginaMovimientosDTO;
+        setMovimientos(pagina.resultados ?? []);
+        setPaginaActual(pagina.pagina ?? paginaDestino);
+        setTotalPaginas(pagina.totalPaginas ?? 1);
+        setTotalMovimientos(pagina.total ?? 0);
       } catch {
         setError("No fue posible cargar el historial de movimientos.");
         setMovimientos([]);
       }
     });
+  };
+
+  const irAPagina = (destino: number) => {
+    if (destino < 1 || destino > totalPaginas || destino === paginaActual) return;
+    onSearch(form.getValues(), destino);
   };
 
   const cleanFields = () => {
@@ -320,6 +310,10 @@ export default function MovimientosPage() {
     setMovimientos([]);
     setBuscado(false);
     setError(null);
+    setAvisoTope(null);
+    setPaginaActual(1);
+    setTotalPaginas(1);
+    setTotalMovimientos(0);
   };
 
   const onVerDetalle = (movimiento: MovimientoCargoDTO) => {
@@ -347,24 +341,35 @@ export default function MovimientosPage() {
     });
   }, [movimientos, busquedaLibre]);
 
-  const descargarPdf = async () => {
-    setExportandoPdf(true);
+  const descargar = async (formato: "pdf" | "excel") => {
+    const marcarExportando = formato === "pdf" ? setExportandoPdf : setExportandoExcel;
+    marcarExportando(true);
+    setAvisoTope(null);
     try {
-      const resultado = await descargarHistorialPdfAction(ultimosFiltros);
-      if (!(resultado instanceof Blob)) {
-        setError((resultado as { error: string }).error ?? "No fue posible descargar el PDF.");
-        return;
-      }
-      const url = window.URL.createObjectURL(resultado);
+      const { blob, total, limite, truncado } = await descargarHistorialMovimientos(
+        formato,
+        ultimosFiltros,
+      );
+
+      const aviso = avisoTopeDeFilas({ total, limite, truncado });
+      setAvisoTope(aviso);
+      if (aviso) toast.warning(aviso);
+
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
+      const extension = formato === "excel" ? "xlsx" : "pdf";
       a.href = url;
-      a.download = `historial-movimientos-${consulta?.tipo === "empleado" ? consulta.valor : "reporte"}.pdf`;
+      a.download = `historial-movimientos-${consulta?.valor ? "filtrado" : "reporte"}.${extension}`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch {
-      setError("No fue posible descargar el PDF.");
+    } catch (error) {
+      setError(
+        error instanceof Error && error.message
+          ? error.message
+          : `No fue posible descargar el ${formato.toUpperCase()}.`,
+      );
     } finally {
-      setExportandoPdf(false);
+      marcarExportando(false);
     }
   };
 
@@ -391,7 +396,7 @@ export default function MovimientosPage() {
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSearch)} className="flex flex-col gap-4" noValidate>
+            <form onSubmit={form.handleSubmit((values) => onSearch(values, 1))} className="flex flex-col gap-4" noValidate>
               {/* Fila 1: Cédula, Código Puesto, Categoría de Movimiento, Motivo Específico */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <FormField
@@ -631,34 +636,77 @@ export default function MovimientosPage() {
           </p>
         )}
 
-        {/* Toolbar de resultados: Búsqueda rápida, badge de cantidad y Export PDF */}
-        {movimientos.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-muted/40 p-3 rounded-lg border">
-            <div className="relative max-w-sm flex-1">
-              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Filtrar resultados (cédula, puesto, cargo, usuario...)"
-                value={busquedaLibre}
-                onChange={(e) => setBusquedaLibre(e.target.value)}
-                className="pl-8 bg-white h-9 text-xs"
-              />
+        {avisoTope && (
+          <p
+            role="status"
+            className="rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+          >
+            {avisoTope}
+          </p>
+        )}
+
+        {/* Toolbar de resultados: búsqueda rápida, total, exportaciones y paginación */}
+        {(movimientos.length > 0 || totalMovimientos > 0) && (
+          <div className="flex flex-col gap-3 bg-muted/40 p-3 rounded-lg border">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative max-w-sm flex-1">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Filtrar resultados de esta página (cédula, puesto, cargo, usuario...)"
+                  value={busquedaLibre}
+                  onChange={(e) => setBusquedaLibre(e.target.value)}
+                  className="pl-8 bg-white h-9 text-xs"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 justify-between sm:justify-end flex-wrap">
+                <Badge variant="outline" className="text-xs font-normal">
+                  {totalMovimientos} movimiento(s) · página {paginaActual} de {totalPaginas}
+                </Badge>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={exportandoPdf}
+                    onClick={() => descargar("pdf")}
+                  >
+                    {exportandoPdf ? "Generando PDF…" : "Descargar PDF"}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={exportandoExcel}
+                    onClick={() => descargar("excel")}
+                    className="bg-emerald-600 hover:bg-emerald-800"
+                  >
+                    {exportandoExcel ? "Generando Excel…" : "Descargar Excel"}
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3 justify-between sm:justify-end">
-              <Badge variant="outline" className="text-xs font-normal">
-                {movimientosFiltrados.length === movimientos.length
-                  ? `${movimientos.length} movimiento(s)`
-                  : `${movimientosFiltrados.length} de ${movimientos.length} movimiento(s)`}
-              </Badge>
-
+            <div className="flex items-center justify-end gap-2">
               <Button
                 type="button"
-                disabled={exportandoPdf}
-                onClick={descargarPdf}
-                className="bg-blue-600 hover:bg-blue-800"
+                variant="outline"
+                size="sm"
+                disabled={isPending || paginaActual <= 1}
+                onClick={() => irAPagina(paginaActual - 1)}
               >
-                {exportandoPdf ? "Generando archivo…" : "Descargar PDF"}
+                Anterior
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Página {paginaActual} de {totalPaginas}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isPending || paginaActual >= totalPaginas}
+                onClick={() => irAPagina(paginaActual + 1)}
+              >
+                Siguiente
               </Button>
             </div>
           </div>

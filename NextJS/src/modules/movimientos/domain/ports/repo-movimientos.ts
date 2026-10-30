@@ -6,6 +6,7 @@
  * consulta el historial por empleado o por puesto.
  */
 import type { MovimientoCargo } from "../entities/movimiento";
+import type { PaginaHistorial } from "../value-objects/resultado-historial";
 
 export interface FiltrosMovimiento {
   cedula?: string;
@@ -26,9 +27,11 @@ export interface CatalogoTiposMovimientoInfo {
 export interface RepoMovimientos {
   listarHistorialPorEmpleado(cedula: string): Promise<MovimientoCargo[]>;
   listarHistorialPorCargo(codigoPuesto: string): Promise<MovimientoCargo[]>;
-  listarHistorial?(filtros?: FiltrosMovimiento): Promise<MovimientoCargo[]>;
+  /** Página del historial general (paginación en el servidor). */
+  listarHistorial?(
+    filtros?: FiltrosMovimiento,
+    pagina?: number,
+    tamano?: number,
+  ): Promise<PaginaHistorial>;
   listarTiposDisponibles?(): Promise<CatalogoTiposMovimientoInfo>;
-  /** PDF del historial generado en backend (ReportLab), reemplaza el render client-side con @react-pdf/renderer. */
-  descargarPdf?(filtros?: FiltrosMovimiento): Promise<Blob>;
 }
-

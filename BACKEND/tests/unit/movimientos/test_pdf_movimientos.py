@@ -37,17 +37,23 @@ def _movimiento(**overrides) -> MovimientoCargoDTO:
 
 @patch("apps.movimientos.infrastructure.pdf_movimientos.construir_config_pdf", return_value=None)
 def test_genera_pdf_valido_con_movimientos(_mock_config):
-    pdf = construir_pdf_historial_movimientos([_movimiento(), _movimiento(id=2)], cedula="12345678", usuario_nombre="Admin")
+    pdf = construir_pdf_historial_movimientos(
+        [_movimiento(), _movimiento(id=2)],
+        filtros=[("Cédula del trabajador", "12345678")],
+        usuario_nombre="Admin",
+    )
     assert pdf.startswith(b"%PDF")
 
 
 @patch("apps.movimientos.infrastructure.pdf_movimientos.construir_config_pdf", return_value=None)
 def test_genera_pdf_valido_sin_movimientos(_mock_config):
-    pdf = construir_pdf_historial_movimientos([], cedula=None, usuario_nombre=None)
+    pdf = construir_pdf_historial_movimientos([], filtros=[], usuario_nombre=None)
     assert pdf.startswith(b"%PDF")
 
 
 @patch("apps.movimientos.infrastructure.pdf_movimientos.construir_config_pdf", return_value={"tipo_cintillo": "GENERICO"})
 def test_respeta_cintillo_generico(_mock_config):
-    pdf = construir_pdf_historial_movimientos([_movimiento()], cedula="12345678")
+    pdf = construir_pdf_historial_movimientos(
+        [_movimiento()], filtros=[("Cédula del trabajador", "12345678")]
+    )
     assert pdf.startswith(b"%PDF")

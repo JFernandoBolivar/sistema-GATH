@@ -49,7 +49,7 @@ export default function LoginForm() {
       // reutilizar una entrada prefetcheada antes del login (con session=null).
       // Un location.href fuerza una carga completa que re-ejecuta el
       // RootLayout con la sesion ya autenticada en /dashboard.
-      window.location.href = "/dashboard";
+      window.location.href = "/inicio";
     });
   }
 

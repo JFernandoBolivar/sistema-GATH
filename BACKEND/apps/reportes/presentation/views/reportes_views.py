@@ -30,7 +30,8 @@ from apps.reportes.domain.value_objects.permisos_reportes import (
     PERMISO_GENERAR_PDF,
     PERMISO_VER_REPORTES,
 )
-from apps.reportes.infrastructure.limites_reporte import limite_de_reporte
+from core.infrastructure.reportes import limite_de_reporte
+from core.presentation.descargas import aplicar_cabeceras_de_truncado
 from apps.reportes.infrastructure.repositories.repo_reportes_orm import RepoReportesORM
 from apps.reportes.presentation.serializers.reportes_serializers import ResultadoReporteSerializer
 
@@ -59,12 +60,12 @@ def _cabeceras_de_metadatos(respuesta: HttpResponse, metadatos: dict | None) -> 
     """Expone el tamaño del resultado al frontend (aviso de tope de filas)."""
     if not metadatos:
         return
-    total = metadatos.get('total_encontrados')
-    if total is not None:
-        respuesta['X-Reporte-Total-Registros'] = str(total)
-    if metadatos.get('limite') is not None:
-        respuesta['X-Reporte-Limite'] = str(metadatos['limite'])
-    respuesta['X-Reporte-Truncado'] = 'true' if metadatos.get('truncado') else 'false'
+    aplicar_cabeceras_de_truncado(
+        respuesta,
+        total_encontrados=metadatos.get('total_encontrados', 0),
+        limite=metadatos.get('limite', 0),
+        truncado=bool(metadatos.get('truncado')),
+    )
 
 
 def _generar_reporte_personal(request, *, para_pdf: bool):

@@ -22,3 +22,20 @@ export interface MovimientoCargoDTO {
   ejecutadoPorId: number;
   ejecutadoPorNombre: string;
 }
+
+/** Página del historial (paginación en el servidor: 10 por defecto, tope 50). */
+export interface PaginaMovimientosDTO {
+  resultados: MovimientoCargoDTO[];
+  total: number;
+  pagina: number;
+  tamano: number;
+  totalPaginas: number;
+}
+
+/** Documento descargado (PDF/Excel) con el aviso de truncado del backend. */
+export interface DescargaMovimientosDTO {
+  blob: Blob;
+  total: number | null;
+  limite: number | null;
+  truncado: boolean;
+}

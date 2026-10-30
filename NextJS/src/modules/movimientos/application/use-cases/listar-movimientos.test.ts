@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import type { RepoMovimientos } from "../../domain/ports/repo-movimientos";
 import type { MovimientoCargo } from "../../domain/entities/movimiento";
 import {
+  listarHistorialGeneral,
   listarHistorialPorCargo,
   listarHistorialPorEmpleado,
 } from "./listar-movimientos";
 
 class RepoMovimientosMemoria implements RepoMovimientos {
+  listarHistorial?: RepoMovimientos["listarHistorial"];
+
   movimientos: MovimientoCargo[] = [
     {
       id: 1,
@@ -117,5 +120,24 @@ describe("Casos de uso de Historiamiento de Movimientos", () => {
     const porCargo = await listarHistorialPorCargo(repo, "9-99-999999-99");
     expect(porEmpleado).toEqual([]);
     expect(porCargo).toEqual([]);
+  });
+
+  it("listarHistorialGeneral entrega la página con su total y total de páginas", async () => {
+    const repo = new RepoMovimientosMemoria();
+    repo.listarHistorial = async (_filtros, pagina = 1, tamano = 10) => ({
+      items: repo.movimientos.slice((pagina - 1) * tamano, pagina * tamano),
+      total: 25,
+      pagina,
+      tamano,
+      totalPaginas: 3,
+    });
+
+    const primera = await listarHistorialGeneral(repo, { cedula: "12345678" }, 1, 10);
+
+    expect(primera.total).toBe(25);
+    expect(primera.totalPaginas).toBe(3);
+    expect(primera.pagina).toBe(1);
+    expect(primera.resultados.length).toBe(2);
+    expect(primera.resultados[0].empleadoCedula).toBe("12345678");
   });
 });

@@ -20,6 +20,9 @@ const AUTOGESTION: TipoNotificacion[] = [
   { codigo: "identidad.cuenta_creada", etiqueta: "Cuenta creada" },
   { codigo: "identidad.password_cambiada", etiqueta: "Contraseña cambiada" },
   { codigo: "identidad.correo_acceso_cambiado", etiqueta: "Correo de acceso cambiado" },
+  { codigo: "movimiento.ingreso", etiqueta: "Ingreso registrado" },
+  { codigo: "movimiento.traslado", etiqueta: "Traslado registrado" },
+  { codigo: "movimiento.cambio_estatus", etiqueta: "Cambio de estatus registrado" },
 ];
 
 /** Tipos conocidos por bandeja, para el filtro «Tipo». */
@@ -30,6 +33,11 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
     { codigo: "autogestion.solicitud_enviada", etiqueta: "Solicitud por revisar" },
     { codigo: "fe_de_vida.solicitud_enviada", etiqueta: "Fe de vida por revisar" },
     { codigo: "fe_de_vida.primer_check", etiqueta: "Fe de vida pendiente de segundo check" },
+    { codigo: "movimiento.ingreso", etiqueta: "Ingreso de personal" },
+    { codigo: "movimiento.traslado", etiqueta: "Traslado de personal" },
+    { codigo: "movimiento.cambio_estatus", etiqueta: "Cambio de estatus" },
+    { codigo: "movimiento.egreso", etiqueta: "Egreso de personal" },
+    { codigo: "movimiento.sobreviviente", etiqueta: "Alta de sobreviviente" },
   ],
   carnetizacion: [{ codigo: "autogestion.foto_aprobada", etiqueta: "Reemisión de carnet" }],
   pasivos: [],
