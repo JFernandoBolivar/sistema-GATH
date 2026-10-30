@@ -1,7 +1,8 @@
 """
 Constancia de fe de vida en PDF (C4, PLAN §2.11) con el motor ReportLab del kernel (encabezado y pie
 institucionales de `core/infrastructure/pdf`). Lleva número, código de verificación y QR de verificación
-interna, y el nombre y la cédula de quien(es) aprobaron. Sin firma digitalizada, sin sello y sin la selfie.
+interna, y el nombre y la cédula de quien(es) certifican, como en la planilla física (sin cargo ni vía de
+aprobación). Sin firma digitalizada, sin sello y sin la selfie. El título va solo en el cuerpo, no en el encabezado.
 """
 from io import BytesIO
 from xml.sax.saxutils import escape
@@ -17,8 +18,8 @@ from core.infrastructure.pdf.pdf_components import create_header, draw_footer
 from core.infrastructure.pdf.pdf_styles import COLORS, FONTS, PAGE_CONFIG, get_paragraph_styles
 
 LADO_QR_MM = 32
-ETIQUETA_ROL = {'ANALISTA': 'Analista de Bienestar Social', 'ADMINISTRADORA': 'Administradora de Bienestar Social'}
-TEXTO_DIRECTA = 'Aprobación directa de la Administradora de Bienestar Social.'
+TITULO_CERTIFICAN = 'Funcionario(s) que certifica(n)'
+COLUMNAS_CERTIFICAN = ('Nombre y apellido', 'Cédula de identidad')
 
 
 def _qr(contenido: str) -> Image:
@@ -55,16 +56,19 @@ class GeneradorConstanciaPDF:
             Spacer(1, 8 * mm),
             Paragraph(escape(texto), cuerpo),
             Spacer(1, 10 * mm),
-            Paragraph('<b>Certifican</b>', centro),
+            Paragraph(f'<b>{TITULO_CERTIFICAN}</b>', centro),
             Spacer(1, 3 * mm),
         ]
-        if via_directa:
-            historia.append(Paragraph(TEXTO_DIRECTA, centro))
-        for c in constancia.certificada_por:
-            historia.append(Paragraph(
-                f'{escape(c.nombre)} - C.I. N.° {escape(c.cedula)}<br/>{escape(ETIQUETA_ROL.get(c.rol, c.rol))}', centro,
-            ))
-            historia.append(Spacer(1, 3 * mm))
+        celda = estilos['TableCell']
+        filas = [[Paragraph(f'<b>{col}</b>', celda) for col in COLUMNAS_CERTIFICAN]] + [
+            [Paragraph(escape(c.nombre), celda), Paragraph(f'C.I. N.° {escape(c.cedula)}', celda)]
+            for c in constancia.certificada_por
+        ]
+        certifican = Table(filas, colWidths=[doc.width * 0.6, doc.width * 0.4])
+        certifican.setStyle(TableStyle([
+            ('GRID', (0, 0), (-1, -1), 0.5, COLORS['text']), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        historia.append(certifican)
         datos = Paragraph(
             f'<b>Constancia N.° {escape(constancia.numero)}</b><br/>'
             f'Emitida el {emitida_en.strftime("%d/%m/%Y %H:%M")}<br/>'
@@ -77,7 +81,7 @@ class GeneradorConstanciaPDF:
 
         def _pagina(canvas, doc_):
             canvas.saveState()
-            for el in create_header(plantilla.titulo, width=doc_.width):
+            for el in create_header('', width=doc_.width):
                 el.wrap(doc_.width, doc_.topMargin)
                 el.drawOn(canvas, doc_.leftMargin, doc_.pagesize[1] - pagina['topMargin'] + 10 * mm)
             canvas.restoreState()
