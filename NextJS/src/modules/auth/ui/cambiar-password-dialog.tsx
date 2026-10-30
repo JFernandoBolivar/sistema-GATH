@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Diálogo de cambio de contraseña obligatorio (`session.user.debeCambiarPassword`).
+ * Diálogo de cambio de contraseña. Modo obligatorio (`session.user.debeCambiarPassword`,
+ * no descartable) o voluntario (`obligatorio={false}`, desde la cabecera, para todo usuario).
  * Extraído de `app/(app)/inicio/page.tsx` (donde vivía inline junto con el
  * resto del home) hacia `modules/auth/ui/` para que la página de inicio sea
  * un wrapper delgado (R10) y el componente use los primitivos de
@@ -35,9 +36,17 @@ import {
 interface CambiarPasswordDialogProps {
   open: boolean;
   onCambiada: () => void;
+  /** `false` permite cerrar el diálogo (cambio voluntario). Por defecto es obligatorio. */
+  obligatorio?: boolean;
+  onCerrar?: () => void;
 }
 
-export default function CambiarPasswordDialog({ open, onCambiada }: CambiarPasswordDialogProps) {
+export default function CambiarPasswordDialog({
+  open,
+  onCambiada,
+  obligatorio = true,
+  onCerrar,
+}: CambiarPasswordDialogProps) {
   const [isPending, startTransition] = useTransition();
 
   const form = useForm<CambiarPasswordFormType>({
@@ -49,6 +58,7 @@ export default function CambiarPasswordDialog({ open, onCambiada }: CambiarPassw
     startTransition(async () => {
       const response = await cambiarPasswordAction(data);
       if (response.success) {
+        form.reset();
         onCambiada();
       } else {
         form.setError("current_password", {
@@ -59,17 +69,27 @@ export default function CambiarPasswordDialog({ open, onCambiada }: CambiarPassw
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
+    <Dialog
+      open={open}
+      onOpenChange={(abierto) => {
+        if (!abierto && !obligatorio) {
+          form.reset();
+          onCerrar?.();
+        }
+      }}
+    >
       <DialogContent
         className="sm:max-w-md"
-        showCloseButton={false}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        showCloseButton={!obligatorio}
+        onPointerDownOutside={(e) => obligatorio && e.preventDefault()}
+        onEscapeKeyDown={(e) => obligatorio && e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>Cambiar Contraseña</DialogTitle>
           <DialogDescription>
-            Debe cambiar su contraseña para continuar. Esta es una medida de seguridad obligatoria.
+            {obligatorio
+              ? "Debe cambiar su contraseña para continuar. Esta es una medida de seguridad obligatoria."
+              : "Escriba su contraseña actual y la nueva contraseña que desea usar."}
           </DialogDescription>
         </DialogHeader>
 
@@ -80,7 +100,7 @@ export default function CambiarPasswordDialog({ open, onCambiada }: CambiarPassw
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <Label htmlFor="current_password">Contraseña Actual</Label>
-                <Input {...field} id="current_password" type="password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
+                <Input {...field} id="current_password" type="password" autoComplete="current-password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
                 {fieldState.error && (
                   <p role="alert" className="text-sm text-destructive">
                     {fieldState.error.message}
@@ -95,7 +115,7 @@ export default function CambiarPasswordDialog({ open, onCambiada }: CambiarPassw
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <Label htmlFor="new_password">Nueva Contraseña</Label>
-                <Input {...field} id="new_password" type="password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
+                <Input {...field} id="new_password" type="password" autoComplete="new-password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
                 {fieldState.error && (
                   <p role="alert" className="text-sm text-destructive">
                     {fieldState.error.message}
@@ -110,7 +130,7 @@ export default function CambiarPasswordDialog({ open, onCambiada }: CambiarPassw
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <Label htmlFor="confirm_password">Confirmar Contraseña</Label>
-                <Input {...field} id="confirm_password" type="password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
+                <Input {...field} id="confirm_password" type="password" autoComplete="new-password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
                 {fieldState.error && (
                   <p role="alert" className="text-sm text-destructive">
                     {fieldState.error.message}

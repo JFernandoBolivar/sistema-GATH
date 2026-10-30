@@ -70,7 +70,7 @@ for (const p of PERFILES) {
     for (const [ruta, espera] of p.rutas) {
       test(`${ruta} sin violaciones serious/critical`, async () => {
         await page.goto(ruta);
-        await expect(page.getByText(espera).first()).toBeVisible({ timeout: 45_000 });
+        await expect(page.getByText(espera).filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
         await sinGraves(page);
       });
     }

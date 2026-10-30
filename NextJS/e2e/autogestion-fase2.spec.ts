@@ -138,7 +138,7 @@ for (const perfil of PERFILES) {
       for (const pantalla of perfil.visibles) {
         test(`${pantalla.ruta} carga sin errores y sin violaciones graves de axe`, async () => {
           await page.goto(pantalla.ruta);
-          await expect(page.getByText(pantalla.espera).first()).toBeVisible({ timeout: 45_000 });
+          await expect(page.getByText(pantalla.espera).filter({ visible: true }).first()).toBeVisible({ timeout: 45_000 });
           await revisar(page, pantalla, perfil.id, vista);
           expect(errores).toEqual([]);
         });

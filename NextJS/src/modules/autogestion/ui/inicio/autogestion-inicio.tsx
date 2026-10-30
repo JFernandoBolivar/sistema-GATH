@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
@@ -13,10 +14,25 @@ import { PRESENTACION_ESTADO } from "../estado-solicitud-ui";
 import { textoTiempoRestante, tiempoRestante } from "../../domain/services/reglas-solicitud";
 import { useAhora } from "../solicitudes/use-ahora";
 
-function saludo(hora: number): string {
+function saludo(hora: number | null): string {
+  if (hora === null) return "Bienvenido";
   if (hora < 12) return "Buenos días";
   if (hora < 19) return "Buenas tardes";
   return "Buenas noches";
+}
+
+const sinSuscripcion = () => () => {};
+
+/**
+ * Hora local del navegador; `null` durante el render del servidor. El servidor corre en UTC y el
+ * usuario en hora de Venezuela: calcular el saludo en ambos lados rompe la hidratación (React #418).
+ */
+function useHoraLocal(): number | null {
+  return useSyncExternalStore(
+    sinSuscripcion,
+    () => new Date().getHours(),
+    () => null,
+  );
 }
 
 function primerNombre(nombre: string | null | undefined): string {
@@ -50,6 +66,7 @@ function Acceso({
 export default function AutogestionInicio() {
   const { data: session } = useSession();
   const ahora = useAhora();
+  const hora = useHoraLocal();
   const permisos = session?.user?.permisos;
   const esActivo = cumpleCondicion("ACTIVO", session?.user?.condicionTrabajador);
   const verSolicitudes = esActivo && tienePermiso(permisos, "autogestion.ver_propio");
@@ -68,7 +85,7 @@ export default function AutogestionInicio() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        titulo={`${saludo(ahora.getHours())}${primerNombre(session?.user?.name) ? `, ${primerNombre(session?.user?.name)}` : ""}`}
+        titulo={`${saludo(hora)}${primerNombre(session?.user?.name) ? `, ${primerNombre(session?.user?.name)}` : ""}`}
         descripcion={session?.user?.cedula ? `Cédula ${session.user.cedula}` : undefined}
       />
 

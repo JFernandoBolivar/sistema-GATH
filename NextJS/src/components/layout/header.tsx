@@ -2,6 +2,7 @@
 
 import { CampanaNotificaciones } from "@/modules/notificaciones/ui/campana-notificaciones";
 import { SignOut } from "@/components/signout-button";
+import { BotonCambiarPassword } from "@/modules/auth/ui/boton-cambiar-password";
 import { Breadcrumb, BreadcrumbList } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
@@ -83,6 +84,7 @@ export function HeaderLayout({
 
       <div className="flex items-center gap-2">
         <CampanaNotificaciones variante="oscura" />
+        <BotonCambiarPassword variante="oscura" />
         <SignOut />
       </div>
     </header>
