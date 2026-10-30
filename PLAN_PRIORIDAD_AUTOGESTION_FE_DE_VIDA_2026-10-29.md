@@ -180,7 +180,7 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
 | R-5 | PWA: manifest, service worker, offline, instalación | Front | — | ⏳ Pendiente | — | Se prueba en `localhost`; el SW no cachea `/api/` ni evidencias |
-| R-6b | Sistema visual en consultar, métricas, censo, login y selector de módulos | Front | R-1 | ⏳ Pendiente | — | Resto de la etapa 6 |
+| R-6b | Sistema visual en consultar, métricas, censo, login y selector de módulos | Front | R-1 | ⏳ Pendiente | — | Resto de la etapa 6 Hallazgo del usuario 2026-10-29: en /recuperar-password y /restablecer-password la imagen `logoLogin.png` (panel derecho, `object-cover` en un panel angosto de 364×660) recorta el logo y el nombre CONATEL; usar `object-contain` o un arte adaptado al panel, y revisar también /login Hallazgo 2026-10-29: en /cargos, el menú «Acciones» de cada fila tiene una opción «Ver Detalle» que sobra; quitarla |
 | R-A | Revisión final de accesibilidad con usuarios mayores (axe 0 violaciones) | Test | R-5, R-6b | ⏳ Pendiente | — | |
 
 **Fase 7 — Endurecimiento y auditoría**

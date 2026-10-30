@@ -83,7 +83,7 @@ export function HeaderLayout({
       </div>
 
       <div className="flex items-center gap-2">
-        <CampanaNotificaciones variante="oscura" />
+        <CampanaNotificaciones variante="oscura" modoBandeja="panel" />
         <BotonCambiarPassword variante="oscura" />
         <SignOut />
       </div>

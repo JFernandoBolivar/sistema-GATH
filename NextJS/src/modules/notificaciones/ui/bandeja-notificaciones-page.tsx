@@ -17,7 +17,19 @@ import { claveBandeja, desenvolver, esClaveDeNotificaciones } from "./notificaci
 const TAMANO_PAGINA = 20;
 
 /** Bandeja completa de notificaciones del usuario: lista, marcar como leída y «ver más». */
-export default function BandejaNotificacionesPage() {
+interface Props {
+  /** `true` dentro de un panel: sin encabezado de página (el panel pone su propio título). */
+  enPanel?: boolean;
+  /** Se llama al seguir el enlace de una notificación (p. ej. para cerrar el panel). */
+  onNavegar?: () => void;
+  puedeAbrirEnlace?: (enlace: string) => boolean;
+}
+
+export default function BandejaNotificacionesPage({
+  enPanel = false,
+  onNavegar,
+  puedeAbrirEnlace,
+}: Props = {}) {
   const [soloNoLeidas, setSoloNoLeidas] = useState(false);
   const [limite, setLimite] = useState(TAMANO_PAGINA);
   const [pendiente, startTransition] = useTransition();
@@ -47,20 +59,32 @@ export default function BandejaNotificacionesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        titulo="Notificaciones"
-        descripcion="Aquí encuentra los avisos sobre sus trámites y solicitudes."
-        accion={
-          <Button
-            type="button"
-            size="lg"
-            disabled={pendiente || !hayNoLeidas}
-            onClick={marcarTodas}
-          >
-            <CheckCheck aria-hidden /> Marcar todas como leídas
-          </Button>
-        }
-      />
+      {enPanel ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11 self-start"
+          disabled={pendiente || !hayNoLeidas}
+          onClick={marcarTodas}
+        >
+          <CheckCheck aria-hidden /> Marcar todas como leídas
+        </Button>
+      ) : (
+        <PageHeader
+          titulo="Notificaciones"
+          descripcion="Aquí encuentra los avisos sobre sus trámites y solicitudes."
+          accion={
+            <Button
+              type="button"
+              size="lg"
+              disabled={pendiente || !hayNoLeidas}
+              onClick={marcarTodas}
+            >
+              <CheckCheck aria-hidden /> Marcar todas como leídas
+            </Button>
+          }
+        />
+      )}
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filtro de notificaciones">
         <Button
@@ -110,6 +134,8 @@ export default function BandejaNotificacionesPage() {
                 notificacion={n}
                 deshabilitado={pendiente}
                 onMarcarLeida={marcarLeida}
+                onNavegar={onNavegar}
+                puedeAbrirEnlace={puedeAbrirEnlace}
               />
             ))}
           </ul>

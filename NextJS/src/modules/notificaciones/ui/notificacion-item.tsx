@@ -15,6 +15,8 @@ interface Props {
   onNavegar?: () => void;
   deshabilitado?: boolean;
   compacta?: boolean;
+  /** Si devuelve `false` no se muestra «Ver detalle» (recurso de otro módulo sin permiso). */
+  puedeAbrirEnlace?: (enlace: string) => boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export function NotificacionItem({
   onNavegar,
   deshabilitado,
   compacta,
+  puedeAbrirEnlace,
 }: Props) {
   return (
     <li
@@ -48,7 +51,7 @@ export function NotificacionItem({
         <p className="text-base text-muted-foreground">{n.mensaje}</p>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        {n.enlace ? (
+        {n.enlace && (puedeAbrirEnlace?.(n.enlace) ?? true) ? (
           <Button asChild variant="outline" size="sm" className="min-h-11">
             <Link
               href={n.enlace}

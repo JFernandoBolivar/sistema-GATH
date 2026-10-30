@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import type { ReactNode } from "react";
@@ -40,7 +40,9 @@ const pagina = (resultados: NotificacionDTO[]) => ({
 });
 
 function Envoltorio({ children }: { children: ReactNode }) {
-  return <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>;
+  return (
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
+  );
 }
 
 beforeEach(() => {
@@ -84,6 +86,43 @@ describe("CampanaNotificaciones", () => {
   });
 });
 
+describe("CampanaNotificaciones: modo de la bandeja", () => {
+  it("modo página: «Ver todas» es un enlace a la bandeja de Autogestión", async () => {
+    const user = userEvent.setup();
+    render(<CampanaNotificaciones modoBandeja="pagina" />, { wrapper: Envoltorio });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    const enlace = await screen.findByRole("link", { name: "Ver todas las notificaciones" });
+    expect(enlace.getAttribute("href")).toBe("/autogestion/notificaciones");
+  });
+
+  it("modo panel: «Ver todas» abre la bandeja en un panel y no es un enlace", async () => {
+    const user = userEvent.setup();
+    render(<CampanaNotificaciones modoBandeja="panel" />, { wrapper: Envoltorio });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    expect(screen.queryByRole("link", { name: "Ver todas las notificaciones" })).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Ver todas las notificaciones" }));
+    const panel = await screen.findByRole("dialog");
+    expect(within(panel).getByText("Notificaciones")).toBeDefined();
+    expect(await within(panel).findByText("Solo no leídas")).toBeDefined();
+  });
+
+  it("sin permiso de Autogestión no se ofrece «Ver detalle» de un enlace a ese módulo", async () => {
+    const user = userEvent.setup();
+    render(<CampanaNotificaciones modoBandeja="panel" />, { wrapper: Envoltorio });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await screen.findByText("Ventana habilitada");
+    expect(screen.queryByRole("link", { name: /Ver detalle/ })).toBeNull();
+  });
+
+  it("con permiso de Autogestión sí se ofrece «Ver detalle»", async () => {
+    sesion.permisos = ["notificaciones.ver_propias", "autogestion.ver_propio"];
+    const user = userEvent.setup();
+    render(<CampanaNotificaciones modoBandeja="panel" />, { wrapper: Envoltorio });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    expect(await screen.findByRole("link", { name: /Ver detalle/ })).toBeDefined();
+  });
+});
+
 describe("BandejaNotificacionesPage", () => {
   it("muestra el estado vacío", async () => {
     acciones.listarNotificacionesAction.mockResolvedValue(pagina([]));
@@ -93,7 +132,10 @@ describe("BandejaNotificacionesPage", () => {
 
   it("lista las notificaciones con estado en texto y enlace", async () => {
     acciones.listarNotificacionesAction.mockResolvedValue(
-      pagina([n(), n({ id: "22222222-2222-4222-8222-222222222222", titulo: "Vieja", leida: true })]),
+      pagina([
+        n(),
+        n({ id: "22222222-2222-4222-8222-222222222222", titulo: "Vieja", leida: true }),
+      ]),
     );
     render(<BandejaNotificacionesPage />, { wrapper: Envoltorio });
     expect(await screen.findByText("Ventana habilitada")).toBeDefined();
@@ -109,7 +151,9 @@ describe("BandejaNotificacionesPage", () => {
     render(<BandejaNotificacionesPage />, { wrapper: Envoltorio });
     await user.click(await screen.findByRole("button", { name: "Marcar como leída" }));
     await waitFor(() =>
-      expect(acciones.marcarLeidaAction).toHaveBeenCalledWith("11111111-1111-4111-8111-111111111111"),
+      expect(acciones.marcarLeidaAction).toHaveBeenCalledWith(
+        "11111111-1111-4111-8111-111111111111",
+      ),
     );
   });
 
