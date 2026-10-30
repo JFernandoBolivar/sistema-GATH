@@ -167,6 +167,8 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 
 **Regresiones y pendientes de Gestión de Trabajadores (auditoría 2026-10-29, `AUDITORIA_GESTION_TRABAJADORES_2026-10-29.md`)**
 
+Decisión del usuario 2026-10-29: se abordan **después de culminar la Fase 4 (fe de vida)**. Antes de corregir, cada hallazgo se verifica **en vivo con Playwright** (la auditoría fue solo estática) y se cierra también con una prueba en vivo.
+
 | ID | Tarea (breve) | Capa | Depende de | Estado | Responsable | Notas |
 |---|---|---|---|---|---|---|
 | G1 | Reporte de trabajador: restaurar filtros de estructura organizativa (ocultos desde 09eaaa1 por `tienePermiso(permisos,"*")`; usar un permiso por código) | Front | — | ⏳ Pendiente | — | Roto, S. `report-employees.tsx:244`, `report-code.tsx:143` |
