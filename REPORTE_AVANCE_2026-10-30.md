@@ -88,7 +88,9 @@ No se borró nada. Se conservan para pruebas futuras.
 ## 6. Qué hacer al despertar
 
 1. Revise el correo de la constancia en Gmail. Si quiere, revise también otros correos de prueba que hayan llegado.
-2. Recargue el navegador con **Ctrl+Shift+R**, porque las imágenes se reconstruyeron. Así evita el error «Failed to find Server Action».
+2. **Reconstruya las imágenes.** Claude Code detuvo la reconstrucción final porque el equipo se quedó sin memoria. Los contenedores siguen con la versión anterior al commit `726e449`, que trae el enlace viejo de Bienestar y los textos de correo anteriores. Ejecute:
+   `docker compose build django nextjs && docker compose up -d django celery_worker celery_beat nextjs`
+   y después recargue el navegador con **Ctrl+Shift+R** para evitar el error «Failed to find Server Action».
 3. Si no recibió el correo, revise el outbox `notificaciones_evento_outbox` y el log de `gath_celery_worker`.
 
 ## 7. Pendientes
