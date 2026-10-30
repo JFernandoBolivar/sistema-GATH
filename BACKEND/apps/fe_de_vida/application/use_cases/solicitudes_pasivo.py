@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 
 from apps.fe_de_vida.application.use_cases._comun import evento, obtener_proceso, obtener_solicitud_propia
+from apps.fe_de_vida.application.use_cases.consultas import obtener_proceso_vigente
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 from apps.fe_de_vida.domain.events import PublicadorEventos, PublicadorNulo, TipoEvento
@@ -19,7 +20,7 @@ from apps.fe_de_vida.domain.ports.repos import (
 )
 from apps.fe_de_vida.domain.services.reglas_proceso import exigir_puede_enviar
 from apps.fe_de_vida.domain.value_objects.estados import OrigenEvidencia
-from core.domain.exceptions import PermissionDeniedError, ValidationError
+from core.domain.exceptions import ConflictError, PermissionDeniedError, ValidationError
 from core.domain.ports import FileStorage
 
 MIME_A_EXTENSION = {'image/jpeg': '.jpg', 'image/png': '.png'}
@@ -108,3 +109,16 @@ def enviar_solicitud(
     enviada = repo_sol.guardar(solicitud.enviar(ahora), solicitud.version)
     (publicador or PublicadorNulo()).publicar(evento(TipoEvento.SOLICITUD_ENVIADA, enviada, cedula, envio=enviada.envios))
     return enviada
+
+
+def iniciar_solicitud_vigente(
+    repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, verificador: VerificadorPasivo,
+    *, cedula: str, ahora: datetime,
+) -> SolicitudFeDeVida:
+    """Inicia (o devuelve) la solicitud del pasivo en el proceso vigente para él."""
+    vigente = obtener_proceso_vigente(repo_proc, repo_sol, cedula=cedula, ahora=ahora)
+    if vigente is None:
+        raise ConflictError("No hay un proceso de fe de vida disponible para usted en este momento.")
+    return iniciar_solicitud(
+        repo_proc, repo_sol, verificador, proceso_id=vigente.proceso.id, cedula=cedula, ahora=ahora,
+    )

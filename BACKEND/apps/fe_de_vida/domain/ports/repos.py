@@ -3,6 +3,9 @@ from datetime import datetime
 from typing import Protocol
 
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
+from apps.fe_de_vida.domain.entities.constancia import Certificador, ConstanciaFeDeVida, PlantillaConstancia
+from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja, FiltroCobertura
+from apps.fe_de_vida.domain.entities.pasivo import DatosPasivo, PasivoCobertura
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 
@@ -18,6 +21,10 @@ class RepoProcesos(Protocol):
 
     def listar_abiertos_vencidos(self, ahora: datetime) -> list[ProcesoFeDeVida]:
         """Procesos ABIERTOS cuya fecha de cierre ya pasó (cierre automático por beat)."""
+        ...
+
+    def listar_con_prorroga_vigente(self, cedula: str, ahora: datetime) -> list[ProcesoFeDeVida]:
+        """Procesos no BORRADOR con una prórroga vigente (general o de esa cédula)."""
         ...
 
     def agregar_prorroga(self, prorroga: ProrrogaProceso) -> ProrrogaProceso: ...
@@ -43,8 +50,10 @@ class RepoSolicitudesFeDeVida(Protocol):
     def listar_de_proceso(self, proceso_id: str, estados: tuple[str, ...] | None = None) -> list[SolicitudFeDeVida]: ...
 
     def listar(
-        self, proceso_id: str | None, estado: str | None, cedula: str | None, limite: int, desplazamiento: int,
-    ) -> tuple[list[SolicitudFeDeVida], int]: ...
+        self, filtro: FiltroBandeja, limite: int, desplazamiento: int,
+    ) -> tuple[list[SolicitudFeDeVida], int]:
+        """Bandeja de Bienestar: página y total, más recientes primero."""
+        ...
 
 
 class RepoCambiosActa(Protocol):
@@ -70,5 +79,51 @@ class AplicadorCambiosActa(Protocol):
         ...
 
 
+class LectorValorActual(Protocol):
+    def valor_actual(self, cedula: str, cambio: CambioActa) -> object:
+        """Valor que hoy tiene el dato en la ficha del trabajador (None si no aplica, p. ej. al CREAR)."""
+        ...
+
+
 class VerificadorPasivo(Protocol):
     def es_pasivo(self, cedula: str) -> bool: ...
+
+
+class RepoConstancias(Protocol):
+    def plantilla_activa(self) -> PlantillaConstancia | None: ...
+
+    def obtener_de_solicitud(self, solicitud_id: str) -> ConstanciaFeDeVida | None: ...
+
+    def obtener_por_codigo(self, codigo: str) -> ConstanciaFeDeVida | None: ...
+
+    def reservar(
+        self, solicitud_id: str, cedula: str, anio: int, certificadores: tuple[Certificador, ...],
+        plantilla_version: int, ahora: datetime,
+    ) -> ConstanciaFeDeVida:
+        """Crea la constancia con el siguiente número correlativo del año (FV-AAAA-NNNNNN) y su código de verificación."""
+        ...
+
+    def registrar_pdf(self, constancia_id: str, clave_pdf: str) -> ConstanciaFeDeVida: ...
+
+
+class LectorPasivos(Protocol):
+    def datos(self, cedula: str) -> DatosPasivo:
+        """Nombre, condición (tipo de nómina) y correos. `NotFoundError` si la persona no existe."""
+        ...
+
+    def nombre_de(self, cedula: str) -> str: ...
+
+    def nombres_de(self, cedulas: list[str]) -> dict[str, str]: ...
+
+
+class RepoCobertura(Protocol):
+    def listar(self, filtro: FiltroCobertura, limite: int, desplazamiento: int) -> tuple[list[PasivoCobertura], int]:
+        """Pasivos (según su asignación laboral) sin correo o sin cuenta de acceso."""
+        ...
+
+
+class GeneradorConstancia(Protocol):
+    def generar(
+        self, *, constancia: ConstanciaFeDeVida, plantilla: PlantillaConstancia, texto: str, proceso_nombre: str,
+        emitida_en: datetime, via_directa: bool, url_verificacion: str,
+    ) -> bytes: ...

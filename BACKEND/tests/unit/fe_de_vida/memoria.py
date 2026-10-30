@@ -38,6 +38,10 @@ class RepoProcesosMem:
     def listar(self, estado=None):
         return [p for p in self.filas.values() if estado is None or p.estado.value == estado]
 
+    def listar_con_prorroga_vigente(self, cedula, ahora):
+        ids = {p.proceso_id for p in self.prorrogas if p.alcanza(cedula) and p.vigente(ahora)}
+        return [p for p in self.filas.values() if p.id in ids and p.estado.value != 'BORRADOR']
+
     def listar_abiertos_vencidos(self, ahora):
         return [p for p in self.filas.values() if p.vencido(ahora)]
 
@@ -80,11 +84,12 @@ class RepoSolicitudesMem:
     def listar_de_proceso(self, proceso_id, estados=None):
         return [s for s in self.filas.values() if s.proceso_id == proceso_id and (not estados or s.estado.value in estados)]
 
-    def listar(self, proceso_id, estado, cedula, limite, desplazamiento):
+    def listar(self, filtro, limite, desplazamiento):
         filas = [
             s for s in self.filas.values()
-            if (not proceso_id or s.proceso_id == proceso_id) and (not estado or s.estado.value == estado)
-            and (not cedula or s.cedula == cedula)
+            if (not filtro.proceso_id or s.proceso_id == filtro.proceso_id)
+            and (not filtro.estado or s.estado.value == filtro.estado)
+            and (not filtro.texto or filtro.texto in s.cedula)
         ]
         return filas[desplazamiento:desplazamiento + limite], len(filas)
 
@@ -144,6 +149,18 @@ class StorageMem:
 
     def url_firmada(self, clave, expira_segundos=300):
         return f'https://s3.test/{clave}?exp={expira_segundos}'
+
+
+class LectorPasivosMem:
+    def datos(self, cedula):
+        from apps.fe_de_vida.domain.entities.pasivo import DatosPasivo
+        return DatosPasivo(cedula, f'Nombre {cedula}', 'JUBILADO', f'{cedula}@correo.test', f'alterno{cedula}@correo.test')
+
+    def nombre_de(self, cedula):
+        return f'Nombre {cedula}'
+
+    def nombres_de(self, cedulas):
+        return {c: self.nombre_de(c) for c in cedulas}
 
 
 class PublicadorMem:

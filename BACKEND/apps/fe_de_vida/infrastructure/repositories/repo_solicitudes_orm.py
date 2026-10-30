@@ -1,11 +1,23 @@
 """Repositorio ORM de solicitudes de fe de vida (una por pasivo y proceso)."""
 from django.db import IntegrityError, transaction
-from django.db.models import F
+from django.db.models import F, Q
 
+from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 from apps.fe_de_vida.infrastructure.mappers.mapper_fe_de_vida import campos_solicitud, solicitud_a_entidad
 from apps.fe_de_vida.infrastructure.models.solicitud_models import DecisionFeDeVidaModel, SolicitudFeDeVidaModel
+from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.domain.exceptions import ConflictError, NotFoundError
+
+
+def _coincide_texto(texto: str) -> Q:
+    """Cédula (parcial) o nombre: cada palabra debe aparecer en nombres o apellidos del trabajador."""
+    q = Q(cedula__icontains=texto.strip())
+    palabras = texto.split()
+    por_nombre = EmployeeModel.objects.all()
+    for palabra in palabras:
+        por_nombre = por_nombre.filter(Q(nombres__icontains=palabra) | Q(apellidos__icontains=palabra))
+    return q | Q(cedula__in=por_nombre.values('cedulaidentidad'))
 
 
 def _base():
@@ -66,13 +78,18 @@ class RepoSolicitudesFeDeVidaORM:
             qs = qs.filter(estado__in=estados)
         return [solicitud_a_entidad(m) for m in qs]
 
-    def listar(self, proceso_id, estado, cedula, limite: int, desplazamiento: int):
+    def listar(self, filtro: FiltroBandeja, limite: int, desplazamiento: int):
         qs = _base().all()
-        if proceso_id:
-            qs = qs.filter(proceso_id=proceso_id)
-        if estado:
-            qs = qs.filter(estado=estado)
-        if cedula:
-            qs = qs.filter(cedula=cedula)
+        if filtro.proceso_id:
+            qs = qs.filter(proceso_id=filtro.proceso_id)
+        if filtro.estado:
+            qs = qs.filter(estado=filtro.estado)
+        if filtro.texto:
+            qs = qs.filter(_coincide_texto(filtro.texto))
+        if filtro.desde:
+            qs = qs.filter(fecha_envio__date__gte=filtro.desde)
+        if filtro.hasta:
+            qs = qs.filter(fecha_envio__date__lte=filtro.hasta)
+        qs = qs.order_by('-fecha_envio', '-created_at')
         total = qs.count()
         return [solicitud_a_entidad(m) for m in qs[desplazamiento:desplazamiento + limite]], total

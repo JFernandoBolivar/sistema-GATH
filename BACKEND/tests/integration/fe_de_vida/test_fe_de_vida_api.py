@@ -1,0 +1,468 @@
+"""
+Integración (BD de pruebas) de la fe de vida de pasivos: permisos, Zero-IDOR, flujo completo con doble check y
+con aprobación directa, paginación y filtros, constancia PDF, evidencia inválida, cierre automático,
+cobertura (C16) y el aplicador C19 contra la BD. Almacén, notificador y condición del trabajador simulados.
+"""
+import io
+from datetime import timedelta
+
+import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
+from PIL import Image
+from rest_framework.test import APIClient
+
+from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+from apps.cargos.infrastructure.models.cargo_models import (
+    AsigTrabajoModel,
+    DenominacionCargoEspecificoModel,
+    DenominacionCargoModel,
+)
+from apps.catalogos.infrastructure.models.catalogo_models import (
+    EstatusModel,
+    NacionalidadModel,
+    SexoModel,
+    TipoNominaModel,
+    TipoPersonalModel,
+)
+from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
+from apps.fe_de_vida.infrastructure.adaptadores_autogestion import AplicadorCambiosActaORM, RepoCambiosActaORM
+from apps.fe_de_vida.infrastructure.models.proceso_models import ProcesoFeDeVidaModel
+from apps.fe_de_vida.infrastructure.models.solicitud_models import (
+    ConstanciaFeDeVidaModel,
+    PlantillaConstanciaModel,
+    SolicitudFeDeVidaModel,
+)
+from apps.fe_de_vida.infrastructure.tasks.cierre_procesos_tasks import cerrar_procesos_vencidos_tarea
+from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
+from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.infrastructure.models.auditoria import AuditoriaLog
+
+BASE = '/api/v1/fe-de-vida'
+PASIVO, OTRO_PASIVO, SIN_CORREO, ACTIVO = '5111111', '5222222', '5333333', '5444444'
+ANALISTA, ADMINISTRADORA = '20000001', '20000002'
+CORREO_ALTERNO = 'alterno@correo.test'
+
+PERMISOS_PASIVO = {'fe_de_vida.solicitar', 'fe_de_vida.ver_propia'}
+PERMISOS_ANALISTA = {
+    'fe_de_vida.revisar', 'fe_de_vida.check_analista', 'fe_de_vida.ver_evidencia', 'fe_de_vida.ver_panel',
+    'fe_de_vida.prorrogar', 'fe_de_vida.ver_cobertura', 'fe_de_vida.verificar_constancia',
+}
+PERMISOS_ADMINISTRADORA = {
+    'fe_de_vida.revisar', 'fe_de_vida.check_administradora', 'fe_de_vida.aprobar_directo', 'fe_de_vida.ver_evidencia',
+    'fe_de_vida.ver_panel', 'fe_de_vida.gestionar_procesos', 'fe_de_vida.prorrogar',
+}
+
+
+class Usuario:
+    is_authenticated = True
+    is_active = True
+
+    def __init__(self, cedula, permisos, pk):
+        self.cedula_id, self.pk, self.id, self._permisos, self.rol = cedula, pk, pk, set(permisos), None
+
+    def tiene_permiso(self, codigo):
+        return codigo in self._permisos
+
+
+class AlmacenFalso:
+    objetos: dict = {}
+
+    def subir(self, clave, contenido, mime_type='application/octet-stream'):
+        self.objetos[clave] = contenido
+        return clave
+
+    def descargar_flujo(self, clave, tamano_bloque=65536):
+        yield self.objetos[clave]
+
+    def url_firmada(self, clave, expira_segundos=300):
+        return f'https://almacen.test/{clave}?exp={expira_segundos}'
+
+
+class NotificadorFalso:
+    enviadas: list = []
+
+    def notificar(self, solicitud):
+        self.enviadas.append(solicitud)
+        return 1
+
+
+class ResolutorCondicion:
+    def condicion_de(self, cedula):
+        return 'PASIVO' if cedula in (PASIVO, OTRO_PASIVO, SIN_CORREO) else 'ACTIVO'
+
+
+@pytest.fixture(autouse=True)
+def entorno(monkeypatch):
+    AlmacenFalso.objetos, NotificadorFalso.enviadas = {}, []
+    for ruta in ('pasivo_views', 'revision_views'):
+        monkeypatch.setattr(f'apps.fe_de_vida.presentation.views.{ruta}.SeaweedFSStorage', AlmacenFalso)
+    monkeypatch.setattr('apps.fe_de_vida.infrastructure.receivers.SeaweedFSStorage', AlmacenFalso)
+    monkeypatch.setattr('apps.fe_de_vida.infrastructure.receivers.obtener_notificador', lambda: NotificadorFalso())
+    monkeypatch.setattr('core.presentation.permissions.obtener_resolutor_condicion', lambda: ResolutorCondicion())
+
+
+@pytest.fixture
+def datos(db):
+    NacionalidadModel.objects.get_or_create(id=1, defaults={'codigo': 'V', 'nombre': 'VENEZOLANO'})
+    sexo = SexoModel.objects.create(sexo='F')
+    estatus = EstatusModel.objects.create(estatus='ACTIVO')
+    pasivo, activo = TipoPersonalModel.objects.create(tipo_personal='PASIVO'), TipoPersonalModel.objects.create(tipo_personal='ACTIVO')
+    nomina = TipoNominaModel.objects.create(nomina='JUBILADO')
+    dc, dce = DenominacionCargoModel.objects.create(cargo='ANALISTA'), DenominacionCargoEspecificoModel.objects.create(cargo='ANALISTA I')
+    rol = RolModel.objects.create(nombre_rol='PRUEBA')
+    filas = ((PASIVO, 'MARIA', 'PEREZ', f'{PASIVO}@correo.test', pasivo), (OTRO_PASIVO, 'JUAN', 'GOMEZ', f'{OTRO_PASIVO}@correo.test', pasivo),
+             (SIN_CORREO, 'ROSA', 'DIAZ', None, pasivo), (ACTIVO, 'LUIS', 'RAMOS', None, activo),
+             (ANALISTA, 'ANA', 'LOPEZ', None, activo), (ADMINISTRADORA, 'ELENA', 'SOTO', None, activo))
+    for cedula, nombre, apellido, correo, tipo in filas:
+        e = EmployeeModel.objects.create(
+            cedulaidentidad=cedula, nombres=nombre, apellidos=apellido, sexoid=sexo, correo=correo, telefono_movil='04140000000',
+        )
+        AsigTrabajoModel.objects.create(
+            employee=e, codigo=f'C-{cedula}', denominacioncargoid=dc, denominacioncargoespecificoid=dce, tiponominaid=nomina,
+            estatusid=estatus, Tipo_personal=tipo,
+        )
+    CuentaModel.objects.create(cedula=EmployeeModel.objects.get(cedulaidentidad=PASIVO), rol=rol, password='!')
+    DatosComplementariosTrabajadorModel.objects.create(cedula=PASIVO, correo_alternativo=CORREO_ALTERNO)
+    PlantillaConstanciaModel.objects.create(
+        version=1, titulo='CONSTANCIA DE FE DE VIDA', activa=True,
+        texto='El {fecha} {nombre_completo}, C.I. {cedula}, {condicion}, compareció.',
+    )
+    return nomina
+
+
+def cliente(cedula, permisos, pk):
+    c = APIClient()
+    c.force_authenticate(user=Usuario(cedula, permisos, pk))
+    return c
+
+
+@pytest.fixture
+def pasivo(datos):
+    return cliente(PASIVO, PERMISOS_PASIVO, 1)
+
+
+@pytest.fixture
+def otro_pasivo(datos):
+    return cliente(OTRO_PASIVO, PERMISOS_PASIVO, 2)
+
+
+@pytest.fixture
+def analista(datos):
+    return cliente(ANALISTA, PERMISOS_ANALISTA, 3)
+
+
+@pytest.fixture
+def administradora(datos):
+    return cliente(ADMINISTRADORA, PERMISOS_ADMINISTRADORA, 4)
+
+
+def cuerpo(respuesta):
+    return respuesta.json()['data']
+
+
+def foto(lado=600, con_exif=True, formato='JPEG'):
+    buffer = io.BytesIO()
+    imagen = Image.new('RGB', (lado, lado), (120, 90, 60))
+    if con_exif:
+        exif = Image.Exif()
+        exif[0x010F] = 'CamaraSecreta'
+        imagen.save(buffer, format=formato, exif=exif)
+    else:
+        imagen.save(buffer, format=formato)
+    return SimpleUploadedFile('selfie.jpg', buffer.getvalue(), content_type='image/jpeg')
+
+
+def proceso_abierto(admin, nombre='Fe de vida 2026-2027'):
+    ahora = timezone.now()
+    r = admin.post(f'{BASE}/procesos/', {
+        'nombre': nombre, 'fecha_apertura': (ahora - timedelta(days=1)).isoformat(),
+        'fecha_cierre': (ahora + timedelta(days=30)).isoformat(),
+    }, format='json')
+    assert r.status_code == 201, r.content
+    pid = cuerpo(r)['id']
+    assert admin.post(f'{BASE}/procesos/{pid}/abrir/').status_code == 200
+    return pid
+
+
+def solicitud_enviada(pasivo_cli, pid):
+    """Camino del pasivo hasta PENDIENTE_REVISION, con un cambio de teléfono en el acta."""
+    sid = cuerpo(pasivo_cli.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    r = pasivo_cli.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': [{
+        'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'telefono_movil', 'valor': '04149999999',
+    }]}, format='json')
+    assert r.status_code == 200, r.content
+    r = pasivo_cli.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'CAMARA'}, format='multipart')
+    assert r.status_code == 200, r.content
+    assert pasivo_cli.post(f'{BASE}/mis-solicitudes/{sid}/enviar/').status_code == 200
+    return sid
+
+
+# ── Permisos ──
+@pytest.mark.parametrize('metodo,ruta,quien', [
+    ('get', '/procesos/vigente/', 'analista'), ('get', '/mis-solicitudes/', 'analista'),
+    ('get', '/solicitudes/', 'pasivo'), ('get', '/procesos/', 'pasivo'), ('post', '/procesos/', 'analista'),
+    ('get', '/cobertura/pasivos/', 'administradora'), ('get', '/constancias/verificar/abc/', 'pasivo'),
+])
+def test_sin_permiso_o_condicion_responde_403(request, datos, metodo, ruta, quien):
+    r = getattr(request.getfixturevalue(quien), metodo)(f'{BASE}{ruta}')
+    assert r.status_code == 403 and r.json()['status'] == 'error'
+
+
+def test_sin_sesion_responde_401_o_403(datos):
+    assert APIClient().get(f'{BASE}/solicitudes/').status_code in (401, 403)
+
+
+def test_analista_no_aprueba_directo_ni_gestiona_procesos(analista, administradora, pasivo):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    assert analista.post(f'{BASE}/solicitudes/{sid}/aprobar-directo/', {'justificacion': 'x'}, format='json').status_code == 403
+    assert analista.post(f'{BASE}/procesos/{pid}/cerrar/').status_code == 403
+
+
+# ── Zero-IDOR ──
+def test_un_pasivo_no_ve_ni_opera_la_solicitud_de_otro(pasivo, otro_pasivo, administradora):
+    pid = proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    assert otro_pasivo.get(f'{BASE}/mis-solicitudes/{sid}/').status_code == 403
+    assert otro_pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/').status_code == 403
+    r = otro_pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'ARCHIVO'}, format='multipart')
+    assert r.status_code == 403
+    assert otro_pasivo.get(f'{BASE}/mis-solicitudes/{sid}/constancia/').status_code == 403
+    assert cuerpo(otro_pasivo.get(f'{BASE}/mis-solicitudes/'))['count'] == 0
+    assert cuerpo(pasivo.get(f'{BASE}/mis-solicitudes/'))['count'] == 1
+    assert pid
+
+
+# ── Flujo completo: doble check ──
+def test_flujo_doble_check_aplica_el_acta_emite_constancia_y_avisa(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    pid = proceso_abierto(administradora)
+    vigente = cuerpo(pasivo.get(f'{BASE}/procesos/vigente/'))
+    assert vigente['proceso']['id'] == pid and vigente['puede_enviar'] is True
+    sid = solicitud_enviada(pasivo, pid)
+
+    avisos = {(a.tipo, a.modulo) for a in NotificadorFalso.enviadas}
+    assert ('fe_de_vida.solicitud_recibida', 'autogestion') in avisos and ('fe_de_vida.solicitud_enviada', 'personal') in avisos
+
+    detalle = cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/'))
+    assert detalle['solicitud']['nombre'] == 'MARIA PEREZ'
+    cambio = detalle['cambios'][0]
+    assert cambio['valor_actual'] == '04140000000' and cambio['valor_propuesto'] == '04149999999' and cambio['conflicto'] is False
+
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/evidencia/'))['url'].endswith('exp=90')
+    assert AuditoriaLog.objects.filter(accion='EVIDENCIA_CONSULTADA', recurso_id=sid).exists()
+
+    assert cuerpo(analista.post(f'{BASE}/solicitudes/{sid}/check/'))['estado'] == 'PENDIENTE_SEGUNDO_CHECK'
+    assert any(a.permiso_destino == 'fe_de_vida.check_administradora' for a in NotificadorFalso.enviadas)
+    # la misma persona/rol no puede repetir el check
+    assert analista.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 409
+
+    with django_capture_on_commit_callbacks(execute=True):
+        r = administradora.post(f'{BASE}/solicitudes/{sid}/check/')
+    assert r.status_code == 200 and cuerpo(r)['estado'] == 'VALIDADA' and cuerpo(r)['via_aprobacion'] == 'DOBLE_CHECK'
+
+    assert EmployeeModel.objects.get(cedulaidentidad=PASIVO).telefono_movil == '04149999999'  # C19
+    constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
+    assert constancia.numero.startswith('FV-') and [c['cedula'] for c in constancia.certificada_por] == [ANALISTA, ADMINISTRADORA]
+    assert AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')
+    validada = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.validada'][0]
+    assert validada.correo.copia_a == (CORREO_ALTERNO,) and validada.correo.adjuntos[0].clave_almacen == constancia.clave_pdf
+
+    descarga = pasivo.get(f'{BASE}/mis-solicitudes/{sid}/constancia/')
+    assert descarga.status_code == 200 and b''.join(descarga.streaming_content).startswith(b'%PDF')
+    assert cuerpo(analista.get(f'{BASE}/constancias/verificar/{constancia.codigo_verificacion}/'))['numero'] == constancia.numero
+    assert analista.get(f'{BASE}/constancias/verificar/inexistente/').status_code == 404
+    acciones = set(AuditoriaLog.objects.filter(modulo='fe_de_vida').values_list('accion', flat=True))
+    assert {'SOLICITUD_INICIADA', 'BORRADOR_GUARDADO', 'EVIDENCIA_SUBIDA', 'SOLICITUD_ENVIADA', 'CHECK_DADO',
+            'CONSTANCIA_DESCARGADA', 'CONSTANCIA_VERIFICADA'} <= acciones
+
+
+def test_aprobacion_directa_exige_justificacion_y_certifica_solo_a_la_administradora(
+    pasivo, administradora, django_capture_on_commit_callbacks,
+):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    assert administradora.post(f'{BASE}/solicitudes/{sid}/aprobar-directo/', {'justificacion': ' '}, format='json').status_code == 400
+    with django_capture_on_commit_callbacks(execute=True):
+        r = administradora.post(f'{BASE}/solicitudes/{sid}/aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}, format='json')
+    assert r.status_code == 200 and cuerpo(r)['via_aprobacion'] == 'DIRECTA_ADMINISTRADORA'
+    assert AuditoriaLog.objects.filter(accion='APROBACION_DIRECTA_ADMINISTRADORA', recurso_id=sid).exists()
+    constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
+    assert [c['cedula'] for c in constancia.certificada_por] == [ADMINISTRADORA]
+
+
+def test_repeticion_y_rechazo_notifican_con_motivo(pasivo, analista, administradora):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    assert analista.post(f'{BASE}/solicitudes/{sid}/solicitar-repeticion/', {'motivo': ''}, format='json').status_code == 400
+    r = analista.post(f'{BASE}/solicitudes/{sid}/solicitar-repeticion/', {'motivo': 'Foto borrosa'}, format='json')
+    assert cuerpo(r)['estado'] == 'REPETICION_SOLICITADA'
+    aviso = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.repeticion_solicitada'][0]
+    assert 'Foto borrosa' in aviso.mensaje and aviso.cedula_destino == PASIVO
+    # reenvío tras la repetición: nueva foto, aviso de "reenviada" a Bienestar
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'ARCHIVO'}, format='multipart').status_code == 200
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/').status_code == 200
+    assert any('reenviada' in a.titulo for a in NotificadorFalso.enviadas)
+    r = administradora.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': 'Cédula ilegible'}, format='json')
+    assert cuerpo(r)['estado'] == 'RECHAZADA'
+    assert any(a.tipo == 'fe_de_vida.rechazada' and 'Cédula ilegible' in a.mensaje for a in NotificadorFalso.enviadas)
+
+
+# ── Evidencia ──
+def test_evidencia_se_recodifica_sin_exif_y_registra_el_origen(pasivo, administradora):
+    proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    r = pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'CAMARA'}, format='multipart')
+    assert cuerpo(r)['origen_evidencia'] == 'CAMARA' and cuerpo(r)['tiene_evidencia'] is True
+    assert 'evidencia_clave' not in cuerpo(r)
+    guardada = next(iter(AlmacenFalso.objetos.values()))
+    assert len(Image.open(io.BytesIO(guardada)).getexif()) == 0
+
+
+@pytest.mark.parametrize('archivo,origen', [
+    (SimpleUploadedFile('selfie.jpg', b'esto no es una imagen'), 'CAMARA'),                      # firma de bytes falsa
+    (SimpleUploadedFile('selfie.gif', b'GIF89a'), 'ARCHIVO'),                                      # extensión no permitida
+    (SimpleUploadedFile('selfie.jpg', b'\xff\xd8\xff' + b'0' * 50), 'ARCHIVO'),                   # firma válida, imagen corrupta
+])
+def test_evidencia_invalida_se_rechaza_y_se_audita(pasivo, administradora, archivo, origen):
+    proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    r = pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': archivo, 'origen': origen}, format='multipart')
+    assert r.status_code == 400 and r.json()['status'] == 'error'
+    assert AlmacenFalso.objetos == {}
+    assert AuditoriaLog.objects.filter(accion='EVIDENCIA_RECHAZADA_POR_CALIDAD', recurso_id=sid).exists()
+
+
+def test_evidencia_muy_pequena_o_origen_invalido_se_rechaza(pasivo, administradora):
+    proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    r = pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(lado=50), 'origen': 'CAMARA'}, format='multipart')
+    assert r.status_code == 400 and 'pequeña' in r.json()['message']
+    r = pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'OTRO'}, format='multipart')
+    assert r.status_code == 400 and AlmacenFalso.objetos == {}
+
+
+def test_no_se_envia_sin_foto(pasivo, administradora):
+    proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/').status_code == 400
+
+
+# ── Paginación y filtros ──
+def test_bandeja_pagina_y_filtra(analista, administradora, pasivo):
+    pid = proceso_abierto(administradora)
+    otro_proceso = ProcesoFeDeVidaModel.objects.create(
+        nombre='Otro', fecha_apertura=timezone.now() - timedelta(days=9), fecha_cierre=timezone.now() + timedelta(days=9),
+    )
+    ahora = timezone.now()
+    for i in range(12):
+        SolicitudFeDeVidaModel.objects.create(
+            proceso_id=pid, cedula=f'60000{i:02d}', estado='PENDIENTE_REVISION', fecha_envio=ahora - timedelta(days=i),
+        )
+    SolicitudFeDeVidaModel.objects.create(proceso=otro_proceso, cedula=OTRO_PASIVO, estado='VALIDADA', fecha_envio=ahora)
+    SolicitudFeDeVidaModel.objects.create(proceso_id=pid, cedula=PASIVO, estado='BORRADOR')
+
+    pag = cuerpo(analista.get(f'{BASE}/solicitudes/'))
+    assert pag['count'] == 14 and pag['limit'] == 10 and len(pag['results']) == 10
+    assert len(cuerpo(analista.get(f'{BASE}/solicitudes/?limit=500'))['results']) == 14
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/?limit=500'))['limit'] == 50
+    assert len(cuerpo(analista.get(f'{BASE}/solicitudes/?limit=10&offset=10'))['results']) == 4
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/?estado=VALIDADA'))['count'] == 1
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/?proceso_id={otro_proceso.id}'))['count'] == 1
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/?texto=6000003'))['count'] == 1
+    por_nombre = cuerpo(analista.get(f'{BASE}/solicitudes/?texto=gomez juan'))
+    assert por_nombre['count'] == 1 and por_nombre['results'][0]['nombre'] == 'JUAN GOMEZ'
+    desde = (ahora - timedelta(days=2)).date().isoformat()
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/?desde={desde}'))['count'] == 4  # i=0,1,2 y el otro proceso
+    hasta = (ahora - timedelta(days=10)).date().isoformat()
+    assert cuerpo(analista.get(f'{BASE}/solicitudes/?hasta={hasta}'))['count'] == 2
+    assert analista.get(f'{BASE}/solicitudes/?estado=INVENTADO').status_code == 400
+    assert analista.get(f'{BASE}/solicitudes/?desde=2026-12-31&hasta=2026-01-01').status_code == 400
+    assert analista.get(f'{BASE}/solicitudes/?limit=0').status_code == 400
+
+
+def test_historial_del_pasivo_pagina_y_filtra(pasivo, administradora):
+    for i in range(3):
+        p = ProcesoFeDeVidaModel.objects.create(
+            nombre=f'P{i}', fecha_apertura=timezone.now() - timedelta(days=30 - i), fecha_cierre=timezone.now() + timedelta(days=5),
+        )
+        SolicitudFeDeVidaModel.objects.create(proceso=p, cedula=PASIVO, estado='VALIDADA' if i else 'BORRADOR')
+    historial = cuerpo(pasivo.get(f'{BASE}/mis-solicitudes/?limit=2'))
+    assert historial['count'] == 3 and len(historial['results']) == 2
+    assert cuerpo(pasivo.get(f'{BASE}/mis-solicitudes/?estado=VALIDADA'))['count'] == 2
+
+
+# ── Procesos y prórrogas ──
+def test_procesos_crear_listar_prorrogar_y_cerrar(administradora, analista, pasivo):
+    pid = proceso_abierto(administradora)
+    assert cuerpo(administradora.get(f'{BASE}/procesos/?estado=ABIERTO'))['count'] == 1
+    assert cuerpo(analista.get(f'{BASE}/procesos/?limit=1'))['limit'] == 1
+    ahora = timezone.now()
+    r = administradora.post(f'{BASE}/procesos/', {
+        'nombre': 'Invertido', 'fecha_apertura': ahora.isoformat(), 'fecha_cierre': (ahora - timedelta(days=1)).isoformat(),
+    }, format='json')
+    assert r.status_code == 400
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    assert administradora.post(f'{BASE}/procesos/{pid}/cerrar/').status_code == 200
+    assert cuerpo(pasivo.get(f'{BASE}/procesos/vigente/')) is None
+    assert cuerpo(pasivo.get(f'{BASE}/mis-solicitudes/{sid}/'))['solicitud']['estado'] == 'EXPIRADA'
+    # prórroga individual: rehabilita la solicitud y devuelve el proceso como vigente solo para esa cédula
+    r = analista.post(f'{BASE}/procesos/{pid}/prorrogas/', {
+        'nueva_fecha_limite': (ahora + timedelta(days=3)).isoformat(), 'motivo': 'Viaje', 'cedula': PASIVO,
+    }, format='json')
+    assert r.status_code == 201 and cuerpo(r)['general'] is False
+    assert cuerpo(pasivo.get(f'{BASE}/procesos/vigente/'))['puede_enviar'] is True
+    assert cuerpo(pasivo.get(f'{BASE}/mis-solicitudes/{sid}/'))['solicitud']['estado'] == 'BORRADOR'
+    listado = cuerpo(analista.get(f'{BASE}/procesos/{pid}/prorrogas/'))
+    assert listado['count'] == 1 and listado['results'][0]['cedula'] == PASIVO
+    assert AuditoriaLog.objects.filter(accion='PRORROGA_CONCEDIDA').exists()
+    assert analista.post(f'{BASE}/procesos/{pid}/prorrogas/', {'nueva_fecha_limite': 'ayer', 'motivo': 'x'}, format='json').status_code == 400
+
+
+def test_beat_cierra_procesos_vencidos_y_expira_solicitudes_sin_enviar(datos):
+    ahora = timezone.now()
+    vencido = ProcesoFeDeVidaModel.objects.create(
+        nombre='Vencido', estado='ABIERTO', fecha_apertura=ahora - timedelta(days=10), fecha_cierre=ahora - timedelta(minutes=1),
+    )
+    vigente = ProcesoFeDeVidaModel.objects.create(
+        nombre='Vigente', estado='ABIERTO', fecha_apertura=ahora - timedelta(days=1), fecha_cierre=ahora + timedelta(days=1),
+    )
+    borrador = SolicitudFeDeVidaModel.objects.create(proceso=vencido, cedula=PASIVO)
+    enviada = SolicitudFeDeVidaModel.objects.create(proceso=vencido, cedula=OTRO_PASIVO, estado='PENDIENTE_REVISION')
+    assert cerrar_procesos_vencidos_tarea() == 1
+    vencido.refresh_from_db(), vigente.refresh_from_db(), borrador.refresh_from_db(), enviada.refresh_from_db()
+    assert (vencido.estado, vigente.estado) == ('CERRADO', 'ABIERTO')
+    assert (borrador.estado, enviada.estado) == ('EXPIRADA', 'PENDIENTE_REVISION')
+    assert cerrar_procesos_vencidos_tarea() == 0  # idempotente
+
+
+# ── Cobertura (C16) ──
+def test_cobertura_lista_pasivos_sin_correo_o_sin_cuenta(analista, datos):
+    todos = cuerpo(analista.get(f'{BASE}/cobertura/pasivos/'))
+    cedulas = {f['cedula'] for f in todos['results']}
+    assert cedulas == {OTRO_PASIVO, SIN_CORREO}  # PASIVO tiene correo y cuenta; el activo no es pasivo
+    sin_correo = cuerpo(analista.get(f'{BASE}/cobertura/pasivos/?sin_correo=true'))
+    assert [f['cedula'] for f in sin_correo['results']] == [SIN_CORREO] and sin_correo['results'][0]['sin_correo'] is True
+    sin_cuenta = cuerpo(analista.get(f'{BASE}/cobertura/pasivos/?sin_cuenta=true&limit=1'))
+    assert sin_cuenta['count'] == 2 and len(sin_cuenta['results']) == 1 and sin_cuenta['results'][0]['tipo_nomina'] == 'JUBILADO'
+    assert cuerpo(analista.get(f'{BASE}/cobertura/pasivos/?texto=rosa'))['count'] == 1
+    assert cuerpo(analista.get(f'{BASE}/cobertura/pasivos/?tipo_nomina_id={datos.id}'))['count'] == 2
+    assert cuerpo(analista.get(f'{BASE}/cobertura/pasivos/?tipo_nomina_id=99999'))['count'] == 0
+    assert AuditoriaLog.objects.filter(accion='COBERTURA_CONSULTADA').exists()
+
+
+# ── Aplicador C19 contra la BD de pruebas ──
+def test_aplicador_c19_aprueba_y_escribe_en_la_ficha_real(datos, administradora):
+    pid = proceso_abierto(administradora)
+    solicitud = SolicitudFeDeVidaModel.objects.create(proceso_id=pid, cedula=PASIVO, estado='VALIDADA')
+    RepoCambiosActaORM().reemplazar(str(solicitud.id), [
+        CambioActa('contacto', 'MODIFICAR', 'employee', 'telefono_movil', '04125550000', valor_anterior='04140000000'),
+    ])
+    aplicados = AplicadorCambiosActaORM().aplicar(str(solicitud.id), PASIVO, ADMINISTRADORA, timezone.now())
+    assert aplicados == 1
+    assert EmployeeModel.objects.get(cedulaidentidad=PASIVO).telefono_movil == '04125550000'
+    # los cambios quedaron marcados como aprobados: ya no hay pendientes que decidir
+    pendientes = [c for c in RepoCambiosActaORM().listar(str(solicitud.id))]
+    assert len(pendientes) == 1

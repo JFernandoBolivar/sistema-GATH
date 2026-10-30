@@ -25,7 +25,7 @@ def _al_validar(
         if tipo is TipoEvento.APROBACION_DIRECTA:
             publicador.publicar(evento(TipoEvento.VALIDADA, guardada, actor.cedula, via=guardada.via_aprobacion.value))
     else:
-        publicador.publicar(evento(tipo, guardada, actor.cedula, rol=actor.rol.value))
+        publicador.publicar(evento(tipo, guardada, actor.cedula, rol=actor.rol.value, envio=guardada.envios))
     return guardada
 
 
@@ -58,7 +58,7 @@ def rechazar(
 ) -> SolicitudFeDeVida:
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
     guardada = repo.guardar(solicitud.rechazar(actor, motivo, ahora), solicitud.version)
-    (publicador or PublicadorNulo()).publicar(evento(TipoEvento.RECHAZADA, guardada, actor.cedula, motivo=motivo.strip()))
+    (publicador or PublicadorNulo()).publicar(evento(TipoEvento.RECHAZADA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios))
     return guardada
 
 
@@ -69,6 +69,6 @@ def solicitar_repeticion(
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
     guardada = repo.guardar(solicitud.solicitar_repeticion(actor, motivo, ahora), solicitud.version)
     (publicador or PublicadorNulo()).publicar(
-        evento(TipoEvento.REPETICION_SOLICITADA, guardada, actor.cedula, motivo=motivo.strip()),
+        evento(TipoEvento.REPETICION_SOLICITADA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios),
     )
     return guardada

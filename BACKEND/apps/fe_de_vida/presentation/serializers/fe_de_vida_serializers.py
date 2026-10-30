@@ -1,0 +1,277 @@
+"""
+Serializers de la fe de vida: toda entrada (cuerpo y parámetros de consulta) se valida aquí y la salida
+se arma con las funciones `a_dict_*` (enums a texto, sin rutas de archivos) para fijar el contrato OpenAPI.
+"""
+from rest_framework import serializers
+
+from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import DetalleRevision, DetalleSolicitud, ProcesoVigente
+from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
+from apps.fe_de_vida.domain.entities.constancia import ConstanciaFeDeVida
+from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
+from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
+from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
+from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud, OrigenEvidencia
+
+ACCIONES_CAMBIO = ('MODIFICAR', 'CREAR')
+MAX_CAMBIOS_BORRADOR = 60
+MAX_LONGITUD_MOTIVO = 500
+
+
+# ── Entrada: parámetros de consulta ──
+class PaginaSerializer(serializers.Serializer):
+    limit = serializers.IntegerField(required=False, min_value=1, help_text='Por defecto 10, máximo 50.')
+    offset = serializers.IntegerField(required=False, min_value=0)
+
+
+class FiltroBandejaSerializer(PaginaSerializer):
+    texto = serializers.CharField(required=False, max_length=80, help_text='Cédula o nombre del pasivo.')
+    estado = serializers.ChoiceField(required=False, choices=[e.value for e in EstadoSolicitud])
+    proceso_id = serializers.UUIDField(required=False)
+    desde = serializers.DateField(required=False, help_text='Fecha de envío desde (inclusive).')
+    hasta = serializers.DateField(required=False, help_text='Fecha de envío hasta (inclusive).')
+
+    def validate(self, datos):
+        if datos.get('desde') and datos.get('hasta') and datos['desde'] > datos['hasta']:
+            raise serializers.ValidationError('El rango de fechas es inválido: "desde" es posterior a "hasta".')
+        return datos
+
+
+class FiltroHistorialSerializer(PaginaSerializer):
+    estado = serializers.ChoiceField(required=False, choices=[e.value for e in EstadoSolicitud])
+
+
+class FiltroProcesosSerializer(PaginaSerializer):
+    estado = serializers.ChoiceField(required=False, choices=[e.value for e in EstadoProceso])
+
+
+class FiltroCoberturaSerializer(PaginaSerializer):
+    texto = serializers.CharField(required=False, max_length=80, help_text='Cédula o nombre.')
+    tipo_nomina_id = serializers.IntegerField(required=False, min_value=1, help_text='Tipo de pensión (TipoNomina).')
+    sin_correo = serializers.BooleanField(required=False, default=False)
+    sin_cuenta = serializers.BooleanField(required=False, default=False)
+
+
+# ── Entrada: cuerpos ──
+class CambioActaEntradaSerializer(serializers.Serializer):
+    seccion = serializers.CharField(max_length=30)
+    entidad = serializers.CharField(max_length=40)
+    accion = serializers.ChoiceField(choices=ACCIONES_CAMBIO)
+    campo = serializers.CharField(max_length=60, help_text="Campo a modificar; '*' al CREAR un registro.")
+    valor = serializers.JSONField(allow_null=True)
+    entidad_id = serializers.CharField(max_length=32, required=False, allow_null=True, allow_blank=True)
+
+
+class GuardarBorradorSerializer(serializers.Serializer):
+    cambios = CambioActaEntradaSerializer(many=True, max_length=MAX_CAMBIOS_BORRADOR, allow_empty=True)
+
+
+class SubirEvidenciaSerializer(serializers.Serializer):
+    file = serializers.FileField()
+    origen = serializers.ChoiceField(choices=[o.value for o in OrigenEvidencia], help_text='CAMARA o ARCHIVO.')
+    metadatos = serializers.JSONField(required=False, help_text='Datos de captura (p. ej. dispositivo, resolución).')
+
+    def validate_metadatos(self, valor):
+        if not isinstance(valor, dict) or len(str(valor)) > 2000:
+            raise serializers.ValidationError('Los metadatos deben ser un objeto pequeño.')
+        return valor
+
+
+class MotivoSerializer(serializers.Serializer):
+    motivo = serializers.CharField(max_length=MAX_LONGITUD_MOTIVO)
+
+
+class JustificacionSerializer(serializers.Serializer):
+    justificacion = serializers.CharField(max_length=MAX_LONGITUD_MOTIVO)
+
+
+class CrearProcesoSerializer(serializers.Serializer):
+    nombre = serializers.CharField(max_length=160)
+    fecha_apertura = serializers.DateTimeField()
+    fecha_cierre = serializers.DateTimeField()
+
+
+class ProrrogarSerializer(serializers.Serializer):
+    nueva_fecha_limite = serializers.DateTimeField()
+    motivo = serializers.CharField(max_length=MAX_LONGITUD_MOTIVO)
+    cedula = serializers.CharField(
+        required=False, allow_blank=True, max_length=15,
+        help_text='Con cédula: prórroga individual. Vacía u omitida: prórroga general (todos los pasivos).',
+    )
+
+
+# ── Salida ──
+class DecisionSerializer(serializers.Serializer):
+    tipo = serializers.CharField()
+    rol = serializers.CharField()
+    actor_cedula = serializers.CharField()
+    envio = serializers.IntegerField()
+    motivo = serializers.CharField(allow_blank=True)
+    fecha = serializers.DateTimeField()
+
+
+class SolicitudSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    proceso_id = serializers.CharField()
+    cedula = serializers.CharField()
+    nombre = serializers.CharField(required=False)
+    estado = serializers.CharField()
+    version = serializers.IntegerField()
+    envios = serializers.IntegerField()
+    origen_evidencia = serializers.CharField(allow_null=True)
+    tiene_evidencia = serializers.BooleanField()
+    via_aprobacion = serializers.CharField(allow_null=True)
+    fecha_envio = serializers.DateTimeField(allow_null=True)
+    fecha_validacion = serializers.DateTimeField(allow_null=True)
+    decisiones = DecisionSerializer(many=True)
+
+
+class CambioSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    seccion = serializers.CharField()
+    accion = serializers.CharField()
+    entidad = serializers.CharField()
+    entidad_id = serializers.CharField(allow_null=True)
+    campo = serializers.CharField()
+    valor_anterior = serializers.JSONField(allow_null=True)
+    valor_propuesto = serializers.JSONField(allow_null=True)
+
+
+class CambioComparadoSerializer(CambioSerializer):
+    valor_actual = serializers.JSONField(allow_null=True)
+    conflicto = serializers.BooleanField(help_text='La ficha cambió desde que el pasivo propuso el valor.')
+
+
+class DetalleSolicitudSerializer(serializers.Serializer):
+    solicitud = SolicitudSerializer()
+    cambios = CambioSerializer(many=True)
+
+
+class DetalleRevisionSerializer(serializers.Serializer):
+    solicitud = SolicitudSerializer()
+    cambios = CambioComparadoSerializer(many=True)
+
+
+class ProcesoSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    nombre = serializers.CharField()
+    estado = serializers.CharField()
+    fecha_apertura = serializers.DateTimeField()
+    fecha_cierre = serializers.DateTimeField()
+    fecha_cierre_real = serializers.DateTimeField(allow_null=True)
+
+
+class ProcesoVigenteSerializer(serializers.Serializer):
+    proceso = ProcesoSerializer()
+    solicitud = SolicitudSerializer(allow_null=True)
+    puede_enviar = serializers.BooleanField()
+
+
+class ProrrogaSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    proceso_id = serializers.CharField()
+    cedula = serializers.CharField(allow_blank=True)
+    general = serializers.BooleanField()
+    nueva_fecha_limite = serializers.DateTimeField()
+    motivo = serializers.CharField()
+    concedida_por = serializers.CharField()
+
+
+class UrlEvidenciaSerializer(serializers.Serializer):
+    url = serializers.CharField(help_text='URL prefirmada de corta vigencia.')
+    expira_en_segundos = serializers.IntegerField()
+
+
+class PasivoCoberturaSerializer(serializers.Serializer):
+    cedula = serializers.CharField()
+    nombre_completo = serializers.CharField()
+    tipo_nomina = serializers.CharField()
+    correo = serializers.CharField(allow_blank=True)
+    sin_correo = serializers.BooleanField()
+    tiene_cuenta = serializers.BooleanField()
+
+
+class ConstanciaVerificadaSerializer(serializers.Serializer):
+    numero = serializers.CharField()
+    emitida_en = serializers.DateTimeField(allow_null=True)
+    certificada_por = serializers.ListField(child=serializers.DictField())
+
+
+def a_cambio_acta(d: dict) -> CambioActa:
+    return CambioActa(
+        seccion=d['seccion'], accion=d['accion'], entidad_destino=d['entidad'], campo=d['campo'],
+        valor_propuesto=d['valor'], entidad_id=d.get('entidad_id') or None,
+    )
+
+
+def pagina(total: int, limite: int, desplazamiento: int, resultados: list) -> dict:
+    return {'count': total, 'limit': limite, 'offset': desplazamiento, 'results': resultados}
+
+
+def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None) -> dict:
+    datos = {
+        'id': s.id, 'proceso_id': s.proceso_id, 'cedula': s.cedula, 'estado': s.estado.value, 'version': s.version,
+        'envios': s.envios, 'origen_evidencia': s.origen_evidencia.value if s.origen_evidencia else None,
+        'tiene_evidencia': bool(s.evidencia_clave), 'via_aprobacion': s.via_aprobacion.value if s.via_aprobacion else None,
+        'fecha_envio': s.fecha_envio, 'fecha_validacion': s.fecha_validacion,
+        'decisiones': [
+            {'tipo': d.tipo.value, 'rol': d.rol.value, 'actor_cedula': d.actor_cedula, 'envio': d.envio,
+             'motivo': d.motivo, 'fecha': d.fecha}
+            for d in s.decisiones
+        ],
+    }
+    if nombre is not None:
+        datos['nombre'] = nombre
+    return datos
+
+
+def a_dict_cambio(c: CambioActa) -> dict:
+    return {
+        'id': c.id, 'seccion': c.seccion, 'accion': c.accion, 'entidad': c.entidad_destino, 'entidad_id': c.entidad_id,
+        'campo': c.campo, 'valor_anterior': c.valor_anterior, 'valor_propuesto': c.valor_propuesto,
+    }
+
+
+def a_dict_detalle(d: DetalleSolicitud) -> dict:
+    return {'solicitud': a_dict_solicitud(d.solicitud), 'cambios': [a_dict_cambio(c) for c in d.cambios]}
+
+
+def a_dict_revision(d: DetalleRevision) -> dict:
+    return {
+        'solicitud': a_dict_solicitud(d.solicitud, d.nombre_pasivo),
+        'cambios': [{**a_dict_cambio(c.cambio), 'valor_actual': c.valor_actual, 'conflicto': c.conflicto} for c in d.cambios],
+    }
+
+
+def a_dict_proceso(p: ProcesoFeDeVida) -> dict:
+    return {
+        'id': p.id, 'nombre': p.nombre, 'estado': p.estado.value, 'fecha_apertura': p.fecha_apertura,
+        'fecha_cierre': p.fecha_cierre, 'fecha_cierre_real': p.fecha_cierre_real,
+    }
+
+
+def a_dict_vigente(v: ProcesoVigente) -> dict:
+    return {
+        'proceso': a_dict_proceso(v.proceso), 'solicitud': a_dict_solicitud(v.solicitud) if v.solicitud else None,
+        'puede_enviar': v.puede_enviar,
+    }
+
+
+def a_dict_prorroga(p: ProrrogaProceso) -> dict:
+    return {
+        'id': p.id, 'proceso_id': p.proceso_id, 'cedula': p.cedula, 'general': p.general,
+        'nueva_fecha_limite': p.nueva_fecha_limite, 'motivo': p.motivo, 'concedida_por': p.concedida_por,
+    }
+
+
+def a_dict_cobertura(p: PasivoCobertura) -> dict:
+    return {
+        'cedula': p.cedula, 'nombre_completo': p.nombre_completo, 'tipo_nomina': p.tipo_nomina, 'correo': p.correo,
+        'sin_correo': p.sin_correo, 'tiene_cuenta': p.tiene_cuenta,
+    }
+
+
+def a_dict_constancia(c: ConstanciaFeDeVida) -> dict:
+    return {
+        'numero': c.numero, 'emitida_en': c.emitida_en,
+        'certificada_por': [{'nombre': x.nombre, 'cedula': x.cedula, 'rol': x.rol} for x in c.certificada_por],
+    }

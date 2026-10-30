@@ -6,12 +6,14 @@ import pytest
 from apps.fe_de_vida.application.use_cases import consultas, procesos, revision
 from apps.fe_de_vida.application.use_cases import solicitudes_pasivo as sp
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
+from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
 from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud as E, ViaAprobacion
 from core.domain.exceptions import (
     AlmacenamientoNoDisponible, ConflictError, NotFoundError, PermissionDeniedError, ValidationError,
 )
 from tests.unit.fe_de_vida.memoria import (
-    ADMINISTRADORA, AHORA, ANALISTA, APERTURA, CIERRE, OTRA_ADMINISTRADORA, OTRO_PASIVO, PASIVO, Mundo, VerificadorMem,
+    ADMINISTRADORA, AHORA, ANALISTA, APERTURA, CIERRE, OTRA_ADMINISTRADORA, OTRO_PASIVO, PASIVO, LectorPasivosMem, Mundo,
+    VerificadorMem,
 )
 
 
@@ -258,16 +260,42 @@ def test_revisar_solicitud_inexistente_falla(m):
 # ── Consultas ──
 def test_consulta_propia_historial_bandeja_y_evidencia(m):
     s = m.solicitud_enviada()
-    detalle = consultas.obtener_mi_solicitud(m.solicitudes, m.cambios, proceso_id=m.proceso.id, cedula=PASIVO)
+    detalle = consultas.obtener_mi_solicitud(m.solicitudes, m.cambios, solicitud_id=s.id, cedula=PASIVO)
     assert detalle.solicitud.id == s.id and detalle.cambios == []
-    assert consultas.obtener_mi_solicitud(m.solicitudes, m.cambios, proceso_id=m.proceso.id, cedula=OTRO_PASIVO) is None
-    assert [x.id for x in consultas.listar_mis_solicitudes(m.solicitudes, cedula=PASIVO)] == [s.id]
-    filas, total = consultas.bandeja_revision(m.solicitudes, estado='PENDIENTE_REVISION', limite=500)
-    assert total == 1 and filas[0].id == s.id
+    with pytest.raises(PermissionDeniedError):
+        consultas.obtener_mi_solicitud(m.solicitudes, m.cambios, solicitud_id=s.id, cedula=OTRO_PASIVO)
+    historial, total = consultas.listar_mis_solicitudes(m.solicitudes, cedula=PASIVO)
+    assert [x.id for x in historial] == [s.id] and total == 1
+    filas, total = consultas.bandeja_revision(
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(estado='PENDIENTE_REVISION'), limite=500,
+    )
+    assert total == 1 and filas[0][0].id == s.id and filas[0][1] == f'Nombre {PASIVO}'
     url = consultas.url_evidencia(m.solicitudes, m.storage, m.publicador, solicitud_id=s.id, actor_cedula=ANALISTA.cedula)
     assert url.endswith('exp=90') and m.publicador.tipos()[-1] == 'fe_de_vida.evidencia_consultada'
-    assert len(consultas.listar_procesos(m.procesos, estado='ABIERTO')) == 1
-    assert consultas.listar_prorrogas(m.procesos, proceso_id=m.proceso.id) == []
+    procesos_abiertos, total = consultas.listar_procesos(m.procesos, estado='ABIERTO')
+    assert len(procesos_abiertos) == 1 and total == 1
+    assert consultas.listar_prorrogas(m.procesos, proceso_id=m.proceso.id) == ([], 0)
+
+
+def test_paginacion_tiene_tope_y_defecto():
+    from apps.fe_de_vida.application.use_cases._comun import normalizar_pagina, paginar
+    assert normalizar_pagina(None, None) == (10, 0)
+    assert normalizar_pagina(500, -3) == (50, 0)
+    pagina, total = paginar(list(range(120)), 500, 10)
+    assert len(pagina) == 50 and total == 120 and pagina[0] == 10
+
+
+def test_proceso_vigente_por_plazo_y_por_prorroga(m):
+    vigente = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=PASIVO, ahora=AHORA)
+    assert vigente.proceso.id == m.proceso.id and vigente.puede_enviar and vigente.solicitud is None
+    despues = CIERRE + timedelta(days=1)
+    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=PASIVO, ahora=despues) is None
+    procesos.prorrogar_proceso(
+        m.procesos, m.solicitudes, proceso_id=m.proceso.id, cedula=PASIVO, nueva_fecha_limite=despues + timedelta(days=5),
+        motivo='viaje', actor=ANALISTA.cedula, ahora=despues,
+    )
+    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=PASIVO, ahora=despues).puede_enviar
+    assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, cedula=OTRO_PASIVO, ahora=despues) is None
 
 
 def test_url_evidencia_sin_foto_falla(m):

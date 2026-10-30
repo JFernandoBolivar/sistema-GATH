@@ -1,6 +1,8 @@
 """Repositorio ORM de procesos y prórrogas de fe de vida."""
 from datetime import datetime
 
+from django.db.models import Q
+
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.infrastructure.mappers.mapper_fe_de_vida import proceso_a_entidad, prorroga_a_entidad
 from apps.fe_de_vida.infrastructure.models.proceso_models import ProcesoFeDeVidaModel, ProrrogaProcesoModel
@@ -41,6 +43,13 @@ class RepoProcesosORM:
 
     def listar_abiertos_vencidos(self, ahora: datetime) -> list[ProcesoFeDeVida]:
         qs = ProcesoFeDeVidaModel.objects.filter(estado=ProcesoFeDeVidaModel.Estado.ABIERTO, fecha_cierre__lt=ahora)
+        return [proceso_a_entidad(m) for m in qs]
+
+    def listar_con_prorroga_vigente(self, cedula: str, ahora: datetime) -> list[ProcesoFeDeVida]:
+        vigentes = ProrrogaProcesoModel.objects.filter(
+            Q(cedula='') | Q(cedula=cedula), nueva_fecha_limite__gte=ahora,
+        ).values('proceso_id')
+        qs = ProcesoFeDeVidaModel.objects.filter(pk__in=vigentes).exclude(estado=ProcesoFeDeVidaModel.Estado.BORRADOR)
         return [proceso_a_entidad(m) for m in qs]
 
     def agregar_prorroga(self, prorroga: ProrrogaProceso) -> ProrrogaProceso:

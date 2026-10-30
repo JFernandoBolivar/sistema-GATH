@@ -5,4 +5,6 @@ class FeDeVidaConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.fe_de_vida'
     verbose_name = 'Fe de Vida de Pasivos'
-    # Los receivers que traducen los eventos a notificaciones y correo llegan con C6 (plantillas).
+
+    def ready(self):
+        import apps.fe_de_vida.infrastructure.receivers  # noqa: F401  (conecta eventos -> notificaciones y constancia)

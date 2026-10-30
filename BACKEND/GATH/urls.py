@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/v1/pasivos/', include('apps.pasivos.presentation.urls')),
     path('api/v1/carnetizacion/', include('apps.carnetizacion.presentation.urls')),
     path('api/v1/autogestion/', include('apps.autogestion.presentation.urls')),
+    path('api/v1/fe-de-vida/', include('apps.fe_de_vida.presentation.urls')),
     path('api/v1/notificaciones/', include('apps.notificaciones.presentation.urls')),
     path('api/v1/reportes/', include('apps.reportes.presentation.urls')),
     path('api/v1/movimientos/', include('apps.movimientos.presentation.urls')),

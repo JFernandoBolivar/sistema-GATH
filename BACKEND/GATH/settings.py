@@ -212,8 +212,16 @@ NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS = config('NOTIFICACIONES_CORREO_BACKOFF_S
 AUTOGESTION_AVISO_EXPIRACION_HORAS = config('AUTOGESTION_AVISO_EXPIRACION_HORAS', default=24, cast=int)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
+# Fe de vida: calidad mínima de la selfie (lado menor, px) y base del QR de verificación de la constancia.
+FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX = config('FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX', default=480, cast=int)
+FE_DE_VIDA_URL_VERIFICACION = config(
+    'FE_DE_VIDA_URL_VERIFICACION', default=f"{FRONTEND_URL.rstrip('/')}/fe-de-vida/verificar",
+)
 # Dominio que se completa cuando el usuario inicia sesión con su correo sin dominio (usuario -> usuario@dominio).
 DOMINIO_CORREO_INSTITUCIONAL = config('DOMINIO_CORREO_INSTITUCIONAL', default='conatel.gob.ve')
+# Autogestión: si Bienestar además recibe por correo (correo de acceso) los avisos de solicitud nueva,
+# actualización enviada y corrección reenviada. Pendiente de confirmar: por defecto solo en el sistema.
+NOTIFICAR_BIENESTAR_POR_CORREO = config('NOTIFICAR_BIENESTAR_POR_CORREO', default=False, cast=bool)
 
 # ─── Celery (Etapa A1, D-02) ─────────────────────────────────────────────────
 # Broker RabbitMQ (vhost `gath`): compose.yml arma CELERY_BROKER_URL desde
@@ -252,6 +260,11 @@ CELERY_BEAT_SCHEDULE = {
     'autogestion-avisar-ventanas-por-expirar': {
         'task': 'autogestion.avisar_ventanas_por_expirar',
         'schedule': 1800.0,  # cada 30 minutos
+    },
+    # Fe de vida (C17): cierra los procesos ABIERTOS cuya fecha de cierre ya pasó (idempotente).
+    'fe-de-vida-cerrar-procesos-vencidos': {
+        'task': 'fe_de_vida.cerrar_procesos_vencidos',
+        'schedule': 900.0,  # cada 15 minutos
     },
     # Notificaciones (A3): reprograma los correos PENDIENTES que nadie envió (broker o worker caídos).
     'notificaciones-reprocesar-outbox': {

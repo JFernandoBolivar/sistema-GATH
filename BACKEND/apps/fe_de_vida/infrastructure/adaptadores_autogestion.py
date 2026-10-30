@@ -92,3 +92,15 @@ class AplicadorCambiosActaORM:
             AplicadorCambiosORM(), cedula=cedula, cambios=repo.listar(ORIGEN_FE_DE_VIDA, solicitud_id),
             soportes=[], actor=actor_cedula,
         )
+
+
+class LectorValorActualORM:
+    """Valor real de hoy de cada dato propuesto, para el comparativo de Bienestar."""
+
+    def __init__(self):
+        self._lector = LectorFichaORM()
+
+    def valor_actual(self, cedula: str, cambio: CambioActa) -> object:
+        if cambio.accion != Accion.MODIFICAR.value:
+            return None
+        return self._lector.valor_actual(cedula, cambio.entidad_destino, cambio.entidad_id, cambio.campo)

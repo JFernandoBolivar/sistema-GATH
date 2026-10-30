@@ -6,6 +6,21 @@ from apps.fe_de_vida.domain.ports.repos import RepoProcesos, RepoSolicitudesFeDe
 from core.domain.exceptions import NotFoundError, PermissionDeniedError
 
 
+LIMITE_DEFECTO = 10
+LIMITE_MAX = 50
+
+
+def normalizar_pagina(limite: int | None, desplazamiento: int | None) -> tuple[int, int]:
+    """Todo listado pagina en el servidor: 10 por defecto, tope 50."""
+    return max(1, min(limite or LIMITE_DEFECTO, LIMITE_MAX)), max(0, desplazamiento or 0)
+
+
+def paginar(items: list, limite: int | None, desplazamiento: int | None) -> tuple[list, int]:
+    """Página de una lista corta ya ordenada (procesos, prórrogas, historial del pasivo)."""
+    limite, desplazamiento = normalizar_pagina(limite, desplazamiento)
+    return items[desplazamiento:desplazamiento + limite], len(items)
+
+
 def obtener_proceso(repo: RepoProcesos, proceso_id: str, bloquear: bool = False) -> ProcesoFeDeVida:
     proceso = repo.obtener(proceso_id, bloquear=bloquear)
     if proceso is None:
