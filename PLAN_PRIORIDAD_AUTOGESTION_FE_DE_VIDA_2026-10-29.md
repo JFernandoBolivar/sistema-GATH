@@ -176,6 +176,7 @@ Capas: Back, Front, Infra, Test, Doc. Los IDs `A*`, `B*`, `C*`, `D*`, `E*` son l
 | G5 | HU 0006 punto de cuenta: pantalla para ver/descargar, aviso de éxito, disparo según RN-006-01 (Gerencia u Oficina), revisar cambio de cargo y pase a pasivo, plantilla del formato con los datos del trabajador | Front/Back | — | ⏳ Pendiente | — | Parcial, L |
 | G6 | HU 0008 movimientos: imprimir en el PDF los filtros aplicados, exportar a Excel, validar RN-008-01 también en backend, quitar tope silencioso de 300 filas (paginación) | Front/Back | — | ⏳ Pendiente | — | Parcial, M |
 | G7 | Eliminar el código legado duplicado de `src/app/(protected)/dashboard` | Front | D1 | ⏳ Pendiente | — | Deuda, S. Tiempo de servicio y antecedentes: OK, sin regresión |
+| G8 | Notificar en sistema y correo a Bienestar/RRHH (módulo personal, por permiso) cada movimiento de personal: ingreso, egreso, traslado, cambio de cargo, pase a pasivo, alta de sobreviviente y punto de cuenta generado; y al trabajador afectado (módulo autogestion) cuando corresponda | Back | A2, `cargo_movimiento_ejecutado` | ⏳ Pendiente | — | Pedido del usuario 2026-10-29: «cuando reciben una solicitud de cualquier tipo, un movimiento, la actualización, etc.». Actualización (B16) y fe de vida (C6) ya lo incluyen |
 
 **Fase 5 — Usuarios por roles y permisos**
 
