@@ -16,6 +16,9 @@ from apps.identidad.application.use_cases.cambiar_password import cambiar_passwo
 from apps.identidad.application.use_cases.desactivar_cuenta_por_egreso import (
     desactivar_cuenta_por_egreso,
 )
+from apps.identidad.application.use_cases.reactivar_cuenta_por_reingreso import (
+    reactivar_cuenta_por_reingreso,
+)
 from apps.identidad.application.use_cases.restablecer_acceso import restablecer_acceso
 from apps.identidad.domain.entities.cuenta import Cuenta
 from apps.identidad.domain.events import MotivoCambioPassword, TipoEventoIdentidad
@@ -128,11 +131,14 @@ def test_activo_con_correo_ajeno_al_dominio_no_recibe_cuenta(eventos):
     assert eventos == []
 
 
-def test_pasivo_recibe_cuenta_con_correo_de_cualquier_dominio(eventos):
+def test_pasivo_elegido_por_rrhh_recibe_cuenta_con_correo_de_cualquier_dominio(eventos):
     cuentas = CuentasMem()
     correos = CorreosMem({'456': 'luis@gmail.com'})
 
-    cuenta = _alta(cuentas, correos, {'456': CondicionTrabajador.PASIVO}, PasswordInicialMem(), eventos, '456')
+    cuenta = aprovisionar_cuenta_trabajador(
+        cuentas, correos, CondicionMem({'456': CondicionTrabajador.PASIVO}), PasswordInicialMem(),
+        eventos.append, '456', DOMINIO, AHORA, permitir_pasivo=True,
+    )
 
     assert cuenta is not None and cuenta.cedula == '456'
 
@@ -291,7 +297,10 @@ def test_pasivo_sin_cuenta_la_recibe_al_elegir_su_correo(eventos):
     condiciones = {'456': CondicionTrabajador.PASIVO}
 
     def aprovisionar(cedula):
-        return _alta(cuentas, correos, condiciones, pi, eventos, cedula)
+        return aprovisionar_cuenta_trabajador(
+            cuentas, correos, CondicionMem(condiciones), pi, eventos.append, cedula, DOMINIO, AHORA,
+            permitir_pasivo=True,
+        )
 
     r = cambiar_correo_acceso(correos, cuentas, eventos.append, aprovisionar, '456', 'ALTERNATIVO')
 
@@ -300,30 +309,92 @@ def test_pasivo_sin_cuenta_la_recibe_al_elegir_su_correo(eventos):
     assert [e.tipo for e in eventos] == [TipoEventoIdentidad.CUENTA_CREADA]  # un solo aviso
 
 
-# ─── Egreso ───
+# ─── Egreso y reingreso ───
 
-def test_egreso_sin_pase_a_pasivo_desactiva_la_cuenta():
-    cuentas = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=True)])
+class MarcaMem:
+    def __init__(self):
+        self.ids = set()
 
-    c = desactivar_cuenta_por_egreso(cuentas, CondicionMem({}), '123')
+    def marcar(self, cuenta_id, motivo):
+        self.ids.add(cuenta_id)
+
+    def existe(self, cuenta_id):
+        return cuenta_id in self.ids
+
+    def limpiar(self, cuenta_id):
+        self.ids.discard(cuenta_id)
+
+
+def test_egreso_sin_pase_a_pasivo_desactiva_la_cuenta_y_la_marca():
+    cuentas, marca = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=True)]), MarcaMem()
+
+    c = desactivar_cuenta_por_egreso(cuentas, CondicionMem({}), marca, '123')
 
     assert c.is_active is False
     assert cuentas.obtener_por_id(1).is_active is False
+    assert marca.existe(1)
 
 
 def test_egreso_desactiva_cualquier_rol():
     cuentas = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', rol_id=1)])  # ADMINISTRADOR
 
-    assert desactivar_cuenta_por_egreso(cuentas, CondicionMem({}), '123').is_active is False
+    assert desactivar_cuenta_por_egreso(cuentas, CondicionMem({}), MarcaMem(), '123').is_active is False
 
 
 @pytest.mark.parametrize('condicion', [CondicionTrabajador.PASIVO, CondicionTrabajador.ACTIVO])
 def test_pasivo_o_con_cargo_no_se_desactiva(condicion):
-    cuentas = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=True)])
+    cuentas, marca = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=True)]), MarcaMem()
 
-    assert desactivar_cuenta_por_egreso(cuentas, CondicionMem({'123': condicion}), '123') is None
-    assert cuentas.obtener_por_id(1).is_active is True
+    assert desactivar_cuenta_por_egreso(cuentas, CondicionMem({'123': condicion}), marca, '123') is None
+    assert cuentas.obtener_por_id(1).is_active is True and not marca.existe(1)
 
 
 def test_egreso_de_quien_no_tiene_cuenta_no_falla():
-    assert desactivar_cuenta_por_egreso(CuentasMem(), CondicionMem({}), '777') is None
+    assert desactivar_cuenta_por_egreso(CuentasMem(), CondicionMem({}), MarcaMem(), '777') is None
+
+
+def test_reingreso_reactiva_la_cuenta_dada_de_baja_por_egreso():
+    cuentas, marca = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=False)]), MarcaMem()
+    marca.marcar(1, 'EGRESO')
+
+    c = reactivar_cuenta_por_reingreso(cuentas, CondicionMem({'123': CondicionTrabajador.ACTIVO}), marca, '123')
+
+    assert c.is_active is True and not marca.existe(1)
+
+
+def test_reingreso_no_revierte_una_desactivacion_manual():
+    cuentas, marca = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=False)]), MarcaMem()  # sin marca
+
+    assert reactivar_cuenta_por_reingreso(cuentas, CondicionMem({'123': CondicionTrabajador.ACTIVO}), marca, '123') is None
+    assert cuentas.obtener_por_id(1).is_active is False
+
+
+def test_reingreso_como_pasivo_no_reactiva():
+    cuentas, marca = CuentasMem(cuentas=[Cuenta(id=1, cedula='123', is_active=False)]), MarcaMem()
+    marca.marcar(1, 'EGRESO')
+
+    assert reactivar_cuenta_por_reingreso(cuentas, CondicionMem({'123': CondicionTrabajador.PASIVO}), marca, '123') is None
+
+
+@pytest.mark.parametrize('tipo,categoria,esperado', [
+    ('EGRESO', None, True), ('CAMBIO DE ESTATUS', 'EGRESO', True), ('CAMBIO DE ESTATUS', 'fallecimiento', True),
+    ('TRASLADO', None, False), ('CAMBIO DE ESTATUS', None, False), ('CAMBIO DE ESTATUS', 'SUSPENDIDO', False),
+    ('INGRESO', None, False),
+])
+def test_solo_un_egreso_real_cuenta_como_egreso(tipo, categoria, esperado):
+    from apps.identidad.domain.services.politica_movimientos import es_movimiento_de_egreso
+
+    assert es_movimiento_de_egreso(tipo, categoria) is esperado
+
+
+def test_pasivo_no_recibe_cuenta_por_edicion_de_ficha(eventos):
+    cuentas = CuentasMem()
+    correos = CorreosMem({'456': 'luis@gmail.com'})
+    condiciones = {'456': CondicionTrabajador.PASIVO}
+
+    assert _alta(cuentas, correos, condiciones, PasswordInicialMem(), eventos, '456') is None  # sin permitir_pasivo
+    creada = aprovisionar_cuenta_trabajador(
+        cuentas, correos, CondicionMem(condiciones), PasswordInicialMem(), eventos.append, '456', DOMINIO, AHORA,
+        permitir_pasivo=True,
+    )
+    assert creada is not None

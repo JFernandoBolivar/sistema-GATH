@@ -30,6 +30,8 @@ Catálogo maestro de 91 permisos oficiales registrados en `PERMISOS_CATALOGO`.
 | `identidad.eliminar_roles` | Eliminar roles no asignados |
 | `identidad.asignar_permisos` | Modificar la matriz de permisos de roles |
 | `identidad.desbloquear_cuentas` | Desbloquear cuentas tras incidentes de seguridad |
+| `identidad.restablecer_acceso` | Restablecer el acceso de un trabajador (repone la cédula como contraseña inicial por 7 días, revoca sesiones y avisa por correo) |
+| `identidad.cambiar_correo_acceso` | Elegir el correo de acceso de un trabajador (institucional o alternativo) en el pase a pasivo; crea la cuenta del pasivo/sobreviviente |
 
 ### 1.2 Organización (`organizacion`)
 | Código de Permiso | Descripción Oficial |
@@ -245,6 +247,10 @@ Abreviaturas de columnas:
 | **`identidad.eliminar_roles`** | ✅ | | | | | | | |
 | **`identidad.asignar_permisos`** | ✅ | | | | | | | |
 | **`identidad.desbloquear_cuentas`** | ✅ | | | | | | | |
+| **`identidad.restablecer_acceso`** | ✅ | ✅ | | | | | | |
+| **`identidad.cambiar_correo_acceso`** | ✅ | ✅ | | | | | | |
+| **`identidad.restablecer_acceso`** | ✅ | ✅ | | | | | | |
+| **`identidad.cambiar_correo_acceso`** | ✅ | ✅ | | | | | | |
 | **`organizacion.ver`** | ✅ | ✅ | | ✅ | | | | |
 | **`organizacion.crear`** | ✅ | ✅ | | | | | | |
 | **`organizacion.editar`** | ✅ | ✅ | | | | | | |

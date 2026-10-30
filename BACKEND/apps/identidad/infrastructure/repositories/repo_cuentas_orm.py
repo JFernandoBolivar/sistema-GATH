@@ -24,6 +24,7 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.identidad.domain.entities.cuenta import Cuenta
 from apps.identidad.infrastructure.mappers.mapper_cuenta import cuenta_a_entidad
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+from apps.identidad.infrastructure.models.desactivacion_egreso_model import DesactivacionEgresoModel
 from apps.identidad.infrastructure.repositories.repo_password_inicial_orm import (
     RepoPasswordInicialORM,
 )
@@ -93,6 +94,10 @@ class RepoCuentasORM:
         fila.save()
         if rol_anterior != cuenta.rol_id or activa_anterior != cuenta.is_active:
             RepoPermisosVersionORM().incrementar_cuenta(fila.pk)
+        if activa_anterior != cuenta.is_active:
+            # Cualquier cambio de estado invalida la marca de baja por egreso; el caso de uso de egreso
+            # la vuelve a poner después de guardar.
+            DesactivacionEgresoModel.objects.filter(cuenta_id=fila.pk).delete()
         return cuenta_a_entidad(self._queryset().get(pk=fila.pk))
 
     def verificar_password(self, id: int, password_plano: str) -> bool:

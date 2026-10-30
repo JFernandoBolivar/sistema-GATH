@@ -21,6 +21,9 @@ from apps.identidad.infrastructure.models.usuario_permiso_model import (
 from apps.identidad.infrastructure.models.permisos_version_model import (
     PermisosVersionModel,
 )
+from apps.identidad.infrastructure.models.desactivacion_egreso_model import (
+    DesactivacionEgresoModel,
+)
 from apps.identidad.infrastructure.models.password_inicial_model import (
     PasswordInicialModel,
 )
@@ -37,6 +40,7 @@ __all__ = [
     'UsuarioPermisoModel',
     'PermisosVersionModel',
     'PasswordInicialModel',
+    'DesactivacionEgresoModel',
     'CuentaEspejo',
     'RolEspejo',
     'CuentaModel',

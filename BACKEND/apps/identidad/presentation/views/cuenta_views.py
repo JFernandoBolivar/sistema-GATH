@@ -27,7 +27,7 @@ from apps.identidad.application.use_cases.cambiar_correo_acceso import cambiar_c
 from apps.identidad.application.use_cases.editar_usuario import editar_usuario
 from apps.identidad.application.use_cases.restablecer_acceso import restablecer_acceso
 from apps.identidad.application.use_cases.registrar_usuario import registrar_usuario
-from apps.identidad.infrastructure.receivers import aprovisionar_por_cedula
+from apps.identidad.infrastructure.receivers import aprovisionar_eligiendo_correo
 from apps.identidad.infrastructure.repositories.repo_correo_acceso_orm import RepoCorreoAccesoORM
 from apps.identidad.infrastructure.repositories.repo_password_inicial_orm import (
     RepoPasswordInicialORM,
@@ -322,7 +322,7 @@ class CorreoAccesoView(views.APIView):
             RepoCorreoAccesoORM(),
             RepoCuentasORM(),
             publicar_evento_identidad,
-            aprovisionar_por_cedula,
+            aprovisionar_eligiendo_correo,
             cedula=cedula,
             fuente=datos['fuente'],
             correo=datos.get('correo'),

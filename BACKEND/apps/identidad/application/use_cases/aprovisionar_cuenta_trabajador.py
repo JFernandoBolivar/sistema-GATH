@@ -35,8 +35,12 @@ def aprovisionar_cuenta_trabajador(
     cedula: str,
     dominio_institucional: str,
     ahora: datetime,
+    permitir_pasivo: bool = False,
 ) -> Cuenta | None:
-    """Crea la cuenta si corresponde; devuelve la cuenta nueva o None si no hacía falta/no aplica."""
+    """Crea la cuenta si corresponde; devuelve la cuenta nueva o None si no hacía falta/no aplica.
+
+    `permitir_pasivo` solo lo activa la elección explícita de RRHH (endpoint `correo-acceso`): editar la ficha
+    de un pasivo que ya trae correo personal no le crea cuenta."""
     cedula = str(cedula or '').strip()
     if not cedula:
         return None
@@ -46,7 +50,9 @@ def aprovisionar_cuenta_trabajador(
 
     condicion = repo_condicion.condicion_por_cedula(cedula)
     if condicion is CondicionTrabajador.PASIVO:
-        pass  # RRHH le cargó el correo: cualquier dominio
+        if not permitir_pasivo:
+            return None
+        # RRHH eligió su correo de acceso: cualquier dominio
     elif condicion is CondicionTrabajador.ACTIVO and es_correo_institucional(correo, dominio_institucional):
         pass
     else:

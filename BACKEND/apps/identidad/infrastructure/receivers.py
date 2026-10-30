@@ -26,12 +26,22 @@ from apps.identidad.application.use_cases.aprovisionar_cuenta_trabajador import 
 from apps.identidad.application.use_cases.desactivar_cuenta_por_egreso import (
     desactivar_cuenta_por_egreso,
 )
+from apps.identidad.application.use_cases.reactivar_cuenta_por_reingreso import (
+    reactivar_cuenta_por_reingreso,
+)
 from apps.identidad.domain.services.notificaciones_eventos import solicitud_de_evento
+from apps.identidad.domain.services.politica_movimientos import (
+    es_movimiento_de_egreso,
+    es_movimiento_de_ingreso,
+)
 from apps.identidad.domain.value_objects.condicion_trabajador import CondicionTrabajador
 from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm import (
     RepoCondicionTrabajadorORM,
 )
 from apps.identidad.infrastructure.repositories.repo_correo_acceso_orm import RepoCorreoAccesoORM
+from apps.identidad.infrastructure.repositories.repo_desactivacion_egreso_orm import (
+    RepoDesactivacionEgresoORM,
+)
 from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 from apps.identidad.infrastructure.repositories.repo_password_inicial_orm import (
     RepoPasswordInicialORM,
@@ -40,18 +50,51 @@ from apps.identidad.infrastructure.signals import (
     evento_identidad_en_transaccion,
     publicar_evento_identidad,
 )
+from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.infrastructure.providers import obtener_notificador
 
 logger = logging.getLogger('gath.identidad')
 
 
-def aprovisionar_por_cedula(cedula: str):
+def aprovisionar_por_cedula(cedula: str, permitir_pasivo: bool = False):
     """Alta automática de la cuenta de `cedula` si corresponde (idempotente)."""
     return aprovisionar_cuenta_trabajador(
         RepoCuentasORM(), RepoCorreoAccesoORM(), RepoCondicionTrabajadorORM(), RepoPasswordInicialORM(),
         publicar_evento_identidad, cedula, settings.DOMINIO_CORREO_INSTITUCIONAL, timezone.now(),
+        permitir_pasivo=permitir_pasivo,
     )
+
+
+def aprovisionar_eligiendo_correo(cedula: str):
+    """Variante del endpoint `correo-acceso`: aquí sí se crea la cuenta del pasivo o sobreviviente."""
+    return aprovisionar_por_cedula(cedula, permitir_pasivo=True)
+
+
+def _categoria_del_motivo(motivo_id) -> str | None:
+    if not motivo_id:
+        return None
+    return (
+        TipoMovimientoModel.objects.filter(pk=motivo_id).values_list('categoria__categoria', flat=True).first()
+    )
+
+
+def _aplicar_ciclo_de_vida(cedula: str, egreso: bool, ingreso: bool) -> None:
+    """Corre al CONFIRMAR la transacción del movimiento: ahí la condición ya es la definitiva."""
+    try:
+        with transaction.atomic():
+            if egreso:
+                desactivar_cuenta_por_egreso(
+                    RepoCuentasORM(), RepoCondicionTrabajadorORM(), RepoDesactivacionEgresoORM(), cedula
+                )
+            elif ingreso:
+                reactivar_cuenta_por_reingreso(
+                    RepoCuentasORM(), RepoCondicionTrabajadorORM(), RepoDesactivacionEgresoORM(), cedula
+                )
+                if RepoCondicionTrabajadorORM().condicion_por_cedula(cedula) is CondicionTrabajador.ACTIVO:
+                    aprovisionar_por_cedula(cedula)
+    except Exception:  # noqa: BLE001
+        logger.exception('no se pudo aplicar el ciclo de vida de la cuenta de %s', cedula)
 
 
 @receiver(evento_identidad_en_transaccion, dispatch_uid='identidad_notificar_evento')
@@ -81,17 +124,21 @@ def alta_de_cuenta_al_cargar_correo(sender, instance, **kwargs):
 
 
 @receiver(cargo_movimiento_ejecutado, dispatch_uid='identidad_ciclo_de_vida_por_movimiento')
-def ciclo_de_vida_por_movimiento(sender, cedula=None, **kwargs):
+def ciclo_de_vida_por_movimiento(sender, cedula=None, tipo_movimiento=None, motivo_id=None, **kwargs):
+    """Solo un EGRESO real (por tipo o por la categoría del motivo) desactiva; solo un INGRESO reactiva.
+
+    Traslados, préstamos, cambios de estatus y asignar/desasignar de un cargo nunca desactivan, aunque
+    dejen al trabajador un instante sin asignación dentro de la transacción: la decisión se toma
+    con `on_commit`, cuando la condición ya es la definitiva.
+    """
     if not cedula:
         return
     cedula = str(cedula)
     try:
-        with transaction.atomic():
-            condicion = RepoCondicionTrabajadorORM().condicion_por_cedula(cedula)
-            if condicion is CondicionTrabajador.SIN_ASIGNACION:
-                desactivar_cuenta_por_egreso(RepoCuentasORM(), RepoCondicionTrabajadorORM(), cedula)
-            elif condicion is CondicionTrabajador.ACTIVO:
-                # Un PASIVO no se evalúa aquí: su cuenta nace cuando RRHH elige/carga su correo.
-                aprovisionar_por_cedula(cedula)
+        egreso = es_movimiento_de_egreso(tipo_movimiento, _categoria_del_motivo(motivo_id))
+        ingreso = es_movimiento_de_ingreso(tipo_movimiento)
     except Exception:  # noqa: BLE001
-        logger.exception('no se pudo aplicar el ciclo de vida de la cuenta de %s', cedula)
+        logger.exception('no se pudo clasificar el movimiento de %s', cedula)
+        return
+    if egreso or ingreso:
+        transaction.on_commit(lambda: _aplicar_ciclo_de_vida(cedula, egreso, ingreso))

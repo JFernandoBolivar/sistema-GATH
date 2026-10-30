@@ -14,12 +14,18 @@ from rest_framework.test import APIClient
 from apps.autogestion.infrastructure.models.actualizacion_models import (
     DatosComplementariosTrabajadorModel,
 )
-from apps.catalogos.infrastructure.models.catalogo_models import NacionalidadModel, SexoModel
+from apps.catalogos.infrastructure.models.catalogo_models import (
+    CategoriaMovimientoModel,
+    NacionalidadModel,
+    SexoModel,
+    TipoMovimientoModel,
+)
 from apps.identidad.domain.services.politica_password_inicial import (
     MENSAJE_PASSWORD_INICIAL_VENCIDA,
 )
 from apps.identidad.domain.value_objects.condicion_trabajador import CondicionTrabajador
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
+from apps.identidad.infrastructure.models.desactivacion_egreso_model import DesactivacionEgresoModel
 from apps.identidad.infrastructure.models.password_inicial_model import PasswordInicialModel
 from apps.identidad.infrastructure.receivers import ciclo_de_vida_por_movimiento
 from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
@@ -173,14 +179,14 @@ def test_activo_con_correo_ajeno_al_dominio_no_recibe_cuenta(base, condicion):
     assert not CuentaModel.objects.filter(cedula_id='20999002').exists()
 
 
-def test_pasivo_recibe_cuenta_con_cualquier_correo_y_no_se_duplica(base, condicion):
+def test_editar_la_ficha_de_un_pasivo_con_correo_personal_no_le_crea_cuenta(base, condicion):
     condicion['20999003'] = CondicionTrabajador.PASIVO
 
     emp = empleado('20999003', 'maria@gmail.com')
     emp.nombres = 'MARIA'
-    emp.save()  # segundo guardado: no duplica
+    emp.save()
 
-    assert CuentaModel.objects.filter(cedula_id='20999003').count() == 1
+    assert not CuentaModel.objects.filter(cedula_id='20999003').exists()
 
 
 # ─── Restablecer acceso ───
@@ -296,31 +302,75 @@ def test_correo_acceso_exige_permiso(base):
     assert r.status_code == 403
 
 
-# ─── Egreso ───
+# ─── Egreso y reingreso ───
 
-def _movimiento(cedula):
-    """Entrega al receptor de identidad lo que emite `cargo_movimiento_ejecutado` (los demás receptores
-    del evento, como el historial de movimientos, exigen un cargo real y no son objeto de esta prueba)."""
-    ciclo_de_vida_por_movimiento(sender=None, cedula=cedula, cargo_id=1, tipo_movimiento='EGRESO')
+def _movimiento(cedula, captura, tipo='CAMBIO DE ESTATUS', motivo_id=None):
+    """Entrega al receptor de identidad lo que emite `cargo_movimiento_ejecutado` (los demás receptores del
+    evento exigen un cargo real) y ejecuta los `on_commit` como si la transacción se confirmara."""
+    with captura(execute=True):
+        ciclo_de_vida_por_movimiento(sender=None, cedula=cedula, cargo_id=1, tipo_movimiento=tipo, motivo_id=motivo_id)
 
 
-def test_egreso_sin_pase_a_pasivo_desactiva_y_revoca_sesiones(base, condicion):
-    cuenta = cuenta_con_cedula()  # sin asignaciones => SIN_ASIGNACION
+@pytest.fixture
+def motivo_egreso(db):
+    cat, _ = CategoriaMovimientoModel.objects.get_or_create(categoria='EGRESO')
+    return TipoMovimientoModel.objects.create(movimiento='RENUNCIA', categoria=cat).pk
+
+
+def test_cambio_de_cargo_no_desactiva_aunque_la_condicion_sea_momentanea(base, condicion, django_capture_on_commit_callbacks):
+    cuenta = cuenta_con_cedula()  # SIN_ASIGNACION a propósito: el peor momento de un traslado
+
+    _movimiento(CEDULA, django_capture_on_commit_callbacks, tipo='TRASLADO')
+    _movimiento(CEDULA, django_capture_on_commit_callbacks, tipo='CAMBIO DE ESTATUS')
+
+    cuenta.refresh_from_db()
+    assert cuenta.is_active is True
+
+
+def test_egreso_real_desactiva_marca_y_revoca_sesiones(base, condicion, motivo_egreso, django_capture_on_commit_callbacks):
+    cuenta = cuenta_con_cedula()
     version_antes = RepoPermisosVersionORM().obtener(cuenta.pk)
 
-    _movimiento(CEDULA)
+    _movimiento(CEDULA, django_capture_on_commit_callbacks, motivo_id=motivo_egreso)
 
     cuenta.refresh_from_db()
     assert cuenta.is_active is False
+    assert DesactivacionEgresoModel.objects.filter(cuenta_id=cuenta.pk).exists()
     assert RepoPermisosVersionORM().obtener(cuenta.pk) == version_antes + 1
     assert login(CORREO, CEDULA).status_code == 401
 
 
-def test_pase_a_pasivo_no_desactiva_la_cuenta(base, condicion):
+def test_pase_a_pasivo_no_desactiva_la_cuenta(base, condicion, django_capture_on_commit_callbacks):
     cuenta = cuenta_con_cedula()
     condicion[CEDULA] = CondicionTrabajador.PASIVO
 
-    _movimiento(CEDULA)
+    _movimiento(CEDULA, django_capture_on_commit_callbacks, tipo='EGRESO')
 
     cuenta.refresh_from_db()
     assert cuenta.is_active is True
+
+
+def test_reingreso_reactiva_la_cuenta_dada_de_baja_por_egreso(base, condicion, motivo_egreso, django_capture_on_commit_callbacks):
+    cuenta = cuenta_con_cedula()
+    _movimiento(CEDULA, django_capture_on_commit_callbacks, motivo_id=motivo_egreso)
+    condicion[CEDULA] = CondicionTrabajador.ACTIVO
+
+    _movimiento(CEDULA, django_capture_on_commit_callbacks, tipo='INGRESO')
+
+    cuenta.refresh_from_db()
+    assert cuenta.is_active is True
+    assert not DesactivacionEgresoModel.objects.filter(cuenta_id=cuenta.pk).exists()
+
+
+def test_desactivacion_manual_no_se_revierte_en_un_reingreso(base, condicion, django_capture_on_commit_callbacks):
+    cuenta = cuenta_con_cedula()
+    r = cliente_con('identidad.desactivar_usuarios').patch(
+        f'{BASE}/usuarios/{cuenta.pk}/estado/', {'is_active': False}, format='json'
+    )
+    assert r.status_code == 200, r.content
+    condicion[CEDULA] = CondicionTrabajador.ACTIVO
+
+    _movimiento(CEDULA, django_capture_on_commit_callbacks, tipo='INGRESO')
+
+    cuenta.refresh_from_db()
+    assert cuenta.is_active is False
