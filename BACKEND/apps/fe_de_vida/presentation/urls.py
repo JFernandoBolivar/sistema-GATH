@@ -28,6 +28,7 @@ from apps.fe_de_vida.presentation.views.revision_views import (
     EvidenciaUrlView,
     RechazarView,
 )
+from apps.fe_de_vida.presentation.views.verificacion_publica_views import VerificarConstanciaPublicaView
 
 app_name = 'fe_de_vida'
 
@@ -59,4 +60,5 @@ urlpatterns = [
     # Cobertura y verificación
     path('cobertura/pasivos/', CoberturaPasivosView.as_view(), name='cobertura_pasivos'),
     path('constancias/verificar/<str:codigo>/', VerificarConstanciaView.as_view(), name='verificar_constancia'),
+    path('constancias/publica/<str:codigo>/', VerificarConstanciaPublicaView.as_view(), name='verificar_constancia_publica'),
 ]

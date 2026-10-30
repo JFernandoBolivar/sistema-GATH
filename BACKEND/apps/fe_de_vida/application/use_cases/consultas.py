@@ -6,6 +6,7 @@ from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
     DetalleRevision,
     DetalleSolicitud,
     ProcesoVigente,
+    VerificacionConstancia,
 )
 from apps.fe_de_vida.application.use_cases._comun import (
     evento,
@@ -32,6 +33,8 @@ from apps.fe_de_vida.domain.ports.repos import (
     RepoSolicitudesFeDeVida,
 )
 from apps.fe_de_vida.domain.services.reglas_proceso import puede_enviar
+from apps.fe_de_vida.domain.services.verificacion import codigo_con_formato_valido, enmascarar_cedula
+from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud
 from core.domain.exceptions import NotFoundError
 from core.domain.ports import FileStorage
 
@@ -122,11 +125,48 @@ def url_evidencia(
     return url
 
 
-def verificar_constancia(repo_const: RepoConstancias, *, codigo: str) -> ConstanciaFeDeVida:
+MENSAJE_CONSTANCIA_NO_ENCONTRADA = "No se encontró una constancia válida con ese código."
+
+
+def _verificacion(
+    repo_sol: RepoSolicitudesFeDeVida, repo_proc: RepoProcesos, lector_pasivos: LectorPasivos,
+    constancia: ConstanciaFeDeVida, *, enmascarar: bool,
+) -> VerificacionConstancia:
+    solicitud = obtener_solicitud(repo_sol, constancia.solicitud_id)
+    proceso = obtener_proceso(repo_proc, solicitud.proceso_id)
+    return VerificacionConstancia(
+        numero=constancia.numero, emitida_en=constancia.emitida_en, proceso_nombre=proceso.nombre,
+        nombre_completo=lector_pasivos.nombre_de(solicitud.cedula),
+        cedula=enmascarar_cedula(solicitud.cedula) if enmascarar else solicitud.cedula,
+        estado=solicitud.estado.value, solicitud_id='' if enmascarar else solicitud.id,
+        certificada_por=() if enmascarar else constancia.certificada_por,
+    )
+
+
+def verificar_constancia(
+    repo_const: RepoConstancias, repo_sol: RepoSolicitudesFeDeVida, repo_proc: RepoProcesos,
+    lector_pasivos: LectorPasivos, *, codigo: str,
+) -> VerificacionConstancia:
+    """Verificación interna (permiso `fe_de_vida.verificar_constancia`): datos completos y certificantes."""
     constancia = repo_const.obtener_por_codigo(codigo)
     if constancia is None:
         raise NotFoundError("No existe una constancia con ese código de verificación.")
-    return constancia
+    return _verificacion(repo_sol, repo_proc, lector_pasivos, constancia, enmascarar=False)
+
+
+def verificar_constancia_publica(
+    repo_const: RepoConstancias, repo_sol: RepoSolicitudesFeDeVida, repo_proc: RepoProcesos,
+    lector_pasivos: LectorPasivos, *, codigo: str,
+) -> VerificacionConstancia:
+    """
+    Verificación pública (sin sesión): solo constancias de solicitudes VALIDADA, con la cédula enmascarada.
+    Código malformado, inexistente o de solicitud no validada responden idéntico, sin revelar si existe.
+    """
+    constancia = repo_const.obtener_por_codigo(codigo) if codigo_con_formato_valido(codigo) else None
+    solicitud = repo_sol.obtener(constancia.solicitud_id) if constancia else None
+    if solicitud is None or solicitud.estado is not EstadoSolicitud.VALIDADA:
+        raise NotFoundError(MENSAJE_CONSTANCIA_NO_ENCONTRADA)
+    return _verificacion(repo_sol, repo_proc, lector_pasivos, constancia, enmascarar=True)
 
 
 # ── Procesos ──

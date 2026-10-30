@@ -4,9 +4,13 @@ se arma con las funciones `a_dict_*` (enums a texto, sin rutas de archivos) para
 """
 from rest_framework import serializers
 
-from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import DetalleRevision, DetalleSolicitud, ProcesoVigente
+from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
+    DetalleRevision,
+    DetalleSolicitud,
+    ProcesoVigente,
+    VerificacionConstancia,
+)
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
-from apps.fe_de_vida.domain.entities.constancia import ConstanciaFeDeVida
 from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
@@ -225,10 +229,34 @@ class PasivoCoberturaSerializer(serializers.Serializer):
     tiene_cuenta = serializers.BooleanField()
 
 
+class CertificanteSerializer(serializers.Serializer):
+    nombre = serializers.CharField()
+    cedula = serializers.CharField()
+    rol = serializers.CharField()
+
+
 class ConstanciaVerificadaSerializer(serializers.Serializer):
+    """Verificación interna: datos completos, certificantes y enlace a la solicitud."""
+
     numero = serializers.CharField()
     emitida_en = serializers.DateTimeField(allow_null=True)
-    certificada_por = serializers.ListField(child=serializers.DictField())
+    proceso_nombre = serializers.CharField()
+    nombre_completo = serializers.CharField()
+    cedula = serializers.CharField(help_text='Cédula completa.')
+    estado = serializers.CharField(help_text='Estado de la solicitud.')
+    solicitud_id = serializers.UUIDField()
+    certificada_por = CertificanteSerializer(many=True)
+
+
+class ConstanciaPublicaSerializer(serializers.Serializer):
+    """Verificación pública: sin certificantes, cédula completa, ids internos ni foto."""
+
+    numero = serializers.CharField()
+    emitida_en = serializers.DateTimeField(allow_null=True)
+    proceso_nombre = serializers.CharField()
+    nombre_completo = serializers.CharField()
+    cedula_enmascarada = serializers.CharField(help_text='Dígitos centrales ocultos, p. ej. 10****23.')
+    estado = serializers.ChoiceField(choices=['VALIDA'])
 
 
 def a_cambio_acta(d: dict) -> CambioActa:
@@ -310,8 +338,19 @@ def a_dict_cobertura(p: PasivoCobertura) -> dict:
     }
 
 
-def a_dict_constancia(c: ConstanciaFeDeVida) -> dict:
+ESTADO_CONSTANCIA_VALIDA = 'VALIDA'
+
+
+def a_dict_verificacion(v: VerificacionConstancia) -> dict:
     return {
-        'numero': c.numero, 'emitida_en': c.emitida_en,
-        'certificada_por': [{'nombre': x.nombre, 'cedula': x.cedula, 'rol': x.rol} for x in c.certificada_por],
+        'numero': v.numero, 'emitida_en': v.emitida_en, 'proceso_nombre': v.proceso_nombre,
+        'nombre_completo': v.nombre_completo, 'cedula': v.cedula, 'estado': v.estado, 'solicitud_id': v.solicitud_id,
+        'certificada_por': [{'nombre': x.nombre, 'cedula': x.cedula, 'rol': x.rol} for x in v.certificada_por],
+    }
+
+
+def a_dict_verificacion_publica(v: VerificacionConstancia) -> dict:
+    return {
+        'numero': v.numero, 'emitida_en': v.emitida_en, 'proceso_nombre': v.proceso_nombre,
+        'nombre_completo': v.nombre_completo, 'cedula_enmascarada': v.cedula, 'estado': ESTADO_CONSTANCIA_VALIDA,
     }

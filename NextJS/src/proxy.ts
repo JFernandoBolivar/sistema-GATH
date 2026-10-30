@@ -7,6 +7,8 @@ import { esPerfilAutogestion, esPerfilRecepcionista } from "@/shared/lib/perfil-
 // autogestión/recepcionista nunca se detectaban.
 const publicRoutes = ["/", "/login", "/register", "/recuperar-password", "/restablecer-password"];
 
+const PREFIJO_VERIFICACION_PUBLICA = "/fe-de-vida/verificar/";
+
 export default proxy((req) => {
   const { nextUrl, auth } = req;
   const isLoggedIn = !!auth?.user;
@@ -43,6 +45,12 @@ export default proxy((req) => {
   // 401 sin cookie y Django valida el token; no se redirige a /login ni se
   // aplica el filtrado de rutas por perfil (autogestión necesita su foto).
   if (nextUrl.pathname.startsWith("/api/v1/")) {
+    return NextResponse.next();
+  }
+
+  // Verificación pública de la constancia de fe de vida (QR del documento impreso): la abre
+  // cualquiera, con o sin sesión y sea cual sea su perfil. Solo este prefijo, ninguna otra ruta.
+  if (nextUrl.pathname.startsWith(PREFIJO_VERIFICACION_PUBLICA)) {
     return NextResponse.next();
   }
 

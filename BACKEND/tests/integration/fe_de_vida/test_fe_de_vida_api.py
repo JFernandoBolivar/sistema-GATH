@@ -686,3 +686,78 @@ def test_la_lista_blanca_de_autogestion_no_cambia():
     assert 'identidad' not in CAMPOS_POR_SECCION and 'nombres' not in CAMPOS_POR_SECCION['contacto']['employee']
     assert CAMPOS_ACTA['identidad']['employee'] == {'nombres', 'apellidos', 'fecha_nacimiento'}
     assert CAMPOS_ACTA['contacto']['employee'] == CAMPOS_POR_SECCION['contacto']['employee']
+
+
+# ── Verificación de la constancia: pública (QR, sin sesión) e interna ──
+CAMPOS_PROHIBIDOS_PUBLICA = {'certificada_por', 'cedula', 'solicitud_id', 'id', 'evidencia', 'foto', 'clave_pdf'}
+
+
+def _constancia_validada(administradora, pasivo, django_capture_on_commit_callbacks):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    with django_capture_on_commit_callbacks(execute=True):
+        assert administradora.post(
+            f'{BASE}/solicitudes/{sid}/aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}, format='json',
+        ).status_code == 200
+    return sid, ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
+
+
+def test_verificacion_publica_valida_sin_sesion_y_sin_datos_sensibles(
+    pasivo, administradora, django_capture_on_commit_callbacks,
+):
+    sid, constancia = _constancia_validada(administradora, pasivo, django_capture_on_commit_callbacks)
+    r = APIClient().get(f'{BASE}/constancias/publica/{constancia.codigo_verificacion}/', REMOTE_ADDR='10.1.1.1')
+    assert r.status_code == 200
+    datos = cuerpo(r)
+    assert datos['numero'] == constancia.numero and datos['estado'] == 'VALIDA' and datos['emitida_en']
+    assert datos['proceso_nombre'] and datos['nombre_completo'] == 'MARIA PEREZ'
+    assert datos['cedula_enmascarada'] == '51***11'
+    assert not CAMPOS_PROHIBIDOS_PUBLICA & set(datos)
+    texto = r.content.decode()
+    assert PASIVO not in texto and ANALISTA not in texto and ADMINISTRADORA not in texto and sid not in texto
+    auditoria = AuditoriaLog.objects.get(accion='CONSTANCIA_VERIFICADA_PUBLICA', resultado='SUCCESS')
+    assert auditoria.ip_origen == '10.1.1.1' and auditoria.recurso_id == constancia.numero
+
+
+def test_verificacion_publica_404_generico_si_no_existe_o_esta_mal_formado(datos):
+    cliente = APIClient()
+    respuestas = [cliente.get(f'{BASE}/constancias/publica/{c}/') for c in ('inexistente', 'f' * 64)]
+    assert [r.status_code for r in respuestas] == [404, 404]
+    assert respuestas[0].json() == respuestas[1].json() and respuestas[0].json()['status'] == 'error'
+    assert AuditoriaLog.objects.filter(accion='CONSTANCIA_VERIFICADA_PUBLICA', resultado='FAILED').count() == 2
+
+
+def test_verificacion_publica_404_si_la_solicitud_no_esta_validada(pasivo, administradora):
+    pid = proceso_abierto(administradora)
+    sid = solicitud_enviada(pasivo, pid)
+    codigo = 'b2' * 32
+    ConstanciaFeDeVidaModel.objects.create(
+        solicitud_id=sid, numero='FV-2026-999999', codigo_verificacion=codigo, certificada_por=[],
+        plantilla_version=1, emitida_en=timezone.now(),
+    )
+    r = APIClient().get(f'{BASE}/constancias/publica/{codigo}/')
+    assert r.status_code == 404 and 'FV-2026-999999' not in r.content.decode()
+
+
+def test_verificacion_publica_tiene_throttle_por_ip(datos, monkeypatch):
+    from rest_framework.throttling import ScopedRateThrottle
+
+    tasas = {**ScopedRateThrottle.THROTTLE_RATES, 'fe_de_vida_verificacion_publica': '3/minute'}
+    monkeypatch.setattr(ScopedRateThrottle, 'THROTTLE_RATES', tasas)
+    cliente = APIClient()
+    estados = [cliente.get(f'{BASE}/constancias/publica/x/', REMOTE_ADDR='10.2.2.2').status_code for _ in range(4)]
+    assert estados == [404, 404, 404, 429]
+    assert cliente.get(f'{BASE}/constancias/publica/x/', REMOTE_ADDR='10.3.3.3').status_code == 404
+
+
+def test_verificacion_interna_completa_con_permiso_y_403_sin_el(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    sid, constancia = _constancia_validada(administradora, pasivo, django_capture_on_commit_callbacks)
+    ruta = f'{BASE}/constancias/verificar/{constancia.codigo_verificacion}/'
+    d = cuerpo(analista.get(ruta))
+    assert d['solicitud_id'] == sid and d['cedula'] == PASIVO and d['nombre_completo'] == 'MARIA PEREZ'
+    assert d['proceso_nombre'] and d['estado'] == 'VALIDADA'
+    assert [c['cedula'] for c in d['certificada_por']] == [ADMINISTRADORA] and d['certificada_por'][0]['nombre']
+    assert pasivo.get(ruta).status_code == 403
+    assert APIClient().get(ruta).status_code in (401, 403)

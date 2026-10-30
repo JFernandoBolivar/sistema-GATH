@@ -329,6 +329,8 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+        # Fe de vida: verificación pública de constancias (QR), por IP.
+        'fe_de_vida_verificacion_publica': config('FE_DE_VIDA_VERIFICACION_PUBLICA_THROTTLE_RATE', default='30/minute'),
     # B2.4 (C-1, S6): toda excepción sale por el sobre unificado, sin filtrar
     # detalle interno al cliente.
     'EXCEPTION_HANDLER': 'core.presentation.exception_handler.custom_exception_handler',

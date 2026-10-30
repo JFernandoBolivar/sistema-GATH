@@ -134,7 +134,12 @@ Permiso `fe_de_vida.prorrogar` o `fe_de_vida.gestionar_procesos` (en el seed, so
 Permiso `fe_de_vida.ver_cobertura`. Query: `texto`, `tipo_nomina_id`, `sin_correo`, `sin_cuenta`, `limit`, `offset`. Sin `sin_correo`/`sin_cuenta` lista a quienes carecen de cualquiera de los dos. Response: página de `{cedula, nombre_completo, tipo_nomina, correo, sin_correo, tiene_cuenta}`.
 
 ### GET `constancias/verificar/{codigo}/`
-Permiso `fe_de_vida.verificar_constancia`. Response: `{numero, emitida_en, certificada_por: [{nombre, cedula, rol}]}`. 404 si el código no existe.
+Verificación **interna**. Permiso `fe_de_vida.verificar_constancia`; audita `CONSTANCIA_VERIFICADA`. Response: `{numero, emitida_en, proceso_nombre, nombre_completo, cedula, estado, solicitud_id, certificada_por: [{nombre, cedula, rol}]}` (`solicitud_id` sirve para enlazar a `/personal/fe-de-vida/{id}`). 404 si el código no existe.
+
+### GET `constancias/publica/{codigo}/`
+Verificación **pública** (la que abre el QR del documento): sin autenticación (`AllowAny`, sin cookie de sesión) y con throttle por IP, scope `fe_de_vida_verificacion_publica`, tasa configurable con `FE_DE_VIDA_VERIFICACION_PUBLICA_THROTTLE_RATE` (por defecto `30/minute`; 429 al excederla). Solo responde constancias de solicitudes en estado `VALIDADA`. Response 200: `{numero, emitida_en, proceso_nombre, nombre_completo, cedula_enmascarada, estado: "VALIDA"}`. No devuelve certificantes, cédula completa, ids internos ni foto. Código inexistente, con formato inválido (no son 64 caracteres hex en minúsculas) o de una solicitud no validada: 404 idéntico («No se encontró una constancia válida con ese código.»), sin revelar si el código existe. Audita cada consulta (`CONSTANCIA_VERIFICADA_PUBLICA`, resultado `SUCCESS` o `FAILED`) con la IP de origen.
+
+Enmascarado de la cédula (`domain/services/verificacion.py::enmascarar_cedula`): con 7 o más dígitos conserva 2 al inicio y 2 al final (`10079123` → `10****23`, `5111111` → `51***11`); con 5 o 6 conserva 1 y 1; con 4 o menos oculta todo. La longitud se conserva.
 
 ---
 

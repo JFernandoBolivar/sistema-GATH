@@ -117,6 +117,25 @@ export interface CuerpoProceso {
 
 type Params = Record<string, string | number | boolean | undefined | null>;
 
+export interface CertificanteApi {
+  nombre: string;
+  cedula: string;
+  rol?: string;
+}
+
+/** Verificación pública (cédula enmascarada) o interna (completa, con certificantes y solicitud). */
+export interface VerificacionApi {
+  numero: string;
+  emitida_en: string | null;
+  proceso_nombre: string;
+  nombre_completo: string;
+  cedula?: string;
+  cedula_enmascarada?: string;
+  estado: string;
+  solicitud_id?: string;
+  certificada_por?: CertificanteApi[];
+}
+
 export const feDeVidaApi = {
   vigente: () => apiClient.get<ApiResponse<VigenteApi | null>>(`${BASE}/procesos/vigente/`),
   iniciar: () => apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/procesos/vigente/solicitud/`),
@@ -130,6 +149,16 @@ export const feDeVidaApi = {
     apiClient.postForm<ApiResponse<SolicitudApi>>(`${BASE}/mis-solicitudes/${id}/evidencia/`, form),
   enviar: (id: string) =>
     apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/mis-solicitudes/${id}/enviar/`),
+  /** Sin sesión: la ficha que abre el QR del documento impreso. */
+  verificacionPublica: (codigo: string) =>
+    apiClient.get<ApiResponse<VerificacionApi>>(
+      `${BASE}/constancias/publica/${encodeURIComponent(codigo)}/`,
+      { skipAuth: true },
+    ),
+  verificacionInterna: (codigo: string) =>
+    apiClient.get<ApiResponse<VerificacionApi>>(
+      `${BASE}/constancias/verificar/${encodeURIComponent(codigo)}/`,
+    ),
   constancia: (id: string) => apiClient.getBlob(`${BASE}/mis-solicitudes/${id}/constancia/`),
 
   bandeja: (params: Params) =>

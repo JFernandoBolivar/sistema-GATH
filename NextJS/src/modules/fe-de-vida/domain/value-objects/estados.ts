@@ -39,6 +39,7 @@ export const PERMISOS_FE_DE_VIDA = {
   gestionarProcesos: "fe_de_vida.gestionar_procesos",
   prorrogar: "fe_de_vida.prorrogar",
   verCobertura: "fe_de_vida.ver_cobertura",
+  verificarConstancia: "fe_de_vida.verificar_constancia",
 } as const;
 
 export const LIMITE_PAGINA = 10;

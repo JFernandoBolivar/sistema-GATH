@@ -5,14 +5,17 @@ from rest_framework.views import APIView
 from apps.fe_de_vida.application.use_cases.consultas import listar_cobertura, verificar_constancia
 from apps.fe_de_vida.domain.entities.filtros import FiltroCobertura
 from apps.fe_de_vida.infrastructure.repositories.repo_cobertura_orm import RepoCoberturaORM
+from apps.fe_de_vida.infrastructure.repositories.lector_pasivos_orm import LectorPasivosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_constancias_orm import RepoConstanciasORM
+from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
+from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesFeDeVidaORM
 from apps.fe_de_vida.presentation.permissions import fe_de_vida_permissions as permisos
 from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     ConstanciaVerificadaSerializer,
     FiltroCoberturaSerializer,
     PasivoCoberturaSerializer,
     a_dict_cobertura,
-    a_dict_constancia,
+    a_dict_verificacion,
 )
 from apps.fe_de_vida.presentation.views._comun import (
     RECURSO_COBERTURA,
@@ -60,9 +63,12 @@ class VerificarConstanciaView(APIView):
 
     @extend_schema(
         tags=TAG, summary='Verificar internamente una constancia por su código (el del QR)',
+        description='Datos completos: cédula, proceso, certificantes (nombre y cédula) e id de la solicitud para enlazarla.',
         responses={200: ConstanciaVerificadaSerializer, 403: MensajeRespuestaSerializer, 404: MensajeRespuestaSerializer},
     )
     def get(self, request, codigo):
-        constancia = verificar_constancia(RepoConstanciasORM(), codigo=codigo)
-        auditar(request, 'CONSTANCIA_VERIFICADA', constancia.solicitud_id, None, {'numero': constancia.numero})
-        return ok(a_dict_constancia(constancia))
+        v = verificar_constancia(
+            RepoConstanciasORM(), RepoSolicitudesFeDeVidaORM(), RepoProcesosORM(), LectorPasivosORM(), codigo=codigo,
+        )
+        auditar(request, 'CONSTANCIA_VERIFICADA', v.solicitud_id, None, {'numero': v.numero})
+        return ok(a_dict_verificacion(v))
