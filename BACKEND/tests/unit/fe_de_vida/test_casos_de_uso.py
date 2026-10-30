@@ -270,8 +270,9 @@ def test_consulta_propia_historial_bandeja_y_evidencia(m):
         m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(estado='PENDIENTE_REVISION'), limite=500,
     )
     assert total == 1 and filas[0][0].id == s.id and filas[0][1] == f'Nombre {PASIVO}'
-    url = consultas.url_evidencia(m.solicitudes, m.storage, m.publicador, solicitud_id=s.id, actor_cedula=ANALISTA.cedula)
-    assert url.endswith('exp=90') and m.publicador.tipos()[-1] == 'fe_de_vida.evidencia_consultada'
+    leible = consultas.evidencia_para_revision(m.solicitudes, m.publicador, solicitud_id=s.id, actor_cedula=ANALISTA.cedula)
+    assert leible.clave in m.storage.objetos and leible.mime == 'image/jpeg'
+    assert m.publicador.tipos()[-1] == 'fe_de_vida.evidencia_consultada'
     procesos_abiertos, total = consultas.listar_procesos(m.procesos, estado='ABIERTO')
     assert len(procesos_abiertos) == 1 and total == 1
     assert consultas.listar_prorrogas(m.procesos, proceso_id=m.proceso.id) == ([], 0)
@@ -298,10 +299,10 @@ def test_proceso_vigente_por_plazo_y_por_prorroga(m):
     assert consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=OTRO_PASIVO, ahora=despues) is None
 
 
-def test_url_evidencia_sin_foto_falla(m):
+def test_evidencia_para_revision_sin_foto_falla(m):
     s = iniciar(m)
     with pytest.raises(NotFoundError):
-        consultas.url_evidencia(m.solicitudes, m.storage, solicitud_id=s.id, actor_cedula=ANALISTA.cedula)
+        consultas.evidencia_para_revision(m.solicitudes, solicitud_id=s.id, actor_cedula=ANALISTA.cedula)
 
 
 def test_verificador_doble_basico():

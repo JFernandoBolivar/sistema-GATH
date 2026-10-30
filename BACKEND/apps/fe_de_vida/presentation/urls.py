@@ -25,8 +25,9 @@ from apps.fe_de_vida.presentation.views.revision_views import (
     CheckView,
     DetalleRevisionView,
     DevolverView,
-    EvidenciaUrlView,
+    EvidenciaRevisionView,
     RechazarView,
+    RetirarCheckView,
 )
 from apps.fe_de_vida.presentation.views.verificacion_publica_views import VerificarConstanciaPublicaView
 
@@ -45,8 +46,9 @@ urlpatterns = [
     # Bienestar
     path('solicitudes/', BandejaView.as_view(), name='bandeja'),
     path('solicitudes/<uuid:solicitud_id>/', DetalleRevisionView.as_view(), name='detalle_revision'),
-    path('solicitudes/<uuid:solicitud_id>/evidencia/', EvidenciaUrlView.as_view(), name='url_evidencia'),
+    path('solicitudes/<uuid:solicitud_id>/evidencia/', EvidenciaRevisionView.as_view(), name='evidencia_revision'),
     path('solicitudes/<uuid:solicitud_id>/check/', CheckView.as_view(), name='check'),
+    path('solicitudes/<uuid:solicitud_id>/retirar-check/', RetirarCheckView.as_view(), name='retirar_check'),
     path('solicitudes/<uuid:solicitud_id>/aprobar-directo/', AprobarDirectoView.as_view(), name='aprobar_directo'),
     path('solicitudes/<uuid:solicitud_id>/rechazar/', RechazarView.as_view(), name='rechazar'),
     path('solicitudes/<uuid:solicitud_id>/devolver/', DevolverView.as_view(), name='devolver'),

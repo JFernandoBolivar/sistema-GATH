@@ -14,6 +14,7 @@ class TipoEvento(str, Enum):
     PRORROGA_CONCEDIDA = 'fe_de_vida.prorroga_concedida'      # -> avisar al pasivo (o a todos)
     SOLICITUD_ENVIADA = 'fe_de_vida.solicitud_enviada'        # -> avisar a Bienestar (fe_de_vida.revisar)
     PRIMER_CHECK = 'fe_de_vida.primer_check'                  # -> avisar al otro rol
+    CHECK_RETIRADO = 'fe_de_vida.check_retirado'              # -> avisar a Bienestar (sin correo); auditoría CHECK_RETIRADO
     VALIDADA = 'fe_de_vida.validada'                          # -> constancia + correo (C4/C6)
     APROBACION_DIRECTA = 'fe_de_vida.aprobacion_directa'      # auditoría APROBACION_DIRECTA_ADMINISTRADORA
     RECHAZADA = 'fe_de_vida.rechazada'

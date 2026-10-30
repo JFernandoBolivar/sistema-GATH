@@ -13,6 +13,15 @@ export function formatearSoloFecha(iso: string | null | undefined): string {
   return Number.isNaN(f.getTime()) ? iso : SOLO_FECHA.format(f);
 }
 
+/**
+ * Fecha civil `AAAA-MM-DD` → `DD/MM/AAAA`, sin pasar por `Date` (una fecha de nacimiento no tiene huso:
+ * convertirla la correría un día en Venezuela). Si no tiene ese formato, se devuelve tal cual.
+ */
+export function formatearFechaCivil(iso: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? "");
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso ?? "—");
+}
+
 /** ISO → valor de `<input type="datetime-local">` en hora local del navegador. */
 export function aInputLocal(iso: string | null | undefined): string {
   if (!iso) return "";

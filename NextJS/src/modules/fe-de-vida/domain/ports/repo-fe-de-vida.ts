@@ -1,12 +1,13 @@
 import type {
   CoberturaEntity,
+  DetalleRevisionEntity,
   DetalleSolicitudEntity,
+  EvidenciaImagenEntity,
   PaginaEntity,
   ProcesoEntity,
   ProrrogaEntity,
   SolicitudEntity,
   TipoPensionEntity,
-  UrlEvidenciaEntity,
   VigenteEntity,
 } from "../entities/fe-de-vida";
 import type { OrigenEvidencia } from "../value-objects/estados";
@@ -84,9 +85,10 @@ export interface RepoFeDeVida {
   descargarConstancia(id: string): Promise<Blob>;
   // Revisión
   listarBandeja(f: FiltrosBandeja): Promise<PaginaEntity<SolicitudEntity>>;
-  obtenerDetalleRevision(id: string): Promise<DetalleSolicitudEntity>;
-  obtenerUrlEvidencia(id: string): Promise<UrlEvidenciaEntity>;
+  obtenerDetalleRevision(id: string): Promise<DetalleRevisionEntity>;
+  obtenerEvidencia(id: string): Promise<EvidenciaImagenEntity>;
   registrarCheck(id: string): Promise<SolicitudEntity>;
+  retirarCheck(id: string, motivo: string): Promise<SolicitudEntity>;
   aprobarDirecto(id: string, justificacion: string): Promise<SolicitudEntity>;
   devolver(id: string, motivo: string, requiereNuevaFoto: boolean): Promise<SolicitudEntity>;
   rechazar(id: string, motivo: string): Promise<SolicitudEntity>;

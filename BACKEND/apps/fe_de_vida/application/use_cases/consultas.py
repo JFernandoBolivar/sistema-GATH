@@ -5,6 +5,7 @@ from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
     CambioComparado,
     DetalleRevision,
     DetalleSolicitud,
+    EvidenciaLeible,
     ProcesoVigente,
     VerificacionConstancia,
 )
@@ -20,10 +21,11 @@ from apps.fe_de_vida.domain.entities.constancia import ConstanciaFeDeVida
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja, FiltroCobertura
 from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
-from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
+from apps.fe_de_vida.domain.entities.solicitud import ActorRevision, PermisosRevision, SolicitudFeDeVida
 from apps.fe_de_vida.domain.events import PublicadorEventos, PublicadorNulo, TipoEvento
 from apps.fe_de_vida.domain.ports.repos import (
     LectorAlcance,
+    LectorFichaPasivo,
     LectorPasivos,
     LectorValorActual,
     RepoCambiosActa,
@@ -36,9 +38,6 @@ from apps.fe_de_vida.domain.services.reglas_proceso import puede_enviar
 from apps.fe_de_vida.domain.services.verificacion import codigo_con_formato_valido, enmascarar_cedula
 from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud
 from core.domain.exceptions import NotFoundError
-from core.domain.ports import FileStorage
-
-EXPIRA_URL_EVIDENCIA_SEGUNDOS = 90  # URL prefirmada corta (60-120 s, §2.6)
 
 
 # ── Pasivo ──
@@ -101,28 +100,39 @@ def bandeja_revision(
 
 def detalle_para_revision(
     repo_sol: RepoSolicitudesFeDeVida, repo_cambios: RepoCambiosActa, lector_valor: LectorValorActual,
-    lector_pasivos: LectorPasivos, *, solicitud_id: str,
+    lector_pasivos: LectorPasivos, *, solicitud_id: str, lector_ficha: LectorFichaPasivo | None = None,
+    actor: ActorRevision | None = None, permisos: PermisosRevision | None = None, repo_procesos: RepoProcesos | None = None,
 ) -> DetalleRevision:
-    """Solicitud con cada respuesta frente al dato real de hoy (comparativo) para decidir con criterio."""
+    """
+    Solicitud con cada respuesta frente al dato real de hoy (comparativo), la ficha completa del pasivo (si se
+    entrega un lector: el permiso lo decide la vista) y las acciones que el revisor puede ejecutar.
+    """
     solicitud = obtener_solicitud(repo_sol, solicitud_id)
     cambios = []
     for c in repo_cambios.listar(solicitud.id):
         actual = lector_valor.valor_actual(solicitud.cedula, c)
         cambios.append(CambioComparado(c, actual, c.accion == 'MODIFICAR' and actual != c.valor_anterior))
-    return DetalleRevision(solicitud, cambios, lector_pasivos.nombre_de(solicitud.cedula))
+    acciones = solicitud.acciones_disponibles(actor, permisos or PermisosRevision()) if actor else ()
+    actores = {d.actor_cedula for d in solicitud.decisiones}
+    proceso = repo_procesos.obtener(solicitud.proceso_id) if repo_procesos else None
+    return DetalleRevision(
+        solicitud, cambios, lector_pasivos.nombre_de(solicitud.cedula),
+        ficha=lector_ficha.ficha(solicitud.cedula) if lector_ficha else None, acciones=acciones,
+        nombres_actores=lector_pasivos.nombres_de(sorted(actores)) if actores else {},
+        proceso_nombre=proceso.nombre if proceso else '',
+    )
 
 
-def url_evidencia(
-    repo_sol: RepoSolicitudesFeDeVida, storage: FileStorage, publicador: PublicadorEventos | None = None,
+def evidencia_para_revision(
+    repo_sol: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor_cedula: str,
-) -> str:
-    """URL prefirmada corta para quien tenga `fe_de_vida.ver_evidencia`; registra el acceso (auditoría)."""
+) -> EvidenciaLeible:
+    """Clave y tipo de la foto vigente para quien tenga `fe_de_vida.ver_evidencia`; registra el acceso (auditoría)."""
     solicitud = obtener_solicitud(repo_sol, solicitud_id)
     if not solicitud.evidencia_clave:
         raise NotFoundError("La solicitud no tiene foto vigente.")
-    url = storage.url_firmada(solicitud.evidencia_clave, EXPIRA_URL_EVIDENCIA_SEGUNDOS)
     (publicador or PublicadorNulo()).publicar(evento(TipoEvento.EVIDENCIA_CONSULTADA, solicitud, actor_cedula))
-    return url
+    return EvidenciaLeible(solicitud.evidencia_clave, solicitud.evidencia_mime)
 
 
 MENSAJE_CONSTANCIA_NO_ENCONTRADA = "No se encontró una constancia válida con ese código."

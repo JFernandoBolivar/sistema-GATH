@@ -1,10 +1,10 @@
 import type { FiltrosBandeja, RepoFeDeVida } from "../../domain/ports/repo-fe-de-vida";
 import { MAX_LONGITUD_MOTIVO } from "../../domain/value-objects/estados";
 import type {
-  DetalleSolicitudDTO,
+  DetalleRevisionDTO,
+  EvidenciaImagenDTO,
   PaginaDTO,
   SolicitudDTO,
-  UrlEvidenciaDTO,
 } from "../dtos/fe-de-vida-dto";
 import { normalizarPagina, vacioAUndefined } from "./paginacion";
 
@@ -34,16 +34,32 @@ export async function listarBandeja(
   });
 }
 
-export function obtenerDetalleRevision(repo: RepoFeDeVida, id: string): Promise<DetalleSolicitudDTO> {
+export function obtenerDetalleRevision(repo: RepoFeDeVida, id: string): Promise<DetalleRevisionDTO> {
   return repo.obtenerDetalleRevision(id);
 }
 
-export function obtenerUrlEvidencia(repo: RepoFeDeVida, id: string): Promise<UrlEvidenciaDTO> {
-  return repo.obtenerUrlEvidencia(id);
+/** La foto la sirve el backend (el almacén no es alcanzable desde el navegador). */
+export function obtenerEvidencia(repo: RepoFeDeVida, id: string): Promise<EvidenciaImagenDTO> {
+  return repo.obtenerEvidencia(id);
 }
 
 export function registrarCheck(repo: RepoFeDeVida, id: string): Promise<SolicitudDTO> {
   return repo.registrarCheck(id);
+}
+
+export const MOTIVO_RETIRO_MIN_PALABRAS = 5;
+export const MOTIVO_RETIRO_MIN_CARACTERES = 20;
+
+/** Retira el check propio: justificación obligatoria (mismas reglas que el servidor, que las vuelve a validar). */
+export async function retirarCheck(repo: RepoFeDeVida, id: string, motivo: string): Promise<SolicitudDTO> {
+  const limpio = exigirTexto(motivo, "La justificación").replace(/\s+/g, " ");
+  if (limpio.length < MOTIVO_RETIRO_MIN_CARACTERES || limpio.split(" ").length < MOTIVO_RETIRO_MIN_PALABRAS) {
+    throw new Error(
+      `La justificación debe tener al menos ${MOTIVO_RETIRO_MIN_PALABRAS} palabras y ${MOTIVO_RETIRO_MIN_CARACTERES} caracteres.`,
+    );
+  }
+  if (/[<>]/.test(limpio)) throw new Error("La justificación no puede contener los símbolos < o >.");
+  return repo.retirarCheck(id, limpio);
 }
 
 /** Aprobación directa (solo Administradora): la justificación es obligatoria. */

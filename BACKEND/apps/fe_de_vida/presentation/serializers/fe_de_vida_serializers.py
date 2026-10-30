@@ -138,6 +138,9 @@ class DecisionSerializer(serializers.Serializer):
     envio = serializers.IntegerField()
     motivo = serializers.CharField(allow_blank=True)
     fecha = serializers.DateTimeField()
+    actor_nombre = serializers.CharField(
+        required=False, help_text='Solo en el detalle de revisión: nombre de quien decidió (cédula si no se halla).',
+    )
 
 
 class SolicitudSerializer(serializers.Serializer):
@@ -181,6 +184,16 @@ class DetalleSolicitudSerializer(serializers.Serializer):
 class DetalleRevisionSerializer(serializers.Serializer):
     solicitud = SolicitudSerializer()
     cambios = CambioComparadoSerializer(many=True)
+    proceso_nombre = serializers.CharField(allow_blank=True)
+    ficha = serializers.JSONField(
+        allow_null=True,
+        help_text='Datos actuales del pasivo, solo lectura: {empleado, familiares, datos_complementarios} con el contrato '
+                  'de `autogestion/mi-expediente`. Nulo sin el permiso `fe_de_vida.revisar`.',
+    )
+    acciones_disponibles = serializers.ListField(
+        child=serializers.ChoiceField(choices=['dar_check', 'aprobar_directo', 'devolver', 'rechazar', 'retirar_check']),
+        help_text='Acciones que el usuario actual puede ejecutar hoy; las decide el dominio.',
+    )
 
 
 class TipoPensionSerializer(serializers.Serializer):
@@ -213,11 +226,6 @@ class ProrrogaSerializer(serializers.Serializer):
     nueva_fecha_limite = serializers.DateTimeField()
     motivo = serializers.CharField()
     concedida_por = serializers.CharField()
-
-
-class UrlEvidenciaSerializer(serializers.Serializer):
-    url = serializers.CharField(help_text='URL prefirmada de corta vigencia.')
-    expira_en_segundos = serializers.IntegerField()
 
 
 class PasivoCoberturaSerializer(serializers.Serializer):
@@ -270,7 +278,7 @@ def pagina(total: int, limite: int, desplazamiento: int, resultados: list) -> di
     return {'count': total, 'limit': limite, 'offset': desplazamiento, 'results': resultados}
 
 
-def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None) -> dict:
+def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None, nombres_actores: dict | None = None) -> dict:
     datos = {
         'id': s.id, 'proceso_id': s.proceso_id, 'cedula': s.cedula, 'estado': s.estado.value, 'version': s.version,
         'envios': s.envios, 'origen_evidencia': s.origen_evidencia.value if s.origen_evidencia else None,
@@ -279,7 +287,8 @@ def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None) -> dict:
         'requiere_nueva_foto': s.requiere_nueva_foto,
         'decisiones': [
             {'tipo': d.tipo.value, 'rol': d.rol.value, 'actor_cedula': d.actor_cedula, 'envio': d.envio,
-             'motivo': d.motivo, 'fecha': d.fecha}
+             'motivo': d.motivo, 'fecha': d.fecha,
+             **({'actor_nombre': nombres_actores.get(d.actor_cedula, d.actor_cedula)} if nombres_actores is not None else {})}
             for d in s.decisiones
         ],
     }
@@ -301,8 +310,9 @@ def a_dict_detalle(d: DetalleSolicitud) -> dict:
 
 def a_dict_revision(d: DetalleRevision) -> dict:
     return {
-        'solicitud': a_dict_solicitud(d.solicitud, d.nombre_pasivo),
+        'solicitud': a_dict_solicitud(d.solicitud, d.nombre_pasivo, d.nombres_actores),
         'cambios': [{**a_dict_cambio(c.cambio), 'valor_actual': c.valor_actual, 'conflicto': c.conflicto} for c in d.cambios],
+        'proceso_nombre': d.proceso_nombre, 'ficha': d.ficha, 'acciones_disponibles': list(d.acciones),
     }
 
 

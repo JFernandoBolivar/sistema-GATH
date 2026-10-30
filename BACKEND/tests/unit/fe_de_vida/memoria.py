@@ -169,8 +169,6 @@ class StorageMem:
         self.objetos[clave] = (contenido, mime_type)
         return clave
 
-    def url_firmada(self, clave, expira_segundos=300):
-        return f'https://s3.test/{clave}?exp={expira_segundos}'
 
 
 class LectorPasivosMem:

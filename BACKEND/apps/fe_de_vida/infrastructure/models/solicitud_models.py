@@ -64,6 +64,7 @@ class DecisionFeDeVidaModel(BaseModel):
 
     class Tipo(models.TextChoices):
         CHECK = 'CHECK'
+        CHECK_RETIRADO = 'CHECK_RETIRADO'
         APROBACION_DIRECTA = 'APROBACION_DIRECTA'
         RECHAZO = 'RECHAZO'
         DEVOLUCION = 'DEVOLUCION'

@@ -47,7 +47,8 @@ ASUNTO_BIENESTAR = 'Fe de vida pendiente de revisión - GATH CONATEL'
 def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -> list[SolicitudNotificacion]:
     d, ref = e.detalle, e.solicitud_id
     envio = str(d.get('envio', ''))
-    comunes = {'ref_tipo': REF_TIPO, 'ref_id': ref, 'clave': envio}
+    secuencia = f'{envio}-{d["secuencia"]}' if 'secuencia' in d else envio  # un check puede darse y retirarse varias veces
+    comunes = {'ref_tipo': REF_TIPO, 'ref_id': ref, 'clave': secuencia}
     al_pasivo = {**comunes, 'cedula_destino': e.cedula, 'enlace': ENLACE_PASIVO, 'modulo': MODULO_PASIVO}
     a_bienestar = {
         **comunes, 'enlace': enlace_bienestar(ref), 'modulo': MODULO_BIENESTAR, 'excluir_cedulas': (e.actor_cedula,),
@@ -78,6 +79,13 @@ def solicitudes_de_evento(e: EventoFeDeVida, correo_a_bienestar: bool = False) -
         return [SolicitudNotificacion(
             **a_bienestar, tipo=e.tipo.value, permiso_destino=permiso, titulo='Fe de vida pendiente de segundo check',
             mensaje=f'La fe de vida del pasivo C.I. {e.cedula} ya cuenta con un primer check y está pendiente de su revisión para completar la validación.',
+        )]
+    if e.tipo is TipoEvento.CHECK_RETIRADO:
+        return [SolicitudNotificacion(
+            **{**a_bienestar, 'correo': None}, tipo=e.tipo.value, permiso_destino=PERMISO_REVISAR,
+            titulo='Check retirado en una fe de vida',
+            mensaje=(f'Se retiró el check de la fe de vida del pasivo C.I. {e.cedula}: vuelve a estar pendiente de revisión. '
+                     f'Motivo: {d.get("motivo", "no indicado")}.'),
         )]
     if e.tipo is TipoEvento.DEVUELTA:
         foto = ' Además, debe tomar o subir una foto nueva sosteniendo su cédula.' if d.get('requiere_nueva_foto') else ''

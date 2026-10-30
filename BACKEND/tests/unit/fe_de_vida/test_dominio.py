@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
-from apps.fe_de_vida.domain.entities.solicitud import ActorRevision, SolicitudFeDeVida
+from apps.fe_de_vida.domain.entities.solicitud import ActorRevision, PermisosRevision, SolicitudFeDeVida
 from apps.fe_de_vida.domain.services.reglas_proceso import prorroga_vigente, puede_enviar
 from apps.fe_de_vida.domain.value_objects.estados import (
     TRANSICIONES_SOLICITUD,
@@ -140,7 +140,7 @@ def test_segundo_check_del_otro_rol_valida_en_cualquier_orden(primero, segundo):
 def test_la_misma_persona_no_puede_dar_los_dos_checks():
     s = pendiente().dar_check(ADMINISTRADORA, AHORA)
     mismo_actor_otro_rol = ActorRevision(ADMINISTRADORA.cedula, RolRevision.ANALISTA)
-    with pytest.raises(ConflictError, match='misma persona'):
+    with pytest.raises(ConflictError, match='ya aprobó'):
         s.dar_check(mismo_actor_otro_rol, AHORA)
 
 
@@ -234,3 +234,68 @@ def test_el_estado_validada_solo_se_alcanza_desde_pendientes():
     origenes = {e for e, destinos in TRANSICIONES_SOLICITUD.items() if E.VALIDADA in destinos}
     assert origenes == {E.PENDIENTE_REVISION, E.PENDIENTE_SEGUNDO_CHECK}
     assert replace(solicitud(), id='x').id == 'x'
+
+
+# ── Acciones por revisor y retiro del check (C21) ──
+MOTIVO_VALIDO = 'Di el check por error al revisar otra solicitud'
+PERMISOS_ADMIN = PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+PERMISOS_ANALISTA = PermisosRevision(revisar=True, check=True)
+
+
+def test_quien_dio_su_check_no_puede_devolver_rechazar_ni_repetir_el_check():
+    s = pendiente().dar_check(ANALISTA, AHORA)
+    for accion in (lambda: s.devolver(ANALISTA, 'Foto borrosa', AHORA), lambda: s.rechazar(ANALISTA, 'Cédula ilegible', AHORA),
+                   lambda: s.dar_check(ANALISTA, AHORA)):
+        with pytest.raises(ConflictError, match='ya aprobó'):
+            accion()
+
+
+def test_la_administradora_que_dio_su_check_conserva_la_aprobacion_directa():
+    s = pendiente().dar_check(ADMINISTRADORA, AHORA)
+    v = s.aprobar_directo(ADMINISTRADORA, 'Pasivo sin movilidad', AHORA)
+    assert v.estado is E.VALIDADA and v.via_aprobacion is ViaAprobacion.DIRECTA_ADMINISTRADORA
+
+
+def test_acciones_disponibles_segun_quien_reviso():
+    s = pendiente()
+    assert s.acciones_disponibles(ANALISTA, PERMISOS_ANALISTA) == ('dar_check', 'devolver', 'rechazar')
+    assert s.acciones_disponibles(ADMINISTRADORA, PERMISOS_ADMIN) == ('dar_check', 'aprobar_directo', 'devolver', 'rechazar')
+    primero_admin = s.dar_check(ADMINISTRADORA, AHORA)
+    assert primero_admin.acciones_disponibles(ADMINISTRADORA, PERMISOS_ADMIN) == ('aprobar_directo', 'retirar_check')
+    assert primero_admin.acciones_disponibles(ANALISTA, PERMISOS_ANALISTA) == ('dar_check', 'devolver', 'rechazar')
+    primero_analista = s.dar_check(ANALISTA, AHORA)
+    assert primero_analista.acciones_disponibles(ANALISTA, PERMISOS_ANALISTA) == ('retirar_check',)
+    assert primero_analista.acciones_disponibles(ADMINISTRADORA, PERMISOS_ADMIN) == ('dar_check', 'aprobar_directo', 'devolver', 'rechazar')
+    assert primero_analista.acciones_disponibles(OTRA_ANALISTA, PERMISOS_ANALISTA) == ('devolver', 'rechazar')  # el rol ya dio su check
+    assert s.acciones_disponibles(ANALISTA, PermisosRevision()) == ()
+    assert s.acciones_disponibles(ActorRevision(PASIVO, RolRevision.ANALISTA), PERMISOS_ANALISTA) == ()
+
+
+def test_sin_acciones_cuando_la_solicitud_ya_no_es_revisable():
+    validada = pendiente().dar_check(ANALISTA, AHORA).dar_check(ADMINISTRADORA, AHORA)
+    assert validada.acciones_disponibles(ANALISTA, PERMISOS_ANALISTA) == ()
+    assert validada.acciones_disponibles(ADMINISTRADORA, PERMISOS_ADMIN) == ()
+
+
+def test_retirar_el_check_devuelve_la_solicitud_a_pendiente_y_devuelve_las_acciones():
+    s = pendiente().dar_check(ADMINISTRADORA, AHORA)
+    assert s.estado is E.PENDIENTE_SEGUNDO_CHECK
+    r = s.retirar_check(ADMINISTRADORA, MOTIVO_VALIDO, AHORA)
+    assert r.estado is E.PENDIENTE_REVISION and r.checks_vigentes() == ()
+    assert r.decisiones[-1].tipo is TipoDecision.CHECK_RETIRADO and r.decisiones[-1].motivo == MOTIVO_VALIDO
+    assert r.acciones_disponibles(ADMINISTRADORA, PERMISOS_ADMIN) == ('dar_check', 'aprobar_directo', 'devolver', 'rechazar')
+    assert r.dar_check(ADMINISTRADORA, AHORA).estado is E.PENDIENTE_SEGUNDO_CHECK
+
+
+def test_retirar_exige_check_propio_estado_revisable_y_motivo_valido():
+    s = pendiente().dar_check(ANALISTA, AHORA)
+    with pytest.raises(ConflictError, match='no tiene un check'):
+        s.retirar_check(ADMINISTRADORA, MOTIVO_VALIDO, AHORA)
+    with pytest.raises(ConflictError, match='no tiene un check'):
+        pendiente().retirar_check(ANALISTA, MOTIVO_VALIDO, AHORA)
+    for malo in ('', '   ', 'muy corto', 'uno dos tres cuatro', '<b>retiro este check por equivocación</b>'):
+        with pytest.raises(ValidationError):
+            s.retirar_check(ANALISTA, malo, AHORA)
+    validada = s.dar_check(ADMINISTRADORA, AHORA)
+    with pytest.raises(ConflictError, match='no admite revisión'):
+        validada.retirar_check(ANALISTA, MOTIVO_VALIDO, AHORA)

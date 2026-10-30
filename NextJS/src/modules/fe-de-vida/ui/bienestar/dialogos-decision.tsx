@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +15,10 @@ import { Textarea } from "@/shared/ui/components/textarea";
 import { MAX_LONGITUD_MOTIVO } from "../../domain/value-objects/estados";
 import {
   devolverSchema,
+  retirarCheckSchema,
   textoObligatorioSchema,
   type DevolverValores,
+  type RetirarCheckValores,
   type TextoObligatorioValores,
 } from "../schema/schema-fe-de-vida";
 
@@ -157,6 +159,70 @@ export function DialogoTexto({
               disabled={pendiente}
             >
               {pendiente ? "Procesando…" : textoBoton}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Retirar el check propio: justificación obligatoria con contador de caracteres. */
+export function DialogoRetirarCheck({
+  abierto,
+  pendiente,
+  onCerrar,
+  onConfirmar,
+}: BaseProps & { onConfirmar: (motivo: string) => void }) {
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<RetirarCheckValores>({
+    resolver: zodResolver(retirarCheckSchema),
+    defaultValues: { motivo: "" },
+  });
+  const escritos = useWatch({ control, name: "motivo" })?.length ?? 0;
+  return (
+    <Dialog open={abierto} onOpenChange={(o) => !o && onCerrar()}>
+      <DialogContent>
+        <form noValidate onSubmit={handleSubmit((v) => onConfirmar(v.motivo))} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>Retirar mi check</DialogTitle>
+            <DialogDescription>
+              La solicitud volverá a quedar pendiente de revisión y se avisará a Bienestar Social. Quedará
+              registrado quién lo retiró y por qué.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="ret-motivo" className="text-base font-medium">
+              Justificación
+            </label>
+            <Textarea
+              id="ret-motivo"
+              rows={4}
+              maxLength={MAX_LONGITUD_MOTIVO}
+              className="resize-none"
+              aria-invalid={errors.motivo ? true : undefined}
+              aria-describedby={errors.motivo ? "ret-motivo-error ret-motivo-contador" : "ret-motivo-contador"}
+              {...register("motivo")}
+            />
+            <p id="ret-motivo-contador" className="text-sm text-muted-foreground">
+              {escritos} de {MAX_LONGITUD_MOTIVO} caracteres
+            </p>
+            {errors.motivo ? (
+              <p id="ret-motivo-error" role="alert" className="text-sm font-medium text-danger">
+                {errors.motivo.message}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="min-h-11" onClick={onCerrar} disabled={pendiente}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="min-h-11" disabled={pendiente}>
+              {pendiente ? "Retirando…" : "Retirar check"}
             </Button>
           </DialogFooter>
         </form>

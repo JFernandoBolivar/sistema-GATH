@@ -1,5 +1,5 @@
 import type { DecisionEntity, SolicitudEntity } from "../entities/fe-de-vida";
-import { PERMISOS_FE_DE_VIDA, type TipoDecision } from "../value-objects/estados";
+import type { TipoDecision } from "../value-objects/estados";
 
 const ESTADOS_REVISABLES = ["PENDIENTE_REVISION", "PENDIENTE_SEGUNDO_CHECK"] as const;
 
@@ -27,56 +27,52 @@ export function motivoDeEstado(s: SolicitudEntity): string {
   return "";
 }
 
-/** Primer check del envío en curso (quién lo dio y con qué rol). */
+/**
+ * Checks vigentes del envío en curso (los retirados no cuentan). Solo para mostrar quién aprobó: qué acciones
+ * tiene cada revisor lo decide el servidor (`acciones_disponibles`).
+ */
+export function checksVigentes(s: Pick<SolicitudEntity, "decisiones" | "envios">): DecisionEntity[] {
+  let vigentes: DecisionEntity[] = [];
+  for (const d of s.decisiones) {
+    if (d.envio !== s.envios) continue;
+    if (d.tipo === "CHECK") vigentes.push(d);
+    else if (d.tipo === "CHECK_RETIRADO")
+      vigentes = vigentes.filter((c) => c.actorCedula !== d.actorCedula);
+  }
+  return vigentes;
+}
+
+/** Primer check vigente del envío en curso (quién lo dio y con qué rol). */
 export function primerCheck(s: SolicitudEntity): DecisionEntity | null {
-  return s.decisiones.find((d) => d.tipo === "CHECK" && d.envio === s.envios) ?? null;
+  return checksVigentes(s)[0] ?? null;
+}
+
+const ROL_LEGIBLE: Record<string, string> = { ANALISTA: "Analista", ADMINISTRADORA: "Administradora" };
+
+/** «ADMINISTRADORA» → «Administradora»; nunca el código en crudo. */
+export function rolLegible(rol: string): string {
+  return ROL_LEGIBLE[rol.toUpperCase()] ?? (rol ? rol.charAt(0).toUpperCase() + rol.slice(1).toLowerCase() : "");
+}
+
+/** Rol que falta para completar el doble check, dado el rol del primero. */
+export function rolQueFalta(rolPrimero: string): string {
+  return rolPrimero.toUpperCase() === "ANALISTA" ? ROL_LEGIBLE.ADMINISTRADORA : ROL_LEGIBLE.ANALISTA;
+}
+
+/** Años cumplidos a `hoy` (fecha ISO `AAAA-MM-DD`); `null` si la fecha no es válida o es futura. */
+export function edadEn(fechaNacimiento: string | null | undefined, hoy: Date): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(fechaNacimiento ?? "");
+  if (!m) return null;
+  const [anio, mes, dia] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  let edad = hoy.getFullYear() - anio;
+  if (hoy.getMonth() + 1 < mes || (hoy.getMonth() + 1 === mes && hoy.getDate() < dia)) edad -= 1;
+  return edad >= 0 && edad < 150 ? edad : null;
 }
 
 /** ¿Hace falta una foto nueva antes de enviar? Siempre que no haya, o la devolución la pidió. */
 export function requiereFotoNueva(s: SolicitudEntity): boolean {
   if (!s.tieneEvidencia) return true;
   return s.estado === "DEVUELTA" && s.requiereNuevaFoto;
-}
-
-export interface AccionesRevision {
-  check: boolean;
-  aprobarDirecto: boolean;
-  devolver: boolean;
-  rechazar: boolean;
-}
-
-const tiene = (permisos: readonly string[] | null | undefined, codigo: string) =>
-  !!permisos?.includes(codigo);
-
-/**
- * Botones de la revisión según el permiso por código y el estado. El segundo check lo da el
- * OTRO rol y otra persona (el backend lo vuelve a validar).
- */
-export function accionesDisponibles(
-  s: SolicitudEntity,
-  permisos: readonly string[] | null | undefined,
-  cedulaActor?: string | null,
-): AccionesRevision {
-  if (!esRevisable(s))
-    return { check: false, aprobarDirecto: false, devolver: false, rechazar: false };
-  const esAnalista = tiene(permisos, PERMISOS_FE_DE_VIDA.checkAnalista);
-  const esAdmin = tiene(permisos, PERMISOS_FE_DE_VIDA.checkAdministradora);
-  let check = esAnalista || esAdmin;
-  if (s.estado === "PENDIENTE_SEGUNDO_CHECK") {
-    const primero = primerCheck(s);
-    if (primero) {
-      const rolPrimero = primero.rol.toUpperCase();
-      check = rolPrimero === "ANALISTA" ? esAdmin : esAnalista;
-      if (cedulaActor && primero.actorCedula === cedulaActor) check = false;
-    }
-  }
-  const revisa = tiene(permisos, PERMISOS_FE_DE_VIDA.revisar);
-  return {
-    check,
-    aprobarDirecto: tiene(permisos, PERMISOS_FE_DE_VIDA.aprobarDirecto),
-    devolver: revisa,
-    rechazar: revisa,
-  };
 }
 
 /** Días sugeridos para los recordatorios previos al cierre (de mayor a menor). */

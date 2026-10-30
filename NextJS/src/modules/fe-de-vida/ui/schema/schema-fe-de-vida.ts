@@ -50,6 +50,25 @@ export type DevolverValores = z.infer<typeof devolverSchema>;
 export const textoObligatorioSchema = (nombre: string) => z.object({ texto: motivo(nombre) });
 export type TextoObligatorioValores = z.infer<ReturnType<typeof textoObligatorioSchema>>;
 
+/** Retiro del check: mismas reglas que el servidor (mínimo 5 palabras y 20 caracteres, sin HTML). */
+export const RETIRO_MIN_PALABRAS = 5;
+export const RETIRO_MIN_CARACTERES = 20;
+export const retirarCheckSchema = z.object({
+  motivo: z
+    .string({ required_error: "La justificación es obligatoria" })
+    .trim()
+    .min(1, "La justificación es obligatoria")
+    .max(MAX_LONGITUD_MOTIVO, `La justificación no puede superar ${MAX_LONGITUD_MOTIVO} caracteres`)
+    .regex(NO_HTML, NO_HTML_MSG)
+    .refine(
+      (v) =>
+        v.replace(/\s+/g, " ").length >= RETIRO_MIN_CARACTERES &&
+        v.split(/\s+/).filter(Boolean).length >= RETIRO_MIN_PALABRAS,
+      `Explique el motivo con al menos ${RETIRO_MIN_PALABRAS} palabras y ${RETIRO_MIN_CARACTERES} caracteres`,
+    ),
+});
+export type RetirarCheckValores = z.infer<typeof retirarCheckSchema>;
+
 export const rechazarSchema = z.object({ motivo: motivo("El motivo") });
 export type RechazarValores = z.infer<typeof rechazarSchema>;
 

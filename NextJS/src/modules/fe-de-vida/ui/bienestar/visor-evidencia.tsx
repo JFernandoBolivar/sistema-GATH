@@ -1,25 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
-import { obtenerUrlEvidenciaAction } from "../../infrastructure/actions/fe-de-vida-actions";
+import { useEvidenciaUrl } from "./use-evidencia-url";
 
-/** Foto del pasivo con su cédula (URL prefirmada de corta vigencia) con zoom. */
+/** Foto del pasivo con su cédula, servida por el backend (cada consulta queda auditada), con zoom. */
 export function VisorEvidencia({ solicitudId }: { solicitudId: string }) {
   const [ampliada, setAmpliada] = useState(false);
-  // Cada consulta de la foto queda auditada: no se revalida sola ni se comparte entre pestañas.
-  const { data, error, isLoading, mutate } = useSWR(
-    ["fe-de-vida-evidencia", solicitudId],
-    async () => {
-      const res = await obtenerUrlEvidenciaAction(solicitudId);
-      if (!res.ok) throw new Error(res.mensaje);
-      return res.datos;
-    },
-    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 60_000 },
-  );
+  const { estado, reintentar, falloLaImagen } = useEvidenciaUrl(solicitudId);
 
   return (
     <section aria-labelledby="fv-foto" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
@@ -33,26 +23,28 @@ export function VisorEvidencia({ solicitudId }: { solicitudId: string }) {
           className="min-h-11"
           aria-pressed={ampliada}
           onClick={() => setAmpliada((a) => !a)}
-          disabled={!data}
+          disabled={estado.estado !== "lista"}
         >
           {ampliada ? <ZoomOut aria-hidden /> : <ZoomIn aria-hidden />} {ampliada ? "Reducir" : "Ampliar"}
         </Button>
       </div>
-      {isLoading ? <VistaCargando mensaje="Cargando la foto…" onReintentar={() => mutate()} /> : null}
-      {error ? (
-        <VistaError
-          mensaje="No se pudo cargar la foto. Verifique que tiene permiso para verla."
-          onReintentar={() => mutate()}
-        />
+      {estado.estado === "cargando" ? (
+        <VistaCargando mensaje="Cargando la foto…" onReintentar={reintentar} />
       ) : null}
-      {data ? (
-        <div className={ampliada ? "max-h-[80vh] overflow-auto rounded-md border" : "overflow-hidden rounded-md border"}>
-          {/* URL prefirmada externa: next/image no aplica. */}
+      {estado.estado === "error" ? <VistaError mensaje={estado.mensaje} onReintentar={reintentar} /> : null}
+      {estado.estado === "lista" ? (
+        <div
+          className={
+            ampliada ? "max-h-[70vh] overflow-auto rounded-md border" : "overflow-hidden rounded-md border"
+          }
+        >
+          {/* Object URL local (blob): next/image no aplica. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={data.url}
+            src={estado.url}
             alt="Foto del pasivo sosteniendo su cédula de identidad"
-            className={ampliada ? "max-w-none w-[1200px]" : "mx-auto max-h-[420px] w-auto max-w-full"}
+            onError={falloLaImagen}
+            className={ampliada ? "w-[1200px] max-w-none" : "mx-auto max-h-[40dvh] w-auto max-w-full"}
           />
         </div>
       ) : null}

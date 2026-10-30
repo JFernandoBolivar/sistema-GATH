@@ -2,7 +2,8 @@
 Constancia de fe de vida en PDF (C4, PLAN §2.11) con el motor ReportLab del kernel (encabezado y pie
 institucionales de `core/infrastructure/pdf`). Lleva número y QR de verificación interna (el código de
 verificación va solo dentro del QR), y el nombre y la cédula de quien(es) certifican, como en la planilla física (sin cargo ni vía de
-aprobación). Sin firma digitalizada, sin sello y sin la selfie. El título va solo en el cuerpo, no en el encabezado.
+aprobación). Sin firma digitalizada, sin sello y sin la selfie. El título va solo en el cuerpo, no en el encabezado,
+y el nombre del proceso no se imprime (pedido de RRHH, 2026-10-30).
 """
 from io import BytesIO
 from xml.sax.saxutils import escape
@@ -52,7 +53,6 @@ class GeneradorConstanciaPDF:
         centro = estilos['CenterSmall']
         historia = [
             Paragraph(f'<b>{escape(plantilla.titulo)}</b>', estilos['Title']),
-            Paragraph(escape(proceso_nombre), centro),
             Spacer(1, 8 * mm),
             Paragraph(escape(texto), cuerpo),
             Spacer(1, 10 * mm),

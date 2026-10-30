@@ -1,4 +1,5 @@
 import type {
+  AccionRevision,
   EstadoProceso,
   EstadoSolicitud,
   OrigenEvidencia,
@@ -9,6 +10,8 @@ export interface DecisionEntity {
   readonly tipo: TipoDecision;
   readonly rol: string;
   readonly actorCedula: string;
+  /** Solo en el detalle de revisión: nombre de quien decidió (la cédula si no se halla). */
+  readonly actorNombre: string;
   readonly envio: number;
   readonly motivo: string;
   readonly fecha: string | null;
@@ -49,6 +52,72 @@ export interface CambioEntity {
 export interface DetalleSolicitudEntity {
   readonly solicitud: SolicitudEntity;
   readonly cambios: readonly CambioEntity[];
+}
+
+/** Niveles de la estructura organizativa de la asignación (para calcular la oficina de adscripción). */
+export interface AsignacionFicha {
+  readonly tipoNomina: string | null;
+  readonly cargo: string | null;
+  readonly dependencia: string | null;
+  readonly direccionGeneral: string | null;
+  readonly direccionLinea: string | null;
+  readonly coordinacion: string | null;
+}
+
+export interface ViviendaFicha {
+  /** Ids vigentes: sirven de padre para resolver los nombres de municipio y parroquia declarados. */
+  readonly estadoId: number | null;
+  readonly municipioId: number | null;
+  readonly estado: string | null;
+  readonly municipio: string | null;
+  readonly parroquia: string | null;
+  readonly codigoPostal: string | null;
+  readonly direccion: string | null;
+  readonly condicion: string | null;
+}
+
+export interface ContactoEmergenciaFicha {
+  readonly id: string;
+  readonly nombres: string;
+  readonly apellidos: string;
+  readonly parentesco: string | null;
+  readonly telefono: string | null;
+}
+
+export interface FamiliarFicha {
+  readonly id: string;
+  readonly nombre: string;
+  readonly parentesco: string | null;
+  readonly cedula: string | null;
+  readonly fechaNacimiento: string | null;
+}
+
+/** Datos actuales del pasivo en el sistema (solo lectura) para quien revisa. */
+export interface FichaPasivoEntity {
+  readonly cedula: string;
+  readonly nombres: string;
+  readonly apellidos: string;
+  readonly sexo: string | null;
+  readonly fechaNacimiento: string | null;
+  readonly correo: string | null;
+  readonly correoAlternativo: string | null;
+  readonly telefonoMovil: string | null;
+  readonly telefonoHabitacion: string | null;
+  readonly asignacion: AsignacionFicha | null;
+  readonly fechaIngreso: string | null;
+  readonly fechaEgreso: string | null;
+  readonly vivienda: ViviendaFicha | null;
+  readonly contactosEmergencia: readonly ContactoEmergenciaFicha[];
+  readonly familiares: readonly FamiliarFicha[];
+  /** `null` = el pasivo nunca lo declaró. */
+  readonly tieneHijos: boolean | null;
+}
+
+/** Detalle de revisión: comparativo, ficha completa y las acciones que el usuario puede ejecutar. */
+export interface DetalleRevisionEntity extends DetalleSolicitudEntity {
+  readonly procesoNombre: string;
+  readonly ficha: FichaPasivoEntity | null;
+  readonly acciones: readonly AccionRevision[];
 }
 
 export interface TipoPensionEntity {
@@ -93,9 +162,10 @@ export interface CoberturaEntity {
   readonly tieneCuenta: boolean;
 }
 
-export interface UrlEvidenciaEntity {
-  readonly url: string;
-  readonly expiraEnSegundos: number;
+/** Foto con la cédula tal como la sirve el backend (bytes en base64 para cruzar la Server Action). */
+export interface EvidenciaImagenEntity {
+  readonly mime: string;
+  readonly base64: string;
 }
 
 export interface PaginaEntity<T> {

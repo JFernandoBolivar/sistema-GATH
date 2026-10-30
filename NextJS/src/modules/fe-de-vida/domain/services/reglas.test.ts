@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  accionesDisponibles,
+  checksVigentes,
+  edadEn,
   esEditablePorPasivo,
   motivoDeEstado,
   describirDiaRecordatorio,
@@ -8,46 +9,36 @@ import {
   oficinaDeAdscripcion,
   primerCheck,
   requiereFotoNueva,
+  rolLegible,
+  rolQueFalta,
 } from "./reglas";
 import { decisionFake, solicitudFake } from "./fixtures-fe-de-vida";
 
-describe("accionesDisponibles", () => {
-  it("el analista puede dar check, devolver y rechazar, pero no aprobar directo", () => {
-    const a = accionesDisponibles(solicitudFake(), [
-      "fe_de_vida.revisar",
-      "fe_de_vida.check_analista",
-    ]);
-    expect(a).toEqual({ check: true, aprobarDirecto: false, devolver: true, rechazar: true });
-  });
-  it("la administradora ve aprobación directa", () => {
-    const a = accionesDisponibles(solicitudFake(), [
-      "fe_de_vida.revisar",
-      "fe_de_vida.check_administradora",
-      "fe_de_vida.aprobar_directo",
-    ]);
-    expect(a.aprobarDirecto).toBe(true);
-    expect(a.check).toBe(true);
-  });
-  it("sin permisos no hay ninguna acción", () => {
-    expect(accionesDisponibles(solicitudFake(), [])).toEqual({
-      check: false,
-      aprobarDirecto: false,
-      devolver: false,
-      rechazar: false,
+describe("checks, roles y edad", () => {
+  it("un check retirado deja de ser vigente", () => {
+    const s = solicitudFake({
+      decisiones: [
+        decisionFake({ actorCedula: "1" }),
+        decisionFake({ tipo: "CHECK_RETIRADO", actorCedula: "1" }),
+        decisionFake({ actorCedula: "2", rol: "ADMINISTRADORA" }),
+      ],
     });
+    expect(checksVigentes(s).map((c) => c.actorCedula)).toEqual(["2"]);
+    expect(primerCheck(s)?.rol).toBe("ADMINISTRADORA");
   });
-  it("fuera de revisión no hay acciones aunque haya permisos", () => {
-    const a = accionesDisponibles(solicitudFake({ estado: "VALIDADA" }), [
-      "fe_de_vida.revisar",
-      "fe_de_vida.check_analista",
-    ]);
-    expect(a.check || a.devolver || a.rechazar).toBe(false);
+  it("rolLegible nunca devuelve el código en crudo y rolQueFalta es el otro rol", () => {
+    expect(rolLegible("ADMINISTRADORA")).toBe("Administradora");
+    expect(rolLegible("analista")).toBe("Analista");
+    expect(rolQueFalta("ADMINISTRADORA")).toBe("Analista");
+    expect(rolQueFalta("ANALISTA")).toBe("Administradora");
   });
-  it("el segundo check lo da el otro rol y otra persona", () => {
-    const s = solicitudFake({ estado: "PENDIENTE_SEGUNDO_CHECK", decisiones: [decisionFake()] });
-    expect(accionesDisponibles(s, ["fe_de_vida.check_analista"]).check).toBe(false);
-    expect(accionesDisponibles(s, ["fe_de_vida.check_administradora"], "999").check).toBe(true);
-    expect(accionesDisponibles(s, ["fe_de_vida.check_administradora"], "111").check).toBe(false);
+  it("edadEn cuenta años cumplidos y rechaza fechas inválidas o futuras", () => {
+    const hoy = new Date(2026, 9, 30);
+    expect(edadEn("1950-10-30", hoy)).toBe(76);
+    expect(edadEn("1950-10-31", hoy)).toBe(75);
+    expect(edadEn("2030-01-01", hoy)).toBeNull();
+    expect(edadEn("no-es-fecha", hoy)).toBeNull();
+    expect(edadEn(null, hoy)).toBeNull();
   });
 });
 

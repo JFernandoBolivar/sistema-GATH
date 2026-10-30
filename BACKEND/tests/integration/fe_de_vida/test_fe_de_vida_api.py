@@ -75,9 +75,6 @@ class AlmacenFalso:
     def descargar_flujo(self, clave, tamano_bloque=65536):
         yield self.objetos[clave]
 
-    def url_firmada(self, clave, expira_segundos=300):
-        return f'https://almacen.test/{clave}?exp={expira_segundos}'
-
 
 class NotificadorFalso:
     enviadas: list = []
@@ -251,7 +248,11 @@ def test_flujo_doble_check_aplica_el_acta_emite_constancia_y_avisa(
     cambio = detalle['cambios'][0]
     assert cambio['valor_actual'] == '04140000000' and cambio['valor_propuesto'] == '04149999999' and cambio['conflicto'] is False
 
-    assert cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/evidencia/'))['url'].endswith('exp=90')
+    r = analista.get(f'{BASE}/solicitudes/{sid}/evidencia/')
+    assert r.status_code == 200 and r['Content-Type'] == 'image/jpeg'
+    assert b''.join(r.streaming_content).startswith(bytes([0xFF, 0xD8]))
+    assert r['Cache-Control'] == 'private, no-store' and r['X-Content-Type-Options'] == 'nosniff'
+    assert r['Content-Disposition'] == 'inline'
     assert AuditoriaLog.objects.filter(accion='EVIDENCIA_CONSULTADA', recurso_id=sid).exists()
 
     assert cuerpo(analista.post(f'{BASE}/solicitudes/{sid}/check/'))['estado'] == 'PENDIENTE_SEGUNDO_CHECK'
@@ -761,3 +762,96 @@ def test_verificacion_interna_completa_con_permiso_y_403_sin_el(
     assert [c['cedula'] for c in d['certificada_por']] == [ADMINISTRADORA] and d['certificada_por'][0]['nombre']
     assert pasivo.get(ruta).status_code == 403
     assert APIClient().get(ruta).status_code in (401, 403)
+
+
+def test_evidencia_de_revision_exige_permiso_y_foto_y_el_pasivo_no_la_lee_por_esa_ruta(pasivo, otro_pasivo, analista, administradora):
+    pid = proceso_abierto(administradora)
+    sid = cuerpo(pasivo.post(f'{BASE}/procesos/vigente/solicitud/'))['id']
+    assert analista.get(f'{BASE}/solicitudes/{sid}/evidencia/').status_code == 404  # aún sin foto
+    assert pasivo.post(f'{BASE}/mis-solicitudes/{sid}/evidencia/', {'file': foto(), 'origen': 'ARCHIVO'}, format='multipart').status_code == 200
+    # el pasivo (dueño o ajeno) no tiene fe_de_vida.ver_evidencia: no hay forma de leer la foto por la ruta de Bienestar
+    assert pasivo.get(f'{BASE}/solicitudes/{sid}/evidencia/').status_code == 403
+    assert otro_pasivo.get(f'{BASE}/solicitudes/{sid}/evidencia/').status_code == 403
+    assert analista.get(f'{BASE}/solicitudes/{sid}/evidencia/').status_code == 200
+    assert pid
+
+
+# ── C21: acciones por revisor, ficha completa y retiro del check ──
+MOTIVO_RETIRO = 'Di el check por error al revisar otra solicitud'
+
+
+def acciones(cli, sid):
+    return cuerpo(cli.get(f'{BASE}/solicitudes/{sid}/'))['acciones_disponibles']
+
+
+def test_detalle_de_revision_trae_la_ficha_las_acciones_y_el_nombre_de_quien_decidio(pasivo, analista, administradora):
+    sid = solicitud_enviada(pasivo, proceso_abierto(administradora))
+    d = cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/'))
+    ficha = d['ficha']
+    assert ficha['empleado']['cedula'] == PASIVO and ficha['empleado']['nombre_completo'] == 'MARIA PEREZ'
+    assert ficha['empleado']['asignaciones'][0]['tipo_nomina'] == 'JUBILADO'
+    assert ficha['datos_complementarios']['correo_alternativo'] == CORREO_ALTERNO and isinstance(ficha['familiares'], list)
+    assert 'perfil_salud' not in ficha['empleado'] and 'foto_url' not in ficha['empleado']
+    assert d['acciones_disponibles'] == ['dar_check', 'devolver', 'rechazar']
+    assert analista.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200
+    d = cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/'))
+    assert d['solicitud']['decisiones'][0]['actor_nombre'] == 'ANA LOPEZ'
+    assert d['acciones_disponibles'] == ['retirar_check']
+    assert acciones(administradora, sid) == ['dar_check', 'aprobar_directo', 'devolver', 'rechazar']
+
+
+def test_la_ficha_solo_se_entrega_a_quien_puede_revisar(pasivo, administradora, datos):
+    sid = solicitud_enviada(pasivo, proceso_abierto(administradora))
+    solo_panel = cliente('20000009', {'fe_de_vida.ver_panel'}, 9)
+    d = cuerpo(solo_panel.get(f'{BASE}/solicitudes/{sid}/'))
+    assert d['ficha'] is None and d['acciones_disponibles'] == []
+    assert pasivo.get(f'{BASE}/solicitudes/{sid}/').status_code == 403
+
+
+def test_quien_dio_su_check_recibe_409_al_devolver_rechazar_o_repetir_y_el_otro_revisor_puede(pasivo, analista, administradora):
+    sid = solicitud_enviada(pasivo, proceso_abierto(administradora))
+    assert analista.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200
+    for ruta, cuerpo_req in (('check', None), ('devolver', {'motivo': 'Foto borrosa'}), ('rechazar', {'motivo': 'Cédula ilegible'})):
+        r = analista.post(f'{BASE}/solicitudes/{sid}/{ruta}/', cuerpo_req, format='json')
+        assert r.status_code == 409 and 'ya aprobó' in r.json()['message']
+    assert administradora.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'Foto borrosa'}, format='json').status_code == 200
+
+
+def test_la_administradora_que_dio_su_check_aprueba_directo(pasivo, administradora, django_capture_on_commit_callbacks):
+    sid = solicitud_enviada(pasivo, proceso_abierto(administradora))
+    assert administradora.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200
+    assert acciones(administradora, sid) == ['aprobar_directo', 'retirar_check']
+    assert administradora.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': 'x'}, format='json').status_code == 409
+    with django_capture_on_commit_callbacks(execute=True):
+        r = administradora.post(f'{BASE}/solicitudes/{sid}/aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}, format='json')
+    assert r.status_code == 200 and cuerpo(r)['estado'] == 'VALIDADA'
+
+
+def test_retirar_check_ok_audita_notifica_y_devuelve_las_acciones(pasivo, analista, administradora):
+    sid = solicitud_enviada(pasivo, proceso_abierto(administradora))
+    assert analista.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200
+    r = analista.post(f'{BASE}/solicitudes/{sid}/retirar-check/', {'motivo': MOTIVO_RETIRO}, format='json')
+    assert r.status_code == 200 and cuerpo(r)['estado'] == 'PENDIENTE_REVISION'
+    assert [d['tipo'] for d in cuerpo(r)['decisiones']] == ['CHECK', 'CHECK_RETIRADO']
+    log = AuditoriaLog.objects.get(accion='CHECK_RETIRADO', recurso_id=sid)
+    assert log.actor_cedula == ANALISTA and log.estado_nuevo['motivo'] == MOTIVO_RETIRO
+    aviso = [a for a in NotificadorFalso.enviadas if a.tipo == 'fe_de_vida.check_retirado'][0]
+    assert aviso.permiso_destino == 'fe_de_vida.revisar' and aviso.modulo == 'personal' and aviso.correo is None
+    assert ANALISTA in aviso.excluir_cedulas and MOTIVO_RETIRO in aviso.mensaje
+    assert acciones(analista, sid) == ['dar_check', 'devolver', 'rechazar']
+    assert analista.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200
+
+
+def test_retirar_check_rechaza_a_quien_no_lo_dio_sin_motivo_y_tras_validada(pasivo, analista, administradora):
+    sid = solicitud_enviada(pasivo, proceso_abierto(administradora))
+    url = f'{BASE}/solicitudes/{sid}/retirar-check/'
+    assert analista.post(url, {'motivo': MOTIVO_RETIRO}, format='json').status_code == 409  # aún no dio check
+    assert analista.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200
+    assert administradora.post(url, {'motivo': MOTIVO_RETIRO}, format='json').status_code == 409  # el check es de otra persona
+    assert pasivo.post(url, {'motivo': MOTIVO_RETIRO}, format='json').status_code == 403
+    assert analista.post(url, {'motivo': 'corto'}, format='json').status_code == 400
+    assert analista.post(url, {'motivo': '<b>retiro este check por equivocación</b>'}, format='json').status_code == 400
+    assert analista.post(url, {}, format='json').status_code == 400
+    assert administradora.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200  # VALIDADA
+    assert analista.post(url, {'motivo': MOTIVO_RETIRO}, format='json').status_code == 409
+    assert not AuditoriaLog.objects.filter(accion='CHECK_RETIRADO').exists()

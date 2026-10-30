@@ -76,22 +76,37 @@ Permiso `fe_de_vida.ver_propia` + PASIVO. Descarga el PDF de la constancia (404 
 Permiso `fe_de_vida.revisar` o `fe_de_vida.ver_panel`. Query: `texto` (cédula o nombre), `estado`, `proceso_id`, `desde`, `hasta` (fecha de envío, `YYYY-MM-DD`), `limit`, `offset`. Response: página de Solicitud con `nombre`.
 
 ### GET `solicitudes/{id}/`
-Permiso `fe_de_vida.revisar` o `fe_de_vida.ver_panel`. Response: `{solicitud (con nombre), cambios: [Cambio + valor_actual + conflicto]}`.
+Permiso `fe_de_vida.revisar` o `fe_de_vida.ver_panel`. Response:
+```json
+{"solicitud": {"...": "...", "nombre": "...", "decisiones": [{"tipo": "CHECK|CHECK_RETIRADO|...", "rol": "ADMINISTRADORA", "actor_cedula": "...", "actor_nombre": "...", "motivo": "", "fecha": "ISO"}]},
+ "cambios": [{"...": "Cambio", "valor_actual": "...", "conflicto": false}],
+ "proceso_nombre": "Fe de vida 2026",
+ "ficha": {"empleado": {"cedula": "...", "nombres": "...", "apellidos": "...", "sexo_nombre": "...", "fecha_nacimiento": "AAAA-MM-DD", "correo": "...", "telefono_movil": "...", "telefono_habitacion": "...",
+                         "datos_vivienda": {"estado_nombre": "..."}, "contacto_emergencia": [], "antecedentes": [], "asignaciones": [{"tipo_nomina": "...", "denominacion_cargo": "...", "dependencia": "...", "direccion_general": "...", "direccion_linea": "...", "coordinacion": "..."}]},
+           "familiares": [], "datos_complementarios": {"correo_alternativo": "...", "tiene_hijos": true}},
+ "acciones_disponibles": ["dar_check", "aprobar_directo", "devolver", "rechazar", "retirar_check"]}
+```
+- `ficha` (solo lectura, mismo contrato recortado de `autogestion/mi-expediente`, sin salud, formación, carnets ni foto) llega **solo con `fe_de_vida.revisar`**; con solo `ver_panel` es `null`.
+- `acciones_disponibles` las calcula el dominio para el usuario actual (`SolicitudFeDeVida.acciones_disponibles`); la interfaz solo las pinta. Quien ya dio su check ve solo `retirar_check` (y `aprobar_directo` si es la Administradora); quien no, `dar_check` (si su rol aún no lo dio), `aprobar_directo` (Administradora), `devolver` y `rechazar`.
+- `decisiones[].actor_nombre` solo viene en este detalle (nombre del revisor; la cédula si no se halla).
 
 ### GET `solicitudes/{id}/evidencia/`
-Permiso `fe_de_vida.ver_evidencia`. Response: `{url, expira_en_segundos}` (URL prefirmada corta; cada consulta se audita). 404 si no hay foto vigente.
+Permiso `fe_de_vida.ver_evidencia`. Response: los BYTES de la imagen (no JSON): `Content-Type` `image/jpeg|png|webp` (el MIME guardado), `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`. Se sirve por streaming desde Django (el almacén no es alcanzable desde el navegador). Cada consulta se audita (`EVIDENCIA_CONSULTADA`). 403 sin permiso; 404 si no hay foto vigente. El pasivo no tiene endpoint para releer su foto: la previsualiza en el cliente al subirla.
 
 ### POST `solicitudes/{id}/check/`
-Permiso `fe_de_vida.check_analista` o `fe_de_vida.check_administradora`. Sin cuerpo. Doble check en orden indistinto (otra persona y otro rol); el segundo valida. Response: Solicitud.
+Permiso `fe_de_vida.check_analista` o `fe_de_vida.check_administradora`. Sin cuerpo. Doble check en orden indistinto (otra persona y otro rol); el segundo valida. 409 «Usted ya aprobó esta fe de vida; la siguiente revisión corresponde a otra persona.» si ya dio su check. Response: Solicitud.
+
+### POST `solicitudes/{id}/retirar-check/`
+Permiso `fe_de_vida.check_analista` o `fe_de_vida.check_administradora` (el mismo con que se dio el check). Request `{"motivo": "..."}`: obligatorio, mínimo 5 palabras y 20 caracteres, máx. 500, sin HTML (400 si no cumple). Solo quien dio el check puede retirarlo y solo mientras la solicitud sigue en revisión: 409 si no tiene un check propio vigente o el estado no lo permite (`VALIDADA`, `RECHAZADA`, `DEVUELTA`...); 403 sin permiso. Sin checks restantes, la solicitud vuelve a `PENDIENTE_REVISION` y quien lo retiró recupera sus acciones. Queda en el historial como decisión `CHECK_RETIRADO` (actor, rol, motivo, fecha), se audita (`CHECK_RETIRADO`) y se notifica en el sistema a Bienestar (módulo `personal`, permiso `fe_de_vida.revisar`; sin correo). Atómico. Response: Solicitud.
 
 ### POST `solicitudes/{id}/aprobar-directo/`
-Permiso `fe_de_vida.aprobar_directo` (solo Administradora). Request `{"justificacion": "..."}` (obligatoria, máx. 500). Response: Solicitud `VALIDADA`.
+Permiso `fe_de_vida.aprobar_directo` (solo Administradora). Request `{"justificacion": "..."}` (obligatoria, máx. 500). La Administradora que ya dio su check puede usarla para cerrar sin esperar al Analista. Response: Solicitud `VALIDADA`.
 
 ### POST `solicitudes/{id}/rechazar/`
-Permiso `fe_de_vida.revisar`. Request `{"motivo": "..."}` (obligatorio, máx. 500). Rechazo **definitivo** (`RECHAZADA`). Response: Solicitud.
+Permiso `fe_de_vida.revisar`. Request `{"motivo": "..."}` (obligatorio, máx. 500). Rechazo **definitivo** (`RECHAZADA`). 409 si quien llama ya dio su check en la solicitud. Response: Solicitud.
 
 ### POST `solicitudes/{id}/devolver/`
-Permiso `fe_de_vida.revisar`. Request `{"motivo": "...", "requiere_nueva_foto": false}` (`motivo` obligatorio, máx. 500; `requiere_nueva_foto` opcional, `false` por defecto). Estado `DEVUELTA`: el pasivo corrige datos del acta y, si se pidió, la foto, y reenvía. Se avisa al pasivo (sistema y correo) con el motivo. Reemplaza a `solicitar-repeticion/` (esa ruta ya no existe). 409 si la solicitud no está pendiente de revisión. Response: Solicitud.
+Permiso `fe_de_vida.revisar`. Request `{"motivo": "...", "requiere_nueva_foto": false}` (`motivo` obligatorio, máx. 500; `requiere_nueva_foto` opcional, `false` por defecto). Estado `DEVUELTA`: el pasivo corrige datos del acta y, si se pidió, la foto, y reenvía. Se avisa al pasivo (sistema y correo) con el motivo. Reemplaza a `solicitar-repeticion/` (esa ruta ya no existe). 409 si la solicitud no está pendiente de revisión o si quien llama ya dio su check. Response: Solicitud.
 
 ---
 

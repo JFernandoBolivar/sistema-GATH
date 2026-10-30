@@ -69,7 +69,6 @@ def test_respuesta_archivo_sirve_por_streaming_sin_exponer_urls_de_almacenamient
     assert b"".join(resp.streaming_content) == b"abcd"
     assert resp["Content-Type"] == "image/png"
     assert resp["X-Content-Type-Options"] == "nosniff"
-    storage.url_firmada.assert_not_called()
 
 
 def test_respuesta_archivo_sin_clave_es_not_found():
@@ -138,7 +137,6 @@ def test_foto_empleado_post_guarda_con_clave_uuid_y_devuelve_ruta_de_la_api():
     assert storage.return_value.subir.call_args.args[2] == "image/png"
     assert guardar.call_args.kwargs["clave"] == clave
     assert resp.data["data"]["url"].startswith("/api/v1/personal/123/foto/")
-    storage.return_value.url_firmada.assert_not_called()
 
 
 def test_foto_empleado_get_sirve_el_binario_y_no_filtra_el_detalle_del_error():

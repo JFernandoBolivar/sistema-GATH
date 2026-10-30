@@ -38,21 +38,6 @@ def test_seaweedfs_storage_falla_cerrado_si_el_servidor_s3_es_inalcanzable():
         storage.descargar("documentos/cedula.pdf")
 
 
-def test_seaweedfs_storage_url_firmada_falla_cerrado_si_el_cliente_falla():
-    """`generate_presigned_url` es un cálculo local en boto3 (no valida que el
-    endpoint exista), así que se fuerza el fallo con un cliente que lanza al
-    firmar — igual debe traducirse a AlmacenamientoNoDisponible, no propagar
-    la excepción cruda de botocore ni devolver la URL falsa `?signature=mock`
-    que existía antes de CRIT-01."""
-    storage = SeaweedFSStorage(endpoint_url="http://mock-s3:8333")
-    cliente_falso = MagicMock()
-    cliente_falso.generate_presigned_url.side_effect = RuntimeError("firma inválida")
-    storage._s3_client = cliente_falso
-
-    with pytest.raises(AlmacenamientoNoDisponible):
-        storage.url_firmada("documentos/cedula.pdf", expira_segundos=600)
-
-
 def test_seaweedfs_storage_sube_correctamente_cuando_el_cliente_s3_funciona():
     """Camino feliz: con un cliente S3 que responde, subir() persiste de verdad
     (vía put_object) y retorna la clave — sin excepciones."""

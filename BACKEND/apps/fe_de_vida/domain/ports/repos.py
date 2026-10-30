@@ -134,6 +134,16 @@ class LectorPasivos(Protocol):
     def nombres_de(self, cedulas: list[str]) -> dict[str, str]: ...
 
 
+class LectorFichaPasivo(Protocol):
+    def ficha(self, cedula: str) -> dict:
+        """
+        Ficha de solo lectura del pasivo para la revisión: `{empleado, familiares, datos_complementarios}` con el
+        mismo contrato de `autogestion/mi-expediente` (vivienda y contactos con sus nombres de catálogo).
+        `NotFoundError` si no existe.
+        """
+        ...
+
+
 class RepoCobertura(Protocol):
     def listar(self, filtro: FiltroCobertura, limite: int, desplazamiento: int) -> tuple[list[PasivoCobertura], int]:
         """Pasivos (según su asignación laboral) sin correo o sin cuenta de acceso."""

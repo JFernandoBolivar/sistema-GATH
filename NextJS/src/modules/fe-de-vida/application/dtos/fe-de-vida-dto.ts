@@ -6,13 +6,14 @@ import type {
   CambioEntity,
   CoberturaEntity,
   DecisionEntity,
+  DetalleRevisionEntity,
   DetalleSolicitudEntity,
   PaginaEntity,
   ProcesoEntity,
   ProrrogaEntity,
   SolicitudEntity,
   TipoPensionEntity,
-  UrlEvidenciaEntity,
+  EvidenciaImagenEntity,
   VigenteEntity,
 } from "../../domain/entities/fe-de-vida";
 
@@ -20,12 +21,13 @@ export type DecisionDTO = DecisionEntity;
 export type SolicitudDTO = SolicitudEntity;
 export type CambioDTO = CambioEntity;
 export type DetalleSolicitudDTO = DetalleSolicitudEntity;
+export type DetalleRevisionDTO = DetalleRevisionEntity;
 export type ProcesoDTO = ProcesoEntity;
 export type VigenteDTO = VigenteEntity;
 export type ProrrogaDTO = ProrrogaEntity;
 export type CoberturaDTO = CoberturaEntity;
 export type TipoPensionDTO = TipoPensionEntity;
-export type UrlEvidenciaDTO = UrlEvidenciaEntity;
+export type EvidenciaImagenDTO = EvidenciaImagenEntity;
 export type PaginaDTO<T> = PaginaEntity<T>;
 
 /** Resultado serializable de una Server Action (nunca lanza al cliente). */

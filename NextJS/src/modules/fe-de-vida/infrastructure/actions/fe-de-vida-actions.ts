@@ -5,14 +5,15 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type {
   CoberturaDTO,
+  DetalleRevisionDTO,
   DetalleSolicitudDTO,
+  EvidenciaImagenDTO,
   PaginaDTO,
   ProcesoDTO,
   ProrrogaDTO,
   ResultadoAccion,
   SolicitudDTO,
   TipoPensionDTO,
-  UrlEvidenciaDTO,
   VigenteDTO,
 } from "../../application/dtos/fe-de-vida-dto";
 import {
@@ -30,9 +31,10 @@ import {
   devolverSolicitud,
   listarBandeja,
   obtenerDetalleRevision,
-  obtenerUrlEvidencia,
+  obtenerEvidencia,
   rechazarSolicitud,
   registrarCheck,
+  retirarCheck,
 } from "../../application/use-cases/gestionar-fe-de-vida-bienestar";
 import {
   abrirProceso,
@@ -169,23 +171,33 @@ export async function listarBandejaAction(
 
 export async function obtenerDetalleRevisionAction(
   id: string,
-): Promise<ResultadoAccion<DetalleSolicitudDTO>> {
+): Promise<ResultadoAccion<DetalleRevisionDTO>> {
   return ejecutar("feDeVida.detalle", "", "No se pudo cargar la solicitud.", () =>
     obtenerDetalleRevision(repo, idValido(id)),
   );
 }
 
-export async function obtenerUrlEvidenciaAction(
+/** Foto con la cédula: Django la sirve; la sesión viaja en el servidor y el navegador nunca ve el token. */
+export async function obtenerEvidenciaAction(
   id: string,
-): Promise<ResultadoAccion<UrlEvidenciaDTO>> {
-  return ejecutar("feDeVida.urlEvidencia", "", "No se pudo obtener la foto.", () =>
-    obtenerUrlEvidencia(repo, idValido(id)),
+): Promise<ResultadoAccion<EvidenciaImagenDTO>> {
+  return ejecutar("feDeVida.evidencia", "", "No se pudo obtener la foto.", () =>
+    obtenerEvidencia(repo, idValido(id)),
   );
 }
 
 export async function registrarCheckAction(id: string): Promise<ResultadoAccion<SolicitudDTO>> {
   return ejecutar("feDeVida.check", "Check registrado.", "No se pudo registrar el check.", () =>
     registrarCheck(repo, idValido(id)),
+  );
+}
+
+export async function retirarCheckAction(
+  id: string,
+  motivo: string,
+): Promise<ResultadoAccion<SolicitudDTO>> {
+  return ejecutar("feDeVida.retirarCheck", "Check retirado.", "No se pudo retirar el check.", () =>
+    retirarCheck(repo, idValido(id), motivo),
   );
 }
 

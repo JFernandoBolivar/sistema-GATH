@@ -118,18 +118,3 @@ class SeaweedFSStorage:
                 "No fue posible descargar el archivo del almacenamiento."
             ) from exc
         return resp['Body'].iter_chunks(chunk_size=tamano_bloque)
-
-    def url_firmada(self, clave: str, expira_segundos: int = 300) -> str:
-        """Genera una URL prefirmada temporal para visualización/descarga segura (D-01)."""
-        client = self._get_client()
-        try:
-            return client.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': self.bucket_name, 'Key': clave},
-                ExpiresIn=expira_segundos,
-            )
-        except Exception as exc:
-            logger.error("Error al generar URL prefirmada para %s: %s", clave, exc)
-            raise AlmacenamientoNoDisponible(
-                "No fue posible generar la URL de acceso al archivo."
-            ) from exc

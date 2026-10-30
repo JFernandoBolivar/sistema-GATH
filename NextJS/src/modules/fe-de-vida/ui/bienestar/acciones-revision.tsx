@@ -1,34 +1,51 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCheck, ShieldCheck, Undo2, XCircle } from "lucide-react";
+import { CheckCheck, RotateCcw, ShieldCheck, Undo2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { SolicitudDTO } from "../../application/dtos/fe-de-vida-dto";
-import { accionesDisponibles, primerCheck } from "../../domain/services/reglas";
+import { primerCheck, rolLegible, rolQueFalta } from "../../domain/services/reglas";
+import type { AccionRevision } from "../../domain/value-objects/estados";
 import {
   aprobarDirectoAction,
   devolverSolicitudAction,
   rechazarSolicitudAction,
   registrarCheckAction,
+  retirarCheckAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
-import { useSesionFeDeVida } from "../comun/use-sesion-fe-de-vida";
-import { DialogoDevolver, DialogoTexto } from "./dialogos-decision";
+import { formatearFechaHora } from "../comun/formato";
+import { DialogoDevolver, DialogoRetirarCheck, DialogoTexto } from "./dialogos-decision";
 
-type Dialogo = "devolver" | "rechazar" | "aprobar" | null;
+type Dialogo = "devolver" | "rechazar" | "aprobar" | "retirar" | null;
 
 interface Props {
   solicitud: SolicitudDTO;
+  /** Acciones que el servidor permite al usuario actual: aquí solo se pintan, la regla no se duplica. */
+  acciones: readonly AccionRevision[];
   onHecho: () => void;
 }
 
-/** Botones de la revisión: solo aparecen los que el permiso por código y el estado permiten. */
-export function AccionesRevision({ solicitud, onHecho }: Props) {
-  const { permisos, cedula } = useSesionFeDeVida();
+/** Mensaje de estado de la sección Decisión según quién dio el primer check. */
+export function mensajeEstadoCheck(
+  solicitud: SolicitudDTO,
+  acciones: readonly AccionRevision[],
+): string | null {
+  const primero = primerCheck(solicitud);
+  if (!primero) return null;
+  const fecha = formatearFechaHora(primero.fecha).replace(/\.$/, ""); // «p. m.» ya cierra con punto
+  if (acciones.includes("retirar_check")) {
+    return `Usted dio el primer check el ${fecha}. Falta el check de ${rolQueFalta(primero.rol)} de Bienestar Social.`;
+  }
+  return `Primer check dado por ${primero.actorNombre || primero.actorCedula} (${rolLegible(primero.rol)}) el ${fecha}.`;
+}
+
+/** Botones de la revisión: solo los que el servidor declara disponibles para quien mira. */
+export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
   const [dialogo, setDialogo] = useState<Dialogo>(null);
   const [pendiente, iniciar] = useTransition();
-  const acciones = accionesDisponibles(solicitud, permisos, cedula);
-  const primero = primerCheck(solicitud);
+  const tiene = (a: AccionRevision) => acciones.includes(a);
+  const mensaje = mensajeEstadoCheck(solicitud, acciones);
 
   function ejecutar(fn: () => ReturnType<typeof registrarCheckAction>) {
     iniciar(async () => {
@@ -43,42 +60,74 @@ export function AccionesRevision({ solicitud, onHecho }: Props) {
     });
   }
 
-  const hayAcciones = acciones.check || acciones.aprobarDirecto || acciones.devolver || acciones.rechazar;
-
   return (
     <section aria-labelledby="fv-acciones" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
       <h2 id="fv-acciones" className="text-lg font-semibold">
         Decisión
       </h2>
-      {primero ? (
+      {mensaje ? (
         <p role="status" className="text-base">
-          Primer check dado por la cédula {primero.actorCedula} ({primero.rol.toLowerCase()}).
+          {mensaje}
         </p>
       ) : null}
-      {!hayAcciones ? (
+      {acciones.length === 0 ? (
         <p className="text-base text-muted-foreground">
           No hay acciones disponibles para usted en este estado.
         </p>
       ) : (
         <div className="flex flex-wrap gap-3">
-          {acciones.check ? (
-            <Button type="button" className="min-h-11" disabled={pendiente} onClick={() => ejecutar(() => registrarCheckAction(solicitud.id))}>
+          {tiene("dar_check") ? (
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={pendiente}
+              onClick={() => ejecutar(() => registrarCheckAction(solicitud.id))}
+            >
               <CheckCheck aria-hidden /> Dar check
             </Button>
           ) : null}
-          {acciones.aprobarDirecto ? (
-            <Button type="button" variant="secondary" className="min-h-11" disabled={pendiente} onClick={() => setDialogo("aprobar")}>
+          {tiene("aprobar_directo") ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11"
+              disabled={pendiente}
+              onClick={() => setDialogo("aprobar")}
+            >
               <ShieldCheck aria-hidden /> Aprobación directa
             </Button>
           ) : null}
-          {acciones.devolver ? (
-            <Button type="button" variant="outline" className="min-h-11" disabled={pendiente} onClick={() => setDialogo("devolver")}>
+          {tiene("devolver") ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={pendiente}
+              onClick={() => setDialogo("devolver")}
+            >
               <Undo2 aria-hidden /> Devolver para corrección
             </Button>
           ) : null}
-          {acciones.rechazar ? (
-            <Button type="button" variant="destructive" className="min-h-11" disabled={pendiente} onClick={() => setDialogo("rechazar")}>
+          {tiene("rechazar") ? (
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-11"
+              disabled={pendiente}
+              onClick={() => setDialogo("rechazar")}
+            >
               <XCircle aria-hidden /> Rechazar
+            </Button>
+          ) : null}
+          {tiene("retirar_check") ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={pendiente}
+              onClick={() => setDialogo("retirar")}
+            >
+              <RotateCcw aria-hidden /> Retirar mi check
             </Button>
           ) : null}
         </div>
@@ -115,6 +164,14 @@ export function AccionesRevision({ solicitud, onHecho }: Props) {
           etiqueta="La justificación"
           textoBoton="Aprobar"
           onConfirmar={(t) => ejecutar(() => aprobarDirectoAction(solicitud.id, t))}
+        />
+      ) : null}
+      {dialogo === "retirar" ? (
+        <DialogoRetirarCheck
+          abierto
+          pendiente={pendiente}
+          onCerrar={() => setDialogo(null)}
+          onConfirmar={(motivo) => ejecutar(() => retirarCheckAction(solicitud.id, motivo))}
         />
       ) : null}
     </section>

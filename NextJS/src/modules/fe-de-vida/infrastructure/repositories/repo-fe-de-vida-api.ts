@@ -7,7 +7,7 @@ import {
   mapperProceso,
   mapperProrroga,
   mapperSolicitud,
-  mapperUrlEvidencia,
+  mapperDetalleRevision,
   mapperVigente,
 } from "../mappers/mapper-fe-de-vida";
 
@@ -71,13 +71,20 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
     );
   },
   async obtenerDetalleRevision(id) {
-    return mapperDetalle((await feDeVidaApi.detalleRevision(id)).data);
+    return mapperDetalleRevision((await feDeVidaApi.detalleRevision(id)).data);
   },
-  async obtenerUrlEvidencia(id) {
-    return mapperUrlEvidencia((await feDeVidaApi.urlEvidencia(id)).data);
+  async obtenerEvidencia(id) {
+    const blob = await feDeVidaApi.evidenciaImagen(id);
+    return {
+      mime: blob.type || "application/octet-stream",
+      base64: Buffer.from(await blob.arrayBuffer()).toString("base64"),
+    };
   },
   async registrarCheck(id) {
     return mapperSolicitud((await feDeVidaApi.check(id)).data);
+  },
+  async retirarCheck(id, motivo) {
+    return mapperSolicitud((await feDeVidaApi.retirarCheck(id, motivo)).data);
   },
   async aprobarDirecto(id, justificacion) {
     return mapperSolicitud((await feDeVidaApi.aprobarDirecto(id, justificacion)).data);

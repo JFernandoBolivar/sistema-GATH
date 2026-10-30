@@ -25,7 +25,9 @@ def _al_validar(
         if tipo is TipoEvento.APROBACION_DIRECTA:
             publicador.publicar(evento(TipoEvento.VALIDADA, guardada, actor.cedula, via=guardada.via_aprobacion.value))
     else:
-        publicador.publicar(evento(tipo, guardada, actor.cedula, rol=actor.rol.value, envio=guardada.envios))
+        publicador.publicar(evento(
+            tipo, guardada, actor.cedula, rol=actor.rol.value, envio=guardada.envios, secuencia=len(guardada.decisiones),
+        ))
     return guardada
 
 
@@ -72,5 +74,19 @@ def devolver(
     (publicador or PublicadorNulo()).publicar(evento(
         TipoEvento.DEVUELTA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios,
         requiere_nueva_foto=requiere_nueva_foto,
+    ))
+    return guardada
+
+
+def retirar_check(
+    repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
+    *, solicitud_id: str, actor: ActorRevision, motivo: str, ahora: datetime,
+) -> SolicitudFeDeVida:
+    """Retira el check propio (aún sin validación completa); justificación obligatoria. Avisa a Bienestar (sin correo)."""
+    solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
+    guardada = repo.guardar(solicitud.retirar_check(actor, motivo, ahora), solicitud.version)
+    (publicador or PublicadorNulo()).publicar(evento(
+        TipoEvento.CHECK_RETIRADO, guardada, actor.cedula, rol=actor.rol.value, envio=guardada.envios,
+        secuencia=len(guardada.decisiones), motivo=guardada.decisiones[-1].motivo,
     ))
     return guardada

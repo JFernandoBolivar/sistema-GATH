@@ -1,7 +1,7 @@
 import type { DecisionEntity, SolicitudEntity } from "../entities/fe-de-vida";
 
 export function decisionFake(p: Partial<DecisionEntity> = {}): DecisionEntity {
-  return { tipo: "CHECK", rol: "ANALISTA", actorCedula: "111", envio: 1, motivo: "", fecha: null, ...p };
+  return { tipo: "CHECK", rol: "ANALISTA", actorCedula: "111", actorNombre: "Ana Analista", envio: 1, motivo: "", fecha: null, ...p };
 }
 
 export function solicitudFake(p: Partial<SolicitudEntity> = {}): SolicitudEntity {

@@ -11,6 +11,7 @@ export interface DecisionApi {
   tipo: string;
   rol: string;
   actor_cedula: string;
+  actor_nombre?: string;
   envio: number;
   motivo: string;
   fecha: string | null;
@@ -49,6 +50,65 @@ export interface CambioApi {
 export interface DetalleApi {
   solicitud: SolicitudApi;
   cambios: CambioApi[];
+}
+
+type Nombrado = Record<string, unknown>;
+
+/** Ficha de solo lectura con el contrato de `autogestion/mi-expediente` (recortada). */
+export interface FichaApi {
+  empleado: {
+    cedula?: string;
+    nombres?: string;
+    apellidos?: string;
+    sexo_nombre?: string | null;
+    fecha_nacimiento?: string | null;
+    correo?: string | null;
+    telefono_movil?: string | null;
+    telefono_habitacion?: string | null;
+    datos_vivienda?: {
+      estado_id?: number | null;
+      municipio_id?: number | null;
+      estado_nombre?: string | null;
+      municipio_nombre?: string | null;
+      parroquia_nombre?: string | null;
+      codigo_postal_nombre?: string | null;
+      direccion_exacta?: string | null;
+      condicion_vivienda_nombre?: string | null;
+    } | null;
+    contacto_emergencia?: Array<{
+      id: number | string;
+      nombres?: string;
+      apellidos?: string;
+      telefono?: string | null;
+      relacion_nombre?: string | null;
+    }>;
+    antecedentes?: Array<Nombrado & { fecha_ingreso?: string | null; fecha_egreso?: string | null }>;
+    asignaciones?: Array<{
+      tipo_nomina?: string | null;
+      denominacion_cargo?: string | null;
+      dependencia?: string | null;
+      direccion_general?: string | null;
+      direccion_linea?: string | null;
+      coordinacion?: string | null;
+    }>;
+  };
+  familiares?: Array<{
+    id: number | string;
+    primer_nombre?: string;
+    segundo_nombre?: string | null;
+    primer_apellido?: string;
+    segundo_apellido?: string | null;
+    cedula_familiar?: string | null;
+    parentesco_nombre?: string | null;
+    fecha_nacimiento?: string | null;
+  }>;
+  datos_complementarios?: { correo_alternativo?: string | null; tiene_hijos?: boolean | null };
+}
+
+export interface DetalleRevisionApi extends DetalleApi {
+  proceso_nombre?: string;
+  ficha?: FichaApi | null;
+  acciones_disponibles?: string[];
 }
 
 export interface ProcesoApi {
@@ -100,11 +160,6 @@ export interface PaginaApi<T> {
 export interface TipoPensionApi {
   id: number;
   nombre: string;
-}
-
-export interface UrlEvidenciaApi {
-  url: string;
-  expira_en_segundos: number;
 }
 
 export interface CuerpoProceso {
@@ -163,10 +218,13 @@ export const feDeVidaApi = {
 
   bandeja: (params: Params) =>
     apiClient.get<ApiResponse<PaginaApi<SolicitudApi>>>(`${BASE}/solicitudes/`, { params }),
-  detalleRevision: (id: string) => apiClient.get<ApiResponse<DetalleApi>>(`${BASE}/solicitudes/${id}/`),
-  urlEvidencia: (id: string) =>
-    apiClient.get<ApiResponse<UrlEvidenciaApi>>(`${BASE}/solicitudes/${id}/evidencia/`),
+  detalleRevision: (id: string) =>
+    apiClient.get<ApiResponse<DetalleRevisionApi>>(`${BASE}/solicitudes/${id}/`),
+  /** Bytes de la foto (Django los sirve por streaming; el almacén no se expone). */
+  evidenciaImagen: (id: string) => apiClient.getBlob(`${BASE}/solicitudes/${id}/evidencia/`),
   check: (id: string) => apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/solicitudes/${id}/check/`),
+  retirarCheck: (id: string, motivo: string) =>
+    apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/solicitudes/${id}/retirar-check/`, { motivo }),
   aprobarDirecto: (id: string, justificacion: string) =>
     apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/solicitudes/${id}/aprobar-directo/`, {
       justificacion,

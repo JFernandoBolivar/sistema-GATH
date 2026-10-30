@@ -15,7 +15,16 @@ from apps.fe_de_vida.domain.value_objects.estados import (
     ViaAprobacion,
     validar_transicion_solicitud,
 )
+from apps.fe_de_vida.domain.services.validacion_motivo import validar_motivo
 from core.domain.exceptions import ConflictError, ValidationError
+
+MENSAJE_YA_DIO_CHECK = "Usted ya aprobó esta fe de vida; la siguiente revisión corresponde a otra persona."
+
+ACCION_CHECK = 'dar_check'
+ACCION_APROBAR_DIRECTO = 'aprobar_directo'
+ACCION_DEVOLVER = 'devolver'
+ACCION_RECHAZAR = 'rechazar'
+ACCION_RETIRAR_CHECK = 'retirar_check'
 
 
 @dataclass(frozen=True)
@@ -28,6 +37,15 @@ class ActorRevision:
     def __post_init__(self):
         if not self.cedula:
             raise ValidationError("El revisor debe identificarse.")
+
+
+@dataclass(frozen=True)
+class PermisosRevision:
+    """Qué puede hacer el revisor por sus permisos (la capa de presentación los traduce de los códigos)."""
+
+    revisar: bool = False
+    check: bool = False
+    aprobar_directo: bool = False
 
 
 @dataclass(frozen=True)
@@ -71,7 +89,41 @@ class SolicitudFeDeVida:
         return self.estado in ESTADOS_REVISABLES
 
     def checks_vigentes(self) -> tuple[DecisionFeDeVida, ...]:
-        return tuple(d for d in self.decisiones if d.tipo is TipoDecision.CHECK and d.envio == self.envios)
+        """Checks del envío en curso que no fueron retirados (un retiro anula el check previo de esa persona)."""
+        vigentes: list[DecisionFeDeVida] = []
+        for d in self.decisiones:
+            if d.envio != self.envios:
+                continue
+            if d.tipo is TipoDecision.CHECK:
+                vigentes.append(d)
+            elif d.tipo is TipoDecision.CHECK_RETIRADO:
+                vigentes = [c for c in vigentes if c.actor_cedula != d.actor_cedula]
+        return tuple(vigentes)
+
+    def dio_check(self, cedula: str) -> bool:
+        return any(d.actor_cedula == cedula for d in self.checks_vigentes())
+
+    def acciones_disponibles(self, actor: ActorRevision, permisos: PermisosRevision) -> tuple[str, ...]:
+        """
+        Acciones que `actor` puede ejecutar hoy sobre la solicitud (la regla vive aquí; la interfaz solo las pinta).
+        Quien ya dio su check no puede dar otro, devolver ni rechazar: solo retirarlo o, si es la Administradora,
+        aprobar de forma directa. Nadie revisa su propia fe de vida.
+        """
+        if not self.revisable or actor.cedula == self.cedula:
+            return ()
+        if self.dio_check(actor.cedula):
+            acciones = [ACCION_RETIRAR_CHECK]
+            if permisos.aprobar_directo and actor.rol is RolRevision.ADMINISTRADORA:
+                acciones.insert(0, ACCION_APROBAR_DIRECTO)
+            return tuple(acciones)
+        acciones = []
+        if permisos.check and not any(d.rol is actor.rol for d in self.checks_vigentes()):
+            acciones.append(ACCION_CHECK)
+        if permisos.aprobar_directo and actor.rol is RolRevision.ADMINISTRADORA:
+            acciones.append(ACCION_APROBAR_DIRECTO)
+        if permisos.revisar:
+            acciones += [ACCION_DEVOLVER, ACCION_RECHAZAR]
+        return tuple(acciones)
 
     # ── Trámite del pasivo ──
     def con_evidencia(
@@ -111,7 +163,7 @@ class SolicitudFeDeVida:
         self._exigir_revisable(actor)
         previos = self.checks_vigentes()
         if any(d.actor_cedula == actor.cedula for d in previos):
-            raise ConflictError("La misma persona no puede dar los dos checks.")
+            raise ConflictError(MENSAJE_YA_DIO_CHECK)
         if any(d.rol is actor.rol for d in previos):
             raise ConflictError(f"El check de {actor.rol.value} ya fue dado: falta el del otro rol.")
         decision = DecisionFeDeVida(TipoDecision.CHECK, actor.rol, actor.cedula, self.envios, ahora)
@@ -140,10 +192,28 @@ class SolicitudFeDeVida:
             decisiones=self.decisiones + (decision,), fecha_validacion=ahora,
         )
 
+    def retirar_check(self, actor: ActorRevision, motivo: str, ahora: datetime) -> 'SolicitudFeDeVida':
+        """
+        Quien dio un check que aún no completó la validación puede retirarlo (justificación obligatoria). Si no
+        queda ningún check vigente, la solicitud vuelve a PENDIENTE_REVISION. El retiro queda en el historial.
+        """
+        self._exigir_revisable(actor)
+        if not self.dio_check(actor.cedula):
+            raise ConflictError("Usted no tiene un check vigente en esta fe de vida para retirar.")
+        motivo = validar_motivo(motivo)
+        restantes = [d for d in self.checks_vigentes() if d.actor_cedula != actor.cedula]
+        nuevo = EstadoSolicitud.PENDIENTE_SEGUNDO_CHECK if restantes else EstadoSolicitud.PENDIENTE_REVISION
+        if nuevo is not self.estado:
+            validar_transicion_solicitud(self.estado, nuevo)
+        decision = DecisionFeDeVida(TipoDecision.CHECK_RETIRADO, actor.rol, actor.cedula, self.envios, ahora, motivo)
+        return replace(self, estado=nuevo, decisiones=self.decisiones + (decision,))
+
     def _cerrar_con_motivo(
         self, actor: ActorRevision, motivo: str, ahora: datetime, tipo: TipoDecision, nuevo: EstadoSolicitud,
     ) -> 'SolicitudFeDeVida':
         self._exigir_revisable(actor)
+        if self.dio_check(actor.cedula):
+            raise ConflictError(MENSAJE_YA_DIO_CHECK)
         if not motivo or not motivo.strip():
             raise ValidationError("Debe indicar el motivo.")
         validar_transicion_solicitud(self.estado, nuevo)

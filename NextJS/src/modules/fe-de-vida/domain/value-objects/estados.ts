@@ -15,7 +15,22 @@ export type EstadoSolicitud = (typeof ESTADOS_SOLICITUD)[number];
 export const ESTADOS_PROCESO = ["BORRADOR", "ABIERTO", "CERRADO"] as const;
 export type EstadoProceso = (typeof ESTADOS_PROCESO)[number];
 
-export type TipoDecision = "CHECK" | "APROBACION_DIRECTA" | "RECHAZO" | "DEVOLUCION";
+export type TipoDecision =
+  | "CHECK"
+  | "CHECK_RETIRADO"
+  | "APROBACION_DIRECTA"
+  | "RECHAZO"
+  | "DEVOLUCION";
+
+/** Acciones de revisión; las decide el dominio del servidor (`acciones_disponibles`). */
+export const ACCIONES_REVISION = [
+  "dar_check",
+  "aprobar_directo",
+  "devolver",
+  "rechazar",
+  "retirar_check",
+] as const;
+export type AccionRevision = (typeof ACCIONES_REVISION)[number];
 export type OrigenEvidencia = "CAMARA" | "ARCHIVO";
 
 export function esEstadoSolicitud(v: string): v is EstadoSolicitud {

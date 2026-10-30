@@ -1,31 +1,35 @@
 """
-Vistas de BIENESTAR SOCIAL (C5): bandeja, detalle con comparativo, foto (URL prefirmada de 90 s), doble check,
+Vistas de BIENESTAR SOCIAL (C5): bandeja, detalle con comparativo, foto (bytes por streaming), doble check,
 aprobación directa con justificación, rechazo y solicitud de repetición. Vistas delgadas; sin ORM.
 """
 from django.db import transaction
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.views import APIView
 
 from apps.fe_de_vida.application.use_cases.consultas import (
-    EXPIRA_URL_EVIDENCIA_SEGUNDOS,
     bandeja_revision,
     detalle_para_revision,
-    url_evidencia,
+    evidencia_para_revision,
 )
 from apps.fe_de_vida.application.use_cases.revision import (
     aprobar_directo,
     dar_check,
     rechazar,
+    retirar_check,
     devolver,
 )
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
+from apps.fe_de_vida.domain.entities.solicitud import PermisosRevision
 from apps.fe_de_vida.domain.value_objects.estados import RolRevision
 from apps.fe_de_vida.infrastructure.adaptadores_autogestion import (
     AplicadorCambiosActaORM,
     LectorValorActualORM,
     RepoCambiosActaORM,
 )
+from apps.fe_de_vida.infrastructure.repositories.lector_ficha_pasivo_orm import LectorFichaPasivoORM
 from apps.fe_de_vida.infrastructure.repositories.lector_pasivos_orm import LectorPasivosORM
+from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesFeDeVidaORM
 from apps.fe_de_vida.infrastructure.signals import PublicadorSenales
 from apps.fe_de_vida.presentation.permissions import fe_de_vida_permissions as permisos
@@ -36,7 +40,6 @@ from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     DevolverSerializer,
     MotivoSerializer,
     SolicitudSerializer,
-    UrlEvidenciaSerializer,
     a_dict_revision,
     a_dict_solicitud,
 )
@@ -52,7 +55,9 @@ from apps.fe_de_vida.presentation.views._comun import (
 )
 from core.domain.exceptions import PermissionDeniedError
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import ok
+from core.presentation.permissions import usuario_tiene_permiso
 from core.presentation.schema import MensajeRespuestaSerializer
 
 TAG = ['Fe de vida · Bienestar']
@@ -92,32 +97,47 @@ class DetalleRevisionView(APIView):
 
     @extend_schema(
         tags=TAG, summary='Detalle de una fe de vida con el comparativo valor actual / propuesto',
+        description='Incluye la ficha completa del pasivo (solo con `fe_de_vida.revisar`) y `acciones_disponibles` del '
+                    'usuario actual, calculadas por el dominio.',
         responses={200: DetalleRevisionSerializer, 403: MensajeRespuestaSerializer, 404: MensajeRespuestaSerializer},
     )
     def get(self, request, solicitud_id):
+        def puede(codigo):
+            return usuario_tiene_permiso(request.user, codigo)
+
+        permisos_revisor = PermisosRevision(
+            revisar=puede(permisos.REVISAR), aprobar_directo=puede(permisos.APROBAR_DIRECTO),
+            check=puede(permisos.CHECK_ANALISTA) or puede(permisos.CHECK_ADMINISTRADORA),
+        )
         detalle = detalle_para_revision(
             RepoSolicitudesFeDeVidaORM(), RepoCambiosActaORM(), LectorValorActualORM(), LectorPasivosORM(),
-            solicitud_id=str(solicitud_id),
+            solicitud_id=str(solicitud_id), lector_ficha=LectorFichaPasivoORM() if permisos_revisor.revisar else None,
+            actor=actor_revision(request), permisos=permisos_revisor, repo_procesos=RepoProcesosORM(),
         )
         return ok(a_dict_revision(detalle))
 
 
-class EvidenciaUrlView(APIView):
+class EvidenciaRevisionView(APIView):
     permission_classes = permisos.permisos_bienestar(permisos.VER_EVIDENCIA)
 
     @extend_schema(
-        tags=TAG, summary='URL prefirmada de la foto (vigencia corta; cada consulta se audita)',
-        responses={200: UrlEvidenciaSerializer, 403: MensajeRespuestaSerializer, 404: MensajeRespuestaSerializer},
+        tags=TAG, summary='Foto con la cédula (bytes de la imagen; cada consulta se audita)',
+        description='Responde la imagen (image/jpeg, image/png o image/webp) por streaming con `Cache-Control: '
+                    'private, no-store`. El almacén no se expone al navegador.',
+        responses={200: OpenApiTypes.BINARY, 403: MensajeRespuestaSerializer, 404: MensajeRespuestaSerializer},
     )
     def get(self, request, solicitud_id):
         actor = cedula_de_sesion(request)
         with transaction.atomic():
-            url = url_evidencia(
-                RepoSolicitudesFeDeVidaORM(), SeaweedFSStorage(), PublicadorSenales(),
-                solicitud_id=str(solicitud_id), actor_cedula=actor,
+            evidencia = evidencia_para_revision(
+                RepoSolicitudesFeDeVidaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id), actor_cedula=actor,
             )
-            auditar(request, 'EVIDENCIA_CONSULTADA', str(solicitud_id), None, {'expira_en_segundos': EXPIRA_URL_EVIDENCIA_SEGUNDOS})
-        return ok({'url': url, 'expira_en_segundos': EXPIRA_URL_EVIDENCIA_SEGUNDOS})
+            auditar(request, 'EVIDENCIA_CONSULTADA', str(solicitud_id), None, None)
+            respuesta = respuesta_archivo(
+                SeaweedFSStorage(), evidencia.clave, cache='private, no-store', mime=evidencia.mime or None,
+            )
+        respuesta['Content-Disposition'] = 'inline'
+        return respuesta
 
 
 class CheckView(APIView):
@@ -140,6 +160,31 @@ class CheckView(APIView):
             )
             auditar(request, 'CHECK_DADO', solicitud.id, previa, {**resumen(solicitud), 'rol': actor.rol.value})
         return ok(a_dict_solicitud(solicitud), 'Check registrado.')
+
+
+class RetirarCheckView(APIView):
+    permission_classes = permisos.permisos_bienestar(permisos.CHECK_ANALISTA, permisos.CHECK_ADMINISTRADORA)
+
+    @extend_schema(
+        tags=TAG, summary='Retirar mi check (solo quien lo dio, antes de que se complete la validación)',
+        description='Exige una justificación (mínimo 5 palabras y 20 caracteres, sin HTML). Sin checks restantes la '
+                    'solicitud vuelve a PENDIENTE_REVISION. Se audita (CHECK_RETIRADO) y se avisa a Bienestar. '
+                    '409 si no tiene un check propio vigente o el estado no lo permite.',
+        request=MotivoSerializer, responses={200: SolicitudSerializer, **ERRORES},
+    )
+    def post(self, request, solicitud_id):
+        datos = validar_entrada(MotivoSerializer, request.data)
+        actor = actor_revision(request, exigir_check=True)
+        with transaction.atomic():
+            repo = RepoSolicitudesFeDeVidaORM()
+            anterior = repo.obtener(str(solicitud_id))
+            previa = resumen(anterior) if anterior else None
+            solicitud = retirar_check(
+                repo, PublicadorSenales(), solicitud_id=str(solicitud_id), actor=actor, motivo=datos['motivo'], ahora=ahora(),
+            )
+            auditar(request, 'CHECK_RETIRADO', solicitud.id, previa,
+                    {**resumen(solicitud), 'rol': actor.rol.value, 'motivo': solicitud.decisiones[-1].motivo})
+        return ok(a_dict_solicitud(solicitud), 'Check retirado.')
 
 
 class AprobarDirectoView(APIView):

@@ -3,6 +3,7 @@ Estados y máquinas de transición de la fe de vida (PLAN_PRIORIDAD §2.2). Sin 
 
 Proceso:    BORRADOR -> ABIERTO -> CERRADO
 Solicitud:  BORRADOR -> PENDIENTE_REVISION -> PENDIENTE_SEGUNDO_CHECK -> VALIDADA -> ARCHIVADA
+            PENDIENTE_SEGUNDO_CHECK -> PENDIENTE_REVISION (el revisor retira su check, con justificación)
             PENDIENTE_* -> RECHAZADA (definitivo) | DEVUELTA (devuelta para corrección); motivo obligatorio en ambas
             DEVUELTA -> PENDIENTE_REVISION (reenvío) | EXPIRADA
             BORRADOR -> EXPIRADA (el proceso cerró sin prórroga); EXPIRADA -> BORRADOR (prórroga posterior)
@@ -40,7 +41,7 @@ E = EstadoSolicitud
 TRANSICIONES_SOLICITUD: dict[EstadoSolicitud, frozenset[EstadoSolicitud]] = {
     E.BORRADOR: frozenset({E.PENDIENTE_REVISION, E.EXPIRADA}),
     E.PENDIENTE_REVISION: frozenset({E.PENDIENTE_SEGUNDO_CHECK, E.VALIDADA, E.RECHAZADA, E.DEVUELTA}),
-    E.PENDIENTE_SEGUNDO_CHECK: frozenset({E.VALIDADA, E.RECHAZADA, E.DEVUELTA}),
+    E.PENDIENTE_SEGUNDO_CHECK: frozenset({E.PENDIENTE_REVISION, E.VALIDADA, E.RECHAZADA, E.DEVUELTA}),
     E.DEVUELTA: frozenset({E.PENDIENTE_REVISION, E.EXPIRADA}),
     E.VALIDADA: frozenset({E.ARCHIVADA}),
     E.RECHAZADA: frozenset(),
@@ -58,6 +59,7 @@ class RolRevision(str, Enum):
 
 class TipoDecision(str, Enum):
     CHECK = 'CHECK'
+    CHECK_RETIRADO = 'CHECK_RETIRADO'
     APROBACION_DIRECTA = 'APROBACION_DIRECTA'
     RECHAZO = 'RECHAZO'
     DEVOLUCION = 'DEVOLUCION'
