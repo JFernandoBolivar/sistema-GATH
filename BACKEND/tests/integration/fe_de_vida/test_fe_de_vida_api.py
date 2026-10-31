@@ -357,7 +357,7 @@ def test_bandeja_pagina_y_filtra(analista, administradora, pasivo):
     otro_proceso = ProcesoFeDeVidaModel.objects.create(
         nombre='Otro', fecha_apertura=timezone.now() - timedelta(days=9), fecha_cierre=timezone.now() + timedelta(days=9),
     )
-    ahora = timezone.now()
+    ahora = timezone.localtime()  # el filtro por fecha usa el día local (America/Caracas), no el UTC
     for i in range(12):
         SolicitudFeDeVidaModel.objects.create(
             proceso_id=pid, cedula=f'60000{i:02d}', estado='PENDIENTE_REVISION', fecha_envio=ahora - timedelta(days=i),
