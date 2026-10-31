@@ -232,6 +232,7 @@ def test_restablecer_acceso_usa_los_dias_configurados_en_el_parametro(base):
     r = cliente_con('identidad.restablecer_acceso').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/')
 
     assert r.status_code == 200, r.content
+    assert "vence en 3 días" in r.json()["message"]
     vence = PasswordInicialModel.objects.get(cuenta_id=cuenta.pk).vence_en
     assert timezone.now() + timedelta(days=2) < vence < timezone.now() + timedelta(days=4)
 

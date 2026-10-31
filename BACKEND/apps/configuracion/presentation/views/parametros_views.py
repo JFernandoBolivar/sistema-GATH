@@ -10,6 +10,7 @@ Vistas delgadas de los parámetros del sistema (D9).
 """
 import uuid
 
+from django.db import transaction
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -26,7 +27,6 @@ from apps.configuracion.domain.parametros import (
     RECURSO_AUDITORIA,
 )
 from apps.configuracion.domain.value_objects.paginacion import Paginacion
-from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
 from apps.configuracion.infrastructure.repositories.repo_parametros_orm import RepoParametrosORM
 from apps.configuracion.infrastructure.serializers.parametros_serializers import (
     CambioParametroSerializer,
@@ -37,6 +37,7 @@ from core.domain.configuracion import (
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     como_dias,
 )
+from core.infrastructure.providers import obtener_lector_configuracion
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
@@ -84,23 +85,26 @@ class ParametroView(APIView):
         serializer = ParametroActualizarSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        anterior, parametro = actualizar_parametro(
-            RepoParametrosORM(),
-            clave,
-            serializer.validated_data['valor'],
-            actor_id=getattr(request.user, 'pk', None),
-        )
-        registrar_auditoria(
-            trace_id=_trace(request),
-            accion=ACCION_PARAMETRO_ACTUALIZADO,
-            modulo=MODULO_AUDITORIA,
-            recurso_tipo=RECURSO_AUDITORIA,
-            recurso_id=clave,
-            estado_previo={'valor': anterior},
-            estado_nuevo={'valor': parametro.valor},
-            **_actor(request),
-            **origen_de_peticion(request),
-        )
+        # Guardado + auditoría en una sola transacción: si la auditoría falla,
+        # el parámetro no queda cambiado.
+        with transaction.atomic():
+            anterior, parametro = actualizar_parametro(
+                RepoParametrosORM(),
+                clave,
+                serializer.validated_data['valor'],
+                actor_id=getattr(request.user, 'pk', None),
+            )
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_PARAMETRO_ACTUALIZADO,
+                modulo=MODULO_AUDITORIA,
+                recurso_tipo=RECURSO_AUDITORIA,
+                recurso_id=clave,
+                estado_previo={'valor': anterior},
+                estado_nuevo={'valor': parametro.valor},
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
         return ok(ParametroSerializer(parametro).data, 'Parámetro actualizado correctamente.')
 
 
@@ -134,8 +138,9 @@ class RecordatoriosFeDeVidaView(APIView):
         summary='Días de recordatorio sugeridos para los procesos de fe de vida',
     )
     def get(self, request):
-        fila = ParametroSistemaModel.objects.filter(
-            clave=CLAVE_FE_DE_VIDA_RECORDATORIOS
-        ).values_list('valor', flat=True).first()
-        defecto = DEFINICIONES_POR_CLAVE[CLAVE_FE_DE_VIDA_RECORDATORIOS].defecto
-        return ok({'dias': list(como_dias(fila or defecto))})
+        lector = obtener_lector_configuracion()
+        if lector is not None:
+            texto = lector.obtener_texto(CLAVE_FE_DE_VIDA_RECORDATORIOS)
+        else:
+            texto = DEFINICIONES_POR_CLAVE[CLAVE_FE_DE_VIDA_RECORDATORIOS].defecto
+        return ok({'dias': list(como_dias(texto))})

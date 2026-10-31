@@ -75,6 +75,8 @@ export function requiereFotoNueva(s: SolicitudEntity): boolean {
   return s.estado === "DEVUELTA" && s.requiereNuevaFoto;
 }
 
+/** Respaldo de los días sugeridos si la configuración del servidor no responde (D11/B5). */
+export const DIAS_RECORDATORIO_RESPALDO: readonly number[] = [30, 15, 7, 3, 1];
 /** Mismo tope que el servidor (`MAX_DIAS_RECORDATORIO` del dominio de procesos). */
 export const MAX_DIAS_RECORDATORIO = 365;
 

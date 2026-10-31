@@ -17,43 +17,30 @@ from core.infrastructure.models.auditoria import AuditoriaLog
 
 class RepoParametrosORM:
     def listar(self) -> list[ParametroSistema]:
+        """Solo lectura: las filas se siembran en la migración `configuracion.0003`.
+
+        Si falta una fila (base antigua o clave nueva), se devuelve el valor por
+        defecto de la definición **sin escribir**; el GET nunca crea filas.
+        """
         existentes = {m.clave: m for m in ParametroSistemaModel.objects.all()}
         resultado: list[ParametroSistema] = []
         for definicion in DEFINICIONES:
             modelo = existentes.get(definicion.clave)
-            if modelo is None:
-                modelo = ParametroSistemaModel.objects.create(
-                    clave=definicion.clave,
-                    etiqueta=definicion.etiqueta,
-                    descripcion=definicion.descripcion,
-                    grupo=definicion.grupo,
-                    tipo=definicion.tipo,
-                    valor=definicion.defecto,
-                    valor_min=definicion.minimo,
-                    valor_max=definicion.maximo,
-                )
-            else:
-                modelo = self._sincronizar_metadatos(modelo, definicion)
-            resultado.append(replace(parametro_a_entidad(modelo), defecto=definicion.defecto))
+            if modelo is not None:
+                resultado.append(replace(parametro_a_entidad(modelo), defecto=definicion.defecto))
+                continue
+            resultado.append(ParametroSistema(
+                clave=definicion.clave,
+                etiqueta=definicion.etiqueta,
+                descripcion=definicion.descripcion,
+                grupo=definicion.grupo,
+                tipo=definicion.tipo,
+                valor=definicion.defecto,
+                defecto=definicion.defecto,
+                minimo=definicion.minimo,
+                maximo=definicion.maximo,
+            ))
         return resultado
-
-    @staticmethod
-    def _sincronizar_metadatos(modelo: ParametroSistemaModel, definicion) -> ParametroSistemaModel:
-        cambios = []
-        for campo, valor in (
-            ('etiqueta', definicion.etiqueta),
-            ('descripcion', definicion.descripcion),
-            ('grupo', definicion.grupo),
-            ('tipo', definicion.tipo),
-            ('valor_min', definicion.minimo),
-            ('valor_max', definicion.maximo),
-        ):
-            if getattr(modelo, campo) != valor:
-                setattr(modelo, campo, valor)
-                cambios.append(campo)
-        if cambios:
-            modelo.save(update_fields=[*cambios, 'updated_at'])
-        return modelo
 
     def obtener(self, clave: str) -> ParametroSistema | None:
         modelo = ParametroSistemaModel.objects.filter(clave=clave).first()

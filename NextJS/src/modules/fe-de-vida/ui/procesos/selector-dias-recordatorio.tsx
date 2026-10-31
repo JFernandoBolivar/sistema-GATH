@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import {
   MAX_DIAS_RECORDATORIO,
+  DIAS_RECORDATORIO_RESPALDO,
   describirDiaRecordatorio,
   normalizarDiasRecordatorio,
 } from "../../domain/services/reglas";
@@ -27,11 +28,17 @@ export function SelectorDiasRecordatorio({ valor, onCambiar, error }: Props) {
   const base = useId();
   const [otro, setOtro] = useState("");
   const [errorOtro, setErrorOtro] = useState<string | null>(null);
-  // D9: los días sugeridos son un parámetro del sistema; se leen del servidor.
-  const { data: sugeridos } = useSWR("config-dias-recordatorio-fe-de-vida", () =>
-    getDiasRecordatorioSugeridosAction(),
+  // D9/D11: los días sugeridos son un parámetro del sistema; se leen del servidor
+  // y, si la llamada falla o aún carga, se usan los de respaldo del dominio.
+  const { data: sugeridos } = useSWR(
+    "config-dias-recordatorio-fe-de-vida",
+    () => getDiasRecordatorioSugeridosAction(),
+    { fallbackData: [...DIAS_RECORDATORIO_RESPALDO], shouldRetryOnError: false },
   );
-  const diasSugeridos = Array.isArray(sugeridos) ? sugeridos : [];
+  const diasSugeridos =
+    Array.isArray(sugeridos) && sugeridos.length > 0
+      ? sugeridos
+      : DIAS_RECORDATORIO_RESPALDO;
   const opciones = normalizarDiasRecordatorio([...diasSugeridos, ...valor]);
 
   function alternar(dia: number, marcado: boolean) {

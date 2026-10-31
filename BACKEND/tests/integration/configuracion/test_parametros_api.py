@@ -1,9 +1,15 @@
 """API de parámetros del sistema (D9) contra la BD de pruebas."""
+import concurrent.futures
+from unittest.mock import patch
+
 import pytest
+from django.db import connection
 from rest_framework.test import APIClient
 
+from apps.configuracion.application.use_cases.gestionar_parametros import listar_parametros
 from apps.configuracion.infrastructure.lector_configuracion import LectorConfiguracionORM
 from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
+from apps.configuracion.infrastructure.repositories.repo_parametros_orm import RepoParametrosORM
 from core.domain.configuracion import (
     CLAVE_AUTOGESTION_AVISO_DIAS,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
@@ -110,3 +116,65 @@ def test_el_endpoint_de_recordatorios_refleja_el_parametro():
     api.put(f'{BASE}{CLAVE_FE_DE_VIDA_RECORDATORIOS}/', {'valor': '10,2'}, format='json')
     despues = api.get(f'{BASE}recordatorios-fe-de-vida/')
     assert data(despues)['dias'] == [10, 2]
+
+def test_el_get_no_crea_filas_y_usa_el_defecto_si_falta_una():
+    """B3: el listado es de solo lectura; las filas se siembran en la migración."""
+    ParametroSistemaModel.objects.filter(clave=CLAVE_AUTOGESTION_AVISO_DIAS).delete()
+    antes = ParametroSistemaModel.objects.count()
+
+    primera = cliente(PERMISO).get(BASE)
+    segunda = cliente(PERMISO).get(BASE)
+
+    assert primera.status_code == segunda.status_code == 200
+    assert ParametroSistemaModel.objects.count() == antes
+    faltante = next(p for p in data(primera) if p['clave'] == CLAVE_AUTOGESTION_AVISO_DIAS)
+    assert faltante['valor'] == faltante['defecto'] == '1'
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dos_lecturas_concurrentes_no_fallan():
+    """B3: dos lecturas simultáneas del listado no compiten por escribir."""
+    def leer(_):
+        try:
+            return len(listar_parametros(RepoParametrosORM()))
+        finally:
+            connection.close()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        resultados = list(pool.map(leer, range(2)))
+
+    assert resultados == [6, 6]
+
+
+def test_si_la_auditoria_falla_el_parametro_no_queda_cambiado():
+    """B4: guardado y auditoría comparten transacción."""
+    api = cliente(PERMISO)
+    api.raise_request_exception = False
+    url = f'{BASE}{CLAVE_AUTOGESTION_AVISO_DIAS}/'
+    original = LectorConfiguracionORM().obtener_entero(CLAVE_AUTOGESTION_AVISO_DIAS)
+
+    with patch(
+        'apps.configuracion.presentation.views.parametros_views.registrar_auditoria',
+        side_effect=RuntimeError('fallo de auditoría'),
+    ):
+        respuesta = api.put(url, {'valor': '3'}, format='json')
+
+    assert respuesta.status_code == 500
+    assert LectorConfiguracionORM().obtener_entero(CLAVE_AUTOGESTION_AVISO_DIAS) == original
+
+
+def test_recordatorios_usa_el_puerto_y_no_el_orm():
+    """B7: la vista de recordatorios lee el valor por el puerto."""
+    class LectorFalso:
+        def obtener_texto(self, clave):
+            assert clave == CLAVE_FE_DE_VIDA_RECORDATORIOS
+            return '9,2'
+
+    with patch(
+        'apps.configuracion.presentation.views.parametros_views.obtener_lector_configuracion',
+        return_value=LectorFalso(),
+    ):
+        respuesta = cliente().get(f'{BASE}recordatorios-fe-de-vida/')
+
+    assert respuesta.status_code == 200
+    assert data(respuesta)['dias'] == [9, 2]

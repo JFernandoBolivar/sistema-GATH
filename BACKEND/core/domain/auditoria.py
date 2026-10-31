@@ -3,15 +3,16 @@ Reglas puras de la bitácora de auditoría (D10): resultados válidos, enmascara
 de campos sensibles y diferencias legibles entre el estado anterior y el nuevo.
 Sin Django.
 """
+import re
 import unicodedata
 
 RESULTADOS = ('SUCCESS', 'FAILED', 'DENIED')
 MASCARA = '***'
 
 # Lista nombrada de campos que nunca deben salir de la bitácora: contraseñas,
-# tokens, hashes y secretos. La comparación normaliza acentos, guiones y
-# mayúsculas, y además cubre variantes que contienen estas palabras
-# (p. ej. `password_hash`).
+# claves, tokens, hashes y secretos. La comparación normaliza camelCase,
+# snake_case, acentos, guiones y mayúsculas, y además cubre variantes que
+# contienen estas palabras (p. ej. `password_hash`, `refreshToken`, `apiKey`).
 CAMPOS_SENSIBLES = (
     'password',
     'contrasena',
@@ -28,17 +29,31 @@ CAMPOS_SENSIBLES = (
     'cookie',
     'session',
     'jwt',
+    'clave',
+    'clave_acceso',
+    'clave_temporal',
+    'clave_secreta',
+    'clave_privada',
 )
 
-_PALABRAS_SENSIBLES = ('password', 'contrasena', 'token', 'hash', 'secret', 'authorization', 'cookie', 'jwt')
+_PALABRAS_SENSIBLES = (
+    'password', 'contrasena', 'token', 'hash', 'secret', 'authorization', 'cookie', 'jwt',
+)
+
+
+def _camel_a_snake(campo: str) -> str:
+    """`apiKey` → `api_key`, `refreshToken` → `refresh_token`, `APIKey` → `api_key`."""
+    paso1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', str(campo or ''))
+    paso2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', paso1)
+    return paso2.lower()
 
 
 def _normalizar(campo: str) -> str:
     sin_acentos = ''.join(
-        caracter for caracter in unicodedata.normalize('NFKD', str(campo or ''))
+        caracter for caracter in unicodedata.normalize('NFKD', _camel_a_snake(campo))
         if not unicodedata.combining(caracter)
     )
-    return sin_acentos.strip().lower().replace('-', '_')
+    return sin_acentos.strip().replace('-', '_')
 
 
 def es_campo_sensible(campo: str) -> bool:
@@ -64,16 +79,19 @@ def sanear_estado(estado):
     return estado
 
 
-def _aplanar(estado: dict | None, prefijo: str = '') -> dict:
+def _aplanar(valor, prefijo: str = '') -> dict:
+    """Aplana diccionarios y listas con índice en la ruta (`a.0.password`)."""
     resultado = {}
-    if not isinstance(estado, dict):
-        return resultado
-    for clave, valor in estado.items():
-        ruta = f'{prefijo}.{clave}' if prefijo else str(clave)
-        if isinstance(valor, dict):
-            resultado.update(_aplanar(valor, ruta))
-        else:
-            resultado[ruta] = valor
+    if isinstance(valor, dict):
+        for clave, item in valor.items():
+            ruta = f'{prefijo}.{clave}' if prefijo else str(clave)
+            resultado.update(_aplanar(item, ruta))
+    elif isinstance(valor, (list, tuple)):
+        for indice, item in enumerate(valor):
+            ruta = f'{prefijo}.{indice}' if prefijo else str(indice)
+            resultado.update(_aplanar(item, ruta))
+    elif prefijo:
+        resultado[prefijo] = valor
     return resultado
 
 
@@ -82,7 +100,8 @@ def diferencias(previo: dict | None, nuevo: dict | None) -> list[dict]:
 
     La comparación se hace sobre los valores reales (un cambio de contraseña sí
     es un cambio), pero lo que se devuelve nunca expone el valor: el campo
-    aparece con `***` en ambos lados.
+    aparece con `***` en ambos lados. Las listas también se aplanan, así que un
+    secreto dentro de una lista de diccionarios queda enmascarado.
     """
     antes = _aplanar(previo)
     despues = _aplanar(nuevo)
@@ -97,4 +116,3 @@ def diferencias(previo: dict | None, nuevo: dict | None) -> list[dict]:
             'despues': MASCARA if sensible else despues.get(campo),
         })
     return cambios
-

@@ -266,8 +266,9 @@ class UsuarioRestablecerAccesoView(views.APIView):
         tags=['Identidad'],
         summary='Restablece el acceso de un trabajador',
         description=(
-            'Repone la cédula como contraseña inicial con 7 días nuevos, exige cambiarla en el próximo '
-            'ingreso, revoca las sesiones abiertas y avisa por correo al trabajador.'
+            'Repone la cédula como contraseña inicial con los días configurados en el parámetro '
+            'de vigencia, exige cambiarla en el próximo ingreso, revoca las sesiones abiertas y '
+            'avisa por correo al trabajador.'
         ),
         request=None,
         responses={
@@ -280,6 +281,10 @@ class UsuarioRestablecerAccesoView(views.APIView):
     def post(self, request, id: int):
         repo = RepoCuentasORM()
         lector = obtener_lector_configuracion()
+        dias = (
+            lector.obtener_entero(CLAVE_PASSWORD_INICIAL_DIAS)
+            if lector is not None else 7
+        )
         cuenta = restablecer_acceso(
             repo,
             RepoPasswordInicialORM(),
@@ -287,14 +292,12 @@ class UsuarioRestablecerAccesoView(views.APIView):
             publicar_evento_identidad,
             id,
             timezone.now(),
-            dias_vigencia=(
-                lector.obtener_entero(CLAVE_PASSWORD_INICIAL_DIAS)
-                if lector is not None else 7
-            ),
+            dias_vigencia=dias,
         )
         return ok(
             CuentaLecturaSerializer(repo.obtener_por_id(cuenta.id), context={'repo': repo}).data,
-            'Acceso restablecido: la contraseña inicial vuelve a ser la cédula y vence en 7 días.',
+            f'Acceso restablecido: la contraseña inicial vuelve a ser la cédula y vence en '
+            f'{dias} día{"s" if dias != 1 else ""}.',
         )
 
 

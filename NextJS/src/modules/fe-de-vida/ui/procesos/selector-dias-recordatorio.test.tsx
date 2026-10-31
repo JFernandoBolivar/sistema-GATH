@@ -1,13 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { SelectorDiasRecordatorio } from "./selector-dias-recordatorio";
 
-// D9: los días sugeridos se leen del servidor; en el test se simulan la acción y la respuesta.
+// D11/B5: la llamada al servidor falla; el selector debe mostrar el respaldo del dominio.
 vi.mock("@/modules/configuracion/infrastructure/actions/parametros-actions", () => ({
-  getDiasRecordatorioSugeridosAction: vi.fn(),
-}));
-vi.mock("swr", () => ({
-  default: () => ({ data: [30, 15, 7, 3, 1], isLoading: false }),
+  getDiasRecordatorioSugeridosAction: vi.fn().mockRejectedValue(new Error("sin red")),
 }));
 
 describe("SelectorDiasRecordatorio", () => {
@@ -22,6 +19,17 @@ describe("SelectorDiasRecordatorio", () => {
       "false",
     );
     expect(screen.getByRole("button", { name: "30 días antes" })).toBeInTheDocument();
+  });
+
+  it("muestra los 5 chips de respaldo aunque la llamada al servidor falle", async () => {
+    render(<SelectorDiasRecordatorio valor={[]} onCambiar={() => {}} />);
+    await waitFor(() => {
+      for (const dia of [30, 15, 7, 3, 1]) {
+        expect(
+          screen.getByRole("button", { name: `${dia} ${dia === 1 ? "día" : "días"} antes` }),
+        ).toBeInTheDocument();
+      }
+    });
   });
 
   it("marcar y desmarcar cambia la lista", () => {
