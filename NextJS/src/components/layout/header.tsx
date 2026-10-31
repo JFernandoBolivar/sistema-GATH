@@ -4,7 +4,14 @@ import type { ModuloNotificaciones } from "@/modules/notificaciones/domain/entit
 import { CampanaNotificaciones } from "@/modules/notificaciones/ui/campana-notificaciones";
 import { SignOut } from "@/components/signout-button";
 import { BotonCambiarPassword } from "@/modules/auth/ui/boton-cambiar-password";
-import { Breadcrumb, BreadcrumbList } from "@/components/ui/breadcrumb";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,6 +24,10 @@ import { ChevronDownIcon } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  NOMBRE_ADMINISTRACION,
+  SECCION_POR_RUTA,
+} from "@/shared/lib/administracion-sistema";
 
 export function HeaderLayout({
   children,
@@ -41,6 +52,7 @@ export function HeaderLayout({
 
   const isPasivo = pasivoPath.some((p) => pathName.includes(p));
   const isActivo = activoPath.some((p) => pathName.includes(p));
+  const seccionAdministracion = SECCION_POR_RUTA[pathName[1] ?? ""];
 
   return (
     <header className="border-b border-border px-6 py-4 shadow-sm sticky top-0 bg-blue-900/100 w-full flex flex-row justify-between items-center z-50">
@@ -50,6 +62,21 @@ export function HeaderLayout({
           <div className="flex flex-col">
             <h1 className="text-xl font-semibold text-white">{title}</h1>
             {subtitle && <p className="text-sm text-white">{subtitle}</p>}
+            {seccionAdministracion && (
+              <Breadcrumb className="text-white mt-1.5">
+                <BreadcrumbList className="text-white text-sm">
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link href="/inicio">{NOMBRE_ADMINISTRACION}</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="text-white">{seccionAdministracion}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            )}
             {isRac && (isPasivo || isActivo) && (
               <Breadcrumb className="text-white mt-1.5 cursor-pointer">
                 <BreadcrumbList className="text-white">

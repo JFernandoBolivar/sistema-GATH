@@ -14,8 +14,8 @@ añade un sufijo propio. La restricción única de la campana es
 `(destinatario_cedula, clave_unica)` y **no** incluye el módulo: sin sufijos
 distintos, un trabajador que también tiene `personal.recibir_avisos_movimientos`
 (por ejemplo un ANALISTA) perdería su aviso de `autogestion` como duplicado.
-El correo queda detrás del ajuste `NOTIFICAR_MOVIMIENTOS_POR_CORREO` (por
-defecto apagado).
+El correo queda detrás del parámetro `notificaciones.movimientos_por_correo`
+(D9, Administración del sistema), apagado por defecto.
 """
 from datetime import datetime
 from typing import Protocol

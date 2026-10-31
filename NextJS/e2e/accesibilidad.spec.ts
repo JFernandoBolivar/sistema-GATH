@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { EMAIL, PASSWORD } from "./credenciales";
 import { iniciarSesionComo } from "./inicio-sesion";
 
 /**
@@ -53,8 +54,7 @@ const PERFILES = [
 ];
 
 for (const p of PERFILES) {
-  test.describe(`Accesibilidad · ${p.id}`, () => {
-    test.skip(!p.email || !p.password, `Faltan credenciales E2E del perfil ${p.id}`);
+  test.describe(`Accesibilidad · ${p.id}`, () => {    test.skip(!p.email || !p.password, `Faltan credenciales E2E del perfil ${p.id}`);
     test.describe.configure({ mode: "serial" });
     let page: Page;
 
@@ -85,3 +85,28 @@ for (const p of PERFILES) {
     });
   });
 }
+
+test.describe("Accesibilidad · Administración del sistema (D9/D10)", () => {
+  test.describe.configure({ mode: "serial" });
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+    page = await context.newPage();
+    await iniciarSesionComo(page, EMAIL, PASSWORD);
+  });
+  test.afterAll(async () => {
+    await page?.context().close();
+  });
+
+  for (const [ruta, espera] of [
+    ["/configuracion/parametros", /Parámetros del sistema/i],
+    ["/auditoria", /Bitácora de auditoría/i],
+  ] as const) {
+    test(`${ruta} sin violaciones serious/critical`, async () => {
+      await page.goto(ruta);
+      await expect(page.getByText(espera).first()).toBeVisible({ timeout: 45_000 });
+      await sinGraves(page);
+    });
+  }
+});

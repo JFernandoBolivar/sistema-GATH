@@ -12,7 +12,6 @@ que un fallo al notificar tumbe el movimiento.
 """
 import logging
 
-from django.conf import settings
 from django.db import transaction
 from django.dispatch import receiver
 
@@ -28,7 +27,8 @@ from apps.movimientos.domain.services.notificaciones_movimiento import (
     solicitudes_de_movimiento,
 )
 from apps.movimientos.infrastructure.repositories.repo_movimientos_orm import RepoMovimientosORM
-from core.infrastructure.providers import obtener_notificador
+from core.domain.configuracion import CLAVE_NOTIFICAR_MOVIMIENTOS_POR_CORREO
+from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
 
 logger = logging.getLogger('gath.movimientos')
 
@@ -77,7 +77,11 @@ def notificar_movimiento(movimiento, tipo_evento: str) -> None:
         return
     try:
         with transaction.atomic():
-            correo_activo = bool(getattr(settings, 'NOTIFICAR_MOVIMIENTOS_POR_CORREO', False))
+            lector = obtener_lector_configuracion()
+            correo_activo = (
+                lector.obtener_booleano(CLAVE_NOTIFICAR_MOVIMIENTOS_POR_CORREO)
+                if lector is not None else False
+            )
             for solicitud in solicitudes_de_movimiento(
                 movimiento, tipo_evento, correo_activo=correo_activo
             ):

@@ -17,6 +17,7 @@ from apps.autogestion.infrastructure.models.actualizacion_models import (
 )
 from apps.autogestion.infrastructure.tasks.avisar_ventanas_tasks import avisar_ventanas_por_expirar_tarea
 from apps.catalogos.infrastructure.models.catalogo_models import NacionalidadModel, SexoModel
+from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
 from apps.identidad.infrastructure.models.permiso_model import PermisoModel, RolPermisoModel
 from apps.identidad.infrastructure.models.usuario_permiso_model import UsuarioPermisoModel
@@ -25,6 +26,7 @@ from apps.notificaciones.infrastructure.models.outbox_model import EventoOutboxM
 from apps.notificaciones.infrastructure.resolutor_destinatarios_orm import ResolutorDestinatariosORM
 from apps.notificaciones.infrastructure.tasks import correo_tasks
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.domain.configuracion import CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO
 
 BASE = '/api/v1/notificaciones'
 AG = '/api/v1/autogestion'
@@ -332,8 +334,17 @@ def test_ventana_por_expirar_avisa_una_sola_vez_y_se_rearma_con_la_prorroga(mund
     assert lejana.cedula == OTRO and not avisos.filter(destinatario_cedula=OTRO).exists()
 
 
-def test_con_el_ajuste_activado_bienestar_tambien_recibe_correo_de_acceso(mundo, settings, django_capture_on_commit_callbacks):
-    settings.NOTIFICAR_BIENESTAR_POR_CORREO = True
+def test_con_el_ajuste_activado_bienestar_tambien_recibe_correo_de_acceso(mundo, django_capture_on_commit_callbacks):
+    ParametroSistemaModel.objects.update_or_create(
+        clave=CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO,
+        defaults={
+            'etiqueta': 'Avisar a Bienestar por correo',
+            'descripcion': 'prueba',
+            'grupo': 'notificaciones',
+            'tipo': 'booleano',
+            'valor': 'true',
+        },
+    )
     trabajador = cliente(TRABAJADOR, PERMISOS_TRAB, 1)
     with django_capture_on_commit_callbacks(execute=False):
         r = trabajador.post(f'{AG}/solicitudes/', {'campos': ['employee.telefono_movil'], 'motivo': 'Cambié mi número de teléfono móvil'}, format='json')

@@ -216,6 +216,22 @@ def test_prorroga_extiende_la_ventana_y_deja_registro():
     assert len(m.solicitudes.prorrogas) == 2  # repetible
 
 
+def test_el_maximo_de_prorrogas_configurado_se_respeta():
+    m = Mundo()
+    sol = habilitar(m, solicitar(m), dias=2)
+    prorrogar_ventana(
+        m.solicitudes, m.publicador, solicitud_id=sol.id,
+        nueva_fin=AHORA + timedelta(days=9), motivo='Primera', actor=BIENESTAR, ahora=AHORA,
+        max_prorrogas=1,
+    )
+    with pytest.raises(ConflictError):
+        prorrogar_ventana(
+            m.solicitudes, m.publicador, solicitud_id=sol.id,
+            nueva_fin=AHORA + timedelta(days=12), motivo='Segunda', actor=BIENESTAR, ahora=AHORA,
+            max_prorrogas=1,
+        )
+
+
 def test_expiracion_marca_vencidas_es_idempotente_y_bloquea_al_trabajador():
     m = Mundo()
     sol = habilitar(m, solicitar(m), dias=1)

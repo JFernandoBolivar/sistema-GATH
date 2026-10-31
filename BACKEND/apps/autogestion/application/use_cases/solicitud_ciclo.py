@@ -86,10 +86,15 @@ def habilitar_ventana(
 def prorrogar_ventana(
     repo: RepoSolicitudes, publicador: PublicadorEventos,
     *, solicitud_id: str, nueva_fin: datetime, motivo: str, actor: str, ahora: datetime,
+    max_prorrogas: int = 0,
 ) -> SolicitudActualizacion:
-    """Bienestar extiende la fecha límite (repetible); queda registro inmutable de cada prórroga."""
+    """Bienestar extiende la fecha límite (repetible hasta el máximo configurado); registro inmutable."""
     motivo = _texto_obligatorio(motivo, 'motivo de la prórroga')
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
+    if max_prorrogas > 0 and len(repo.listar_prorrogas(solicitud_id)) >= max_prorrogas:
+        raise ConflictError(
+            f'La ventana ya alcanzó el máximo de {max_prorrogas} prórrogas configurado.'
+        )
     prorrogada = solicitud.prorrogar(nueva_fin, ahora)
     repo.agregar_prorroga(ProrrogaVentana(
         id='', solicitud_id=solicitud_id, fecha_fin_anterior=solicitud.ventana_fin,

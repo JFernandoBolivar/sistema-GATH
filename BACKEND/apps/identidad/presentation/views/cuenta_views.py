@@ -36,6 +36,8 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
     RepoPermisosVersionORM,
 )
 from apps.identidad.infrastructure.signals import publicar_evento_identidad
+from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
+from core.infrastructure.providers import obtener_lector_configuracion
 from apps.identidad.infrastructure.providers.validadores_password import (
     validar_fortaleza_django,
 )
@@ -277,6 +279,7 @@ class UsuarioRestablecerAccesoView(views.APIView):
     )
     def post(self, request, id: int):
         repo = RepoCuentasORM()
+        lector = obtener_lector_configuracion()
         cuenta = restablecer_acceso(
             repo,
             RepoPasswordInicialORM(),
@@ -284,6 +287,10 @@ class UsuarioRestablecerAccesoView(views.APIView):
             publicar_evento_identidad,
             id,
             timezone.now(),
+            dias_vigencia=(
+                lector.obtener_entero(CLAVE_PASSWORD_INICIAL_DIAS)
+                if lector is not None else 7
+            ),
         )
         return ok(
             CuentaLecturaSerializer(repo.obtener_por_id(cuenta.id), context={'repo': repo}).data,

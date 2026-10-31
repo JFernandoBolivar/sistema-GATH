@@ -158,3 +158,23 @@ def test_el_seed_retira_los_avisos_de_movimientos_al_administrador():
     assert 'Asignaciones retiradas de ADMINISTRADOR: 1' in salida
     assert PERMISO_AVISOS_MOVIMIENTOS not in _codigos('ADMINISTRADOR')
     assert 'Asignaciones retiradas de ADMINISTRADOR' not in _seed()
+
+
+@pytest.mark.django_db
+def test_auditoria_queda_en_administrador_y_en_el_rol_auditor():
+    """D10: los tres códigos de auditoría y el rol AUDITOR nuevo."""
+    for rol_id, nombre in ((1, 'ADMINISTRADOR'), (2, 'ANALISTA')):
+        RolModel.objects.create(id=rol_id, nombre_rol=nombre)
+
+    _seed()
+
+    permisos_auditoria = {
+        'auditoria.ver_logs',
+        'auditoria.exportar',
+        'auditoria.ver_seguridad',
+    }
+    assert permisos_auditoria <= _codigos('ADMINISTRADOR')
+    assert RolModel.objects.filter(nombre_rol='AUDITOR').exists()
+    assert permisos_auditoria <= _codigos('AUDITOR')
+    assert 'notificaciones.ver_propias' in _codigos('AUDITOR')
+    assert not permisos_auditoria & _codigos('ANALISTA')

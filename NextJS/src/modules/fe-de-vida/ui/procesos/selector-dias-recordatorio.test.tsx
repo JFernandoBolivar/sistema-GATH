@@ -2,6 +2,14 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { SelectorDiasRecordatorio } from "./selector-dias-recordatorio";
 
+// D9: los días sugeridos se leen del servidor; en el test se simulan la acción y la respuesta.
+vi.mock("@/modules/configuracion/infrastructure/actions/parametros-actions", () => ({
+  getDiasRecordatorioSugeridosAction: vi.fn(),
+}));
+vi.mock("swr", () => ({
+  default: () => ({ data: [30, 15, 7, 3, 1], isLoading: false }),
+}));
+
 describe("SelectorDiasRecordatorio", () => {
   it("muestra las opciones sugeridas y marca las elegidas", () => {
     render(<SelectorDiasRecordatorio valor={[7]} onCambiar={() => {}} />);

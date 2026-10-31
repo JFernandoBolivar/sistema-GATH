@@ -34,6 +34,9 @@ from apps.identidad.domain.services.politica_movimientos import (
     es_movimiento_de_egreso,
     es_movimiento_de_ingreso,
 )
+from apps.identidad.domain.services.politica_password_inicial import (
+    DIAS_VIGENCIA_PASSWORD_INICIAL,
+)
 from apps.identidad.domain.value_objects.condicion_trabajador import CondicionTrabajador
 from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm import (
     RepoCondicionTrabajadorORM,
@@ -52,17 +55,23 @@ from apps.identidad.infrastructure.signals import (
 )
 from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-from core.infrastructure.providers import obtener_notificador
+from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
+from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
 
 logger = logging.getLogger('gath.identidad')
 
 
 def aprovisionar_por_cedula(cedula: str, permitir_pasivo: bool = False):
     """Alta automática de la cuenta de `cedula` si corresponde (idempotente)."""
+    lector = obtener_lector_configuracion()
+    dias = (
+        lector.obtener_entero(CLAVE_PASSWORD_INICIAL_DIAS)
+        if lector is not None else DIAS_VIGENCIA_PASSWORD_INICIAL
+    )
     return aprovisionar_cuenta_trabajador(
         RepoCuentasORM(), RepoCorreoAccesoORM(), RepoCondicionTrabajadorORM(), RepoPasswordInicialORM(),
         publicar_evento_identidad, cedula, settings.DOMINIO_CORREO_INSTITUCIONAL, timezone.now(),
-        permitir_pasivo=permitir_pasivo,
+        permitir_pasivo=permitir_pasivo, dias_vigencia=dias,
     )
 
 

@@ -23,6 +23,7 @@ def restablecer_acceso(
     publicar: Callable[[EventoIdentidad], None],
     cuenta_id: int,
     ahora: datetime,
+    dias_vigencia: int = 7,
 ) -> Cuenta:
     cuenta = repo_cuentas.obtener_por_id(cuenta_id)
     if cuenta is None:
@@ -31,7 +32,7 @@ def restablecer_acceso(
         raise ValidationError('La cuenta está desactivada: actívela antes de restablecer su acceso.')
 
     repo_cuentas.establecer_password(cuenta.id, cuenta.cedula)
-    repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora))
+    repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora, dias_vigencia))
     repo_version.incrementar_cuenta(cuenta.id)  # revoca las sesiones abiertas
     publicar(EventoIdentidad(
         tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula=cuenta.cedula,

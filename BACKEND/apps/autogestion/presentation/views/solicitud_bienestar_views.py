@@ -43,6 +43,8 @@ from apps.autogestion.infrastructure.repositories.repo_secciones_complementarios
 )
 from apps.autogestion.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesORM
 from apps.autogestion.infrastructure.signals import PublicadorSenales
+from core.domain.configuracion import CLAVE_AUTOGESTION_MAX_PRORROGAS
+from core.infrastructure.providers import obtener_lector_configuracion
 from apps.autogestion.presentation.serializers.actualizacion_serializers import (
     ConfigurarSeccionSerializer,
     DatosComplementariosEscrituraSerializer,
@@ -173,11 +175,16 @@ class ProrrogarVentanaView(APIView):
     )
     def post(self, request, solicitud_id):
         datos = validar_entrada(ProrrogarVentanaSerializer, request.data)
+        lector = obtener_lector_configuracion()
         with transaction.atomic():
             solicitud = prorrogar_ventana(
                 RepoSolicitudesORM(), PublicadorSenales(), solicitud_id=str(solicitud_id),
                 nueva_fin=datos['nueva_fecha_fin'], motivo=datos['motivo'],
                 actor=cedula_de_sesion(request), ahora=ahora(),
+                max_prorrogas=(
+                    lector.obtener_entero(CLAVE_AUTOGESTION_MAX_PRORROGAS)
+                    if lector is not None else 0
+                ),
             )
             auditar(request, 'VENTANA_PRORROGADA', solicitud.id, None,
                     {**resumen(solicitud), 'ventana_fin': solicitud.ventana_fin.isoformat(), 'motivo': datos['motivo']})

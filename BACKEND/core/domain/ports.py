@@ -163,3 +163,19 @@ class ResolutorCondicionTrabajador(Protocol):
     """
 
     def condicion_de(self, cedula: str) -> str: ...
+
+
+class LectorConfiguracion(Protocol):
+    """
+    Puerto de los parámetros del sistema editables (D9). Lo implementa
+    `apps.configuracion` y se registra en `core.infrastructure.providers` durante
+    su `AppConfig.ready()`; los módulos leen valores tipados y nunca importan
+    Django para ellos. Si la fila no existe todavía, el lector devuelve el
+    valor por defecto de la definición del parámetro.
+    """
+
+    def obtener_texto(self, clave: str) -> str: ...
+
+    def obtener_booleano(self, clave: str) -> bool: ...
+
+    def obtener_entero(self, clave: str) -> int: ...

@@ -4,12 +4,16 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { HeaderLayout } from "@/components/layout/header";
-import { AppSidebarPersonal } from "@/modules/personal/ui/components/app-sidebar-personal";
+import { AppSidebarSecurity } from "@/modules/identidad/ui/components/app-sidebar-security";
+import {
+  NOMBRE_ADMINISTRACION,
+  SECCION_CONFIGURACION,
+} from "@/shared/lib/administracion-sistema";
 
 /**
- * Shell de la configuración institucional: «Configuración visual» (HU 0009)
- * se alcanza desde el menú de personal y conserva la misma navegación que el
- * resto de las pantallas de RRHH.
+ * Shell de «Administración del sistema → Configuración». La configuración
+ * (parámetros e identidad visual) vive dentro del módulo de administración, con
+ * la misma navegación que Usuarios y roles (D9).
  */
 export default function ConfiguracionLayout({
   children,
@@ -18,15 +22,15 @@ export default function ConfiguracionLayout({
 }>) {
   return (
     <SidebarProvider>
-      <AppSidebarPersonal />
+      <AppSidebarSecurity />
       <SidebarInset className="bg-transparent">
         <HeaderLayout
-          title="Gestión Administrativa de Talento Humano - GATH"
-          subtitle="Gestiona y Visualiza la Información de los Trabajadores en Conatel"
-          moduloNotificaciones="personal"
-          rutaNotificaciones="/personal/notificaciones"
+          title={NOMBRE_ADMINISTRACION}
+          subtitle={SECCION_CONFIGURACION}
+          moduloNotificaciones="seguridad"
+          rutaNotificaciones="/usuarios/notificaciones"
         >
-          <SidebarTrigger className="text-white scale-110" />
+          <SidebarTrigger className="text-black-600 scale-110" />
         </HeaderLayout>
         <main className="w-full h-full overflow-auto">{children}</main>
       </SidebarInset>

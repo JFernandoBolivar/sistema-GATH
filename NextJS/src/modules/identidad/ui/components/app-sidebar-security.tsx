@@ -11,6 +11,8 @@ import {
   ListCheck,
   LucideIcon,
   PersonStanding,
+  Settings,
+  ShieldCheck,
   User,
 } from "lucide-react";
 
@@ -31,6 +33,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
+import {
+  RUTA_AUDITORIA,
+  RUTA_PARAMETROS,
+  RUTA_USUARIOS,
+  RUTA_VISUAL,
+  SECCION_CONFIGURACION,
+  SECCION_USUARIOS,
+} from "@/shared/lib/administracion-sistema";
 
 type MenuItem = {
   title: string;
@@ -62,44 +72,66 @@ const items: MenuItem[] = [
     icon: Bell,
   },
   {
-    
-    title: "Gestionar Usuarios",
+    title: SECCION_USUARIOS,
     url: "#",
     icon: User,
     subMenu: [
       {
-        title: "Registrar",
+        title: "Consultar usuarios",
+        url: RUTA_USUARIOS,
+        icon: List,
+        permiso: "identidad.ver_usuarios",
+      },
+      {
+        title: "Registrar usuario",
         url: "/usuarios/registrar",
         icon: PersonStanding,
         permiso: "identidad.crear_usuarios",
       },
       {
-        title: "Modificar",
+        title: "Modificar usuario",
         url: "/usuarios/modificar",
         icon: ListCheck,
         permiso: "identidad.editar_usuarios",
       },
-    ],
-  },
-  {
-    
-    title: "Gestionar Roles",
-    url: "#",
-    icon: IdCard,
-    subMenu: [
       {
-        title: "Registrar",
+        title: "Registrar rol",
         url: "/usuarios/roles/registrar",
         icon: BadgePlus,
         permiso: "identidad.crear_roles",
       },
       {
-        title: "Consultar",
+        title: "Consultar roles",
         url: "/usuarios/roles",
-        icon: List,
+        icon: IdCard,
         permiso: "identidad.editar_roles",
       },
     ],
+  },
+  {
+    title: SECCION_CONFIGURACION,
+    url: "#",
+    icon: Settings,
+    subMenu: [
+      {
+        title: "Parámetros del sistema",
+        url: RUTA_PARAMETROS,
+        icon: Settings,
+        permiso: "configuracion.editar",
+      },
+      {
+        title: "Identidad visual",
+        url: RUTA_VISUAL,
+        icon: BookCheck,
+        permiso: "configuracion.editar",
+      },
+    ],
+  },
+  {
+    title: "Bitácora de auditoría",
+    url: RUTA_AUDITORIA,
+    icon: ShieldCheck,
+    permiso: "auditoria.ver_logs",
   },
   {
     icon: BookCheck,

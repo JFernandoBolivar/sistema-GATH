@@ -1,16 +1,17 @@
 "use client";
 
 import { useId, useState } from "react";
+import useSWR from "swr";
 import { Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Toggle } from "@/components/ui/toggle";
 import {
-  DIAS_RECORDATORIO_SUGERIDOS,
   MAX_DIAS_RECORDATORIO,
   describirDiaRecordatorio,
   normalizarDiasRecordatorio,
 } from "../../domain/services/reglas";
+import { getDiasRecordatorioSugeridosAction } from "@/modules/configuracion/infrastructure/actions/parametros-actions";
 
 interface Props {
   valor: readonly number[];
@@ -26,7 +27,12 @@ export function SelectorDiasRecordatorio({ valor, onCambiar, error }: Props) {
   const base = useId();
   const [otro, setOtro] = useState("");
   const [errorOtro, setErrorOtro] = useState<string | null>(null);
-  const opciones = normalizarDiasRecordatorio([...DIAS_RECORDATORIO_SUGERIDOS, ...valor]);
+  // D9: los días sugeridos son un parámetro del sistema; se leen del servidor.
+  const { data: sugeridos } = useSWR("config-dias-recordatorio-fe-de-vida", () =>
+    getDiasRecordatorioSugeridosAction(),
+  );
+  const diasSugeridos = Array.isArray(sugeridos) ? sugeridos : [];
+  const opciones = normalizarDiasRecordatorio([...diasSugeridos, ...valor]);
 
   function alternar(dia: number, marcado: boolean) {
     onCambiar(marcado ? [...valor, dia] : valor.filter((d) => d !== dia));

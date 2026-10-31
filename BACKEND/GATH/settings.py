@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'apps.movimientos',
     'apps.configuracion',
     'apps.puntocuenta',
+    'apps.auditoria',
 ]
 
 AUTH_USER_MODEL = 'identidad.CuentaModel'
@@ -208,8 +209,9 @@ EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=20, cast=int)
 # Outbox de correo (A3): intentos antes de marcar FALLIDO y base del backoff exponencial (60, 120, 240, 480 s...).
 NOTIFICACIONES_CORREO_MAX_INTENTOS = config('NOTIFICACIONES_CORREO_MAX_INTENTOS', default=5, cast=int)
 NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS = config('NOTIFICACIONES_CORREO_BACKOFF_SEGUNDOS', default=60, cast=int)
-# Autogestión (B7): horas de antelación del aviso «su ventana está por expirar».
-AUTOGESTION_AVISO_EXPIRACION_HORAS = config('AUTOGESTION_AVISO_EXPIRACION_HORAS', default=24, cast=int)
+# Autogestión (B7): el aviso «su ventana está por expirar» y los correos a
+# Bienestar/movimientos son parámetros editables (D9, Administración del sistema →
+# Configuración), no ajustes de entorno.
 # Reportes (G3): tope de filas de un reporte descargable (PDF/Excel/JSON). Es un
 # límite de tamaño del documento, no de paginación: se avisa en la UI con
 # `truncado` cuando se alcanza. 0 o negativo = sin tope (JSON/Excel).
@@ -228,12 +230,6 @@ FE_DE_VIDA_URL_VERIFICACION = config(
 )
 # Dominio que se completa cuando el usuario inicia sesión con su correo sin dominio (usuario -> usuario@dominio).
 DOMINIO_CORREO_INSTITUCIONAL = config('DOMINIO_CORREO_INSTITUCIONAL', default='conatel.gob.ve')
-# Autogestión: si Bienestar además recibe por correo (correo de acceso) los avisos de solicitud nueva,
-# actualización enviada y corrección reenviada. Pendiente de confirmar: por defecto solo en el sistema.
-NOTIFICAR_BIENESTAR_POR_CORREO = config('NOTIFICAR_BIENESTAR_POR_CORREO', default=False, cast=bool)
-# G8: correo de los avisos de movimientos de personal. POR CONFIRMAR: por defecto
-# solo se notifica en el sistema (mismo patrón que el ajuste de Bienestar).
-NOTIFICAR_MOVIMIENTOS_POR_CORREO = config('NOTIFICAR_MOVIMIENTOS_POR_CORREO', default=False, cast=bool)
 
 # ─── Celery (Etapa A1, D-02) ─────────────────────────────────────────────────
 # Broker RabbitMQ (vhost `gath`): compose.yml arma CELERY_BROKER_URL desde

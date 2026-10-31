@@ -13,21 +13,26 @@ producir un `ResultadoReporte`, sin escribir una plantilla nueva.
 """
 from datetime import datetime
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Spacer
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from core.infrastructure.pdf.pdf_components import create_data_table, create_header, draw_footer
-from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG
+from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
 
 
 def generar_reporte_pdf(
     titulo: str, columnas: list[str], filas: list[dict], orientation: str = 'landscape', config: dict | None = None,
+    filtros: list[tuple[str, str]] | None = None,
 ) -> bytes:
     """
     `config` (opcional, HU 0009): dict plano con el cintillo configurado
     (ver `core/infrastructure/pdf/pdf_components.py`). `None` preserva el
     comportamiento hardcodeado anterior a esta HU.
+
+    `filtros` (opcional, D10): pares (etiqueta, valor) que se imprimen al inicio,
+    con las etiquetas legibles que aplicó el reporte; nunca IDs sueltos.
     """
     generado_en = datetime.now()
     page_config = PAGE_CONFIG.get(orientation, PAGE_CONFIG['landscape'])
@@ -84,11 +89,20 @@ def generar_reporte_pdf(
 
     from core.infrastructure.pdf.pdf_components import create_stats_box
 
-    story = [
+    estilos = get_paragraph_styles()
+    story = []
+    if filtros:
+        story.append(Paragraph('<b>Filtros aplicados</b>', estilos['TableCell']))
+        for etiqueta, valor in filtros:
+            story.append(Paragraph(
+                f'<b>{escape(str(etiqueta))}:</b> {escape(str(valor))}', estilos['TableCell'],
+            ))
+        story.append(Spacer(1, 4 * mm))
+    story.extend([
         create_stats_box(stats, width=ancho_disponible),
         Spacer(1, 4 * mm),
         create_data_table(columnas, filas, col_widths=col_widths),
-    ]
+    ])
 
     def _en_pagina(canvas, doc_):
         canvas.saveState()

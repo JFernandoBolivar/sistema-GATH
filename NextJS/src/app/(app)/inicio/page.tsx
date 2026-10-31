@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 
 const MODULOS = [
-  { href: "/usuarios", label: "Identidad / Usuarios", desc: "Gestión de cuentas y permisos" },
+  { href: "/usuarios", label: "Administración del sistema", desc: "Usuarios, roles, configuración y auditoría" },
   { href: "/personal", label: "Personal", desc: "Empleados activos" },
   { href: "/cargos", label: "Cargos", desc: "Asignación y vacantes" },
   { href: "/familiares", label: "Cargas familiares", desc: "Familiares de empleados" },

@@ -19,12 +19,12 @@ test.describe("Seguridad UI - Paridad 100% con referencia", () => {
     await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
 
     // HeaderLayout
-    await expect(page.getByRole("heading", { name: "Gestión De Usuarios" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Administración del sistema" })).toBeVisible();
 
     // AppSidebarSecurity
     await expect(page.locator("img[alt='Logo 1']")).toBeVisible();
-    await expect(page.getByText("Gestionar Usuarios")).toBeVisible();
-    await expect(page.getByText("Gestionar Roles")).toBeVisible();
+    await expect(page.getByText("Usuarios y roles").first()).toBeVisible();
+    await expect(page.getByText("Configuración").first()).toBeVisible();
 
     // Welcome title
     await expect(page.getByText("Bienvenid@ a")).toBeVisible();
@@ -64,7 +64,7 @@ test.describe("Seguridad UI - Paridad 100% con referencia", () => {
     await expect(page.getByRole("heading", { name: "Registrar Usuarios" })).toBeVisible();
     await expect(page.getByText("Registrar Como Usuario A Un Trabajador")).toBeVisible();
     await expect(page.getByLabel("Cedula")).toBeVisible();
-    await expect(page.getByLabel("Contraseña")).toBeVisible();
+    await expect(page.getByLabel("Contraseña", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Registrar Usuario" })).toBeVisible();
 
     await page.screenshot({ path: `${ARTIFACT_DIR}/3_seguridad_registrar.png` });

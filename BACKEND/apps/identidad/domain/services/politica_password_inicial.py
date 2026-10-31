@@ -8,8 +8,8 @@ MENSAJE_PASSWORD_INICIAL_VENCIDA = (
 )
 
 
-def vencimiento_desde(ahora: datetime) -> datetime:
-    return ahora + timedelta(days=DIAS_VIGENCIA_PASSWORD_INICIAL)
+def vencimiento_desde(ahora: datetime, dias: int = DIAS_VIGENCIA_PASSWORD_INICIAL) -> datetime:
+    return ahora + timedelta(days=dias)
 
 
 def es_correo_institucional(correo: str, dominio: str) -> bool:

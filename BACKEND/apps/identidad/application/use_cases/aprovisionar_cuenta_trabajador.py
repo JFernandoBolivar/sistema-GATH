@@ -36,6 +36,7 @@ def aprovisionar_cuenta_trabajador(
     dominio_institucional: str,
     ahora: datetime,
     permitir_pasivo: bool = False,
+    dias_vigencia: int = DIAS_VIGENCIA_PASSWORD_INICIAL,
 ) -> Cuenta | None:
     """Crea la cuenta si corresponde; devuelve la cuenta nueva o None si no hacía falta/no aplica.
 
@@ -61,8 +62,8 @@ def aprovisionar_cuenta_trabajador(
     cuenta = registrar_usuario(
         repo_cuentas, RegistrarCuentaDTO(cedula=cedula, password=cedula, rol_id=ROL_AUTOGESTION_ID)
     )
-    repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora))
+    repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora, dias_vigencia))
     publicar(EventoIdentidad(
-        tipo=TipoEventoIdentidad.CUENTA_CREADA, cedula=cedula, dias_vigencia=DIAS_VIGENCIA_PASSWORD_INICIAL,
+        tipo=TipoEventoIdentidad.CUENTA_CREADA, cedula=cedula, dias_vigencia=dias_vigencia,
     ))
     return cuenta

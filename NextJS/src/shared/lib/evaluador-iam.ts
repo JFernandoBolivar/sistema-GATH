@@ -144,6 +144,7 @@ export const RUTA_A_MODULO: Record<string, string> = {
   notificaciones: 'notificaciones',
   bienestar: 'bienestar',
   'fe-de-vida': 'fe_de_vida',
+  auditoria: 'auditoria',
 };
 
 export const PERMISOS_DE_ENTRADA: Record<string, string[]> = {
@@ -171,6 +172,7 @@ export const PERMISOS_DE_ENTRADA: Record<string, string[]> = {
   notificaciones: ['notificaciones.ver_propias'],
   bienestar: ['bienestar.ver_solicitudes'],
   fe_de_vida: ['fe_de_vida.solicitar', 'fe_de_vida.ver_propia', 'fe_de_vida.ver_panel'],
+  auditoria: ['auditoria.ver_logs'],
 };
 
 /** Módulo de un código de permiso (`personal.ver` → `personal`). */

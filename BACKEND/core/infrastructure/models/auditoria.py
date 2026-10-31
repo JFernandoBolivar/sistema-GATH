@@ -40,6 +40,9 @@ class AuditoriaLog(models.Model):
         ordering = ['-fecha_hora']
         indexes = [
             models.Index(fields=['modulo', 'accion']),
+            # D10: filtros de la bitácora por usuario y por resultado dentro de un rango de fechas.
+            models.Index(fields=['actor_cedula']),
+            models.Index(fields=['resultado', 'fecha_hora']),
         ]
 
     def __str__(self) -> str:

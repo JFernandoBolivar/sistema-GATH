@@ -23,8 +23,9 @@ from apps.fe_de_vida.infrastructure.repositories.repo_constancias_orm import Rep
 from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesFeDeVidaORM
 from apps.fe_de_vida.infrastructure.signals import evento_fe_de_vida, evento_fe_de_vida_en_transaccion
+from core.domain.configuracion import CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO
 from core.domain.exceptions import DomainError
-from core.infrastructure.providers import obtener_notificador
+from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 
 logger = logging.getLogger('gath.fe_de_vida')
@@ -36,9 +37,13 @@ def notificar_evento_fe_de_vida(sender, evento, **kwargs):
     if notificador is None:
         logger.warning('sin Notificador registrado: el evento %s no genera avisos', evento.tipo.value)
         return
+    lector = obtener_lector_configuracion()
     try:
         with transaction.atomic():
-            correo_bienestar = getattr(settings, 'NOTIFICAR_BIENESTAR_POR_CORREO', False)
+            correo_bienestar = (
+                lector.obtener_booleano(CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO)
+                if lector is not None else False
+            )
             for solicitud in solicitudes_de_evento(evento, correo_bienestar):
                 notificador.notificar(solicitud)
     except DomainError:

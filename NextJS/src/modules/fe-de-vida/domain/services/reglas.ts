@@ -75,8 +75,6 @@ export function requiereFotoNueva(s: SolicitudEntity): boolean {
   return s.estado === "DEVUELTA" && s.requiereNuevaFoto;
 }
 
-/** Días sugeridos para los recordatorios previos al cierre (de mayor a menor). */
-export const DIAS_RECORDATORIO_SUGERIDOS: readonly number[] = [30, 15, 7, 3, 1];
 /** Mismo tope que el servidor (`MAX_DIAS_RECORDATORIO` del dominio de procesos). */
 export const MAX_DIAS_RECORDATORIO = 365;
 

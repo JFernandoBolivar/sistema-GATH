@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Boxes, Home } from "lucide-react";
 import LogoutButton from "@/modules/auth/ui/logout-button";
+import { NOMBRE_ADMINISTRACION, RUTA_USUARIOS } from "@/shared/lib/administracion-sistema";
 
 const SECCIONES = [
   { href: "/inicio", label: "Inicio" },
-  { href: "/usuarios", label: "Identidad / Usuarios" },
+  { href: RUTA_USUARIOS, label: NOMBRE_ADMINISTRACION },
   { href: "/personal", label: "Personal" },
   { href: "/cargos", label: "Cargos" },
   { href: "/familiares", label: "Cargas familiares" },

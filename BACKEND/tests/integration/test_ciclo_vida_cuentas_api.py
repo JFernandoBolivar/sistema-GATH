@@ -24,6 +24,7 @@ from apps.identidad.domain.services.politica_password_inicial import (
     MENSAJE_PASSWORD_INICIAL_VENCIDA,
 )
 from apps.identidad.domain.value_objects.condicion_trabajador import CondicionTrabajador
+from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
 from apps.identidad.infrastructure.models.desactivacion_egreso_model import DesactivacionEgresoModel
 from apps.identidad.infrastructure.models.password_inicial_model import PasswordInicialModel
@@ -34,6 +35,7 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
 from apps.notificaciones.infrastructure.models.notificacion_model import NotificacionModel
 from apps.notificaciones.infrastructure.models.outbox_model import EventoOutboxModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
 
 URL_LOGIN = '/api/v1/identidad/auth/login/'
 BASE = '/api/v1/identidad'
@@ -215,6 +217,23 @@ def test_restablecer_acceso_exige_permiso(base):
     r = cliente_con('identidad.ver_usuarios').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/')
 
     assert r.status_code == 403
+
+
+def test_restablecer_acceso_usa_los_dias_configurados_en_el_parametro(base):
+    ParametroSistemaModel.objects.update_or_create(
+        clave=CLAVE_PASSWORD_INICIAL_DIAS,
+        defaults={
+            'etiqueta': 'Vigencia', 'descripcion': 'prueba', 'grupo': 'plazos',
+            'tipo': 'entero', 'valor': '3', 'valor_min': 1, 'valor_max': 365,
+        },
+    )
+    cuenta = cuenta_con_cedula()
+
+    r = cliente_con('identidad.restablecer_acceso').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/')
+
+    assert r.status_code == 200, r.content
+    vence = PasswordInicialModel.objects.get(cuenta_id=cuenta.pk).vence_en
+    assert timezone.now() + timedelta(days=2) < vence < timezone.now() + timedelta(days=4)
 
 
 # ─── Aviso al cambiar la contraseña ───

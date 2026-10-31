@@ -375,6 +375,15 @@ ROLES_NUEVOS = {
         "Administradora de Bienestar: check de la Administradora, aprobación directa y parametrización.",
         ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] + PERMISOS_BIENESTAR_ADMIN,
     ),
+    "AUDITOR": (
+        "Auditor de solo lectura: consulta la bitácora y los incidentes de seguridad.",
+        [
+            "auditoria.ver_logs",
+            "auditoria.exportar",
+            "auditoria.ver_seguridad",
+            "notificaciones.ver_propias",
+        ],
+    ),
 }
 # ADMINISTRADOR conserva todo el catálogo (incluidos los códigos nuevos), salvo
 # las exclusiones nombradas arriba.
