@@ -172,6 +172,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
                 tipo_movimiento='INGRESO',
                 motivo_id=motivo_id,
                 usuario_id=usuario_id,
+                origen=events.ORIGEN_CARGOS,
             )
 
         return self.obtener_cargo(cargo_id)
@@ -195,6 +196,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
                 tipo_movimiento='CAMBIO DE ESTATUS',
                 motivo_id=motivo_id,
                 usuario_id=usuario_id,
+                origen=events.ORIGEN_CARGOS,
             )
 
         return self.obtener_cargo(cargo_id)
@@ -344,6 +346,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
                 tipo_movimiento='INGRESO',
                 motivo_id=datos.get('motivo_id'),
                 usuario_id=usuario_id,
+                origen=events.ORIGEN_CARGOS,
             )
 
         return self.obtener_cargo(fila.pk)
@@ -452,6 +455,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             dependencia_nueva_id=nuevo.Dependencia_id,
             motivo_id=motivo_id,
             usuario_id=usuario_id,
+            origen=events.ORIGEN_CARGOS,
         )
 
         return self.obtener_cargo(nuevo.pk)
@@ -492,6 +496,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
                 tipo_movimiento='CAMBIO DE ESTATUS',
                 motivo_id=motivo_id,
                 usuario_id=usuario_id,
+                origen=events.ORIGEN_CARGOS,
             )
 
         return self.obtener_cargo(cargo_id)

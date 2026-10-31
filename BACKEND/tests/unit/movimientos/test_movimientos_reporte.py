@@ -174,6 +174,16 @@ def test_traslado_notifica_a_rrhh_y_al_trabajador():
     assert al_trabajador.enlace == '/autogestion'
 
 
+def test_el_aviso_del_trabajador_tiene_clave_propia():
+    """G12-1: RRHH y el trabajador no comparten clave (la unicidad no mira el módulo)."""
+    a_rrhh, al_trabajador = solicitudes_de_movimiento(_movimiento(), TIPO_TRASLADO)
+
+    assert a_rrhh.clave == '1'
+    assert al_trabajador.clave == '1:trabajador'
+    assert a_rrhh.clave != al_trabajador.clave
+    assert a_rrhh.ref_id == al_trabajador.ref_id == '1'
+
+
 def test_egreso_no_notifica_al_trabajador():
     solicitudes = solicitudes_de_movimiento(_movimiento(), TIPO_EGRESO)
 

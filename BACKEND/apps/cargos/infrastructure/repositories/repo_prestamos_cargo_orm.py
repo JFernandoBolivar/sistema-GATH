@@ -156,6 +156,7 @@ class RepoPrestamosCargoORM:
             tipo_movimiento='CAMBIO DE ESTATUS',
             motivo_id=motivo_id,
             usuario_id=usuario_id,
+            origen=events.ORIGEN_CARGOS,
         )
 
         return self._obtener_prestamo(prestamo.pk)

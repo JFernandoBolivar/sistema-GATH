@@ -37,9 +37,13 @@ import {
 import { Badge } from "@/shared/ui/components/badge";
 import { DataTable } from "@/shared/ui/components/data-table";
 import Loading from "@/shared/ui/components/loading";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { MovimientoCargoDTO, PaginaMovimientosDTO } from "../application/dtos/movimientos-dto";
+import {
+  puedeExportarMovimientosExcel,
+  puedeExportarMovimientosPdf,
+  puedeVerMovimientos,
+} from "../application/use-cases/permisos-movimiento";
 import type {
   CatalogoTiposMovimientoInfo,
   FiltrosMovimiento,
@@ -131,8 +135,9 @@ type TipoConsulta = { tipo: "empleado" | "cargo" | "general"; valor: string } | 
 export default function MovimientosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const esAdmin = tienePermiso(permisos, "*");
-  const puedeVer = esAdmin || tienePermiso(permisos, "movimientos.ver");
+  const puedeVer = puedeVerMovimientos(permisos);
+  const puedeExportarPdf = puedeExportarMovimientosPdf(permisos);
+  const puedeExportarExcel = puedeExportarMovimientosExcel(permisos);
 
   const [movimientos, setMovimientos] = useState<MovimientoCargoDTO[]>([]);
   const [busquedaLibre, setBusquedaLibre] = useState("");
@@ -342,6 +347,9 @@ export default function MovimientosPage() {
   }, [movimientos, busquedaLibre]);
 
   const descargar = async (formato: "pdf" | "excel") => {
+    const autorizado =
+      formato === "pdf" ? puedeExportarPdf : puedeExportarExcel;
+    if (!autorizado) return;
     const marcarExportando = formato === "pdf" ? setExportandoPdf : setExportandoExcel;
     marcarExportando(true);
     setAvisoTope(null);
@@ -665,24 +673,30 @@ export default function MovimientosPage() {
                   {totalMovimientos} movimiento(s) · página {paginaActual} de {totalPaginas}
                 </Badge>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={exportandoPdf}
-                    onClick={() => descargar("pdf")}
-                  >
-                    {exportandoPdf ? "Generando PDF…" : "Descargar PDF"}
-                  </Button>
-                  <Button
-                    type="button"
-                    disabled={exportandoExcel}
-                    onClick={() => descargar("excel")}
-                    className="bg-emerald-600 hover:bg-emerald-800"
-                  >
-                    {exportandoExcel ? "Generando Excel…" : "Descargar Excel"}
-                  </Button>
-                </div>
+                {(puedeExportarPdf || puedeExportarExcel) && (
+                  <div className="flex items-center gap-2">
+                    {puedeExportarPdf && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={exportandoPdf}
+                        onClick={() => descargar("pdf")}
+                      >
+                        {exportandoPdf ? "Generando PDF…" : "Descargar PDF"}
+                      </Button>
+                    )}
+                    {puedeExportarExcel && (
+                      <Button
+                        type="button"
+                        disabled={exportandoExcel}
+                        onClick={() => descargar("excel")}
+                        className="bg-emerald-600 hover:bg-emerald-800"
+                      >
+                        {exportandoExcel ? "Generando Excel…" : "Descargar Excel"}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

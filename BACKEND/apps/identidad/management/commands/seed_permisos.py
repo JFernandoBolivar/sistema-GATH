@@ -167,10 +167,16 @@ PERMISOS_CATALOGO = [
     ("auditoria.exportar", "Exportar la bitácora de auditoría"),
 ]
 
+# Permisos del catálogo que el rol ADMINISTRADOR NO recibe (G12): los avisos de
+# movimientos son operativos de RRHH y Bienestar, no de administración del sistema.
+PERMISOS_EXCLUIDOS_ADMINISTRADOR = frozenset({
+    "personal.recibir_avisos_movimientos",
+})
+
 # Matriz de asignación por ID de rol conocido
 ROL_ASIGNACIONES = {
-    # 1: ADMINISTRADOR -> Todos los permisos
-    1: [p[0] for p in PERMISOS_CATALOGO],
+    # 1: ADMINISTRADOR -> Todos los permisos, salvo las exclusiones nombradas
+    1: [p[0] for p in PERMISOS_CATALOGO if p[0] not in PERMISOS_EXCLUIDOS_ADMINISTRADOR],
 
     # 2: ANALISTA -> Gestión operativa completa de RRHH
     2: [
@@ -336,6 +342,10 @@ PERMISOS_RETIRADOS = ("bienestar.check_analista", "bienestar.check_administrador
 # excepciones individuales de usuario.
 ASIGNACIONES_RETIRADAS = {
     "ANALISTA_BIENESTAR": ("fe_de_vida.gestionar_procesos", "fe_de_vida.prorrogar"),
+    # G12: aunque el rol 1 conserva casi todo el catálogo, los avisos de
+    # movimientos quedan solo para RRHH y Bienestar. Retirarlo aquí hace que
+    # volver a correr el seed quite una asignación heredada.
+    "ADMINISTRADOR": ("personal.recibir_avisos_movimientos",),
 }
 
 ROL_ASIGNACIONES[2] += ["fe_de_vida.verificar_constancia"]
@@ -366,8 +376,11 @@ ROLES_NUEVOS = {
         ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] + PERMISOS_BIENESTAR_ADMIN,
     ),
 }
-# ADMINISTRADOR conserva todo el catálogo (incluidos los códigos nuevos).
-ROL_ASIGNACIONES[1] = [p[0] for p in PERMISOS_CATALOGO]
+# ADMINISTRADOR conserva todo el catálogo (incluidos los códigos nuevos), salvo
+# las exclusiones nombradas arriba.
+ROL_ASIGNACIONES[1] = [
+    p[0] for p in PERMISOS_CATALOGO if p[0] not in PERMISOS_EXCLUIDOS_ADMINISTRADOR
+]
 
 
 class Command(BaseCommand):

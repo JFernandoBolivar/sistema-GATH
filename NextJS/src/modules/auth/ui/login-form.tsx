@@ -48,7 +48,7 @@ export default function LoginForm() {
       // Navegacion dura (no router.push): el Router Cache de Next.js puede
       // reutilizar una entrada prefetcheada antes del login (con session=null).
       // Un location.href fuerza una carga completa que re-ejecuta el
-      // RootLayout con la sesion ya autenticada en /dashboard.
+      // RootLayout con la sesion ya autenticada en /inicio.
       window.location.href = "/inicio";
     });
   }

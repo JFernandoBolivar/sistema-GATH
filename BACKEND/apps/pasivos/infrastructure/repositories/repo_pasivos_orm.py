@@ -209,6 +209,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
                 tipo_movimiento='EGRESO',
                 motivo_id=motivo_movimiento_id,
                 usuario_id=usuario_id,
+                origen=events.ORIGEN_PASIVOS,
             )
 
         return pasivo_desde_asignacion(nueva_asig)

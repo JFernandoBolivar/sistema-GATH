@@ -16,7 +16,11 @@ from django.conf import settings
 from django.db import transaction
 from django.dispatch import receiver
 
-from apps.cargos.domain.events import cargo_movimiento_ejecutado
+from apps.cargos.domain.events import (
+    ORIGEN_CARGOS,
+    ORIGEN_SOBREVIVIENTES,
+    cargo_movimiento_ejecutado,
+)
 from apps.movimientos.application.use_cases.registrar_movimiento import registrar_movimiento
 from apps.movimientos.domain.services.notificaciones_movimiento import (
     TIPO_INGRESO,
@@ -28,13 +32,18 @@ from core.infrastructure.providers import obtener_notificador
 
 logger = logging.getLogger('gath.movimientos')
 
-# El evento lo emite el repositorio de sobrevivientes para dar de alta a un
-# familiar beneficiario como personal pasivo (mismo evento, distinto origen).
-SENDER_SOBREVIVIENTES = 'RepoSobrevivientesORM'
-
 
 @receiver(cargo_movimiento_ejecutado)
-def despachar_registro_historial(sender, cargo_id, cedula, tipo_movimiento, motivo_id, usuario_id, **kwargs):
+def despachar_registro_historial(
+    sender,
+    cargo_id,
+    cedula,
+    tipo_movimiento,
+    motivo_id,
+    usuario_id,
+    origen=ORIGEN_CARGOS,
+    **kwargs,
+):
     if not cedula:
         # Sin empleado en el puesto (p. ej. desasignar un cargo ya vacante)
         # no hay a quién atribuirle el movimiento — se omite el registro.
@@ -49,13 +58,13 @@ def despachar_registro_historial(sender, cargo_id, cedula, tipo_movimiento, moti
         usuario_id=usuario_id,
     )
     if movimiento is not None:
-        tipo_evento = _tipo_de_evento(sender, tipo_movimiento)
+        tipo_evento = _tipo_de_evento(origen, tipo_movimiento)
         transaction.on_commit(lambda: notificar_movimiento(movimiento, tipo_evento))
 
 
-def _tipo_de_evento(sender, tipo_movimiento: str) -> str:
-    """El alta de un sobreviviente llega como INGRESO desde el repositorio de pasivos."""
-    if tipo_movimiento == TIPO_INGRESO and getattr(sender, '__name__', '') == SENDER_SOBREVIVIENTES:
+def _tipo_de_evento(origen: str, tipo_movimiento: str) -> str:
+    """El alta de un sobreviviente llega como INGRESO y se distingue por `origen`."""
+    if tipo_movimiento == TIPO_INGRESO and origen == ORIGEN_SOBREVIVIENTES:
         return TIPO_SOBREVIVIENTE
     return tipo_movimiento
 

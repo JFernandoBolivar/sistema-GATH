@@ -9,9 +9,13 @@ Destinatarios:
 - El trabajador afectado (bandeja `autogestion`), salvo en un egreso: su cuenta
   queda desactivada.
 
-La `clave` es el id del movimiento, de modo que reprocesar el mismo hecho no
-duplica avisos. El correo queda detrás del ajuste
-`NOTIFICAR_MOVIMIENTOS_POR_CORREO` (por defecto apagado).
+La `clave` del aviso a RRHH es el id del movimiento; la del aviso al trabajador
+añade un sufijo propio. La restricción única de la campana es
+`(destinatario_cedula, clave_unica)` y **no** incluye el módulo: sin sufijos
+distintos, un trabajador que también tiene `personal.recibir_avisos_movimientos`
+(por ejemplo un ANALISTA) perdería su aviso de `autogestion` como duplicado.
+El correo queda detrás del ajuste `NOTIFICAR_MOVIMIENTOS_POR_CORREO` (por
+defecto apagado).
 """
 from datetime import datetime
 from typing import Protocol
@@ -28,6 +32,11 @@ MODULO_RRHH = 'personal'
 MODULO_TRABAJADOR = 'autogestion'
 ENLACE_RRHH = '/movimientos'
 ENLACE_TRABAJADOR = '/autogestion'
+
+# Sufijo de la clave del aviso al trabajador: la campana deduplica por
+# (destinatario, clave) sin mirar el módulo, así que RRHH y el trabajador no
+# pueden compartir clave aunque el hecho sea el mismo.
+SUFIJO_CLAVE_TRABAJADOR = 'trabajador'
 
 TIPO_INGRESO = 'INGRESO'
 TIPO_TRASLADO = 'TRASLADO'
@@ -90,7 +99,6 @@ def solicitudes_de_movimiento(
         'tipo': tipo_notificacion,
         'ref_tipo': REF_TIPO,
         'ref_id': str(movimiento.id),
-        'clave': str(movimiento.id),
     }
     detalle = _detalle(movimiento)
     correo_rrhh = (
@@ -101,6 +109,7 @@ def solicitudes_de_movimiento(
     solicitudes = [
         SolicitudNotificacion(
             **comunes,
+            clave=str(movimiento.id),
             permiso_destino=PERMISO_AVISOS_MOVIMIENTOS,
             modulo=MODULO_RRHH,
             enlace=ENLACE_RRHH,
@@ -117,6 +126,7 @@ def solicitudes_de_movimiento(
     if tipo_evento in TIPOS_QUE_NOTIFICAN_AL_TRABAJADOR:
         solicitudes.append(SolicitudNotificacion(
             **comunes,
+            clave=f'{movimiento.id}:{SUFIJO_CLAVE_TRABAJADOR}',
             cedula_destino=movimiento.empleado_cedula,
             modulo=MODULO_TRABAJADOR,
             enlace=ENLACE_TRABAJADOR,

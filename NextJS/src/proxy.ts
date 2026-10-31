@@ -31,6 +31,10 @@ export default proxy((req) => {
   // redirección a "/inicio", el selector de inicio de la arquitectura nueva.
   const RUTA_INICIO = "/inicio";
   const RUTA_LEGADA_DASHBOARD = "/dashboard";
+  // Página legada del censo de vivienda (G12): el censo vigente es el del portal
+  // de autogestión. Se conserva la URL como redirección para enlaces antiguos.
+  const RUTA_LEGADA_CENSO = "/censo-vivienda";
+  const RUTA_CENSO_VIGENTE = "/autogestion/censo";
 
   // Rutas que puede abrir un recepcionista / usuario de solo lectura.
   const RUTAS_RECEPCIONISTA = [
@@ -65,6 +69,11 @@ export default proxy((req) => {
   // Enlaces y marcadores del shell legado `(protected)/dashboard` (G7).
   if (nextUrl.pathname === RUTA_LEGADA_DASHBOARD) {
     return NextResponse.redirect(new URL(RUTA_INICIO, nextUrl));
+  }
+
+  // Enlaces y marcadores del censo legado fuera del portal (G12).
+  if (nextUrl.pathname === RUTA_LEGADA_CENSO) {
+    return NextResponse.redirect(new URL(RUTA_CENSO_VIGENTE, nextUrl));
   }
 
   if (publicRoutes.includes(nextUrl.pathname) && isLoggedIn) {

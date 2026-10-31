@@ -4,10 +4,16 @@ determinista, RN-008-01, truncado y PDF con filtros; y los avisos del sistema
 que genera el evento `cargo_movimiento_ejecutado`.
 """
 import datetime
+from io import StringIO
 
 import pytest
+from django.core.management import call_command
 
-from apps.cargos.domain.events import cargo_movimiento_ejecutado
+from apps.cargos.domain.events import (
+    ORIGEN_CARGOS,
+    ORIGEN_SOBREVIVIENTES,
+    cargo_movimiento_ejecutado,
+)
 from apps.cargos.infrastructure.models.cargo_models import (
     AsigTrabajoModel,
     DenominacionCargoEspecificoModel,
@@ -123,6 +129,7 @@ def escenario():
     return {
         'trabajador': trabajador,
         'cuenta': cuenta,
+        'rol': rol,
         'asignacion': asignacion,
         'motivo': motivo,
         'crear_movimiento': crear_movimiento,
@@ -193,6 +200,25 @@ def test_filtros_del_historial(escenario):
     assert gerencia.total == 2
 
 
+def test_el_listado_no_hace_una_consulta_por_fila(escenario, django_assert_num_queries):
+    """G12-6: proteger el `select_related` del historial contra un N+1.
+
+    Son dos consultas fijas (conteo + página) y no crecen con el número de
+    movimientos; si alguien quita el `select_related`, el mapeo de cada fila
+    dispara consultas por sus relaciones y este test falla.
+    """
+    for dia in range(1, 6):
+        escenario['crear_movimiento']('TRASLADO', _fecha(dia))
+
+    with django_assert_num_queries(2):
+        filas, total = escenario['repo'].listar_historial(FiltrosHistorial(), 10)
+
+    assert total == 5
+    assert len(filas) == 5
+    assert filas[0].denominacion_nombre == 'ANALISTA'
+    assert filas[0].ejecutado_por_nombre
+
+
 # ─── Exportación ────────────────────────────────────────────────────────────
 
 
@@ -232,14 +258,15 @@ def test_pdf_imprime_filtros_y_aviso_de_truncado(escenario):
 # ─── G8: avisos del movimiento ──────────────────────────────────────────────
 
 
-def _enviar_evento(escenario, tipo_movimiento, sender=None):
+def _enviar_evento(escenario, tipo_movimiento, origen=ORIGEN_CARGOS):
     cargo_movimiento_ejecutado.send(
-        sender=sender,
+        sender=None,
         cargo_id=escenario['asignacion'].pk,
         cedula=TRABAJADOR,
         tipo_movimiento=tipo_movimiento,
         motivo_id=escenario['motivo'].pk,
         usuario_id=escenario['cuenta'].pk,
+        origen=origen,
     )
 
 
@@ -267,11 +294,8 @@ def test_un_egreso_no_notifica_al_trabajador(escenario, django_capture_on_commit
 
 
 def test_el_alta_de_sobreviviente_tiene_su_propio_tipo(escenario, django_capture_on_commit_callbacks):
-    class RepoSobrevivientesORM:
-        pass
-
     with django_capture_on_commit_callbacks(execute=True):
-        _enviar_evento(escenario, 'INGRESO', sender=RepoSobrevivientesORM)
+        _enviar_evento(escenario, 'INGRESO', origen=ORIGEN_SOBREVIVIENTES)
 
     assert NotificacionModel.objects.get(
         destinatario_cedula=ANALISTA).tipo == 'movimiento.sobreviviente'
@@ -288,3 +312,53 @@ def test_los_avisos_son_idempotentes_por_movimiento(escenario, django_capture_on
 
     assert NotificacionModel.objects.filter(destinatario_cedula=ANALISTA).count() == 1
     assert NotificacionModel.objects.filter(destinatario_cedula=TRABAJADOR).count() == 1
+
+
+def test_el_trabajador_que_tambien_recibe_avisos_de_rrhh_recibe_los_dos(
+    escenario, django_capture_on_commit_callbacks
+):
+    """G12-1: la clave del aviso al trabajador es propia y no se descarta.
+
+    La campana deduplica por (destinatario, clave) sin mirar el módulo. Si el
+    trabajador también tiene `personal.recibir_avisos_movimientos` (un ANALISTA,
+    por ejemplo), su aviso de `autogestion` debe sobrevivir al de `personal`.
+    """
+    CuentaModel.objects.filter(cedula_id=TRABAJADOR).update(rol_id=escenario['rol'].pk)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        _enviar_evento(escenario, 'TRASLADO')
+
+    avisos = NotificacionModel.objects.filter(destinatario_cedula=TRABAJADOR)
+    assert avisos.count() == 2
+    assert {a.modulo for a in avisos} == {'personal', 'autogestion'}
+    assert len({a.clave_unica for a in avisos}) == 2
+
+    # La idempotencia se mantiene: reprocesar el mismo movimiento no duplica.
+    movimiento = consultar_historial(escenario['repo'], {}, Paginacion()).resultados[0]
+    notificar_movimiento(movimiento, 'TRASLADO')
+    assert NotificacionModel.objects.filter(destinatario_cedula=TRABAJADOR).count() == 2
+
+
+def test_un_movimiento_no_notifica_al_rol_administrador(
+    escenario, django_capture_on_commit_callbacks
+):
+    """G12-9: tras el seed, el rol ADMINISTRADOR no recibe avisos de movimientos."""
+    RolModel.objects.create(id=1, nombre_rol='ADMINISTRADOR')
+    call_command('seed_permisos', '--no-invalidar-sesiones', stdout=StringIO())
+
+    admin = EmployeeModel.objects.create(
+        cedulaidentidad='V70000009',
+        nombres='Admin',
+        apellidos='Sistema',
+        fecha_nacimiento=datetime.date(1980, 1, 1),
+        sexoid_id=escenario['trabajador'].sexoid_id,
+    )
+    CuentaModel.objects.create(cedula=admin, rol_id=1, password='!')
+
+    with django_capture_on_commit_callbacks(execute=True):
+        _enviar_evento(escenario, 'TRASLADO')
+
+    assert not NotificacionModel.objects.filter(destinatario_cedula='V70000009').exists()
+    assert NotificacionModel.objects.filter(
+        destinatario_cedula=ANALISTA, modulo='personal'
+    ).exists()

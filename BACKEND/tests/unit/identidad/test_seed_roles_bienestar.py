@@ -9,6 +9,8 @@ from apps.identidad.infrastructure.models.cuenta_models import RolModel
 from apps.identidad.infrastructure.models.permiso_model import PermisoModel, RolPermisoModel
 from apps.identidad.management.commands.seed_permisos import PERMISOS_CATALOGO, PERMISOS_RETIRADOS, ROLES_NUEVOS
 
+PERMISO_AVISOS_MOVIMIENTOS = 'personal.recibir_avisos_movimientos'
+
 
 def _seed():
     out = StringIO()
@@ -127,3 +129,32 @@ def test_gestionar_procesos_y_prorrogar_son_solo_de_la_administradora_y_el_seed_
     assert not nuevos & _codigos('ANALISTA_BIENESTAR')
     assert {'fe_de_vida.revisar', 'fe_de_vida.ver_panel', 'fe_de_vida.ver_cobertura'} <= _codigos('ANALISTA_BIENESTAR')
     assert nuevos <= _codigos('ADMIN_BIENESTAR')
+
+
+@pytest.mark.django_db
+def test_los_avisos_de_movimientos_son_solo_de_rrhh_y_bienestar():
+    """G12-9: el ADMINISTRADOR conserva el catálogo menos este permiso."""
+    for rol_id, nombre in ((1, 'ADMINISTRADOR'), (2, 'ANALISTA'), (5, 'BIENESTAR SOCIAL')):
+        RolModel.objects.create(id=rol_id, nombre_rol=nombre)
+
+    _seed()
+
+    assert PERMISO_AVISOS_MOVIMIENTOS not in _codigos('ADMINISTRADOR')
+    for rol in ('ANALISTA', 'BIENESTAR SOCIAL', 'ADMIN_BIENESTAR', 'ANALISTA_BIENESTAR'):
+        assert PERMISO_AVISOS_MOVIMIENTOS in _codigos(rol), rol
+
+
+@pytest.mark.django_db
+def test_el_seed_retira_los_avisos_de_movimientos_al_administrador():
+    """G12-9: idempotente; una asignación heredada del ADMINISTRADOR se elimina."""
+    admin = RolModel.objects.create(id=1, nombre_rol='ADMINISTRADOR')
+    permiso = PermisoModel.objects.create(
+        codigo=PERMISO_AVISOS_MOVIMIENTOS, nombre='avisos de movimientos'
+    )
+    RolPermisoModel.objects.create(rol_id=admin.id, permiso=permiso)
+
+    salida = _seed()
+
+    assert 'Asignaciones retiradas de ADMINISTRADOR: 1' in salida
+    assert PERMISO_AVISOS_MOVIMIENTOS not in _codigos('ADMINISTRADOR')
+    assert 'Asignaciones retiradas de ADMINISTRADOR' not in _seed()

@@ -170,6 +170,7 @@ class RepoSobrevivientesORM:
                 tipo_movimiento='INGRESO',
                 motivo_id=motivo.pk if motivo else None,
                 usuario_id=usuario_id,
+                origen=events.ORIGEN_SOBREVIVIENTES,
             )
         return ResultadoAltaSobreviviente(cedula, nombre, True, asig.codigo)
 
