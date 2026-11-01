@@ -93,7 +93,14 @@ class RepoPersonalORM:
 
         qs = EmployeeModel.objects.filter(
             cedulaidentidad__in=emp_cedulas
-        ).select_related('sexoid', 'estadoCivil', 'nacionalidad').order_by('-fecha_actualizacion')
+        ).select_related('sexoid', 'estadoCivil', 'nacionalidad').only(
+            # Solo las columnas que usa `empleado_a_entidad` en el listado: nada
+            # del expediente anidado (vivienda, salud, formación, contratos).
+            'id', 'cedulaidentidad', 'nombres', 'apellidos', 'fecha_nacimiento',
+            'profile', 'sexoid', 'estadoCivil', 'nacionalidad', 'correo',
+            'telefono_habitacion', 'telefono_movil', 'carnet_patria',
+            'fecha_actualizacion',
+        ).order_by('-fecha_actualizacion')
 
         if busqueda:
             qs = qs.filter(

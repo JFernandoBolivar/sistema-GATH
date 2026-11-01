@@ -1,7 +1,5 @@
 import {
-  BarChart3,
   Bell,
-  FileSpreadsheet,
   FilePenLine,
   HeartPulse,
   Home,
@@ -79,22 +77,6 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
     icono: Home,
     permiso: "autogestion.censo_ver_propio",
     condicion: "ACTIVO",
-    secundario: true,
-  },
-  {
-    id: "encuesta",
-    etiqueta: "Respuestas de encuesta",
-    href: "/autogestion/consultar",
-    icono: FileSpreadsheet,
-    permiso: "autogestion.censo_ver_todos",
-    secundario: true,
-  },
-  {
-    id: "metricas",
-    etiqueta: "Métricas",
-    href: "/autogestion/metricas",
-    icono: BarChart3,
-    permiso: "autogestion.censo_ver_todos",
     secundario: true,
   },
 ];

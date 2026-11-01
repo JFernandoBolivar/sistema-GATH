@@ -62,7 +62,7 @@ type SubMenuItem = {
 const items: MenuItem[] = [
   {
     title: "Inicio",
-    url: "/inicio",
+    url: "/dashboard",
     icon: Home,
   },
   {
@@ -132,11 +132,6 @@ const items: MenuItem[] = [
     url: RUTA_AUDITORIA,
     icon: ShieldCheck,
     permiso: "auditoria.ver_logs",
-  },
-  {
-    icon: BookCheck,
-    title: "Autogestión",
-    url: "/autogestion",
   },
 ];
 
@@ -251,11 +246,6 @@ export function AppSidebarSecurity() {
                 <h2 className="font-semibold">
                   Rol: {session.user.role?.nombre_rol || "Sin Rol"}
                 </h2>
-                <h1 className="text-sm text-muted-foreground font-bold">
-                  Departamento:{" "}
-                  {session.user.department?.nombre_departamento ||
-                    "Sin Departamento"}
-                </h1>
               </div>
             </div>
           )}

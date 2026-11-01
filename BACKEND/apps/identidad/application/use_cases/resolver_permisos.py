@@ -27,9 +27,11 @@ def resolver_politica_actor(repo: RepoPermisos, actor: ActorSesionDTO) -> Politi
 
 
 def resolver_permisos(repo: RepoPermisos, actor: ActorSesionDTO) -> frozenset[str]:
-    """Códigos o patrones efectivos concedidos al actor."""
+    """Códigos efectivos concedidos al actor (un deny explícito los retira)."""
     politica = resolver_politica_actor(repo, actor)
-    return politica.allow
+    return frozenset(
+        codigo for codigo in politica.allow if evaluar_permiso(politica, codigo)
+    )
 
 
 def tiene_permiso(

@@ -6,6 +6,8 @@ from apps.identidad.application.use_cases.resolver_permisos import (
     resolver_permisos,
     tiene_permiso,
 )
+from apps.identidad.domain.entities.politica_acceso import PoliticaAcceso
+from tests.unit.identidad.conftest import RepoPermisosMemoria
 
 
 def test_rol_con_n_permisos_devuelve_todos_los_codigos(repo_con_matriz):
@@ -56,3 +58,23 @@ def test_codigo_inexistente_para_cuenta_sin_rol_deniega(repo_con_matriz):
         tiene_permiso(repo_con_matriz, actor, 'identidad.listar_permisos')
         is False
     )
+
+
+def test_un_deny_explicito_no_aparece_en_los_permisos_efectivos(crear_permiso):
+    repo = RepoPermisosMemoria(
+        permisos=(
+            crear_permiso('personal.crear'),
+            crear_permiso('personal.ver_salud'),
+        ),
+        matriz={7: {'personal.crear', 'personal.ver_salud'}},
+        rol_por_cedula={'V-12345678': 7},
+        nombres_rol={7: 'ANALISTA'},
+        overrides={'V-12345678': PoliticaAcceso(deny=frozenset({'personal.crear'}))},
+    )
+    actor = ActorSesionDTO(cuenta_id=1, rol_id=7, cedula='V-12345678')
+
+    codigos = resolver_permisos(repo, actor)
+
+    assert 'personal.crear' not in codigos
+    assert 'personal.ver_salud' in codigos
+    assert tiene_permiso(repo, actor, 'personal.crear') is False

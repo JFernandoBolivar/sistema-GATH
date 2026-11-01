@@ -110,7 +110,7 @@ export default function CoberturaPage() {
         {error ? <VistaError mensaje="No se pudo cargar la cobertura." onReintentar={() => mutate()} /> : null}
         {data && data.results.length === 0 ? <VistaVacia titulo="Sin resultados" descripcion="Ningún pasivo coincide con los filtros." /> : null}
         {data && data.results.length > 0 ? (
-          <div className="overflow-x-auto rounded-xl border bg-card">
+          <div role="region" aria-label="Cobertura de pasivos" tabIndex={0} className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-[720px] text-left text-base">
               <caption className="sr-only">Pasivos sin correo o sin cuenta</caption>
               <thead className="border-b bg-muted text-sm">

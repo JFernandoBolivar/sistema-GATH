@@ -14,6 +14,10 @@ from core.domain.configuracion import (
     CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO,
     CLAVE_NOTIFICAR_MOVIMIENTOS_POR_CORREO,
     CLAVE_PASSWORD_INICIAL_DIAS,
+    CLAVE_RETENCION_EVIDENCIAS_DIAS,
+    CLAVE_RETENCION_NOTIFICACIONES_DIAS,
+    CLAVE_RETENCION_OUTBOX_DIAS,
+    CLAVE_RETENCION_SOPORTES_DIAS,
     como_dias,
 )
 from core.domain.exceptions import NotFoundError, ValidationError
@@ -25,11 +29,13 @@ TIPO_TEXTO = 'texto'
 GRUPO_NOTIFICACIONES = 'notificaciones'
 GRUPO_PLAZOS = 'plazos'
 GRUPO_FE_DE_VIDA = 'fe_de_vida'
+GRUPO_RETENCION = 'retencion'
 
 GRUPOS = (
     (GRUPO_NOTIFICACIONES, 'Notificaciones'),
     (GRUPO_PLAZOS, 'Plazos'),
     (GRUPO_FE_DE_VIDA, 'Fe de vida'),
+    (GRUPO_RETENCION, 'Retención de datos'),
 )
 
 ACCION_PARAMETRO_ACTUALIZADO = 'configuracion.parametro_actualizado'
@@ -124,6 +130,57 @@ DEFINICIONES = (
         grupo=GRUPO_FE_DE_VIDA,
         tipo=TIPO_TEXTO,
         defecto='30,15,7,3,1',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_RETENCION_EVIDENCIAS_DIAS,
+        etiqueta='Retención de evidencias de fe de vida',
+        descripcion=(
+            'Días que se conservan las selfies y evidencias de las solicitudes de fe de vida. '
+            'Después se elimina el archivo; la constancia y la auditoría nunca se borran.'
+        ),
+        grupo=GRUPO_RETENCION,
+        tipo=TIPO_ENTERO,
+        defecto='365',
+        minimo=30,
+        maximo=3650,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_RETENCION_SOPORTES_DIAS,
+        etiqueta='Retención de soportes de autogestión',
+        descripcion=(
+            'Días que se conservan los soportes documentales subidos por los trabajadores. '
+            'Al vencer se elimina el archivo y su registro de soporte.'
+        ),
+        grupo=GRUPO_RETENCION,
+        tipo=TIPO_ENTERO,
+        defecto='365',
+        minimo=30,
+        maximo=3650,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_RETENCION_NOTIFICACIONES_DIAS,
+        etiqueta='Retención de notificaciones leídas',
+        descripcion=(
+            'Días que se conservan las notificaciones ya leídas. Las no leídas no se purgan.'
+        ),
+        grupo=GRUPO_RETENCION,
+        tipo=TIPO_ENTERO,
+        defecto='180',
+        minimo=30,
+        maximo=3650,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_RETENCION_OUTBOX_DIAS,
+        etiqueta='Retención del correo saliente',
+        descripcion=(
+            'Días que se conservan los correos enviados o fallidos y sus adjuntos. '
+            'Los pendientes no se purgan.'
+        ),
+        grupo=GRUPO_RETENCION,
+        tipo=TIPO_ENTERO,
+        defecto='90',
+        minimo=30,
+        maximo=3650,
     ),
 )
 

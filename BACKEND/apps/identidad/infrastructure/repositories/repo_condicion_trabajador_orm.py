@@ -21,3 +21,19 @@ class RepoCondicionTrabajadorORM:
         if asignaciones.exists():
             return CondicionTrabajador.ACTIVO
         return CondicionTrabajador.SIN_ASIGNACION
+
+    def cedulas_por_condicion(self, condicion: str) -> set[str]:
+        """Cédulas de una condición, para filtrar el listado en una sola consulta."""
+        pasivos = set(
+            AsigTrabajoModel.objects.filter(
+                Tipo_personal__tipo_personal__iexact='PASIVO'
+            ).values_list('employee_id', flat=True)
+        ) | set(
+            EmployeeEgresadoModel.objects.values_list('employee_id', flat=True)
+        )
+        if condicion == CondicionTrabajador.PASIVO.value:
+            return pasivos
+        activos = set(
+            AsigTrabajoModel.objects.values_list('employee_id', flat=True)
+        )
+        return activos - pasivos

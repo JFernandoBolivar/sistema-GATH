@@ -16,6 +16,7 @@ from apps.autogestion.infrastructure.models.autogestion_models import (
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.models.expediente_models import DatosViviendaModel
+from apps.personal.shared.domain.services.tiempo_servicio import calcular_total_apn
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.autogestion.infrastructure.services.censo_report_service import (
     construir_grafico_torta,
@@ -227,13 +228,11 @@ class RepoAutogestionORM:
             for r in respuestas
         ]
 
-        apn_anos = float(emp.total_anos_apn or 0)
-        years = int(apn_anos)
-        months = int((apn_anos - years) * 12)
+        total = calcular_total_apn(getattr(emp, 'antecedentes_servicio', []))
         total_apn = {
-            'years': years,
-            'months': months,
-            'days': 0,
+            'years': total['years'],
+            'months': total['months'],
+            'days': total['days'],
         }
 
         return {

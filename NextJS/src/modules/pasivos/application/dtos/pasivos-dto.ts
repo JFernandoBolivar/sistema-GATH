@@ -9,9 +9,12 @@ import type {
   ContratoActualPasivo,
   DatosViviendaPasivo,
   FormacionAcademicaPasivo,
+  PaginaPasivos,
   Pasivo,
   PerfilFisicoPasivo,
   PerfilSaludPasivo,
+  ActualizarPasivoInput,
+  FiltrosPasivos,
 } from "../../domain/entities/pasivo";
 import type { CatalogosExpedientePasivo } from "../../domain/ports/catalogos-expediente";
 
@@ -38,9 +41,17 @@ export interface PasivoDTO {
   apellidos: string;
   nombreCompleto: string;
   tipoPasivo: string;
+  tipoNominaId: number | null;
   fechaEgreso: string | null;
   resolucion: string | null;
   observaciones: string | null;
+  correo: string | null;
+  telefonoMovil: string | null;
+  telefonoHabitacion: string | null;
+  carnetPatria: string | null;
+  fechaNacimiento: string | null;
+  estadoCivilId: number | null;
+  nacionalidadId: number | null;
   datosVivienda: DatosViviendaPasivoDTO | null;
   perfilSalud: PerfilSaludPasivoDTO | null;
   perfilFisico: PerfilFisicoPasivoDTO | null;
@@ -54,3 +65,8 @@ export interface PasivoDTO {
 export type PasivoDTOItem = PasivoDTO;
 
 export type { Pasivo };
+
+export type PaginaPasivosDTO = PaginaPasivos;
+export type FiltrosPasivosDTO = FiltrosPasivos;
+export type ActualizarPasivoInputDTO = ActualizarPasivoInput;
+export type RegistrarPasivoInputDTO = import("../../domain/entities/pasivo").RegistrarPasivoInput;

@@ -9,9 +9,16 @@ cuenta (pasivo o sobreviviente sin cuenta) el aviso es el de «cuenta creada». 
 from dataclasses import dataclass
 from typing import Callable
 
+from apps.identidad.application.dtos.permisos_dto import ActorSesionDTO
+from apps.identidad.application.use_cases.resolver_permisos import resolver_politica_actor
+from apps.identidad.domain.entities.politica_acceso import PoliticaAcceso
 from apps.identidad.domain.events import EventoIdentidad, TipoEventoIdentidad
 from apps.identidad.domain.ports.repo_correo_acceso import RepoCorreoAcceso
 from apps.identidad.domain.ports.repo_cuentas import RepoCuentas
+from apps.identidad.domain.ports.repo_permisos import RepoPermisos
+from apps.identidad.domain.services.reglas_administracion import (
+    validar_operacion_sobre_cuenta_administrativa,
+)
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
 FUENTES = ('INSTITUCIONAL', 'ALTERNATIVO', 'OTRO')
@@ -32,11 +39,20 @@ def cambiar_correo_acceso(
     cedula: str,
     fuente: str,
     correo: str | None = None,
+    *,
+    repo_permisos: RepoPermisos,
+    actor: ActorSesionDTO,
 ) -> ResultadoCorreoAcceso:
     if fuente not in FUENTES:
         raise ValidationError('Fuente de correo no válida: use INSTITUCIONAL, ALTERNATIVO u OTRO.')
     if not repo_correo.existe_empleado(cedula):
         raise NotFoundError(f"La cédula '{cedula}' no pertenece a ningún empleado registrado.")
+    objetivo = repo_permisos.obtener_permisos_usuario(cedula)
+    validar_operacion_sobre_cuenta_administrativa(
+        politica_actor=resolver_politica_actor(repo_permisos, actor),
+        politica_objetivo=objetivo.politica_efectiva if objetivo else PoliticaAcceso(),
+        operacion='cambiar el correo de acceso de',
+    )
 
     tenia_cuenta = repo_cuentas.existe_cuenta_para_cedula(cedula)  # antes de tocar el correo
     actual = repo_correo.correo_de(cedula)

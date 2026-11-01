@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BarChart3, FileDown, FileSpreadsheet, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { PERMISO_REPORTES } from "../domain/value-objects/permisos-reportes";
@@ -120,7 +121,10 @@ export default function ReportesPage() {
   const puedeExcel = tienePermiso(permisos, PERMISO_REPORTES.generarExcel);
   const puedeEstadisticas = tienePermiso(permisos, PERMISO_REPORTES.estadisticas);
 
-  const [tab, setTab] = useState<Tab>("personal");
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>(
+    searchParams.get("tab") === "pasivos" ? "pasivos" : "personal",
+  );
   const [personal, setPersonal] = useState<ReporteItemPersonalDTO[]>([]);
   const [pasivos, setPasivos] = useState<ReporteItemPasivoDTO[]>([]);
   const [vacantes, setVacantes] = useState<ReporteItemVacanteDTO[]>([]);

@@ -6,11 +6,13 @@ Permite encolar tareas asíncronas sin que los casos de uso importen Celery
 directamente (regla B20: desacoplamiento del framework asíncrono).
 """
 import logging
+import uuid
 from typing import Any
 
 from django.conf import settings
 
 from core.domain.exceptions import ColaTareasNoDisponible
+from core.infrastructure.logging.trace_context import get_trace_id
 
 logger = logging.getLogger('gath.tasks')
 
@@ -39,7 +41,10 @@ class CeleryTaskQueue:
         app = self._get_app()
         if app is not None:
             try:
-                async_result = app.send_task(nombre_tarea, kwargs=kwargs)
+                trace_id = get_trace_id() or uuid.uuid4().hex
+                async_result = app.send_task(
+                    nombre_tarea, kwargs=kwargs, headers={'trace_id': trace_id},
+                )
                 logger.info("Tarea %s encolada con ID: %s", nombre_tarea, async_result.id)
                 return str(async_result.id)
             except Exception as exc:

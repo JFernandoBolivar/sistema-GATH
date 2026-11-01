@@ -15,6 +15,25 @@ from core.presentation.serializers.expediente_lectura import (
 )
 
 
+class EmpleadoListadoSerializer(serializers.Serializer):
+    """Listado liviano de personal activo.
+
+    Solo los campos que consume la tabla de `/personal/consultar` (columnas y
+    acciones de fila). El expediente completo sigue viviendo en
+    `GET /api/v1/personal/<cedula>/` con `EmpleadoSerializer`.
+    """
+
+    id = serializers.IntegerField(read_only=True)
+    cedula = serializers.CharField(read_only=True)
+    nombres = serializers.CharField(read_only=True)
+    apellidos = serializers.CharField(read_only=True)
+    nombre_completo = serializers.CharField(read_only=True)
+    sexo_id = serializers.IntegerField(read_only=True)
+    sexo_nombre = serializers.CharField(read_only=True)
+    fecha_nacimiento = serializers.CharField(read_only=True, allow_null=True)
+    contrato_actual = ContratoLecturaSerializer(read_only=True, allow_null=True)
+
+
 class EmpleadoSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     cedula = serializers.CharField(read_only=True)

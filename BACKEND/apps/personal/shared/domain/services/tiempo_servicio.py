@@ -58,3 +58,12 @@ def calcular_total_apn(antecedentes_qs):
     months = resto // 30
     days = resto % 30
     return {"years": years, "months": months, "days": days}
+
+
+def anios_fraccionarios(*, years: int, months: int, days: int) -> float:
+    """Convierte el resultado oficial a años fraccionarios (G9).
+
+    Es la ÚNICA conversión usada por `_total_anos_apn_calculado` y la que la
+    anotación SQL debe reproducir (probada con tolerancia 1e-4).
+    """
+    return round(years + months / 12.0 + days / 365.0, 4)

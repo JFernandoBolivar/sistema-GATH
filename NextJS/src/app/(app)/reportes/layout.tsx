@@ -14,7 +14,7 @@ export default function ReportesLayout({
   return (
     <SidebarProvider>
       <AppSidebarPersonal />
-      <SidebarInset className="bg-transparent">
+      <SidebarInset className="min-w-0 bg-transparent">
         <HeaderLayout
           title="Gestión Administrativa de Talento Humano - GATH"
           subtitle="Gestiona y Visualiza la Información de los Trabajadores en Conatel"
@@ -23,7 +23,7 @@ export default function ReportesLayout({
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>
-        <main className="w-full h-full overflow-auto">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -9,6 +9,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from apps.notificaciones.application.use_cases.correo_outbox import resumen_fallidos
 from apps.notificaciones.application.use_cases.gestionar_notificaciones import (
     LIMITE_PREDETERMINADO,
     conteo_no_leidas,
@@ -18,6 +19,7 @@ from apps.notificaciones.application.use_cases.gestionar_notificaciones import (
 )
 from apps.notificaciones.infrastructure.cache_conteo_django import CacheConteoDjango
 from apps.notificaciones.infrastructure.repositories.repo_notificaciones_orm import RepoNotificacionesORM
+from apps.notificaciones.infrastructure.repositories.repo_outbox_orm import RepoOutboxORM
 from apps.notificaciones.presentation.serializers.notificaciones_serializers import (
     ConteoNoLeidasSerializer,
     ListaNotificacionesSerializer,
@@ -144,3 +146,16 @@ class LeerTodasView(APIView):
             request.query_params.get('modulo', ''), datetime.now(timezone.utc),
         )
         return ok({'marcadas': marcadas}, 'Notificaciones marcadas como leídas.')
+
+
+class OutboxFallidosView(APIView):
+    """Aviso administrativo: correos que agotaron los reintentos (E3)."""
+
+    permission_classes = [IsAuthenticated, HasPermission('notificaciones.administrar')]
+
+    @extend_schema(
+        tags=TAG, summary='Correos salientes FALLIDOS (ultimos 5)',
+        responses={200: MensajeRespuestaSerializer, **ERRORES},
+    )
+    def get(self, request):
+        return ok(resumen_fallidos(RepoOutboxORM()))

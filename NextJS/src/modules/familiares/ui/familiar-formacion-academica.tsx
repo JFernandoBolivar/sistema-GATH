@@ -89,7 +89,7 @@ export function FamiliarFormacionAcademica({
 
   return (
     <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-blue-700 rounded-sm">
-      <legend className="flex gap-2 text-blue-700 font-bold items-center">
+      <legend className="flex gap-2 text-primary font-bold items-center">
         Información Academica <BookAIcon className="size-5" />
       </legend>
 

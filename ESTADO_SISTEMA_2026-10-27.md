@@ -223,3 +223,119 @@ aparte: sería la misma que la de pasivo.
 3. Agregar remoto hacia `https://github.com/JFernandoBolivar/sistema-GATH.git`
    para que el usuario pueda hacer `git push` desde su casa (sin acceso al
    GitLab institucional desde ahí). El push lo hace el usuario directamente.
+
+---
+
+## 6. Actualización 2026-11-01 — Fase A6 y bloque E1–E6
+
+Esta sección reemplaza como estado vigente lo que el snapshot del 2026-10-27
+dejó pendiente para la rama `feature/fe-de-vida-pasivos`. Todo el trabajo sigue
+**sin commit**, por decisión del usuario.
+
+### 6.1 Móvil, PWA y accesibilidad (R-5 / R-A) — culminado
+
+- Responsive 360–768 px sin scroll horizontal de página: cabecera en dos filas,
+  sidebar en drawer hasta 1024 px, tablas como regiones accesibles, formularios
+  de una columna con inputs de 16 px y controles de 44 px.
+- PWA instalable: `manifest.webmanifest`, iconos 192/512/maskable/apple,
+  service worker que solo cachea shell/estáticos, `/api/` network-only y
+  `/offline.html` estático. Registro solo en producción.
+- Accesibilidad: skip link, landmarks, `role=region` en tablas, foco visible,
+  `prefers-reduced-motion`, texto al 200 % sin desbordes.
+- Verificación: E2E responsive + axe 5/5, E2E PWA 2/2, Lighthouse 11 PWA 100 y
+  accesibilidad 100 en `/login`.
+
+### 6.2 E1 — Auditoría con hash encadenado
+
+- `AuditoriaLog` agrega `dispositivo`, `hash_anterior` y `hash_actual`; el hash
+  SHA-256 se calcula sobre el contenido canónico y encadena desde el génesis
+  documentado (`64 × '0'`). Quedan fuera del hash `fecha_hora` y los propios
+  hashes.
+- Append-only en dos capas: `save()`/`delete()` del modelo y trigger
+  PostgreSQL (`gath_auditoria_append_only_trigger`). No se borró ningún
+  registro existente: la migración `core/0006` encadenó los 204 registros
+  previos y el comando `verificar_cadena_auditoria` los validó.
+- `origen_de_peticion` agrega `user_agent` y `dispositivo`; `trace_id` ya se
+  propaga desde el frontend y ahora también desde el middleware de traza.
+
+### 6.3 E2 — Límites y archivos
+
+- Throttles por alcance para login, recuperación/restablecimiento, refresh, QR
+  público de fe de vida, subidas y exportaciones; tasas configurables por
+  entorno.
+- Límite de subida en servidor (`MAX_UPLOAD_SIZE`, 10 MB por defecto) y
+  adaptador ClamAV opcional **apagado por defecto**; si se habilita y el
+  antivirus no responde, falla cerrado.
+
+### 6.4 E3 — Observabilidad del worker
+
+- Middleware `TraceIDMiddleware`: acepta `X-Trace-Id`/`X-Request-ID`, genera uno
+  si falta, lo pone en `request.trace_id`, en el `ContextVar` de logging y en la
+  respuesta.
+- Logs operativos en JSON (timestamp, nivel, logger, mensaje, `trace_id` y
+  campos extra) al stdout del contenedor.
+- Celery propaga el `trace_id` en los headers del mensaje; las señales
+  `task_failure` y `task_retry` emiten líneas JSON con tarea, id y error.
+- Métrica `core.metricas_cola` cada 60 s (profundidad de la cola y tareas
+  activas). Aviso in-app en Administración → Configuración cuando hay correos
+  en estado `FALLIDO`, con endpoint protegido por
+  `notificaciones.administrar`.
+
+### 6.5 E4 — Cabeceras y pruebas de seguridad
+
+- Django: CSP estricta (`default-src 'none'`, sin `unsafe-inline`),
+  `frame-ancestors 'none'`, `nosniff`, `Referrer-Policy`,
+  `Permissions-Policy` (cámara deshabilitada en la API), COOP y HSTS en
+  producción.
+- Next.js: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`,
+  `Permissions-Policy` con `camera=(self)` para la fe de vida, COOP y HSTS en
+  producción.
+- Pruebas agregadas: cabeceras en respuestas API, CSRF/cookies HttpOnly
+  `SameSite=Lax`, login fallido sin cookies y endpoints sin sesión que no
+  filtran datos. La suite existente ya cubre IDOR y escalada de privilegios en
+  fe de vida, autogestión, auditoría y configuración.
+- **Pendiente documentado:** CSP con nonce en Next.js. Añadirla exige volver
+  dinámico el render de las páginas públicas y validar todos los flujos con
+  credenciales de Administración; se dejó fuera para no romper el arranque con
+  scripts inline de Next.
+
+### 6.6 E5 — Retención y panel de Bienestar
+
+- Cuatro parámetros nuevos en Administración → Configuración:
+  `retencion.evidencias_dias`, `retencion.soportes_dias`,
+  `retencion.notificaciones_dias` y `retencion.outbox_dias` (mínimo 30 días).
+- Tarea beat diaria `configuracion.purgar_retencion`: elimina evidencias de fe
+  de vida, soportes de autogestión, notificaciones leídas y correo
+  enviado/fallido con sus adjuntos. **Nunca** purga `AuditoriaLog` ni
+  `ConstanciaFeDeVidaModel`; cada ejecución deja un registro de auditoría con
+  los conteos.
+- Panel de Bienestar: indicadores de total, pendientes, en revisión, aprobadas y
+  rechazadas sobre la bandeja existente, sin cambiar el diseño ni los filtros.
+
+### 6.7 Verificación de esta actualización
+
+| Verificación | Resultado |
+|---|---|
+| Backend `pytest` completo | **1153 passed, 1 skipped** |
+| `lint-imports` | **82 kept / 0 broken** |
+| `makemigrations --check` | Sin cambios |
+| Vitest | **579 passed (98 archivos)** |
+| `tsc --noEmit` | Sin errores |
+| `eslint .` | 0 errores (78 avisos preexistentes) |
+| `next build` | Correcto |
+| Migración `core/0006` en desarrollo | Aplicada |
+| `verificar_cadena_auditoria` | 204 registros, cadena válida |
+| Trigger append-only (update/delete) | Ambos bloqueados por PostgreSQL |
+| Worker Celery | Tareas `core.metricas_cola` y `configuracion.purgar_retencion` registradas; logs JSON con `trace_id` |
+| Cabeceras Next/Django en vivo | Presentes en `/login` y en la API |
+
+### 6.8 Pendientes reales
+
+- Configurar `E2E_ADMIN_PASSWORD` para repetir capturas y axe en Administración
+  y Carnetización.
+- Validar en hardware real iOS/Android teclado, safe-area y modo standalone.
+- CSP con nonce en Next.js (ver 6.5).
+- HTTPS de producción y HSTS efectivo dependen de Infraestructura (C0).
+- Persisten los pendientes funcionales del snapshot anterior que no forman
+  parte de este bloque (filtros de `/personal`, validación de contrato en
+  edición manual, registros legados con foto inválida).

@@ -156,7 +156,12 @@ export const personalApi = {
   getTiposProcedencia: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/tipos-procedencia/")),
   getTiposNomina: () =>
-    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/tipos-nomina/")),
+    list<CatalogoEmpleadoApiItem>(
+      apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/tipos-nomina/", {
+        // Personal trabajador es solo activo: excluye JUBILADO/PENSIONADO.
+        params: { solo_activos: true },
+      }),
+    ),
   getSexos: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/sexos/")),
   getEstadosCiviles: () =>

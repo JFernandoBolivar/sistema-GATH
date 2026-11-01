@@ -1,9 +1,9 @@
 /**
- * Mappers del catálogo de identidad (roles, departamentos, permisos).
+ * Mappers del catálogo de identidad (roles y permisos).
  */
 import { createRolEntity, type RolEntity } from "../../domain/entities/rol-entity";
-import type { DepartamentoEntity, PermisoEntity } from "../../domain/entities/departamento-entity";
-import type { RolApiItem, DepartamentoApiItem, PermisoApiItem } from "../http/usuarios-api";
+import type { PermisoEntity } from "../../domain/entities/departamento-entity";
+import type { RolApiItem, PermisoApiItem } from "../http/usuarios-api";
 
 export function mapperRol(raw: RolApiItem): RolEntity {
   return createRolEntity({
@@ -11,10 +11,6 @@ export function mapperRol(raw: RolApiItem): RolEntity {
     nombreRol: raw.nombre_rol,
     descripcionRol: raw.descripcion_rol,
   });
-}
-
-export function mapperDepartamento(raw: DepartamentoApiItem): DepartamentoEntity {
-  return { id: raw.id, nombre: raw.nombre, descripcion: raw.descripcion };
 }
 
 export function mapperPermiso(raw: PermisoApiItem): PermisoEntity {

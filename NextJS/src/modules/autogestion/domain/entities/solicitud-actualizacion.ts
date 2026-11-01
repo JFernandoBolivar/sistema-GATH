@@ -122,11 +122,21 @@ export interface DatosComplementariosEntity {
   actualizadoPor: string;
 }
 
+export interface ResumenBandejaEntity {
+  total: number;
+  pendientes: number;
+  enRevision: number;
+  aprobadas: number;
+  rechazadas: number;
+  expiradas: number;
+}
+
 export interface PaginaSolicitudesEntity {
   count: number;
   limit: number;
   offset: number;
   results: SolicitudEntity[];
+  resumen?: ResumenBandejaEntity;
 }
 
 /** Cambio que el trabajador propone en el borrador (cuerpo de PUT /borrador/). */

@@ -6,21 +6,21 @@ import { iniciarSesionComo } from "./inicio-sesion";
 /**
  * G7/G12: rutas del shell legado retiradas. Sus enlaces y marcadores siguen
  * funcionando por las redirecciones del proxy:
- *  - `/dashboard` → `/inicio` (G7).
- *  - `/censo-vivienda` → `/autogestion/censo` (G12: el censo vigente).
+ *  - `/inicio` -> `/dashboard` (G7 corregido: el dashboard es el inicio).
+ *  - `/censo-vivienda` -> `/autogestion/censo` (G12: el censo vigente).
  */
 test.describe("Rutas legadas", () => {
   test.beforeEach(async ({ page }) => {
     await iniciarSesionComo(page, EMAIL, PASSWORD);
   });
 
-  test("«/dashboard» redirige a «/inicio» y el inicio muestra los módulos", async ({ page }) => {
-    await page.goto("/dashboard");
-    await page.waitForURL((url) => url.pathname === "/inicio", { timeout: 20_000 });
+  test("/inicio redirige a /dashboard y el dashboard muestra los módulos", async ({ page }) => {
+    await page.goto("/inicio");
+    await page.waitForURL((url) => url.pathname === "/dashboard", { timeout: 20_000 });
     await expect(
       page.getByRole("heading", { name: /Sistema de Información Integral/i }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /Movimientos/i })).toBeVisible();
+    await expect(page.getByText("Gestión de Trabajadores", { exact: true }).first()).toBeVisible();
   });
 
   test("«/censo-vivienda» redirige al censo vigente de autogestión", async ({ page }) => {

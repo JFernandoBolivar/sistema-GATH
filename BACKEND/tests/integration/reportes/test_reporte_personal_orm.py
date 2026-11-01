@@ -32,6 +32,7 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     NivelAcademicoModel,
 )
 from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
     FormacionAcademicaModel,
     PerfilSaludDiscapacidad,
     PerfilSaludModel,
@@ -94,6 +95,15 @@ def escenario():
             PerfilSaludDiscapacidad.objects.create(
                 perfil_salud=perfil, discapacidades=discapacidad)
         FormacionAcademicaModel.objects.create(empleado=empleado, nivel_academico=nivel)
+        # G9: la antigüedad oficial sale de antecedentes cerrados (30/360),
+        # no de la columna legada. El período deja exactamente los años pedidos
+        # más el día de inicio que suma el método.
+        if apn:
+            AntecedenteServicioModel.objects.create(
+                empleado=empleado,
+                fecha_ingreso=datetime.date(2000, 1, 1),
+                fecha_egreso=datetime.date(2000 + int(apn), 1, 1),
+            )
         return empleado
 
     # 30 años, 12 años de APN, con discapacidad
@@ -243,7 +253,8 @@ def test_la_fecha_de_ingreso_es_el_reingreso_mas_reciente(escenario):
 
 
 def test_sin_antecedentes_la_fecha_de_ingreso_es_na(escenario):
-    fila = next(f for f in _generar().filas if f['cedula'] == 'V200')
+    escenario['crear']('V300', escenario['masculino'], datetime.date(1980, 1, 1), 0)
+    fila = next(f for f in _generar().filas if f['cedula'] == 'V300')
     assert fila['fecha_ingreso'] == 'N/A'
 
 

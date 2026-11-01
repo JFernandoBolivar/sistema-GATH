@@ -107,7 +107,7 @@ describe('tienePermiso (lista plana de codigos resuelta por el backend)', () => 
 
 describe('Acceso por ruta (A8)', () => {
   it('rutas sin módulo mapeado quedan abiertas a toda sesión', () => {
-    expect(puedeVerRuta([], '/inicio')).toBe(true);
+    expect(puedeVerRuta([], '/dashboard')).toBe(true);
     expect(puedeVerRuta([], '/dashboard')).toBe(true);
     expect(puedeVerRuta([], '/')).toBe(true);
   });
@@ -133,7 +133,9 @@ describe('Acceso por ruta (A8)', () => {
 
   it('cubre las rutas nuevas de bienestar, fe de vida y notificaciones', () => {
     expect(puedeVerRuta(['bienestar.ver_solicitudes'], '/bienestar')).toBe(true);
-    expect(puedeVerRuta(['fe_de_vida.solicitar'], '/fe-de-vida')).toBe(true);
+    expect(puedeVerRuta(['fe_de_vida.solicitar'], '/fe-de-vida', 'PASIVO')).toBe(true);
+    expect(puedeVerRuta(['fe_de_vida.solicitar'], '/fe-de-vida', 'ACTIVO')).toBe(false);
+    expect(puedeVerRuta(['fe_de_vida.ver_panel'], '/fe-de-vida')).toBe(true);
     expect(puedeVerRuta(['fe_de_vida.solicitar'], '/bienestar')).toBe(false);
     expect(puedeVerRuta(['notificaciones.ver_propias'], '/notificaciones')).toBe(true);
   });

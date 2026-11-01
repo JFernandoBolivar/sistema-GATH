@@ -18,7 +18,7 @@ export default function AuditoriaLayout({
   return (
     <SidebarProvider>
       <AppSidebarSecurity />
-      <SidebarInset className="bg-transparent">
+      <SidebarInset className="min-w-0 bg-transparent">
         <HeaderLayout
           title={NOMBRE_ADMINISTRACION}
           subtitle={SECCION_AUDITORIA}
@@ -27,7 +27,7 @@ export default function AuditoriaLayout({
         >
           <SidebarTrigger className="text-black-600 scale-110" />
         </HeaderLayout>
-        <main className="w-full h-full overflow-auto">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

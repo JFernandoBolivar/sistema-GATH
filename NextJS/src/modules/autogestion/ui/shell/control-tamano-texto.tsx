@@ -69,7 +69,7 @@ export function ControlTamanoTexto({
         type="button"
         variant="ghost"
         size="icon"
-        className="text-white hover:bg-white/15 hover:text-white"
+        className="size-11 text-foreground hover:bg-accent hover:text-accent-foreground"
         aria-label="Reducir el tamaño del texto"
         disabled={tamano === "normal"}
         onClick={() => cambiar(-1)}
@@ -83,7 +83,7 @@ export function ControlTamanoTexto({
         type="button"
         variant="ghost"
         size="icon"
-        className="text-white hover:bg-white/15 hover:text-white"
+        className="size-11 text-foreground hover:bg-accent hover:text-accent-foreground"
         aria-label="Aumentar el tamaño del texto"
         disabled={tamano === "xl"}
         onClick={() => cambiar(1)}

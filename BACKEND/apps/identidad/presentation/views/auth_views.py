@@ -25,9 +25,6 @@ from apps.identidad.application.use_cases.emitir_tokens_sesion import (
 from apps.identidad.application.use_cases.obtener_condicion_trabajador import (
     obtener_condicion_trabajador,
 )
-from apps.identidad.application.use_cases.obtener_permisos_de_cuenta import (
-    obtener_permisos_de_cuenta,
-)
 from apps.identidad.application.use_cases.restablecer_password import (
     restablecer_password,
 )
@@ -52,6 +49,9 @@ from apps.identidad.infrastructure.providers.bloqueos_login import (
     limpiar_bloqueo,
     validar_bloqueo_vigente,
 )
+from apps.identidad.infrastructure.cache.permisos_cache import resolver_permisos
+from apps.identidad.infrastructure.mappers.mapper_cuenta import cuenta_a_entidad
+from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
 from apps.identidad.infrastructure.repositories.repo_cuenta_auth_orm import (
     RepoCuentaAuthORM,
 )
@@ -214,6 +214,7 @@ class LoginView(APIView):
 
 
 class RefreshView(APIView):
+    throttle_scope = "refresh"
     """Endpoint de refresco de tokens JWT (corrige ALTA-08 para este módulo)."""
     permission_classes = [AllowAny]
 
@@ -276,23 +277,36 @@ class MeView(APIView):
     )
     def get(self, request):
         repo = RepoCuentasORM()
-        cuenta = repo.obtener_por_id(request.user.pk)
-        usuario_data = CuentaLecturaSerializer(cuenta, context={'repo': repo}).data
+        # Una sola consulta trae cuenta + rol + versión de permisos + condición
+        # (`obtener_contexto_sesion`); la caché de permisos evita resolver rol,
+        # overrides y catálogo en cada navegación. Si el JWT ya cargó la fila
+        # anotada para validar la versión, se reutiliza tal cual.
+        if getattr(request.user, '_gath_contexto_sesion', False) and isinstance(
+            request.user, CuentaModel
+        ):
+            cuenta = cuenta_a_entidad(request.user)
+        else:
+            cuenta = repo.obtener_contexto_sesion(request.user.pk)
+        if cuenta is None:
+            return fail('La cuenta autenticada no existe.', 404)
+        usuario_data = CuentaLecturaSerializer(cuenta).data
 
-        permisos = obtener_permisos_de_cuenta(RepoPermisosORM(), cuenta.cedula)
+        codigos = resolver_permisos(
+            RepoPermisosORM(), cuenta.cedula, cuenta.rol_id, cuenta.permisos_version
+        )
+        condicion = cuenta.condicion or obtener_condicion_trabajador(
+            RepoCondicionTrabajadorORM(), cuenta.cedula
+        ).value
 
-        titular = RepoCuentaAuthORM().obtener_titular_por_id(request.user.pk)
         return ok(
             {
                 **usuario_data,
                 # Nombre del rol sin exigir `identidad.ver_roles` (el listado de roles
                 # lo exige y los roles de operación no lo tienen).
-                'rol_nombre': titular.rol_nombre if titular else None,
-                'permisos': sorted(permisos.codigos),
+                'rol_nombre': cuenta.rol_nombre,
+                'permisos': sorted(codigos),
                 # Dato derivado (no es un rol): ACTIVO | PASIVO | SIN_ASIGNACION.
-                'condicion_trabajador': obtener_condicion_trabajador(
-                    RepoCondicionTrabajadorORM(), cuenta.cedula
-                ).value,
+                'condicion_trabajador': condicion,
             },
             'Datos del usuario obtenidos correctamente.',
         )

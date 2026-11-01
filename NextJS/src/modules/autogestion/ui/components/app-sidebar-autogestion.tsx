@@ -1,17 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import {
-  BarChart3,
-  BookCheck,
-  ChevronDown,
-  ChevronRight,
-  FileSpreadsheet,
-  Home,
-} from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { useState } from "react";
+import { Home } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,17 +17,22 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { esPerfilAutogestion } from "@/shared/lib/perfil-acceso";
+import { itemActivo, itemsVisibles } from "../shell/nav-autogestion";
+import { ControlTamanoTexto } from "../shell/control-tamano-texto";
 
+/**
+ * Menú de Autogestión con el mismo sidebar shadcn de los demás módulos.
+ * «Inicio» lleva a /dashboard; un perfil que solo tiene Autogestión
+ * (derivado de permisos con `esPerfilAutogestion`) vuelve a /autogestion.
+ */
 export function AppSidebarAutogestion() {
+  const pathname = usePathname() ?? "";
   const { data: session } = useSession();
-  const [openSubmenu, setOpenSubmenu] = useState<string | null>("Autogestión");
-
-  const toggleSubmenu = (title: string) => {
-    setOpenSubmenu(openSubmenu === title ? null : title);
-  };
-
-  const isRacAdmin = tienePermiso(session?.user?.permisos, "autogestion.censo_ver_todos");
+  const permisos = session?.user?.permisos;
+  const condicion = session?.user?.condicionTrabajador;
+  const visibles = itemsVisibles(permisos, condicion).filter((item) => item.id !== "inicio");
+  const inicio = esPerfilAutogestion(permisos) ? "/autogestion" : "/dashboard";
 
   return (
     <Sidebar>
@@ -50,81 +48,47 @@ export function AppSidebarAutogestion() {
             />
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem className="mt-2">
-                <SidebarMenuButton asChild>
-                  <Link href="/inicio" className="flex items-center text-sm">
-                    <Home className="size-4" />
-                    <span>Inicio</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            {!session ? (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Skeleton key={index} className="w-full p-2 bg-muted animate-pulse mt-3" />
+                ))}
+              </div>
+            ) : (
+              <SidebarMenu>
+                <SidebarMenuItem className="mt-2">
+                  <SidebarMenuButton asChild isActive={pathname === inicio}>
+                    <Link href={inicio} className="flex min-h-11 items-center text-base">
+                      <Home className="size-4" />
+                      <span>Inicio</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
 
-              <SidebarMenuItem className="mt-5">
-                <SidebarMenuButton
-                  onClick={() => toggleSubmenu("Autogestión")}
-                  className="text-sm h-fit cursor-pointer"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center">
-                      <BookCheck className="h-[16px]" />
-                      <span className="ml-2 text-sm">Autogestión</span>
-                    </div>
-                    {openSubmenu === "Autogestión" ? (
-                      <ChevronDown size={20} />
-                    ) : (
-                      <ChevronRight size={20} />
-                    )}
-                  </div>
-                </SidebarMenuButton>
-                {openSubmenu === "Autogestión" && (
-                  <div className="pl-8 py-1 gap-1 text-sm">
-                    <SidebarMenuButton asChild className="mt-2 text-sm">
-                      <Link href="/autogestion" className="text-sm">
-                        <BookCheck className="h-[16px] mr-2" />
-                        Mi Expediente
-                      </Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuButton asChild className="mt-2 text-sm">
-                      <Link href="/autogestion/censo" className="text-sm">
-                        <Home className="h-[16px] mr-2" />
-                        Censo de Vivienda
-                      </Link>
-                    </SidebarMenuButton>
-                    {isRacAdmin && (
-                      <>
-                        <SidebarMenuButton asChild className="mt-2 text-sm">
-                          <Link
-                            href="/autogestion/consultar"
-                            className="text-sm"
-                          >
-                            <FileSpreadsheet className="h-[16px] mr-2" />
-                            Respuestas Encuesta
-                          </Link>
-                        </SidebarMenuButton>
-                        <SidebarMenuButton asChild className="mt-2 text-sm">
-                          <Link
-                            href="/autogestion/metricas"
-                            className="text-sm"
-                          >
-                            <BarChart3 className="h-[16px] mr-2" />
-                            Métricas
-                          </Link>
-                        </SidebarMenuButton>
-                      </>
-                    )}
-                  </div>
-                )}
-              </SidebarMenuItem>
-            </SidebarMenu>
+                {visibles.map((item) => {
+                  const Icono = item.icono;
+                  const activo = itemActivo(item, pathname) && !(item.id === "inicio" && inicio === "/autogestion");
+                  return (
+                    <SidebarMenuItem key={item.id} className="mt-2">
+                      <SidebarMenuButton asChild isActive={activo}>
+                        <Link href={item.href} className="flex min-h-11 items-center text-base">
+                          <Icono className="size-4 shrink-0" />
+                          <span>{item.etiqueta}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarFooter>
           {!session ? (
             <div className="p-2 border-b-3 rounded-2xl flex flex-col gap-2">
-              <Skeleton className="w-full p-2 bg-gray-200 animate-pulse" />
-              <Skeleton className="w-full p-2 bg-gray-200 animate-pulse" />
+              <Skeleton className="w-full p-2 bg-muted animate-pulse" />
+              <Skeleton className="w-full p-2 bg-muted animate-pulse" />
             </div>
           ) : (
             <div className="p-2 border-b-3 rounded-2xl">
@@ -138,10 +102,9 @@ export function AppSidebarAutogestion() {
                 <h2 className="font-semibold">
                   Rol: {session.user.role?.nombre_rol || "Sin Rol"}
                 </h2>
-                <h1 className="text-sm text-muted-foreground font-bold">
-                  Departamento:{" "}
-                  {session.user.department?.nombre_departamento || "Sin Departamento"}
-                </h1>
+              </div>
+              <div className="mt-2">
+                <ControlTamanoTexto condicionTrabajador={condicion} />
               </div>
             </div>
           )}

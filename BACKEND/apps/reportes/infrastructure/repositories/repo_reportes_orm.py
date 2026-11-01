@@ -9,6 +9,7 @@ reingreso más reciente. Los datos relacionados se traen en lotes (sin N+1).
 """
 from core.domain.exceptions import ValidationError
 
+from apps.personal.infrastructure.repositories.consultas_apn import anotar_apn_oficial
 from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
 from apps.reportes.infrastructure.repositories.consultas_reporte import (
@@ -19,6 +20,25 @@ from apps.reportes.infrastructure.repositories.consultas_reporte import (
     ingresos_por_empleado,
     pagina_con_metadatos,
 )
+
+# G9: la columna y los filtros siguen llamándose `total_anos_apn` en el
+# registro de campos, pero el repositorio los resuelve contra la anotación
+# oficial (`apn_oficial`), nunca contra la columna legada.
+_LOOKUPS_APN = {
+    'total_anos_apn__gte': 'apn_oficial__gte',
+    'total_anos_apn__lte': 'apn_oficial__lte',
+}
+_CAMPO_APN = 'apn_oficial'
+
+
+def _lookups_oficiales(lookups: dict) -> dict:
+    return {_LOOKUPS_APN.get(clave, clave): valor for clave, valor in lookups.items()}
+
+
+def _ruta_agrupacion(consulta: ConsultaReportePersonal) -> str | None:
+    if consulta.agrupar_por_ruta == 'total_anos_apn':
+        return _CAMPO_APN
+    return consulta.agrupar_por_ruta
 
 
 def _etiqueta_de_grupo(valor) -> str:
@@ -34,16 +54,17 @@ def _conteo_personal(qs, consulta: ConsultaReportePersonal, metadatos: dict) -> 
     from django.db.models import Count
 
     try:
+        ruta_agrupacion = _ruta_agrupacion(consulta)
         conteos = (
             # `distinct=True`: el queryset base puede traer una fila por
             # asignación/título; el conteo es de empleados, no de filas.
-            qs.values(consulta.agrupar_por_ruta)
+            qs.values(ruta_agrupacion)
             .annotate(total=Count('pk', distinct=True))
             .order_by('-total')
         )
         filas = [
             {
-                consulta.agrupar_por: _etiqueta_de_grupo(c.get(consulta.agrupar_por_ruta)),
+                consulta.agrupar_por: _etiqueta_de_grupo(c.get(ruta_agrupacion)),
                 'total': c['total'],
             }
             for c in conteos
@@ -87,11 +108,13 @@ class RepoReportesORM:
         )
         from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
-        qs = EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad').all()
+        qs = anotar_apn_oficial(
+            EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad').all()
+        )
         if consulta.lookups:
             # `distinct()`: los filtros por estructura/salud/formación navegan
             # relaciones multivaluadas (asignaciones, familiares, títulos).
-            qs = qs.filter(**consulta.lookups).distinct()
+            qs = qs.filter(**_lookups_oficiales(consulta.lookups)).distinct()
 
         if consulta.tipo_reporte == 'conteo':
             metadatos = {
@@ -132,11 +155,12 @@ class RepoReportesORM:
                     asig.OrganismoAdscritoid.Organismoadscrito
                     if asig and asig.OrganismoAdscritoid else 'CONATEL'
                 ),
+                'total_anos_apn': round(float(e.apn_oficial or 0), 4),
             })
 
         return ResultadoReporte(
             titulo="Reporte de Personal Activo",
-            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito'],
+            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn'],
             filas=filas,
             total_registros=len(filas),
             metadatos=metadatos,

@@ -112,7 +112,7 @@ export default function BandejaFeDeVidaPage() {
           <VistaVacia titulo="No hay solicitudes" descripcion="Ninguna fe de vida coincide con los filtros." />
         ) : null}
         {data && data.results.length > 0 ? (
-          <div className="overflow-x-auto rounded-xl border bg-card">
+          <div role="region" aria-label="Fe de vida del personal pasivo" tabIndex={0} className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-[640px] text-left text-base">
               <caption className="sr-only">Fe de vida del personal pasivo</caption>
               <thead className="border-b bg-muted text-sm">

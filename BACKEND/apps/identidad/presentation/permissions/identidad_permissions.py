@@ -27,3 +27,8 @@ PERMISO_VER_ROLES = HasPermission('identidad.ver_roles')
 PERMISO_CREAR_ROLES = HasPermission('identidad.crear_roles')
 PERMISO_EDITAR_ROLES = HasPermission('identidad.editar_roles')
 PERMISO_ELIMINAR_ROLES = HasPermission('identidad.eliminar_roles')
+# D4: administración de permisos.
+PERMISO_GESTIONAR_PERMISOS_INDIVIDUALES = HasPermission(
+    'identidad.gestionar_permisos_individuales'
+)
+PERMISO_EDITAR_MATRIZ = HasPermission('identidad.asignar_permisos')

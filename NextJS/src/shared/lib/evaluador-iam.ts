@@ -145,7 +145,66 @@ export const RUTA_A_MODULO: Record<string, string> = {
   bienestar: 'bienestar',
   'fe-de-vida': 'fe_de_vida',
   auditoria: 'auditoria',
+  retroalimentacion: 'bienestar',
 };
+
+/**
+ * Reglas por prefijo para subrutas cuyo permiso NO es el del módulo padre
+ * (`/personal/fe-de-vida` no se abre con `personal.ver`, sino con los permisos
+ * de revisión/cobertura de fe de vida). Se evalúan antes que el módulo.
+ */
+export interface ReglaRuta {
+  prefijo: string;
+  /** Basta uno de los códigos. */
+  permisos: string[];
+  /** Condición del trabajador exigida además del permiso (opcional). */
+  condicion?: CondicionTrabajador;
+}
+
+export const REGLAS_RUTA: ReglaRuta[] = [
+  { prefijo: 'personal/censo', permisos: ['autogestion.censo_ver_todos'] },
+  { prefijo: 'pasivos/consultar', permisos: ['pasivos.ver'] },
+  { prefijo: 'pasivos/registrar', permisos: ['pasivos.crear'] },
+  { prefijo: 'pasivos/familiares/registrar', permisos: ['familiares.crear'] },
+  { prefijo: 'pasivos/familiares/consultar', permisos: ['familiares.ver'] },
+  { prefijo: 'pasivos/egreso-pasivo', permisos: ['pasivos.cambiar_condicion'] },
+  // Rutas de acción: el módulo basta para consultar, pero crear/editar exige
+  // su código propio (la opción del menú ya se oculta sin él).
+  { prefijo: 'usuarios/roles/registrar', permisos: ['identidad.crear_roles'] },
+  { prefijo: 'usuarios/roles', permisos: ['identidad.ver_roles'] },
+  { prefijo: 'usuarios/registrar', permisos: ['identidad.crear_usuarios'] },
+  { prefijo: 'usuarios/modificar', permisos: ['identidad.editar_usuarios'] },
+  { prefijo: 'usuarios/matriz', permisos: ['identidad.ver_roles'] },
+  { prefijo: 'personal/registrar', permisos: ['personal.crear'] },
+  { prefijo: 'familiares/registrar', permisos: ['familiares.crear'] },
+  { prefijo: 'cargos/crear-codigo', permisos: ['cargos.crear'] },
+  {
+    prefijo: 'autogestion/consultar',
+    permisos: ['autogestion.censo_ver_todos'],
+  },
+  {
+    prefijo: 'autogestion/metricas',
+    permisos: ['autogestion.censo_ver_todos'],
+  },
+  {
+    prefijo: 'personal/fe-de-vida',
+    permisos: [
+      'fe_de_vida.revisar',
+      'fe_de_vida.gestionar_procesos',
+      'fe_de_vida.ver_cobertura',
+      'fe_de_vida.ver_panel',
+    ],
+  },
+  {
+    prefijo: 'personal/bienestar',
+    permisos: ['bienestar.ver_solicitudes'],
+  },
+  {
+    prefijo: 'autogestion/fe-de-vida',
+    permisos: ['fe_de_vida.solicitar'],
+    condicion: 'PASIVO',
+  },
+];
 
 export const PERMISOS_DE_ENTRADA: Record<string, string[]> = {
   personal: ['personal.ver'],
@@ -188,11 +247,45 @@ export function modulosAccesibles(permisos: string[] | null | undefined): string
 }
 
 /** ¿Puede la sesión abrir esta ruta? Fail-closed en módulos mapeados; abierta si no hay módulo. */
-export function puedeVerRuta(permisos: string[] | null | undefined, ruta: string): boolean {
+export function puedeVerRuta(
+  permisos: string[] | null | undefined,
+  ruta: string,
+  condicionTrabajador?: string | null,
+): boolean {
   const limpia = ruta.split(/[?#]/)[0].toLowerCase();
-  const segmento = limpia.split('/').filter(Boolean)[0];
+  const segmentos = limpia.split('/').filter(Boolean);
+  const segmento = segmentos[0];
   if (!segmento) return true;
+  // La bandeja de notificaciones cuelga de la ruta del módulo, pero su
+  // permiso es propio y lo tienen también perfiles sin acceso al módulo.
+  if (segmentos[1] === 'notificaciones') {
+    return tienePermiso(permisos, 'notificaciones.ver_propias');
+  }
+  // Subrutas con permiso propio (fe de vida de personal, bandeja de Bienestar,
+  // fe de vida del pasivo). La más específica se evalúa antes del módulo.
+  const rutaCompleta = segmentos.join('/');
+  const regla = REGLAS_RUTA.find(
+    (r) => rutaCompleta === r.prefijo || rutaCompleta.startsWith(`${r.prefijo}/`),
+  );
+  if (regla) {
+    return (
+      cumpleCondicion(regla.condicion, condicionTrabajador) &&
+      regla.permisos.some((codigo) => tienePermiso(permisos, codigo))
+    );
+  }
   const modulo = RUTA_A_MODULO[segmento];
   if (!modulo) return true;
+  // Fe de vida propia: el permiso de solicitud solo aplica a PASIVO; el
+  // personal de Bienestar entra por sus permisos de panel/revisión.
+  if (modulo === 'fe_de_vida') {
+    const personalBienestar =
+      tienePermiso(permisos, 'fe_de_vida.ver_panel') ||
+      tienePermiso(permisos, 'fe_de_vida.revisar');
+    if (personalBienestar) return true;
+    return (
+      tienePermiso(permisos, 'fe_de_vida.solicitar') &&
+      cumpleCondicion('PASIVO', condicionTrabajador)
+    );
+  }
   return (PERMISOS_DE_ENTRADA[modulo] ?? []).some((codigo) => tienePermiso(permisos, codigo));
 }

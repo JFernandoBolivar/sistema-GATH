@@ -109,16 +109,22 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
     setPasivo(null);
     setCargando(true);
     setError(null);
-    Promise.all([getPasivoPorCedulaAction(cedula), getCatalogosExpedientePasivoAction()])
+    Promise.allSettled([getPasivoPorCedulaAction(cedula), getCatalogosExpedientePasivoAction()])
       .then(([detalle, cats]) => {
-        if (detalle && typeof detalle === "object" && "error" in detalle) {
-          setError((detalle as { error: string }).error);
+        if (detalle.status === "rejected") {
+          setError("No fue posible cargar el expediente.");
           return;
         }
-        setPasivo(detalle as PasivoDTO);
-        setCatalogos(cats);
+        const valor = detalle.value;
+        if (valor && typeof valor === "object" && "error" in valor) {
+          setError((valor as { error: string }).error);
+          return;
+        }
+        setPasivo(valor as PasivoDTO);
+        // Los catálogos son solo para resolver nombres; si el perfil no tiene
+        // acceso a ellos, el expediente se muestra igual con los datos base.
+        if (cats.status === "fulfilled") setCatalogos(cats.value);
       })
-      .catch(() => setError("No fue posible cargar el expediente."))
       .finally(() => setCargando(false));
   }, [open, pasivo, cedula]);
 

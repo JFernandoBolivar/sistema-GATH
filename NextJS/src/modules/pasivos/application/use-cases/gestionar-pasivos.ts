@@ -4,7 +4,7 @@
 import type { RepoPasivos } from "../../domain/ports/repo-pasivos";
 import type { ProcesarEgresoInput } from "../../domain/ports/procesar-egreso";
 import type { Pasivo, Pasivo as PasivoEntity } from "../../domain/entities/pasivo";
-import type { PasivoDTO } from "../dtos/pasivos-dto";
+import type { ActualizarPasivoInputDTO, FiltrosPasivosDTO, PaginaPasivosDTO, PasivoDTO } from "../dtos/pasivos-dto";
 
 function aDto(e: PasivoEntity): PasivoDTO {
   return {
@@ -14,9 +14,17 @@ function aDto(e: PasivoEntity): PasivoDTO {
     apellidos: e.apellidos,
     nombreCompleto: e.nombreCompleto,
     tipoPasivo: e.tipoPasivo,
+    tipoNominaId: e.tipoNominaId,
     fechaEgreso: e.fechaEgreso,
     resolucion: e.resolucion,
     observaciones: e.observaciones,
+    correo: e.correo,
+    telefonoMovil: e.telefonoMovil,
+    telefonoHabitacion: e.telefonoHabitacion,
+    carnetPatria: e.carnetPatria,
+    fechaNacimiento: e.fechaNacimiento,
+    estadoCivilId: e.estadoCivilId,
+    nacionalidadId: e.nacionalidadId,
     datosVivienda: e.datosVivienda,
     perfilSalud: e.perfilSalud,
     perfilFisico: e.perfilFisico,
@@ -53,3 +61,60 @@ export async function procesarEgreso(
 }
 
 export type { Pasivo };
+
+
+export async function listarPasivosPaginados(
+  repo: RepoPasivos,
+  filtros: FiltrosPasivosDTO,
+): Promise<PaginaPasivosDTO> {
+  const pagina = await repo.listarPasivosPaginados(filtros);
+  return {
+    count: pagina.count,
+    limit: pagina.limit,
+    offset: pagina.offset,
+    results: pagina.results.map(aDto),
+  };
+}
+
+export async function listarMotivosEgresoPasivo(
+  repo: RepoPasivos,
+): Promise<{ id: number; nombre: string }[]> {
+  return repo.listarMotivosEgresoPasivo();
+}
+
+export async function egresarPasivo(
+  repo: RepoPasivos,
+  cedula: string,
+  motivoId: number,
+  familiarIds: number[],
+): Promise<PasivoDTO> {
+  return aDto(await repo.egresarPasivo(cedula, motivoId, familiarIds));
+}
+
+export async function registrarPasivo(
+  repo: RepoPasivos,
+  input: import("../../domain/entities/pasivo").RegistrarPasivoInput,
+): Promise<PasivoDTO> {
+  return aDto(await repo.registrarPasivo(input));
+}
+
+export async function listarCatalogosRegistroPasivo(repo: RepoPasivos) {
+  const [sexos, estadosCiviles, nacionalidades, estados, municipios, parroquias] =
+    await Promise.all([
+      repo.listarSexos(),
+      repo.listarEstadosCiviles(),
+      repo.listarNacionalidades(),
+      repo.listarEstados(),
+      repo.listarMunicipios(),
+      repo.listarParroquias(),
+    ]);
+  return { sexos, estadosCiviles, nacionalidades, estados, municipios, parroquias };
+}
+
+export async function actualizarPasivo(
+  repo: RepoPasivos,
+  cedula: string,
+  input: ActualizarPasivoInputDTO,
+): Promise<PasivoDTO> {
+  return aDto(await repo.actualizarPasivo(cedula, input));
+}

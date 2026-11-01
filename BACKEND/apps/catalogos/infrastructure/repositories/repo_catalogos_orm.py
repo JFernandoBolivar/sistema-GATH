@@ -72,13 +72,15 @@ class RepoCatalogosORM:
         return [tipo_personal_a_entidad(tp) for tp in TipoPersonalModel.objects.all().order_by('tipo_personal')]
 
     def listar_tipos_nomina(
-        self, solo_especiales: bool = False, solo_pasivos: bool = False
+        self, solo_especiales: bool = False, solo_pasivos: bool = False, solo_activos: bool = False
     ) -> list[CatalogoItem]:
         qs = TipoNominaModel.objects.all().order_by('nomina')
         if solo_especiales:
             qs = qs.filter(requiere_codig=True)
         if solo_pasivos:
             qs = qs.filter(es_activo=False)
+        if solo_activos:
+            qs = qs.filter(es_activo=True)
         return [tipo_nomina_a_entidad(tn) for tn in qs]
 
     def listar_parentescos(self) -> list[CatalogoItem]:

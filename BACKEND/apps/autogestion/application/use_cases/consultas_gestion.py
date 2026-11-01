@@ -59,6 +59,19 @@ def listar_bandeja(
     )
 
 
+def resumen_bandeja(repo: RepoSolicitudes) -> dict[str, int]:
+    """Indicadores globales del panel de Bienestar (sin cambiar la bandeja)."""
+    conteo = repo.contar_por_estado()
+    return {
+        'total': sum(conteo.values()),
+        'pendientes': sum(conteo.get(e, 0) for e in ('SOLICITADA', 'HABILITADA', 'DEVUELTA')),
+        'en_revision': conteo.get('ENVIADA', 0),
+        'aprobadas': conteo.get('APROBADA', 0) + conteo.get('APROBADA_PARCIAL', 0),
+        'rechazadas': conteo.get('RECHAZADA', 0),
+        'expiradas': conteo.get('EXPIRADA', 0),
+    }
+
+
 def listar_secciones(repo: RepoSecciones, solo_activas: bool = True) -> list[SeccionAutogestionable]:
     return repo.listar(solo_activas=solo_activas)
 

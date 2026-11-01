@@ -12,9 +12,17 @@ class Pasivo:
     nombres: str
     apellidos: str
     tipo_pasivo: str
+    tipo_nomina_id: int | None = None
     fecha_egreso: str | None = None
     resolucion: str | None = None
     observaciones: str | None = None
+    correo: str | None = None
+    telefono_movil: str | None = None
+    telefono_habitacion: str | None = None
+    carnet_patria: str | None = None
+    fecha_nacimiento: str | None = None
+    estado_civil_id: int | None = None
+    nacionalidad_id: int | None = None
     # Expediente anidado (Fase 2.1/2.2 del plan de reparación): reutiliza el
     # mismo expediente de `apps.personal` (un pasivo también es un
     # `Employee`) — solo se puebla en `obtener_por_cedula` (detalle).

@@ -140,10 +140,10 @@ export function construirColumnasPersonal(
         if (!estatus) return <span>N/A</span>;
         const color =
           estatus === "ACTIVO"
-            ? "bg-green-600"
+            ? "bg-success"
             : estatus === "POR VENCER"
-            ? "bg-yellow-500"
-            : "bg-red-600";
+            ? "bg-warning"
+            : "bg-danger";
         return <Badge className={`${color} text-white`}>{estatus}</Badge>;
       },
     },

@@ -1,6 +1,6 @@
-import PasivosPage from "@/modules/pasivos/ui/pasivos-page";
+import { redirect } from "next/navigation";
 
-/** Thin wrapper (R10): monta la página de pasivos del módulo `pasivos`. */
+/** La portada de pasivos es el listado (G13). */
 export default function PasivosRoutePage() {
-  return <PasivosPage />;
+  redirect("/pasivos/consultar");
 }

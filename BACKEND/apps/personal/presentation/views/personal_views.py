@@ -33,7 +33,10 @@ from apps.personal.infrastructure.serializers.empleado_escritura_serializers imp
     EmpleadoCrearSerializer,
 )
 from apps.personal.presentation.filters.personal_filters import FILTROS_ESTRUCTURA, filtros_listado_personal
-from apps.personal.presentation.serializers.personal_serializers import EmpleadoSerializer
+from apps.personal.presentation.serializers.personal_serializers import (
+    EmpleadoListadoSerializer,
+    EmpleadoSerializer,
+)
 
 
 def _respuesta_pdf(pdf_bytes: bytes, nombre_archivo: str) -> HttpResponse:
@@ -61,12 +64,12 @@ class EmpleadosListView(APIView):
             OpenApiParameter('tipo_nomina', int),
             *[OpenApiParameter(nombre, int) for nombre in FILTROS_ESTRUCTURA],
         ],
-        responses={200: EmpleadoSerializer(many=True)},
+        responses={200: EmpleadoListadoSerializer(many=True)},
     )
     def get(self, request):
         repo = RepoPersonalORM()
         dtos = listar_personal(repo, **filtros_listado_personal(request.query_params))
-        return ok(EmpleadoSerializer(dtos, many=True).data)
+        return ok(EmpleadoListadoSerializer(dtos, many=True).data)
 
     @extend_schema(
         tags=['Personal'],

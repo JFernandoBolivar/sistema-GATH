@@ -1,6 +1,6 @@
 import * as React from "react";
 
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT = 1024;
 
 /** Hook canónico de breakpoint móvil (F2.9, MED-10). Antes duplicado en `src/hooks/` y `src/components/ui/`. */
 export function useIsMobile(): boolean {

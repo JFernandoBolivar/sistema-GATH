@@ -51,6 +51,7 @@ interface DataTableProps<TData, TValue> {
   emptyMessage?: string;
   /** Oculta el menú "Columnas" cuando la tabla es demasiado angosta para tener sentido. */
   hideColumnsMenu?: boolean;
+  hidePagination?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -59,6 +60,7 @@ export function DataTable<TData, TValue>({
   toolbar,
   emptyMessage = "Sin resultados.",
   hideColumnsMenu = false,
+  hidePagination = false,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -80,7 +82,7 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div>
+    <div className="min-w-0">
       <div className="flex items-center justify-between gap-2 py-4">
         <div className="flex flex-1 items-center gap-2">{toolbar}</div>
         {!hideColumnsMenu && (
@@ -144,6 +146,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
+      {!hidePagination && (
       <div className="flex items-center justify-end gap-2 py-4">
         <Button
           variant="outline"
@@ -164,6 +167,7 @@ export function DataTable<TData, TValue>({
           <ArrowRight className="ml-1 size-4" />
         </Button>
       </div>
+      )}
     </div>
   );
 }

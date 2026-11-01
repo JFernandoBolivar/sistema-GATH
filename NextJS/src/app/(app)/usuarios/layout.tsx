@@ -15,7 +15,7 @@ export default function AdministracionSistemaLayout({
   return (
     <SidebarProvider>
       <AppSidebarSecurity />
-      <SidebarInset className="bg-transparent">
+      <SidebarInset className="min-w-0 bg-transparent">
         <HeaderLayout
           title={NOMBRE_ADMINISTRACION}
           subtitle={SECCION_USUARIOS}
@@ -24,7 +24,7 @@ export default function AdministracionSistemaLayout({
         >
           <SidebarTrigger className="text-black-600 scale-110" />
         </HeaderLayout>
-        <main className="w-full h-full overflow-hidden">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-hidden">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

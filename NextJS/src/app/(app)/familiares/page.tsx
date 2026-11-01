@@ -21,7 +21,7 @@ export default function FamiliaresWelcomePage() {
           <Card className="hover:shadow-lg transition-shadow border-slate-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <BookUser className="size-5 text-blue-600" />
+                <BookUser className="size-5 text-primary" />
                 Consultar Familiar
               </CardTitle>
               <CardDescription>
@@ -29,7 +29,7 @@ export default function FamiliaresWelcomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild className="w-full bg-blue-700 hover:bg-blue-800">
+              <Button asChild className="w-full bg-primary hover:bg-brand-deep">
                 <Link href="/familiares/consultar">Ir a Consultar Familiar</Link>
               </Button>
             </CardContent>
@@ -38,7 +38,7 @@ export default function FamiliaresWelcomePage() {
           <Card className="hover:shadow-lg transition-shadow border-slate-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <ContactRound className="size-5 text-emerald-600" />
+                <ContactRound className="size-5 text-success" />
                 Agregar Familiar
               </CardTitle>
               <CardDescription>
@@ -46,7 +46,7 @@ export default function FamiliaresWelcomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild variant="outline" className="w-full border-emerald-600 text-emerald-700 hover:bg-emerald-50">
+              <Button asChild variant="outline" className="w-full border-success/40 text-success hover:bg-success-soft">
                 <Link href="/familiares/registrar">Agregar Familiar</Link>
               </Button>
             </CardContent>

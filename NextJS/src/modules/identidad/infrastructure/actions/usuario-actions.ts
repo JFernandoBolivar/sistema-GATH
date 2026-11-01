@@ -12,22 +12,26 @@ import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { repoUsuariosApi } from "../repositories/repo-usuarios-api";
 import { repoRolesApi } from "../repositories/repo-roles-api";
+import { listarPermisos, listarUsuarios, obtenerDetalleUsuario } from "../../application/use-cases/listar-usuarios";
 import {
-  listarDepartamentos,
-  listarPermisos,
-  listarUsuarios,
-} from "../../application/use-cases/listar-usuarios";
-import {
+  cambiarCorreoAcceso,
   cambiarEstadoUsuario,
   editarUsuario,
+  guardarMatrizPermisos,
+  guardarOverridesUsuario,
+  obtenerMatrizPermisos,
   registrarUsuario,
   restablecerAccesoUsuario,
 } from "../../application/use-cases/gestionar-usuario";
 import { listarRoles } from "../../application/use-cases/gestionar-roles";
 import {
+  cambiarCorreoAccesoSchema,
   cambiarEstadoUsuarioSchema,
   editarUsuarioSchema,
+  guardarMatrizSchema,
+  guardarOverridesSchema,
   registrarUsuarioSchema,
+  restablecerAccesoSchema,
   rolIdSchema,
   rolSchema,
   usuarioIdSchema,
@@ -36,40 +40,49 @@ import {
 } from "../../ui/schema/schema-usuario";
 import { actualizarRol, crearRol, eliminarRol } from "../../application/use-cases/gestionar-roles";
 
-/**
- * Lista usuarios para la pantalla `usuarios-page`. Lanza el error tras manejar
- * la sesión expirada; SWR lo refleja como estado de error en el cliente.
- */
-export async function listarUsuariosAction(
-  rawFiltros?: unknown,
-): Promise<Awaited<ReturnType<typeof listarUsuarios>>> {
+/** Lista usuarios paginados para la pantalla de administración (D4). */
+export async function listarUsuariosAction(rawFiltros?: unknown) {
   const parsed = usuariosFiltrosSchema.safeParse(rawFiltros ?? {});
-  const filtros: UsuariosFiltrosType = parsed.success ? parsed.data : {};
+  if (!parsed.success) {
+    return { error: "Filtros inválidos. Revise los valores ingresados." } as const;
+  }
+  const filtros: UsuariosFiltrosType = parsed.data;
 
   const traceId = generateTraceId();
   const startedAt = Date.now();
-
   try {
-    const usuarios = await listarUsuarios(repoUsuariosApi, {
-      busqueda: filtros.busqueda ?? undefined,
-      departamentoId: filtros.departamentoId ?? undefined,
+    const pagina = await listarUsuarios(repoUsuariosApi, {
+      cedula: filtros.cedula || undefined,
+      nombre: filtros.nombre || undefined,
+      correo: filtros.correo || undefined,
       rolId: filtros.rolId ?? undefined,
       isActive: filtros.isActive ?? undefined,
+      condicion: filtros.condicion ?? undefined,
+      pagina: filtros.pagina ?? 1,
+      pageSize: filtros.pageSize ?? 10,
     });
-    await logAudit({
-      traceId,
-      action: "listarUsuariosAction",
-      status: "SUCCESS",
-      durationMs: Date.now() - startedAt,
-    });
-    return usuarios;
+    await logAudit({ traceId, action: "listarUsuariosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return pagina;
   } catch (error) {
-    await logAudit({
-      traceId,
-      action: "listarUsuariosAction",
-      status: "FAILED",
-      durationMs: Date.now() - startedAt,
-    });
+    await logAudit({ traceId, action: "listarUsuariosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+/** Detalle de una cuenta con su permiso efectivo calculado en el servidor (D4). */
+export async function obtenerDetalleUsuarioAction(id: number) {
+  const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
+  if (!idValido.success) return { error: "Usuario inválido." } as const;
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const detalle = await obtenerDetalleUsuario(repoUsuariosApi, idValido.data.usuarioId);
+    await logAudit({ traceId, action: "obtenerDetalleUsuarioAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return detalle;
+  } catch (error) {
+    await logAudit({ traceId, action: "obtenerDetalleUsuarioAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }
@@ -78,12 +91,11 @@ export async function listarUsuariosAction(
 export async function registrarUsuarioAction(input: {
   cedula: string;
   password: string;
-  departamentoId?: number | null;
   rolId?: number | null;
 }) {
   const validation = registrarUsuarioSchema.safeParse(input);
   if (!validation.success) {
-    return { error: "Datos del usuario inválidos. Revise los campos ingresados." };
+    return { error: "Datos del usuario inválidos. Revise los campos ingresados." } as const;
   }
 
   const traceId = generateTraceId();
@@ -100,14 +112,16 @@ export async function registrarUsuarioAction(input: {
 }
 
 export async function editarUsuarioAction(id: number, input: {
-  departamentoId?: number | null;
   rolId?: number | null;
-  password?: string | null;
+  motivo?: string;
 }) {
   const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
   const dataValida = editarUsuarioSchema.safeParse(input);
   if (!idValido.success || !dataValida.success) {
-    return { error: "Datos del usuario inválidos. Revise los campos ingresados." };
+    return { error: "Datos del usuario inválidos. Revise los campos ingresados." } as const;
+  }
+  if (dataValida.data.rolId && (!dataValida.data.motivo || dataValida.data.motivo.trim().length < 10)) {
+    return { error: "Indique el motivo del cambio de rol (al menos 10 caracteres)." } as const;
   }
 
   const traceId = generateTraceId();
@@ -123,11 +137,11 @@ export async function editarUsuarioAction(id: number, input: {
   }
 }
 
-export async function cambiarEstadoUsuarioAction(id: number, isActive: boolean) {
+export async function cambiarEstadoUsuarioAction(id: number, isActive: boolean, motivo: string) {
   const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
-  const dataValida = cambiarEstadoUsuarioSchema.safeParse({ isActive });
+  const dataValida = cambiarEstadoUsuarioSchema.safeParse({ isActive, motivo });
   if (!idValido.success || !dataValida.success) {
-    return { error: "Usuario inválido." };
+    return { error: "Indique el motivo (al menos 10 caracteres)." } as const;
   }
 
   const traceId = generateTraceId();
@@ -143,35 +157,113 @@ export async function cambiarEstadoUsuarioAction(id: number, isActive: boolean) 
   }
 }
 
-/** D8: «Restablecer acceso» (RRHH). El permiso lo exige el backend (`identidad.restablecer_acceso`). */
-export async function restablecerAccesoAction(id: number) {
+/** D8: «Restablecer acceso» (RRHH). El permiso y la regla A1 los exige el backend. */
+export async function restablecerAccesoAction(id: number, motivo: string) {
   const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
-  if (!idValido.success) {
-    return { error: "Usuario inválido." };
+  const dataValida = restablecerAccesoSchema.safeParse({ motivo });
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Indique el motivo (al menos 10 caracteres)." } as const;
   }
 
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const usuario = await restablecerAccesoUsuario(repoUsuariosApi, idValido.data.usuarioId);
+    const usuario = await restablecerAccesoUsuario(
+      repoUsuariosApi,
+      idValido.data.usuarioId,
+      dataValida.data.motivo,
+    );
     await logAudit({ traceId, action: "restablecerAccesoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return usuario;
   } catch (error) {
     await logAudit({ traceId, action: "restablecerAccesoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
+    return { error: error instanceof Error ? error.message : "No fue posible restablecer el acceso." } as const;
+  }
+}
+
+/** D8: elige el correo de acceso de un pasivo o trabajador (A2). */
+export async function cambiarCorreoAccesoAction(
+  cedula: string,
+  input: { fuente: string; correo?: string; motivo: string },
+) {
+  const dataValida = cambiarCorreoAccesoSchema.safeParse(input);
+  if (!dataValida.success) {
+    return { error: "Datos del correo inválidos. Indique el motivo (mínimo 10 caracteres)." } as const;
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const resultado = await cambiarCorreoAcceso(repoUsuariosApi, {
+      cedula,
+      fuente: dataValida.data.fuente,
+      correo: dataValida.data.correo || undefined,
+      motivo: dataValida.data.motivo,
+    });
+    await logAudit({ traceId, action: "cambiarCorreoAccesoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return resultado;
+  } catch (error) {
+    await logAudit({ traceId, action: "cambiarCorreoAccesoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { error: error instanceof Error ? error.message : "No fue posible cambiar el correo de acceso." } as const;
+  }
+}
+
+/** D4: overrides individuales allow/deny. */
+export async function guardarOverridesAction(id: number, input: { allow: string[]; deny: string[]; motivo: string }) {
+  const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
+  const dataValida = guardarOverridesSchema.safeParse(input);
+  if (!idValido.success || !dataValida.success) {
+    return { error: "Datos de permisos inválidos. Indique el motivo (mínimo 10 caracteres)." } as const;
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const detalle = await guardarOverridesUsuario(repoUsuariosApi, idValido.data.usuarioId, dataValida.data);
+    await logAudit({ traceId, action: "guardarOverridesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return detalle;
+  } catch (error) {
+    await logAudit({ traceId, action: "guardarOverridesAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
     throw error;
   }
 }
 
-export async function getDepartamentosAction() {
+export async function obtenerMatrizAction() {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const departamentos = await listarDepartamentos(repoUsuariosApi);
-    await logAudit({ traceId, action: "getDepartamentosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return departamentos;
+    const matriz = await obtenerMatrizPermisos(repoUsuariosApi);
+    await logAudit({ traceId, action: "obtenerMatrizAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return matriz;
   } catch (error) {
-    await logAudit({ traceId, action: "getDepartamentosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    await logAudit({ traceId, action: "obtenerMatrizAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function guardarMatrizAction(rolId: number, permisos: string[], motivo: string) {
+  const dataValida = guardarMatrizSchema.safeParse({ rolId, permisos, motivo });
+  if (!dataValida.success) {
+    return { error: "Indique el motivo (mínimo 10 caracteres) y confirme el cambio." } as const;
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const matriz = await guardarMatrizPermisos(
+      repoUsuariosApi,
+      dataValida.data.rolId,
+      dataValida.data.permisos,
+      dataValida.data.motivo,
+    );
+    await logAudit({ traceId, action: "guardarMatrizAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return matriz;
+  } catch (error) {
+    await logAudit({ traceId, action: "guardarMatrizAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }
@@ -208,7 +300,7 @@ export async function getRolesAction() {
 export async function crearRolAction(input: { nombreRol: string; descripcionRol?: string | null }) {
   const validation = rolSchema.safeParse(input);
   if (!validation.success) {
-    return { error: "Datos del rol inválidos. Revise los campos ingresados." };
+    return { error: "Datos del rol inválidos. Revise los campos ingresados." } as const;
   }
 
   const traceId = generateTraceId();
@@ -228,7 +320,7 @@ export async function actualizarRolAction(id: number, input: { nombreRol: string
   const idValido = rolIdSchema.safeParse({ rolId: id });
   const dataValida = rolSchema.safeParse(input);
   if (!idValido.success || !dataValida.success) {
-    return { error: "Datos del rol inválidos. Revise los campos ingresados." };
+    return { error: "Datos del rol inválidos. Revise los campos ingresados." } as const;
   }
 
   const traceId = generateTraceId();
@@ -246,9 +338,7 @@ export async function actualizarRolAction(id: number, input: { nombreRol: string
 
 export async function eliminarRolAction(rolId: number) {
   const validation = rolIdSchema.safeParse({ rolId });
-  if (!validation.success) {
-    return { error: "Rol inválido." };
-  }
+  if (!validation.success) return { error: "Rol inválido." } as const;
 
   const traceId = generateTraceId();
   const startedAt = Date.now();

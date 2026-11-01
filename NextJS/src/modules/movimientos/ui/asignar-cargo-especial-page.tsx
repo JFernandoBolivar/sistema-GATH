@@ -306,7 +306,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
   };
 
   return (
-    <Card className="bg-white">
+    <Card className="bg-card">
       <CardHeader>
         <CardTitle>Registrar Código de Posición</CardTitle>
         <CardDescription>

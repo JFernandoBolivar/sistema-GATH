@@ -49,6 +49,16 @@ export default function BandejaSolicitudesPage() {
   const total = data?.count ?? 0;
   const desde = total === 0 ? 0 : offset + 1;
   const hasta = Math.min(offset + LIMITE_BANDEJA, total);
+  const resumen = data?.resumen;
+  const indicadores = resumen
+    ? [
+        { etiqueta: "Total", valor: resumen.total, clase: "text-foreground" },
+        { etiqueta: "Pendientes", valor: resumen.pendientes, clase: "text-amber-700" },
+        { etiqueta: "En revision", valor: resumen.enRevision, clase: "text-blue-700" },
+        { etiqueta: "Aprobadas", valor: resumen.aprobadas, clase: "text-emerald-700" },
+        { etiqueta: "Rechazadas", valor: resumen.rechazadas, clase: "text-red-700" },
+      ]
+    : [];
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
@@ -56,6 +66,20 @@ export default function BandejaSolicitudesPage() {
         titulo="Solicitudes de actualización de datos"
         descripcion="Revise, habilite plazos y decida las solicitudes de los trabajadores."
       />
+
+      {indicadores.length > 0 ? (
+        <dl
+          aria-label="Indicadores de solicitudes"
+          className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+        >
+          {indicadores.map((item) => (
+            <div key={item.etiqueta} className="rounded-xl border bg-card p-4">
+              <dt className="text-sm font-medium text-muted-foreground">{item.etiqueta}</dt>
+              <dd className={`mt-1 text-2xl font-semibold ${item.clase}`}>{item.valor}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
 
       <form
         onSubmit={buscar}
@@ -106,7 +130,7 @@ export default function BandejaSolicitudesPage() {
         </Button>
       </form>
 
-      {isLoading ? <VistaCargando mensaje="Cargando solicitudes…" onReintentar={() => mutate()} /> : null}
+      {isLoading ? <VistaCargando mensaje="Cargando solicitudesâ€¦" onReintentar={() => mutate()} /> : null}
       {error ? (
         <VistaError
           mensaje="No se pudo cargar la bandeja de solicitudes."
@@ -122,7 +146,7 @@ export default function BandejaSolicitudesPage() {
 
       {data && data.results.length > 0 ? (
         <>
-          <div className="overflow-x-auto rounded-xl border bg-card">
+          <div role="region" aria-label="Solicitudes de actualización de datos" tabIndex={0} className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-[640px] text-left text-base">
               <caption className="sr-only">Solicitudes de actualización de datos</caption>
               <thead className="border-b bg-muted text-sm">

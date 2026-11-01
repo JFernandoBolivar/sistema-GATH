@@ -34,7 +34,7 @@ const RUTAS = [
   "autogestion",
   "reportes",
   "catalogos",
-  "inicio",
+  "dashboard",
 ] as const;
 
 async function login(page: Page) {

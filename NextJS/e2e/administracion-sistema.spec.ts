@@ -41,8 +41,8 @@ test.describe("D9: Administración del sistema", () => {
   });
 
   test("el módulo se llama «Administración del sistema» y conserva las rutas", async ({ page }) => {
-    await page.goto("/inicio");
-    await expect(page.getByRole("link", { name: /Administración del sistema/i })).toBeVisible();
+    await page.goto("/dashboard");
+    await expect(page.getByText("Administración del sistema", { exact: true }).first()).toBeVisible();
 
     await page.goto("/usuarios");
     await expect(page.getByRole("heading", { name: /Administración del sistema/i })).toBeVisible();

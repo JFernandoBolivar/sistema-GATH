@@ -15,6 +15,7 @@ from apps.identidad.presentation.views.cuenta_views import (
     CambiarPasswordView,
     CorreoAccesoView,
     UsuarioCambiarEstadoView,
+    UsuarioDetalleView,
     UsuarioEditarView,
     UsuarioListView,
     UsuarioRegistrarView,
@@ -23,7 +24,10 @@ from apps.identidad.presentation.views.cuenta_views import (
 from apps.identidad.presentation.views.departamento_views import DepartamentoListView
 from apps.identidad.presentation.views.permiso_views import (
     CatalogoPermisosView,
+    MatrizPermisosView,
+    MatrizRolView,
     PermisosDeCuentaView,
+    UsuarioPermisosIndividualesView,
 )
 from apps.identidad.presentation.views.rol_catalogo_views import (
     RolActualizarView,
@@ -57,6 +61,12 @@ urlpatterns = [
     path('usuarios/registro/', UsuarioRegistrarView.as_view(), name='usuarios-registro'),
     path('usuarios/cambiar-password/', CambiarPasswordView.as_view(), name='usuarios-cambiar-password'),
     path('usuarios/<int:id>/', UsuarioEditarView.as_view(), name='usuarios-editar'),
+    path('usuarios/<int:id>/detalle/', UsuarioDetalleView.as_view(), name='usuarios-detalle'),
+    path(
+        'usuarios/<int:id>/permisos-individuales/',
+        UsuarioPermisosIndividualesView.as_view(),
+        name='usuarios-permisos-individuales',
+    ),
     path('usuarios/<int:id>/estado/', UsuarioCambiarEstadoView.as_view(), name='usuarios-cambiar-estado'),
 
     path(
@@ -68,7 +78,9 @@ urlpatterns = [
 
     # ─── Catálogo de roles (CRIT-12) ───
     path('roles/', RolListCrearView.as_view(), name='roles-lista-crear'),
+    path('roles/matriz/', MatrizPermisosView.as_view(), name='roles-matriz'),
     path('roles/<int:id>/', RolActualizarView.as_view(), name='roles-actualizar'),
+    path('roles/<int:id>/permisos/', MatrizRolView.as_view(), name='roles-permisos'),
     path('roles/<int:id>/eliminar/', RolEliminarView.as_view(), name='roles-eliminar'),
 
     # ─── Catálogo de departamentos ───

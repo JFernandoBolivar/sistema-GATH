@@ -98,3 +98,9 @@ def reprocesar_pendientes(repo: RepoOutbox, planificador: PlanificadorEnvio, aho
     for outbox_id in ids:
         planificador.programar(outbox_id)
     return len(ids)
+
+
+def resumen_fallidos(repo: RepoOutbox, limite: int = 5):
+    """Resumen de correos FALLIDOS para el panel de administracion (E3)."""
+    total, ultimos = repo.resumen_fallidos(limite)
+    return {'total': total, 'ultimos': ultimos}

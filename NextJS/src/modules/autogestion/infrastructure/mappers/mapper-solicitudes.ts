@@ -124,6 +124,16 @@ export function mapperPagina(r: PaginaSolicitudesApi): PaginaSolicitudesEntity {
     limit: r.limit,
     offset: r.offset,
     results: r.results.map(mapperSolicitud),
+    resumen: r.resumen
+      ? {
+          total: r.resumen.total,
+          pendientes: r.resumen.pendientes,
+          enRevision: r.resumen.en_revision,
+          aprobadas: r.resumen.aprobadas,
+          rechazadas: r.resumen.rechazadas,
+          expiradas: r.resumen.expiradas,
+        }
+      : undefined,
   };
 }
 

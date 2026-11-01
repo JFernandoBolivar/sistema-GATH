@@ -53,7 +53,7 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
 
     // El diálogo debe cerrarse y el usuario continúa autenticado
     await expect(modalAviso).toHaveCount(0);
-    expect(page.url()).toContain("/inicio");
+    expect(page.url()).toContain("/dashboard");
 
     // E. Avanzamos nuevamente 14 minutos: el modal debe reaparecer
     await page.clock.fastForward(14 * 60 * 1000);
@@ -113,7 +113,7 @@ test.describe("Ciclo de vida de sesión, tokens y aviso de inactividad E2E", () 
     await inputEmail.fill(EMAIL);
     await page.getByRole("button", { name: /iniciar sesión/i }).click();
 
-    await expect(page).toHaveURL(/\/inicio/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
   });
 });
 

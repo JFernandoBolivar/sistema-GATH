@@ -292,7 +292,7 @@ export function AsignarCargoPage() {
       {isPending ? (
         <Loading promiseMessage="Asignando Cargo" />
       ) : (
-        <Card className="bg-white">
+        <Card className="bg-card">
           <CardContent className="gap-5">
             <EmployeeSearchForm onSearch={handleSearchEmployee} />
 
@@ -377,7 +377,7 @@ export function AsignarCargoPage() {
                           />
 
                           {selectedCode && (
-                            <div className="rounded-sm border-2 border-emerald-400/45 bg-emerald-200/40 p-2 mt-4">
+                            <div className="rounded-sm border-2 border-success/40 bg-success-soft p-2 mt-4">
                               <p>
                                 D / G / O:{" "}
                                 {selectedCode.direccionGeneralNombre ?? "N/A"}

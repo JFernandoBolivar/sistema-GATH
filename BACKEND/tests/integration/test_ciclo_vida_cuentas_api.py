@@ -199,7 +199,7 @@ def test_restablecer_acceso_repone_la_cedula_con_siete_dias_y_revoca_sesiones(ba
     cuenta.save()
     version_antes = RepoPermisosVersionORM().obtener(cuenta.pk)
 
-    r = cliente_con('identidad.restablecer_acceso').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/')
+    r = cliente_con('identidad.restablecer_acceso').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/', {'motivo': 'Restablecimiento solicitado por el trabajador'}, format='json')
 
     assert r.status_code == 200, r.content
     assert r.json()['data']['debe_cambiar_password'] is True
@@ -214,7 +214,7 @@ def test_restablecer_acceso_repone_la_cedula_con_siete_dias_y_revoca_sesiones(ba
 def test_restablecer_acceso_exige_permiso(base):
     cuenta = cuenta_con_cedula()
 
-    r = cliente_con('identidad.ver_usuarios').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/')
+    r = cliente_con('identidad.ver_usuarios').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/', {'motivo': 'Intento sin permiso de restablecer'}, format='json')
 
     assert r.status_code == 403
 
@@ -229,7 +229,7 @@ def test_restablecer_acceso_usa_los_dias_configurados_en_el_parametro(base):
     )
     cuenta = cuenta_con_cedula()
 
-    r = cliente_con('identidad.restablecer_acceso').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/')
+    r = cliente_con('identidad.restablecer_acceso').post(f'{BASE}/usuarios/{cuenta.pk}/restablecer-acceso/', {'motivo': 'Restablecimiento solicitado por el trabajador'}, format='json')
 
     assert r.status_code == 200, r.content
     assert "vence en 3 días" in r.json()["message"]
@@ -275,7 +275,7 @@ def test_correo_acceso_alternativo_actualiza_employee_crea_cuenta_del_pasivo_y_a
     NotificacionModel.objects.all().delete()
 
     r = cliente_con('identidad.cambiar_correo_acceso').post(
-        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'ALTERNATIVO'}, format='json'
+        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'ALTERNATIVO', 'motivo': 'Pase a pasivo del trabajador'}, format='json'
     )
 
     assert r.status_code == 200, r.content
@@ -290,7 +290,7 @@ def test_correo_acceso_con_cuenta_existente_avisa_al_correo_elegido(base):
     DatosComplementariosTrabajadorModel.objects.create(cedula=CEDULA, correo_alternativo='ana.alt@hotmail.com')
 
     r = cliente_con('identidad.cambiar_correo_acceso').post(
-        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'ALTERNATIVO'}, format='json'
+        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'ALTERNATIVO', 'motivo': 'Pase a pasivo del trabajador'}, format='json'
     )
 
     assert r.status_code == 200, r.content
@@ -306,7 +306,7 @@ def test_correo_acceso_ya_usado_por_otro_responde_409(base):
     empleado('20888888', 'ocupado@gmail.com')
 
     r = cliente_con('identidad.cambiar_correo_acceso').post(
-        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'OTRO', 'correo': 'ocupado@gmail.com'}, format='json'
+        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'OTRO', 'correo': 'ocupado@gmail.com', 'motivo': 'Correo alternativo del trabajador'}, format='json'
     )
 
     assert r.status_code == 409
@@ -316,7 +316,7 @@ def test_correo_acceso_exige_permiso(base):
     cuenta_con_cedula()
 
     r = cliente_con('identidad.ver_usuarios').post(
-        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'INSTITUCIONAL'}, format='json'
+        f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'INSTITUCIONAL', 'motivo': 'Correo institucional del trabajador'}, format='json'
     )
 
     assert r.status_code == 403
@@ -385,7 +385,9 @@ def test_reingreso_reactiva_la_cuenta_dada_de_baja_por_egreso(base, condicion, m
 def test_desactivacion_manual_no_se_revierte_en_un_reingreso(base, condicion, django_capture_on_commit_callbacks):
     cuenta = cuenta_con_cedula()
     r = cliente_con('identidad.desactivar_usuarios').patch(
-        f'{BASE}/usuarios/{cuenta.pk}/estado/', {'is_active': False}, format='json'
+        f'{BASE}/usuarios/{cuenta.pk}/estado/',
+        {'is_active': False, 'motivo': 'Baja solicitada por el trabajador'},
+        format='json',
     )
     assert r.status_code == 200, r.content
     condicion[CEDULA] = CondicionTrabajador.ACTIVO

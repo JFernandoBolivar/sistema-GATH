@@ -4,7 +4,7 @@
  * Página principal de organización: "Consultar Ub. Administrativas" (/organizacion y /organizacion/listado-ubicacion-administrativa).
  * Paridad 100% con la interfaz legada (`listado-ubicacion-administrativa/` + `list-dependencys.tsx`):
  * - Cascadas de Comboboxes: Nivel, Dirección / Gerencia / Oficina, División / Coordinación
- * - Tablas con encabezado azul (bg-blue-600 text-white) y bordes redondeados (rounded-2xl border-blue-700)
+ * - Tablas con encabezado azul (bg-primary text-white) y bordes redondeados (rounded-2xl border-blue-700)
  * - Textos de ayuda idénticos: Consultar Dirección / Gerencia / Oficina, Consultar Divisiones, Consultar Coordinaciones De La División
  */
 import { useEffect, useState, useTransition } from "react";
@@ -121,7 +121,7 @@ export default function OrganizacionPage() {
 
   return (
     <PageLayout title="Listado De Ubicaciones Administrativas">
-      <Card className="bg-white">
+      <Card className="bg-card">
         <CardContent>
           <div className="grid grid-cols-2 w-full gap-5">
             <div className="col-span-2 gap-2">
@@ -137,7 +137,7 @@ export default function OrganizacionPage() {
                 searchPlaceholder="Buscar nivel..."
                 disabled={isLoadingDependency}
               />
-              <div className="text-sm text-gray-700 text-[12px]">
+              <div className="text-sm text-muted-foreground text-[12px]">
                 Consultar Dirección / Gerencia / Oficina
               </div>
             </div>
@@ -155,7 +155,7 @@ export default function OrganizacionPage() {
                 searchPlaceholder="Buscar dirección..."
                 disabled={isLoadingDirectionGeneral || !dependencyId}
               />
-              <div className="text-sm text-gray-700 text-[12px]">
+              <div className="text-sm text-muted-foreground text-[12px]">
                 Consultar Divisiones
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function OrganizacionPage() {
                 }
                 searchPlaceholder="Buscar división o coordinación..."
               />
-              <div className="text-[12px] text-gray-700">
+              <div className="text-[12px] text-muted-foreground">
                 Consultar Coordinaciones De La División
               </div>
             </div>
@@ -188,7 +188,7 @@ export default function OrganizacionPage() {
               <div className="overflow-auto border rounded-2xl border-blue-700">
                 <Table>
                   <TableCaption>División</TableCaption>
-                  <TableHeader className="bg-blue-600">
+                  <TableHeader className="bg-primary">
                     <TableRow>
                       <TableHead className="w-[100px] font-bold text-white">
                         Código
@@ -219,7 +219,7 @@ export default function OrganizacionPage() {
                 <div className="overflow-auto border rounded-2xl border-blue-700">
                   <Table>
                     <TableCaption>Coordinación</TableCaption>
-                    <TableHeader className="bg-blue-600">
+                    <TableHeader className="bg-primary">
                       <TableRow>
                         <TableHead className="w-[100px] font-bold text-white">
                           Código

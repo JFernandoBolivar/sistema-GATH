@@ -27,12 +27,25 @@ function fakeCatalogos(): CatalogosExpedientePasivo {
 function fakeRepo(overrides: Partial<RepoPasivos> = {}): RepoPasivos {
   return {
     listarPasivos: vi.fn(),
+    listarPasivosPaginados: vi.fn(),
+    actualizarPasivo: vi.fn(),
+    registrarPasivo: vi.fn(),
+    listarMotivosEgresoPasivo: vi.fn(),
+    egresarPasivo: vi.fn(),
+    listarSexos: vi.fn(),
+    listarEstadosCiviles: vi.fn(),
+    listarNacionalidades: vi.fn(),
+    listarEstados: vi.fn(),
+    listarMunicipios: vi.fn(),
+    listarParroquias: vi.fn(),
     obtenerPorCedula: vi.fn(),
     procesarEgreso: vi.fn(),
     listarMotivosEgreso: vi.fn(),
     listarTiposNomina: vi.fn(),
     listarCatalogosExpediente: vi.fn().mockResolvedValue(fakeCatalogos()),
     descargarPdf: vi.fn(),
+    getFamiliaresTitular: vi.fn(),
+    registrarSobrevivientes: vi.fn(),
     ...overrides,
   };
 }

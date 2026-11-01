@@ -5,21 +5,37 @@
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
 
-/** Filtros opcionales del listado de usuarios (se re-validan en la Server Action). */
+/** Filtros del listado paginado de usuarios (se re-validan en la Server Action). */
 export const usuariosFiltrosSchema = z.object({
-  busqueda: z
+  cedula: z
+    .string()
+    .trim()
+    .max(20, ERROR.MAX_LENGTH(20))
+    .regex(REGEX.SAFE_TEXT, "Contiene caracteres no permitidos")
+    .optional()
+    .or(z.literal("")),
+  nombre: z
     .string()
     .trim()
     .max(100, ERROR.MAX_LENGTH(100))
     .regex(REGEX.SAFE_TEXT, "Contiene caracteres no permitidos")
     .optional()
     .or(z.literal("")),
-  departamentoId: z.number().int().positive().optional().nullable(),
+  correo: z
+    .string()
+    .trim()
+    .max(120, ERROR.MAX_LENGTH(120))
+    .regex(REGEX.SAFE_TEXT, "Contiene caracteres no permitidos")
+    .optional()
+    .or(z.literal("")),
   rolId: z.number().int().positive().optional().nullable(),
   isActive: z.boolean().optional().nullable(),
+  condicion: z.enum(["ACTIVO", "PASIVO"]).optional().nullable(),
+  pagina: z.number().int().positive().optional(),
+  pageSize: z.number().int().min(1).max(50).optional(),
 });
 
-/** Alta de cuenta (zero-trust R7). */
+/** Alta de cuenta (zero-trust R7). D3: sin departamento. */
 export const registrarUsuarioSchema = z.object({
   cedula: z
     .string()
@@ -29,25 +45,51 @@ export const registrarUsuarioSchema = z.object({
     .string()
     .min(8, ERROR.MIN_LENGTH(8))
     .regex(REGEX.PASSWORD, ERROR.INVALID_PASSWORD),
-  departamentoId: z.number().int().positive().optional().nullable(),
   rolId: z.number().int().positive().optional().nullable(),
 });
 
-/** Edición parcial de cuenta (zero-trust R7). */
+/** Edición de rol (D4/M2: la contraseña no se cambia por este endpoint). */
 export const editarUsuarioSchema = z.object({
-  departamentoId: z.number().int().positive().optional().nullable(),
   rolId: z.number().int().positive().optional().nullable(),
-  password: z
-    .string()
-    .refine((v) => !v || v.trim().length === 0 || (v.trim().length >= 8 && REGEX.PASSWORD.test(v)), ERROR.INVALID_PASSWORD)
-    .optional()
-    .nullable(),
+  motivo: z.string().trim().max(500, ERROR.MAX_LENGTH(500)).optional(),
 });
 
-/** Cambio de estado de cuenta (zero-trust R7). */
+/** Cambio de estado (D4: motivo obligatorio). */
 export const cambiarEstadoUsuarioSchema = z.object({
-  isActive: z.boolean().optional(),
+  isActive: z.boolean(),
+  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
 });
+
+/** Overrides individuales (D4: motivo obligatorio). */
+export const guardarOverridesSchema = z.object({
+  allow: z.array(z.string().trim().min(1).max(100)).max(500),
+  deny: z.array(z.string().trim().min(1).max(100)).max(500),
+  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+});
+
+/** Matriz de permisos (D4: confirmación y motivo). */
+export const guardarMatrizSchema = z.object({
+  rolId: z.number().int().positive({ message: "Rol inválido" }),
+  permisos: z.array(z.string().trim().min(1).max(100)).max(500),
+  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+});
+
+/** «Restablecer acceso» (A1): motivo obligatorio para la auditoría. */
+export const restablecerAccesoSchema = z.object({
+  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+});
+
+/** Correo de acceso (D8/A2). */
+export const cambiarCorreoAccesoSchema = z
+  .object({
+    fuente: z.enum(["INSTITUCIONAL", "ALTERNATIVO", "OTRO"]),
+    correo: z.string().trim().email("Correo inválido").optional().or(z.literal("")),
+    motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+  })
+  .refine((v) => v.fuente !== "OTRO" || !!v.correo, {
+    message: "Indique el correo cuando la fuente es OTRO",
+    path: ["correo"],
+  });
 
 /**
  * Schema del formulario de alta/edición de la UI (Regla R8). Permite contraseña
@@ -60,7 +102,6 @@ export const usuarioFormSchema = z.object({
     .trim()
     .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida (solo dígitos)" }),
   password: z.string().optional().nullable(),
-  departamentoId: z.number().int().positive().optional().nullable(),
   rolId: z.number().int().positive().optional().nullable(),
 });
 
@@ -94,4 +135,8 @@ export type RegistrarUsuarioFormType = z.infer<typeof registrarUsuarioSchema>;
 export type UsuarioFormType = z.infer<typeof usuarioFormSchema>;
 export type EditarUsuarioFormType = z.infer<typeof editarUsuarioSchema>;
 export type CambiarEstadoUsuarioFormType = z.infer<typeof cambiarEstadoUsuarioSchema>;
+export type GuardarOverridesFormType = z.infer<typeof guardarOverridesSchema>;
+export type GuardarMatrizFormType = z.infer<typeof guardarMatrizSchema>;
+export type CambiarCorreoAccesoFormType = z.infer<typeof cambiarCorreoAccesoSchema>;
+export type RestablecerAccesoFormType = z.infer<typeof restablecerAccesoSchema>;
 export type RolFormType = z.infer<typeof rolSchema>;

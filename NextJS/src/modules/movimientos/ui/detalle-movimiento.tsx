@@ -64,7 +64,7 @@ export function DetalleMovimiento({ movimiento, open, onOpenChange }: DetalleMov
                     <span>{formatFechaHora(movimiento.fechaMovimiento)}</span>
 
                     <span className="text-muted-foreground">Tipo de Movimiento</span>
-                    <Badge className="w-fit bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+                    <Badge className="w-fit bg-info-soft text-primary dark:bg-brand-deep dark:text-white/80">
                       {movimiento.tipoMovimiento || "N/A"}
                     </Badge>
 

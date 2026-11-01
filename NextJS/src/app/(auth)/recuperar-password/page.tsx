@@ -4,7 +4,7 @@ import Image from "next/image";
 
 export default function RecuperarPasswordPage() {
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center gap-4">
+    <main className="relative flex h-full w-full flex-col items-center justify-center gap-4">
       <Card className="grid h-[80%] lg:w-[70%] lg:grid-cols-2 p-0 backdrop-blur-3xl bg-slate-400/55 text-white border-0">
         <div className="flex flex-col p-6 md:p-10">
           <div className="flex flex-1 items-center justify-center">
@@ -13,7 +13,7 @@ export default function RecuperarPasswordPage() {
             </div>
           </div>
         </div>
-        <div className="bg-muted relative hidden lg:block rounded-2xl">
+        <div className="bg-muted relative hidden overflow-hidden rounded-2xl lg:block">
           <Image
             height={2000}
             width={2000}
@@ -24,6 +24,6 @@ export default function RecuperarPasswordPage() {
           />
         </div>
       </Card>
-    </div>
+    </main>
   );
 }

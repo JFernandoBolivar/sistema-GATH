@@ -125,9 +125,17 @@ export function pasivoApiAEntidad(raw: PasivoApiItem): Pasivo {
     apellidos: raw.apellidos,
     nombreCompleto: raw.nombre_completo,
     tipoPasivo: raw.tipo_pasivo,
+    tipoNominaId: raw.tipo_nomina_id ?? null,
     fechaEgreso: raw.fecha_egreso,
     resolucion: raw.resolucion,
     observaciones: raw.observaciones,
+    correo: raw.correo ?? null,
+    telefonoMovil: raw.telefono_movil ?? null,
+    telefonoHabitacion: raw.telefono_habitacion ?? null,
+    carnetPatria: raw.carnet_patria ?? null,
+    fechaNacimiento: raw.fecha_nacimiento ?? null,
+    estadoCivilId: raw.estado_civil_id ?? null,
+    nacionalidadId: raw.nacionalidad_id ?? null,
     datosVivienda: raw.datos_vivienda ? viviendaApiADto(asRec(raw.datos_vivienda)) : null,
     perfilSalud: raw.perfil_salud ? saludApiADto(asRec(raw.perfil_salud)) : null,
     perfilFisico: raw.perfil_fisico ? fisicoApiADto(asRec(raw.perfil_fisico)) : null,
@@ -176,5 +184,20 @@ export function catalogosExpedienteApiAEntidad(raw: {
     menciones: raw.menciones.map(catalogoPasivoApiAEntidad),
     instituciones: raw.instituciones.map(catalogoPasivoApiAEntidad),
     politicas: raw.politicas.map(catalogoPasivoApiAEntidad),
+  };
+}
+
+
+export function paginaPasivosApiAEntidad(raw: {
+  count: number;
+  limit: number;
+  offset: number;
+  results: PasivoApiItem[];
+}): { count: number; limit: number; offset: number; results: Pasivo[] } {
+  return {
+    count: raw.count,
+    limit: raw.limit,
+    offset: raw.offset,
+    results: raw.results.map(pasivoApiAEntidad),
   };
 }

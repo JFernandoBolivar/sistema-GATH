@@ -17,7 +17,10 @@ from apps.personal.infrastructure.models.expediente_models import (
     PerfilSaludModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-from apps.personal.shared.domain.services.tiempo_servicio import calcular_total_apn
+from apps.personal.shared.domain.services.tiempo_servicio import (
+    anios_fraccionarios,
+    calcular_total_apn,
+)
 
 logger = logging.getLogger('gath.personal')
 
@@ -40,9 +43,10 @@ def _total_anos_apn_calculado(antecedentes_cerrados) -> float:
     combinando las tres partes en una fracción de año.
     """
     resultado = calcular_total_apn(antecedentes_cerrados or [])
-    return round(
-        resultado["years"] + resultado["months"] / 12.0 + resultado["days"] / 365.0,
-        4,
+    return anios_fraccionarios(
+        years=resultado["years"],
+        months=resultado["months"],
+        days=resultado["days"],
     )
 
 

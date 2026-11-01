@@ -32,8 +32,8 @@ describe("itemsVisibles", () => {
   it("sin permisos solo queda Inicio y no se usa el nombre del rol", () => {
     expect(ids([], "ACTIVO")).toEqual(["inicio"]);
   });
-  it("las entradas administrativas dependen de su permiso", () => {
-    expect(ids(["autogestion.censo_ver_todos"], null)).toEqual(["inicio", "encuesta", "metricas"]);
+  it("las entradas administrativas del censo viven ahora en Gestión de Trabajadores", () => {
+    expect(ids(["autogestion.censo_ver_todos"], null)).toEqual(["inicio"]);
   });
   it("el comodín del módulo concede todo lo de autogestión (Notificaciones y Fe de vida son de otros módulos)", () => {
     expect(ids(["autogestion.*"], "ACTIVO")).toHaveLength(ITEMS_NAV_AUTOGESTION.length - 2);

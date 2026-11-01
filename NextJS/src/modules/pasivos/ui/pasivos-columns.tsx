@@ -1,16 +1,13 @@
 "use client";
 
 /**
- * Definición de columnas del listado de pasivos para `DataTable` (tanstack).
- * Réplica de paridad estructural con el legado (`tablePasive/columns.tsx`):
- * cédula, nombre completo, tipo, fecha de egreso, resolución, y una columna
- * de acciones con menú desplegable (copiar cédula, ver detalle) en vez de
- * un botón "Ver detalle" suelto por fila. La exportación a PDF del legado
- * vivía en este mismo menú ("Extras"); aquí vive dentro del Sheet de
- * detalle (`detalle-pasivo.tsx`), mismo criterio ya usado en `modules/personal`.
+ * Columnas del listado de pasivos. Acciones: copiar cédula, ver detalle,
+ * editar datos básicos (pasivos.editar), consultar/agregar familiares del
+ * pasivo. El detalle sigue abriéndose en el Sheet del módulo.
  */
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Eye, MoreHorizontal } from "lucide-react";
+import { ContactRound, Copy, Eye, MoreHorizontal, Pencil, UserRoundPlus } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -19,16 +16,22 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/components/dropdown-menu";
 import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
 
 import type { PasivoDTO } from "../application/dtos/pasivos-dto";
 
-function AccionesCell({ pasivo, onVerDetalle }: {
-  pasivo: PasivoDTO;
-  onVerDetalle: (cedula: string) => void;
-}) {
+export interface AccionesPasivo {
+  onVerDetalle: (pasivo: PasivoDTO) => void;
+  onEditar: (pasivo: PasivoDTO) => void;
+  puedeEditar: boolean;
+  puedeVerFamiliares: boolean;
+  puedeAgregarFamiliar: boolean;
+}
+
+function AccionesCell({ pasivo, acciones }: { pasivo: PasivoDTO; acciones: AccionesPasivo }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -42,18 +45,47 @@ function AccionesCell({ pasivo, onVerDetalle }: {
         <DropdownMenuItem onClick={() => navigator.clipboard.writeText(pasivo.cedula)}>
           <Copy className="size-4" aria-hidden="true" /> Copiar cédula
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onVerDetalle(pasivo.cedula)}>
+        <DropdownMenuItem onClick={() => acciones.onVerDetalle(pasivo)}>
           <Eye className="size-4" aria-hidden="true" /> Ver detalle
         </DropdownMenuItem>
+        {acciones.puedeEditar && (
+          <DropdownMenuItem onClick={() => acciones.onEditar(pasivo)}>
+            <Pencil className="size-4" aria-hidden="true" /> Editar datos
+          </DropdownMenuItem>
+        )}
+        {(acciones.puedeVerFamiliares || acciones.puedeAgregarFamiliar) && (
+          <>
+            <DropdownMenuSeparator />
+            {acciones.puedeVerFamiliares && (
+              <DropdownMenuItem asChild>
+                <Link href={`/familiares/consultar?cedula=${pasivo.cedula}`}>
+                  <ContactRound className="size-4" aria-hidden="true" /> Ver familiares
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {acciones.puedeAgregarFamiliar && (
+              <DropdownMenuItem asChild>
+                <Link href={`/familiares/registrar?cedula=${pasivo.cedula}`}>
+                  <UserRoundPlus className="size-4" aria-hidden="true" /> Agregar familiar
+                </Link>
+              </DropdownMenuItem>
+            )}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-export function construirColumnasPasivos(
-  onVerDetalle: (cedula: string) => void,
-): ColumnDef<PasivoDTO>[] {
+export function construirColumnasPasivos(acciones: AccionesPasivo): ColumnDef<PasivoDTO>[] {
   return [
+    {
+      accessorKey: "resolucion",
+      header: "Código",
+      cell: ({ getValue }) => (
+        <span className="font-medium">{(getValue() as string | null) ?? "—"}</span>
+      ),
+    },
     {
       accessorKey: "cedula",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Cédula" />,
@@ -66,23 +98,20 @@ export function construirColumnasPasivos(
     },
     {
       accessorKey: "tipoPasivo",
-      header: "Tipo",
+      header: "Tipo de nómina",
       cell: ({ getValue }) => <Badge variant="secondary">{getValue() as string}</Badge>,
     },
     {
       accessorKey: "fechaEgreso",
       header: "Fecha de egreso",
-      cell: ({ getValue }) => <span className="text-muted-foreground">{(getValue() as string | null) ?? "—"}</span>,
-    },
-    {
-      accessorKey: "resolucion",
-      header: "Resolución",
-      cell: ({ getValue }) => <span className="text-muted-foreground">{(getValue() as string | null) ?? "—"}</span>,
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground">{(getValue() as string | null) ?? "—"}</span>
+      ),
     },
     {
       id: "actions",
       header: "Acciones",
-      cell: ({ row }) => <AccionesCell pasivo={row.original} onVerDetalle={onVerDetalle} />,
+      cell: ({ row }) => <AccionesCell pasivo={row.original} acciones={acciones} />,
     },
   ];
 }

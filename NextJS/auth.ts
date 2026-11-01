@@ -15,7 +15,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        token.department = user.department;
         token.cedula = user.cedula;
         token.phone = user.phone;
         token.directionGeneral = user.directionGeneral;
@@ -40,7 +39,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role;
-        session.user.department = token.department;
         session.user.cedula = token.cedula;
         session.user.phone = token.phone;
         session.user.directionGeneral = token.directionGeneral;

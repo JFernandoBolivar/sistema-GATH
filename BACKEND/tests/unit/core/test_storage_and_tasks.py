@@ -84,7 +84,10 @@ def test_celery_task_queue_encola_con_la_app_inyectada():
     app = MagicMock()
     app.send_task.return_value.id = "abc-123"
     assert CeleryTaskQueue(celery_app=app).encolar("gath.tarea", x=1) == "abc-123"
-    app.send_task.assert_called_once_with("gath.tarea", kwargs={"x": 1})
+    args, kwargs = app.send_task.call_args
+    assert args == ("gath.tarea",)
+    assert kwargs["kwargs"] == {"x": 1}
+    assert kwargs["headers"]["trace_id"]
 
 
 def test_celery_task_queue_traduce_fallo_del_broker():

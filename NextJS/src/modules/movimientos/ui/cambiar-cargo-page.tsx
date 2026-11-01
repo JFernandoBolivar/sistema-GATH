@@ -331,7 +331,7 @@ export function CambiarCargoPage() {
       {isPending ? (
         <Loading promiseMessage="Cambiando Cargo..." />
       ) : (
-        <Card className="bg-white">
+        <Card className="bg-card">
           <CardContent className="gap-5 flex flex-col p-6">
             <EmployeeSearchForm onSearch={handleSearchEmployee} />
 
@@ -479,7 +479,7 @@ export function CambiarCargoPage() {
                               />
 
                               {selectedCode && (
-                                <div className="rounded-sm border-2 border-emerald-400/45 bg-emerald-200/40 p-2 mt-4 space-y-1 text-sm">
+                                <div className="rounded-sm border-2 border-success/40 bg-success-soft p-2 mt-4 space-y-1 text-sm">
                                   <p>
                                     D / G / O:{" "}
                                     {selectedCode.direccionGeneralNombre ?? "N/A"}

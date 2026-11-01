@@ -81,10 +81,11 @@ const PERFILES: PerfilE2E[] = [
     password: process.env.E2E_TRAB_PASSWORD,
     visibles: [INICIO, FICHA, NUEVA, MIS_SOLICITUDES],
     extra: (pagina) => {
-      test("la bandeja de Bienestar está bloqueada: redirige a Autogestión sin cargarla", async () => {
+      test("la bandeja de Bienestar está bloqueada: redirige al dashboard con aviso sin cargarla", async () => {
         const page = pagina();
         await page.goto(BANDEJA.ruta);
-        await expect(page).toHaveURL(/\/autogestion\/?$/);
+        await expect(page).toHaveURL(/\/dashboard\?aviso=sin-permiso/);
+        await expect(page.locator('p[role="alert"]')).toContainText(/no tiene permiso/i);
         await expect(page.getByText(BANDEJA.espera)).toHaveCount(0);
       });
     },

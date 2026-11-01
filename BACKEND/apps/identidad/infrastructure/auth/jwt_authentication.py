@@ -2,12 +2,12 @@
 Autenticación JWT por Header Bearer y Cookie HttpOnly (Reglas B1.3, B26).
 """
 from django.conf import settings
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.settings import api_settings
 
-from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
-    RepoPermisosVersionORM,
-)
+from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 
 
 class CookieJWTAuthentication(JWTAuthentication):
@@ -42,9 +42,25 @@ class CookieJWTAuthentication(JWTAuthentication):
         permisos de la cuenta (claim `permisos_version`) quedó atrás: cambió su
         rol, sus ajustes individuales o su contraseña (Etapa A4). Un token sin
         el claim (emitido antes de A4) cuenta como versión 1.
+
+        La cuenta se carga una sola vez, anotada con la versión de permisos y la
+        condición del trabajador (A-02), y `request.user` la reutiliza en
+        `/auth/me` para no repetir la consulta.
         """
-        user = super().get_user(validated_token)
+        user_id = validated_token.get(api_settings.USER_ID_CLAIM)
+        user = (
+            RepoCuentasORM().obtener_modelo_contexto_sesion(user_id)
+            if user_id
+            else None
+        )
+        if user is None:
+            raise AuthenticationFailed('Usuario no encontrado.', code='user_not_found')
+        if api_settings.CHECK_USER_IS_ACTIVE and not user.is_active:
+            raise AuthenticationFailed('Usuario inactivo o deshabilitado.', code='user_inactive')
+
         version_token = int(validated_token.payload.get('permisos_version', 1))
-        if version_token < RepoPermisosVersionORM().obtener(user.pk):
+        if version_token < (getattr(user, 'permisos_version', None) or 1):
             raise InvalidToken('La sesión fue invalidada por un cambio de permisos.')
+        # Marca para que `MeView` reutilice esta fila ya consultada.
+        user._gath_contexto_sesion = True
         return user

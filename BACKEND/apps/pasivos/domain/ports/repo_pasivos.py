@@ -10,6 +10,30 @@ class RepoPasivos(Protocol):
     def listar_pasivos(self, busqueda: str | None = None) -> list[Pasivo]:
         ...
 
+    def listar_pasivos_paginados(self, **filtros) -> tuple[list[Pasivo], int]:
+        """Listado con filtros y paginación en servidor."""
+        ...
+
+    def actualizar_datos_pasivo(self, cedula: str, datos: dict) -> Pasivo:
+        """Actualiza los datos básicos editables del pasivo."""
+        ...
+
+    def registrar_pasivo_directo(
+        self, datos: dict, tipo_nomina_id: int, usuario_id: int | None = None,
+    ) -> Pasivo:
+        """Alta directa de jubilado/pensionado sin cargo activo previo."""
+        ...
+
+    def listar_motivos_egreso_pasivo(self) -> list[dict]:
+        """Motivos válidos para egresar un pasivo (fallecimiento)."""
+        ...
+
+    def egresar_pasivo(
+        self, cedula: str, motivo_id: int, usuario_id: int | None = None,
+    ) -> Pasivo:
+        """Egreso de un pasivo: cambia su estatus y registra el egreso."""
+        ...
+
     def obtener_por_cedula(self, cedula: str) -> Pasivo | None:
         ...
 

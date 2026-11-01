@@ -10,7 +10,7 @@
  */
 import type { ColumnDef } from "@tanstack/react-table";
 import { formatInTimeZone } from "date-fns-tz";
-import { Airplay, ArrowUpDown, Copy, Eye, MoreHorizontal } from "lucide-react";
+import { Airplay, ArrowUpDown, Copy, MoreHorizontal } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -65,13 +65,9 @@ function UbicacionHoverCard({ valor }: { valor?: string | null }) {
 
 function AccionesCell({
   cargo,
-  puedeVerDetalle,
-  onVerDetalle,
   onActualizar,
 }: {
   cargo: CargoAsignacionDTO;
-  puedeVerDetalle: boolean;
-  onVerDetalle: (cargoId: number) => void;
   onActualizar?: (cargo: CargoAsignacionDTO) => void;
 }) {
   return (
@@ -93,19 +89,14 @@ function AccionesCell({
             <Airplay className="size-4 mr-2" aria-hidden="true" /> Actualizar Código
           </DropdownMenuItem>
         )}
-        {puedeVerDetalle && (
-          <DropdownMenuItem onClick={() => onVerDetalle(cargo.id)}>
-            <Eye className="size-4 mr-2" aria-hidden="true" /> Ver Detalle
-          </DropdownMenuItem>
-        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
 export function construirColumnasCargos(
-  puedeVerDetalle: boolean,
-  onVerDetalle: (cargoId: number) => void,
+  _puedeVerDetalle: boolean,
+  _onVerDetalle: (cargoId: number) => void,
   onActualizar?: (cargo: CargoAsignacionDTO) => void,
 ): ColumnDef<CargoAsignacionDTO>[] {
   return [
@@ -198,12 +189,7 @@ export function construirColumnasCargos(
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => (
-        <AccionesCell
-          cargo={row.original}
-          puedeVerDetalle={puedeVerDetalle}
-          onVerDetalle={onVerDetalle}
-          onActualizar={onActualizar}
-        />
+        <AccionesCell cargo={row.original} onActualizar={onActualizar} />
       ),
     },
   ];

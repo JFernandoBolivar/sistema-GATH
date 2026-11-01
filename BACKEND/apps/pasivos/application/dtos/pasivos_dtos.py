@@ -12,9 +12,17 @@ class PasivoDTO:
     apellidos: str
     nombre_completo: str
     tipo_pasivo: str
+    tipo_nomina_id: int | None = None
     fecha_egreso: str | None = None
     resolucion: str | None = None
     observaciones: str | None = None
+    correo: str | None = None
+    telefono_movil: str | None = None
+    telefono_habitacion: str | None = None
+    carnet_patria: str | None = None
+    fecha_nacimiento: str | None = None
+    estado_civil_id: int | None = None
+    nacionalidad_id: int | None = None
     datos_vivienda: dict | None = None
     perfil_salud: dict | None = None
     perfil_fisico: dict | None = None
@@ -47,3 +55,26 @@ class CrearSobrevivientesDTO:
     tipo_nomina_id: int | None = None
     familiar_ids: tuple[int, ...] | None = None
     usuario_id: int | None = None
+
+
+@dataclass(frozen=True)
+class EgresarPasivoDTO:
+    cedula: str
+    motivo_id: int
+    sobrevivientes_familiar_ids: tuple[int, ...] = ()
+    usuario_id: int | None = None
+
+
+@dataclass(frozen=True)
+class RegistrarPasivoDirectoDTO:
+    datos: dict
+    tipo_nomina_id: int
+    usuario_id: int | None = None
+
+
+@dataclass(frozen=True)
+class PaginaPasivosDTO:
+    resultados: list[PasivoDTO]
+    total: int
+    limite: int
+    desplazamiento: int

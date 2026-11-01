@@ -30,6 +30,10 @@ class AuditoriaLog(models.Model):
     ip_origen = models.GenericIPAddressField(null=True, blank=True)
     # Cabecera User-Agent de la petición (recortada); ayuda a distinguir dispositivos (Etapa A6/E1).
     user_agent = models.CharField(max_length=255, blank=True, default='')
+    dispositivo = models.CharField(max_length=20, blank=True, default='DESCONOCIDO')
+    # E1: cadena SHA-256 sobre el contenido canónico del registro.
+    hash_anterior = models.CharField(max_length=64, editable=False, default='')
+    hash_actual = models.CharField(max_length=64, editable=False, default='', db_index=True)
     estado_previo = models.JSONField(null=True, blank=True)
     estado_nuevo = models.JSONField(null=True, blank=True)
     resultado = models.CharField(max_length=20, choices=Resultado.choices, default=Resultado.SUCCESS)
@@ -47,3 +51,35 @@ class AuditoriaLog(models.Model):
 
     def __str__(self) -> str:
         return f'[{self.fecha_hora}] {self.modulo}.{self.accion} — {self.resultado}'
+
+    def save(self, *args, **kwargs):
+        """E1: solo se agrega. Un registro existente no puede actualizarse."""
+        if not self._state.adding:
+            raise ValueError('La bitácora de auditoría es inmutable: no se permite actualizar registros.')
+        if not self.dispositivo:
+            from core.domain.auditoria import dispositivo_de_user_agent
+            self.dispositivo = dispositivo_de_user_agent(self.user_agent)
+        if not self.hash_actual:
+            from django.db import connection, transaction
+            from core.domain.auditoria import (
+                GENESIS_AUDITORIA,
+                calcular_hash_registro,
+            )
+            with transaction.atomic():
+                if connection.vendor == 'postgresql':
+                    with connection.cursor() as cursor:
+                        cursor.execute("SELECT pg_advisory_xact_lock(hashtext('gath_auditoria_log_chain'))")
+                anterior = (
+                    type(self).objects.order_by('-fecha_hora', '-id')
+                    .values_list('hash_actual', flat=True)
+                    .first()
+                ) or GENESIS_AUDITORIA
+                self.hash_anterior = anterior
+                self.hash_actual = calcular_hash_registro(self, anterior)
+                super().save(*args, **kwargs)
+            return
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        """E1: la bitácora no se borra."""
+        raise ValueError('La bitácora de auditoría es inmutable: no se permite borrar registros.')

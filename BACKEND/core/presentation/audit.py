@@ -15,10 +15,14 @@ logger = logging.getLogger('audit_backend')
 
 
 def origen_de_peticion(request) -> dict:
-    """`ip_origen` y `user_agent` de la petición, listos para `registrar_auditoria(**...)`."""
+    """IP, user-agent y dispositivo de la petición, listos para `registrar_auditoria(**...)`."""
+    from core.domain.auditoria import dispositivo_de_user_agent
+
+    user_agent = (request.META.get('HTTP_USER_AGENT') or '')[:255]
     return {
         'ip_origen': request.META.get('REMOTE_ADDR') or None,
-        'user_agent': (request.META.get('HTTP_USER_AGENT') or '')[:255],
+        'user_agent': user_agent,
+        'dispositivo': dispositivo_de_user_agent(user_agent),
     }
 
 
@@ -35,6 +39,7 @@ def registrar_auditoria(
     recurso_id: str = '',
     ip_origen: str | None = None,
     user_agent: str = '',
+    dispositivo: str = '',
     estado_previo: dict | None = None,
     estado_nuevo: dict | None = None,
 ) -> AuditoriaLog:
@@ -50,6 +55,7 @@ def registrar_auditoria(
         recurso_id=recurso_id,
         ip_origen=ip_origen,
         user_agent=(user_agent or '')[:255],
+        dispositivo=dispositivo,
         estado_previo=estado_previo,
         estado_nuevo=estado_nuevo,
         resultado=resultado,

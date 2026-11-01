@@ -173,7 +173,7 @@ export default function AutogestionPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {isLoading ? (
         <div className="gap-4 max-w-3xl mx-auto flex flex-col">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -204,7 +204,7 @@ export default function AutogestionPage() {
                   <FileText className="size-5 text-gray-600" />
                   Resumen de su Autogestión
                 </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm mt-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-3">
                   <div className="flex items-center gap-2 text-gray-800">
                     <IdCard className="size-4 text-gray-500" />
                     <span className="font-medium">Cédula:</span>
@@ -298,7 +298,7 @@ export default function AutogestionPage() {
         </div>
       ) : (
         <div className="max-w-3xl mx-auto">
-          <Card className="p-6 md:p-10 bg-white border border-gray-200 shadow-lg rounded-lg">
+          <Card className="p-4 sm:p-6 md:p-10 bg-white border border-gray-200 shadow-lg rounded-lg">
             {isDev && yaRespondio && (
               <div className="border-2 border-yellow-400/45 bg-yellow-100/40 rounded-sm p-3 mb-6 text-sm text-yellow-700">
                 [DEV] El usuario ya respondió este censo. El formulario se muestra solo por estar en
@@ -396,7 +396,7 @@ export default function AutogestionPage() {
 
                 <h2 className="text-lg font-bold">Datos de Vivienda *</h2>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name={"datos_vivienda.estado_id" as FieldPath<DynamicFormValues>}
@@ -557,7 +557,7 @@ export default function AutogestionPage() {
                     control={form.control}
                     name={"datos_vivienda.direccion_exacta" as FieldPath<DynamicFormValues>}
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem className="sm:col-span-2">
                         <FormLabel>Dirección Exacta *</FormLabel>
                         <FormControl>
                           <Input

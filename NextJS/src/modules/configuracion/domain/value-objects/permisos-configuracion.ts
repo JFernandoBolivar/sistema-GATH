@@ -8,4 +8,5 @@ export const GRUPOS_PARAMETROS = [
   { clave: "notificaciones", etiqueta: "Notificaciones" },
   { clave: "plazos", etiqueta: "Plazos" },
   { clave: "fe_de_vida", etiqueta: "Fe de vida" },
+  { clave: "retencion", etiqueta: "Retención de datos" },
 ] as const;

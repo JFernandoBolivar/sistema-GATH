@@ -39,14 +39,14 @@ export function TipoMovimientoBadge({ tipo }: { tipo: string | null | undefined 
   const normalizado = tipo.trim().toUpperCase();
   if (normalizado.includes("ASCENSO")) {
     return (
-      <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+      <Badge className="border-success/40 bg-success-soft text-success hover:bg-success-soft dark:border-success/40 dark:bg-success-soft dark:text-success">
         {tipo}
       </Badge>
     );
   }
   if (normalizado.includes("TRANSFERENCIA") || normalizado.includes("TRASLADO")) {
     return (
-      <Badge className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+      <Badge className="border-primary/40 bg-info-soft text-primary hover:bg-info-soft dark:border-primary/40 dark:bg-info-soft dark:text-primary">
         {tipo}
       </Badge>
     );
@@ -67,7 +67,7 @@ export function TipoMovimientoBadge({ tipo }: { tipo: string | null | undefined 
   }
   if (normalizado.includes("ESPECIAL")) {
     return (
-      <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+      <Badge className="border-warning/40 bg-warning-soft text-warning hover:bg-warning-soft dark:border-warning/40 dark:bg-warning-soft dark:text-warning">
         {tipo}
       </Badge>
     );

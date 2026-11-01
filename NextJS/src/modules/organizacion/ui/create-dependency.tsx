@@ -103,7 +103,7 @@ export default function CreateDependency({ onSuccess }: CreateDependencyProps) {
   };
 
   return (
-    <Card className="text-black dark:text-white bg-white dark:bg-card shadow-sm">
+    <Card className="text-black dark:text-white bg-card dark:bg-card shadow-sm">
       <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">

@@ -14,7 +14,7 @@ export default function CarnetizacionLayout({
   return (
     <SidebarProvider>
       <AppSidebarCarnetizacion />
-      <SidebarInset className="bg-transparent">
+      <SidebarInset className="min-w-0 bg-transparent">
         <HeaderLayout
           title="Sistema de Carnetización"
           subtitle="Generación y Gestión de Carnets del Personal - CONATEL"
@@ -23,7 +23,7 @@ export default function CarnetizacionLayout({
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>
-        <main className="w-full h-full overflow-hidden">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-hidden">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

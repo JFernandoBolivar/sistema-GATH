@@ -309,7 +309,7 @@ export default function RetroalimentacionView() {
 
         <TabsContent value="ads">
           <div className="flex flex-row gap-2">
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevo Organismo Adscrito
@@ -335,7 +335,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Actualizar Organismo Adscrito
@@ -391,7 +391,7 @@ export default function RetroalimentacionView() {
 
         <TabsContent value="dis">
           <div className="flex gap-2">
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Discapidades
@@ -417,7 +417,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Discapacidades
@@ -458,7 +458,7 @@ export default function RetroalimentacionView() {
 
         <TabsContent value="pat">
           <div className="flex gap-2">
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Patologias
@@ -484,7 +484,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Patologias
@@ -525,7 +525,7 @@ export default function RetroalimentacionView() {
 
         <TabsContent value="aler">
           <div className="flex gap-2">
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Alergias
@@ -551,7 +551,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nuevas Alergias</h2>
               </CardHeader>
@@ -590,7 +590,7 @@ export default function RetroalimentacionView() {
 
         <TabsContent value="tallas">
           <div className="flex gap-2">
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nueva Region</h2>
               </CardHeader>
@@ -614,7 +614,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nueva Talla</h2>
               </CardHeader>
@@ -664,7 +664,7 @@ export default function RetroalimentacionView() {
 
         <TabsContent value="retro-beneficio">
           <div className="flex flex-row gap-2">
-            <Card className="grow bg-white">
+            <Card className="grow bg-card">
               <CardContent className="flex flex-col justify-center gap-5">
                 <div className="flex gap-2">
                   {isPending ? (

@@ -10,10 +10,6 @@ declare module "next-auth" {
         id: number;
         nombre_rol: string;
       };
-      department: {
-        id: number;
-        nombre_departamento: string;
-      };
       cedula: string;
       phone: string;
       email: string;
@@ -42,10 +38,6 @@ declare module "next-auth" {
     role: {
       id: number;
       nombre_rol: string;
-    };
-    department: {
-      id: number;
-      nombre_departamento: string;
     };
     cedula: string;
     phone: string;
@@ -78,10 +70,6 @@ declare module "next-auth/jwt" {
     role: {
       id: number;
       nombre_rol: string;
-    };
-    department: {
-      id: number;
-      nombre_departamento: string;
     };
     cedula: string;
     phone: string;

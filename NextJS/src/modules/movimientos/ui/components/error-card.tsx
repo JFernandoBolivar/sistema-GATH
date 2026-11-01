@@ -23,14 +23,14 @@ export function ErrorCard({
           />
 
           <div className="relative z-10 animate-float-error">
-            <div className="size-24 rounded-full bg-red-100 border-2 border-red-500 flex items-center justify-center animate-pulse-red">
-              <div className="text-4xl font-bold text-red-600 animate-shake">
+            <div className="size-24 rounded-full bg-danger-soft border-2 border-red-500 flex items-center justify-center animate-pulse-red">
+              <div className="text-4xl font-bold text-danger animate-shake">
                 !
               </div>
             </div>
           </div>
 
-          <div className="absolute bottom-4 text-lg text-red-600 animate-pulse text-center font-semibold">
+          <div className="absolute bottom-4 text-lg text-danger animate-pulse text-center font-semibold">
             {errorMessage ? errorMessage : "Algo salió mal"}
           </div>
         </div>

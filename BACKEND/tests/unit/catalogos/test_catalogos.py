@@ -66,9 +66,11 @@ class RepoCatalogosMemoria:
     def listar_tipos_personal(self):
         return list(self.tipos_personal)
 
-    def listar_tipos_nomina(self, solo_especiales=False, solo_pasivos=False):
+    def listar_tipos_nomina(self, solo_especiales=False, solo_pasivos=False, solo_activos=False):
         if solo_pasivos:
             return [tn for tn in self.tipos_nomina if tn.extra.get('es_activo') is False]
+        if solo_activos:
+            return [tn for tn in self.tipos_nomina if tn.extra.get('es_activo') is not False]
         return list(self.tipos_nomina)
 
     def listar_parentescos(self):
@@ -138,3 +140,10 @@ def test_listar_tipos_nomina_solo_pasivos():
     nombres = [p.nombre for p in pasivos]
     assert "JUBILADO" in nombres
     assert "PENSIONADO" in nombres
+
+
+def test_listar_tipos_nomina_solo_activos():
+    repo = RepoCatalogosMemoria()
+    activos = listar_tipos_nomina(repo, solo_activos=True)
+    assert len(activos) == 1
+    assert activos[0].nombre == "EMPLEADOS ADM"

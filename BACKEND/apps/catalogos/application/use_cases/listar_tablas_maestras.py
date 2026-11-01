@@ -30,15 +30,27 @@ def listar_tipos_personal(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
 
 
 def listar_tipos_nomina(
-    repo: RepoCatalogos, solo_especiales: bool = False, solo_pasivos: bool = False
+    repo: RepoCatalogos,
+    solo_especiales: bool = False,
+    solo_pasivos: bool = False,
+    solo_activos: bool = False,
 ) -> list[CatalogoItemDTO]:
     try:
-        entidades = repo.listar_tipos_nomina(solo_especiales=solo_especiales, solo_pasivos=solo_pasivos)
+        entidades = repo.listar_tipos_nomina(
+            solo_especiales=solo_especiales,
+            solo_pasivos=solo_pasivos,
+            solo_activos=solo_activos,
+        )
     except TypeError:
         try:
-            entidades = repo.listar_tipos_nomina(solo_especiales=solo_especiales)
+            entidades = repo.listar_tipos_nomina(
+                solo_especiales=solo_especiales, solo_pasivos=solo_pasivos
+            )
         except TypeError:
-            entidades = repo.listar_tipos_nomina()
+            try:
+                entidades = repo.listar_tipos_nomina(solo_especiales=solo_especiales)
+            except TypeError:
+                entidades = repo.listar_tipos_nomina()
     return _convertir(entidades)
 
 

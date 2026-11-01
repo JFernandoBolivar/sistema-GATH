@@ -75,11 +75,21 @@ export interface DetalleSolicitudApi extends SolicitudApi {
   prorrogas: ProrrogaApi[];
 }
 
+export interface ResumenBandejaApi {
+  total: number;
+  pendientes: number;
+  en_revision: number;
+  aprobadas: number;
+  rechazadas: number;
+  expiradas: number;
+}
+
 export interface PaginaSolicitudesApi {
   count: number;
   limit: number;
   offset: number;
   results: SolicitudApi[];
+  resumen?: ResumenBandejaApi;
 }
 
 export interface SeccionApi {

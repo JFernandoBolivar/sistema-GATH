@@ -9,6 +9,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { auth } from "#/auth";
+import { SkipLink } from "@/shared/ui/components/skip-link";
 import { AppNav } from "./app-nav";
 
 /**
@@ -24,6 +25,7 @@ export default async function AppLayout({
   const session = await auth();
   return (
     <main className="flex min-h-svh flex-col">
+      <SkipLink />
       <Toaster
         closeButton
         position="top-right"

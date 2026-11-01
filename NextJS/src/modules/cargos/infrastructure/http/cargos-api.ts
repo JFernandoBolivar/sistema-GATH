@@ -282,7 +282,11 @@ export const cargosApi = {
 
   getTiposNomina: () =>
     list<CatalogoApiItem>(
-      apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/tipos-nomina/"),
+      apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/tipos-nomina/", {
+        // Cargos es gestión de personal activo: las nóminas de pasivos (jubilado,
+        // pensionado) no aplican y no deben aparecer en ningún selector.
+        params: { solo_activos: true },
+      }),
     ),
 
   getGrados: () =>

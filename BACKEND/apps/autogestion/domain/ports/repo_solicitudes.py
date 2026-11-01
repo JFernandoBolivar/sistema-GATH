@@ -38,6 +38,10 @@ class RepoSolicitudes(Protocol):
         """Página y total filtrados por estado, cédula y rango (inclusivo) de la fecha de solicitud."""
         ...
 
+    def contar_por_estado(self) -> dict[str, int]:
+        """Cantidad de solicitudes agrupadas por estado (indicadores del panel)."""
+        ...
+
     def listar_habilitadas_vencidas(self, ahora: datetime) -> list[SolicitudActualizacion]: ...
 
     def listar_habilitadas_por_vencer(self, ahora: datetime, hasta: datetime) -> list[SolicitudActualizacion]:

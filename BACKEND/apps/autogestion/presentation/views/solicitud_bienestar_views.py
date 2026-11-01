@@ -16,6 +16,7 @@ from apps.autogestion.application.use_cases.consultas_gestion import (
     configurar_seccion,
     guardar_datos_complementarios,
     listar_bandeja,
+    resumen_bandeja,
     obtener_datos_complementarios,
 )
 from apps.autogestion.application.use_cases.decision_bienestar import (
@@ -115,6 +116,7 @@ class BandejaView(APIView):
         return ok({
             'count': total, 'limit': max(1, min(limite, LIMITE_MAX)), 'offset': max(0, desplazamiento),
             'results': [a_dict_solicitud(s) for s in solicitudes],
+            'resumen': resumen_bandeja(RepoSolicitudesORM()),
         })
 
 

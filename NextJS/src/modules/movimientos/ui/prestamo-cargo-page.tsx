@@ -87,7 +87,7 @@ import {
 const STATUS_BADGE: Record<string, string> = {
   ACTIVO: "bg-green-600",
   "POR VENCER": "bg-yellow-500",
-  FINALIZADA: "bg-gray-500",
+  FINALIZADA: "bg-muted0",
 };
 
 export function PrestamoCargoPage() {
@@ -414,7 +414,7 @@ export function PrestamoCargoPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card className="bg-white">
+      <Card className="bg-card">
         <CardHeader>
           <CardTitle>Registrar Encargaduría</CardTitle>
         </CardHeader>
@@ -478,7 +478,7 @@ export function PrestamoCargoPage() {
                   );
                   if (availableCargos.length === 0) {
                     return (
-                      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                      <div className="rounded-md border border-warning/40 bg-warning-soft p-3 text-sm text-warning">
                         No se encontraron cargos disponibles para prestar con los filtros seleccionados.
                       </div>
                     );
@@ -507,7 +507,7 @@ export function PrestamoCargoPage() {
               )}
 
               {selectedCode && (
-                <div className="rounded-sm border-2 border-emerald-400/45 bg-emerald-200/40 p-3 flex flex-col gap-1 text-sm">
+                <div className="rounded-sm border-2 border-success/40 bg-success-soft p-3 flex flex-col gap-1 text-sm">
                   <p><strong>Titular Actual:</strong> {selectedCode.empleadoNombre ? `${selectedCode.empleadoNombre} (${selectedCode.empleadoCedula})` : selectedCode.empleadoCedula ? selectedCode.empleadoCedula : "Vacante (Sin titular)"}</p>
                   <p><strong>Código:</strong> {selectedCode.codigo}</p>
                   <p><strong>Cargo:</strong> {selectedCode.denominacionNombre}</p>
@@ -637,7 +637,7 @@ export function PrestamoCargoPage() {
         </CardContent>
       </Card>
 
-      <Card className="bg-white">
+      <Card className="bg-card">
         <CardHeader>
           <CardTitle>Encargadurías Activas</CardTitle>
           <div className="flex gap-2">
@@ -682,7 +682,7 @@ export function PrestamoCargoPage() {
                   <TableCell>{formatDate(p.fechaInicio)}</TableCell>
                   <TableCell>{formatDate(p.fechaFin)}</TableCell>
                   <TableCell>
-                    <Badge className={STATUS_BADGE[p.estatusNombre] || "bg-gray-500"}>
+                    <Badge className={STATUS_BADGE[p.estatusNombre] || "bg-muted0"}>
                       {p.estatusNombre}
                     </Badge>
                   </TableCell>
@@ -732,7 +732,7 @@ export function PrestamoCargoPage() {
               ))}
               {prestamos.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-gray-500">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground">
                     No hay encargadurías activas
                   </TableCell>
                 </TableRow>

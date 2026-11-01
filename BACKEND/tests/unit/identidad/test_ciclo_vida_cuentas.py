@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from apps.identidad.application.dtos.cuenta_dto import CambiarPasswordDTO
+from apps.identidad.application.dtos.permisos_dto import ActorSesionDTO
 from apps.identidad.application.use_cases.aprovisionar_cuenta_trabajador import (
     aprovisionar_cuenta_trabajador,
 )
@@ -21,6 +22,7 @@ from apps.identidad.application.use_cases.reactivar_cuenta_por_reingreso import 
 )
 from apps.identidad.application.use_cases.restablecer_acceso import restablecer_acceso
 from apps.identidad.domain.entities.cuenta import Cuenta
+from apps.identidad.domain.entities.politica_acceso import PoliticaAcceso
 from apps.identidad.domain.events import MotivoCambioPassword, TipoEventoIdentidad
 from apps.identidad.domain.services.notificaciones_eventos import solicitud_de_evento
 from apps.identidad.domain.services.politica_password_inicial import (
@@ -36,6 +38,23 @@ AHORA = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
 DOMINIO = 'conatel.gob.ve'
 
 
+class PermisosNulo:
+    """Repositorio de permisos sin cuentas: el objetivo nunca es administrativo."""
+
+    def obtener_permisos_usuario(self, cedula):
+        return None
+
+    def politica_del_rol(self, rol_id):
+        return PoliticaAcceso()
+
+
+def seguridad():
+    return {
+        'repo_permisos': PermisosNulo(),
+        'actor': ActorSesionDTO(cuenta_id=1, rol_id=3, cedula='V-11111111'),
+    }
+
+
 class CuentasMem(RepoCuentasMemoria):
     def obtener_por_cedula(self, cedula):
         return next((c for c in self._cuentas.values() if c.cedula == cedula), None)
@@ -43,6 +62,11 @@ class CuentasMem(RepoCuentasMemoria):
     def establecer_password(self, id, password_nuevo):
         super().establecer_password(id, password_nuevo)
         self.limpiado = getattr(self, 'limpiado', []) + [id]
+        # M2: el repositorio real incrementa permisos_version; el doble lo
+        # replica si el test le inyecta el repositorio de versiones.
+        version = getattr(self, 'version', None)
+        if version is not None:
+            version.incrementar_cuenta(id)
 
 
 class CorreosMem:
@@ -182,9 +206,10 @@ def test_restablecer_acceso_repone_cedula_renueva_plazo_revoca_sesiones_y_avisa(
     cuenta = Cuenta(id=1, cedula='123', rol_id=3, is_active=True)
     cuentas = CuentasMem(cuentas=[cuenta], passwords={1: 'MiClave*Segura9'})
     pi, version = PasswordInicialMem(), VersionMem()
+    cuentas.version = version
     pi.emitir(1, AHORA - timedelta(days=30))  # vencida
 
-    restablecer_acceso(cuentas, pi, version, eventos.append, 1, AHORA)
+    restablecer_acceso(cuentas, pi, version, eventos.append, 1, AHORA, **seguridad())
 
     assert cuentas.verificar_password(1, '123')
     assert pi.vencimiento(1) == AHORA + timedelta(days=7)
@@ -198,9 +223,9 @@ def test_restablecer_acceso_rechaza_cuenta_inexistente_o_desactivada(eventos):
     cuentas = CuentasMem(cuentas=[inactiva])
 
     with pytest.raises(NotFoundError):
-        restablecer_acceso(cuentas, PasswordInicialMem(), VersionMem(), eventos.append, 99, AHORA)
+        restablecer_acceso(cuentas, PasswordInicialMem(), VersionMem(), eventos.append, 99, AHORA, **seguridad())
     with pytest.raises(ValidationError):
-        restablecer_acceso(cuentas, PasswordInicialMem(), VersionMem(), eventos.append, 2, AHORA)
+        restablecer_acceso(cuentas, PasswordInicialMem(), VersionMem(), eventos.append, 2, AHORA, **seguridad())
 
 
 # ─── Aviso al cambiar la contraseña ───
@@ -255,7 +280,7 @@ def test_elegir_el_alternativo_actualiza_el_correo_y_avisa(eventos):
     cuentas = CuentasMem(cuentas=[Cuenta(id=1, cedula='123')])
     correos = CorreosMem({'123': 'ana@conatel.gob.ve'}, {'123': 'ana@gmail.com'})
 
-    r = cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'ALTERNATIVO')
+    r = cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'ALTERNATIVO', **seguridad())
 
     assert correos.correos['123'] == 'ana@gmail.com'
     assert r.avisado and not r.cuenta_creada
@@ -266,7 +291,7 @@ def test_elegir_el_institucional_no_cambia_el_correo_pero_avisa(eventos):
     cuentas = CuentasMem(cuentas=[Cuenta(id=1, cedula='123')])
     correos = CorreosMem({'123': 'ana@conatel.gob.ve'})
 
-    cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'INSTITUCIONAL')
+    cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'INSTITUCIONAL', **seguridad())
 
     assert correos.correos['123'] == 'ana@conatel.gob.ve'
     assert len(eventos) == 1
@@ -277,7 +302,7 @@ def test_correo_ya_usado_por_otro_trabajador_se_rechaza(eventos):
     correos = CorreosMem({'123': 'ana@conatel.gob.ve', '999': 'otro@gmail.com'}, {'123': 'otro@gmail.com'})
 
     with pytest.raises(ConflictError):
-        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'ALTERNATIVO')
+        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'ALTERNATIVO', **seguridad())
     assert correos.correos['123'] == 'ana@conatel.gob.ve'
 
 
@@ -286,9 +311,9 @@ def test_sin_alternativo_declarado_se_rechaza(eventos):
     correos = CorreosMem({'123': 'ana@conatel.gob.ve'})
 
     with pytest.raises(ValidationError):
-        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'ALTERNATIVO')
+        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'ALTERNATIVO', **seguridad())
     with pytest.raises(NotFoundError):
-        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '000', 'INSTITUCIONAL')
+        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '000', 'INSTITUCIONAL', **seguridad())
 
 
 def test_pasivo_sin_cuenta_la_recibe_al_elegir_su_correo(eventos):
@@ -302,7 +327,7 @@ def test_pasivo_sin_cuenta_la_recibe_al_elegir_su_correo(eventos):
             permitir_pasivo=True,
         )
 
-    r = cambiar_correo_acceso(correos, cuentas, eventos.append, aprovisionar, '456', 'ALTERNATIVO')
+    r = cambiar_correo_acceso(correos, cuentas, eventos.append, aprovisionar, '456', 'ALTERNATIVO', **seguridad())
 
     assert r.cuenta_creada and r.avisado
     assert cuentas.existe_cuenta_para_cedula('456')

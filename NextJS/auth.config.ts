@@ -5,7 +5,7 @@
  * Flujo unificado:
  *   1. `authorize()` es el ÚNICO ejecutor HTTP (POST /api/v1/identidad/auth/login/).
  *   2. Fija cookies `dj_access` / `dj_refresh` (C-2) para que `apiClient` funcione.
- *   3. Resuelve roles y departamentos desde catálogos para mantener la forma
+ *   3. Resuelve el nombre del rol desde el catálogo para mantener la forma
  *      de la sesión compatible con el código existente (R16 legacy).
  *   4. NextAuth crea el JWT y la sesión de forma transparente.
  */
@@ -38,7 +38,6 @@ interface LoginData {
     apellidos: string;
     correo: string;
     telefono: string;
-    departamento_id: number;
     rol_id: number;
     is_active: boolean;
     debe_cambiar_password: boolean;
@@ -51,12 +50,6 @@ interface RolItem {
   nombre_rol: string;
 }
 
-interface DepartamentoItem {
-  id: number;
-  nombre?: string;
-  nombre_departamento?: string;
-}
-
 interface MeData {
   id: number;
   cedula: string;
@@ -64,7 +57,6 @@ interface MeData {
   apellidos: string;
   correo: string;
   telefono: string;
-  departamento_id: number;
   rol_id: number;
   is_active: boolean;
   debe_cambiar_password: boolean;
@@ -144,23 +136,12 @@ export default {
           /* permisos vacíos si /me/ falla */
         }
 
-        // Resolver nombre_rol y nombre_departamento desde catálogos
+        // Resolver nombre_rol desde el catálogo.
         let nombreRol = nombreRolMe;
-        let nombreDepartamento = "";
         try {
           const roles = await apiGet<RolItem[]>("api/v1/identidad/roles/", tokens.access);
           const rol = roles.find((r) => r.id === usuario.rol_id);
           nombreRol = rol?.nombre_rol || nombreRol;
-        } catch {
-          /* vacío */
-        }
-        try {
-          const departamentos = await apiGet<DepartamentoItem[]>(
-            "api/v1/identidad/departamentos/",
-            tokens.access,
-          );
-          const dept = departamentos.find((d) => d.id === usuario.departamento_id);
-          nombreDepartamento = dept?.nombre_departamento || dept?.nombre || "";
         } catch {
           /* vacío */
         }
@@ -169,7 +150,6 @@ export default {
           id: String(usuario.id),
           name: `${usuario.nombres} ${usuario.apellidos}`.trim(),
           role: { id: usuario.rol_id, nombre_rol: nombreRol },
-          department: { id: usuario.departamento_id, nombre_departamento: nombreDepartamento },
           cedula: usuario.cedula,
           phone: usuario.telefono || "",
           email: usuario.correo || "",

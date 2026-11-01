@@ -3,6 +3,10 @@ DTOs de gestión de usuarios (registro, edición, estado, contraseña propia).
 
 Dataclasses inmutables de entrada de los casos de uso (regla B5): transportan
 primitivas de la petición HTTP, nunca instancias del ORM.
+
+D3: `departamento_id` quedó fuera del contrato de identidad. La columna legada
+sigue existiendo en `USER_cuenta` (`managed=False`), pero ya no se lee ni se
+escribe desde este módulo: la autorización depende solo del rol y los permisos.
 """
 from dataclasses import dataclass
 
@@ -13,20 +17,20 @@ class RegistrarCuentaDTO:
 
     cedula: str
     password: str
-    departamento_id: int | None = None
     rol_id: int | None = None
 
 
 @dataclass(frozen=True)
 class ActualizarCuentaDTO:
-    """Entrada de `editar_usuario`. `...` en un campo significa "no tocar"."""
+    """Entrada de `editar_usuario`. `...` en un campo significa "no tocar".
+
+    M2: la contraseña no forma parte de esta edición; solo «Restablecer acceso»
+    y el cambio de contraseña propio la modifican.
+    """
 
     id: int
-    departamento_id: int | None = None
     rol_id: int | None = None
-    tocar_departamento: bool = False
     tocar_rol: bool = False
-    password: str | None = None
 
 
 @dataclass(frozen=True)

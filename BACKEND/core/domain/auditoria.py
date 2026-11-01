@@ -3,6 +3,8 @@ Reglas puras de la bitácora de auditoría (D10): resultados válidos, enmascara
 de campos sensibles y diferencias legibles entre el estado anterior y el nuevo.
 Sin Django.
 """
+import hashlib
+import json
 import re
 import unicodedata
 
@@ -116,3 +118,41 @@ def diferencias(previo: dict | None, nuevo: dict | None) -> list[dict]:
             'despues': MASCARA if sensible else despues.get(campo),
         })
     return cambios
+
+# ─── E1: cadena de hashes de la bitácora ────────────────────────────────
+GENESIS_AUDITORIA = '0' * 64
+
+CAMPOS_HASH = (
+    'id', 'trace_id', 'actor_id', 'actor_cedula', 'actor_rol', 'modulo', 'accion',
+    'recurso_tipo', 'recurso_id', 'ip_origen', 'user_agent', 'dispositivo',
+    'estado_previo', 'estado_nuevo', 'resultado',
+)
+
+
+def dispositivo_de_user_agent(user_agent: str | None) -> str:
+    """Clasificación estable del cliente (no es autorización)."""
+    ua = (user_agent or '').lower()
+    if not ua:
+        return 'DESCONOCIDO'
+    if any(token in ua for token in ('bot', 'crawler', 'spider', 'headless')):
+        return 'BOT'
+    if 'ipad' in ua or 'tablet' in ua:
+        return 'TABLET'
+    if any(token in ua for token in ('iphone', 'ipod', 'android', 'mobile')):
+        return 'MOVIL'
+    return 'ESCRITORIO'
+
+
+def contenido_hash(registro) -> str:
+    """JSON canónico del registro; excluye los propios hashes y la fecha."""
+    datos = {}
+    for campo in CAMPOS_HASH:
+        valor = registro.get(campo) if isinstance(registro, dict) else getattr(registro, campo, None)
+        if hasattr(valor, 'isoformat'):
+            valor = valor.isoformat()
+        datos[campo] = valor
+    return json.dumps(datos, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
+
+
+def calcular_hash_registro(registro, hash_anterior: str) -> str:
+    return hashlib.sha256(f'{hash_anterior}{contenido_hash(registro)}'.encode('utf-8')).hexdigest()

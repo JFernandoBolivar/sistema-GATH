@@ -8,7 +8,6 @@ import {
   Search,
   BarChart3,
   Palette,
-  BookCheck,
   LucideIcon,
 } from "lucide-react";
 
@@ -50,7 +49,7 @@ type SubMenuItem = {
 const items: MenuItem[] = [
   {
     title: "Inicio",
-    url: "/inicio",
+    url: "/dashboard",
     icon: Home,
   },
   {
@@ -84,11 +83,6 @@ const items: MenuItem[] = [
     title: "Plantillas",
     url: "/carnetizacion/plantillas",
     icon: Palette,
-  },
-  {
-    title: "Autogestión",
-    url: "/autogestion",
-    icon: BookCheck,
   },
 ];
 
@@ -203,11 +197,6 @@ export function AppSidebarCarnetizacion() {
                 <h2 className="font-semibold">
                   Rol: {session.user.role?.nombre_rol || "Sin Rol"}
                 </h2>
-                <h1 className="text-sm text-muted-foreground font-bold">
-                  Departamento:{" "}
-                  {session.user.department?.nombre_departamento ||
-                    "Sin Departamento"}
-                </h1>
               </div>
             </div>
           )}

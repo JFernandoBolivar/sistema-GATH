@@ -84,7 +84,7 @@ export default function ActualizarUbicacionView({ onUpdated }: ActualizarUbicaci
       </TabsList>
 
       <TabsContent value="direccion-general/coord">
-        <Card className="bg-white dark:bg-card shadow-sm">
+        <Card className="bg-card dark:bg-card shadow-sm">
           <CardHeader>
             <CardTitle>Actualizar Dirección / Gerencia / Oficina</CardTitle>
           </CardHeader>
@@ -98,7 +98,7 @@ export default function ActualizarUbicacionView({ onUpdated }: ActualizarUbicaci
       </TabsContent>
 
       <TabsContent value="direccion-linea/coord">
-        <Card className="bg-white dark:bg-card shadow-sm">
+        <Card className="bg-card dark:bg-card shadow-sm">
           <CardHeader>
             <CardTitle>Actualizar División / Coordinación</CardTitle>
           </CardHeader>
@@ -112,7 +112,7 @@ export default function ActualizarUbicacionView({ onUpdated }: ActualizarUbicaci
       </TabsContent>
 
       <TabsContent value="coord">
-        <Card className="bg-white dark:bg-card shadow-sm">
+        <Card className="bg-card dark:bg-card shadow-sm">
           <CardHeader>
             <CardTitle>Actualizar Coordinación</CardTitle>
           </CardHeader>
@@ -126,7 +126,7 @@ export default function ActualizarUbicacionView({ onUpdated }: ActualizarUbicaci
       </TabsContent>
 
       <TabsContent value="dependencia">
-        <Card className="bg-white dark:bg-card shadow-sm">
+        <Card className="bg-card dark:bg-card shadow-sm">
           <CardHeader>
             <CardTitle>Actualizar Dependencia</CardTitle>
           </CardHeader>

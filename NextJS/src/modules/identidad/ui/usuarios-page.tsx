@@ -1,376 +1,384 @@
 "use client";
 
 /**
- * Página de usuarios del módulo identidad — paridad estructural con el
- * legado (`seguridad/gestionar-usuarios` + `seguridad/gestionar-roles`):
- * `DataTable` (tanstack) con menú de acciones por fila en vez de tabla HTML
- * plana con botones sueltos, alta de usuario en ruta propia
- * (`/usuarios/registrar`, antes vivía inline arriba de la tabla) y edición
- * vía diálogo consolidado en vez de un `Card` de formulario siempre visible.
+ * Administración del sistema → Usuarios y roles (D4).
  *
- * Simplificación deliberada frente al legado (documentada, no oculta): el
- * legado tenía `seguridad/gestionar-usuarios` y `seguridad/gestionar-roles`
- * como dos secciones de navegación totalmente separadas, cada una con su
- * propio layout; aquí ambas viven bajo una sola ruta (`/usuarios`) con
- * pestañas Usuarios/Roles/Permisos — decisión de IA ya tomada antes de este
- * ajuste, no se reintrodujo la fragmentación de rutas de nivel superior. La
- * alta de rol, al ser un formulario de un solo campo, se implementó como
- * diálogo reutilizado (`rol-dialog.tsx`) en vez de una ruta `/usuarios/roles/registrar`
- * separada — mismo criterio de "un solo diálogo" que ya se aplicó en
- * `modules/personal`.
+ * Listado paginado en el servidor (10 por defecto, tope 50) con filtros por
+ * cédula, nombre, correo, rol, estado y condición ACTIVO/PASIVO. Columnas:
+ * cédula, nombre, correo de acceso, rol, estado, último acceso y contraseña
+ * inicial pendiente. Las acciones llevan al detalle del usuario.
  *
- * Cliente + react-hook-form (búsqueda) + useTransition (R8); delega a las
- * Server Actions del módulo (R7). Opera exclusivamente con DTOs (R5) y no
- * importa de `infrastructure/` (R3).
+ * D3: no se muestra ni se edita el departamento.
  */
 import { useEffect, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Loader2, Plus, Search, ShieldCheck, Users } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, Search, ShieldCheck, UserPlus, Users } from "lucide-react";
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/shared/ui/components/alert-dialog";
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
-import { DataTable } from "@/shared/ui/components/data-table";
+import { Card, CardContent } from "@/shared/ui/components/card";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/ui/components/table";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
-import type {
-  DepartamentoDTO,
-  PermisoDTO,
-  RolDTO,
-  UsuarioDTO,
-} from "../application/dtos/usuario-dto";
+import type { PaginaUsuariosDTO, RolDTO, UsuariosFiltrosDTO } from "../application/dtos/usuario-dto";
 import {
-  cambiarEstadoUsuarioAction,
-  eliminarRolAction,
-  getDepartamentosAction,
-  getPermisosAction,
   getRolesAction,
   listarUsuariosAction,
-  restablecerAccesoAction,
 } from "../infrastructure/actions/usuario-actions";
-import RolDialog from "./rol-dialog";
-import { construirColumnasRoles } from "./roles-columns";
-import UsuarioEditarDialog from "./usuario-editar-dialog";
-import { construirColumnasUsuarios } from "./usuarios-columns";
-import { usuariosFiltrosSchema, type UsuariosFiltrosType } from "./schema/schema-usuario";
+
+const FILTROS_INICIALES: UsuariosFiltrosDTO = { pagina: 1, pageSize: 10 };
+
+function fechaLegible(iso: string | null): string {
+  if (!iso) return "—";
+  const fecha = new Date(iso);
+  if (Number.isNaN(fecha.getTime())) return "—";
+  return fecha.toLocaleString("es-VE", { dateStyle: "short", timeStyle: "short" });
+}
 
 export default function UsuariosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeCrearUsuario = tienePermiso(permisos, "identidad.crear_usuarios");
-  const puedeEditarUsuario = tienePermiso(permisos, "identidad.editar_usuarios");
-  const puedeDesactivarUsuario = tienePermiso(permisos, "identidad.desactivar_usuarios");
-  const puedeRestablecerAcceso = tienePermiso(permisos, "identidad.restablecer_acceso");
-  const puedeVerRoles = tienePermiso(permisos, "identidad.ver_roles");
-  const puedeCrearRol = tienePermiso(permisos, "identidad.crear_roles");
-  const puedeEditarRol = tienePermiso(permisos, "identidad.editar_roles");
-  const puedeEliminarRol = tienePermiso(permisos, "identidad.eliminar_roles");
-  const puedeVerPermisos = tienePermiso(permisos, "identidad.asignar_permisos") || puedeVerRoles;
+  const puedeVer = tienePermiso(permisos, "identidad.ver_usuarios");
+  const puedeCrear = tienePermiso(permisos, "identidad.crear_usuarios");
+  const puedeVerMatriz = tienePermiso(permisos, "identidad.ver_roles");
 
-  const [usuarios, setUsuarios] = useState<UsuarioDTO[]>([]);
+  const [filtros, setFiltros] = useState<UsuariosFiltrosDTO>(FILTROS_INICIALES);
+  const [borrador, setBorrador] = useState<UsuariosFiltrosDTO>(FILTROS_INICIALES);
+  const [pagina, setPagina] = useState<PaginaUsuariosDTO | null>(null);
   const [roles, setRoles] = useState<RolDTO[]>([]);
-  const [departamentos, setDepartamentos] = useState<DepartamentoDTO[]>([]);
-  const [permisosCatalogo, setPermisosCatalogo] = useState<PermisoDTO[]>([]);
-  const [isPending, startTransition] = useTransition();
+  const [cargando, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [usuarioEditando, setUsuarioEditando] = useState<UsuarioDTO | null>(null);
-  const [dialogoUsuarioAbierto, setDialogoUsuarioAbierto] = useState(false);
-
-  const [rolEditando, setRolEditando] = useState<RolDTO | null>(null);
-  const [dialogoRolAbierto, setDialogoRolAbierto] = useState(false);
-  const [rolEliminando, setRolEliminando] = useState<RolDTO | null>(null);
-  const [usuarioRestableciendo, setUsuarioRestableciendo] = useState<UsuarioDTO | null>(null);
-
-  const filtroForm = useForm<UsuariosFiltrosType>({
-    resolver: zodResolver(usuariosFiltrosSchema),
-    defaultValues: {},
-  });
-
-  const cargarUsuarios = (busqueda?: string) => {
+  const cargar = (siguientes: UsuariosFiltrosDTO) => {
     startTransition(async () => {
       setError(null);
-      try {
-        setUsuarios(await listarUsuariosAction({ busqueda: busqueda || undefined }));
-      } catch {
-        setError("No fue posible cargar los usuarios.");
+      const resultado = await listarUsuariosAction(siguientes);
+      if (resultado && typeof resultado === "object" && "error" in resultado) {
+        setError((resultado as { error: string }).error);
+        return;
       }
-    });
-  };
-
-  const cargarRoles = () => {
-    startTransition(async () => {
-      setError(null);
-      try {
-        setRoles(await getRolesAction());
-      } catch {
-        setError("No fue posible cargar los roles.");
-      }
+      setPagina(resultado as PaginaUsuariosDTO);
     });
   };
 
   useEffect(() => {
-    cargarUsuarios();
-    startTransition(async () => {
-      try {
-        const [r, d, p] = await Promise.all([getRolesAction(), getDepartamentosAction(), getPermisosAction()]);
-        setRoles(r);
-        setDepartamentos(d);
-        setPermisosCatalogo(p);
-      } catch {
-        setError("No fue posible cargar los catálogos.");
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!puedeVer) return;
+    cargar(FILTROS_INICIALES);
+    getRolesAction()
+      .then(setRoles)
+      .catch(() => setError("No fue posible cargar los roles."));
+  }, [puedeVer]);
 
-  const onBuscar = (data: UsuariosFiltrosType) => cargarUsuarios(data.busqueda ?? undefined);
-
-  const onCambiarEstado = (u: UsuarioDTO) => {
-    startTransition(async () => {
-      const resultado = await cambiarEstadoUsuarioAction(u.id, !u.isActive);
-      if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
-        return;
-      }
-      toast.success(u.isActive ? "Usuario bloqueado." : "Usuario activado.");
-      cargarUsuarios();
-    });
+  const aplicar = () => {
+    const siguientes = { ...borrador, pagina: 1 };
+    setFiltros(siguientes);
+    cargar(siguientes);
   };
 
-  const onRestablecerAcceso = () => {
-    if (!usuarioRestableciendo) return;
-    const usuario = usuarioRestableciendo;
-    startTransition(async () => {
-      const resultado = await restablecerAccesoAction(usuario.id);
-      if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
-      } else {
-        toast.success("Acceso restablecido. La contraseña inicial es la cédula y vence en 7 días.");
-        cargarUsuarios();
-      }
-      setUsuarioRestableciendo(null);
-    });
+  const limpiar = () => {
+    setBorrador(FILTROS_INICIALES);
+    setFiltros(FILTROS_INICIALES);
+    cargar(FILTROS_INICIALES);
   };
 
-  const onEliminarRol = () => {
-    if (!rolEliminando) return;
-    const rol = rolEliminando;
-    startTransition(async () => {
-      const resultado = await eliminarRolAction(rol.id);
-      if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
-      } else {
-        toast.success("Rol eliminado correctamente.");
-        cargarRoles();
-      }
-      setRolEliminando(null);
-    });
+  const cambiarPagina = (nueva: number) => {
+    if (!pagina) return;
+    if (nueva < 1 || nueva > pagina.totalPaginas) return;
+    const siguientes = { ...filtros, pagina: nueva };
+    setFiltros(siguientes);
+    cargar(siguientes);
   };
 
-  const columnasUsuarios = construirColumnasUsuarios(
-    departamentos,
-    roles,
-    puedeEditarUsuario,
-    puedeDesactivarUsuario,
-    puedeRestablecerAcceso,
-    (u) => {
-      setUsuarioEditando(u);
-      setDialogoUsuarioAbierto(true);
-    },
-    onCambiarEstado,
-    (u) => setUsuarioRestableciendo(u),
-  );
+  const cambiarTamano = (valor: string) => {
+    const siguientes = { ...filtros, pageSize: Number(valor), pagina: 1 };
+    setFiltros(siguientes);
+    cargar(siguientes);
+  };
 
-  const columnasPermisos: ColumnDef<PermisoDTO>[] = [
-    {
-      accessorKey: "codigo",
-      header: "Código",
-      cell: ({ getValue }) => (
-        <Badge variant="outline">
-          <ShieldCheck className="size-3" aria-hidden="true" /> {getValue() as string}
-        </Badge>
-      ),
-    },
-    { accessorKey: "nombre", header: "Nombre" },
-  ];
-
-  const columnasRoles = construirColumnasRoles(
-    puedeEditarRol,
-    puedeEliminarRol,
-    (r) => {
-      setRolEditando(r);
-      setDialogoRolAbierto(true);
-    },
-    (r) => setRolEliminando(r),
-  );
+  if (!puedeVer) {
+    return (
+      <section className="px-6 py-4">
+        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+          No tiene el permiso «identidad.ver_usuarios» para consultar los usuarios.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col gap-4 px-6 py-4">
-      <header className="flex items-center gap-2">
-        <Users className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Usuarios y Roles</h1>
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Users className="size-5 text-muted-foreground" aria-hidden="true" />
+          <h1 className="text-xl font-semibold tracking-tight">Usuarios y roles</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {puedeVerMatriz && (
+            <Button asChild variant="outline">
+              <Link href="/usuarios/matriz">
+                <ShieldCheck className="size-4" aria-hidden="true" /> Matriz de permisos
+              </Link>
+            </Button>
+          )}
+          {puedeCrear && (
+            <Button asChild>
+              <Link href="/usuarios/registrar">
+                <UserPlus className="size-4" aria-hidden="true" /> Nuevo usuario
+              </Link>
+            </Button>
+          )}
+        </div>
       </header>
 
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
-      <Tabs defaultValue="usuarios">
-        <TabsList>
-          <TabsTrigger value="usuarios">Usuarios</TabsTrigger>
-          {puedeVerRoles && <TabsTrigger value="roles">Roles</TabsTrigger>}
-          {puedeVerPermisos && <TabsTrigger value="permisos">Permisos</TabsTrigger>}
-        </TabsList>
-
-        <TabsContent value="usuarios" className="flex flex-col gap-4">
-          {isPending && usuarios.length === 0 ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+      <Card>
+        <CardContent className="pt-6">
+          <form
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              aplicar();
+            }}
+            noValidate
+          >
+            <Field>
+              <Label htmlFor="filtro-cedula">Cédula</Label>
+              <Input
+                id="filtro-cedula"
+                value={borrador.cedula ?? ""}
+                onChange={(e) => setBorrador({ ...borrador, cedula: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label htmlFor="filtro-nombre">Nombre</Label>
+              <Input
+                id="filtro-nombre"
+                value={borrador.nombre ?? ""}
+                onChange={(e) => setBorrador({ ...borrador, nombre: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label htmlFor="filtro-correo">Correo</Label>
+              <Input
+                id="filtro-correo"
+                value={borrador.correo ?? ""}
+                onChange={(e) => setBorrador({ ...borrador, correo: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label htmlFor="filtro-rol">Rol</Label>
+              <Select
+                value={borrador.rolId ? String(borrador.rolId) : "todos"}
+                onValueChange={(v) =>
+                  setBorrador({ ...borrador, rolId: v === "todos" ? undefined : Number(v) })
+                }
+              >
+                <SelectTrigger id="filtro-rol">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {roles.map((r) => (
+                    <SelectItem key={r.id} value={String(r.id)}>
+                      {r.nombreRol}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <Label htmlFor="filtro-estado">Estado</Label>
+              <Select
+                value={
+                  borrador.isActive === undefined
+                    ? "todos"
+                    : borrador.isActive
+                      ? "activos"
+                      : "inactivos"
+                }
+                onValueChange={(v) =>
+                  setBorrador({
+                    ...borrador,
+                    isActive: v === "todos" ? undefined : v === "activos",
+                  })
+                }
+              >
+                <SelectTrigger id="filtro-estado">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="activos">Activos</SelectItem>
+                  <SelectItem value="inactivos">Inactivos</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <Label htmlFor="filtro-condicion">Condición</Label>
+              <Select
+                value={borrador.condicion ?? "todos"}
+                onValueChange={(v) =>
+                  setBorrador({
+                    ...borrador,
+                    condicion: v === "todos" ? undefined : (v as "ACTIVO" | "PASIVO"),
+                  })
+                }
+              >
+                <SelectTrigger id="filtro-condicion">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="ACTIVO">Activo</SelectItem>
+                  <SelectItem value="PASIVO">Pasivo</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <div className="flex items-end gap-2 lg:col-span-2">
+              <Button type="submit" disabled={cargando}>
+                {cargando ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Search className="size-4" aria-hidden="true" />
+                )}
+                Filtrar
+              </Button>
+              <Button type="button" variant="outline" onClick={limpiar} disabled={cargando}>
+                Limpiar
+              </Button>
             </div>
-          ) : (
-            <DataTable
-              columns={columnasUsuarios}
-              data={usuarios}
-              emptyMessage="No hay usuarios registrados."
-              toolbar={
-                <div className="flex items-center gap-2">
-                  <form onSubmit={filtroForm.handleSubmit(onBuscar)} className="flex items-end gap-2" noValidate>
-                    <Field>
-                      <Label htmlFor="busqueda" className="sr-only">Búsqueda</Label>
-                      <Input id="busqueda" placeholder="Cédula o nombre" {...filtroForm.register("busqueda")} />
-                    </Field>
-                    <Button type="submit" variant="outline" disabled={isPending}>
-                      <Search className="size-4" aria-hidden="true" /> Buscar
-                    </Button>
-                  </form>
-                  {puedeCrearUsuario && (
-                    <Button asChild>
-                      <Link href="/usuarios/registrar">
-                        <Plus className="size-4" aria-hidden="true" /> Nuevo
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              }
-            />
-          )}
-        </TabsContent>
+          </form>
+        </CardContent>
+      </Card>
 
-        {puedeVerRoles && (
-          <TabsContent value="roles" className="flex flex-col gap-4">
-            <DataTable
-              columns={columnasRoles}
-              data={roles}
-              emptyMessage="No hay roles registrados."
-              toolbar={
-                puedeCrearRol ? (
-                  <Button
-                    onClick={() => {
-                      setRolEditando(null);
-                      setDialogoRolAbierto(true);
-                    }}
-                  >
-                    <Plus className="size-4" aria-hidden="true" /> Nuevo rol
-                  </Button>
-                ) : undefined
-              }
-            />
-          </TabsContent>
-        )}
+      {cargando && !pagina ? (
+        <div className="flex justify-center py-10">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
+        </div>
+      ) : !pagina || pagina.resultados.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          No hay usuarios para los filtros seleccionados.
+        </p>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-md border bg-card">
+            <Table>
+              <TableCaption>
+                {pagina.total} usuario(s); página {pagina.pagina} de {pagina.totalPaginas}.
+              </TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cédula</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Correo de acceso</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Último acceso</TableHead>
+                  <TableHead>Contraseña inicial</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagina.resultados.map((usuario) => (
+                  <TableRow key={usuario.id}>
+                    <TableCell className="font-medium">{usuario.cedula}</TableCell>
+                    <TableCell>
+                      {usuario.nombres} {usuario.apellidos}
+                      <span className="block text-xs text-muted-foreground">{usuario.condicion ?? "—"}</span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{usuario.correo ?? "—"}</TableCell>
+                    <TableCell>{usuario.rolNombre ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={usuario.isActive ? "secondary" : "outline"}>
+                        {usuario.isActive ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">{fechaLegible(usuario.ultimoAcceso)}</TableCell>
+                    <TableCell>
+                      {usuario.passwordInicialPendiente ? (
+                        <Badge variant="outline">Pendiente</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">No</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/usuarios/${usuario.id}`}>Ver detalle</Link>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
-        {puedeVerPermisos && (
-          <TabsContent value="permisos" className="flex flex-col gap-4">
-            <DataTable
-              columns={columnasPermisos}
-              data={permisosCatalogo}
-              emptyMessage="No hay permisos registrados."
-              hideColumnsMenu
-            />
-          </TabsContent>
-        )}
-      </Tabs>
-
-      <UsuarioEditarDialog
-        open={dialogoUsuarioAbierto}
-        onOpenChange={setDialogoUsuarioAbierto}
-        usuario={usuarioEditando}
-        departamentos={departamentos}
-        roles={roles}
-        onGuardado={cargarUsuarios}
-      />
-
-      <RolDialog
-        open={dialogoRolAbierto}
-        onOpenChange={setDialogoRolAbierto}
-        rolEditando={rolEditando}
-        onGuardado={cargarRoles}
-      />
-
-      <AlertDialog open={!!usuarioRestableciendo} onOpenChange={(open) => !open && setUsuarioRestableciendo(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Restablecer el acceso de {usuarioRestableciendo?.nombres} {usuarioRestableciendo?.apellidos}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Su contraseña volverá a ser su cédula durante 7 días y deberá cambiarla al ingresar. Se cerrarán sus
-              sesiones abiertas y recibirá un aviso por correo.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isPending}
-              onClick={(e) => {
-                e.preventDefault();
-                onRestablecerAcceso();
-              }}
-            >
-              {isPending ? "Restableciendo..." : "Restablecer"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={!!rolEliminando} onOpenChange={(open) => !open && setRolEliminando(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar el rol {rolEliminando?.nombreRol}</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. No se podrá eliminar si tiene cuentas asociadas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isPending || !puedeEliminarRol}
-              onClick={(e) => {
-                e.preventDefault();
-                onEliminarRol();
-              }}
-            >
-              {isPending ? "Eliminando..." : "Eliminar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="tamano-pagina" className="text-sm">
+                Filas
+              </Label>
+              <Select value={String(pagina.tamano)} onValueChange={cambiarTamano}>
+                <SelectTrigger id="tamano-pagina" className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => cambiarPagina(pagina.pagina - 1)}
+                disabled={pagina.pagina <= 1 || cargando}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Página {pagina.pagina} de {pagina.totalPaginas}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => cambiarPagina(pagina.pagina + 1)}
+                disabled={pagina.pagina >= pagina.totalPaginas || cargando}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }

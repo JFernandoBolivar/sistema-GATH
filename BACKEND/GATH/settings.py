@@ -74,6 +74,8 @@ AUTH_USER_MODEL = 'identidad.CuentaModel'
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'core.presentation.trace_middleware.TraceIDMiddleware',
+    'core.presentation.security_headers.SecurityHeadersMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -123,6 +125,11 @@ DATABASES = {
         'PASSWORD': config('DJANGO_DB_PASSWORD'),
         'HOST': config('DJANGO_DB_HOST', default='localhost'),
         'PORT': config('DJANGO_DB_PORT', default='5432'),
+        # Reutiliza la conexión entre peticiones (A-04): sin esto cada request
+        # abre y cierra una conexión a PostgreSQL. `CONN_HEALTH_CHECKS` descarta
+        # una conexión reutilizada que el servidor haya cerrado.
+        'CONN_MAX_AGE': config('DJANGO_CONN_MAX_AGE', default=60, cast=int),
+        'CONN_HEALTH_CHECKS': config('DJANGO_CONN_HEALTH_CHECKS', default=True, cast=bool),
     }
 }
 
@@ -157,6 +164,14 @@ PASSWORD_HASHERS = [
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# E2: subidas y antivirus opcional (apagado por defecto).
+MAX_UPLOAD_SIZE = config('MAX_UPLOAD_SIZE', default=10 * 1024 * 1024, cast=int)
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
+FILE_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
+ANTIVIRUS_HABILITADO = config('ANTIVIRUS_HABILITADO', default=False, cast=bool)
+CLAMAV_HOST = config('CLAMAV_HOST', default='')
+CLAMAV_PORT = config('CLAMAV_PORT', default=3310, cast=int)
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
@@ -246,6 +261,9 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TIME_LIMIT = 300
 CELERY_TASK_SOFT_TIME_LIMIT = 270
+# E3: no dejar que Celery reemplace el logging de Django; el root emite JSON.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
+CELERY_WORKER_REDIRECT_STDOUTS = False
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
@@ -285,6 +303,16 @@ CELERY_BEAT_SCHEDULE = {
     'notificaciones-reprocesar-outbox': {
         'task': 'notificaciones.reprocesar_outbox',
         'schedule': 300.0,  # cada 5 minutos
+    },
+    # E3: profundidad de la cola y tareas activas en una linea JSON.
+    'core-metricas-cola': {
+        'task': 'core.metricas_cola',
+        'schedule': 60.0,
+    },
+    # E5: aplica la politica de retencion configurable una vez al dia.
+    'configuracion-purgar-retencion': {
+        'task': 'configuracion.purgar_retencion',
+        'schedule': crontab(hour=3, minute=0),
     },
 }
 
@@ -327,6 +355,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.ScopedRateThrottle',
+        'core.presentation.throttles.UploadRateThrottle',
+        'core.presentation.throttles.ExportRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '60/minute',
@@ -335,6 +365,9 @@ REST_FRAMEWORK = {
         'password_reset': config('PASSWORD_RESET_THROTTLE_RATE', default='10/minute'),
         # Fe de vida: verificación pública de constancias (QR), por IP.
         'fe_de_vida_verificacion_publica': config('FE_DE_VIDA_VERIFICACION_PUBLICA_THROTTLE_RATE', default='30/minute'),
+        'upload': config('UPLOAD_THROTTLE_RATE', default='20/minute'),
+        'export': config('EXPORT_THROTTLE_RATE', default='60/minute'),
+        'refresh': config('REFRESH_THROTTLE_RATE', default='60/minute'),
     },
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -420,8 +453,15 @@ LOGGING = {
             'format': '[{asctime}.{msecs:03.0f}] [{levelname}] [{name}] {message}',
             'datefmt': '%Y-%m-%d %H:%M:%S',
         },
+        # E3: una l?nea JSON por evento, con trace_id y campos extra.
+        'json': {'()': 'core.infrastructure.logging.json_formatter.JsonFormatter'},
     },
     'handlers': {
+        'json_console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json',
+            'stream': 'ext://sys.stdout',
+        },
         'audit_file': {
             'class': 'core.infrastructure.logging.handlers.GzipTimedRotatingFileHandler',
             'filename': LOG_DIR / 'audit_backend.txt',
@@ -474,4 +514,6 @@ LOGGING = {
             'propagate': False,
         },
     },
+    # E3: los logs operativos salen como JSON (docker logs / agregadores).
+    'root': {'handlers': ['json_console'], 'level': config('LOG_LEVEL', default='INFO')},
 }

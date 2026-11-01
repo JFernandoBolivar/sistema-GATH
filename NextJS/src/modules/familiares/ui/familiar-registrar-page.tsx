@@ -66,6 +66,8 @@ import { FamiliarPerfilFisico } from "./familiar-perfil-fisico";
 import { FamiliarDocumentos } from "./familiar-documentos";
 import { ID_OTRA_FAMILIAR } from "./catalogo-otra-familiar";
 import { resolverPendientesOtraFamiliar, type PendienteOtraFamiliar } from "./resolver-otra-familiar";
+import { SelectorPasivo } from "./selector-pasivo";
+import { getPasivoResumenAction } from "../infrastructure/actions/pasivos-familiares-actions";
 
 interface EmployeeSummary {
   nombres: string;
@@ -95,6 +97,7 @@ const defaultValues: FamiliarFormType = {
 export default function FamiliarRegistrarPage() {
   const searchParams = useSearchParams();
   const cedulaQuery = searchParams.get("cedula");
+  const modoPasivo = searchParams.get("pasivo") === "1";
 
   const [catalogos, setCatalogos] = useState<CatalogosFamiliarDTO | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -127,7 +130,10 @@ export default function FamiliarRegistrarPage() {
     setIsLoadingSearch(true);
     setHasSearched(true);
     try {
-      const res = await getEmpleadoPorCedulaAction(cedula.trim());
+      const cedulaLimpia = cedula.trim();
+      const res = modoPasivo
+        ? await getPasivoResumenAction(cedulaLimpia)
+        : await getEmpleadoPorCedulaAction(cedulaLimpia);
       if (res && "cedula" in res) {
         setEmployee({
           nombres: res.nombres,
@@ -275,13 +281,17 @@ export default function FamiliarRegistrarPage() {
 
   return (
     <PageLayout title="Agregar Familiar" description="Registre los familiares del empleado">
-      <Card className="bg-white">
-        <CardContent className="gap-5 bg-white p-6">
+      <Card className="bg-card">
+        <CardContent className="gap-5 bg-card p-6">
           <div className="flex flex-col gap-2">
-            <EmployeeSearchForm
-              onSearch={handleSearch}
-              disabled={isLoadingSearch || isPending}
-            />
+            {modoPasivo ? (
+              <SelectorPasivo onSelect={handleSearch} disabled={isLoadingSearch || isPending} />
+            ) : (
+              <EmployeeSearchForm
+                onSearch={handleSearch}
+                disabled={isLoadingSearch || isPending}
+              />
+            )}
 
             <EmployeeInfoBanner
               employee={employee}
@@ -471,7 +481,7 @@ export default function FamiliarRegistrarPage() {
 
                     {/* FIELDSET 2: RELACIÓN Y PARENTESCO */}
                     <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-amber-700 rounded-sm">
-                      <legend className="flex gap-2 text-amber-700 font-bold items-center">
+                      <legend className="flex gap-2 text-warning font-bold items-center">
                         Relación Y Parentesco <Contact className="size-5" />
                       </legend>
 

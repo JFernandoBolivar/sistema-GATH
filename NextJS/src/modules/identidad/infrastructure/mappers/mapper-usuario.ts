@@ -14,9 +14,11 @@ export function mapperUsuario(raw: UsuarioApiItem): UsuarioEntity {
     apellidos: raw.apellidos ?? "",
     correo: raw.correo ?? null,
     telefono: raw.telefono ?? null,
-    departamentoId: raw.departamento_id ?? null,
     rolId: raw.rol_id ?? null,
+    rolNombre: raw.rol_nombre ?? null,
     isActive: raw.is_active ?? false,
-    debeCambiarPassword: raw.debe_cambiar_password ?? null,
+    ultimoAcceso: raw.ultimo_acceso ?? null,
+    condicion: raw.condicion ?? null,
+    passwordInicialPendiente: raw.password_inicial_pendiente ?? false,
   });
 }

@@ -31,7 +31,6 @@ import {
   LucideIcon,
   MoveDownRight,
   NotebookTabs,
-  Palette,
   SignpostBig,
   User,
   UserPlus,
@@ -76,7 +75,7 @@ type MenuItem = {
 const items: MenuItem[] = [
   {
     title: "Inicio",
-    url: "/inicio",
+    url: "/dashboard",
     icon: Home,
   },
   {
@@ -253,12 +252,6 @@ const items: MenuItem[] = [
   },
   {
     permiso: "configuracion.editar",
-    icon: Palette,
-    title: "Configuración visual",
-    url: "/configuracion/visual",
-  },
-  {
-    permiso: "configuracion.editar",
     icon: FolderOpenDot,
     title: "Retroalimentación",
     url: "/retroalimentacion",
@@ -266,7 +259,7 @@ const items: MenuItem[] = [
   {
     permiso: "bienestar.ver_solicitudes",
     icon: ListCheck,
-    title: "Bienestar Social",
+    title: "Actualización de Datos",
     url: "#",
     subMenu: [
       {
@@ -303,25 +296,20 @@ const items: MenuItem[] = [
     ],
   },
   {
-    
-    icon: BookCheck,
-    title: "Autogestión",
+    permiso: "autogestion.censo_ver_todos",
+    icon: FileSpreadsheet,
+    title: "Censo de Vivienda",
     url: "#",
     subMenu: [
       {
-        title: "Formulario",
-        url: "/autogestion",
-        icon: BookCheck,
-      },
-      {
-        title: "Respuestas Encuesta",
-        url: "/autogestion/consultar",
+        title: "Respuestas de encuesta",
+        url: "/personal/censo/respuestas",
         icon: FileSpreadsheet,
         permiso: "autogestion.censo_ver_todos",
       },
       {
         title: "Métricas",
-        url: "/autogestion/metricas",
+        url: "/personal/censo/metricas",
         icon: BarChart3,
         permiso: "autogestion.censo_ver_todos",
       },
@@ -336,9 +324,9 @@ export function AppSidebarPersonal() {
     if (pathname?.startsWith("/cargos")) return "Gestión De Codigos";
     if (pathname?.startsWith("/organizacion")) return "Ub. Administrativas";
     if (pathname?.startsWith("/reportes")) return "Reportes";
-    if (pathname?.startsWith("/personal/bienestar")) return "Bienestar Social";
+    if (pathname?.startsWith("/personal/bienestar")) return "Actualización de Datos";
     if (pathname?.startsWith("/personal/fe-de-vida")) return "Fe de vida";
-    if (pathname?.startsWith("/autogestion")) return "Autogestión";
+    if (pathname?.startsWith("/personal/censo")) return "Censo de Vivienda";
     return "Personal Trabajador";
   }, [pathname]);
 
@@ -463,9 +451,7 @@ export function AppSidebarPersonal() {
                 <h2 className="font-semibold">
                   Rol: {session.user.role.nombre_rol}
                 </h2>
-                <h1 className="text-sm text-muted-foreground font-bold">
-                  Departamento: {session.user.department?.nombre_departamento || "Sin Departamento"}
-                </h1>
+
               </div>
             </div>
           )}

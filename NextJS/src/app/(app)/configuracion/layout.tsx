@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/sidebar";
 import { HeaderLayout } from "@/components/layout/header";
 import { AppSidebarSecurity } from "@/modules/identidad/ui/components/app-sidebar-security";
+import { AvisoOutboxFallido } from "@/modules/configuracion/ui/components/aviso-outbox-fallido";
 import {
   NOMBRE_ADMINISTRACION,
   SECCION_CONFIGURACION,
@@ -23,7 +24,7 @@ export default function ConfiguracionLayout({
   return (
     <SidebarProvider>
       <AppSidebarSecurity />
-      <SidebarInset className="bg-transparent">
+      <SidebarInset className="min-w-0 bg-transparent">
         <HeaderLayout
           title={NOMBRE_ADMINISTRACION}
           subtitle={SECCION_CONFIGURACION}
@@ -32,7 +33,8 @@ export default function ConfiguracionLayout({
         >
           <SidebarTrigger className="text-black-600 scale-110" />
         </HeaderLayout>
-        <main className="w-full h-full overflow-auto">{children}</main>
+        <AvisoOutboxFallido />
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-auto">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

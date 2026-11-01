@@ -14,7 +14,7 @@ export default function PersonalLayout({
   return (
     <SidebarProvider>
       <AppSidebarPersonal />
-      <SidebarInset className="bg-transparent">
+      <SidebarInset className="min-w-0 bg-transparent">
         <HeaderLayout
           title="Gestión Administrativa de Talento Humano - GATH"
           subtitle="Gestiona y Visualiza la Información de los Trabajadores en Conatel"
@@ -23,7 +23,7 @@ export default function PersonalLayout({
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>
-        <main className="w-full h-full overflow-hidden">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-hidden">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

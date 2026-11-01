@@ -17,6 +17,12 @@ CLAVE_AUTOGESTION_AVISO_DIAS = 'plazos.autogestion_aviso_dias'
 
 CLAVE_FE_DE_VIDA_RECORDATORIOS = 'fe_de_vida.dias_recordatorio'
 
+# E5: retencion de datos operativos (nunca auditoria ni constancias).
+CLAVE_RETENCION_EVIDENCIAS_DIAS = 'retencion.evidencias_dias'
+CLAVE_RETENCION_SOPORTES_DIAS = 'retencion.soportes_dias'
+CLAVE_RETENCION_NOTIFICACIONES_DIAS = 'retencion.notificaciones_dias'
+CLAVE_RETENCION_OUTBOX_DIAS = 'retencion.outbox_dias'
+
 VERDADEROS = frozenset({'1', 'true', 'si', 'sí', 'yes', 'on'})
 
 

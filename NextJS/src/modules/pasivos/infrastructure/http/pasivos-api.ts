@@ -15,9 +15,17 @@ export interface PasivoApiItem {
   apellidos: string;
   nombre_completo: string;
   tipo_pasivo: string;
+  tipo_nomina_id: number | null;
   fecha_egreso: string | null;
   resolucion: string | null;
   observaciones: string | null;
+  correo: string | null;
+  telefono_movil: string | null;
+  telefono_habitacion: string | null;
+  carnet_patria: string | null;
+  fecha_nacimiento: string | null;
+  estado_civil_id: number | null;
+  nacionalidad_id: number | null;
   datos_vivienda: Record<string, unknown> | null;
   perfil_salud: Record<string, unknown> | null;
   perfil_fisico: Record<string, unknown> | null;
@@ -28,10 +36,78 @@ export interface PasivoApiItem {
   cargos_historial: Record<string, unknown>[];
 }
 
+export interface PaginaPasivosApi {
+  count: number;
+  limit: number;
+  offset: number;
+  results: PasivoApiItem[];
+}
+
+export interface FiltrosPasivosApi {
+  cedula?: string;
+  nombre?: string;
+  tipo_nomina?: number;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ActualizarPasivoApiBody {
+  nombres?: string;
+  apellidos?: string;
+  correo?: string | null;
+  telefono_movil?: string | null;
+  telefono_habitacion?: string | null;
+  carnet_patria?: string | null;
+  fecha_nacimiento?: string | null;
+  estado_civil_id?: number | null;
+  nacionalidad_id?: number | null;
+}
+
+export interface RegistrarPasivoApiBody {
+  cedula: string;
+  nombres: string;
+  apellidos: string;
+  sexo_id: number;
+  fecha_nacimiento: string;
+  tipo_nomina_id: number;
+  estado_civil_id?: number | null;
+  nacionalidad_id?: number | null;
+  correo?: string | null;
+  telefono_movil?: string | null;
+  telefono_habitacion?: string | null;
+  carnet_patria?: string | null;
+  datos_vivienda?: Record<string, unknown>;
+  perfil_salud?: Record<string, unknown>;
+  perfil_fisico?: Record<string, unknown>;
+  formacion_academica?: Record<string, unknown>[];
+  formacion_complementaria?: Record<string, unknown>[];
+  contacto_emergencia?: Record<string, unknown>[];
+  antecedentes?: Record<string, unknown>[];
+}
+
 export interface ProcesarEgresoApiBody {
   motivo_movimiento_id: number;
   tipo_nomina_id: number;
   liberar_activos: boolean;
+}
+
+export interface FamiliarTitularApiItem {
+  id: number;
+  cedula_familiar: string | null;
+  primer_nombre: string;
+  segundo_nombre: string | null;
+  primer_apellido: string;
+  segundo_apellido: string | null;
+  heredero: boolean;
+}
+
+export interface ResultadoSobrevivienteApiItem {
+  cedula: string;
+  nombre_completo: string;
+  creado: boolean;
+  codigo_asignacion: string | null;
 }
 
 export interface CatalogoPasivoApiItem {
@@ -50,11 +126,33 @@ async function single<T>(getter: Promise<ApiResponse<T>>): Promise<T> {
 }
 
 export const pasivosApi = {
-  getPasivos: (busqueda?: string) =>
-    list<PasivoApiItem>(
-      apiClient.get<ApiResponse<PasivoApiItem[]>>("/api/v1/pasivos/", {
-        params: busqueda ? { q: busqueda } : undefined,
-      }),
+  getPasivos: (filtros: FiltrosPasivosApi = {}) =>
+    apiClient.get<ApiResponse<PaginaPasivosApi>>("/api/v1/pasivos/", {
+      params: {
+        cedula: filtros.cedula,
+        nombre: filtros.nombre,
+        tipo_nomina: filtros.tipo_nomina,
+        fecha_desde: filtros.fecha_desde,
+        fecha_hasta: filtros.fecha_hasta,
+        limit: filtros.limit,
+        offset: filtros.offset,
+      },
+    }),
+
+  crear: (body: RegistrarPasivoApiBody) =>
+    single<PasivoApiItem>(
+      apiClient.post<ApiResponse<PasivoApiItem>>(
+        "/api/v1/pasivos/",
+        body as unknown as Record<string, unknown>,
+      ),
+    ),
+
+  actualizar: (cedula: string, body: ActualizarPasivoApiBody) =>
+    single<PasivoApiItem>(
+      apiClient.patch<ApiResponse<PasivoApiItem>>(
+        `/api/v1/pasivos/${cedula}/`,
+        body as unknown as Record<string, unknown>,
+      ),
     ),
 
   getPorCedula: (cedula: string) =>
@@ -67,6 +165,32 @@ export const pasivosApi = {
   procesarEgreso: (cedula: string, body: ProcesarEgresoApiBody) =>
     single<PasivoApiItem>(
       apiClient.post<ApiResponse<PasivoApiItem>>(`/api/v1/pasivos/${cedula}/procesar-egreso/`, body as unknown as Record<string, unknown>),
+    ),
+
+  getFamiliaresTitular: (cedula: string) =>
+    list<FamiliarTitularApiItem>(
+      apiClient.get<ApiResponse<FamiliarTitularApiItem[]>>(`/api/v1/familiares/empleado/${cedula}/`),
+    ),
+
+  registrarSobrevivientes: (cedula: string, familiarIds: number[]) =>
+    list<ResultadoSobrevivienteApiItem>(
+      apiClient.post<ApiResponse<ResultadoSobrevivienteApiItem[]>>(
+        `/api/v1/pasivos/${cedula}/sobrevivientes/`,
+        { familiar_ids: familiarIds },
+      ),
+    ),
+
+  getMotivosEgresoPasivo: () =>
+    list<CatalogoPasivoApiItem>(
+      apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/pasivos/motivos-egreso/"),
+    ),
+
+  egresarPasivo: (cedula: string, motivoId: number, familiarIds: number[]) =>
+    single<PasivoApiItem>(
+      apiClient.post<ApiResponse<PasivoApiItem>>(
+        `/api/v1/pasivos/${cedula}/egreso/`,
+        { motivo_id: motivoId, sobrevivientes_familiar_ids: familiarIds },
+      ),
     ),
 
   getMotivosEgreso: () =>
@@ -87,6 +211,12 @@ export const pasivosApi = {
   // Mismos endpoints que consume `modules/personal` para el mismo contrato
   // de expediente compartido; se llaman aquí directamente (sin importar el
   // módulo hermano) porque son rutas de backend públicas, no código frontend.
+  getSexos: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/sexos/")),
+  getEstadosCiviles: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/estados-civiles/")),
+  getNacionalidades: () =>
+    list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/nacionalidades/")),
   getEstados: () =>
     list<CatalogoPasivoApiItem>(apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/estados/")),
   getMunicipios: () =>

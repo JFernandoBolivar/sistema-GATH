@@ -49,9 +49,17 @@ class PasivoSerializer(serializers.Serializer):
     apellidos = serializers.CharField(read_only=True)
     nombre_completo = serializers.CharField(read_only=True)
     tipo_pasivo = serializers.CharField(read_only=True)
+    tipo_nomina_id = serializers.IntegerField(read_only=True, allow_null=True)
     fecha_egreso = serializers.CharField(read_only=True, allow_null=True)
     resolucion = serializers.CharField(read_only=True, allow_null=True)
     observaciones = serializers.CharField(read_only=True, allow_null=True)
+    correo = serializers.CharField(read_only=True, allow_null=True)
+    telefono_movil = serializers.CharField(read_only=True, allow_null=True)
+    telefono_habitacion = serializers.CharField(read_only=True, allow_null=True)
+    carnet_patria = serializers.CharField(read_only=True, allow_null=True)
+    fecha_nacimiento = serializers.CharField(read_only=True, allow_null=True)
+    estado_civil_id = serializers.IntegerField(read_only=True, allow_null=True)
+    nacionalidad_id = serializers.IntegerField(read_only=True, allow_null=True)
     # Expediente anidado: solo viene poblado en el detalle
     # (`GET /api/v1/pasivos/<cedula>/`), el listado lo deja vacío.
     datos_vivienda = DatosViviendaLecturaSerializer(read_only=True, allow_null=True)
@@ -95,3 +103,75 @@ class ResultadoSobrevivienteSerializer(serializers.Serializer):
     nombre_completo = serializers.CharField(read_only=True)
     creado = serializers.BooleanField(read_only=True)
     codigo_asignacion = serializers.CharField(read_only=True, allow_null=True)
+
+
+class PasivoEgresoInputSerializer(serializers.Serializer):
+    """Egreso de un pasivo (fallecimiento) y sobrevivientes opcionales."""
+
+    motivo_id = serializers.IntegerField(required=True)
+    sobrevivientes_familiar_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list,
+    )
+
+
+class PasivoCrearInputSerializer(serializers.Serializer):
+    """Alta directa de jubilado/pensionado (permiso `pasivos.crear`)."""
+
+    cedula = serializers.CharField(required=True, max_length=20)
+    nombres = serializers.CharField(required=True, max_length=150)
+    apellidos = serializers.CharField(required=True, max_length=150)
+    sexo_id = serializers.IntegerField(required=True)
+    fecha_nacimiento = serializers.DateField(required=True)
+    tipo_nomina_id = serializers.IntegerField(required=True)
+    estado_civil_id = serializers.IntegerField(required=False, allow_null=True)
+    nacionalidad_id = serializers.IntegerField(required=False, allow_null=True)
+    correo = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
+    telefono_movil = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
+    telefono_habitacion = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
+    carnet_patria = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)
+    datos_vivienda = serializers.DictField(required=False)
+    perfil_salud = serializers.DictField(required=False)
+    perfil_fisico = serializers.DictField(required=False)
+    formacion_academica = serializers.ListField(child=serializers.DictField(), required=False)
+    formacion_complementaria = serializers.ListField(child=serializers.DictField(), required=False)
+    contacto_emergencia = serializers.ListField(child=serializers.DictField(), required=False)
+    antecedentes = serializers.ListField(child=serializers.DictField(), required=False)
+    contrato = serializers.ListField(child=serializers.DictField(), required=False)
+
+    def validate_nombres(self, value):
+        return value.upper() if value else value
+
+    def validate_apellidos(self, value):
+        return value.upper() if value else value
+
+
+class PasivoListaInputSerializer(serializers.Serializer):
+    """Filtros del listado paginado de pasivos."""
+
+    cedula = serializers.CharField(required=False, allow_blank=True)
+    nombre = serializers.CharField(required=False, allow_blank=True)
+    tipo_nomina_id = serializers.IntegerField(required=False, allow_null=True)
+    fecha_desde = serializers.DateField(required=False, allow_null=True)
+    fecha_hasta = serializers.DateField(required=False, allow_null=True)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=50, default=10)
+    offset = serializers.IntegerField(required=False, min_value=0, default=0)
+
+
+class PasivoActualizarInputSerializer(serializers.Serializer):
+    """Campos básicos editables de un pasivo (permiso `pasivos.editar`)."""
+
+    nombres = serializers.CharField(required=False, max_length=150)
+    apellidos = serializers.CharField(required=False, max_length=150)
+    correo = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
+    telefono_movil = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
+    telefono_habitacion = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
+    carnet_patria = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)
+    fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
+    estado_civil_id = serializers.IntegerField(required=False, allow_null=True)
+    nacionalidad_id = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate_nombres(self, value):
+        return value.upper() if value else value
+
+    def validate_apellidos(self, value):
+        return value.upper() if value else value

@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import {
   User,
   Building2,
@@ -15,7 +14,6 @@ import {
   Mail,
   Calendar,
   ShieldAlert,
-  ArrowRight,
   Clock,
   Shirt,
   CreditCard,
@@ -72,6 +70,39 @@ import type {
   ContratoItem,
 } from "../application/dtos/mi-expediente-dto";
 
+/**
+ * El carnet digital aún no entra en producción: mientras siga apagado, la
+ * cabecera, la pestaña y el diálogo de solicitud no se renderizan. Para
+ * habilitarlo basta con volver a `true` (el backend ya está listo).
+ */
+const MOSTRAR_CARNET = false;
+
+/**
+ * Valor de una asignación o catálogo: el «N/A» que devuelve el backend es una
+ * ausencia de dato, no un valor, así que se muestra como raya.
+ */
+function valorODash(valor?: string | null): string {
+  const limpio = (valor ?? "").trim();
+  return limpio === "" || limpio.toUpperCase() === "N/A" ? "—" : limpio;
+}
+
+/** Antecedentes de servicio: duración legible a partir de las fechas. */
+function duracionServicio(ingreso?: string | null, egreso?: string | null): string {
+  if (!ingreso) return "—";
+  const inicio = new Date(ingreso);
+  const fin = egreso ? new Date(egreso) : new Date();
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) return "—";
+  let meses = (fin.getFullYear() - inicio.getFullYear()) * 12 + (fin.getMonth() - inicio.getMonth());
+  if (fin.getDate() < inicio.getDate()) meses -= 1;
+  if (meses < 1) return "Menos de 1 mes";
+  const anios = Math.floor(meses / 12);
+  const resto = meses % 12;
+  const partes: string[] = [];
+  if (anios > 0) partes.push(`${anios} ${anios === 1 ? "año" : "años"}`);
+  if (resto > 0) partes.push(`${resto} ${resto === 1 ? "mes" : "meses"}`);
+  return partes.join(" y ");
+}
+
 function formatearLista(items: unknown[] | undefined): string {
   if (!items || items.length === 0) return "Ninguna reportada";
   return items
@@ -95,6 +126,7 @@ export default function MiExpedienteView() {
   const [observacionesSolicitud, setObservacionesSolicitud] = useState("");
   const [solicitandoCarnet, setSolicitandoCarnet] = useState(false);
   const [descargandoPdf, setDescargandoPdf] = useState(false);
+  const [fotoError, setFotoError] = useState(false);
   const [feedbackCarnet, setFeedbackCarnet] = useState<{ tipo: "success" | "error"; mensaje: string } | null>(null);
 
   if (isLoading) {
@@ -142,15 +174,26 @@ export default function MiExpedienteView() {
   const complementaria = (empleado.formacion_complementaria || []) as FormacionComplementariaItem[];
   const contactos = (empleado.contacto_emergencia || []) as ContactoEmergenciaItem[];
 
+  const antecedentes = empleado.antecedentes || [];
+  const asignacion = empleado.asignaciones?.[0];
+
   const cargoPrincipal =
     contratoActual?.politica_nombre ||
     (empleado.asignaciones && empleado.asignaciones[0]?.denominacion_cargo_especifico) ||
     (empleado.asignaciones && empleado.asignaciones[0]?.denominacion_cargo) ||
     "Servidor Público CONATEL";
 
+  // «Oficina» = dirección general/linea; la dependencia («NIVEL DE APOYO») es
+  // el nivel jerárquico y no debe ocupar el lugar de la ubicación real.
+  const oficinaPrincipal =
+    (empleado.asignaciones && empleado.asignaciones[0]?.direccion_general) ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.direccion_linea) ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.coordinacion) ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.dependencia) ||
+    "Comisión Nacional de Telecomunicaciones";
+
   const dependenciaPrincipal =
     (empleado.asignaciones && empleado.asignaciones[0]?.dependencia) ||
-    (empleado.asignaciones && empleado.asignaciones[0]?.direccion_general) ||
     "Comisión Nacional de Telecomunicaciones";
 
   const handleDescargarCarnetPdf = async () => {
@@ -241,26 +284,27 @@ export default function MiExpedienteView() {
       )}
 
       {/* Cabecera Institucional CONATEL */}
-      <Card className="overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0">
+      <Card className="min-w-0 overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0">
         <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-6 md:p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 h-1.5 w-48 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 rounded-bl-full opacity-80" />
 
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          <div className="relative z-10 flex min-w-0 flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 flex-col items-start gap-5 sm:flex-row sm:items-center">
               <div className="relative shrink-0">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-blue-600/40 to-slate-900/60 border-2 border-amber-400/40 flex items-center justify-center shadow-xl backdrop-blur-sm overflow-hidden">
-                  {empleado.foto_url ? (
+                  {empleado.foto_url && !fotoError ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
                       src={empleado.foto_url}
                       alt={`Fotografía del trabajador ${empleado.nombre_completo || ""}`.trim()}
                       className="w-full h-full object-cover rounded-2xl"
+                      onError={() => setFotoError(true)}
                     />
                   ) : (
                     <User className="w-10 h-10 sm:w-12 sm:h-12 text-amber-300" />
                   )}
                 </div>
-                {carnet_activo?.activo && (
+                {MOSTRAR_CARNET && carnet_activo?.activo && (
                   <span
                     title="Carnet Digital Activo"
                     className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 shadow-md border-2 border-[#001737]"
@@ -270,7 +314,7 @@ export default function MiExpedienteView() {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="min-w-0 space-y-2">
                 <div className="flex items-center gap-2.5 flex-wrap">
                   <span className="text-xs font-bold tracking-wider text-amber-300 uppercase px-3 py-1 rounded-md bg-amber-400/15 border border-amber-400/30">
                     CONATEL • GATH
@@ -278,18 +322,19 @@ export default function MiExpedienteView() {
                   <Badge variant="secondary" className="bg-white/15 text-white hover:bg-white/25 text-sm font-mono px-3 py-0.5">
                     C.I. {empleado.cedula}
                   </Badge>
-                  {carnet_activo ? (
-                    <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-sm gap-1.5 py-0.5 px-3">
-                      <FileCheck className="w-3.5 h-3.5" /> Carnet Vigente
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="border-amber-400/50 text-amber-300 text-sm py-0.5 px-3">
-                      Sin carnet emitido
-                    </Badge>
-                  )}
+                  {MOSTRAR_CARNET &&
+                    (carnet_activo ? (
+                      <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-sm gap-1.5 py-0.5 px-3">
+                        <FileCheck className="w-3.5 h-3.5" /> Carnet Vigente
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="border-amber-400/50 text-amber-300 text-sm py-0.5 px-3">
+                        Sin carnet emitido
+                      </Badge>
+                    ))}
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
+                <h1 className="break-words text-2xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-3xl lg:text-4xl">
                   {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
                 </h1>
 
@@ -297,13 +342,13 @@ export default function MiExpedienteView() {
                   <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 shrink-0" />
                   <span className="font-semibold text-white">{cargoPrincipal}</span>
                   <span className="text-blue-300/70">•</span>
-                  <span className="text-blue-200">{dependenciaPrincipal}</span>
+                  <span className="text-blue-200">{oficinaPrincipal}</span>
                 </p>
 
                 <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-sm text-blue-100 pt-1">
                   {empleado.correo && (
-                    <span className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-amber-300 shrink-0" /> {empleado.correo}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Mail className="w-4 h-4 shrink-0 text-amber-300" /> <span className="break-all">{empleado.correo}</span>
                     </span>
                   )}
                   {empleado.telefono_movil && (
@@ -320,23 +365,16 @@ export default function MiExpedienteView() {
               </div>
             </div>
 
-            <div className="flex flex-row lg:flex-col items-center lg:items-end gap-3 w-full lg:w-auto shrink-0">
-              <Button
-                onClick={() => setActiveTab("carnet")}
-                className="flex-1 lg:flex-none bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold shadow-lg text-sm h-11 px-5 gap-2"
-              >
-                <CreditCard className="w-4 h-4 text-slate-950" /> Mi Carnet Digital
-              </Button>
-
-              <Link href="/autogestion/censo" className="flex-1 lg:flex-none">
+            {MOSTRAR_CARNET && (
+              <div className="flex w-full shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:w-auto lg:flex-col lg:items-end">
                 <Button
-                  variant="outline"
-                  className="w-full bg-white/10 hover:bg-white/20 border-white/20 text-white text-sm font-medium h-11 px-5 gap-2"
+                  onClick={() => setActiveTab("carnet")}
+                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold shadow-lg text-sm h-11 px-5 gap-2 sm:flex-1 lg:w-auto lg:flex-none"
                 >
-                  <Home className="w-4 h-4 text-blue-200" /> Censo de Vivienda <ArrowRight className="w-4 h-4" />
+                  <CreditCard className="w-4 h-4 text-slate-950" /> Mi Carnet Digital
                 </Button>
-              </Link>
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -345,27 +383,29 @@ export default function MiExpedienteView() {
 
       {/* Navegación por Pestañas con ScrollArea de shadcn */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
-        <ScrollArea className="w-full whitespace-nowrap pb-2">
+        <ScrollArea role="region" aria-label="Secciones de la ficha" tabIndex={0} className="w-full whitespace-nowrap pb-2">
           <TabsList className="inline-flex h-auto p-1.5 bg-muted/80 rounded-xl border border-border/50 min-w-full sm:min-w-0 justify-start sm:justify-center gap-1.5">
-            <TabsTrigger value="personal" className="py-2.5 px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <TabsTrigger value="personal" className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <User className="w-4 h-4 text-blue-500" /> Datos Personales
             </TabsTrigger>
-            <TabsTrigger value="laboral" className="py-2.5 px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <TabsTrigger value="laboral" className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Briefcase className="w-4 h-4 text-indigo-500" /> Ubicación Laboral
             </TabsTrigger>
-            <TabsTrigger value="formacion" className="py-2.5 px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <TabsTrigger value="formacion" className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <GraduationCap className="w-4 h-4 text-emerald-500" /> Formación & Cursos ({formacion.length + complementaria.length})
             </TabsTrigger>
-            <TabsTrigger value="carnet" className="py-2.5 px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
-              <CreditCard className="w-4 h-4 text-amber-500" /> Carnet Institucional
-            </TabsTrigger>
-            <TabsTrigger value="salud" className="py-2.5 px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            {MOSTRAR_CARNET && (
+              <TabsTrigger value="carnet" className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+                <CreditCard className="w-4 h-4 text-amber-500" /> Carnet Institucional
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="salud" className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <HeartPulse className="w-4 h-4 text-rose-500" /> Salud & Dotación
             </TabsTrigger>
-            <TabsTrigger value="familiares" className="py-2.5 px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <TabsTrigger value="familiares" className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Users className="w-4 h-4 text-violet-500" /> Cargas Familiares ({familiares.length})
             </TabsTrigger>
-            <TabsTrigger value="legal" className="py-2.5 px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
+            <TabsTrigger value="legal" className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <Scale className="w-4 h-4 text-amber-600" /> Marco Legal
             </TabsTrigger>
           </TabsList>
@@ -492,31 +532,30 @@ export default function MiExpedienteView() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="divide-y divide-border/40 pt-2">
-                <InfoRow label="Dependencia Principal" value={dependenciaPrincipal} />
+                <InfoRow label="Dependencia" value={dependenciaPrincipal} />
+                <InfoRow label="Oficina / Gerencia" value={oficinaPrincipal} />
                 <InfoRow
                   label="Dirección de Línea"
-                  value={(empleado.asignaciones && empleado.asignaciones[0]?.direccion_linea) || "Sede Principal CONATEL"}
+                  value={valorODash(asignacion?.direccion_linea)}
                 />
                 <InfoRow
                   label="Coordinación"
-                  value={(empleado.asignaciones && empleado.asignaciones[0]?.coordinacion) || "Área Operativa"}
+                  value={valorODash(asignacion?.coordinacion)}
                 />
                 <InfoRow
                   label="Tipo de Nómina"
-                  value={(empleado.asignaciones && empleado.asignaciones[0]?.tipo_nomina) || "EMPLEADOS FIJOS"}
+                  value={valorODash(asignacion?.tipo_nomina)}
                 />
                 <InfoRow
                   label="Grado / Escala"
-                  value={(empleado.asignaciones && empleado.asignaciones[0]?.grado) || "N/A"}
+                  value={valorODash(asignacion?.grado)}
                 />
                 <InfoRow
                   label="Modalidad de Ingreso al Cargo"
                   value={
-                    empleado.asignaciones &&
-                    empleado.asignaciones[0]?.tipo_procedencia &&
-                    empleado.asignaciones[0]?.tipo_procedencia !== "N/A"
-                      ? `${empleado.asignaciones[0].tipo_procedencia} (CONATEL)`
-                      : "Captación Institucional (Interna)"
+                    valorODash(asignacion?.tipo_procedencia) === "—"
+                      ? "—"
+                      : `${asignacion?.tipo_procedencia} (CONATEL)`
                   }
                 />
               </CardContent>
@@ -538,23 +577,26 @@ export default function MiExpedienteView() {
                 />
                 <InfoRow
                   label="Código de Cargo"
-                  value={(empleado.asignaciones && empleado.asignaciones[0]?.codigo) || "S/C"}
+                  value={valorODash(asignacion?.codigo)}
                 />
                 <InfoRow
                   label="N° Contrato Activo"
-                  value={contratoActual?.n_contrato || "Contrato Institucional"}
+                  value={contratoActual?.n_contrato || "—"}
                 />
                 <InfoRow
                   label="Política de Contratación"
-                  value={contratoActual?.politica_nombre || (contratoActual?.es_fijo ? "PERSONAL FIJO" : "CONTRATADO")}
+                  value={
+                    contratoActual?.politica_nombre ||
+                    (contratoActual?.es_fijo ? "PERSONAL FIJO" : "—")
+                  }
                 />
                 <InfoRow
                   label="Fecha de Ingreso"
-                  value={contratoActual?.fecha_ingreso ? formatearFecha(contratoActual.fecha_ingreso) : "Registrada en Antecedentes"}
+                  value={contratoActual?.fecha_ingreso ? formatearFecha(contratoActual.fecha_ingreso) : "—"}
                 />
                 <InfoRow
                   label="Fecha de Culminación"
-                  value={contratoActual?.fecha_culminacion ? formatearFecha(contratoActual.fecha_culminacion) : "Indefinido / Permanente"}
+                  value={contratoActual?.fecha_culminacion ? formatearFecha(contratoActual.fecha_culminacion) : "—"}
                 />
                 <InfoRow
                   label="Tiempo de Servicio APN"
@@ -566,7 +608,55 @@ export default function MiExpedienteView() {
 
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-4 border-b bg-muted/20">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                    <Building2 className="w-5 h-5 text-indigo-600" /> Antecedentes de Servicio
+                  </CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    Organismos y períodos en los que el servidor prestó servicio antes del cargo actual.
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5 w-fit">
+                  {antecedentes.length} {antecedentes.length === 1 ? "registro" : "registros"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {antecedentes.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  No se registran antecedentes de servicio en el expediente.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border/40">
+                  {antecedentes.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground break-words">
+                          {a.organismo_nombre || "Organismo no especificado"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {a.fecha_ingreso ? formatearFecha(a.fecha_ingreso) : "Sin fecha de ingreso"}
+                          {" — "}
+                          {a.fecha_egreso ? formatearFecha(a.fecha_egreso) : "Actual"}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="w-fit shrink-0 text-xs font-semibold px-2.5 py-0.5">
+                        {duracionServicio(a.fecha_ingreso, a.fecha_egreso)}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
                     <Calendar className="w-5 h-5 text-indigo-600" /> Historial de Contratos en la Institución
@@ -587,7 +677,7 @@ export default function MiExpedienteView() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[560px]">
                     <TableHeader>
                       <TableRow className="text-sm">
                         <TableHead className="font-semibold text-foreground">N° Contrato</TableHead>
@@ -715,7 +805,7 @@ export default function MiExpedienteView() {
 
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-4 border-b bg-muted/20">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
                     <GraduationCap className="w-5 h-5 text-emerald-600" /> Títulos Académicos y Educación Formal
@@ -724,7 +814,7 @@ export default function MiExpedienteView() {
                     Niveles de instrucción superior, pregrado, postgrado y especializaciones.
                   </CardDescription>
                 </div>
-                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5">{formacion.length} títulos</Badge>
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5 w-fit">{formacion.length} títulos</Badge>
               </div>
             </CardHeader>
             <CardContent className="pt-4">
@@ -766,8 +856,9 @@ export default function MiExpedienteView() {
           </Card>
         </TabsContent>
 
-        {/* TAB 4: MI CARNET INSTITUCIONAL */}
-        <TabsContent value="carnet" className="space-y-6 focus-visible:outline-none">
+        {/* TAB 4: MI CARNET INSTITUCIONAL (oculto hasta su pase a producción) */}
+        {MOSTRAR_CARNET && (
+          <TabsContent value="carnet" className="space-y-6 focus-visible:outline-none">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-4 bg-muted/20 p-6 rounded-2xl border border-border/60 shadow-sm">
               <div className="text-center space-y-1">
@@ -949,7 +1040,8 @@ export default function MiExpedienteView() {
               )}
             </div>
           </div>
-        </TabsContent>
+          </TabsContent>
+        )}
 
         {/* TAB 5: SALUD & BIENESTAR / TALLAS */}
         <TabsContent value="salud" className="space-y-6 focus-visible:outline-none">
@@ -1026,7 +1118,7 @@ export default function MiExpedienteView() {
         <TabsContent value="familiares" className="space-y-6 focus-visible:outline-none">
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-4 border-b bg-muted/20">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
                     <Users className="w-5 h-5 text-violet-600" /> Cargas Familiares Registradas
@@ -1035,7 +1127,7 @@ export default function MiExpedienteView() {
                     Hijos, cónyuge o ascendientes vinculados formalmente a su expediente laboral.
                   </CardDescription>
                 </div>
-                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5">
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5 w-fit">
                   {familiares.length} {familiares.length === 1 ? "dependiente" : "dependientes"}
                 </Badge>
               </div>
@@ -1047,7 +1139,7 @@ export default function MiExpedienteView() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[720px]">
                     <TableHeader>
                       <TableRow className="text-sm">
                         <TableHead className="font-semibold text-foreground">Parentesco</TableHead>
@@ -1211,7 +1303,8 @@ export default function MiExpedienteView() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal Dialog: Solicitar / Renovar Carnet */}
+      {/* Modal Dialog: Solicitar / Renovar Carnet (oculto hasta su pase a producción) */}
+      {MOSTRAR_CARNET && (
       <Dialog open={modalCarnetAbierto} onOpenChange={setModalCarnetAbierto}>
         <DialogContent className="sm:max-w-lg">
           <form onSubmit={handleSolicitarCarnet}>
@@ -1325,6 +1418,7 @@ export default function MiExpedienteView() {
           </form>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

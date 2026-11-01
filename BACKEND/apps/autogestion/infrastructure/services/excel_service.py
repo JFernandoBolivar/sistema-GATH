@@ -8,6 +8,7 @@ from apps.autogestion.infrastructure.models.autogestion_models import (
     RespuestasEncuestaModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from apps.personal.infrastructure.repositories.consultas_apn import anotar_apn_oficial
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.personal.infrastructure.models.expediente_models import DatosViviendaModel
 
@@ -44,10 +45,9 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
     else:
         cedulas_final = respondentes
 
-    empleados = (
+    empleados = anotar_apn_oficial(
         EmployeeModel.objects.filter(cedulaidentidad__in=cedulas_final)
-        .order_by('cedulaidentidad')
-    )
+    ).order_by('cedulaidentidad')
 
     preguntas = PreguntasEncuestasModel.objects.filter(activo=True).order_by("orden")
     pregunta_ids = list(preguntas.values_list("id", flat=True))
@@ -95,7 +95,7 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
         dir_vivienda = vivienda.direccion_exacta if vivienda else ""
         cp = vivienda.codigo_postal.codigo if vivienda and vivienda.codigo_postal else ""
 
-        apn_anos = float(emp.total_anos_apn or 0)
+        apn_anos = float(getattr(emp, 'apn_oficial', 0) or 0)
         apn_str = f"{int(apn_anos)} años" if apn_anos > 0 else "0"
 
         row = [

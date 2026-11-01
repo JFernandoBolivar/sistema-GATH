@@ -44,3 +44,22 @@ class RepoOutboxORM:
             proximo_intento__lte=ahora,
         ) | EventoOutboxModel.objects.filter(estado=PENDIENTE, proximo_intento__isnull=True, created_at__lte=ahora)
         return [str(i) for i in qs.order_by('created_at').values_list('pk', flat=True)[:limite]]
+
+
+    def resumen_fallidos(self, limite: int = 5):
+        """Total y ultimos correos FALLIDOS (para el aviso administrativo)."""
+        qs = EventoOutboxModel.objects.filter(
+            estado=EventoOutboxModel.Estado.FALLIDO,
+        ).order_by('-created_at')
+        ultimos = [
+            {
+                'id': str(m.pk),
+                'tipo': m.tipo,
+                'destinatario': m.destinatario,
+                'intentos': m.intentos,
+                'error': m.ultimo_error,
+                'creado_en': m.created_at.isoformat(),
+            }
+            for m in qs[:limite]
+        ]
+        return qs.count(), ultimos

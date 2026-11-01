@@ -72,6 +72,11 @@ class RepoSolicitudesORM:
         total = qs.count()
         return [solicitud_a_entidad(m) for m in qs[desplazamiento:desplazamiento + limite]], total
 
+    def contar_por_estado(self) -> dict[str, int]:
+        from django.db.models import Count
+        filas = SolicitudActualizacionModel.objects.values('estado').annotate(total=Count('id'))
+        return {fila['estado']: fila['total'] for fila in filas}
+
     def listar_habilitadas_vencidas(self, ahora: datetime) -> list[SolicitudActualizacion]:
         qs = SolicitudActualizacionModel.objects.filter(
             estado__in=[e.value for e in ESTADOS_EDITABLES], ventana_fin__lt=ahora,

@@ -109,7 +109,7 @@ export function FamiliarPerfilSalud({
 
   return (
     <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-red-700 rounded-sm">
-      <legend className="flex gap-2 text-red-700 font-bold items-center">
+      <legend className="flex gap-2 text-danger font-bold items-center">
         Datos De Salud <HeartPulse className="size-5" />
       </legend>
 

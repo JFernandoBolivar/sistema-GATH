@@ -10,9 +10,15 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
+  actualizarPasivo,
+  egresarPasivo,
+  listarCatalogosRegistroPasivo,
+  listarMotivosEgresoPasivo,
   listarPasivos,
+  listarPasivosPaginados,
   obtenerPasivoPorCedula,
   procesarEgreso,
+  registrarPasivo,
 } from "../../application/use-cases/gestionar-pasivos";
 import {
   listarMotivosEgreso,
@@ -21,9 +27,12 @@ import {
 import { listarCatalogosExpedientePasivo } from "../../application/use-cases/listar-catalogos-expediente";
 import { repoPasivosApi } from "../repositories/repo-pasivos-api";
 import {
+  actualizarPasivoSchema,
+  filtrosPasivosSchema,
   listadoPasivosSchema,
   pasivoCedulaSchema,
   procesarEgresoSchema,
+  registrarPasivoSchema,
 } from "../../ui/schema/schema-pasivo";
 
 export async function getPasivosAction(busqueda?: string) {
@@ -100,6 +109,48 @@ export async function getMotivosEgresoAction() {
   }
 }
 
+export async function getMotivosEgresoPasivoAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarMotivosEgresoPasivo(repoPasivosApi);
+    await logAudit({ traceId, action: "getMotivosEgresoPasivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getMotivosEgresoPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function egresarPasivoAction(
+  cedula: string,
+  motivoId: number,
+  familiarIds: number[],
+) {
+  const validacion = pasivoCedulaSchema.safeParse({ cedula });
+  if (!validacion.success || !motivoId) {
+    return { error: "Seleccione un pasivo y un motivo de egreso válido." };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await egresarPasivo(
+      repoPasivosApi,
+      validacion.data.cedula,
+      motivoId,
+      familiarIds,
+    );
+    await logAudit({ traceId, action: "egresarPasivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "egresarPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const mensaje = error instanceof Error && error.message ? error.message : "No fue posible egresar el pasivo.";
+    return { error: mensaje };
+  }
+}
+
 export async function getTiposNominaAction(soloPasivos: boolean = true) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
@@ -143,6 +194,226 @@ export async function descargarPasivoPdfAction(cedula: string) {
     return resultado;
   } catch (error) {
     await logAudit({ traceId, action: "descargarPasivoPdfAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+
+export async function getPasivosPaginadosAction(filtros: {
+  cedula?: string;
+  nombre?: string;
+  tipoNominaId?: number;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const validacion = filtrosPasivosSchema.safeParse(filtros);
+  if (!validacion.success) {
+    return { error: "Filtros del listado inválidos." };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarPasivosPaginados(repoPasivosApi, validacion.data);
+    await logAudit({ traceId, action: "getPasivosPaginadosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getPasivosPaginadosAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarPasivoAction(
+  cedula: string,
+  input: {
+    nombres?: string;
+    apellidos?: string;
+    correo?: string | null;
+    telefonoMovil?: string | null;
+    telefonoHabitacion?: string | null;
+    carnetPatria?: string | null;
+    fechaNacimiento?: string | null;
+    estadoCivilId?: number | null;
+    nacionalidadId?: number | null;
+  },
+) {
+  const cedulaValida = pasivoCedulaSchema.safeParse({ cedula });
+  const datosValidos = actualizarPasivoSchema.safeParse(input);
+  if (!cedulaValida.success || !datosValidos.success) {
+    return { error: "Datos del pasivo inválidos. Revise los campos ingresados." };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarPasivo(repoPasivosApi, cedulaValida.data.cedula, datosValidos.data);
+    await logAudit({ traceId, action: "actualizarPasivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function registrarPasivoCompletoAction(
+  dto: import("@/modules/personal/application/dtos/empleado-dto").GuardarEmpleadoInputDTO,
+  tipoNominaId: number,
+) {
+  if (!dto.cedula?.trim() || !dto.nombres?.trim() || !dto.apellidos?.trim() || !dto.sexoId || !dto.fechaNacimiento) {
+    return { error: "Complete los datos básicos del pasivo." };
+  }
+  if (!tipoNominaId) return { error: "Seleccione un tipo de nómina de pasivo." };
+
+  const input = {
+    cedula: dto.cedula.trim(),
+    nombres: dto.nombres.trim(),
+    apellidos: dto.apellidos.trim(),
+    sexoId: dto.sexoId,
+    fechaNacimiento: dto.fechaNacimiento,
+    tipoNominaId,
+    estadoCivilId: dto.estadoCivilId ?? null,
+    nacionalidadId: dto.nacionalidadId ?? null,
+    correo: dto.correo ?? null,
+    telefonoMovil: dto.telefonoMovil ?? null,
+    telefonoHabitacion: dto.telefonoHabitacion ?? null,
+    carnetPatria: dto.carnetPatria ?? null,
+    datosVivienda: dto.datosVivienda
+      ? {
+          estado: dto.datosVivienda.estadoId ?? null,
+          municipio: dto.datosVivienda.municipioId ?? null,
+          parroquia: dto.datosVivienda.parroquiaId ?? null,
+          direccion_exacta: dto.datosVivienda.direccionExacta ?? null,
+          condicion_vivienda: dto.datosVivienda.condicionViviendaId ?? null,
+          codigo_postal: dto.datosVivienda.codigoPostalId ?? null,
+        }
+      : undefined,
+    perfilSalud: dto.perfilSalud
+      ? {
+          grupo_sanguineo_id: dto.perfilSalud.grupoSanguineoId ?? null,
+          alergias: dto.perfilSalud.alergias ?? [],
+          patologias_cronicas: dto.perfilSalud.patologiasCronicas ?? [],
+          discapacidades: dto.perfilSalud.discapacidades ?? [],
+        }
+      : undefined,
+    perfilFisico: dto.perfilFisico
+      ? {
+          talla_camisa_id: dto.perfilFisico.tallaCamisaId ?? null,
+          talla_pantalon_id: dto.perfilFisico.tallaPantalonId ?? null,
+          talla_zapatos_id: dto.perfilFisico.tallaZapatosId ?? null,
+          talla_chaqueta_id: dto.perfilFisico.tallaChaquetaId ?? null,
+        }
+      : undefined,
+    formacionAcademica: (dto.formacionAcademica ?? []).map((f) => ({
+      nivel_academico: f.nivelAcademicoId ?? null,
+      carrera: f.carreraId ?? null,
+      mencion: f.mencionId ?? null,
+      institucion: f.institucionId ?? null,
+    })),
+    formacionComplementaria: (dto.formacionComplementaria ?? []).map((f) => {
+      const item = f as unknown as Record<string, unknown>;
+      return {
+        capacitacion: item.capacitacionId ?? null,
+        institucion: item.institucionId ?? null,
+        fechaInicio: item.fechaInicio ?? null,
+        fechaFin: item.fechaFin ?? null,
+        dias_completados: item.diasCompletados ?? null,
+        horas_completadas: item.horasCompletadas ?? null,
+        procedencia: item.procedenciaId ?? null,
+        grupo: item.grupoId ?? null,
+      };
+    }),
+    contactoEmergencia: (dto.contactoEmergencia ?? []).map((c) => ({
+      nombres: c.nombres ?? "",
+      apellidos: c.apellidos ?? "",
+      telefono: c.telefono ?? null,
+      relacion: c.relacionId ?? null,
+    })),
+    antecedentes: (dto.antecedentes ?? []).map((a) => ({
+      organismo: a.organismoId ?? null,
+      fecha_ingreso: a.fechaIngreso ?? null,
+      fecha_egreso: a.fechaEgreso ?? null,
+    })),
+  };
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await registrarPasivo(repoPasivosApi, input);
+    await logAudit({ traceId, action: "registrarPasivoCompletoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "registrarPasivoCompletoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const mensaje = error instanceof Error && error.message ? error.message : "Error al registrar el pasivo";
+    return { error: mensaje };
+  }
+}
+
+export async function getCatalogosRegistroPasivoAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCatalogosRegistroPasivo(repoPasivosApi);
+    await logAudit({ traceId, action: "getCatalogosRegistroPasivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getCatalogosRegistroPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function registrarPasivoAction(input: unknown) {
+  const validacion = registrarPasivoSchema.safeParse(input);
+  if (!validacion.success) {
+    return {
+      error: validacion.error.issues[0]?.message ?? "Datos del pasivo inválidos.",
+    };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await registrarPasivo(repoPasivosApi, validacion.data);
+    await logAudit({ traceId, action: "registrarPasivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "registrarPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function getFamiliaresTitularAction(cedula: string) {
+  const validacion = pasivoCedulaSchema.safeParse({ cedula });
+  if (!validacion.success) return { error: "Cédula del titular inválida." };
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoPasivosApi.getFamiliaresTitular(validacion.data.cedula);
+    await logAudit({ traceId, action: "getFamiliaresTitularAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getFamiliaresTitularAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function registrarSobrevivientesAction(cedula: string, familiarIds: number[]) {
+  const validacion = pasivoCedulaSchema.safeParse({ cedula });
+  if (!validacion.success) return { error: "Cédula del titular inválida." };
+  if (!familiarIds.length) return { error: "Seleccione al menos un familiar beneficiario." };
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoPasivosApi.registrarSobrevivientes(validacion.data.cedula, familiarIds);
+    await logAudit({ traceId, action: "registrarSobrevivientesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "registrarSobrevivientesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }

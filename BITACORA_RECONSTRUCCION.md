@@ -1176,3 +1176,33 @@ Hallazgos detectados durante la auditoría de Fases 0-1 que no estaban registrad
 
 
 
+
+---
+
+## 7. Actualización 2026-11-01 — Entrada #042: cierre del bloque E1–E6 (sin commit)
+
+**Rama:** `feature/fe-de-vida-pasivos` (todo el trabajo queda sin commit, por decisión del usuario).
+
+### Contexto
+Después de R-5/R-A (móvil, PWA y accesibilidad) se ejecutó el bloque de seguridad y observabilidad E1–E6 del plan de prioridad. Esta entrada reemplaza como estado vigente las cifras de la Entrada #041 para el backend y el frontend.
+
+### Cambios verificados
+- **E1 — Auditoría:** `AuditoriaLog` tiene `dispositivo`, `hash_anterior` y `hash_actual`; cadena SHA-256 desde génesis, append-only en modelo y trigger PostgreSQL, comando `verificar_cadena_auditoria`. La migración `core/0006` encadenó 204 registros existentes sin borrar ninguno.
+- **E2 — Límites:** throttles de login, recuperación, refresh, QR público, subidas y exportaciones; `MAX_UPLOAD_SIZE` en servidor; ClamAV opcional apagado por defecto.
+- **E3 — Observabilidad:** logs JSON con `trace_id` de extremo a extremo (middleware, ContextVar, headers Celery), señales `task_failure`/`task_retry`, métrica de cola cada 60 s y aviso de outbox `FALLIDO` en Administración.
+- **E4 — Cabeceras:** CSP estricta en Django sin `unsafe-inline`; cabeceras de seguridad en Django y Next; pruebas de cabeceras, cookies `HttpOnly`/`SameSite=Lax` y controles de acceso. Pendiente documentado: CSP con nonce en Next.
+- **E5 — Retención:** cuatro parámetros configurables, purga beat diaria auditada de evidencias/soportes/notificaciones/outbox, sin tocar auditoría ni constancias; indicadores en el panel de Bienestar.
+- **E6 — Documentación:** `ESTADO_SISTEMA_2026-10-27.md` y esta bitácora actualizados; se agrega `REPORTE_E1_E6.md`.
+
+### Cifras vigentes
+- Backend: **1153 passed, 1 skipped**.
+- `import-linter`: **82 kept / 0 broken**.
+- `makemigrations --check`: sin cambios.
+- Frontend: **579 tests Vitest**, `tsc` limpio, `eslint` 0 errores, `next build` correcto.
+- E2E responsive + axe 5/5 y PWA 2/2; Lighthouse 11 PWA 100 y accesibilidad 100 en `/login`.
+
+### Pendientes
+- `E2E_ADMIN_PASSWORD` para Administración/Carnetización.
+- Validación en hardware real.
+- CSP con nonce en Next.
+- HTTPS/HSTS de producción (Infraestructura, C0).

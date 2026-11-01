@@ -214,7 +214,7 @@ export function CambiarPasivoPage() {
       {isPending ? (
         <Loading promiseMessage="Ejecutando Cambio..." />
       ) : (
-        <Card className="bg-white">
+        <Card className="bg-card">
           <CardContent className="gap-5 flex flex-col p-6">
             <EmployeeSearchForm onSearch={handleSearchEmployee} />
 

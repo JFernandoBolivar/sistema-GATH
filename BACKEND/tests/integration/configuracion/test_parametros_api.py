@@ -52,8 +52,10 @@ def test_listado_devuelve_los_parametros_agrupables_con_su_defecto():
 
     assert respuesta.status_code == 200
     parametros = data(respuesta)
-    assert len(parametros) == 6
-    assert {p['grupo'] for p in parametros} == {'notificaciones', 'plazos', 'fe_de_vida'}
+    assert len(parametros) == 10
+    assert {p['grupo'] for p in parametros} == {
+        'notificaciones', 'plazos', 'fe_de_vida', 'retencion',
+    }
     assert all(p['valor'] == p['defecto'] for p in parametros)
 
 
@@ -143,7 +145,7 @@ def test_dos_lecturas_concurrentes_no_fallan():
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         resultados = list(pool.map(leer, range(2)))
 
-    assert resultados == [6, 6]
+    assert resultados == [10, 10]
 
 
 def test_si_la_auditoria_falla_el_parametro_no_queda_cambiado():

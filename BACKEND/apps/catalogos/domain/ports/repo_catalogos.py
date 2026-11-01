@@ -30,7 +30,7 @@ class RepoCatalogos(Protocol):
         ...
 
     def listar_tipos_nomina(
-        self, solo_especiales: bool = False, solo_pasivos: bool = False
+        self, solo_especiales: bool = False, solo_pasivos: bool = False, solo_activos: bool = False
     ) -> list[CatalogoItem]:
         ...
 

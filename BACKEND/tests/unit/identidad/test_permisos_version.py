@@ -25,12 +25,24 @@ def test_emitir_embebe_el_claim_permisos_version(mock_refresh_cls):
     refresh.__setitem__.assert_any_call('permisos_version', 4)
 
 
-def _autenticar(version_token, version_actual):
-    payload = {} if version_token is None else {'permisos_version': version_token}
-    token = SimpleNamespace(payload=payload)
-    with patch(f'{RUTA_AUTH}.JWTAuthentication.get_user', return_value=SimpleNamespace(pk=7)), \
-         patch(f'{RUTA_AUTH}.RepoPermisosVersionORM') as repo:
-        repo.return_value.obtener.return_value = version_actual
+def _autenticar(version_token, version_actual, is_active=True):
+    payload = {'user_id': 7}
+    if version_token is not None:
+        payload['permisos_version'] = version_token
+
+    class _Token:
+        def __init__(self, datos):
+            self.payload = datos
+
+        def get(self, clave, default=None):
+            return self.payload.get(clave, default)
+
+    token = _Token(payload)
+    usuario = SimpleNamespace(
+        pk=7, is_active=is_active, permisos_version=version_actual
+    )
+    with patch(f'{RUTA_AUTH}.RepoCuentasORM') as repo:
+        repo.return_value.obtener_modelo_contexto_sesion.return_value = usuario
         return CookieJWTAuthentication().get_user(token)
 
 
@@ -47,6 +59,13 @@ def test_token_previo_a_a4_sin_claim_vale_como_version_1():
     assert _autenticar(version_token=None, version_actual=1).pk == 7
     with pytest.raises(InvalidToken):
         _autenticar(version_token=None, version_actual=2)
+
+
+def test_cuenta_inactiva_rechaza_el_token():
+    from rest_framework.exceptions import AuthenticationFailed
+
+    with pytest.raises(AuthenticationFailed):
+        _autenticar(version_token=1, version_actual=1, is_active=False)
 
 
 @patch('apps.identidad.application.use_cases.rotar_tokens_sesion.RefreshToken')

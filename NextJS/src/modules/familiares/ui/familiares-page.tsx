@@ -16,6 +16,7 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { Eraser, Search } from "lucide-react";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
@@ -35,9 +36,12 @@ import {
 import { DetalleFamiliar } from "./detalle-familiar";
 import { construirColumnasFamiliares } from "./familiares-columns";
 import { familiaresPorEmpleadoSchema } from "./schema/schema-familiar";
+import { SelectorPasivo } from "./selector-pasivo";
 
 export default function FamiliaresPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const modoPasivo = searchParams.get("pasivo") === "1";
   const permisos = session?.user?.permisos;
   const puedeEditar = tienePermiso(permisos, "familiares.editar");
   const puedeEliminar = tienePermiso(permisos, "familiares.eliminar");
@@ -123,6 +127,19 @@ export default function FamiliaresPage() {
               className="flex flex-row items-end gap-2 flex-wrap"
               noValidate
             >
+              {modoPasivo ? (
+                <div className="flex-1 min-w-[260px]">
+                  <SelectorPasivo
+                    disabled={isPending}
+                    onSelect={(cedula) => {
+                      setEmpleadoCedula(cedula);
+                      setBuscado(true);
+                      cargarFamiliares(cedula);
+                    }}
+                  />
+                </div>
+              ) : (
+                <>
               <div className="flex-1 min-w-[220px] flex flex-col gap-1.5">
                 <Label htmlFor="cedula_empleado">Buscar Cédula Trabajador</Label>
                 <Input
@@ -138,6 +155,9 @@ export default function FamiliaresPage() {
               <Button type="submit" className="cursor-pointer shrink-0" disabled={isPending}>
                 Buscar <Search className="size-4 ml-1" />
               </Button>
+                </>
+              )}
+
               <Button
                 variant="outline"
                 className="cursor-pointer shrink-0"

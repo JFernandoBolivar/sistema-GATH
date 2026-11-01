@@ -125,8 +125,14 @@ class TiposNominaListView(APIView):
     def get(self, request):
         solo_especiales = request.query_params.get('solo_especiales', '').lower() in ('true', '1')
         solo_pasivos = request.query_params.get('solo_pasivos', '').lower() in ('true', '1')
+        solo_activos = request.query_params.get('solo_activos', '').lower() in ('true', '1')
         repo = RepoCatalogosORM()
-        dtos = listar_tipos_nomina(repo, solo_especiales=solo_especiales, solo_pasivos=solo_pasivos)
+        dtos = listar_tipos_nomina(
+            repo,
+            solo_especiales=solo_especiales,
+            solo_pasivos=solo_pasivos,
+            solo_activos=solo_activos,
+        )
         return ok(CatalogoItemSerializer(dtos, many=True).data)
 
 

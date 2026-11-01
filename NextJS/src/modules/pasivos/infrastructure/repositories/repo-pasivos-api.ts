@@ -2,18 +2,48 @@
  * Implementación del repositorio de Pasivos usando la API REST.
  */
 import type { RepoPasivos } from "../../domain/ports/repo-pasivos";
+import type { ActualizarPasivoInput, FiltrosPasivos } from "../../domain/entities/pasivo";
 import type { ProcesarEgresoInput } from "../../domain/ports/procesar-egreso";
 import { pasivosApi } from "../http/pasivos-api";
 import {
   catalogoPasivoApiAEntidad,
   catalogosExpedienteApiAEntidad,
+  paginaPasivosApiAEntidad,
   pasivoApiAEntidad,
 } from "../mappers/mapper-pasivos";
 
 export const repoPasivosApi: RepoPasivos = {
   async listarPasivos(busqueda) {
-    const raw = await pasivosApi.getPasivos(busqueda);
-    return raw.map(pasivoApiAEntidad);
+    const page = await pasivosApi.getPasivos({ nombre: busqueda, limit: 50 });
+    return (page.data?.results ?? []).map(pasivoApiAEntidad);
+  },
+
+  async listarPasivosPaginados(filtros: FiltrosPasivos) {
+    const page = await pasivosApi.getPasivos({
+      cedula: filtros.cedula,
+      nombre: filtros.nombre,
+      tipo_nomina: filtros.tipoNominaId,
+      fecha_desde: filtros.fechaDesde,
+      fecha_hasta: filtros.fechaHasta,
+      limit: filtros.limit,
+      offset: filtros.offset,
+    });
+    return paginaPasivosApiAEntidad(page.data);
+  },
+
+  async actualizarPasivo(cedula: string, input: ActualizarPasivoInput) {
+    const raw = await pasivosApi.actualizar(cedula, {
+      nombres: input.nombres,
+      apellidos: input.apellidos,
+      correo: input.correo,
+      telefono_movil: input.telefonoMovil,
+      telefono_habitacion: input.telefonoHabitacion,
+      carnet_patria: input.carnetPatria,
+      fecha_nacimiento: input.fechaNacimiento,
+      estado_civil_id: input.estadoCivilId,
+      nacionalidad_id: input.nacionalidadId,
+    });
+    return pasivoApiAEntidad(raw);
   },
 
   async obtenerPorCedula(cedula) {
@@ -32,6 +62,79 @@ export const repoPasivosApi: RepoPasivos = {
       liberar_activos: input.liberarActivos,
     });
     return pasivoApiAEntidad(raw);
+  },
+
+  async listarMotivosEgresoPasivo() {
+    return (await pasivosApi.getMotivosEgresoPasivo()).map(catalogoPasivoApiAEntidad);
+  },
+
+  async egresarPasivo(cedula: string, motivoId: number, familiarIds: number[]) {
+    const raw = await pasivosApi.egresarPasivo(cedula, motivoId, familiarIds);
+    return pasivoApiAEntidad(raw);
+  },
+
+  async getFamiliaresTitular(cedula: string) {
+    const raw = await pasivosApi.getFamiliaresTitular(cedula);
+    return raw.map((f) => ({
+      id: f.id,
+      cedulaFamiliar: f.cedula_familiar,
+      nombreCompleto: [f.primer_nombre, f.segundo_nombre, f.primer_apellido, f.segundo_apellido].filter(Boolean).join(' '),
+      heredero: f.heredero,
+    }));
+  },
+
+  async registrarSobrevivientes(cedula: string, familiarIds: number[]) {
+    const raw = await pasivosApi.registrarSobrevivientes(cedula, familiarIds);
+    return raw.map((r) => ({ cedula: r.cedula, nombreCompleto: r.nombre_completo, creado: r.creado }));
+  },
+
+  async registrarPasivo(input) {
+    const raw = await pasivosApi.crear({
+      cedula: input.cedula,
+      nombres: input.nombres,
+      apellidos: input.apellidos,
+      sexo_id: input.sexoId,
+      fecha_nacimiento: input.fechaNacimiento,
+      tipo_nomina_id: input.tipoNominaId,
+      estado_civil_id: input.estadoCivilId,
+      nacionalidad_id: input.nacionalidadId,
+      correo: input.correo,
+      telefono_movil: input.telefonoMovil,
+      telefono_habitacion: input.telefonoHabitacion,
+      carnet_patria: input.carnetPatria,
+      datos_vivienda: input.datosVivienda,
+      perfil_salud: input.perfilSalud,
+      perfil_fisico: input.perfilFisico,
+      formacion_academica: input.formacionAcademica,
+      formacion_complementaria: input.formacionComplementaria,
+      contacto_emergencia: input.contactoEmergencia,
+      antecedentes: input.antecedentes,
+    });
+    return pasivoApiAEntidad(raw);
+  },
+
+  async listarSexos() {
+    return (await pasivosApi.getSexos()).map(catalogoPasivoApiAEntidad);
+  },
+
+  async listarEstadosCiviles() {
+    return (await pasivosApi.getEstadosCiviles()).map(catalogoPasivoApiAEntidad);
+  },
+
+  async listarNacionalidades() {
+    return (await pasivosApi.getNacionalidades()).map(catalogoPasivoApiAEntidad);
+  },
+
+  async listarEstados() {
+    return (await pasivosApi.getEstados()).map(catalogoPasivoApiAEntidad);
+  },
+
+  async listarMunicipios() {
+    return (await pasivosApi.getMunicipios()).map(catalogoPasivoApiAEntidad);
+  },
+
+  async listarParroquias() {
+    return (await pasivosApi.getParroquias()).map(catalogoPasivoApiAEntidad);
   },
 
   async listarMotivosEgreso() {

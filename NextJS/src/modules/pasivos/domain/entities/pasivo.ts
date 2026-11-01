@@ -108,9 +108,17 @@ export interface Pasivo {
   apellidos: string;
   nombreCompleto: string;
   tipoPasivo: string;
+  tipoNominaId: number | null;
   fechaEgreso: string | null;
   resolucion: string | null;
   observaciones: string | null;
+  correo: string | null;
+  telefonoMovil: string | null;
+  telefonoHabitacion: string | null;
+  carnetPatria: string | null;
+  fechaNacimiento: string | null;
+  estadoCivilId: number | null;
+  nacionalidadId: number | null;
   datosVivienda: DatosViviendaPasivo | null;
   perfilSalud: PerfilSaludPasivo | null;
   perfilFisico: PerfilFisicoPasivo | null;
@@ -119,4 +127,87 @@ export interface Pasivo {
   antecedentes: AntecedentePasivo[];
   contratoActual: ContratoActualPasivo | null;
   cargosHistorial: CargoHistorialPasivo[];
+}
+
+
+export interface PaginaPasivos {
+  results: Pasivo[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+export interface FiltrosPasivos {
+  cedula?: string;
+  nombre?: string;
+  tipoNominaId?: number;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface RegistrarPasivoInput {
+  cedula: string;
+  nombres: string;
+  apellidos: string;
+  sexoId: number;
+  fechaNacimiento: string;
+  tipoNominaId: number;
+  estadoCivilId?: number | null;
+  nacionalidadId?: number | null;
+  correo?: string | null;
+  telefonoMovil?: string | null;
+  telefonoHabitacion?: string | null;
+  carnetPatria?: string | null;
+  datosVivienda?: {
+    estado?: number | null;
+    municipio?: number | null;
+    parroquia?: number | null;
+    direccion_exacta?: string | null;
+    condicion_vivienda?: number | null;
+    codigo_postal?: number | null;
+  };
+  perfilSalud?: {
+    grupo_sanguineo_id?: number | null;
+    alergias?: number[];
+    patologias_cronicas?: number[];
+    discapacidades?: number[];
+  };
+  perfilFisico?: {
+    talla_camisa_id?: number | null;
+    talla_pantalon_id?: number | null;
+    talla_zapatos_id?: number | null;
+    talla_chaqueta_id?: number | null;
+  };
+  formacionAcademica?: {
+    nivel_academico?: number | null;
+    carrera?: number | null;
+    mencion?: number | null;
+    institucion?: number | null;
+  }[];
+  formacionComplementaria?: Record<string, unknown>[];
+  contactoEmergencia?: {
+    nombres?: string;
+    apellidos?: string;
+    telefono?: string | null;
+    relacion?: number | null;
+  }[];
+  antecedentes?: {
+    organismo?: number | null;
+    fecha_ingreso?: string | null;
+    fecha_egreso?: string | null;
+  }[];
+}
+
+export interface ActualizarPasivoInput {
+  nombres?: string;
+  apellidos?: string;
+  correo?: string | null;
+  telefonoMovil?: string | null;
+  telefonoHabitacion?: string | null;
+  carnetPatria?: string | null;
+  fechaNacimiento?: string | null;
+  estadoCivilId?: number | null;
+  nacionalidadId?: number | null;
 }

@@ -154,8 +154,6 @@ class RepoCuentasMemoria:
 
     def listar(self, filtros):
         resultado = list(self._cuentas.values())
-        if filtros.get('departamento_id') not in (None, ''):
-            resultado = [c for c in resultado if c.departamento_id == filtros['departamento_id']]
         if filtros.get('rol_id') not in (None, ''):
             resultado = [c for c in resultado if c.rol_id == filtros['rol_id']]
         if filtros.get('is_active') is not None:
@@ -164,7 +162,7 @@ class RepoCuentasMemoria:
             resultado = [c for c in resultado if filtros['cedula'] in c.cedula]
         return resultado
 
-    def crear(self, cedula, password, departamento_id, rol_id):
+    def crear(self, cedula, password, rol_id):
         from core.domain.exceptions import NotFoundError
 
         if self._cedulas_validas is not None and cedula not in self._cedulas_validas:
@@ -172,7 +170,7 @@ class RepoCuentasMemoria:
 
         nueva = Cuenta(
             id=self._siguiente_id, cedula=cedula,
-            departamento_id=departamento_id, rol_id=rol_id, is_active=True,
+            rol_id=rol_id, is_active=True,
         )
         self._cuentas[nueva.id] = nueva
         self._passwords[nueva.id] = password
@@ -267,7 +265,7 @@ class RepoCuentaAuthMemoria:
 @pytest.fixture
 def cuenta_activa():
     return Cuenta(id=1, cedula='V-11111111', nombres='Ana', apellidos='Pérez',
-                  departamento_id=2, rol_id=7, is_active=True)
+                  rol_id=7, is_active=True)
 
 
 @pytest.fixture

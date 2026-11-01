@@ -8,6 +8,8 @@ from django.core.management import call_command
 from apps.identidad.infrastructure.models.cuenta_models import RolModel
 from apps.identidad.infrastructure.models.permiso_model import PermisoModel, RolPermisoModel
 from apps.identidad.management.commands.seed_permisos import PERMISOS_CATALOGO, PERMISOS_RETIRADOS, ROLES_NUEVOS
+from core.infrastructure.models.auditoria import AuditoriaLog
+import apps.identidad.management.commands.seed_permisos as seed_module
 
 PERMISO_AVISOS_MOVIMIENTOS = 'personal.recibir_avisos_movimientos'
 
@@ -178,3 +180,92 @@ def test_auditoria_queda_en_administrador_y_en_el_rol_auditor():
     assert permisos_auditoria <= _codigos('AUDITOR')
     assert 'notificaciones.ver_propias' in _codigos('AUDITOR')
     assert not permisos_auditoria & _codigos('ANALISTA')
+
+
+@pytest.mark.django_db
+def test_d7_estructura_de_roles_jefe_rrhh_y_auditor_solo_lectura():
+    for rol_id, nombre in ((1, 'ADMINISTRADOR'), (2, 'ANALISTA')):
+        RolModel.objects.create(id=rol_id, nombre_rol=nombre)
+
+    _seed()
+
+    jefe = _codigos('JEFE_RRHH')
+    auditor = _codigos('AUDITOR')
+    admin = _codigos('ADMINISTRADOR')
+
+    assert {
+        'identidad.ver_usuarios', 'identidad.ver_roles',
+        'identidad.listar_permisos', 'identidad.consultar_permisos',
+        'personal.ver', 'pasivos.ver', 'fe_de_vida.ver_cobertura',
+    } <= jefe
+    assert not jefe & {
+        'identidad.asignar_permisos',
+        'identidad.gestionar_permisos_individuales',
+        'identidad.editar_usuarios',
+        'identidad.crear_usuarios',
+    }
+
+    # AUDITOR: lectura de usuarios/roles/matriz, sin edición.
+    assert {
+        'identidad.ver_usuarios', 'identidad.ver_roles',
+        'identidad.listar_permisos', 'identidad.consultar_permisos',
+    } <= auditor
+    assert not auditor & {
+        'identidad.asignar_permisos',
+        'identidad.gestionar_permisos_individuales',
+        'identidad.editar_usuarios',
+        'identidad.desactivar_usuarios',
+    }
+
+    # Solo el ADMINISTRADOR tiene los dos permisos que editan la matriz y los overrides.
+    assert {'identidad.asignar_permisos', 'identidad.gestionar_permisos_individuales'} <= admin
+    assert not {'identidad.asignar_permisos', 'identidad.gestionar_permisos_individuales'} & jefe
+@pytest.mark.django_db
+def test_m6_un_permiso_retirado_desde_la_matriz_no_se_readded():
+    """M6: la pantalla manda; el seed no re-agrega un permiso quitado."""
+    RolModel.objects.create(id=3, nombre_rol='AUTOGESTION')
+    _seed()
+    rol = RolModel.objects.get(nombre_rol='AUTOGESTION')
+    permiso = PermisoModel.objects.get(codigo='fe_de_vida.solicitar')
+    RolPermisoModel.objects.filter(rol_id=rol.id, permiso=permiso).delete()
+
+    _seed()
+
+    assert not RolPermisoModel.objects.filter(rol_id=rol.id, permiso=permiso).exists()
+
+
+@pytest.mark.django_db
+def test_m6_un_permiso_nuevo_del_catalogo_se_agrega_una_vez_y_se_audita(monkeypatch):
+    """M6: un código nuevo se agrega a los roles indicados y queda en AuditoriaLog."""
+    RolModel.objects.create(id=1, nombre_rol='ADMINISTRADOR')
+    _seed()
+    antes = AuditoriaLog.objects.filter(accion='identidad.matriz_actualizada_por_seed').count()
+
+    monkeypatch.setattr(
+        seed_module,
+        'PERMISOS_CATALOGO',
+        [*PERMISOS_CATALOGO, ('identidad.prueba_nueva', 'Permiso nuevo de prueba')],
+    )
+    _seed()
+
+    assert RolPermisoModel.objects.filter(
+        rol_id=1, permiso__codigo='identidad.prueba_nueva'
+    ).exists()
+    despues = AuditoriaLog.objects.filter(accion='identidad.matriz_actualizada_por_seed').count()
+    assert despues == antes + 1
+    registro = AuditoriaLog.objects.filter(
+        accion='identidad.matriz_actualizada_por_seed', recurso_id='1'
+    ).latest('fecha_hora')
+    assert registro.actor_cedula == 'sistema (seed)'
+    assert 'identidad.prueba_nueva' in registro.estado_nuevo['permisos']
+
+
+@pytest.mark.django_db
+def test_m6_correr_el_seed_dos_veces_no_vuelve_a_tocar_la_matriz():
+    RolModel.objects.create(id=3, nombre_rol='AUTOGESTION')
+    _seed()
+    antes = AuditoriaLog.objects.filter(accion='identidad.matriz_actualizada_por_seed').count()
+
+    _seed()
+
+    assert AuditoriaLog.objects.filter(accion='identidad.matriz_actualizada_por_seed').count() == antes

@@ -228,7 +228,7 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
   };
 
   return (
-    <Card className="bg-white dark:bg-card shadow-sm">
+    <Card className="bg-card dark:bg-card shadow-sm">
       <CardContent className="pt-6 space-y-6">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 w-full gap-4">

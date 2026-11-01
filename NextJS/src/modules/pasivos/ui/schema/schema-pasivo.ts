@@ -28,3 +28,56 @@ export const procesarEgresoSchema = z.object({
 export type ListadoPasivosFormType = z.infer<typeof listadoPasivosSchema>;
 export type PasivoCedulaFormType = z.infer<typeof pasivoCedulaSchema>;
 export type ProcesarEgresoFormType = z.infer<typeof procesarEgresoSchema>;
+
+
+/** Filtros del listado paginado (servidor 10/50). */
+export const filtrosPasivosSchema = z.object({
+  cedula: z.string().trim().max(20).optional(),
+  nombre: z.string().trim().max(100).optional(),
+  tipoNominaId: z.number().int().positive().optional(),
+  fechaDesde: z.string().trim().optional(),
+  fechaHasta: z.string().trim().optional(),
+  limit: z.number().int().min(1).max(50).default(10),
+  offset: z.number().int().min(0).default(0),
+});
+
+/** Alta directa de jubilado/pensionado (permiso pasivos.crear). */
+export const registrarPasivoSchema = z.object({
+  cedula: z.string().trim().min(5, { message: "Cédula inválida" }).max(20),
+  nombres: z.string().trim().min(1, { message: "Nombres requeridos" }).max(150),
+  apellidos: z.string().trim().min(1, { message: "Apellidos requeridos" }).max(150),
+  sexoId: z.number().int().positive({ message: "Seleccione el sexo" }),
+  fechaNacimiento: z.string().trim().min(1, { message: "Fecha de nacimiento requerida" }),
+  tipoNominaId: z.number().int().positive({ message: "Seleccione una nómina de pasivo" }),
+  estadoCivilId: z.number().int().positive().nullable().optional(),
+  nacionalidadId: z.number().int().positive().nullable().optional(),
+  correo: z.string().trim().email({ message: "Correo inválido" }).max(254).nullable().optional(),
+  telefonoMovil: z.string().trim().max(20).nullable().optional(),
+  telefonoHabitacion: z.string().trim().max(20).nullable().optional(),
+  carnetPatria: z.string().trim().max(30).nullable().optional(),
+  datosVivienda: z
+    .object({
+      estado: z.number().int().positive().nullable().optional(),
+      municipio: z.number().int().positive().nullable().optional(),
+      parroquia: z.number().int().positive().nullable().optional(),
+      direccion_exacta: z.string().trim().max(255).nullable().optional(),
+    })
+    .optional(),
+});
+
+/** Datos básicos editables del pasivo (permiso pasivos.editar). */
+export const actualizarPasivoSchema = z.object({
+  nombres: z.string().trim().min(1).max(150).optional(),
+  apellidos: z.string().trim().min(1).max(150).optional(),
+  correo: z.string().trim().email({ message: "Correo inválido" }).max(254).nullable().optional(),
+  telefonoMovil: z.string().trim().max(20).nullable().optional(),
+  telefonoHabitacion: z.string().trim().max(20).nullable().optional(),
+  carnetPatria: z.string().trim().max(30).nullable().optional(),
+  fechaNacimiento: z.string().trim().nullable().optional(),
+  estadoCivilId: z.number().int().positive().nullable().optional(),
+  nacionalidadId: z.number().int().positive().nullable().optional(),
+});
+
+export type FiltrosPasivosFormType = z.infer<typeof filtrosPasivosSchema>;
+export type ActualizarPasivoFormType = z.infer<typeof actualizarPasivoSchema>;
+export type RegistrarPasivoFormType = z.infer<typeof registrarPasivoSchema>;

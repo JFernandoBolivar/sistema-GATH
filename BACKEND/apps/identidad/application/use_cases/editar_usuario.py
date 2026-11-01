@@ -1,35 +1,28 @@
 """
-Caso de uso `editar_usuario` (edición de departamento/rol/contraseña).
+Caso de uso `editar_usuario` (edición de rol).
 
-Puro: recibe el puerto por inyección (B4/B21).
+Puro: recibe el puerto por inyección (B4/B21). D3: sin departamento. M2: sin
+contraseña; ese cambio solo ocurre por «Restablecer acceso» o por el flujo de
+cambio de contraseña propio.
+
+La regla de dominio que impide que una persona se cambie su propio rol vive en
+`domain/services/reglas_administracion.py` y se aplica en la capa de
+aplicación/presentación con el actor de la petición, no aquí (este caso de uso
+solo conoce el objetivo).
 """
-from typing import Callable
-
 from apps.identidad.application.dtos.cuenta_dto import ActualizarCuentaDTO
 from apps.identidad.domain.entities.cuenta import Cuenta
 from apps.identidad.domain.ports.repo_cuentas import RepoCuentas
 from core.domain.exceptions import NotFoundError
 
 
-def editar_usuario(
-    repo: RepoCuentas,
-    dto: ActualizarCuentaDTO,
-    validar_fortaleza: Callable[[str], None] | None = None,
-) -> Cuenta:
-    """Actualiza departamento y/o rol de una cuenta existente."""
+def editar_usuario(repo: RepoCuentas, dto: ActualizarCuentaDTO) -> Cuenta:
+    """Actualiza el rol de una cuenta existente."""
     cuenta = repo.obtener_por_id(dto.id)
     if cuenta is None:
         raise NotFoundError('El usuario no existe.')
 
     actualizada = cuenta.con_datos(
-        departamento_id=dto.departamento_id if dto.tocar_departamento else ...,
         rol_id=dto.rol_id if dto.tocar_rol else ...,
     )
-    guardada = repo.guardar(actualizada)
-
-    if dto.password:
-        if validar_fortaleza is not None:
-            validar_fortaleza(dto.password)
-        repo.establecer_password(dto.id, dto.password)
-
-    return guardada
+    return repo.guardar(actualizada)

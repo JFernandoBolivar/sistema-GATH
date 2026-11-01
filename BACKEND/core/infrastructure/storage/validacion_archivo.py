@@ -13,6 +13,8 @@ para servir objetos).
 import uuid
 from dataclasses import dataclass
 
+from django.conf import settings
+
 from core.domain.exceptions import ValidationError
 
 MAX_BYTES_IMAGEN = 5 * 1024 * 1024
@@ -58,6 +60,9 @@ def validar_archivo(archivo, tipos: tuple[TipoArchivo, ...], max_bytes: int) -> 
     if tipo is None:
         raise ValidationError(f"Tipo de archivo no permitido. Use: {permitidas}.")
     contenido = archivo.read()
+    if getattr(settings, 'ANTIVIRUS_HABILITADO', False):
+        from .antivirus import escanear_contenido
+        escanear_contenido(contenido)
     if not any(contenido.startswith(f) for f in tipo.firmas) or (
         tipo is WEBP and contenido[8:12] != b'WEBP'
     ):
