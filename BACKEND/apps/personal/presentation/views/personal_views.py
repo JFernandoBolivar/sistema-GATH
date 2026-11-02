@@ -3,8 +3,8 @@ Vistas delgadas de Personal (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 """
 from django.http import HttpResponse
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
@@ -16,7 +16,7 @@ from core.infrastructure.storage.validacion_archivo import (
 )
 from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import fail, ok
-from core.presentation.permissions import HasPermission
+from core.presentation.permissions import HasPermission, usuario_tiene_permiso
 from apps.personal.application.use_cases.gestionar_personal import (
     actualizar_empleado,
     registrar_empleado,
@@ -154,9 +154,25 @@ class EmpleadoDetallePdfView(APIView):
 
 
 class EmpleadoFotoView(APIView):
+    class _PuedeSubirFoto(BasePermission):
+        """La foto es un dato de `Employee`: la puede subir RRHH o Pasivos."""
+
+        message = "No posee permiso para actualizar la foto del empleado."
+
+        def has_permission(self, request, view) -> bool:
+            return any(
+                usuario_tiene_permiso(request.user, codigo)
+                for codigo in (
+                    'personal.editar_personales',
+                    'personal.crear',
+                    'pasivos.crear',
+                    'pasivos.editar',
+                )
+            )
+
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [IsAuthenticated(), HasPermission('personal.editar_personales')()]
+            return [IsAuthenticated(), self._PuedeSubirFoto()]
         return [IsAuthenticated()]
 
     @extend_schema(tags=['Personal'], summary='Obtener fotografía de perfil del empleado (binario)')

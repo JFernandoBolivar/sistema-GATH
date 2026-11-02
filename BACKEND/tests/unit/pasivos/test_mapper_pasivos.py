@@ -6,8 +6,12 @@ crudo como el `_nombre` de cada catálogo (mismo patrón que
 la UI de detalle de pasivo no tenga que resolver ~9 catálogos por su cuenta.
 """
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from apps.pasivos.infrastructure.mappers.mapper_pasivos import cargo_egresado_a_dict
+from apps.pasivos.infrastructure.mappers.mapper_pasivos import (
+    cargo_egresado_a_dict,
+    pasivo_a_entidad,
+)
 
 
 def _catalogo(nombre_atributo: str, valor: str, id_valor: int = 1):
@@ -76,3 +80,42 @@ def test_cargo_egresado_a_dict_sin_catalogos_opcionales_no_lanza_error():
     # personal, denominaciones) siguen resolviéndose igual.
     assert resultado["dependencia_nombre"] == "Dirección de Tecnología"
     assert resultado["tipo_nomina_nombre"] == "Fija"
+
+
+def test_pasivo_egresado_usa_el_tipo_de_nomina_no_el_motivo_del_movimiento():
+    empleado = SimpleNamespace(
+        nombres="ANA",
+        apellidos="PEREZ",
+        correo=None,
+        telefono_movil=None,
+        telefono_habitacion=None,
+        carnet_patria=None,
+        fecha_nacimiento=None,
+        sexoid_id=None,
+        estadoCivil_id=None,
+        nacionalidad_id=None,
+    )
+    modelo = SimpleNamespace(
+        pk=10,
+        employee_id="12345678",
+        employee=empleado,
+        motivo_egreso=SimpleNamespace(movimiento="ANULACION DE MOVIMIENTO"),
+        fecha_egreso="2026-01-01",
+        n_contrato="RES-1",
+    )
+    cargos = [
+        {
+            "tipo_nomina_id": 15,
+            "tipo_nomina_nombre": "PENSIONADO",
+        }
+    ]
+
+    with patch(
+        "apps.pasivos.infrastructure.mappers.mapper_pasivos.cargos_historial_de_egreso",
+        return_value=cargos,
+    ):
+        pasivo = pasivo_a_entidad(modelo)
+
+    assert pasivo.tipo_pasivo == "PENSIONADO"
+    assert pasivo.tipo_nomina_id == 15
+    assert pasivo.tipo_pasivo != "ANULACION DE MOVIMIENTO"

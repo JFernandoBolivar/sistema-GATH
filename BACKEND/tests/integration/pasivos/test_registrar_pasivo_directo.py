@@ -113,6 +113,39 @@ def test_registrar_pasivo_directo_crea_employee_y_asignacion(catalogos):
     assert asignacion.estatusid.estatus == 'PASIVO'
 
 
+def test_registrar_pasivo_directo_acepta_el_payload_anidado_del_wizard(catalogos):
+    """El wizard de 7 pasos envía expediente anidado en el alta."""
+    cuerpo = _cuerpo(catalogos, cedula='V-7782')
+    cuerpo.update(
+        {
+            'perfil_salud': {
+                'grupo_sanguineo_id': None,
+                'alergias': [],
+                'patologias_cronicas': [],
+                'discapacidades': [],
+            },
+            'perfil_fisico': {
+                'talla_camisa_id': None,
+                'talla_pantalon_id': None,
+                'talla_zapatos_id': None,
+                'talla_chaqueta_id': None,
+            },
+            'formacion_academica': [],
+            'formacion_complementaria': [],
+            'contacto_emergencia': [],
+            'antecedentes': [],
+            'datos_vivienda': {},
+        }
+    )
+
+    respuesta = _cliente('pasivos.crear').post(
+        '/api/v1/pasivos/', cuerpo, format='json',
+    )
+
+    assert respuesta.status_code == 201, respuesta.content
+    assert respuesta.json()['data']['cedula'] == 'V-7782'
+
+
 def test_rechaza_nomina_de_activos(catalogos):
     respuesta = _cliente('pasivos.crear').post(
         '/api/v1/pasivos/',

@@ -7,6 +7,7 @@ import {
   describirDiaRecordatorio,
   normalizarDiasRecordatorio,
   oficinaDeAdscripcion,
+  puedeEnviarFeDeVida,
   primerCheck,
   requiereFotoNueva,
   rolLegible,
@@ -122,5 +123,20 @@ describe("oficinaDeAdscripcion", () => {
   it("sin niveles devuelve null", () => {
     expect(oficinaDeAdscripcion(undefined)).toBeNull();
     expect(oficinaDeAdscripcion({ dependencia: "N/A" })).toBeNull();
+  });
+
+  it("no permite enviar sin vivienda ni con hijos declarados sin registrar", () => {
+    expect(
+      puedeEnviarFeDeVida({ fotoVigente: true, viviendaOk: true, tieneHijos: false, hijosOk: false }),
+    ).toBe(true);
+    expect(
+      puedeEnviarFeDeVida({ fotoVigente: true, viviendaOk: false, tieneHijos: false, hijosOk: false }),
+    ).toBe(false);
+    expect(
+      puedeEnviarFeDeVida({ fotoVigente: true, viviendaOk: true, tieneHijos: true, hijosOk: false }),
+    ).toBe(false);
+    expect(
+      puedeEnviarFeDeVida({ fotoVigente: false, viviendaOk: true, tieneHijos: false, hijosOk: false }),
+    ).toBe(false);
   });
 });

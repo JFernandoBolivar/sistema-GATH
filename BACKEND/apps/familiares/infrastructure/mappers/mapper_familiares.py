@@ -21,7 +21,21 @@ from apps.personal.infrastructure.models.expediente_models import (
 )
 
 
-def familiar_a_entidad(modelo: EmployeefamilyModel) -> Familiar:
+_SIN_CARGAR = object()
+
+
+def familiar_a_entidad(
+    modelo: EmployeefamilyModel,
+    perfil_salud=_SIN_CARGAR,
+    perfil_fisico=_SIN_CARGAR,
+    formacion_academica=_SIN_CARGAR,
+) -> Familiar:
+    if perfil_salud is _SIN_CARGAR:
+        perfil_salud = PerfilSaludModel.objects.filter(familiar=modelo).first()
+    if perfil_fisico is _SIN_CARGAR:
+        perfil_fisico = PerfilFisicoModel.objects.filter(familiar=modelo).first()
+    if formacion_academica is _SIN_CARGAR:
+        formacion_academica = FormacionAcademicaModel.objects.filter(familiar=modelo).first()
     return Familiar(
         id=modelo.pk,
         empleado_cedula=str(modelo.employeecedula_id),
@@ -38,11 +52,9 @@ def familiar_a_entidad(modelo: EmployeefamilyModel) -> Familiar:
         mismo_ente=modelo.mismo_ente,
         heredero=modelo.heredero,
         observaciones=modelo.observaciones,
-        perfil_salud=salud_a_dict(PerfilSaludModel.objects.filter(familiar=modelo).first()),
-        perfil_fisico=perfil_fisico_a_dict(PerfilFisicoModel.objects.filter(familiar=modelo).first()),
-        formacion_academica=(
-            formacion_a_dict(fa) if (fa := FormacionAcademicaModel.objects.filter(familiar=modelo).first()) else None
-        ),
+        perfil_salud=salud_a_dict(perfil_salud),
+        perfil_fisico=perfil_fisico_a_dict(perfil_fisico),
+        formacion_academica=formacion_a_dict(formacion_academica) if formacion_academica else None,
     )
 
 

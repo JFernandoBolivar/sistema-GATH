@@ -21,7 +21,7 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { ensureValidAccessToken } from "@/lib/api-client";
-import { signIn, signOut } from "#/auth";
+import { auth, signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
 import { loginFormSchema, type LoginFormType } from "../../ui/schema/schema-login";
 import {
@@ -210,6 +210,17 @@ export async function cambiarPasswordAction(
       passwordActual: validation.data.current_password,
       passwordNuevo: validation.data.new_password,
     });
+    // El cambio de contraseña incrementa `permisos_version` y revoca el token
+    // vigente. Renovamos la sesión con la contraseña nueva para no expulsar al
+    // usuario a los pocos segundos (L-LOGIN / sesión).
+    const sesion = await auth();
+    if (sesion?.user?.email) {
+      await signIn("credentials", {
+        email: sesion.user.email,
+        password: validation.data.new_password,
+        redirect: false,
+      });
+    }
     await logAudit({
       traceId,
       action: "cambiarPasswordAction",

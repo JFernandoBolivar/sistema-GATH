@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contactoSchema,
+  contactoEmergenciaSchema,
   esquemaDeEntidad,
   familiarSchema,
   formacionSchema,
@@ -73,6 +74,32 @@ describe("contactoSchema", () => {
   });
 });
 
+describe("contactoEmergenciaSchema / nombres", () => {
+  it("no acepta números en nombres ni letras en teléfonos", () => {
+    expect(
+      contactoEmergenciaSchema.safeParse({
+        nombres: "Ana2",
+        apellidos: "Pérez",
+        telefono: "0412-1234567",
+      }).success,
+    ).toBe(false);
+    expect(
+      contactoEmergenciaSchema.safeParse({
+        nombres: "Ana",
+        apellidos: "Pérez",
+        telefono: "abc",
+      }).success,
+    ).toBe(false);
+    expect(
+      contactoEmergenciaSchema.safeParse({
+        nombres: "Ana",
+        apellidos: "Pérez",
+        telefono: "0412-1234567",
+      }).success,
+    ).toBe(true);
+  });
+});
+
 describe("viviendaSchema / formacionSchema", () => {
   it("convierte ids de texto a número y exige los obligatorios", () => {
     const ok = viviendaSchema.parse({
@@ -109,6 +136,8 @@ describe("familiarSchema", () => {
     );
     expect(familiarSchema.safeParse({ ...base, cedula_familiar: "xx" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, primer_nombre: "Ana2" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, primer_apellido: "Perez1" }).success).toBe(false);
   });
 });
 

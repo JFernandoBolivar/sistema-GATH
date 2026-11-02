@@ -21,12 +21,41 @@ from apps.personal.infrastructure.models.expediente_models import (
 
 class RepoFamiliaresORM:
     def listar_por_empleado(self, empleado_cedula: str) -> list[Familiar]:
-        qs = (
+        qs = list(
             EmployeefamilyModel.objects.select_related('parentesco', 'sexo')
             .filter(employeecedula_id=empleado_cedula)
             .order_by('-updatedat')
         )
-        return [familiar_a_entidad(f) for f in qs]
+        if not qs:
+            return []
+        ids = [f.pk for f in qs]
+        salud = {
+            s.familiar_id: s
+            for s in PerfilSaludModel.objects.filter(familiar_id__in=ids)
+            .select_related('grupo_sanguineo')
+            .prefetch_related('alergias', 'patologiaCronica', 'discapacidad')
+        }
+        fisico = {
+            f.familiar_id: f
+            for f in PerfilFisicoModel.objects.filter(familiar_id__in=ids).select_related(
+                'tallaCamisa', 'tallaPantalon', 'tallaZapatos', 'tallaChaqueta'
+            )
+        }
+        formacion = {
+            f.familiar_id: f
+            for f in FormacionAcademicaModel.objects.filter(familiar_id__in=ids).select_related(
+                'nivel_academico', 'carrera', 'mencion', 'institucion'
+            )
+        }
+        return [
+            familiar_a_entidad(
+                f,
+                perfil_salud=salud.get(f.pk),
+                perfil_fisico=fisico.get(f.pk),
+                formacion_academica=formacion.get(f.pk),
+            )
+            for f in qs
+        ]
 
     def obtener_familiar(self, familiar_id: int) -> Familiar | None:
         fila = (

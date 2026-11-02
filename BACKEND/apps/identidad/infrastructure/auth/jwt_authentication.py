@@ -48,8 +48,9 @@ class CookieJWTAuthentication(JWTAuthentication):
         `/auth/me` para no repetir la consulta.
         """
         user_id = validated_token.get(api_settings.USER_ID_CLAIM)
+        version_token = int(validated_token.payload.get('permisos_version', 1))
         user = (
-            RepoCuentasORM().obtener_modelo_contexto_sesion(user_id)
+            RepoCuentasORM().obtener_contexto_autenticacion(user_id, version_token)
             if user_id
             else None
         )
@@ -58,9 +59,6 @@ class CookieJWTAuthentication(JWTAuthentication):
         if api_settings.CHECK_USER_IS_ACTIVE and not user.is_active:
             raise AuthenticationFailed('Usuario inactivo o deshabilitado.', code='user_inactive')
 
-        version_token = int(validated_token.payload.get('permisos_version', 1))
         if version_token < (getattr(user, 'permisos_version', None) or 1):
             raise InvalidToken('La sesión fue invalidada por un cambio de permisos.')
-        # Marca para que `MeView` reutilice esta fila ya consultada.
-        user._gath_contexto_sesion = True
         return user

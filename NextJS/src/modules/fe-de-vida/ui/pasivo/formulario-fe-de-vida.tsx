@@ -21,7 +21,7 @@ import { EditorEntidad } from "@/modules/autogestion/ui/solicitudes/editor-entid
 import { useNombresCatalogo } from "@/modules/autogestion/ui/solicitudes/use-nombres-catalogo";
 import { formatearValor } from "@/modules/autogestion/ui/formato-solicitud";
 import type { DetalleSolicitudDTO, SolicitudDTO } from "../../application/dtos/fe-de-vida-dto";
-import { requiereFotoNueva } from "../../domain/services/reglas";
+import { requiereFotoNueva, puedeEnviarFeDeVida } from "../../domain/services/reglas";
 import {
   enviarSolicitudAction,
   guardarBorradorAction,
@@ -110,6 +110,22 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
     return <VistaError mensaje="No se pudieron cargar sus datos." onReintentar={() => mutate()} />;
   }
 
+  const hayHijosRegistrados = (ficha.familiares ?? []).some((f) =>
+    String(f.parentesco_nombre ?? "").toUpperCase().includes("HIJO"),
+  );
+  const hayHijoPropuesto = items.some(
+    (i) => i.seccion === "familiar" && i.entidad === "familiar" && i.accion === "CREAR",
+  );
+  const hijosOk = hayHijosRegistrados || hayHijoPropuesto;
+  const viviendaOk =
+    Boolean(ficha.empleado.datos_vivienda) ||
+    items.some(
+      (i) =>
+        i.seccion === "vivienda" &&
+        i.entidad === "datos_vivienda" &&
+        (i.accion === "CREAR" || i.accion === "MODIFICAR"),
+    );
+
   function guardarYAvanzar(nuevos: ItemBorrador[], siguiente: number) {
     iniciarGuardado(async () => {
       const res = await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
@@ -149,6 +165,14 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
   }
 
   function enviar() {
+    if (!puedeEnviarFeDeVida({ fotoVigente, viviendaOk, tieneHijos, hijosOk })) {
+      toast.error(
+        !viviendaOk
+          ? "Registre sus datos de vivienda antes de enviar la fe de vida."
+          : "Registre al menos un hijo antes de enviar la fe de vida.",
+      );
+      return;
+    }
     iniciarEnvio(async () => {
       const guardado = await guardarBorradorAction(solicitud.id, aEntrada(items));
       if (!guardado.ok) {
@@ -224,6 +248,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
           ))}
           <NavegacionPasos
             guardando={guardando}
+            puedeContinuar={viviendaOk}
+            motivoBloqueo="Registre sus datos de vivienda para continuar."
             onAtras={() => setIndice(indice - 1)}
             onContinuar={() => guardarYAvanzar(items, indice + 1)}
           />
@@ -234,7 +260,9 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
         <div className="flex flex-col gap-4">
           <h2 className="text-xl font-semibold">Sus hijos</h2>
           <p className="text-base text-muted-foreground">
-            Aparecen los hijos que ya tenemos registrados. Corrija sus datos o agregue los que falten.
+            {hayHijosRegistrados || hayHijoPropuesto
+              ? "Aparecen los hijos que ya tenemos registrados. Corrija sus datos o agregue los que falten."
+              : "No tiene hijos registrados. Use «Agregar familiar» para registrar al menos uno."}
           </p>
           <EditorEntidad
             seccion="familiar"
@@ -247,6 +275,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
           />
           <NavegacionPasos
             guardando={guardando}
+            puedeContinuar={hijosOk}
+            motivoBloqueo="Registre al menos un hijo para continuar."
             onAtras={() => setIndice(indice - 1)}
             onContinuar={() => guardarYAvanzar(items, indice + 1)}
           />
@@ -311,10 +341,27 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
             <Button type="button" variant="outline" className="min-h-11" onClick={() => setIndice(indice - 1)} disabled={enviando}>
               <ArrowLeft aria-hidden /> Atrás
             </Button>
-            <Button type="submit" className="min-h-11" disabled={enviando || !fotoVigente}>
+            <Button
+              type="submit"
+              className="min-h-11"
+              disabled={
+                enviando ||
+                !puedeEnviarFeDeVida({ fotoVigente, viviendaOk, tieneHijos, hijosOk })
+              }
+            >
               <Send aria-hidden /> {enviando ? "Enviando…" : "Enviar fe de vida"}
             </Button>
           </div>
+          {!viviendaOk ? (
+            <p role="status" className="text-sm font-medium text-warning">
+              Registre sus datos de vivienda antes de enviar.
+            </p>
+          ) : null}
+          {tieneHijos && !hijosOk ? (
+            <p role="status" className="text-sm font-medium text-warning">
+              Registre al menos un hijo antes de enviar.
+            </p>
+          ) : null}
         </form>
       ) : null}
     </div>
@@ -325,19 +372,30 @@ function NavegacionPasos({
   guardando,
   onAtras,
   onContinuar,
+  puedeContinuar = true,
+  motivoBloqueo = "Complete los datos obligatorios para continuar.",
 }: {
   guardando: boolean;
   onAtras: () => void;
   onContinuar: () => void;
+  puedeContinuar?: boolean;
+  motivoBloqueo?: string;
 }) {
   return (
-    <div className="flex flex-wrap justify-between gap-3">
-      <Button type="button" variant="outline" className="min-h-11" onClick={onAtras} disabled={guardando}>
-        <ArrowLeft aria-hidden /> Atrás
-      </Button>
-      <Button type="button" className="min-h-11" onClick={onContinuar} disabled={guardando}>
-        {guardando ? "Guardando…" : "Continuar"}
-      </Button>
+    <div className="flex flex-col gap-2">
+      {!puedeContinuar ? (
+        <p role="status" className="text-sm font-medium text-warning">
+          {motivoBloqueo}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap justify-between gap-3">
+        <Button type="button" variant="outline" className="min-h-11" onClick={onAtras} disabled={guardando}>
+          <ArrowLeft aria-hidden /> Atrás
+        </Button>
+        <Button type="button" className="min-h-11" onClick={onContinuar} disabled={guardando || !puedeContinuar}>
+          {guardando ? "Guardando…" : "Continuar"}
+        </Button>
+      </div>
     </div>
   );
 }

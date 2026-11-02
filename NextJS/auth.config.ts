@@ -123,28 +123,17 @@ export default {
           path: "/",
         });
 
-        // Resolver permisos desde /me/
-        let permisos: string[] = [];
-        let nombreRolMe = "";
-        let condicionTrabajador = "SIN_ASIGNACION";
-        try {
-          const me = await apiGet<MeData>("api/v1/identidad/auth/me/", tokens.access);
-          permisos = me.permisos || [];
-          nombreRolMe = me.rol_nombre || "";
-          condicionTrabajador = me.condicion_trabajador || "SIN_ASIGNACION";
-        } catch {
-          /* permisos vacíos si /me/ falla */
-        }
+        // Resolver permisos y nombre del rol en paralelo: /me y /roles no
+        // dependen entre sí. Si uno falla, el otro conserva su valor.
+        const [me, roles] = await Promise.all([
+          apiGet<MeData>("api/v1/identidad/auth/me/", tokens.access).catch(() => null),
+          apiGet<RolItem[]>("api/v1/identidad/roles/", tokens.access).catch(() => [] as RolItem[]),
+        ]);
 
-        // Resolver nombre_rol desde el catálogo.
-        let nombreRol = nombreRolMe;
-        try {
-          const roles = await apiGet<RolItem[]>("api/v1/identidad/roles/", tokens.access);
-          const rol = roles.find((r) => r.id === usuario.rol_id);
-          nombreRol = rol?.nombre_rol || nombreRol;
-        } catch {
-          /* vacío */
-        }
+        const permisos = me?.permisos || [];
+        const condicionTrabajador = me?.condicion_trabajador || "SIN_ASIGNACION";
+        const rol = roles.find((r) => r.id === usuario.rol_id);
+        const nombreRol = rol?.nombre_rol || me?.rol_nombre || "";
 
         return {
           id: String(usuario.id),
