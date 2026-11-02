@@ -13,10 +13,8 @@ import { toast } from "sonner";
 
 import PageLayout from "@/components/layout/page-layout";
 import Loading from "@/shared/ui/components/loading";
-import {
-  getCatalogosExpedienteAction,
-  subirFotoEmpleadoAction,
-} from "@/modules/personal/infrastructure/actions/personal-actions";
+import { subirFotoEmpleadoAction } from "@/modules/personal/infrastructure/actions/personal-actions";
+import { obtenerCatalogosExpediente } from "@/modules/personal/infrastructure/cache/catalogos-expediente-cache";
 import { resolverAltasInlineAction } from "@/modules/personal/infrastructure/actions/registro-actions";
 import type { CatalogosExpedienteDTO } from "@/modules/personal/application/dtos/empleado-dto";
 import type { RegistroPasosType } from "@/modules/personal/ui/schema/schema-registro-pasos";
@@ -102,7 +100,7 @@ export default function RegistrarPasivoDirectoPage() {
   useEffect(() => {
     cargarNominas();
     let vigente = true;
-    getCatalogosExpedienteAction()
+    obtenerCatalogosExpediente()
       .then((cats) => {
         if (vigente) setCatalogos(cats);
       })

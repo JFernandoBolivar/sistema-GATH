@@ -3,6 +3,8 @@
 Cubre total, páginas, tope de 50, filtros en servidor, búsqueda con acentos,
 payload liviano y consultas constantes.
 """
+from datetime import date
+
 import pytest
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -21,6 +23,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
 )
 from apps.organizacion.infrastructure.models.organizacion_models import DependenciaModel
 from apps.personal.application.use_cases.listar_personal import listar_personal_paginado
+from apps.personal.infrastructure.models.expediente_models import AntecedenteServicioModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
 
@@ -202,3 +205,24 @@ def test_detalle_conserva_el_expediente_anidado(catalogos):
     assert "datos_vivienda" in empleado
     assert "antecedentes" in empleado
     assert "contrato_actual" in empleado
+
+
+def test_detalle_no_duplica_la_consulta_de_antecedentes(catalogos):
+    """Fase 2: el total APN y el expediente comparten una sola consulta."""
+    empleado = _crear_empleado(1, catalogos)
+    AntecedenteServicioModel.objects.create(
+        empleado=empleado,
+        fecha_ingreso=date(2020, 1, 1),
+        fecha_egreso=date(2021, 1, 1),
+    )
+
+    with CaptureQueriesContext(connection) as consultas:
+        respuesta = _cliente("personal.ver", "personal.ver_detalle").get(
+            URL_DETALLE.format(cedula="99000001")
+        )
+
+    assert respuesta.status_code == 200
+    sqls = [" ".join(c["sql"].split()).lower() for c in consultas.captured_queries]
+    de_antecedentes = [s for s in sqls if 'from "antecedentes_servicio"' in s]
+    assert len(de_antecedentes) == 1, de_antecedentes
+    assert len(consultas) <= 12, len(consultas)

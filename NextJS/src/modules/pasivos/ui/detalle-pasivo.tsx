@@ -13,10 +13,8 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
-import {
-  getCatalogosExpedienteAction,
-  getEmpleadoPorCedulaAction,
-} from "@/modules/personal/infrastructure/actions/personal-actions";
+import { getEmpleadoPorCedulaAction } from "@/modules/personal/infrastructure/actions/personal-actions";
+import { obtenerCatalogosExpediente } from "@/modules/personal/infrastructure/cache/catalogos-expediente-cache";
 import type {
   CatalogosExpedienteDTO,
   EmpleadoDTO,
@@ -47,30 +45,29 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
   useEffect(() => {
     if (!open || !cedula) return;
     setCargando(true);
-    Promise.allSettled([
-      getEmpleadoPorCedulaAction(cedula),
-      getCatalogosExpedienteAction(),
-    ])
-      .then(([detalle, cats]) => {
-        if (detalle.status === "rejected") {
-          toast.error("No fue posible cargar el expediente del pasivo.");
-          setEmpleado(null);
-          return;
-        }
-        const valor = detalle.value;
+    // El expediente no espera catálogos: el backend ya manda los nombres.
+    // Los catálogos se cargan en paralelo para los diálogos de edición.
+    obtenerCatalogosExpediente()
+      .then((cats) => setCatalogos(cats))
+      .catch(() => undefined);
+    getEmpleadoPorCedulaAction(cedula)
+      .then((valor) => {
         if (valor && typeof valor === "object" && "error" in valor) {
           toast.error((valor as { error: string }).error);
           setEmpleado(null);
           return;
         }
         setEmpleado(valor as EmpleadoDTO);
-        if (cats.status === "fulfilled") setCatalogos(cats.value);
+      })
+      .catch(() => {
+        toast.error("No fue posible cargar el expediente del pasivo.");
+        setEmpleado(null);
       })
       .finally(() => setCargando(false));
   }, [open, cedula, recarga]);
 
   const detalle = useMemo(
-    () => (empleado && catalogos ? construirDetalleExpediente(empleado, catalogos) : null),
+    () => (empleado ? construirDetalleExpediente(empleado, catalogos) : null),
     [empleado, catalogos],
   );
 

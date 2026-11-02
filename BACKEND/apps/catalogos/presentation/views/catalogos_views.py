@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
+from core.presentation.cache_catalogos import ok_catalogo
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.catalogos.infrastructure.models.catalogo_models import (
@@ -59,9 +60,13 @@ class EstadosListView(APIView):
     def get(self, request):
         region_id = request.query_params.get('region_id')
         reg_id = int(region_id) if region_id and str(region_id).isdigit() else None
-        repo = RepoCatalogosORM()
-        dtos = listar_estados(repo, region_id=reg_id)
-        return ok(EstadoSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            f'catalogos:estados:{reg_id or "todos"}',
+            lambda: EstadoSerializer(
+                listar_estados(RepoCatalogosORM(), region_id=reg_id), many=True
+            ).data,
+        )
 
 
 class MunicipiosListView(APIView):
@@ -71,9 +76,13 @@ class MunicipiosListView(APIView):
     def get(self, request):
         estado_id = request.query_params.get('estado_id')
         est_id = int(estado_id) if estado_id and str(estado_id).isdigit() else None
-        repo = RepoCatalogosORM()
-        dtos = listar_municipios(repo, estado_id=est_id)
-        return ok(MunicipioSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            f'catalogos:municipios:{est_id or "todos"}',
+            lambda: MunicipioSerializer(
+                listar_municipios(RepoCatalogosORM(), estado_id=est_id), many=True
+            ).data,
+        )
 
 
 class ParroquiasListView(APIView):
@@ -83,9 +92,13 @@ class ParroquiasListView(APIView):
     def get(self, request):
         municipio_id = request.query_params.get('municipio_id')
         mun_id = int(municipio_id) if municipio_id and str(municipio_id).isdigit() else None
-        repo = RepoCatalogosORM()
-        dtos = listar_parroquias(repo, municipio_id=mun_id)
-        return ok(ParroquiaSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            f'catalogos:parroquias:{mun_id or "todas"}',
+            lambda: ParroquiaSerializer(
+                listar_parroquias(RepoCatalogosORM(), municipio_id=mun_id), many=True
+            ).data,
+        )
 
 
 class SexosListView(APIView):
@@ -93,9 +106,13 @@ class SexosListView(APIView):
 
     @extend_schema(tags=['Catálogos'], summary='Listar opciones de sexo', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        repo = RepoCatalogosORM()
-        dtos = listar_sexos(repo)
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'catalogos:sexos',
+            lambda: CatalogoItemSerializer(
+                listar_sexos(RepoCatalogosORM()), many=True
+            ).data,
+        )
 
 
 class EstatusListView(APIView):
@@ -126,14 +143,23 @@ class TiposNominaListView(APIView):
         solo_especiales = request.query_params.get('solo_especiales', '').lower() in ('true', '1')
         solo_pasivos = request.query_params.get('solo_pasivos', '').lower() in ('true', '1')
         solo_activos = request.query_params.get('solo_activos', '').lower() in ('true', '1')
-        repo = RepoCatalogosORM()
-        dtos = listar_tipos_nomina(
-            repo,
-            solo_especiales=solo_especiales,
-            solo_pasivos=solo_pasivos,
-            solo_activos=solo_activos,
+        clave = (
+            f'catalogos:tipos-nomina:{int(solo_especiales)}'
+            f':{int(solo_pasivos)}:{int(solo_activos)}'
         )
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            clave,
+            lambda: CatalogoItemSerializer(
+                listar_tipos_nomina(
+                    RepoCatalogosORM(),
+                    solo_especiales=solo_especiales,
+                    solo_pasivos=solo_pasivos,
+                    solo_activos=solo_activos,
+                ),
+                many=True,
+            ).data,
+        )
 
 
 class ParentescosListView(APIView):
@@ -141,9 +167,13 @@ class ParentescosListView(APIView):
 
     @extend_schema(tags=['Catálogos'], summary='Listar parentescos familiares', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        repo = RepoCatalogosORM()
-        dtos = listar_parentescos(repo)
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'catalogos:parentescos',
+            lambda: CatalogoItemSerializer(
+                listar_parentescos(RepoCatalogosORM()), many=True
+            ).data,
+        )
 
 
 class TiposProcedenciaListView(APIView):
@@ -151,9 +181,13 @@ class TiposProcedenciaListView(APIView):
 
     @extend_schema(tags=['Catálogos'], summary='Listar tipos de procedencia', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        repo = RepoCatalogosORM()
-        dtos = listar_tipos_procedencia(repo)
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'catalogos:tipos-procedencia',
+            lambda: CatalogoItemSerializer(
+                listar_tipos_procedencia(RepoCatalogosORM()), many=True
+            ).data,
+        )
 
 
 class EstadosCivilesListView(APIView):
@@ -161,9 +195,13 @@ class EstadosCivilesListView(APIView):
 
     @extend_schema(tags=['Catálogos'], summary='Listar estados civiles', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        repo = RepoCatalogosORM()
-        dtos = listar_estados_civiles(repo)
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'catalogos:estados-civiles',
+            lambda: CatalogoItemSerializer(
+                listar_estados_civiles(RepoCatalogosORM()), many=True
+            ).data,
+        )
 
 
 class GradosListView(APIView):
@@ -231,7 +269,11 @@ class NacionalidadesListView(APIView):
 
     @extend_schema(tags=['Catálogos'], summary='Listar nacionalidades', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        repo = RepoCatalogosORM()
-        dtos = listar_nacionalidades(repo)
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'catalogos:nacionalidades',
+            lambda: CatalogoItemSerializer(
+                listar_nacionalidades(RepoCatalogosORM()), many=True
+            ).data,
+        )
 

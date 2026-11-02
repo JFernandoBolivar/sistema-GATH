@@ -55,6 +55,25 @@ print(json.dumps({'estado': respuesta.status_code, 'ms': round(ms)}))
     assert datos["ms"] < 1000, datos
 
 
+def test_preload_no_abre_conexion_a_bd_antes_del_fork():
+    """gunicorn --preload importa GATH.wsgi en el master; la BD se abre en el worker."""
+    codigo = """
+import json
+import os
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'GATH.settings')
+import GATH.wsgi  # noqa: F401 - simula el preload del master
+
+from django.db import connection
+
+print(json.dumps({'sin_conexion': connection.connection is None}))
+"""
+    proceso = _ejecutar(codigo)
+    assert proceso.returncode == 0, proceso.stderr[-2000:]
+    datos = json.loads(proceso.stdout.strip().splitlines()[-1])
+    assert datos["sin_conexion"] is True, datos
+
+
 def _imports_de_nivel_superior(ruta: Path) -> list[str]:
     arbol = ast.parse(ruta.read_text(encoding="utf-8"))
     modulos = []

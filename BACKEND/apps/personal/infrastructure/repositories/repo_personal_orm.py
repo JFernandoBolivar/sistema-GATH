@@ -53,6 +53,15 @@ def _antecedentes_cerrados(cedula_o_id) -> list:
     )
 
 
+def _antecedentes_empleado(empleado_id) -> list:
+    """Antecedentes con su organismo en una sola consulta (detalle)."""
+    return list(
+        AntecedenteServicioModel.objects.filter(empleado_id=empleado_id)
+        .select_related('organismo')
+        .order_by('fecha_ingreso')
+    )
+
+
 class RepoPersonalORM:
     # ------------------------------------------------------------------
     # Lectura
@@ -198,10 +207,14 @@ class RepoPersonalORM:
             return None
         # Expediente anidado (Fase 2.2 del plan de reparación): solo se arma
         # en el detalle, no en el listado, para no pagar N+1 consultas por fila.
+        # Los antecedentes se cargan una vez y se reutilizan para el total APN
+        # y para el expediente (antes se consultaban dos veces).
+        antecedentes = _antecedentes_empleado(fila.pk)
+        cerrados = [a for a in antecedentes if a.fecha_egreso is not None]
         return empleado_a_entidad(
             fila,
-            _antecedentes_cerrados(fila.pk),
-            expediente=construir_expediente(fila),
+            cerrados,
+            expediente=construir_expediente(fila, antecedentes=antecedentes),
         )
 
     def _antecedentes_cerrados_bulk(self, empleado_ids: list) -> dict:

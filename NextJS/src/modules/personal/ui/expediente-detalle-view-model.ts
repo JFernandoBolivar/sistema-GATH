@@ -10,7 +10,11 @@
 import { nombrePorId, nombresPorIds } from "@/shared/lib/catalogos";
 import { formatearFecha } from "@/shared/lib/formato-fecha";
 
-import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../application/dtos/empleado-dto";
+import type {
+  CatalogoEmpleadoDTO,
+  CatalogosExpedienteDTO,
+  EmpleadoDTO,
+} from "../application/dtos/empleado-dto";
 
 const SIN_DATO = "N/A";
 
@@ -133,23 +137,33 @@ export interface DetalleExpedienteViewModel {
 function itemsSaludPorIds(
   catalogo: CatalogosExpedienteDTO["alergias"] | undefined,
   ids: number[] | undefined,
+  nombres: string[] | undefined,
 ): DetalleItemSaludVM[] {
   if (!ids || ids.length === 0) return [];
   const map = new Map((catalogo ?? []).map((c) => [c.id, c]));
-  return ids.map((id) => {
+  return ids.map((id, indice) => {
     const c = map.get(id);
     return {
       id,
-      nombre: c?.nombre ?? `ID ${id}`,
+      nombre: nombres?.[indice] || c?.nombre || `ID ${id}`,
       categoria: c?.categoriaNombre || "General",
     };
   });
 }
 
+/**
+ * El detalle funciona con o sin catálogos: el backend ya manda los nombres
+ * (`*_nombre`) y el catálogo solo se usa como respaldo o para las categorías.
+ */
 export function construirDetalleExpediente(
   empleado: EmpleadoDTO,
-  catalogos: CatalogosExpedienteDTO,
+  catalogos?: CatalogosExpedienteDTO | null,
 ): DetalleExpedienteViewModel {
+  const nombre = (
+    preferido: string | null | undefined,
+    lista: CatalogoEmpleadoDTO[] | undefined,
+    id: number | null | undefined,
+  ) => preferido || nombrePorId(lista, id);
   const anosApn = empleado.totalAnosApn ?? 0;
   const anos = Math.floor(anosApn);
   const meses = Math.round((anosApn % 1) * 12);
@@ -201,60 +215,112 @@ export function construirDetalleExpediente(
     })),
     vivienda: empleado.datosVivienda
       ? {
-          estado: nombrePorId(catalogos.estados, empleado.datosVivienda.estadoId),
-          municipio: nombrePorId(catalogos.municipios, empleado.datosVivienda.municipioId),
-          parroquia: nombrePorId(catalogos.parroquias, empleado.datosVivienda.parroquiaId),
+          estado: nombre(empleado.datosVivienda.estadoNombre, catalogos?.estados, empleado.datosVivienda.estadoId),
+          municipio: nombre(
+            empleado.datosVivienda.municipioNombre,
+            catalogos?.municipios,
+            empleado.datosVivienda.municipioId,
+          ),
+          parroquia: nombre(
+            empleado.datosVivienda.parroquiaNombre,
+            catalogos?.parroquias,
+            empleado.datosVivienda.parroquiaId,
+          ),
           direccionExacta: empleado.datosVivienda.direccionExacta ?? SIN_DATO,
-          condicion: nombrePorId(catalogos.condicionesVivienda, empleado.datosVivienda.condicionViviendaId),
-          codigoPostal: nombrePorId(catalogos.codigosPostales, empleado.datosVivienda.codigoPostalId),
+          condicion: nombre(
+            empleado.datosVivienda.condicionViviendaNombre,
+            catalogos?.condicionesVivienda,
+            empleado.datosVivienda.condicionViviendaId,
+          ),
+          codigoPostal: nombre(
+            empleado.datosVivienda.codigoPostalNombre,
+            catalogos?.codigosPostales,
+            empleado.datosVivienda.codigoPostalId,
+          ),
         }
       : null,
     salud: empleado.perfilSalud
       ? {
-          grupoSanguineo: nombrePorId(catalogos.gruposSanguineos, empleado.perfilSalud.grupoSanguineoId),
-          alergias: itemsSaludPorIds(catalogos.alergias, empleado.perfilSalud.alergias),
-          patologiasCronicas: itemsSaludPorIds(catalogos.patologias, empleado.perfilSalud.patologiasCronicas),
-          discapacidades: itemsSaludPorIds(catalogos.discapacidades, empleado.perfilSalud.discapacidades),
+          grupoSanguineo: nombre(
+            empleado.perfilSalud.grupoSanguineoNombre,
+            catalogos?.gruposSanguineos,
+            empleado.perfilSalud.grupoSanguineoId,
+          ),
+          alergias: itemsSaludPorIds(
+            catalogos?.alergias,
+            empleado.perfilSalud.alergias,
+            empleado.perfilSalud.alergiasNombres,
+          ),
+          patologiasCronicas: itemsSaludPorIds(
+            catalogos?.patologias,
+            empleado.perfilSalud.patologiasCronicas,
+            empleado.perfilSalud.patologiasCronicasNombres,
+          ),
+          discapacidades: itemsSaludPorIds(
+            catalogos?.discapacidades,
+            empleado.perfilSalud.discapacidades,
+            empleado.perfilSalud.discapacidadesNombres,
+          ),
         }
       : null,
     fisico: empleado.perfilFisico
       ? {
-          tallaCamisa: nombrePorId(catalogos.tallas, empleado.perfilFisico.tallaCamisaId),
-          tallaPantalon: nombrePorId(catalogos.tallas, empleado.perfilFisico.tallaPantalonId),
-          tallaZapatos: nombrePorId(catalogos.tallas, empleado.perfilFisico.tallaZapatosId),
-          tallaChaqueta: nombrePorId(catalogos.tallas, empleado.perfilFisico.tallaChaquetaId),
+          tallaCamisa: nombre(
+            empleado.perfilFisico.tallaCamisaNombre,
+            catalogos?.tallas,
+            empleado.perfilFisico.tallaCamisaId,
+          ),
+          tallaPantalon: nombre(
+            empleado.perfilFisico.tallaPantalonNombre,
+            catalogos?.tallas,
+            empleado.perfilFisico.tallaPantalonId,
+          ),
+          tallaZapatos: nombre(
+            empleado.perfilFisico.tallaZapatosNombre,
+            catalogos?.tallas,
+            empleado.perfilFisico.tallaZapatosId,
+          ),
+          tallaChaqueta: nombre(
+            empleado.perfilFisico.tallaChaquetaNombre,
+            catalogos?.tallas,
+            empleado.perfilFisico.tallaChaquetaId,
+          ),
         }
       : null,
     formacionAcademica: (empleado.formacionAcademica ?? []).map((fa) => ({
-      nivelAcademico: nombrePorId(catalogos.nivelesAcademicos, fa.nivelAcademicoId),
-      carrera: nombrePorId(catalogos.carreras, fa.carreraId),
-      mencion: nombrePorId(catalogos.menciones, fa.mencionId),
-      institucion: nombrePorId(catalogos.instituciones, fa.institucionId),
+      nivelAcademico: nombre(fa.nivelAcademicoNombre, catalogos?.nivelesAcademicos, fa.nivelAcademicoId),
+      carrera: nombre(fa.carreraNombre, catalogos?.carreras, fa.carreraId),
+      mencion: nombre(fa.mencionNombre, catalogos?.menciones, fa.mencionId),
+      institucion: nombre(fa.institucionNombre, catalogos?.instituciones, fa.institucionId),
     })),
     formacionComplementaria: (empleado.formacionComplementaria ?? []).map((fc) => ({
-      capacitacion: nombrePorId(catalogos.capacitaciones, fc.capacitacionId),
-      institucion: nombrePorId(catalogos.instituciones, fc.institucionId),
+      capacitacion: nombre(fc.capacitacionNombre, catalogos?.capacitaciones, fc.capacitacionId),
+      institucion: nombre(fc.institucionNombre, catalogos?.instituciones, fc.institucionId),
       fechaInicio: formatearFecha(fc.fechaInicio),
       fechaFin: formatearFecha(fc.fechaFin),
-      procedencia: nombrePorId(catalogos.tiposProcedencia, fc.procedenciaId),
-      grupo: nombrePorId(catalogos.gruposCapacitacion, fc.grupoId),
+      procedencia: nombre(fc.procedenciaNombre, catalogos?.tiposProcedencia, fc.procedenciaId),
+      grupo: nombre(fc.grupoNombre, catalogos?.gruposCapacitacion, fc.grupoId),
       horasCompletadas: fc.horasCompletadas ?? SIN_DATO,
     })),
     contactoEmergencia: (empleado.contactoEmergencia ?? []).map((c) => ({
       nombreCompleto: `${c.nombres ?? ""} ${c.apellidos ?? ""}`.trim() || SIN_DATO,
       telefono: c.telefono ?? SIN_DATO,
-      relacion: nombrePorId(catalogos.parentescos, c.relacionId),
+      relacion: nombre(c.relacionNombre, catalogos?.parentescos, c.relacionId),
     })),
     antecedentes: (empleado.antecedentes ?? []).map((a) => ({
       fechaIngreso: formatearFecha(a.fechaIngreso),
       fechaEgreso: formatearFecha(a.fechaEgreso, "Presente"),
-      organismo: nombrePorId(catalogos.organismos, a.organismoId),
+      organismo: nombre(a.organismoNombre, catalogos?.organismos, a.organismoId),
     })),
     contratoActual: empleado.contratoActual
       ? {
           nContrato: empleado.contratoActual.nContrato ?? SIN_DATO,
           fechaCulminacion: formatearFecha(empleado.contratoActual.fechaCulminacion, "Indefinido"),
-          politica: nombrePorId(catalogos.politicas, empleado.contratoActual.politicaId),
+          politica: nombre(
+            empleado.contratoActual.politicaNombre,
+            catalogos?.politicas,
+            empleado.contratoActual.politicaId,
+          ),
           esFijo: empleado.contratoActual.esFijo ? "Fijo" : "Suplente/Contratado",
         }
       : null,

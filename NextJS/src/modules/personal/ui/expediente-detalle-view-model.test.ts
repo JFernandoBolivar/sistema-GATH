@@ -177,6 +177,94 @@ describe("construirDetalleExpediente", () => {
     expect(vm.cargosAsignados[0].direccionResumida).toBe("COORD SOPORTE");
   });
 
+  it("se construye sin catálogos usando los nombres que ya manda el backend", () => {
+    const empleado: EmpleadoDTO = {
+      ...empleadoBase(),
+      datosVivienda: {
+        estadoId: 1,
+        estadoNombre: "DISTRITO CAPITAL",
+        municipioId: 2,
+        municipioNombre: "LIBERTADOR",
+        parroquiaId: 3,
+        parroquiaNombre: "CATEDRAL",
+        condicionViviendaId: 4,
+        condicionViviendaNombre: "PROPIA",
+        codigoPostalId: 5,
+        codigoPostalNombre: "1010",
+        direccionExacta: "Av. Principal",
+      },
+      perfilSalud: {
+        grupoSanguineoId: 3,
+        grupoSanguineoNombre: "O+",
+        alergias: [5],
+        alergiasNombres: ["Penicilina"],
+        patologiasCronicas: [6],
+        patologiasCronicasNombres: ["Asma"],
+        discapacidades: [],
+        discapacidadesNombres: [],
+      },
+      perfilFisico: {
+        tallaCamisaId: 7,
+        tallaCamisaNombre: "M",
+        tallaPantalonId: 8,
+        tallaPantalonNombre: "32",
+        tallaZapatosId: 9,
+        tallaZapatosNombre: "42",
+        tallaChaquetaId: 10,
+        tallaChaquetaNombre: "L",
+      },
+      formacionAcademica: [
+        {
+          nivelAcademicoId: 1,
+          nivelAcademicoNombre: "UNIVERSITARIO",
+          carreraId: 2,
+          carreraNombre: "INGENIERÍA",
+          mencionId: 3,
+          mencionNombre: "SISTEMAS",
+          institucionId: 4,
+          institucionNombre: "UCV",
+        },
+      ],
+      contactoEmergencia: [
+        {
+          nombres: "Ana",
+          apellidos: "Ruiz",
+          telefono: "04121234567",
+          relacionId: 7,
+          relacionNombre: "MADRE",
+        },
+      ],
+      antecedentes: [
+        {
+          organismoId: 7,
+          organismoNombre: "CONATEL",
+          fechaIngreso: "2020-01-15",
+          fechaEgreso: null,
+        },
+      ],
+      contratoActual: {
+        nContrato: "CTR-01",
+        fechaCulminacion: null,
+        politicaId: 3,
+        politicaNombre: "CONTRATADO",
+        esFijo: true,
+      },
+    };
+
+    const vm = construirDetalleExpediente(empleado, null);
+
+    expect(vm.vivienda?.estado).toBe("DISTRITO CAPITAL");
+    expect(vm.vivienda?.municipio).toBe("LIBERTADOR");
+    expect(vm.vivienda?.parroquia).toBe("CATEDRAL");
+    expect(vm.salud?.grupoSanguineo).toBe("O+");
+    expect(vm.salud?.alergias[0].nombre).toBe("Penicilina");
+    expect(vm.fisico?.tallaCamisa).toBe("M");
+    expect(vm.formacionAcademica[0].carrera).toBe("INGENIERÍA");
+    expect(vm.contactoEmergencia[0].relacion).toBe("MADRE");
+    expect(vm.antecedentes[0].organismo).toBe("CONATEL");
+    expect(vm.contratoActual?.politica).toBe("CONTRATADO");
+  });
+
   it("mapea encargadurias con cargo, titular y fechas formateadas", () => {
     const empleado: EmpleadoDTO = {
       ...empleadoBase(),

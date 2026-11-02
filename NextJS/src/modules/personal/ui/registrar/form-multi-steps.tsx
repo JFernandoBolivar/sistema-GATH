@@ -21,10 +21,10 @@ import Loading from "@/shared/ui/components/loading";
 
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import {
-  getCatalogosExpedienteAction,
   registrarEmpleadoAction,
   subirFotoEmpleadoAction,
 } from "../../infrastructure/actions/personal-actions";
+import { obtenerCatalogosExpediente } from "../../infrastructure/cache/catalogos-expediente-cache";
 import { resolverAltasInlineAction } from "../../infrastructure/actions/registro-actions";
 import type { RegistroPasosType } from "../schema/schema-registro-pasos";
 import { recolectarAltasInline } from "./altas-inline";
@@ -81,7 +81,7 @@ export default function MultiStepForm() {
 
   useEffect(() => {
     let vigente = true;
-    getCatalogosExpedienteAction()
+    obtenerCatalogosExpediente()
       .then((c) => vigente && setCatalogos(c))
       .catch(() => toast.error("No fue posible cargar los catálogos del expediente."));
     return () => {

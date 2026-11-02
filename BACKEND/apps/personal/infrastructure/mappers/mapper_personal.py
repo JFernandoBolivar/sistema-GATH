@@ -234,31 +234,45 @@ def contrato_a_dict(c) -> dict | None:
         'fecha_culminacion': str(c.fecha_culminacion) if c.fecha_culminacion else None,
         'politica_id': c.politica_id,
         'politica_nombre': c.politica.tipo_politica if getattr(c, 'politica', None) else None,
+        'antecedente_id': c.antecedente_id,
         'estatus_id': c.estatus_id,
         'estatus_nombre': c.estatus.estatus if getattr(c, 'estatus', None) else None,
         'es_fijo': c.es_fijo,
     }
 
 
-def construir_expediente(empleado: EmployeeModel) -> dict:
+def construir_expediente(empleado: EmployeeModel, antecedentes=None) -> dict:
     """
     Arma el expediente anidado completo de un `EmployeeModel` (Fase 2.1/2.2
     del plan de reparación). Reutilizado tanto por `RepoPersonalORM` como por
     `RepoPasivosORM` (un pasivo también es un `Employee`) para no duplicar
     esta consulta en dos módulos.
+
+    `antecedentes` permite reutilizar la lista ya cargada por el llamador
+    (el detalle la necesita también para el total APN) y evitar la consulta
+    duplicada que había antes.
     """
-    antecedentes_qs = list(
-        AntecedenteServicioModel.objects.filter(empleado=empleado).select_related('organismo').order_by('fecha_ingreso')
+    antecedentes_qs = (
+        list(antecedentes)
+        if antecedentes is not None
+        else list(
+            AntecedenteServicioModel.objects.filter(empleado=empleado)
+            .select_related('organismo')
+            .order_by('fecha_ingreso')
+        )
     )
     contratos_todos = [
         contrato_a_dict(c)
         for c in ContratoModel.objects.filter(antecedente__empleado=empleado).select_related('estatus', 'politica', 'antecedente').order_by('-pk')
     ]
-    contrato_actual = None
     antecedente_abierto = next((a for a in antecedentes_qs if a.fecha_egreso is None), None)
+    contrato_actual = None
     if antecedente_abierto:
-        contrato_actual = contrato_a_dict(
-            ContratoModel.objects.filter(antecedente=antecedente_abierto).order_by('-pk').first()
+        # `contratos_todos` ya viene ordenado por `-pk`: el primero del
+        # antecedente abierto es el contrato vigente (sin consulta extra).
+        contrato_actual = next(
+            (c for c in contratos_todos if c and c.get('antecedente_id') == antecedente_abierto.pk),
+            None,
         )
     if not contrato_actual and contratos_todos:
         contrato_actual = contratos_todos[0]

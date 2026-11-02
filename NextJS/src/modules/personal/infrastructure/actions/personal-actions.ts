@@ -54,6 +54,44 @@ export async function getEmpleadosAction(
   }
 }
 
+/**
+ * Carga inicial del listado: empleados y tipos de nómina en una sola Server
+ * Action y en paralelo en el servidor. Antes se lanzaban dos acciones desde
+ * el mismo `startTransition` y Next las ejecutaba en cola.
+ */
+export async function getInicioPersonalAction(
+  filtros?: FiltrosListadoEmpleado,
+  pagina?: { page?: number; pageSize?: number },
+) {
+  const validated = listadoEmpleadosSchema.safeParse(filtros ?? {});
+  const filtrosValidos = validated.success ? validated.data : {};
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const [empleados, nominas] = await Promise.all([
+      listarEmpleados(repoPersonalApi, { ...filtrosValidos, ...pagina }),
+      personalApi.getTiposNomina(),
+    ]);
+    await logAudit({
+      traceId,
+      action: "getInicioPersonalAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return { empleados, nominas };
+  } catch (error) {
+    await logAudit({
+      traceId,
+      action: "getInicioPersonalAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
 export async function getEmpleadoPorCedulaAction(cedula: string) {
   const validation = empleadoCedulaSchema.safeParse({ cedula });
   if (!validation.success) {
