@@ -307,6 +307,24 @@ ROL_ASIGNACIONES = {
 ROL_BIENESTAR_SOCIAL_ID = 5
 NOTIFICACIONES_PROPIAS = "notificaciones.ver_propias"
 
+# Slots historicos de ROL_ASIGNACIONES -> nombre real del rol. El seed resuelve
+# por nombre para no depender de IDs que cambian entre bases heredadas.
+NOMBRES_ROL = {
+    1: "ADMINISTRADOR",
+    2: "ANALISTA",
+    3: "AUTOGESTION",
+    4: "PRESUPUESTO",
+    5: "BIENESTAR SOCIAL",
+    9: "RECEPCIONISTA",
+}
+
+
+def _normalizar_rol(nombre: str) -> str:
+    """Unifica tildes de base: la BD legada tiene «BIENSTAR SOCIAL»."""
+    return " ".join(
+        str(nombre or "").strip().upper().replace("BIENSTAR", "BIENESTAR").split()
+    )
+
 # Autogestión (PLAN §2.4 actualizado): UNA sola persona aprueba, así que Analista y Administradora
 # tienen EL MISMO permiso `bienestar.aprobar`; ya no hay checks por rol ni aprobación directa en
 # autogestión (siguen en la fe de vida con `fe_de_vida.*`).
@@ -497,26 +515,40 @@ class Command(BaseCommand):
             #     creado recibe su conjunto inicial completo.
             asignaciones_creadas = 0
             roles_existentes = {r.id: r.nombre_rol for r in RolEspejo.objects.all()}
-            ids_por_nombre = {nombre: rid for rid, nombre in roles_existentes.items()}
-            asignaciones = {
-                rol_id: list(codigos)
-                for rol_id, codigos in ROL_ASIGNACIONES.items()
-                if rol_id in roles_existentes
+            ids_por_nombre = {
+                _normalizar_rol(nombre): rid for rid, nombre in roles_existentes.items()
             }
+
+            # Las claves de ROL_ASIGNACIONES son "slots" historicos (1..9). El rol
+            # real se resuelve por NOMBRE: en bases heredadas RECEPCIONISTA puede
+            # tener otro ID, y usar el numero dejaba sus permisos sin aplicar.
+            asignaciones: dict[int, tuple[list[str], bool]] = {}
+            for rol_id, codigos in ROL_ASIGNACIONES.items():
+                nombre = NOMBRES_ROL.get(rol_id)
+                destino = ids_por_nombre.get(_normalizar_rol(nombre)) if nombre else None
+                if destino is None:
+                    continue
+                # Si el ID real no coincide con el slot, sus vinculos previos
+                # quedaron huerfanos: se aplica el conjunto completo.
+                asignaciones[destino] = (list(codigos), destino != rol_id)
             for nombre, (_descripcion, codigos) in ROLES_NUEVOS.items():
-                rol_id = ids_por_nombre.get(nombre)
+                rol_id = ids_por_nombre.get(_normalizar_rol(nombre))
                 if rol_id is not None:
-                    asignaciones[rol_id] = list(codigos)
+                    asignaciones[rol_id] = (list(codigos), rol_id in roles_creados)
             # El ADMINISTRADOR conserva todo el catálogo salvo las exclusiones
             # explícitas (G12), incluidas las que se creen en esta corrida.
-            if 1 in roles_existentes:
-                asignaciones[1] = [
-                    p[0] for p in PERMISOS_CATALOGO
-                    if p[0] not in PERMISOS_EXCLUIDOS_ADMINISTRADOR
-                ]
+            rol_admin = ids_por_nombre.get("ADMINISTRADOR")
+            if rol_admin is not None:
+                asignaciones[rol_admin] = (
+                    [
+                        p[0] for p in PERMISOS_CATALOGO
+                        if p[0] not in PERMISOS_EXCLUIDOS_ADMINISTRADOR
+                    ],
+                    False,
+                )
 
             roles_modificados: set[int] = set()
-            for rol_id, codigos in asignaciones.items():
+            for rol_id, (codigos, aplicar_completo) in asignaciones.items():
                 if rol_id not in roles_existentes:
                     self.stdout.write(
                         self.style.WARNING(
@@ -526,7 +558,7 @@ class Command(BaseCommand):
                     continue
 
                 nombre_rol = roles_existentes[rol_id]
-                if rol_id in roles_creados:
+                if rol_id in roles_creados or aplicar_completo:
                     a_agregar = set(codigos)
                 else:
                     a_agregar = set(codigos) & permisos_creados
@@ -558,7 +590,7 @@ class Command(BaseCommand):
 
             # 3. Retiros explícitos por código (G12 y ajustes nombrados).
             for nombre, codigos in ASIGNACIONES_RETIRADAS.items():
-                rol_id = ids_por_nombre.get(nombre)
+                rol_id = ids_por_nombre.get(_normalizar_rol(nombre))
                 if rol_id is None:
                     continue
                 antes = self._codigos_del_rol(rol_id)
