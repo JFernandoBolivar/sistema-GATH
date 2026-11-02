@@ -39,11 +39,13 @@ export function PasoBasicInfo({
   onSubmit,
   catalogos,
   isLoadingCatalogos,
+  titulo = "Registrar Nuevo Trabajador",
 }: {
   defaultValues: Partial<PasoBasicInfoType>;
   onSubmit: (values: PasoBasicInfoType) => void;
   catalogos: CatalogosExpedienteDTO | null;
   isLoadingCatalogos: boolean;
+  titulo?: string;
 }) {
   const [file, setFile] = useState<File | null>(defaultValues.file ?? null);
 
@@ -78,7 +80,7 @@ export function PasoBasicInfo({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Registrar Nuevo Trabajador</CardTitle>
+        <CardTitle>{titulo}</CardTitle>
       </CardHeader>
 
       <CardContent>

@@ -49,8 +49,24 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 class RepoPasivosORM(RepoSobrevivientesORM):
+    @staticmethod
+    def _cedulas_pasivas_egresadas() -> set[str]:
+        """Pasivos dados de baja por fallecimiento (asignación en EGRESADO).
+
+        Esos expedientes se conservan para consulta/histórico, pero ya no son
+        parte del personal pasivo vigente y no deben listarse.
+        """
+        return {
+            str(cedula)
+            for cedula in AsigTrabajoModel.objects.filter(
+                Tipo_personal__tipo_personal__iexact='PASIVO',
+                estatusid__estatus__iexact='EGRESADO',
+            ).values_list('employee_id', flat=True)
+        }
+
     def listar_pasivos(self, busqueda: str | None = None) -> list[Pasivo]:
         por_cedula: dict[str, Pasivo] = {}
+        cesados = self._cedulas_pasivas_egresadas()
 
         qs_egresados = (
             EmployeeEgresadoModel.objects.select_related('employee', 'motivo_egreso').all()
@@ -63,6 +79,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
                 | Q(employee__apellidos__icontains=busqueda)
             )
         for fila in qs_egresados:
+            if str(fila.employee_id) in cesados:
+                continue
             por_cedula[str(fila.employee_id)] = pasivo_a_entidad(fila)
 
         # Criterio real del legado (`list_employees_pasive`): un pasivo con
@@ -73,6 +91,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         qs_asignaciones = (
             AsigTrabajoModel.objects.select_related('employee', 'tiponominaid')
             .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False)
+            .exclude(estatusid__estatus__iexact='EGRESADO')
             .order_by('-fecha_actualizacion')
         )
         if busqueda:
@@ -101,6 +120,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
     ) -> tuple[list[Pasivo], int]:
         """Listado con filtros y paginación en servidor (10/50 por página)."""
         por_cedula: dict[str, Pasivo] = {}
+        cesados = self._cedulas_pasivas_egresadas()
 
         qs_egresados = (
             EmployeeEgresadoModel.objects.select_related('employee', 'employee__sexoid', 'motivo_egreso')
@@ -121,11 +141,14 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             # pasiva, solo cuentan las asignaciones.
             qs_egresados = qs_egresados.none()
         for fila in qs_egresados:
+            if str(fila.employee_id) in cesados:
+                continue
             por_cedula[str(fila.employee_id)] = pasivo_a_entidad(fila)
 
         qs_asignaciones = (
             AsigTrabajoModel.objects.select_related('employee', 'employee__sexoid', 'tiponominaid')
             .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False)
+            .exclude(estatusid__estatus__iexact='EGRESADO')
             .annotate(fecha_ingreso_organismo=Min('employee__antecedentes_servicio__fecha_ingreso'))
             .order_by('-fecha_actualizacion')
         )

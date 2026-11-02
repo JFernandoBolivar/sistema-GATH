@@ -7,6 +7,19 @@
     width: 90vw;
     max-width: 600px;
   }
+
+  /*
+   * El ScrollArea raíz de la app (src/app/layout.tsx) envuelve el contenido en
+   * un `div` con `display: table; min-width: 100%` (Radix). Ese wrapper crece
+   * hasta el ancho mínimo del contenido, de modo que una tabla ancha empujaba
+   * el shell completo (sidebar incluido) a 2420 px con un viewport de 1182 px.
+   * Con `display: block` el contenido queda acotado al ancho visible y cada
+   * tabla o panel gestiona su propio scroll horizontal.
+   */
+  .scroll-app > [data-slot="scroll-area-viewport"] > div {
+    display: block !important;
+    min-width: 0 !important;
+  }
 }
 @theme inline {
   --color-background: var(--background);

@@ -139,3 +139,20 @@ def test_rechaza_motivo_de_activo(escenario):
     assert respuesta.status_code == 400
     asignacion = AsigTrabajoModel.objects.get(employee=escenario['pasivo'])
     assert asignacion.estatusid.estatus == 'PASIVO'
+
+
+def test_el_pasivo_egresado_sale_del_listado_vigente(escenario):
+    """Tras el fallecimiento deja de aparecer en /pasivos/consultar."""
+    from apps.pasivos.infrastructure.repositories.repo_pasivos_orm import RepoPasivosORM
+
+    repo = RepoPasivosORM()
+    _, total_antes = repo.listar_pasivos_paginados(cedula='V-5000')
+    assert total_antes == 1
+
+    repo.egresar_pasivo('V-5000', escenario['fallecimiento'].pk)
+
+    filas, total = repo.listar_pasivos_paginados(cedula='V-5000')
+    assert filas == []
+    assert total == 0
+    assert all(p.cedula != 'V-5000' for p in repo.listar_pasivos())
+

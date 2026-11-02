@@ -7,7 +7,7 @@
  * por el paso de pensión. Reutiliza los componentes del módulo Personal para
  * no duplicar formularios ni validaciones.
  */
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -74,25 +74,45 @@ export default function RegistrarPasivoDirectoPage() {
   const [tiposNomina, setTiposNomina] = useState<CatalogoPasivoDTO[]>([]);
   const [valores, setValores] = useState<RegistroPasosType>(valoresIniciales);
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
+  const [cargandoNominas, setCargandoNominas] = useState(true);
+  const [errorNominas, setErrorNominas] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  // Las nóminas son lo único que bloquea el primer paso: se cargan aparte y
+  // actualizan el select en cuanto llegan, sin esperar a los ~15 catálogos del
+  // expediente (que tardan varios segundos).
+  const cargarNominas = useCallback(
+    () =>
+      getTiposNominaAction(true)
+        .then((nominas) => {
+          setTiposNomina(nominas);
+          setErrorNominas(null);
+        })
+        .catch((error: unknown) =>
+          setErrorNominas(
+            error instanceof Error && error.message
+              ? error.message
+              : "No fue posible cargar las nóminas de pasivo.",
+          ),
+        )
+        .finally(() => setCargandoNominas(false)),
+    [],
+  );
+
   useEffect(() => {
+    cargarNominas();
     let vigente = true;
-    // Cada carga por separado: si fallan los catálogos del expediente, las
-    // nóminas igual se muestran y el alta no se queda bloqueada.
-    Promise.allSettled([getCatalogosExpedienteAction(), getTiposNominaAction(true)])
-      .then(([cats, nominas]) => {
-        if (!vigente) return;
-        if (cats.status === "fulfilled") setCatalogos(cats.value);
-        if (nominas.status === "fulfilled") setTiposNomina(nominas.value);
-        if (cats.status === "rejected" || nominas.status === "rejected") {
-          toast.error("No fue posible cargar todos los catálogos del registro.");
-        }
+    getCatalogosExpedienteAction()
+      .then((cats) => {
+        if (vigente) setCatalogos(cats);
+      })
+      .catch(() => {
+        if (vigente) toast.error("No fue posible cargar todos los catálogos del registro.");
       });
     return () => {
       vigente = false;
     };
-  }, []);
+  }, [cargarNominas]);
 
   const siguiente = (parcial: Acumulado) => {
     setValores((prev) => ({ ...prev, ...parcial }));
@@ -149,7 +169,7 @@ export default function RegistrarPasivoDirectoPage() {
         <div className="mx-auto max-w-xl rounded-xl border bg-card p-6">
           <h2 className="text-lg font-semibold">Datos de pensión</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Solo se listan nóminas con <code>es_activo=False</code>.
+            Solo se muestran las nóminas de jubilados y pensionados.
           </p>
           <div className="mt-4 flex flex-col gap-2">
             <label htmlFor="tipo-nomina-pasivo" className="text-sm font-medium">
@@ -160,14 +180,43 @@ export default function RegistrarPasivoDirectoPage() {
               className="h-11 w-full rounded-md border bg-transparent px-3 text-base"
               value={tipoNominaId || ""}
               onChange={(e) => setTipoNominaId(Number(e.target.value))}
+              disabled={cargandoNominas}
+              aria-busy={cargandoNominas}
             >
-              <option value="">Seleccione una nómina de pasivo</option>
+              <option value="">
+                {cargandoNominas ? "Cargando nóminas…" : "Seleccione una nómina de pasivo"}
+              </option>
               {tiposNomina.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.nombre}
                 </option>
               ))}
             </select>
+            {cargandoNominas ? (
+              <p role="status" className="text-sm text-muted-foreground">
+                Cargando las nóminas de pasivo…
+              </p>
+            ) : null}
+            {errorNominas ? (
+              <p role="alert" className="text-sm font-medium text-danger">
+                {errorNominas}{" "}
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => {
+                    setCargandoNominas(true);
+                    cargarNominas();
+                  }}
+                >
+                  Reintentar
+                </button>
+              </p>
+            ) : null}
+            {!cargandoNominas && !errorNominas && tiposNomina.length === 0 ? (
+              <p role="alert" className="text-sm font-medium text-warning">
+                No hay nóminas de pasivo configuradas. Contacte a Administración del sistema.
+              </p>
+            ) : null}
             <button
               type="button"
               className="mt-2 h-11 rounded-md bg-primary px-4 font-medium text-primary-foreground disabled:opacity-50"
@@ -176,6 +225,10 @@ export default function RegistrarPasivoDirectoPage() {
             >
               Continuar
             </button>
+            <p className="text-sm text-muted-foreground">
+              Al continuar, el registro sigue los mismos pasos que el alta de un trabajador activo:
+              datos personales y foto, formación, antecedentes, salud, perfil físico y vivienda.
+            </p>
           </div>
         </div>
       </PageLayout>
@@ -184,7 +237,7 @@ export default function RegistrarPasivoDirectoPage() {
 
   switch (paso) {
     case 1:
-      return <PasoBasicInfo key="p1" defaultValues={valores} onSubmit={siguiente} {...comunes} />;
+      return <PasoBasicInfo key="p1" defaultValues={valores} onSubmit={siguiente} {...comunes} titulo="Registrar Nuevo Pasivo" />;
     case 2:
       return <PasoAcademic key="p2" defaultValues={valores} onSubmit={siguiente} {...comunes} />;
     case 3:
