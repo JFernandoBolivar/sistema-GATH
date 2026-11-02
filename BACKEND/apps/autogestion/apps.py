@@ -8,3 +8,4 @@ class AutogestionConfig(AppConfig):
 
     def ready(self):
         import apps.autogestion.infrastructure.receivers  # noqa: F401  (conecta eventos -> notificaciones)
+        import apps.autogestion.infrastructure.cache.invalidacion  # noqa: F401  (invalida Mi expediente)

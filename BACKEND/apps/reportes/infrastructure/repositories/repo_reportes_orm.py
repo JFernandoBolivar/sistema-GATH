@@ -8,6 +8,7 @@ asignación vigente por empleado (ACTIVA o la más reciente) y fecha de ingreso 
 reingreso más reciente. Los datos relacionados se traen en lotes (sin N+1).
 """
 from core.domain.exceptions import ValidationError
+from django.db.models import Q
 
 from apps.personal.infrastructure.repositories.consultas_apn import anotar_apn_oficial
 from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
@@ -33,6 +34,23 @@ _CAMPO_APN = 'apn_oficial'
 
 def _lookups_oficiales(lookups: dict) -> dict:
     return {_LOOKUPS_APN.get(clave, clave): valor for clave, valor in lookups.items()}
+
+
+def _requiere_distinct(lookups: dict) -> bool:
+    """Solo las relaciones multivaluadas pueden duplicar filas.
+
+    Los filtros escalares (sexo, edad, fechas, APN) no necesitan `DISTINCT`;
+    quitarlo evita el sort/unique que el EXPLAIN mostraba en esos casos.
+    """
+    prefijos = (
+        'assignments__',
+        'formacion_academica__',
+        'formacion_complementaria__',
+        'perfil_salud__',
+        'contacto_emergencia__',
+        'carga_familiar__',
+    )
+    return any(str(clave).startswith(prefijos) for clave in lookups)
 
 
 def _ruta_agrupacion(consulta: ConsultaReportePersonal) -> str | None:
@@ -114,7 +132,9 @@ class RepoReportesORM:
         if consulta.lookups:
             # `distinct()`: los filtros por estructura/salud/formación navegan
             # relaciones multivaluadas (asignaciones, familiares, títulos).
-            qs = qs.filter(**_lookups_oficiales(consulta.lookups)).distinct()
+            qs = qs.filter(**_lookups_oficiales(consulta.lookups))
+            if _requiere_distinct(consulta.lookups):
+                qs = qs.distinct()
 
         if consulta.tipo_reporte == 'conteo':
             metadatos = {
@@ -161,6 +181,98 @@ class RepoReportesORM:
         return ResultadoReporte(
             titulo="Reporte de Personal Activo",
             columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn'],
+            filas=filas,
+            total_registros=len(filas),
+            metadatos=metadatos,
+        )
+
+    def reporte_pasivos(self, consulta: ConsultaReportePersonal, limite: int) -> ResultadoReporte:
+        """Reporte de pasivos con los mismos filtros y columnas del personal activo.
+
+        La base son los `Employee` con una asignación `Tipo_personal=PASIVO` o
+        un registro de egreso. Así el PDF refleja los filtros del formulario
+        (estructura, cargo, nómina, salud, formación, edad, APN, vivienda…)
+        sin quedarse solo con los egresados.
+        """
+        from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
+        from apps.personal.infrastructure.models.personal_models import EmployeeModel
+
+        qs = anotar_apn_oficial(
+            EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad').all()
+        )
+        cedulas_egresados = EmployeeEgresadoModel.objects.values_list(
+            'employee_id', flat=True
+        )
+        qs = qs.filter(
+            Q(assignments__Tipo_personal__tipo_personal__iexact='PASIVO')
+            | Q(cedulaidentidad__in=cedulas_egresados)
+        ).distinct()
+
+        if consulta.lookups:
+            qs = qs.filter(**_lookups_oficiales(consulta.lookups))
+            if _requiere_distinct(consulta.lookups):
+                qs = qs.distinct()
+
+        if consulta.tipo_reporte == 'conteo':
+            metadatos = {
+                'total_encontrados': qs.count(),
+                'limite': limite,
+                'truncado': False,
+                'tipo_reporte': consulta.tipo_reporte,
+                'agrupar_por': consulta.agrupar_por,
+            }
+            resultado = _conteo_personal(qs, consulta, metadatos)
+            return ResultadoReporte(
+                titulo=f'Conteo de Personal Pasivo por {consulta.agrupar_por}',
+                columnas=resultado.columnas,
+                filas=resultado.filas,
+                total_registros=resultado.total_registros,
+                metadatos=resultado.metadatos,
+            )
+
+        qs = qs.order_by('apellidos', 'nombres', 'cedulaidentidad')
+        pagina, metadatos = pagina_con_metadatos(qs, limite)
+        metadatos.update(
+            {'tipo_reporte': consulta.tipo_reporte, 'agrupar_por': consulta.agrupar_por}
+        )
+
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+        from apps.personal.infrastructure.models.expediente_models import (
+            AntecedenteServicioModel,
+        )
+
+        cedulas = [e.cedulaidentidad for e in pagina]
+        pks = [e.pk for e in pagina]
+        asigs = _asignaciones_por_cedula(AsigTrabajoModel, cedulas)
+        antecedentes = fechas_de_ingreso(AntecedenteServicioModel, pks)
+
+        filas = []
+        for idx, e in enumerate(pagina, start=1):
+            asig = asigs.get(e.cedulaidentidad)
+            f_ing = antecedentes.get(e.pk)
+            filas.append({
+                '#': str(idx),
+                'codigo': asig.codigo if asig else 'S/D',
+                'cedula': str(e.cedulaidentidad),
+                'nombres': e.nombres or '',
+                'apellidos': e.apellidos or '',
+                'fecha_ingreso': f_ing.strftime('%d/%m/%Y') if f_ing else 'N/A',
+                'sexo': e.sexoid.sexo if e.sexoid else '',
+                'tipo_nomina': asig.tiponominaid.nomina if asig and asig.tiponominaid else 'S/D',
+                'cargo': asig.denominacioncargoid.cargo if asig and asig.denominacioncargoid else 'S/D',
+                'organismo_adscrito': (
+                    asig.OrganismoAdscritoid.Organismoadscrito
+                    if asig and asig.OrganismoAdscritoid else 'CONATEL'
+                ),
+                'total_anos_apn': round(float(e.apn_oficial or 0), 4),
+            })
+
+        return ResultadoReporte(
+            titulo='Reporte de Personal Pasivo',
+            columnas=[
+                '#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso',
+                'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn',
+            ],
             filas=filas,
             total_registros=len(filas),
             metadatos=metadatos,

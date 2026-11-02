@@ -123,6 +123,7 @@ class ResolutorPermisos(Protocol):
         rol_id: int | None,
         codigo: str,
         cedula: str | None = None,
+        version: int = 1,
     ) -> bool: ...
 
     def permisos_de_actor(
@@ -131,6 +132,7 @@ class ResolutorPermisos(Protocol):
         actor_id: int | None,
         rol_id: int | None,
         cedula: str | None = None,
+        version: int = 1,
     ) -> frozenset[str]: ...
 
 

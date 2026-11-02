@@ -121,3 +121,19 @@ export function oficinaDeAdscripcion(niveles: NivelesEstructura | undefined): st
   }
   return null;
 }
+
+/** Requisitos mínimos para enviar la fe de vida (además de la foto). */
+export function puedeEnviarFeDeVida({
+  fotoVigente,
+  viviendaOk,
+  tieneHijos,
+  hijosOk,
+}: {
+  fotoVigente: boolean;
+  viviendaOk: boolean;
+  tieneHijos: boolean;
+  hijosOk: boolean;
+}): boolean {
+  if (!fotoVigente || !viviendaOk) return false;
+  return !tieneHijos || hijosOk;
+}

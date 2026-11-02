@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models import F
 
 from apps.identidad.infrastructure.legado.cuenta_models import CuentaEspejo
+from apps.identidad.infrastructure.cache.contexto_sesion_cache import invalidar_contexto
 from apps.identidad.infrastructure.models.permisos_version_model import PermisosVersionModel
 
 
@@ -24,6 +25,7 @@ class RepoPermisosVersionORM:
             fila.version = F('version') + 1
             fila.save(update_fields=['version', 'updated_at'])
             fila.refresh_from_db(fields=['version'])
+        invalidar_contexto(cuenta_id, fila.version)
         return fila.version
 
     def incrementar_por_cedula(self, cedula: str) -> int | None:
@@ -43,4 +45,8 @@ class RepoPermisosVersionORM:
             [PermisosVersionModel(cuenta_id=i, version=1) for i in faltan], ignore_conflicts=True
         )
         PermisosVersionModel.objects.filter(cuenta_id__in=ids).update(version=F('version') + 1)
+        for cuenta_id, version in PermisosVersionModel.objects.filter(
+            cuenta_id__in=ids
+        ).values_list('cuenta_id', 'version'):
+            invalidar_contexto(cuenta_id, version)
         return len(ids)

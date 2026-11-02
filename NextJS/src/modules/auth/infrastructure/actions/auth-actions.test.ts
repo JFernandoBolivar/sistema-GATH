@@ -27,11 +27,17 @@ vi.mock("next-auth", () => ({
 
 const mockSignOut = vi.fn().mockResolvedValue(undefined);
 const mockSignIn = vi.fn().mockResolvedValue(undefined);
+const mockAuth = vi.fn().mockResolvedValue({ user: { email: "ana@conatel.gob.ve" } });
+const mockCambiarPassword = vi.fn().mockResolvedValue("Contraseña actualizada.");
 
 vi.mock("#/auth", () => ({
   signIn: (...args: unknown[]) => mockSignIn(...args),
   signOut: (...args: unknown[]) => mockSignOut(...args),
-  auth: vi.fn(),
+  auth: (...args: unknown[]) => mockAuth(...args),
+}));
+
+vi.mock("../../application/use-cases/cambiar-password", () => ({
+  cambiarPassword: (...args: unknown[]) => mockCambiarPassword(...args),
 }));
 
 const mockEnsureValidAccessToken = vi.fn();
@@ -47,7 +53,12 @@ vi.mock("../../application/use-cases/cerrar-sesion", () => ({
   cerrarSesion: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { extenderSesionAction, cerrarSesionAction, limpiarCookiesAuthAction } from "./auth-actions";
+import {
+  extenderSesionAction,
+  cerrarSesionAction,
+  limpiarCookiesAuthAction,
+  cambiarPasswordAction,
+} from "./auth-actions";
 
 describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () => {
   beforeEach(() => {
@@ -103,6 +114,25 @@ describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () =>
       "dj_access",
       "",
       expect.objectContaining({ maxAge: 0 }),
+    );
+  });
+
+  it("cambiarPasswordAction renueva la sesión con la contraseña nueva", async () => {
+    const res = await cambiarPasswordAction({
+      current_password: "10823304",
+      new_password: "NuevaClave1",
+      confirm_password: "NuevaClave1",
+    });
+
+    expect(res.success).toBe(true);
+    expect(mockCambiarPassword).toHaveBeenCalledTimes(1);
+    expect(mockSignIn).toHaveBeenCalledWith(
+      "credentials",
+      expect.objectContaining({
+        email: "ana@conatel.gob.ve",
+        password: "NuevaClave1",
+        redirect: false,
+      }),
     );
   });
 });

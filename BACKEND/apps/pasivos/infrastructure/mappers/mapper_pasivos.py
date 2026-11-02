@@ -79,12 +79,18 @@ def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = No
     emp = modelo.employee
     nombres = emp.nombres if emp else ""
     apellidos = emp.apellidos if emp else ""
+    cargos = cargos_historial_de_egreso(modelo.pk)
+    # El tipo de pasivo debe ser el tipo de nómina (JUBILADO/PENSIONADO/…), no
+    # el motivo del movimiento de egreso (ANULACIÓN, ABANDONO, etc.).
+    tipo_nomina = cargos[0]['tipo_nomina_nombre'] if cargos else "PASIVO"
+    tipo_nomina_id = cargos[0]['tipo_nomina_id'] if cargos else None
     return Pasivo(
         id=modelo.pk,
         cedula=str(modelo.employee_id),
         nombres=nombres,
         apellidos=apellidos,
-        tipo_pasivo=str(modelo.motivo_egreso) if modelo.motivo_egreso else "JUBILADO",
+        tipo_pasivo=str(tipo_nomina),
+        tipo_nomina_id=tipo_nomina_id,
         fecha_egreso=str(modelo.fecha_egreso),
         resolucion=modelo.n_contrato,
         correo=emp.correo if emp else None,
@@ -96,7 +102,7 @@ def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = No
         fecha_ingreso_organismo=_fecha_ingreso_organismo(modelo, expediente),
         estado_civil_id=emp.estadoCivil_id if emp else None,
         nacionalidad_id=emp.nacionalidad_id if emp else None,
-        cargos_historial=cargos_historial_de_egreso(modelo.pk),
+        cargos_historial=cargos,
         **(expediente or {}),
     )
 

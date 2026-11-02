@@ -18,6 +18,12 @@ from django.db.models import Q
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 from apps.identidad.domain.entities.cuenta import Cuenta
+from apps.identidad.infrastructure.cache.contexto_sesion_cache import (
+    ContextoSesion,
+    guardar_contexto,
+    invalidar_contexto,
+    leer_contexto,
+)
 from apps.identidad.infrastructure.mappers.mapper_cuenta import cuenta_a_entidad
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
 from apps.identidad.infrastructure.models.desactivacion_egreso_model import DesactivacionEgresoModel
@@ -106,6 +112,63 @@ class RepoCuentasORM:
         if fila is None:
             return None
         return fila
+
+    def obtener_contexto_autenticacion(
+        self, id: int, version_token: int
+    ) -> ContextoSesion | None:
+        """Contexto mínimo cacheado por (cuenta, versión del token).
+
+        En caliente no toca la BD. En frío hace una sola consulta con la
+        subconsulta de `permisos_version`; si Redis falla, la consulta se
+        ejecuta igual.
+        """
+        cacheado = leer_contexto(id, version_token)
+        if cacheado is not None:
+            return cacheado
+
+        from django.db.models import Subquery
+
+        from apps.identidad.infrastructure.models.permisos_version_model import (
+            PermisosVersionModel,
+        )
+
+        fila = (
+            CuentaModel.objects.filter(pk=id)
+            .annotate(
+                permisos_version_calculada=Subquery(
+                    PermisosVersionModel.objects.filter(cuenta_id=id)
+                    .values('version')[:1]
+                )
+            )
+            .values('pk', 'cedula_id', 'rol_id', 'is_active', 'permisos_version_calculada')
+            .first()
+        )
+        if fila is None:
+            return None
+        contexto = ContextoSesion(
+            id=int(fila['pk']),
+            cedula_id=str(fila['cedula_id']) if fila['cedula_id'] is not None else '',
+            rol_id=fila['rol_id'],
+            is_active=bool(fila['is_active']),
+            permisos_version=int(fila['permisos_version_calculada'] or 1),
+        )
+        guardar_contexto(contexto)
+        return contexto
+
+    def invalidar_contexto_cuenta(self, cuenta_id: int, version: int | None = None) -> None:
+        """Borra el contexto de autenticación de una cuenta."""
+        if version is None:
+            version = RepoPermisosVersionORM().obtener(cuenta_id)
+        invalidar_contexto(cuenta_id, version)
+
+    def invalidar_contexto_por_cedula(self, cedula: str) -> None:
+        cuenta_id = (
+            CuentaModel.objects.filter(cedula_id=str(cedula))
+            .values_list('id', flat=True)
+            .first()
+        )
+        if cuenta_id is not None:
+            invalidar_contexto(cuenta_id)
 
     def obtener_contexto_sesion(self, id: int) -> Cuenta | None:
         """Cuenta para `/auth/me` con versión, condición y password en una fila."""

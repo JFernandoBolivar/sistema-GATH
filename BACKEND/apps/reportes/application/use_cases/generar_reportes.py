@@ -54,6 +54,29 @@ def generar_reporte_pasivos(
     return _resultado_a_dto(entidad)
 
 
+def generar_reporte_pasivos_actuales(
+    repo: RepoReportes,
+    filtros: dict,
+    registro: ReportFieldRegistry,
+    puede_filtrar_estructura: bool,
+    limite: int,
+    hoy: date | None = None,
+) -> ResultadoReporteDTO:
+    """Reporte de pasivos con el mismo formulario de filtros que activos.
+
+    Se usa para el PDF/Excel de `/pasivos/reportes`; el JSON de egresados
+    conserva su caso de uso histórico.
+    """
+    consulta = preparar_consulta_personal(
+        filtros=filtros,
+        configuracion=registro.configuracion('empleados'),
+        puede_filtrar_estructura=puede_filtrar_estructura,
+        hoy=hoy,
+    )
+    entidad = repo.reporte_pasivos(consulta, limite)
+    return _resultado_a_dto(entidad)
+
+
 def generar_reporte_vacantes(
     repo: RepoReportes, limite: int, dependencias_ids: list[int] | None = None
 ) -> ResultadoReporteDTO:
