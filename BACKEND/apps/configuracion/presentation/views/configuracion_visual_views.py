@@ -1,0 +1,134 @@
+"""
+Vistas delgadas de Configuración Visual (Reglas B4, B7) — HU 0009.
+
+GET: cualquier usuario autenticado (lo consumen otros módulos/PDFs para
+pintar el cintillo). PUT y subida de logos: permiso `configuracion.editar`.
+"""
+from django.urls import reverse
+from drf_spectacular.types import OpenApiTypes
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema
+
+from core.infrastructure.storage.validacion_archivo import (
+    MAX_BYTES_IMAGEN,
+    TIPOS_IMAGEN,
+    clave_segura,
+    validar_archivo,
+)
+from core.presentation.archivos import respuesta_archivo
+from core.presentation.envelope import fail, ok
+from core.presentation.permissions import HasPermission
+from core.presentation.schema import MensajeRespuestaSerializer
+from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
+
+from apps.configuracion.application.use_cases.actualizar_configuracion_visual import actualizar_configuracion_visual
+from apps.configuracion.application.use_cases.guardar_logo_configuracion import (
+    CAMPOS_LOGO,
+    guardar_logo_configuracion,
+)
+from apps.configuracion.application.use_cases.obtener_configuracion_visual import obtener_configuracion_visual
+from apps.configuracion.infrastructure.repositories.repo_configuracion_visual_orm import RepoConfiguracionVisualORM
+from apps.configuracion.infrastructure.serializers.configuracion_visual_escritura_serializers import (
+    ConfiguracionVisualActualizarSerializer,
+)
+from apps.configuracion.infrastructure.serializers.configuracion_visual_lectura_serializers import (
+    ConfiguracionVisualSerializer,
+)
+
+# Clave en SeaweedFS -> nombre de campo del modelo (mismo prefijo "configuracion/" para
+# todos, un logo distinto por campo).
+_CAMPO_POR_SLUG = {
+    'logo-principal': 'logo_principal_clave',
+    'logo-secundario': 'logo_secundario_clave',
+    'cintillo-pie': 'cintillo_pie_clave',
+}
+
+
+def _url_logo(slug: str, clave: str | None) -> str | None:
+    """Ruta de la API que sirve la imagen (autenticada, por Django); `None` si
+    no hay imagen cargada. Nunca se entrega al navegador una URL de SeaweedFS
+    (su host pertenece a la red interna de Docker)."""
+    if not clave:
+        return None
+    return reverse('configuracion:configuracion_visual_logo', kwargs={'campo': slug})
+
+
+def _dto_con_urls(dto) -> dict:
+    return {
+        **dto.__dict__,
+        'logo_principal_url': _url_logo('logo-principal', dto.logo_principal_clave),
+        'logo_secundario_url': _url_logo('logo-secundario', dto.logo_secundario_clave),
+        'cintillo_pie_url': _url_logo('cintillo-pie', dto.cintillo_pie_clave),
+    }
+
+
+class ConfiguracionVisualView(APIView):
+    """GET/PUT /api/v1/configuracion/visual/"""
+
+    def get_permissions(self):
+        if self.request.method == 'PUT':
+            return [IsAuthenticated(), HasPermission('configuracion.editar')()]
+        return [IsAuthenticated()]
+
+    @extend_schema(tags=['Configuración'], summary='Obtener la configuración visual activa',
+                   responses={200: ConfiguracionVisualSerializer})
+    def get(self, request):
+        dto = obtener_configuracion_visual(RepoConfiguracionVisualORM())
+        return ok(ConfiguracionVisualSerializer(_dto_con_urls(dto)).data)
+
+    @extend_schema(tags=['Configuración'], summary='Actualizar la configuración visual',
+                   request=ConfiguracionVisualActualizarSerializer,
+                   responses={200: ConfiguracionVisualSerializer, 400: MensajeRespuestaSerializer})
+    def put(self, request):
+        serializer = ConfiguracionVisualActualizarSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        dto = actualizar_configuracion_visual(
+            RepoConfiguracionVisualORM(), serializer.validated_data, usuario_id=request.user.pk,
+        )
+        return ok(ConfiguracionVisualSerializer(_dto_con_urls(dto)).data, 'Configuración visual actualizada correctamente.')
+
+
+class ConfiguracionVisualLogoView(APIView):
+    """
+    GET  /api/v1/configuracion/visual/logo/<slug:campo>/ — sirve la imagen (autenticado).
+    POST /api/v1/configuracion/visual/logo/<slug:campo>/ — multipart, campo "file".
+    """
+
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated(), HasPermission('configuracion.editar')()]
+        return [IsAuthenticated()]
+
+    @extend_schema(tags=['Configuración'], summary='Obtener una imagen del cintillo (binario)',
+                   responses={200: OpenApiTypes.BINARY, 404: MensajeRespuestaSerializer})
+    def get(self, request, campo: str):
+        nombre_campo = _CAMPO_POR_SLUG.get(campo)
+        if nombre_campo is None:
+            return fail(f"Imagen inválida: {campo}.", status=400)
+        dto = obtener_configuracion_visual(RepoConfiguracionVisualORM())
+        clave = getattr(dto, nombre_campo)
+        if not clave:
+            return fail("La imagen no está cargada.", status=404)
+        return respuesta_archivo(SeaweedFSStorage(), clave, cache='private, no-cache')
+
+    @extend_schema(tags=['Configuración'], summary='Subir una imagen del cintillo (logo principal/secundario o pie)',
+                   responses={200: ConfiguracionVisualSerializer, 400: MensajeRespuestaSerializer})
+    def post(self, request, campo: str):
+        nombre_campo = _CAMPO_POR_SLUG.get(campo)
+        if nombre_campo is None or nombre_campo not in CAMPOS_LOGO:
+            return fail(f"Imagen inválida: {campo}. Use uno de {list(_CAMPO_POR_SLUG)}.", status=400)
+
+        archivo = request.FILES.get('file')
+        if not archivo:
+            return fail('No se proporcionó ningún archivo.', status=400)
+
+        contenido, tipo, ext = validar_archivo(archivo, TIPOS_IMAGEN, MAX_BYTES_IMAGEN)
+        clave = clave_segura(f"configuracion/{campo}", ext)
+        SeaweedFSStorage().subir(clave, contenido, tipo.mime)
+
+        dto = guardar_logo_configuracion(
+            RepoConfiguracionVisualORM(), nombre_campo, clave, usuario_id=request.user.pk,
+        )
+        return ok(ConfiguracionVisualSerializer(_dto_con_urls(dto)).data, 'Imagen actualizada correctamente.')

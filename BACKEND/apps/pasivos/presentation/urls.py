@@ -1,0 +1,23 @@
+from django.urls import path
+
+from apps.pasivos.presentation.views.pasivos_views import (
+    CrearSobrevivientesView,
+    MotivosEgresoPasivoView,
+    PasivoDetailView,
+    PasivoDetallePdfView,
+    PasivoEgresoView,
+    PasivosListView,
+    ProcesarEgresoView,
+)
+
+app_name = 'pasivos'
+
+urlpatterns = [
+    path('', PasivosListView.as_view(), name='pasivos-list'),
+    path('motivos-egreso/', MotivosEgresoPasivoView.as_view(), name='pasivos-motivos-egreso'),
+    path('<str:cedula>/', PasivoDetailView.as_view(), name='pasivo-detail'),
+    path('<str:cedula>/egreso/', PasivoEgresoView.as_view(), name='pasivo-egreso'),
+    path('<str:cedula>/pdf/', PasivoDetallePdfView.as_view(), name='pasivo-detail-pdf'),
+    path('<str:cedula>/procesar-egreso/', ProcesarEgresoView.as_view(), name='pasivo-procesar-egreso'),
+    path('<str:cedula>/sobrevivientes/', CrearSobrevivientesView.as_view(), name='pasivo-sobrevivientes'),
+]

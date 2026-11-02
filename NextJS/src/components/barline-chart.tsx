@@ -1,12 +1,5 @@
 import React, { CSSProperties } from "react";
-import {
-  scaleBand,
-  scaleLinear,
-  max,
-  line as d3_line,
-  min,
-  curveMonotoneX,
-} from "d3";
+import { scaleBand, scaleLinear, max, line as d3_line, min, curveMonotoneX } from "d3";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 type Item = {
   key: string;
@@ -29,16 +22,11 @@ export function BarChartLine({ data }: { data: Item[] }) {
   const maxMetric2 = max(data.map((d) => d.metric2)) ?? 0;
   const minMetric2 = min(data.map((d) => d.metric2)) ?? 0;
 
-  const xScale = scaleBand()
-    .domain(allKeys)
-    .range([0, 100])
-    .padding(0.3);
+  const xScale = scaleBand().domain(allKeys).range([0, 100]).padding(0.3);
 
   const yScaleMetric1 = scaleLinear().domain([0, maxMetric1]).range([100, 0]);
 
-  const yScaleMetric2 = scaleLinear()
-    .domain([minMetric2, maxMetric2])
-    .range([100, 0]);
+  const yScaleMetric2 = scaleLinear().domain([minMetric2, maxMetric2]).range([100, 0]);
 
   const line = d3_line<(typeof data)[number]>()
     .x((d) => {
@@ -130,13 +118,13 @@ export function BarChartLine({ data }: { data: Item[] }) {
       >
         {/* Bars */}
         <div className="relative w-full h-full">
-          {filledData.map((d) => {
+          {filledData.map((d, index) => {
             const barWidth = xScale.bandwidth();
             const barHeight = yScaleMetric1(0) - yScaleMetric1(d.metric1);
             const isFiller = !d.key.trim();
 
             return (
-              <React.Fragment key={`bar-${d.key}-${Math.random()}`}>
+              <React.Fragment key={`bar-${d.key}-${index}`}>
                 {!isFiller && (
                   <div
                     style={{

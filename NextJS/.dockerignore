@@ -4,4 +4,10 @@ npm-debug.log
 dist
 .next
 coverage
+e2e-results
+test-results
+playwright-report
+.git
 .env
+.env.*
+!.env.example

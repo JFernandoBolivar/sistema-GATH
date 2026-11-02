@@ -1,18 +1,33 @@
-# La Imagen en la que se basa el proyecto
-FROM node
-# Instalamos pnpm globalmente
-#RUN npm install -g pnpm
-# Creamos El Directorio donde se va a copiar el proyecto
+# ── base: Node fijo + pnpm (gestor de paquetes del proyecto) ────────────────
+FROM node:26.12.1-alpine3.24 AS base
+# libc6-compat: binarios nativos (sharp, swc) compilados contra glibc.
+RUN apk add --no-cache libc6-compat \
+    && npm install -g pnpm@12.9.1
 WORKDIR /app/NextJS
-# Copiamos el archivo package.json
-COPY package.json .
-# Instalamos las dependencias
-RUN npm i
-# Copiamos el proyecto a la ruta que creamos en el espacio de trabajo
-COPY . .
-#exponemos el puerto 3000
-EXPOSE 3000
-# Comando para iniciar el proyecto
-RUN npm run build
 
-CMD ["npm", "run", "start"]
+# ── deps: solo dependencias, para aprovechar la caché de capas ──────────────
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# ── builder: compila con output "standalone" ────────────────────────────────
+FROM base AS builder
+COPY --from=deps /app/NextJS/node_modules ./node_modules
+COPY . .
+RUN pnpm build
+
+# ── runner: imagen final, sin node_modules completo y sin root ──────────────
+FROM node:26.12.1-alpine3.24 AS runner
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+WORKDIR /app/NextJS
+RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
+
+COPY --from=builder --chown=nextjs:nodejs /app/NextJS/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/NextJS/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/NextJS/public ./public
+
+USER nextjs
+EXPOSE 3000
+CMD ["node", "server.js"]
