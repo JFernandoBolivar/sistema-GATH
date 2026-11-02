@@ -145,7 +145,7 @@ export default function NotFound() {
           >
             <Button
               asChild
-              className="bg-blue-800 hover:bg-blue-900 text-white flex-1 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
+              className="bg-blue-800 hover:bg-primary/90 text-white flex-1 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
             >
               <Link href="/">
                 <Home className="size-4 mr-2 " />

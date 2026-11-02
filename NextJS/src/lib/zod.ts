@@ -3,28 +3,13 @@ import { z } from "zod";
 
 export const signInSchema = object({
   email: string({ required_error: "El correo es requerido" })
+    .trim()
     .min(1, "El correo es requerido")
     .email("Correo electrónico inválido"),
   password: string({ required_error: "La contraseña es requerida" })
     .min(1, "La contraseña es requerida")
-    .min(5, "La contraseña debe tener más de 8 caracteres")
     .max(32, "La contraseña debe tener menos de 32 caracteres"),
 });
-
-export const changePasswordSchema = z
-  .object({
-    new_password: z
-      .string({ required_error: "La nueva contraseña es requerida" })
-      .min(8, "La contraseña debe tener al menos 8 caracteres")
-      .max(32, "La contraseña debe tener máximo 32 caracteres"),
-    confirm_password: z
-      .string({ required_error: "Confirme su nueva contraseña" })
-      .min(1, "Confirme su nueva contraseña"),
-  })
-  .refine((data) => data.new_password === data.confirm_password, {
-    message: "Las contraseñas no coinciden",
-    path: ["confirm_password"],
-  });
 
 export const registerInSchema = z
   .object({
