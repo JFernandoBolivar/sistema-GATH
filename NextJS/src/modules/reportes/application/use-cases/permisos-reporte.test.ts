@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
 import {
+  muestraFiltroEstructura,
   puedeFiltrarEstructuraOrganizativa,
   puedeGenerarReportePdf,
   puedeVerReportes,
@@ -58,5 +59,11 @@ describe("permisos del reporte de trabajador", () => {
     expect(PERMISO_REPORTES.ver).toBe("reportes.ver");
     expect(PERMISO_REPORTES.generarPdf).toBe("reportes.generar_pdf");
     expect(PERMISO_REPORTES.generarExcel).toBe("reportes.generar_excel");
+  });
+
+  it("oculta la Dirección Administrativa en el reporte de pasivos", () => {
+    expect(muestraFiltroEstructura(ADMINISTRADOR, "empleados")).toBe(true);
+    expect(muestraFiltroEstructura(ADMINISTRADOR, "pasivos")).toBe(false);
+    expect(muestraFiltroEstructura(["reportes.ver"], "pasivos")).toBe(false);
   });
 });

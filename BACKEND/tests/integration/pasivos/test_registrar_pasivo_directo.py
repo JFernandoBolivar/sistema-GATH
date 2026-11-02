@@ -146,6 +146,75 @@ def test_registrar_pasivo_directo_acepta_el_payload_anidado_del_wizard(catalogos
     assert respuesta.json()['data']['cedula'] == 'V-7782'
 
 
+def test_registrar_pasivo_directo_acepta_ids_en_las_fks_anidadas(catalogos):
+    """El wizard envía IDs crudos en las FKs anidadas (bug 500 al registrar)."""
+    from apps.catalogos.infrastructure.models.geografia_models import (
+        EstadoModel,
+        MunicipioModel,
+        ParroquiaModel,
+    )
+    from apps.personal.infrastructure.models.catalogos_soporte_models import (
+        CodigoPostalModel,
+        CondicionViviendaModel,
+        InstitucionModel,
+        NivelAcademicoModel,
+    )
+    from apps.personal.infrastructure.models.expediente_models import (
+        DatosViviendaModel,
+        FormacionAcademicaModel,
+    )
+
+    estado = EstadoModel.objects.create(estado='DISTRITO CAPITAL')
+    municipio = MunicipioModel.objects.create(municipio='LIBERTADOR', estadoid=estado)
+    parroquia = ParroquiaModel.objects.create(parroquia='CATEDRAL', municipioid=municipio)
+    condicion = CondicionViviendaModel.objects.create(condicion='PROPIA')
+    codigo_postal = CodigoPostalModel.objects.create(codigo='1010', estado_id=estado)
+    nivel = NivelAcademicoModel.objects.create(nivelacademico='UNIVERSITARIO')
+    institucion = InstitucionModel.objects.create(nombre_institucion='UCV')
+
+    cuerpo = _cuerpo(catalogos, cedula='V-7783')
+    cuerpo.update(
+        {
+            'datos_vivienda': {
+                'estado': estado.pk,
+                'municipio': municipio.pk,
+                'parroquia': parroquia.pk,
+                'direccion_exacta': 'Av. Principal',
+                'condicion_vivienda': condicion.pk,
+                'codigo_postal': codigo_postal.pk,
+            },
+            'formacion_academica': [
+                {'nivel_academico': nivel.pk, 'institucion': institucion.pk},
+            ],
+            'contacto_emergencia': [
+                {
+                    'nombres': 'Ana',
+                    'apellidos': 'Pérez',
+                    'telefono': '0412-1234567',
+                    'relacion': None,
+                },
+            ],
+            'antecedentes': [
+                {'organismo': None, 'fecha_ingreso': '2001-01-01', 'fecha_egreso': '2005-01-01'},
+            ],
+        }
+    )
+
+    respuesta = _cliente('pasivos.crear').post(
+        '/api/v1/pasivos/', cuerpo, format='json',
+    )
+
+    assert respuesta.status_code == 201, respuesta.content
+    empleado = EmployeeModel.objects.get(cedulaidentidad='V-7783')
+    vivienda = DatosViviendaModel.objects.get(empleado=empleado)
+    assert vivienda.estado_id == estado.pk
+    assert vivienda.municipio_id == municipio.pk
+    assert vivienda.parroquia_id == parroquia.pk
+    academia = FormacionAcademicaModel.objects.get(empleado=empleado)
+    assert academia.nivel_academico_id == nivel.pk
+    assert academia.institucion_id == institucion.pk
+
+
 def test_rechaza_nomina_de_activos(catalogos):
     respuesta = _cliente('pasivos.crear').post(
         '/api/v1/pasivos/',

@@ -22,3 +22,15 @@ export function puedeGenerarReporteExcel(permisos: string[] | null | undefined):
 export function puedeFiltrarEstructuraOrganizativa(permisos: string[] | null | undefined): boolean {
   return tienePermiso(permisos, PERMISO_REPORTES.estructuraOrganizativa);
 }
+
+/**
+ * El filtro de Dirección Administrativa solo aplica al reporte de activos:
+ * el personal pasivo está concentrado en una sola dirección, así que ese
+ * filtro no aporta nada y se oculta.
+ */
+export function muestraFiltroEstructura(
+  permisos: string[] | null | undefined,
+  categoria: "empleados" | "pasivos",
+): boolean {
+  return categoria !== "pasivos" && puedeFiltrarEstructuraOrganizativa(permisos);
+}

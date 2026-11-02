@@ -4,7 +4,7 @@ Repositorio ORM de Personal (Reglas B4, B7, D-09).
 from datetime import date
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Model, Q
 
 from core.domain.exceptions import NotFoundError
 from apps.personal.domain.entities.empleado import Empleado
@@ -295,7 +295,13 @@ class RepoPersonalORM:
     def _upsert_vivienda(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:
             return
-        DatosViviendaModel.objects.update_or_create(empleado=empleado, defaults=data)
+        DatosViviendaModel.objects.update_or_create(
+            empleado=empleado,
+            defaults=self._normalizar_fks(
+                data,
+                ('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal'),
+            ),
+        )
 
     def _upsert_salud(self, empleado: EmployeeModel, data: dict | None) -> None:
         if not data:
@@ -326,29 +332,41 @@ class RepoPersonalORM:
     def _upsert_formacion_complementaria(self, empleado: EmployeeModel, data) -> None:
         if not data:
             return
+        campos_fk = ('capacitacion', 'institucion', 'procedencia', 'grupo')
         if isinstance(data, list):
             FormacionComplementariaModel.objects.filter(empleado=empleado).delete()
             for item in data:
-                FormacionComplementariaModel.objects.create(empleado=empleado, **item)
+                FormacionComplementariaModel.objects.create(
+                    empleado=empleado, **self._normalizar_fks(item, campos_fk)
+                )
         else:
-            FormacionComplementariaModel.objects.update_or_create(empleado=empleado, defaults=data)
+            FormacionComplementariaModel.objects.update_or_create(
+                empleado=empleado, defaults=self._normalizar_fks(data, campos_fk)
+            )
 
     def _upsert_academico(self, empleado: EmployeeModel, data) -> None:
         if not data:
             return
+        campos_fk = ('nivel_academico', 'carrera', 'mencion', 'institucion')
         if isinstance(data, list):
             FormacionAcademicaModel.objects.filter(empleado=empleado).delete()
             for item in data:
-                FormacionAcademicaModel.objects.create(empleado=empleado, **item)
+                FormacionAcademicaModel.objects.create(
+                    empleado=empleado, **self._normalizar_fks(item, campos_fk)
+                )
         else:
-            FormacionAcademicaModel.objects.update_or_create(empleado=empleado, defaults=data)
+            FormacionAcademicaModel.objects.update_or_create(
+                empleado=empleado, defaults=self._normalizar_fks(data, campos_fk)
+            )
 
     def _replace_contacto_emergencia(self, empleado: EmployeeModel, data_list) -> None:
         if data_list is None:
             return
         ContactoEmergenciaModel.objects.filter(empleado=empleado).delete()
         for item in data_list:
-            ContactoEmergenciaModel.objects.create(empleado=empleado, **item)
+            ContactoEmergenciaModel.objects.create(
+                empleado=empleado, **self._normalizar_fks(item, ('relacion',))
+            )
 
     def _replace_antecedentes(self, empleado: EmployeeModel, data_list) -> None:
         """Réplica exacta de `profile_services.py::replace_antecedentes`."""
@@ -365,18 +383,35 @@ class RepoPersonalORM:
         for item in data_list:
             if not item.get('fecha_ingreso'):
                 continue
+            normalizado = self._normalizar_fks(item, ('organismo',))
             coincidencia = existentes.filter(
-                organismo=item.get('organismo'),
-                fecha_ingreso=item.get('fecha_ingreso'),
-                fecha_egreso=item.get('fecha_egreso'),
+                organismo=normalizado.get('organismo_id') or normalizado.get('organismo'),
+                fecha_ingreso=normalizado.get('fecha_ingreso'),
+                fecha_egreso=normalizado.get('fecha_egreso'),
             ).first()
             if coincidencia:
                 conservados.add(coincidencia.id)
                 continue
-            AntecedenteServicioModel.objects.create(empleado=empleado, **item)
+            AntecedenteServicioModel.objects.create(empleado=empleado, **normalizado)
         eliminables = ids_existentes - conservados - protegidos
         if eliminables:
             AntecedenteServicioModel.objects.filter(id__in=eliminables).delete()
+
+    @staticmethod
+    def _normalizar_fks(datos: dict, campos: tuple[str, ...]) -> dict:
+        """Traduce IDs sueltos a `<campo>_id` en las claves foráneas.
+
+        El alta de activos entrega instancias ya validadas por el serializer;
+        el alta directa de pasivos entrega IDs. `create`/`update_or_create`
+        solo aceptan la instancia o el sufijo `_id`, nunca el número crudo.
+        """
+        normalizado = {}
+        for clave, valor in datos.items():
+            if clave in campos and valor is not None and not isinstance(valor, Model):
+                normalizado[f'{clave}_id'] = valor
+            else:
+                normalizado[clave] = valor
+        return normalizado
 
     # ------------------------------------------------------------------
     # Contrato (R-09): implementa el puerto `RepoContratos` del caso de uso
