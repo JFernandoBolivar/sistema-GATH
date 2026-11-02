@@ -150,13 +150,22 @@ function aplicarAnidados(payload: Record<string, unknown>, data: GuardarEmpleado
 export const repoPersonalApi: RepoPersonal = {
   async listarEmpleados(filtros) {
     const term = filtros?.busqueda || filtros?.cedulaidentidad;
+    const page = filtros?.page && filtros.page > 0 ? filtros.page : 1;
+    const pageSize = filtros?.pageSize && filtros.pageSize > 0 ? filtros.pageSize : 10;
     const raw = await personalApi.getEmpleados({
       q: term,
       busqueda: term,
       codigo: filtros?.codigo,
       tipo_nomina: filtros?.tipo_nomina,
+      page,
+      page_size: pageSize,
     });
-    return raw.map(empleadoApiAEntidad);
+    return {
+      items: raw.results.map(empleadoApiAEntidad),
+      total: raw.total,
+      page: raw.page,
+      pageSize: raw.page_size,
+    };
   },
 
   async obtenerPorCedula(cedula) {

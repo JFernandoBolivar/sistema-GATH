@@ -440,7 +440,26 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         nuevo.employee_id = empleado_cedula
         nuevo.estatusid = estatus_activo
         nuevo.observaciones = motivo.movimiento
-        nuevo.save(update_fields=['employee', 'estatusid', 'observaciones', 'fecha_actualizacion'])
+        campos_actualizados = ['employee', 'estatusid', 'observaciones', 'fecha_actualizacion']
+        # Un código vacante puede haberse creado sin contexto organizativo. Al
+        # ocuparlo, hereda el del cargo que deja el empleado: la tabla física
+        # `EmployeeMovementHistory` exige tipo de personal y dependencia.
+        if nuevo.Tipo_personal_id is None and actual.Tipo_personal_id is not None:
+            nuevo.Tipo_personal = actual.Tipo_personal
+            campos_actualizados.append('Tipo_personal')
+        if nuevo.Dependencia_id is None and actual.Dependencia_id is not None:
+            nuevo.Dependencia = actual.Dependencia
+            campos_actualizados.append('Dependencia')
+        if nuevo.DireccionGeneral_id is None and actual.DireccionGeneral_id is not None:
+            nuevo.DireccionGeneral = actual.DireccionGeneral
+            campos_actualizados.append('DireccionGeneral')
+        if nuevo.DireccionLinea_id is None and actual.DireccionLinea_id is not None:
+            nuevo.DireccionLinea = actual.DireccionLinea
+            campos_actualizados.append('DireccionLinea')
+        if nuevo.Coordinacion_id is None and actual.Coordinacion_id is not None:
+            nuevo.Coordinacion = actual.Coordinacion
+            campos_actualizados.append('Coordinacion')
+        nuevo.save(update_fields=campos_actualizados)
 
         events.cargo_movimiento_ejecutado.send(
             sender=RepoCargosORM,

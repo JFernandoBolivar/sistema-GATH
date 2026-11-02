@@ -56,6 +56,25 @@ def cargos_historial_de_egreso(egreso_id: int) -> list[dict]:
     return [cargo_egresado_a_dict(c) for c in qs]
 
 
+def _sexo_nombre(emp) -> str | None:
+    if emp is None or not getattr(emp, 'sexoid_id', None):
+        return None
+    return getattr(getattr(emp, 'sexoid', None), 'sexo', None)
+
+
+def _fecha_ingreso_organismo(modelo, expediente: dict | None = None) -> str | None:
+    """Fecha de ingreso al organismo: anotada en el listado o derivada del expediente."""
+    anotada = getattr(modelo, 'fecha_ingreso_organismo', None)
+    if anotada:
+        return str(anotada)
+    fechas = [
+        a.get('fecha_ingreso')
+        for a in (expediente or {}).get('antecedentes', [])
+        if a.get('fecha_ingreso')
+    ]
+    return min(fechas) if fechas else None
+
+
 def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = None) -> Pasivo:
     emp = modelo.employee
     nombres = emp.nombres if emp else ""
@@ -73,6 +92,8 @@ def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = No
         telefono_habitacion=emp.telefono_habitacion if emp else None,
         carnet_patria=emp.carnet_patria if emp else None,
         fecha_nacimiento=str(emp.fecha_nacimiento) if emp and emp.fecha_nacimiento else None,
+        sexo_nombre=_sexo_nombre(emp),
+        fecha_ingreso_organismo=_fecha_ingreso_organismo(modelo, expediente),
         estado_civil_id=emp.estadoCivil_id if emp else None,
         nacionalidad_id=emp.nacionalidad_id if emp else None,
         cargos_historial=cargos_historial_de_egreso(modelo.pk),
@@ -103,6 +124,8 @@ def pasivo_desde_asignacion(asignacion, expediente: dict | None = None) -> Pasiv
         telefono_habitacion=emp.telefono_habitacion if emp else None,
         carnet_patria=emp.carnet_patria if emp else None,
         fecha_nacimiento=str(emp.fecha_nacimiento) if emp and emp.fecha_nacimiento else None,
+        sexo_nombre=_sexo_nombre(emp),
+        fecha_ingreso_organismo=_fecha_ingreso_organismo(asignacion, expediente),
         estado_civil_id=emp.estadoCivil_id if emp else None,
         nacionalidad_id=emp.nacionalidad_id if emp else None,
         **(expediente or {}),

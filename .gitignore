@@ -44,3 +44,23 @@ Thumbs.db
 # Capturas de pantalla de documentación (entregable aparte, no versionado)
 capturas_sistema/
 capturas_sistema.zip
+
+# Documentación, evidencias y herramientas de IA fuera del repositorio de la app
+/*.md
+/*.html
+/*.odt
+/*.jpg
+/*.jpeg
+auditoria_*/
+**/auditoria_*/
+**/test-results/
+**/playwright-report/
+**/capturas/
+**/e2e-results/
+*.patch
+respaldo*
+estado_*.txt
+.agents/
+**/.claude/
+**/.opencode/
+**/tmp-*.spec.ts

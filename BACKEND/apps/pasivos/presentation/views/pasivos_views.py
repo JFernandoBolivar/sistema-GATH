@@ -31,9 +31,11 @@ from apps.pasivos.application.use_cases.procesar_egreso import procesar_egreso
 from apps.pasivos.application.use_cases.registrar_pasivo_directo import registrar_pasivo_directo
 from apps.pasivos.infrastructure.pdf_pasivo import construir_pdf_expediente_pasivo
 from apps.pasivos.infrastructure.repositories.repo_pasivos_orm import RepoPasivosORM
+from apps.pasivos.infrastructure.serializers.pasivo_actualizar_serializer import (
+    PasivoActualizarInputSerializer,
+)
 from apps.pasivos.presentation.serializers.pasivos_serializers import (
     CrearSobrevivientesInputSerializer,
-    PasivoActualizarInputSerializer,
     PasivoCrearInputSerializer,
     PasivoEgresoInputSerializer,
     PasivoListaInputSerializer,
@@ -86,6 +88,7 @@ class PasivosListView(APIView):
             RepoPasivosORM(),
             cedula=filtros.get('cedula') or None,
             nombre=filtros.get('nombre') or None,
+            codigo=filtros.get('codigo') or None,
             tipo_nomina_id=filtros.get('tipo_nomina_id') or None,
             fecha_desde=filtros.get('fecha_desde'),
             fecha_hasta=filtros.get('fecha_hasta'),

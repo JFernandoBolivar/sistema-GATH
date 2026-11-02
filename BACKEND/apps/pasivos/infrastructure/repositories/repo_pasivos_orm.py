@@ -2,7 +2,7 @@
 Repositorio ORM de Pasivos (Reglas B4, B7, D-09).
 """
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Min, Q
 from django.utils import timezone
 
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
@@ -92,6 +92,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         *,
         cedula: str | None = None,
         nombre: str | None = None,
+        codigo: str | None = None,
         tipo_nomina_id: int | None = None,
         fecha_desde=None,
         fecha_hasta=None,
@@ -102,7 +103,9 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         por_cedula: dict[str, Pasivo] = {}
 
         qs_egresados = (
-            EmployeeEgresadoModel.objects.select_related('employee', 'motivo_egreso').all()
+            EmployeeEgresadoModel.objects.select_related('employee', 'employee__sexoid', 'motivo_egreso')
+            .annotate(fecha_ingreso_organismo=Min('employee__antecedentes_servicio__fecha_ingreso'))
+            .all()
             .order_by('-fecha_egreso')
         )
         if cedula:
@@ -111,6 +114,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             qs_egresados = qs_egresados.filter(
                 Q(employee__nombres__icontains=nombre) | Q(employee__apellidos__icontains=nombre)
             )
+        if codigo:
+            qs_egresados = qs_egresados.filter(n_contrato__icontains=codigo)
         if tipo_nomina_id:
             # Los egresados no tienen nómina vigente: si se filtra por nómina
             # pasiva, solo cuentan las asignaciones.
@@ -119,8 +124,9 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             por_cedula[str(fila.employee_id)] = pasivo_a_entidad(fila)
 
         qs_asignaciones = (
-            AsigTrabajoModel.objects.select_related('employee', 'tiponominaid')
+            AsigTrabajoModel.objects.select_related('employee', 'employee__sexoid', 'tiponominaid')
             .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False)
+            .annotate(fecha_ingreso_organismo=Min('employee__antecedentes_servicio__fecha_ingreso'))
             .order_by('-fecha_actualizacion')
         )
         if cedula:
@@ -129,6 +135,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             qs_asignaciones = qs_asignaciones.filter(
                 Q(employee__nombres__icontains=nombre) | Q(employee__apellidos__icontains=nombre)
             )
+        if codigo:
+            qs_asignaciones = qs_asignaciones.filter(codigo__icontains=codigo)
         if tipo_nomina_id:
             qs_asignaciones = qs_asignaciones.filter(tiponominaid_id=tipo_nomina_id)
         for asig in qs_asignaciones:
@@ -166,7 +174,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         expediente = construir_expediente(empleado) if empleado else None
 
         asignacion = (
-            AsigTrabajoModel.objects.select_related('employee', 'tiponominaid')
+            AsigTrabajoModel.objects.select_related('employee', 'employee__sexoid', 'tiponominaid')
             .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee_id=cedula)
             .order_by('-fecha_actualizacion')
             .first()
@@ -175,7 +183,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             return pasivo_desde_asignacion(asignacion, expediente=expediente)
 
         fila = (
-            EmployeeEgresadoModel.objects.select_related('employee', 'motivo_egreso')
+            EmployeeEgresadoModel.objects.select_related('employee', 'employee__sexoid', 'motivo_egreso')
             .filter(employee__cedulaidentidad=cedula)
             .first()
         )

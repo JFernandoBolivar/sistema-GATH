@@ -62,3 +62,31 @@ def listar_personal(
         coordinacion_id=coordinacion_id,
     )
     return [_empleado_a_dto(e) for e in entidades]
+
+
+def listar_personal_paginado(
+    repo: RepoPersonal,
+    *,
+    page: int = 1,
+    page_size: int = 10,
+    busqueda: str | None = None,
+    codigo: str | None = None,
+    tipo_nomina: str | int | None = None,
+    dependencia_id: int | None = None,
+    direccion_general_id: int | None = None,
+    direccion_linea_id: int | None = None,
+    coordinacion_id: int | None = None,
+) -> tuple[list[EmpleadoDTO], int]:
+    """Una página del listado y el total; los filtros se aplican en el repositorio."""
+    entidades, total = repo.listar_empleados_paginados(
+        limit=page_size,
+        offset=(page - 1) * page_size,
+        busqueda=busqueda,
+        codigo=codigo,
+        tipo_nomina=tipo_nomina,
+        dependencia_id=dependencia_id,
+        direccion_general_id=direccion_general_id,
+        direccion_linea_id=direccion_linea_id,
+        coordinacion_id=coordinacion_id,
+    )
+    return [_empleado_a_dto(e) for e in entidades], total

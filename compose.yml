@@ -7,6 +7,27 @@ x-backend-env: &backend-env
   CELERY_RESULT_BACKEND: redis://:${REDIS_PASS}@redis:6379/1
 
 services:
+  # ── Bootstrap (una sola vez por base): permisos, roles, cuentas y superadmin ──
+  # Comparte la imagen del backend y corre el entrypoint (espera Postgres y migra).
+  # La marca `core_bootstrap_state` evita repetir los pasos pesados en cada arranque.
+  bootstrap:
+    container_name: gath_bootstrap
+    build:
+      context: ./BACKEND
+      dockerfile: django.dockerfile
+    env_file:
+      - ./BACKEND/.env
+    image: gath-backend:latest
+    environment: *backend-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [backend, broker, storage, cache]
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["sh", "-c", "./docker-entrypoint.sh python manage.py preparar_produccion --automatico"]
+    restart: "no"
+
   django:
     container_name: django-App
     build:
@@ -28,6 +49,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
     ports:
       - "8001:8000"
     volumes:
@@ -58,6 +81,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+      bootstrap:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "celery -A GATH inspect ping -d celery@$$HOSTNAME -t 5 || exit 1"]
       interval: 30s

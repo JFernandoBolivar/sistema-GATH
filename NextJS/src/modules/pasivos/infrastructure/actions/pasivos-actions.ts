@@ -202,7 +202,7 @@ export async function descargarPasivoPdfAction(cedula: string) {
 
 export async function getPasivosPaginadosAction(filtros: {
   cedula?: string;
-  nombre?: string;
+  codigo?: string;
   tipoNominaId?: number;
   fechaDesde?: string;
   fechaHasta?: string;

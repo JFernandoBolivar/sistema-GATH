@@ -33,7 +33,7 @@ export type ProcesarEgresoFormType = z.infer<typeof procesarEgresoSchema>;
 /** Filtros del listado paginado (servidor 10/50). */
 export const filtrosPasivosSchema = z.object({
   cedula: z.string().trim().max(20).optional(),
-  nombre: z.string().trim().max(100).optional(),
+  codigo: z.string().trim().max(50).optional(),
   tipoNominaId: z.number().int().positive().optional(),
   fechaDesde: z.string().trim().optional(),
   fechaHasta: z.string().trim().optional(),

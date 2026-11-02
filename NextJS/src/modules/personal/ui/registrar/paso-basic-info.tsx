@@ -59,7 +59,7 @@ export function PasoBasicInfo({
     () => getEmpleadosAction({ cedulaidentidad: cedulaLimpia }),
   );
   const validateCedula = useMemo(
-    () => (coincidencias ?? []).some((e) => e.cedula === cedulaLimpia),
+    () => (coincidencias?.items ?? []).some((e) => e.cedula === cedulaLimpia),
     [coincidencias, cedulaLimpia],
   );
 

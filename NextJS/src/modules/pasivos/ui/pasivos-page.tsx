@@ -28,9 +28,9 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { CatalogoPasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
 import { DetallePasivo } from "./detalle-pasivo";
-import { EditarPasivoDialog } from "./editar-pasivo-dialog";
 import { construirColumnasPasivos } from "./pasivos-columns";
 import {
+  descargarPasivoPdfAction,
   getPasivosPaginadosAction,
   getTiposNominaAction,
 } from "../infrastructure/actions/pasivos-actions";
@@ -38,7 +38,7 @@ import type { FiltrosPasivosFormType } from "./schema/schema-pasivo";
 
 const FILTROS_VACIOS: FiltrosPasivosFormType = {
   cedula: "",
-  nombre: "",
+  codigo: "",
   tipoNominaId: undefined,
   limit: 10,
   offset: 0,
@@ -47,15 +47,12 @@ const FILTROS_VACIOS: FiltrosPasivosFormType = {
 export default function PasivosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeEditar = tienePermiso(permisos, "pasivos.editar");
-  const puedeVerFamiliares = tienePermiso(permisos, "familiares.ver");
-  const puedeAgregarFamiliar = tienePermiso(permisos, "familiares.crear");
+  const puedeExportarPdf = tienePermiso(permisos, "pasivos.exportar_pdf");
 
   const [borrador, setBorrador] = useState<FiltrosPasivosFormType>(FILTROS_VACIOS);
   const [filtros, setFiltros] = useState<FiltrosPasivosFormType>(FILTROS_VACIOS);
   const [tiposNomina, setTiposNomina] = useState<CatalogoPasivoDTO[]>([]);
   const [detalle, setDetalle] = useState<PasivoDTO | null>(null);
-  const [editando, setEditando] = useState<PasivoDTO | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +66,7 @@ export default function PasivosPage() {
     });
   }, []);
 
-  const { data, error: errorLista, isLoading, mutate } = useSWR(
+  const { data, error: errorLista, isLoading } = useSWR(
     ["pasivos-paginados", JSON.stringify(filtros)],
     () => getPasivosPaginadosAction(filtros),
   );
@@ -84,6 +81,27 @@ export default function PasivosPage() {
   const offset = pagina?.offset ?? filtros.offset ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / limit));
   const paginaActual = Math.floor(offset / limit) + 1;
+
+  const descargarPdf = async (pasivo: PasivoDTO) => {
+    setError(null);
+    try {
+      const resultado = await descargarPasivoPdfAction(pasivo.cedula);
+      if (!(resultado instanceof Blob)) {
+        setError(
+          (resultado as { error: string }).error ?? "No fue posible generar el PDF del pasivo.",
+        );
+        return;
+      }
+      const url = window.URL.createObjectURL(resultado);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `expediente-pasivo-${pasivo.cedula}.pdf`;
+      enlace.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError("No fue posible generar el PDF del pasivo.");
+    }
+  };
 
   const aplicar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,27 +128,27 @@ export default function PasivosPage() {
       <div className="flex flex-col gap-4">
         <Card className="bg-white">
           <CardContent className="p-4">
-            <form onSubmit={aplicar} className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" noValidate>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="filtro-cedula">Cédula</Label>
+            <form onSubmit={aplicar} className="flex flex-row items-end gap-2 flex-wrap" noValidate>
+              <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+                <Label htmlFor="filtro-cedula">Buscar Cédula</Label>
                 <Input
                   id="filtro-cedula"
                   value={borrador.cedula ?? ""}
                   onChange={(e) => setBorrador((p) => ({ ...p, cedula: e.target.value }))}
-                  placeholder="V-12345678"
+                  placeholder="buscar cedula..."
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="filtro-nombre">Nombre</Label>
+              <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+                <Label htmlFor="filtro-codigo">Buscar Código De Trabajador</Label>
                 <Input
-                  id="filtro-nombre"
-                  value={borrador.nombre ?? ""}
-                  onChange={(e) => setBorrador((p) => ({ ...p, nombre: e.target.value }))}
-                  placeholder="Nombres o apellidos"
+                  id="filtro-codigo"
+                  value={borrador.codigo ?? ""}
+                  onChange={(e) => setBorrador((p) => ({ ...p, codigo: e.target.value }))}
+                  placeholder="buscar codigo de trabajador..."
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="filtro-nomina">Tipo de nómina</Label>
+              <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+                <Label htmlFor="filtro-nomina">Tipo de Nomina</Label>
                 <Select
                   value={borrador.tipoNominaId ? String(borrador.tipoNominaId) : "todos"}
                   onValueChange={(v) =>
@@ -141,10 +159,10 @@ export default function PasivosPage() {
                   }
                 >
                   <SelectTrigger id="filtro-nomina" className="w-full">
-                    <SelectValue placeholder="Todas" />
+                    <SelectValue placeholder="Ninguno" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todos">Todas</SelectItem>
+                    <SelectItem value="todos">Ninguno</SelectItem>
                     {tiposNomina.map((t) => (
                       <SelectItem key={t.id} value={String(t.id)}>
                         {t.nombre}
@@ -153,8 +171,8 @@ export default function PasivosPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-wrap items-end gap-2 md:col-span-2 xl:col-span-3">
-                <Button type="submit" disabled={isPending}>
+              <div className="flex items-end gap-2">
+                <Button type="submit" className="cursor-pointer shrink-0" disabled={isPending}>
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                   ) : (
@@ -162,8 +180,13 @@ export default function PasivosPage() {
                   )}
                   Buscar
                 </Button>
-                <Button type="button" variant="outline" onClick={limpiar}>
-                  <Eraser className="size-4" aria-hidden="true" /> Limpiar
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="cursor-pointer shrink-0"
+                  onClick={limpiar}
+                >
+                  Limpiar <Eraser className="size-4 ml-1" />
                 </Button>
               </div>
             </form>
@@ -184,10 +207,8 @@ export default function PasivosPage() {
           <DataTable
             columns={construirColumnasPasivos({
               onVerDetalle: setDetalle,
-              onEditar: setEditando,
-              puedeEditar,
-              puedeVerFamiliares,
-              puedeAgregarFamiliar,
+              onDescargarPdf: descargarPdf,
+              puedeExportarPdf,
             })}
             data={resultados}
             emptyMessage="No hay trabajadores pasivos que coincidan con los filtros."
@@ -248,18 +269,6 @@ export default function PasivosPage() {
           open={!!detalle}
           onOpenChange={(open) => {
             if (!open) setDetalle(null);
-          }}
-        />
-
-        <EditarPasivoDialog
-          pasivo={editando}
-          open={!!editando}
-          onOpenChange={(open) => {
-            if (!open) setEditando(null);
-          }}
-          onGuardado={() => {
-            setEditando(null);
-            mutate();
           }}
         />
       </div>

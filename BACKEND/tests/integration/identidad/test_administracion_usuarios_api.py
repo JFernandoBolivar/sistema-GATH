@@ -3,15 +3,20 @@ Integración (BD de pruebas) de la administración de usuarios y de la matriz de
 permisos (D4): paginación y filtros, detalle con permiso efectivo, overrides,
 matriz, reglas a)–g), permisos_version y auditoría.
 """
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
 from apps.identidad.infrastructure.models.permiso_model import (
     PermisoModel,
     RolPermisoModel,
+)
+from apps.identidad.infrastructure.models.password_inicial_model import (
+    PasswordInicialModel,
 )
 from apps.identidad.infrastructure.models.permisos_version_model import (
     PermisosVersionModel,
@@ -124,6 +129,13 @@ def cuenta(cedula, rol_id=3, nombres='ANA', apellidos='PRUEBA', correo=None, act
     if not fila.password or not fila.check_password(cedula):
         fila.set_password(cedula)
         fila.save()
+    PasswordInicialModel.objects.get_or_create(
+        cuenta_id=fila.pk,
+        defaults={
+            'emitida_en': timezone.now(),
+            'vence_en': timezone.now() + timedelta(days=1),
+        },
+    )
     return fila
 
 
@@ -196,6 +208,36 @@ def test_listado_incluye_ultimo_acceso_y_password_inicial_pendiente_sin_departam
     assert 'ultimo_acceso' in fila
     assert fila['password_inicial_pendiente'] is True
     assert fila['rol_nombre'] == 'AUTOGESTION'
+
+
+def test_listado_no_ejecuta_bcrypt_ni_barre_condiciones_completas(matriz, roles, monkeypatch):
+    """El listado resuelve condición y contraseña inicial en la misma consulta.
+
+    Regresión de rendimiento: antes se hacían dos barridos completos de cédulas
+    y hasta dos `check_password` (bcrypt) por cuenta de la página.
+    """
+    cuenta('36111111', rol_id=3)
+
+    def prohibido(*_args, **_kwargs):
+        raise AssertionError('El listado no debe ejecutar esta consulta por fila.')
+
+    monkeypatch.setattr(
+        'apps.identidad.infrastructure.repositories.repo_cuentas_orm.RepoCuentasORM.verificar_password',
+        prohibido,
+    )
+    monkeypatch.setattr(
+        'apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm.'
+        'RepoCondicionTrabajadorORM.cedulas_por_condicion',
+        prohibido,
+    )
+
+    respuesta = cliente(VER).get(f'{BASE}/usuarios/')
+
+    assert respuesta.status_code == 200
+    fila = respuesta.json()['data']['resultados'][0]
+    assert fila['password_inicial_pendiente'] is True
+    assert fila['debe_cambiar_password'] is True
+    assert fila['condicion'] in ('ACTIVO', 'PASIVO', 'SIN_ASIGNACION')
 
 
 def test_un_usuario_sin_permiso_no_ve_el_listado(roles):

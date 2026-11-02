@@ -23,7 +23,7 @@ from apps.personal.application.use_cases.gestionar_personal import (
     guardar_foto,
     obtener_clave_foto,
 )
-from apps.personal.application.use_cases.listar_personal import listar_personal
+from apps.personal.application.use_cases.listar_personal import listar_personal_paginado
 from apps.personal.application.use_cases.obtener_personal import obtener_personal_por_cedula
 from apps.personal.infrastructure.mappers.mapper_personal import ruta_foto
 from apps.personal.infrastructure.pdf_empleado import construir_pdf_expediente_empleado
@@ -32,10 +32,15 @@ from apps.personal.infrastructure.serializers.empleado_escritura_serializers imp
     EmpleadoActualizarSerializer,
     EmpleadoCrearSerializer,
 )
-from apps.personal.presentation.filters.personal_filters import FILTROS_ESTRUCTURA, filtros_listado_personal
+from apps.personal.presentation.filters.personal_filters import (
+    FILTROS_ESTRUCTURA,
+    filtros_listado_personal,
+    paginacion_listado,
+)
 from apps.personal.presentation.serializers.personal_serializers import (
     EmpleadoListadoSerializer,
     EmpleadoSerializer,
+    ListadoEmpleadosPaginadoSerializer,
 )
 
 
@@ -62,14 +67,31 @@ class EmpleadosListView(APIView):
             OpenApiParameter('q', str, description='Cédula, nombres o apellidos'),
             OpenApiParameter('codigo', str),
             OpenApiParameter('tipo_nomina', int),
+            OpenApiParameter('page', int, description='Página (1-based). Por defecto 1.'),
+            OpenApiParameter(
+                'page_size', int, description='Tamaño de página (máximo 50). Por defecto 10.'
+            ),
             *[OpenApiParameter(nombre, int) for nombre in FILTROS_ESTRUCTURA],
         ],
-        responses={200: EmpleadoListadoSerializer(many=True)},
+        responses={200: ListadoEmpleadosPaginadoSerializer},
     )
     def get(self, request):
         repo = RepoPersonalORM()
-        dtos = listar_personal(repo, **filtros_listado_personal(request.query_params))
-        return ok(EmpleadoListadoSerializer(dtos, many=True).data)
+        paginacion = paginacion_listado(request.query_params)
+        dtos, total = listar_personal_paginado(
+            repo,
+            page=paginacion['page'],
+            page_size=paginacion['page_size'],
+            **filtros_listado_personal(request.query_params),
+        )
+        return ok(
+            {
+                'results': EmpleadoListadoSerializer(dtos, many=True).data,
+                'total': total,
+                'page': paginacion['page'],
+                'page_size': paginacion['page_size'],
+            }
+        )
 
     @extend_schema(
         tags=['Personal'],

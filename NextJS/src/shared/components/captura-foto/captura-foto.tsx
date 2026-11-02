@@ -59,6 +59,7 @@ export function CapturaFoto({
   );
   const tieneVistaInicial = useRef(valorInicial !== null);
   const [tactil, setTactil] = useState(false);
+  const [arrastrando, setArrastrando] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const flujoRef = useRef<MediaStream | null>(null);
@@ -266,19 +267,57 @@ export function CapturaFoto({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              <label htmlFor={`${idBase}-archivo`} className="text-sm text-muted-foreground">
-                Archivo JPG o PNG, hasta {Math.round(maxBytes / (1024 * 1024))} MB
-              </label>
-              <input
-                ref={archivoRef}
-                id={`${idBase}-archivo`}
-                type="file"
-                accept="image/jpeg,image/png"
-                disabled={disabled}
-                onChange={(e) => alElegirArchivo("ARCHIVO", e.target.files?.[0])}
-                className="block min-h-11 w-full max-w-md rounded-md border border-input bg-card p-2 text-base file:mr-3 file:min-h-9 file:rounded-md file:border-0 file:bg-primary file:px-3 file:font-semibold file:text-primary-foreground"
-              />
+            <div className="flex flex-col gap-3">
+              <div
+                role="button"
+                tabIndex={disabled ? -1 : 0}
+                aria-label="Seleccionar una foto para subir"
+                aria-disabled={disabled}
+                onClick={() => {
+                  if (!disabled) archivoRef.current?.click();
+                }}
+                onKeyDown={(e) => {
+                  if (disabled) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    archivoRef.current?.click();
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (!disabled) setArrastrando(true);
+                }}
+                onDragLeave={() => setArrastrando(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setArrastrando(false);
+                  if (disabled) return;
+                  const archivo = e.dataTransfer.files?.[0];
+                  if (archivo) alElegirArchivo("ARCHIVO", archivo);
+                }}
+                className={cn(
+                  "mx-auto flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-input bg-muted/20 px-6 py-10 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
+                  arrastrando && "border-primary bg-primary/5",
+                  disabled && "cursor-not-allowed opacity-60",
+                )}
+              >
+                <Upload className="size-10 text-muted-foreground" aria-hidden />
+                <p className="text-base font-semibold">Haz clic aquí para seleccionar foto</p>
+                <p className="text-xs text-muted-foreground">
+                  PNG, JPG hasta {Math.round(maxBytes / (1024 * 1024))}MB
+                </p>
+                <p className="text-sm text-muted-foreground">o arrastra y suelta la imagen</p>
+                <input
+                  ref={archivoRef}
+                  id={`${idBase}-archivo`}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  disabled={disabled}
+                  aria-label={`Archivo JPG o PNG, hasta ${Math.round(maxBytes / (1024 * 1024))} MB`}
+                  onChange={(e) => alElegirArchivo("ARCHIVO", e.target.files?.[0])}
+                  className="sr-only"
+                />
+              </div>
               {tactil ? (
                 <>
                   <input
@@ -294,7 +333,7 @@ export function CapturaFoto({
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-fit"
+                    className="mx-auto w-fit"
                     disabled={disabled}
                     onClick={() => tactilRef.current?.click()}
                   >

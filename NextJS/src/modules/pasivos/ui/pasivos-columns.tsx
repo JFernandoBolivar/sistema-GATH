@@ -1,13 +1,11 @@
 "use client";
 
 /**
- * Columnas del listado de pasivos. Acciones: copiar cédula, ver detalle,
- * editar datos básicos (pasivos.editar), consultar/agregar familiares del
- * pasivo. El detalle sigue abriéndose en el Sheet del módulo.
+ * Columnas del listado de pasivos. Acciones: copiar cédula, ver detalle y
+ * descargar el PDF del expediente (si tiene `pasivos.exportar_pdf`).
  */
-import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ContactRound, Copy, Eye, MoreHorizontal, Pencil, UserRoundPlus } from "lucide-react";
+import { Copy, Eye, FileDown, MoreHorizontal } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -16,19 +14,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/components/dropdown-menu";
 import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 
 import type { PasivoDTO } from "../application/dtos/pasivos-dto";
 
 export interface AccionesPasivo {
   onVerDetalle: (pasivo: PasivoDTO) => void;
-  onEditar: (pasivo: PasivoDTO) => void;
-  puedeEditar: boolean;
-  puedeVerFamiliares: boolean;
-  puedeAgregarFamiliar: boolean;
+  onDescargarPdf: (pasivo: PasivoDTO) => void | Promise<void>;
+  puedeExportarPdf: boolean;
 }
 
 function AccionesCell({ pasivo, acciones }: { pasivo: PasivoDTO; acciones: AccionesPasivo }) {
@@ -48,29 +44,10 @@ function AccionesCell({ pasivo, acciones }: { pasivo: PasivoDTO; acciones: Accio
         <DropdownMenuItem onClick={() => acciones.onVerDetalle(pasivo)}>
           <Eye className="size-4" aria-hidden="true" /> Ver detalle
         </DropdownMenuItem>
-        {acciones.puedeEditar && (
-          <DropdownMenuItem onClick={() => acciones.onEditar(pasivo)}>
-            <Pencil className="size-4" aria-hidden="true" /> Editar datos
+        {acciones.puedeExportarPdf && (
+          <DropdownMenuItem onClick={() => acciones.onDescargarPdf(pasivo)}>
+            <FileDown className="size-4" aria-hidden="true" /> Descargar PDF
           </DropdownMenuItem>
-        )}
-        {(acciones.puedeVerFamiliares || acciones.puedeAgregarFamiliar) && (
-          <>
-            <DropdownMenuSeparator />
-            {acciones.puedeVerFamiliares && (
-              <DropdownMenuItem asChild>
-                <Link href={`/familiares/consultar?cedula=${pasivo.cedula}`}>
-                  <ContactRound className="size-4" aria-hidden="true" /> Ver familiares
-                </Link>
-              </DropdownMenuItem>
-            )}
-            {acciones.puedeAgregarFamiliar && (
-              <DropdownMenuItem asChild>
-                <Link href={`/familiares/registrar?cedula=${pasivo.cedula}`}>
-                  <UserRoundPlus className="size-4" aria-hidden="true" /> Agregar familiar
-                </Link>
-              </DropdownMenuItem>
-            )}
-          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -80,33 +57,41 @@ function AccionesCell({ pasivo, acciones }: { pasivo: PasivoDTO; acciones: Accio
 export function construirColumnasPasivos(acciones: AccionesPasivo): ColumnDef<PasivoDTO>[] {
   return [
     {
-      accessorKey: "resolucion",
-      header: "Código",
-      cell: ({ getValue }) => (
-        <span className="font-medium">{(getValue() as string | null) ?? "—"}</span>
-      ),
-    },
-    {
       accessorKey: "cedula",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Cédula" />,
       cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span>,
     },
     {
-      id: "nombreCompleto",
-      accessorFn: (row) => `${row.nombres} ${row.apellidos}`,
-      header: "Nombre completo",
+      accessorKey: "nombres",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Nombres" />,
+    },
+    {
+      accessorKey: "apellidos",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Apellidos" />,
+    },
+    {
+      accessorKey: "sexoNombre",
+      header: "Sexo",
+      cell: ({ getValue }) => <span>{(getValue() as string | null) ?? "—"}</span>,
+    },
+    {
+      accessorKey: "fechaNacimiento",
+      header: "F. Nacimiento",
+      cell: ({ getValue }) => (
+        <span className="whitespace-nowrap">{formatearFecha(getValue() as string | null, "—")}</span>
+      ),
+    },
+    {
+      accessorKey: "fechaIngresoOrganismo",
+      header: "F. Ingreso Organismo",
+      cell: ({ getValue }) => (
+        <span className="whitespace-nowrap">{formatearFecha(getValue() as string | null, "—")}</span>
+      ),
     },
     {
       accessorKey: "tipoPasivo",
-      header: "Tipo de nómina",
+      header: "Tipo de pasivo",
       cell: ({ getValue }) => <Badge variant="secondary">{getValue() as string}</Badge>,
-    },
-    {
-      accessorKey: "fechaEgreso",
-      header: "Fecha de egreso",
-      cell: ({ getValue }) => (
-        <span className="text-muted-foreground">{(getValue() as string | null) ?? "—"}</span>
-      ),
     },
     {
       id: "actions",

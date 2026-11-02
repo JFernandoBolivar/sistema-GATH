@@ -66,7 +66,6 @@ import { FamiliarPerfilFisico } from "./familiar-perfil-fisico";
 import { FamiliarDocumentos } from "./familiar-documentos";
 import { ID_OTRA_FAMILIAR } from "./catalogo-otra-familiar";
 import { resolverPendientesOtraFamiliar, type PendienteOtraFamiliar } from "./resolver-otra-familiar";
-import { SelectorPasivo } from "./selector-pasivo";
 import { getPasivoResumenAction } from "../infrastructure/actions/pasivos-familiares-actions";
 
 interface EmployeeSummary {
@@ -284,14 +283,16 @@ export default function FamiliarRegistrarPage() {
       <Card className="bg-card">
         <CardContent className="gap-5 bg-card p-6">
           <div className="flex flex-col gap-2">
-            {modoPasivo ? (
-              <SelectorPasivo onSelect={handleSearch} disabled={isLoadingSearch || isPending} />
-            ) : (
-              <EmployeeSearchForm
-                onSearch={handleSearch}
-                disabled={isLoadingSearch || isPending}
-              />
-            )}
+            <EmployeeSearchForm
+              onSearch={handleSearch}
+              disabled={isLoadingSearch || isPending}
+              label={
+                modoPasivo
+                  ? "Buscar Personal Jubilado/Pasivo"
+                  : "Buscar Cédula Trabajador"
+              }
+              placeholder="00000000"
+            />
 
             <EmployeeInfoBanner
               employee={employee}

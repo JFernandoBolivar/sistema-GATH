@@ -22,7 +22,8 @@ export const repoPasivosApi: RepoPasivos = {
     const page = await pasivosApi.getPasivos({
       cedula: filtros.cedula,
       nombre: filtros.nombre,
-      tipo_nomina: filtros.tipoNominaId,
+      codigo: filtros.codigo,
+      tipo_nomina_id: filtros.tipoNominaId,
       fecha_desde: filtros.fechaDesde,
       fecha_hasta: filtros.fechaHasta,
       limit: filtros.limit,

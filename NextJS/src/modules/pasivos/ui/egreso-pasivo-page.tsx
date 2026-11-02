@@ -7,16 +7,16 @@
  */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, LogOut, Search } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/shared/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Card, CardContent } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Field } from "@/shared/ui/components/field";
-import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
+import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
 import {
   Select,
   SelectContent,
@@ -52,8 +52,10 @@ export default function EgresoPasivoPage() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const buscar = (e: React.FormEvent) => {
-    e.preventDefault();
+  const buscar = (cedulaBusqueda: string) => {
+    const cedulaLimpia = cedulaBusqueda.trim();
+    if (!cedulaLimpia) return;
+    setCedula(cedulaLimpia);
     setError(null);
     setPasivo(null);
     setFamiliares([]);
@@ -62,7 +64,7 @@ export default function EgresoPasivoPage() {
     startTransition(async () => {
       try {
         const [detalle, motivosLista] = await Promise.all([
-          getPasivoPorCedulaAction(cedula.trim()),
+          getPasivoPorCedulaAction(cedulaLimpia),
           getMotivosEgresoPasivoAction(),
         ]);
         if (!detalle || typeof detalle !== "object" || "error" in detalle) {
@@ -119,29 +121,15 @@ export default function EgresoPasivoPage() {
       description="Registre el fallecimiento de un pasivo y, si aplica, el alta de sus sobrevivientes."
     >
       <Card className="max-w-4xl bg-white">
-        <CardHeader>
-          <CardTitle>Buscar personal pasivo</CardTitle>
-          <CardDescription>Ingrese la cédula del jubilado, pensionado o sobreviviente.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
+        <CardContent className="flex flex-col gap-4 pt-6">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-          <form onSubmit={buscar} className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Field className="flex-1">
-              <Label htmlFor="egreso-pasivo-cedula">Cédula del pasivo</Label>
-              <Input
-                id="egreso-pasivo-cedula"
-                value={cedula}
-                onChange={(e) => setCedula(e.target.value)}
-                placeholder="V-12345678"
-                required
-              />
-            </Field>
-            <Button type="submit" disabled={isPending || !cedula.trim()}>
-              {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Search className="size-4" aria-hidden="true" />}
-              Buscar
-            </Button>
-          </form>
+          <EmployeeSearchForm
+            onSearch={buscar}
+            label="Buscar Personal Jubilado/Pasivo"
+            placeholder="00000000"
+            disabled={isPending}
+          />
 
           {pasivo && (
             <div className="flex flex-col gap-4 border-t pt-4">

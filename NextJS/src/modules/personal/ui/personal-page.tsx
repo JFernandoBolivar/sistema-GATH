@@ -20,7 +20,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Eraser, Plus, Search } from "lucide-react";
+import { Eraser, Search } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,7 @@ import { construirColumnasPersonal } from "./personal-columns";
 import { listadoEmpleadosSchema, type ListadoEmpleadosFormType } from "./schema/schema-empleado";
 
 export default function PersonalPage() {
+  const TAMANO_PAGINA = 10;
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const esAdmin = tienePermiso(permisos, "*");
@@ -68,6 +69,8 @@ export default function PersonalPage() {
   const puedeExportarPdf = esAdmin || tienePermiso(permisos, "personal.exportar_pdf");
 
   const [empleados, setEmpleados] = useState<EmpleadoDTO[]>([]);
+  const [pagina, setPagina] = useState(0);
+  const [total, setTotal] = useState(0);
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
   const [nominas, setNominas] = useState<{ id: number; nombre: string }[]>([]);
   const [cargandoNominas, setCargandoNominas] = useState(false);
@@ -105,14 +108,21 @@ export default function PersonalPage() {
     }
   };
 
-  const cargar = (filtros?: ListadoEmpleadosFormType) => {
+  const cargar = (filtros?: ListadoEmpleadosFormType, pageIndex = 0) => {
     const consulta = ++ultimaConsultaRef.current;
     setCargandoPersonal(true);
     startTransition(async () => {
       setError(null);
       try {
-        const data = await getEmpleadosAction(filtros);
-        if (consulta === ultimaConsultaRef.current) setEmpleados(data);
+        const data = await getEmpleadosAction(filtros, {
+          page: pageIndex + 1,
+          pageSize: TAMANO_PAGINA,
+        });
+        if (consulta === ultimaConsultaRef.current) {
+          setEmpleados(data.items);
+          setTotal(data.total);
+          setPagina(data.page - 1);
+        }
       } catch {
         if (consulta === ultimaConsultaRef.current) setError("No fue posible cargar el personal.");
       } finally {
@@ -189,7 +199,7 @@ export default function PersonalPage() {
       setError(null);
       try {
         await subirFotoEmpleadoAction(cedula, formData);
-        cargar(form.getValues());
+        cargar(form.getValues(), pagina);
       } catch {
         setError("No fue posible subir la foto.");
       } finally {
@@ -330,17 +340,6 @@ export default function PersonalPage() {
             >
               Limpiar <Eraser className="size-4 ml-1" />
             </Button>
-            {puedeCrear && (
-              <Button
-                asChild
-                variant="outline"
-                className="cursor-pointer self-end ml-auto border-blue-600 text-blue-600 hover:bg-blue-50"
-              >
-                <Link href="/personal/registrar">
-                  <Plus className="size-4 mr-1" /> Nuevo Trabajador
-                </Link>
-              </Button>
-            )}
           </div>
         </form>
       </Form>
@@ -362,7 +361,17 @@ export default function PersonalPage() {
       {cargandoPersonal ? (
         <Loading promiseMessage="Cargando Información" />
       ) : (
-        <DataTable columns={columnas} data={empleados} emptyMessage="Sin empleados." />
+        <DataTable
+          columns={columnas}
+          data={empleados}
+          emptyMessage="Sin empleados."
+          pagination={{
+            pageIndex: pagina,
+            pageSize: TAMANO_PAGINA,
+            total,
+            onPageChange: (indice) => cargar(form.getValues(), indice),
+          }}
+        />
       )}
 
       <EmpleadoDetalleSheet
@@ -378,7 +387,7 @@ export default function PersonalPage() {
         }
         onExportarPdf={onExportarPdf}
         onGuardado={() => {
-          cargar(form.getValues());
+          cargar(form.getValues(), pagina);
           if (viendoDetalle) onVerDetalle(viendoDetalle.cedula);
         }}
         exportandoPdf={exportandoPdf}

@@ -24,6 +24,8 @@ export interface PasivoApiItem {
   telefono_habitacion: string | null;
   carnet_patria: string | null;
   fecha_nacimiento: string | null;
+  sexo_nombre?: string | null;
+  fecha_ingreso_organismo?: string | null;
   estado_civil_id: number | null;
   nacionalidad_id: number | null;
   datos_vivienda: Record<string, unknown> | null;
@@ -46,7 +48,8 @@ export interface PaginaPasivosApi {
 export interface FiltrosPasivosApi {
   cedula?: string;
   nombre?: string;
-  tipo_nomina?: number;
+  codigo?: string;
+  tipo_nomina_id?: number;
   fecha_desde?: string;
   fecha_hasta?: string;
   limit?: number;
@@ -131,7 +134,8 @@ export const pasivosApi = {
       params: {
         cedula: filtros.cedula,
         nombre: filtros.nombre,
-        tipo_nomina: filtros.tipo_nomina,
+        codigo: filtros.codigo,
+        tipo_nomina_id: filtros.tipo_nomina_id,
         fecha_desde: filtros.fecha_desde,
         fecha_hasta: filtros.fecha_hasta,
         limit: filtros.limit,

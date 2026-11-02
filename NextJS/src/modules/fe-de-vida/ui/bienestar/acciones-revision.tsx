@@ -133,6 +133,13 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
         </div>
       )}
 
+      {tiene("aprobar_directo") ? (
+        <p className="text-sm text-muted-foreground">
+          La aprobación directa valida la fe de vida sin el segundo check y queda registrada en la
+          bitácora con su nombre y justificación.
+        </p>
+      ) : null}
+
       {dialogo === "devolver" ? (
         <DialogoDevolver
           abierto
@@ -161,6 +168,13 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
           onCerrar={() => setDialogo(null)}
           titulo="Aprobación directa"
           descripcion="Valida la fe de vida sin segundo check. Queda registrada con su justificación."
+          aviso={
+            <>
+              <strong>Salta el segundo check.</strong> La fe de vida queda validada de inmediato,
+              sin la revisión de otra persona, y no se puede deshacer. La acción queda en la
+              auditoría con su nombre y la justificación que escriba.
+            </>
+          }
           etiqueta="La justificación"
           textoBoton="Aprobar"
           onConfirmar={(t) => ejecutar(() => aprobarDirectoAction(solicitud.id, t))}

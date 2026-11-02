@@ -19,6 +19,22 @@ class RepoPersonal(Protocol):
     ) -> list[Empleado]:
         ...
 
+    def listar_empleados_paginados(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        busqueda: str | None = None,
+        codigo: str | None = None,
+        tipo_nomina: str | int | None = None,
+        dependencia_id: int | None = None,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+    ) -> tuple[list[Empleado], int]:
+        """Página de empleados activos y total de coincidencias."""
+        ...
+
     def obtener_por_cedula(self, cedula: str) -> Empleado | None:
         ...
 

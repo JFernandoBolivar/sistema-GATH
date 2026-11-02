@@ -113,7 +113,12 @@ function BotonesExportacion({
   );
 }
 
-export default function ReportesPage() {
+export default function ReportesPage({
+  tabInicial,
+}: {
+  /** Pestaña con la que abre la página (p. ej. «pasivos» desde Gestión de Pasivos). */
+  tabInicial?: "personal" | "pasivos";
+} = {}) {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const puedeVer = tienePermiso(permisos, PERMISO_REPORTES.ver);
@@ -123,7 +128,7 @@ export default function ReportesPage() {
 
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>(
-    searchParams.get("tab") === "pasivos" ? "pasivos" : "personal",
+    tabInicial ?? (searchParams.get("tab") === "pasivos" ? "pasivos" : "personal"),
   );
   const [personal, setPersonal] = useState<ReporteItemPersonalDTO[]>([]);
   const [pasivos, setPasivos] = useState<ReporteItemPasivoDTO[]>([]);

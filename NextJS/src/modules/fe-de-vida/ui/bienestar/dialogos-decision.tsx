@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -105,6 +106,7 @@ export function DialogoTexto({
   etiqueta,
   textoBoton,
   destructivo = false,
+  aviso,
 }: BaseProps & {
   onConfirmar: (texto: string) => void;
   titulo: string;
@@ -112,6 +114,8 @@ export function DialogoTexto({
   etiqueta: string;
   textoBoton: string;
   destructivo?: boolean;
+  /** Aclaración destacada sobre las consecuencias de la acción. */
+  aviso?: ReactNode;
 }) {
   const {
     register,
@@ -129,6 +133,14 @@ export function DialogoTexto({
             <DialogTitle>{titulo}</DialogTitle>
             <DialogDescription>{descripcion}</DialogDescription>
           </DialogHeader>
+          {aviso ? (
+            <div
+              role="note"
+              className="rounded-md border border-warning/40 bg-warning-soft p-3 text-sm text-foreground"
+            >
+              {aviso}
+            </div>
+          ) : null}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="dec-texto" className="text-base font-medium">
               {etiqueta}

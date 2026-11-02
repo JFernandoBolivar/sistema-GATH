@@ -73,7 +73,12 @@ import {
 } from "../schema/report-schema-employee";
 import Loading from "@/shared/ui/components/loading";
 
-export default function ReportEmployee() {
+export default function ReportEmployee({
+  categoria = "empleados",
+}: {
+  /** Categoría del reporte: activos (`empleados`) o pasivos (`pasivos`). */
+  categoria?: "empleados" | "pasivos";
+} = {}) {
   const [mencionId, setMencionId] = useState<string>();
   const [nivelAcademicoId, setNivelAcademicoId] = useState<number>();
   const [regionId, setRegionId] = useState<number>(0);
@@ -181,7 +186,7 @@ export default function ReportEmployee() {
   const form = useForm<SchemaReportEmployeeType>({
     resolver: zodResolver(schemaReportEmployee),
     defaultValues: {
-      categoria: "empleados",
+      categoria,
       agrupar_por: "direccion_general",
       tipo_reporte: "lista",
       filtros: {

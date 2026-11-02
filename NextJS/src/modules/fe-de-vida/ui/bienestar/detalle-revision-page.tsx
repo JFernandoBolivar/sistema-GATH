@@ -2,8 +2,10 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
@@ -22,6 +24,7 @@ import { hitosRevision } from "./hitos-revision";
 import { construirSecciones, type Formateador } from "./modelo-revision";
 import { useNombresRevision } from "./use-nombres-revision";
 import { VisorEvidencia } from "./visor-evidencia";
+import { baseFeDeVida } from "../rutas-fe-de-vida";
 
 type Valor = Parameters<typeof formatearValor>[0];
 
@@ -72,10 +75,18 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
     return construirSecciones({ ficha: data.ficha, cambios: data.cambios, formatear, hoy: new Date() });
   }, [data, nombres]);
 
+  const pathname = usePathname();
   const volver = (
-    <Link href="/personal/fe-de-vida" className="inline-flex min-h-11 items-center gap-1 text-primary hover:underline">
-      <ArrowLeft className="size-4" aria-hidden /> Volver a la bandeja
-    </Link>
+    <Button
+      asChild
+      variant="outline"
+      size="sm"
+      className="min-h-10 gap-2 rounded-full px-4 shadow-xs"
+    >
+      <Link href={baseFeDeVida(pathname)}>
+        <ArrowLeft className="size-4" aria-hidden /> Volver a la bandeja
+      </Link>
+    </Button>
   );
 
   if (isLoading) return <div className="p-4 md:p-6"><VistaCargando mensaje="Cargando la solicitud…" onReintentar={() => mutate()} /></div>;

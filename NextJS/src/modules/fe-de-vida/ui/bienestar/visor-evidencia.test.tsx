@@ -23,16 +23,20 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("VisorEvidencia", () => {
-  it("carga la foto desde el backend (object URL, nunca una URL del almacén) y permite ampliarla", async () => {
+  it("carga la foto desde el backend y la abre a pantalla completa", async () => {
     obtener.mockResolvedValue(OK);
     render(<VisorEvidencia solicitudId="abc" />);
     expect(screen.getByRole("status")).toHaveTextContent(/cargando la foto/i);
     const img = await screen.findByAltText(/foto del pasivo/i);
     expect(img).toHaveAttribute("src", "blob:foto-1");
     expect(obtener).toHaveBeenCalledWith("abc");
-    const ampliar = screen.getByRole("button", { name: /ampliar/i });
-    await userEvent.click(ampliar);
-    expect(screen.getByRole("button", { name: /reducir/i })).toHaveAttribute("aria-pressed", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: /ver completa/i }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getAllByAltText(/foto del pasivo/i)).toHaveLength(2);
+
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(screen.getAllByAltText(/foto del pasivo/i)).toHaveLength(1));
   });
 
   it("muestra un error claro con reintento, no una imagen rota, y recupera al reintentar", async () => {
@@ -40,7 +44,7 @@ describe("VisorEvidencia", () => {
     render(<VisorEvidencia solicitudId="abc" />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/no se pudo obtener la foto/i);
     expect(screen.queryByRole("img")).toBeNull();
-    expect(screen.getByRole("button", { name: /ampliar/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /ver completa/i })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: /reintentar/i }));
     expect(await screen.findByAltText(/foto del pasivo/i)).toBeInTheDocument();
     expect(obtener).toHaveBeenCalledTimes(2);

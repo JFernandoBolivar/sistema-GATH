@@ -11,7 +11,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center bg-[#0a2a5e]">
+    <main className="flex min-h-svh flex-col items-center justify-center bg-[url('/bg.jpg')] bg-cover bg-center bg-no-repeat">
       {children}
     </main>
   );

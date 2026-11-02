@@ -15,6 +15,7 @@ import { ApiHttpError, SessionExpiredError } from "@/shared/infrastructure/http/
  */
 const RUTA_POR_CATEGORIA: Record<string, string> = {
   empleados: "/api/v1/reportes/personal-activo/pdf/",
+  pasivos: "/api/v1/reportes/pasivos/pdf/",
   familiares: "/api/v1/reportes/familiares/pdf/",
   egresados: "/api/v1/reportes/pasivos/pdf/",
   asignaciones: "/api/v1/reportes/codigos/pdf/",

@@ -22,30 +22,6 @@ interface PasivoApiResumen {
   nombre_completo: string;
 }
 
-interface PaginaPasivosApiResumen {
-  count: number;
-  limit: number;
-  offset: number;
-  results: PasivoApiResumen[];
-}
-
-export async function listarPasivosParaFamiliarAction(): Promise<PasivoResumen[]> {
-  try {
-    const envelope = await apiClient.get<ApiResponse<PaginaPasivosApiResumen>>(
-      "/api/v1/pasivos/",
-      { params: { limit: 50, offset: 0 } },
-    );
-    return (envelope.data?.results ?? []).map((p) => ({
-      cedula: p.cedula,
-      nombres: p.nombres,
-      apellidos: p.apellidos,
-      nombreCompleto: p.nombre_completo,
-    }));
-  } catch {
-    return [];
-  }
-}
-
 export async function getPasivoResumenAction(cedula: string): Promise<PasivoResumen | null> {
   try {
     const envelope = await apiClient.get<ApiResponse<PasivoApiResumen>>(

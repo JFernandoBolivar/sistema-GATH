@@ -149,8 +149,13 @@ class RepoCuentasORM:
         return [cuenta_a_entidad(fila) for fila in qs]
 
     def listar_paginado(self, filtros: dict, offset: int, limite: int) -> tuple[list[Cuenta], int]:
-        """Cuentas de una página y el total real de coincidencias (D4)."""
-        qs = self._filtrar(self._queryset(), filtros).order_by(
+        """Cuentas de una página y el total real de coincidencias (D4).
+
+        Usa las anotaciones de `_contexto_sesion_qs` para resolver condición y
+        contraseña inicial en la misma fila: evita dos barridos completos de
+        cédulas y un `check_password` (bcrypt) por cuenta en cada página.
+        """
+        qs = self._filtrar(self._contexto_sesion_qs(), filtros).order_by(
             'cedula__apellidos', 'cedula__nombres', 'pk'
         )
         total = qs.count()

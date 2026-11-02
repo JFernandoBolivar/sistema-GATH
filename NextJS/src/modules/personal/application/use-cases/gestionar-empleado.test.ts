@@ -57,7 +57,12 @@ class RepoPersonalMemoria implements RepoPersonal {
   ];
 
   async listarEmpleados() {
-    return this.empleados;
+    return {
+      items: this.empleados,
+      total: this.empleados.length,
+      page: 1,
+      pageSize: 10,
+    };
   }
   async obtenerPorCedula(cedula: string) {
     return this.empleados.find((e) => e.cedula === cedula)!;
@@ -117,8 +122,9 @@ describe("Casos de uso de Gestión de Personal", () => {
   it("listarEmpleados y obtenerEmpleadoPorCedula retornan datos DTO", async () => {
     const repo = new RepoPersonalMemoria();
     const lista = await listarEmpleados(repo);
-    expect(lista.length).toBe(1);
-    expect(lista[0].cedula).toBe("11223344");
+    expect(lista.items.length).toBe(1);
+    expect(lista.total).toBe(1);
+    expect(lista.items[0].cedula).toBe("11223344");
 
     const emp = await obtenerEmpleadoPorCedula(repo, "11223344");
     expect(emp.nombreCompleto).toBe("Juan Carlos García Mendoza");

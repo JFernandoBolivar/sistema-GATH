@@ -117,6 +117,8 @@ export interface Pasivo {
   telefonoHabitacion: string | null;
   carnetPatria: string | null;
   fechaNacimiento: string | null;
+  sexoNombre: string | null;
+  fechaIngresoOrganismo: string | null;
   estadoCivilId: number | null;
   nacionalidadId: number | null;
   datosVivienda: DatosViviendaPasivo | null;
@@ -140,6 +142,7 @@ export interface PaginaPasivos {
 export interface FiltrosPasivos {
   cedula?: string;
   nombre?: string;
+  codigo?: string;
   tipoNominaId?: number;
   fechaDesde?: string;
   fechaHasta?: string;

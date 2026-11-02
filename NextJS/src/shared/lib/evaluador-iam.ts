@@ -164,10 +164,20 @@ export interface ReglaRuta {
 export const REGLAS_RUTA: ReglaRuta[] = [
   { prefijo: 'personal/censo', permisos: ['autogestion.censo_ver_todos'] },
   { prefijo: 'pasivos/consultar', permisos: ['pasivos.ver'] },
+  { prefijo: 'pasivos/reportes', permisos: ['reportes.ver'] },
   { prefijo: 'pasivos/registrar', permisos: ['pasivos.crear'] },
   { prefijo: 'pasivos/familiares/registrar', permisos: ['familiares.crear'] },
   { prefijo: 'pasivos/familiares/consultar', permisos: ['familiares.ver'] },
   { prefijo: 'pasivos/egreso-pasivo', permisos: ['pasivos.cambiar_condicion'] },
+  {
+    prefijo: 'pasivos/fe-de-vida',
+    permisos: [
+      'fe_de_vida.revisar',
+      'fe_de_vida.gestionar_procesos',
+      'fe_de_vida.ver_cobertura',
+      'fe_de_vida.ver_panel',
+    ],
+  },
   // Rutas de acción: el módulo basta para consultar, pero crear/editar exige
   // su código propio (la opción del menú ya se oculta sin él).
   { prefijo: 'usuarios/roles/registrar', permisos: ['identidad.crear_roles'] },

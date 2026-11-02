@@ -115,19 +115,19 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Bandeja de revisión",
-        url: "/personal/fe-de-vida",
+        url: "/pasivos/fe-de-vida",
         icon: ListCheck,
         permiso: "fe_de_vida.revisar",
       },
       {
         title: "Procesos y prórrogas",
-        url: "/personal/fe-de-vida/procesos",
+        url: "/pasivos/fe-de-vida/procesos",
         icon: CalendarClock,
         permiso: "fe_de_vida.gestionar_procesos",
       },
       {
         title: "Cobertura de pasivos",
-        url: "/personal/fe-de-vida/cobertura",
+        url: "/pasivos/fe-de-vida/cobertura",
         icon: MailX,
         permiso: "fe_de_vida.ver_cobertura",
       },
@@ -140,7 +140,7 @@ const items: MenuItem[] = [
     subMenu: [
       {
         title: "Reportes de pasivos",
-        url: "/reportes?tab=pasivos",
+        url: "/pasivos/reportes",
         icon: BarChart3,
         permiso: "reportes.ver",
       },
@@ -155,7 +155,8 @@ export function AppSidebarPasivos() {
 
   const activeSubmenuByPath = useMemo(() => {
     if (pathname.startsWith("/pasivos/egreso-pasivo")) return "Egreso";
-    if (pathname.startsWith("/reportes")) return "Reportes";
+    if (pathname.startsWith("/pasivos/fe-de-vida")) return "Fe de vida";
+    if (pathname.startsWith("/reportes") || pathname.startsWith("/pasivos/reportes")) return "Reportes";
     if (pathname.startsWith("/personal/fe-de-vida")) return "Fe de vida";
     if (pathname.startsWith("/familiares") || pathname.startsWith("/pasivos")) {
       return "Personal Pasivo";

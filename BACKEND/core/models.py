@@ -6,5 +6,6 @@ viven en `core/infrastructure/models/` para respetar la capa que les
 corresponde en la arquitectura Onion.
 """
 from core.infrastructure.models.auditoria import AuditoriaLog
+from core.infrastructure.models.bootstrap import BootstrapStateModel
 
-__all__ = ['AuditoriaLog']
+__all__ = ['AuditoriaLog', 'BootstrapStateModel']

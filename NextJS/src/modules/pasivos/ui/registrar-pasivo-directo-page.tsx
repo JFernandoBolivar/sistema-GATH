@@ -78,13 +78,17 @@ export default function RegistrarPasivoDirectoPage() {
 
   useEffect(() => {
     let vigente = true;
-    Promise.all([getCatalogosExpedienteAction(), getTiposNominaAction(true)])
+    // Cada carga por separado: si fallan los catálogos del expediente, las
+    // nóminas igual se muestran y el alta no se queda bloqueada.
+    Promise.allSettled([getCatalogosExpedienteAction(), getTiposNominaAction(true)])
       .then(([cats, nominas]) => {
         if (!vigente) return;
-        setCatalogos(cats);
-        setTiposNomina(nominas);
-      })
-      .catch(() => toast.error("No fue posible cargar los catálogos del registro."));
+        if (cats.status === "fulfilled") setCatalogos(cats.value);
+        if (nominas.status === "fulfilled") setTiposNomina(nominas.value);
+        if (cats.status === "rejected" || nominas.status === "rejected") {
+          toast.error("No fue posible cargar todos los catálogos del registro.");
+        }
+      });
     return () => {
       vigente = false;
     };

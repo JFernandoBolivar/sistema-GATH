@@ -34,6 +34,15 @@ class EmpleadoListadoSerializer(serializers.Serializer):
     contrato_actual = ContratoLecturaSerializer(read_only=True, allow_null=True)
 
 
+class ListadoEmpleadosPaginadoSerializer(serializers.Serializer):
+    """Sobre C-1 de una página del listado de personal activo."""
+
+    results = EmpleadoListadoSerializer(many=True)
+    total = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+
+
 class EmpleadoSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     cedula = serializers.CharField(read_only=True)

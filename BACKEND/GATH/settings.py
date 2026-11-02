@@ -165,6 +165,20 @@ SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
+# A-05: cookies y TLS por entorno. Con DEBUG=False el valor por defecto es
+# seguro; el .env local los desactiva para seguir trabajando por http://localhost.
+SESSION_COOKIE_SECURE = config('DJANGO_SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
+CSRF_COOKIE_SECURE = config('DJANGO_CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
+SECURE_SSL_REDIRECT = config('DJANGO_SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+SECURE_HSTS_SECONDS = config(
+    'DJANGO_SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int
+)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    'DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG, cast=bool
+)
+if config('DJANGO_SECURE_PROXY_SSL_HEADER', default=not DEBUG, cast=bool):
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # E2: subidas y antivirus opcional (apagado por defecto).
 MAX_UPLOAD_SIZE = config('MAX_UPLOAD_SIZE', default=10 * 1024 * 1024, cast=int)
 DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_UPLOAD_SIZE
@@ -303,6 +317,11 @@ CELERY_BEAT_SCHEDULE = {
     'notificaciones-reprocesar-outbox': {
         'task': 'notificaciones.reprocesar_outbox',
         'schedule': 300.0,  # cada 5 minutos
+    },
+    # Identidad: red de seguridad diaria para las cuentas AUTOGESTION.
+    'identidad-sincronizar-cuentas': {
+        'task': 'identidad.sincronizar_cuentas_trabajadores',
+        'schedule': crontab(hour=2, minute=0),
     },
     # E3: profundidad de la cola y tareas activas en una linea JSON.
     'core-metricas-cola': {

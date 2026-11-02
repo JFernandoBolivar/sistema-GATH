@@ -51,22 +51,14 @@ def listar_usuarios_admin(
     cuentas, total = repo_cuentas.listar_paginado(
         criterios, paginacion.offset, paginacion.tamano
     )
-    pasivas = repo_condicion.cedulas_por_condicion(CondicionTrabajador.PASIVO.value)
-    activas = repo_condicion.cedulas_por_condicion(CondicionTrabajador.ACTIVO.value)
 
+    # La condición y la contraseña inicial llegan anotadas en la misma fila
+    # (`_contexto_sesion_qs`): sin barridos completos de cédulas ni bcrypt por
+    # cuenta. El filtro por condición sigue usando el repositorio de condición.
     resultados = [
         replace(
             cuenta,
-            condicion=(
-                CondicionTrabajador.PASIVO.value
-                if cuenta.cedula in pasivas
-                else CondicionTrabajador.ACTIVO.value
-                if cuenta.cedula in activas
-                else CondicionTrabajador.SIN_ASIGNACION.value
-            ),
-            password_inicial_pendiente=repo_cuentas.verificar_password(
-                cuenta.id, cuenta.cedula
-            ),
+            password_inicial_pendiente=bool(cuenta.debe_cambiar_password),
         )
         for cuenta in cuentas
     ]

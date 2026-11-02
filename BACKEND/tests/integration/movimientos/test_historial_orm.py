@@ -19,6 +19,7 @@ from apps.cargos.infrastructure.models.cargo_models import (
     DenominacionCargoEspecificoModel,
     DenominacionCargoModel,
 )
+from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
     GradoModel,
@@ -142,6 +143,29 @@ def _fecha(dia):
 
 
 # ─── Historial: orden, paginación, filtros ────────────────────────────────────
+
+
+def test_cambiar_cargo_hereda_tipo_personal_y_dependencia_del_cargo_actual(escenario):
+    vacante = EstatusModel.objects.create(estatus='VACANTE')
+    nuevo = AsigTrabajoModel.objects.create(
+        codigo='COD-101',
+        denominacioncargoid=escenario['asignacion'].denominacioncargoid,
+        denominacioncargoespecificoid=escenario['asignacion'].denominacioncargoespecificoid,
+        tiponominaid=escenario['asignacion'].tiponominaid,
+        estatusid=vacante,
+        Dependencia=None,
+        Tipo_personal=None,
+    )
+
+    obtenido = RepoCargosORM().cambiar_cargo(
+        escenario['asignacion'].pk, nuevo.pk, escenario['motivo'].pk, escenario['cuenta'].pk,
+    )
+
+    nuevo.refresh_from_db()
+    assert obtenido.empleado_cedula == TRABAJADOR
+    assert nuevo.Tipo_personal_id == escenario['asignacion'].Tipo_personal_id
+    assert nuevo.Dependencia_id == escenario['asignacion'].Dependencia_id
+    assert EmployeeMovementHistoryModel.objects.filter(codigo_puesto='COD-101').exists()
 
 
 def test_orden_determinista_del_mas_reciente_al_mas_antiguo(escenario):

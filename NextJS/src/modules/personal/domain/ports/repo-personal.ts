@@ -73,8 +73,24 @@ export interface GuardarEmpleadoDatos {
   contrato?: Contrato[];
 }
 
+export interface PaginacionListado {
+  /** Página 1-based (por defecto 1). */
+  page?: number;
+  /** Registros por página (por defecto 10, tope 50 en el backend). */
+  pageSize?: number;
+}
+
+export interface PaginaEmpleados {
+  items: Empleado[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface RepoPersonal {
-  listarEmpleados(filtros?: FiltrosListadoEmpleado): Promise<Empleado[]>;
+  listarEmpleados(
+    filtros?: FiltrosListadoEmpleado & PaginacionListado,
+  ): Promise<PaginaEmpleados>;
   obtenerPorCedula(cedula: string): Promise<Empleado>;
   crearEmpleado(data: GuardarEmpleadoDatos): Promise<Empleado>;
   actualizarEmpleado(cedula: string, data: Partial<GuardarEmpleadoDatos>): Promise<Empleado>;

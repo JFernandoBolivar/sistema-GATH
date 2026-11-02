@@ -58,6 +58,8 @@ class PasivoSerializer(serializers.Serializer):
     telefono_habitacion = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria = serializers.CharField(read_only=True, allow_null=True)
     fecha_nacimiento = serializers.CharField(read_only=True, allow_null=True)
+    sexo_nombre = serializers.CharField(read_only=True, allow_null=True)
+    fecha_ingreso_organismo = serializers.CharField(read_only=True, allow_null=True)
     estado_civil_id = serializers.IntegerField(read_only=True, allow_null=True)
     nacionalidad_id = serializers.IntegerField(read_only=True, allow_null=True)
     # Expediente anidado: solo viene poblado en el detalle
@@ -150,6 +152,7 @@ class PasivoListaInputSerializer(serializers.Serializer):
 
     cedula = serializers.CharField(required=False, allow_blank=True)
     nombre = serializers.CharField(required=False, allow_blank=True)
+    codigo = serializers.CharField(required=False, allow_blank=True)
     tipo_nomina_id = serializers.IntegerField(required=False, allow_null=True)
     fecha_desde = serializers.DateField(required=False, allow_null=True)
     fecha_hasta = serializers.DateField(required=False, allow_null=True)

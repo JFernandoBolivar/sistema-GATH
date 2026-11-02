@@ -327,6 +327,9 @@ export const autogestionApi = {
   },
 
   getNominaGeneral: async (): Promise<ApiResponse<TipoNominaApiItem[]>> => {
-    return apiClient.get<ApiResponse<TipoNominaApiItem[]>>("/api/v1/catalogos/tipos-nomina/");
+    // El censo es de personal activo: excluye JUBILADO/PENSIONADO.
+    return apiClient.get<ApiResponse<TipoNominaApiItem[]>>(
+      "/api/v1/catalogos/tipos-nomina/?solo_activos=true",
+    );
   },
 };

@@ -134,6 +134,8 @@ export function pasivoApiAEntidad(raw: PasivoApiItem): Pasivo {
     telefonoHabitacion: raw.telefono_habitacion ?? null,
     carnetPatria: raw.carnet_patria ?? null,
     fechaNacimiento: raw.fecha_nacimiento ?? null,
+    sexoNombre: raw.sexo_nombre ?? null,
+    fechaIngresoOrganismo: raw.fecha_ingreso_organismo ?? null,
     estadoCivilId: raw.estado_civil_id ?? null,
     nacionalidadId: raw.nacionalidad_id ?? null,
     datosVivienda: raw.datos_vivienda ? viviendaApiADto(asRec(raw.datos_vivienda)) : null,

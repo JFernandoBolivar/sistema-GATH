@@ -21,6 +21,8 @@ class PasivoDTO:
     telefono_habitacion: str | None = None
     carnet_patria: str | None = None
     fecha_nacimiento: str | None = None
+    sexo_nombre: str | None = None
+    fecha_ingreso_organismo: str | None = None
     estado_civil_id: int | None = None
     nacionalidad_id: int | None = None
     datos_vivienda: dict | None = None

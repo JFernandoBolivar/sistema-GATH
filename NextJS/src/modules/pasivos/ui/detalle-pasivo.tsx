@@ -32,7 +32,7 @@
  */
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Ambulance, Briefcase, ClipboardCheck, FileDown, GraduationCap, House, Loader2, Shirt, UserRound } from "lucide-react";
+import { Ambulance, Briefcase, ClipboardCheck, FileDown, GraduationCap, House, Loader2, Pencil, Shirt, UserRound } from "lucide-react";
 
 import { nombrePorId } from "@/shared/lib/catalogos";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
@@ -60,6 +60,7 @@ import {
 } from "@/shared/ui/components/table";
 
 import type { CatalogosExpedientePasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
+import { EditarPasivoDialog } from "./editar-pasivo-dialog";
 import {
   descargarPasivoPdfAction,
   getCatalogosExpedientePasivoAction,
@@ -76,11 +77,15 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
   const { data: session } = useSession();
   // CC-APP-2026-08-001: RECEPCIONISTA puede ver el detalle pero no exportarlo.
   const puedeExportarPdf = tienePermiso(session?.user?.permisos, "pasivos.exportar_pdf");
+  const puedeEditar = tienePermiso(session?.user?.permisos, "pasivos.editar");
   const [pasivo, setPasivo] = useState<PasivoDTO | null>(null);
   const [catalogos, setCatalogos] = useState<CatalogosExpedientePasivoDTO | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportandoPdf, setExportandoPdf] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [recarga, setRecarga] = useState(0);
+  const [fotoError, setFotoError] = useState(false);
 
   const descargarPdf = async () => {
     if (!pasivo) return;
@@ -105,10 +110,11 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
   };
 
   useEffect(() => {
-    if (!open || !cedula || pasivo?.cedula === cedula) return;
+    if (!open || !cedula) return;
     setPasivo(null);
     setCargando(true);
     setError(null);
+    setFotoError(false);
     Promise.allSettled([getPasivoPorCedulaAction(cedula), getCatalogosExpedientePasivoAction()])
       .then(([detalle, cats]) => {
         if (detalle.status === "rejected") {
@@ -126,7 +132,7 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
         if (cats.status === "fulfilled") setCatalogos(cats.value);
       })
       .finally(() => setCargando(false));
-  }, [open, pasivo, cedula]);
+  }, [open, cedula, recarga]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -146,19 +152,39 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
           {pasivo && (
           <div className="flex flex-col gap-4 px-4 pb-8">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <UserRound className="size-5 text-muted-foreground" aria-hidden="true" />
-                <div>
-                  <p className="font-semibold">{pasivo.nombreCompleto}</p>
+              <div className="flex min-w-0 items-center gap-3">
+                {!fotoError ? (
+                  /* La foto se sirve por el proxy autenticado del mismo origen. */
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={`/api/v1/personal/${pasivo.cedula}/foto/`}
+                    alt={`Foto de ${pasivo.nombreCompleto}`}
+                    className="size-16 shrink-0 rounded-full border object-cover"
+                    onError={() => setFotoError(true)}
+                  />
+                ) : (
+                  <div className="flex size-16 shrink-0 items-center justify-center rounded-full border bg-muted">
+                    <UserRound className="size-6 text-muted-foreground" aria-hidden="true" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{pasivo.nombreCompleto}</p>
                   <p className="text-sm text-muted-foreground">Cédula: {pasivo.cedula}</p>
                 </div>
               </div>
-              {catalogos && puedeExportarPdf && (
-                <Button type="button" variant="outline" size="sm" disabled={exportandoPdf} onClick={descargarPdf}>
-                  {exportandoPdf ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
-                  PDF
-                </Button>
-              )}
+              <div className="flex shrink-0 items-center gap-2">
+                {puedeEditar && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setEditando(true)}>
+                    <Pencil className="size-4" aria-hidden="true" /> Actualizar
+                  </Button>
+                )}
+                {catalogos && puedeExportarPdf && (
+                  <Button type="button" variant="outline" size="sm" disabled={exportandoPdf} onClick={descargarPdf}>
+                    {exportandoPdf ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <FileDown className="size-4" aria-hidden="true" />}
+                    PDF
+                  </Button>
+                )}
+              </div>
             </div>
 
             <Card>
@@ -358,6 +384,17 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
           </div>
           )}
         </ScrollArea>
+        <EditarPasivoDialog
+          pasivo={pasivo}
+          open={editando}
+          onOpenChange={(abierto) => {
+            if (!abierto) setEditando(false);
+          }}
+          onGuardado={() => {
+            setEditando(false);
+            setRecarga((n) => n + 1);
+          }}
+        />
       </SheetContent>
     </Sheet>
   );

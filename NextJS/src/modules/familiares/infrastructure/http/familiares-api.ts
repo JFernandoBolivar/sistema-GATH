@@ -103,26 +103,45 @@ async function crearCatalogoInline(path: string, body: Record<string, unknown>):
 }
 
 export const familiaresApi = {
-  getPorEmpleado: (cedula: string) =>
-    apiClient.get<FamiliarApiItem[]>(`/api/v1/familiares/empleado/${cedula}/`),
+  getPorEmpleado: async (cedula: string) =>
+    (
+      await apiClient.get<ApiResponse<FamiliarApiItem[]>>(
+        `/api/v1/familiares/empleado/${cedula}/`,
+      )
+    ).data,
 
-  getPorId: (id: number) =>
-    apiClient.get<FamiliarApiItem>(`/api/v1/familiares/${id}/`),
+  getPorId: async (id: number) =>
+    (await apiClient.get<ApiResponse<FamiliarApiItem>>(`/api/v1/familiares/${id}/`)).data,
 
-  crear: (cedula: string, payload: Record<string, unknown>) =>
-    apiClient.post<FamiliarApiItem>(`/api/v1/familiares/empleado/${cedula}/`, payload),
+  crear: async (cedula: string, payload: Record<string, unknown>) =>
+    (
+      await apiClient.post<ApiResponse<FamiliarApiItem>>(
+        `/api/v1/familiares/empleado/${cedula}/`,
+        payload,
+      )
+    ).data,
 
-  actualizar: (id: number, payload: Record<string, unknown>) =>
-    apiClient.put<FamiliarApiItem>(`/api/v1/familiares/${id}/`, payload),
+  actualizar: async (id: number, payload: Record<string, unknown>) =>
+    (await apiClient.put<ApiResponse<FamiliarApiItem>>(`/api/v1/familiares/${id}/`, payload))
+      .data,
 
   eliminar: (id: number) =>
     apiClient.delete<void>(`/api/v1/familiares/${id}/`),
 
-  getDocumentos: (familiarId: number) =>
-    apiClient.get<DocumentoFamiliarApiItem[]>(`/api/v1/familiares/${familiarId}/documentos/`),
+  getDocumentos: async (familiarId: number) =>
+    (
+      await apiClient.get<ApiResponse<DocumentoFamiliarApiItem[]>>(
+        `/api/v1/familiares/${familiarId}/documentos/`,
+      )
+    ).data,
 
-  subirDocumento: (familiarId: number, formData: FormData) =>
-    apiClient.postForm<DocumentoFamiliarApiItem>(`/api/v1/familiares/${familiarId}/documentos/`, formData),
+  subirDocumento: async (familiarId: number, formData: FormData) =>
+    (
+      await apiClient.postForm<ApiResponse<DocumentoFamiliarApiItem>>(
+        `/api/v1/familiares/${familiarId}/documentos/`,
+        formData,
+      )
+    ).data,
 
   getParentescos: () => listarCatalogoMaestro("parentescos"),
 

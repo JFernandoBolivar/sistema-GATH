@@ -52,6 +52,16 @@ interface DataTableProps<TData, TValue> {
   /** Oculta el menú "Columnas" cuando la tabla es demasiado angosta para tener sentido. */
   hideColumnsMenu?: boolean;
   hidePagination?: boolean;
+  /**
+   * Paginación en servidor: `data` es solo la página actual y los botones
+   * Anterior/Siguiente piden otra página al consumidor.
+   */
+  pagination?: {
+    pageIndex: number;
+    pageSize: number;
+    total: number;
+    onPageChange: (pageIndex: number) => void;
+  };
 }
 
 export function DataTable<TData, TValue>({
@@ -61,24 +71,57 @@ export function DataTable<TData, TValue>({
   emptyMessage = "Sin resultados.",
   hideColumnsMenu = false,
   hidePagination = false,
+  pagination,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
+  const manual = pagination !== undefined;
+
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    ...(manual ? {} : { getPaginationRowModel: getPaginationRowModel() }),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    state: { sorting, columnFilters, columnVisibility, rowSelection },
+    manualPagination: manual,
+    ...(manual
+      ? {
+          pageCount: Math.max(1, Math.ceil(pagination.total / pagination.pageSize)),
+          onPaginationChange: (updater) => {
+            const actual = {
+              pageIndex: pagination.pageIndex,
+              pageSize: pagination.pageSize,
+            };
+            const siguiente =
+              typeof updater === "function" ? updater(actual) : updater;
+            if (siguiente.pageIndex !== actual.pageIndex) {
+              pagination.onPageChange(siguiente.pageIndex);
+            }
+          },
+        }
+      : {}),
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      ...(manual
+        ? {
+            pagination: {
+              pageIndex: pagination.pageIndex,
+              pageSize: pagination.pageSize,
+            },
+          }
+        : {}),
+    },
   });
 
   return (

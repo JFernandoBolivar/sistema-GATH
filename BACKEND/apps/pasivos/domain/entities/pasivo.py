@@ -21,6 +21,8 @@ class Pasivo:
     telefono_habitacion: str | None = None
     carnet_patria: str | None = None
     fecha_nacimiento: str | None = None
+    sexo_nombre: str | None = None
+    fecha_ingreso_organismo: str | None = None
     estado_civil_id: int | None = None
     nacionalidad_id: int | None = None
     # Expediente anidado (Fase 2.1/2.2 del plan de reparación): reutiliza el

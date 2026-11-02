@@ -69,10 +69,26 @@ async function single<T>(getter: Promise<ApiResponse<T>>): Promise<T> {
   return envelope.data;
 }
 
+export interface PaginaEmpleadosApi {
+  results: EmpleadoApiItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export const personalApi = {
-  getEmpleados: (filtros?: { q?: string; busqueda?: string; codigo?: string; tipo_nomina?: string | number }) =>
-    list<EmpleadoApiItem>(
-      apiClient.get<ApiResponse<EmpleadoApiItem[]>>("/api/v1/personal/", { params: filtros as Record<string, string | number | undefined> }),
+  getEmpleados: (filtros?: {
+    q?: string;
+    busqueda?: string;
+    codigo?: string;
+    tipo_nomina?: string | number;
+    page?: number;
+    page_size?: number;
+  }) =>
+    single<PaginaEmpleadosApi>(
+      apiClient.get<ApiResponse<PaginaEmpleadosApi>>("/api/v1/personal/", {
+        params: filtros as Record<string, string | number | undefined>,
+      }),
     ),
 
   getPorCedula: (cedula: string) =>

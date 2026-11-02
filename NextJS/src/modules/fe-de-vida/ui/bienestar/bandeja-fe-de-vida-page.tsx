@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,11 +22,14 @@ import { OPCIONES_ESTADO_SOLICITUD, PRESENTACION_SOLICITUD } from "../comun/esta
 import { formatearFechaHora } from "../comun/formato";
 import { PaginacionNav } from "../comun/paginacion-nav";
 import { filtrosBandejaSchema, type FiltrosBandejaValores } from "../schema/schema-fe-de-vida";
+import { baseFeDeVida } from "../rutas-fe-de-vida";
 
 const VACIOS: FiltrosBandejaValores = { texto: "", estado: "", procesoId: "", desde: "", hasta: "" };
 
 /** Bandeja de Bienestar: fe de vida de los pasivos, paginada (10/50) y filtrable. */
 export default function BandejaFeDeVidaPage() {
+  const pathname = usePathname();
+  const base = baseFeDeVida(pathname);
   const [filtros, setFiltros] = useState<FiltrosBandejaValores>(VACIOS);
   const [offset, setOffset] = useState(0);
   const [limite, setLimite] = useState(LIMITE_PAGINA);
@@ -137,7 +141,7 @@ export default function BandejaFeDeVidaPage() {
                       <td className="px-4 py-3"><StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} /></td>
                       <td className="px-4 py-3 text-right">
                         <Button asChild variant="outline" className="min-h-11">
-                          <Link href={`/personal/fe-de-vida/${s.id}`} aria-label={`Abrir la fe de vida de ${s.nombre || s.cedula}`}>
+                          <Link href={`${base}/${s.id}`} aria-label={`Abrir la fe de vida de ${s.nombre || s.cedula}`}>
                             Abrir <ChevronRight aria-hidden />
                           </Link>
                         </Button>

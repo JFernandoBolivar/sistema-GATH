@@ -57,6 +57,18 @@ describe("CapturaFoto", () => {
     expect(screen.getByLabelText(/archivo jpg o png/i)).toBeInTheDocument();
   });
 
+  it("muestra la caja centrada con el texto exacto y acepta arrastrar y soltar", async () => {
+    simularMedios({ camaras: 0 });
+    render(<CapturaFoto onChange={vi.fn()} />);
+
+    expect(
+      await screen.findByRole("button", { name: /seleccionar una foto para subir/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/haz clic aquí para seleccionar foto/i)).toBeInTheDocument();
+    expect(screen.getByText(/png, jpg hasta 5mb/i)).toBeInTheDocument();
+    expect(screen.getByText(/arrastra y suelta la imagen/i)).toBeInTheDocument();
+  });
+
   it("en contexto no seguro avisa y no bloquea la subida", async () => {
     simularMedios({ camaras: 1, seguro: false });
     render(<CapturaFoto onChange={vi.fn()} />);

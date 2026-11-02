@@ -1,5 +1,5 @@
 """
-Management command para poblar el catÃ¡logo maestro de permisos y la matriz inicial de roles.
+Management command para poblar el catálogo maestro de permisos y la matriz inicial de roles.
 
 Ejecutar:
     python manage.py seed_permisos
@@ -21,73 +21,73 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
 from apps.identidad.infrastructure.repositories.repo_roles_orm import RepoRolesORM
 from core.presentation.audit import registrar_auditoria
 
-# CatÃ¡logo taxonÃ³mico de permisos del Sistema GATH: [modulo].[accion]
+# Catálogo taxonómico de permisos del Sistema GATH: [modulo].[accion]
 PERMISOS_CATALOGO = [
-    # â”€â”€â”€ 1. IDENTIDAD Y SEGURIDAD â”€â”€â”€
+    # ─── 1. IDENTIDAD Y SEGURIDAD ───
     ("identidad.ver_usuarios", "Consultar listado y detalles de usuarios"),
     ("identidad.crear_usuarios", "Registrar nuevos usuarios en el sistema"),
     ("identidad.editar_usuarios", "Modificar datos de usuarios existentes"),
     ("identidad.desactivar_usuarios", "Activar o desactivar cuentas de usuario"),
-    ("identidad.restablecer_acceso", "Restablecer el acceso de un trabajador (repone la contraseÃ±a inicial)"),
+    ("identidad.restablecer_acceso", "Restablecer el acceso de un trabajador (repone la contraseña inicial)"),
     ("identidad.cambiar_correo_acceso", "Elegir el correo de acceso de un trabajador (pase a pasivo)"),
-    ("identidad.cambiar_password", "Forzar o gestionar cambio de contraseÃ±a"),
+    ("identidad.cambiar_password", "Forzar o gestionar cambio de contraseña"),
     ("identidad.ver_roles", "Consultar roles existentes"),
     ("identidad.crear_roles", "Crear nuevos roles institucionales"),
     ("identidad.editar_roles", "Modificar nombres o descripciones de roles"),
     ("identidad.eliminar_roles", "Eliminar roles no asignados"),
     ("identidad.asignar_permisos", "Modificar la matriz de permisos de roles"),
     ("identidad.desbloquear_cuentas", "Desbloquear cuentas tras incidentes de seguridad"),
-    ("identidad.listar_permisos", "Consultar el catÃ¡logo completo de permisos"),
+    ("identidad.listar_permisos", "Consultar el catálogo completo de permisos"),
     ("identidad.consultar_permisos", "Consultar el permiso efectivo de una cuenta"),
     ("identidad.gestionar_permisos_individuales", "Gestionar los permisos individuales (overrides allow/deny) de una cuenta"),
 
-    # â”€â”€â”€ 2. ORGANIZACIÃ“N â”€â”€â”€
+    # ─── 2. ORGANIZACIÓN ───
     ("organizacion.ver", "Consultar dependencias, direcciones y coordinaciones"),
     ("organizacion.crear", "Registrar nuevas unidades organizativas"),
     ("organizacion.editar", "Modificar unidades organizativas"),
     ("organizacion.eliminar", "Desactivar o eliminar unidades organizativas"),
-    ("organizacion.ver_sedes", "Consultar sedes y ubicaciones fÃ­sicas"),
-    ("organizacion.gestionar_sedes", "Crear y modificar sedes fÃ­sicas"),
+    ("organizacion.ver_sedes", "Consultar sedes y ubicaciones físicas"),
+    ("organizacion.gestionar_sedes", "Crear y modificar sedes físicas"),
 
-    # â”€â”€â”€ 3. CATÃLOGOS â”€â”€â”€
+    # ─── 3. CATÁLOGOS ───
     ("catalogos.ver", "Consultar tablas maestras (profesiones, parentescos, etc.)"),
-    ("catalogos.crear", "Registrar nuevos elementos en catÃ¡logos"),
-    ("catalogos.editar", "Modificar elementos de catÃ¡logos"),
-    ("catalogos.eliminar", "Desactivar elementos de catÃ¡logos"),
+    ("catalogos.crear", "Registrar nuevos elementos en catálogos"),
+    ("catalogos.editar", "Modificar elementos de catálogos"),
+    ("catalogos.eliminar", "Desactivar elementos de catálogos"),
 
-    # â”€â”€â”€ 4. PERSONAL ACTIVO â”€â”€â”€
-    ("personal.ver", "Consultar ficha bÃ¡sica y listado de trabajadores activos"),
+    # ─── 4. PERSONAL ACTIVO ───
+    ("personal.ver", "Consultar ficha básica y listado de trabajadores activos"),
     ("personal.ver_detalle", "Consultar expediente completo de trabajador activo"),
     ("personal.crear", "Registrar nuevo trabajador activo"),
     ("personal.editar_personales", "Actualizar datos personales y de contacto"),
-    ("personal.editar_laborales", "Actualizar datos de contrataciÃ³n y nÃ³mina"),
-    ("personal.editar_educacion", "Actualizar nivel de instrucciÃ³n y tÃ­tulos"),
-    ("personal.editar_vivienda", "Actualizar informaciÃ³n habitacional"),
-    ("personal.ver_salud", "Consultar informaciÃ³n mÃ©dica y salud (PII protegido)"),
-    ("personal.editar_salud", "Actualizar informaciÃ³n mÃ©dica y antecedentes de salud"),
+    ("personal.editar_laborales", "Actualizar datos de contratación y nómina"),
+    ("personal.editar_educacion", "Actualizar nivel de instrucción y títulos"),
+    ("personal.editar_vivienda", "Actualizar información habitacional"),
+    ("personal.ver_salud", "Consultar información médica y salud (PII protegido)"),
+    ("personal.editar_salud", "Actualizar información médica y antecedentes de salud"),
     ("personal.egresar", "Procesar egreso de personal activo"),
     ("personal.reincorporar", "Reincorporar trabajador egresado"),
-    ("personal.carga_masiva", "Ejecutar importaciÃ³n masiva de personal vÃ­a Excel"),
+    ("personal.carga_masiva", "Ejecutar importación masiva de personal vía Excel"),
     ("personal.exportar_pdf", "Exportar el expediente de un trabajador activo en PDF"),
 
-    # â”€â”€â”€ 5. PERSONAL PASIVO â”€â”€â”€
-    ("pasivos.ver", "Consultar listado y ficha bÃ¡sica de personal pasivo"),
+    # ─── 5. PERSONAL PASIVO ───
+    ("pasivos.ver", "Consultar listado y ficha básica de personal pasivo"),
     ("pasivos.ver_detalle", "Consultar expediente completo de personal pasivo"),
     ("pasivos.crear", "Registrar nuevo personal jubilado/pensionado"),
     ("pasivos.editar", "Modificar datos de personal pasivo"),
     ("pasivos.exportar_pdf", "Exportar el expediente de un trabajador pasivo en PDF"),
-    ("pasivos.cambiar_condicion", "Actualizar condiciÃ³n pasiva (jubilado, sobreviviente)"),
+    ("pasivos.cambiar_condicion", "Actualizar condición pasiva (jubilado, sobreviviente)"),
 
-    # â”€â”€â”€ 6. CARGOS Y UBICACIONES â”€â”€â”€
-    ("cargos.ver", "Consultar catÃ¡logo de cargos y vacantes"),
+    # ─── 6. CARGOS Y UBICACIONES ───
+    ("cargos.ver", "Consultar catálogo de cargos y vacantes"),
     ("cargos.crear", "Crear nuevas denominaciones de cargos"),
     ("cargos.editar", "Modificar denominaciones o requisitos de cargos"),
     ("cargos.asignar", "Asignar titular a un cargo"),
-    ("cargos.prestar", "Registrar prÃ©stamo de cargo a otra dependencia"),
-    ("cargos.revertir_prestamo", "Revertir prÃ©stamo de cargo"),
+    ("cargos.prestar", "Registrar préstamo de cargo a otra dependencia"),
+    ("cargos.revertir_prestamo", "Revertir préstamo de cargo"),
     ("cargos.desincorporar", "Desincorporar o eliminar cargo vacante"),
 
-    # â”€â”€â”€ 7. FAMILIARES Y CARGAS â”€â”€â”€
+    # ─── 7. FAMILIARES Y CARGAS ───
     ("familiares.ver", "Consultar familiares y cargas de trabajadores"),
     ("familiares.crear", "Registrar nuevo familiar o carga"),
     ("familiares.editar", "Modificar datos de familiar"),
@@ -95,9 +95,9 @@ PERMISOS_CATALOGO = [
     ("familiares.adjuntar_documento", "Adjuntar partidas o constancias familiares"),
     ("familiares.descargar_documento", "Descargar documentos adjuntos de familiares"),
 
-    # â”€â”€â”€ 8. MOVIMIENTOS E HISTORIAL â”€â”€â”€
+    # ─── 8. MOVIMIENTOS E HISTORIAL ───
     ("movimientos.ver", "Consultar historial de movimientos y transiciones"),
-    ("movimientos.registrar_traslado", "Registrar cambio de dependencia o ubicaciÃ³n"),
+    ("movimientos.registrar_traslado", "Registrar cambio de dependencia o ubicación"),
     ("movimientos.registrar_ascenso", "Registrar ascenso de cargo o grado"),
     ("movimientos.registrar_aumento", "Registrar ajuste salarial"),
     ("movimientos.anular", "Anular movimiento laboral registrado"),
@@ -105,86 +105,86 @@ PERMISOS_CATALOGO = [
     ("movimientos.exportar_excel", "Exportar el historial de movimientos en Excel"),
     ("personal.recibir_avisos_movimientos", "Recibir avisos de movimientos del personal (ingreso, traslado, egreso, cambio de cargo o de estatus)"),
 
-    # â”€â”€â”€ 9. REPORTES Y CONSTANCIAS â”€â”€â”€
-    ("reportes.ver", "Acceder al mÃ³dulo de reportes"),
+    # ─── 9. REPORTES Y CONSTANCIAS ───
+    ("reportes.ver", "Acceder al módulo de reportes"),
     ("reportes.generar_pdf", "Generar y descargar reportes en PDF"),
     ("reportes.generar_excel", "Generar y descargar reportes en Excel"),
     ("reportes.emitir_constancias", "Emitir constancias de trabajo y certificaciones"),
-    ("reportes.estadisticas", "Consultar estadÃ­sticas consolidadas de RRHH"),
+    ("reportes.estadisticas", "Consultar estadísticas consolidadas de RRHH"),
 
-    # â”€â”€â”€ 10. CARNETIZACIÃ“N â”€â”€â”€
-    ("carnetizacion.ver", "Consultar estado de carnetizaciÃ³n y carnets emitidos"),
+    # ─── 10. CARNETIZACIÓN ───
+    ("carnetizacion.ver", "Consultar estado de carnetización y carnets emitidos"),
     ("carnetizacion.disenar", "Gestionar plantillas de carnet"),
-    ("carnetizacion.emitir", "Emitir y generar carnets con QR criptogrÃ¡fico"),
+    ("carnetizacion.emitir", "Emitir y generar carnets con QR criptográfico"),
     ("carnetizacion.revocar", "Revocar o invalidar carnet emitido"),
-    ("carnetizacion.reimprimir", "Solicitar reimpresiÃ³n de carnet"),
+    ("carnetizacion.reimprimir", "Solicitar reimpresión de carnet"),
 
-    # â”€â”€â”€ 11. AUTOGESTIÃ“N â”€â”€â”€
+    # ─── 11. AUTOGESTIÓN ───
     ("autogestion.ver_propio", "Consultar expediente personal propio"),
     ("autogestion.actualizar_propio", "Actualizar datos personales propios"),
     ("autogestion.censo_ver_propio", "Consultar formulario de censo propio"),
-    ("autogestion.censo_actualizar_propio", "Responder o modificar su censo socioeconÃ³mico"),
+    ("autogestion.censo_actualizar_propio", "Responder o modificar su censo socioeconómico"),
     ("autogestion.censo_ver_todos", "Consultar censos de todos los trabajadores (RRHH)"),
     ("autogestion.censo_exportar", "Exportar consolidado de censos"),
 
-    # â”€â”€â”€ 12. AUDITORÃA â”€â”€â”€
-    ("auditoria.ver_logs", "Consultar bitÃ¡cora de transacciones y auditorÃ­a"),
+    # ─── 12. AUDITORÍA ───
+    ("auditoria.ver_logs", "Consultar bitácora de transacciones y auditoría"),
     ("auditoria.ver_seguridad", "Consultar incidentes y bloqueos de seguridad"),
 
-    # â”€â”€â”€ 13. CONFIGURACIÃ“N VISUAL (HU 0009 â€” Cintillo Editable) â”€â”€â”€
-    ("configuracion.editar", "Editar la configuraciÃ³n visual del cintillo institucional (PDFs)"),
+    # ─── 13. CONFIGURACIÓN VISUAL (HU 0009 — Cintillo Editable) ───
+    ("configuracion.editar", "Editar la configuración visual del cintillo institucional (PDFs)"),
 
-    # â”€â”€â”€ 14. PUNTO DE CUENTA â”€â”€â”€
+    # ─── 14. PUNTO DE CUENTA ───
     ("puntocuenta.ver", "Consultar los puntos de cuenta generados por cambios de dependencia"),
 
-    # â”€â”€â”€ 15. AUTOGESTIÃ“N: solicitudes de actualizaciÃ³n (PLAN_PRIORIDAD Â§2.4) â”€â”€â”€
-    ("autogestion.solicitar_actualizacion", "Solicitar la actualizaciÃ³n de sus datos (flujo con revisiÃ³n de Bienestar)"),
-    ("autogestion.editar_borrador", "Editar su borrador de actualizaciÃ³n mientras la ventana estÃ¡ habilitada"),
-    ("autogestion.subir_soporte", "Subir soportes propios (tÃ­tulos, actas) a una solicitud"),
+    # ─── 15. AUTOGESTIÓN: solicitudes de actualización (PLAN_PRIORIDAD §2.4) ───
+    ("autogestion.solicitar_actualizacion", "Solicitar la actualización de sus datos (flujo con revisión de Bienestar)"),
+    ("autogestion.editar_borrador", "Editar su borrador de actualización mientras la ventana está habilitada"),
+    ("autogestion.subir_soporte", "Subir soportes propios (títulos, actas) a una solicitud"),
 
-    # â”€â”€â”€ 16. BIENESTAR SOCIAL: revisiÃ³n de actualizaciones â”€â”€â”€
-    ("bienestar.ver_solicitudes", "Consultar las solicitudes de actualizaciÃ³n de los trabajadores"),
-    ("bienestar.habilitar_ventana", "Habilitar o cerrar la ventana de actualizaciÃ³n de un trabajador"),
-    ("bienestar.revisar_actualizacion", "Revisar, observar o rechazar una solicitud de actualizaciÃ³n"),
-    ("bienestar.aprobar", "Aprobar (total o parcialmente) o rechazar una actualizaciÃ³n de datos: decide UNA sola persona"),
-    ("bienestar.prorrogar_ventana", "Prorrogar el plazo de una ventana de actualizaciÃ³n de datos"),
+    # ─── 16. BIENESTAR SOCIAL: revisión de actualizaciones ───
+    ("bienestar.ver_solicitudes", "Consultar las solicitudes de actualización de los trabajadores"),
+    ("bienestar.habilitar_ventana", "Habilitar o cerrar la ventana de actualización de un trabajador"),
+    ("bienestar.revisar_actualizacion", "Revisar, observar o rechazar una solicitud de actualización"),
+    ("bienestar.aprobar", "Aprobar (total o parcialmente) o rechazar una actualización de datos: decide UNA sola persona"),
+    ("bienestar.prorrogar_ventana", "Prorrogar el plazo de una ventana de actualización de datos"),
     ("bienestar.configurar_secciones", "Configurar las secciones autogestionables (soporte obligatorio, activas)"),
 
-    # â”€â”€â”€ 17. FE DE VIDA DE PASIVOS â”€â”€â”€
+    # ─── 17. FE DE VIDA DE PASIVOS ───
     ("fe_de_vida.solicitar", "Enviar su solicitud de fe de vida (pasivo)"),
     ("fe_de_vida.ver_propia", "Consultar el estado y la constancia de su fe de vida"),
-    ("fe_de_vida.revisar", "Revisar evidencia, rechazar o pedir repeticiÃ³n de una fe de vida"),
+    ("fe_de_vida.revisar", "Revisar evidencia, rechazar o pedir repetición de una fe de vida"),
     ("fe_de_vida.check_analista", "Dar el check de la Analista en una fe de vida"),
     ("fe_de_vida.check_administradora", "Dar el check de la Administradora en una fe de vida"),
-    ("fe_de_vida.aprobar_directo", "Validar una fe de vida por aprobaciÃ³n directa de la Administradora"),
+    ("fe_de_vida.aprobar_directo", "Validar una fe de vida por aprobación directa de la Administradora"),
     ("fe_de_vida.ver_evidencia", "Ver la foto de evidencia de una fe de vida (URL prefirmada corta)"),
     ("fe_de_vida.verificar_constancia", "Verificar internamente una constancia de fe de vida"),
     ("fe_de_vida.ver_panel", "Consultar el panel de fe de vida de Bienestar"),
     ("fe_de_vida.configurar_plantilla", "Editar la plantilla de la constancia de fe de vida"),
     ("fe_de_vida.gestionar_procesos", "Crear, abrir y cerrar procesos de fe de vida"),
-    ("fe_de_vida.prorrogar", "Conceder prÃ³rrogas (individual o general) en un proceso de fe de vida"),
-    ("fe_de_vida.ver_cobertura", "Consultar la cobertura de un proceso de fe de vida (quiÃ©n cumpliÃ³ y quiÃ©n no)"),
+    ("fe_de_vida.prorrogar", "Conceder prórrogas (individual o general) en un proceso de fe de vida"),
+    ("fe_de_vida.ver_cobertura", "Consultar la cobertura de un proceso de fe de vida (quién cumplió y quién no)"),
 
-    # â”€â”€â”€ 18. NOTIFICACIONES â”€â”€â”€
-    ("notificaciones.ver_propias", "Consultar y marcar como leÃ­das sus notificaciones"),
+    # ─── 18. NOTIFICACIONES ───
+    ("notificaciones.ver_propias", "Consultar y marcar como leídas sus notificaciones"),
     ("notificaciones.administrar", "Administrar el correo saliente (reintentos y fallidas)"),
 
-    # â”€â”€â”€ 12b. AUDITORÃA (ampliaciÃ³n) â”€â”€â”€
-    ("auditoria.exportar", "Exportar la bitÃ¡cora de auditorÃ­a"),
+    # ─── 12b. AUDITORÍA (ampliación) ───
+    ("auditoria.exportar", "Exportar la bitácora de auditoría"),
 ]
 
-# Permisos del catÃ¡logo que el rol ADMINISTRADOR NO recibe (G12): los avisos de
-# movimientos son operativos de RRHH y Bienestar, no de administraciÃ³n del sistema.
+# Permisos del catálogo que el rol ADMINISTRADOR NO recibe (G12): los avisos de
+# movimientos son operativos de RRHH y Bienestar, no de administración del sistema.
 PERMISOS_EXCLUIDOS_ADMINISTRADOR = frozenset({
     "personal.recibir_avisos_movimientos",
 })
 
-# Matriz de asignaciÃ³n por ID de rol conocido
+# Matriz de asignación por ID de rol conocido
 ROL_ASIGNACIONES = {
     # 1: ADMINISTRADOR -> Todos los permisos, salvo las exclusiones nombradas
     1: [p[0] for p in PERMISOS_CATALOGO if p[0] not in PERMISOS_EXCLUIDOS_ADMINISTRADOR],
 
-    # 2: ANALISTA -> GestiÃ³n operativa completa de RRHH
+    # 2: ANALISTA -> Gestión operativa completa de RRHH
     2: [
         "identidad.ver_usuarios",
         "identidad.ver_roles",
@@ -290,9 +290,9 @@ ROL_ASIGNACIONES = {
     ],
 
     # 9: RECEPCIONISTA -> Estricta consulta de personal y familiares (PLAN_ROL_RECEPCIONISTA).
-    # AmplÃ­a a partir de CC-APP-2026-08-001 (Control de Cambio original del rol): el objetivo es
-    # "revisar la informaciÃ³n...tanto activos como pasivos" (expediente completo), pero "ocultar
-    # ...la exportaciÃ³n de expedientes" -- por eso se otorga *.ver_detalle pero NO *.exportar_pdf.
+    # Amplía a partir de CC-APP-2026-08-001 (Control de Cambio original del rol): el objetivo es
+    # "revisar la información...tanto activos como pasivos" (expediente completo), pero "ocultar
+    # ...la exportación de expedientes" -- por eso se otorga *.ver_detalle pero NO *.exportar_pdf.
     9: [
         "personal.ver",
         "personal.ver_detalle",
@@ -301,15 +301,15 @@ ROL_ASIGNACIONES = {
     ],
 }
 
-# â”€â”€â”€ Roles nuevos (PLAN_PRIORIDAD Â§2.4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ─── Roles nuevos (PLAN_PRIORIDAD §2.4) ─────────────────────────────────────
 # Se crean por nombre (el id lo asigna la secuencia de USER_rol) si no existen; el
 # seed nunca renombra ni mueve usuarios de roles existentes.
 ROL_BIENESTAR_SOCIAL_ID = 5
 NOTIFICACIONES_PROPIAS = "notificaciones.ver_propias"
 
-# AutogestiÃ³n (PLAN Â§2.4 actualizado): UNA sola persona aprueba, asÃ­ que Analista y Administradora
-# tienen EL MISMO permiso `bienestar.aprobar`; ya no hay checks por rol ni aprobaciÃ³n directa en
-# autogestiÃ³n (siguen en la fe de vida con `fe_de_vida.*`).
+# Autogestión (PLAN §2.4 actualizado): UNA sola persona aprueba, así que Analista y Administradora
+# tienen EL MISMO permiso `bienestar.aprobar`; ya no hay checks por rol ni aprobación directa en
+# autogestión (siguen en la fe de vida con `fe_de_vida.*`).
 PERMISOS_BIENESTAR_ANALISTA = [
     "bienestar.ver_solicitudes",
     "bienestar.habilitar_ventana",
@@ -324,12 +324,12 @@ PERMISOS_BIENESTAR_ANALISTA = [
     "fe_de_vida.ver_cobertura",
 ]
 # La Administradora NO hereda el check de la Analista de la fe de vida: ese doble check exige dos
-# personas distintas (para validar sola existe la aprobaciÃ³n directa, auditada).
+# personas distintas (para validar sola existe la aprobación directa, auditada).
 PERMISOS_BIENESTAR_ADMIN = [
     p for p in PERMISOS_BIENESTAR_ANALISTA if p != "fe_de_vida.check_analista"
 ] + [
     "bienestar.configurar_secciones",
-    # DecisiÃ³n H: crear/abrir/cerrar procesos y conceder prÃ³rrogas es solo de la Administradora.
+    # Decisión H: crear/abrir/cerrar procesos y conceder prórrogas es solo de la Administradora.
     "fe_de_vida.gestionar_procesos",
     "fe_de_vida.prorrogar",
     "fe_de_vida.check_administradora",
@@ -338,33 +338,40 @@ PERMISOS_BIENESTAR_ADMIN = [
 ]
 
 # Ampliaciones aditivas a roles existentes (por id).
-# Permisos de autogestiÃ³n por solicitud que se retiran (PLAN Â§2.4: reemplazados por `bienestar.aprobar`).
-# Revisado el 2026-10-29: ningÃºn cÃ³digo del backend ni del frontend los referencia; solo los tenÃ­an
+# Permisos de autogestión por solicitud que se retiran (PLAN §2.4: reemplazados por `bienestar.aprobar`).
+# Revisado el 2026-10-29: ningún código del backend ni del frontend los referencia; solo los tenían
 # ANALISTA_BIENESTAR / ADMIN_BIENESTAR (y ADMINISTRADOR). El seed los retira de forma idempotente,
-# salvo que algÃºn usuario tenga una excepciÃ³n individual que los cite (entonces los conserva y avisa).
+# salvo que algún usuario tenga una excepción individual que los cite (entonces los conserva y avisa).
 PERMISOS_RETIRADOS = ("bienestar.check_analista", "bienestar.check_administradora", "bienestar.aprobar_directo")
 
-# Asignaciones que se retiran de un rol (por nombre) sin borrar el permiso del catÃ¡logo. Idempotente; no toca
+# Asignaciones que se retiran de un rol (por nombre) sin borrar el permiso del catálogo. Idempotente; no toca
 # excepciones individuales de usuario.
 ASIGNACIONES_RETIRADAS = {
     "ANALISTA_BIENESTAR": ("fe_de_vida.gestionar_procesos", "fe_de_vida.prorrogar"),
-    # G12: aunque el rol 1 conserva casi todo el catÃ¡logo, los avisos de
-    # movimientos quedan solo para RRHH y Bienestar. Retirarlo aquÃ­ hace que
-    # volver a correr el seed quite una asignaciÃ³n heredada.
+    # G12: aunque el rol 1 conserva casi todo el catálogo, los avisos de
+    # movimientos quedan solo para RRHH y Bienestar. Retirarlo aquí hace que
+    # volver a correr el seed quite una asignación heredada.
     "ADMINISTRADOR": ("personal.recibir_avisos_movimientos",),
 }
 
 ROL_ASIGNACIONES[2] += ["fe_de_vida.verificar_constancia"]
-# B8: Â«Mi expedienteÂ» exige `autogestion.ver_propio`; todo trabajador con cuenta ve su propia ficha,
-# asÃ­ que se aÃ±ade (aditivo) a los roles de personal que antes entraban solo por IsAuthenticated.
+# B8: «Mi expediente» exige `autogestion.ver_propio`; todo trabajador con cuenta ve su propia ficha,
+# así que se añade (aditivo) a los roles de personal que antes entraban solo por IsAuthenticated.
 for _rol_id in (2, 4, 9):
     ROL_ASIGNACIONES[_rol_id].append("autogestion.ver_propio")
+# Catálogo de tipos de nómina y organismos para los roles que gestionan
+# pasivos: sin `catalogos.ver` y `organizacion.ver`, el filtro de pasivos y el
+# alta directa quedan vacíos (403). ANALISTA_BIENESTAR y ADMIN_BIENESTAR
+# heredan de BIENESTAR SOCIAL (5).
+for _rol_id in (4, 5, 9):
+    ROL_ASIGNACIONES[_rol_id].append("catalogos.ver")
+    ROL_ASIGNACIONES[_rol_id].append("organizacion.ver")
 ROL_ASIGNACIONES[3] += [
     "autogestion.solicitar_actualizacion",
     "autogestion.editar_borrador",
     "autogestion.subir_soporte",
     # Fe de vida: el permiso lo tiene todo AUTOGESTION; que el trabajador sea pasivo es su
-    # CONDICIÃ“N (dato derivado, validado en servidor), no un rol.
+    # CONDICIÓN (dato derivado, validado en servidor), no un rol.
     "fe_de_vida.solicitar",
     "fe_de_vida.ver_propia",
 ]
@@ -378,11 +385,11 @@ ROLES_NUEVOS = {
         ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] + PERMISOS_BIENESTAR_ANALISTA,
     ),
     "ADMIN_BIENESTAR": (
-        "Administradora de Bienestar: check de la Administradora, aprobaciÃ³n directa y parametrizaciÃ³n.",
+        "Administradora de Bienestar: check de la Administradora, aprobación directa y parametrización.",
         ROL_ASIGNACIONES[ROL_BIENESTAR_SOCIAL_ID] + PERMISOS_BIENESTAR_ADMIN,
     ),
     "AUDITOR": (
-        "Auditor de solo lectura: consulta la bitÃ¡cora, los incidentes de seguridad y, sin editar, usuarios y roles.",
+        "Auditor de solo lectura: consulta la bitácora, los incidentes de seguridad y, sin editar, usuarios y roles.",
         [
             "auditoria.ver_logs",
             "auditoria.exportar",
@@ -396,7 +403,7 @@ ROLES_NUEVOS = {
         ],
     ),
     "JEFE_RRHH": (
-        "Jefe de RRHH: consulta la gestiÃ³n de personal, pasivos, movimientos y cobertura de fe de vida; no administra usuarios ni la matriz.",
+        "Jefe de RRHH: consulta la gestión de personal, pasivos, movimientos y cobertura de fe de vida; no administra usuarios ni la matriz.",
         [
             "identidad.ver_usuarios",
             "identidad.ver_roles",
@@ -408,6 +415,7 @@ ROLES_NUEVOS = {
             "pasivos.ver",
             "pasivos.ver_detalle",
             "pasivos.exportar_pdf",
+            "catalogos.ver",
             "movimientos.ver",
             "reportes.ver",
             "reportes.generar_pdf",
@@ -420,7 +428,7 @@ ROLES_NUEVOS = {
         ],
     ),
 }
-# ADMINISTRADOR conserva todo el catÃ¡logo (incluidos los cÃ³digos nuevos), salvo
+# ADMINISTRADOR conserva todo el catálogo (incluidos los códigos nuevos), salvo
 # las exclusiones nombradas arriba.
 ROL_ASIGNACIONES[1] = [
     p[0] for p in PERMISOS_CATALOGO if p[0] not in PERMISOS_EXCLUIDOS_ADMINISTRADOR

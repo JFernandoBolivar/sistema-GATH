@@ -39,12 +39,24 @@ function aDTO(e: Empleado): EmpleadoDTO {
   };
 }
 
+export interface PaginaEmpleadosDTO {
+  items: EmpleadoDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export async function listarEmpleados(
   repo: RepoPersonal,
   filtros?: FiltrosListadoEmpleado
-): Promise<EmpleadoDTO[]> {
-  const entidades = await repo.listarEmpleados(filtros);
-  return entidades.map(aDTO);
+): Promise<PaginaEmpleadosDTO> {
+  const pagina = await repo.listarEmpleados(filtros);
+  return {
+    items: pagina.items.map(aDTO),
+    total: pagina.total,
+    page: pagina.page,
+    pageSize: pagina.pageSize,
+  };
 }
 
 export async function obtenerEmpleadoPorCedula(

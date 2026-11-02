@@ -26,6 +26,35 @@ def _entero(nombre: str, valor: str | None) -> int | None:
         raise ValidationError(f"El filtro '{nombre}' debe ser un id numérico (recibido: '{valor}').")
 
 
+PAGINA_POR_DEFECTO = 10
+TAMANO_PAGINA_POR_DEFECTO = 10
+TAMANO_PAGINA_MAXIMO = 50
+
+
+def _entero_positivo(nombre: str, valor: str | None, defecto: int) -> int:
+    if valor is None or not str(valor).strip():
+        return defecto
+    try:
+        numero = int(valor)
+    except (TypeError, ValueError):
+        raise ValidationError(
+            f"El parámetro '{nombre}' debe ser un número entero (recibido: '{valor}')."
+        )
+    return max(numero, 1)
+
+
+def paginacion_listado(query_params) -> dict:
+    """`page` (1-based) y `page_size` (tope 50); `limit` se acepta como alias.
+
+    Fuera de rango se acota (página mínima 1, tamaño máximo 50); un valor no
+    numérico responde 400 en vez de ignorarse en silencio.
+    """
+    page = _entero_positivo('page', query_params.get('page'), 1)
+    bruto = query_params.get('page_size') or query_params.get('limit')
+    page_size = _entero_positivo('page_size', bruto, TAMANO_PAGINA_POR_DEFECTO)
+    return {'page': page, 'page_size': min(page_size, TAMANO_PAGINA_MAXIMO)}
+
+
 def filtros_listado_personal(query_params) -> dict:
     """
     Devuelve los kwargs de `listar_personal`. Acepta `q`/`busqueda`/

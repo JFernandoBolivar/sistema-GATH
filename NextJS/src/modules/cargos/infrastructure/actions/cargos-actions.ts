@@ -8,7 +8,7 @@
  */
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { ApiHttpError, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   asignarCargo,
   asignarCargoEspecial,
@@ -244,7 +244,10 @@ export async function cambiarCargoAction(input: { cargoActualId: number; cargoNu
   } catch (error) {
     await logAudit({ traceId, action: "cambiarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    if (error instanceof ApiHttpError) {
+      return { error: error.message };
+    }
+    return { error: "No fue posible cambiar el cargo. Intente de nuevo." };
   }
 }
 

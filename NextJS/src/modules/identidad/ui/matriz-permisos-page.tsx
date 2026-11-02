@@ -3,16 +3,24 @@
 /**
  * Matriz de permisos por rol (D4).
  *
- * Filas: permisos agrupados por módulo, con su descripción legible.
- * Columnas: roles. Editable solo con `identidad.asignar_permisos`; el AUDITOR
- * (y cualquier otro rol con `identidad.ver_roles`) la ve en solo lectura.
- * Cada cambio pide confirmación y motivo, queda en AuditoriaLog e incrementa
- * `permisos_version` de las cuentas del rol (invalida sus sesiones).
+ * Filas: permisos agrupados por módulo, con su descripción legible y plegables.
+ * Columnas: roles, con el conteo de permisos y el guardado por rol.
+ * Editable solo con `identidad.asignar_permisos`; el AUDITOR (y cualquier otro
+ * rol con `identidad.ver_roles`) la ve en solo lectura. Cada cambio pide
+ * confirmación y motivo, queda en AuditoriaLog e incrementa `permisos_version`
+ * de las cuentas del rol (invalida sus sesiones).
  */
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Loader2, Save, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  Loader2,
+  Save,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -55,7 +63,7 @@ const MODULOS: Record<string, string> = {
   reportes: "Reportes y constancias",
   carnetizacion: "Carnetización",
   autogestion: "Autogestión",
-  bienestar: "Bienestar social",
+  bienestar: "Bienestar Social",
   fe_de_vida: "Fe de vida",
   notificaciones: "Notificaciones",
   auditoria: "Auditoría",
@@ -65,6 +73,19 @@ const MODULOS: Record<string, string> = {
 
 function nombreModulo(modulo: string): string {
   return MODULOS[modulo] ?? modulo;
+}
+
+/** «ADMIN_BIENESTAR» → «Admin Bienestar»; conserva siglas como RRHH. */
+function nombreRol(nombre: string): string {
+  const siglas = new Set(["RRHH", "TI", "GATH", "APN"]);
+  return nombre
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((palabra) => {
+      if (siglas.has(palabra)) return palabra;
+      return palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
+    })
+    .join(" ");
 }
 
 export default function MatrizPermisosPage() {
@@ -79,6 +100,8 @@ export default function MatrizPermisosPage() {
   const [cargando, startTransition] = useTransition();
   const [rolGuardando, setRolGuardando] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [busqueda, setBusqueda] = useState("");
+  const [cerrados, setCerrados] = useState<Set<string>>(new Set());
 
   const cargar = () => {
     startTransition(async () => {
@@ -98,13 +121,27 @@ export default function MatrizPermisosPage() {
     if (puedeVer) cargar();
   }, [puedeVer]);
 
+  const filasFiltradas = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+    const filas = matriz?.filas ?? [];
+    if (!texto) return filas;
+    return filas.filter(
+      (fila) =>
+        fila.codigo.toLowerCase().includes(texto) ||
+        fila.nombre.toLowerCase().includes(texto) ||
+        nombreModulo(fila.modulo).toLowerCase().includes(texto),
+    );
+  }, [matriz, busqueda]);
+
   const filasPorModulo = useMemo(() => {
     const mapa = new Map<string, MatrizPermisosDTO["filas"]>();
-    for (const fila of matriz?.filas ?? []) {
+    for (const fila of filasFiltradas) {
       mapa.set(fila.modulo, [...(mapa.get(fila.modulo) ?? []), fila]);
     }
-    return [...mapa.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [matriz]);
+    return [...mapa.entries()].sort(([a], [b]) =>
+      nombreModulo(a).localeCompare(nombreModulo(b), "es"),
+    );
+  }, [filasFiltradas]);
 
   const alternar = (rolId: number, codigo: string) => {
     if (!puedeEditar) return;
@@ -115,6 +152,21 @@ export default function MatrizPermisosPage() {
         : [...actuales, codigo];
       return { ...previo, [rolId]: siguientes };
     });
+  };
+
+  const totalPorRol = (rolId: number) => (borrador[rolId] ?? []).length;
+
+  const cambiosPorRol = (rolId: number, codigosOriginales: string[]) => {
+    const antes = new Set(codigosOriginales);
+    const ahora = new Set(borrador[rolId] ?? []);
+    let cambios = 0;
+    antes.forEach((codigo) => {
+      if (!ahora.has(codigo)) cambios += 1;
+    });
+    ahora.forEach((codigo) => {
+      if (!antes.has(codigo)) cambios += 1;
+    });
+    return cambios;
   };
 
   const guardar = () => {
@@ -136,6 +188,15 @@ export default function MatrizPermisosPage() {
     });
   };
 
+  const alternarModulo = (modulo: string) => {
+    setCerrados((previo) => {
+      const siguiente = new Set(previo);
+      if (siguiente.has(modulo)) siguiente.delete(modulo);
+      else siguiente.add(modulo);
+      return siguiente;
+    });
+  };
+
   if (!puedeVer) {
     return (
       <section className="px-6 py-4">
@@ -146,18 +207,26 @@ export default function MatrizPermisosPage() {
     );
   }
 
+  const buscando = busqueda.trim().length > 0;
+
   return (
-    <section className="flex flex-col gap-4 px-6 py-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/usuarios">
-            <ArrowLeft className="size-4" aria-hidden="true" /> Volver
-          </Link>
-        </Button>
-        <ShieldCheck className="size-5 text-muted-foreground" aria-hidden="true" />
-        <h1 className="text-xl font-semibold tracking-tight">Matriz de permisos</h1>
-        {!puedeEditar && <Badge variant="outline">Solo lectura</Badge>}
-      </div>
+    <section className="flex w-full min-w-0 max-w-full flex-col gap-4 overflow-x-hidden px-4 py-4 lg:px-6">
+      <header className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/usuarios">
+              <ArrowLeft className="size-4" aria-hidden="true" /> Volver
+            </Link>
+          </Button>
+          <ShieldCheck className="size-5 text-muted-foreground" aria-hidden="true" />
+          <h1 className="text-xl font-semibold tracking-tight">Matriz de permisos</h1>
+          {!puedeEditar && <Badge variant="outline">Solo lectura</Badge>}
+        </div>
+        <p className="max-w-3xl text-sm text-muted-foreground">
+          Defina qué puede hacer cada rol. Marque o desmarque un permiso y guarde los cambios del
+          rol; cada guardado pide un motivo y queda registrado en la bitácora.
+        </p>
+      </header>
 
       {error && (
         <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
@@ -178,63 +247,158 @@ export default function MatrizPermisosPage() {
         </div>
       ) : matriz ? (
         <>
-          <div className="overflow-x-auto rounded-md border bg-card">
-            <Table>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full min-w-0 sm:max-w-sm">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                type="search"
+                value={busqueda}
+                onChange={(evento) => setBusqueda(evento.target.value)}
+                placeholder="Buscar permiso por código o nombre…"
+                aria-label="Buscar permiso"
+                className="pl-9"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <span>
+                {filasFiltradas.length} de {matriz.filas.length} permisos · {matriz.roles.length} roles
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setCerrados(
+                    cerrados.size > 0
+                      ? new Set()
+                      : new Set(filasPorModulo.map(([modulo]) => modulo)),
+                  )
+                }
+              >
+                {cerrados.size > 0 ? "Expandir todo" : "Contraer todo"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="max-h-[calc(100dvh-21rem)] w-full max-w-full min-w-0 overflow-auto rounded-xl border bg-card shadow-sm">
+            <Table className="min-w-max">
               <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-72">Permiso</TableHead>
-                  {matriz.roles.map((rol) => (
-                    <TableHead key={rol.rolId} className="text-center">
-                      <span className="block">{rol.nombre}</span>
-                      {puedeEditar && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="mt-1"
-                          onClick={() => {
-                            setMotivo("");
-                            setRolGuardando(rol.rolId);
-                          }}
-                        >
-                          <Save className="size-3" aria-hidden="true" /> Guardar
-                        </Button>
-                      )}
-                    </TableHead>
-                  ))}
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="sticky left-0 top-0 z-30 min-w-72 bg-card">
+                    Permiso
+                  </TableHead>
+                  {matriz.roles.map((rol) => {
+                    const cambios = cambiosPorRol(rol.rolId, rol.codigos);
+                    return (
+                      <TableHead
+                        key={rol.rolId}
+                        className="sticky top-0 z-20 min-w-40 bg-card text-center align-top"
+                      >
+                        <div className="flex flex-col items-center gap-1 py-1">
+                          <span
+                            className="text-sm font-semibold text-foreground"
+                            title={rol.nombre}
+                          >
+                            {nombreRol(rol.nombre)}
+                          </span>
+                          <span className="text-[11px] font-normal text-muted-foreground">
+                            {totalPorRol(rol.rolId)} permisos
+                          </span>
+                          {puedeEditar && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant={cambios > 0 ? "default" : "outline"}
+                              disabled={cambios === 0}
+                              className="h-7 gap-1 px-2 text-xs"
+                              onClick={() => {
+                                setMotivo("");
+                                setRolGuardando(rol.rolId);
+                              }}
+                            >
+                              <Save className="size-3" aria-hidden="true" />
+                              {cambios > 0 ? `Guardar (${cambios})` : "Sin cambios"}
+                            </Button>
+                          )}
+                        </div>
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filasPorModulo.map(([modulo, filas]) => (
-                  <Fragment key={`modulo-${modulo}`}>
-                    <TableRow className="bg-muted/50">
-                      <TableCell colSpan={matriz.roles.length + 1} className="font-semibold">
-                        {nombreModulo(modulo)}
-                      </TableCell>
-                    </TableRow>
-                    {filas.map((fila) => (
-                      <TableRow key={fila.codigo}>
-                        <TableCell>
-                          <span className="block font-mono text-xs">{fila.codigo}</span>
-                          <span className="block text-xs text-muted-foreground">{fila.nombre}</span>
-                        </TableCell>
-                        {matriz.roles.map((rol) => {
-                          const marcado = (borrador[rol.rolId] ?? []).includes(fila.codigo);
-                          return (
-                            <TableCell key={`${rol.rolId}-${fila.codigo}`} className="text-center">
-                              <Checkbox
-                                checked={marcado}
-                                disabled={!puedeEditar || cargando}
-                                onCheckedChange={() => alternar(rol.rolId, fila.codigo)}
-                                aria-label={`${fila.codigo} para ${rol.nombre}`}
+                {filasPorModulo.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={matriz.roles.length + 1}
+                      className="py-10 text-center text-sm text-muted-foreground"
+                    >
+                      No hay permisos que coincidan con «{busqueda.trim()}».
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filasPorModulo.map(([modulo, filas]) => {
+                    const abierto = buscando || !cerrados.has(modulo);
+                    return (
+                      <Fragment key={`modulo-${modulo}`}>
+                        <TableRow className="bg-muted/60 hover:bg-muted/60">
+                          <TableCell
+                            colSpan={matriz.roles.length + 1}
+                            className="sticky left-0 z-10 bg-muted/60 p-0"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => alternarModulo(modulo)}
+                              aria-expanded={abierto}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-foreground"
+                            >
+                              <ChevronDown
+                                className={`size-4 transition-transform ${abierto ? "" : "-rotate-90"}`}
+                                aria-hidden="true"
                               />
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </Fragment>
-                ))}
+                              {nombreModulo(modulo)}
+                              <span className="ml-auto text-xs font-normal text-muted-foreground">
+                                {filas.length} permisos
+                              </span>
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                        {abierto &&
+                          filas.map((fila) => (
+                            <TableRow key={fila.codigo} className="group">
+                              <TableCell className="sticky left-0 z-10 bg-card group-hover:bg-muted/50">
+                                <span className="block font-mono text-[11px] font-medium text-primary">
+                                  {fila.codigo}
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                  {fila.nombre}
+                                </span>
+                              </TableCell>
+                              {matriz.roles.map((rol) => {
+                                const marcado = (borrador[rol.rolId] ?? []).includes(fila.codigo);
+                                return (
+                                  <TableCell
+                                    key={`${rol.rolId}-${fila.codigo}`}
+                                    className="text-center"
+                                  >
+                                    <Checkbox
+                                      checked={marcado}
+                                      disabled={!puedeEditar || cargando}
+                                      onCheckedChange={() => alternar(rol.rolId, fila.codigo)}
+                                      aria-label={`${fila.codigo} para ${rol.nombre}`}
+                                    />
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          ))}
+                      </Fragment>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </div>
@@ -256,7 +420,10 @@ export default function MatrizPermisosPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               Confirmar cambio de la matriz de{" "}
-              {matriz?.roles.find((r) => r.rolId === rolGuardando)?.nombre ?? "rol"}
+              {(() => {
+                const rol = matriz?.roles.find((r) => r.rolId === rolGuardando);
+                return rol ? nombreRol(rol.nombre) : "rol";
+              })()}
             </AlertDialogTitle>
           </AlertDialogHeader>
           <Field>

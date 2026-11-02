@@ -1,8 +1,7 @@
-"""A-01: el listado de personal activo debe ser liviano.
+"""Mensaje 1b: paginación en servidor de `/api/v1/personal/`.
 
-- Payload de 10 filas por debajo de 30 KB (solo columnas de la tabla).
-- Número de consultas constante con N=10 y N=50 (sin N+1).
-- El detalle conserva el expediente anidado completo.
+Cubre total, páginas, tope de 50, filtros en servidor, búsqueda con acentos,
+payload liviano y consultas constantes.
 """
 import pytest
 from django.db import connection
@@ -20,7 +19,8 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     SexoModel,
     TipoNominaModel,
 )
-from apps.personal.application.use_cases.listar_personal import listar_personal
+from apps.organizacion.infrastructure.models.organizacion_models import DependenciaModel
+from apps.personal.application.use_cases.listar_personal import listar_personal_paginado
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
 
@@ -55,58 +55,58 @@ def catalogos():
     NacionalidadModel.objects.get_or_create(
         pk=1, defaults={"codigo": "V", "nombre": "Venezolana"}
     )
-    sexo = SexoModel.objects.create(sexo="M")
-    estatus = EstatusModel.objects.create(estatus="ACTIVO")
-    nomina = TipoNominaModel.objects.create(nomina="CONTRATADO", es_activo=True)
-    cargo = DenominacionCargoModel.objects.create(cargo="ANALISTA")
-    especifico = DenominacionCargoEspecificoModel.objects.create(cargo="ANALISTA I")
     return {
-        "sexo": sexo,
-        "estatus": estatus,
-        "nomina": nomina,
-        "cargo": cargo,
-        "especifico": especifico,
+        "sexo": SexoModel.objects.create(sexo="M"),
+        "estatus": EstatusModel.objects.create(estatus="ACTIVO"),
+        "nomina": TipoNominaModel.objects.create(nomina="CONTRATADO", es_activo=True),
+        "nomina_b": TipoNominaModel.objects.create(nomina="OBRERO FIJO", es_activo=True),
+        "cargo": DenominacionCargoModel.objects.create(cargo="ANALISTA"),
+        "especifico": DenominacionCargoEspecificoModel.objects.create(cargo="ANALISTA I"),
+        "dependencia": DependenciaModel.objects.create(Codigo="DEP-1", dependencia="NIVEL DE APOYO"),
     }
 
 
-def _crear_empleados(cantidad: int, catalogos, desde: int = 0) -> None:
-    empleados = [
-        EmployeeModel(
-            cedulaidentidad=f"9900{i:04d}",
-            nombres="AUDITORIA",
-            apellidos=f"PRUEBA {i}",
-            sexoid=catalogos["sexo"],
-            nacionalidad_id=1,
-        )
-        for i in range(desde, desde + cantidad)
-    ]
-    EmployeeModel.objects.bulk_create(empleados)
-    AsigTrabajoModel.objects.bulk_create(
-        [
-            AsigTrabajoModel(
-                codigo=f"COD-{i}",
-                employee_id=empleado.cedulaidentidad,
-                denominacioncargoid=catalogos["cargo"],
-                denominacioncargoespecificoid=catalogos["especifico"],
-                tiponominaid=catalogos["nomina"],
-                estatusid=catalogos["estatus"],
-            )
-            for i, empleado in zip(range(desde, desde + cantidad), empleados)
-        ]
+def _crear_empleado(indice, catalogos, *, nombres=None, apellidos=None, codigo=None, nomina=None,
+                    dependencia=None):
+    empleado = EmployeeModel.objects.create(
+        cedulaidentidad=f"9900{indice:04d}",
+        nombres=nombres or "AUDITORIA",
+        apellidos=apellidos or f"PRUEBA {indice}",
+        sexoid=catalogos["sexo"],
+        nacionalidad_id=1,
     )
+    AsigTrabajoModel.objects.create(
+        codigo=codigo or f"COD-{indice}",
+        employee_id=empleado.cedulaidentidad,
+        denominacioncargoid=catalogos["cargo"],
+        denominacioncargoespecificoid=catalogos["especifico"],
+        tiponominaid=nomina or catalogos["nomina"],
+        estatusid=catalogos["estatus"],
+        Dependencia=dependencia,
+    )
+    return empleado
+
+
+def _crear_varios(cantidad, catalogos, desde=0):
+    for i in range(desde, desde + cantidad):
+        _crear_empleado(i, catalogos)
+
+
+def _data(respuesta):
+    return respuesta.json()["data"]
 
 
 def test_payload_de_diez_filas_pesa_menos_de_30_kb(catalogos):
-    _crear_empleados(10, catalogos)
+    _crear_varios(10, catalogos)
 
-    respuesta = _cliente("personal.ver").get(URL_LISTA)
+    respuesta = _cliente("personal.ver").get(f"{URL_LISTA}?page=1&page_size=10")
 
     assert respuesta.status_code == 200
-    filas = respuesta.json()["data"]
-    assert len(filas) == 10
+    data = _data(respuesta)
+    assert len(data["results"]) == 10
+    assert data["total"] == 10
     assert len(respuesta.content) < 30_000
-    # Solo las claves de la tabla; el expediente no viaja en el listado.
-    assert set(filas[0]) == {
+    assert set(data["results"][0]) == {
         "id",
         "cedula",
         "nombres",
@@ -119,25 +119,82 @@ def test_payload_de_diez_filas_pesa_menos_de_30_kb(catalogos):
     }
 
 
+def test_paginacion_total_y_paginas_sin_repetir(catalogos):
+    _crear_varios(12, catalogos)
+    api = _cliente("personal.ver")
+
+    primera = _data(api.get(f"{URL_LISTA}?page=1&page_size=10"))
+    segunda = _data(api.get(f"{URL_LISTA}?page=2&page_size=10"))
+
+    assert primera["total"] == segunda["total"] == 12
+    assert primera["page"] == 1 and segunda["page"] == 2
+    assert len(primera["results"]) == 10
+    assert len(segunda["results"]) == 2
+    assert not {f["cedula"] for f in primera["results"]} & {
+        f["cedula"] for f in segunda["results"]
+    }
+
+
+def test_tope_de_page_size_y_alias_limit(catalogos):
+    _crear_varios(3, catalogos)
+    api = _cliente("personal.ver")
+
+    con_tope = _data(api.get(f"{URL_LISTA}?page_size=100"))
+    con_alias = _data(api.get(f"{URL_LISTA}?limit=7"))
+
+    assert con_tope["page_size"] == 50
+    assert con_tope["total"] == 3
+    assert con_alias["page_size"] == 7
+
+
+def test_filtros_busqueda_codigo_nomina_y_dependencia(catalogos):
+    _crear_empleado(1, catalogos, nombres="JOSÉ", apellidos="PÉREZ", codigo="COD-ESPECIAL")
+    _crear_empleado(
+        2, catalogos, nombres="MARÍA", apellidos="GÓMEZ", nomina=catalogos["nomina_b"],
+        dependencia=catalogos["dependencia"],
+    )
+    api = _cliente("personal.ver")
+
+    por_acento = _data(api.get(f"{URL_LISTA}?q=PÉREZ"))
+    por_codigo = _data(api.get(f"{URL_LISTA}?codigo=ESPECIAL"))
+    por_nomina = _data(api.get(f"{URL_LISTA}?tipo_nomina={catalogos['nomina_b'].pk}"))
+    por_dependencia = _data(api.get(f"{URL_LISTA}?dependencia_id={catalogos['dependencia'].pk}"))
+
+    assert [f["apellidos"] for f in por_acento["results"]] == ["PÉREZ"]
+    assert [f["cedula"] for f in por_codigo["results"]] == ["99000001"]
+    assert [f["cedula"] for f in por_nomina["results"]] == ["99000002"]
+    assert [f["cedula"] for f in por_dependencia["results"]] == ["99000002"]
+    assert por_dependencia["total"] == 1
+
+
+def test_parametros_invalidos_responden_400(catalogos):
+    api = _cliente("personal.ver")
+
+    assert api.get(f"{URL_LISTA}?page=abc").status_code == 400
+    assert api.get(f"{URL_LISTA}?page_size=abc").status_code == 400
+
+
 def test_consultas_constantes_con_10_y_50_filas(catalogos):
-    _crear_empleados(10, catalogos)
+    _crear_varios(10, catalogos)
     repo = RepoPersonalORM()
 
     with CaptureQueriesContext(connection) as con_diez:
-        assert len(listar_personal(repo)) == 10
+        dtos, total = listar_personal_paginado(repo, page=1, page_size=10)
+    assert len(dtos) == 10 and total == 10
 
-    _crear_empleados(40, catalogos, desde=10)
+    _crear_varios(40, catalogos, desde=10)
     with CaptureQueriesContext(connection) as con_cincuenta:
-        assert len(listar_personal(repo)) == 50
+        dtos, total = listar_personal_paginado(repo, page=1, page_size=50)
+    assert len(dtos) == 50 and total == 50
 
     assert len(con_cincuenta) == len(con_diez)
 
 
 def test_detalle_conserva_el_expediente_anidado(catalogos):
-    _crear_empleados(1, catalogos)
+    _crear_empleado(1, catalogos)
 
     respuesta = _cliente("personal.ver", "personal.ver_detalle").get(
-        URL_DETALLE.format(cedula="99000000")
+        URL_DETALLE.format(cedula="99000001")
     )
 
     assert respuesta.status_code == 200

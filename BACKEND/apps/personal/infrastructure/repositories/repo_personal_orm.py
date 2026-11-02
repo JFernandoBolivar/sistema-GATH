@@ -57,7 +57,7 @@ class RepoPersonalORM:
     # ------------------------------------------------------------------
     # Lectura
     # ------------------------------------------------------------------
-    def listar_empleados(
+    def _filtrar_empleados(
         self,
         busqueda: str | None = None,
         codigo: str | None = None,
@@ -66,7 +66,12 @@ class RepoPersonalORM:
         direccion_general_id: int | None = None,
         direccion_linea_id: int | None = None,
         coordinacion_id: int | None = None,
-    ) -> list[Empleado]:
+    ):
+        """QuerySet de activos con los filtros aplicados en el servidor.
+
+        El orden incluye la PK como desempate para que la paginación sea
+        estable entre páginas aunque `fecha_actualizacion` se repita.
+        """
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 
         # Solo listar trabajadores que tienen cargos asignados activos (Regla de negocio Personal Activo)
@@ -100,7 +105,7 @@ class RepoPersonalORM:
             'profile', 'sexoid', 'estadoCivil', 'nacionalidad', 'correo',
             'telefono_habitacion', 'telefono_movil', 'carnet_patria',
             'fecha_actualizacion',
-        ).order_by('-fecha_actualizacion')
+        ).order_by('-fecha_actualizacion', '-id')
 
         if busqueda:
             qs = qs.filter(
@@ -108,7 +113,9 @@ class RepoPersonalORM:
                 | Q(nombres__icontains=busqueda)
                 | Q(apellidos__icontains=busqueda)
             )
-        empleados = list(qs)
+        return qs
+
+    def _entidades_de(self, empleados: list) -> list[Empleado]:
         antecedentes_por_empleado = self._antecedentes_cerrados_bulk(
             [e.pk for e in empleados]
         )
@@ -130,6 +137,54 @@ class RepoPersonalORM:
             )
             for e in empleados
         ]
+
+    def listar_empleados(
+        self,
+        busqueda: str | None = None,
+        codigo: str | None = None,
+        tipo_nomina: str | int | None = None,
+        dependencia_id: int | None = None,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+    ) -> list[Empleado]:
+        qs = self._filtrar_empleados(
+            busqueda=busqueda,
+            codigo=codigo,
+            tipo_nomina=tipo_nomina,
+            dependencia_id=dependencia_id,
+            direccion_general_id=direccion_general_id,
+            direccion_linea_id=direccion_linea_id,
+            coordinacion_id=coordinacion_id,
+        )
+        return self._entidades_de(list(qs))
+
+    def listar_empleados_paginados(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        busqueda: str | None = None,
+        codigo: str | None = None,
+        tipo_nomina: str | int | None = None,
+        dependencia_id: int | None = None,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+    ) -> tuple[list[Empleado], int]:
+        """Página de activos y total de coincidencias, sin traer todas las filas."""
+        qs = self._filtrar_empleados(
+            busqueda=busqueda,
+            codigo=codigo,
+            tipo_nomina=tipo_nomina,
+            dependencia_id=dependencia_id,
+            direccion_general_id=direccion_general_id,
+            direccion_linea_id=direccion_linea_id,
+            coordinacion_id=coordinacion_id,
+        )
+        total = qs.count()
+        empleados = list(qs[offset:offset + limit])
+        return self._entidades_de(empleados), total
 
     def obtener_por_cedula(self, cedula: str) -> Empleado | None:
         cedula_str = str(cedula).strip() if cedula else ""

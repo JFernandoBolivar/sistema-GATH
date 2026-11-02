@@ -50,6 +50,8 @@ export interface PasivoDTO {
   telefonoHabitacion: string | null;
   carnetPatria: string | null;
   fechaNacimiento: string | null;
+  sexoNombre: string | null;
+  fechaIngresoOrganismo: string | null;
   estadoCivilId: number | null;
   nacionalidadId: number | null;
   datosVivienda: DatosViviendaPasivoDTO | null;

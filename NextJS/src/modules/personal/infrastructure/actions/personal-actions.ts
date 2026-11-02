@@ -34,14 +34,17 @@ import {
   listadoEmpleadosSchema,
 } from "../../ui/schema/schema-empleado";
 
-export async function getEmpleadosAction(filtros?: FiltrosListadoEmpleado) {
+export async function getEmpleadosAction(
+  filtros?: FiltrosListadoEmpleado,
+  pagina?: { page?: number; pageSize?: number },
+) {
   const validated = listadoEmpleadosSchema.safeParse(filtros ?? {});
   const filtrosValidos = validated.success ? validated.data : {};
 
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await listarEmpleados(repoPersonalApi, filtrosValidos);
+    const result = await listarEmpleados(repoPersonalApi, { ...filtrosValidos, ...pagina });
     await logAudit({ traceId, action: "getEmpleadosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
