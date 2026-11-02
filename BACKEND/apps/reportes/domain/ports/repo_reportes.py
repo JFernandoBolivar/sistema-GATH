@@ -16,6 +16,9 @@ class RepoReportes(Protocol):
     def reporte_egresos_pasivos(self, filtros: dict, limite: int) -> ResultadoReporte:
         ...
 
+    def reporte_pasivos(self, consulta: ConsultaReportePersonal, limite: int) -> ResultadoReporte:
+        ...
+
     def reporte_cargos_vacantes(
         self, limite: int, dependencias_ids: list[int] | None = None
     ) -> ResultadoReporte:

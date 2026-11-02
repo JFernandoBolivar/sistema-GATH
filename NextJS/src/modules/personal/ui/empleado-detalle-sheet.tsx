@@ -19,7 +19,6 @@
  * 9. Información de Vestimenta (Shirt + botón Actualizar).
  * 10. Información de Salud (Ambulance + Tipo de sangre + tablas categorizadas de patologías, discapacidades, alergias).
  */
-import Image from "next/image";
 import {
   Ambulance,
   ContactRound,
@@ -131,12 +130,15 @@ export default function EmpleadoDetalleSheet({
             {/* 1. Header con Foto de Perfil, Nombre y Diálogo Básico */}
             <div className="mx-auto flex w-60 flex-col items-center gap-2">
               <div className="h-60 w-60 overflow-hidden rounded-md border bg-slate-100 shadow-sm">
-                <Image
-                  src="/bg.png"
+                {/* Foto autenticada del mismo origen; `next/image` no reenvía cookies al optimizador. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/api/v1/personal/${empleado.cedula}/foto/`}
                   alt={`Foto de ${empleado.nombres} ${empleado.apellidos}`}
-                  width={240}
-                  height={240}
                   className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = "/bg.png";
+                  }}
                 />
               </div>
               <h2 className="w-full text-center text-lg font-bold">

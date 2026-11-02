@@ -57,6 +57,7 @@ def _usuario_tiene_permiso(user, codigo: str) -> bool:
             rol_id=getattr(user, 'rol_id', None),
             codigo=codigo,
             cedula=cedula or None,
+            version=int(getattr(user, 'permisos_version', 1) or 1),
         )
     )
 

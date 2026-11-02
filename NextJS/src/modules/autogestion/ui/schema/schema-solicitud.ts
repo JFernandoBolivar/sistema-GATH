@@ -4,6 +4,8 @@ import {
   DATE_ISO_MSG,
   EMAIL,
   EMAIL_MSG,
+  NAME,
+  NAME_MSG,
   NO_HTML,
   NO_HTML_MSG,
 } from "@/shared/validation";
@@ -45,6 +47,18 @@ const telefonoOpcional = z
   .regex(TELEFONO_AUTOGESTION, TELEFONO_AUTOGESTION_MSG)
   .optional()
   .or(z.literal(""));
+
+/** Nombres y apellidos: solo letras (con acentos), espacios y signos de nombre. */
+const nombreRequerido = (nombre: string) =>
+  z
+    .string({ required_error: `${nombre} es obligatorio` })
+    .trim()
+    .min(1, `${nombre} es obligatorio`)
+    .max(100, `${nombre} no puede superar 100 caracteres`)
+    .regex(NAME, NAME_MSG);
+
+const nombreOpcional = () =>
+  z.string().trim().max(100, "No puede superar 100 caracteres").regex(NAME, NAME_MSG).optional().or(z.literal(""));
 
 /** Identificador de catálogo: las listas desplegables entregan texto; vacío = sin elegir. */
 const idCatalogo = (nombre: string) =>
@@ -90,8 +104,8 @@ export const contactoSchema = z.object({
 export type ContactoValores = z.infer<typeof contactoSchema>;
 
 export const contactoEmergenciaSchema = z.object({
-  nombres: textoRequerido("Los nombres"),
-  apellidos: textoRequerido("Los apellidos"),
+  nombres: nombreRequerido("Los nombres"),
+  apellidos: nombreRequerido("Los apellidos"),
   telefono: telefonoOpcional,
   relacion_id: idCatalogoOpcional,
 });
@@ -116,10 +130,10 @@ export const formacionSchema = z.object({
 export type FormacionValores = z.infer<typeof formacionSchema>;
 
 export const familiarSchema = z.object({
-  primer_nombre: textoRequerido("El primer nombre"),
-  segundo_nombre: textoOpcional(),
-  primer_apellido: textoRequerido("El primer apellido"),
-  segundo_apellido: textoOpcional(),
+  primer_nombre: nombreRequerido("El primer nombre"),
+  segundo_nombre: nombreOpcional(),
+  primer_apellido: nombreRequerido("El primer apellido"),
+  segundo_apellido: nombreOpcional(),
   cedula_familiar: z
     .string()
     .trim()

@@ -19,6 +19,7 @@ from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_distribucion_nomina,
     generar_reporte_familiares,
     generar_reporte_pasivos,
+    generar_reporte_pasivos_actuales,
     generar_reporte_personal,
     generar_reporte_tendencias,
     generar_reporte_vacantes,
@@ -88,6 +89,19 @@ def _generar_reporte_personal(request, *, para_pdf: bool):
     )
 
 
+def _generar_reporte_pasivos(request, *, para_pdf: bool):
+    """PDF/Excel de pasivos con el formulario de filtros de personal activo."""
+    return generar_reporte_pasivos_actuales(
+        RepoReportesORM(),
+        filtros=request.query_params.dict(),
+        registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=usuario_tiene_permiso(
+            request.user, PERMISO_ESTRUCTURA_ORGANIZATIVA
+        ),
+        limite=limite_de_reporte(para_pdf=para_pdf),
+    )
+
+
 class ReportePersonalActivoView(APIView):
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER_REPORTES)]
 
@@ -141,11 +155,7 @@ class ReportePasivosPdfView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de pasivos en PDF', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        dto = generar_reporte_pasivos(
-            RepoReportesORM(),
-            filtros=request.query_params.dict(),
-            limite=limite_de_reporte(para_pdf=True),
-        )
+        dto = _generar_reporte_pasivos(request, para_pdf=True)
         pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
         return _respuesta_pdf(pdf_bytes, 'reporte_pasivos.pdf', dto.metadatos)
 
@@ -157,11 +167,7 @@ class ReportePasivosExcelView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Descargar el reporte de pasivos en Excel', responses={200: OpenApiTypes.BINARY})
     def get(self, request):
-        dto = generar_reporte_pasivos(
-            RepoReportesORM(),
-            filtros=request.query_params.dict(),
-            limite=limite_de_reporte(para_pdf=False),
-        )
+        dto = _generar_reporte_pasivos(request, para_pdf=False)
         excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
         return _respuesta_excel(excel_bytes, 'reporte_pasivos.xlsx', dto.metadatos)
 

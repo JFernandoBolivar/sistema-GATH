@@ -15,7 +15,7 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
@@ -45,6 +45,7 @@ from apps.identidad.infrastructure.repositories.repo_correo_acceso_orm import Re
 from apps.identidad.infrastructure.repositories.repo_desactivacion_egreso_orm import (
     RepoDesactivacionEgresoORM,
 )
+from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
 from apps.identidad.infrastructure.repositories.repo_cuentas_orm import RepoCuentasORM
 from apps.identidad.infrastructure.repositories.repo_password_inicial_orm import (
     RepoPasswordInicialORM,
@@ -102,6 +103,9 @@ def _aplicar_ciclo_de_vida(cedula: str, egreso: bool, ingreso: bool) -> None:
                 )
                 if RepoCondicionTrabajadorORM().condicion_por_cedula(cedula) is CondicionTrabajador.ACTIVO:
                     aprovisionar_por_cedula(cedula)
+            # Egreso / pase a pasivo / reingreso: el contexto de autenticación
+            # cacheado deja de ser válido aunque la cuenta no cambie de rol.
+            RepoCuentasORM().invalidar_contexto_por_cedula(cedula)
     except Exception:  # noqa: BLE001
         logger.exception('no se pudo aplicar el ciclo de vida de la cuenta de %s', cedula)
 
@@ -119,6 +123,23 @@ def notificar_evento_identidad(sender, evento, **kwargs):
                 notificador.notificar(solicitud)
     except Exception:  # noqa: BLE001
         logger.exception('no se pudo generar el aviso del evento %s', evento.tipo.value)
+
+
+@receiver(post_save, sender=CuentaModel, dispatch_uid='identidad_contexto_cuenta_guardada')
+def invalidar_contexto_al_guardar_cuenta(sender, instance, **kwargs):
+    """Cualquier cambio de cuenta (rol, estado, contraseña) invalida L-NEW2."""
+    try:
+        RepoCuentasORM().invalidar_contexto_cuenta(instance.pk)
+    except Exception:  # noqa: BLE001
+        logger.exception('no se pudo invalidar el contexto de la cuenta %s', instance.pk)
+
+
+@receiver(post_delete, sender=CuentaModel, dispatch_uid='identidad_contexto_cuenta_borrada')
+def invalidar_contexto_al_borrar_cuenta(sender, instance, **kwargs):
+    try:
+        RepoCuentasORM().invalidar_contexto_cuenta(instance.pk)
+    except Exception:  # noqa: BLE001
+        logger.exception('no se pudo invalidar el contexto de la cuenta borrada %s', instance.pk)
 
 
 @receiver(post_save, sender=EmployeeModel, dispatch_uid='identidad_alta_cuenta_por_correo')

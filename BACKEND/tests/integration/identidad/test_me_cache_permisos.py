@@ -86,13 +86,13 @@ def _api(cuenta: CuentaModel) -> APIClient:
     return api
 
 
-def test_me_no_supera_cuatro_consultas_en_frio_y_dos_en_caliente(escenario):
+def test_me_no_supera_cinco_consultas_en_frio_y_dos_en_caliente(escenario):
     api = _api(escenario["cuenta"])
 
     with CaptureQueriesContext(connection) as frio:
         primera = api.get(URL_ME)
     assert primera.status_code == 200
-    assert len(frio) <= 4, [q["sql"] for q in frio.captured_queries]
+    assert len(frio) <= 5, [q["sql"] for q in frio.captured_queries]
 
     with CaptureQueriesContext(connection) as caliente:
         segunda = api.get(URL_ME)

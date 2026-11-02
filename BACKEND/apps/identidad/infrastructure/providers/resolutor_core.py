@@ -14,8 +14,11 @@ from core.infrastructure.providers import (
 
 from apps.identidad.application.dtos.permisos_dto import ActorSesionDTO
 from apps.identidad.application.use_cases.resolver_permisos import (
-    resolver_permisos,
+    resolver_permisos as resolver_permisos_use_case,
     tiene_permiso,
+)
+from apps.identidad.infrastructure.cache.permisos_cache import (
+    resolver_permisos as resolver_permisos_cache,
 )
 from apps.identidad.application.use_cases.obtener_condicion_trabajador import (
     obtener_condicion_trabajador,
@@ -41,9 +44,14 @@ class ResolutorIdentidad:
         rol_id: int | None,
         codigo: str,
         cedula: str | None = None,
+        version: int = 1,
     ) -> bool:
-        actor = ActorSesionDTO(cuenta_id=actor_id, rol_id=rol_id, cedula=cedula)
-        return tiene_permiso(self._repo, actor, codigo)
+        if not cedula:
+            actor = ActorSesionDTO(cuenta_id=actor_id, rol_id=rol_id, cedula=cedula)
+            return tiene_permiso(self._repo, actor, codigo)
+        return codigo in resolver_permisos_cache(
+            self._repo, cedula, rol_id, version
+        )
 
     def permisos_de_actor(
         self,
@@ -51,9 +59,12 @@ class ResolutorIdentidad:
         actor_id: int | None,
         rol_id: int | None,
         cedula: str | None = None,
+        version: int = 1,
     ) -> frozenset[str]:
-        actor = ActorSesionDTO(cuenta_id=actor_id, rol_id=rol_id, cedula=cedula)
-        return resolver_permisos(self._repo, actor)
+        if not cedula:
+            actor = ActorSesionDTO(cuenta_id=actor_id, rol_id=rol_id, cedula=cedula)
+            return resolver_permisos_use_case(self._repo, actor)
+        return resolver_permisos_cache(self._repo, cedula, rol_id, version)
 
 
 class ResolutorCondicionIdentidad:

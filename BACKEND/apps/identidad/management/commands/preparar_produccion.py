@@ -26,6 +26,13 @@ from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolM
 from apps.identidad.infrastructure.models.password_inicial_model import (
     PasswordInicialModel,
 )
+from apps.identidad.infrastructure.models.permiso_model import (
+    PermisoModel,
+    RolPermisoModel,
+)
+from apps.identidad.infrastructure.models.permisos_version_model import (
+    PermisosVersionModel,
+)
 from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import (
     RepoPermisosVersionORM,
 )
@@ -57,17 +64,19 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opciones):
         self._asegurar_superadmin()
+        self._asegurar_permisos_pasivos()
 
         if BootstrapStateModel.objects.filter(clave=CLAVE_BOOTSTRAP).exists() and not opciones['force']:
             self.stdout.write(
                 self.style.SUCCESS(
-                    'Bootstrap ya aplicado en esta base. Solo se verificó el superadministrador.'
+                    'Bootstrap ya aplicado en esta base. Solo se verificó el superadministrador y los permisos de pasivos.'
                 )
             )
             return
 
         self.stdout.write('Ejecutando seed de permisos...')
         call_command('seed_permisos')
+        self._asegurar_permisos_pasivos()
 
         self.stdout.write('Normalizando roles heredados...')
         call_command('migrar_roles_legados', aplicar=True)
@@ -87,6 +96,58 @@ class Command(BaseCommand):
             defaults={'detalle': detalle},
         )
         self.stdout.write(self.style.SUCCESS('Bootstrap de producción completado.'))
+
+    def _asegurar_permisos_pasivos(self) -> None:
+        """Garantiza que los roles de Bienestar puedan editar el expediente.
+
+        El detalle de pasivo reutiliza la hoja de activos, que guarda con las
+        acciones de `personal.editar_*`. Es idempotente y no toca otros roles.
+        """
+        codigos = (
+            'personal.editar_personales',
+            'personal.editar_laborales',
+            'personal.editar_educacion',
+            'personal.editar_vivienda',
+        )
+        roles = list(
+            RolModel.objects.filter(
+                nombre_rol__in=('ANALISTA_BIENESTAR', 'ADMIN_BIENESTAR')
+            )
+        )
+        permisos = list(PermisoModel.objects.filter(codigo__in=codigos))
+        if not roles or not permisos:
+            self.stdout.write(
+                self.style.WARNING(
+                    'Aún no existen los roles/permisos de Bienestar; se omite la '
+                    'verificación de edición del expediente.'
+                )
+            )
+            return
+
+        creados = 0
+        for rol in roles:
+            for permiso in permisos:
+                _, creado = RolPermisoModel.objects.get_or_create(
+                    rol_id=rol.pk, permiso=permiso
+                )
+                creados += int(creado)
+
+        if not creados:
+            return
+
+        for cuenta in CuentaModel.objects.filter(rol_id__in=[r.pk for r in roles]):
+            version, nueva = PermisosVersionModel.objects.get_or_create(
+                cuenta_id=cuenta.pk, defaults={'version': 2}
+            )
+            if not nueva:
+                version.version += 1
+                version.save(update_fields=['version'])
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'Permisos de edición de expediente asegurados: {creados} asignación(es).'
+            )
+        )
 
     def _asegurar_superadmin(self) -> None:
         empleado = EmployeeModel.objects.filter(

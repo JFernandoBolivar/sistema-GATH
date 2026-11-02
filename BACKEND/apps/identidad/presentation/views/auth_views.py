@@ -201,9 +201,13 @@ class LoginView(APIView):
             permisos_version=repo_auth.obtener_titular_por_id(cuenta.pk).permisos_version,
         )
 
+        # La contraseña inicial es la cédula. Reutilizamos la comprobación ya
+        # hecha (`check_password`) en vez de que el serializer vuelva a hashear
+        # con `repo.verificar_password` (L-LOGIN).
+        cuenta.debe_cambiar_password = password == str(cuenta.cedula_id)
         repo = RepoCuentasORM()
         usuario_data = CuentaLecturaSerializer(
-            repo.obtener_por_id(cuenta.pk), context={'repo': repo}
+            cuenta_a_entidad(cuenta), context={'repo': repo}
         ).data
 
         respuesta = ok(
@@ -261,6 +265,9 @@ class LogoutView(APIView):
     def post(self, request):
         refresh_token = request.COOKIES.get(_nombre_cookie_refresh())
         cerrar_sesion(refresh_token)
+        # Logout explícito: la siguiente petición no debe reutilizar el contexto
+        # cacheado de esta cuenta (L-NEW2).
+        RepoCuentasORM().invalidar_contexto_cuenta(request.user.pk)
         respuesta = ok(message='Sesión cerrada exitosamente.')
         return clear_jwt_cookies(respuesta)
 

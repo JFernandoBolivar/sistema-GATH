@@ -20,6 +20,10 @@ from apps.autogestion.application.use_cases.obtener_mi_expediente import (
 from apps.autogestion.infrastructure.repositories.repo_autogestion_orm import (
     RepoAutogestionORM,
 )
+from apps.autogestion.infrastructure.cache.mi_expediente_cache import (
+    guardar_mi_expediente,
+    leer_mi_expediente,
+)
 from apps.autogestion.infrastructure.repositories.repo_portal_trabajador_orm import (
     RepoPortalTrabajadorORM,
 )
@@ -239,7 +243,11 @@ class MiExpedienteView(APIView):
         if not cedula:
             return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
 
-        dto = obtener_mi_expediente(RepoPortalTrabajadorORM(), str(cedula))
+        cedula_str = str(cedula)
+        dto = leer_mi_expediente(cedula_str)
+        if dto is None:
+            dto = obtener_mi_expediente(RepoPortalTrabajadorORM(), cedula_str)
+            guardar_mi_expediente(cedula_str, dto)
         return ok(serializar_mi_expediente(dto))
 
 

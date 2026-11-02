@@ -42,7 +42,7 @@ def _autenticar(version_token, version_actual, is_active=True):
         pk=7, is_active=is_active, permisos_version=version_actual
     )
     with patch(f'{RUTA_AUTH}.RepoCuentasORM') as repo:
-        repo.return_value.obtener_modelo_contexto_sesion.return_value = usuario
+        repo.return_value.obtener_contexto_autenticacion.return_value = usuario
         return CookieJWTAuthentication().get_user(token)
 
 

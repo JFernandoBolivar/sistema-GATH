@@ -90,7 +90,7 @@ export function construirColumnasPasivos(acciones: AccionesPasivo): ColumnDef<Pa
     },
     {
       accessorKey: "tipoPasivo",
-      header: "Tipo de pasivo",
+      header: "Tipo de nómina",
       cell: ({ getValue }) => <Badge variant="secondary">{getValue() as string}</Badge>,
     },
     {

@@ -136,15 +136,18 @@ def vivienda_a_dict(v) -> dict | None:
 def salud_a_dict(s) -> dict | None:
     if not s:
         return None
+    alergias = list(s.alergias.all()) if hasattr(s, 'alergias') else []
+    patologias = list(s.patologiaCronica.all()) if hasattr(s, 'patologiaCronica') else []
+    discapacidades = list(s.discapacidad.all()) if hasattr(s, 'discapacidad') else []
     return {
         'grupo_sanguineo_id': s.grupo_sanguineo_id,
         'grupo_sanguineo_nombre': s.grupo_sanguineo.GrupoSanguineo if getattr(s, 'grupo_sanguineo', None) else None,
-        'alergias': list(s.alergias.values_list('id', flat=True)) if hasattr(s, 'alergias') else [],
-        'alergias_nombres': list(s.alergias.values_list('alergia', flat=True)) if hasattr(s, 'alergias') else [],
-        'patologias_cronicas': list(s.patologiaCronica.values_list('id', flat=True)) if hasattr(s, 'patologiaCronica') else [],
-        'patologias_cronicas_nombres': list(s.patologiaCronica.values_list('patologia', flat=True)) if hasattr(s, 'patologiaCronica') else [],
-        'discapacidades': list(s.discapacidad.values_list('id', flat=True)) if hasattr(s, 'discapacidad') else [],
-        'discapacidades_nombres': list(s.discapacidad.values_list('discapacidad', flat=True)) if hasattr(s, 'discapacidad') else [],
+        'alergias': [a.pk for a in alergias],
+        'alergias_nombres': [a.alergia for a in alergias],
+        'patologias_cronicas': [p.pk for p in patologias],
+        'patologias_cronicas_nombres': [p.patologia for p in patologias],
+        'discapacidades': [d.pk for d in discapacidades],
+        'discapacidades_nombres': [d.discapacidad for d in discapacidades],
     }
 
 

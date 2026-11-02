@@ -41,9 +41,11 @@ from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,
     generar_reporte_familiares,
     generar_reporte_pasivos,
+    generar_reporte_pasivos_actuales,
     generar_reporte_vacantes,
 )
 from apps.reportes.infrastructure.repositories.repo_reportes_orm import RepoReportesORM
+from core.infrastructure.report_field_registry import ReportFieldRegistryORM
 
 pytestmark = pytest.mark.django_db
 
@@ -176,6 +178,43 @@ def _familiares(limite=5000):
 
 def _egresos(limite=5000):
     return generar_reporte_pasivos(RepoReportesORM(), filtros={}, limite=limite)
+
+
+def test_reporte_pasivos_actuales_incluye_asignaciones_y_filtra_por_nomina(escenario):
+    """El PDF de pasivos no se limita a los egresados y respeta los filtros."""
+    nomina_pasivo = TipoNominaModel.objects.create(nomina='PENSIONADO')
+    empleado = EmployeeModel.objects.create(
+        cedulaidentidad='V300',
+        nombres='Pasivo',
+        apellidos='Actual',
+        fecha_nacimiento=datetime.date(1955, 5, 5),
+        total_anos_apn=30,
+        sexoid=SexoModel.objects.first(),
+    )
+    AsigTrabajoModel.objects.create(
+        employee=empleado,
+        codigo='C-PASIVO',
+        denominacioncargoid=DenominacionCargoModel.objects.first(),
+        denominacioncargoespecificoid=DenominacionCargoEspecificoModel.objects.first(),
+        tiponominaid=nomina_pasivo,
+        estatusid=EstatusModel.objects.get(estatus='ACTIVO'),
+        Tipo_personal=TipoPersonalModel.objects.get(tipo_personal='PASIVO'),
+        Dependencia=DependenciaModel.objects.first(),
+        DireccionGeneral=DireccionGeneralModel.objects.first(),
+        gradoid=GradoModel.objects.first(),
+    )
+
+    dto = generar_reporte_pasivos_actuales(
+        RepoReportesORM(),
+        filtros={'nomina_id': nomina_pasivo.pk},
+        registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=True,
+        limite=100,
+    )
+
+    assert dto.total_registros == 1
+    assert dto.filas[0]['cedula'] == 'V300'
+    assert dto.titulo == 'Reporte de Personal Pasivo'
 
 
 def test_codigos_truncado_con_datos_completos(escenario):
