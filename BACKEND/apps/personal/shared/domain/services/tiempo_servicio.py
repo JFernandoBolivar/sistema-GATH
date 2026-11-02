@@ -47,7 +47,12 @@ def calcular_total_apn(antecedentes_qs):
     """
     Suma todos los antecedentes cerrados y retorna el total
     Cada antecedente ya incluye el día adicional en calcular_tiempo_comercial
+
+    Acepta un QuerySet, una lista o el RelatedManager de `antecedentes_servicio`
+    (el manager de la relación inversa no es iterable directamente).
     """
+    if hasattr(antecedentes_qs, "all"):
+        antecedentes_qs = antecedentes_qs.all()
     total_dias = 0
     for ant in antecedentes_qs:
         if ant.fecha_ingreso and ant.fecha_egreso:

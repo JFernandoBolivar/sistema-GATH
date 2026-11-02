@@ -84,7 +84,11 @@ class RepoAutogestionORM:
 
     def consultar_todos_censos(self, cedula: str | None = None) -> list[dict]:
         if cedula:
-            emp = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+            emp = (
+                EmployeeModel.objects.filter(cedulaidentidad=cedula)
+                .prefetch_related('antecedentes_servicio')
+                .first()
+            )
             if not emp:
                 return []
             return [self._serializar_censo_empleado(emp)]
@@ -94,6 +98,7 @@ class RepoAutogestionORM:
         )
         empleados = (
             EmployeeModel.objects.filter(cedulaidentidad__in=empleados_cedulas)
+            .prefetch_related('antecedentes_servicio')
             .order_by('cedulaidentidad')
         )
         # Carga en bloque (3 consultas en total) en vez de 3 por empleado.
@@ -228,7 +233,7 @@ class RepoAutogestionORM:
             for r in respuestas
         ]
 
-        total = calcular_total_apn(getattr(emp, 'antecedentes_servicio', []))
+        total = calcular_total_apn(emp.antecedentes_servicio)
         total_apn = {
             'years': total['years'],
             'months': total['months'],

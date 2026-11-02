@@ -370,6 +370,13 @@ PERMISOS_RETIRADOS = ("bienestar.check_analista", "bienestar.check_administrador
 # excepciones individuales de usuario.
 ASIGNACIONES_RETIRADAS = {
     "ANALISTA_BIENESTAR": ("fe_de_vida.gestionar_procesos", "fe_de_vida.prorrogar"),
+    # RECEPCIONISTA solo consulta familiares de activos y pasivos: no necesita
+    # catálogos, organización ni su propio expediente.
+    "RECEPCIONISTA": (
+        "autogestion.ver_propio",
+        "catalogos.ver",
+        "organizacion.ver",
+    ),
     # G12: aunque el rol 1 conserva casi todo el catálogo, los avisos de
     # movimientos quedan solo para RRHH y Bienestar. Retirarlo aquí hace que
     # volver a correr el seed quite una asignación heredada.
@@ -379,13 +386,13 @@ ASIGNACIONES_RETIRADAS = {
 ROL_ASIGNACIONES[2] += ["fe_de_vida.verificar_constancia"]
 # B8: «Mi expediente» exige `autogestion.ver_propio`; todo trabajador con cuenta ve su propia ficha,
 # así que se añade (aditivo) a los roles de personal que antes entraban solo por IsAuthenticated.
-for _rol_id in (2, 4, 9):
+for _rol_id in (2, 4):
     ROL_ASIGNACIONES[_rol_id].append("autogestion.ver_propio")
 # Catálogo de tipos de nómina y organismos para los roles que gestionan
 # pasivos: sin `catalogos.ver` y `organizacion.ver`, el filtro de pasivos y el
 # alta directa quedan vacíos (403). ANALISTA_BIENESTAR y ADMIN_BIENESTAR
 # heredan de BIENESTAR SOCIAL (5).
-for _rol_id in (4, 5, 9):
+for _rol_id in (4, 5):
     ROL_ASIGNACIONES[_rol_id].append("catalogos.ver")
     ROL_ASIGNACIONES[_rol_id].append("organizacion.ver")
 ROL_ASIGNACIONES[3] += [
@@ -448,6 +455,10 @@ ROLES_NUEVOS = {
             "autogestion.ver_propio",
             "notificaciones.ver_propias",
         ],
+    ),
+    "RECEPCIONISTA": (
+        "Consulta de familiares de trabajadores activos y pasivos. Sin registrar, actualizar ni exportar.",
+        ROL_ASIGNACIONES[9],
     ),
 }
 # ADMINISTRADOR conserva todo el catálogo (incluidos los códigos nuevos), salvo
