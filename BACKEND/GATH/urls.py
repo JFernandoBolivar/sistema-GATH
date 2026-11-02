@@ -4,6 +4,7 @@ from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from rest_framework.permissions import IsAuthenticated
 
+from core.presentation.health import health
 from core.presentation.views.media_views import servir_archivo_media
 from apps.reportes.presentation.views.reportes_views import ReportePersonalActivoExcelView
 
@@ -11,6 +12,8 @@ PERMISOS_DOCUMENTACION = [IsAuthenticated]
 PREFIJO_MEDIA = settings.MEDIA_URL.lstrip('/')
 
 urlpatterns = [
+    # Salud del proceso: sin autenticación ni BD (healthcheck de compose).
+    path('api/v1/health/', health, name='health'),
     # Módulos de Dominio Onion bajo /api/v1/ (D-06, B12)
     path('api/v1/identidad/', include('apps.identidad.presentation.urls')),
     path('api/v1/organizacion/', include('apps.organizacion.presentation.urls')),

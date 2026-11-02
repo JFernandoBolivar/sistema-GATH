@@ -170,6 +170,9 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_SECURE = config('DJANGO_SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
 CSRF_COOKIE_SECURE = config('DJANGO_CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
 SECURE_SSL_REDIRECT = config('DJANGO_SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+# El healthcheck de compose consulta el proceso por HTTP dentro del contenedor;
+# se exime únicamente ese endpoint (sin datos ni autenticación).
+SECURE_REDIRECT_EXEMPT = [r'^api/v1/health/$']
 SECURE_HSTS_SECONDS = config(
     'DJANGO_SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int
 )

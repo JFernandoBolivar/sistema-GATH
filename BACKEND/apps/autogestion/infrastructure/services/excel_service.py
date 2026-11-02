@@ -1,7 +1,4 @@
 import io
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
 from apps.autogestion.infrastructure.models.autogestion_models import (
     PreguntasEncuestasModel,
@@ -14,6 +11,9 @@ from apps.personal.infrastructure.models.expediente_models import DatosViviendaM
 
 
 def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
+    from openpyxl import Workbook
+    from openpyxl.utils import get_column_letter
+
     if filtros is None:
         filtros = {}
 
@@ -128,6 +128,9 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
 
 
 def _aplicar_estilos(ws, num_columnas):
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
     header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True, size=11)
     header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)

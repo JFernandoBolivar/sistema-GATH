@@ -35,7 +35,6 @@ serializer legado) antes de `upsert_contrato`.
 """
 from datetime import date
 
-import pandas as pd
 from django.db import transaction
 
 from core.domain.exceptions import ValidationError
@@ -73,6 +72,8 @@ from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPers
 
 
 def _normalizar(texto) -> str:
+    import pandas as pd
+
     if pd.isna(texto) or not str(texto).strip():
         return ''
     return ' '.join(str(texto).split()).upper()
@@ -80,12 +81,16 @@ def _normalizar(texto) -> str:
 
 def _separar(texto) -> list[str]:
     """Separa un campo con varios valores por ';' o '|' y los normaliza."""
+    import pandas as pd
+
     if pd.isna(texto) or not str(texto).strip():
         return []
     return [n for n in (_normalizar(v) for v in str(texto).replace('|', ';').split(';')) if n]
 
 
 def _parsear_fecha(valor):
+    import pandas as pd
+
     if pd.isna(valor) or valor == '':
         return None
     try:
@@ -160,6 +165,8 @@ def importar_expediente_completo(archivo, nombre_archivo: str) -> dict:
     error de validación, se revierte el archivo completo (ninguna fila se
     persiste) y se propaga `ValidationError` con el detalle línea por línea.
     """
+    import pandas as pd
+
     df = pd.read_excel(archivo) if nombre_archivo.endswith(('.xlsx', '.xls')) else pd.read_csv(archivo)
     df.columns = df.columns.str.strip().str.lower()
     columnas = set(df.columns)
@@ -182,6 +189,8 @@ def importar_expediente_completo(archivo, nombre_archivo: str) -> dict:
 
 
 def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) -> None:
+    import pandas as pd
+
     for indice, fila in df.iterrows():
         linea = indice + 2
         try:

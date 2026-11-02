@@ -18,7 +18,6 @@ movimiento (gap documentado, `apps.movimientos` no existe todavía).
 Síncrono, no `202 Accepted` + Celery — misma decisión documentada que
 `carga_masiva_expediente.py`.
 """
-import pandas as pd
 from django.db import transaction
 
 from core.domain.exceptions import ValidationError
@@ -45,6 +44,8 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 def _normalizar(texto) -> str:
+    import pandas as pd
+
     if pd.isna(texto) or not str(texto).strip():
         return ''
     return ' '.join(str(texto).split()).upper()
@@ -70,6 +71,8 @@ _NOMINAS_ESPECIALES = {'COMISION DE SERVICIO', 'HONORARIOS PROFESIONALES'}
 
 
 def importar_cargos_especiales(archivo, nombre_archivo: str) -> dict:
+    import pandas as pd
+
     df = pd.read_excel(archivo) if not nombre_archivo.endswith('.csv') else pd.read_csv(archivo)
     df.columns = df.columns.str.strip().str.lower()
     cache = _construir_cache()
