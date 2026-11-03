@@ -169,6 +169,7 @@ export function ExpedienteCampos({
             <Label htmlFor="vivEstado">Estado</Label>
             <CatalogSelect
               id="vivEstado"
+              buscador
               value={
                 form.watch("datosVivienda.estadoId")
                   ? String(form.watch("datosVivienda.estadoId"))
@@ -183,6 +184,7 @@ export function ExpedienteCampos({
             <Label htmlFor="vivMunicipio">Municipio</Label>
             <CatalogSelect
               id="vivMunicipio"
+              buscador
               value={
                 form.watch("datosVivienda.municipioId")
                   ? String(form.watch("datosVivienda.municipioId"))
@@ -197,6 +199,7 @@ export function ExpedienteCampos({
             <Label htmlFor="vivParroquia">Parroquia</Label>
             <CatalogSelect
               id="vivParroquia"
+              buscador
               value={
                 form.watch("datosVivienda.parroquiaId")
                   ? String(form.watch("datosVivienda.parroquiaId"))
@@ -229,6 +232,7 @@ export function ExpedienteCampos({
             <Label htmlFor="vivCodigoPostal">Código postal</Label>
             <CatalogSelect
               id="vivCodigoPostal"
+              buscador
               value={
                 form.watch("datosVivienda.codigoPostalId")
                   ? String(form.watch("datosVivienda.codigoPostalId"))
