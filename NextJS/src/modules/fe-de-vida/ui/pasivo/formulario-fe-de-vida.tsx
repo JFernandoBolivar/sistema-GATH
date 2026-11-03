@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { OrigenFoto } from "@/shared/components/captura-foto/captura-foto";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import type { ItemBorrador } from "@/modules/autogestion/domain/entities/solicitud-actualizacion";
@@ -322,10 +323,18 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
             <p className="mt-1 text-base">Foto con la cédula: {fotoVigente ? "cargada" : "pendiente"}.</p>
           </section>
           <div className="flex flex-col gap-1.5">
-            <label className="flex min-h-11 items-start gap-3 text-base">
+            {/* Recuadro destacado (amarillo de atención, verde al marcarla): es el paso que habilita el envío. */}
+            <label
+              className={cn(
+                "flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border-2 p-4 text-lg font-semibold transition-colors",
+                confirmacion.watch("declaro")
+                  ? "border-success bg-success-soft text-success"
+                  : "border-warning bg-warning-soft text-foreground",
+              )}
+            >
               <input
                 type="checkbox"
-                className="mt-1 size-5"
+                className="mt-1 size-6 shrink-0 accent-[var(--success)]"
                 aria-describedby={confirmacion.formState.errors.declaro ? "fv-declaro-error" : undefined}
                 {...confirmacion.register("declaro")}
               />
@@ -346,6 +355,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
               className="min-h-11"
               disabled={
                 enviando ||
+                // Hasta marcar la declaración el botón se ve deshabilitado (QA 2026-11-03).
+                !confirmacion.watch("declaro") ||
                 !puedeEnviarFeDeVida({ fotoVigente, viviendaOk, tieneHijos, hijosOk })
               }
             >

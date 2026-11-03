@@ -35,10 +35,12 @@ export function PasoFoto({
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold">Foto con su cédula</h2>
-      <p className="text-base">
-        Tómese una foto en la que se vea su rostro y su cédula de identidad, bien iluminada y sin
-        reflejos. Si la cámara no funciona, puede subir una foto desde su equipo.
-      </p>
+      {/* Instrucciones en pasos cortos y letra grande: la usan personas jubiladas y pensionadas. */}
+      <ul className="flex list-disc flex-col gap-1.5 pl-6 text-lg leading-relaxed font-medium">
+        <li>Que se vean su <strong>rostro</strong> y su <strong>cédula de identidad</strong>.</li>
+        <li>Con buena luz y sin reflejos.</li>
+        <li>Si la cámara no funciona, use «Subir foto» para cargar una foto desde su equipo.</li>
+      </ul>
       {/* Con una foto ya elegida el aviso sobra: desaparece al tomarla o cargarla. */}
       {exigeNueva && !fotoElegida ? (
         <p
