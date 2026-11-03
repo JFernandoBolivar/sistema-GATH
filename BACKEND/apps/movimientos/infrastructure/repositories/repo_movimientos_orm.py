@@ -14,11 +14,20 @@ from apps.movimientos.infrastructure.mappers.mapper_movimientos import movimient
 from apps.movimientos.infrastructure.models.movimiento_models import EmployeeMovementHistoryModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
-_SELECT_RELATED = (
-    'empleado', 'denominacioncargo', 'denominacioncargoespecifico', 'gradoid',
-    'tiponomina', 'estatus', 'tipo_personal', 'DependenciasId', 'DireccionGeneralid',
-    'DireccionLineaid', 'Coordinacionid', 'motivo', 'ejecutado_por', 'ejecutado_por__cedula',
+# Rendimiento (2026-11-03): con las 14 relaciones en select_related la consulta
+# unía 15 tablas y PostgreSQL tardaba 0,5-0,8 s solo en PLANIFICARLA (ejecutarla,
+# 10-60 ms). Se une solo lo imprescindible y los catálogos pequeños se cargan con
+# prefetch_related (una consulta simple por catálogo). El resultado es el mismo.
+_SELECT_RELATED = ('empleado', 'ejecutado_por', 'ejecutado_por__cedula')
+_PREFETCH_CATALOGOS = (
+    'denominacioncargo', 'denominacioncargoespecifico', 'gradoid', 'tiponomina', 'estatus',
+    'tipo_personal', 'DependenciasId', 'DireccionGeneralid', 'DireccionLineaid',
+    'Coordinacionid', 'motivo',
 )
+
+
+def _con_relaciones(qs):
+    return qs.select_related(*_SELECT_RELATED).prefetch_related(*_PREFETCH_CATALOGOS)
 
 
 class RepoMovimientosORM:
@@ -77,20 +86,20 @@ class RepoMovimientosORM:
 
     def _obtener(self, movimiento_id: int) -> MovimientoCargo | None:
         fila = (
-            EmployeeMovementHistoryModel.objects.select_related(*_SELECT_RELATED)
+            _con_relaciones(EmployeeMovementHistoryModel.objects)
             .filter(pk=movimiento_id)
             .first()
         )
         return movimiento_a_entidad(fila) if fila else None
 
     def listar_historial_por_empleado(self, cedula: str) -> list[MovimientoCargo]:
-        qs = EmployeeMovementHistoryModel.objects.select_related(*_SELECT_RELATED).filter(
+        qs = _con_relaciones(EmployeeMovementHistoryModel.objects).filter(
             empleado__cedulaidentidad=cedula
         )
         return [movimiento_a_entidad(m) for m in qs]
 
     def listar_historial_por_cargo(self, codigo_puesto: str) -> list[MovimientoCargo]:
-        qs = EmployeeMovementHistoryModel.objects.select_related(*_SELECT_RELATED).filter(
+        qs = _con_relaciones(EmployeeMovementHistoryModel.objects).filter(
             codigo_puesto=codigo_puesto
         )
         return [movimiento_a_entidad(m) for m in qs]
@@ -104,7 +113,7 @@ class RepoMovimientosORM:
         """Página del historial con orden total (fecha y PK) y total de coincidencias."""
         from django.db.models import Q
 
-        qs = EmployeeMovementHistoryModel.objects.select_related(*_SELECT_RELATED)
+        qs = _con_relaciones(EmployeeMovementHistoryModel.objects)
         if filtros.cedula:
             qs = qs.filter(empleado__cedulaidentidad=filtros.cedula)
         if filtros.codigo_puesto:

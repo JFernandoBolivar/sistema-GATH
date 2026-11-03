@@ -224,19 +224,27 @@ def test_filtros_del_historial(escenario):
     assert gerencia.total == 2
 
 
-def test_el_listado_no_hace_una_consulta_por_fila(escenario, django_assert_num_queries):
-    """G12-6: proteger el `select_related` del historial contra un N+1.
+def test_el_listado_no_hace_una_consulta_por_fila(escenario):
+    """G12-6: el historial no hace una consulta por fila (N+1).
 
-    Son dos consultas fijas (conteo + página) y no crecen con el número de
-    movimientos; si alguien quita el `select_related`, el mapeo de cada fila
-    dispara consultas por sus relaciones y este test falla.
+    Conteo + página + una consulta por catálogo (prefetch_related, 2026-11-03:
+    unir las 15 tablas costaba 0,5-0,8 s de planificación). El número de
+    consultas es fijo: con 1 o con 5 movimientos debe ser el mismo.
     """
-    for dia in range(1, 6):
-        escenario['crear_movimiento']('TRASLADO', _fecha(dia))
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
 
-    with django_assert_num_queries(2):
+    escenario['crear_movimiento']('TRASLADO', _fecha(1))
+    with CaptureQueriesContext(connection) as con_uno:
+        escenario['repo'].listar_historial(FiltrosHistorial(), 10)
+
+    for dia in range(2, 6):
+        escenario['crear_movimiento']('TRASLADO', _fecha(dia))
+    with CaptureQueriesContext(connection) as con_cinco:
         filas, total = escenario['repo'].listar_historial(FiltrosHistorial(), 10)
 
+    assert len(con_cinco) == len(con_uno)
+    assert len(con_cinco) <= 13
     assert total == 5
     assert len(filas) == 5
     assert filas[0].denominacion_nombre == 'ANALISTA'

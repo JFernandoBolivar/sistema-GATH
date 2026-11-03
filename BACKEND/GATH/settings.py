@@ -355,7 +355,9 @@ _REDIS_URL = config('REDIS_URL', default='')
 if _REDIS_URL:
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            # Igual al RedisCache de Django pero sin crear un cliente por operación
+            # (~7 ms de CPU por petición). Ver core/infrastructure/cache.
+            'BACKEND': 'core.infrastructure.cache.redis_reutilizable.RedisCacheReutilizable',
             'LOCATION': _REDIS_URL,
             'KEY_PREFIX': 'gath',
             # Si Redis cae, la petición falla en 2 s en vez de quedar colgada.

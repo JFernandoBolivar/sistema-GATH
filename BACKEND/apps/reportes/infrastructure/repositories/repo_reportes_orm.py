@@ -443,10 +443,13 @@ class RepoReportesORM:
     def reporte_codigos(self, filtros: dict, limite: int) -> ResultadoReporte:
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 
-        qs = AsigTrabajoModel.objects.select_related(
-            'employee', 'denominacioncargoid', 'denominacioncargoespecificoid', 'gradoid',
-            'tiponominaid', 'OrganismoAdscritoid', 'estatusid', 'Dependencia', 'DireccionGeneral',
-        ).all()
+        # Rendimiento (2026-11-03): unir 10 tablas costaba ~170 ms solo en planificar
+        # la consulta. Se une el empleado y los catálogos (pequeños) van por
+        # prefetch_related; Dependencia y DireccionGeneral no se usan en las filas.
+        qs = AsigTrabajoModel.objects.select_related('employee').prefetch_related(
+            'denominacioncargoid', 'denominacioncargoespecificoid', 'gradoid',
+            'tiponominaid', 'OrganismoAdscritoid', 'estatusid',
+        )
 
         filtros = filtros or {}
         if filtros.get('cargo_id'):
