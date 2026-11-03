@@ -72,6 +72,13 @@ def cambiar_correo_acceso(
 
     aprovisionar(cedula)  # idempotente: si el post_save de Employee ya la creó, no duplica
     existe_ahora = repo_cuentas.existe_cuenta_para_cedula(cedula)
+    if not existe_ahora and fuente == 'INSTITUCIONAL':
+        # «Crear cuenta con este correo» desde Usuarios (QA 2026-11-03): si la regla no permite la
+        # cuenta, se dice claro en vez de responder «registrado» sin haber creado nada.
+        raise ValidationError(
+            'No se creó la cuenta: un trabajador activo solo puede tener cuenta con su correo '
+            'institucional. Registre su correo @conatel.gob.ve en su ficha y vuelva a intentarlo.'
+        )
     cuenta_creada = existe_ahora and not tenia_cuenta
     avisado = cuenta_creada  # el alta ya publicó su propio aviso al correo elegido
     if tenia_cuenta:

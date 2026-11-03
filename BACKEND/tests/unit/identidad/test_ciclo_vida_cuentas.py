@@ -312,6 +312,26 @@ def test_elegir_el_institucional_no_cambia_el_correo_pero_avisa(eventos):
     assert len(eventos) == 1
 
 
+def test_crear_cuenta_sin_que_la_regla_lo_permita_lo_dice_claro(eventos):
+    """QA 2026-11-03: activo con correo personal → error claro, no «registrado» sin cuenta."""
+    cuentas = CuentasMem(cuentas=[])
+    correos = CorreosMem({'123': 'ana@gmail.com'})
+
+    with pytest.raises(ValidationError, match='institucional'):
+        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'INSTITUCIONAL', **seguridad())
+
+
+def test_crear_cuenta_con_el_correo_registrado(eventos):
+    cuentas = CuentasMem(cuentas=[])
+    correos = CorreosMem({'123': 'ana@gmail.com'})
+
+    def aprovisionar(ced):
+        cuentas._cuentas[9] = Cuenta(id=9, cedula=ced)
+
+    r = cambiar_correo_acceso(correos, cuentas, eventos.append, aprovisionar, '123', 'INSTITUCIONAL', **seguridad())
+    assert r.cuenta_creada and r.avisado
+
+
 def test_correo_ya_usado_por_otro_trabajador_se_rechaza(eventos):
     cuentas = CuentasMem(cuentas=[Cuenta(id=1, cedula='123')])
     correos = CorreosMem({'123': 'ana@conatel.gob.ve', '999': 'otro@gmail.com'}, {'123': 'otro@gmail.com'})

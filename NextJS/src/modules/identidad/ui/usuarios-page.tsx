@@ -38,12 +38,14 @@ import {
   TableRow,
 } from "@/shared/ui/components/table";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { CuentaInexistente } from "./cuenta-inexistente";
 
-import type { PaginaUsuariosDTO, RolDTO, UsuariosFiltrosDTO } from "../application/dtos/usuario-dto";
-import {
-  getRolesAction,
-  listarUsuariosAction,
-} from "../infrastructure/actions/usuario-actions";
+import type {
+  PaginaUsuariosDTO,
+  RolDTO,
+  UsuariosFiltrosDTO,
+} from "../application/dtos/usuario-dto";
+import { getRolesAction, listarUsuariosAction } from "../infrastructure/actions/usuario-actions";
 
 const FILTROS_INICIALES: UsuariosFiltrosDTO = { pagina: 1, pageSize: 10 };
 
@@ -60,6 +62,7 @@ export default function UsuariosPage() {
   const puedeVer = tienePermiso(permisos, "identidad.ver_usuarios");
   const puedeCrear = tienePermiso(permisos, "identidad.crear_usuarios");
   const puedeVerMatriz = tienePermiso(permisos, "identidad.ver_roles");
+  const puedeCorreo = tienePermiso(permisos, "identidad.cambiar_correo_acceso");
 
   const [filtros, setFiltros] = useState<UsuariosFiltrosDTO>(FILTROS_INICIALES);
   const [borrador, setBorrador] = useState<UsuariosFiltrosDTO>(FILTROS_INICIALES);
@@ -117,7 +120,10 @@ export default function UsuariosPage() {
   if (!puedeVer) {
     return (
       <section className="px-6 py-4">
-        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+        >
           No tiene el permiso «identidad.ver_usuarios» para consultar los usuarios.
         </p>
       </section>
@@ -150,7 +156,10 @@ export default function UsuariosPage() {
       </header>
 
       {error && (
-        <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+        >
           {error}
         </p>
       )}
@@ -279,6 +288,15 @@ export default function UsuariosPage() {
         <div className="flex justify-center py-10">
           <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
         </div>
+      ) : (!pagina || pagina.resultados.length === 0) &&
+        /^\d{5,10}$/.test((filtros.cedula ?? "").trim()) ? (
+        // Búsqueda por cédula sin cuenta: se ofrece crearla (QA 2026-11-03).
+        <CuentaInexistente
+          key={filtros.cedula}
+          cedula={(filtros.cedula ?? "").trim()}
+          puedeCrear={puedeCorreo}
+          onCreada={() => cargar(filtros)}
+        />
       ) : !pagina || pagina.resultados.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           No hay usuarios para los filtros seleccionados.
@@ -308,7 +326,9 @@ export default function UsuariosPage() {
                     <TableCell className="font-medium">{usuario.cedula}</TableCell>
                     <TableCell>
                       {usuario.nombres} {usuario.apellidos}
-                      <span className="block text-xs text-muted-foreground">{usuario.condicion ?? "—"}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {usuario.condicion ?? "—"}
+                      </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{usuario.correo ?? "—"}</TableCell>
                     <TableCell>{usuario.rolNombre ?? "—"}</TableCell>
@@ -317,7 +337,9 @@ export default function UsuariosPage() {
                         {usuario.isActive ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{fechaLegible(usuario.ultimoAcceso)}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {fechaLegible(usuario.ultimoAcceso)}
+                    </TableCell>
                     <TableCell>
                       {usuario.passwordInicialPendiente ? (
                         <Badge variant="outline">Pendiente</Badge>
