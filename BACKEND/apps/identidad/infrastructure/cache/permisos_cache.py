@@ -6,11 +6,14 @@ anterior inalcanzable, de modo que la siguiente petición ve el cambio sin
 esperar al TTL. No se cachea nada por rol: la política efectiva es por cuenta
 (rol + overrides) y el resultado conserva el orden y el sobre de la respuesta.
 """
+import logging
 from django.core.cache import cache
 
 from apps.identidad.domain.entities.politica_acceso import PoliticaAcceso
 from apps.identidad.domain.services.evaluador_permisos import evaluar_permiso
 from apps.identidad.infrastructure.models.usuario_permiso_model import UsuarioPermisoModel
+
+_logger = logging.getLogger(__name__)
 
 TTL_PERMISOS = 300
 TTL_CATALOGO = 3600
@@ -27,6 +30,7 @@ def _obtener(clave: str):
     try:
         return cache.get(clave)
     except Exception:  # noqa: BLE001 - la caché nunca debe tumbar la sesión
+        _logger.warning('cache.fallo', extra={'modulo': __name__}, exc_info=True)
         return None
 
 
@@ -34,6 +38,7 @@ def _guardar(clave: str, valor, ttl: int) -> None:
     try:
         cache.set(clave, valor, ttl)
     except Exception:  # noqa: BLE001
+        _logger.warning('cache.fallo', extra={'modulo': __name__}, exc_info=True)
         pass
 
 

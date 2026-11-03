@@ -346,7 +346,8 @@ export function CapturaFoto({
         </>
       )}
 
-      {aviso ? (
+      {/* El aviso habla de cómo TOMAR la foto: con una foto ya elegida sobra y confunde. */}
+      {aviso && !vistaPrevia ? (
         <p
           role="status"
           className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning"

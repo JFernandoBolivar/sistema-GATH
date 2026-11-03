@@ -18,16 +18,23 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
     RepoPermisosVersionORM,
 )
 
-# Roles heredados que ya tienen equivalente nuevo por su mismo id.
-ROLES_EQUIVALENTES = {
-    1: 1,  # ADMINISTRADOR
-    2: 2,  # ANALISTA
-    3: 3,  # AUTOGESTION
-    4: 4,  # PRESUPUESTO
-    5: 5,  # BIENESTAR SOCIAL (se deja; reasignación manual si aplica)
-    9: 9,  # RECEPCIONISTA
-}
-ROLES_NUEVOS = {13, 14, 17, 18}
+# Roles heredados que ya tienen equivalente nuevo. Se resuelven por NOMBRE:
+# en bases heredadas el ID puede no coincidir (p. ej. RECEPCIONISTA en 6).
+ROLES_EQUIVALENTES = (
+    'ADMINISTRADOR',
+    'ANALISTA',
+    'AUTOGESTION',
+    'PRESUPUESTO',
+    'BIENESTAR SOCIAL',
+    'RECEPCIONISTA',
+)
+ROLES_NUEVOS = ('ANALISTA_BIENESTAR', 'ADMIN_BIENESTAR', 'AUDITOR', 'JEFE_RRHH')
+
+
+def _normalizar_rol(nombre: str) -> str:
+    return ' '.join(
+        str(nombre or '').strip().upper().replace('BIENSTAR', 'BIENESTAR').split()
+    )
 
 
 class Command(BaseCommand):
@@ -59,10 +66,42 @@ class Command(BaseCommand):
         aplicar = bool(opciones['aplicar']) and not opciones['dry_run']
         excepciones = self._leer_excepciones(opciones['excepcion'])
 
-        roles_existentes = set(RolModel.objects.values_list('id', flat=True))
-        for rol_id in set(ROLES_EQUIVALENTES.values()) | set(excepciones.values()):
-            if rol_id not in roles_existentes:
-                raise CommandError(f'El rol destino {rol_id} no existe en USER_rol.')
+        roles_existentes = {
+            _normalizar_rol(nombre): rol_id
+            for rol_id, nombre in RolModel.objects.values_list('id', 'nombre_rol')
+        }
+        ids_equivalentes = {
+            roles_existentes[nombre]
+            for nombre in ROLES_EQUIVALENTES
+            if nombre in roles_existentes
+        }
+        ids_nuevos = {
+            roles_existentes[nombre]
+            for nombre in ROLES_NUEVOS
+            if nombre in roles_existentes
+        }
+        faltantes = [
+            nombre for nombre in ROLES_EQUIVALENTES if nombre not in roles_existentes
+        ]
+        if faltantes:
+            # No se aborta el bootstrap: en una base heredada el rol puede
+            # tener otro nombre o no existir todavía. Se reporta y se sigue.
+            self.stderr.write(
+                self.style.WARNING(
+                    'Roles esperados ausentes en USER_rol (se omiten): '
+                    + ', '.join(faltantes)
+                )
+            )
+
+        ids_validos = set(roles_existentes.values())
+        for cedula, rol_id in list(excepciones.items()):
+            if rol_id not in ids_validos:
+                self.stderr.write(
+                    self.style.WARNING(
+                        f'Excepción {cedula}:{rol_id} ignorada: el rol no existe en USER_rol.'
+                    )
+                )
+                excepciones.pop(cedula)
 
         resumen = {'sin_cambio': 0, 'cambiadas': 0, 'omitidas': 0, 'invalidas': 0}
         cambios = []
@@ -76,11 +115,13 @@ class Command(BaseCommand):
                 )
                 continue
 
-            if actual in ROLES_NUEVOS:
+            if actual in ids_nuevos:
                 resumen['omitidas'] += 1
                 continue
 
-            destino = excepciones.get(str(cuenta.cedula_id), ROLES_EQUIVALENTES.get(actual))
+            destino = excepciones.get(str(cuenta.cedula_id))
+            if destino is None:
+                destino = actual if actual in ids_equivalentes else None
             if destino is None:
                 resumen['invalidas'] += 1
                 self.stderr.write(

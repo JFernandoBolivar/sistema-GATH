@@ -216,12 +216,13 @@ def test_base_frontend_ignora_origenes_no_confiables(settings):
     assert _base_frontend_confiable("http://intranet:3000/") == "http://intranet:3000"
 
 
-@patch("apps.identidad.presentation.views.auth_views.solicitar_recuperacion_password")
-def test_vista_solicitar_recuperacion_api(mock_solicitar_uc):
+@patch("apps.identidad.presentation.views.auth_views.solicitar_recuperacion_password_task")
+def test_vista_solicitar_recuperacion_api(mock_tarea):
+    """La vista encola y responde el mensaje genérico sin esperar al SMTP (anti-enumeración)."""
     from rest_framework.test import APIRequestFactory
+    from apps.identidad.application.use_cases.solicitar_recuperacion_password import MENSAJE_RESPUESTA_GENERICO
     from apps.identidad.presentation.views.auth_views import SolicitarRecuperacionPasswordView
 
-    mock_solicitar_uc.return_value = "Mensaje de confirmación"
     factory = APIRequestFactory()
     view = SolicitarRecuperacionPasswordView.as_view()
 
@@ -234,9 +235,37 @@ def test_vista_solicitar_recuperacion_api(mock_solicitar_uc):
 
     assert response.status_code == 200
     assert response.data["status"] == "success"
-    assert response.data["message"] == "Mensaje de confirmación"
-    # la URL maliciosa del cliente nunca llega al caso de uso
-    assert "evil.example" not in mock_solicitar_uc.call_args.kwargs["base_frontend"]
+    assert response.data["message"] == MENSAJE_RESPUESTA_GENERICO
+    identificador, base_frontend = mock_tarea.delay.call_args.args
+    assert identificador == "usuario@conatel.gob.ve"
+    # la URL maliciosa del cliente nunca llega a la tarea
+    assert "evil.example" not in base_frontend
+
+
+@patch("apps.identidad.presentation.views.auth_views.procesar_solicitud_recuperacion")
+@patch("apps.identidad.presentation.views.auth_views.solicitar_recuperacion_password_task")
+def test_vista_solicitar_recuperacion_sin_broker_procesa_en_linea(mock_tarea, mock_procesar):
+    from rest_framework.test import APIRequestFactory
+    from apps.identidad.presentation.views.auth_views import SolicitarRecuperacionPasswordView
+
+    mock_tarea.delay.side_effect = OSError("broker caído")
+    request = APIRequestFactory().post(
+        "/api/v1/identidad/auth/solicitar-recuperacion/", {"identificador": "12345678"}, format="json",
+    )
+    response = SolicitarRecuperacionPasswordView.as_view()(request)
+
+    assert response.status_code == 200
+    mock_procesar.assert_called_once()
+
+
+@patch("apps.identidad.infrastructure.tasks.recuperacion_tasks.solicitar_recuperacion_password")
+def test_tarea_recuperacion_no_propaga_errores_de_dominio(mock_uc):
+    from apps.identidad.infrastructure.tasks.recuperacion_tasks import procesar_solicitud_recuperacion
+    from core.domain.exceptions import ValidationError as DomainValidationError
+
+    mock_uc.side_effect = DomainValidationError("No fue posible enviar el correo")
+    procesar_solicitud_recuperacion("usuario@conatel.gob.ve", "http://localhost:3001")
+    assert mock_uc.call_args.kwargs["base_frontend"] == "http://localhost:3001"
 
 
 @patch("apps.identidad.presentation.views.auth_views.restablecer_password")

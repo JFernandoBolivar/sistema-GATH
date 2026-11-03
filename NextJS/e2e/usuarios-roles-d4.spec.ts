@@ -126,6 +126,36 @@ test.describe("D4: Usuarios y roles", () => {
     await sinViolacionesGraves(page);
   });
 
+  test("la matriz no desborda el shell a 1182 px y la tabla hace scroll interno", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1182, height: 800 });
+    await page.goto("/usuarios/matriz");
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await expect(page.getByLabel(/buscar permiso/i)).toBeVisible({ timeout: 30_000 });
+
+    const medidas = await page.evaluate(() => {
+      const main = document.querySelector<HTMLElement>("#contenido-principal");
+      const tabla = document.querySelector<HTMLElement>("#contenido-principal table");
+      const contenedor = tabla?.closest<HTMLElement>(".overflow-auto") ?? null;
+      return {
+        viewport: window.innerWidth,
+        documento: document.documentElement.scrollWidth,
+        main: main ? Math.round(main.getBoundingClientRect().width) : 0,
+        contenedor: contenedor ? Math.round(contenedor.getBoundingClientRect().width) : 0,
+        contenedorScroll: contenedor?.scrollWidth ?? 0,
+        contenedorScrollX: contenedor ? getComputedStyle(contenedor).overflowX : "",
+      };
+    });
+
+    expect(medidas.documento).toBeLessThanOrEqual(medidas.viewport);
+    expect(medidas.main).toBeLessThanOrEqual(medidas.viewport);
+    // El contenedor visible debe tener el scroll horizontal (no la tabla interna),
+    // para que la barra quede al alcance sin bajar las 111 filas.
+    expect(medidas.contenedorScrollX).toBe("auto");
+    expect(medidas.contenedorScroll).toBeGreaterThan(medidas.contenedor);
+  });
+
   test("un perfil sin permiso no ve el listado ni la matriz", async ({ page }) => {
     test.setTimeout(240_000);
     test.skip(

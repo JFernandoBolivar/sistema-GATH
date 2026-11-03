@@ -1,3 +1,4 @@
+import { formatearTelefono } from "@/shared/domain/validation/telefono";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
 
 /** Registro vigente de la ficha tal como lo edita el formulario (ids de catálogo + texto resumen). */
@@ -24,8 +25,8 @@ export function registrosFicha(d: MiExpedienteDTO, entidad: string): FichaRegist
             telefono_habitacion: e.telefono_habitacion ?? null,
           },
           resumen: unir(
-            e.telefono_movil ? `Móvil ${e.telefono_movil}` : null,
-            e.telefono_habitacion ? `Habitación ${e.telefono_habitacion}` : null,
+            e.telefono_movil ? `Móvil ${formatearTelefono(e.telefono_movil)}` : null,
+            e.telefono_habitacion ? `Habitación ${formatearTelefono(e.telefono_habitacion)}` : null,
           ),
         },
       ];
@@ -92,7 +93,11 @@ export function registrosFicha(d: MiExpedienteDTO, entidad: string): FichaRegist
           telefono: c.telefono,
           relacion_id: c.relacion_id,
         },
-        resumen: unir(`${c.nombres} ${c.apellidos}`, c.relacion_nombre, c.telefono),
+        resumen: unir(
+          `${c.nombres} ${c.apellidos}`,
+          c.relacion_nombre,
+          formatearTelefono(c.telefono),
+        ),
       }));
     case "familiar":
       return d.familiares.map((f) => ({

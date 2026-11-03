@@ -215,22 +215,21 @@ export const repoPersonalApi: RepoPersonal = {
   },
 
   async listarCatalogosExpediente() {
+    // Los catálogos pesados y dependientes de un padre NO se piden aquí:
+    // menciones (6327 filas), carreras, tallas, códigos postales, municipios y
+    // parroquias se cargan con `getCatalogoDependienteAction` cuando el
+    // usuario elige el padre (Fase 2). Así el payload inicial baja de ~690 KB
+    // a menos de 100 KB.
     const [
       estados,
-      municipios,
-      parroquias,
       condicionesVivienda,
-      codigosPostales,
       gruposSanguineos,
       nivelesAcademicos,
-      carreras,
-      menciones,
       instituciones,
       capacitaciones,
       gruposCapacitacion,
       tiposProcedencia,
       tiposPrenda,
-      tallas,
       politicas,
       alergias,
       patologias,
@@ -242,20 +241,14 @@ export const repoPersonalApi: RepoPersonal = {
       parentescos,
     ] = await Promise.all([
       personalApi.getEstados(),
-      personalApi.getMunicipios(),
-      personalApi.getParroquias(),
       personalApi.getCondicionesVivienda(),
-      personalApi.getCodigosPostales(),
       personalApi.getGruposSanguineos(),
       personalApi.getNivelesAcademicos(),
-      personalApi.getCarreras(),
-      personalApi.getMenciones(),
       personalApi.getInstituciones(),
       personalApi.getCapacitaciones(),
       personalApi.getGruposCapacitacion(),
       personalApi.getTiposProcedencia(),
       personalApi.getTiposPrenda(),
-      personalApi.getTallas(),
       personalApi.getPoliticas(),
       personalApi.getAlergias(),
       personalApi.getPatologias(),
@@ -281,20 +274,21 @@ export const repoPersonalApi: RepoPersonal = {
       }));
     return {
       estados: aCat(estados),
-      municipios: aCat(municipios),
-      parroquias: aCat(parroquias),
+      // Se piden por padre en los formularios (useCatalogoDependiente).
+      municipios: [],
+      parroquias: [],
       condicionesVivienda: aCat(condicionesVivienda),
-      codigosPostales: aCat(codigosPostales),
+      codigosPostales: [],
       gruposSanguineos: aCat(gruposSanguineos),
       nivelesAcademicos: aCat(nivelesAcademicos),
-      carreras: aCat(carreras),
-      menciones: aCat(menciones),
+      carreras: [],
+      menciones: [],
       instituciones: aCat(instituciones),
       capacitaciones: aCat(capacitaciones),
       gruposCapacitacion: aCat(gruposCapacitacion),
       tiposProcedencia: aCat(tiposProcedencia),
       tiposPrenda: aCat(tiposPrenda),
-      tallas: aCat(tallas),
+      tallas: [],
       politicas: aCat(politicas),
       alergias: aCat(alergias),
       patologias: aCat(patologias),

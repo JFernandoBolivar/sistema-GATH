@@ -21,8 +21,10 @@ describe("solicitudNuevaSchema", () => {
       solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo: "  " }).success,
     ).toBe(false);
     expect(
-      solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo: "Cambié de número" })
-        .success,
+      solicitudNuevaSchema.safeParse({
+        campos: ["employee.telefono_movil"],
+        motivo: "Cambié de número",
+      }).success,
     ).toBe(false); // 3 palabras
     expect(
       solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo: "a b c d e" })
@@ -37,8 +39,10 @@ describe("solicitudNuevaSchema", () => {
       false,
     );
     expect(
-      solicitudNuevaSchema.safeParse({ campos: ["employee.profile"], motivo: "<b>cambio de foto de perfil</b>" })
-        .success,
+      solicitudNuevaSchema.safeParse({
+        campos: ["employee.profile"],
+        motivo: "<b>cambio de foto de perfil</b>",
+      }).success,
     ).toBe(false);
     expect(
       solicitudNuevaSchema.safeParse({ campos: ["employee.profile"], motivo: "a ".repeat(260) })
@@ -47,8 +51,10 @@ describe("solicitudNuevaSchema", () => {
   });
   it("el correo alternativo sí es solicitable", () => {
     expect(
-      solicitudNuevaSchema.safeParse({ campos: ["datos_complementarios.correo_alternativo"], motivo })
-        .success,
+      solicitudNuevaSchema.safeParse({
+        campos: ["datos_complementarios.correo_alternativo"],
+        motivo,
+      }).success,
     ).toBe(true);
   });
 });
@@ -74,6 +80,24 @@ describe("contactoSchema", () => {
   });
 });
 
+describe("teléfonos con código de país (D-13)", () => {
+  it("el móvil exige móvil y la habitación acepta fijo, con y sin 0 o +58", () => {
+    expect(contactoSchema.safeParse({ telefono_movil: "4121234567" }).success).toBe(true);
+    expect(contactoSchema.safeParse({ telefono_movil: "+584121234567" }).success).toBe(true);
+    expect(contactoSchema.safeParse({ telefono_movil: "02121234567" }).success).toBe(false);
+    expect(contactoSchema.safeParse({ telefono_habitacion: "02121234567" }).success).toBe(true);
+    expect(contactoSchema.safeParse({ telefono_habitacion: "123" }).success).toBe(false);
+  });
+  it("el teléfono del contacto de emergencia es obligatorio y admite otros países", () => {
+    const base = { nombres: "Ana", apellidos: "Pérez", relacion_id: "3" };
+    expect(contactoEmergenciaSchema.safeParse({ ...base, telefono: "+14155552671" }).success).toBe(
+      true,
+    );
+    expect(contactoEmergenciaSchema.safeParse({ ...base, telefono: "" }).success).toBe(false);
+    expect(contactoEmergenciaSchema.safeParse({ ...base, telefono: "0412" }).success).toBe(false);
+  });
+});
+
 describe("contactoEmergenciaSchema / nombres", () => {
   it("no acepta números en nombres ni letras en teléfonos", () => {
     expect(
@@ -95,8 +119,22 @@ describe("contactoEmergenciaSchema / nombres", () => {
         nombres: "Ana",
         apellidos: "Pérez",
         telefono: "0412-1234567",
+        relacion_id: "3",
       }).success,
     ).toBe(true);
+  });
+
+  it("exige el teléfono y el parentesco o relación", () => {
+    const base = { nombres: "Ana", apellidos: "Pérez", telefono: "0412-1234567", relacion_id: "3" };
+    expect(contactoEmergenciaSchema.safeParse({ ...base, telefono: "" }).success).toBe(false);
+    expect(contactoEmergenciaSchema.safeParse({ ...base, telefono: undefined }).success).toBe(
+      false,
+    );
+    expect(contactoEmergenciaSchema.safeParse({ ...base, relacion_id: "" }).success).toBe(false);
+    expect(contactoEmergenciaSchema.safeParse({ ...base, relacion_id: undefined }).success).toBe(
+      false,
+    );
+    expect(contactoEmergenciaSchema.safeParse(base).success).toBe(true);
   });
 });
 

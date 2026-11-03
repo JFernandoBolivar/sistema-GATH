@@ -88,7 +88,7 @@ def test_flujo_completo_aprobacion_parcial_aplica_solo_lo_aprobado():
     assert dto.solicitud.estado is EstadoSolicitud.APROBADA_PARCIAL
     assert dto.solicitud.decidida_por == BIENESTAR  # una sola persona
     ficha = m.ficha.datos[('employee', None)]
-    assert ficha['telefono_movil'] == '04245556677'      # aprobado: aplicado
+    assert ficha['telefono_movil'] == '+584245556677'      # aprobado: aplicado
     assert ficha['telefono_habitacion'] == '02121111111'  # rechazado: intacto
     assert m.ficha.aplicaciones == [['telefono_movil']]
     rechazado = next(c for c in dto.cambios if c.cambio.campo == 'telefono_habitacion').cambio

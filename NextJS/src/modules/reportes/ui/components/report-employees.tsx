@@ -61,7 +61,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { useState, useTransition } from "react";
 import {
-  puedeFiltrarEstructuraOrganizativa,
+  muestraFiltroEstructura,
   puedeGenerarReportePdf,
 } from "../../application/use-cases/permisos-reporte";
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
@@ -268,7 +268,7 @@ export default function ReportEmployee({
   // Los filtros de estructura solo se ofrecen a quien puede consultar la
   // estructura organizativa (`organizacion.ver`), que es lo que exigen los
   // catálogos del backend. Nunca por nombre de rol ni por el comodín "*".
-  const puedeEstructura = puedeFiltrarEstructuraOrganizativa(session?.user?.permisos);
+  const puedeEstructura = muestraFiltroEstructura(session?.user?.permisos, categoria);
   const puedePdf = puedeGenerarReportePdf(session?.user?.permisos);
 
   return (
@@ -302,7 +302,7 @@ export default function ReportEmployee({
               <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
                 <ScrollArea className="h-[600px] w-full pr-3">
                   <div className="flex flex-col gap-4">
-                    {puedeEstructura && (
+                    {puedeEstructura && categoria !== "pasivos" && (
                       <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600">
                         <legend className="text-green-800 font-semibold px-1">
                           Dirección Administrativa

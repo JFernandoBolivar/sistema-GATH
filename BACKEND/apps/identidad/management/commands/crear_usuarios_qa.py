@@ -35,7 +35,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoNominaModel,
     TipoPersonalModel,
 )
-from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
 from apps.identidad.infrastructure.models.password_inicial_model import (
     PasswordInicialModel,
 )
@@ -57,11 +57,11 @@ from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPers
 
 ADMIN_CEDULA = '10823304'
 ADMIN_CORREO = 'salfonzo.qa@conatel.gob.ve'
-ADMIN_ROL = 14
+ADMIN_ROL_NOMBRE = 'ADMIN_BIENESTAR'
 
 ANALISTA_CEDULA = '99000901'
 ANALISTA_CORREO = 'analista.bienestar.qa@conatel.gob.ve'
-ANALISTA_ROL = 13
+ANALISTA_ROL_NOMBRE = 'ANALISTA_BIENESTAR'
 
 PASIVO1_CEDULA = '99000902'
 PASIVO1_CORREO = 'salfonzo@conatel.gob.ve'
@@ -143,7 +143,7 @@ class Command(BaseCommand):
                 'administradora de Bienestar de QA.'
             )
         self._mover_correo(ADMIN_CEDULA, ADMIN_CORREO)
-        self._asegurar_cuenta(ADMIN_CEDULA, ADMIN_ROL)
+        self._asegurar_cuenta(ADMIN_CEDULA, ADMIN_ROL_NOMBRE)
 
     def _preparar_analista(self) -> None:
         empleado = self._asegurar_empleado(
@@ -154,7 +154,7 @@ class Command(BaseCommand):
             date(1990, 1, 1),
         )
         self._mover_correo(empleado.cedulaidentidad, ANALISTA_CORREO)
-        self._asegurar_cuenta(ANALISTA_CEDULA, ANALISTA_ROL)
+        self._asegurar_cuenta(ANALISTA_CEDULA, ANALISTA_ROL_NOMBRE)
 
     def _preparar_pasivo(self, cedula: str, nombres: str, apellidos: str, correo: str) -> None:
         self._liberar_correo(correo, excepto_cedula=cedula)
@@ -181,7 +181,7 @@ class Command(BaseCommand):
             self._mover_correo(cedula, correo)
             self._asegurar_asignacion_pasivo(cedula)
 
-        self._asegurar_cuenta(cedula, 3)
+        self._asegurar_cuenta(cedula, 'AUTOGESTION')
 
     def _asegurar_empleado(
         self,
@@ -225,15 +225,32 @@ class Command(BaseCommand):
             )
             EmployeeModel.objects.filter(pk=empleado.pk).update(correo=None)
 
-    def _asegurar_cuenta(self, cedula: str, rol_id: int) -> None:
+    @staticmethod
+    def _normalizar_rol(nombre: str) -> str:
+        return ' '.join(
+            str(nombre or '').strip().upper().replace('BIENSTAR', 'BIENESTAR').split()
+        )
+
+    def _rol_por_nombre(self, nombre: str) -> RolModel:
+        """Resuelve el rol por nombre: los IDs cambian entre bases heredadas."""
+        objetivo = self._normalizar_rol(nombre)
+        for rol in RolModel.objects.all():
+            if self._normalizar_rol(rol.nombre_rol) == objetivo:
+                return rol
+        raise CommandError(
+            f'No existe el rol {nombre}. Ejecute seed_permisos antes de crear los usuarios QA.'
+        )
+
+    def _asegurar_cuenta(self, cedula: str, rol_nombre: str) -> None:
         ahora = timezone.now()
+        rol = self._rol_por_nombre(rol_nombre)
         cuenta = CuentaModel.objects.filter(cedula_id=cedula).first()
         if cuenta is None:
-            cuenta = CuentaModel(cedula_id=cedula, rol_id=rol_id, is_active=True)
+            cuenta = CuentaModel(cedula_id=cedula, rol_id=rol.pk, is_active=True)
             cuenta.set_password(cedula)
             cuenta.save()
         else:
-            cuenta.rol_id = rol_id
+            cuenta.rol_id = rol.pk
             cuenta.is_active = True
             cuenta.set_password(cedula)
             cuenta.save()

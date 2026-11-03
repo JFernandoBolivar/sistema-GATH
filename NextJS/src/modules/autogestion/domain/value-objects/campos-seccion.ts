@@ -80,12 +80,13 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
         campos: [
           { campo: "nombres", etiqueta: "Nombres", tipo: "texto", requeridoAlCrear: true },
           { campo: "apellidos", etiqueta: "Apellidos", tipo: "texto", requeridoAlCrear: true },
-          { campo: "telefono", etiqueta: "Teléfono", tipo: "telefono" },
+          { campo: "telefono", etiqueta: "Teléfono", tipo: "telefono", requeridoAlCrear: true },
           {
             campo: "relacion_id",
             etiqueta: "Parentesco o relación",
             tipo: "catalogo",
             catalogo: "parentescos",
+            requeridoAlCrear: true,
           },
         ],
       },

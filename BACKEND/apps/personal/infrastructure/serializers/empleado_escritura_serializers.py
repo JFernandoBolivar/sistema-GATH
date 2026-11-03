@@ -15,6 +15,7 @@ from datetime import date
 from rest_framework import serializers
 
 from core.infrastructure.serializer_mixins import CleanZerosMixin
+from core.presentation.validadores_personas import validar_drf, validar_telefono
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, SexoModel, NacionalidadModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
@@ -90,6 +91,9 @@ class ContactoEmergenciaEscrituraSerializer(serializers.ModelSerializer):
         model = ContactoEmergenciaModel
         fields = ['nombres', 'apellidos', 'telefono', 'relacion']
 
+    def validate_telefono(self, value):
+        return validar_drf(validar_telefono, value)
+
 
 class AntecedenteServicioEscrituraSerializer(serializers.ModelSerializer):
     class Meta:
@@ -160,6 +164,12 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
         if self.instance and self.instance.cedulaidentidad != value:
             raise serializers.ValidationError('La cédula de identidad no puede ser modificada.')
         return value
+
+    def validate_telefono_movil(self, value):
+        return validar_drf(validar_telefono, value, tipo='movil')
+
+    def validate_telefono_habitacion(self, value):
+        return validar_drf(validar_telefono, value)
 
     def validate_nombres(self, value):
         return value.upper() if value else value

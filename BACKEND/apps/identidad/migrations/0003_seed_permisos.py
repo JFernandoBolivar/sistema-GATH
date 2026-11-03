@@ -3,8 +3,15 @@ from django.db import migrations
 
 
 def aplicar_seed_permisos(apps, schema_editor):
-    from django.core.management import call_command
-    call_command('seed_permisos')
+    """No-op: el seed se ejecuta en 0010, después de que existan las tablas.
+
+    `0003` corría `seed_permisos` antes de que `0007` creara
+    `identidad_cuenta_permisos_version` y antes de que `core` creara
+    `auditoria_log`, por lo que una base nueva fallaba. Se conserva la
+    migración por compatibilidad de historial; el seed real vive en
+    `0010_seed_permisos_final`.
+    """
+    pass
 
 
 def revertir_seed_permisos(apps, schema_editor):

@@ -9,6 +9,7 @@ import {
   NO_HTML,
   NO_HTML_MSG,
 } from "@/shared/validation";
+import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { seccionDeCampo } from "../../domain/value-objects/campos-seccion";
 import { errorDeMotivo } from "../../domain/services/validar-motivo";
 import {
@@ -16,9 +17,6 @@ import {
   PLAZO_MIN_DIAS,
 } from "../../application/use-cases/gestionar-solicitud-bienestar";
 
-/** Mismo criterio que el servidor (`validacion_cambios.py`): +, dígitos, espacios y guiones. */
-export const TELEFONO_AUTOGESTION = /^\+?\d[\d\s-]{6,18}\d$/;
-export const TELEFONO_AUTOGESTION_MSG = "Teléfono inválido. Ejemplo: 0412-1234567";
 export const CEDULA_FAMILIAR = /^[A-Za-z]?-?\d{5,10}$/;
 export const CEDULA_FAMILIAR_MSG = "Cédula inválida. Ejemplo: V-12345678";
 
@@ -41,12 +39,12 @@ const textoOpcional = (max = 150) =>
     .optional()
     .or(z.literal(""));
 
-const telefonoOpcional = z
-  .string()
-  .trim()
-  .regex(TELEFONO_AUTOGESTION, TELEFONO_AUTOGESTION_MSG)
-  .optional()
-  .or(z.literal(""));
+/** Teléfonos con código de país (D-13): el móvil debe ser móvil, la habitación puede ser fija. */
+const telefonoMovilOpcional = telefonoZod({ tipo: "movil" }).transform((v) => v ?? "");
+const telefonoHabitacionOpcional = telefonoZod({ tipo: "cualquiera" }).transform((v) => v ?? "");
+const telefonoRequerido = telefonoZod({ requerido: true, tipo: "cualquiera" }).transform(
+  (v) => v ?? "",
+);
 
 /** Nombres y apellidos: solo letras (con acentos), espacios y signos de nombre. */
 const nombreRequerido = (nombre: string) =>
@@ -58,7 +56,13 @@ const nombreRequerido = (nombre: string) =>
     .regex(NAME, NAME_MSG);
 
 const nombreOpcional = () =>
-  z.string().trim().max(100, "No puede superar 100 caracteres").regex(NAME, NAME_MSG).optional().or(z.literal(""));
+  z
+    .string()
+    .trim()
+    .max(100, "No puede superar 100 caracteres")
+    .regex(NAME, NAME_MSG)
+    .optional()
+    .or(z.literal(""));
 
 /** Identificador de catálogo: las listas desplegables entregan texto; vacío = sin elegir. */
 const idCatalogo = (nombre: string) =>
@@ -91,8 +95,8 @@ export type SolicitudNuevaValores = z.infer<typeof solicitudNuevaSchema>;
 
 // ── Secciones del borrador ──
 export const contactoSchema = z.object({
-  telefono_movil: telefonoOpcional,
-  telefono_habitacion: telefonoOpcional,
+  telefono_movil: telefonoMovilOpcional,
+  telefono_habitacion: telefonoHabitacionOpcional,
   correo_alternativo: z
     .string()
     .trim()
@@ -106,8 +110,8 @@ export type ContactoValores = z.infer<typeof contactoSchema>;
 export const contactoEmergenciaSchema = z.object({
   nombres: nombreRequerido("Los nombres"),
   apellidos: nombreRequerido("Los apellidos"),
-  telefono: telefonoOpcional,
-  relacion_id: idCatalogoOpcional,
+  telefono: telefonoRequerido,
+  relacion_id: idCatalogo("el parentesco o la relación"),
 });
 export type ContactoEmergenciaValores = z.infer<typeof contactoEmergenciaSchema>;
 

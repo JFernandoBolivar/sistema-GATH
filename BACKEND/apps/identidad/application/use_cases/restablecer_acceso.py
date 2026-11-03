@@ -34,6 +34,7 @@ def restablecer_acceso(
     *,
     repo_permisos: RepoPermisos,
     actor: ActorSesionDTO,
+    limpiar_bloqueo: Callable[[str], None] | None = None,
 ) -> Cuenta:
     cuenta = repo_cuentas.obtener_por_id(cuenta_id)
     if cuenta is None:
@@ -50,6 +51,11 @@ def restablecer_acceso(
 
     repo_cuentas.establecer_password(cuenta.id, cuenta.cedula)
     repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora, dias_vigencia))
+    # QA 2026-11-03: quien pide el restablecimiento suele haber agotado sus intentos. Sin esto
+    # seguía bloqueado (por cédula y por el correo tecleado) aunque ya usara la cédula correcta.
+    if limpiar_bloqueo is not None:
+        for clave in {cuenta.cedula, cuenta.correo, (cuenta.correo or '').lower()} - {None, ''}:
+            limpiar_bloqueo(str(clave))
     # `establecer_password` ya incrementa `permisos_version` (M2), lo que revoca
     # las sesiones abiertas. No hace falta un segundo incremento aquí.
     publicar(EventoIdentidad(

@@ -9,8 +9,10 @@ cookies: una brecha real frente al legado, cerrada aquí). `MeView` cubre el
 endpoint de perfil de sesión que el gap analysis marcó como faltante.
 """
 import logging
+import secrets
 
 from django.conf import settings
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.utils import timezone
@@ -32,10 +34,11 @@ from apps.identidad.application.use_cases.rotar_tokens_sesion import (
     rotar_tokens_sesion,
 )
 from apps.identidad.application.use_cases.solicitar_recuperacion_password import (
-    solicitar_recuperacion_password,
+    MENSAJE_RESPUESTA_GENERICO,
 )
-from apps.identidad.infrastructure.emails.recuperacion_email import (
-    enviar_correo_recuperacion,
+from apps.identidad.infrastructure.tasks.recuperacion_tasks import (
+    procesar_solicitud_recuperacion,
+    solicitar_recuperacion_password_task,
 )
 from apps.identidad.domain.services.politica_password_inicial import (
     MENSAJE_PASSWORD_INICIAL_VENCIDA,
@@ -76,7 +79,6 @@ from apps.identidad.infrastructure.serializers.cuenta_lectura_serializers import
     CuentaLecturaSerializer,
 )
 from apps.identidad.infrastructure.tokens.password_reset_token import (
-    generar_token_recuperacion,
     validar_token_recuperacion,
 )
 from apps.identidad.presentation.serializers.recuperacion_password_serializers import (
@@ -89,6 +91,21 @@ from core.presentation.envelope import fail, ok
 from core.presentation.schema import MensajeRespuestaSerializer
 
 logger = logging.getLogger('security_backend')
+
+_HASH_FICTICIO: str | None = None
+
+
+def _verificar_clave_ficticia(password: str) -> None:
+    """Gasta lo mismo que verificar una clave real cuando la cuenta no existe.
+
+    Sin esto, el login respondía en ~0,04 s si el correo no existía y en más de
+    1 s si existía: midiendo el tiempo se averiguaba qué correos están
+    registrados (mismo criterio que ModelBackend de Django).
+    """
+    global _HASH_FICTICIO
+    if _HASH_FICTICIO is None:
+        _HASH_FICTICIO = make_password(secrets.token_urlsafe(32))
+    check_password(password, _HASH_FICTICIO)
 
 
 def _base_frontend_confiable(candidata: str | None) -> str:
@@ -164,6 +181,7 @@ class LoginView(APIView):
             cuenta = repo_auth.obtener_cuenta_por_correo(identificador)
 
             if not cuenta or not cuenta.is_active:
+                _verificar_clave_ficticia(password)
                 anotar_intento_fallido(cedula_registro, ip_cliente)
                 return fail('Credenciales inválidas.', 401)
 
@@ -339,14 +357,15 @@ class SolicitarRecuperacionPasswordView(APIView):
             serializer.validated_data.get('frontend_url') or request.headers.get('Origin')
         )
 
-        mensaje = solicitar_recuperacion_password(
-            RepoRecuperacionPasswordORM(),
-            identificador,
-            base_frontend=base_frontend,
-            enviar_email_fn=enviar_correo_recuperacion,
-            generar_token_fn=generar_token_recuperacion,
-        )
-        return ok(message=mensaje)
+        # Se encola y se responde al instante con el mismo mensaje exista o no la
+        # cuenta: así ni el tiempo de respuesta ni un error de SMTP delatan qué
+        # correos o cédulas están registrados (enumeración por tiempo).
+        try:
+            solicitar_recuperacion_password_task.delay(identificador, base_frontend)
+        except Exception:
+            logger.warning('recuperacion.broker_no_disponible', exc_info=True)
+            procesar_solicitud_recuperacion(identificador, base_frontend)
+        return ok(message=MENSAJE_RESPUESTA_GENERICO)
 
 
 class RestablecerPasswordView(APIView):

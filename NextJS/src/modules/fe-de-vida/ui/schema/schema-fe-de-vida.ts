@@ -1,17 +1,12 @@
 import { z } from "zod";
 import { EMAIL, EMAIL_MSG, NO_HTML, NO_HTML_MSG } from "@/shared/validation";
+import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { MAX_DIAS_RECORDATORIO } from "../../domain/services/reglas";
 import { MAX_LONGITUD_MOTIVO } from "../../domain/value-objects/estados";
 
-/** Mismo criterio que el servidor: +, dígitos, espacios y guiones. */
-export const TELEFONO = /^\+?\d[\d\s-]{6,18}\d$/;
-export const TELEFONO_MSG = "Teléfono inválido. Ejemplo: 0412-1234567";
-
-const telefonoOpcional = z
-  .string()
-  .trim()
-  .regex(TELEFONO, TELEFONO_MSG)
-  .or(z.literal(""));
+/** Teléfonos con código de país (D-13): el celular debe ser móvil, la habitación puede ser fija. */
+const telefonoMovilOpcional = telefonoZod({ tipo: "movil" }).transform((v) => v ?? "");
+const telefonoHabitacionOpcional = telefonoZod({ tipo: "cualquiera" }).transform((v) => v ?? "");
 
 const motivo = (nombre: string) =>
   z
@@ -23,8 +18,8 @@ const motivo = (nombre: string) =>
 
 // ── Pasivo: datos de contacto del acta ──
 export const datosContactoSchema = z.object({
-  telefonoMovil: telefonoOpcional,
-  telefonoHabitacion: telefonoOpcional,
+  telefonoMovil: telefonoMovilOpcional,
+  telefonoHabitacion: telefonoHabitacionOpcional,
   correoAlternativo: z.string().trim().regex(EMAIL, EMAIL_MSG).or(z.literal("")),
   tieneHijos: z.enum(["si", "no"], {
     errorMap: () => ({ message: "Indique si tiene hijos" }),
@@ -102,14 +97,13 @@ export const procesoSchema = z
     cierre: z.string().min(1, "El cierre es obligatorio"),
     todos: z.boolean(),
     tiposNomina: z.array(z.number().int().positive()),
-    diasRecordatorio: z
-      .array(
-        z
-          .number()
-          .int("Use días enteros")
-          .min(1, "El mínimo es 1 día")
-          .max(MAX_DIAS_RECORDATORIO, `El máximo es ${MAX_DIAS_RECORDATORIO} días`),
-      ),
+    diasRecordatorio: z.array(
+      z
+        .number()
+        .int("Use días enteros")
+        .min(1, "El mínimo es 1 día")
+        .max(MAX_DIAS_RECORDATORIO, `El máximo es ${MAX_DIAS_RECORDATORIO} días`),
+    ),
   })
   .superRefine((v, ctx) => {
     if (v.apertura && v.cierre && v.cierre <= v.apertura) {

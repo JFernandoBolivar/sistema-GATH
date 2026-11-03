@@ -12,45 +12,66 @@
 
 export interface DatosVivienda {
   estadoId?: number | null;
+  estadoNombre?: string | null;
   municipioId?: number | null;
+  municipioNombre?: string | null;
   parroquiaId?: number | null;
+  parroquiaNombre?: string | null;
   direccionExacta?: string | null;
   condicionViviendaId?: number | null;
+  condicionViviendaNombre?: string | null;
   codigoPostalId?: number | null;
+  codigoPostalNombre?: string | null;
 }
 
 export interface PerfilSalud {
   grupoSanguineoId?: number | null;
+  grupoSanguineoNombre?: string | null;
   alergias?: number[];
+  alergiasNombres?: string[];
   patologiasCronicas?: number[];
+  patologiasCronicasNombres?: string[];
   discapacidades?: number[];
+  discapacidadesNombres?: string[];
 }
 
 export interface PerfilFisico {
   tallaCamisaId?: number | null;
+  tallaCamisaNombre?: string | null;
   tallaPantalonId?: number | null;
+  tallaPantalonNombre?: string | null;
   tallaZapatosId?: number | null;
+  tallaZapatosNombre?: string | null;
   tallaChaquetaId?: number | null;
+  tallaChaquetaNombre?: string | null;
 }
 
 export interface FormacionAcademica {
   id?: number;
   nivelAcademicoId?: number | null;
+  nivelAcademicoNombre?: string | null;
   carreraId?: number | null;
+  carreraNombre?: string | null;
   mencionId?: number | null;
+  mencionNombre?: string | null;
   institucionId?: number | null;
+  institucionNombre?: string | null;
 }
 
 export interface FormacionComplementaria {
   id?: number;
   capacitacionId?: number | null;
+  capacitacionNombre?: string | null;
   institucionId?: number | null;
+  institucionNombre?: string | null;
   fechaInicio?: string | null;
   fechaFin?: string | null;
   diasCompletados?: string | null;
   horasCompletadas?: string | null;
   procedenciaId?: number | null;
+  procedenciaNombre?: string | null;
   grupoId?: number | null;
+  grupoNombre?: string | null;
 }
 
 export interface ContactoEmergencia {
@@ -59,6 +80,7 @@ export interface ContactoEmergencia {
   apellidos?: string | null;
   telefono?: string | null;
   relacionId?: number | null;
+  relacionNombre?: string | null;
 }
 
 export interface CatalogoExpediente {
@@ -99,6 +121,7 @@ export interface Encargaduria {
 export interface Antecedente {
   id?: number;
   organismoId?: number | null;
+  organismoNombre?: string | null;
   fechaIngreso?: string | null;
   fechaEgreso?: string | null;
 }

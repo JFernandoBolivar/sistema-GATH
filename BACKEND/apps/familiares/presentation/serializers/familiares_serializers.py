@@ -3,6 +3,8 @@ Serializers de Presentación de Familiares.
 """
 from rest_framework import serializers
 
+from core.presentation.validadores_personas import validar_cedula, validar_drf, validar_nombre
+
 from apps.familiares.application.use_cases.validaciones_familiar import (
     resolver_cedula_familiar,
     validar_cedula_no_duplicada,
@@ -165,6 +167,24 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
     perfil_salud = PerfilSaludFamiliarEscrituraSerializer(required=False, allow_null=True)
     perfil_fisico = PerfilFisicoFamiliarEscrituraSerializer(required=False, allow_null=True)
     formacion_academica = FormacionAcademicaFamiliarEscrituraSerializer(required=False, allow_null=True)
+
+    def validate_primer_nombre(self, value):
+        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El primer nombre')
+
+    def validate_segundo_nombre(self, value):
+        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El segundo nombre')
+
+    def validate_primer_apellido(self, value):
+        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El primer apellido')
+
+    def validate_segundo_apellido(self, value):
+        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El segundo apellido')
+
+    def validate_cedula_familiar(self, value):
+        if self.partial and value and not value.strip().isdigit():
+            # Edición de un registro legado con cédula sintética "<cédula>-<n>": se conserva.
+            return value
+        return validar_drf(validar_cedula, value, etiqueta='La cédula del familiar')
 
     def validate(self, attrs):
         empleado_cedula = attrs.get('empleado_cedula') or self.context.get('empleado_cedula')

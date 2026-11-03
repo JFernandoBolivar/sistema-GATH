@@ -4,7 +4,6 @@ const CACHE = "gath-shell-v4";
 const OFFLINE = "/offline.html";
 const PRECACHE = [
   OFFLINE,
-  OFFLINE,
   "/offline.css",
   "/manifest.webmanifest",
   "/icons/icon-192.png",
@@ -22,7 +21,7 @@ self.addEventListener("install", (event) => {
         try {
           await cache.add(url);
         } catch {
-          /* un recurso est�tico no disponible no debe impedir la instalaci�n */
+          /* un recurso estático no disponible no debe impedir la instalación */
         }
       }
       await self.skipWaiting();

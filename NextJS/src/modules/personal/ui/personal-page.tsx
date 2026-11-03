@@ -47,12 +47,12 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../application/dtos/empleado-dto";
 import {
   descargarEmpleadoPdfAction,
-  getCatalogosExpedienteAction,
   getEmpleadoPorCedulaAction,
   getEmpleadosAction,
-  getTiposNominaAction,
+  getInicioPersonalAction,
   subirFotoEmpleadoAction,
 } from "../infrastructure/actions/personal-actions";
+import { obtenerCatalogosExpediente } from "../infrastructure/cache/catalogos-expediente-cache";
 import EmpleadoDetalleSheet from "./empleado-detalle-sheet";
 import { construirDetalleExpediente } from "./expediente-detalle-view-model";
 import { construirColumnasPersonal } from "./personal-columns";
@@ -95,16 +95,18 @@ export default function PersonalPage() {
   // Solo la última consulta puede actualizar la tabla: el listado inicial
   // completo es lento y, si terminaba después de una búsqueda, la pisaba.
   const ultimaConsultaRef = useRef(0);
-  const catalogosRef = useRef<CatalogosExpedienteDTO | null>(null);
 
+  /**
+   * Los catálogos se piden una sola vez por sesión y nunca bloquean el
+   * detalle. Aquí solo se lanzan en segundo plano para que los diálogos de
+   * edición tengan sus opciones cuando el usuario los abra.
+   */
   const asegurarCatalogos = async () => {
-    if (catalogosRef.current) return;
+    if (catalogos) return;
     try {
-      const cat = await getCatalogosExpedienteAction();
-      catalogosRef.current = cat;
-      setCatalogos(cat);
+      setCatalogos(await obtenerCatalogosExpediente());
     } catch {
-      // El detalle se muestra igual sin catálogos resueltos.
+      // El detalle se muestra igual sin catálogos: el backend ya manda nombres.
     }
   };
 
@@ -128,24 +130,36 @@ export default function PersonalPage() {
       } finally {
         if (consulta === ultimaConsultaRef.current) setCargandoPersonal(false);
       }
-      // Tras el primer listado, precarga los catálogos del expediente (pesados y
-      // en serie con el resto de Server Actions) para que el detalle abra rápido.
-      if (consulta === 1) await asegurarCatalogos();
     });
   };
 
   useEffect(() => {
-    cargar();
-
+    // Una sola Server Action resuelve listado + nóminas en paralelo en el
+    // servidor (antes eran dos acciones en cola desde el cliente) y sin
+    // precargar catálogos pesados.
+    const consulta = ++ultimaConsultaRef.current;
+    setCargandoPersonal(true);
     setCargandoNominas(true);
     startTransition(async () => {
+      setError(null);
       try {
-        const tipos = await getTiposNominaAction();
-        setNominas(tipos);
+        const { empleados: data, nominas: tipos } = await getInicioPersonalAction(
+          undefined,
+          { page: 1, pageSize: TAMANO_PAGINA },
+        );
+        if (consulta === ultimaConsultaRef.current) {
+          setEmpleados(data.items);
+          setTotal(data.total);
+          setPagina(data.page - 1);
+          setNominas(tipos);
+        }
       } catch {
-        // Silencioso
+        if (consulta === ultimaConsultaRef.current) setError("No fue posible cargar el personal.");
       } finally {
-        setCargandoNominas(false);
+        if (consulta === ultimaConsultaRef.current) {
+          setCargandoPersonal(false);
+          setCargandoNominas(false);
+        }
       }
     });
   }, []);
@@ -171,9 +185,11 @@ export default function PersonalPage() {
   const onVerDetalle = (cedula: string) => {
     setDetalleAbierto(true);
     setViendoDetalle(null);
+    // Los catálogos van en paralelo y no bloquean la apertura: el expediente
+    // se pinta con los nombres que ya trae el backend.
+    void asegurarCatalogos();
     startTransition(async () => {
       setError(null);
-      await asegurarCatalogos();
       const resultado = await getEmpleadoPorCedulaAction(cedula);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         setError((resultado as { error: string }).error);
@@ -382,9 +398,7 @@ export default function PersonalPage() {
         }}
         empleado={viendoDetalle}
         catalogos={catalogos}
-        detalle={
-          viendoDetalle && catalogos ? construirDetalleExpediente(viendoDetalle, catalogos) : null
-        }
+        detalle={viendoDetalle ? construirDetalleExpediente(viendoDetalle, catalogos) : null}
         onExportarPdf={onExportarPdf}
         onGuardado={() => {
           cargar(form.getValues(), pagina);

@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 
+from core.presentation.cache_catalogos import ok_catalogo
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 from apps.personal.application.use_cases.listar_catalogos_soporte import (
@@ -109,8 +110,13 @@ class PoliticasListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar políticas de contratación', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_politicas(RepoPersonalORM().listar_politicas())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:politicas',
+            lambda: CatalogoItemSerializer(
+                listar_politicas(RepoPersonalORM().listar_politicas()), many=True
+            ).data,
+        )
 
 
 class CondicionesViviendaListView(APIView):
@@ -118,8 +124,14 @@ class CondicionesViviendaListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar condiciones de vivienda', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_condiciones_vivienda(RepoPersonalORM().listar_condiciones_vivienda())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:condiciones-vivienda',
+            lambda: CatalogoItemSerializer(
+                listar_condiciones_vivienda(RepoPersonalORM().listar_condiciones_vivienda()),
+                many=True,
+            ).data,
+        )
 
 
 class CodigosPostalesListView(APIView):
@@ -133,8 +145,16 @@ class CodigosPostalesListView(APIView):
     )
     def get(self, request):
         estado_id = _query_id(request, 'estado_id')
-        dtos = listar_codigos_postales(RepoPersonalORM().listar_codigos_postales(estado_id=estado_id))
-        return ok(CodigoPostalSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            f'personal:codigos-postales:{estado_id or "todos"}',
+            lambda: CodigoPostalSerializer(
+                listar_codigos_postales(
+                    RepoPersonalORM().listar_codigos_postales(estado_id=estado_id)
+                ),
+                many=True,
+            ).data,
+        )
 
 
 class GruposSanguineosListView(APIView):
@@ -142,8 +162,14 @@ class GruposSanguineosListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar grupos sanguíneos', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_grupos_sanguineos(RepoPersonalORM().listar_grupos_sanguineos())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:grupos-sanguineos',
+            lambda: CatalogoItemSerializer(
+                listar_grupos_sanguineos(RepoPersonalORM().listar_grupos_sanguineos()),
+                many=True,
+            ).data,
+        )
 
 
 class NivelesAcademicosListView(APIView):
@@ -151,8 +177,14 @@ class NivelesAcademicosListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar niveles académicos', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_niveles_academicos(RepoPersonalORM().listar_niveles_academicos())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:niveles-academicos',
+            lambda: CatalogoItemSerializer(
+                listar_niveles_academicos(RepoPersonalORM().listar_niveles_academicos()),
+                many=True,
+            ).data,
+        )
 
 
 class CarrerasListView(APIView):
@@ -169,8 +201,18 @@ class CarrerasListView(APIView):
     )
     def get(self, request):
         nivel_academico_id = _query_id(request, 'nivel_academico_id')
-        dtos = listar_carreras(RepoPersonalORM().listar_carreras(nivel_academico_id=nivel_academico_id))
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            f'personal:carreras:{nivel_academico_id or "todos"}',
+            lambda: CatalogoItemSerializer(
+                listar_carreras(
+                    RepoPersonalORM().listar_carreras(
+                        nivel_academico_id=nivel_academico_id
+                    )
+                ),
+                many=True,
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear carrera (alta inline "Otra")', request=CarreraWriteSerializer, responses={201: CarreraDetalleSerializer})
     def post(self, request):
@@ -190,8 +232,14 @@ class MencionesListView(APIView):
     def get(self, request):
         carrera_id = request.query_params.get('carrera_id')
         reg_id = int(carrera_id) if carrera_id and str(carrera_id).isdigit() else None
-        dtos = listar_menciones(RepoPersonalORM().listar_menciones(carrera_id=reg_id))
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            f'personal:menciones:{reg_id or "todas"}',
+            lambda: CatalogoItemSerializer(
+                listar_menciones(RepoPersonalORM().listar_menciones(carrera_id=reg_id)),
+                many=True,
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear mención (alta inline "Otra")', request=MencionWriteSerializer, responses={201: MencionDetalleSerializer})
     def post(self, request):
@@ -209,8 +257,14 @@ class InstitucionesListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar instituciones', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_instituciones(RepoPersonalORM().listar_instituciones())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:instituciones',
+            lambda: CatalogoItemSerializer(
+                listar_instituciones(RepoPersonalORM().listar_instituciones()),
+                many=True,
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear institución (alta inline "Otra")', request=InstitucionWriteSerializer, responses={201: InstitucionDetalleSerializer})
     def post(self, request):
@@ -228,8 +282,14 @@ class CapacitacionesListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar capacitaciones/cursos', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_capacitaciones(RepoPersonalORM().listar_capacitaciones())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:capacitaciones',
+            lambda: CatalogoItemSerializer(
+                listar_capacitaciones(RepoPersonalORM().listar_capacitaciones()),
+                many=True,
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear capacitación (alta inline "Otra")', request=CapacitacionWriteSerializer, responses={201: CapacitacionDetalleSerializer})
     def post(self, request):
@@ -244,8 +304,14 @@ class GruposCapacitacionListView(APIView):
 
     @extend_schema(tags=['Personal'], summary='Listar grupos de capacitación', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_grupos_capacitacion(RepoPersonalORM().listar_grupos_capacitacion())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:grupos-capacitacion',
+            lambda: CatalogoItemSerializer(
+                listar_grupos_capacitacion(RepoPersonalORM().listar_grupos_capacitacion()),
+                many=True,
+            ).data,
+        )
 
 
 # ----------------------------------------------------------------------
@@ -260,8 +326,14 @@ class TiposPrendaListView(APIView):
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Listar tipos de prenda', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_tipos_prenda(RepoPersonalORM().listar_tipos_prenda())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:tipos-prenda',
+            lambda: CatalogoItemSerializer(
+                listar_tipos_prenda(RepoPersonalORM().listar_tipos_prenda()),
+                many=True,
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear tipo de prenda', request=TipoPrendaWriteSerializer, responses={201: TipoPrendaDetalleSerializer})
     def post(self, request):
@@ -302,8 +374,14 @@ class RegionesTallaListView(APIView):
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Listar regiones de talla', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_regiones_talla(RepoPersonalORM().listar_regiones_talla())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:regiones-talla',
+            lambda: CatalogoItemSerializer(
+                listar_regiones_talla(RepoPersonalORM().listar_regiones_talla()),
+                many=True,
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear región de talla', request=RegionTallaWriteSerializer, responses={201: RegionTallaDetalleSerializer})
     def post(self, request):
@@ -355,8 +433,14 @@ class TallasListView(APIView):
     def get(self, request):
         tipo_prenda_id = request.query_params.get('tipo_prenda_id')
         reg_id = int(tipo_prenda_id) if tipo_prenda_id and str(tipo_prenda_id).isdigit() else None
-        dtos = listar_tallas(RepoPersonalORM().listar_tallas(tipo_prenda_id=reg_id))
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            f'personal:tallas:{reg_id or "todas"}',
+            lambda: CatalogoItemSerializer(
+                listar_tallas(RepoPersonalORM().listar_tallas(tipo_prenda_id=reg_id)),
+                many=True,
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear talla', request=TallaWriteSerializer, responses={201: TallaDetalleSerializer})
     def post(self, request):
@@ -408,8 +492,13 @@ class AlergiasListView(APIView):
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Listar alergias', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_alergias(RepoPersonalORM().listar_alergias())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:alergias',
+            lambda: CatalogoItemSerializer(
+                listar_alergias(RepoPersonalORM().listar_alergias()), many=True
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear alergia', request=AlergiaWriteSerializer, responses={201: AlergiaDetalleSerializer})
     def post(self, request):
@@ -487,8 +576,13 @@ class PatologiasListView(APIView):
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Listar patologías crónicas', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_patologias(RepoPersonalORM().listar_patologias())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:patologias',
+            lambda: CatalogoItemSerializer(
+                listar_patologias(RepoPersonalORM().listar_patologias()), many=True
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear patología crónica', request=PatologiaWriteSerializer, responses={201: PatologiaDetalleSerializer})
     def post(self, request):
@@ -566,8 +660,13 @@ class DiscapacidadesListView(APIView):
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Listar discapacidades', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
-        dtos = listar_discapacidades(RepoPersonalORM().listar_discapacidades())
-        return ok(CatalogoItemSerializer(dtos, many=True).data)
+        return ok_catalogo(
+            request,
+            'personal:discapacidades',
+            lambda: CatalogoItemSerializer(
+                listar_discapacidades(RepoPersonalORM().listar_discapacidades()), many=True
+            ).data,
+        )
 
     @extend_schema(tags=['Personal - Catálogos'], summary='Crear discapacidad', request=DiscapacidadWriteSerializer, responses={201: DiscapacidadDetalleSerializer})
     def post(self, request):

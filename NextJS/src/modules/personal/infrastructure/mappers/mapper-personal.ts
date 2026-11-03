@@ -20,32 +20,49 @@ function asRec(v: unknown): Record<string, unknown> {
   return (v ?? {}) as Record<string, unknown>;
 }
 
+function textoValido(valor: unknown): string | null {
+  return typeof valor === "string" && valor.trim() ? valor : null;
+}
+
 function viviendaAPIADto(raw: Record<string, unknown>): DatosVivienda {
   return {
     estadoId: (raw.estado_id as number | null) ?? null,
+    estadoNombre: textoValido(raw.estado_nombre),
     municipioId: (raw.municipio_id as number | null) ?? null,
+    municipioNombre: textoValido(raw.municipio_nombre),
     parroquiaId: (raw.parroquia_id as number | null) ?? null,
+    parroquiaNombre: textoValido(raw.parroquia_nombre),
     direccionExacta: (raw.direccion_exacta as string | null) ?? null,
     condicionViviendaId: (raw.condicion_vivienda_id as number | null) ?? null,
+    condicionViviendaNombre: textoValido(raw.condicion_vivienda_nombre),
     codigoPostalId: (raw.codigo_postal_id as number | null) ?? null,
+    codigoPostalNombre: textoValido(raw.codigo_postal_nombre),
   };
 }
 
 function saludAPIADto(raw: Record<string, unknown>): PerfilSalud {
   return {
     grupoSanguineoId: (raw.grupo_sanguineo_id as number | null) ?? null,
+    grupoSanguineoNombre: textoValido(raw.grupo_sanguineo_nombre),
     alergias: (raw.alergias as number[]) ?? [],
+    alergiasNombres: (raw.alergias_nombres as string[]) ?? [],
     patologiasCronicas: (raw.patologias_cronicas as number[]) ?? [],
+    patologiasCronicasNombres: (raw.patologias_cronicas_nombres as string[]) ?? [],
     discapacidades: (raw.discapacidades as number[]) ?? [],
+    discapacidadesNombres: (raw.discapacidades_nombres as string[]) ?? [],
   };
 }
 
 function fisicoAPIADto(raw: Record<string, unknown>): PerfilFisico {
   return {
     tallaCamisaId: (raw.talla_camisa_id as number | null) ?? null,
+    tallaCamisaNombre: textoValido(raw.talla_camisa_nombre),
     tallaPantalonId: (raw.talla_pantalon_id as number | null) ?? null,
+    tallaPantalonNombre: textoValido(raw.talla_pantalon_nombre),
     tallaZapatosId: (raw.talla_zapatos_id as number | null) ?? null,
+    tallaZapatosNombre: textoValido(raw.talla_zapatos_nombre),
     tallaChaquetaId: (raw.talla_chaqueta_id as number | null) ?? null,
+    tallaChaquetaNombre: textoValido(raw.talla_chaqueta_nombre),
   };
 }
 
@@ -53,9 +70,13 @@ function academicoAPIADto(raw: Record<string, unknown>): FormacionAcademica {
   return {
     id: raw.id as number | undefined,
     nivelAcademicoId: (raw.nivel_academico_id as number | null) ?? null,
+    nivelAcademicoNombre: textoValido(raw.nivel_academico_nombre),
     carreraId: (raw.carrera_id as number | null) ?? null,
+    carreraNombre: textoValido(raw.carrera_nombre),
     mencionId: (raw.mencion_id as number | null) ?? null,
+    mencionNombre: textoValido(raw.mencion_nombre),
     institucionId: (raw.institucion_id as number | null) ?? null,
+    institucionNombre: textoValido(raw.institucion_nombre),
   };
 }
 
@@ -63,13 +84,17 @@ function complementariaAPIADto(raw: Record<string, unknown>): FormacionComplemen
   return {
     id: raw.id as number | undefined,
     capacitacionId: (raw.capacitacion_id as number | null) ?? null,
+    capacitacionNombre: textoValido(raw.capacitacion_nombre),
     institucionId: (raw.institucion_id as number | null) ?? null,
+    institucionNombre: textoValido(raw.institucion_nombre),
     fechaInicio: (raw.fecha_inicio as string | null) ?? null,
     fechaFin: (raw.fecha_fin as string | null) ?? null,
     diasCompletados: (raw.dias_completados as string | null) ?? null,
     horasCompletadas: (raw.horas_completadas as string | null) ?? null,
     procedenciaId: (raw.procedencia_id as number | null) ?? null,
+    procedenciaNombre: textoValido(raw.procedencia_nombre),
     grupoId: (raw.grupo_id as number | null) ?? null,
+    grupoNombre: textoValido(raw.grupo_nombre),
   };
 }
 
@@ -80,6 +105,7 @@ function contactoAPIADto(raw: Record<string, unknown>): ContactoEmergencia {
     apellidos: (raw.apellidos as string | undefined) ?? "",
     telefono: (raw.telefono as string | null) ?? null,
     relacionId: (raw.relacion_id as number | null) ?? null,
+    relacionNombre: textoValido(raw.relacion_nombre),
   };
 }
 
@@ -87,6 +113,7 @@ function antecedenteAPIADto(raw: Record<string, unknown>): Antecedente {
   return {
     id: raw.id as number | undefined,
     organismoId: (raw.organismo_id as number | null) ?? null,
+    organismoNombre: textoValido(raw.organismo_nombre),
     fechaIngreso: (raw.fecha_ingreso as string | null) ?? null,
     fechaEgreso: (raw.fecha_egreso as string | null) ?? null,
   };
