@@ -66,7 +66,7 @@ export default function PasivosPage() {
     });
   }, []);
 
-  const { data, error: errorLista, isLoading } = useSWR(
+  const { data, error: errorLista, isLoading, mutate: recargarLista } = useSWR(
     ["pasivos-paginados", JSON.stringify(filtros)],
     () => getPasivosPaginadosAction(filtros),
   );
@@ -270,6 +270,7 @@ export default function PasivosPage() {
           onOpenChange={(open) => {
             if (!open) setDetalle(null);
           }}
+          onGuardado={() => void recargarLista()}
         />
       </div>
     </PageLayout>

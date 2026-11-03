@@ -11,6 +11,7 @@ from datetime import date
 
 from apps.autogestion.domain.entities.solicitud_actualizacion import CambioPropuesto, SoporteDocumental
 from apps.autogestion.domain.value_objects.secciones import Accion
+from apps.autogestion.infrastructure.cache.mi_expediente_cache import invalidar_mi_expediente
 from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.autogestion.infrastructure.repositories.repo_secciones_complementarios_orm import RepoDatosComplementariosORM
 from apps.familiares.application.use_cases.validaciones_familiar import resolver_cedula_familiar
@@ -121,5 +122,7 @@ class AplicadorCambiosORM:
             RepoFamiliaresORM().actualizar_familiar(int(entidad_id), datos)
         elif entidad in _MODELOS_LEGADOS:
             _MODELOS_LEGADOS[entidad].objects.filter(pk=int(entidad_id)).update(**campos)
+            # queryset.update() no dispara post_save: se invalida «Mi ficha» a mano.
+            invalidar_mi_expediente(cedula)
         else:
             raise ValidationError(f"Entidad no editable: '{entidad}'.")
