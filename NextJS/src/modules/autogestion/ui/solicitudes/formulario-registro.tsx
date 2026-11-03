@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useId, useMemo } from "react";
-import { useForm, type FieldValues, type Resolver } from "react-hook-form";
+import { Controller, useForm, type FieldValues, type Resolver } from "react-hook-form";
 import { ZodObject, type ZodTypeAny } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import {
   CAMPO_PADRE,
   type CampoDef,
@@ -148,18 +149,24 @@ export function FormularioRegistro({
         {etiqueta}
         {c.tipo === "textarea" ? (
           <Textarea rows={3} className="resize-none" {...comunes} {...register(c.campo)} />
+        ) : c.tipo === "telefono" ? (
+          <Controller
+            control={form.control}
+            name={c.campo}
+            render={({ field }) => (
+              <CampoTelefono
+                id={id}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                invalido={Boolean(error)}
+                aria-describedby={comunes["aria-describedby"]}
+              />
+            )}
+          />
         ) : (
           <Input
-            type={
-              c.tipo === "fecha"
-                ? "date"
-                : c.tipo === "correo"
-                  ? "email"
-                  : c.tipo === "telefono"
-                    ? "tel"
-                    : "text"
-            }
-            inputMode={c.tipo === "telefono" ? "tel" : undefined}
+            type={c.tipo === "fecha" ? "date" : c.tipo === "correo" ? "email" : "text"}
             autoComplete="off"
             {...comunes}
             {...register(c.campo)}

@@ -183,7 +183,7 @@ def test_flujo_completo_solicita_habilita_carga_envia_y_aprueba_parcial(trabajad
     assert resultado['estado'] == 'APROBADA_PARCIAL' and resultado['decidida_por'] == ANALISTA
 
     empleado.refresh_from_db()
-    assert empleado.telefono_movil == '04245556677'          # aprobado
+    assert empleado.telefono_movil == '+584245556677'          # aprobado
     assert empleado.telefono_habitacion == '02121111111'      # rechazado: intacto
     assert empleado.profile.startswith(f'autogestion/soportes/{TRABAJADOR}/')  # foto aprobada
     assert DatosComplementariosTrabajadorModel.objects.get(cedula=TRABAJADOR).correo_alternativo == 'maria@gmail.com'

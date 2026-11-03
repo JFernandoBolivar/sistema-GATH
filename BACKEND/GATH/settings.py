@@ -128,7 +128,11 @@ DATABASES = {
         # Reutiliza la conexión entre peticiones (A-04): sin esto cada request
         # abre y cierra una conexión a PostgreSQL. `CONN_HEALTH_CHECKS` descarta
         # una conexión reutilizada que el servidor haya cerrado.
-        'CONN_MAX_AGE': config('DJANGO_CONN_MAX_AGE', default=60, cast=int),
+        # 600 s (antes 60): con 9 workers x 2 hilos, cada hilo reabría su
+        # conexión cada minuto y abrir una conexión a PostgreSQL en Windows
+        # cuesta de 0,25 a 3,5 s medidos; eso causaba picos de p90 de 2,3 s
+        # en el listado (con 600 s: p90 0,16 s, máximo 0,23 s).
+        'CONN_MAX_AGE': config('DJANGO_CONN_MAX_AGE', default=600, cast=int),
         'CONN_HEALTH_CHECKS': config('DJANGO_CONN_HEALTH_CHECKS', default=True, cast=bool),
     }
 }
@@ -154,7 +158,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    # Argon2id con parámetros OWASP (m=19 MiB, t=2, p=1); el primero se usa para
+    # hashear y los hashes con los parámetros por defecto se actualizan al entrar.
+    'apps.identidad.infrastructure.auth.hasher_argon2.Argon2OWASPPasswordHasher',
+    # Sin el Argon2PasswordHasher de Django: comparte el nombre 'argon2' y taparía
+    # al OWASP al identificar el hash. El OWASP verifica cualquier hash argon2.
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
@@ -170,6 +178,9 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SESSION_COOKIE_SECURE = config('DJANGO_SESSION_COOKIE_SECURE', default=not DEBUG, cast=bool)
 CSRF_COOKIE_SECURE = config('DJANGO_CSRF_COOKIE_SECURE', default=not DEBUG, cast=bool)
 SECURE_SSL_REDIRECT = config('DJANGO_SECURE_SSL_REDIRECT', default=not DEBUG, cast=bool)
+# El healthcheck de compose consulta el proceso por HTTP dentro del contenedor;
+# se exime únicamente ese endpoint (sin datos ni autenticación).
+SECURE_REDIRECT_EXEMPT = [r'^api/v1/health/$']
 SECURE_HSTS_SECONDS = config(
     'DJANGO_SECURE_HSTS_SECONDS', default=31536000 if not DEBUG else 0, cast=int
 )
@@ -344,7 +355,9 @@ _REDIS_URL = config('REDIS_URL', default='')
 if _REDIS_URL:
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            # Igual al RedisCache de Django pero sin crear un cliente por operación
+            # (~7 ms de CPU por petición). Ver core/infrastructure/cache.
+            'BACKEND': 'core.infrastructure.cache.redis_reutilizable.RedisCacheReutilizable',
             'LOCATION': _REDIS_URL,
             'KEY_PREFIX': 'gath',
             # Si Redis cae, la petición falla en 2 s en vez de quedar colgada.

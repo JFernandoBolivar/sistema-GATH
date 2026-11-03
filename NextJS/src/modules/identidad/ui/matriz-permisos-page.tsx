@@ -284,7 +284,7 @@ export default function MatrizPermisosPage() {
           </div>
 
           <div className="max-h-[calc(100dvh-21rem)] w-full max-w-full min-w-0 overflow-auto rounded-xl border bg-card shadow-sm">
-            <Table className="min-w-max">
+            <Table className="min-w-max" containerClassName="overflow-visible">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="sticky left-0 top-0 z-30 min-w-72 bg-card">

@@ -103,7 +103,7 @@ REQUERIDOS_AL_CREAR: dict[str, frozenset[str]] = {
         'estado_id', 'municipio_id', 'parroquia_id', 'direccion_exacta', 'condicion_vivienda_id', 'codigo_postal_id',
     }),
     'formacion_academica': frozenset({'nivel_academico_id'}),
-    'contacto_emergencia': frozenset({'nombres', 'apellidos'}),
+    'contacto_emergencia': frozenset({'nombres', 'apellidos', 'telefono', 'relacion_id'}),
     'familiar': frozenset({'primer_nombre', 'primer_apellido', 'parentesco_id', 'fecha_nacimiento', 'sexo_id'}),
 }
 

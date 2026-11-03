@@ -1,8 +1,6 @@
 import io
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
+from core.infrastructure.pdf.excel_seguro import neutralizar_fila
 from apps.autogestion.infrastructure.models.autogestion_models import (
     PreguntasEncuestasModel,
     RespuestasEncuestaModel,
@@ -14,6 +12,9 @@ from apps.personal.infrastructure.models.expediente_models import DatosViviendaM
 
 
 def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
+    from openpyxl import Workbook
+    from openpyxl.utils import get_column_letter
+
     if filtros is None:
         filtros = {}
 
@@ -118,6 +119,7 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
             row.append(respuestas_map.get(pid, ""))
 
         ws.append(row)
+        neutralizar_fila(ws, ws.max_row)
 
     _aplicar_estilos(ws, len(headers))
 
@@ -128,6 +130,9 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
 
 
 def _aplicar_estilos(ws, num_columnas):
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
     header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
     header_font = Font(color="FFFFFF", bold=True, size=11)
     header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)

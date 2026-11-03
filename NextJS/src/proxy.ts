@@ -1,6 +1,5 @@
 import { auth as proxy } from "../auth";
 import { NextResponse } from "next/server";
-import { esPerfilAutogestion } from "@/shared/lib/perfil-acceso";
 import { puedeVerRuta } from "@/shared/lib/evaluador-iam";
 
 // Se usa `auth` de ../auth (con los callbacks jwt/session): con `NextAuth(authConfig)`
@@ -14,10 +13,6 @@ export default proxy((req) => {
   const { nextUrl, auth } = req;
   const isLoggedIn = !!auth?.user;
   const permisos = auth?.user?.permisos;
-
-  // Perfil derivado de permisos por código (R16), no del nombre del rol: un
-  // trabajador puro (autogestión sin acceso a personal) aterriza en su portal.
-  const esAutogestion = esPerfilAutogestion(permisos);
 
   // El dashboard es la pantalla principal (G7); /inicio solo redirige enlaces
   // antiguos. La tabla ruta → permiso vive en `evaluador-iam.ts`.
@@ -69,9 +64,8 @@ export default proxy((req) => {
   }
 
   if (publicRoutes.includes(nextUrl.pathname) && isLoggedIn) {
-    return NextResponse.redirect(
-      new URL(esAutogestion ? "/autogestion" : RUTA_INICIO, nextUrl),
-    );
+    // Todos los perfiles (también el trabajador) entran por el dashboard.
+    return NextResponse.redirect(new URL(RUTA_INICIO, nextUrl));
   }
 
   // D1: una ruta sin permiso redirige al dashboard con aviso (nunca a una

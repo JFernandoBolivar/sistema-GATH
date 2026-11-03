@@ -19,6 +19,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.personal.application.dtos.personal_dtos import EmpleadoDTO
+from core.domain.validacion_personas import formatear_telefono
 from core.infrastructure.pdf.pdf_components import create_data_table, create_header, draw_footer
 from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
 
@@ -122,8 +123,8 @@ def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | No
         _info_row('Estado civil', _val(dto.estado_civil_nombre), styles),
         _info_row('Carnet de la patria', _val(dto.carnet_patria), styles),
         _info_row('Correo', _val(dto.correo), styles),
-        _info_row('Teléfono móvil', _val(dto.telefono_movil), styles),
-        _info_row('Teléfono habitación', _val(dto.telefono_habitacion), styles),
+        _info_row('Teléfono móvil', _val(formatear_telefono(dto.telefono_movil)), styles),
+        _info_row('Teléfono habitación', _val(formatear_telefono(dto.telefono_habitacion)), styles),
         _info_row('Total APN', _total_anos_apn(dto.total_anos_apn), styles),
         Spacer(1, 6),
         _seccion('DATOS LABORALES', styles),
@@ -236,7 +237,7 @@ def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | No
     filas_ce = [
         [
             _val(f"{c.get('nombres', '')} {c.get('apellidos', '')}".strip()),
-            _val(c.get('telefono')),
+            _val(formatear_telefono(c.get('telefono'))),
             _val(c.get('relacion_nombre')),
         ]
         for c in dto.contacto_emergencia

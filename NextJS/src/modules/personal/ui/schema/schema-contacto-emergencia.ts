@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { REGEX } from "@/shared/domain/validation";
+import { telefonoZod } from "@/shared/domain/validation/telefono";
 
 /**
  * Contacto de emergencia del trabajador (tabla `contacto_emergencia`:
@@ -21,19 +21,16 @@ export const contactoEmergenciaFormSchema = z.object({
     .min(2, { message: "Debe Ingresar Al Menos 2 Letras" })
     .max(100, { message: "Debe Ingresar Maximo 100 Letras" })
     .regex(SOLO_LETRAS, { message: "Solo Se Permiten Letras" }),
-  telefono: z
-    .string({ required_error: "El Teléfono Es Requerido" })
-    .trim()
-    .refine((v) => REGEX.PHONE_VE.test(v) || REGEX.PHONE_VE_FIJO.test(v), {
-      message: "Número inválido. Debe iniciar con un prefijo válido y tener 11 dígitos en total",
-    }),
+  telefono: telefonoZod({ requerido: true, tipo: "cualquiera" }).transform((v) => v ?? ""),
   relacion_id: z
     .number({ message: "Debe Seleccionar Un Parentesco" })
     .refine((v) => v > 0, { message: "Debe Seleccionar Un Parentesco" }),
 });
 
 export const contactosEmergenciaFormSchema = z.object({
-  contacto_emergencia: z.array(contactoEmergenciaFormSchema).max(5, { message: "Máximo 5 contactos de emergencia" }),
+  contacto_emergencia: z
+    .array(contactoEmergenciaFormSchema)
+    .max(5, { message: "Máximo 5 contactos de emergencia" }),
 });
 
 export type ContactoEmergenciaFormType = z.infer<typeof contactoEmergenciaFormSchema>;

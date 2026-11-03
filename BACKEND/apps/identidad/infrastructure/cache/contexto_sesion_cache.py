@@ -6,9 +6,12 @@ modo que un token viejo no puede reutilizar un contexto vigente. La
 invalidación borra las versiones conocidas de esa cuenta; si Redis falla, la
 autenticación cae a la consulta de la base (nunca a «dejar pasar»).
 """
+import logging
 from dataclasses import dataclass
 
 from django.core.cache import cache
+
+_logger = logging.getLogger(__name__)
 
 TTL_CONTEXTO_SESION = 60
 _PREFIJO = 'iam:contexto'
@@ -44,6 +47,7 @@ def leer_contexto(cuenta_id: int, version: int) -> ContextoSesion | None:
     try:
         valor = cache.get(clave_contexto(cuenta_id, version))
     except Exception:  # noqa: BLE001 - Redis caído no debe tumbar la sesión
+        _logger.warning('cache.fallo', extra={'modulo': __name__}, exc_info=True)
         return None
     if isinstance(valor, ContextoSesion):
         return valor
@@ -60,6 +64,7 @@ def guardar_contexto(contexto: ContextoSesion) -> None:
             TTL_CONTEXTO_SESION,
         )
     except Exception:  # noqa: BLE001
+        _logger.warning('cache.fallo', extra={'modulo': __name__}, exc_info=True)
         pass
 
 
@@ -79,4 +84,5 @@ def invalidar_contexto(cuenta_id: int, version_actual: int | None = None) -> Non
     try:
         cache.delete_many(claves)
     except Exception:  # noqa: BLE001
+        _logger.warning('cache.fallo', extra={'modulo': __name__}, exc_info=True)
         pass

@@ -21,6 +21,7 @@ import {
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
+import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 
 interface FormPhysicalProfileUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -108,7 +109,6 @@ export default function FormPhysicalProfileUpdateDialog({
     });
   };
 
-  const tallas = catalogos?.tallas ?? [];
   const tipos = catalogos?.tiposPrenda ?? [];
   const normalizar = (s: string) =>
     s
@@ -121,42 +121,20 @@ export default function FormPhysicalProfileUpdateDialog({
   const tipoZapatoId = tipos.find((tp) => normalizar(tp.nombre).includes("zapato"))?.id;
   const tipoChaquetaId = tipos.find((tp) => normalizar(tp.nombre).includes("chaqueta"))?.id;
 
-  const camisas = useMemo(
-    () =>
-      tallas.filter(
-        (t) =>
-          normalizar(t.tipoPrendaNombre ?? "").includes("camisa") ||
-          (tipoCamisaId && t.tipoPrendaId === tipoCamisaId),
-      ),
-    [tallas, tipoCamisaId],
-  );
-  const pantalones = useMemo(
-    () =>
-      tallas.filter(
-        (t) =>
-          normalizar(t.tipoPrendaNombre ?? "").includes("pantalon") ||
-          (tipoPantalonId && t.tipoPrendaId === tipoPantalonId),
-      ),
-    [tallas, tipoPantalonId],
-  );
-  const zapatos = useMemo(
-    () =>
-      tallas.filter(
-        (t) =>
-          normalizar(t.tipoPrendaNombre ?? "").includes("zapato") ||
-          (tipoZapatoId && t.tipoPrendaId === tipoZapatoId),
-      ),
-    [tallas, tipoZapatoId],
-  );
-  const chaquetas = useMemo(
-    () =>
-      tallas.filter(
-        (t) =>
-          normalizar(t.tipoPrendaNombre ?? "").includes("chaqueta") ||
-          (tipoChaquetaId && t.tipoPrendaId === tipoChaquetaId),
-      ),
-    [tallas, tipoChaquetaId],
-  );
+  // Las tallas ya no vienen en el catálogo inicial (Fase 2): se piden por
+  // tipo de prenda, que es justo el filtro que el backend ya soportaba.
+  const { opciones: camisas } = useCatalogoDependiente("tallas", tipoCamisaId, {
+    valorActual: tallaCamisaId,
+  });
+  const { opciones: pantalones } = useCatalogoDependiente("tallas", tipoPantalonId, {
+    valorActual: tallaPantalonId,
+  });
+  const { opciones: zapatos } = useCatalogoDependiente("tallas", tipoZapatoId, {
+    valorActual: tallaZapatosId,
+  });
+  const { opciones: chaquetas } = useCatalogoDependiente("tallas", tipoChaquetaId, {
+    valorActual: tallaChaquetaId,
+  });
 
   const camisasGrouped = useMemo(() => groupByRegion(camisas), [camisas]);
   const pantalonesGrouped = useMemo(() => groupByRegion(pantalones), [pantalones]);

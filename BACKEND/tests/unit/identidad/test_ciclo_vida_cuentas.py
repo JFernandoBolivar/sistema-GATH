@@ -218,6 +218,21 @@ def test_restablecer_acceso_repone_cedula_renueva_plazo_revoca_sesiones_y_avisa(
     assert eventos[0].motivo == MotivoCambioPassword.RESTABLECIDO_RRHH.value
 
 
+def test_restablecer_acceso_quita_el_bloqueo_por_intentos_fallidos(eventos):
+    """QA 2026-11-03: tras el restablecimiento la persona debe poder entrar con su cédula."""
+    cuenta = Cuenta(id=1, cedula='123', correo='Ana.Perez@conatel.gob.ve', rol_id=3, is_active=True)
+    cuentas = CuentasMem(cuentas=[cuenta], passwords={1: 'MiClave*Segura9'})
+    cuentas.version = VersionMem()
+    limpiados = []
+
+    restablecer_acceso(
+        cuentas, PasswordInicialMem(), cuentas.version, eventos.append, 1, AHORA,
+        limpiar_bloqueo=limpiados.append, **seguridad(),
+    )
+
+    assert set(limpiados) == {'123', 'Ana.Perez@conatel.gob.ve', 'ana.perez@conatel.gob.ve'}
+
+
 def test_restablecer_acceso_rechaza_cuenta_inexistente_o_desactivada(eventos):
     inactiva = Cuenta(id=2, cedula='9', is_active=False)
     cuentas = CuentasMem(cuentas=[inactiva])

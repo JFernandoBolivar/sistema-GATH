@@ -23,4 +23,4 @@ EXPOSE 8000
 ENTRYPOINT ["./docker-entrypoint.sh"]
 # Servidor de aplicación (A-04): gunicorn con workers/hilos configurables por
 # entorno. Por defecto 2*CPU+1 workers (fórmula de gunicorn) y 2 hilos.
-CMD ["sh", "-c", "gunicorn GATH.wsgi:application --preload --bind 0.0.0.0:8000 --worker-class gthread --workers ${GUNICORN_WORKERS:-$(python3 -c 'import os; print(2 * len(os.sched_getaffinity(0)) + 1)')} --threads ${GUNICORN_THREADS:-2} --timeout ${GUNICORN_TIMEOUT:-60} --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "gunicorn GATH.wsgi:application --preload --bind 0.0.0.0:8000 --worker-class gthread --workers ${GUNICORN_WORKERS:-$(python3 -c 'import os; print(2 * len(os.sched_getaffinity(0)) + 1)')} --threads ${GUNICORN_THREADS:-2} --timeout ${GUNICORN_TIMEOUT:-60} --max-requests 1000 --max-requests-jitter 100 --worker-tmp-dir /dev/shm --access-logfile - --error-logfile -"]

@@ -13,6 +13,7 @@ from django.utils import timezone
 from pdf2image import convert_from_bytes
 
 from core.domain.exceptions import NotFoundError
+from core.domain.validacion_personas import formatear_telefono
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from apps.carnetizacion.domain.entities.carnet import Carnet
 from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
@@ -261,7 +262,7 @@ class RepoCarnetizacionORM:
                 'departamento': departamento,
                 'codigo': codigo,
                 'correo': emp.correo or '',
-                'telefono': emp.telefono_movil or '',
+                'telefono': formatear_telefono(emp.telefono_movil),
                 'tiene_carnet': tiene_carnet,
                 'total_solicitudes': total_solicitudes,
             })

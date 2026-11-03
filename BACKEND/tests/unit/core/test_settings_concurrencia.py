@@ -6,7 +6,7 @@ from django.conf import settings
 
 def test_conexiones_reutilizadas_por_defecto():
     base = settings.DATABASES['default']
-    assert base['CONN_MAX_AGE'] == 60
+    assert base['CONN_MAX_AGE'] == 600
     assert base['CONN_HEALTH_CHECKS'] is True
 
 

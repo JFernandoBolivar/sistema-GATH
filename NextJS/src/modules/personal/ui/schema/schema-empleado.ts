@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
+import { telefonoZod } from "@/shared/domain/validation/telefono";
 
 /**
  * Helpers para campos anidados: toleran el string vacío/NaN que deja
@@ -7,7 +8,9 @@ import { ERROR, REGEX } from "@/shared/domain/validation";
  * expediente puedan guardarse parcialmente.
  */
 const aNull = (v: unknown) =>
-  v === "" || v === null || v === undefined || (typeof v === "number" && Number.isNaN(v)) ? null : v;
+  v === "" || v === null || v === undefined || (typeof v === "number" && Number.isNaN(v))
+    ? null
+    : v;
 
 const numId = z.preprocess(aNull, z.number().int().positive().nullable());
 const texto = z.preprocess(aNull, z.string().nullable());
@@ -15,9 +18,7 @@ const texto = z.preprocess(aNull, z.string().nullable());
 function listaNumeros() {
   return z.preprocess(
     (v) =>
-      Array.isArray(v)
-        ? v.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0)
-        : [],
+      Array.isArray(v) ? v.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0) : [],
     z.array(z.number().int()),
   );
 }
@@ -103,19 +104,9 @@ export const empleadoSchema = z.object({
   fechaNacimiento: z
     .string()
     .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" }),
-  correo: z
-    .string()
-    .trim()
-    .email({ message: "Correo inválido" })
-    .optional()
-    .nullable(),
-  telefonoMovil: z
-    .string()
-    .trim()
-    .regex(REGEX.TELEFONO, { message: "Teléfono inválido (ej: 04121234567)" })
-    .optional()
-    .nullable(),
-  telefonoHabitacion: z.string().trim().optional().nullable(),
+  correo: z.string().trim().email({ message: "Correo inválido" }).optional().nullable(),
+  telefonoMovil: telefonoZod({ tipo: "movil" }),
+  telefonoHabitacion: telefonoZod({ tipo: "cualquiera" }),
   estadoCivilId: z.number().positive().optional().nullable(),
   nacionalidadId: z.number().int().positive().optional().nullable(),
   carnetPatria: z.string().trim().optional().nullable(),
@@ -140,7 +131,8 @@ export type EmpleadoFormType = z.infer<typeof empleadoSchema>;
  * obligatorias. La edición (`empleadoSchema.partial()`) conserva las reglas
  * laxas para no rechazar expedientes históricos.
  */
-const idRequerido = (mensaje: string) => z.number({ message: mensaje }).int().positive({ message: mensaje });
+const idRequerido = (mensaje: string) =>
+  z.number({ message: mensaje }).int().positive({ message: mensaje });
 
 function edadEnAnios(fechaIso: string) {
   const [anio, mes, dia] = fechaIso.split("-").map(Number);
@@ -172,7 +164,9 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
   fechaNacimiento: z
     .string()
     .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" })
-    .refine((f) => edadEnAnios(f) >= 0, { message: "La Fecha De Nacimiento No Puede Ser En El Futuro" })
+    .refine((f) => edadEnAnios(f) >= 0, {
+      message: "La Fecha De Nacimiento No Puede Ser En El Futuro",
+    })
     .refine((f) => edadEnAnios(f) >= 16, { message: "La Edad Mínima Es De 16 Años" }),
   estadoCivilId: idRequerido("Debe Seleccionar Un Estado Civil"),
   nacionalidadId: idRequerido("Debe Seleccionar Una Nacionalidad"),
@@ -186,7 +180,10 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
     estadoId: idRequerido("Debe Seleccionar Un Estado"),
     municipioId: idRequerido("Debe Seleccionar Un Municipio"),
     parroquiaId: idRequerido("Debe Seleccionar Una Parroquia"),
-    direccionExacta: z.string().trim().min(10, { message: "La Direccion Exacta Debe Tener Minimo 10 Caracteres" }),
+    direccionExacta: z
+      .string()
+      .trim()
+      .min(10, { message: "La Direccion Exacta Debe Tener Minimo 10 Caracteres" }),
     condicionViviendaId: idRequerido("Debe Seleccionar Una Condicion De Vivienda"),
     codigoPostalId: idRequerido("Seleccione un código postal"),
   }),
@@ -208,8 +205,5 @@ export type ListadoEmpleadosFormType = z.infer<typeof listadoEmpleadosSchema>;
 
 /** Cédula de empleado (zero-trust R7). */
 export const empleadoCedulaSchema = z.object({
-  cedula: z
-    .string()
-    .trim()
-    .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida" }),
+  cedula: z.string().trim().regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida" }),
 });

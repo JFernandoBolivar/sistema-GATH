@@ -137,4 +137,23 @@ test.describe("G13 — Alta directa y edición (requiere permisos de escritura)"
     await expect(sidebar.getByRole("link", { name: "Procesar egreso" })).toHaveCount(0);
     await expect(sidebar.getByRole("link", { name: /Alta de pensión por sobreviviente/ })).toHaveCount(0);
   });
+
+  test("el alta de pasivo carga las nóminas y sigue con el formulario de activos", async ({
+    page,
+  }) => {
+    await loginAdmin(page);
+    await page.goto("/pasivos/registrar");
+
+    // Las nóminas no deben esperar a los ~15 catálogos del expediente.
+    const select = page.locator("#tipo-nomina-pasivo");
+    await expect(select).toBeEnabled({ timeout: 15_000 });
+    const opciones = await select.locator("option").allTextContents();
+    expect(opciones.some((texto) => /JUBILADO|PENSIONADO/i.test(texto))).toBe(true);
+
+    await select.selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Continuar" }).click();
+
+    // Mismo primer paso que el alta de un trabajador activo, con foto.
+    await expect(page.getByText("Foto del Trabajador")).toBeVisible({ timeout: 20_000 });
+  });
 });

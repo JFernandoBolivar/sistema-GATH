@@ -10,9 +10,22 @@ import { useFieldArray, useFormContext, type FieldValues } from "react-hook-form
 import { Plus, X } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
-import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/components/form";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/ui/components/form";
+import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import { Input } from "@/shared/ui/components/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
 
 import type { CatalogoEmpleadoDTO } from "../application/dtos/empleado-dto";
 import { contactoEmergenciaVacio } from "./schema/schema-contacto-emergencia";
@@ -38,7 +51,10 @@ export function ContactosEmergenciaCampos({
         <p className="text-sm text-muted-foreground">No se registran contactos de emergencia.</p>
       )}
       {fields.map((item, index) => (
-        <div key={item.id} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-start border rounded-lg p-3">
+        <div
+          key={item.id}
+          className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-2 items-start border rounded-lg p-3"
+        >
           <FormField
             control={control}
             name={`${NOMBRE}.${index}.nombres`}
@@ -68,11 +84,17 @@ export function ContactosEmergenciaCampos({
           <FormField
             control={control}
             name={`${NOMBRE}.${index}.telefono`}
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel>Teléfono *</FormLabel>
                 <FormControl>
-                  <Input placeholder="04160000000" inputMode="numeric" {...field} value={field.value ?? ""} />
+                  <CampoTelefono
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalido={!!fieldState.error}
+                    placeholder="0416 0000000"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -89,7 +111,10 @@ export function ContactosEmergenciaCampos({
                   onValueChange={(v) => field.onChange(Number.parseInt(v))}
                 >
                   <FormControl>
-                    <SelectTrigger className="w-full truncate" aria-label={`Parentesco del contacto ${index + 1}`}>
+                    <SelectTrigger
+                      className="w-full truncate"
+                      aria-label={`Parentesco del contacto ${index + 1}`}
+                    >
                       <SelectValue placeholder={isLoading ? "Cargando..." : "Seleccione"} />
                     </SelectTrigger>
                   </FormControl>

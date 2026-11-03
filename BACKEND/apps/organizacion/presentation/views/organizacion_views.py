@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
+from core.presentation.cache_catalogos import ok_catalogo
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 from apps.organizacion.application.use_cases.listar_dependencias import listar_dependencias
@@ -121,10 +122,13 @@ class OrganismosAdscritosListView(APIView):
         responses={200: OrganismoAdscritoSerializer(many=True)},
     )
     def get(self, request):
-        repo = RepoOrganizacionORM()
-        dtos = listar_organismos_adscritos(repo)
-        serializer = OrganismoAdscritoSerializer(dtos, many=True)
-        return ok(serializer.data)
+        return ok_catalogo(
+            request,
+            'organizacion:organismos-adscritos',
+            lambda: OrganismoAdscritoSerializer(
+                listar_organismos_adscritos(RepoOrganizacionORM()), many=True
+            ).data,
+        )
 
 
 class DependenciaCreateView(APIView):

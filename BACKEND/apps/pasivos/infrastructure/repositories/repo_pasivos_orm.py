@@ -49,8 +49,24 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
 class RepoPasivosORM(RepoSobrevivientesORM):
+    @staticmethod
+    def _cedulas_pasivas_egresadas() -> set[str]:
+        """Pasivos dados de baja por fallecimiento (asignación en EGRESADO).
+
+        Esos expedientes se conservan para consulta/histórico, pero ya no son
+        parte del personal pasivo vigente y no deben listarse.
+        """
+        return {
+            str(cedula)
+            for cedula in AsigTrabajoModel.objects.filter(
+                Tipo_personal__tipo_personal__iexact='PASIVO',
+                estatusid__estatus__iexact='EGRESADO',
+            ).values_list('employee_id', flat=True)
+        }
+
     def listar_pasivos(self, busqueda: str | None = None) -> list[Pasivo]:
         por_cedula: dict[str, Pasivo] = {}
+        cesados = self._cedulas_pasivas_egresadas()
 
         qs_egresados = (
             EmployeeEgresadoModel.objects.select_related('employee', 'motivo_egreso').all()
@@ -63,6 +79,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
                 | Q(employee__apellidos__icontains=busqueda)
             )
         for fila in qs_egresados:
+            if str(fila.employee_id) in cesados:
+                continue
             por_cedula[str(fila.employee_id)] = pasivo_a_entidad(fila)
 
         # Criterio real del legado (`list_employees_pasive`): un pasivo con
@@ -73,6 +91,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         qs_asignaciones = (
             AsigTrabajoModel.objects.select_related('employee', 'tiponominaid')
             .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False)
+            .exclude(estatusid__estatus__iexact='EGRESADO')
             .order_by('-fecha_actualizacion')
         )
         if busqueda:
@@ -99,8 +118,17 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         limite: int = 10,
         desplazamiento: int = 0,
     ) -> tuple[list[Pasivo], int]:
-        """Listado con filtros y paginación en servidor (10/50 por página)."""
-        por_cedula: dict[str, Pasivo] = {}
+        """Listado con filtros y paginación en servidor (10/50 por página).
+
+        Rendimiento (2026-11-03): antes se mapeaban TODOS los pasivos a entidades
+        (y cada egresado consultaba su historial de cargos) para luego ordenar y
+        recortar la página en Python. Ahora se ordena y filtra con la misma fecha
+        que ponen los mappers y solo se mapean las filas de la página. El
+        resultado es idéntico.
+        """
+        # cédula -> (fecha_egreso como la expone el mapper, mapeo diferido)
+        por_cedula: dict[str, tuple[str, object]] = {}
+        cesados = self._cedulas_pasivas_egresadas()
 
         qs_egresados = (
             EmployeeEgresadoModel.objects.select_related('employee', 'employee__sexoid', 'motivo_egreso')
@@ -121,11 +149,16 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             # pasiva, solo cuentan las asignaciones.
             qs_egresados = qs_egresados.none()
         for fila in qs_egresados:
-            por_cedula[str(fila.employee_id)] = pasivo_a_entidad(fila)
+            if str(fila.employee_id) in cesados:
+                continue
+            por_cedula[str(fila.employee_id)] = (
+                str(fila.fecha_egreso), lambda fila=fila: pasivo_a_entidad(fila)
+            )
 
         qs_asignaciones = (
             AsigTrabajoModel.objects.select_related('employee', 'employee__sexoid', 'tiponominaid')
             .filter(Tipo_personal__tipo_personal__iexact='PASIVO', employee__isnull=False)
+            .exclude(estatusid__estatus__iexact='EGRESADO')
             .annotate(fecha_ingreso_organismo=Min('employee__antecedentes_servicio__fecha_ingreso'))
             .order_by('-fecha_actualizacion')
         )
@@ -140,16 +173,19 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         if tipo_nomina_id:
             qs_asignaciones = qs_asignaciones.filter(tiponominaid_id=tipo_nomina_id)
         for asig in qs_asignaciones:
-            por_cedula[str(asig.employee_id)] = pasivo_desde_asignacion(asig)
+            por_cedula[str(asig.employee_id)] = (
+                str(asig.fecha_actualizacion), lambda asig=asig: pasivo_desde_asignacion(asig)
+            )
 
-        resultados = list(por_cedula.values())
+        candidatos = list(por_cedula.values())
         if fecha_desde:
-            resultados = [p for p in resultados if (p.fecha_egreso or '')[:10] >= str(fecha_desde)]
+            candidatos = [c for c in candidatos if (c[0] or '')[:10] >= str(fecha_desde)]
         if fecha_hasta:
-            resultados = [p for p in resultados if (p.fecha_egreso or '')[:10] <= str(fecha_hasta)]
-        resultados.sort(key=lambda p: p.fecha_egreso or '', reverse=True)
-        total = len(resultados)
-        return resultados[desplazamiento:desplazamiento + limite], total
+            candidatos = [c for c in candidatos if (c[0] or '')[:10] <= str(fecha_hasta)]
+        candidatos.sort(key=lambda c: c[0] or '', reverse=True)
+        total = len(candidatos)
+        pagina = candidatos[desplazamiento:desplazamiento + limite]
+        return [mapear() for _, mapear in pagina], total
 
     def actualizar_datos_pasivo(self, cedula: str, datos: dict) -> Pasivo:
         """Datos básicos editables de un pasivo; reutiliza la actualización de Personal."""

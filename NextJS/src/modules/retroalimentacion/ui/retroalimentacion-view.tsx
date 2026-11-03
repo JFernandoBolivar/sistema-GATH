@@ -296,7 +296,7 @@ export default function RetroalimentacionView() {
       description="Registre Nueva Información Para Mantener El Sistema"
     >
       <Tabs defaultValue="ads" className="m-auto">
-        <TabsList className="gap-4">
+        <TabsList className="gap-4 max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="ads">Organismo Adscrito</TabsTrigger>
           <TabsTrigger value="dis">Discapacidades</TabsTrigger>
           <TabsTrigger value="pat">Patologias</TabsTrigger>

@@ -43,7 +43,7 @@ export default async function RootLayout({
             <AuthController />
             <PwaRegister />
             <PwaInstallPrompt />
-            <ScrollArea className="h-dvh w-full rounded-md">{children}</ScrollArea>
+            <ScrollArea className="scroll-app h-dvh w-full rounded-md">{children}</ScrollArea>
           </SessionProvider>
         </TemaProvider>
       </body>

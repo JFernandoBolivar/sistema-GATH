@@ -35,10 +35,10 @@ serializer legado) antes de `upsert_contrato`.
 """
 from datetime import date
 
-import pandas as pd
 from django.db import transaction
 
 from core.domain.exceptions import ValidationError
+from core.domain.validacion_personas import validar_telefono
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, ParentescoModel, SexoModel, TipoProcedenciaModel
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
 from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
@@ -73,6 +73,8 @@ from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPers
 
 
 def _normalizar(texto) -> str:
+    import pandas as pd
+
     if pd.isna(texto) or not str(texto).strip():
         return ''
     return ' '.join(str(texto).split()).upper()
@@ -80,12 +82,16 @@ def _normalizar(texto) -> str:
 
 def _separar(texto) -> list[str]:
     """Separa un campo con varios valores por ';' o '|' y los normaliza."""
+    import pandas as pd
+
     if pd.isna(texto) or not str(texto).strip():
         return []
     return [n for n in (_normalizar(v) for v in str(texto).replace('|', ';').split(';')) if n]
 
 
 def _parsear_fecha(valor):
+    import pandas as pd
+
     if pd.isna(valor) or valor == '':
         return None
     try:
@@ -153,6 +159,16 @@ def _construir_cache() -> dict:
     }
 
 
+def _telefono_e164(valor, tipo: str = 'cualquiera') -> str | None:
+    """Teléfono de la celda a E.164 (D-13). Vacío o «nan» → None; inválido → ValueError (error de la fila)."""
+    texto = '' if valor is None else str(valor).strip()
+    if texto.lower() in ('nan', 'none', 'nat'):
+        return None
+    if texto.endswith('.0') and texto[:-2].isdigit():
+        texto = texto[:-2]
+    return validar_telefono(texto, tipo=tipo)
+
+
 def importar_expediente_completo(archivo, nombre_archivo: str) -> dict:
     """
     Réplica de la semántica transaccional del legado: TODO el archivo se
@@ -160,6 +176,8 @@ def importar_expediente_completo(archivo, nombre_archivo: str) -> dict:
     error de validación, se revierte el archivo completo (ninguna fila se
     persiste) y se propaga `ValidationError` con el detalle línea por línea.
     """
+    import pandas as pd
+
     df = pd.read_excel(archivo) if nombre_archivo.endswith(('.xlsx', '.xls')) else pd.read_csv(archivo)
     df.columns = df.columns.str.strip().str.lower()
     columnas = set(df.columns)
@@ -182,6 +200,8 @@ def importar_expediente_completo(archivo, nombre_archivo: str) -> dict:
 
 
 def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) -> None:
+    import pandas as pd
+
     for indice, fila in df.iterrows():
         linea = indice + 2
         try:
@@ -199,8 +219,8 @@ def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) 
                 'apellidos': _normalizar(fila.get('apellidos')),
                 'fecha_nacimiento': _parsear_fecha(fila.get('fecha_nacimiento')),
                 'correo': str(fila.get('correo', '')).lower() if not pd.isna(fila.get('correo')) else None,
-                'telefono_movil': str(fila.get('telefono_movil', '')),
-                'telefono_habitacion': str(fila.get('telefono_habitacion', '')),
+                'telefono_movil': _telefono_e164(fila.get('telefono_movil'), 'movil'),
+                'telefono_habitacion': _telefono_e164(fila.get('telefono_habitacion')),
                 'sexoid': obtener('sexo', 'sexo'),
                 'estadoCivil': obtener('estado_civil', 'estado_civil'),
             }
@@ -293,7 +313,7 @@ def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) 
                     nombres=_normalizar(fila.get('contacto_nombres')),
                     apellidos=_normalizar(fila.get('contacto_apellidos')),
                     defaults={
-                        'telefono': str(fila.get('contacto_telefono', '')),
+                        'telefono': _telefono_e164(fila.get('contacto_telefono')),
                         'relacion': obtener('parentescos', 'contacto_parentesco'),
                     },
                 )

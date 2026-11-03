@@ -69,6 +69,7 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
 from apps.identidad.infrastructure.signals import publicar_evento_identidad
 from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
 from core.infrastructure.providers import obtener_lector_configuracion
+from apps.identidad.infrastructure.providers.bloqueos_login import limpiar_bloqueo
 from apps.identidad.infrastructure.providers.validadores_password import (
     validar_fortaleza_django,
 )
@@ -563,6 +564,7 @@ class UsuarioRestablecerAccesoView(views.APIView):
                 dias_vigencia=dias,
                 repo_permisos=repo_permisos,
                 actor=_actor_sesion(request),
+                limpiar_bloqueo=limpiar_bloqueo,
             )
         except PermissionDeniedError as error:
             _auditar_denegado(

@@ -24,6 +24,14 @@ class PasswordInicialVencida extends CredentialsSignin {
   code = "password_inicial_vencida";
 }
 
+/**
+ * QA 2026-11-03: la cuenta (o el correo tecleado) está bloqueada por intentos fallidos (HTTP 429).
+ * Decirlo no revela si la cuenta existe: el bloqueo también se aplica a correos inexistentes.
+ */
+class CuentaBloqueada extends CredentialsSignin {
+  code = "cuenta_bloqueada";
+}
+
 interface BackendEnvelope<T> {
   status: string;
   data: T;
@@ -97,8 +105,11 @@ export default {
         });
 
         if (!loginRes.ok) {
-          const cuerpo = (await loginRes.json().catch(() => null)) as { data?: { password_inicial_vencida?: boolean } } | null;
+          const cuerpo = (await loginRes.json().catch(() => null)) as {
+            data?: { password_inicial_vencida?: boolean; bloqueada_hasta?: string };
+          } | null;
           if (cuerpo?.data?.password_inicial_vencida) throw new PasswordInicialVencida();
+          if (loginRes.status === 429 && cuerpo?.data?.bloqueada_hasta) throw new CuentaBloqueada();
           throw new Error("Authentication failed");
         }
 

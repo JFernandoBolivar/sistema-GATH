@@ -18,8 +18,6 @@ puntual (riesgo de regresión de contrato HTTP si se introduce a medias).
 """
 from datetime import datetime
 
-import pandas as pd
-
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
@@ -32,6 +30,8 @@ _MAPEO_SEXO = {
 
 
 def _parsear_fecha(valor):
+    import pandas as pd
+
     if pd.isna(valor):
         return None
     if isinstance(valor, (pd.Timestamp, datetime)):
@@ -54,6 +54,8 @@ def importar_empleados_basico(archivo) -> dict:
     `bulk_create(ignore_conflicts=True)` (igual que el legado: no falla si
     la cédula ya existe, simplemente la ignora).
     """
+    import pandas as pd
+
     df = pd.read_excel(archivo)
 
     estado_civil_default = (
