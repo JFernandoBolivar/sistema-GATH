@@ -83,7 +83,7 @@ Element.prototype.scrollIntoView ??= () => undefined;
 /** Las listas son Select de Radix (no <select> nativo): se abre y se elige la opción. */
 async function elegir(user: ReturnType<typeof userEvent.setup>, etiqueta: string, opcion: string) {
   await user.click(screen.getByLabelText(etiqueta));
-  await user.click(await screen.findByRole("option", { name: opcion, exact: true }));
+  await user.click(await screen.findByRole("option", { name: new RegExp(`^${opcion}$`) }));
 }
 
 describe("CampanaNotificaciones", () => {
