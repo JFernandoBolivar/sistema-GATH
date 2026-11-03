@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
+import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import {
@@ -218,20 +219,20 @@ export default function FormBasicUpdateDialog({
                   </div>
                   <div>
                     <Label htmlFor="telefonoMovil">Teléfono De Móvil</Label>
-                    <Input
+                    <CampoTelefono
                       id="telefonoMovil"
-                      type="text"
-                      placeholder="04160000000"
-                      {...register("telefonoMovil")}
+                      placeholder="0416 0000000"
+                      value={watch("telefonoMovil")}
+                      onChange={(v) => setValue("telefonoMovil", v, { shouldDirty: true })}
                     />
                   </div>
                   <div>
                     <Label htmlFor="telefonoHabitacion">Teléfono De Habitación</Label>
-                    <Input
+                    <CampoTelefono
                       id="telefonoHabitacion"
-                      type="text"
-                      placeholder="02390000000"
-                      {...register("telefonoHabitacion")}
+                      placeholder="0239 0000000"
+                      value={watch("telefonoHabitacion")}
+                      onChange={(v) => setValue("telefonoHabitacion", v, { shouldDirty: true })}
                     />
                   </div>
                   <div>

@@ -69,7 +69,12 @@ describe("construirDetalleExpediente", () => {
     };
     const empleado: EmpleadoDTO = {
       ...empleadoBase(),
-      perfilSalud: { grupoSanguineoId: 3, alergias: [5], patologiasCronicas: [], discapacidades: [] },
+      perfilSalud: {
+        grupoSanguineoId: 3,
+        alergias: [5],
+        patologiasCronicas: [],
+        discapacidades: [],
+      },
     };
 
     const vm = construirDetalleExpediente(empleado, catalogos);
@@ -81,16 +86,26 @@ describe("construirDetalleExpediente", () => {
   });
 
   it("antepone la letra de nacionalidad a la cédula cuando viene del backend", () => {
-    expect(construirDetalleExpediente({ ...empleadoBase(), nacionalidadCodigo: "E" }, catalogosVacios()).cedula).toBe("E-12345678");
+    expect(
+      construirDetalleExpediente({ ...empleadoBase(), nacionalidadCodigo: "E" }, catalogosVacios())
+        .cedula,
+    ).toBe("E-12345678");
     expect(construirDetalleExpediente(empleadoBase(), catalogosVacios()).cedula).toBe("12345678");
   });
 
   it("resuelve el parentesco del contacto de emergencia con el catálogo", () => {
     const vm = construirDetalleExpediente(
-      { ...empleadoBase(), contactoEmergencia: [{ nombres: "Ana", apellidos: "Ruiz", telefono: "04121234567", relacionId: 7 }] },
+      {
+        ...empleadoBase(),
+        contactoEmergencia: [
+          { nombres: "Ana", apellidos: "Ruiz", telefono: "04121234567", relacionId: 7 },
+        ],
+      },
       { ...catalogosVacios(), parentescos: [{ id: 7, nombre: "MADRE" }] },
     );
-    expect(vm.contactoEmergencia).toEqual([{ nombreCompleto: "Ana Ruiz", telefono: "04121234567", relacion: "MADRE" }]);
+    expect(vm.contactoEmergencia).toEqual([
+      { nombreCompleto: "Ana Ruiz", telefono: "+58 412 1234567", relacion: "MADRE" },
+    ]);
   });
 
   it("cae a 'ID <n>' cuando el catálogo no contiene el id referenciado", () => {
@@ -108,7 +123,9 @@ describe("construirDetalleExpediente", () => {
 
     expect(vm.salud?.grupoSanguineo).toBe("ID 99");
     expect(vm.salud?.alergias).toEqual([{ id: 88, nombre: "ID 88", categoria: "General" }]);
-    expect(vm.salud?.patologiasCronicas).toEqual([{ id: 77, nombre: "ID 77", categoria: "General" }]);
+    expect(vm.salud?.patologiasCronicas).toEqual([
+      { id: 77, nombre: "ID 77", categoria: "General" },
+    ]);
     expect(vm.salud?.discapacidades).toEqual([{ id: 66, nombre: "ID 66", categoria: "General" }]);
   });
 

@@ -1,3 +1,4 @@
+import { formatearTelefono } from "@/shared/domain/validation/telefono";
 import type { ValorCambio } from "../domain/entities/solicitud-actualizacion";
 
 const FECHA_HORA = new Intl.DateTimeFormat("es-VE", {
@@ -35,6 +36,9 @@ const CATALOGO_POR_CAMPO: Record<string, string> = {
   sexo_id: "sexos",
 };
 
+/** Campos que guardan teléfonos (E.164): se muestran con código de país. */
+const CAMPOS_TELEFONO = new Set(["telefono", "telefono_movil", "telefono_habitacion"]);
+
 export function catalogoDeCampo(campo: string): string | undefined {
   return CATALOGO_POR_CAMPO[campo];
 }
@@ -53,6 +57,7 @@ export function formatearValor(
       .map(([k, v]) => formatearValor(v as ValorCambio, k, nombres))
       .join(" · ");
   }
+  if (typeof valor === "string" && CAMPOS_TELEFONO.has(campo)) return formatearTelefono(valor);
   const clave = catalogoDeCampo(campo);
   if (clave && typeof valor === "number") {
     return nombres[clave]?.[valor] ?? `Código ${valor}`;

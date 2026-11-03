@@ -1,9 +1,14 @@
 """Adaptador DRF de las reglas puras de `core.domain.validacion_personas`."""
 from rest_framework import serializers
 
-from core.domain.validacion_personas import validar_cedula, validar_nombre, validar_telefono
+from core.domain.validacion_personas import (
+    formatear_telefono,
+    validar_cedula,
+    validar_nombre,
+    validar_telefono,
+)
 
-__all__ = ['validar_drf', 'validar_cedula', 'validar_nombre', 'validar_telefono']
+__all__ = ['validar_drf', 'validar_cedula', 'validar_nombre', 'validar_telefono', 'formatear_telefono']
 
 
 def validar_drf(regla, value, **kwargs):

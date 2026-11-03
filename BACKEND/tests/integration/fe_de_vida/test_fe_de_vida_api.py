@@ -246,7 +246,7 @@ def test_flujo_doble_check_aplica_el_acta_emite_constancia_y_avisa(
     detalle = cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/'))
     assert detalle['solicitud']['nombre'] == 'MARIA PEREZ'
     cambio = detalle['cambios'][0]
-    assert cambio['valor_actual'] == '04140000000' and cambio['valor_propuesto'] == '04149999999' and cambio['conflicto'] is False
+    assert cambio['valor_actual'] == '04140000000' and cambio['valor_propuesto'] == '+584149999999' and cambio['conflicto'] is False
 
     r = analista.get(f'{BASE}/solicitudes/{sid}/evidencia/')
     assert r.status_code == 200 and r['Content-Type'] == 'image/jpeg'
@@ -264,7 +264,7 @@ def test_flujo_doble_check_aplica_el_acta_emite_constancia_y_avisa(
         r = administradora.post(f'{BASE}/solicitudes/{sid}/check/')
     assert r.status_code == 200 and cuerpo(r)['estado'] == 'VALIDADA' and cuerpo(r)['via_aprobacion'] == 'DOBLE_CHECK'
 
-    assert EmployeeModel.objects.get(cedulaidentidad=PASIVO).telefono_movil == '04149999999'  # C19
+    assert EmployeeModel.objects.get(cedulaidentidad=PASIVO).telefono_movil == '+584149999999'  # C19
     constancia = ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
     assert constancia.numero.startswith('FV-') and [c['cedula'] for c in constancia.certificada_por] == [ANALISTA, ADMINISTRADORA]
     assert AlmacenFalso.objetos[constancia.clave_pdf].startswith(b'%PDF')

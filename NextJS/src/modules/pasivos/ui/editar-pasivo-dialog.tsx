@@ -6,7 +6,7 @@
  * editan datos de contacto/identidad, nunca el cargo ni la nómina.
  */
 import { useEffect, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Loader2, Save } from "lucide-react";
@@ -20,16 +20,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/components/dialog";
+import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 
 import type { PasivoDTO } from "../application/dtos/pasivos-dto";
 import { actualizarPasivoAction } from "../infrastructure/actions/pasivos-actions";
-import {
-  actualizarPasivoSchema,
-  type ActualizarPasivoFormType,
-} from "./schema/schema-pasivo";
+import { actualizarPasivoSchema, type ActualizarPasivoFormType } from "./schema/schema-pasivo";
 
 interface EditarPasivoDialogProps {
   pasivo: PasivoDTO | null;
@@ -135,13 +133,47 @@ export function EditarPasivoDialog({
               <Label htmlFor="edit-carnet">Carnet de la patria</Label>
               <Input id="edit-carnet" {...form.register("carnetPatria")} />
             </Field>
-            <Field>
+            <Field data-invalid={!!form.formState.errors.telefonoMovil}>
               <Label htmlFor="edit-movil">Teléfono móvil</Label>
-              <Input id="edit-movil" {...form.register("telefonoMovil")} />
+              <Controller
+                control={form.control}
+                name="telefonoMovil"
+                render={({ field }) => (
+                  <CampoTelefono
+                    id="edit-movil"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalido={!!form.formState.errors.telefonoMovil}
+                  />
+                )}
+              />
+              {form.formState.errors.telefonoMovil && (
+                <p role="alert" className="text-sm text-destructive">
+                  {form.formState.errors.telefonoMovil.message}
+                </p>
+              )}
             </Field>
-            <Field>
+            <Field data-invalid={!!form.formState.errors.telefonoHabitacion}>
               <Label htmlFor="edit-habitacion">Teléfono de habitación</Label>
-              <Input id="edit-habitacion" {...form.register("telefonoHabitacion")} />
+              <Controller
+                control={form.control}
+                name="telefonoHabitacion"
+                render={({ field }) => (
+                  <CampoTelefono
+                    id="edit-habitacion"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    invalido={!!form.formState.errors.telefonoHabitacion}
+                  />
+                )}
+              />
+              {form.formState.errors.telefonoHabitacion && (
+                <p role="alert" className="text-sm text-destructive">
+                  {form.formState.errors.telefonoHabitacion.message}
+                </p>
+              )}
             </Field>
             <Field>
               <Label htmlFor="edit-nacimiento">Fecha de nacimiento</Label>

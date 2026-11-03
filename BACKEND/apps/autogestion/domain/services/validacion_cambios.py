@@ -14,9 +14,8 @@ from apps.autogestion.domain.value_objects.secciones import (
     Accion,
 )
 from core.domain.exceptions import ValidationError
-from core.domain.validacion_personas import validar_nombre
+from core.domain.validacion_personas import validar_nombre, validar_telefono
 
-_TELEFONO = re.compile(r'^\+?\d[\d\s\-]{6,18}\d$')
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 _CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,10}$')
 _LARGOS = {'direccion_exacta': 500, 'observaciones': 1000}
@@ -52,8 +51,15 @@ def validar_valor(campo: str, valor):
     if not isinstance(valor, str):
         raise ValidationError(f"El campo '{campo}' debe ser texto.")
     valor = valor.strip()
-    if campo in _CAMPOS_TELEFONO and not _TELEFONO.match(valor):
-        raise ValidationError(f"El teléfono de '{campo}' no tiene un formato válido.")
+    if campo in _CAMPOS_TELEFONO:
+        try:
+            valor = validar_telefono(valor, tipo='movil' if campo == 'telefono_movil' else 'cualquiera')
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from None
+        if valor is None:
+            if campo in _OPCIONALES_NULOS:
+                return None
+            raise ValidationError(f"El campo '{campo}' no puede quedar vacío.")
     if campo == 'correo_alternativo' and (not _CORREO.match(valor) or len(valor) > 254):
         raise ValidationError("El correo alternativo no tiene un formato válido.")
     if campo in _CAMPOS_NOMBRE:
@@ -70,10 +76,22 @@ def validar_valor(campo: str, valor):
             raise ValidationError(f"El campo '{campo}' debe tener formato AAAA-MM-DD.") from None
         if fecha > date.today():
             raise ValidationError(f"El campo '{campo}' no puede ser una fecha futura.")
-    maximo = 20 if campo in _CAMPOS_TELEFONO else _LARGOS.get(campo, _LARGO_TEXTO)
-    if len(valor) > maximo and campo != 'correo_alternativo':
+    maximo = _LARGOS.get(campo, _LARGO_TEXTO)
+    if campo not in _CAMPOS_TELEFONO and len(valor) > maximo and campo != 'correo_alternativo':
         raise ValidationError(f"El campo '{campo}' excede la longitud permitida.")
     return valor
+
+
+def mismo_valor(campo: str, nuevo, actual) -> bool:
+    """Igualdad de valores; los teléfonos guardados en formato legado se comparan ya normalizados (E.164)."""
+    if nuevo == actual:
+        return True
+    if campo in _CAMPOS_TELEFONO and isinstance(actual, str):
+        try:
+            return nuevo == validar_telefono(actual)
+        except ValueError:
+            return False
+    return False
 
 
 def campos_permitidos(seccion: str, entidad: str) -> frozenset[str]:

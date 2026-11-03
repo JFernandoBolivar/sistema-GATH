@@ -17,14 +17,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { esPerfilAutogestion } from "@/shared/lib/perfil-acceso";
 import { itemActivo, itemsVisibles } from "../shell/nav-autogestion";
 import { ControlTamanoTexto } from "../shell/control-tamano-texto";
 
 /**
  * Menú de Autogestión con el mismo sidebar shadcn de los demás módulos.
- * «Inicio» lleva a /dashboard; un perfil que solo tiene Autogestión
- * (derivado de permisos con `esPerfilAutogestion`) vuelve a /autogestion.
+ * «Inicio» lleva a /dashboard para todos los perfiles, igual que en los demás
+ * módulos (antes un trabajador volvía a /autogestion, que muestra su ficha).
  */
 export function AppSidebarAutogestion() {
   const pathname = usePathname() ?? "";
@@ -32,7 +31,7 @@ export function AppSidebarAutogestion() {
   const permisos = session?.user?.permisos;
   const condicion = session?.user?.condicionTrabajador;
   const visibles = itemsVisibles(permisos, condicion).filter((item) => item.id !== "inicio");
-  const inicio = esPerfilAutogestion(permisos) ? "/autogestion" : "/dashboard";
+  const inicio = "/dashboard";
 
   return (
     <Sidebar>
@@ -67,7 +66,7 @@ export function AppSidebarAutogestion() {
 
                 {visibles.map((item) => {
                   const Icono = item.icono;
-                  const activo = itemActivo(item, pathname) && !(item.id === "inicio" && inicio === "/autogestion");
+                  const activo = itemActivo(item, pathname);
                   return (
                     <SidebarMenuItem key={item.id} className="mt-2">
                       <SidebarMenuButton asChild isActive={activo}>

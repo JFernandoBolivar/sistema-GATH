@@ -26,8 +26,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shared/ui/components/form";
+import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/components/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
 
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { getEmpleadosAction } from "../../infrastructure/actions/personal-actions";
@@ -113,7 +120,9 @@ export function PasoBasicInfo({
                         >
                           <FormControl>
                             <SelectTrigger className="w-full truncate">
-                              <SelectValue placeholder={isLoadingCatalogos ? "Cargando..." : "V / E"} />
+                              <SelectValue
+                                placeholder={isLoadingCatalogos ? "Cargando..." : "V / E"}
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -129,18 +138,42 @@ export function PasoBasicInfo({
                     )}
                   />
                   <div className="flex-1">
-                    <InputForm form={form} label="Cedula de Identidad *" nameInput="cedulaidentidad" placeholder="00000000" type="number" />
+                    <InputForm
+                      form={form}
+                      label="Cedula de Identidad *"
+                      nameInput="cedulaidentidad"
+                      placeholder="00000000"
+                      type="number"
+                    />
                   </div>
                   <div className="flex-1">
-                    <InputForm form={form} label="Código del Carnet de la Patria" nameInput="carnet_patria" placeholder="0000000000" type="text" />
+                    <InputForm
+                      form={form}
+                      label="Código del Carnet de la Patria"
+                      nameInput="carnet_patria"
+                      placeholder="0000000000"
+                      type="text"
+                    />
                   </div>
                 </div>
                 <div className="flex gap-2 col-span-2">
                   <div className="flex-1">
-                    <InputForm form={form} label="Nombre *" nameInput="nombres" placeholder="Juan Bernardo" type="text" />
+                    <InputForm
+                      form={form}
+                      label="Nombre *"
+                      nameInput="nombres"
+                      placeholder="Juan Bernardo"
+                      type="text"
+                    />
                   </div>
                   <div className="flex-1">
-                    <InputForm form={form} label="Apellidos *" nameInput="apellidos" placeholder="Perez Gutierrez" type="text" />
+                    <InputForm
+                      form={form}
+                      label="Apellidos *"
+                      nameInput="apellidos"
+                      placeholder="Perez Gutierrez"
+                      type="text"
+                    />
                   </div>
                 </div>
                 <FormField
@@ -167,7 +200,9 @@ export function PasoBasicInfo({
                             selected={field.value ? new Date(field.value) : undefined}
                             mode="single"
                             onSelect={(date) => field.onChange(date)}
-                            disabled={(date: Date) => date > new Date() || date < new Date("1900-01-01")}
+                            disabled={(date: Date) =>
+                              date > new Date() || date < new Date("1900-01-01")
+                            }
                             captionLayout="dropdown"
                           />
                         </PopoverContent>
@@ -187,9 +222,52 @@ export function PasoBasicInfo({
                   valueKey={"id"}
                   options={catalogos?.sexos ?? []}
                 />
-                <InputForm className="w-full" form={form} label="Correo Electronico" nameInput="correo" placeholder="ejemplo@gmail.com" type="email" />
-                <InputForm form={form} label="Teléfono De Móvil" nameInput="telefono_movil" placeholder="04160000000" type="number" />
-                <InputForm form={form} label="Teléfono De Habitación" nameInput="telefono_habitacion" placeholder="02390000000" type="number" />
+                <InputForm
+                  className="w-full"
+                  form={form}
+                  label="Correo Electronico"
+                  nameInput="correo"
+                  placeholder="ejemplo@gmail.com"
+                  type="email"
+                />
+                <FormField
+                  control={form.control}
+                  name="telefono_movil"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Teléfono De Móvil</FormLabel>
+                      <FormControl>
+                        <CampoTelefono
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          invalido={!!form.formState.errors.telefono_movil}
+                          placeholder="0416 0000000"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="telefono_habitacion"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Teléfono De Habitación</FormLabel>
+                      <FormControl>
+                        <CampoTelefono
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          invalido={!!form.formState.errors.telefono_habitacion}
+                          placeholder="0239 0000000"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="estadoCivil"
@@ -228,10 +306,17 @@ export function PasoBasicInfo({
                   Personas de enlace en caso de contingencias médicas o laborales.
                 </p>
               </div>
-              <ContactosEmergenciaCampos parentescos={catalogos?.parentescos ?? []} isLoading={isLoadingCatalogos} />
+              <ContactosEmergenciaCampos
+                parentescos={catalogos?.parentescos ?? []}
+                isLoading={isLoadingCatalogos}
+              />
             </div>
             <div className="flex gap-3 justify-end pt-4">
-              <Button className="w-full" disabled={validateCedula} variant={validateCedula ? "destructive" : "default"}>
+              <Button
+                className="w-full"
+                disabled={validateCedula}
+                variant={validateCedula ? "destructive" : "default"}
+              >
                 {validateCedula ? "Trabajador ya se encuentra registrado" : "Siguiente"}
               </Button>
             </div>

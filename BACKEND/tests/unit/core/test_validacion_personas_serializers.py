@@ -44,3 +44,14 @@ def test_edicion_de_pasivo_tolera_inicial_y_rechaza_numeros():
     assert PasivoActualizarInputSerializer(data={'nombres': 'JOSE A.'}).is_valid()
     s = PasivoActualizarInputSerializer(data={'apellidos': 'PEREZ 3'})
     assert not s.is_valid() and 'apellidos' in s.errors
+
+
+def test_pasivo_normaliza_telefonos_a_e164_y_exige_movil():
+    base = {'nombres': 'JUAN', 'apellidos': 'PEREZ', 'cedula': '12345678', 'sexo_id': 1,
+            'fecha_nacimiento': '1950-01-01', 'tipo_nomina_id': 1}
+    ok = PasivoCrearInputSerializer(data={**base, 'telefono_movil': '0412-1234567', 'telefono_habitacion': '0212 1234567'})
+    assert ok.is_valid(), ok.errors
+    assert ok.validated_data['telefono_movil'] == '+584121234567'
+    assert ok.validated_data['telefono_habitacion'] == '+582121234567'
+    fijo_en_movil = PasivoCrearInputSerializer(data={**base, 'telefono_movil': '0212-1234567'})
+    assert not fijo_en_movil.is_valid() and 'telefono_movil' in fijo_en_movil.errors

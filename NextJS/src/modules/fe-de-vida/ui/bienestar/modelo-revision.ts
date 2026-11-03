@@ -1,3 +1,4 @@
+import { formatearTelefono } from "@/shared/domain/validation/telefono";
 import { etiquetaCampo } from "@/modules/autogestion/domain/value-objects/campos-seccion";
 import type { CambioEntity, FichaPasivoEntity } from "../../domain/entities/fe-de-vida";
 import { edadEn, oficinaDeAdscripcion } from "../../domain/services/reglas";
@@ -55,9 +56,12 @@ export interface EntradaModelo {
   hoy: Date;
 }
 
-const vacio = (v: unknown): boolean => v === null || v === undefined || (typeof v === "string" && v.trim() === "");
-const limpio = (v: string | null | undefined): string | null => (vacio(v) ? null : (v as string).trim());
-const unir = (...partes: Array<string | null | undefined>): string | null => limpio(partes.filter((p) => !vacio(p)).join(" "));
+const vacio = (v: unknown): boolean =>
+  v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+const limpio = (v: string | null | undefined): string | null =>
+  vacio(v) ? null : (v as string).trim();
+const unir = (...partes: Array<string | null | undefined>): string | null =>
+  limpio(partes.filter((p) => !vacio(p)).join(" "));
 
 /** Declarado frente a lo que hay hoy: sin cambio no hay marca; sin dato previo es «Nuevo». */
 function marcar(actual: string | null, declarado: string | null): MarcaCambio | undefined {
@@ -76,7 +80,13 @@ class Constructor {
       else if (c.campo === "*" && c.valorPropuesto && typeof c.valorPropuesto === "object") {
         // Registro único que aún no existía (p. ej. la vivienda): cada campo declarado es un dato nuevo.
         for (const [campo, valor] of Object.entries(objeto(c.valorPropuesto))) {
-          this.unicos.set(`${c.entidad}.${campo}`, { ...c, id: `${c.id}-${campo}`, campo, valorPropuesto: valor, valorActual: null });
+          this.unicos.set(`${c.entidad}.${campo}`, {
+            ...c,
+            id: `${c.id}-${campo}`,
+            campo,
+            valorPropuesto: valor,
+            valorActual: null,
+          });
         }
       } else this.unicos.set(`${c.entidad}.${c.campo}`, c);
     }
@@ -90,9 +100,16 @@ class Constructor {
     opciones: { formato?: (v: string) => string; sufijo?: (declarado: string) => string } = {},
   ): DatoRevision {
     const cambio = this.unicos.get(clave);
-    if (!cambio) return { clave, etiqueta, valor: opciones.sufijo && actual ? opciones.sufijo(actual) : actual };
+    if (!cambio)
+      return {
+        clave,
+        etiqueta,
+        valor: opciones.sufijo && actual ? opciones.sufijo(actual) : actual,
+      };
     this.usados.add(clave);
-    const crudo = vacio(cambio.valorPropuesto) ? null : this.e.formatear(cambio.valorPropuesto, cambio.campo);
+    const crudo = vacio(cambio.valorPropuesto)
+      ? null
+      : this.e.formatear(cambio.valorPropuesto, cambio.campo);
     const declarado = crudo && opciones.formato ? opciones.formato(crudo) : crudo;
     const marca = marcar(actual, declarado);
     const valor = declarado && opciones.sufijo ? opciones.sufijo(declarado) : declarado;
@@ -132,11 +149,18 @@ function objeto(v: unknown): Record<string, unknown> {
 
 function tablaFamiliares(k: Constructor, e: EntradaModelo): TablaRevision {
   const filas: FilaRevision[] = (e.ficha?.familiares ?? []).map((f) => {
-    const propios = k.registrosDe("familiar").filter((c) => c.accion !== "CREAR" && c.entidadId === f.id);
+    const propios = k
+      .registrosDe("familiar")
+      .filter((c) => c.accion !== "CREAR" && c.entidadId === f.id);
     propios.forEach((c) => k.usarRegistro(c));
     return {
       id: `fam-${f.id}`,
-      celdas: [f.nombre, f.parentesco ?? "", f.cedula ?? "", f.fechaNacimiento ? formatearFechaCivil(f.fechaNacimiento) : ""],
+      celdas: [
+        f.nombre,
+        f.parentesco ?? "",
+        f.cedula ?? "",
+        f.fechaNacimiento ? formatearFechaCivil(f.fechaNacimiento) : "",
+      ],
       marca: propios.length ? "modificado" : undefined,
       detalles: propios.map((c) => lineaDeCambio(c, e.formatear)),
     };
@@ -148,7 +172,12 @@ function tablaFamiliares(k: Constructor, e: EntradaModelo): TablaRevision {
     filas.push({
       id: `fam-nuevo-${c.id}`,
       celdas: [
-        unir(f("primer_nombre"), f("segundo_nombre"), f("primer_apellido"), f("segundo_apellido")) ?? "",
+        unir(
+          f("primer_nombre"),
+          f("segundo_nombre"),
+          f("primer_apellido"),
+          f("segundo_apellido"),
+        ) ?? "",
         f("parentesco_id"),
         f("cedula_familiar"),
         v.fecha_nacimiento ? formatearFechaCivil(String(v.fecha_nacimiento)) : "",
@@ -168,11 +197,17 @@ function tablaFamiliares(k: Constructor, e: EntradaModelo): TablaRevision {
 
 function tablaEmergencia(k: Constructor, e: EntradaModelo): TablaRevision {
   const filas: FilaRevision[] = (e.ficha?.contactosEmergencia ?? []).map((c) => {
-    const propios = k.registrosDe("contacto_emergencia").filter((x) => x.accion !== "CREAR" && x.entidadId === c.id);
+    const propios = k
+      .registrosDe("contacto_emergencia")
+      .filter((x) => x.accion !== "CREAR" && x.entidadId === c.id);
     propios.forEach((x) => k.usarRegistro(x));
     return {
       id: `emer-${c.id}`,
-      celdas: [unir(c.nombres, c.apellidos) ?? "", c.parentesco ?? "", c.telefono ?? ""],
+      celdas: [
+        unir(c.nombres, c.apellidos) ?? "",
+        c.parentesco ?? "",
+        formatearTelefono(c.telefono),
+      ],
       marca: propios.length ? "modificado" : undefined,
       detalles: propios.map((x) => lineaDeCambio(x, e.formatear)),
     };
@@ -211,16 +246,26 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
       { clave: "cedula", etiqueta: "Cédula", valor: limpio(ficha?.cedula) },
       k.dato("employee.nombres", "Nombres", limpio(ficha?.nombres)),
       k.dato("employee.apellidos", "Apellidos", limpio(ficha?.apellidos)),
-      k.dato("employee.fecha_nacimiento", "Fecha de nacimiento", limpio(ficha?.fechaNacimiento) && formatearFechaCivil(ficha?.fechaNacimiento), {
-        formato: (d) => formatearFechaCivil(d),
-        sufijo: (d) => {
-          // La edad se calcula sobre la fecha declarada (ISO), no sobre el texto ya formateado.
-          const cambio = entrada.cambios.find((c) => c.entidad === "employee" && c.campo === "fecha_nacimiento");
-          const iso = cambio && typeof cambio.valorPropuesto === "string" ? cambio.valorPropuesto : ficha?.fechaNacimiento;
-          const edad = edadEn(iso, hoy);
-          return edad === null ? d : `${d} (${edad} años)`;
+      k.dato(
+        "employee.fecha_nacimiento",
+        "Fecha de nacimiento",
+        limpio(ficha?.fechaNacimiento) && formatearFechaCivil(ficha?.fechaNacimiento),
+        {
+          formato: (d) => formatearFechaCivil(d),
+          sufijo: (d) => {
+            // La edad se calcula sobre la fecha declarada (ISO), no sobre el texto ya formateado.
+            const cambio = entrada.cambios.find(
+              (c) => c.entidad === "employee" && c.campo === "fecha_nacimiento",
+            );
+            const iso =
+              cambio && typeof cambio.valorPropuesto === "string"
+                ? cambio.valorPropuesto
+                : ficha?.fechaNacimiento;
+            const edad = edadEn(iso, hoy);
+            return edad === null ? d : `${d} (${edad} años)`;
+          },
         },
-      }),
+      ),
       { clave: "sexo", etiqueta: "Sexo", valor: limpio(ficha?.sexo) },
     ],
     tablas: [],
@@ -244,8 +289,16 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
             })
           : null,
       },
-      { clave: "ingreso", etiqueta: "Fecha de ingreso", valor: ficha?.fechaIngreso ? formatearFechaCivil(ficha.fechaIngreso) : null },
-      { clave: "egreso", etiqueta: "Fecha de egreso", valor: ficha?.fechaEgreso ? formatearFechaCivil(ficha.fechaEgreso) : null },
+      {
+        clave: "ingreso",
+        etiqueta: "Fecha de ingreso",
+        valor: ficha?.fechaIngreso ? formatearFechaCivil(ficha.fechaIngreso) : null,
+      },
+      {
+        clave: "egreso",
+        etiqueta: "Fecha de egreso",
+        valor: ficha?.fechaEgreso ? formatearFechaCivil(ficha.fechaEgreso) : null,
+      },
     ],
     tablas: [],
   };
@@ -255,9 +308,21 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
     titulo: "Contacto",
     datos: [
       { clave: "correo", etiqueta: "Correo principal", valor: limpio(ficha?.correo) },
-      k.dato("datos_complementarios.correo_alternativo", "Correo alternativo", limpio(ficha?.correoAlternativo)),
-      k.dato("employee.telefono_movil", "Teléfono móvil", limpio(ficha?.telefonoMovil)),
-      k.dato("employee.telefono_habitacion", "Teléfono de habitación", limpio(ficha?.telefonoHabitacion)),
+      k.dato(
+        "datos_complementarios.correo_alternativo",
+        "Correo alternativo",
+        limpio(ficha?.correoAlternativo),
+      ),
+      k.dato(
+        "employee.telefono_movil",
+        "Teléfono móvil",
+        limpio(formatearTelefono(ficha?.telefonoMovil)),
+      ),
+      k.dato(
+        "employee.telefono_habitacion",
+        "Teléfono de habitación",
+        limpio(formatearTelefono(ficha?.telefonoHabitacion)),
+      ),
     ],
     tablas: [tablaEmergencia(k, entrada)],
   };
@@ -271,7 +336,11 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
       k.dato("datos_vivienda.parroquia_id", "Parroquia", limpio(v?.parroquia)),
       k.dato("datos_vivienda.codigo_postal_id", "Código postal", limpio(v?.codigoPostal)),
       k.dato("datos_vivienda.direccion_exacta", "Dirección", limpio(v?.direccion)),
-      k.dato("datos_vivienda.condicion_vivienda_id", "Condición de la vivienda", limpio(v?.condicion)),
+      k.dato(
+        "datos_vivienda.condicion_vivienda_id",
+        "Condición de la vivienda",
+        limpio(v?.condicion),
+      ),
     ],
     tablas: [],
   };
@@ -283,7 +352,11 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
       k.dato(
         "datos_complementarios.tiene_hijos",
         "¿Tiene hijos?",
-        ficha?.tieneHijos === null || ficha?.tieneHijos === undefined ? null : ficha.tieneHijos ? "Sí" : "No",
+        ficha?.tieneHijos === null || ficha?.tieneHijos === undefined
+          ? null
+          : ficha.tieneHijos
+            ? "Sí"
+            : "No",
       ),
     ],
     tablas: [tablaFamiliares(k, entrada)],
@@ -307,7 +380,9 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
               marca: { tipo: "nuevo" as const },
             }));
         }
-        const declarado = vacio(c.valorPropuesto) ? null : entrada.formatear(c.valorPropuesto, c.campo);
+        const declarado = vacio(c.valorPropuesto)
+          ? null
+          : entrada.formatear(c.valorPropuesto, c.campo);
         const actual = vacio(c.valorActual) ? null : entrada.formatear(c.valorActual, c.campo);
         return [
           {

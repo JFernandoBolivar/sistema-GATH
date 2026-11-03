@@ -1,10 +1,11 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import type { MiExpedienteDTO } from "@/modules/autogestion/application/dtos/mi-expediente-dto";
 import { oficinaDeAdscripcion } from "../../domain/services/reglas";
 import { datosContactoSchema, type DatosContactoValores } from "../schema/schema-fe-de-vida";
@@ -39,6 +40,7 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
   const asignacion = e.asignaciones?.[0];
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<DatosContactoValores>({
@@ -86,13 +88,19 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
             <label htmlFor="fv-movil" className="text-base font-medium">
               Teléfono celular
             </label>
-            <Input
-              id="fv-movil"
-              inputMode="tel"
-              autoComplete="tel"
-              aria-invalid={errors.telefonoMovil ? true : undefined}
-              aria-describedby={errors.telefonoMovil ? "fv-movil-error" : undefined}
-              {...register("telefonoMovil")}
+            <Controller
+              control={control}
+              name="telefonoMovil"
+              render={({ field }) => (
+                <CampoTelefono
+                  id="fv-movil"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  invalido={Boolean(errors.telefonoMovil)}
+                  aria-describedby={errors.telefonoMovil ? "fv-movil-error" : undefined}
+                />
+              )}
             />
             {errors.telefonoMovil ? (
               <p id="fv-movil-error" role="alert" className="text-sm font-medium text-danger">
@@ -104,12 +112,19 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
             <label htmlFor="fv-habitacion" className="text-base font-medium">
               Teléfono de habitación
             </label>
-            <Input
-              id="fv-habitacion"
-              inputMode="tel"
-              aria-invalid={errors.telefonoHabitacion ? true : undefined}
-              aria-describedby={errors.telefonoHabitacion ? "fv-habitacion-error" : undefined}
-              {...register("telefonoHabitacion")}
+            <Controller
+              control={control}
+              name="telefonoHabitacion"
+              render={({ field }) => (
+                <CampoTelefono
+                  id="fv-habitacion"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  invalido={Boolean(errors.telefonoHabitacion)}
+                  aria-describedby={errors.telefonoHabitacion ? "fv-habitacion-error" : undefined}
+                />
+              )}
             />
             {errors.telefonoHabitacion ? (
               <p id="fv-habitacion-error" role="alert" className="text-sm font-medium text-danger">

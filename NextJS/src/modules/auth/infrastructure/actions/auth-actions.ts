@@ -43,6 +43,18 @@ import { repoAutenticacionApi } from "../repositories/repo-auth-api";
 const MENSAJE_PASSWORD_INICIAL_VENCIDA =
   "Su contraseña inicial venció. Use ¿Olvidó su contraseña? o pida a RRHH restablecer el acceso.";
 
+const MENSAJE_CUENTA_BLOQUEADA =
+  "Su cuenta está bloqueada temporalmente por varios intentos fallidos. Espere unos minutos e intente de nuevo, o use ¿Olvidó su contraseña?";
+// Genérico a propósito: no dice si falló el correo o la contraseña (no ayuda a adivinar cuentas).
+const MENSAJE_CREDENCIALES = "Correo o contraseña incorrectos.";
+
+/** Mensaje para la pantalla según el código de error de NextAuth. */
+function mensajeDeFallo(codigo: string | undefined): string {
+  if (codigo === "password_inicial_vencida") return MENSAJE_PASSWORD_INICIAL_VENCIDA;
+  if (codigo === "cuenta_bloqueada") return MENSAJE_CUENTA_BLOQUEADA;
+  return MENSAJE_CREDENCIALES;
+}
+
 export type LoginActionResult = { success: string } | { error: string };
 
 export async function loginAction(rawData: LoginFormType): Promise<LoginActionResult> {
@@ -68,10 +80,7 @@ export async function loginAction(rawData: LoginFormType): Promise<LoginActionRe
         status: "FAILED",
         durationMs: Date.now() - startedAt,
       });
-      if ((result as { code?: string }).code === "password_inicial_vencida") {
-        return { error: MENSAJE_PASSWORD_INICIAL_VENCIDA };
-      }
-      return { error: "Credenciales inválidas o cuenta bloqueada." };
+      return { error: mensajeDeFallo((result as { code?: string }).code) };
     }
 
     await logAudit({
@@ -91,10 +100,7 @@ export async function loginAction(rawData: LoginFormType): Promise<LoginActionRe
     handleSessionExpired(error);
 
     if (error instanceof AuthError) {
-      if ((error as { code?: string }).code === "password_inicial_vencida") {
-        return { error: MENSAJE_PASSWORD_INICIAL_VENCIDA };
-      }
-      return { error: "Credenciales inválidas o cuenta bloqueada." };
+      return { error: mensajeDeFallo((error as { code?: string }).code) };
     }
     return { error: "No fue posible iniciar sesión. Intente de nuevo." };
   }

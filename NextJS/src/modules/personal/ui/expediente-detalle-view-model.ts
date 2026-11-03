@@ -8,6 +8,7 @@
  * presentación puros — mismo patrón que `modules/reportes/ui/tendencia-chart-data.ts`).
  */
 import { nombrePorId, nombresPorIds } from "@/shared/lib/catalogos";
+import { formatearTelefono } from "@/shared/domain/validation/telefono";
 import { formatearFecha } from "@/shared/lib/formato-fecha";
 
 import type {
@@ -168,11 +169,12 @@ export function construirDetalleExpediente(
   const anos = Math.floor(anosApn);
   const meses = Math.round((anosApn % 1) * 12);
 
-  const todosContratos = empleado.contratos && empleado.contratos.length > 0
-    ? empleado.contratos
-    : empleado.contratoActual
-    ? [empleado.contratoActual]
-    : [];
+  const todosContratos =
+    empleado.contratos && empleado.contratos.length > 0
+      ? empleado.contratos
+      : empleado.contratoActual
+        ? [empleado.contratoActual]
+        : [];
   const contratosConFecha = todosContratos
     .filter((c) => c.fechaIngreso)
     .sort((a, b) => new Date(a.fechaIngreso!).getTime() - new Date(b.fechaIngreso!).getTime());
@@ -181,12 +183,14 @@ export function construirDetalleExpediente(
     : SIN_DATO;
 
   return {
-    cedula: empleado.nacionalidadCodigo ? `${empleado.nacionalidadCodigo}-${empleado.cedula}` : empleado.cedula,
+    cedula: empleado.nacionalidadCodigo
+      ? `${empleado.nacionalidadCodigo}-${empleado.cedula}`
+      : empleado.cedula,
     nombreCompleto: empleado.nombreCompleto,
     sexo: empleado.sexoNombre || SIN_DATO,
     correo: empleado.correo ?? SIN_DATO,
-    telefonoMovil: empleado.telefonoMovil ?? SIN_DATO,
-    telefonoHabitacion: empleado.telefonoHabitacion ?? SIN_DATO,
+    telefonoMovil: formatearTelefono(empleado.telefonoMovil) || SIN_DATO,
+    telefonoHabitacion: formatearTelefono(empleado.telefonoHabitacion) || SIN_DATO,
     fechaNacimiento: formatearFecha(empleado.fechaNacimiento),
     estadoCivil: empleado.estadoCivilNombre ?? SIN_DATO,
     carnetPatria: empleado.carnetPatria ?? SIN_DATO,
@@ -208,14 +212,15 @@ export function construirDetalleExpediente(
       tipoProcedencia: asig.tipoProcedencia || SIN_DATO,
       cargoCubiertoEncargaduria: asig.cargoCubiertoEncargaduria,
       direccionResumida:
-        asig.coordinacion ||
-        asig.direccionLinea ||
-        asig.direccionGeneral ||
-        "No especificado",
+        asig.coordinacion || asig.direccionLinea || asig.direccionGeneral || "No especificado",
     })),
     vivienda: empleado.datosVivienda
       ? {
-          estado: nombre(empleado.datosVivienda.estadoNombre, catalogos?.estados, empleado.datosVivienda.estadoId),
+          estado: nombre(
+            empleado.datosVivienda.estadoNombre,
+            catalogos?.estados,
+            empleado.datosVivienda.estadoId,
+          ),
           municipio: nombre(
             empleado.datosVivienda.municipioNombre,
             catalogos?.municipios,
@@ -288,7 +293,11 @@ export function construirDetalleExpediente(
         }
       : null,
     formacionAcademica: (empleado.formacionAcademica ?? []).map((fa) => ({
-      nivelAcademico: nombre(fa.nivelAcademicoNombre, catalogos?.nivelesAcademicos, fa.nivelAcademicoId),
+      nivelAcademico: nombre(
+        fa.nivelAcademicoNombre,
+        catalogos?.nivelesAcademicos,
+        fa.nivelAcademicoId,
+      ),
       carrera: nombre(fa.carreraNombre, catalogos?.carreras, fa.carreraId),
       mencion: nombre(fa.mencionNombre, catalogos?.menciones, fa.mencionId),
       institucion: nombre(fa.institucionNombre, catalogos?.instituciones, fa.institucionId),
@@ -304,7 +313,7 @@ export function construirDetalleExpediente(
     })),
     contactoEmergencia: (empleado.contactoEmergencia ?? []).map((c) => ({
       nombreCompleto: `${c.nombres ?? ""} ${c.apellidos ?? ""}`.trim() || SIN_DATO,
-      telefono: c.telefono ?? SIN_DATO,
+      telefono: formatearTelefono(c.telefono) || SIN_DATO,
       relacion: nombre(c.relacionNombre, catalogos?.parentescos, c.relacionId),
     })),
     antecedentes: (empleado.antecedentes ?? []).map((a) => ({

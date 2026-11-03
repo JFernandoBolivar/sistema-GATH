@@ -58,6 +58,7 @@ import {
   cerrarSesionAction,
   limpiarCookiesAuthAction,
   cambiarPasswordAction,
+  loginAction,
 } from "./auth-actions";
 
 describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () => {
@@ -134,5 +135,27 @@ describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () =>
         redirect: false,
       }),
     );
+  });
+});
+
+describe("loginAction: mensaje según el motivo del rechazo (QA 2026-11-03)", () => {
+  const datos = { usuario: "ana@conatel.gob.ve", password: "Clave-123" };
+
+  it("cuenta bloqueada: lo dice explícitamente", async () => {
+    mockSignIn.mockResolvedValueOnce({ error: "CredentialsSignin", code: "cuenta_bloqueada" });
+    const r = await loginAction(datos);
+    expect(r).toEqual({ error: expect.stringMatching(/bloqueada temporalmente/i) });
+  });
+
+  it("credenciales incorrectas: mensaje genérico que no dice cuál campo falló", async () => {
+    mockSignIn.mockResolvedValueOnce({ error: "CredentialsSignin", code: "credentials" });
+    const r = await loginAction(datos);
+    expect(r).toEqual({ error: "Correo o contraseña incorrectos." });
+  });
+
+  it("contraseña inicial vencida: conserva su mensaje", async () => {
+    mockSignIn.mockResolvedValueOnce({ error: "CredentialsSignin", code: "password_inicial_vencida" });
+    const r = await loginAction(datos);
+    expect(r).toEqual({ error: expect.stringMatching(/contraseña inicial venció/i) });
   });
 });

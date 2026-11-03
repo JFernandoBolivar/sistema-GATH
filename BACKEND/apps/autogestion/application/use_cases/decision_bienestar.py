@@ -27,11 +27,14 @@ from apps.autogestion.domain.value_objects.secciones import (
     DecisionCambio,
     Seccion,
 )
+from apps.autogestion.domain.services.validacion_cambios import mismo_valor
 from core.domain.exceptions import ConflictError, ValidationError
 
 
 def _hay_conflicto(cambio: CambioPropuesto, actual) -> bool:
-    return cambio.accion == Accion.MODIFICAR.value and actual != cambio.valor_anterior
+    return cambio.accion == Accion.MODIFICAR.value and not (
+        mismo_valor(cambio.campo, actual, cambio.valor_anterior) or mismo_valor(cambio.campo, cambio.valor_anterior, actual)
+    )
 
 
 def obtener_detalle(

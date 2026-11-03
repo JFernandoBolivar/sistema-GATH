@@ -54,7 +54,7 @@ describe("VisorComparativo", () => {
   it("muestra valor actual y propuesto campo por campo y los soportes", () => {
     render(<VisorComparativo detalle={detalle} puedeDecidir onDecidido={vi.fn()} />);
     expect(screen.getAllByText("Valor actual en la ficha")).toHaveLength(3);
-    expect(screen.getByText("0212-5555555")).toBeInTheDocument();
+    expect(screen.getByText("+58 212 5555555")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /constancia\.pdf/ })).toHaveAttribute(
       "href",
       "/api/v1/autogestion/soportes/s1/archivo/",

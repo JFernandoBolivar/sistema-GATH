@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, IdCard } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, ArrowRight, Camera, IdCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CapturaFoto, type OrigenFoto } from "@/shared/components/captura-foto/captura-foto";
 
@@ -27,6 +28,10 @@ export function PasoFoto({
   onContinuar,
 }: Props) {
   const puedeContinuar = !!fotoElegida || (fotoVigente && !exigeNueva);
+  // Con una foto ya guardada (y sin pedido de foto nueva) la captura queda plegada: mostrar
+  // «Tomar foto» y el aviso de la cámara hacía creer que la foto no se había cargado.
+  const [cambiando, setCambiando] = useState(false);
+  const mostrarCaptura = exigeNueva || !fotoVigente || cambiando || !!fotoElegida;
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold">Foto con su cédula</h2>
@@ -43,8 +48,10 @@ export function PasoFoto({
           Ya tiene una foto cargada. Puede conservarla o tomar otra.
         </p>
       ) : null}
+      {mostrarCaptura ? (
       <CapturaFoto
         etiqueta="Foto con su cédula"
+        valorInicial={fotoElegida}
         nombreArchivo="fe-de-vida-cedula.jpg"
         disabled={subiendo}
         onChange={onFoto}
@@ -56,6 +63,11 @@ export function PasoFoto({
           </div>
         }
       />
+      ) : (
+        <Button type="button" variant="outline" className="min-h-11 self-start" onClick={() => setCambiando(true)} disabled={subiendo}>
+          <Camera aria-hidden /> Cambiar foto
+        </Button>
+      )}
       <div className="flex flex-wrap justify-between gap-3">
         <Button type="button" variant="outline" className="min-h-11" onClick={onAtras} disabled={subiendo}>
           <ArrowLeft aria-hidden /> Atrás

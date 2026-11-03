@@ -158,7 +158,7 @@ class PasivoCrearInputSerializer(serializers.Serializer):
         return value.upper() if value else value
 
     def validate_telefono_movil(self, value):
-        return _validar(validar_telefono, value)
+        return _validar(validar_telefono, value, tipo='movil')
 
     def validate_telefono_habitacion(self, value):
         return _validar(validar_telefono, value)
@@ -199,7 +199,7 @@ class PasivoActualizarInputSerializer(serializers.Serializer):
         return value.upper() if value else value
 
     def validate_telefono_movil(self, value):
-        return _validar(validar_telefono, value)
+        return _validar(validar_telefono, value, tipo='movil')
 
     def validate_telefono_habitacion(self, value):
         return _validar(validar_telefono, value)

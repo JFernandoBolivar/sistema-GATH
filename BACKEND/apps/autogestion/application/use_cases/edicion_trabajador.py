@@ -22,6 +22,7 @@ from apps.autogestion.domain.ports.repo_solicitudes import (
     RepoSolicitudes,
 )
 from apps.autogestion.domain.services.validacion_cambios import (
+    mismo_valor,
     validar_estructura,
     validar_registro_nuevo,
     validar_valor,
@@ -84,7 +85,7 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         valor = validar_valor(item.campo, item.valor)
         lector.validar_referencias({item.campo: valor})
         anterior = lector.valor_actual(solicitud.cedula, item.entidad, entidad_id, item.campo)
-        if valor == anterior:
+        if mismo_valor(item.campo, valor, anterior):
             return None  # sin diferencia real: no se propone
         clave = (item.entidad, entidad_id, item.campo)
     if clave in ya_vistos:

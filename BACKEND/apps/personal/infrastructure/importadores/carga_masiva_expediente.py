@@ -38,6 +38,7 @@ from datetime import date
 from django.db import transaction
 
 from core.domain.exceptions import ValidationError
+from core.domain.validacion_personas import validar_telefono
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, ParentescoModel, SexoModel, TipoProcedenciaModel
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
 from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
@@ -158,6 +159,16 @@ def _construir_cache() -> dict:
     }
 
 
+def _telefono_e164(valor, tipo: str = 'cualquiera') -> str | None:
+    """Teléfono de la celda a E.164 (D-13). Vacío o «nan» → None; inválido → ValueError (error de la fila)."""
+    texto = '' if valor is None else str(valor).strip()
+    if texto.lower() in ('nan', 'none', 'nat'):
+        return None
+    if texto.endswith('.0') and texto[:-2].isdigit():
+        texto = texto[:-2]
+    return validar_telefono(texto, tipo=tipo)
+
+
 def importar_expediente_completo(archivo, nombre_archivo: str) -> dict:
     """
     Réplica de la semántica transaccional del legado: TODO el archivo se
@@ -208,8 +219,8 @@ def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) 
                 'apellidos': _normalizar(fila.get('apellidos')),
                 'fecha_nacimiento': _parsear_fecha(fila.get('fecha_nacimiento')),
                 'correo': str(fila.get('correo', '')).lower() if not pd.isna(fila.get('correo')) else None,
-                'telefono_movil': str(fila.get('telefono_movil', '')),
-                'telefono_habitacion': str(fila.get('telefono_habitacion', '')),
+                'telefono_movil': _telefono_e164(fila.get('telefono_movil'), 'movil'),
+                'telefono_habitacion': _telefono_e164(fila.get('telefono_habitacion')),
                 'sexoid': obtener('sexo', 'sexo'),
                 'estadoCivil': obtener('estado_civil', 'estado_civil'),
             }
@@ -302,7 +313,7 @@ def _procesar_filas(df, columnas, cache, repo, errores: list, contadores: dict) 
                     nombres=_normalizar(fila.get('contacto_nombres')),
                     apellidos=_normalizar(fila.get('contacto_apellidos')),
                     defaults={
-                        'telefono': str(fila.get('contacto_telefono', '')),
+                        'telefono': _telefono_e164(fila.get('contacto_telefono')),
                         'relacion': obtener('parentescos', 'contacto_parentesco'),
                     },
                 )

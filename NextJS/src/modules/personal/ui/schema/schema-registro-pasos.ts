@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { REGEX } from "@/shared/domain/validation";
+import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { contactoEmergenciaFormSchema } from "./schema-contacto-emergencia";
 
 /**
@@ -33,19 +34,30 @@ export const pasoBasicInfoSchema = z.object({
     .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
     .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
   apellidos: z
-    .string({ message: "Debe Ingresar Letras", required_error: "El Apellido Completo Es Requerido" })
+    .string({
+      message: "Debe Ingresar Letras",
+      required_error: "El Apellido Completo Es Requerido",
+    })
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: "Solo Se Permiten Letras" })
     .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
     .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
   file: z
-    .custom<File | null>((v) => v === null || v === undefined || (typeof File !== "undefined" && v instanceof File))
+    .custom<File | null>(
+      (v) => v === null || v === undefined || (typeof File !== "undefined" && v instanceof File),
+    )
     .nullable()
     .optional()
-    .refine((file) => !file || file.size <= 5000000, { message: "El Tamaño Maximo De La Imagen Es 5MB" }),
+    .refine((file) => !file || file.size <= 5000000, {
+      message: "El Tamaño Maximo De La Imagen Es 5MB",
+    }),
   fecha_nacimiento: z
     .date({ message: "Debe Ingresar Una Fecha Requerida", required_error: "La Fecha Es Requerida" })
-    .refine((date) => date <= new Date(), { message: "La Fecha De Nacimiento No Puede Ser En El Futuro" })
-    .refine((date) => new Date().getFullYear() - date.getFullYear() >= 16, { message: "La Edad Mínima Es De 16 Años" }),
+    .refine((date) => date <= new Date(), {
+      message: "La Fecha De Nacimiento No Puede Ser En El Futuro",
+    })
+    .refine((date) => new Date().getFullYear() - date.getFullYear() >= 16, {
+      message: "La Edad Mínima Es De 16 Años",
+    }),
   sexoid: z.coerce
     .number({ message: "Debe Ingresar Un Sexo Valido", required_error: "El Sexo Es Requerido" })
     .refine((val) => val !== 0, { message: "Debe Seleccionar Un Sexo" }),
@@ -56,20 +68,8 @@ export const pasoBasicInfoSchema = z.object({
     opcionalVacio,
     z.string().regex(REGEX.EMAIL, { message: "Solo Se Permiten Correos" }).optional(),
   ),
-  telefono_habitacion: z.preprocess(
-    opcionalVacio,
-    z
-      .string()
-      .regex(REGEX.PHONE_VE_FIJO, { message: "Número inválido. Debe iniciar con un prefijo válido y tener 11 dígitos en total" })
-      .optional(),
-  ),
-  telefono_movil: z.preprocess(
-    opcionalVacio,
-    z
-      .string()
-      .regex(REGEX.PHONE_VE, { message: "Número inválido. Debe iniciar con un prefijo válido y tener 11 dígitos en total" })
-      .optional(),
-  ),
+  telefono_habitacion: telefonoZod({ tipo: "cualquiera" }),
+  telefono_movil: telefonoZod({ tipo: "movil" }),
   carnet_patria: z.preprocess(
     opcionalVacio,
     z
@@ -87,12 +87,16 @@ export const pasoBasicInfoSchema = z.object({
 export type PasoBasicInfoType = z.infer<typeof pasoBasicInfoSchema>;
 
 // --- Paso 2: Formación académica ------------------------------------------
-const nombreNuevo = (id: number | undefined, nombre: string | undefined) => id !== -1 || !!nombre?.trim();
+const nombreNuevo = (id: number | undefined, nombre: string | undefined) =>
+  id !== -1 || !!nombre?.trim();
 
 export const formacionAcademicaPasoItemSchema = z
   .object({
     nivel_Academico_id: z
-      .number({ message: "Debe Seleccionar un Nivel Academico", required_error: "Este Campo Es Requerido" })
+      .number({
+        message: "Debe Seleccionar un Nivel Academico",
+        required_error: "Este Campo Es Requerido",
+      })
       .min(1, { message: "Debe Seleccionar un Nivel Academico" }),
     carrera_id: z.number({ message: "Debe Ingresar Información Valida" }).optional(),
     nueva_carrera_nombre: z.string().optional(),
@@ -146,19 +150,39 @@ export const formacionComplementariaPasoItemSchema = z
   })
   .superRefine((d, ctx) => {
     if (d.fecha_inicio && d.fecha_fin && d.fecha_fin < d.fecha_inicio) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La fecha de fin no puede ser anterior a la de inicio", path: ["fecha_fin"] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "La fecha de fin no puede ser anterior a la de inicio",
+        path: ["fecha_fin"],
+      });
     }
     if (d.fecha_inicio && !d.fecha_fin) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe seleccionar una fecha de fin", path: ["fecha_fin"] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe seleccionar una fecha de fin",
+        path: ["fecha_fin"],
+      });
     }
     if (d.fecha_fin && !d.fecha_inicio) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe seleccionar una fecha de inicio", path: ["fecha_inicio"] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe seleccionar una fecha de inicio",
+        path: ["fecha_inicio"],
+      });
     }
     if (!nombreNuevo(d.institucion_id, d.nueva_institucion_nombre)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe escribir el nombre de la nueva institución", path: ["nueva_institucion_nombre"] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe escribir el nombre de la nueva institución",
+        path: ["nueva_institucion_nombre"],
+      });
     }
     if (!nombreNuevo(d.capacitacion_id, d.nueva_capacitacion_nombre)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe escribir el nombre de la nueva capacitación", path: ["nueva_capacitacion_nombre"] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe escribir el nombre de la nueva capacitación",
+        path: ["nueva_capacitacion_nombre"],
+      });
     }
   });
 export const pasoSupplementaryTrainingSchema = z.object({
@@ -176,17 +200,33 @@ export const antecedentePasoItemSchema = z
   .superRefine((d, ctx) => {
     if (d.fecha_ingreso && d.fecha_egreso) {
       if (d.fecha_egreso <= d.fecha_ingreso) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "La Fecha De Egreso No Puede Ser Anterior A La Fecha De Ingreso", path: ["fecha_egreso"] });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "La Fecha De Egreso No Puede Ser Anterior A La Fecha De Ingreso",
+          path: ["fecha_egreso"],
+        });
       }
       if (d.organismo_id === undefined || d.organismo_id === 0) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe seleccionar un organismo", path: ["organismo_id"] });
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Debe seleccionar un organismo",
+          path: ["organismo_id"],
+        });
       }
     }
     if (d.fecha_ingreso && !d.fecha_egreso) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe Seleccionar Una Fecha De Egreso", path: ["fecha_egreso"] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe Seleccionar Una Fecha De Egreso",
+        path: ["fecha_egreso"],
+      });
     }
     if (d.fecha_egreso && !d.fecha_ingreso) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Debe Seleccionar Una Fecha De Ingreso", path: ["fecha_ingreso"] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Debe Seleccionar Una Fecha De Ingreso",
+        path: ["fecha_ingreso"],
+      });
     }
   });
 export const pasoBackgroundSchema = z.object({
@@ -208,9 +248,15 @@ export type PasoHealthType = z.infer<typeof pasoHealthSchema>;
 // --- Paso 6: Vestimenta ---------------------------------------------------
 export const pasoPhysicalProfileSchema = z.object({
   perfil_fisico: z.object({
-    tallaCamisa: z.number({ message: "Debe seleccionar una talla de camisa" }).min(1, "Debe seleccionar una talla de camisa"),
-    tallaPantalon: z.number({ message: "Debe seleccionar una talla de pantalón" }).min(1, "Debe seleccionar una talla de pantalón"),
-    tallaZapatos: z.number({ message: "Debe seleccionar una talla de zapatos" }).min(1, "Debe seleccionar una talla de zapatos"),
+    tallaCamisa: z
+      .number({ message: "Debe seleccionar una talla de camisa" })
+      .min(1, "Debe seleccionar una talla de camisa"),
+    tallaPantalon: z
+      .number({ message: "Debe seleccionar una talla de pantalón" })
+      .min(1, "Debe seleccionar una talla de pantalón"),
+    tallaZapatos: z
+      .number({ message: "Debe seleccionar una talla de zapatos" })
+      .min(1, "Debe seleccionar una talla de zapatos"),
     tallaChaqueta: z.number({ message: "Debe seleccionar una talla de chaqueta" }).optional(),
   }),
 });
@@ -220,19 +266,34 @@ export type PasoPhysicalProfileType = z.infer<typeof pasoPhysicalProfileSchema>;
 export const pasoDwellingSchema = z.object({
   datos_vivienda: z.object({
     direccion_exacta: z
-      .string({ message: "Debe Ingresar Información Valida", required_error: "Este Campo Es Requerido" })
+      .string({
+        message: "Debe Ingresar Información Valida",
+        required_error: "Este Campo Es Requerido",
+      })
       .min(10, "La Direccion Exacta Debe Tener Minimo 10 Caracteres"),
     estado_id: z
-      .number({ message: "Debe Ingresar Información Valida", required_error: "Este Campo Es Requerido" })
+      .number({
+        message: "Debe Ingresar Información Valida",
+        required_error: "Este Campo Es Requerido",
+      })
       .min(1, "Debe Seleccionar Un Estado"),
     municipio_id: z
-      .number({ message: "Debe Ingresar Información Valida", required_error: "Este Campo Es Requerido" })
+      .number({
+        message: "Debe Ingresar Información Valida",
+        required_error: "Este Campo Es Requerido",
+      })
       .min(1, "Debe Seleccionar Un Municipio"),
     parroquia: z
-      .number({ message: "Debe Ingresar Información Valida", required_error: "Este Campo Es Requerido" })
+      .number({
+        message: "Debe Ingresar Información Valida",
+        required_error: "Este Campo Es Requerido",
+      })
       .min(1, "Debe Seleccionar Una Parroquia"),
     condicion_vivienda_id: z
-      .number({ message: "Debe Ingresar Información Valida", required_error: "Este Campo Es Requerido" })
+      .number({
+        message: "Debe Ingresar Información Valida",
+        required_error: "Este Campo Es Requerido",
+      })
       .min(1, "Debe Seleccionar Una Condicion De Vivienda"),
     codigo_postal_id: z.coerce.number().min(1, "Seleccione un código postal"),
   }),
