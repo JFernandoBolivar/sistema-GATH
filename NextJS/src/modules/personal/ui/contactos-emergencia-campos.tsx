@@ -93,7 +93,6 @@ export function ContactosEmergenciaCampos({
                     onChange={field.onChange}
                     onBlur={field.onBlur}
                     invalido={!!fieldState.error}
-                    placeholder="0416 0000000"
                   />
                 </FormControl>
                 <FormMessage />

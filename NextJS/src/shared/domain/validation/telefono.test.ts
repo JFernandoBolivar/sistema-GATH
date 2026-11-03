@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   formatearTelefono,
+  OPERADORAS_VE,
+  ZONAS_VE,
   paisDesdeInternacional,
+  separarPrefijoVE,
   normalizarTelefono,
   paisesTelefono,
   separarTelefono,
@@ -101,5 +104,20 @@ describe("telefonoZod", () => {
     const s = telefonoZod({ requerido: true });
     expect(s.safeParse("").success).toBe(false);
     expect(s.safeParse("+584121234567").success).toBe(true);
+  });
+});
+
+describe("códigos de Venezuela", () => {
+  it("separa operadora o código de área y los 7 dígitos", () => {
+    expect(separarPrefijoVE("4121234567")).toEqual({ prefijo: "0412", numero: "1234567" });
+    expect(separarPrefijoVE("04241234567")).toEqual({ prefijo: "0424", numero: "1234567" });
+    expect(separarPrefijoVE("2121234567")).toEqual({ prefijo: "0212", numero: "1234567" });
+    expect(separarPrefijoVE("9991234567")).toEqual({ prefijo: "", numero: "9991234567" });
+  });
+
+  it("tiene operadoras móviles y zonas fijas con nombre", () => {
+    expect(OPERADORAS_VE["0414"]).toBe("Movistar");
+    expect(ZONAS_VE["0212"]).toMatch(/Caracas/);
+    expect(ZONAS_VE["0261"]).toMatch(/Maracaibo/);
   });
 });

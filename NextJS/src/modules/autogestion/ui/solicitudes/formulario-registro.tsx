@@ -156,6 +156,7 @@ export function FormularioRegistro({
             render={({ field }) => (
               <CampoTelefono
                 id={id}
+                tipo={c.campo === "telefono_movil" ? "movil" : "cualquiera"}
                 value={field.value}
                 onChange={field.onChange}
                 onBlur={field.onBlur}

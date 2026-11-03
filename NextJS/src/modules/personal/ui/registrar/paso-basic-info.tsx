@@ -238,11 +238,11 @@ export function PasoBasicInfo({
                       <FormLabel>Teléfono De Móvil</FormLabel>
                       <FormControl>
                         <CampoTelefono
+                          tipo="movil"
                           value={field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                           invalido={!!form.formState.errors.telefono_movil}
-                          placeholder="0416 0000000"
                         />
                       </FormControl>
                       <FormMessage />
@@ -261,7 +261,6 @@ export function PasoBasicInfo({
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                           invalido={!!form.formState.errors.telefono_habitacion}
-                          placeholder="0239 0000000"
                         />
                       </FormControl>
                       <FormMessage />

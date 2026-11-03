@@ -121,6 +121,7 @@ export function ExpedienteCampos({
               name="telefonoMovil"
               render={({ field }) => (
                 <CampoTelefono
+                  tipo="movil"
                   id="telefonoMovil"
                   value={field.value}
                   onChange={field.onChange}
