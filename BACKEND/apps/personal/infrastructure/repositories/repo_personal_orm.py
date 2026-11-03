@@ -249,7 +249,12 @@ class RepoPersonalORM:
         return self.obtener_por_cedula(obj.cedulaidentidad)
 
     def guardar_foto(self, cedula: str, clave: str) -> None:
-        EmployeeModel.objects.filter(cedulaidentidad=cedula).update(profile=clave)
+        # save() y no queryset.update(): así se dispara post_save y se invalida la caché de
+        # «Mi ficha» (la foto nueva se ve al instante, QA 2026-11-03).
+        fila = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        if fila is not None:
+            fila.profile = clave
+            fila.save(update_fields=['profile'])
 
     def obtener_clave_foto(self, cedula: str) -> str | None:
         valor = EmployeeModel.objects.filter(cedulaidentidad=cedula).values_list('profile', flat=True).first()

@@ -17,7 +17,15 @@ _MOTIVOS = {
 
 
 def solicitud_de_evento(e: EventoIdentidad) -> SolicitudNotificacion | None:
-    if e.tipo is TipoEventoIdentidad.PASSWORD_CAMBIADA:
+    if e.tipo is TipoEventoIdentidad.PASSWORD_CAMBIADA and e.motivo == MotivoCambioPassword.RESTABLECIDO_RRHH.value:
+        # QA 2026-11-03: «fue cambiada» confundía; es un restablecimiento con instrucciones para entrar.
+        titulo = 'Gestión Humana restableció su acceso a GATH'
+        plazo = f' y tiene {e.dias_vigencia} días para hacerlo' if e.dias_vigencia else ''
+        mensaje = (
+            'Gestión Humana restableció su acceso al sistema GATH. Ingrese con este correo y, como '
+            f'contraseña, su número de cédula. Deberá cambiarla en su próximo ingreso{plazo}.{_CIERRE}'
+        )
+    elif e.tipo is TipoEventoIdentidad.PASSWORD_CAMBIADA:
         titulo = 'La contraseña de su cuenta fue cambiada'
         mensaje = f'La contraseña de su cuenta en GATH fue cambiada. {_MOTIVOS.get(e.motivo, "")}{_CIERRE}'
     elif e.tipo is TipoEventoIdentidad.CUENTA_CREADA:
