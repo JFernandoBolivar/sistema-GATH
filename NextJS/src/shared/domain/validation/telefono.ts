@@ -23,9 +23,11 @@ export type ResultadoTelefono = { ok: true; e164: string | null } | { ok: false;
 const SEPARADORES = /[\s().\-]/g;
 
 export const MENSAJE_TELEFONO_OBLIGATORIO = "El teléfono es obligatorio";
-const MENSAJE_SOLO_NUMEROS = "El teléfono solo admite números (y + al inicio para el código de país)";
+const MENSAJE_SOLO_NUMEROS =
+  "El teléfono solo admite números (y + al inicio para el código de país)";
 const MENSAJE_VE = "Número venezolano inválido. Ejemplos: móvil 0412-1234567, fijo 0212-1234567";
-const MENSAJE_NO_MOVIL = "Debe ser un número móvil (en Venezuela: 0412, 0414, 0416, 0422, 0424 o 0426)";
+const MENSAJE_NO_MOVIL =
+  "Debe ser un número móvil (en Venezuela: 0412, 0414, 0416, 0422, 0424 o 0426)";
 
 function nombrePais(codigo: CountryCode): string {
   try {
@@ -38,7 +40,10 @@ function nombrePais(codigo: CountryCode): string {
 /** Valida y normaliza a E.164. Vacío es válido (`e164: null`): la obligatoriedad la decide el formulario. */
 export function normalizarTelefono(
   valor: string | null | undefined,
-  { tipo = "cualquiera", pais = PAIS_POR_DEFECTO }: { tipo?: TipoTelefono; pais?: CountryCode } = {},
+  {
+    tipo = "cualquiera",
+    pais = PAIS_POR_DEFECTO,
+  }: { tipo?: TipoTelefono; pais?: CountryCode } = {},
 ): ResultadoTelefono {
   const limpio = (valor ?? "").trim().replace(SEPARADORES, "");
   if (!limpio) return { ok: true, e164: null };
@@ -57,7 +62,8 @@ export function normalizarTelefono(
   }
   if (tipo === "movil") {
     const clase = numero.getType();
-    if (clase !== "MOBILE" && clase !== "FIXED_LINE_OR_MOBILE") return { ok: false, mensaje: MENSAJE_NO_MOVIL };
+    if (clase !== "MOBILE" && clase !== "FIXED_LINE_OR_MOBILE")
+      return { ok: false, mensaje: MENSAJE_NO_MOVIL };
   }
   return { ok: true, e164: numero.number };
 }
@@ -71,12 +77,26 @@ export function formatearTelefono(valor: string | null | undefined): string {
 }
 
 /** Separa un valor guardado (E.164 o legado venezolano) en país y número nacional para editarlo. */
-export function separarTelefono(valor: string | null | undefined): { pais: CountryCode; nacional: string } {
+export function separarTelefono(valor: string | null | undefined): {
+  pais: CountryCode;
+  nacional: string;
+} {
   const texto = (valor ?? "").trim().replace(SEPARADORES, "");
   if (!texto) return { pais: PAIS_POR_DEFECTO, nacional: "" };
   const numero = parsePhoneNumberFromString(texto, PAIS_POR_DEFECTO);
   if (numero?.country) return { pais: numero.country, nacional: String(numero.nationalNumber) };
   return { pais: PAIS_POR_DEFECTO, nacional: texto.replace(/\D/g, "") };
+}
+
+/** Si el texto viene con «+código», devuelve su país y número nacional (para el selector). */
+export function paisDesdeInternacional(
+  texto: string,
+): { pais: CountryCode; nacional: string } | null {
+  const limpio = texto.trim().replace(SEPARADORES, "");
+  if (!limpio.startsWith("+")) return null;
+  const numero = parsePhoneNumberFromString(limpio.replace(/[^\d+]/g, ""));
+  if (!numero?.country) return null;
+  return { pais: numero.country, nacional: String(numero.nationalNumber) };
 }
 
 /** Une país y número nacional en el valor que guarda el formulario (E.164 si es posible). */
@@ -99,7 +119,11 @@ let paisesCache: PaisTelefono[] | null = null;
 export function paisesTelefono(): PaisTelefono[] {
   if (paisesCache) return paisesCache;
   const lista = getCountries()
-    .map((codigo) => ({ codigo, nombre: nombrePais(codigo), prefijo: `+${getCountryCallingCode(codigo)}` }))
+    .map((codigo) => ({
+      codigo,
+      nombre: nombrePais(codigo),
+      prefijo: `+${getCountryCallingCode(codigo)}`,
+    }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   const ve = lista.findIndex((p) => p.codigo === PAIS_POR_DEFECTO);
   if (ve > 0) lista.unshift(...lista.splice(ve, 1));
@@ -108,7 +132,10 @@ export function paisesTelefono(): PaisTelefono[] {
 }
 
 /** Campo zod de teléfono: valida con la regla por país; acepta vacío salvo que sea `requerido`. */
-export function telefonoZod({ requerido = false, tipo = "cualquiera" }: { requerido?: boolean; tipo?: TipoTelefono } = {}) {
+export function telefonoZod({
+  requerido = false,
+  tipo = "cualquiera",
+}: { requerido?: boolean; tipo?: TipoTelefono } = {}) {
   return z
     .string()
     .trim()
@@ -116,7 +143,8 @@ export function telefonoZod({ requerido = false, tipo = "cualquiera" }: { requer
     .nullable()
     .superRefine((valor, ctx) => {
       if (!valor) {
-        if (requerido) ctx.addIssue({ code: z.ZodIssueCode.custom, message: MENSAJE_TELEFONO_OBLIGATORIO });
+        if (requerido)
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: MENSAJE_TELEFONO_OBLIGATORIO });
         return;
       }
       const resultado = normalizarTelefono(valor, { tipo });

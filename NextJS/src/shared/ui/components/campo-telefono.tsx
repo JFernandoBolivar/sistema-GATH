@@ -9,7 +9,12 @@ import { useMemo, useState } from "react";
 import type { CountryCode } from "libphonenumber-js/max";
 import { cn } from "@/lib/utils";
 import { Input } from "@/shared/ui/components/input";
-import { paisesTelefono, separarTelefono, unirTelefono } from "@/shared/domain/validation/telefono";
+import {
+  paisDesdeInternacional,
+  paisesTelefono,
+  separarTelefono,
+  unirTelefono,
+} from "@/shared/domain/validation/telefono";
 
 interface CampoTelefonoProps {
   id?: string;
@@ -85,7 +90,12 @@ export function CampoTelefono({
         aria-invalid={invalido || undefined}
         aria-describedby={describedBy}
         onBlur={onBlur}
-        onChange={(e) => emitir(pais, e.target.value.replace(/[^\d]/g, ""))}
+        onChange={(e) => {
+          // Si se escribe o pega con «+código» (p. ej. +57 300 1234567) el selector cambia a ese país.
+          const internacional = paisDesdeInternacional(e.target.value);
+          if (internacional) emitir(internacional.pais, internacional.nacional);
+          else emitir(pais, e.target.value.replace(/[^\d]/g, ""));
+        }}
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatearTelefono,
+  paisDesdeInternacional,
   normalizarTelefono,
   paisesTelefono,
   separarTelefono,
@@ -34,12 +35,18 @@ describe("normalizarTelefono (Venezuela por defecto)", () => {
 
   it("el campo móvil exige un número móvil", () => {
     expect(normalizarTelefono("0212 1234567", { tipo: "movil" }).ok).toBe(false);
-    expect(normalizarTelefono("0414 1234567", { tipo: "movil" })).toEqual({ ok: true, e164: "+584141234567" });
+    expect(normalizarTelefono("0414 1234567", { tipo: "movil" })).toEqual({
+      ok: true,
+      e164: "+584141234567",
+    });
   });
 
   it("valida otros países por su cantidad de dígitos", () => {
     expect(normalizarTelefono("+56 9 8765 4321")).toEqual({ ok: true, e164: "+56987654321" });
-    expect(normalizarTelefono("+56 9 1234")).toMatchObject({ ok: false, mensaje: expect.stringMatching(/Chile/) });
+    expect(normalizarTelefono("+56 9 1234")).toMatchObject({
+      ok: false,
+      mensaje: expect.stringMatching(/Chile/),
+    });
     expect(normalizarTelefono("+1 202 555 0143")).toEqual({ ok: true, e164: "+12025550143" });
   });
 });
@@ -56,6 +63,18 @@ describe("formato, separación y unión", () => {
     expect(separarTelefono("+56987654321")).toEqual({ pais: "CL", nacional: "987654321" });
     expect(separarTelefono("04121234567")).toEqual({ pais: "VE", nacional: "4121234567" });
     expect(separarTelefono("")).toEqual({ pais: "VE", nacional: "" });
+  });
+
+  it("detecta el país cuando se escribe con +código", () => {
+    expect(paisDesdeInternacional("+57 300 1234567")).toEqual({
+      pais: "CO",
+      nacional: "3001234567",
+    });
+    expect(paisDesdeInternacional("+58 414-1234567")).toEqual({
+      pais: "VE",
+      nacional: "4141234567",
+    });
+    expect(paisDesdeInternacional("04141234567")).toBeNull();
   });
 
   it("une país y número nacional en E.164", () => {
