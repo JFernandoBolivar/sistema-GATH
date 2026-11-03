@@ -2,7 +2,7 @@
 
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
@@ -187,6 +187,7 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
 
       <div className="flex justify-end">
         <Button type="submit" className="min-h-11" disabled={guardando}>
+          {guardando ? <Loader2 className="animate-spin" aria-hidden /> : null}
           {guardando ? "Guardando…" : "Continuar"} <ArrowRight aria-hidden />
         </Button>
       </div>

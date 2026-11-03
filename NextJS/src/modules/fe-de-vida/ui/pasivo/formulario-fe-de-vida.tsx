@@ -4,7 +4,8 @@ import { useMemo, useState, useTransition } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Send, Shield, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, Send, Shield, ShieldCheck } from "lucide-react";
+import { reducirFoto } from "@/shared/components/captura-foto/reducir-foto";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -162,7 +163,7 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
     iniciarSubida(async () => {
       const form = new FormData();
       form.append("solicitudId", solicitud.id);
-      form.append("file", foto.archivo);
+      form.append("file", await reducirFoto(foto.archivo));
       form.append("origen", foto.origen);
       const res = await subirEvidenciaAction(form);
       if (!res.ok) {
@@ -411,7 +412,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
                 !puedeEnviarFeDeVida({ fotoVigente, viviendaOk, tieneHijos, hijosOk })
               }
             >
-              <Send aria-hidden /> {enviando ? "Enviando…" : "Enviar fe de vida"}
+              {enviando ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}{" "}
+              {enviando ? "Enviando…" : "Enviar fe de vida"}
             </Button>
           </div>
           {!viviendaOk ? (
@@ -466,6 +468,7 @@ function NavegacionPasos({
           onClick={onContinuar}
           disabled={guardando || !puedeContinuar}
         >
+          {guardando ? <Loader2 className="animate-spin" aria-hidden /> : null}
           {guardando ? "Guardando…" : "Continuar"}
         </Button>
       </div>
