@@ -110,7 +110,7 @@ export default function FormBasicUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl p-0">
         <DialogTitle className="sr-only">Actualizar Información Básica</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none">
@@ -138,133 +138,151 @@ export default function FormBasicUpdateDialog({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  <div>
-                    <Label htmlFor="nombres">Nombre *</Label>
-                    <Input
-                      id="nombres"
-                      placeholder="Juan Bernardo"
-                      {...register("nombres", { required: true })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="apellidos">Apellidos *</Label>
-                    <Input
-                      id="apellidos"
-                      placeholder="Perez Gutierrez"
-                      {...register("apellidos", { required: true })}
-                    />
-                  </div>
-                  <div className="flex flex-col grow shrink basis-40">
-                    <Label htmlFor="fechaNacimiento"> Fecha de Nacimiento *</Label>
-                    <Input
-                      id="fechaNacimiento"
-                      type="date"
-                      max={new Date().toISOString().split("T")[0]}
-                      min="1900-01-01"
-                      {...register("fechaNacimiento", { required: true })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="nacionalidadId">Nacionalidad *</Label>
-                    <Select
-                      value={watch("nacionalidadId") ? String(watch("nacionalidadId")) : ""}
-                      onValueChange={(v) => setValue("nacionalidadId", Number(v))}
-                    >
-                      <SelectTrigger id="nacionalidadId" className="w-full truncate">
-                        <SelectValue placeholder="V / E" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(catalogos?.nacionalidades ?? []).map((n) => (
-                          <SelectItem key={n.id} value={String(n.id)}>
-                            {n.codigo ? `${n.codigo} - ${n.nombre}` : n.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="sexoId" className="cursor-pointer">
-                      Sexo *
-                    </Label>
-                    <Select
-                      value={String(watch("sexoId") || "")}
-                      onValueChange={(v) => setValue("sexoId", Number(v))}
-                    >
-                      <SelectTrigger id="sexoId" className="w-full truncate">
-                        <SelectValue placeholder="Seleccione un Genero" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(
-                          catalogos?.sexos ?? [
-                            { id: 1, nombre: "MASCULINO" },
-                            { id: 2, nombre: "FEMENINO" },
-                          ]
-                        ).map((s) => (
-                          <SelectItem key={s.id} value={String(s.id)}>
-                            {s.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="correo">Correo Electronico</Label>
-                    <Input
-                      id="correo"
-                      type="email"
-                      placeholder="ejemplo@gmail.com"
-                      {...register("correo")}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="telefonoMovil">Teléfono De Móvil</Label>
-                    <CampoTelefono
-                      id="telefonoMovil"
-                      placeholder="0416 0000000"
-                      value={watch("telefonoMovil")}
-                      onChange={(v) => setValue("telefonoMovil", v, { shouldDirty: true })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="telefonoHabitacion">Teléfono De Habitación</Label>
-                    <CampoTelefono
-                      id="telefonoHabitacion"
-                      placeholder="0239 0000000"
-                      value={watch("telefonoHabitacion")}
-                      onChange={(v) => setValue("telefonoHabitacion", v, { shouldDirty: true })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="carnetPatria">Código del Carnet de la Patria</Label>
-                    <Input
-                      id="carnetPatria"
-                      type="text"
-                      placeholder="000-0000000-00"
-                      {...register("carnetPatria")}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Label htmlFor="estadoCivilId">Estado Civil </Label>
-                    <Select
-                      value={watch("estadoCivilId") ? String(watch("estadoCivilId")) : undefined}
-                      onValueChange={(v) => setValue("estadoCivilId", Number(v))}
-                    >
-                      <SelectTrigger id="estadoCivilId" className="w-full truncate">
-                        <SelectValue placeholder="Seleccione Un Estado Civil" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(catalogos?.estadosCiviles ?? []).map((ec) => (
-                          <SelectItem key={ec.id} value={String(ec.id)}>
-                            {ec.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="mt-6 flex flex-col gap-8">
+                  <section className="flex flex-col gap-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground">
+                      Datos personales
+                    </h3>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="nombres">Nombre *</Label>
+                        <Input
+                          id="nombres"
+                          placeholder="Juan Bernardo"
+                          {...register("nombres", { required: true })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="apellidos">Apellidos *</Label>
+                        <Input
+                          id="apellidos"
+                          placeholder="Perez Gutierrez"
+                          {...register("apellidos", { required: true })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="fechaNacimiento"> Fecha de Nacimiento *</Label>
+                        <Input
+                          id="fechaNacimiento"
+                          type="date"
+                          max={new Date().toISOString().split("T")[0]}
+                          min="1900-01-01"
+                          {...register("fechaNacimiento", { required: true })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="nacionalidadId">Nacionalidad *</Label>
+                        <Select
+                          value={watch("nacionalidadId") ? String(watch("nacionalidadId")) : ""}
+                          onValueChange={(v) => setValue("nacionalidadId", Number(v))}
+                        >
+                          <SelectTrigger id="nacionalidadId" className="w-full truncate">
+                            <SelectValue placeholder="V / E" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(catalogos?.nacionalidades ?? []).map((n) => (
+                              <SelectItem key={n.id} value={String(n.id)}>
+                                {n.codigo ? `${n.codigo} - ${n.nombre}` : n.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="sexoId" className="cursor-pointer">
+                          Sexo *
+                        </Label>
+                        <Select
+                          value={String(watch("sexoId") || "")}
+                          onValueChange={(v) => setValue("sexoId", Number(v))}
+                        >
+                          <SelectTrigger id="sexoId" className="w-full truncate">
+                            <SelectValue placeholder="Seleccione un Genero" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(
+                              catalogos?.sexos ?? [
+                                { id: 1, nombre: "MASCULINO" },
+                                { id: 2, nombre: "FEMENINO" },
+                              ]
+                            ).map((s) => (
+                              <SelectItem key={s.id} value={String(s.id)}>
+                                {s.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="estadoCivilId">Estado Civil </Label>
+                        <Select
+                          value={
+                            watch("estadoCivilId") ? String(watch("estadoCivilId")) : undefined
+                          }
+                          onValueChange={(v) => setValue("estadoCivilId", Number(v))}
+                        >
+                          <SelectTrigger id="estadoCivilId" className="w-full truncate">
+                            <SelectValue placeholder="Seleccione Un Estado Civil" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(catalogos?.estadosCiviles ?? []).map((ec) => (
+                              <SelectItem key={ec.id} value={String(ec.id)}>
+                                {ec.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </section>
+                  <section className="flex flex-col gap-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground">Contacto</h3>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+                      <div className="flex flex-col gap-2 sm:col-span-2">
+                        <Label htmlFor="correo">Correo Electronico</Label>
+                        <Input
+                          id="correo"
+                          type="email"
+                          placeholder="ejemplo@gmail.com"
+                          {...register("correo")}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="telefonoMovil">Teléfono De Móvil</Label>
+                        <CampoTelefono
+                          tipo="movil"
+                          id="telefonoMovil"
+                          value={watch("telefonoMovil")}
+                          onChange={(v) => setValue("telefonoMovil", v, { shouldDirty: true })}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="telefonoHabitacion">Teléfono De Habitación</Label>
+                        <CampoTelefono
+                          id="telefonoHabitacion"
+                          value={watch("telefonoHabitacion")}
+                          onChange={(v) => setValue("telefonoHabitacion", v, { shouldDirty: true })}
+                        />
+                      </div>
+                    </div>
+                  </section>
+                  <section className="flex flex-col gap-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground">Documento</h3>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="carnetPatria">Código del Carnet de la Patria</Label>
+                        <Input
+                          id="carnetPatria"
+                          type="text"
+                          placeholder="000-0000000-00"
+                          {...register("carnetPatria")}
+                        />
+                      </div>
+                    </div>
+                  </section>
                 </div>
 
-                <div className="flex gap-3 justify-end pt-4">
+                <div className="flex gap-3 justify-end pt-8">
                   <Button className="w-full" disabled={isPending}>
                     {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
                     Guardar
