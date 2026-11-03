@@ -184,25 +184,16 @@ export function PasoDwelling({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Código Postal *</FormLabel>
-                    <Select
-                      onValueChange={(v) => field.onChange(Number.parseInt(v))}
-                      value={field.value ? `${field.value}` : undefined}
-                    >
-                      <FormControl>
-                        <SelectTrigger className="w-full truncate">
-                          <SelectValue
-                            placeholder={isLoadingCodigosPostales ? "Cargando Códigos Postales" : "Seleccione un Código Postal"}
-                          />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {codigosPostales.map((cp) => (
-                          <SelectItem key={cp.id} value={`${cp.id}`}>
-                            {cp.nombre}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Combobox
+                        options={codigosPostales.map((cp) => ({ value: `${cp.id}`, label: cp.nombre }))}
+                        value={field.value ? `${field.value}` : ""}
+                        onChange={(v) => field.onChange(Number.parseInt(v))}
+                        placeholder={isLoadingCodigosPostales ? "Cargando Códigos Postales" : "Seleccione un Código Postal"}
+                        searchPlaceholder="Buscar código postal..."
+                        emptyText="No hay coincidencias."
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

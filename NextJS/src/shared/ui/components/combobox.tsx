@@ -35,6 +35,10 @@ interface ComboboxProps {
   emptyText?: string;
   disabled?: boolean;
   className?: string;
+  /** Para asociar la etiqueta (<label htmlFor>) y los mensajes de error. */
+  id?: string;
+  invalido?: boolean;
+  describedBy?: string;
 }
 
 export function Combobox({
@@ -46,6 +50,9 @@ export function Combobox({
   emptyText = "Sin resultados.",
   disabled,
   className,
+  id,
+  invalido,
+  describedBy,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const selected = options.find((o) => o.value === value);
@@ -58,6 +65,9 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          id={id}
+          aria-invalid={invalido || undefined}
+          aria-describedby={describedBy}
           disabled={disabled}
           className={cn(
             "w-full justify-between font-normal",
@@ -65,16 +75,11 @@ export function Combobox({
             className,
           )}
         >
-          <span className="truncate">
-            {selected ? selected.label : placeholder}
-          </span>
+          <span className="truncate">{selected ? selected.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
-        align="start"
-      >
+      <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>

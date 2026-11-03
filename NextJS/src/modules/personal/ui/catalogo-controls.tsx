@@ -13,6 +13,7 @@ import {
 } from "@/shared/ui/components/select";
 
 import type { CatalogoEmpleadoDTO } from "../application/dtos/empleado-dto";
+import { Combobox } from "@/shared/ui/components/combobox";
 
 export function CatalogSelect({
   id,
@@ -20,13 +21,29 @@ export function CatalogSelect({
   onChange,
   options,
   placeholder,
+  buscador = false,
 }: {
   id: string;
   value: string | undefined;
   onChange: (v: number) => void;
   options: CatalogoEmpleadoDTO[];
   placeholder: string;
+  /** Lista con buscador (estado, municipio, parroquia, código postal). */
+  buscador?: boolean;
 }) {
+  if (buscador) {
+    return (
+      <Combobox
+        id={id}
+        options={options.map((o) => ({ value: String(o.id), label: o.nombre }))}
+        value={value ?? ""}
+        onChange={(v) => onChange(v ? Number(v) : 0)}
+        placeholder={placeholder}
+        searchPlaceholder="Buscar…"
+        emptyText="No hay coincidencias."
+      />
+    );
+  }
   return (
     <Select value={value} onValueChange={(v) => onChange(v ? Number(v) : 0)}>
       <SelectTrigger id={id} className="w-full">
@@ -57,7 +74,10 @@ export function MultiCatalogCheckbox({
       {options.map((o) => {
         const activo = value.includes(o.id);
         return (
-          <label key={o.id} className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs">
+          <label
+            key={o.id}
+            className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs"
+          >
             <input
               type="checkbox"
               className="size-3.5"

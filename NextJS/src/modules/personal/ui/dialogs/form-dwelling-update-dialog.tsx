@@ -21,6 +21,7 @@ import {
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
 import { useCatalogoDependiente } from "../use-catalogo-dependiente";
+import { Combobox } from "@/shared/ui/components/combobox";
 
 interface FormDwellingUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -131,26 +132,20 @@ export default function FormDwellingUpdateDialog({
             <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="estadoId">Estado *</Label>
-                <Select
-                  value={estadoId ? String(estadoId) : undefined}
-                  onValueChange={(v) => {
+                <Combobox
+                  id="estadoId"
+                  value={estadoId ? String(estadoId) : ""}
+                  onChange={(v) => {
                     setValue("estadoId", Number(v));
                     setValue("municipioId", 0);
                     setValue("parroquiaId", 0);
                     setValue("codigoPostalId", 0);
                   }}
-                >
-                  <SelectTrigger id="estadoId" className="w-full truncate">
-                    <SelectValue placeholder="Seleccione un Estado" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(catalogos?.estados ?? []).map((est) => (
-                      <SelectItem key={est.id} value={String(est.id)}>
-                        {est.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={(catalogos?.estados ?? []).map((o) => ({ value: String(o.id), label: o.nombre }))}
+                  placeholder="Seleccione un Estado"
+                  searchPlaceholder="Buscar estado…"
+                  emptyText="No hay coincidencias."
+                />
                 <span className="text-xs text-muted-foreground block mt-1">
                   Esta Información Sera Publica
                 </span>
@@ -158,24 +153,18 @@ export default function FormDwellingUpdateDialog({
 
               <div>
                 <Label htmlFor="municipioId">Municipio *</Label>
-                <Select
+                <Combobox
+                  id="municipioId"
                   value={municipioId ? String(municipioId) : ""}
-                  onValueChange={(v) => {
+                  onChange={(v) => {
                     setValue("municipioId", Number(v));
                     setValue("parroquiaId", 0);
                   }}
-                >
-                  <SelectTrigger id="municipioId" className="w-full truncate">
-                    <SelectValue placeholder="Seleccione un Municpio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {municipios.map((mun) => (
-                      <SelectItem key={mun.id} value={String(mun.id)}>
-                        {mun.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={municipios.map((o) => ({ value: String(o.id), label: o.nombre }))}
+                  placeholder="Seleccione un Municipio"
+                  searchPlaceholder="Buscar municipio…"
+                  emptyText="No hay coincidencias."
+                />
                 <span className="text-xs text-muted-foreground block mt-1">
                   Esta Información Sera Publica
                 </span>
@@ -183,21 +172,17 @@ export default function FormDwellingUpdateDialog({
 
               <div>
                 <Label htmlFor="parroquiaId">Parroquia *</Label>
-                <Select
+                <Combobox
+                  id="parroquiaId"
                   value={parroquiaId ? String(parroquiaId) : ""}
-                  onValueChange={(v) => setValue("parroquiaId", Number(v))}
-                >
-                  <SelectTrigger id="parroquiaId" className="w-full truncate">
-                    <SelectValue placeholder="Seleccione una Parroquia" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {parroquias.map((par) => (
-                      <SelectItem key={par.id} value={String(par.id)}>
-                        {par.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => {
+                    setValue("parroquiaId", Number(v));
+                  }}
+                  options={parroquias.map((o) => ({ value: String(o.id), label: o.nombre }))}
+                  placeholder="Seleccione una Parroquia"
+                  searchPlaceholder="Buscar parroquia…"
+                  emptyText="No hay coincidencias."
+                />
                 <span className="text-xs text-muted-foreground block mt-1">
                   Esta Información Sera Publica
                 </span>
@@ -238,21 +223,17 @@ export default function FormDwellingUpdateDialog({
 
               <div>
                 <Label htmlFor="codigoPostalId">Código Postal *</Label>
-                <Select
+                <Combobox
+                  id="codigoPostalId"
                   value={codigoPostalId ? String(codigoPostalId) : ""}
-                  onValueChange={(v) => setValue("codigoPostalId", Number(v))}
-                >
-                  <SelectTrigger id="codigoPostalId" className="w-full truncate">
-                    <SelectValue placeholder="Seleccione un Código Postal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {codigosPostales.map((cp) => (
-                      <SelectItem key={cp.id} value={String(cp.id)}>
-                        {cp.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => {
+                    setValue("codigoPostalId", Number(v));
+                  }}
+                  options={codigosPostales.map((o) => ({ value: String(o.id), label: o.nombre }))}
+                  placeholder="Seleccione un Código Postal"
+                  searchPlaceholder="Buscar código postal…"
+                  emptyText="No hay coincidencias."
+                />
               </div>
 
               <Button className="w-full col-span-2 mt-2" disabled={isPending}>

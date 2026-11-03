@@ -128,6 +128,8 @@ export function FormularioRegistro({
           requerido={requerido}
           error={error}
           registro={register(c.campo)}
+          valor={watch(c.campo) as string | number | null | undefined}
+          onCambio={(v) => setValue(c.campo, v, { shouldValidate: true, shouldDirty: true })}
         />
       );
     }
