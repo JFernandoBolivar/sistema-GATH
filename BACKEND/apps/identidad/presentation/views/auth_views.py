@@ -183,12 +183,22 @@ class LoginView(APIView):
             if not cuenta or not cuenta.is_active:
                 _verificar_clave_ficticia(password)
                 anotar_intento_fallido(cedula_registro, ip_cliente)
+                # Diagnóstico (QA 2026-11-03): el motivo queda solo en el log interno; la respuesta
+                # sigue siendo genérica. Nunca se registra la contraseña.
+                logger.warning(
+                    'login.rechazado motivo=%s cedula=%s ip=%s',
+                    'cuenta_inactiva' if cuenta else 'correo_sin_cuenta',
+                    getattr(cuenta, 'cedula_id', None) or '-', ip_cliente,
+                )
                 return fail('Credenciales inválidas.', 401)
 
             clave_valida = cuenta.check_password(password)
 
             if not clave_valida:
                 anotar_intento_fallido(cedula_registro, ip_cliente)
+                logger.warning(
+                    'login.rechazado motivo=clave_incorrecta cedula=%s ip=%s', cuenta.cedula_id, ip_cliente,
+                )
                 nuevo_bloqueo = validar_bloqueo_vigente(cedula_registro)
                 if nuevo_bloqueo:
                     return fail(
