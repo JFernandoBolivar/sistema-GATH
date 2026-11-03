@@ -41,19 +41,28 @@ export const filtrosPasivosSchema = z.object({
   offset: z.number().int().min(0).default(0),
 });
 
+/** Teléfono opcional: vacío o solo dígitos (10 u 11). */
+const telefonoOpcional = z
+  .string()
+  .trim()
+  .max(20)
+  .nullable()
+  .optional()
+  .refine((v) => !v || REGEX.TELEFONO_NUM.test(v.replace(/[\s()+-]/g, "")), { message: "El teléfono solo admite números (10 u 11 dígitos)" });
+
 /** Alta directa de jubilado/pensionado (permiso pasivos.crear). */
 export const registrarPasivoSchema = z.object({
-  cedula: z.string().trim().min(5, { message: "Cédula inválida" }).max(20),
-  nombres: z.string().trim().min(1, { message: "Nombres requeridos" }).max(150),
-  apellidos: z.string().trim().min(1, { message: "Apellidos requeridos" }).max(150),
+  cedula: z.string().trim().regex(REGEX.CEDULA_NUM, { message: "La cédula solo admite números (5 a 10 dígitos)" }),
+  nombres: z.string().trim().min(1, { message: "Nombres requeridos" }).max(100).regex(REGEX.NAME, { message: "Los nombres solo admiten letras y espacios" }),
+  apellidos: z.string().trim().min(1, { message: "Apellidos requeridos" }).max(100).regex(REGEX.NAME, { message: "Los apellidos solo admiten letras y espacios" }),
   sexoId: z.number().int().positive({ message: "Seleccione el sexo" }),
   fechaNacimiento: z.string().trim().min(1, { message: "Fecha de nacimiento requerida" }),
   tipoNominaId: z.number().int().positive({ message: "Seleccione una nómina de pasivo" }),
   estadoCivilId: z.number().int().positive().nullable().optional(),
   nacionalidadId: z.number().int().positive().nullable().optional(),
   correo: z.string().trim().email({ message: "Correo inválido" }).max(254).nullable().optional(),
-  telefonoMovil: z.string().trim().max(20).nullable().optional(),
-  telefonoHabitacion: z.string().trim().max(20).nullable().optional(),
+  telefonoMovil: telefonoOpcional,
+  telefonoHabitacion: telefonoOpcional,
   carnetPatria: z.string().trim().max(30).nullable().optional(),
   datosVivienda: z
     .object({
@@ -67,11 +76,11 @@ export const registrarPasivoSchema = z.object({
 
 /** Datos básicos editables del pasivo (permiso pasivos.editar). */
 export const actualizarPasivoSchema = z.object({
-  nombres: z.string().trim().min(1).max(150).optional(),
-  apellidos: z.string().trim().min(1).max(150).optional(),
+  nombres: z.string().trim().min(1).max(150).regex(REGEX.NAME_EDICION, { message: "Los nombres solo admiten letras y espacios" }).optional(),
+  apellidos: z.string().trim().min(1).max(150).regex(REGEX.NAME_EDICION, { message: "Los apellidos solo admiten letras y espacios" }).optional(),
   correo: z.string().trim().email({ message: "Correo inválido" }).max(254).nullable().optional(),
-  telefonoMovil: z.string().trim().max(20).nullable().optional(),
-  telefonoHabitacion: z.string().trim().max(20).nullable().optional(),
+  telefonoMovil: telefonoOpcional,
+  telefonoHabitacion: telefonoOpcional,
   carnetPatria: z.string().trim().max(30).nullable().optional(),
   fechaNacimiento: z.string().trim().nullable().optional(),
   estadoCivilId: z.number().int().positive().nullable().optional(),

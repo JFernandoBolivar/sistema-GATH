@@ -26,6 +26,14 @@ const nextConfig: NextConfig = {
             value: "camera=(), microphone=(), geolocation=()",
           },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          // CSP base sin tocar scripts ni estilos (no cambia el render): impide
+          // incrustar la app en iframes ajenos, plugins (<object>/<embed>),
+          // cambiar la <base> y enviar formularios a otros dominios. La CSP de
+          // scripts con nonce queda como decisión aparte (ver plan 2026-11-03).
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+          },
           ...(process.env.NODE_ENV === "production"
             ? [
                 {

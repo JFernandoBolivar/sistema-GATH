@@ -344,8 +344,6 @@ export function AppSidebarPersonal() {
   };
   const { data: session } = useSession();
 
-  const isAdmin = session?.user?.role?.nombre_rol === "ADMINISTRADOR";
-
   const filteredItems = filtrarMenuPorPermisos(items, session?.user?.permisos);
 
   return (

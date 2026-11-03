@@ -128,7 +128,11 @@ DATABASES = {
         # Reutiliza la conexión entre peticiones (A-04): sin esto cada request
         # abre y cierra una conexión a PostgreSQL. `CONN_HEALTH_CHECKS` descarta
         # una conexión reutilizada que el servidor haya cerrado.
-        'CONN_MAX_AGE': config('DJANGO_CONN_MAX_AGE', default=60, cast=int),
+        # 600 s (antes 60): con 9 workers x 2 hilos, cada hilo reabría su
+        # conexión cada minuto y abrir una conexión a PostgreSQL en Windows
+        # cuesta de 0,25 a 3,5 s medidos; eso causaba picos de p90 de 2,3 s
+        # en el listado (con 600 s: p90 0,16 s, máximo 0,23 s).
+        'CONN_MAX_AGE': config('DJANGO_CONN_MAX_AGE', default=600, cast=int),
         'CONN_HEALTH_CHECKS': config('DJANGO_CONN_HEALTH_CHECKS', default=True, cast=bool),
     }
 }
@@ -154,7 +158,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
+    # Argon2id con parámetros OWASP (m=19 MiB, t=2, p=1); el primero se usa para
+    # hashear y los hashes con los parámetros por defecto se actualizan al entrar.
+    'apps.identidad.infrastructure.auth.hasher_argon2.Argon2OWASPPasswordHasher',
+    # Sin el Argon2PasswordHasher de Django: comparte el nombre 'argon2' y taparía
+    # al OWASP al identificar el hash. El OWASP verifica cualquier hash argon2.
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',

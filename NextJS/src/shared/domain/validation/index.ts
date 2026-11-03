@@ -41,9 +41,19 @@ export const PHONE_VE_FIJO_MSG = "Teléfono fijo inválido";
 
 // --- Texto general ---
 
-/** Nombres/apellidos: letras (con acentos y ñ) y espacios. */
-export const NAME = /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ\s]{2,100}$/;
+/**
+ * Nombres/apellidos: letras (con acentos, diéresis y ñ), espacios y apóstrofo
+ * (D'EMILIO). Sin números ni otros símbolos.
+ */
+export const NAME = /^[a-zA-ZáéíóúüñàèìòùÁÉÍÓÚÜÑÀÈÌÒÙ\s'’`]{2,100}$/;
 export const NAME_MSG = "Solo letras y espacios (2 a 100 caracteres)";
+
+/**
+ * Igual que NAME pero admite el punto de las iniciales del legado ("JOSE A.").
+ * Solo para EDITAR registros existentes, para no bloquear datos históricos.
+ */
+export const NAME_EDICION = /^[a-zA-ZáéíóúüñàèìòùÁÉÍÓÚÜÑÀÈÌÒÙ\s'’`.]{1,150}$/;
+export const NAME_EDICION_MSG = "Solo letras y espacios";
 
 /** Texto seguro para descripciones/observaciones: sin HTML ni caracteres de control. */
 export const SAFE_TEXT = /^[a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ\s\-,.#;:()/ºª!?@]+$/;
@@ -67,6 +77,14 @@ export const NO_HTML_MSG = 'No se permiten caracteres HTML (< > & ")';
 export const DIGITS = /^\d+$/;
 export const DIGITS_MSG = "Solo números";
 
+/** Cédula solo con dígitos y longitud real (5 a 10). */
+export const CEDULA_NUM = /^\d{5,10}$/;
+export const CEDULA_NUM_MSG = "La cédula solo admite números (5 a 10 dígitos)";
+
+/** Teléfono: solo dígitos (10 u 11), sin letras. */
+export const TELEFONO_NUM = /^\d{10,11}$/;
+export const TELEFONO_NUM_MSG = "El teléfono solo admite números (10 u 11 dígitos)";
+
 // --- Fechas ---
 
 /** Fecha ISO: YYYY-MM-DD. */
@@ -76,6 +94,8 @@ export const DATE_ISO_MSG = "Fecha inválida. Formato: YYYY-MM-DD";
 export const REGEX = {
   CEDULA,
   CEDULA_DIGITOS: DIGITS,
+  CEDULA_NUM,
+  TELEFONO_NUM,
   RIF,
   EMAIL,
   USUARIO_LOGIN,
@@ -83,6 +103,7 @@ export const REGEX = {
   TELEFONO: PHONE_VE,
   PHONE_VE_FIJO,
   NAME,
+  NAME_EDICION,
   SOLO_LETRAS: NAME,
   SAFE_TEXT,
   PASSWORD,

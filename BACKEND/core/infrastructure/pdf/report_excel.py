@@ -11,6 +11,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from core.infrastructure.pdf.excel_seguro import forzar_texto
+
 
 def generar_reporte_excel(
     titulo: str, columnas: list[str], filas: list[dict],
@@ -27,7 +29,7 @@ def generar_reporte_excel(
     if filtros:
         for etiqueta, valor in filtros:
             ws.cell(row=fila_encabezado, column=1, value=f'{etiqueta}:').font = Font(bold=True)
-            ws.cell(row=fila_encabezado, column=2, value=str(valor))
+            forzar_texto(ws.cell(row=fila_encabezado, column=2, value=str(valor)))
             fila_encabezado += 1
         fila_encabezado += 1  # fila en blanco antes de la tabla
 
@@ -38,7 +40,7 @@ def generar_reporte_excel(
 
     for fila_idx, fila in enumerate(filas, start=fila_encabezado + 1):
         for col_idx, columna in enumerate(columnas, start=1):
-            ws.cell(row=fila_idx, column=col_idx, value=fila.get(columna))
+            forzar_texto(ws.cell(row=fila_idx, column=col_idx, value=fila.get(columna)))
 
     for col_idx in range(1, len(columnas) + 1):
         ws.column_dimensions[get_column_letter(col_idx)].width = 22

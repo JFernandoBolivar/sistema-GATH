@@ -91,8 +91,8 @@ export const familiarSchema = z.object({
     .nullable()
     .optional()
     .transform((v) => (v ? v : null))
-    .refine((v) => v === null || REGEX.CEDULA_DIGITOS.test(v), {
-      message: "Cédula del familiar inválida",
+    .refine((v) => v === null || REGEX.CEDULA_NUM.test(v), {
+      message: "La cédula del familiar solo admite números (5 a 10 dígitos)",
     }),
   primerNombre: z
     .string()

@@ -14,6 +14,7 @@ from apps.autogestion.domain.value_objects.secciones import (
     Accion,
 )
 from core.domain.exceptions import ValidationError
+from core.domain.validacion_personas import validar_nombre
 
 _TELEFONO = re.compile(r'^\+?\d[\d\s\-]{6,18}\d$')
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
@@ -23,6 +24,10 @@ _LARGO_TEXTO = 150
 _CAMPOS_BOOL = {'tiene_hijos'}
 _CAMPOS_FECHA = {'fecha_nacimiento'}
 _CAMPOS_TELEFONO = {'telefono_movil', 'telefono_habitacion', 'telefono'}
+# Nombres de personas: solo letras y espacios (paridad con NAME del frontend).
+_CAMPOS_NOMBRE = {
+    'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'nombres', 'apellidos',
+}
 _OPCIONALES_NULOS = {
     'segundo_nombre', 'segundo_apellido', 'observaciones', 'cedula_familiar', 'telefono_habitacion',
     'telefono', 'correo_alternativo', 'tiene_hijos', 'mencion_id', 'carrera_id', 'institucion_id',
@@ -51,6 +56,11 @@ def validar_valor(campo: str, valor):
         raise ValidationError(f"El teléfono de '{campo}' no tiene un formato válido.")
     if campo == 'correo_alternativo' and (not _CORREO.match(valor) or len(valor) > 254):
         raise ValidationError("El correo alternativo no tiene un formato válido.")
+    if campo in _CAMPOS_NOMBRE:
+        try:
+            valor = validar_nombre(valor, edicion=True, etiqueta=f"El campo '{campo}'")
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from None
     if campo == 'cedula_familiar' and not _CEDULA_FAMILIAR.match(valor):
         raise ValidationError("La cédula del familiar no tiene un formato válido.")
     if campo in _CAMPOS_FECHA:

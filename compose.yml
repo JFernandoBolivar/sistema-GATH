@@ -90,9 +90,9 @@ services:
       bootstrap:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "celery -A GATH inspect ping -d celery@$$HOSTNAME -t 5 || exit 1"]
+      test: ["CMD-SHELL", "test -f /tmp/celery_worker_heartbeat && test $$(( $$(date +%s) - $$(stat -c %Y /tmp/celery_worker_heartbeat) )) -lt 60"]
       interval: 30s
-      timeout: 15s
+      timeout: 5s
       retries: 3
       start_period: 40s
     restart: always
@@ -254,7 +254,9 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     ports:
-      - "9443:9443"
+      # Solo desde el propio servidor (túnel SSH/VPN): Portainer monta docker.sock
+      # y quien entre controla el host. No publicar a la red.
+      - "127.0.0.1:9443:9443"
 
 volumes:
   portainer_data:

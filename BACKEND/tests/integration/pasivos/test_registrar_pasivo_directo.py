@@ -82,7 +82,7 @@ def catalogos():
     }
 
 
-def _cuerpo(catalogos, cedula='V-7777', tipo_nomina=None):
+def _cuerpo(catalogos, cedula='997777', tipo_nomina=None):
     return {
         'cedula': cedula,
         'nombres': 'Ana',
@@ -99,10 +99,10 @@ def test_registrar_pasivo_directo_crea_employee_y_asignacion(catalogos):
     )
     assert respuesta.status_code == 201, respuesta.content
     datos = respuesta.json()['data']
-    assert datos['cedula'] == 'V-7777'
+    assert datos['cedula'] == '997777'
     assert datos['tipo_nomina_id'] == catalogos['nomina_pasivo'].pk
 
-    empleado = EmployeeModel.objects.get(cedulaidentidad='V-7777')
+    empleado = EmployeeModel.objects.get(cedulaidentidad='997777')
     asignacion = AsigTrabajoModel.objects.get(employee=empleado)
     assert asignacion.Tipo_personal.tipo_personal == 'PASIVO'
     assert asignacion.tiponominaid.es_activo is False
@@ -115,7 +115,7 @@ def test_registrar_pasivo_directo_crea_employee_y_asignacion(catalogos):
 
 def test_registrar_pasivo_directo_acepta_el_payload_anidado_del_wizard(catalogos):
     """El wizard de 7 pasos envía expediente anidado en el alta."""
-    cuerpo = _cuerpo(catalogos, cedula='V-7782')
+    cuerpo = _cuerpo(catalogos, cedula='997782')
     cuerpo.update(
         {
             'perfil_salud': {
@@ -143,7 +143,7 @@ def test_registrar_pasivo_directo_acepta_el_payload_anidado_del_wizard(catalogos
     )
 
     assert respuesta.status_code == 201, respuesta.content
-    assert respuesta.json()['data']['cedula'] == 'V-7782'
+    assert respuesta.json()['data']['cedula'] == '997782'
 
 
 def test_registrar_pasivo_directo_acepta_ids_en_las_fks_anidadas(catalogos):
@@ -172,7 +172,7 @@ def test_registrar_pasivo_directo_acepta_ids_en_las_fks_anidadas(catalogos):
     nivel = NivelAcademicoModel.objects.create(nivelacademico='UNIVERSITARIO')
     institucion = InstitucionModel.objects.create(nombre_institucion='UCV')
 
-    cuerpo = _cuerpo(catalogos, cedula='V-7783')
+    cuerpo = _cuerpo(catalogos, cedula='997783')
     cuerpo.update(
         {
             'datos_vivienda': {
@@ -205,7 +205,7 @@ def test_registrar_pasivo_directo_acepta_ids_en_las_fks_anidadas(catalogos):
     )
 
     assert respuesta.status_code == 201, respuesta.content
-    empleado = EmployeeModel.objects.get(cedulaidentidad='V-7783')
+    empleado = EmployeeModel.objects.get(cedulaidentidad='997783')
     vivienda = DatosViviendaModel.objects.get(empleado=empleado)
     assert vivienda.estado_id == estado.pk
     assert vivienda.municipio_id == municipio.pk
@@ -218,15 +218,15 @@ def test_registrar_pasivo_directo_acepta_ids_en_las_fks_anidadas(catalogos):
 def test_rechaza_nomina_de_activos(catalogos):
     respuesta = _cliente('pasivos.crear').post(
         '/api/v1/pasivos/',
-        _cuerpo(catalogos, cedula='V-7778', tipo_nomina=catalogos['nomina_activo']),
+        _cuerpo(catalogos, cedula='997778', tipo_nomina=catalogos['nomina_activo']),
         format='json',
     )
     assert respuesta.status_code == 400
-    assert not EmployeeModel.objects.filter(cedulaidentidad='V-7778').exists()
+    assert not EmployeeModel.objects.filter(cedulaidentidad='997778').exists()
 
 
 def test_rechaza_cedula_duplicada(catalogos):
-    cuerpo = _cuerpo(catalogos, cedula='V-7779')
+    cuerpo = _cuerpo(catalogos, cedula='997779')
     api = _cliente('pasivos.crear')
     assert api.post('/api/v1/pasivos/', cuerpo, format='json').status_code == 201
     assert api.post('/api/v1/pasivos/', cuerpo, format='json').status_code == 409
@@ -242,12 +242,12 @@ def test_sin_permiso_de_crear_responde_403(catalogos):
 def test_actualizar_pasivo_acepta_el_mismo_payload_anidado_que_personal(catalogos):
     """A-40: los datos personales viven en Employee, no en la asignación."""
     creado = _cliente('pasivos.crear').post(
-        '/api/v1/pasivos/', _cuerpo(catalogos, cedula='V-7780'), format='json',
+        '/api/v1/pasivos/', _cuerpo(catalogos, cedula='997780'), format='json',
     )
     assert creado.status_code == 201
 
     respuesta = _cliente('pasivos.editar').patch(
-        '/api/v1/pasivos/V-7780/',
+        '/api/v1/pasivos/997780/',
         {
             'correo': 'pasivo@example.com',
             'perfil_fisico': {
@@ -271,11 +271,11 @@ def test_actualizar_pasivo_acepta_el_mismo_payload_anidado_que_personal(catalogo
 def test_listado_expone_sexo_ingreso_y_filtra_por_codigo(catalogos):
     """Feedback 45: datos de la tabla de activos y filtro por código de trabajador."""
     creado = _cliente('pasivos.crear').post(
-        '/api/v1/pasivos/', _cuerpo(catalogos, cedula='V-7781'), format='json',
+        '/api/v1/pasivos/', _cuerpo(catalogos, cedula='997781'), format='json',
     )
     assert creado.status_code == 201
 
-    empleado = EmployeeModel.objects.get(cedulaidentidad='V-7781')
+    empleado = EmployeeModel.objects.get(cedulaidentidad='997781')
     asignacion = AsigTrabajoModel.objects.get(employee=empleado)
     AntecedenteServicioModel.objects.create(
         empleado=empleado, fecha_ingreso=datetime.date(2001, 3, 4),
@@ -289,7 +289,7 @@ def test_listado_expone_sexo_ingreso_y_filtra_por_codigo(catalogos):
     cuerpo = respuesta.json()['data']
     assert cuerpo['count'] == 1
     fila = cuerpo['results'][0]
-    assert fila['cedula'] == 'V-7781'
+    assert fila['cedula'] == '997781'
     assert fila['sexo_nombre'] == 'M'
     assert fila['fecha_ingreso_organismo'] == '2001-03-04'
     assert fila['nombres'].upper() == 'ANA'

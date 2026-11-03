@@ -16,6 +16,12 @@ from core.presentation.serializers.expediente_lectura import (
     PerfilFisicoLecturaSerializer,
     PerfilSaludLecturaSerializer,
 )
+from core.presentation.validadores_personas import (
+    validar_cedula,
+    validar_drf as _validar,
+    validar_nombre,
+    validar_telefono,
+)
 
 
 class CargoEgresadoSerializer(serializers.Serializer):
@@ -140,11 +146,22 @@ class PasivoCrearInputSerializer(serializers.Serializer):
     antecedentes = serializers.ListField(child=serializers.DictField(), required=False)
     contrato = serializers.ListField(child=serializers.DictField(), required=False)
 
+    def validate_cedula(self, value):
+        return _validar(validar_cedula, value)
+
     def validate_nombres(self, value):
+        value = _validar(validar_nombre, value, etiqueta='Los nombres')
         return value.upper() if value else value
 
     def validate_apellidos(self, value):
+        value = _validar(validar_nombre, value, etiqueta='Los apellidos')
         return value.upper() if value else value
+
+    def validate_telefono_movil(self, value):
+        return _validar(validar_telefono, value)
+
+    def validate_telefono_habitacion(self, value):
+        return _validar(validar_telefono, value)
 
 
 class PasivoListaInputSerializer(serializers.Serializer):
@@ -174,7 +191,15 @@ class PasivoActualizarInputSerializer(serializers.Serializer):
     nacionalidad_id = serializers.IntegerField(required=False, allow_null=True)
 
     def validate_nombres(self, value):
+        value = _validar(validar_nombre, value, edicion=True, etiqueta='Los nombres')
         return value.upper() if value else value
 
     def validate_apellidos(self, value):
+        value = _validar(validar_nombre, value, edicion=True, etiqueta='Los apellidos')
         return value.upper() if value else value
+
+    def validate_telefono_movil(self, value):
+        return _validar(validar_telefono, value)
+
+    def validate_telefono_habitacion(self, value):
+        return _validar(validar_telefono, value)
