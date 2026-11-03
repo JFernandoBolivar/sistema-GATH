@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { itemActivo, itemsVisibles } from "../shell/nav-autogestion";
 import { ControlTamanoTexto } from "../shell/control-tamano-texto";
+import { ContadorMenuNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 
 /**
  * Menú de Autogestión con el mismo sidebar shadcn de los demás módulos.
@@ -75,6 +76,9 @@ export function AppSidebarAutogestion() {
                           <span>{item.etiqueta}</span>
                         </Link>
                       </SidebarMenuButton>
+                      {item.id === "notificaciones" ? (
+                        <ContadorMenuNotificaciones modulo="autogestion" />
+                      ) : null}
                     </SidebarMenuItem>
                   );
                 })}

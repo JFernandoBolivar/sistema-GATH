@@ -28,6 +28,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
+import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 
 type MenuItem = {
   title: string;
@@ -157,6 +158,7 @@ export function AppSidebarCarnetizacion() {
                         )}
                       </>
                     ) : (
+                      <>
                       <SidebarMenuButton asChild>
                         <Link
                           href={item.url}
@@ -166,6 +168,11 @@ export function AppSidebarCarnetizacion() {
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
+                      {(() => {
+                        const modulo = moduloDeRutaNotificaciones(item.url);
+                        return modulo ? <ContadorMenuNotificaciones modulo={modulo} /> : null;
+                      })()}
+                      </>
                     )}
                   </SidebarMenuItem>
                 ))}
