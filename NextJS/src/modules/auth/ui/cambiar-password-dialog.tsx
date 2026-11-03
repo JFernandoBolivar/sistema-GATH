@@ -1,5 +1,7 @@
 "use client";
 
+import { InputPassword } from "@/shared/ui/components/input-password";
+
 /**
  * Diálogo de cambio de contraseña. Modo obligatorio (`session.user.debeCambiarPassword`,
  * no descartable) o voluntario (`obligatorio={false}`, desde la cabecera, para todo usuario).
@@ -100,7 +102,13 @@ export default function CambiarPasswordDialog({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <Label htmlFor="current_password">Contraseña Actual</Label>
-                <Input {...field} id="current_password" type="password" autoComplete="current-password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
+                <InputPassword
+                  {...field}
+                  id="current_password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  aria-invalid={fieldState.invalid}
+                />
                 {fieldState.error && (
                   <p role="alert" className="text-sm text-destructive">
                     {fieldState.error.message}
@@ -115,7 +123,13 @@ export default function CambiarPasswordDialog({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <Label htmlFor="new_password">Nueva Contraseña</Label>
-                <Input {...field} id="new_password" type="password" autoComplete="new-password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
+                <InputPassword
+                  {...field}
+                  id="new_password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  aria-invalid={fieldState.invalid}
+                />
                 {fieldState.error && (
                   <p role="alert" className="text-sm text-destructive">
                     {fieldState.error.message}
@@ -130,7 +144,13 @@ export default function CambiarPasswordDialog({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <Label htmlFor="confirm_password">Confirmar Contraseña</Label>
-                <Input {...field} id="confirm_password" type="password" autoComplete="new-password" placeholder="••••••••" aria-invalid={fieldState.invalid} />
+                <InputPassword
+                  {...field}
+                  id="confirm_password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  aria-invalid={fieldState.invalid}
+                />
                 {fieldState.error && (
                   <p role="alert" className="text-sm text-destructive">
                     {fieldState.error.message}
@@ -140,7 +160,11 @@ export default function CambiarPasswordDialog({
             )}
           />
           <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Save className="size-4" aria-hidden="true" />}
+            {isPending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <Save className="size-4" aria-hidden="true" />
+            )}
             {isPending ? "Cambiando..." : "Cambiar Contraseña"}
           </Button>
         </form>

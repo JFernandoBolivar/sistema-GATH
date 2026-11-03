@@ -1,5 +1,7 @@
 "use client";
 
+import { InputPassword } from "@/shared/ui/components/input-password";
+
 /**
  * Alta de usuarios en ruta propia (D4). D3: sin departamento; el acceso se
  * decide por rol y permisos.
@@ -107,8 +109,7 @@ export default function UsuarioRegistrarPage() {
               </Field>
               <Field data-invalid={!!form.formState.errors.password}>
                 <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  type="password"
+                <InputPassword
                   id="password"
                   placeholder="Mínimo 8 caracteres"
                   {...form.register("password")}

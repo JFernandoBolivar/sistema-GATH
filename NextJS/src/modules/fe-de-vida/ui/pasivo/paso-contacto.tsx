@@ -93,6 +93,7 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
               name="telefonoMovil"
               render={({ field }) => (
                 <CampoTelefono
+                  tipo="movil"
                   id="fv-movil"
                   value={field.value}
                   onChange={field.onChange}

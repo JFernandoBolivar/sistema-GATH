@@ -140,6 +140,7 @@ export function EditarPasivoDialog({
                 name="telefonoMovil"
                 render={({ field }) => (
                   <CampoTelefono
+                    tipo="movil"
                     id="edit-movil"
                     value={field.value}
                     onChange={field.onChange}

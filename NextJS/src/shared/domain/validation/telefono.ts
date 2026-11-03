@@ -16,6 +16,87 @@ import {
 } from "libphonenumber-js/max";
 
 export type TipoTelefono = "movil" | "cualquiera";
+
+/** Códigos de las operadoras móviles de Venezuela, con su operadora. */
+export const OPERADORAS_VE: Record<string, string> = {
+  "0412": "Digitel",
+  "0414": "Movistar",
+  "0416": "Movilnet",
+  "0422": "Digitel",
+  "0424": "Movistar",
+  "0426": "Movilnet",
+};
+/** Códigos de área de la telefonía fija de Venezuela, con su zona. */
+export const ZONAS_VE: Record<string, string> = {
+  "0212": "Caracas (Distrito Capital)",
+  "0234": "Miranda",
+  "0235": "Guárico",
+  "0238": "Guárico",
+  "0239": "Miranda",
+  "0241": "Carabobo (Valencia)",
+  "0242": "Carabobo (Puerto Cabello)",
+  "0243": "Aragua (Maracay)",
+  "0244": "Aragua",
+  "0245": "Carabobo",
+  "0246": "Guárico",
+  "0247": "Apure",
+  "0248": "Amazonas",
+  "0249": "Carabobo",
+  "0251": "Lara (Barquisimeto)",
+  "0252": "Lara",
+  "0253": "Lara",
+  "0254": "Yaracuy",
+  "0255": "Portuguesa",
+  "0256": "Portuguesa",
+  "0257": "Portuguesa",
+  "0258": "Cojedes",
+  "0259": "Falcón",
+  "0261": "Zulia (Maracaibo)",
+  "0262": "Zulia",
+  "0263": "Zulia",
+  "0264": "Zulia",
+  "0265": "Zulia",
+  "0266": "Zulia",
+  "0267": "Zulia",
+  "0268": "Falcón (Coro)",
+  "0269": "Falcón (Punto Fijo)",
+  "0271": "Zulia / Mérida / Trujillo",
+  "0272": "Trujillo",
+  "0273": "Barinas",
+  "0274": "Mérida",
+  "0275": "Mérida / Táchira",
+  "0276": "Táchira (San Cristóbal)",
+  "0277": "Táchira",
+  "0278": "Barinas / Apure",
+  "0279": "Falcón",
+  "0281": "Anzoátegui (Barcelona)",
+  "0282": "Anzoátegui",
+  "0283": "Anzoátegui",
+  "0284": "Bolívar",
+  "0285": "Bolívar (Ciudad Bolívar)",
+  "0286": "Bolívar (Guayana)",
+  "0287": "Delta Amacuro",
+  "0288": "Bolívar",
+  "0289": "Bolívar",
+  "0291": "Monagas (Maturín)",
+  "0292": "Monagas",
+  "0293": "Sucre (Cumaná)",
+  "0294": "Sucre",
+  "0295": "Nueva Esparta",
+};
+export const PREFIJOS_MOVIL_VE = Object.keys(OPERADORAS_VE);
+export const PREFIJOS_FIJO_VE = Object.keys(ZONAS_VE);
+
+/** Separa un número nacional venezolano en código (0412, 0212…) y los 7 dígitos restantes. */
+export function separarPrefijoVE(nacional: string): { prefijo: string; numero: string } {
+  const digitos = nacional.replace(/\D/g, "").replace(/^0/, "");
+  const prefijo = `0${digitos.slice(0, 3)}`;
+  const conocidos: readonly string[] = [...PREFIJOS_MOVIL_VE, ...PREFIJOS_FIJO_VE];
+  if (digitos.length >= 3 && conocidos.includes(prefijo)) {
+    return { prefijo, numero: digitos.slice(3) };
+  }
+  return { prefijo: "", numero: digitos };
+}
 export const PAIS_POR_DEFECTO: CountryCode = "VE";
 
 export type ResultadoTelefono = { ok: true; e164: string | null } | { ok: false; mensaje: string };
