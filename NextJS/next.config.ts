@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // La imagen Docker (etapa runner) arranca con .next/standalone/server.js.
   output: "standalone",
+  // No anunciar el framework en la cabecera X-Powered-By (caja negra 2026-11-03).
+  poweredByHeader: false,
   experimental: {
     serverActions: {
       bodySizeLimit: "25mb",

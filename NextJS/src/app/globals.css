@@ -286,7 +286,9 @@ main { min-width: 0; }
 @media (max-width: 1023px) { [data-slot="card"] { max-width: calc(100vw - 3rem); } }
 
 
-@media (max-width: 1023px) { [data-slot="scroll-area"], [data-radix-scroll-area-viewport] { max-width: calc(100vw - 3rem) !important; } }
+/* El ScrollArea raíz (.scroll-app) queda fuera: si se acota, todo el shell
+   pierde 3rem a la derecha en tablet y las pestañas largas se cortan. */
+@media (max-width: 1023px) { [data-slot="scroll-area"]:not(.scroll-app), [data-radix-scroll-area-viewport]:not(.scroll-app > *) { max-width: calc(100vw - 3rem) !important; } }
 
 
 @media (max-width: 1023px) {
