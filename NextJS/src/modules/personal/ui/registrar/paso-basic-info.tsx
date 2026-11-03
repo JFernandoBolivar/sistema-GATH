@@ -94,7 +94,7 @@ export function PasoBasicInfo({
         <CardAction className="text-gray-500">Paso 1: Información Basica</CardAction>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmitPaso)} autoComplete="off">
-            <div className="gap-4">
+            <div className="flex flex-col gap-8">
               <div className="border rounded-lg p-4 gap-3">
                 <CapturaFoto
                   etiqueta="Foto del Trabajador"
@@ -106,13 +106,15 @@ export function PasoBasicInfo({
                   }}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex gap-2 col-span-2">
+
+              <section className="flex flex-col gap-4">
+                <h3 className="text-sm font-semibold text-muted-foreground">Identificación</h3>
+                <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                   <FormField
                     control={form.control}
                     name="nacionalidad_id"
                     render={({ field }) => (
-                      <FormItem className="w-48">
+                      <FormItem className="flex flex-col gap-2">
                         <FormLabel>Nacionalidad *</FormLabel>
                         <Select
                           value={field.value ? `${field.value}` : ""}
@@ -137,175 +139,183 @@ export function PasoBasicInfo({
                       </FormItem>
                     )}
                   />
-                  <div className="flex-1">
-                    <InputForm
-                      form={form}
-                      label="Cedula de Identidad *"
-                      nameInput="cedulaidentidad"
-                      placeholder="00000000"
-                      type="number"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <InputForm
-                      form={form}
-                      label="Código del Carnet de la Patria"
-                      nameInput="carnet_patria"
-                      placeholder="0000000000"
-                      type="text"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <InputForm
-                      form={form}
-                      label="Serial del Carnet de la Patria"
-                      nameInput="carnet_patria_serial"
-                      placeholder="Serial"
-                      type="text"
-                    />
-                  </div>
+                  <InputForm
+                    form={form}
+                    label="Cedula de Identidad *"
+                    nameInput="cedulaidentidad"
+                    placeholder="00000000"
+                    type="number"
+                  />
                 </div>
-                <div className="flex gap-2 col-span-2">
-                  <div className="flex-1">
-                    <InputForm
-                      form={form}
-                      label="Nombre *"
-                      nameInput="nombres"
-                      placeholder="Juan Bernardo"
-                      type="text"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <InputForm
-                      form={form}
-                      label="Apellidos *"
-                      nameInput="apellidos"
-                      placeholder="Perez Gutierrez"
-                      type="text"
-                    />
-                  </div>
-                </div>
-                <FormField
-                  control={form.control}
-                  name="fecha_nacimiento"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col  grow shrink basis-40 ">
-                      <FormLabel> Fecha de Nacimiento *</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button type="button" variant={"outline"} className="font-light">
-                              {field.value ? (
-                                formatInTimeZone(field.value, "UTC", "dd/MM/yyy")
-                              ) : (
-                                <span>Selecciona una fecha</span>
-                              )}
-                              <CalendarIcon className="ml-auto size-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            selected={field.value ? new Date(field.value) : undefined}
-                            mode="single"
-                            onSelect={(date) => field.onChange(date)}
-                            disabled={(date: Date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
-                            captionLayout="dropdown"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <SelectForm
-                  Formlabel="Sexo *"
-                  SelectLabelItem="Seleccione Un Genero"
-                  form={form}
-                  isLoading={isLoadingCatalogos}
-                  placeholder="Seleccione un Genero"
-                  nameSalect="sexoid"
-                  labelKey={"nombre"}
-                  valueKey={"id"}
-                  options={catalogos?.sexos ?? []}
-                />
-                <InputForm
-                  className="w-full"
-                  form={form}
-                  label="Correo Electronico"
-                  nameInput="correo"
-                  placeholder="ejemplo@gmail.com"
-                  type="email"
-                />
-                <FormField
-                  control={form.control}
-                  name="telefono_movil"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Teléfono De Móvil</FormLabel>
-                      <FormControl>
-                        <CampoTelefono
-                          tipo="movil"
-                          value={field.value}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          invalido={!!form.formState.errors.telefono_movil}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="telefono_habitacion"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Teléfono De Habitación</FormLabel>
-                      <FormControl>
-                        <CampoTelefono
-                          value={field.value}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          invalido={!!form.formState.errors.telefono_habitacion}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="estadoCivil"
-                  render={({ field }) => (
-                    <FormItem className="col-span-2">
-                      <FormLabel>Estado Civil </FormLabel>
-                      <Select
-                        value={field.value ? `${field.value}` : undefined}
-                        onValueChange={(v) => field.onChange(Number.parseInt(v))}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate ">
-                            <SelectValue
-                              placeholder={`${isLoadingCatalogos ? "Cargando Estado Civil" : "Seleccione Un Estado Civil"}`}
+              </section>
+
+              <section className="flex flex-col gap-4">
+                <h3 className="text-sm font-semibold text-muted-foreground">Datos personales</h3>
+                <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+                  <InputForm
+                    form={form}
+                    label="Nombre *"
+                    nameInput="nombres"
+                    placeholder="Juan Bernardo"
+                    type="text"
+                  />
+                  <InputForm
+                    form={form}
+                    label="Apellidos *"
+                    nameInput="apellidos"
+                    placeholder="Perez Gutierrez"
+                    type="text"
+                  />
+                  <FormField
+                    control={form.control}
+                    name="fecha_nacimiento"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-2">
+                        <FormLabel> Fecha de Nacimiento *</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button type="button" variant={"outline"} className="font-light">
+                                {field.value ? (
+                                  formatInTimeZone(field.value, "UTC", "dd/MM/yyy")
+                                ) : (
+                                  <span>Selecciona una fecha</span>
+                                )}
+                                <CalendarIcon className="ml-auto size-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              selected={field.value ? new Date(field.value) : undefined}
+                              mode="single"
+                              onSelect={(date) => field.onChange(date)}
+                              disabled={(date: Date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                              }
+                              captionLayout="dropdown"
                             />
-                          </SelectTrigger>
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <SelectForm
+                    Formlabel="Sexo *"
+                    SelectLabelItem="Seleccione Un Genero"
+                    form={form}
+                    isLoading={isLoadingCatalogos}
+                    placeholder="Seleccione un Genero"
+                    nameSalect="sexoid"
+                    labelKey={"nombre"}
+                    valueKey={"id"}
+                    options={catalogos?.sexos ?? []}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="estadoCivil"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-2">
+                        <FormLabel>Estado Civil </FormLabel>
+                        <Select
+                          value={field.value ? `${field.value}` : undefined}
+                          onValueChange={(v) => field.onChange(Number.parseInt(v))}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full truncate ">
+                              <SelectValue
+                                placeholder={`${isLoadingCatalogos ? "Cargando Estado Civil" : "Seleccione Un Estado Civil"}`}
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(catalogos?.estadosCiviles ?? []).map((status) => (
+                              <SelectItem key={status.id} value={`${status.id}`}>
+                                {status.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </section>
+
+              <section className="flex flex-col gap-4">
+                <h3 className="text-sm font-semibold text-muted-foreground">Contacto</h3>
+                <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <InputForm
+                      className="w-full"
+                      form={form}
+                      label="Correo Electronico"
+                      nameInput="correo"
+                      placeholder="ejemplo@gmail.com"
+                      type="email"
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="telefono_movil"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-2">
+                        <FormLabel>Teléfono De Móvil</FormLabel>
+                        <FormControl>
+                          <CampoTelefono
+                            tipo="movil"
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            invalido={!!form.formState.errors.telefono_movil}
+                          />
                         </FormControl>
-                        <SelectContent>
-                          {(catalogos?.estadosCiviles ?? []).map((status) => (
-                            <SelectItem key={status.id} value={`${status.id}`}>
-                              {status.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="telefono_habitacion"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col gap-2">
+                        <FormLabel>Teléfono De Habitación</FormLabel>
+                        <FormControl>
+                          <CampoTelefono
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            invalido={!!form.formState.errors.telefono_habitacion}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </section>
+
+              <section className="flex flex-col gap-4">
+                <h3 className="text-sm font-semibold text-muted-foreground">Carnet de la Patria</h3>
+                <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
+                  <InputForm
+                    form={form}
+                    label="Código del Carnet de la Patria"
+                    nameInput="carnet_patria"
+                    placeholder="0000000000"
+                    type="text"
+                  />
+                  <InputForm
+                    form={form}
+                    label="Serial del Carnet de la Patria"
+                    nameInput="carnet_patria_serial"
+                    placeholder="Serial"
+                    type="text"
+                  />
+                </div>
+              </section>
             </div>
             <div className="border rounded-lg p-4 mt-4 flex flex-col gap-3">
               <div>
