@@ -86,8 +86,12 @@ class RepoCarnetizacionORM:
 
     def registrar_foto_perfil(self, cedula: str, clave: str) -> None:
         """Guarda la clave (SeaweedFS) de la foto de perfil usada por el carnet."""
-        if not EmployeeModel.objects.filter(cedulaidentidad=cedula).update(profile=clave):
+        # save() y no queryset.update(): dispara post_save e invalida la caché de «Mi ficha».
+        fila = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        if fila is None:
             raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
+        fila.profile = clave
+        fila.save(update_fields=['profile'])
 
     def listar_plantillas(self) -> list[PlantillaCarnet]:
         qs = CarnetTemplateModel.objects.all().order_by('-activo', '-creado')

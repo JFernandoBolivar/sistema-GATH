@@ -60,6 +60,6 @@ def restablecer_acceso(
     # las sesiones abiertas. No hace falta un segundo incremento aquí.
     publicar(EventoIdentidad(
         tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula=cuenta.cedula,
-        motivo=MotivoCambioPassword.RESTABLECIDO_RRHH.value,
+        motivo=MotivoCambioPassword.RESTABLECIDO_RRHH.value, dias_vigencia=dias_vigencia,
     ))
     return cuenta

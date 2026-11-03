@@ -28,9 +28,11 @@ interface DetallePasivoProps {
   cedula: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Tras guardar un cambio: la página recarga su listado (la fila se ve al instante). */
+  onGuardado?: () => void;
 }
 
-export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps) {
+export function DetallePasivo({ cedula, open, onOpenChange, onGuardado }: DetallePasivoProps) {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const puedeExportarPdf = tienePermiso(permisos, "pasivos.exportar_pdf");
@@ -103,7 +105,10 @@ export function DetallePasivo({ cedula, open, onOpenChange }: DetallePasivoProps
       open={open}
       onOpenChange={onOpenChange}
       onExportarPdf={exportarPdf}
-      onGuardado={() => setRecarga((n) => n + 1)}
+      onGuardado={() => {
+        setRecarga((n) => n + 1);
+        onGuardado?.();
+      }}
       exportandoPdf={exportandoPdf || cargando}
       puedeExportarPdf={puedeExportarPdf}
       puedeEditar={puedeEditar}

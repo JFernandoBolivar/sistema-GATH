@@ -438,3 +438,25 @@ def test_pasivo_no_recibe_cuenta_por_edicion_de_ficha(eventos):
         permitir_pasivo=True,
     )
     assert creada is not None
+
+
+def test_aviso_de_restablecimiento_no_dice_que_la_contrasena_fue_cambiada():
+    """QA 2026-11-03: el correo de «Restablecer acceso» explica cómo entrar."""
+    from apps.identidad.domain.events import EventoIdentidad
+    from apps.identidad.domain.services.notificaciones_eventos import solicitud_de_evento
+
+    aviso = solicitud_de_evento(EventoIdentidad(
+        tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula='123',
+        motivo=MotivoCambioPassword.RESTABLECIDO_RRHH.value, dias_vigencia=7,
+    ))
+    assert aviso.titulo == 'Gestión Humana restableció su acceso a GATH'
+    assert 'su número de cédula' in aviso.mensaje and '7 días' in aviso.mensaje
+    assert 'fue cambiada' not in aviso.titulo
+
+
+def test_restablecer_acceso_informa_el_plazo_en_el_evento(eventos):
+    cuenta = Cuenta(id=1, cedula='123', rol_id=3, is_active=True)
+    cuentas = CuentasMem(cuentas=[cuenta], passwords={1: 'x'})
+    cuentas.version = VersionMem()
+    restablecer_acceso(cuentas, PasswordInicialMem(), cuentas.version, eventos.append, 1, AHORA, dias_vigencia=5, **seguridad())
+    assert eventos[0].dias_vigencia == 5

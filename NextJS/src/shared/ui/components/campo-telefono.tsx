@@ -60,11 +60,11 @@ export function CampoTelefono({
   }
 
   return (
-    <div className={cn("flex w-full gap-2", className)}>
+    <div className={cn("flex w-full gap-3", className)}>
       <select
         aria-label="Código de país"
         className={cn(
-          "h-11 w-28 shrink-0 rounded-md border border-input bg-transparent px-2 text-base md:text-sm",
+          "h-11 w-2/5 min-w-24 max-w-40 shrink-0 rounded-md border border-input bg-transparent pl-3 pr-2 text-base md:text-sm",
           "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none",
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}

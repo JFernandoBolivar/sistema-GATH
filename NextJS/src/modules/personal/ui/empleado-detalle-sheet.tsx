@@ -19,6 +19,7 @@
  * 9. Información de Vestimenta (Shirt + botón Actualizar).
  * 10. Información de Salud (Ambulance + Tipo de sangre + tablas categorizadas de patologías, discapacidades, alergias).
  */
+import { useState } from "react";
 import {
   Ambulance,
   ContactRound,
@@ -88,6 +89,7 @@ export default function EmpleadoDetalleSheet({
   puedeExportarPdf,
   puedeEditar,
 }: EmpleadoDetalleSheetProps) {
+  const [versionFoto, setVersionFoto] = useState(0);
   if (!detalle || !empleado) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
@@ -133,7 +135,7 @@ export default function EmpleadoDetalleSheet({
                 {/* Foto autenticada del mismo origen; `next/image` no reenvía cookies al optimizador. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/api/v1/personal/${empleado.cedula}/foto/`}
+                  src={`/api/v1/personal/${empleado.cedula}/foto/?v=${versionFoto}`}
                   alt={`Foto de ${empleado.nombres} ${empleado.apellidos}`}
                   className="h-full w-full object-cover"
                   onError={(e) => {
@@ -148,7 +150,11 @@ export default function EmpleadoDetalleSheet({
                 <FormBasicUpdateDialog
                   empleado={empleado}
                   catalogos={catalogos}
-                  onGuardado={onGuardado}
+                  onGuardado={() => {
+                    // La foto pudo cambiar: otra URL obliga al navegador a pedirla de nuevo.
+                    setVersionFoto((v) => v + 1);
+                    onGuardado();
+                  }}
                   triggerLabel="Actualizar Información Basica"
                   triggerClassName="w-full cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
                 />
