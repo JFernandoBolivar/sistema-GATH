@@ -75,6 +75,17 @@ const campana = (props: { modulo?: "autogestion" | "personal"; ruta?: string } =
   />
 );
 
+// jsdom no implementa estas APIs que usa el Select de Radix al abrirse.
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => undefined;
+Element.prototype.scrollIntoView ??= () => undefined;
+
+/** Las listas son Select de Radix (no <select> nativo): se abre y se elige la opción. */
+async function elegir(user: ReturnType<typeof userEvent.setup>, etiqueta: string, opcion: string) {
+  await user.click(screen.getByLabelText(etiqueta));
+  await user.click(await screen.findByRole("option", { name: opcion, exact: true }));
+}
+
 describe("CampanaNotificaciones", () => {
   it("muestra el conteo del módulo en el nombre accesible del botón", async () => {
     render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
@@ -243,12 +254,12 @@ describe("BandejaNotificacionesPage", () => {
     render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
     await screen.findByText("Ventana habilitada");
 
-    await user.selectOptions(screen.getByLabelText("Tipo"), "autogestion.ventana_expirada");
+    await elegir(user, "Tipo", "Plazo vencido");
     await waitFor(() => expect(ultimaLlamadaListar().tipo).toBe("autogestion.ventana_expirada"));
 
-    await user.selectOptions(screen.getByLabelText("Estado"), "no");
+    await elegir(user, "Estado", "No leídas");
     await waitFor(() => expect(ultimaLlamadaListar().leida).toBe(false));
-    await user.selectOptions(screen.getByLabelText("Estado"), "si");
+    await elegir(user, "Estado", "Leídas");
     await waitFor(() => expect(ultimaLlamadaListar().leida).toBe(true));
 
     fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-10-01" } });
@@ -264,7 +275,7 @@ describe("BandejaNotificacionesPage", () => {
     acciones.listarNotificacionesAction.mockResolvedValue(pagina([]));
     const user = userEvent.setup();
     render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
-    await user.selectOptions(screen.getByLabelText("Estado"), "no");
+    await elegir(user, "Estado", "No leídas");
     expect(await screen.findByText("Ninguna notificación coincide con los filtros")).toBeDefined();
 
     const llamadas = acciones.listarNotificacionesAction.mock.calls.length;

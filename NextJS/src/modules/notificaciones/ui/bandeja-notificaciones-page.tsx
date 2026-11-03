@@ -23,6 +23,16 @@ import {
   usePuedeAbrirEnlace,
 } from "./notificaciones-swr";
 import { TIPOS_POR_MODULO } from "./tipos-notificacion";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
+
+/** Radix no admite value="" en un ítem: «Todos» usa este centinela. */
+const TODOS = "__todos__";
 
 export const TAMANO_PAGINA = 10;
 export const RETARDO_BUSQUEDA_MS = 400;
@@ -125,7 +135,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
       <form
         role="search"
         aria-label="Filtros de notificaciones"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(e) => e.preventDefault()}
       >
         <div className="flex flex-col gap-1.5 lg:col-span-2">
@@ -142,40 +152,46 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${id}-tipo`}>Tipo</Label>
-          <select
-            id={`${id}-tipo`}
-            value={tipo}
-            className={CLASE_SELECT}
-            onChange={(e) => {
-              setTipo(e.target.value);
+          <Select
+            value={tipo || TODOS}
+            onValueChange={(v) => {
+              setTipo(v === TODOS ? "" : v);
               setPagina(0);
             }}
           >
-            <option value="">Todos</option>
-            {tipos.map((t) => (
-              <option key={t.codigo} value={t.codigo}>
-                {t.etiqueta}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id={`${id}-tipo`} className="h-11 w-full text-base">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TODOS}>Todos</SelectItem>
+              {tipos.map((t) => (
+                <SelectItem key={t.codigo} value={t.codigo}>
+                  {t.etiqueta}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={`${id}-leida`}>Estado</Label>
-          <select
-            id={`${id}-leida`}
+          <Select
             value={estado}
-            className={CLASE_SELECT}
-            onChange={(e) => {
-              setEstado(e.target.value as EstadoLectura);
+            onValueChange={(v) => {
+              setEstado(v as EstadoLectura);
               setPagina(0);
             }}
           >
-            <option value="todas">Todas</option>
-            <option value="no">No leídas</option>
-            <option value="si">Leídas</option>
-          </select>
+            <SelectTrigger id={`${id}-leida`} className="h-11 w-full text-base">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas</SelectItem>
+              <SelectItem value="no">No leídas</SelectItem>
+              <SelectItem value="si">Leídas</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:col-span-2 lg:col-span-1 lg:grid-cols-1">
+        <div className="grid grid-cols-2 gap-4 sm:col-span-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${id}-desde`}>Desde</Label>
             <Input
