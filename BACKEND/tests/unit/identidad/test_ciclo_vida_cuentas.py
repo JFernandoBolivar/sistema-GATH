@@ -498,3 +498,21 @@ def test_el_parametro_de_aviso_de_cuenta_viene_apagado_por_defecto():
     from core.domain.configuracion import CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO
 
     assert DEFINICIONES_POR_CLAVE[CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO].defecto == 'false'
+
+
+def test_el_interruptor_tambien_detiene_restablecimiento_y_correo_de_acceso():
+    from apps.identidad.domain.events import EventoIdentidad
+    from apps.identidad.domain.services.notificaciones_eventos import solicitud_de_evento
+
+    restablecido = EventoIdentidad(
+        tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula='123',
+        motivo=MotivoCambioPassword.RESTABLECIDO_RRHH.value, dias_vigencia=7,
+    )
+    correo_acceso = EventoIdentidad(tipo=TipoEventoIdentidad.CORREO_ACCESO_CAMBIADO, cedula='123')
+    voluntario = EventoIdentidad(
+        tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula='123', motivo=MotivoCambioPassword.VOLUNTARIO.value,
+    )
+    assert solicitud_de_evento(restablecido, avisar_cuenta_creada_por_correo=False).correo is None
+    assert solicitud_de_evento(correo_acceso, avisar_cuenta_creada_por_correo=False).correo is None
+    # La alerta de seguridad por cambio de contraseña propio sale siempre.
+    assert solicitud_de_evento(voluntario, avisar_cuenta_creada_por_correo=False).correo is not None

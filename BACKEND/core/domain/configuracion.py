@@ -10,7 +10,7 @@ como respaldo cuando la fila todavía no existe. Puro: sin Django.
 
 CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO = 'notificaciones.bienestar_por_correo'
 CLAVE_NOTIFICAR_MOVIMIENTOS_POR_CORREO = 'notificaciones.movimientos_por_correo'
-CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO = 'notificaciones.cuenta_creada_por_correo'
+CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO = 'notificaciones.correos_de_acceso'
 
 CLAVE_PASSWORD_INICIAL_DIAS = 'plazos.password_inicial_dias'
 CLAVE_AUTOGESTION_MAX_PRORROGAS = 'plazos.autogestion_max_prorrogas'

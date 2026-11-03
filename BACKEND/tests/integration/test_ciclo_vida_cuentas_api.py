@@ -317,6 +317,7 @@ def test_correo_acceso_alternativo_actualiza_employee_crea_cuenta_del_pasivo_y_a
 
 def test_correo_acceso_con_cuenta_existente_avisa_al_correo_elegido(base):
     cuenta_con_cedula()
+    _avisar_cuenta_creada_por_correo()  # «Enviar correos de acceso a los trabajadores» encendido
     DatosComplementariosTrabajadorModel.objects.create(cedula=CEDULA, correo_alternativo='ana.alt@hotmail.com')
 
     r = cliente_con('identidad.cambiar_correo_acceso').post(

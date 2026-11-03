@@ -84,12 +84,13 @@ DEFINICIONES = (
     ),
     ParametroDefinicion(
         clave=CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
-        etiqueta='Avisar al trabajador cuando se crea su cuenta',
+        etiqueta='Enviar correos de acceso a los trabajadores',
         descripcion=(
-            'Envía al correo del trabajador el aviso de que su cuenta de GATH está lista y cómo '
-            'entrar (correo + cédula). Aplica a la cuenta creada al asignarle un correo, desde '
-            'Usuarios y por la sincronización. Apagado, la cuenta se crea igual pero no se le '
-            'avisa: úselo hasta que Gestión Humana anuncie el sistema.'
+            'Envía al trabajador los correos que le dan acceso a GATH: «Su cuenta está lista», '
+            '«Gestión Humana restableció su acceso» y «Este es ahora su correo de acceso». '
+            'Apagado, las cuentas se crean y restablecen igual pero no se envía ningún correo '
+            '(el aviso queda solo dentro del sistema): manténgalo apagado hasta que Gestión '
+            'Humana anuncie el sistema.'
         ),
         grupo=GRUPO_NOTIFICACIONES,
         tipo=TIPO_BOOLEANO,

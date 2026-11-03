@@ -16,11 +16,22 @@ _MOTIVOS = {
 }
 
 
+def _es_aviso_de_acceso(e: EventoIdentidad) -> bool:
+    """Correos que le revelan a alguien que tiene acceso a GATH (controlados por el parámetro)."""
+    return (
+        e.tipo is TipoEventoIdentidad.CUENTA_CREADA
+        or e.tipo is TipoEventoIdentidad.CORREO_ACCESO_CAMBIADO
+        or (e.tipo is TipoEventoIdentidad.PASSWORD_CAMBIADA and e.motivo == MotivoCambioPassword.RESTABLECIDO_RRHH.value)
+    )
+
+
 def solicitud_de_evento(
     e: EventoIdentidad, avisar_cuenta_creada_por_correo: bool = True,
 ) -> SolicitudNotificacion | None:
-    """`avisar_cuenta_creada_por_correo=False`: el alta de cuenta queda solo en la campana, sin correo
-    (parámetro de Administración del sistema; apagado hasta que Gestión Humana anuncie el sistema)."""
+    """`avisar_cuenta_creada_por_correo=False` (parámetro «Enviar correos de acceso a los trabajadores»,
+    apagado hasta que Gestión Humana anuncie el sistema): los avisos de acceso (cuenta creada, acceso
+    restablecido, correo de acceso cambiado) quedan solo en la campana, sin correo. El aviso de
+    contraseña cambiada por la propia persona sale siempre (alerta de seguridad)."""
     if e.tipo is TipoEventoIdentidad.PASSWORD_CAMBIADA and e.motivo == MotivoCambioPassword.RESTABLECIDO_RRHH.value:
         # QA 2026-11-03: «fue cambiada» confundía; es un restablecimiento con instrucciones para entrar.
         titulo = 'Gestión Humana restableció su acceso a GATH'
@@ -55,7 +66,7 @@ def solicitud_de_evento(
         clave=uuid4().hex,
         correo=(
             None
-            if e.tipo is TipoEventoIdentidad.CUENTA_CREADA and not avisar_cuenta_creada_por_correo
+            if _es_aviso_de_acceso(e) and not avisar_cuenta_creada_por_correo
             else CorreoSolicitado(asunto=titulo + ' - GATH CONATEL')
         ),
     )
