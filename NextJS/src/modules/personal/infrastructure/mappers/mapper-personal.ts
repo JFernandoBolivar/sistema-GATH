@@ -189,6 +189,7 @@ export function empleadoApiAEntidad(raw: EmpleadoApiItem): Empleado {
     estadoCivilId: raw.estado_civil_id,
     estadoCivilNombre: raw.estado_civil_nombre,
     carnetPatria: raw.carnet_patria,
+    carnetPatriaSerial: raw.carnet_patria_serial ?? null,
     nacionalidadId: raw.nacionalidad_id ?? null,
     nacionalidadCodigo: raw.nacionalidad_codigo ?? null,
     nacionalidadNombre: raw.nacionalidad_nombre ?? null,

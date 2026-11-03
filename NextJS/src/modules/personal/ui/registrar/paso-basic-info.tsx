@@ -155,6 +155,15 @@ export function PasoBasicInfo({
                       type="text"
                     />
                   </div>
+                  <div className="flex-1">
+                    <InputForm
+                      form={form}
+                      label="Serial del Carnet de la Patria"
+                      nameInput="carnet_patria_serial"
+                      placeholder="Serial"
+                      type="text"
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-2 col-span-2">
                   <div className="flex-1">

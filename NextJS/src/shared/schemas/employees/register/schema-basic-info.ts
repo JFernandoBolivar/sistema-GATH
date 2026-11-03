@@ -6,6 +6,7 @@ import {
   REGEX_PHONE_VENEZUELA_FIJO,
 } from "@/lib/regex"
 import { z } from "zod"
+import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria"
 
 export const schemaBasicInfo = z.object({
   usuario_id: z.number(),
@@ -106,7 +107,8 @@ export const schemaBasicInfo = z.object({
   carnet_patria: z.string().regex(REGEX_NUMBERS, {
       message: "Solo Se Permiten Números",
     }).min(10, { message: "Debe Ingresar 10 Digitos" })
-    .max(10, { message: "Debe Maximo 10 Digitos" }).optional()
+    .max(10, { message: "Debe Maximo 10 Digitos" }).optional(),
+  carnet_patria_serial: serialCarnetPatriaZod(),
     
 })
 export type BasicInfoType = z.infer<typeof schemaBasicInfo>

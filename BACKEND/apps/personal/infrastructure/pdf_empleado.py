@@ -122,6 +122,7 @@ def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | No
         _info_row('Fecha de nacimiento', _fecha(dto.fecha_nacimiento), styles),
         _info_row('Estado civil', _val(dto.estado_civil_nombre), styles),
         _info_row('Carnet de la patria', _val(dto.carnet_patria), styles),
+        _info_row('Serial del Carnet de la Patria', _val(dto.carnet_patria_serial), styles),
         _info_row('Correo', _val(dto.correo), styles),
         _info_row('Teléfono móvil', _val(formatear_telefono(dto.telefono_movil)), styles),
         _info_row('Teléfono habitación', _val(formatear_telefono(dto.telefono_habitacion)), styles),

@@ -43,6 +43,7 @@ const VACIOS: ActualizarPasivoFormType = {
   telefonoMovil: null,
   telefonoHabitacion: null,
   carnetPatria: null,
+  carnetPatriaSerial: null,
   fechaNacimiento: null,
 };
 
@@ -67,6 +68,7 @@ export function EditarPasivoDialog({
       telefonoMovil: pasivo.telefonoMovil,
       telefonoHabitacion: pasivo.telefonoHabitacion,
       carnetPatria: pasivo.carnetPatria,
+      carnetPatriaSerial: pasivo.carnetPatriaSerial,
       fechaNacimiento: pasivo.fechaNacimiento,
     });
   }, [pasivo, form]);
@@ -132,6 +134,19 @@ export function EditarPasivoDialog({
             <Field>
               <Label htmlFor="edit-carnet">Carnet de la patria</Label>
               <Input id="edit-carnet" {...form.register("carnetPatria")} />
+            </Field>
+            <Field data-invalid={!!form.formState.errors.carnetPatriaSerial}>
+              <Label htmlFor="edit-carnet-serial">Serial del Carnet de la Patria</Label>
+              <Input
+                id="edit-carnet-serial"
+                placeholder="Serial"
+                {...form.register("carnetPatriaSerial")}
+              />
+              {form.formState.errors.carnetPatriaSerial && (
+                <p role="alert" className="text-sm text-destructive">
+                  {form.formState.errors.carnetPatriaSerial.message}
+                </p>
+              )}
             </Field>
             <Field data-invalid={!!form.formState.errors.telefonoMovil}>
               <Label htmlFor="edit-movil">Teléfono móvil</Label>

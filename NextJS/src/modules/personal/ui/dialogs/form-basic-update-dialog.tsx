@@ -20,6 +20,10 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 
+import {
+  SERIAL_CARNET_PATRIA,
+  SERIAL_CARNET_PATRIA_MSG,
+} from "@/shared/domain/validation/serial-carnet-patria";
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import {
   actualizarEmpleadoAction,
@@ -56,6 +60,7 @@ export default function FormBasicUpdateDialog({
       telefonoMovil: empleado.telefonoMovil ?? "",
       telefonoHabitacion: empleado.telefonoHabitacion ?? "",
       carnetPatria: empleado.carnetPatria ?? "",
+      carnetPatriaSerial: empleado.carnetPatriaSerial ?? "",
       estadoCivilId: empleado.estadoCivilId ?? undefined,
       nacionalidadId: empleado.nacionalidadId ?? undefined,
     },
@@ -64,6 +69,12 @@ export default function FormBasicUpdateDialog({
   const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
     startTransition(async () => {
       setError(null);
+      const serial = (data.carnetPatriaSerial ?? "").trim();
+      if (!SERIAL_CARNET_PATRIA.test(serial)) {
+        setError(SERIAL_CARNET_PATRIA_MSG);
+        toast.error(SERIAL_CARNET_PATRIA_MSG);
+        return;
+      }
       try {
         const payload = {
           nombres: data.nombres,
@@ -74,6 +85,7 @@ export default function FormBasicUpdateDialog({
           telefonoMovil: data.telefonoMovil || null,
           telefonoHabitacion: data.telefonoHabitacion || null,
           carnetPatria: data.carnetPatria || null,
+          carnetPatriaSerial: serial || null,
           estadoCivilId: data.estadoCivilId ? Number(data.estadoCivilId) : null,
           ...(data.nacionalidadId ? { nacionalidadId: Number(data.nacionalidadId) } : {}),
         };
@@ -276,6 +288,15 @@ export default function FormBasicUpdateDialog({
                           type="text"
                           placeholder="000-0000000-00"
                           {...register("carnetPatria")}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Label htmlFor="carnetPatriaSerial">Serial del Carnet de la Patria</Label>
+                        <Input
+                          id="carnetPatriaSerial"
+                          type="text"
+                          placeholder="Serial"
+                          {...register("carnetPatriaSerial")}
                         />
                       </div>
                     </div>

@@ -42,6 +42,9 @@ class EmployeeModel(models.Model):
     telefono_habitacion = models.CharField(max_length=20, blank=True, null=True)
     telefono_movil = models.CharField(max_length=20, blank=True, null=True)
     carnet_patria = models.CharField(max_length=30, blank=True, null=True)
+    carnet_patria_serial = models.CharField(
+        max_length=30, blank=True, null=True, db_column='carnet_patria_serial',
+    )
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:

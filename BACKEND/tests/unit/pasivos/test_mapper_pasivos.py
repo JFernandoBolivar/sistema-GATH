@@ -89,7 +89,7 @@ def test_pasivo_egresado_usa_el_tipo_de_nomina_no_el_motivo_del_movimiento():
         correo=None,
         telefono_movil=None,
         telefono_habitacion=None,
-        carnet_patria=None,
+        carnet_patria=None, carnet_patria_serial=None,
         fecha_nacimiento=None,
         sexoid_id=None,
         estadoCivil_id=None,

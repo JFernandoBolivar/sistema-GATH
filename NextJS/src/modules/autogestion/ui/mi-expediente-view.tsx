@@ -500,6 +500,11 @@ export default function MiExpedienteView() {
                   emptyText="No reportado"
                 />
                 <InfoRow
+                  label="Serial del Carnet de la Patria"
+                  value={empleado.carnet_patria_serial}
+                  emptyText="No reportado"
+                />
+                <InfoRow
                   label="Teléfono Móvil"
                   value={formatearTelefono(empleado.telefono_movil)}
                   emptyText="No posee"

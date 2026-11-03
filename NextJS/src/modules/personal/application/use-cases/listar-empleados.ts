@@ -21,6 +21,7 @@ function aDTO(e: Empleado): EmpleadoDTO {
     estadoCivilId: e.estadoCivilId,
     estadoCivilNombre: e.estadoCivilNombre,
     carnetPatria: e.carnetPatria,
+    carnetPatriaSerial: e.carnetPatriaSerial,
     nacionalidadId: e.nacionalidadId ?? null,
     nacionalidadCodigo: e.nacionalidadCodigo ?? null,
     nacionalidadNombre: e.nacionalidadNombre ?? null,

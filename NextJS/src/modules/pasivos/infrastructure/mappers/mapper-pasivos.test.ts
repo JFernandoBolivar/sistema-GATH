@@ -19,6 +19,7 @@ function baseRaw(overrides: Partial<PasivoApiItem> = {}): PasivoApiItem {
     telefono_movil: null,
     telefono_habitacion: null,
     carnet_patria: null,
+    carnet_patria_serial: null,
     fecha_nacimiento: null,
     estado_civil_id: null,
     nacionalidad_id: null,
@@ -35,6 +36,15 @@ function baseRaw(overrides: Partial<PasivoApiItem> = {}): PasivoApiItem {
 }
 
 describe("pasivoApiAEntidad", () => {
+  it("mapea el serial del Carnet de la Patria (y null si no viene)", () => {
+    expect(pasivoApiAEntidad(baseRaw({ carnet_patria_serial: "AB12" })).carnetPatriaSerial).toBe(
+      "AB12",
+    );
+    expect(
+      pasivoApiAEntidad(baseRaw({ carnet_patria_serial: undefined })).carnetPatriaSerial,
+    ).toBeNull();
+  });
+
   it("mapea el perfil físico (antes ausente en la entidad)", () => {
     const entidad = pasivoApiAEntidad(
       baseRaw({

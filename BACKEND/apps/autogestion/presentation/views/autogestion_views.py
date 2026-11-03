@@ -10,6 +10,7 @@ from django.db import transaction
 from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 
+from core.presentation.validadores_personas import validar_serial_carnet_patria
 from core.presentation.envelope import ok, fail
 from core.presentation.permissions import EsPropiaCedulaOTienePermiso, HasPermission
 from apps.autogestion.application.use_cases.obtener_mi_expediente import (
@@ -120,6 +121,11 @@ class CensoEmpleadoView(APIView):
 
         # Accept either { carnet_patria, datos_vivienda, respuestas } or { respuestas }
         carnet_patria = data.get('carnet_patria', '')
+        carnet_patria_serial = data.get('carnet_patria_serial', '') or ''
+        try:
+            carnet_patria_serial = validar_serial_carnet_patria(carnet_patria_serial) or ''
+        except ValueError as exc:
+            return fail(str(exc), status=status.HTTP_400_BAD_REQUEST)
         datos_vivienda = data.get('datos_vivienda')
         respuestas = data.get('respuestas', [])
 
@@ -136,6 +142,7 @@ class CensoEmpleadoView(APIView):
             detalle = repo.guardar_censo_vivienda(
                 cedula=cedula,
                 carnet_patria=carnet_patria,
+                carnet_patria_serial=carnet_patria_serial,
                 datos_vivienda=datos_vivienda,
                 respuestas=respuestas,
             )

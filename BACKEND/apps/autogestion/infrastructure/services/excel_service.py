@@ -55,7 +55,7 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
 
     headers = [
         "Cédula", "Nombres", "Apellidos", "Fecha Nacimiento",
-        "Carnet Patria", "APN",
+        "Carnet Patria", "Serial carnet patria", "APN",
         "F. Ingreso Organismo", "Dirección General", "Tipo de Nómina",
         "Cargo", "Cargo Específico",
         "Dirección Vivienda", "Código Postal",
@@ -105,6 +105,7 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
             emp.apellidos,
             emp.fecha_nacimiento.isoformat() if emp.fecha_nacimiento else "",
             emp.carnet_patria or "",
+            emp.carnet_patria_serial or "",
             apn_str,
             "",  # F. Ingreso Organismo
             dg_nombre,

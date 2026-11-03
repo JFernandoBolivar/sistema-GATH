@@ -121,6 +121,7 @@ export interface DetalleExpedienteViewModel {
   fechaNacimiento: string;
   estadoCivil: string;
   carnetPatria: string;
+  carnetPatriaSerial: string;
   totalAnosApn: string;
   fechaIngresoOrganismo: string;
   cargosAsignados: DetalleCargoAsignadoVM[];
@@ -194,6 +195,7 @@ export function construirDetalleExpediente(
     fechaNacimiento: formatearFecha(empleado.fechaNacimiento),
     estadoCivil: empleado.estadoCivilNombre ?? SIN_DATO,
     carnetPatria: empleado.carnetPatria ?? SIN_DATO,
+    carnetPatriaSerial: empleado.carnetPatriaSerial ?? SIN_DATO,
     totalAnosApn: `${anos} años, ${meses} meses, 0 días`,
     fechaIngresoOrganismo: fechaIngresoOrg,
     cargosAsignados: (empleado.asignaciones ?? []).map((asig) => ({

@@ -63,6 +63,7 @@ export interface GuardarEmpleadoDatos {
   estadoCivilId?: number | null;
   nacionalidadId?: number | null;
   carnetPatria?: string | null;
+  carnetPatriaSerial?: string | null;
   datosVivienda?: DatosVivienda | null;
   perfilSalud?: PerfilSalud | null;
   perfilFisico?: PerfilFisico | null;

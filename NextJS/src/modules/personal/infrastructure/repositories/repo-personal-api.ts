@@ -189,6 +189,7 @@ export const repoPersonalApi: RepoPersonal = {
       telefono_habitacion: data.telefonoHabitacion ?? null,
       estado_civil_id: data.estadoCivilId ?? null,
       carnet_patria: data.carnetPatria ?? null,
+      carnet_patria_serial: data.carnetPatriaSerial ?? null,
     };
     if (data.nacionalidadId) payload.nacionalidad_id = data.nacionalidadId;
     aplicarAnidados(payload, data);
@@ -207,6 +208,7 @@ export const repoPersonalApi: RepoPersonal = {
     if (data.telefonoHabitacion !== undefined) payload.telefono_habitacion = data.telefonoHabitacion;
     if (data.estadoCivilId !== undefined) payload.estado_civil_id = data.estadoCivilId;
     if (data.carnetPatria !== undefined) payload.carnet_patria = data.carnetPatria;
+    if (data.carnetPatriaSerial !== undefined) payload.carnet_patria_serial = data.carnetPatriaSerial;
     if (data.nacionalidadId) payload.nacionalidad_id = data.nacionalidadId;
     aplicarAnidados(payload, data as GuardarEmpleadoDatos);
 

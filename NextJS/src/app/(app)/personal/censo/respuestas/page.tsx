@@ -94,6 +94,10 @@ function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
             <span className="ml-2 text-gray-900 font-medium">{empleado.carnet_patria || "N/A"}</span>
           </div>
           <div>
+            <span className="font-semibold text-gray-700">Serial del Carnet de la Patria:</span>
+            <span className="ml-2 text-gray-900 font-medium">{empleado.carnet_patria_serial || "N/A"}</span>
+          </div>
+          <div>
             <span className="font-semibold text-gray-700">Nombres:</span>
             <span className="ml-2 text-gray-900 font-medium">{empleado.nombres}</span>
           </div>

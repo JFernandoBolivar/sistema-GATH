@@ -16,6 +16,7 @@ NOMBRE_RE = re.compile(rf"^[{_LETRAS}\s'’`]+$")
 NOMBRE_EDICION_RE = re.compile(rf"^[{_LETRAS}\s'’`.]+$")
 CEDULA_RE = re.compile(r"^\d{5,10}$")
 PAIS_POR_DEFECTO = "VE"
+SERIAL_CARNET_RE = re.compile(r"^[A-Za-z0-9]{0,30}$")
 _SOLO_NUMEROS_RE = re.compile(r"^\+?\d+$")
 _SEPARADORES_TELEFONO = re.compile(r"[\s().\-]")
 
@@ -30,6 +31,16 @@ def validar_nombre(valor: str | None, *, edicion: bool = False, etiqueta: str = 
     patron = NOMBRE_EDICION_RE if edicion else NOMBRE_RE
     if not patron.match(valor):
         raise ValueError(f"{etiqueta} solo admite letras y espacios.")
+    return valor
+
+
+def validar_serial_carnet_patria(valor: str | None) -> str | None:
+    """Serial del Carnet de la Patria: opcional; solo letras y números, máximo 30."""
+    if valor is None:
+        return None
+    valor = str(valor).strip()
+    if not SERIAL_CARNET_RE.match(valor):
+        raise ValueError("El serial del Carnet de la Patria solo admite letras y números (máximo 30)")
     return valor
 
 

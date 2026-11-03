@@ -98,6 +98,7 @@ def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expedi
         estado_civil_id=modelo.estadoCivil_id,
         estado_civil_nombre=modelo.estadoCivil.estadoCivil if modelo.estadoCivil else None,
         carnet_patria=_clean_str(modelo.carnet_patria),
+        carnet_patria_serial=_clean_str(modelo.carnet_patria_serial),
         nacionalidad_id=nac_id,
         nacionalidad_codigo=nac_codigo,
         nacionalidad_nombre=nac_nombre,

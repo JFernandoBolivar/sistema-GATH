@@ -20,6 +20,7 @@ from core.presentation.validadores_personas import (
     validar_cedula,
     validar_drf as _validar,
     validar_nombre,
+    validar_serial_carnet_patria,
     validar_telefono,
 )
 
@@ -63,6 +64,7 @@ class PasivoSerializer(serializers.Serializer):
     telefono_movil = serializers.CharField(read_only=True, allow_null=True)
     telefono_habitacion = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria = serializers.CharField(read_only=True, allow_null=True)
+    carnet_patria_serial = serializers.CharField(read_only=True, allow_null=True)
     fecha_nacimiento = serializers.CharField(read_only=True, allow_null=True)
     sexo_nombre = serializers.CharField(read_only=True, allow_null=True)
     fecha_ingreso_organismo = serializers.CharField(read_only=True, allow_null=True)
@@ -137,6 +139,7 @@ class PasivoCrearInputSerializer(serializers.Serializer):
     telefono_movil = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     telefono_habitacion = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     carnet_patria = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)
+    carnet_patria_serial = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)
     datos_vivienda = serializers.DictField(required=False)
     perfil_salud = serializers.DictField(required=False)
     perfil_fisico = serializers.DictField(required=False)
@@ -156,6 +159,9 @@ class PasivoCrearInputSerializer(serializers.Serializer):
     def validate_apellidos(self, value):
         value = _validar(validar_nombre, value, etiqueta='Los apellidos')
         return value.upper() if value else value
+
+    def validate_carnet_patria_serial(self, value):
+        return _validar(validar_serial_carnet_patria, value)
 
     def validate_telefono_movil(self, value):
         return _validar(validar_telefono, value, tipo='movil')
@@ -186,6 +192,7 @@ class PasivoActualizarInputSerializer(serializers.Serializer):
     telefono_movil = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     telefono_habitacion = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     carnet_patria = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)
+    carnet_patria_serial = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)
     fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
     estado_civil_id = serializers.IntegerField(required=False, allow_null=True)
     nacionalidad_id = serializers.IntegerField(required=False, allow_null=True)
@@ -197,6 +204,9 @@ class PasivoActualizarInputSerializer(serializers.Serializer):
     def validate_apellidos(self, value):
         value = _validar(validar_nombre, value, edicion=True, etiqueta='Los apellidos')
         return value.upper() if value else value
+
+    def validate_carnet_patria_serial(self, value):
+        return _validar(validar_serial_carnet_patria, value)
 
     def validate_telefono_movil(self, value):
         return _validar(validar_telefono, value, tipo='movil')

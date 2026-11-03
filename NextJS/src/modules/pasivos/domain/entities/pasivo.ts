@@ -116,6 +116,7 @@ export interface Pasivo {
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   carnetPatria: string | null;
+  carnetPatriaSerial: string | null;
   fechaNacimiento: string | null;
   sexoNombre: string | null;
   fechaIngresoOrganismo: string | null;
@@ -163,6 +164,7 @@ export interface RegistrarPasivoInput {
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   carnetPatria?: string | null;
+  carnetPatriaSerial?: string | null;
   datosVivienda?: {
     estado?: number | null;
     municipio?: number | null;
@@ -210,6 +212,7 @@ export interface ActualizarPasivoInput {
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   carnetPatria?: string | null;
+  carnetPatriaSerial?: string | null;
   fechaNacimiento?: string | null;
   estadoCivilId?: number | null;
   nacionalidadId?: number | null;

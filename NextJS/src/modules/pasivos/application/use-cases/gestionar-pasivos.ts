@@ -22,6 +22,7 @@ function aDto(e: PasivoEntity): PasivoDTO {
     telefonoMovil: e.telefonoMovil,
     telefonoHabitacion: e.telefonoHabitacion,
     carnetPatria: e.carnetPatria,
+    carnetPatriaSerial: e.carnetPatriaSerial,
     fechaNacimiento: e.fechaNacimiento,
     sexoNombre: e.sexoNombre,
     fechaIngresoOrganismo: e.fechaIngresoOrganismo,

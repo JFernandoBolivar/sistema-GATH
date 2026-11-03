@@ -113,6 +113,7 @@ class RepoPersonalORM:
             'id', 'cedulaidentidad', 'nombres', 'apellidos', 'fecha_nacimiento',
             'profile', 'sexoid', 'estadoCivil', 'nacionalidad', 'correo',
             'telefono_habitacion', 'telefono_movil', 'carnet_patria',
+            'carnet_patria_serial',
             'fecha_actualizacion',
         ).order_by('-fecha_actualizacion', '-id')
 
@@ -243,6 +244,7 @@ class RepoPersonalORM:
                 fecha_nacimiento=datos.get('fecha_nacimiento'),
                 estadoCivil_id=datos.get('estado_civil_id'),
                 carnet_patria=datos.get('carnet_patria'),
+                carnet_patria_serial=datos.get('carnet_patria_serial'),
                 nacionalidad_id=datos.get('nacionalidad_id', 1) or 1,
             )
             self._guardar_datos_anidados(obj, nested)

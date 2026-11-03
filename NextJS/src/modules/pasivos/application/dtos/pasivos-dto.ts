@@ -49,6 +49,7 @@ export interface PasivoDTO {
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   carnetPatria: string | null;
+  carnetPatriaSerial: string | null;
   fechaNacimiento: string | null;
   sexoNombre: string | null;
   fechaIngresoOrganismo: string | null;

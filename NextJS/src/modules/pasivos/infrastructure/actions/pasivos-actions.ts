@@ -235,6 +235,7 @@ export async function actualizarPasivoAction(
     telefonoMovil?: string | null;
     telefonoHabitacion?: string | null;
     carnetPatria?: string | null;
+    carnetPatriaSerial?: string | null;
     fechaNacimiento?: string | null;
     estadoCivilId?: number | null;
     nacionalidadId?: number | null;
@@ -280,6 +281,7 @@ export async function registrarPasivoCompletoAction(
     telefonoMovil: dto.telefonoMovil ?? null,
     telefonoHabitacion: dto.telefonoHabitacion ?? null,
     carnetPatria: dto.carnetPatria ?? null,
+    carnetPatriaSerial: dto.carnetPatriaSerial ?? null,
     datosVivienda: dto.datosVivienda
       ? {
           estado: dto.datosVivienda.estadoId ?? null,

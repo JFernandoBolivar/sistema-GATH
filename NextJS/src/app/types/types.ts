@@ -419,6 +419,7 @@ export interface EmployeeData {
   encargadurias: PrestamoCargoData[];
   correo: string | null;
   carnet_patria: string | null;
+  carnet_patria_serial: string | null;
   telefono_habitacion: string | null;
   telefono_movil: string | null;
 }
@@ -448,6 +449,7 @@ export interface EmployeeInfo {
   antecedentes: Background[];
   formacion_complementaria: SupplementaryTraining[];
   carnet_patria: string | null;
+  carnet_patria_serial: string | null;
   fecha_actualizacion: string;
 }
 export interface Code {

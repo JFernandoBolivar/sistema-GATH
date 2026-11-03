@@ -24,6 +24,7 @@ const basico = {
   telefono_movil: "",
   telefono_habitacion: "",
   carnet_patria: "",
+  carnet_patria_serial: "",
 };
 
 const completo: RegistroPasosType = {
@@ -146,6 +147,10 @@ describe("empleadoRegistroSchema (revalidación del alta en el servidor)", () =>
   const dto = registroPasosADTO(completo);
   const pasa = (cambios: Record<string, unknown>) => empleadoRegistroSchema.safeParse({ ...dto, ...cambios }).success;
 
+  it("envía el serial del Carnet de la Patria en el payload del alta", () => {
+    expect(registroPasosADTO({ ...completo, carnet_patria_serial: "AB12" }).carnetPatriaSerial).toBe("AB12");
+  });
+
   it("aplica las reglas del legado en datos básicos", () => {
     expect(pasa({ cedula: "123456" })).toBe(false);
     expect(pasa({ cedula: "1234567890123" })).toBe(false);
@@ -153,6 +158,10 @@ describe("empleadoRegistroSchema (revalidación del alta en el servidor)", () =>
     expect(pasa({ apellidos: "A".repeat(31) })).toBe(false);
     expect(pasa({ carnetPatria: "12345" })).toBe(false);
     expect(pasa({ carnetPatria: "1234567890" })).toBe(true);
+    expect(pasa({ carnetPatriaSerial: "AB12cd" })).toBe(true);
+    expect(pasa({ carnetPatriaSerial: null })).toBe(true);
+    expect(pasa({ carnetPatriaSerial: "AB 12" })).toBe(false);
+    expect(pasa({ carnetPatriaSerial: "A".repeat(31) })).toBe(false);
     expect(pasa({ estadoCivilId: null })).toBe(false);
     expect(pasa({ nacionalidadId: null })).toBe(false);
   });

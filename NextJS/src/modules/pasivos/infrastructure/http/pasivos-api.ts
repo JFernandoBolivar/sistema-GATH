@@ -23,6 +23,7 @@ export interface PasivoApiItem {
   telefono_movil: string | null;
   telefono_habitacion: string | null;
   carnet_patria: string | null;
+  carnet_patria_serial: string | null;
   fecha_nacimiento: string | null;
   sexo_nombre?: string | null;
   fecha_ingreso_organismo?: string | null;
@@ -63,6 +64,7 @@ export interface ActualizarPasivoApiBody {
   telefono_movil?: string | null;
   telefono_habitacion?: string | null;
   carnet_patria?: string | null;
+  carnet_patria_serial?: string | null;
   fecha_nacimiento?: string | null;
   estado_civil_id?: number | null;
   nacionalidad_id?: number | null;
@@ -81,6 +83,7 @@ export interface RegistrarPasivoApiBody {
   telefono_movil?: string | null;
   telefono_habitacion?: string | null;
   carnet_patria?: string | null;
+  carnet_patria_serial?: string | null;
   datos_vivienda?: Record<string, unknown>;
   perfil_salud?: Record<string, unknown>;
   perfil_fisico?: Record<string, unknown>;

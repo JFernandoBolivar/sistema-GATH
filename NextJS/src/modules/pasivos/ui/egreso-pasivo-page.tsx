@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Field } from "@/shared/ui/components/field";
 import { Label } from "@/shared/ui/components/label";
+import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner";
 import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
 import {
   Select,
@@ -120,8 +121,9 @@ export default function EgresoPasivoPage() {
       title="Egreso de Pasivo"
       description="Registre el fallecimiento de un pasivo y, si aplica, el alta de sus sobrevivientes."
     >
-      <Card className="max-w-4xl bg-white">
-        <CardContent className="flex flex-col gap-4 pt-6">
+      {/* Mismo contenedor que las pantallas de activos (Movimientos): ancho completo y p-6. */}
+      <Card className="bg-card">
+        <CardContent className="flex flex-col gap-5 p-6">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
           <EmployeeSearchForm
@@ -133,10 +135,12 @@ export default function EgresoPasivoPage() {
 
           {pasivo && (
             <div className="flex flex-col gap-4 border-t pt-4">
-              <div className="rounded-lg bg-muted/50 p-3 text-sm">
-                <p className="font-semibold">{pasivo.nombreCompleto}</p>
-                <p className="text-muted-foreground">C.I. {pasivo.cedula} — {pasivo.tipoPasivo}</p>
-              </div>
+              <EmployeeInfoBanner
+                employee={{ nombres: pasivo.nombreCompleto, apellidos: "", cedula: pasivo.cedula }}
+                hasSearched
+                isLoading={false}
+                extraFields={[{ label: "Tipo de pasivo", value: pasivo.tipoPasivo ?? "" }]}
+              />
 
               <Field>
                 <Label htmlFor="egreso-pasivo-motivo">Motivo de egreso</Label>

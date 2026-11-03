@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { REGEX } from "@/shared/domain/validation";
+import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { contactoEmergenciaFormSchema } from "./schema-contacto-emergencia";
 
@@ -79,6 +80,7 @@ export const pasoBasicInfoSchema = z.object({
       .max(10, { message: "Debe Maximo 10 Digitos" })
       .optional(),
   ),
+  carnet_patria_serial: z.preprocess(opcionalVacio, serialCarnetPatriaZod()),
   contacto_emergencia: z
     .array(contactoEmergenciaFormSchema)
     .max(5, { message: "Máximo 5 contactos de emergencia" })

@@ -75,6 +75,7 @@ class Command(BaseCommand):
             self._tablas_legadas,
             self._nacionalidad,
             self._columna_nacionalidad,
+            self._columna_serial_carnet,
             self._password_larga,
             self._historial_migraciones,
             self._roles,
@@ -154,6 +155,16 @@ class Command(BaseCommand):
                 "estado": OK if existe else AVISO,
                 "nombre": "Employee.nacionalidadId",
                 "detalle": "existe" if existe else "no existe (core.0008 la agrega al arrancar)",
+            }
+        ]
+
+    def _columna_serial_carnet(self):
+        existe = self._existe_columna("Employee", "carnet_patria_serial")
+        return [
+            {
+                "estado": OK if existe else AVISO,
+                "nombre": "Employee.carnet_patria_serial",
+                "detalle": "existe" if existe else "no existe (core.0009 la agrega al migrar)",
             }
         ]
 
