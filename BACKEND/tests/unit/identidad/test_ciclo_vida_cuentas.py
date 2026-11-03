@@ -146,13 +146,14 @@ def test_activo_con_correo_institucional_recibe_cuenta_con_cedula_como_password(
     assert [e.tipo for e in eventos] == [TipoEventoIdentidad.CUENTA_CREADA]
 
 
-def test_activo_con_correo_ajeno_al_dominio_no_recibe_cuenta(eventos):
+def test_activo_con_correo_personal_recibe_cuenta(eventos):
+    """Decisión del usuario (2026-11-03): ya no se exige el dominio institucional."""
     cuentas = CuentasMem()
     correos = CorreosMem({'123': 'ana@gmail.com'})
 
-    assert _alta(cuentas, correos, {'123': CondicionTrabajador.ACTIVO}, PasswordInicialMem(), eventos, '123') is None
-    assert not cuentas.existe_cuenta_para_cedula('123')
-    assert eventos == []
+    assert _alta(cuentas, correos, {'123': CondicionTrabajador.ACTIVO}, PasswordInicialMem(), eventos, '123')
+    assert cuentas.existe_cuenta_para_cedula('123')
+    assert eventos[0].tipo is TipoEventoIdentidad.CUENTA_CREADA
 
 
 def test_pasivo_elegido_por_rrhh_recibe_cuenta_con_correo_de_cualquier_dominio(eventos):
@@ -317,7 +318,7 @@ def test_crear_cuenta_sin_que_la_regla_lo_permita_lo_dice_claro(eventos):
     cuentas = CuentasMem(cuentas=[])
     correos = CorreosMem({'123': 'ana@gmail.com'})
 
-    with pytest.raises(ValidationError, match='institucional'):
+    with pytest.raises(ValidationError, match='asignación'):
         cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'INSTITUCIONAL', **seguridad())
 
 

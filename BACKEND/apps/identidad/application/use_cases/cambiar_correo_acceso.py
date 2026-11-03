@@ -76,8 +76,7 @@ def cambiar_correo_acceso(
         # «Crear cuenta con este correo» desde Usuarios (QA 2026-11-03): si la regla no permite la
         # cuenta, se dice claro en vez de responder «registrado» sin haber creado nada.
         raise ValidationError(
-            'No se creó la cuenta: un trabajador activo solo puede tener cuenta con su correo '
-            'institucional. Registre su correo @conatel.gob.ve en su ficha y vuelva a intentarlo.'
+            'No se creó la cuenta: el trabajador no tiene una asignación activa ni de pasivo vigente.'
         )
     cuenta_creada = existe_ahora and not tenia_cuenta
     avisado = cuenta_creada  # el alta ya publicó su propio aviso al correo elegido

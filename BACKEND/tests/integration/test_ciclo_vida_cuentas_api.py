@@ -173,22 +173,24 @@ def test_alta_automatica_del_activo_al_cargar_correo_institucional(base, condici
     assert login('luis.gomez@conatel.gob.ve', '20999001').status_code == 200
 
 
-def test_activo_con_correo_ajeno_al_dominio_no_recibe_cuenta(base, condicion):
+def test_activo_con_correo_personal_recibe_cuenta_al_asignarle_el_correo(base, condicion):
+    """Decisión del usuario (2026-11-03): al asignar un correo, activo o pasivo, se crea la cuenta."""
     condicion['20999002'] = CondicionTrabajador.ACTIVO
 
     empleado('20999002', 'luis@gmail.com')
 
-    assert not CuentaModel.objects.filter(cedula_id='20999002').exists()
+    assert CuentaModel.objects.filter(cedula_id='20999002').exists()
 
 
-def test_editar_la_ficha_de_un_pasivo_con_correo_personal_no_le_crea_cuenta(base, condicion):
+def test_pasivo_con_correo_recibe_cuenta_al_guardar_su_ficha(base, condicion):
+    """Decisión del usuario (2026-11-03): igual que la sincronización, pero al momento."""
     condicion['20999003'] = CondicionTrabajador.PASIVO
 
     emp = empleado('20999003', 'maria@gmail.com')
     emp.nombres = 'MARIA'
     emp.save()
 
-    assert not CuentaModel.objects.filter(cedula_id='20999003').exists()
+    assert CuentaModel.objects.filter(cedula_id='20999003').count() == 1  # idempotente
 
 
 # ─── Restablecer acceso ───

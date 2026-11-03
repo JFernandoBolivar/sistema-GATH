@@ -148,7 +148,9 @@ def alta_de_cuenta_al_cargar_correo(sender, instance, **kwargs):
         return
     try:
         with transaction.atomic():
-            aprovisionar_por_cedula(str(instance.cedulaidentidad))
+            # RRHH asignó un correo en Gestión de Trabajadores: activo o pasivo, la cuenta se crea ya
+            # (idempotente: si ya existe no hace nada).
+            aprovisionar_por_cedula(str(instance.cedulaidentidad), permitir_pasivo=True)
     except Exception:  # noqa: BLE001
         logger.exception('no se pudo evaluar el alta de cuenta de %s', instance.cedulaidentidad)
 

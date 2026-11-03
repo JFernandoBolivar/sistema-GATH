@@ -329,10 +329,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'notificaciones.reprocesar_outbox',
         'schedule': 300.0,  # cada 5 minutos
     },
-    # Identidad: red de seguridad diaria para las cuentas AUTOGESTION.
+    # Identidad: red de seguridad (3 veces al día) para las cuentas AUTOGESTION.
     'identidad-sincronizar-cuentas': {
         'task': 'identidad.sincronizar_cuentas_trabajadores',
-        'schedule': crontab(hour=2, minute=0),
+        # 8:00, 14:00 y 17:00 hora de Venezuela (pedido del usuario, 2026-11-03).
+        'schedule': crontab(hour='8,14,17', minute=0),
     },
     # E3: profundidad de la cola y tareas activas en una linea JSON.
     'core-metricas-cola': {
