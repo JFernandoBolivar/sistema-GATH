@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from core.domain.configuracion import (
     CLAVE_AUTOGESTION_AVISO_DIAS,
+    CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO,
@@ -76,6 +77,19 @@ DEFINICIONES = (
         descripcion=(
             'Envía por correo los avisos de ingreso, traslado, cambio de estatus y egreso '
             'del personal. Apagado, solo se muestran en el sistema.'
+        ),
+        grupo=GRUPO_NOTIFICACIONES,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
+        etiqueta='Avisar al trabajador cuando se crea su cuenta',
+        descripcion=(
+            'Envía al correo del trabajador el aviso de que su cuenta de GATH está lista y cómo '
+            'entrar (correo + cédula). Aplica a la cuenta creada al asignarle un correo, desde '
+            'Usuarios y por la sincronización. Apagado, la cuenta se crea igual pero no se le '
+            'avisa: úselo hasta que Gestión Humana anuncie el sistema.'
         ),
         grupo=GRUPO_NOTIFICACIONES,
         tipo=TIPO_BOOLEANO,

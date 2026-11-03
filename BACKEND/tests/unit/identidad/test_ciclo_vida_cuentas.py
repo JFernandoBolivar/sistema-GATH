@@ -481,3 +481,20 @@ def test_restablecer_acceso_informa_el_plazo_en_el_evento(eventos):
     cuentas.version = VersionMem()
     restablecer_acceso(cuentas, PasswordInicialMem(), cuentas.version, eventos.append, 1, AHORA, dias_vigencia=5, **seguridad())
     assert eventos[0].dias_vigencia == 5
+
+
+def test_aviso_de_cuenta_creada_sin_correo_si_el_parametro_esta_apagado():
+    """QA 2026-11-03: hasta que Gestión Humana anuncie el sistema, el alta no manda correo."""
+    from apps.identidad.domain.events import EventoIdentidad
+    from apps.identidad.domain.services.notificaciones_eventos import solicitud_de_evento
+
+    evento = EventoIdentidad(tipo=TipoEventoIdentidad.CUENTA_CREADA, cedula='123', dias_vigencia=7)
+    assert solicitud_de_evento(evento, avisar_cuenta_creada_por_correo=False).correo is None
+    assert solicitud_de_evento(evento, avisar_cuenta_creada_por_correo=True).correo is not None
+
+
+def test_el_parametro_de_aviso_de_cuenta_viene_apagado_por_defecto():
+    from apps.configuracion.domain.parametros import DEFINICIONES_POR_CLAVE
+    from core.domain.configuracion import CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO
+
+    assert DEFINICIONES_POR_CLAVE[CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO].defecto == 'false'

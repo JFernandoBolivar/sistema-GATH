@@ -160,6 +160,7 @@ def test_alta_automatica_del_activo_al_cargar_correo_institucional(base, condici
     empleado('20999001', None)  # aún sin correo: no hay cuenta
     assert not CuentaModel.objects.filter(cedula_id='20999001').exists()
 
+    _avisar_cuenta_creada_por_correo()
     emp = EmployeeModel.objects.get(cedulaidentidad='20999001')
     emp.correo = 'luis.gomez@conatel.gob.ve'
     emp.save()
@@ -192,6 +193,32 @@ def test_pasivo_con_correo_recibe_cuenta_al_guardar_su_ficha(base, condicion):
 
     assert CuentaModel.objects.filter(cedula_id='20999003').count() == 1  # idempotente
 
+
+
+def _avisar_cuenta_creada_por_correo(encendido: bool = True) -> None:
+    """Enciende el parámetro «Avisar al trabajador cuando se crea su cuenta» (apagado por defecto)."""
+    from apps.configuracion.domain.parametros import DEFINICIONES_POR_CLAVE
+    from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
+    from core.domain.configuracion import CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO
+
+    d = DEFINICIONES_POR_CLAVE[CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO]
+    ParametroSistemaModel.objects.update_or_create(
+        clave=d.clave,
+        defaults={'etiqueta': d.etiqueta, 'descripcion': d.descripcion, 'grupo': d.grupo, 'tipo': d.tipo,
+                  'valor': 'true' if encendido else 'false'},
+    )
+
+
+def test_con_el_aviso_apagado_la_cuenta_se_crea_sin_enviar_correo(base, condicion):
+    """Por defecto (antes de que Gestión Humana anuncie el sistema) no sale ningún correo."""
+    condicion['20999009'] = CondicionTrabajador.ACTIVO
+    EventoOutboxModel.objects.all().delete()
+
+    empleado('20999009', 'sin.aviso@conatel.gob.ve')
+
+    assert CuentaModel.objects.filter(cedula_id='20999009').exists()
+    assert NotificacionModel.objects.filter(destinatario_cedula='20999009', tipo='identidad.cuenta_creada').exists()
+    assert not EventoOutboxModel.objects.filter(destinatario='sin.aviso@conatel.gob.ve').exists()
 
 # ─── Restablecer acceso ───
 
@@ -275,6 +302,7 @@ def test_correo_acceso_alternativo_actualiza_employee_crea_cuenta_del_pasivo_y_a
     DatosComplementariosTrabajadorModel.objects.create(cedula=CEDULA, correo_alternativo='ana.alt@hotmail.com')
     EventoOutboxModel.objects.all().delete()
     NotificacionModel.objects.all().delete()
+    _avisar_cuenta_creada_por_correo()
 
     r = cliente_con('identidad.cambiar_correo_acceso').post(
         f'{BASE}/cuentas/{CEDULA}/correo-acceso/', {'fuente': 'ALTERNATIVO', 'motivo': 'Pase a pasivo del trabajador'}, format='json'

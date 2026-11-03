@@ -16,7 +16,11 @@ _MOTIVOS = {
 }
 
 
-def solicitud_de_evento(e: EventoIdentidad) -> SolicitudNotificacion | None:
+def solicitud_de_evento(
+    e: EventoIdentidad, avisar_cuenta_creada_por_correo: bool = True,
+) -> SolicitudNotificacion | None:
+    """`avisar_cuenta_creada_por_correo=False`: el alta de cuenta queda solo en la campana, sin correo
+    (parámetro de Administración del sistema; apagado hasta que Gestión Humana anuncie el sistema)."""
     if e.tipo is TipoEventoIdentidad.PASSWORD_CAMBIADA and e.motivo == MotivoCambioPassword.RESTABLECIDO_RRHH.value:
         # QA 2026-11-03: «fue cambiada» confundía; es un restablecimiento con instrucciones para entrar.
         titulo = 'Gestión Humana restableció su acceso a GATH'
@@ -49,5 +53,9 @@ def solicitud_de_evento(e: EventoIdentidad) -> SolicitudNotificacion | None:
         # Cada ocurrencia es un aviso distinto (se puede cambiar la clave varias veces): sin esta clave el
         # outbox y la campana lo tomarían por duplicado.
         clave=uuid4().hex,
-        correo=CorreoSolicitado(asunto=titulo + ' - GATH CONATEL'),
+        correo=(
+            None
+            if e.tipo is TipoEventoIdentidad.CUENTA_CREADA and not avisar_cuenta_creada_por_correo
+            else CorreoSolicitado(asunto=titulo + ' - GATH CONATEL')
+        ),
     )

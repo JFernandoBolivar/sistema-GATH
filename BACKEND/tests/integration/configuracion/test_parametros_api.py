@@ -52,7 +52,7 @@ def test_listado_devuelve_los_parametros_agrupables_con_su_defecto():
 
     assert respuesta.status_code == 200
     parametros = data(respuesta)
-    assert len(parametros) == 10
+    assert len(parametros) == 11  # + «Avisar al trabajador cuando se crea su cuenta» (2026-11-03)
     assert {p['grupo'] for p in parametros} == {
         'notificaciones', 'plazos', 'fe_de_vida', 'retencion',
     }
@@ -145,7 +145,7 @@ def test_dos_lecturas_concurrentes_no_fallan():
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
         resultados = list(pool.map(leer, range(2)))
 
-    assert resultados == [10, 10]
+    assert resultados == [11, 11]
 
 
 def test_si_la_auditoria_falla_el_parametro_no_queda_cambiado():

@@ -56,7 +56,7 @@ from apps.identidad.infrastructure.signals import (
 )
 from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-from core.domain.configuracion import CLAVE_PASSWORD_INICIAL_DIAS
+from core.domain.configuracion import CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO, CLAVE_PASSWORD_INICIAL_DIAS
 from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
 
 logger = logging.getLogger('gath.identidad')
@@ -117,7 +117,9 @@ def notificar_evento_identidad(sender, evento, **kwargs):
         logger.warning('sin Notificador registrado: el evento %s no genera avisos', evento.tipo.value)
         return
     try:
-        solicitud = solicitud_de_evento(evento)
+        lector = obtener_lector_configuracion()
+        avisar = lector.obtener_booleano(CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO) if lector is not None else False
+        solicitud = solicitud_de_evento(evento, avisar_cuenta_creada_por_correo=avisar)
         if solicitud is not None:
             with transaction.atomic():
                 notificador.notificar(solicitud)
