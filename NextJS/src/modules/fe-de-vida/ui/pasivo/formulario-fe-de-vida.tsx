@@ -4,9 +4,10 @@ import { useMemo, useState, useTransition } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Shield, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { OrigenFoto } from "@/shared/components/captura-foto/captura-foto";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import type { ItemBorrador } from "@/modules/autogestion/domain/entities/solicitud-actualizacion";
@@ -85,17 +86,24 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
   const [guardando, iniciarGuardado] = useTransition();
   const [subiendo, iniciarSubida] = useTransition();
   const [enviando, iniciarEnvio] = useTransition();
-  const nombres = useNombresCatalogo(items.map((i) => ({ campo: i.campo, valorPropuesto: i.valor })));
+  const nombres = useNombresCatalogo(
+    items.map((i) => ({ campo: i.campo, valorPropuesto: i.valor })),
+  );
 
   const tieneHijos = useMemo(() => {
-    const declarado = items.find((i) => i.entidad === "datos_complementarios" && i.campo === "tiene_hijos");
-    return declarado ? declarado.valor === true : ficha?.datos_complementarios?.tiene_hijos === true;
+    const declarado = items.find(
+      (i) => i.entidad === "datos_complementarios" && i.campo === "tiene_hijos",
+    );
+    return declarado
+      ? declarado.valor === true
+      : ficha?.datos_complementarios?.tiene_hijos === true;
   }, [items, ficha]);
 
   const pasos = useMemo<Paso[]>(
-    () => (tieneHijos
-      ? ["contacto", "emergencia", "hijos", "foto", "revisar"]
-      : ["contacto", "emergencia", "foto", "revisar"]),
+    () =>
+      tieneHijos
+        ? ["contacto", "emergencia", "hijos", "foto", "revisar"]
+        : ["contacto", "emergencia", "foto", "revisar"],
     [tieneHijos],
   );
   const paso = pasos[Math.min(indice, pasos.length - 1)];
@@ -105,13 +113,16 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
     defaultValues: { declaro: undefined },
   });
 
-  if (isLoading) return <VistaCargando mensaje="Cargando sus datos…" onReintentar={() => mutate()} />;
+  if (isLoading)
+    return <VistaCargando mensaje="Cargando sus datos…" onReintentar={() => mutate()} />;
   if (error || !ficha) {
     return <VistaError mensaje="No se pudieron cargar sus datos." onReintentar={() => mutate()} />;
   }
 
   const hayHijosRegistrados = (ficha.familiares ?? []).some((f) =>
-    String(f.parentesco_nombre ?? "").toUpperCase().includes("HIJO"),
+    String(f.parentesco_nombre ?? "")
+      .toUpperCase()
+      .includes("HIJO"),
   );
   const hayHijoPropuesto = items.some(
     (i) => i.seccion === "familiar" && i.entidad === "familiar" && i.accion === "CREAR",
@@ -296,7 +307,11 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
       ) : null}
 
       {paso === "revisar" ? (
-        <form onSubmit={confirmacion.handleSubmit(enviar)} noValidate className="flex flex-col gap-4">
+        <form
+          onSubmit={confirmacion.handleSubmit(enviar)}
+          noValidate
+          className="flex flex-col gap-4"
+        >
           <h2 className="text-xl font-semibold">Revise y envíe</h2>
           <section aria-labelledby="fv-resumen" className="rounded-lg border bg-card p-4">
             <h3 id="fv-resumen" className="text-base font-semibold">
@@ -319,17 +334,56 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
             <p className="mt-3 text-base">
               {tieneHijos ? "Declaró que tiene hijos." : "Declaró que no tiene hijos."}
             </p>
-            <p className="mt-1 text-base">Foto con la cédula: {fotoVigente ? "cargada" : "pendiente"}.</p>
+            <p className="mt-1 text-base">
+              Foto con la cédula: {fotoVigente ? "cargada" : "pendiente"}.
+            </p>
           </section>
           <div className="flex flex-col gap-1.5">
-            <label className="flex min-h-11 items-start gap-3 text-base">
+            {/* Tarjeta de la declaración: es el paso que habilita el envío (azul institucional, verde al marcarla). */}
+            <label
+              className={cn(
+                "group flex cursor-pointer items-start gap-4 rounded-xl border p-5 shadow-sm transition-all duration-200",
+                confirmacion.watch("declaro")
+                  ? "border-success/50 bg-success-soft ring-2 ring-success/20"
+                  : "border-primary/25 bg-primary/5 hover:border-primary/50 hover:shadow-md",
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-full transition-colors",
+                  confirmacion.watch("declaro")
+                    ? "bg-success text-white"
+                    : "bg-primary/10 text-primary",
+                )}
+              >
+                {confirmacion.watch("declaro") ? (
+                  <ShieldCheck className="size-6" />
+                ) : (
+                  <Shield className="size-6" />
+                )}
+              </span>
+              <span className="flex flex-1 flex-col gap-1">
+                <span
+                  className={cn(
+                    "text-xs font-semibold tracking-wider uppercase",
+                    confirmacion.watch("declaro") ? "text-success" : "text-primary",
+                  )}
+                >
+                  {confirmacion.watch("declaro") ? "Declaración confirmada" : "Último paso"}
+                </span>
+                <span className="text-lg leading-snug font-semibold text-foreground">
+                  Declaro que los datos y la foto son verdaderos y que soy la persona de la cédula.
+                </span>
+              </span>
               <input
                 type="checkbox"
-                className="mt-1 size-5"
-                aria-describedby={confirmacion.formState.errors.declaro ? "fv-declaro-error" : undefined}
+                className="mt-2.5 size-6 shrink-0 cursor-pointer accent-primary"
+                aria-describedby={
+                  confirmacion.formState.errors.declaro ? "fv-declaro-error" : undefined
+                }
                 {...confirmacion.register("declaro")}
               />
-              Declaro que los datos y la foto son verdaderos y que soy la persona de la cédula.
             </label>
             {confirmacion.formState.errors.declaro ? (
               <p id="fv-declaro-error" role="alert" className="text-sm font-medium text-danger">
@@ -338,7 +392,13 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
             ) : null}
           </div>
           <div className="flex flex-wrap justify-between gap-3">
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => setIndice(indice - 1)} disabled={enviando}>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setIndice(indice - 1)}
+              disabled={enviando}
+            >
               <ArrowLeft aria-hidden /> Atrás
             </Button>
             <Button
@@ -346,6 +406,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
               className="min-h-11"
               disabled={
                 enviando ||
+                // Hasta marcar la declaración el botón se ve deshabilitado (QA 2026-11-03).
+                !confirmacion.watch("declaro") ||
                 !puedeEnviarFeDeVida({ fotoVigente, viviendaOk, tieneHijos, hijosOk })
               }
             >
@@ -389,10 +451,21 @@ function NavegacionPasos({
         </p>
       ) : null}
       <div className="flex flex-wrap justify-between gap-3">
-        <Button type="button" variant="outline" className="min-h-11" onClick={onAtras} disabled={guardando}>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={onAtras}
+          disabled={guardando}
+        >
           <ArrowLeft aria-hidden /> Atrás
         </Button>
-        <Button type="button" className="min-h-11" onClick={onContinuar} disabled={guardando || !puedeContinuar}>
+        <Button
+          type="button"
+          className="min-h-11"
+          onClick={onContinuar}
+          disabled={guardando || !puedeContinuar}
+        >
           {guardando ? "Guardando…" : "Continuar"}
         </Button>
       </div>
