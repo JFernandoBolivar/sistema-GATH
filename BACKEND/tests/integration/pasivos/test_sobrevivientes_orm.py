@@ -14,6 +14,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
     NacionalidadModel,
     SexoModel,
+    CategoriaMovimientoModel,
     TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
@@ -44,8 +45,10 @@ def escenario():
     pasivo = TipoPersonalModel.objects.create(tipo_personal='PASIVO')
     nomina = TipoNominaModel.objects.create(nomina='PENSIONADO SOBREVIVIENTE')
     jubilado = TipoNominaModel.objects.create(nomina='JUBILADO')
-    motivo_pension = TipoMovimientoModel.objects.create(movimiento='PENSION POR SOBREVIVIENTE')
-    fallec = TipoMovimientoModel.objects.create(movimiento='FALLECIMIENTO')
+    cat_ingreso = CategoriaMovimientoModel.objects.create(categoria='INGRESO')
+    cat_egreso_pasivo = CategoriaMovimientoModel.objects.create(categoria='EGRESO PASIVO')
+    motivo_pension = TipoMovimientoModel.objects.create(movimiento='PENSION POR SOBREVIVIENTE', categoria=cat_ingreso)
+    fallec = TipoMovimientoModel.objects.create(movimiento='FALLECIMIENTO', categoria=cat_egreso_pasivo)
     dc = DenominacionCargoModel.objects.create(cargo='ANALISTA')
     dce = DenominacionCargoEspecificoModel.objects.create(cargo='ANALISTA I')
     dep = DependenciaModel.objects.create(Codigo='D1', dependencia='CONATEL')

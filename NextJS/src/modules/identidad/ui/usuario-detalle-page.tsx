@@ -84,6 +84,32 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const [motivoOverrides, setMotivoOverrides] = useState("");
   const [nuevoAllow, setNuevoAllow] = useState("__none");
   const [nuevoDeny, setNuevoDeny] = useState("__none");
+  const [erroresCampo, setErroresCampo] = useState<Record<string, string>>({});
+
+  const mensajeDe = (
+    errores: Record<string, string[]> | undefined,
+    ...claves: string[]
+  ): string | undefined => {
+    for (const clave of claves) {
+      const mensaje = errores?.[clave]?.join(" ");
+      if (mensaje) return mensaje;
+    }
+    return undefined;
+  };
+
+  const ponerError = (campo: string, mensaje: string | undefined) => {
+    if (!mensaje) return false;
+    setErroresCampo((previo) => ({ ...previo, [campo]: mensaje }));
+    return true;
+  };
+
+  const limpiarError = (campo: string) =>
+    setErroresCampo((previo) => {
+      if (!previo[campo]) return previo;
+      const copia = { ...previo };
+      delete copia[campo];
+      return copia;
+    });
 
   const cargar = () => {
     startTransition(async () => {
@@ -133,16 +159,18 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const guardarRol = () => {
     if (!detalle) return;
     if (motivoRol.trim().length < 10) {
-      toast.error("Indique el motivo del cambio de rol (al menos 10 caracteres).");
+      ponerError("motivoRol", "Indique el motivo del cambio de rol (al menos 10 caracteres).");
       return;
     }
+    limpiarError("motivoRol");
     startTransition(async () => {
       const resultado = await editarUsuarioAction(detalle.id, {
         rolId: rolId === "__none" ? null : Number(rolId),
         motivo: motivoRol,
       });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        if (!ponerError("motivoRol", mensajeDe(fallo.errores, "motivo"))) toast.error(fallo.error);
         return;
       }
       toast.success("Rol actualizado.");
@@ -154,13 +182,15 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const cambiarEstado = (nuevo: boolean) => {
     if (!detalle) return;
     if (motivoEstado.trim().length < 10) {
-      toast.error("Indique el motivo (al menos 10 caracteres).");
+      ponerError("motivoEstado", "Indique el motivo (al menos 10 caracteres).");
       return;
     }
+    limpiarError("motivoEstado");
     startTransition(async () => {
       const resultado = await cambiarEstadoUsuarioAction(detalle.id, nuevo, motivoEstado);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        if (!ponerError("motivoEstado", mensajeDe(fallo.errores, "motivo"))) toast.error(fallo.error);
         return;
       }
       toast.success(nuevo ? "Cuenta activada." : "Cuenta desactivada.");
@@ -172,13 +202,15 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const restablecer = () => {
     if (!detalle) return;
     if (motivoAcceso.trim().length < 10) {
-      toast.error("Indique el motivo del restablecimiento (al menos 10 caracteres).");
+      ponerError("motivoAcceso", "Indique el motivo del restablecimiento (al menos 10 caracteres).");
       return;
     }
+    limpiarError("motivoAcceso");
     startTransition(async () => {
       const resultado = await restablecerAccesoAction(detalle.id, motivoAcceso);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        if (!ponerError("motivoAcceso", mensajeDe(fallo.errores, "motivo"))) toast.error(fallo.error);
       } else {
         toast.success("Acceso restablecido: la contraseña inicial es la cédula.");
         setMotivoAcceso("");
@@ -190,9 +222,11 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const cambiarCorreo = () => {
     if (!detalle) return;
     if (motivoCorreo.trim().length < 10) {
-      toast.error("Indique el motivo del cambio de correo (al menos 10 caracteres).");
+      ponerError("motivoCorreo", "Indique el motivo del cambio de correo (al menos 10 caracteres).");
       return;
     }
+    limpiarError("motivoCorreo");
+    limpiarError("correoOtro");
     startTransition(async () => {
       const resultado = await cambiarCorreoAccesoAction(detalle.cedula, {
         fuente: fuenteCorreo,
@@ -200,7 +234,11 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
         motivo: motivoCorreo,
       });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        const ubicado =
+          ponerError("correoOtro", mensajeDe(fallo.errores, "correo")) ||
+          ponerError("motivoCorreo", mensajeDe(fallo.errores, "motivo", "fuente"));
+        if (!ubicado) toast.error(fallo.error);
         return;
       }
       toast.success("Correo de acceso actualizado.");
@@ -213,13 +251,15 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const guardarOverrides = () => {
     if (!detalle) return;
     if (motivoOverrides.trim().length < 10) {
-      toast.error("Indique el motivo (al menos 10 caracteres).");
+      ponerError("motivoOverrides", "Indique el motivo (al menos 10 caracteres).");
       return;
     }
+    limpiarError("motivoOverrides");
     startTransition(async () => {
       const resultado = await guardarOverridesAction(detalle.id, { allow, deny, motivo: motivoOverrides });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        if (!ponerError("motivoOverrides", mensajeDe(fallo.errores, "motivo"))) toast.error(fallo.error);
         return;
       }
       toast.success("Permisos individuales actualizados.");
@@ -270,7 +310,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
             <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <p className="text-muted-foreground">Correo de acceso</p>
-                <p>{detalle.correo ?? "—"}</p>
+                <p className="break-words">{detalle.correo ?? "—"}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Rol</p>
@@ -311,14 +351,23 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Field>
+                    <Field data-invalid={!!erroresCampo.motivoRol}>
                       <Label htmlFor="motivo-rol">Motivo del cambio de rol</Label>
                       <Input
                         id="motivo-rol"
                         value={motivoRol}
-                        onChange={(e) => setMotivoRol(e.target.value)}
+                        minLength={10}
+                        maxLength={500}
+                        onChange={(e) => {
+                          setMotivoRol(e.target.value);
+                          limpiarError("motivoRol");
+                        }}
                         placeholder="Mínimo 10 caracteres"
+                        aria-invalid={!!erroresCampo.motivoRol}
                       />
+                      {erroresCampo.motivoRol && (
+                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoRol}</p>
+                      )}
                     </Field>
                     <Button type="button" onClick={guardarRol} disabled={cargando} className="self-start">
                       <Save className="size-4" aria-hidden="true" /> Guardar rol
@@ -328,14 +377,23 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
 
                 {puedeEstado && (
                   <div className="flex flex-col gap-2 border-t pt-4">
-                    <Field>
+                    <Field data-invalid={!!erroresCampo.motivoEstado}>
                       <Label htmlFor="motivo-estado">Motivo de activación/desactivación</Label>
                       <Input
                         id="motivo-estado"
                         value={motivoEstado}
-                        onChange={(e) => setMotivoEstado(e.target.value)}
+                        minLength={10}
+                        maxLength={500}
+                        onChange={(e) => {
+                          setMotivoEstado(e.target.value);
+                          limpiarError("motivoEstado");
+                        }}
                         placeholder="Mínimo 10 caracteres"
+                        aria-invalid={!!erroresCampo.motivoEstado}
                       />
+                      {erroresCampo.motivoEstado && (
+                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoEstado}</p>
+                      )}
                     </Field>
                     <Button
                       type="button"
@@ -351,14 +409,23 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
 
                 {puedeRestablecer && (
                   <div className="border-t pt-4">
-                    <Field>
+                    <Field data-invalid={!!erroresCampo.motivoAcceso}>
                       <Label htmlFor="motivo-acceso">Motivo del restablecimiento</Label>
                       <Input
                         id="motivo-acceso"
                         value={motivoAcceso}
-                        onChange={(e) => setMotivoAcceso(e.target.value)}
+                        minLength={10}
+                        maxLength={500}
+                        onChange={(e) => {
+                          setMotivoAcceso(e.target.value);
+                          limpiarError("motivoAcceso");
+                        }}
                         placeholder="Mínimo 10 caracteres"
+                        aria-invalid={!!erroresCampo.motivoAcceso}
                       />
+                      {erroresCampo.motivoAcceso && (
+                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoAcceso}</p>
+                      )}
                     </Field>
                     <Button type="button" variant="outline" onClick={restablecer} disabled={cargando}>
                       <KeyRound className="size-4" aria-hidden="true" /> Restablecer acceso
@@ -400,24 +467,41 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                       </Select>
                     </Field>
                     {fuenteCorreo === "OTRO" && (
-                      <Field>
+                      <Field data-invalid={!!erroresCampo.correoOtro}>
                         <Label htmlFor="correo-otro">Correo</Label>
                         <Input
                           id="correo-otro"
                           type="email"
+                          maxLength={254}
                           value={correoOtro}
-                          onChange={(e) => setCorreoOtro(e.target.value)}
+                          onChange={(e) => {
+                            setCorreoOtro(e.target.value);
+                            limpiarError("correoOtro");
+                          }}
+                          aria-invalid={!!erroresCampo.correoOtro}
                         />
+                        {erroresCampo.correoOtro && (
+                          <p role="alert" className="text-sm text-destructive">{erroresCampo.correoOtro}</p>
+                        )}
                       </Field>
                     )}
-                    <Field>
+                    <Field data-invalid={!!erroresCampo.motivoCorreo}>
                       <Label htmlFor="motivo-correo">Motivo del cambio de correo</Label>
                       <Input
                         id="motivo-correo"
                         value={motivoCorreo}
-                        onChange={(e) => setMotivoCorreo(e.target.value)}
+                        minLength={10}
+                        maxLength={500}
+                        onChange={(e) => {
+                          setMotivoCorreo(e.target.value);
+                          limpiarError("motivoCorreo");
+                        }}
                         placeholder="Mínimo 10 caracteres"
+                        aria-invalid={!!erroresCampo.motivoCorreo}
                       />
+                      {erroresCampo.motivoCorreo && (
+                        <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoCorreo}</p>
+                      )}
                     </Field>
                     <Button type="button" onClick={cambiarCorreo} disabled={cargando} className="self-start">
                       Guardar correo
@@ -465,7 +549,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           ))}
                         </ul>
                       )}
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                         <Select value={nuevoAllow} onValueChange={setNuevoAllow}>
                           <SelectTrigger aria-label="Permiso a conceder">
                             <SelectValue placeholder="Permiso" />
@@ -515,7 +599,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           ))}
                         </ul>
                       )}
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                         <Select value={nuevoDeny} onValueChange={setNuevoDeny}>
                           <SelectTrigger aria-label="Permiso a denegar">
                             <SelectValue placeholder="Permiso" />
@@ -544,14 +628,23 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                       </div>
                     </div>
                   </div>
-                  <Field>
+                  <Field data-invalid={!!erroresCampo.motivoOverrides}>
                     <Label htmlFor="motivo-overrides">Motivo</Label>
                     <Input
                       id="motivo-overrides"
                       value={motivoOverrides}
-                      onChange={(e) => setMotivoOverrides(e.target.value)}
+                      minLength={10}
+                      maxLength={500}
+                      onChange={(e) => {
+                        setMotivoOverrides(e.target.value);
+                        limpiarError("motivoOverrides");
+                      }}
                       placeholder="Mínimo 10 caracteres"
+                      aria-invalid={!!erroresCampo.motivoOverrides}
                     />
+                    {erroresCampo.motivoOverrides && (
+                      <p role="alert" className="text-sm text-destructive">{erroresCampo.motivoOverrides}</p>
+                    )}
                   </Field>
                   <Button type="button" onClick={guardarOverrides} disabled={cargando} className="self-start">
                     <Save className="size-4" aria-hidden="true" /> Guardar permisos

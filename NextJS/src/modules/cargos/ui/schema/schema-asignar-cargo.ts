@@ -8,7 +8,7 @@ export const cargosFiltroSchema = z.object({
   direccionGeneralId: z.number().int().positive().optional().nullable(),
   direccionLineaId: z.number().int().positive().optional().nullable(),
   coordinacionId: z.number().int().positive().optional().nullable(),
-  codigo: z.string().optional().nullable(),
+  codigo: z.string().trim().max(20, ERROR.MAX_LENGTH(20)).optional().nullable(),
   soloVacantes: z.boolean().optional(),
 });
 
@@ -81,13 +81,22 @@ export const crearCargoSchema = z.object({
   denominacionId: z.number().int().positive({ message: "Seleccione una denominación de cargo" }),
   especificaId: z.number().int().positive({ message: "Seleccione una denominación de cargo específico" }),
   tipoNominaId: z.number().int().positive({ message: "Seleccione un tipo de nómina" }),
-  dependenciaId: z.number().int().positive().optional(),
-  direccionGeneralId: z.number().int().positive().optional(),
+  // Un código no puede crearse solo con el Nivel: exige también la Oficina/Gerencia.
+  dependenciaId: z.number({ message: "Seleccione el Nivel (Dependencia)" }).int().positive({ message: "Seleccione el Nivel (Dependencia)" }),
+  direccionGeneralId: z
+    .number({ message: "Seleccione la Dirección / Gerencia / Oficina" })
+    .int()
+    .positive({ message: "Seleccione la Dirección / Gerencia / Oficina" }),
   direccionLineaId: z.number().int().positive().optional(),
   coordinacionId: z.number().int().positive().optional(),
   organismoId: z.number().int().positive().optional(),
   gradoId: z.number().int().positive().optional(),
-  observaciones: z.string().trim().max(500, ERROR.MAX_LENGTH(500)).optional(),
+  observaciones: z
+    .string()
+    .trim()
+    .max(500, ERROR.MAX_LENGTH(500))
+    .refine((v) => v.length === 0 || v.length >= 3, { message: ERROR.MIN_LENGTH(3) })
+    .optional(),
 });
 
 export type AsignarCargoFormType = z.infer<typeof asignarCargoSchema>;
@@ -133,7 +142,7 @@ export type SchemaCodeEspecialType = z.infer<typeof schemaCodeEspecial>;
 
 export const schemaFilterForm = z.object({
   tipo_nomina: z.coerce.number().optional(),
-  codigo: z.string().optional(),
+  codigo: z.string().trim().max(20, ERROR.MAX_LENGTH(20)).optional(),
   dependencia_id: z.coerce.number().optional(),
   direccion_general_id: z.coerce.number().optional(),
   direccion_linea_id: z.coerce.number().optional(),
@@ -144,21 +153,12 @@ export type SchemaFilterFormType = z.infer<typeof schemaFilterForm>;
 export const schemaPrestamoCargo = z.object({
   cargo_encargado: z.number({ message: "Debe seleccionar un cargo" }).min(1),
   empleado_encargado: z.string({ message: "Debe seleccionar un empleado" }).min(1),
-  motivo: z.number({ message: "Debe seleccionar un motivo" }),
-  nueva_motivo_nombre: z.string().optional(),
+  motivo: z.number({ message: "Debe seleccionar un motivo" }).int().positive({ message: "Debe seleccionar un motivo" }),
   fecha_inicio: z.date({ message: "Debe seleccionar una fecha de inicio" }),
   fecha_fin: z.date({ message: "Debe seleccionar una fecha de fin" }),
 }).refine(
   (data) => data.fecha_fin >= data.fecha_inicio,
   { message: "La fecha de fin no puede ser anterior a la de inicio", path: ["fecha_fin"] },
-).refine(
-  (data) => {
-    if (data.motivo === -1 && !data.nueva_motivo_nombre?.trim()) {
-      return false;
-    }
-    return true;
-  },
-  { message: "Debe escribir el nombre del nuevo motivo", path: ["nueva_motivo_nombre"] },
 );
 export type PrestamoCargoFormType = z.infer<typeof schemaPrestamoCargo>;
 

@@ -127,7 +127,7 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
       </span>
       <PopoverContent align="end" className="w-[min(24rem,calc(100vw-1.5rem))] p-3">
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold">Notificaciones</h2>
             <Button
               type="button"

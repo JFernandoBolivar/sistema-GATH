@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -59,7 +60,9 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
         ? await actualizarRolAction(rolEditando.id, { nombreRol: data.nombreRol, descripcionRol: data.descripcionRol ?? "" })
         : await crearRolAction({ nombreRol: data.nombreRol, descripcionRol: data.descripcionRol ?? "" });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const err = resultado as { error: string; errores?: Record<string, string[]> };
+        const sinUbicar = aplicarErroresServidor(form, err.errores, { nombre: "nombreRol", nombre_rol: "nombreRol", descripcion: "descripcionRol", descripcion_rol: "descripcionRol" });
+        toast.error(sinUbicar.length > 0 || !err.errores ? err.error : "Revise los campos marcados en rojo.");
         return;
       }
       toast.success(rolEditando ? "Rol actualizado correctamente." : "Rol creado correctamente.");
@@ -70,7 +73,7 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{rolEditando ? "Editar rol" : "Nuevo rol"}</DialogTitle>
           <DialogDescription>
@@ -85,6 +88,8 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
             <Input
               id="nombreRol"
               placeholder="Ej. RECEPCIONISTA"
+              minLength={2}
+              maxLength={50}
               {...form.register("nombreRol")}
               aria-invalid={!!form.formState.errors.nombreRol}
             />
@@ -94,9 +99,19 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
               </p>
             )}
           </Field>
-          <Field>
+          <Field data-invalid={!!form.formState.errors.descripcionRol}>
             <Label htmlFor="descripcionRol">Descripción</Label>
-            <Input id="descripcionRol" {...form.register("descripcionRol")} />
+            <Input
+              id="descripcionRol"
+              maxLength={500}
+              {...form.register("descripcionRol")}
+              aria-invalid={!!form.formState.errors.descripcionRol}
+            />
+            {form.formState.errors.descripcionRol && (
+              <p role="alert" className="text-sm text-destructive">
+                {form.formState.errors.descripcionRol.message}
+              </p>
+            )}
           </Field>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

@@ -7,12 +7,14 @@ Réplica funcional de
 """
 from apps.cargos.application.dtos.cargos_dtos import CargoAsignacionDTO, CrearCargoEspecialDTO
 from apps.cargos.application.use_cases.listar_cargos import _a_dto
+from apps.cargos.application.use_cases.crear_cargo import validar_ubicacion_minima
 from apps.cargos.domain.ports.repo_cargos import RepoCargos
 
 
 def asignar_cargo_especial(
     repo: RepoCargos, dto: CrearCargoEspecialDTO, usuario_id: int | None = None
 ) -> CargoAsignacionDTO:
+    validar_ubicacion_minima(dto.dependencia_id, dto.direccion_general_id)
     entidad = repo.crear_cargo_especial_y_asignar({
         'cedula_empleado': dto.cedula_empleado,
         'denominacion_id': dto.denominacion_id,

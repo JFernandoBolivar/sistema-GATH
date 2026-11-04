@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { CheckCircle2, AlertCircle, ArrowLeft, KeyRound, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -60,7 +61,7 @@ export default function RestablecerPasswordForm({ tokenInicial = "" }: Restablec
           </p>
         </div>
         <Link href="/recuperar-password" className="w-full">
-          <Button variant="outline" className="w-full text-slate-900 bg-white hover:bg-slate-100">
+          <Button variant="outline" className="w-full min-h-11 text-base text-slate-900 bg-white hover:bg-slate-100">
             Solicitar Nuevo Enlace
           </Button>
         </Link>
@@ -73,7 +74,14 @@ export default function RestablecerPasswordForm({ tokenInicial = "" }: Restablec
     startTransition(async () => {
       const result = await restablecerPasswordAction(values);
       if (!result.success) {
-        setError(result.message);
+        const sinUbicar = aplicarErroresServidor(form, result.errores, {
+          password_nuevo: "passwordNuevo",
+          new_password: "passwordNuevo",
+          password_confirmacion: "passwordConfirmacion",
+          passwordConfirmacion: "passwordConfirmacion",
+          token: "token",
+        });
+        setError(sinUbicar.length > 0 || !result.errores ? result.message : "");
         return;
       }
       setExito(true);
@@ -97,7 +105,7 @@ export default function RestablecerPasswordForm({ tokenInicial = "" }: Restablec
           </p>
         </div>
         <Link href="/login" className="w-full">
-          <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+          <Button className="w-full min-h-11 text-base bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
             <KeyRound className="w-4 h-4 mr-2" /> Iniciar Sesión Ahora
           </Button>
         </Link>
@@ -130,14 +138,16 @@ export default function RestablecerPasswordForm({ tokenInicial = "" }: Restablec
                     <Input
                       type={showPasswordNuevo ? "text" : "password"}
                       placeholder="Mínimo 8 caracteres"
+                      minLength={8}
+                      maxLength={128}
                       {...field}
-                      className="pr-10 placeholder:text-slate-300 text-white hover:bg-slate-900/20"
+                      className="min-h-11 text-base sm:text-sm pr-10 placeholder:text-slate-300 text-white hover:bg-slate-900/20"
                     />
                   </FormControl>
                   <button
                     type="button"
                     onClick={() => setShowPasswordNuevo((prev) => !prev)}
-                    className="absolute right-3 text-slate-300 hover:text-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 rounded p-0.5"
+                    className="absolute right-3 text-slate-300 hover:text-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 rounded p-1 min-h-[36px] min-w-[36px] flex items-center justify-center"
                     tabIndex={-1}
                     aria-label={showPasswordNuevo ? "Ocultar clave" : "Mostrar clave"}
                     title={showPasswordNuevo ? "Ocultar clave" : "Mostrar clave"}
@@ -164,14 +174,16 @@ export default function RestablecerPasswordForm({ tokenInicial = "" }: Restablec
                     <Input
                       type={showPasswordConfirmacion ? "text" : "password"}
                       placeholder="Repite la nueva contraseña"
+                      minLength={8}
+                      maxLength={128}
                       {...field}
-                      className="pr-10 placeholder:text-slate-300 text-white hover:bg-slate-900/20"
+                      className="min-h-11 text-base sm:text-sm pr-10 placeholder:text-slate-300 text-white hover:bg-slate-900/20"
                     />
                   </FormControl>
                   <button
                     type="button"
                     onClick={() => setShowPasswordConfirmacion((prev) => !prev)}
-                    className="absolute right-3 text-slate-300 hover:text-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 rounded p-0.5"
+                    className="absolute right-3 text-slate-300 hover:text-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 rounded p-1 min-h-[36px] min-w-[36px] flex items-center justify-center"
                     tabIndex={-1}
                     aria-label={showPasswordConfirmacion ? "Ocultar clave" : "Mostrar clave"}
                     title={showPasswordConfirmacion ? "Ocultar clave" : "Mostrar clave"}
@@ -191,14 +203,14 @@ export default function RestablecerPasswordForm({ tokenInicial = "" }: Restablec
             </div>
           )}
 
-          <Button type="submit" disabled={isPending} className="w-full mt-2">
+          <Button type="submit" disabled={isPending} className="w-full min-h-11 text-base mt-2">
             {isPending ? "Restableciendo..." : "Guardar Nueva Contraseña"}
           </Button>
 
           <div className="flex justify-center pt-2">
             <Link
               href="/login"
-              className="inline-flex items-center text-xs text-blue-200 hover:text-white underline-offset-4 hover:underline transition-colors"
+              className="inline-flex items-center min-h-[40px] text-xs text-blue-200 hover:text-white underline-offset-4 hover:underline transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Volver al Inicio de Sesión
             </Link>

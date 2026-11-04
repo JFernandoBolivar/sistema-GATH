@@ -7,6 +7,13 @@ import type { ApiResponse } from "@/shared/types/api-response";
 export interface CatalogoApiItem {
   id: number;
   nombre: string;
+  /** Las respuestas de escritura/categorías pueden traer el texto bajo su nombre propio. */
+  nombre_categoria?: string;
+  alergia?: string;
+  patologia?: string;
+  discapacidad?: string;
+  categoria?: string;
+  codigo?: string | null;
 }
 
 export interface EstadoApiItem {

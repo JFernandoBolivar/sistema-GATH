@@ -38,3 +38,24 @@ def test_listado_excluye_puestos_de_pasivos(puestos):
 def test_vacantes_excluye_puestos_de_pasivos(puestos):
     codigos = {c.codigo for c in RepoCargosORM().listar_cargos(solo_vacantes=True)}
     assert codigos == {'C-ACT-1'}
+
+
+def test_crear_cargo_deja_tipo_personal_activo_y_dependencia(puestos):
+    from apps.organizacion.infrastructure.models.organizacion_models import (
+        DependenciaModel, DireccionGeneralModel,
+    )
+    EstatusModel.objects.create(estatus='VACANTE')
+    dep = DependenciaModel.objects.create(Codigo='01', dependencia='NIVEL 1')
+    dg = DireccionGeneralModel.objects.create(Codigo='0101', direccion_general='OFICINA 1', dependenciaId=dep)
+    dc = DenominacionCargoModel.objects.get(cargo='ANALISTA')
+    dce = DenominacionCargoEspecificoModel.objects.get(cargo='ANALISTA I')
+    nomina = TipoNominaModel.objects.get(nomina='EMPLEADO')
+
+    creado = RepoCargosORM().crear_cargo({
+        'denominacion_id': dc.pk, 'especifica_id': dce.pk, 'tipo_nomina_id': nomina.pk,
+        'dependencia_id': dep.pk, 'direccion_general_id': dg.pk,
+    })
+
+    fila = AsigTrabajoModel.objects.get(pk=creado.id)
+    assert fila.Tipo_personal.tipo_personal == 'ACTIVO'
+    assert fila.Dependencia_id == dep.pk

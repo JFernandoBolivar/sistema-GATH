@@ -16,13 +16,14 @@ def validar_motivo(motivo: str) -> str:
     """Devuelve el motivo normalizado (espacios colapsados) o lanza `ValidationError`."""
     motivo = ' '.join((motivo or '').split())
     if not motivo:
-        raise ValidationError("El motivo es obligatorio.")
+        raise ValidationError("El motivo es obligatorio.", campo='motivo')
     if _ETIQUETA_HTML.search(motivo):
-        raise ValidationError("El motivo no puede contener etiquetas HTML ni los símbolos < o >.")
+        raise ValidationError("El motivo no puede contener etiquetas HTML ni los símbolos < o >.", campo='motivo')
     if len(motivo) < MOTIVO_MIN_CARACTERES or len(motivo.split()) < MOTIVO_MIN_PALABRAS:
         raise ValidationError(
-            f"El motivo debe tener al menos {MOTIVO_MIN_PALABRAS} palabras y {MOTIVO_MIN_CARACTERES} caracteres."
+            f"El motivo debe tener al menos {MOTIVO_MIN_PALABRAS} palabras y {MOTIVO_MIN_CARACTERES} caracteres.",
+            campo='motivo',
         )
     if len(motivo) > MOTIVO_MAX_CARACTERES:
-        raise ValidationError(f"El motivo no puede exceder {MOTIVO_MAX_CARACTERES} caracteres.")
+        raise ValidationError(f"El motivo no puede exceder {MOTIVO_MAX_CARACTERES} caracteres.", campo='motivo')
     return motivo

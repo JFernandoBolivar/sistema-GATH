@@ -22,13 +22,11 @@ export interface RepoPasivos {
   listarParroquias(): Promise<CatalogoPasivo[]>;
   obtenerPorCedula(cedula: string): Promise<Pasivo>;
   procesarEgreso(cedula: string, input: ProcesarEgresoInput): Promise<Pasivo>;
-  listarMotivosEgreso(): Promise<CatalogoPasivo[]>;
   listarTiposNomina(soloPasivos?: boolean): Promise<CatalogoPasivo[]>;
   /** Catálogos para resolver a nombre el expediente del detalle (vista de detalle). */
   listarCatalogosExpediente(): Promise<CatalogosExpedientePasivo>;
   /** HU: PDF del expediente generado en backend (ReportLab), reemplaza el render client-side con @react-pdf/renderer. */
   descargarPdf(cedula: string): Promise<Blob>;
-  listarMotivosEgresoPasivo(): Promise<CatalogoPasivo[]>;
   egresarPasivo(cedula: string, motivoId: number, familiarIds: number[]): Promise<Pasivo>;
   getFamiliaresTitular(cedula: string): Promise<{ id: number; cedulaFamiliar: string | null; nombreCompleto: string; heredero: boolean }[]>;
   registrarSobrevivientes(cedula: string, familiarIds: number[]): Promise<{ cedula: string; nombreCompleto: string; creado: boolean }[]>;

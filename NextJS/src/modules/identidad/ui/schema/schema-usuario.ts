@@ -44,6 +44,7 @@ export const registrarUsuarioSchema = z.object({
   password: z
     .string()
     .min(8, ERROR.MIN_LENGTH(8))
+    .max(128, ERROR.MAX_LENGTH(128))
     .regex(REGEX.PASSWORD, ERROR.INVALID_PASSWORD),
   rolId: z.number().int().positive().optional().nullable(),
 });
@@ -83,7 +84,13 @@ export const restablecerAccesoSchema = z.object({
 export const cambiarCorreoAccesoSchema = z
   .object({
     fuente: z.enum(["INSTITUCIONAL", "ALTERNATIVO", "OTRO"]),
-    correo: z.string().trim().email("Correo inválido").optional().or(z.literal("")),
+    correo: z
+      .string()
+      .trim()
+      .email("Correo inválido")
+      .max(254, ERROR.MAX_LENGTH(254))
+      .optional()
+      .or(z.literal("")),
     motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
   })
   .refine((v) => v.fuente !== "OTRO" || !!v.correo, {
@@ -101,7 +108,7 @@ export const usuarioFormSchema = z.object({
     .string()
     .trim()
     .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida (solo dígitos)" }),
-  password: z.string().optional().nullable(),
+  password: z.string().max(128, ERROR.MAX_LENGTH(128)).optional().nullable(),
   rolId: z.number().int().positive().optional().nullable(),
 });
 

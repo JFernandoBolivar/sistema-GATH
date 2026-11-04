@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import type { MiExpedienteDTO } from "@/modules/autogestion/application/dtos/mi-expediente-dto";
 import { oficinaDeAdscripcion } from "../../domain/services/reglas";
 import { datosContactoSchema, type DatosContactoValores } from "../schema/schema-fe-de-vida";
@@ -15,6 +17,7 @@ interface Props {
   valoresIniciales: Partial<Omit<DatosContactoValores, "tieneHijos">> & {
     tieneHijos?: "si" | "no" | "";
   };
+  erroresServidor?: Record<string, string[]>;
   guardando: boolean;
   onContinuar: (valores: DatosContactoValores) => void;
 }
@@ -35,15 +38,11 @@ function DatoSoloLectura({
 }
 
 /** Paso 1: datos personales (solo lectura), contacto editable, correo alternativo y «¿tiene hijos?». */
-export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }: Props) {
+export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardando, onContinuar }: Props) {
   const e = ficha.empleado;
   const asignacion = e.asignaciones?.[0];
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<DatosContactoValores>({
+
+  const form = useForm<DatosContactoValores>({
     resolver: zodResolver(datosContactoSchema),
     defaultValues: {
       telefonoMovil: valoresIniciales.telefonoMovil ?? "",
@@ -52,6 +51,23 @@ export function PasoContacto({ ficha, valoresIniciales, guardando, onContinuar }
       tieneHijos: (valoresIniciales.tieneHijos || undefined) as "si" | "no" | undefined,
     },
   });
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = form;
+
+  useEffect(() => {
+    if (erroresServidor) {
+      aplicarErroresServidor(form, erroresServidor, {
+        telefono_movil: "telefonoMovil",
+        telefono_habitacion: "telefonoHabitacion",
+        correo_alternativo: "correoAlternativo",
+        tiene_hijos: "tieneHijos",
+      });
+    }
+  }, [erroresServidor, form]);
 
   return (
     <form onSubmit={handleSubmit(onContinuar)} noValidate className="flex flex-col gap-6">

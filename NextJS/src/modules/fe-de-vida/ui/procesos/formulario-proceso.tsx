@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
 import { Button } from "@/components/ui/button";
@@ -36,24 +38,19 @@ export function valoresADatosProceso(v: ProcesoValores): DatosProceso {
 interface Props {
   proceso: ProcesoDTO | null;
   pendiente: boolean;
+  erroresServidor?: Record<string, string[]>;
   onCerrar: () => void;
   onGuardar: (datos: DatosProceso) => void;
 }
 
 /** Crear o editar un proceso: nombre, fechas, alcance por tipos de pensión y días de recordatorio. */
-export function FormularioProceso({ proceso, pendiente, onCerrar, onGuardar }: Props) {
+export function FormularioProceso({ proceso, pendiente, erroresServidor, onCerrar, onGuardar }: Props) {
   const tipos = useSWR("fe-de-vida-tipos-pension", async () => {
     const res = await listarTiposPensionAction();
     if (!res.ok) throw new Error(res.mensaje);
     return res.datos;
   });
-  const {
-    register,
-    handleSubmit,
-    control,
-    setValue,
-    formState: { errors },
-  } = useForm<ProcesoValores>({
+  const form = useForm<ProcesoValores>({
     resolver: zodResolver(procesoSchema),
     defaultValues: {
       nombre: proceso?.nombre ?? "",
@@ -64,6 +61,23 @@ export function FormularioProceso({ proceso, pendiente, onCerrar, onGuardar }: P
       diasRecordatorio: proceso ? [...proceso.diasRecordatorio] : [],
     },
   });
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    formState: { errors },
+  } = form;
+  useEffect(() => {
+    if (erroresServidor) {
+      aplicarErroresServidor(form, erroresServidor, {
+        fecha_apertura: "apertura",
+        fecha_cierre: "cierre",
+        tipos_nomina: "tiposNomina",
+        dias_recordatorio: "diasRecordatorio",
+      });
+    }
+  }, [erroresServidor, form]);
   const todos = useWatch({ control, name: "todos" });
   const elegidos = useWatch({ control, name: "tiposNomina" });
 
@@ -90,18 +104,18 @@ export function FormularioProceso({ proceso, pendiente, onCerrar, onGuardar }: P
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="p-nombre" className="text-base font-medium">Nombre</label>
-            <Input id="p-nombre" aria-invalid={errors.nombre ? true : undefined} aria-describedby="p-nombre-e" {...register("nombre")} />
+            <Input id="p-nombre" maxLength={160} aria-invalid={errors.nombre ? true : undefined} aria-describedby="p-nombre-e" {...register("nombre")} />
             {error("nombre", "p-nombre-e")}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="p-apertura" className="text-base font-medium">Apertura</label>
-              <Input id="p-apertura" type="datetime-local" aria-describedby="p-apertura-e" {...register("apertura")} />
+              <Input id="p-apertura" type="datetime-local" maxLength={35} aria-describedby="p-apertura-e" {...register("apertura")} />
               {error("apertura", "p-apertura-e")}
             </div>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="p-cierre" className="text-base font-medium">Cierre</label>
-              <Input id="p-cierre" type="datetime-local" aria-describedby="p-cierre-e" {...register("cierre")} />
+              <Input id="p-cierre" type="datetime-local" maxLength={35} aria-describedby="p-cierre-e" {...register("cierre")} />
               {error("cierre", "p-cierre-e")}
             </div>
           </div>

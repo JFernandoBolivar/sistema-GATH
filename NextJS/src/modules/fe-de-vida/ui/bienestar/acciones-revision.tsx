@@ -43,18 +43,28 @@ export function mensajeEstadoCheck(
 /** Botones de la revisión: solo los que el servidor declara disponibles para quien mira. */
 export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
   const [dialogo, setDialogo] = useState<Dialogo>(null);
+  const [erroresServidor, setErroresServidor] = useState<Record<string, string[]> | undefined>(undefined);
   const [pendiente, iniciar] = useTransition();
   const tiene = (a: AccionRevision) => acciones.includes(a);
   const mensaje = mensajeEstadoCheck(solicitud, acciones);
+
+  function abrirDialogo(d: Dialogo) {
+    setErroresServidor(undefined);
+    setDialogo(d);
+  }
 
   function ejecutar(fn: () => ReturnType<typeof registrarCheckAction>) {
     iniciar(async () => {
       const res = await fn();
       if (!res.ok) {
         toast.error(res.mensaje);
+        if (res.errores) {
+          setErroresServidor(res.errores);
+        }
         return;
       }
       toast.success(res.mensaje);
+      setErroresServidor(undefined);
       setDialogo(null);
       onHecho();
     });
@@ -92,7 +102,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
               variant="secondary"
               className="min-h-11"
               disabled={pendiente}
-              onClick={() => setDialogo("aprobar")}
+              onClick={() => abrirDialogo("aprobar")}
             >
               <ShieldCheck aria-hidden /> Aprobación directa
             </Button>
@@ -103,7 +113,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
               variant="outline"
               className="min-h-11"
               disabled={pendiente}
-              onClick={() => setDialogo("devolver")}
+              onClick={() => abrirDialogo("devolver")}
             >
               <Undo2 aria-hidden /> Devolver para corrección
             </Button>
@@ -114,7 +124,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
               variant="destructive"
               className="min-h-11"
               disabled={pendiente}
-              onClick={() => setDialogo("rechazar")}
+              onClick={() => abrirDialogo("rechazar")}
             >
               <XCircle aria-hidden /> Rechazar
             </Button>
@@ -125,7 +135,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
               variant="outline"
               className="min-h-11"
               disabled={pendiente}
-              onClick={() => setDialogo("retirar")}
+              onClick={() => abrirDialogo("retirar")}
             >
               <RotateCcw aria-hidden /> Retirar mi check
             </Button>
@@ -144,6 +154,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
         <DialogoDevolver
           abierto
           pendiente={pendiente}
+          erroresServidor={erroresServidor}
           onCerrar={() => setDialogo(null)}
           onConfirmar={(motivo, nueva) => ejecutar(() => devolverSolicitudAction(solicitud.id, motivo, nueva))}
         />
@@ -152,6 +163,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
         <DialogoTexto
           abierto
           pendiente={pendiente}
+          erroresServidor={erroresServidor}
           onCerrar={() => setDialogo(null)}
           titulo="Rechazar fe de vida"
           descripcion="El rechazo es definitivo. El pasivo verá el motivo."
@@ -165,6 +177,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
         <DialogoTexto
           abierto
           pendiente={pendiente}
+          erroresServidor={erroresServidor}
           onCerrar={() => setDialogo(null)}
           titulo="Aprobación directa"
           descripcion="Valida la fe de vida sin segundo check. Queda registrada con su justificación."
@@ -184,6 +197,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
         <DialogoRetirarCheck
           abierto
           pendiente={pendiente}
+          erroresServidor={erroresServidor}
           onCerrar={() => setDialogo(null)}
           onConfirmar={(motivo) => ejecutar(() => retirarCheckAction(solicitud.id, motivo))}
         />

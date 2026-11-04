@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/shared/ui/components/card";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Combobox } from "@/shared/ui/components/combobox";
 import {
   Select,
@@ -49,7 +50,7 @@ import {
   getDireccionesLineaAction,
   getGradosAction,
   getOrganismosAdscritosAction,
-  getTiposNominaAction,
+  getTiposNominaEspecialesAction,
 } from "@/modules/cargos/infrastructure/actions/cargos-actions";
 import { getTiposProcedenciaAction } from "@/modules/catalogos/infrastructure/actions/catalogos-actions";
 import type {
@@ -69,7 +70,8 @@ interface CodigoCatalogFormProps {
 
 export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) {
   const [dependencyId, setDependencyId] = useState<number | string>("");
-  const [activeDirectionGeneral, setActiveDirectionGeneral] = useState<boolean>(false);
+  // La Dirección / Gerencia / Oficina es obligatoria (un código no se crea solo con el Nivel).
+  const activeDirectionGeneral = true;
   const [selecteIdDirectionGeneral, setSelecteIdDirectionGeneral] = useState<string>();
   const [selecteIdDirectionLine, setSelecteIdDirectionLine] = useState<string>();
 
@@ -118,9 +120,6 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
     },
   });
 
-  const validateDirectionGeneral = () => {
-    if (!activeDirectionGeneral) form.setValue("DireccionGeneral", 0);
-  };
   const validateDirectionLine = () => {
     if (!activeDirectionLine || !activeDirectionGeneral)
       form.setValue("DireccionLinea", 0);
@@ -143,7 +142,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
         const [cargos, esp, noms, grds, orgs, procs, deps] = await Promise.all([
           getDenominacionesAction(),
           getDenominacionesEspecificasAction(),
-          getTiposNominaAction(),
+          getTiposNominaEspecialesAction(),
           getGradosAction(),
           getOrganismosAdscritosAction(),
           getTiposProcedenciaAction(),
@@ -300,7 +299,19 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
         clearEmployee();
         form.reset();
       } else {
-        toast.error(response.message);
+        const sinUbicar = aplicarErroresServidor(form, response.errores, {
+          dependencia_id: "Dependencia",
+          direccion_general_id: "DireccionGeneral",
+          direccion_linea_id: "DireccionLinea",
+          coordinacion_id: "Coordinacion",
+          denominacion_id: "denominacioncargoid",
+          especifica_id: "denominacioncargoespecificoid",
+          tipo_nomina_id: "tiponominaid",
+          grado_id: "gradoid",
+          organismo_id: "OrganismoAdscritoid",
+          cedula_empleado: "employee",
+        });
+        toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.message);
       }
     });
   };
@@ -316,7 +327,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
       <CardContent>
         <EmployeeSearchForm onSearch={handleSearchEmployee} />
 
-        <div className="mt-4">
+        <div className="mt-4 mb-4">
           <EmployeeInfoBanner
             employee={
               employee
@@ -350,16 +361,16 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
               : undefined
           }
           onSuccess={() => setEmployeeReady(true)}
-          className="mt-3"
+          className="mt-4"
         />
 
         {employee && employeeReady && (
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="gap-6 mt-3"
+              className="mt-6 space-y-6"
             >
-              <div className="grid grid-cols-2 items-baseline gap-6 place-content-center">
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 md:gap-6">
                 <FormField
                   control={form.control}
                   name="denominacioncargoid"
@@ -492,33 +503,18 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                   control={form.control}
                   name="OrganismoAdscritoid"
                   render={({ field }) => (
-                    <FormItem className="col-span-2">
+                    <FormItem className="md:col-span-2">
                       <FormLabel>Organismo Adscrito (Opcional)</FormLabel>
-                      <Select
-                        onValueChange={(values) => {
-                          field.onChange(Number.parseInt(values));
-                        }}
-                        value={field.value ? field.value.toString() : ""}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full truncate">
-                            <SelectValue
-                              placeholder={
-                                isLoadingOrganismoAds
-                                  ? "Cargando Organismos Adscritos"
-                                  : "Seleccione Un Organismo Adscrito"
-                              }
-                            />
-                          </SelectTrigger>
+                      <FormControl>
+                          <Combobox
+                            options={organismosAds.map((o) => ({ value: String(o.id), label: `${o.id}-${o.nombre}` }))}
+                            value={field.value ? field.value.toString() : ""}
+                            onChange={(v) => field.onChange(Number.parseInt(v))}
+                            disabled={isLoadingOrganismoAds}
+                            placeholder={isLoadingOrganismoAds ? "Cargando Organismos Adscritos" : "Seleccione Un Organismo Adscrito"}
+                            searchPlaceholder="Buscar organismo..."
+                          />
                         </FormControl>
-                        <SelectContent>
-                          {organismosAds.map((org) => (
-                            <SelectItem key={org.id} value={`${org.id}`}>
-                              {org.id}-{org.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -528,7 +524,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                   control={form.control}
                   name="tipo_procedencia"
                   render={({ field }) => (
-                    <FormItem className="col-span-2">
+                    <FormItem className="md:col-span-2">
                       <FormLabel>Tipo De Procedencia</FormLabel>
                       <Select
                         onValueChange={(values) => {
@@ -564,11 +560,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                   name="Dependencia"
                   control={form.control}
                   render={({ field }) => (
-                    <FormItem
-                      className={`${
-                        !activeDirectionGeneral ? "col-span-2" : "truncate"
-                      }`}
-                    >
+                    <FormItem className="min-w-0">
                       <FormLabel>Nivel</FormLabel>
                       <FormControl>
                         <Select
@@ -595,29 +587,20 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                           </SelectContent>
                         </Select>
                       </FormControl>
-                      <FormDescription>
-                        <div className="flex flex-row items-center text-left gap-2 justify-center">
-                          ¿Desea Agregarle Una División / Coordinación?
-                          <Switch
-                            onCheckedChange={(bool) => {
-                              setActiveDirectionGeneral(bool);
-                              validateDirectionGeneral();
-                            }}
-                          />
-                        </div>
-                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {activeDirectionGeneral && direccionesGenerales.length > 0 && (
+                {activeDirectionGeneral && (
                   <FormField
                     control={form.control}
                     name="DireccionGeneral"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="min-w-0">
                         <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
                         <Select
+                          disabled={!dependencyId || isLoadingDirectionGeneral || direccionesGenerales.length === 0}
                           onValueChange={(values) => {
                             field.onChange(Number.parseInt(values));
                             setSelecteIdDirectionGeneral(values);
@@ -628,8 +611,12 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                             <SelectTrigger className="w-full truncate">
                               <SelectValue
                                 placeholder={
-                                  isLoadingDirectionGeneral
+                                  !dependencyId
+                                    ? "Primero seleccione el Nivel"
+                                    : isLoadingDirectionGeneral
                                     ? "Cargando Direcciones"
+                                    : direccionesGenerales.length === 0
+                                    ? "El Nivel no posee direcciones"
                                     : "Seleccione una Dirección"
                                 }
                               />
@@ -644,7 +631,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          <div className="flex flex-row items-center text-left gap-2 justify-center">
+                          <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
                             ¿Desea Agregarle Una División / Coordinación?
                             <Switch
                               onCheckedChange={(bool) => {
@@ -652,7 +639,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                                 validateDirectionLine();
                               }}
                             />
-                          </div>
+                          </span>
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -666,7 +653,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                     name="DireccionLinea"
                     render={({ field }) => (
                       <FormItem
-                        className={`${activeCoordination ? "" : "col-span-2"}`}
+                        className={`${activeCoordination ? "" : "md:col-span-2"}`}
                       >
                         <FormLabel>División / Coordinación</FormLabel>
                         <Select
@@ -696,7 +683,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          <div className="flex flex-row items-center text-left justify-center gap-2">
+                          <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
                             ¿Desea Agregarle Una Coordinación?
                             <Switch
                               onCheckedChange={(bool) => {
@@ -704,7 +691,7 @@ export function AsignarCargoEspecialPage({ onSuccess }: CodigoCatalogFormProps) 
                                 validateCoordination();
                               }}
                             />
-                          </div>
+                          </span>
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

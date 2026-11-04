@@ -4,17 +4,30 @@
  */
 "use server";
 
+import type { ZodError } from "zod";
+
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { repoAuditoriaApi } from "../repositories/repo-auditoria-api";
 import { filtrosAuditoriaSchema, aFiltros } from "../../ui/schema/schema-auditoria";
 import type { FiltrosAuditoria } from "../../application/dtos/auditoria-dto";
 
+/** Convierte los issues de Zod en `{ campo: ["mensaje"] }` para el formulario. */
+function erroresDeZod(error: ZodError): Record<string, string[]> {
+  const salida: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const ruta = issue.path.join(".");
+    if (!ruta) continue;
+    (salida[ruta] ??= []).push(issue.message);
+  }
+  return salida;
+}
+
 async function conAuditoria<T>(
   accion: string,
   operacion: () => Promise<T>,
-): Promise<T | { error: string }> {
+): Promise<T | { error: string; errores?: Record<string, string[]> }> {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
@@ -34,12 +47,7 @@ async function conAuditoria<T>(
       durationMs: Date.now() - startedAt,
     });
     handleSessionExpired(error);
-    return {
-      error:
-        error instanceof Error && error.message
-          ? error.message
-          : "No fue posible consultar la bitácora.",
-    };
+    return errorDeAccion(error, "No fue posible consultar la bitácora.");
   }
 }
 
@@ -63,7 +71,10 @@ export async function consultarAuditoriaAction(
 ) {
   const validacion = validarFiltros(filtros);
   if (!validacion.success) {
-    return { error: validacion.error.issues[0]?.message ?? "Filtros no válidos." };
+    return {
+      error: validacion.error.issues[0]?.message ?? "Filtros no válidos.",
+      errores: erroresDeZod(validacion.error),
+    };
   }
   return conAuditoria("consultarAuditoriaAction", () =>
     repoAuditoriaApi.listar(aFiltros(validacion.data), pagina, tamano),
@@ -85,7 +96,10 @@ export async function consultarIncidentesAction(
 ) {
   const validacion = validarFiltros(filtros);
   if (!validacion.success) {
-    return { error: validacion.error.issues[0]?.message ?? "Filtros no válidos." };
+    return {
+      error: validacion.error.issues[0]?.message ?? "Filtros no válidos.",
+      errores: erroresDeZod(validacion.error),
+    };
   }
   return conAuditoria("consultarIncidentesAction", () =>
     repoAuditoriaApi.incidentes(aFiltros(validacion.data), pagina, tamano),

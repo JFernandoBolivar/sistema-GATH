@@ -8,7 +8,7 @@
  */
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { ApiHttpError, handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   asignarCargo,
   asignarCargoEspecial,
@@ -21,6 +21,7 @@ import { actualizarCargo } from "../../application/use-cases/actualizar-cargo";
 import { schemaUpdateCodeTable, type UpdateCodeTable } from "../../ui/schema/schema-update-code";
 import { cargosApi } from "../http/cargos-api";
 import type { CrearCargoEspecialInputDTO } from "../../application/dtos/cargo-dto";
+import type { OperacionMotivo } from "../../domain/value-objects/operacion-motivo";
 import {
   listarCargos,
   listarCoordinaciones,
@@ -147,11 +148,11 @@ export async function getDenominacionesEspecificasAction() {
   }
 }
 
-export async function getMotivosAction(categoria?: string) {
+export async function getMotivosAction(operacion: OperacionMotivo) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await listarMotivos(repoCargosApi, categoria);
+    const result = await listarMotivos(repoCargosApi, operacion);
     await logAudit({ traceId, action: "getMotivosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
@@ -190,8 +191,7 @@ export async function asignarCargoAction(cargoId: number, empleadoCedula: string
   } catch (error: unknown) {
     await logAudit({ traceId, action: "asignarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Ocurrió un error al asignar el puesto.";
-    return { error: msg };
+    return errorDeAccion(error, "Ocurrió un error al asignar el puesto.");
   }
 }
 
@@ -205,8 +205,8 @@ export async function asignarCargoEspecialAction(input: CrearCargoEspecialInputD
   } catch (error: unknown) {
     await logAudit({ traceId, action: "asignarCargoEspecialAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Ocurrió un error al asignar el cargo especial.";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Ocurrió un error al asignar el cargo especial.");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -225,7 +225,7 @@ export async function desasignarCargoAction(cargoId: number) {
   } catch (error) {
     await logAudit({ traceId, action: "desasignarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible desasignar el cargo.");
   }
 }
 
@@ -244,10 +244,7 @@ export async function cambiarCargoAction(input: { cargoActualId: number; cargoNu
   } catch (error) {
     await logAudit({ traceId, action: "cambiarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    if (error instanceof ApiHttpError) {
-      return { error: error.message };
-    }
-    return { error: "No fue posible cambiar el cargo. Intente de nuevo." };
+    return errorDeAccion(error, "No fue posible cambiar el cargo. Intente de nuevo.");
   }
 }
 
@@ -266,7 +263,7 @@ export async function gestionarEstatusAction(input: { cargoId: number; estatusId
   } catch (error) {
     await logAudit({ traceId, action: "gestionarEstatusAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible cambiar el estatus del cargo.");
   }
 }
 
@@ -305,7 +302,7 @@ export async function crearPrestamoAction(input: {
   } catch (error) {
     await logAudit({ traceId, action: "crearPrestamoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible registrar el préstamo.");
   }
 }
 
@@ -313,22 +310,16 @@ export async function registrarEncargaduriaAction(input: {
   cargo_encargado: number;
   empleado_encargado: string;
   motivo: number;
-  nueva_motivo_nombre?: string;
   fecha_inicio: string;
   fecha_fin: string;
 }) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    let motivoId = input.motivo;
-    if (input.motivo === -1 && input.nueva_motivo_nombre?.trim()) {
-      const nuevoMotivo = await cargosApi.crearMotivo(input.nueva_motivo_nombre.trim(), "ENCARGADURIA");
-      motivoId = nuevoMotivo.id;
-    }
     const result = await crearPrestamo(repoCargosApi, {
       cedulaEncargado: input.empleado_encargado,
       cargoId: input.cargo_encargado,
-      motivoId,
+      motivoId: input.motivo,
       fechaInicio: input.fecha_inicio,
       fechaFin: input.fecha_fin,
     });
@@ -337,8 +328,8 @@ export async function registrarEncargaduriaAction(input: {
   } catch (error: unknown) {
     await logAudit({ traceId, action: "registrarEncargaduriaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Ocurrió un error al registrar la encargaduría.";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Ocurrió un error al registrar la encargaduría.");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -362,18 +353,26 @@ export async function finalizarPrestamoAction(prestamoId: number, fechaFin?: str
   }
 }
 
-export async function crearMotivoAction(movimiento: string) {
+export interface ResultadoCrearMotivo {
+  success: boolean;
+  data?: { id: number; nombre: string };
+  message?: string;
+  /** Errores por campo del backend (`movimiento`: duplicado, longitud). */
+  errores?: Record<string, string[]>;
+}
+
+export async function crearMotivoAction(movimiento: string, operacion: OperacionMotivo): Promise<ResultadoCrearMotivo> {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await cargosApi.crearMotivo(movimiento);
+    const result = await cargosApi.crearMotivo(movimiento, operacion);
     await logAudit({ traceId, action: "crearMotivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return { success: true, data: result };
   } catch (error: unknown) {
     await logAudit({ traceId, action: "crearMotivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear motivo.";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear motivo.");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -519,7 +518,7 @@ export async function crearCargoAction(input: {
   } catch (error) {
     await logAudit({ traceId, action: "crearCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el código. Intente de nuevo.");
   }
 }
 
@@ -532,6 +531,21 @@ export async function getTiposNominaAction() {
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getTiposNominaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+/** Solo las nóminas con `requiereCodig` = true (las que autogeneran código especial). */
+export async function getTiposNominaEspecialesAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarTiposNomina(repoCargosApi, true);
+    await logAudit({ traceId, action: "getTiposNominaEspecialesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTiposNominaEspecialesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
   }
@@ -633,7 +647,7 @@ export async function actualizarCargoAction(cargoId: number, input: UpdateCodeTa
   } catch (error: unknown) {
     await logAudit({ traceId, action: "actualizarCargoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const message = error instanceof Error ? error.message : "Error al actualizar el cargo";
-    return { success: false, message };
+    const e = errorDeAccion(error, "Error al actualizar el cargo");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }

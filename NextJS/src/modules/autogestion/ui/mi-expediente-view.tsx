@@ -1649,6 +1649,7 @@ export default function MiExpedienteView() {
                   <textarea
                     id="observaciones"
                     rows={3}
+                    maxLength={500}
                     value={observacionesSolicitud}
                     onChange={(e) => setObservacionesSolicitud(e.target.value)}
                     placeholder="Indique detalles relevantes (ej. carnet deteriorado, vencimiento o cambio de adscripción)..."

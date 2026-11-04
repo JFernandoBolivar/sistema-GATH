@@ -5,7 +5,17 @@ from django.db import transaction
 from django.db.models import Min, Q
 from django.utils import timezone
 
+from core.domain.categorias_motivo import (
+    MOTIVO_SISTEMA_JUBILACION,
+    MOTIVO_SISTEMA_PENSION_INVALIDEZ,
+    Operacion,
+)
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
+from apps.catalogos.infrastructure.repositories.motivos_por_categoria import (
+    listar_motivos_de_operacion,
+    obtener_motivo_de_operacion,
+    obtener_motivo_de_sistema,
+)
 from apps.cargos.domain import events
 from apps.pasivos.domain.entities.pasivo import Pasivo
 from apps.pasivos.infrastructure.codigo_pasivo import generar_codigo_pasivo
@@ -32,7 +42,6 @@ from apps.cargos.infrastructure.models.cargo_models import (
 )
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
-    TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
 )
@@ -235,11 +244,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         return pasivo_a_entidad(fila, expediente=expediente) if fila else None
 
     def listar_motivos_egreso_pasivo(self) -> list[dict]:
-        """Solo fallecimiento: es el egreso que aplica a un pasivo."""
-        qs = TipoMovimientoModel.objects.filter(
-            movimiento__icontains='fallec',
-        ).order_by('movimiento')
-        return [{'id': motivo.pk, 'nombre': motivo.movimiento} for motivo in qs]
+        """Motivos de la categoría de egreso de pasivo (`Operacion.EGRESO_PASIVO`)."""
+        return listar_motivos_de_operacion(Operacion.EGRESO_PASIVO)
 
     @transaction.atomic
     def egresar_pasivo(
@@ -260,13 +266,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         )
         if not asignacion:
             raise NotFoundError(f'La cédula {cedula} no tiene una asignación pasiva vigente.')
-        motivo = TipoMovimientoModel.objects.filter(
-            pk=motivo_id, movimiento__icontains='fallec',
-        ).first()
-        if not motivo:
-            raise ValidationError(
-                'El motivo seleccionado no aplica al egreso de un pasivo.'
-            )
+        motivo = obtener_motivo_de_operacion(motivo_id, Operacion.EGRESO_PASIVO, campo='motivo_id')
         try:
             estatus_egresado = EstatusModel.objects.get(estatus__iexact='EGRESADO')
         except EstatusModel.DoesNotExist as exc:
@@ -369,13 +369,9 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             nombre_nomina = tipo_nomina.nomina.upper()
             motivo = None
             if 'JUBIL' in nombre_nomina:
-                motivo = TipoMovimientoModel.objects.filter(
-                    movimiento__iexact='JUBILACION DE DERECHO',
-                ).first()
+                motivo = obtener_motivo_de_sistema(MOTIVO_SISTEMA_JUBILACION)
             elif 'PENSION' in nombre_nomina:
-                motivo = TipoMovimientoModel.objects.filter(
-                    movimiento__iexact='PENSION DE INVALIDEZ',
-                ).first()
+                motivo = obtener_motivo_de_sistema(MOTIVO_SISTEMA_PENSION_INVALIDEZ)
             events.cargo_movimiento_ejecutado.send(
                 sender=RepoPasivosORM,
                 cargo_id=asignacion.pk,
@@ -400,10 +396,9 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         if not empleado:
             raise NotFoundError(f"Empleado con cédula {cedula} no encontrado.")
 
-        try:
-            motivo = TipoMovimientoModel.objects.get(pk=motivo_movimiento_id)
-        except TipoMovimientoModel.DoesNotExist as exc:
-            raise NotFoundError(f"Motivo de movimiento {motivo_movimiento_id} no encontrado.") from exc
+        motivo = obtener_motivo_de_operacion(
+            motivo_movimiento_id, Operacion.PASE_A_PASIVO, campo='motivo_movimiento_id',
+        )
 
         try:
             tipo_nomina = TipoNominaModel.objects.get(pk=tipo_nomina_id)

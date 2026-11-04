@@ -18,9 +18,13 @@ class CarnetSerializer(serializers.Serializer):
 
 
 class EmitirCarnetInputSerializer(serializers.Serializer):
-    empleado_cedula = serializers.CharField(required=True, max_length=20)
+    empleado_cedula = serializers.CharField(
+        required=True, min_length=5, max_length=20, trim_whitespace=True
+    )
     motivo_id = serializers.IntegerField(required=True)
-    observaciones = serializers.CharField(required=False, allow_blank=True)
+    observaciones = serializers.CharField(
+        required=False, allow_blank=True, max_length=500, trim_whitespace=True
+    )
 
 
 class PlantillaCarnetSerializer(serializers.Serializer):

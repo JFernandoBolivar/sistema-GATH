@@ -134,22 +134,47 @@ def test_el_detalle_sanea_tokens_y_muestra_diferencias():
     assert {d['campo'] for d in detalle['diferencias']} == {'nombre', 'password', 'token'}
 
 
-def test_exportaciones_pdf_y_excel_con_sus_cabeceras():
+class ColaFalsa:
+    """Cola en memoria: el worker no corre en las pruebas de la API."""
+
+    def __init__(self):
+        self.encoladas = []
+
+    def encolar(self, nombre_tarea, **kwargs):
+        self.encoladas.append((nombre_tarea, kwargs))
+        return f'tarea-{len(self.encoladas)}'
+
+
+@pytest.fixture
+def cola(monkeypatch):
+    falsa = ColaFalsa()
+    monkeypatch.setattr('apps.exportaciones.presentation.solicitud.CeleryTaskQueue', lambda: falsa)
+    return falsa
+
+
+def test_exportaciones_pdf_y_excel_responden_202_y_encolan_el_trabajo(cola):
     crear()
     api = cliente(PERMISO_VER_LOGS, PERMISO_EXPORTAR)
 
     pdf = api.get(f'{BASE}pdf/?modulo=personal')
-    assert pdf.status_code == 200
-    assert pdf['Content-Type'] == 'application/pdf'
-    assert pdf['X-Reporte-Truncado'] in ('true', 'false')
+    assert pdf.status_code == 202
+    assert data(pdf)['estado'] == 'PENDIENTE'
+    assert data(pdf)['formato'] == 'pdf'
+    assert data(pdf)['tipo'] == 'auditoria'
 
     excel = api.get(f'{BASE}excel/?modulo=personal')
-    assert excel.status_code == 200
-    assert 'spreadsheetml' in excel['Content-Type']
-    assert excel['X-Reporte-Limite']
+    assert excel.status_code == 202
+    assert data(excel)['formato'] == 'excel'
+    assert [t[0] for t in cola.encoladas] == ['exportaciones.generar', 'exportaciones.generar']
 
 
-def test_permisos_de_consulta_exportacion_e_incidentes():
+def test_exportacion_con_filtro_invalido_es_400_y_no_encola(cola):
+    api = cliente(PERMISO_EXPORTAR)
+    assert api.get(f'{BASE}pdf/?resultado=NO_EXISTE').status_code == 400
+    assert cola.encoladas == []
+
+
+def test_permisos_de_consulta_exportacion_e_incidentes(cola):
     api = cliente()
     assert api.get(BASE).status_code == 403
     assert api.get(f'{BASE}pdf/').status_code == 403
@@ -157,7 +182,7 @@ def test_permisos_de_consulta_exportacion_e_incidentes():
 
     assert cliente(PERMISO_VER_LOGS).get(BASE).status_code == 200
     assert cliente(PERMISO_VER_LOGS).get(f'{BASE}pdf/').status_code == 403
-    assert cliente(PERMISO_EXPORTAR).get(f'{BASE}pdf/').status_code == 200
+    assert cliente(PERMISO_EXPORTAR).get(f'{BASE}pdf/').status_code == 202
     assert cliente(PERMISO_VER_SEGURIDAD).get(f'{BASE}incidentes/').status_code == 200
 
 

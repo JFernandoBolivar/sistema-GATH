@@ -10,7 +10,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/u
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
-import { ScrollArea } from "@/shared/ui/components/scroll-area";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import {
   Select,
   SelectContent,
@@ -23,6 +23,26 @@ import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
 import { ID_OTRA } from "../catalogo-otra";
 import { resolverPendientesOtra, type PendienteOtra } from "../resolver-otra";
+import { avisoDeFallo, mensajeDe } from "./campo-dialogo";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = {
+  formacion_complementaria: "formacionComplementaria",
+  capacitacion: "capacitacionId",
+  institucion: "institucionId",
+  procedencia: "procedenciaId",
+  grupo: "grupoId",
+  horas_completadas: "horasCompletadas",
+  dias_completados: "horasCompletadas",
+};
+
+function MensajeFila({ error }: { error?: string }) {
+  return error ? (
+    <p role="alert" className="mt-1 text-xs text-destructive">
+      {error}
+    </p>
+  ) : null;
+}
 
 interface FormSupplementaryTrainingUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -60,31 +80,30 @@ export default function FormSupplementaryTrainingUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { control, register, handleSubmit, setValue, watch } =
-    useForm<FormSupplementaryTrainingValues>({
+  const form = useForm<FormSupplementaryTrainingValues>({
       defaultValues: {
         formacionComplementaria:
           (empleado.formacionComplementaria ?? []).length > 0
             ? (empleado.formacionComplementaria ?? []).map((fc) => ({
                 id: fc.id,
-                capacitacionId: fc.capacitacionId ?? undefined,
-                institucionId: fc.institucionId ?? undefined,
+                capacitacionId: fc.capacitacionId ?? 0,
+                institucionId: fc.institucionId ?? 0,
                 fechaInicio: fc.fechaInicio ?? "",
                 fechaFin: fc.fechaFin ?? "",
-                procedenciaId: fc.procedenciaId ?? undefined,
-                grupoId: fc.grupoId ?? undefined,
+                procedenciaId: fc.procedenciaId ?? 0,
+                grupoId: fc.grupoId ?? 0,
                 horasCompletadas: fc.horasCompletadas ?? "",
                 nuevaCapacitacionNombre: "",
                 nuevaInstitucionNombre: "",
               }))
             : [
                 {
-                  capacitacionId: undefined,
-                  institucionId: undefined,
+                  capacitacionId: 0,
+                  institucionId: 0,
                   fechaInicio: "",
                   fechaFin: "",
-                  procedenciaId: undefined,
-                  grupoId: undefined,
+                  procedenciaId: 0,
+                  grupoId: 0,
                   horasCompletadas: "",
                   nuevaCapacitacionNombre: "",
                   nuevaInstitucionNombre: "",
@@ -92,6 +111,9 @@ export default function FormSupplementaryTrainingUpdateDialog({
               ],
       },
     });
+
+  const { control, register, handleSubmit, setValue, watch } = form;
+  const erroresFilas = form.formState.errors.formacionComplementaria;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -163,9 +185,10 @@ export default function FormSupplementaryTrainingUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
@@ -222,12 +245,12 @@ export default function FormSupplementaryTrainingUpdateDialog({
                       remove(fields.filter((_, i) => i !== 0).map((_, i) => i + 1));
                       setValue("formacionComplementaria", [
                         {
-                          capacitacionId: undefined,
-                          institucionId: undefined,
+                          capacitacionId: 0,
+                          institucionId: 0,
                           fechaInicio: "",
                           fechaFin: "",
-                          procedenciaId: undefined,
-                          grupoId: undefined,
+                          procedenciaId: 0,
+                          grupoId: 0,
                           horasCompletadas: "",
                           nuevaCapacitacionNombre: "",
                           nuevaInstitucionNombre: "",
@@ -250,12 +273,12 @@ export default function FormSupplementaryTrainingUpdateDialog({
                     className="cursor-pointer size-8"
                     onClick={() =>
                       append({
-                        capacitacionId: undefined,
-                        institucionId: undefined,
+                        capacitacionId: 0,
+                        institucionId: 0,
                         fechaInicio: "",
                         fechaFin: "",
-                        procedenciaId: undefined,
-                        grupoId: undefined,
+                        procedenciaId: 0,
+                        grupoId: 0,
                         horasCompletadas: "",
                         nuevaCapacitacionNombre: "",
                         nuevaInstitucionNombre: "",
@@ -275,10 +298,24 @@ export default function FormSupplementaryTrainingUpdateDialog({
                   {fields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[140px_140px_1fr_1fr_120px_80px_auto] gap-2 items-start border-b pb-3 mb-2 w-full"
+                      className="@container flex flex-col gap-3 border-b pb-3 mb-2 w-full"
                     >
-                      <div>
-                        <Label className="text-xs">{index + 1}. Fecha Inicio</Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">Curso {index + 1}</span>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-8 shrink-0`}
+                          onClick={() => remove(index)}
+                          aria-label={`Quitar formación complementaria ${index + 1}`}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 items-start gap-3 @md:grid-cols-2 @3xl:grid-cols-3">
+                      <div className="min-w-0">
+                        <Label className="text-xs">Fecha Inicio</Label>
                         <Input
                           type="date"
                           max={new Date().toISOString().split("T")[0]}
@@ -286,10 +323,11 @@ export default function FormSupplementaryTrainingUpdateDialog({
                           className="h-9 text-xs"
                           {...register(`formacionComplementaria.${index}.fechaInicio` as const)}
                         />
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.fechaInicio)} />
                       </div>
 
-                      <div>
-                        <Label className="text-xs">{index + 1}. Fecha Culminacion</Label>
+                      <div className="min-w-0">
+                        <Label className="text-xs">Fecha Culminacion</Label>
                         <Input
                           type="date"
                           max={new Date().toISOString().split("T")[0]}
@@ -297,6 +335,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
                           className="h-9 text-xs"
                           {...register(`formacionComplementaria.${index}.fechaFin` as const)}
                         />
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.fechaFin)} />
                       </div>
 
                       <div className="min-w-0">
@@ -333,6 +372,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
                             )}
                           />
                         )}
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.capacitacionId)} />
                       </div>
 
                       <div className="min-w-0">
@@ -367,9 +407,10 @@ export default function FormSupplementaryTrainingUpdateDialog({
                             {...register(`formacionComplementaria.${index}.nuevaInstitucionNombre`)}
                           />
                         )}
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.institucionId)} />
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <Label className="text-xs">Procedencia</Label>
                         <Select
                           value={
@@ -392,29 +433,24 @@ export default function FormSupplementaryTrainingUpdateDialog({
                             ))}
                           </SelectContent>
                         </Select>
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.procedenciaId)} />
                       </div>
 
-                      <div>
+                      <div className="min-w-0">
                         <Label className="text-xs">Horas</Label>
                         <Input
                           placeholder="40"
+                          inputMode="numeric"
+                          maxLength={5}
                           className="h-9 text-xs"
+                          aria-invalid={!!erroresFilas?.[index]?.horasCompletadas || undefined}
                           {...register(
                             `formacionComplementaria.${index}.horasCompletadas` as const,
                           )}
                         />
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.horasCompletadas)} />
                       </div>
 
-                      <div className="pt-5 flex justify-end">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-8 shrink-0`}
-                          onClick={() => remove(index)}
-                        >
-                          <X className="size-4" />
-                        </Button>
                       </div>
                     </div>
                   ))}

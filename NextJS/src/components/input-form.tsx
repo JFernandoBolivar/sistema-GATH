@@ -19,6 +19,7 @@ interface Props<T extends FieldValues> {
   type: string;
   className?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  maxLength?: number;
 }
 export default function InputForm<T extends FieldValues>({
   form,
@@ -29,6 +30,7 @@ export default function InputForm<T extends FieldValues>({
   type,
   className,
   inputMode,
+  maxLength,
 }: Props<T>) {
   return (
     <>
@@ -39,7 +41,7 @@ export default function InputForm<T extends FieldValues>({
           <FormItem className={cn(className)}>
             <FormLabel>{label}</FormLabel>
             <FormControl>
-              <Input {...field} placeholder={placeholder} type={type} inputMode={inputMode} />
+              <Input {...field} placeholder={placeholder} type={type} inputMode={inputMode} maxLength={maxLength} />
             </FormControl>
             {description !== undefined && (
               <FormDescription>{description}</FormDescription>

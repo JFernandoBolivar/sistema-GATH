@@ -5,6 +5,7 @@
  * crear en cascada sus niveles subordinados (Dirección General, Dirección de Línea, Coordinación).
  * Paridad 100% con `create-dependency.tsx` del proyecto legado.
  */
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { useTransition } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -94,7 +95,8 @@ export default function CreateDependency({ onSuccess }: CreateDependencyProps) {
           });
           onSuccess?.();
         } else if ("error" in response) {
-          toast.error(response.error ?? "Ocurrió un error al crear la dependencia.");
+          const sinUbicar = aplicarErroresServidor(form, response.errores, { codigo: "dependency.codigo", nombre: "dependency.nombre" });
+          toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.error ?? "Ocurrió un error al crear la dependencia.");
         }
       } catch {
         toast.error("Ocurrió un error inesperado al procesar la solicitud.");

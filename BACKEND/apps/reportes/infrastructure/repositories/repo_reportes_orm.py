@@ -8,12 +8,17 @@ asignación vigente por empleado (ACTIVA o la más reciente) y fecha de ingreso 
 reingreso más reciente. Los datos relacionados se traen en lotes (sin N+1).
 """
 from core.domain.exceptions import ValidationError
-from django.db.models import Q
 
 from apps.personal.infrastructure.repositories.consultas_apn import anotar_apn_oficial
 from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
+from apps.reportes.domain.value_objects.condicion_trabajador import (
+    CONDICION_ACTIVO,
+    CONDICION_PASIVO,
+    normalizar_condicion,
+)
 from apps.reportes.infrastructure.repositories.consultas_reporte import (
+    filtro_por_condicion,
     elegir_asignaciones,
     en_lotes,
     fechas_de_ingreso,
@@ -51,6 +56,14 @@ def _requiere_distinct(lookups: dict) -> bool:
         'carga_familiar__',
     )
     return any(str(clave).startswith(prefijos) for clave in lookups)
+
+
+def _ruta_de_familiar(ruta: str) -> str:
+    """Ruta del registro (desde Employee) -> ruta sobre `EmployeefamilyModel`."""
+    prefijo = 'carga_familiar__'
+    if ruta.startswith(prefijo):
+        return ruta[len(prefijo):]
+    return f'employeecedula__{ruta}'
 
 
 def _ruta_agrupacion(consulta: ConsultaReportePersonal) -> str | None:
@@ -126,8 +139,11 @@ class RepoReportesORM:
         )
         from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
+        # Solo personal activo (mismo criterio que el listado de Personal
+        # Activo): los pasivos nunca se mezclan en este reporte.
         qs = anotar_apn_oficial(
-            EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad').all()
+            EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad')
+            .filter(filtro_por_condicion(CONDICION_ACTIVO, 'cedulaidentidad'))
         )
         if consulta.lookups:
             # `distinct()`: los filtros por estructura/salud/formación navegan
@@ -194,19 +210,12 @@ class RepoReportesORM:
         (estructura, cargo, nómina, salud, formación, edad, APN, vivienda…)
         sin quedarse solo con los egresados.
         """
-        from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
         from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
         qs = anotar_apn_oficial(
-            EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad').all()
+            EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad')
+            .filter(filtro_por_condicion(CONDICION_PASIVO, 'cedulaidentidad'))
         )
-        cedulas_egresados = EmployeeEgresadoModel.objects.values_list(
-            'employee_id', flat=True
-        )
-        qs = qs.filter(
-            Q(assignments__Tipo_personal__tipo_personal__iexact='PASIVO')
-            | Q(cedulaidentidad__in=cedulas_egresados)
-        ).distinct()
 
         if consulta.lookups:
             qs = qs.filter(**_lookups_oficiales(consulta.lookups))
@@ -397,18 +406,34 @@ class RepoReportesORM:
             metadatos=metadatos,
         )
 
-    def reporte_familiares(self, filtros: dict, limite: int) -> ResultadoReporte:
+    def reporte_familiares(
+        self,
+        consulta: ConsultaReportePersonal,
+        limite: int,
+        condicion: str = CONDICION_ACTIVO,
+        cedula_empleado: str | None = None,
+    ) -> ResultadoReporte:
+        """Familiares de los trabajadores de una condición (ACTIVO o PASIVO).
+
+        Las filas son familiares. Los lookups del registro (`familiares`) están
+        escritos desde `Employee`: los que empiezan con `carga_familiar__` se
+        aplican al familiar y el resto al trabajador (`employeecedula__`).
+        """
         from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 
-        qs = EmployeefamilyModel.objects.select_related('employeecedula', 'parentesco', 'sexo').all()
-
-        filtros = filtros or {}
-        if filtros.get('parentesco_id'):
-            qs = qs.filter(parentesco_id=filtros['parentesco_id'])
-        if filtros.get('sexo_id'):
-            qs = qs.filter(sexo_id=filtros['sexo_id'])
-        if filtros.get('cedula_empleado'):
-            qs = qs.filter(employeecedula_id=filtros['cedula_empleado'])
+        condicion = normalizar_condicion(condicion)
+        qs = (
+            EmployeefamilyModel.objects.select_related('employeecedula', 'parentesco', 'sexo')
+            .filter(filtro_por_condicion(condicion, 'employeecedula_id'))
+        )
+        if cedula_empleado:
+            qs = qs.filter(employeecedula_id=cedula_empleado)
+        if consulta.lookups:
+            qs = qs.filter(**{
+                _ruta_de_familiar(ruta): valor for ruta, valor in consulta.lookups.items()
+            })
+            # Salud, vivienda y asignaciones son relaciones multivaluadas.
+            qs = qs.distinct()
 
         # Apellidos/nombres del trabajador, luego los del familiar y PK.
         qs = qs.order_by(
@@ -416,6 +441,7 @@ class RepoReportesORM:
             'primer_apellido', 'primer_nombre', 'pk',
         )
         pagina, metadatos = pagina_con_metadatos(qs, limite)
+        metadatos['condicion'] = condicion
 
         filas = []
         for idx, f in enumerate(pagina, start=1):
@@ -432,8 +458,12 @@ class RepoReportesORM:
                 'sexo': f.sexo.sexo if f.sexo_id else '',
             })
 
+        titulo = (
+            'Reporte de Familiares de Pasivos'
+            if condicion == CONDICION_PASIVO else 'Reporte de Familiares'
+        )
         return ResultadoReporte(
-            titulo="Reporte de Familiares",
+            titulo=titulo,
             columnas=['#', 'cedula_empleado', 'nombre_empleado', 'cedula_familiar', 'nombre_familiar', 'parentesco', 'fecha_nacimiento', 'sexo'],
             filas=filas,
             total_registros=len(filas),
@@ -548,9 +578,11 @@ class RepoReportesORM:
 
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 
+        # Solo personal activo (el reporte lo promete): sin pasivos ni egresados.
         conteos = (
             AsigTrabajoModel.objects
             .filter(employee__isnull=False)
+            .filter(filtro_por_condicion(CONDICION_ACTIVO, 'employee_id'))
             .values('tiponominaid__nomina')
             .annotate(total=Count('id'))
             .order_by('-total')

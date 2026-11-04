@@ -72,7 +72,7 @@ export function CodeFilterForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSearch)}>
-        <div className="grid grid-cols-2 gap-2 w-full mb-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 w-full mb-2">
           <FormField
             control={form.control}
             name="codigo"
@@ -123,7 +123,7 @@ export function CodeFilterForm({
             control={form.control}
             name="dependencia_id"
             render={({ field }) => (
-              <FormItem className="col-span-2">
+              <FormItem className="sm:col-span-2">
                 <FormLabel>Nivel</FormLabel>
                 <Select
                   onValueChange={(v) => field.onChange(Number(v))}
@@ -224,7 +224,7 @@ export function CodeFilterForm({
             control={form.control}
             name="coordinacion_id"
             render={({ field }) => (
-              <FormItem className="col-span-2">
+              <FormItem className="sm:col-span-2">
                 <FormLabel>Coordinación</FormLabel>
                 <Select
                   onValueChange={(v) => field.onChange(Number(v))}

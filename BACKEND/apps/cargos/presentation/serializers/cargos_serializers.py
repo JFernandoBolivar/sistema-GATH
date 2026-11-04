@@ -11,7 +11,7 @@ class DenominacionSerializer(serializers.Serializer):
 
 
 class DenominacionWriteSerializer(serializers.Serializer):
-    nombre = serializers.CharField(max_length=200, required=True)
+    nombre = serializers.CharField(min_length=2, max_length=200, required=True)
     orden = serializers.IntegerField(required=False, default=30)
 
 
@@ -125,7 +125,7 @@ class CrearCargoEspecialInputSerializer(serializers.Serializer):
     coordinacion_id = serializers.IntegerField(required=False, allow_null=True)
     organismo_id = serializers.IntegerField(required=False, allow_null=True)
     grado_id = serializers.IntegerField(required=False, allow_null=True)
-    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=500)
 
 
 class CrearCargoInputSerializer(serializers.Serializer):
@@ -142,4 +142,4 @@ class CrearCargoInputSerializer(serializers.Serializer):
     coordinacion_id = serializers.IntegerField(required=False, allow_null=True)
     organismo_id = serializers.IntegerField(required=False, allow_null=True)
     grado_id = serializers.IntegerField(required=False, allow_null=True)
-    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=500)

@@ -13,7 +13,6 @@ import { HeartPulse } from "lucide-react";
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Field } from "@/shared/ui/components/field";
 import { Label } from "@/shared/ui/components/label";
-import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
   Select,
   SelectContent,
@@ -108,12 +107,12 @@ export function FamiliarPerfilSalud({
   const errores = form.formState.errors.perfilSalud as { grupoSanguineoId?: { message?: string } } | undefined;
 
   return (
-    <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-red-700 rounded-sm">
+    <fieldset className="min-w-0 border grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 p-2 border-red-700 rounded-sm">
       <legend className="flex gap-2 text-danger font-bold items-center">
         Datos De Salud <HeartPulse className="size-5" />
       </legend>
 
-      <Field className="col-span-2">
+      <Field className="md:col-span-2">
         <Label>Grupo Sanguíneo</Label>
         <Select
           value={grupoSanguineoId ? String(grupoSanguineoId) : ""}
@@ -133,9 +132,9 @@ export function FamiliarPerfilSalud({
         {errores?.grupoSanguineoId && <p role="alert" className="text-sm text-destructive">{errores.grupoSanguineoId.message}</p>}
       </Field>
 
-      <ScrollArea className="h-80 w-full col-span-2 border rounded-sm p-3 bg-muted/10">
-        <div className="flex flex-row justify-around gap-4">
-          <div className="flex-1">
+      <div className="max-h-96 w-full overflow-y-auto md:col-span-2 border rounded-sm p-3 bg-muted/10">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="min-w-0">
             <GrupoChecklist
               titulo="Patologías (Opcional)"
               items={catalogos?.patologias ?? []}
@@ -144,7 +143,7 @@ export function FamiliarPerfilSalud({
               prefijoId="patologia-familiar"
             />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0">
             <GrupoChecklist
               titulo="Discapacidades (Opcional)"
               items={catalogos?.discapacidades ?? []}
@@ -153,7 +152,7 @@ export function FamiliarPerfilSalud({
               prefijoId="discapacidad-familiar"
             />
           </div>
-          <div className="flex-1">
+          <div className="min-w-0">
             <GrupoChecklist
               titulo="Alergias (Opcional)"
               items={catalogos?.alergias ?? []}
@@ -163,7 +162,7 @@ export function FamiliarPerfilSalud({
             />
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </fieldset>
   );
 }

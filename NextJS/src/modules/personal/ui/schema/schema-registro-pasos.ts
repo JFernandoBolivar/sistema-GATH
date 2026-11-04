@@ -3,6 +3,7 @@ import { REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { contactoEmergenciaFormSchema } from "./schema-contacto-emergencia";
+import { CORREO_MAX, DIRECCION_MAX, cedulaZod, nombreZod } from "./reglas-personas";
 
 /**
  * Schemas Zod por paso del wizard de registro (`/personal/registrar`), con los
@@ -24,24 +25,9 @@ export const pasoBasicInfoSchema = z.object({
   nacionalidad_id: z
     .number({ message: "Debe Seleccionar Una Nacionalidad" })
     .refine((val) => val !== 0, { message: "Debe Seleccionar Una Nacionalidad" }),
-  cedulaidentidad: z
-    .string({ required_error: "Cédula De Identidad Es Requerido" })
-    .regex(REGEX.DIGITS, { message: "Solo Se Permiten Números" })
-    .min(7, { message: "Debe Ingresar Al Menos 7 Digitos" })
-    .max(12, { message: "Debe Maximo 12 Digitos" }),
-  nombres: z
-    .string({ message: "Debe Ingresar Letras", required_error: "El Nombre Completo Es Requerido" })
-    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: "Solo Se Permiten Letras" })
-    .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
-    .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
-  apellidos: z
-    .string({
-      message: "Debe Ingresar Letras",
-      required_error: "El Apellido Completo Es Requerido",
-    })
-    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$/, { message: "Solo Se Permiten Letras" })
-    .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
-    .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
+  cedulaidentidad: cedulaZod(),
+  nombres: nombreZod("El nombre"),
+  apellidos: nombreZod("El apellido"),
   file: z
     .custom<File | null>(
       (v) => v === null || v === undefined || (typeof File !== "undefined" && v instanceof File),
@@ -67,7 +53,11 @@ export const pasoBasicInfoSchema = z.object({
     .refine((val) => val !== 0, { message: "Debe Seleccionar Un Esttado Civil" }),
   correo: z.preprocess(
     opcionalVacio,
-    z.string().regex(REGEX.EMAIL, { message: "Solo Se Permiten Correos" }).optional(),
+    z
+      .string()
+      .max(CORREO_MAX, { message: `El correo admite máximo ${CORREO_MAX} caracteres` })
+      .regex(REGEX.EMAIL, { message: "Solo Se Permiten Correos" })
+      .optional(),
   ),
   telefono_habitacion: telefonoZod({ tipo: "cualquiera" }),
   telefono_movil: telefonoZod({ tipo: "movil" }),
@@ -272,7 +262,8 @@ export const pasoDwellingSchema = z.object({
         message: "Debe Ingresar Información Valida",
         required_error: "Este Campo Es Requerido",
       })
-      .min(10, "La Direccion Exacta Debe Tener Minimo 10 Caracteres"),
+      .min(10, "La Direccion Exacta Debe Tener Minimo 10 Caracteres")
+      .max(DIRECCION_MAX, `La dirección admite máximo ${DIRECCION_MAX} caracteres`),
     estado_id: z
       .number({
         message: "Debe Ingresar Información Valida",

@@ -452,3 +452,13 @@ def test_listar_salud_con_categoria():
     assert data["categoria_nombre"] == "Respiratorias"
     assert data["categoria"] == {"id": 3, "nombre": "Respiratorias", "nombre_categoria": "Respiratorias"}
 
+
+
+def test_serializer_categoria_expone_nombre_y_nombre_categoria():
+    """Regresión: el listado de categorías salía solo con `id` (el front mostraba «undefined»)."""
+    from apps.personal.presentation.serializers.catalogos_soporte_serializers import CategoriaDetalleSerializer
+
+    datos = CategoriaDetalleSerializer([CategoriaItem(id=3, nombre="Alimentos")], many=True).data
+    assert datos[0]["id"] == 3
+    assert datos[0]["nombre"] == "Alimentos"
+    assert datos[0]["nombre_categoria"] == "Alimentos"

@@ -25,7 +25,7 @@ export function CampoFecha({
     <Popover>
       <PopoverTrigger asChild>
         <FormControl>
-          <Button type="button" variant="outline" className="w-48 justify-between font-normal">
+          <Button type="button" variant="outline" className="w-full min-w-0 justify-between font-normal">
             {value ? formatInTimeZone(value, "UTC", "dd/MM/yyy") : <span>Selecciona una fecha</span>}
             <ChevronDownIcon />
           </Button>

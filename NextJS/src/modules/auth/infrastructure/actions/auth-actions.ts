@@ -16,10 +16,11 @@
  * `inicio/page.tsx`, `error.tsx`/`global-error.tsx`) ya dependía de él.
  */
 import { cookies } from "next/headers";
+import type { ZodError } from "zod";
 import { authCookieSecure } from "@/shared/commons/auth-cookies";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { ensureValidAccessToken } from "@/lib/api-client";
 import { auth, signIn, signOut } from "#/auth";
 import { AuthError } from "next-auth";
@@ -47,6 +48,17 @@ const MENSAJE_CUENTA_BLOQUEADA =
   "Su cuenta está bloqueada temporalmente por varios intentos fallidos. Espere unos minutos e intente de nuevo, o use ¿Olvidó su contraseña?";
 // Genérico a propósito: no dice si falló el correo o la contraseña (no ayuda a adivinar cuentas).
 const MENSAJE_CREDENCIALES = "Correo o contraseña incorrectos.";
+
+/** Convierte los issues de Zod en `{ campo: ["mensaje"] }` para el formulario. */
+function erroresDeZod(error: ZodError): Record<string, string[]> {
+  const salida: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const ruta = issue.path.join(".");
+    if (!ruta) continue;
+    (salida[ruta] ??= []).push(issue.message);
+  }
+  return salida;
+}
 
 /** Mensaje para la pantalla según el código de error de NextAuth. */
 function mensajeDeFallo(codigo: string | undefined): string {
@@ -198,14 +210,19 @@ export async function extenderSesionAction(): Promise<{ success: boolean }> {
 export const extendSessionAction = extenderSesionAction;
 
 export type CambiarPasswordActionResult =
-  { success: true; message: string } | { success: false; message: string };
+  | { success: true; message: string }
+  | { success: false; message: string; errores?: Record<string, string[]> };
 
 export async function cambiarPasswordAction(
   rawData: CambiarPasswordFormType,
 ): Promise<CambiarPasswordActionResult> {
   const validation = cambiarPasswordFormSchema.safeParse(rawData);
   if (!validation.success) {
-    return { success: false, message: "Datos inválidos. Revise los campos." };
+    return {
+      success: false,
+      message: "Datos inválidos. Revise los campos marcados en rojo.",
+      errores: erroresDeZod(validation.error),
+    };
   }
 
   const traceId = generateTraceId();
@@ -242,14 +259,14 @@ export async function cambiarPasswordAction(
       durationMs: Date.now() - startedAt,
     });
     handleSessionExpired(error);
-    const message =
-      error instanceof Error ? error.message : "No fue posible cambiar la contraseña.";
-    return { success: false, message };
+    const fallo = errorDeAccion(error, "No fue posible cambiar la contraseña.");
+    return { success: false, message: fallo.error, errores: fallo.errores };
   }
 }
 
 export type RecuperacionActionResult =
-  { success: true; message: string } | { success: false; message: string };
+  | { success: true; message: string }
+  | { success: false; message: string; errores?: Record<string, string[]> };
 
 /**
  * Solicita el envío de instrucciones para restablecer contraseña al correo institucional.
@@ -262,6 +279,7 @@ export async function solicitarRecuperacionAction(
     return {
       success: false,
       message: "Identificador inválido. Ingrese su cédula o correo institucional.",
+      errores: erroresDeZod(validation.error),
     };
   }
 
@@ -287,9 +305,8 @@ export async function solicitarRecuperacionAction(
       status: "FAILED",
       durationMs: Date.now() - startedAt,
     });
-    const message =
-      error instanceof Error ? error.message : "No fue posible procesar la solicitud.";
-    return { success: false, message };
+    const fallo = errorDeAccion(error, "No fue posible procesar la solicitud.");
+    return { success: false, message: fallo.error, errores: fallo.errores };
   }
 }
 
@@ -303,7 +320,11 @@ export async function restablecerPasswordAction(
   if (!validation.success) {
     const errorMsg =
       validation.error.issues[0]?.message ?? "Datos inválidos para restablecer la contraseña.";
-    return { success: false, message: errorMsg };
+    return {
+      success: false,
+      message: errorMsg,
+      errores: erroresDeZod(validation.error),
+    };
   }
 
   const traceId = generateTraceId();
@@ -325,7 +346,7 @@ export async function restablecerPasswordAction(
       status: "FAILED",
       durationMs: Date.now() - startedAt,
     });
-    const message = error instanceof Error ? error.message : "El token es inválido o ha expirado.";
-    return { success: false, message };
+    const fallo = errorDeAccion(error, "El token es inválido o ha expirado.");
+    return { success: false, message: fallo.error, errores: fallo.errores };
   }
 }

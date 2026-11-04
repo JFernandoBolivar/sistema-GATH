@@ -40,6 +40,8 @@ import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto
 import { getEmpleadosAction } from "../../infrastructure/actions/personal-actions";
 import { pasoBasicInfoSchema, type PasoBasicInfoType } from "../schema/schema-registro-pasos";
 import { ContactosEmergenciaCampos } from "../contactos-emergencia-campos";
+import { CEDULA_MAX, CORREO_MAX, NOMBRE_MAX } from "../schema/reglas-personas";
+import { useErroresDelPaso, type ErroresServidor } from "./errores-registro";
 
 export function PasoBasicInfo({
   defaultValues,
@@ -47,12 +49,14 @@ export function PasoBasicInfo({
   catalogos,
   isLoadingCatalogos,
   titulo = "Registrar Nuevo Trabajador",
+  erroresServidor,
 }: {
   defaultValues: Partial<PasoBasicInfoType>;
   onSubmit: (values: PasoBasicInfoType) => void;
   catalogos: CatalogosExpedienteDTO | null;
   isLoadingCatalogos: boolean;
   titulo?: string;
+  erroresServidor?: ErroresServidor | null;
 }) {
   const [file, setFile] = useState<File | null>(defaultValues.file ?? null);
 
@@ -60,6 +64,8 @@ export function PasoBasicInfo({
     resolver: zodResolver(pasoBasicInfoSchema),
     defaultValues: defaultValues as PasoBasicInfoType,
   });
+
+  useErroresDelPaso(form, erroresServidor, 0);
 
   const cedula = useWatch({ control: form.control, name: "cedulaidentidad" }) ?? "";
   const cedulaLimpia = cedula.trim();
@@ -144,7 +150,9 @@ export function PasoBasicInfo({
                     label="Cedula de Identidad *"
                     nameInput="cedulaidentidad"
                     placeholder="00000000"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={CEDULA_MAX}
                   />
                 </div>
               </section>
@@ -158,6 +166,7 @@ export function PasoBasicInfo({
                     nameInput="nombres"
                     placeholder="Juan Bernardo"
                     type="text"
+                    maxLength={NOMBRE_MAX}
                   />
                   <InputForm
                     form={form}
@@ -165,6 +174,7 @@ export function PasoBasicInfo({
                     nameInput="apellidos"
                     placeholder="Perez Gutierrez"
                     type="text"
+                    maxLength={NOMBRE_MAX}
                   />
                   <FormField
                     control={form.control}
@@ -255,6 +265,7 @@ export function PasoBasicInfo({
                       nameInput="correo"
                       placeholder="ejemplo@gmail.com"
                       type="email"
+                      maxLength={CORREO_MAX}
                     />
                   </div>
                   <FormField
@@ -306,6 +317,8 @@ export function PasoBasicInfo({
                     nameInput="carnet_patria"
                     placeholder="0000000000"
                     type="text"
+                    inputMode="numeric"
+                    maxLength={10}
                   />
                   <InputForm
                     form={form}
@@ -313,6 +326,7 @@ export function PasoBasicInfo({
                     nameInput="carnet_patria_serial"
                     placeholder="Serial"
                     type="text"
+                    maxLength={30}
                   />
                 </div>
               </section>

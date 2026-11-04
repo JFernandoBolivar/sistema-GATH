@@ -10,12 +10,19 @@ Alcance de datos anidados soportado en esta migración (documentado, ver
 de salud (escalar), formación académica, contacto de emergencia,
 antecedentes de servicio y contrato.
 """
+import re
 from datetime import date
 
 from rest_framework import serializers
 
 from core.infrastructure.serializer_mixins import CleanZerosMixin
-from core.presentation.validadores_personas import validar_drf, validar_serial_carnet_patria, validar_telefono
+from core.presentation.validadores_personas import (
+    validar_cedula,
+    validar_drf,
+    validar_nombre,
+    validar_serial_carnet_patria,
+    validar_telefono,
+)
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, SexoModel, NacionalidadModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
@@ -34,7 +41,49 @@ from apps.personal.infrastructure.models.expediente_models import (
 )
 
 
+# Longitudes del expediente (mismas que el formulario de NextJS, `schema-empleado.ts`).
+CEDULA_MIN, CEDULA_MAX = 6, 9
+NOMBRE_MIN, NOMBRE_MAX = 2, 60
+DIRECCION_MAX = 300
+CORREO_MAX = 254
+
+
+def _validar_cedula_6_9(value, etiqueta='La cédula'):
+    limpia = validar_drf(validar_cedula, value, etiqueta=etiqueta)
+    if limpia and not (CEDULA_MIN <= len(limpia) <= CEDULA_MAX):
+        raise serializers.ValidationError(f'{etiqueta} debe tener entre {CEDULA_MIN} y {CEDULA_MAX} dígitos.')
+    return limpia
+
+
+def _validar_nombre_2_60(value, *, edicion: bool, etiqueta: str):
+    limpio = validar_drf(validar_nombre, value, edicion=edicion, etiqueta=etiqueta)
+    if limpio is not None and not (NOMBRE_MIN <= len(limpio) <= NOMBRE_MAX):
+        raise serializers.ValidationError(f'{etiqueta} debe tener entre {NOMBRE_MIN} y {NOMBRE_MAX} caracteres.')
+    return limpio
+
+
+def _validar_codigo_carnet(value):
+    """Código del Carnet de la Patria: 10 dígitos (se toleran guiones y espacios del legado).
+
+    El formato legado ``000-0000000-0`` trae un dígito verificador al final que
+    no forma parte del código: se descarta para quedarse con los 10 dígitos.
+    """
+    if value is None:
+        return None
+    texto = str(value).strip()
+    limpio = ''.join(ch for ch in texto if ch not in ' -')
+    if not limpio:
+        return ''
+    if re.fullmatch(r'\d{3}-\d{7}-\d', texto):
+        limpio = limpio[:10]
+    if not (limpio.isascii() and limpio.isdigit() and len(limpio) == 10):
+        raise serializers.ValidationError('El código del Carnet de la Patria debe tener 10 dígitos.')
+    return limpio
+
+
 class DatosViviendaEscrituraSerializer(serializers.ModelSerializer):
+    direccion_exacta = serializers.CharField(max_length=DIRECCION_MAX)
+
     class Meta:
         model = DatosViviendaModel
         fields = ['estado', 'municipio', 'parroquia', 'direccion_exacta', 'condicion_vivienda', 'codigo_postal']
@@ -94,6 +143,12 @@ class ContactoEmergenciaEscrituraSerializer(serializers.ModelSerializer):
     def validate_telefono(self, value):
         return validar_drf(validar_telefono, value)
 
+    def validate_nombres(self, value):
+        return _validar_nombre_2_60(value, edicion=False, etiqueta='El nombre del contacto')
+
+    def validate_apellidos(self, value):
+        return _validar_nombre_2_60(value, edicion=False, etiqueta='El apellido del contacto')
+
 
 class AntecedenteServicioEscrituraSerializer(serializers.ModelSerializer):
     class Meta:
@@ -139,7 +194,11 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
     repositorio (sin romper el contrato existente ni sus tests,
     `tests/unit/personal/test_personal.py`).
     """
-    correo = serializers.EmailField(required=False, allow_null=True)
+    correo = serializers.EmailField(required=False, allow_null=True, max_length=CORREO_MAX)
+    # Vive en autogestión (datos complementarios del trabajador); el repositorio lo guarda allí.
+    correo_alternativo = serializers.EmailField(
+        required=False, allow_null=True, allow_blank=True, max_length=CORREO_MAX,
+    )
     telefono_movil = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     telefono_habitacion = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     estado_civil_id = serializers.PrimaryKeyRelatedField(
@@ -175,11 +234,19 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
     def validate_telefono_habitacion(self, value):
         return validar_drf(validar_telefono, value)
 
+    # Al editar se tolera el punto de las iniciales del legado ("JOSE A.").
+    nombre_de_edicion = False
+
+    def validate_carnet_patria(self, value):
+        return _validar_codigo_carnet(value)
+
     def validate_nombres(self, value):
-        return value.upper() if value else value
+        limpio = _validar_nombre_2_60(value, edicion=self.nombre_de_edicion, etiqueta='El nombre')
+        return limpio.upper() if limpio else limpio
 
     def validate_apellidos(self, value):
-        return value.upper() if value else value
+        limpio = _validar_nombre_2_60(value, edicion=self.nombre_de_edicion, etiqueta='El apellido')
+        return limpio.upper() if limpio else limpio
 
     def validate_fecha_nacimiento(self, value):
         if not value:
@@ -220,11 +287,14 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
 
 
 class EmpleadoCrearSerializer(EmpleadoEscrituraSerializer):
-    cedula = serializers.CharField(required=True, max_length=20)
-    nombres = serializers.CharField(required=True, max_length=150)
-    apellidos = serializers.CharField(required=True, max_length=150)
+    cedula = serializers.CharField(required=True, max_length=CEDULA_MAX)
+    nombres = serializers.CharField(required=True, max_length=NOMBRE_MAX)
+    apellidos = serializers.CharField(required=True, max_length=NOMBRE_MAX)
     sexo_id = serializers.PrimaryKeyRelatedField(queryset=SexoModel.objects.all())
     fecha_nacimiento = serializers.DateField(required=True)
+
+    def validate_cedula(self, value):
+        return _validar_cedula_6_9(super().validate_cedula(value))
 
     def to_internal_value(self, data):
         validado = super().to_internal_value(data)
@@ -234,9 +304,11 @@ class EmpleadoCrearSerializer(EmpleadoEscrituraSerializer):
 
 
 class EmpleadoActualizarSerializer(EmpleadoEscrituraSerializer):
+    nombre_de_edicion = True
+
     cedula = serializers.CharField(required=False, max_length=20)
-    nombres = serializers.CharField(required=False, max_length=150)
-    apellidos = serializers.CharField(required=False, max_length=150)
+    nombres = serializers.CharField(required=False, max_length=NOMBRE_MAX)
+    apellidos = serializers.CharField(required=False, max_length=NOMBRE_MAX)
     sexo_id = serializers.PrimaryKeyRelatedField(queryset=SexoModel.objects.all(), required=False)
     fecha_nacimiento = serializers.DateField(required=False)
 

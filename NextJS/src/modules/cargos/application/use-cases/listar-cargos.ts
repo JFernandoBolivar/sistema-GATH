@@ -14,6 +14,7 @@ import type {
   CatalogoCargoItem,
   UnidadOrganizativaCargo,
 } from "../../domain/entities/cargo";
+import type { OperacionMotivo } from "../../domain/value-objects/operacion-motivo";
 
 function cargoADto(e: CargoAsignacion): CargoAsignacionDTO {
   return {
@@ -87,8 +88,8 @@ export async function listarDenominacionesEspecificas(
   return entidades.map(denominacionADto);
 }
 
-export async function listarMotivos(repo: RepoCargos, categoria?: string): Promise<CatalogoCargoItemDTO[]> {
-  const entidades = await repo.listarMotivos(categoria);
+export async function listarMotivos(repo: RepoCargos, operacion: OperacionMotivo): Promise<CatalogoCargoItemDTO[]> {
+  const entidades = await repo.listarMotivos(operacion);
   return entidades.map(catalogoADto);
 }
 
@@ -97,8 +98,11 @@ export async function listarEstatusCargo(repo: RepoCargos): Promise<CatalogoCarg
   return entidades.map(catalogoADto);
 }
 
-export async function listarTiposNomina(repo: RepoCargos): Promise<CatalogoCargoItemDTO[]> {
-  const entidades = await repo.listarTiposNomina();
+export async function listarTiposNomina(
+  repo: RepoCargos,
+  soloEspeciales = false,
+): Promise<CatalogoCargoItemDTO[]> {
+  const entidades = await repo.listarTiposNomina(soloEspeciales);
   return entidades.map(catalogoADto);
 }
 

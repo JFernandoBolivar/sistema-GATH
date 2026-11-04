@@ -214,7 +214,11 @@ export default function PersonalPage() {
     startTransition(async () => {
       setError(null);
       try {
-        await subirFotoEmpleadoAction(cedula, formData);
+        const resultado = await subirFotoEmpleadoAction(cedula, formData);
+        if (resultado && typeof resultado === "object" && "error" in resultado) {
+          setError((resultado as { error: string }).error);
+          return;
+        }
         cargar(form.getValues(), pagina);
       } catch {
         setError("No fue posible subir la foto.");
@@ -369,7 +373,7 @@ export default function PersonalPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png"
         className="hidden"
         onChange={onFotoSeleccionada}
       />

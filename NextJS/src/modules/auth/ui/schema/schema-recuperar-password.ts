@@ -17,12 +17,12 @@ export type SolicitarRecuperacionFormType = z.infer<typeof solicitarRecuperacion
 
 export const restablecerPasswordSchema = z
   .object({
-    token: z.string().min(1, "El token de recuperación es obligatorio."),
+    token: z.string().min(1, "El token de recuperación es obligatorio.").max(256, ERROR.MAX_LENGTH(256)),
     passwordNuevo: z
       .string()
       .min(8, ERROR.MIN_LENGTH(8))
       .max(128, ERROR.MAX_LENGTH(128)),
-    passwordConfirmacion: z.string().min(1, ERROR.REQUIRED),
+    passwordConfirmacion: z.string().min(1, ERROR.REQUIRED).max(128, ERROR.MAX_LENGTH(128)),
   })
   .refine((data) => data.passwordNuevo === data.passwordConfirmacion, {
     message: "Las contraseñas no coinciden",

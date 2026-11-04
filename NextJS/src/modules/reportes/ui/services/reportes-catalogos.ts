@@ -40,7 +40,7 @@ import {
 } from "@/shared/infrastructure/actions/catalog-actions";
 
 import { getDistribucionNominaAction } from "@/modules/reportes/infrastructure/actions/reportes-actions";
-import { metadatosDeTruncado } from "@/shared/lib/encabezados-reporte";
+import { archivoDeRespuesta, type OpcionesExportacion } from "@/shared/lib/exportaciones-asincronas";
 
 export interface ApiResponse<T> {
   status: string;
@@ -389,24 +389,22 @@ export interface ResultadoReportePdf {
   truncado: boolean;
 }
 
-export const postReport = async <T>(values: T): Promise<ResultadoReportePdf> => {
+export const postReport = async <T>(
+  values: T,
+  opciones: OpcionesExportacion = {},
+): Promise<ResultadoReportePdf> => {
   const response = await fetch("/api/reports/pdf", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(values),
+    signal: opciones.signal,
   });
 
-  if (!response.ok) {
-    const cuerpo = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(cuerpo?.error?.trim() || "Error al generar el reporte en PDF.");
-  }
-
-  return {
-    blob: await response.blob(),
-    ...metadatosDeTruncado(response.headers),
-  };
+  // 202: exportación asíncrona (se espera el trabajo y se descarga el PDF);
+  // 200: el reporte sigue siendo síncrono y el PDF viene en el cuerpo.
+  return archivoDeRespuesta(response, "Error al generar el reporte en PDF.", opciones);
 };
 
 export const postReportPasivo = postReport;

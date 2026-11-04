@@ -4,6 +4,12 @@ Casos de uso para generación de reportes institucionales.
 from datetime import date
 
 from apps.reportes.application.dtos.reportes_dtos import ResultadoReporteDTO
+from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
+from apps.reportes.domain.value_objects.condicion_trabajador import (
+    CONDICION_ACTIVO,
+    normalizar_condicion,
+)
+from core.domain.exceptions import ValidationError
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
 from apps.reportes.domain.ports.repo_reportes import RepoReportes
 from apps.reportes.domain.services.filtros_reporte_personal import (
@@ -84,10 +90,58 @@ def generar_reporte_vacantes(
     return _resultado_a_dto(entidad)
 
 
+def preparar_consulta_familiares(
+    filtros: dict,
+    registro: ReportFieldRegistry | None,
+    puede_filtrar_estructura: bool = False,
+    hoy: date | None = None,
+) -> tuple[ConsultaReportePersonal, str | None]:
+    """Valida los filtros del reporte de familiares sin consultar la base.
+
+    Devuelve la consulta (lookups del registro) y la cedula del trabajador, que
+    no pasa por el registro. `sexo_id` se acepta como alias de `sexo_familiar_id`.
+    """
+    filtros = dict(filtros or {})
+    cedula_empleado = str(filtros.pop('cedula_empleado', '') or '').strip() or None
+    if 'sexo_id' in filtros:
+        filtros.setdefault('sexo_familiar_id', filtros.pop('sexo_id'))
+
+    if registro is None:
+        if any(valor not in (None, '') for valor in filtros.values()):
+            raise ValidationError('El reporte de familiares necesita el registro de campos para filtrar.')
+        return ConsultaReportePersonal(), cedula_empleado
+    consulta = preparar_consulta_personal(
+        filtros=filtros,
+        configuracion=registro.configuracion('familiares'),
+        puede_filtrar_estructura=puede_filtrar_estructura,
+        hoy=hoy,
+    )
+    return consulta, cedula_empleado
+
+
 def generar_reporte_familiares(
-    repo: RepoReportes, filtros: dict, limite: int
+    repo: RepoReportes,
+    filtros: dict,
+    limite: int,
+    condicion: str = CONDICION_ACTIVO,
+    registro: ReportFieldRegistry | None = None,
+    puede_filtrar_estructura: bool = False,
+    hoy: date | None = None,
 ) -> ResultadoReporteDTO:
-    entidad = repo.reporte_familiares(filtros=filtros, limite=limite)
+    """Familiares de trabajadores ACTIVOS o PASIVOS, con los filtros del formulario.
+
+    `condicion` es un valor cerrado (ACTIVO/PASIVO) que decide de que trabajadores
+    se listan los familiares; los filtros se validan contra la categoria
+    `familiares` del registro de campos (una clave desconocida es un 400).
+    `cedula_empleado` y `sexo_id` se conservan como alias del contrato anterior.
+    """
+    condicion = normalizar_condicion(condicion)
+    consulta, cedula_empleado = preparar_consulta_familiares(
+        filtros, registro, puede_filtrar_estructura, hoy,
+    )
+    entidad = repo.reporte_familiares(
+        consulta, limite, condicion=condicion, cedula_empleado=cedula_empleado,
+    )
     return _resultado_a_dto(entidad)
 
 

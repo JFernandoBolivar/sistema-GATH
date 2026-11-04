@@ -164,6 +164,8 @@ export interface Empleado {
   sexoId: number;
   sexoNombre: string;
   correo: string | null;
+  /** Vive en autogestión; solo viene en el detalle. */
+  correoAlternativo?: string | null;
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   fechaNacimiento: string | null;

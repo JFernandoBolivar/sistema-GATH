@@ -95,3 +95,15 @@ def test_listar_organismos():
     resultado = listar_organismos_adscritos(repo)
     assert len(resultado) == 1
     assert resultado[0].nombre == "CONATEL Central"
+
+
+def test_serializers_de_escritura_exigen_longitudes_minimas():
+    from apps.organizacion.presentation.serializers.organizacion_serializers import (
+        DependenciaWriteSerializer,
+        OrganismoAdscritoWriteSerializer,
+    )
+    s = DependenciaWriteSerializer(data={'codigo': '', 'nombre': 'A'})
+    assert not s.is_valid()
+    assert 'codigo' in s.errors and 'nombre' in s.errors
+    s = OrganismoAdscritoWriteSerializer(data={'nombre': 'X' * 51})
+    assert not s.is_valid() and 'nombre' in s.errors

@@ -9,6 +9,7 @@ import { reducirFoto } from "@/shared/components/captura-foto/reducir-foto";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import type { OrigenFoto } from "@/shared/components/captura-foto/captura-foto";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import type { ItemBorrador } from "@/modules/autogestion/domain/entities/solicitud-actualizacion";
@@ -84,6 +85,7 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
   const [indice, setIndice] = useState(0);
   const [foto, setFoto] = useState<{ archivo: File; origen: OrigenFoto } | null>(null);
   const [fotoSubida, setFotoSubida] = useState(false);
+  const [erroresContacto, setErroresContacto] = useState<Record<string, string[]> | undefined>(undefined);
   const [guardando, iniciarGuardado] = useTransition();
   const [subiendo, iniciarSubida] = useTransition();
   const [enviando, iniciarEnvio] = useTransition();
@@ -143,8 +145,19 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
       const res = await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
       if (!res.ok) {
         toast.error(res.mensaje);
+        if (res.errores) {
+          const keys = Object.keys(res.errores);
+          if (keys.some((k) => ["telefono_movil", "telefono_habitacion", "correo_alternativo", "tiene_hijos"].includes(k))) {
+            setErroresContacto(res.errores);
+            const idx = pasos.indexOf("contacto");
+            if (idx !== -1 && indice !== idx) {
+              setIndice(idx);
+            }
+          }
+        }
         return;
       }
+      setErroresContacto(undefined);
       setItems(nuevos);
       setIndice(siguiente);
     });
@@ -189,11 +202,33 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
       const guardado = await guardarBorradorAction(solicitud.id, aEntrada(items));
       if (!guardado.ok) {
         toast.error(guardado.mensaje);
+        if (guardado.errores) {
+          const keys = Object.keys(guardado.errores);
+          if (keys.some((k) => ["telefono_movil", "telefono_habitacion", "correo_alternativo", "tiene_hijos"].includes(k))) {
+            setErroresContacto(guardado.errores);
+            const idx = pasos.indexOf("contacto");
+            if (idx !== -1) setIndice(idx);
+            return;
+          }
+          if (keys.some((k) => k.includes("emergencia") || k.includes("vivienda") || k.includes("direccion"))) {
+            const idx = pasos.indexOf("emergencia");
+            if (idx !== -1) setIndice(idx);
+            return;
+          }
+          if (keys.some((k) => k.includes("familiar") || k.includes("hijo"))) {
+            const idx = pasos.indexOf("hijos");
+            if (idx !== -1) setIndice(idx);
+            return;
+          }
+        }
         return;
       }
       const res = await enviarSolicitudAction(solicitud.id);
       if (!res.ok) {
         toast.error(res.mensaje);
+        if (res.errores) {
+          aplicarErroresServidor(confirmacion, res.errores);
+        }
         return;
       }
       toast.success(res.mensaje);
@@ -237,6 +272,7 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
           valoresIniciales={inicialesContacto}
           guardando={guardando}
           onContinuar={continuarContacto}
+          erroresServidor={erroresContacto}
         />
       ) : null}
 

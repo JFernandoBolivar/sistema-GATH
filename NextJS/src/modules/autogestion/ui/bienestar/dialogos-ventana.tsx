@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,10 @@ function MensajeError({ id, texto }: { id: string; texto?: string }) {
 
 /** Habilitar la ventana: plazo en días (1 a 90) y secciones que se abren al trabajador. */
 export function DialogoHabilitar({ solicitud, abierto, onAbiertoChange, onHecho }: BaseProps) {
+  const form = useForm<HabilitarVentanaValores>({
+    resolver: zodResolver(habilitarVentanaSchema),
+    defaultValues: { plazoDias: 15, secciones: solicitud.seccionesSolicitadas },
+  });
   const {
     control,
     register,
@@ -59,10 +64,7 @@ export function DialogoHabilitar({ solicitud, abierto, onAbiertoChange, onHecho 
     setError,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<HabilitarVentanaValores>({
-    resolver: zodResolver(habilitarVentanaSchema),
-    defaultValues: { plazoDias: 15, secciones: solicitud.seccionesSolicitadas },
-  });
+  } = form;
 
   async function enviar(v: HabilitarVentanaValores) {
     const res = await habilitarVentanaAction(solicitud.id, {
@@ -76,6 +78,12 @@ export function DialogoHabilitar({ solicitud, abierto, onAbiertoChange, onHecho 
       onHecho();
     } else {
       setError("root", { message: res.mensaje });
+      if (res.errores) {
+        aplicarErroresServidor(form, res.errores, {
+          plazo_dias: "plazoDias",
+          secciones: "secciones",
+        });
+      }
     }
   }
 
@@ -97,6 +105,7 @@ export function DialogoHabilitar({ solicitud, abierto, onAbiertoChange, onHecho 
             <Input
               id="plazoDias"
               type="number"
+              maxLength={4}
               inputMode="numeric"
               min={1}
               max={90}
@@ -152,16 +161,17 @@ export function DialogoHabilitar({ solicitud, abierto, onAbiertoChange, onHecho 
 
 /** Prórroga: nueva fecha límite (posterior a hoy) y motivo. Se puede repetir. */
 export function DialogoProrrogar({ solicitud, abierto, onAbiertoChange, onHecho }: BaseProps) {
+  const form = useForm<ProrrogaValores>({
+    resolver: zodResolver(prorrogaSchema),
+    defaultValues: { nuevaFechaFin: "", motivo: "" },
+  });
   const {
     register,
     handleSubmit,
     setError,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<ProrrogaValores>({
-    resolver: zodResolver(prorrogaSchema),
-    defaultValues: { nuevaFechaFin: "", motivo: "" },
-  });
+  } = form;
 
   async function enviar(v: ProrrogaValores) {
     const res = await prorrogarVentanaAction(solicitud.id, {
@@ -175,6 +185,12 @@ export function DialogoProrrogar({ solicitud, abierto, onAbiertoChange, onHecho 
       onHecho();
     } else {
       setError("root", { message: res.mensaje });
+      if (res.errores) {
+        aplicarErroresServidor(form, res.errores, {
+          plazo_dias: "plazoDias",
+          secciones: "secciones",
+        });
+      }
     }
   }
 
@@ -195,6 +211,7 @@ export function DialogoProrrogar({ solicitud, abierto, onAbiertoChange, onHecho 
             <Input
               id="nuevaFechaFin"
               type="datetime-local"
+              maxLength={35}
               aria-invalid={errors.nuevaFechaFin ? true : undefined}
               aria-describedby={errors.nuevaFechaFin ? "fecha-error" : undefined}
               {...register("nuevaFechaFin")}
@@ -260,16 +277,17 @@ function DialogoMotivo({
   ejecutar,
 }: DialogoMotivoProps) {
   const [confirmando, setConfirmando] = useState(false);
+  const form = useForm<RechazoValores>({
+    resolver: zodResolver(esquema),
+    defaultValues: { motivo: "" },
+  });
   const {
     register,
     handleSubmit,
     setError,
     reset,
     formState: { errors },
-  } = useForm<RechazoValores>({
-    resolver: zodResolver(esquema),
-    defaultValues: { motivo: "" },
-  });
+  } = form;
 
   async function enviar(v: RechazoValores) {
     setConfirmando(true);
@@ -282,6 +300,12 @@ function DialogoMotivo({
       onHecho();
     } else {
       setError("root", { message: res.mensaje });
+      if (res.errores) {
+        aplicarErroresServidor(form, res.errores, {
+          plazo_dias: "plazoDias",
+          secciones: "secciones",
+        });
+      }
     }
   }
 

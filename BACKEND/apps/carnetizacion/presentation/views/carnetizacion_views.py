@@ -100,6 +100,8 @@ class ValidarCarnetHashView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Validar autenticidad de carnet por hash QR (Público)', responses={200: ValidacionCarnetSerializer})
     def get(self, request, security_hash: str):
+        if not security_hash or len(security_hash) > 128:
+            return fail('Hash de seguridad inválido.', status=400)
         repo = RepoCarnetizacionORM()
         dto = validar_carnet_por_hash(repo, security_hash=security_hash)
         return ok(ValidacionCarnetSerializer(dto).data)
@@ -175,7 +177,7 @@ class PlantillaCreateView(APIView):
     def post(self, request):
         from rest_framework import serializers as _sr
         class _S(_sr.Serializer):
-            nombre = _sr.CharField(max_length=100)
+            nombre = _sr.CharField(min_length=2, max_length=100, trim_whitespace=True)
             imagen = _sr.ImageField()
             activar = _sr.BooleanField(required=False, default=False)
         s = _S(data=request.data)
@@ -195,7 +197,7 @@ class CarnetBuscarPersonalView(APIView):
 
     @extend_schema(tags=['Carnetización'], summary='Buscar personal para emisión de carnet')
     def get(self, request):
-        query = request.query_params.get('q', '')
+        query = (request.query_params.get('q', '') or '').strip()[:50]
         repo = RepoCarnetizacionORM()
         resultados = repo.buscar_personal(query)
         return ok(resultados)

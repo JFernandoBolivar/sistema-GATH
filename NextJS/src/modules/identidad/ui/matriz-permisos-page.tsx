@@ -100,6 +100,7 @@ export default function MatrizPermisosPage() {
   const [cargando, startTransition] = useTransition();
   const [rolGuardando, setRolGuardando] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [errorMotivo, setErrorMotivo] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [cerrados, setCerrados] = useState<Set<string>>(new Set());
 
@@ -172,13 +173,17 @@ export default function MatrizPermisosPage() {
   const guardar = () => {
     if (rolGuardando === null) return;
     if (motivo.trim().length < 10) {
-      toast.error("Indique el motivo del cambio (al menos 10 caracteres).");
+      setErrorMotivo("Indique el motivo del cambio (al menos 10 caracteres).");
       return;
     }
+    setErrorMotivo(null);
     startTransition(async () => {
       const resultado = await guardarMatrizAction(rolGuardando, borrador[rolGuardando] ?? [], motivo);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        const detalle = fallo.errores?.motivo?.join(" ");
+        if (detalle) setErrorMotivo(detalle);
+        else toast.error(fallo.error);
         return;
       }
       toast.success("Matriz actualizada. Las sesiones del rol se invalidaron.");
@@ -316,6 +321,7 @@ export default function MatrizPermisosPage() {
                               className="h-7 gap-1 px-2 text-xs"
                               onClick={() => {
                                 setMotivo("");
+                                setErrorMotivo(null);
                                 setRolGuardando(rol.rolId);
                               }}
                             >
@@ -413,6 +419,7 @@ export default function MatrizPermisosPage() {
           if (!abierto) {
             setRolGuardando(null);
             setMotivo("");
+            setErrorMotivo(null);
           }
         }}
       >
@@ -426,14 +433,23 @@ export default function MatrizPermisosPage() {
               })()}
             </AlertDialogTitle>
           </AlertDialogHeader>
-          <Field>
+          <Field data-invalid={!!errorMotivo}>
             <Label htmlFor="motivo-matriz">Motivo</Label>
             <Input
               id="motivo-matriz"
               value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
+              minLength={10}
+              maxLength={500}
+              onChange={(e) => {
+                setMotivo(e.target.value);
+                setErrorMotivo(null);
+              }}
               placeholder="Mínimo 10 caracteres"
+              aria-invalid={!!errorMotivo}
             />
+            {errorMotivo && (
+              <p role="alert" className="text-sm text-destructive">{errorMotivo}</p>
+            )}
           </Field>
           <p className="text-sm text-muted-foreground">
             El cambio queda en la bitácora con el antes/después y cierra las sesiones de las cuentas del rol.

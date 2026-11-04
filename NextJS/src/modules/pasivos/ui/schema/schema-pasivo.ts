@@ -83,15 +83,15 @@ export const actualizarPasivoSchema = z.object({
   nombres: z
     .string()
     .trim()
-    .min(1)
-    .max(150)
+    .min(2, { message: "Mínimo 2 caracteres" })
+    .max(150, { message: "Máximo 150 caracteres" })
     .regex(REGEX.NAME_EDICION, { message: "Los nombres solo admiten letras y espacios" })
     .optional(),
   apellidos: z
     .string()
     .trim()
-    .min(1)
-    .max(150)
+    .min(2, { message: "Mínimo 2 caracteres" })
+    .max(150, { message: "Máximo 150 caracteres" })
     .regex(REGEX.NAME_EDICION, { message: "Los apellidos solo admiten letras y espacios" })
     .optional(),
   correo: z.string().trim().email({ message: "Correo inválido" }).max(254).nullable().optional(),

@@ -14,7 +14,12 @@ Las tablas son legadas (`managed=False`) y `AsigTrabajo.employee` apunta a la
 **cédula**, mientras `AntecedenteServicio.empleado` apunta a la **PK** de
 `Employee`: cada función recibe la clave que corresponde.
 """
-from django.db.models import Max
+from django.db.models import Max, Q
+
+from apps.reportes.domain.value_objects.condicion_trabajador import (
+    CONDICION_PASIVO,
+    normalizar_condicion,
+)
 
 TAMANO_DE_LOTE = 500
 
@@ -118,3 +123,42 @@ def ingreso_previo_a(fechas_ingreso: list, fecha_egreso):
     limite = fecha_egreso.date() if hasattr(fecha_egreso, 'date') else fecha_egreso
     previos = [f for f in fechas_ingreso if f <= limite]
     return previos[-1] if previos else None
+
+
+def filtro_por_condicion(condicion: str, campo_cedula: str) -> Q:
+    """`Q` que deja solo a los trabajadores de la condición pedida.
+
+    `campo_cedula` es el campo del modelo consultado que guarda la cédula del
+    trabajador (`cedulaidentidad` en Employee, `employeecedula_id` en
+    familiares). El criterio es el del sistema, no uno nuevo:
+
+    - PASIVO (igual que `RepoPasivosORM.listar_pasivos_paginados`): una
+      asignación `Tipo_personal=PASIVO` que no esté `EGRESADO`, o un registro de
+      egreso (`EmployeeEgresado`) cuyo trabajador no esté dado de baja
+      (asignación PASIVO en `EGRESADO`, p. ej. por fallecimiento).
+    - ACTIVO (igual que el listado de Personal Activo): una asignación con
+      `Tipo_personal=ACTIVO` (o sin tipo) y que el trabajador no sea
+      pasivo. Un mismo trabajador nunca es ambos.
+    """
+    from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+    from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
+
+    condicion = normalizar_condicion(condicion)
+    asignaciones = AsigTrabajoModel.objects.filter(employee__isnull=False)
+    pasivas = asignaciones.filter(Tipo_personal__tipo_personal__iexact='PASIVO')
+    pasivas_vigentes = pasivas.exclude(estatusid__estatus__iexact='EGRESADO').values('employee_id')
+    dados_de_baja = pasivas.filter(estatusid__estatus__iexact='EGRESADO').values('employee_id')
+    egresados = EmployeeEgresadoModel.objects.exclude(
+        employee_id__in=dados_de_baja,
+    ).values('employee_id')
+
+    es_pasivo = Q(**{f'{campo_cedula}__in': pasivas_vigentes}) | Q(
+        **{f'{campo_cedula}__in': egresados}
+    )
+    if condicion == CONDICION_PASIVO:
+        return es_pasivo
+
+    activas = asignaciones.filter(
+        Q(Tipo_personal__tipo_personal__iexact='ACTIVO') | Q(Tipo_personal__isnull=True)
+    ).values('employee_id')
+    return Q(**{f'{campo_cedula}__in': activas}) & ~es_pasivo

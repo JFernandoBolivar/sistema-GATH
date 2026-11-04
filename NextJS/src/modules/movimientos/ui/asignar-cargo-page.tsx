@@ -15,6 +15,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Combobox } from "@/shared/ui/components/combobox";
 import { Loading } from "@/shared/ui/components/loading";
 import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
@@ -275,7 +276,11 @@ export function AsignarCargoPage() {
     startTransition(async () => {
       const response = await asignarCargoAction(data.code, data.employee);
       if ("error" in response) {
-        toast.error(response.error);
+        const sinUbicar = aplicarErroresServidor(formAsig, response.errores, {
+          cedula: "employee",
+          cargo_id: "code",
+        });
+        toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.error);
       } else {
         toast.success("Código asignado exitosamente");
         clearEmployee();
@@ -293,7 +298,7 @@ export function AsignarCargoPage() {
         <Loading promiseMessage="Asignando Cargo" />
       ) : (
         <Card className="bg-card">
-          <CardContent className="gap-5">
+          <CardContent className="flex flex-col gap-5">
             <EmployeeSearchForm onSearch={handleSearchEmployee} />
 
             <EmployeeInfoBanner
@@ -377,7 +382,7 @@ export function AsignarCargoPage() {
                           />
 
                           {selectedCode && (
-                            <div className="rounded-sm border-2 border-success/40 bg-success-soft p-2 mt-4">
+                            <div className="rounded-sm border-2 border-success/40 bg-success-soft p-4 mt-4 space-y-1 text-sm break-words">
                               <p>
                                 D / G / O:{" "}
                                 {selectedCode.direccionGeneralNombre ?? "N/A"}
@@ -419,7 +424,7 @@ export function AsignarCargoPage() {
 
                           <Button
                             type="submit"
-                            className="w-full mt-2 cursor-pointer"
+                            className="w-full mt-4 cursor-pointer"
                             disabled={isPending}
                           >
                             {isPending ? "Asignando Código" : "Asignar Código"}

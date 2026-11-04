@@ -113,6 +113,7 @@ def test_asignar_cargo_especial_genera_codigo_y_asigna():
     repo.nominas_requieren_codigo[9] = ('COMISION DE SERVICIO', True)
     dto = CrearCargoEspecialDTO(
         cedula_empleado='V12345678', denominacion_id=1, especifica_id=1, tipo_nomina_id=9,
+        dependencia_id=1, direccion_general_id=1,
     )
     resultado = asignar_cargo_especial(repo, dto)
     assert resultado.empleado_cedula == 'V12345678'
@@ -124,6 +125,19 @@ def test_asignar_cargo_especial_con_nomina_sin_codigo_falla():
     repo.nominas_requieren_codigo[3] = ('FIJO', False)
     dto = CrearCargoEspecialDTO(
         cedula_empleado='V12345678', denominacion_id=1, especifica_id=1, tipo_nomina_id=3,
+        dependencia_id=1, direccion_general_id=1,
     )
     with pytest.raises(ValidationError):
         asignar_cargo_especial(repo, dto)
+
+
+def test_asignar_cargo_especial_sin_direccion_general_falla_por_campo():
+    repo = RepoCargosMemoria()
+    repo.nominas_requieren_codigo[9] = ('COMISION DE SERVICIO', True)
+    dto = CrearCargoEspecialDTO(
+        cedula_empleado='V12345678', denominacion_id=1, especifica_id=1, tipo_nomina_id=9,
+        dependencia_id=1,
+    )
+    with pytest.raises(ValidationError) as exc:
+        asignar_cargo_especial(repo, dto)
+    assert exc.value.campo == 'direccion_general_id'

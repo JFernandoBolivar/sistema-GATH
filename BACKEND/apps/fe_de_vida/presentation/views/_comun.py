@@ -35,13 +35,9 @@ def ahora() -> datetime:
 
 
 def validar_entrada(serializer_cls, data):
-    """Valida y devuelve `validated_data`; el primer error llega al cliente como 400 legible."""
+    """Valida y devuelve `validated_data`; los errores por campo se conservan en `data.errores`."""
     serializer = serializer_cls(data=data)
-    if not serializer.is_valid():
-        errores = serializer.errors
-        campo = next(iter(errores), '')
-        detalle = extract_first_error(errores)
-        raise ValidationError(f"{campo}: {detalle}" if campo and campo != 'non_field_errors' else detalle)
+    serializer.is_valid(raise_exception=True)
     return serializer.validated_data
 
 

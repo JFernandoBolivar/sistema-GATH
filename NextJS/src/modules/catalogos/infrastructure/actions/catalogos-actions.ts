@@ -8,7 +8,7 @@
  */
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   listarEstatus,
   listarEstados,
@@ -537,8 +537,8 @@ export async function crearAlergiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear alergia";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear alergia");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -556,8 +556,8 @@ export async function eliminarAlergiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar alergia";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar alergia");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -589,8 +589,8 @@ export async function crearCategoriaAlergiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearCategoriaAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear categoría";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear categoría");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -608,8 +608,8 @@ export async function eliminarCategoriaAlergiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarCategoriaAlergiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar categoría";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar categoría");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -628,8 +628,8 @@ export async function crearPatologiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear patología";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear patología");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -647,8 +647,8 @@ export async function eliminarPatologiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar patología";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar patología");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -680,8 +680,8 @@ export async function crearCategoriaPatologiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearCategoriaPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear categoría";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear categoría");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -699,8 +699,8 @@ export async function eliminarCategoriaPatologiaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarCategoriaPatologiaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar categoría";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar categoría");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -719,8 +719,8 @@ export async function crearDiscapacidadAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear discapacidad";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear discapacidad");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -738,8 +738,8 @@ export async function eliminarDiscapacidadAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar discapacidad";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar discapacidad");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -771,8 +771,8 @@ export async function crearCategoriaDiscapacidadAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearCategoriaDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear categoría";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear categoría");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -790,8 +790,8 @@ export async function eliminarCategoriaDiscapacidadAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarCategoriaDiscapacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar categoría";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar categoría");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -810,8 +810,8 @@ export async function crearTallaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear talla";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear talla");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -829,8 +829,8 @@ export async function eliminarTallaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar talla";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar talla");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -849,8 +849,8 @@ export async function crearRegionTallaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearRegionTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear región de talla";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear región de talla");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -868,8 +868,8 @@ export async function eliminarRegionTallaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarRegionTallaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar región de talla";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar región de talla");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -888,8 +888,8 @@ export async function crearTipoPrendaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearTipoPrendaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear tipo de prenda";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear tipo de prenda");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -907,8 +907,8 @@ export async function eliminarTipoPrendaAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarTipoPrendaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar tipo de prenda";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar tipo de prenda");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -941,8 +941,8 @@ export async function crearOrganismoAdscritoAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "crearOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al crear organismo adscrito";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al crear organismo adscrito");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -961,8 +961,8 @@ export async function actualizarOrganismoAdscritoAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "actualizarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al actualizar organismo adscrito";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al actualizar organismo adscrito");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 
@@ -980,8 +980,8 @@ export async function eliminarOrganismoAdscritoAction(datos: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const msg = error instanceof Error ? error.message : "Error al eliminar organismo adscrito";
-    return { success: false, message: msg };
+    const e = errorDeAccion(error, "Error al eliminar organismo adscrito");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 

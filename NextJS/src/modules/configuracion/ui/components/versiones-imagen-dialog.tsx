@@ -95,7 +95,7 @@ export function VersionesImagenDialog({
           Versiones anteriores
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Versiones anteriores</DialogTitle>
           <DialogDescription>
@@ -114,12 +114,15 @@ export function VersionesImagenDialog({
         ) : (
           <ul className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
             {versiones.map((v) => (
-              <li key={v.id} className="flex items-center gap-3 rounded-md border border-border p-2">
+              <li
+                key={v.id}
+                className="flex flex-col gap-3 rounded-md border border-border p-2 sm:flex-row sm:items-center"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element -- miniatura servida por la API autenticada */}
                 <img
                   src={v.url}
                   alt={`Miniatura subida el ${fechaHora(v.subidoEn)}`}
-                  className="h-14 w-24 shrink-0 rounded border border-border bg-muted object-contain p-1"
+                  className="h-14 w-24 shrink-0 self-start rounded border border-border bg-muted object-contain p-1"
                 />
                 <div className="min-w-0 flex-1 text-sm">
                   <p className="font-medium">{fechaHora(v.subidoEn)}</p>

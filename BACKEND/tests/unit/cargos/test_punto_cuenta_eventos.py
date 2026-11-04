@@ -127,7 +127,7 @@ def test_cambiar_cargo_incluye_dependencias_anterior_y_nueva_en_el_evento(captur
         repo = RepoCargosORM()
         with patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.AsigTrabajoModel") as asig_mock, \
              patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.EstatusModel") as estatus_mock, \
-             patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.TipoMovimientoModel") as motivo_mock:
+             patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.obtener_motivo_de_operacion") as motivo_mock:
 
             asig_mock.objects.select_for_update.return_value.filter.return_value.first.side_effect = [actual, nuevo]
 
@@ -136,7 +136,7 @@ def test_cambiar_cargo_incluye_dependencias_anterior_y_nueva_en_el_evento(captur
             estatus_mock.objects.get.side_effect = [estatus_vacante, estatus_activo]
 
             motivo = MagicMock(movimiento="TRASLADO POR NECESIDAD")
-            motivo_mock.objects.get.return_value = motivo
+            motivo_mock.return_value = motivo
 
             with patch.object(repo, "obtener_cargo", return_value="RESULTADO"):
                 repo.cambiar_cargo(cargo_actual_id=10, cargo_nuevo_id=20, motivo_id=7, usuario_id=99)

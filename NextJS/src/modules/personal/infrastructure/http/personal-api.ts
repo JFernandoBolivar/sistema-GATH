@@ -20,6 +20,7 @@ export interface EmpleadoApiItem {
   sexo_id: number;
   sexo_nombre: string;
   correo: string | null;
+  correo_alternativo?: string | null;
   telefono_movil: string | null;
   telefono_habitacion: string | null;
   fecha_nacimiento: string | null;
@@ -111,9 +112,12 @@ export const personalApi = {
 
   subirFoto: (cedula: string, formData: FormData) =>
     single<{ clave: string; url: string; mensaje: string }>(
-      apiClient.post<ApiResponse<{ clave: string; url: string; mensaje: string }>>(
+      // Debe ir como multipart real: `apiClient.post` serializa el cuerpo a JSON
+      // (`JSON.stringify(new FormData())` → `{}`), así que Django nunca recibía
+      // el archivo y respondía «No se proporcionó ningún archivo».
+      apiClient.postForm<ApiResponse<{ clave: string; url: string; mensaje: string }>>(
         `/api/v1/personal/${cedula}/foto/`,
-        formData as unknown as Record<string, unknown>,
+        formData,
       ),
     ),
 

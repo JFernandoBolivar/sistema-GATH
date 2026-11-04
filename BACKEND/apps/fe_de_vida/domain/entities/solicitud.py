@@ -182,7 +182,7 @@ class SolicitudFeDeVida:
         if actor.rol is not RolRevision.ADMINISTRADORA:
             raise ConflictError("Solo la Administradora de Bienestar puede aprobar de forma directa.")
         if not justificacion or not justificacion.strip():
-            raise ValidationError("La aprobación directa exige una justificación.")
+            raise ValidationError("La aprobación directa exige una justificación.", campo='justificacion')
         validar_transicion_solicitud(self.estado, EstadoSolicitud.VALIDADA)
         decision = DecisionFeDeVida(
             TipoDecision.APROBACION_DIRECTA, actor.rol, actor.cedula, self.envios, ahora, justificacion.strip(),
@@ -215,7 +215,7 @@ class SolicitudFeDeVida:
         if self.dio_check(actor.cedula):
             raise ConflictError(MENSAJE_YA_DIO_CHECK)
         if not motivo or not motivo.strip():
-            raise ValidationError("Debe indicar el motivo.")
+            raise ValidationError("Debe indicar el motivo.", campo='motivo')
         validar_transicion_solicitud(self.estado, nuevo)
         decision = DecisionFeDeVida(tipo, actor.rol, actor.cedula, self.envios, ahora, motivo.strip())
         return replace(self, estado=nuevo, decisiones=self.decisiones + (decision,))

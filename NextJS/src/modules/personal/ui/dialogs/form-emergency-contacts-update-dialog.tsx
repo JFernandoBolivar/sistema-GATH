@@ -17,6 +17,10 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/u
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Form } from "@/shared/ui/components/form";
 
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = { contacto_emergencia: "contacto_emergencia", relacion: "relacion_id" };
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
 import { ContactosEmergenciaCampos } from "../contactos-emergencia-campos";
@@ -65,7 +69,9 @@ export default function FormEmergencyContactsUpdateDialog({
           contactoEmergencia: contactosFormADto(data.contacto_emergencia),
         });
         if (result && typeof result === "object" && "error" in result) {
-          toast.error((result as { error: string }).error);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          toast.error(fallo.error);
           return;
         }
         toast.success("Contactos de emergencia actualizados exitosamente");

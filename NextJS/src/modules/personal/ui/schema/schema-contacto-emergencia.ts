@@ -13,13 +13,13 @@ export const contactoEmergenciaFormSchema = z.object({
     .string({ required_error: "Los Nombres Son Requeridos" })
     .trim()
     .min(2, { message: "Debe Ingresar Al Menos 2 Letras" })
-    .max(100, { message: "Debe Ingresar Maximo 100 Letras" })
+    .max(60, { message: "Debe Ingresar Maximo 60 Letras" })
     .regex(SOLO_LETRAS, { message: "Solo Se Permiten Letras" }),
   apellidos: z
     .string({ required_error: "Los Apellidos Son Requeridos" })
     .trim()
     .min(2, { message: "Debe Ingresar Al Menos 2 Letras" })
-    .max(100, { message: "Debe Ingresar Maximo 100 Letras" })
+    .max(60, { message: "Debe Ingresar Maximo 60 Letras" })
     .regex(SOLO_LETRAS, { message: "Solo Se Permiten Letras" }),
   telefono: telefonoZod({ requerido: true, tipo: "cualquiera" }).transform((v) => v ?? ""),
   relacion_id: z

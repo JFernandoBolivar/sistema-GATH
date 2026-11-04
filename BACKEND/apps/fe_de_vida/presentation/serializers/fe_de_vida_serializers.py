@@ -83,11 +83,11 @@ class SubirEvidenciaSerializer(serializers.Serializer):
 
 
 class MotivoSerializer(serializers.Serializer):
-    motivo = serializers.CharField(max_length=MAX_LONGITUD_MOTIVO)
+    motivo = serializers.CharField(min_length=1, max_length=MAX_LONGITUD_MOTIVO)
 
 
 class JustificacionSerializer(serializers.Serializer):
-    justificacion = serializers.CharField(max_length=MAX_LONGITUD_MOTIVO)
+    justificacion = serializers.CharField(min_length=1, max_length=MAX_LONGITUD_MOTIVO)
 
 
 class DevolverSerializer(MotivoSerializer):
@@ -108,7 +108,7 @@ class _ConfiguracionProcesoMixin(serializers.Serializer):
 
 
 class CrearProcesoSerializer(_ConfiguracionProcesoMixin):
-    nombre = serializers.CharField(max_length=160)
+    nombre = serializers.CharField(min_length=3, max_length=160)
     fecha_apertura = serializers.DateTimeField()
     fecha_cierre = serializers.DateTimeField()
 
@@ -116,14 +116,14 @@ class CrearProcesoSerializer(_ConfiguracionProcesoMixin):
 class EditarProcesoSerializer(_ConfiguracionProcesoMixin):
     """PATCH: solo los campos enviados. En BORRADOR admite todo; ABIERTO, solo `dias_recordatorio`."""
 
-    nombre = serializers.CharField(max_length=160, required=False)
+    nombre = serializers.CharField(min_length=3, max_length=160, required=False)
     fecha_apertura = serializers.DateTimeField(required=False)
     fecha_cierre = serializers.DateTimeField(required=False)
 
 
 class ProrrogarSerializer(serializers.Serializer):
     nueva_fecha_limite = serializers.DateTimeField()
-    motivo = serializers.CharField(max_length=MAX_LONGITUD_MOTIVO)
+    motivo = serializers.CharField(min_length=1, max_length=MAX_LONGITUD_MOTIVO)
     cedula = serializers.CharField(
         required=False, allow_blank=True, max_length=15,
         help_text='Con cédula: prórroga individual. Vacía u omitida: prórroga general (todos los pasivos).',

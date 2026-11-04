@@ -31,6 +31,7 @@ interface Props {
 export function CuentaInexistente({ cedula, puedeCrear, onCreada }: Props) {
   const [trabajador, setTrabajador] = useState<Trabajador | null | "no-existe">(null);
   const [motivo, setMotivo] = useState("");
+  const [errorMotivo, setErrorMotivo] = useState<string | null>(null);
   const [creando, iniciar] = useTransition();
 
   useEffect(() => {
@@ -74,7 +75,10 @@ export function CuentaInexistente({ cedula, puedeCrear, onCreada }: Props) {
         motivo: motivo.trim(),
       });
       if (r && typeof r === "object" && "error" in r) {
-        toast.error((r as { error: string }).error);
+        const fallo = r as { error: string; errores?: Record<string, string[]> };
+        const detalle = fallo.errores?.motivo?.join(" ");
+        if (detalle) setErrorMotivo(detalle);
+        else toast.error(fallo.error);
         return;
       }
       toast.success("Cuenta creada. Se envió el aviso con cómo entrar a su correo.");
@@ -103,15 +107,24 @@ export function CuentaInexistente({ cedula, puedeCrear, onCreada }: Props) {
 
         {trabajador.correo && puedeCrear ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex flex-1 flex-col gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Label htmlFor="motivo-crear-cuenta">Motivo de la creación</Label>
               <Input
                 id="motivo-crear-cuenta"
                 placeholder="Mínimo 10 caracteres"
+                minLength={10}
+                maxLength={500}
                 value={motivo}
-                onChange={(e) => setMotivo(e.target.value)}
+                onChange={(e) => {
+                  setMotivo(e.target.value);
+                  setErrorMotivo(null);
+                }}
                 disabled={creando}
+                aria-invalid={!!errorMotivo}
               />
+              {errorMotivo && (
+                <p role="alert" className="text-sm text-destructive">{errorMotivo}</p>
+              )}
             </div>
             <Button type="button" onClick={crear} disabled={!motivoValido || creando}>
               {creando ? (

@@ -45,7 +45,15 @@ FILTROS_DE_ESTRUCTURA = frozenset({
     'coordinacion_id',
 })
 
-FILTROS_DE_EDAD = frozenset({'edad_min', 'edad_max'})
+FILTROS_DE_EDAD = frozenset({
+    'edad_min',
+    'edad_max',
+    # Reporte de familiares: edad del trabajador y edad del familiar.
+    'edad_empleado_min',
+    'edad_empleado_max',
+    'edad_familiar_min',
+    'edad_familiar_max',
+})
 FILTROS_DECIMALES = frozenset({'apn_min', 'apn_max'})
 FILTROS_DE_FECHA = frozenset({
     'fecha_ingreso_Desde',
@@ -223,8 +231,8 @@ def _fecha(clave: str, texto: str) -> date:
 
 
 def _fecha_de_edad(clave: str, anios: int, hoy: date) -> date:
-    """`edad_min` → nacido en o antes de hoy − n años; `edad_max` → después."""
-    if clave == 'edad_min':
+    """`*_min` → nacido en o antes de hoy − n años; `*_max` → después."""
+    if clave.endswith('_min'):
         return _restar_anios(hoy, anios)
     # Cumplir «edad_max» significa haber nacido después de hoy − (n + 1) años.
     return _restar_anios(hoy, anios + 1) + _UN_DIA

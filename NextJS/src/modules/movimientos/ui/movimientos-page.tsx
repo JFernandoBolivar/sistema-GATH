@@ -55,6 +55,8 @@ import {
 import { getDireccionesGeneralesAction } from "@/modules/organizacion/infrastructure/actions/organizacion-actions";
 import { avisoTopeDeFilas } from "@/shared/lib/aviso-tope";
 import { descargarHistorialMovimientos } from "./services/descargas-movimientos";
+import { esCancelacion } from "@/shared/lib/exportaciones-asincronas";
+import { useProgresoExportacion } from "@/shared/lib/use-progreso-exportacion";
 import { DetalleMovimiento } from "./detalle-movimiento";
 import { construirColumnasMovimientos } from "./movimientos-columns";
 import { consultaHistorialSchema, type ConsultaHistorialFormType } from "./schema/schema-historial";
@@ -146,6 +148,7 @@ export default function MovimientosPage() {
   const [buscado, setBuscado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const exportacion = useProgresoExportacion();
   const [exportandoPdf, setExportandoPdf] = useState(false);
   const [exportandoExcel, setExportandoExcel] = useState(false);
   const [avisoTope, setAvisoTope] = useState<string | null>(null);
@@ -357,6 +360,7 @@ export default function MovimientosPage() {
       const { blob, total, limite, truncado } = await descargarHistorialMovimientos(
         formato,
         ultimosFiltros,
+        exportacion.iniciar(),
       );
 
       const aviso = avisoTopeDeFilas({ total, limite, truncado });
@@ -371,6 +375,7 @@ export default function MovimientosPage() {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
+      if (esCancelacion(error)) return;
       setError(
         error instanceof Error && error.message
           ? error.message
@@ -682,7 +687,7 @@ export default function MovimientosPage() {
                         disabled={exportandoPdf}
                         onClick={() => descargar("pdf")}
                       >
-                        {exportandoPdf ? "Generando PDF…" : "Descargar PDF"}
+                        {exportandoPdf ? `PDF · ${exportacion.texto}` : "Descargar PDF"}
                       </Button>
                     )}
                     {puedeExportarExcel && (
@@ -692,7 +697,7 @@ export default function MovimientosPage() {
                         onClick={() => descargar("excel")}
                         className="bg-emerald-600 hover:bg-emerald-800"
                       >
-                        {exportandoExcel ? "Generando Excel…" : "Descargar Excel"}
+                        {exportandoExcel ? `Excel · ${exportacion.texto}` : "Descargar Excel"}
                       </Button>
                     )}
                   </div>

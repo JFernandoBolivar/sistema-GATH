@@ -90,11 +90,11 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="mb-10 mt-4 flex flex-col items-center">
-        <h1 className="mb-2 text-center text-3xl font-bold text-white">
+      <div className="mb-10 mt-4 flex flex-col items-center px-4 text-center">
+        <h1 className="mb-2 text-center text-2xl sm:text-3xl font-bold text-white">
           Sistema de Información Integral
         </h1>
-        <p className="text-center text-2xl text-white">
+        <p className="text-center text-lg sm:text-xl text-white">
           Seleccione un módulo para acceder a sus funciones
         </p>
         <SignOut />
@@ -102,7 +102,7 @@ export default function Dashboard() {
       {avisoSinPermiso && (
         <p
           role="alert"
-          className="mx-8 mb-4 rounded-md border border-amber-300 bg-warning-soft p-3 text-center text-sm text-warning"
+          className="mx-4 sm:mx-8 mb-4 rounded-md border border-amber-300 bg-warning-soft p-3 text-center text-sm text-warning"
         >
           No tiene permiso para acceder a esa sección. Se le redirigió al inicio.
         </p>
@@ -110,7 +110,7 @@ export default function Dashboard() {
       <div
         id="dashboard-modulos"
         data-testid="dashboard-modulos"
-        className="mx-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"
+        className="mx-4 sm:mx-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4"
       >
         {MODULOS.filter((modulo) => tienePermiso(session?.user?.permisos, modulo.permiso)).map(
           (modulo) => (

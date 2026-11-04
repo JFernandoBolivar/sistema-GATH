@@ -57,6 +57,20 @@ describe("GET /api/movimientos/{formato}", () => {
     });
   });
 
+  it("reenvía el trabajo asíncrono (202) sin convertirlo en archivo", async () => {
+    getBlob.mockResolvedValue({
+      blob: new Blob([JSON.stringify({ status: "success", data: { id: "abc", estado: "PENDIENTE" } })]),
+      headers: new Headers(),
+      status: 202,
+    });
+
+    const respuesta = await pedir("pdf", "?cedula=V123");
+
+    expect(respuesta.status).toBe(202);
+    expect(respuesta.headers.get("content-type")).toBe("application/json");
+    expect((await respuesta.json()).data.id).toBe("abc");
+  });
+
   it("el Excel responde con su tipo de contenido", async () => {
     getBlob.mockResolvedValue(respuestaOk({ "x-reporte-truncado": "false" }));
 

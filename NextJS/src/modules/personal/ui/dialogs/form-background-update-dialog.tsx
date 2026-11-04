@@ -10,17 +10,28 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/u
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
-import { ScrollArea } from "@/shared/ui/components/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/components/select";
+import { Combobox } from "@/shared/ui/components/combobox";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
+import { avisoDeFallo, mensajeDe } from "./campo-dialogo";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = {
+  antecedentes: "antecedentes",
+  organismo: "organismoId",
+  fecha_ingreso: "fechaIngreso",
+  fecha_egreso: "fechaEgreso",
+};
+
+function MensajeFila({ error }: { error?: string }) {
+  return error ? (
+    <p role="alert" className="mt-1 text-xs text-destructive">
+      {error}
+    </p>
+  ) : null;
+}
 
 interface FormBackgroundUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -52,21 +63,24 @@ export default function FormBackgroundUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { control, register, handleSubmit, setValue, watch, reset } = useForm<FormBackgroundValues>(
+  const form = useForm<FormBackgroundValues>(
     {
       defaultValues: {
         antecedentes:
           (empleado.antecedentes ?? []).length > 0
             ? (empleado.antecedentes ?? []).map((a) => ({
                 id: a.id,
-                organismoId: a.organismoId ?? undefined,
+                organismoId: a.organismoId ?? 0,
                 fechaIngreso: a.fechaIngreso ?? "",
                 fechaEgreso: a.fechaEgreso ?? "",
               }))
-            : [{ organismoId: undefined, fechaIngreso: "", fechaEgreso: "" }],
+            : [{ organismoId: 0, fechaIngreso: "", fechaEgreso: "" }],
       },
     },
   );
+
+  const { control, register, handleSubmit, setValue, watch, reset } = form;
+  const erroresAntecedentes = form.formState.errors.antecedentes;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -104,9 +118,10 @@ export default function FormBackgroundUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
@@ -162,7 +177,7 @@ export default function FormBackgroundUpdateDialog({
                       reset({
                         antecedentes: [
                           {
-                            organismoId: undefined,
+                            organismoId: 0,
                             fechaIngreso: "",
                             fechaEgreso: "",
                           },
@@ -186,7 +201,7 @@ export default function FormBackgroundUpdateDialog({
                     className="cursor-pointer size-8"
                     onClick={() => {
                       append({
-                        organismoId: undefined,
+                        organismoId: 0,
                         fechaIngreso: "",
                         fechaEgreso: "",
                       });
@@ -203,64 +218,65 @@ export default function FormBackgroundUpdateDialog({
                   {fields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[160px_160px_1fr_auto] gap-3 items-start border-b pb-3 mb-2 w-full"
+                      className="@container flex flex-col gap-3 border-b pb-3 mb-2 w-full"
                     >
-                      <div>
-                        <Label className="flex items-center gap-1 text-xs">
-                          {index + 1}. Fecha Inicio <ArrowBigDownDash className="size-4" />
-                        </Label>
-                        <Input
-                          type="date"
-                          max={new Date().toISOString().split("T")[0]}
-                          min="1930-01-01"
-                          {...register(`antecedentes.${index}.fechaIngreso` as const)}
-                        />
+                      <div className="grid grid-cols-1 items-start gap-3 @md:grid-cols-2">
+                        <div className="min-w-0">
+                          <Label className="flex items-center gap-1 text-xs">
+                            {index + 1}. Fecha Inicio <ArrowBigDownDash className="size-4" />
+                          </Label>
+                          <Input
+                            type="date"
+                            max={new Date().toISOString().split("T")[0]}
+                            min="1930-01-01"
+                            aria-invalid={!!erroresAntecedentes?.[index]?.fechaIngreso || undefined}
+                            {...register(`antecedentes.${index}.fechaIngreso` as const)}
+                          />
+                          <MensajeFila error={mensajeDe(erroresAntecedentes?.[index]?.fechaIngreso)} />
+                        </div>
+
+                        <div className="min-w-0">
+                          <Label className="flex items-center gap-1 text-xs">
+                            {index + 1}. Fecha Culminacion <ArrowBigUpDash className="size-4" />
+                          </Label>
+                          <Input
+                            type="date"
+                            max={new Date().toISOString().split("T")[0]}
+                            min="1930-01-01"
+                            aria-invalid={!!erroresAntecedentes?.[index]?.fechaEgreso || undefined}
+                            {...register(`antecedentes.${index}.fechaEgreso` as const)}
+                          />
+                          <MensajeFila error={mensajeDe(erroresAntecedentes?.[index]?.fechaEgreso)} />
+                        </div>
                       </div>
 
-                      <div>
-                        <Label className="flex items-center gap-1 text-xs">
-                          {index + 1}. Fecha Culminacion <ArrowBigUpDash className="size-4" />
-                        </Label>
-                        <Input
-                          type="date"
-                          max={new Date().toISOString().split("T")[0]}
-                          min="1930-01-01"
-                          {...register(`antecedentes.${index}.fechaEgreso` as const)}
-                        />
-                      </div>
-
-                      <div className="flex-1 min-w-[200px]">
-                        <Label>Organismo</Label>
-                        <Select
-                          value={
-                            watch(`antecedentes.${index}.organismoId`)
-                              ? String(watch(`antecedentes.${index}.organismoId`))
-                              : undefined
-                          }
-                          onValueChange={(v) =>
-                            setValue(`antecedentes.${index}.organismoId`, Number(v))
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccione un Organismo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(catalogos?.organismos ?? []).map((i) => (
-                              <SelectItem key={i.id} value={String(i.id)}>
-                                {i.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
+                      <div className="flex items-end gap-2">
+                        <div className="min-w-0 flex-1">
+                          <Label>Organismo</Label>
+                          <Combobox
+                            invalido={!!erroresAntecedentes?.[index]?.organismoId}
+                            options={(catalogos?.organismos ?? []).map((i) => ({
+                              value: String(i.id),
+                              label: i.nombre,
+                            }))}
+                            value={
+                              watch(`antecedentes.${index}.organismoId`)
+                                ? String(watch(`antecedentes.${index}.organismoId`))
+                                : ""
+                            }
+                            onChange={(v) => setValue(`antecedentes.${index}.organismoId`, Number(v))}
+                            placeholder="Seleccione un Organismo"
+                            searchPlaceholder="Buscar organismo..."
+                          />
+                          <MensajeFila error={mensajeDe(erroresAntecedentes?.[index]?.organismoId)} />
+                        </div>
                         <Button
                           type="button"
                           variant="destructive"
                           size="icon"
                           className={`${index === 0 ? "invisible" : ""} cursor-pointer size-9 shrink-0`}
                           onClick={() => remove(index)}
+                          aria-label={`Quitar antecedente ${index + 1}`}
                         >
                           <X className="size-4" />
                         </Button>

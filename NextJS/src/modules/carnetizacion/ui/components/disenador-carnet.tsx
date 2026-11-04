@@ -87,8 +87,34 @@ export function DisenadorCarnet({
   const [isSearching, setIsSearching] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [erroresCampo, setErroresCampo] = useState<Record<string, string>>({});
   const [exito, setExito] = useState<string | null>(null);
   const [carnetEmitido, setCarnetEmitido] = useState<CarnetDTO | null>(null);
+
+  const limpiarErrorCampo = (campo: string) =>
+    setErroresCampo((previo) => {
+      if (!previo[campo]) return previo;
+      const copia = { ...previo };
+      delete copia[campo];
+      return copia;
+    });
+
+  const aplicarErrores = (errores?: Record<string, string[]>) => {
+    const nombres: Record<string, string> = {
+      empleado_cedula: "cedula",
+      empleadoCedula: "cedula",
+      motivo_id: "motivo",
+      motivoId: "motivo",
+    };
+    const mapa = Object.fromEntries(
+      Object.entries(errores ?? {}).map(([campo, mensajes]) => [
+        nombres[campo] ?? campo,
+        mensajes.join(" "),
+      ]),
+    );
+    setErroresCampo(mapa);
+    return Object.keys(mapa).length > 0;
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -125,7 +151,9 @@ export function DisenadorCarnet({
     try {
       const res = await buscarEmpleadoParaCarnetAction(ci.trim());
       if (res && "error" in res) {
-        setError(res.error);
+        const fallo = res as { error: string; errores?: Record<string, string[]> };
+        const ubicados = aplicarErrores(fallo.errores);
+        if (!ubicados) setError(fallo.error);
         return;
       }
       if (res) {
@@ -183,21 +211,26 @@ export function DisenadorCarnet({
   const handleEmitir = () => {
     const cedulaFinal = (cedulaActiva || cedulaInput).trim();
     if (!cedulaFinal) {
-      setError("Debe especificar la cédula del trabajador.");
+      setErroresCampo({ cedula: "Debe especificar la cédula del trabajador." });
+      setError(null);
       return;
     }
     if (!nombre.trim()) {
-      setError("El nombre del titular no puede estar vacío.");
+      setErroresCampo({ nombre: "El nombre del titular no puede estar vacío." });
+      setError(null);
       return;
     }
 
     startTransition(async () => {
       setError(null);
+      setErroresCampo({});
       setExito(null);
       try {
         const resultado = await emitirCarnetAction(cedulaFinal, motivoId, observaciones);
         if (resultado && typeof resultado === "object" && "error" in resultado) {
-          setError((resultado as { error: string }).error);
+          const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+          const ubicados = aplicarErrores(fallo.errores);
+          if (!ubicados) setError(fallo.error);
           return;
         }
         const carnet = resultado as CarnetDTO;
@@ -245,8 +278,8 @@ export function DisenadorCarnet({
       )}
 
       {carnetEmitido && (
-        <div className="flex items-center justify-between rounded-lg border border-emerald-300 bg-emerald-50/50 p-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 rounded-lg border border-emerald-300 bg-emerald-50/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             <CheckCircle2 className="size-5 text-emerald-600" aria-hidden="true" />
             <div>
               <p className="text-sm font-semibold text-emerald-900">
@@ -262,7 +295,7 @@ export function DisenadorCarnet({
             size="sm"
             onClick={() => handleDescargarPdf(carnetEmitido.id)}
             disabled={isPending}
-            className="border-emerald-600 text-emerald-700 hover:bg-emerald-100"
+            className="w-full border-emerald-600 text-emerald-700 hover:bg-emerald-100 sm:w-auto"
           >
             <FileDown className="size-4 mr-1.5" aria-hidden="true" />
             Descargar PDF Oficial
@@ -285,18 +318,27 @@ export function DisenadorCarnet({
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {/* Búsqueda por cédula */}
-              <form onSubmit={handleBuscar} className="flex items-end gap-2" noValidate>
-                <Field className="flex-1">
+              <form onSubmit={handleBuscar} className="flex flex-col gap-2 sm:flex-row sm:items-end" noValidate>
+                <Field className="min-w-0 flex-1" data-invalid={!!erroresCampo.cedula}>
                   <Label htmlFor="cedulaBusqueda">Cédula de Identidad</Label>
                   <Input
                     id="cedulaBusqueda"
                     placeholder="Ej. 12345678"
+                    inputMode="numeric"
+                    maxLength={20}
                     value={cedulaInput}
-                    onChange={(e) => setCedulaInput(e.target.value)}
+                    onChange={(e) => {
+                      setCedulaInput(e.target.value);
+                      limpiarErrorCampo("cedula");
+                    }}
                     disabled={isSearching || isPending}
+                    aria-invalid={!!erroresCampo.cedula}
                   />
+                  {erroresCampo.cedula && (
+                    <p role="alert" className="text-sm text-destructive">{erroresCampo.cedula}</p>
+                  )}
                 </Field>
-                <Button type="submit" variant="outline" disabled={isSearching || isPending}>
+                <Button type="submit" variant="outline" disabled={isSearching || isPending} className="w-full sm:w-auto">
                   {isSearching ? (
                     <Loader2 className="size-4 animate-spin mr-1" aria-hidden="true" />
                   ) : (
@@ -307,18 +349,26 @@ export function DisenadorCarnet({
               </form>
 
               {/* Nombre completo editable con indicador reactivo */}
-              <Field>
-                <div className="flex items-center justify-between">
+              <Field data-invalid={!!erroresCampo.nombre}>
+                <div className="flex items-center justify-between gap-2">
                   <Label htmlFor="nombreTitular">Nombre en el carnet (editable)</Label>
                   <span className="text-xs text-muted-foreground">Reactivo en vivo</span>
                 </div>
                 <Input
                   id="nombreTitular"
                   placeholder="Nombre y apellido que figurarán en el carnet"
+                  maxLength={120}
                   value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
+                  onChange={(e) => {
+                    setNombre(e.target.value);
+                    limpiarErrorCampo("nombre");
+                  }}
                   disabled={isPending}
+                  aria-invalid={!!erroresCampo.nombre}
                 />
+                {erroresCampo.nombre && (
+                  <p role="alert" className="text-sm text-destructive">{erroresCampo.nombre}</p>
+                )}
                 <p className="text-[11px] text-muted-foreground">
                   Puede ajustar la disposición de nombres y apellidos para optimizar el diseño.
                 </p>
@@ -368,13 +418,16 @@ export function DisenadorCarnet({
                   </Select>
                 </Field>
 
-                <Field>
+                <Field data-invalid={!!erroresCampo.motivo}>
                   <Label htmlFor="motivoSelector">Motivo de Emisión</Label>
                   <Select
                     value={String(motivoId)}
-                    onValueChange={(val) => setMotivoId(Number(val))}
+                    onValueChange={(val) => {
+                      setMotivoId(Number(val));
+                      limpiarErrorCampo("motivo");
+                    }}
                   >
-                    <SelectTrigger id="motivoSelector">
+                    <SelectTrigger id="motivoSelector" aria-invalid={!!erroresCampo.motivo}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -385,6 +438,9 @@ export function DisenadorCarnet({
                       ))}
                     </SelectContent>
                   </Select>
+                  {erroresCampo.motivo && (
+                    <p role="alert" className="text-sm text-destructive">{erroresCampo.motivo}</p>
+                  )}
                 </Field>
               </div>
 
@@ -434,15 +490,23 @@ export function DisenadorCarnet({
               </div>
 
               {/* Observaciones opcionales */}
-              <Field>
+              <Field data-invalid={!!erroresCampo.observaciones}>
                 <Label htmlFor="observacionesInput">Observaciones (opcional)</Label>
                 <Input
                   id="observacionesInput"
                   placeholder="Detalles adicionales o justificación de emisión"
+                  maxLength={500}
                   value={observaciones}
-                  onChange={(e) => setObservaciones(e.target.value)}
+                  onChange={(e) => {
+                    setObservaciones(e.target.value);
+                    limpiarErrorCampo("observaciones");
+                  }}
                   disabled={isPending}
+                  aria-invalid={!!erroresCampo.observaciones}
                 />
+                {erroresCampo.observaciones && (
+                  <p role="alert" className="text-sm text-destructive">{erroresCampo.observaciones}</p>
+                )}
               </Field>
 
               {/* Botón principal de Emisión */}
@@ -467,7 +531,7 @@ export function DisenadorCarnet({
 
         {/* COLUMNA DERECHA: Vista Previa en Vivo (Live Preview) */}
         <div className="flex flex-col gap-4 lg:col-span-5">
-          <Card className="sticky top-4">
+          <Card className="lg:sticky lg:top-4">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base font-semibold">

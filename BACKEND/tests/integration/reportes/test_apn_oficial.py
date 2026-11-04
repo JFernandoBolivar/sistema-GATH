@@ -24,6 +24,12 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.consultas_apn import (
     anotar_apn_oficial,
 )
+from apps.cargos.infrastructure.models.cargo_models import (
+    AsigTrabajoModel,
+    DenominacionCargoEspecificoModel,
+    DenominacionCargoModel,
+)
+from apps.catalogos.infrastructure.models.catalogo_models import EstatusModel, TipoNominaModel
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_personal,
 )
@@ -45,13 +51,25 @@ def catalogo(db):
 
 
 def empleado(cedula, sexo, legado=99):
-    return EmployeeModel.objects.create(
+    emp = EmployeeModel.objects.create(
         cedulaidentidad=cedula,
         nombres='APN',
         apellidos=cedula,
         sexoid=sexo,
         total_anos_apn=legado,
     )
+    # El reporte de personal activo solo incluye a quien tiene asignación (criterio
+    # del listado de Personal Activo): cada empleado de prueba recibe una.
+    AsigTrabajoModel.objects.create(
+        employee=emp,
+        codigo=f'C-{cedula}',
+        denominacioncargoid=DenominacionCargoModel.objects.get_or_create(cargo='ANALISTA')[0],
+        denominacioncargoespecificoid=DenominacionCargoEspecificoModel.objects.get_or_create(
+            cargo='ANALISTA I')[0],
+        tiponominaid=TipoNominaModel.objects.get_or_create(nomina='FIJO')[0],
+        estatusid=EstatusModel.objects.get_or_create(estatus='ACTIVO')[0],
+    )
+    return emp
 
 
 def antecedente(emp, inicio, fin):

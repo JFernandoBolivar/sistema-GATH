@@ -12,11 +12,12 @@ MOTIVO_MAX_CARACTERES = 500
 def validar_motivo_solicitud(motivo: str) -> str:
     motivo = ' '.join((motivo or '').split())
     if not motivo:
-        raise ValidationError("El motivo es obligatorio.")
+        raise ValidationError("El motivo es obligatorio.", campo='motivo')
     if len(motivo) < MOTIVO_MIN_CARACTERES or len(motivo.split()) < MOTIVO_MIN_PALABRAS:
         raise ValidationError(
-            f"El motivo debe tener al menos {MOTIVO_MIN_PALABRAS} palabras y {MOTIVO_MIN_CARACTERES} caracteres."
+            f"El motivo debe tener al menos {MOTIVO_MIN_PALABRAS} palabras y {MOTIVO_MIN_CARACTERES} caracteres.",
+            campo='motivo',
         )
     if len(motivo) > MOTIVO_MAX_CARACTERES:
-        raise ValidationError(f"El motivo no puede exceder {MOTIVO_MAX_CARACTERES} caracteres.")
+        raise ValidationError(f"El motivo no puede exceder {MOTIVO_MAX_CARACTERES} caracteres.", campo='motivo')
     return motivo

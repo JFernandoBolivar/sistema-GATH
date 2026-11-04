@@ -13,6 +13,7 @@ import type {
   PrestamoCargo,
   UnidadOrganizativaCargo,
 } from "../entities/cargo";
+import type { OperacionMotivo } from "../value-objects/operacion-motivo";
 
 /** Datos de entrada para crear/actualizar una denominación de cargo (Regla R1: tipo propio de domain/). */
 export interface DenominacionInput {
@@ -95,11 +96,11 @@ export interface RepoCargos {
   crearDenominacionEspecifica(input: DenominacionInput): Promise<DenominacionCargo>;
   actualizarDenominacionEspecifica(id: number, input: DenominacionInput): Promise<DenominacionCargo>;
   eliminarDenominacionEspecifica(id: number): Promise<void>;
-  listarMotivos(categoria?: string): Promise<CatalogoCargoItem[]>;
+  listarMotivos(operacion: OperacionMotivo): Promise<CatalogoCargoItem[]>;
   listarEstatus(): Promise<CatalogoCargoItem[]>;
   crearCargo(input: CrearCargoInput): Promise<CargoAsignacion>;
   actualizarCargo(cargoId: number, input: ActualizarCargoInput): Promise<CargoAsignacion>;
-  listarTiposNomina(): Promise<CatalogoCargoItem[]>;
+  listarTiposNomina(soloEspeciales?: boolean): Promise<CatalogoCargoItem[]>;
   listarGrados(): Promise<CatalogoCargoItem[]>;
   listarOrganismosAdscritos(): Promise<CatalogoCargoItem[]>;
   listarDependencias(): Promise<UnidadOrganizativaCargo[]>;

@@ -2,7 +2,7 @@
 
 # Categorías del catálogo `Tipo_movimiento` (RAC_categoria_movimiento) que sacan al trabajador de la nómina
 # sin pase a pasivo: egreso (renuncia, destitución, fin de contrato...) y fallecimiento.
-CATEGORIAS_EGRESO = frozenset({'EGRESO', 'FALLECIMIENTO'})
+CATEGORIAS_EGRESO = frozenset({'EGRESO', 'EGRESO PASIVO', 'FALLECIMIENTO'})
 
 
 def es_movimiento_de_egreso(tipo_movimiento: str | None, categoria_motivo: str | None) -> bool:

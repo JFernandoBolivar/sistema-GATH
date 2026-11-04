@@ -10,6 +10,7 @@ import type {
   DenominacionInput,
 } from "../../domain/ports/repo-cargos";
 import { cargosApi } from "../http/cargos-api";
+import type { OperacionMotivo } from "../../domain/value-objects/operacion-motivo";
 import {
   cargoApiAEntidad,
   catalogoApiAEntidad,
@@ -136,8 +137,8 @@ export const repoCargosApi: RepoCargos = {
     await cargosApi.eliminarDenominacionEspecifica(id);
   },
 
-  async listarMotivos(categoria?: string) {
-    return (await cargosApi.getMotivos(categoria)).map(catalogoApiAEntidad);
+  async listarMotivos(operacion: OperacionMotivo) {
+    return (await cargosApi.getMotivos(operacion)).map(catalogoApiAEntidad);
   },
 
   async listarEstatus() {
@@ -177,8 +178,8 @@ export const repoCargosApi: RepoCargos = {
     );
   },
 
-  async listarTiposNomina() {
-    return (await cargosApi.getTiposNomina()).map(catalogoApiAEntidad);
+  async listarTiposNomina(soloEspeciales = false) {
+    return (await cargosApi.getTiposNomina(soloEspeciales)).map(catalogoApiAEntidad);
   },
 
   async listarGrados() {

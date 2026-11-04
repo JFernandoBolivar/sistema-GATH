@@ -20,7 +20,7 @@ const motivo = (nombre: string) =>
 export const datosContactoSchema = z.object({
   telefonoMovil: telefonoMovilOpcional,
   telefonoHabitacion: telefonoHabitacionOpcional,
-  correoAlternativo: z.string().trim().regex(EMAIL, EMAIL_MSG).or(z.literal("")),
+  correoAlternativo: z.string().trim().max(254, "El correo no puede superar 254 caracteres").regex(EMAIL, EMAIL_MSG).or(z.literal("")),
   tieneHijos: z.enum(["si", "no"], {
     errorMap: () => ({ message: "Indique si tiene hijos" }),
   }),
@@ -73,10 +73,10 @@ export type AprobarDirectoValores = z.infer<typeof aprobarDirectoSchema>;
 export const filtrosBandejaSchema = z
   .object({
     texto: z.string().trim().max(80, "Máximo 80 caracteres").regex(NO_HTML, NO_HTML_MSG),
-    estado: z.string(),
-    procesoId: z.string(),
-    desde: z.string(),
-    hasta: z.string(),
+    estado: z.string().max(50),
+    procesoId: z.string().max(50),
+    desde: z.string().max(35),
+    hasta: z.string().max(35),
   })
   .refine((v) => !v.desde || !v.hasta || v.desde <= v.hasta, {
     message: "La fecha «desde» no puede ser posterior a «hasta»",
@@ -93,8 +93,8 @@ export const procesoSchema = z
       .min(3, "El nombre es obligatorio")
       .max(160, "Máximo 160 caracteres")
       .regex(NO_HTML, NO_HTML_MSG),
-    apertura: z.string().min(1, "La apertura es obligatoria"),
-    cierre: z.string().min(1, "El cierre es obligatorio"),
+    apertura: z.string().min(1, "La apertura es obligatoria").max(35, "Máximo 35 caracteres"),
+    cierre: z.string().min(1, "El cierre es obligatorio").max(35, "Máximo 35 caracteres"),
     todos: z.boolean(),
     tiposNomina: z.array(z.number().int().positive()),
     diasRecordatorio: z.array(
@@ -128,14 +128,14 @@ export const prorrogaSchema = z.object({
     .string()
     .trim()
     .regex(/^(\d{5,10})?$/, "La cédula debe tener entre 5 y 10 dígitos, sin puntos"),
-  nuevaFechaLimite: z.string().min(1, "La nueva fecha límite es obligatoria"),
+  nuevaFechaLimite: z.string().min(1, "La nueva fecha límite es obligatoria").max(35, "Máximo 35 caracteres"),
   motivo: motivo("El motivo"),
 });
 export type ProrrogaValores = z.infer<typeof prorrogaSchema>;
 
 export const filtrosCoberturaSchema = z.object({
   texto: z.string().trim().max(80, "Máximo 80 caracteres").regex(NO_HTML, NO_HTML_MSG),
-  tipoNominaId: z.string().regex(/^\d*$/),
+  tipoNominaId: z.string().max(10).regex(/^\d*$/),
   sinCorreo: z.boolean(),
   sinCuenta: z.boolean(),
 });

@@ -10,6 +10,11 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/u
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Label } from "@/shared/ui/components/label";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import { avisoDeFallo, mensajeDe } from "./campo-dialogo";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = { "perfil_salud.grupo_sanguineo": "grupoSanguineoId" }
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
   Select,
@@ -67,11 +72,13 @@ export default function FormHealthProfileUpdateDialog({
     empleado.perfilSalud?.alergias ?? [],
   );
 
-  const { handleSubmit, setValue, watch } = useForm({
+  const form = useForm({
     defaultValues: {
-      grupoSanguineoId: empleado.perfilSalud?.grupoSanguineoId ?? undefined,
+      grupoSanguineoId: empleado.perfilSalud?.grupoSanguineoId ?? 0,
     },
   });
+  const { handleSubmit, setValue, watch } = form;
+  const errorGrupo = mensajeDe(form.formState.errors.grupoSanguineoId);
 
   const grupoSanguineoId = watch("grupoSanguineoId");
 
@@ -80,7 +87,7 @@ export default function FormHealthProfileUpdateDialog({
       setSelectedPatologias(empleado.perfilSalud?.patologiasCronicas ?? []);
       setSelectedDiscapacidades(empleado.perfilSalud?.discapacidades ?? []);
       setSelectedAlergias(empleado.perfilSalud?.alergias ?? []);
-      setValue("grupoSanguineoId", empleado.perfilSalud?.grupoSanguineoId ?? undefined);
+      setValue("grupoSanguineoId", empleado.perfilSalud?.grupoSanguineoId ?? 0);
     }
   }, [open, empleado.perfilSalud, setValue]);
 
@@ -117,9 +124,10 @@ export default function FormHealthProfileUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
@@ -180,7 +188,7 @@ export default function FormHealthProfileUpdateDialog({
                     )
                   }
                 >
-                  <SelectTrigger id="grupoSanguineoId" className="w-full truncate">
+                  <SelectTrigger id="grupoSanguineoId" className="w-full truncate" aria-invalid={!!errorGrupo || undefined}>
                     <SelectValue placeholder="Seleccione un Grupo Sanguineo" />
                   </SelectTrigger>
                   <SelectContent>
@@ -191,6 +199,11 @@ export default function FormHealthProfileUpdateDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {errorGrupo && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {errorGrupo}
+                  </p>
+                )}
               </div>
 
               <div className="max-h-[55vh] overflow-y-auto w-full border rounded-md p-4">

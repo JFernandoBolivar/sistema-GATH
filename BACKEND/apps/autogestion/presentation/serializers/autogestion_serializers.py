@@ -38,3 +38,9 @@ class ItemRespuestaInputSerializer(serializers.Serializer):
 
 class RegistrarCensoInputSerializer(serializers.Serializer):
     respuestas = ItemRespuestaInputSerializer(many=True, required=True)
+
+
+class SolicitarCarnetSerializer(serializers.Serializer):
+    motivo_id = serializers.IntegerField(required=False, allow_null=True)
+    observaciones = serializers.CharField(required=False, allow_blank=True, max_length=500)
+

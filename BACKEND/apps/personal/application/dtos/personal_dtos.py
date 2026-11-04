@@ -14,6 +14,7 @@ class EmpleadoDTO:
     sexo_id: int
     sexo_nombre: str
     correo: str | None = None
+    correo_alternativo: str | None = None
     telefono_movil: str | None = None
     telefono_habitacion: str | None = None
     fecha_nacimiento: str | None = None

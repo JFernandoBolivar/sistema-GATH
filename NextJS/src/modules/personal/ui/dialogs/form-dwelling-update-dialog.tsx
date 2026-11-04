@@ -9,7 +9,6 @@ import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
-import { Label } from "@/shared/ui/components/label";
 import {
   Select,
   SelectContent,
@@ -22,6 +21,19 @@ import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
 import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 import { Combobox } from "@/shared/ui/components/combobox";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import { DIRECCION_MAX } from "../schema/reglas-personas";
+import { CampoDialogo, avisoDeFallo, mensajeDe } from "./campo-dialogo";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = {
+  "datos_vivienda.estado": "estadoId",
+  "datos_vivienda.municipio": "municipioId",
+  "datos_vivienda.parroquia": "parroquiaId",
+  "datos_vivienda.condicion_vivienda": "condicionViviendaId",
+  "datos_vivienda.direccion_exacta": "direccionExacta",
+  "datos_vivienda.codigo_postal": "codigoPostalId",
+};
 
 interface FormDwellingUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -42,16 +54,18 @@ export default function FormDwellingUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, setValue, watch } = useForm({
+  const form = useForm({
     defaultValues: {
-      estadoId: empleado.datosVivienda?.estadoId ?? undefined,
-      municipioId: empleado.datosVivienda?.municipioId ?? undefined,
-      parroquiaId: empleado.datosVivienda?.parroquiaId ?? undefined,
-      condicionViviendaId: empleado.datosVivienda?.condicionViviendaId ?? undefined,
+      estadoId: empleado.datosVivienda?.estadoId ?? 0,
+      municipioId: empleado.datosVivienda?.municipioId ?? 0,
+      parroquiaId: empleado.datosVivienda?.parroquiaId ?? 0,
+      condicionViviendaId: empleado.datosVivienda?.condicionViviendaId ?? 0,
       direccionExacta: empleado.datosVivienda?.direccionExacta ?? "",
-      codigoPostalId: empleado.datosVivienda?.codigoPostalId ?? undefined,
+      codigoPostalId: empleado.datosVivienda?.codigoPostalId ?? 0,
     },
   });
+  const { register, handleSubmit, setValue, watch } = form;
+  const errores = form.formState.errors;
 
   const estadoId = watch("estadoId");
   const municipioId = watch("municipioId");
@@ -89,9 +103,10 @@ export default function FormDwellingUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
@@ -129,11 +144,11 @@ export default function FormDwellingUpdateDialog({
               </p>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="estadoId">Estado *</Label>
+            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <CampoDialogo id="estadoId" label="Estado *" error={mensajeDe(errores.estadoId)}>
                 <Combobox
                   id="estadoId"
+                  invalido={!!errores.estadoId}
                   value={estadoId ? String(estadoId) : ""}
                   onChange={(v) => {
                     setValue("estadoId", Number(v));
@@ -146,15 +161,13 @@ export default function FormDwellingUpdateDialog({
                   searchPlaceholder="Buscar estado…"
                   emptyText="No hay coincidencias."
                 />
-                <span className="text-xs text-muted-foreground block mt-1">
-                  Esta Información Sera Publica
-                </span>
-              </div>
+                <span className="text-xs text-muted-foreground">Esta Información Sera Publica</span>
+              </CampoDialogo>
 
-              <div>
-                <Label htmlFor="municipioId">Municipio *</Label>
+              <CampoDialogo id="municipioId" label="Municipio *" error={mensajeDe(errores.municipioId)}>
                 <Combobox
                   id="municipioId"
+                  invalido={!!errores.municipioId}
                   value={municipioId ? String(municipioId) : ""}
                   onChange={(v) => {
                     setValue("municipioId", Number(v));
@@ -165,15 +178,13 @@ export default function FormDwellingUpdateDialog({
                   searchPlaceholder="Buscar municipio…"
                   emptyText="No hay coincidencias."
                 />
-                <span className="text-xs text-muted-foreground block mt-1">
-                  Esta Información Sera Publica
-                </span>
-              </div>
+                <span className="text-xs text-muted-foreground">Esta Información Sera Publica</span>
+              </CampoDialogo>
 
-              <div>
-                <Label htmlFor="parroquiaId">Parroquia *</Label>
+              <CampoDialogo id="parroquiaId" label="Parroquia *" error={mensajeDe(errores.parroquiaId)}>
                 <Combobox
                   id="parroquiaId"
+                  invalido={!!errores.parroquiaId}
                   value={parroquiaId ? String(parroquiaId) : ""}
                   onChange={(v) => {
                     setValue("parroquiaId", Number(v));
@@ -183,20 +194,25 @@ export default function FormDwellingUpdateDialog({
                   searchPlaceholder="Buscar parroquia…"
                   emptyText="No hay coincidencias."
                 />
-                <span className="text-xs text-muted-foreground block mt-1">
-                  Esta Información Sera Publica
-                </span>
-              </div>
+                <span className="text-xs text-muted-foreground">Esta Información Sera Publica</span>
+              </CampoDialogo>
 
-              <div>
-                <Label htmlFor="condicionViviendaId">Condicion De Vivienda *</Label>
+              <CampoDialogo
+                id="condicionViviendaId"
+                label="Condicion De Vivienda *"
+                error={mensajeDe(errores.condicionViviendaId)}
+              >
                 <Select
                   value={
                     watch("condicionViviendaId") ? String(watch("condicionViviendaId")) : undefined
                   }
                   onValueChange={(v) => setValue("condicionViviendaId", Number(v))}
                 >
-                  <SelectTrigger id="condicionViviendaId" className="w-full truncate">
+                  <SelectTrigger
+                    id="condicionViviendaId"
+                    className="w-full truncate"
+                    aria-invalid={!!errores.condicionViviendaId || undefined}
+                  >
                     <SelectValue placeholder="Seleccione una Condicion De Vivienda" />
                   </SelectTrigger>
                   <SelectContent>
@@ -207,24 +223,28 @@ export default function FormDwellingUpdateDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <span className="text-xs text-muted-foreground block mt-1">
-                  Esta Información Sera Publica
-                </span>
-              </div>
+                <span className="text-xs text-muted-foreground">Esta Información Sera Publica</span>
+              </CampoDialogo>
 
-              <div className="col-span-2">
-                <Label htmlFor="direccionExacta">Direccion Exacta *</Label>
+              <CampoDialogo
+                id="direccionExacta"
+                label="Direccion Exacta *"
+                error={mensajeDe(errores.direccionExacta)}
+                className="sm:col-span-2"
+              >
                 <Input
                   id="direccionExacta"
+                  maxLength={DIRECCION_MAX}
+                  aria-invalid={!!errores.direccionExacta || undefined}
                   {...register("direccionExacta")}
                   placeholder="Calle, Casa, Apartamento, Sector"
                 />
-              </div>
+              </CampoDialogo>
 
-              <div>
-                <Label htmlFor="codigoPostalId">Código Postal *</Label>
+              <CampoDialogo id="codigoPostalId" label="Código Postal *" error={mensajeDe(errores.codigoPostalId)}>
                 <Combobox
                   id="codigoPostalId"
+                  invalido={!!errores.codigoPostalId}
                   value={codigoPostalId ? String(codigoPostalId) : ""}
                   onChange={(v) => {
                     setValue("codigoPostalId", Number(v));
@@ -234,9 +254,9 @@ export default function FormDwellingUpdateDialog({
                   searchPlaceholder="Buscar código postal…"
                   emptyText="No hay coincidencias."
                 />
-              </div>
+              </CampoDialogo>
 
-              <Button className="w-full col-span-2 mt-2" disabled={isPending}>
+              <Button className="w-full sm:col-span-2 mt-2" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin mr-1" />}
                 {isPending ? "Actualizando" : "Actualizar"}
               </Button>

@@ -29,11 +29,11 @@ export default function Error({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-md w-full mx-4">
+    <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="max-w-md w-full p-4">
         <div
           role="alert"
-          className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8 text-center"
+          className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-5 sm:p-8 text-center"
         >
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
             <AlertTriangle className="size-8 text-red-300" aria-hidden="true" />
@@ -49,13 +49,13 @@ export default function Error({
           <div className="flex flex-col gap-3">
             <button
               onClick={() => reset()}
-              className="w-full px-4 py-2.5 bg-blue-600 hover:bg-primary text-white rounded-lg font-medium transition-colors"
+              className="w-full min-h-11 flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-primary text-white rounded-lg font-medium transition-colors"
             >
               Reintentar
             </button>
             <button
               onClick={handleClearAndReload}
-              className="w-full px-4 py-2.5 bg-red-600/80 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              className="w-full min-h-11 flex items-center justify-center px-4 py-2.5 bg-red-600/80 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
             >
               Cerrar sesión y volver al inicio
             </button>

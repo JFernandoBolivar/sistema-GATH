@@ -17,13 +17,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/shared/ui/components/input";
 import { Button } from "@/shared/ui/components/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Combobox } from "@/shared/ui/components/combobox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -66,7 +61,6 @@ import {
   getDireccionesLineaAction,
   getCoordinacionesAction,
   getTiposNominaAction,
-  getMotivosAction,
   getPrestamosAction,
   registrarEncargaduriaAction,
   finalizarPrestamoAction,
@@ -110,7 +104,6 @@ export function PrestamoCargoPage() {
   const [direccionesLinea, setDireccionesLinea] = useState<UnidadOrganizativaCargoDTO[]>([]);
   const [coordinaciones, setCoordinaciones] = useState<UnidadOrganizativaCargoDTO[]>([]);
   const [tiposNomina, setTiposNomina] = useState<CatalogoCargoItemDTO[]>([]);
-  const [motivos, setMotivos] = useState<CatalogoCargoItemDTO[]>([]);
   const [codeList, setCodeList] = useState<CargoAsignacionDTO[] | null>(null);
   const [prestamos, setPrestamos] = useState<PrestamoCargoDTO[]>([]);
 
@@ -138,7 +131,6 @@ export function PrestamoCargoPage() {
       cargo_encargado: 0,
       empleado_encargado: "",
       motivo: 0,
-      nueva_motivo_nombre: undefined,
       fecha_inicio: new Date(),
       fecha_fin: new Date(),
     },
@@ -147,23 +139,19 @@ export function PrestamoCargoPage() {
   const watchedDependencia = filterForm.watch("dependencia_id");
   const watchedDireccionGeneral = filterForm.watch("direccion_general_id");
   const watchedDireccionLinea = filterForm.watch("direccion_linea_id");
-  const watchedMotivo = form.watch("motivo");
-  const isOtherMotivo = watchedMotivo === -1;
 
   // Initial catalogs fetch
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const [deps, noms, mots] = await Promise.all([
+        const [deps, noms] = await Promise.all([
           getDependenciasAction(),
           getTiposNominaAction(),
-          getMotivosAction("ENCARGADURIA"),
         ]);
         if (!active) return;
         setDependencias(deps);
         setTiposNomina(noms);
-        setMotivos(mots);
       } catch {
         // Silencioso
       } finally {
@@ -349,7 +337,6 @@ export function PrestamoCargoPage() {
           cargo_encargado: values.cargo_encargado,
           empleado_encargado: values.empleado_encargado,
           motivo: values.motivo,
-          nueva_motivo_nombre: values.nueva_motivo_nombre,
           fecha_inicio: values.fecha_inicio.toISOString().split("T")[0],
           fecha_fin: values.fecha_fin.toISOString().split("T")[0],
         });
@@ -365,7 +352,12 @@ export function PrestamoCargoPage() {
           form.reset();
           loadPrestamos(filterCedula);
         } else {
-          toast.error(result.message);
+          const sinUbicar = aplicarErroresServidor(form, result.errores, {
+            cedula_encargado: "empleado_encargado",
+            cargo_id: "cargo_encargado",
+            motivo_id: "motivo",
+          });
+          toast.error(result.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : result.message);
         }
       } catch (err: unknown) {
         toast.error(err instanceof Error ? err.message : "Error al registrar la encargaduría");
@@ -507,7 +499,7 @@ export function PrestamoCargoPage() {
               )}
 
               {selectedCode && (
-                <div className="rounded-sm border-2 border-success/40 bg-success-soft p-3 flex flex-col gap-1 text-sm">
+                <div className="rounded-sm border-2 border-success/40 bg-success-soft p-4 flex flex-col gap-1 text-sm break-words">
                   <p><strong>Titular Actual:</strong> {selectedCode.empleadoNombre ? `${selectedCode.empleadoNombre} (${selectedCode.empleadoCedula})` : selectedCode.empleadoCedula ? selectedCode.empleadoCedula : "Vacante (Sin titular)"}</p>
                   <p><strong>Código:</strong> {selectedCode.codigo}</p>
                   <p><strong>Cargo:</strong> {selectedCode.denominacionNombre}</p>
@@ -523,60 +515,28 @@ export function PrestamoCargoPage() {
               {selectedCargo && (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
-                    <div className="flex gap-2 items-start">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                       <FormField
                         control={form.control}
                         name="motivo"
                         render={({ field }) => (
-                          <FormItem className="w-72 shrink-0">
-                            <FormLabel>Motivo (ENCARGADURIA)</FormLabel>
-                            <Select
-                              onValueChange={(v) => {
-                                if (v === "-1") {
-                                  field.onChange(-1);
-                                } else {
-                                  field.onChange(Number(v));
-                                  form.setValue("nueva_motivo_nombre", "" as never);
-                                }
-                              }}
-                              value={field.value === -1 ? "-1" : field.value?.toString() ?? ""}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleccione un motivo" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {motivos.map((m) => (
-                                  <SelectItem key={m.id} value={m.id.toString()}>
-                                    {m.nombre}
-                                  </SelectItem>
-                                ))}
-                                <SelectItem value="-1">Otro</SelectItem>
-                              </SelectContent>
-                            </Select>
+                          <FormItem className="w-full sm:w-96">
+                            <FormLabel>Motivo de la encargaduría</FormLabel>
+                            <FormControl>
+                              <MotivoSelect
+                                operacion="prestamo_cargo"
+                                value={field.value}
+                                onChange={field.onChange}
+                                aria-invalid={Boolean(form.formState.errors.motivo)}
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      <div className={!isOtherMotivo ? "hidden" : "w-60 shrink-0"}>
-                        <FormField
-                          control={form.control}
-                          name="nueva_motivo_nombre"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>&nbsp;</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Nuevo motivo..." {...field} value={field.value ?? ""} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <FormField
                         control={form.control}
                         name="fecha_inicio"
@@ -640,12 +600,12 @@ export function PrestamoCargoPage() {
       <Card className="bg-card">
         <CardHeader>
           <CardTitle>Encargadurías Activas</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Input
               placeholder="Filtrar por cédula"
               value={filterCedula}
               onChange={(e) => setFilterCedula(e.target.value)}
-              className="w-44"
+              className="w-full sm:w-44"
             />
             <Button size="sm" onClick={() => loadPrestamos(filterCedula)} className="cursor-pointer">
               <Search className="mr-1" size={14} /> Filtrar

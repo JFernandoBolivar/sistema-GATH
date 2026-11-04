@@ -17,6 +17,8 @@ const RUTA_POR_CATEGORIA: Record<string, string> = {
   empleados: "/api/v1/reportes/personal-activo/pdf/",
   pasivos: "/api/v1/reportes/pasivos/pdf/",
   familiares: "/api/v1/reportes/familiares/pdf/",
+  // Mismo endpoint con la condición PASIVO (solo familiares de trabajadores pasivos).
+  "familiares-pasivos": "/api/v1/reportes/familiares/pdf/",
   egresados: "/api/v1/reportes/pasivos/pdf/",
   asignaciones: "/api/v1/reportes/codigos/pdf/",
   codigos: "/api/v1/reportes/codigos/pdf/",
@@ -24,6 +26,12 @@ const RUTA_POR_CATEGORIA: Record<string, string> = {
 };
 
 const CATEGORIA_POR_DEFECTO = "empleados";
+
+/** Condición del trabajador que se envía al backend (valor cerrado, validado allá). */
+const CONDICION_POR_CATEGORIA: Record<string, "ACTIVO" | "PASIVO"> = {
+  familiares: "ACTIVO",
+  "familiares-pasivos": "PASIVO",
+};
 
 /** Categorías cuyo backend aplica agrupación y tipo de reporte. */
 const CATEGORIAS_CON_AGRUPACION = new Set(["empleados"]);
@@ -87,7 +95,18 @@ export async function POST(req: NextRequest) {
       if (body.tipo_reporte) params.tipo_reporte = body.tipo_reporte;
     }
 
-    const { blob, headers: origen } = await apiClient.getBlobConRespuesta(path, { params });
+    const condicion = CONDICION_POR_CATEGORIA[categoria];
+    if (condicion) params.condicion = condicion;
+
+    const { blob, headers: origen, status } = await apiClient.getBlobConRespuesta(path, { params });
+    // Exportación asíncrona: Django responde 202 con el trabajo. Se reenvía tal cual
+    // y el navegador consulta su estado en /api/exportaciones/{id}.
+    if (status === 202) {
+      return new NextResponse(await blob.arrayBuffer(), {
+        status: 202,
+        headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store" },
+      });
+    }
     const arrayBuffer = await blob.arrayBuffer();
 
     const headers = new Headers({

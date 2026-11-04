@@ -8,7 +8,7 @@
  */
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   listarCoordinaciones,
   listarDependencias,
@@ -140,7 +140,7 @@ export async function crearDependenciaAction(input: { codigo: string; nombre: st
   } catch (error) {
     await logAudit({ traceId, action: "crearDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el registro. Intente de nuevo.");
   }
 }
 
@@ -160,7 +160,7 @@ export async function actualizarDependenciaAction(id: number, input: { codigo: s
   } catch (error) {
     await logAudit({ traceId, action: "actualizarDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar el registro. Intente de nuevo.");
   }
 }
 
@@ -179,7 +179,7 @@ export async function eliminarDependenciaAction(id: number) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible eliminar el registro. Intente de nuevo.");
   }
 }
 
@@ -198,7 +198,7 @@ export async function crearDireccionGeneralAction(input: { codigo: string; nombr
   } catch (error) {
     await logAudit({ traceId, action: "crearDireccionGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el registro. Intente de nuevo.");
   }
 }
 
@@ -218,7 +218,7 @@ export async function actualizarDireccionGeneralAction(id: number, input: { codi
   } catch (error) {
     await logAudit({ traceId, action: "actualizarDireccionGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar el registro. Intente de nuevo.");
   }
 }
 
@@ -237,7 +237,7 @@ export async function eliminarDireccionGeneralAction(id: number) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarDireccionGeneralAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible eliminar el registro. Intente de nuevo.");
   }
 }
 
@@ -256,7 +256,7 @@ export async function crearDireccionLineaAction(input: { codigo: string; nombre:
   } catch (error) {
     await logAudit({ traceId, action: "crearDireccionLineaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el registro. Intente de nuevo.");
   }
 }
 
@@ -276,7 +276,7 @@ export async function actualizarDireccionLineaAction(id: number, input: { codigo
   } catch (error) {
     await logAudit({ traceId, action: "actualizarDireccionLineaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar el registro. Intente de nuevo.");
   }
 }
 
@@ -295,7 +295,7 @@ export async function eliminarDireccionLineaAction(id: number) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarDireccionLineaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible eliminar el registro. Intente de nuevo.");
   }
 }
 
@@ -314,7 +314,7 @@ export async function crearCoordinacionAction(input: { codigo: string; nombre: s
   } catch (error) {
     await logAudit({ traceId, action: "crearCoordinacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el registro. Intente de nuevo.");
   }
 }
 
@@ -334,7 +334,7 @@ export async function actualizarCoordinacionAction(id: number, input: { codigo: 
   } catch (error) {
     await logAudit({ traceId, action: "actualizarCoordinacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar el registro. Intente de nuevo.");
   }
 }
 
@@ -353,7 +353,7 @@ export async function eliminarCoordinacionAction(id: number) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarCoordinacionAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible eliminar el registro. Intente de nuevo.");
   }
 }
 
@@ -372,7 +372,7 @@ export async function crearOrganismoAdscritoAction(input: { nombre: string; pare
   } catch (error) {
     await logAudit({ traceId, action: "crearOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el registro. Intente de nuevo.");
   }
 }
 
@@ -392,7 +392,7 @@ export async function actualizarOrganismoAdscritoAction(id: number, input: { nom
   } catch (error) {
     await logAudit({ traceId, action: "actualizarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar el registro. Intente de nuevo.");
   }
 }
 
@@ -411,7 +411,7 @@ export async function eliminarOrganismoAdscritoAction(id: number) {
   } catch (error) {
     await logAudit({ traceId, action: "eliminarOrganismoAdscritoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible eliminar el registro. Intente de nuevo.");
   }
 }
 
@@ -476,7 +476,7 @@ export async function crearJerarquiaDependenciaAction(input: HierarchyDependency
   } catch (error) {
     await logAudit({ traceId, action: "crearJerarquiaDependenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el registro. Intente de nuevo.");
   }
 }
 

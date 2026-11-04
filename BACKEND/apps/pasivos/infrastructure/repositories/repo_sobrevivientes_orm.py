@@ -2,8 +2,8 @@
 Repositorio ORM del alta de pensionados por sobrevivencia (C20; D-09).
 
 Supuestos (el legado `RAC/services/egreso_services.py` no está en el repo):
-  - "Fallecido" = el titular tiene un `EmployeeEgresado` cuyo motivo
-    (`TipoMovimiento.movimiento`) contiene "FALLEC".
+  - "Fallecido" = el titular tiene un `EmployeeEgresado` cuyo motivo pertenece a una
+    categoría de `CATEGORIAS_FALLECIMIENTO` (egreso de pasivo / FALLECIMIENTO), no al texto.
   - El `Employee` del beneficiario toma cédula, nombres, apellidos, fecha de
     nacimiento y sexo del `Employeefamily`; nacionalidad por defecto del modelo.
   - Se copian perfil de salud (con alergias/patologías/discapacidades), perfil
@@ -18,11 +18,13 @@ Supuestos (el legado `RAC/services/egreso_services.py` no está en el repo):
 """
 from django.db import transaction
 
+from core.domain.categorias_motivo import CATEGORIAS_FALLECIMIENTO, MOTIVO_SISTEMA_PENSION_SOBREVIVIENTE
+from apps.catalogos.infrastructure.repositories.motivos_por_categoria import obtener_motivo_de_sistema
+
 from apps.cargos.domain import events
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
-    TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
 )
@@ -71,7 +73,7 @@ class RepoSobrevivientesORM:
 
     def titular_fallecido(self, cedula_titular: str) -> bool:
         return EmployeeEgresadoModel.objects.filter(
-            employee_id=cedula_titular, motivo_egreso__movimiento__icontains='fallec'
+            employee_id=cedula_titular, motivo_egreso__categoria__categoria__in=CATEGORIAS_FALLECIMIENTO
         ).exists()
 
     def listar_familiares_beneficiarios(
@@ -161,8 +163,7 @@ class RepoSobrevivientesORM:
         # registra por el receiver del evento). Motivo: "PENSION POR
         # SOBREVIVIENTE" del catálogo TipoMovimiento (None si no existe).
         if usuario_id is not None:
-            motivo = TipoMovimientoModel.objects.filter(
-                movimiento__icontains='PENSION POR SOBREVIV').order_by('pk').first()
+            motivo = obtener_motivo_de_sistema(MOTIVO_SISTEMA_PENSION_SOBREVIVIENTE)
             events.cargo_movimiento_ejecutado.send(
                 sender=RepoSobrevivientesORM,
                 cargo_id=asig.pk,

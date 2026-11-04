@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox } from "@/shared/ui/components/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import useSWR from "swr";
@@ -36,7 +36,6 @@ import {
 import FormDate from "@/components/form-date";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -47,6 +46,8 @@ import {
 } from "../../application/use-cases/permisos-reporte";
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
 import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
+import { useProgresoExportacion } from "@/shared/lib/use-progreso-exportacion";
+import { esCancelacion, guardarArchivo } from "@/shared/lib/exportaciones-asincronas";
 import { avisoTopeDeFilas } from "@/shared/lib/aviso-tope";
 import { useState, useTransition } from "react";
 import { schemaReportLeaving, type SchemaReportLeavingType } from "../schema/report-schema-leaving";
@@ -55,6 +56,7 @@ import Loading from "@/shared/ui/components/loading";
 export default function ReportLeaving() {
   const [isPending, startTransition] = useTransition();
   const pdf = usePdfBlobUrl();
+  const exportacion = useProgresoExportacion();
   const [avisoTope, setAvisoTope] = useState<string | null>(null);
   const { data: session } = useSession();
   const [dependencyId, setDependencyId] = useState<number>(0);
@@ -131,14 +133,16 @@ export default function ReportLeaving() {
     }
     startTransition(async () => {
       try {
-        const resultado = await postReport<SchemaReportLeavingType>(data);
+        const resultado = await postReport<SchemaReportLeavingType>(data, exportacion.iniciar());
         pdf.fijar(resultado.blob);
+        guardarArchivo(resultado.blob, `Reporte_Egresados_${new Date().toISOString().slice(0, 10)}.pdf`);
         const aviso = avisoTopeDeFilas(resultado);
         setAvisoTope(aviso);
         // El formulario NO se limpia: el usuario conserva los filtros elegidos.
         if (aviso) toast.warning(aviso);
-        else toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
+        else toast.success("Reporte generado y descargado. Use «Descargar Reporte» para guardarlo otra vez.");
       } catch (err) {
+        if (esCancelacion(err)) return;
         setAvisoTope(null);
         toast.error(
           err instanceof Error && err.message
@@ -165,13 +169,13 @@ export default function ReportLeaving() {
       <CardContent className="pt-6">
         <Form {...form}>
           {isPending ? (
-            <Loading promiseMessage="Consultando Reporte" />
+            <Loading promiseMessage={exportacion.texto} />
           ) : (
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-3 gap-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {!puedePdf && (
                 <p
                   role="alert"
-                  className="col-span-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                  className="col-span-full rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
                 >
                   No tiene permiso para generar reportes en PDF (se requiere{" "}
                   {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
@@ -180,16 +184,16 @@ export default function ReportLeaving() {
               {avisoTope && (
                 <p
                   role="status"
-                  className="col-span-3 rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+                  className="col-span-full rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
                 >
                   {avisoTope}
                 </p>
               )}
-              <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
-                <ScrollArea className="h-[600px] w-full pr-3">
-                  <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2 col-span-full min-w-0 w-full">
+                <div className="w-full min-w-0">
+                  <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                     {puedeEstructura && (
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 col-span-2">
+                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 md:col-span-2">
                         <legend className="text-green-800 font-semibold px-1">
                           Dirección Administrativa
                         </legend>
@@ -427,7 +431,7 @@ export default function ReportLeaving() {
                         control={form.control}
                         name="filtros.grado_id"
                         render={({ field }) => (
-                          <FormItem className="col-span-3">
+                          <FormItem className="col-span-full">
                             <FormLabel>Grado</FormLabel>
                             <Select
                               onValueChange={(values) => {
@@ -530,9 +534,9 @@ export default function ReportLeaving() {
                       />
                     </fieldset>
 
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-gray-600 col-span-2">
+                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-gray-600 md:col-span-2">
                       <legend className="text-gray-800 font-semibold px-1">Fecha De Egreso</legend>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                         <FormDate
                           form={form}
                           label="Fecha De Egreso Desde"
@@ -546,10 +550,10 @@ export default function ReportLeaving() {
                       </div>
                     </fieldset>
                   </div>
-                </ScrollArea>
+                </div>
               </div>
 
-              <div className="flex flex-row gap-2 flex-1 w-full col-span-3 pt-2">
+              <div className="flex flex-col gap-2 sm:flex-row flex-1 w-full col-span-full pt-2">
                 <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"

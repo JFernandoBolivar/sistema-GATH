@@ -21,7 +21,13 @@ class SolicitarActualizacionSerializer(serializers.Serializer):
         child=serializers.CharField(max_length=30), required=False, allow_empty=False, max_length=10,
         help_text='Alternativa sin `campos`: pide todos los campos de esas secciones.',
     )
-    motivo = serializers.CharField(max_length=500, help_text='Un solo motivo: mínimo 5 palabras y 20 caracteres.')
+    motivo = serializers.CharField(min_length=20, max_length=500, help_text='Un solo motivo: mínimo 5 palabras y 20 caracteres.')
+
+    def validate_motivo(self, valor):
+        palabras = len(' '.join((valor or '').split()).split())
+        if palabras < 5:
+            raise serializers.ValidationError("El motivo debe tener al menos 5 palabras y 20 caracteres.")
+        return valor
 
 
 class FiltrosListaSolicitudesSerializer(serializers.Serializer):
@@ -44,7 +50,7 @@ class HabilitarVentanaSerializer(serializers.Serializer):
 
 class ProrrogarVentanaSerializer(serializers.Serializer):
     nueva_fecha_fin = serializers.DateTimeField(help_text='Nueva fecha límite (posterior a la vigente y a hoy).')
-    motivo = serializers.CharField(max_length=500)
+    motivo = serializers.CharField(min_length=1, max_length=500)
 
 
 class ItemCambioSerializer(serializers.Serializer):
@@ -86,12 +92,12 @@ class DecidirCambiosSerializer(serializers.Serializer):
 
 
 class RechazarSolicitudSerializer(serializers.Serializer):
-    motivo = serializers.CharField(max_length=500)
+    motivo = serializers.CharField(min_length=1, max_length=500)
     version = serializers.IntegerField(required=False, min_value=1)
 
 
 class DevolverSolicitudSerializer(serializers.Serializer):
-    motivo = serializers.CharField(max_length=500, help_text='Obligatorio: lo ve el trabajador para corregir.')
+    motivo = serializers.CharField(min_length=1, max_length=500, help_text='Obligatorio: lo ve el trabajador para corregir.')
     version = serializers.IntegerField(required=False, min_value=1)
 
 

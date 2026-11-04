@@ -87,7 +87,10 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
           onActualizar();
           resolver(true);
         } else {
-          setErrores([res.mensaje]);
+          const lista = res.errores
+            ? Object.entries(res.errores).flatMap(([k, msgs]) => msgs.map((m) => `${k}: ${m}`))
+            : [res.mensaje];
+          setErrores(lista.length > 0 ? lista : [res.mensaje]);
           resolver(false);
         }
       });
@@ -119,7 +122,10 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
         toast.success(res.mensaje);
         onActualizar();
       } else {
-        setErrores([res.mensaje]);
+        const lista = res.errores
+          ? Object.entries(res.errores).flatMap(([k, msgs]) => msgs.map((m) => `${k}: ${m}`))
+          : [res.mensaje];
+        setErrores(lista.length > 0 ? lista : [res.mensaje]);
       }
     });
   }

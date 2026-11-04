@@ -25,6 +25,7 @@ import {
   MailX,
   UserRound,
   UserRoundPlus,
+  Users,
 } from "lucide-react";
 
 import {
@@ -143,6 +144,12 @@ const items: MenuItem[] = [
         title: "Reportes de pasivos",
         url: "/pasivos/reportes",
         icon: BarChart3,
+        permiso: "reportes.ver",
+      },
+      {
+        title: "Reporte de familiares",
+        url: "/pasivos/reportes/familiares",
+        icon: Users,
         permiso: "reportes.ver",
       },
     ],

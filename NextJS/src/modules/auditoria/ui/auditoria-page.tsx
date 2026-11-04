@@ -6,7 +6,7 @@
  * paginación en el servidor, detalle antes/después saneado y exportación
  * PDF/Excel con los filtros aplicados.
  */
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
@@ -40,6 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { avisoTopeDeFilas } from "@/shared/lib/aviso-tope";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import type {
   DetalleAuditoriaDTO,
@@ -63,6 +64,8 @@ import {
   type FiltrosAuditoriaForm,
 } from "./schema/schema-auditoria";
 import { descargarBitacora } from "./services/descargas-auditoria";
+import { esCancelacion } from "@/shared/lib/exportaciones-asincronas";
+import { useProgresoExportacion } from "@/shared/lib/use-progreso-exportacion";
 
 const TAMANO_PAGINA = 10;
 
@@ -86,7 +89,7 @@ function valorLegible(valor: unknown): string {
   return String(valor);
 }
 
-function esError(valor: unknown): valor is { error: string } {
+function esError(valor: unknown): valor is { error: string; errores?: Record<string, string[]> } {
   return !!valor && typeof valor === "object" && "error" in valor;
 }
 
@@ -107,6 +110,7 @@ export function AuditoriaPage() {
   const [detalleId, setDetalleId] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [exportando, setExportando] = useState<string | null>(null);
+  const exportacion = useProgresoExportacion();
   const [, startTransition] = useTransition();
 
   const { data: opciones } = useSWR("auditoria-opciones", getOpcionesAuditoriaAction);
@@ -125,6 +129,14 @@ export function AuditoriaPage() {
   const paginaIncidentesDatos =
     incidentes && !esError(incidentes) ? (incidentes as PaginaIncidentesDTO) : null;
   const error = esError(data) ? data.error : null;
+
+  // Los filtros también se re-validan en el servidor: si devuelve `errores`
+  // por campo, se marcan en rojo los inputs correspondientes.
+  useEffect(() => {
+    if (!esError(data) || !data.errores) return;
+    const sinUbicar = aplicarErroresServidor(form, data.errores);
+    if (sinUbicar.length > 0) setAviso(sinUbicar.join(" "));
+  }, [data, form]);
 
   function aplicar(valores: FiltrosAuditoriaForm) {
     setAviso(null);
@@ -155,7 +167,7 @@ export function AuditoriaPage() {
     setAviso(null);
     startTransition(async () => {
       try {
-        const archivo = await descargarBitacora(formato, filtros);
+        const archivo = await descargarBitacora(formato, filtros, exportacion.iniciar());
         const mensaje = avisoTopeDeFilas(archivo);
         setAviso(mensaje);
         if (mensaje) toast.warning(mensaje);
@@ -166,6 +178,7 @@ export function AuditoriaPage() {
         a.click();
         window.URL.revokeObjectURL(url);
       } catch (error) {
+        if (esCancelacion(error)) return;
         toast.error(error instanceof Error ? error.message : "No fue posible exportar la bitácora.");
       } finally {
         setExportando(null);
@@ -190,14 +203,14 @@ export function AuditoriaPage() {
     >
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={form.handleSubmit(aplicar)} className="grid gap-3 md:grid-cols-4" noValidate>
+          <form onSubmit={form.handleSubmit(aplicar)} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" noValidate>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="aud-usuario">Usuario</Label>
-              <Input id="aud-usuario" placeholder="Cédula o nombre" {...form.register("usuario")} className="bg-white" />
+              <Input id="aud-usuario" placeholder="Cédula o nombre" maxLength={100} {...form.register("usuario")} className="bg-white" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="aud-accion">Acción</Label>
-              <select id="aud-accion" {...form.register("accion")} className="h-9 rounded-md border bg-white px-2 text-sm">
+              <select id="aud-accion" {...form.register("accion")} className="h-9 w-full min-w-0 rounded-md border bg-white px-2 text-sm">
                 <option value="">Todas</option>
                 {(opcionesUtiles?.acciones ?? []).map((accion) => (
                   <option key={accion} value={accion}>{accion}</option>
@@ -206,7 +219,7 @@ export function AuditoriaPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="aud-modulo">Módulo</Label>
-              <select id="aud-modulo" {...form.register("modulo")} className="h-9 rounded-md border bg-white px-2 text-sm">
+              <select id="aud-modulo" {...form.register("modulo")} className="h-9 w-full min-w-0 rounded-md border bg-white px-2 text-sm">
                 <option value="">Todos</option>
                 {(opcionesUtiles?.modulos ?? []).map((modulo) => (
                   <option key={modulo} value={modulo}>{modulo}</option>
@@ -215,7 +228,7 @@ export function AuditoriaPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="aud-resultado">Resultado</Label>
-              <select id="aud-resultado" {...form.register("resultado")} className="h-9 rounded-md border bg-white px-2 text-sm">
+              <select id="aud-resultado" {...form.register("resultado")} className="h-9 w-full min-w-0 rounded-md border bg-white px-2 text-sm">
                 <option value="">Todos</option>
                 {(opcionesUtiles?.resultados ?? []).map((resultado) => (
                   <option key={resultado} value={resultado}>{ETIQUETA_RESULTADO[resultado] ?? resultado}</option>
@@ -224,11 +237,11 @@ export function AuditoriaPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="aud-recurso">Recurso</Label>
-              <Input id="aud-recurso" placeholder="Tipo o identificador" {...form.register("recurso")} className="bg-white" />
+              <Input id="aud-recurso" placeholder="Tipo o identificador" maxLength={100} {...form.register("recurso")} className="bg-white" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="aud-ip">IP</Label>
-              <Input id="aud-ip" placeholder="10.0.0.1" {...form.register("ip")} className="bg-white" />
+              <Input id="aud-ip" placeholder="10.0.0.1" maxLength={45} {...form.register("ip")} className="bg-white" />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="aud-desde">Desde</Label>
@@ -252,10 +265,10 @@ export function AuditoriaPage() {
               {puedeExportar && (
                 <>
                   <Button type="button" variant="outline" disabled={exportando !== null} onClick={() => exportar("pdf")}>
-                    <Download aria-hidden /> {exportando === "pdf" ? "Generando PDF…" : "Exportar PDF"}
+                    <Download aria-hidden /> {exportando === "pdf" ? `PDF · ${exportacion.texto}` : "Exportar PDF"}
                   </Button>
                   <Button type="button" disabled={exportando !== null} onClick={() => exportar("excel")}>
-                    <Download aria-hidden /> {exportando === "excel" ? "Generando Excel…" : "Exportar Excel"}
+                    <Download aria-hidden /> {exportando === "excel" ? `Excel · ${exportacion.texto}` : "Exportar Excel"}
                   </Button>
                 </>
               )}
@@ -405,7 +418,7 @@ function Paginador({
   onCambiar: (pagina: number) => void;
 }) {
   return (
-    <div className="flex items-center justify-end gap-2 pt-3">
+    <div className="flex flex-wrap items-center justify-end gap-2 pt-3">
       <Button size="sm" variant="outline" disabled={pagina <= 1} onClick={() => onCambiar(pagina - 1)}>
         Anterior
       </Button>

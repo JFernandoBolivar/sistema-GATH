@@ -28,6 +28,7 @@ import { obtenerCatalogosExpediente } from "../../infrastructure/cache/catalogos
 import { resolverAltasInlineAction } from "../../infrastructure/actions/registro-actions";
 import type { RegistroPasosType } from "../schema/schema-registro-pasos";
 import { recolectarAltasInline } from "./altas-inline";
+import { avisarErrorDeRegistro, primerPasoConErrores, type ErroresServidor } from "./errores-registro";
 import { registroPasosADTO } from "./registro-a-dto";
 import { PasoAcademic } from "./paso-academic";
 import { PasoBackground } from "./paso-background";
@@ -78,6 +79,7 @@ export default function MultiStepForm() {
   const [paso, setPaso] = useState(0);
   const [valores, setValores] = useState<RegistroPasosType>(valoresIniciales);
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
+  const [errores, setErrores] = useState<ErroresServidor | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -93,6 +95,7 @@ export default function MultiStepForm() {
   const isLoadingCatalogos = catalogos === null;
 
   const siguiente = (parcial: Acumulado) => {
+    setErrores(null);
     setValores((prev) => ({ ...prev, ...parcial }));
     setPaso((p) => p + 1);
   };
@@ -115,14 +118,26 @@ export default function MultiStepForm() {
         }
         const resultado = await registrarEmpleadoAction(registroPasosADTO(conIds));
         if (resultado && typeof resultado === "object" && "error" in resultado) {
-          toast.error((resultado as { error: string }).error);
+          const fallo = resultado as { error: string; errores?: ErroresServidor };
+          // Si el campo culpable está en otro paso, se vuelve a ese paso con el campo en rojo.
+          const pasoCulpable = primerPasoConErrores(fallo.errores);
+          if (pasoCulpable !== null) {
+            setErrores(fallo.errores ?? null);
+            setPaso(pasoCulpable);
+          }
+          avisarErrorDeRegistro(fallo.error, fallo.errores);
           return;
         }
         if (completo.file) {
           const formData = new FormData();
           formData.append("file", completo.file);
           try {
-            await subirFotoEmpleadoAction(completo.cedulaidentidad.trim(), formData);
+            const foto = await subirFotoEmpleadoAction(completo.cedulaidentidad.trim(), formData);
+            if (foto && typeof foto === "object" && "error" in foto) {
+              const falloFoto = foto as { error: string; errores?: Record<string, string[]> };
+              const detalle = falloFoto.errores?.file?.[0] ?? falloFoto.error;
+              toast.error(`El trabajador se registró, pero no fue posible subir la foto: ${detalle}`);
+            }
           } catch {
             toast.error("El trabajador se registró, pero no fue posible subir la foto.");
           }
@@ -139,20 +154,20 @@ export default function MultiStepForm() {
     return <Loading promiseMessage="Registrando Nuevo Trabajador" className="w-full h-full m-auto" />;
   }
 
-  const comunes = { catalogos, isLoadingCatalogos };
+  const comunes = { catalogos, isLoadingCatalogos, erroresServidor: errores };
   switch (paso) {
     case 0:
       return <PasoBasicInfo key="p1" defaultValues={valores} onSubmit={siguiente} {...comunes} />;
     case 1:
       return <PasoAcademic key="p2" defaultValues={valores} onSubmit={siguiente} {...comunes} />;
     case 2:
-      return <PasoSupplementaryTraining key="p3" defaultValues={valores} onSubmit={siguiente} catalogos={catalogos} />;
+      return <PasoSupplementaryTraining key="p3" defaultValues={valores} onSubmit={siguiente} catalogos={catalogos} erroresServidor={errores} />;
     case 3:
-      return <PasoBackground key="p4" defaultValues={valores} onSubmit={siguiente} catalogos={catalogos} />;
+      return <PasoBackground key="p4" defaultValues={valores} onSubmit={siguiente} catalogos={catalogos} erroresServidor={errores} />;
     case 4:
       return <PasoHealth key="p5" defaultValues={valores} onSubmit={siguiente} {...comunes} />;
     case 5:
-      return <PasoPhysicalProfile key="p6" defaultValues={valores} onSubmit={siguiente} catalogos={catalogos} />;
+      return <PasoPhysicalProfile key="p6" defaultValues={valores} onSubmit={siguiente} catalogos={catalogos} erroresServidor={errores} />;
     default:
       return (
         <PasoDwelling key="p7" defaultValues={valores} onSubmit={finalizar} isPending={isPending} {...comunes} />

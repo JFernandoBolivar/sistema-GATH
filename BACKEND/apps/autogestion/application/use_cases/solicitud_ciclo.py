@@ -18,9 +18,9 @@ MOTIVO_MAX = 500
 def _texto_obligatorio(valor: str, nombre: str) -> str:
     valor = (valor or '').strip()
     if not valor:
-        raise ValidationError(f"El {nombre} es obligatorio.")
+        raise ValidationError(f"El {nombre} es obligatorio.", campo='motivo' if 'motivo' in nombre else None)
     if len(valor) > MOTIVO_MAX:
-        raise ValidationError(f"El {nombre} no puede exceder {MOTIVO_MAX} caracteres.")
+        raise ValidationError(f"El {nombre} no puede exceder {MOTIVO_MAX} caracteres.", campo='motivo' if 'motivo' in nombre else None)
     return valor
 
 

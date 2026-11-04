@@ -113,18 +113,10 @@ class RepoPasivosMemoria implements RepoPasivos {
   async listarMunicipios() { return []; }
   async listarParroquias() { return []; }
 
-  async listarMotivosEgresoPasivo() {
-    return [{ id: 1, nombre: "FALLECIMIENTO" }];
-  }
-
   async egresarPasivo(cedula: string) {
     const p = this.pasivos.find((x) => x.cedula === cedula);
     if (!p) throw new Error("No encontrado");
     return p;
-  }
-
-  async listarMotivosEgreso() {
-    return [{ id: 1, nombre: "Jubilación" }];
   }
 
   async listarTiposNomina() {

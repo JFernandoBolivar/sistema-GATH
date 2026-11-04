@@ -72,16 +72,19 @@ class CodigoPostalSerializer(CatalogoItemSerializer):
 # ----------------------------------------------------------------------
 
 class CategoriaWriteSerializer(serializers.Serializer):
-    nombre_categoria = serializers.CharField(max_length=200)
+    nombre_categoria = serializers.CharField(min_length=2, max_length=100)
 
 
 class CategoriaDetalleSerializer(serializers.Serializer):
+    """`{ id, nombre, nombre_categoria }`. La entidad `CategoriaItem` guarda el texto en `nombre`;
+    sin `source` DRF omitía `nombre_categoria` y el listado salía solo con `id`."""
     id = serializers.IntegerField(read_only=True)
-    nombre_categoria = serializers.CharField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+    nombre_categoria = serializers.CharField(source='nombre', read_only=True)
 
 
 class AlergiaWriteSerializer(serializers.Serializer):
-    alergia = serializers.CharField(max_length=200)
+    alergia = serializers.CharField(min_length=2, max_length=100)
     categoria_id = serializers.IntegerField(required=False, allow_null=True)
     categoriaId = serializers.IntegerField(required=False, allow_null=True)
 
@@ -101,7 +104,7 @@ class AlergiaDetalleSerializer(serializers.Serializer):
 
 
 class PatologiaWriteSerializer(serializers.Serializer):
-    patologia = serializers.CharField(max_length=200)
+    patologia = serializers.CharField(min_length=2, max_length=100)
     categoria_id = serializers.IntegerField(required=False, allow_null=True)
     categoriaId = serializers.IntegerField(required=False, allow_null=True)
 
@@ -121,7 +124,7 @@ class PatologiaDetalleSerializer(serializers.Serializer):
 
 
 class DiscapacidadWriteSerializer(serializers.Serializer):
-    discapacidad = serializers.CharField(max_length=200)
+    discapacidad = serializers.CharField(min_length=2, max_length=100)
     categoria_id = serializers.IntegerField(required=False, allow_null=True)
     categoriaId = serializers.IntegerField(required=False, allow_null=True)
 
@@ -141,7 +144,7 @@ class DiscapacidadDetalleSerializer(serializers.Serializer):
 
 
 class TallaWriteSerializer(serializers.Serializer):
-    valor = serializers.CharField(max_length=50)
+    valor = serializers.CharField(min_length=1, max_length=50)
     region_id = serializers.IntegerField(required=False, allow_null=True)
     region = serializers.IntegerField(required=False, allow_null=True)
     tipo_prenda_id = serializers.IntegerField(required=False, allow_null=True)

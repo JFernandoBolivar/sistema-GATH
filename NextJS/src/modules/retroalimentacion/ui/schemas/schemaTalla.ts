@@ -3,6 +3,7 @@ import { z } from "zod";
 export const schemaTalla = z.object({
   valor: z
     .string({ required_error: "Campo Obligatorio" })
+    .trim()
     .min(1, { message: "Campo Obligatorio" })
     .max(10, { message: "Máximo 10 Caracteres" }),
   tipo_prenda: z.coerce.number().min(1, {

@@ -4,6 +4,10 @@
  * Paso 2 del wizard de registro: Formación Académica (paridad con
  * `form-academic_training.tsx` del legado). Cascada Nivel Académico ->
  * Carrera -> Mención con los filtros del backend.
+ *
+ * Cada formación es una tarjeta con una grilla responsive (1 columna en
+ * teléfono, 2 desde tablet): los selectores ocupan el ancho de su columna y el
+ * campo «Otra…» aparece debajo de su selector, sin anchos fijos.
  */
 import { useFieldArray, useForm, useFormContext, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +19,6 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/u
 import { Combobox } from "@/shared/ui/components/combobox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/components/form";
 import { Label } from "@/shared/ui/components/label";
-import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
@@ -23,6 +26,7 @@ import { pasoAcademySchema, type PasoAcademyType } from "../schema/schema-regist
 import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 import { ID_OTRA, OPCION_OTRA, esNivelNoPosee } from "../catalogo-otra";
 import { CampoNuevoNombre } from "./campo-nuevo-nombre";
+import { useErroresDelPaso, type ErroresServidor } from "./errores-registro";
 
 const filaVacia = {
   nivel_Academico_id: 0,
@@ -58,162 +62,161 @@ function AcademicRow({
   );
 
   return (
-    <div className="flex flex-row gap-5 items-start w-full">
-      <FormField
-        control={control}
-        name={`formacion_academica.${index}.nivel_Academico_id`}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{index + 1}. Nivel Academico</FormLabel>
-            <Select
-              onValueChange={(v) => {
-                field.onChange(Number.parseInt(v));
-                setValue(`formacion_academica.${index}.carrera_id`, undefined);
-                setValue(`formacion_academica.${index}.mencion_id`, undefined);
-              }}
-              value={field.value ? field.value.toString() : ""}
-            >
-              <FormControl>
-                <SelectTrigger className="w-80">
-                  <SelectValue placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(catalogos?.nivelesAcademicos ?? []).map((nivel) => (
-                  <SelectItem key={nivel.id} value={`${nivel.id}`}>
-                    {nivel.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <div className="flex items-start gap-2">
-        <FormField
-          control={control}
-          name={`formacion_academica.${index}.carrera_id`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Carrera (Opcional)</FormLabel>
-              <FormControl>
-                <Combobox
-                  className="w-80"
-                  options={[
-                    ...carreras.map((c) => ({ value: `${c.id}`, label: c.nombre })),
-                    ...(permiteOtraCarrera ? [OPCION_OTRA] : []),
-                  ]}
-                  value={field.value?.toString() ?? ""}
-                  onChange={(v) => {
-                    field.onChange(Number(v));
-                    setValue(`formacion_academica.${index}.mencion_id`, undefined);
-                    if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_carrera_nombre`, "");
-                  }}
-                  placeholder={isLoadingCarrera ? "Cargando..." : "Seleccione"}
-                  searchPlaceholder="Buscar carrera..."
-                  disabled={isLoadingCarrera}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <CampoNuevoNombre
-          control={control}
-          name={`formacion_academica.${index}.nueva_carrera_nombre`}
-          visible={watchedCarreraId === ID_OTRA}
-          className="w-44"
-          placeholder="Nueva carrera..."
-          descripcion="Se asociará al nivel académico seleccionado."
-        />
-      </div>
-      <div className="flex items-start gap-2">
-        <FormField
-          control={control}
-          name={`formacion_academica.${index}.mencion_id`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Mención (Opcional)</FormLabel>
-              <FormControl>
-                <Combobox
-                  className="w-80"
-                  options={[
-                    ...menciones.map((m) => ({ value: `${m.id}`, label: m.nombre })),
-                    ...(hasCarrera ? [OPCION_OTRA] : []),
-                  ]}
-                  value={field.value?.toString() ?? ""}
-                  onChange={(v) => {
-                    field.onChange(Number.parseInt(v));
-                    if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_mencion_nombre`, "");
-                  }}
-                  placeholder={isLoadingMencion ? "Cargando..." : "Seleccione"}
-                  searchPlaceholder="Buscar mención..."
-                  disabled={isLoadingMencion}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <CampoNuevoNombre
-          control={control}
-          name={`formacion_academica.${index}.nueva_mencion_nombre`}
-          visible={watchedMencionId === ID_OTRA}
-          className="w-44"
-          placeholder="Nueva mención..."
-        />
-      </div>
-      <div className="flex items-start gap-2">
-        <FormField
-          control={control}
-          name={`formacion_academica.${index}.institucion_id`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Institución {hasCarrera ? <span className="text-red-500">*</span> : "(Opcional)"}
-              </FormLabel>
-              <FormControl>
-                <Combobox
-                  className="w-80"
-                  options={[
-                    ...(catalogos?.instituciones ?? []).map((i) => ({ value: i.id.toString(), label: i.nombre })),
-                    OPCION_OTRA,
-                  ]}
-                  value={field.value?.toString() ?? ""}
-                  onChange={(v) => {
-                    field.onChange(Number(v));
-                    if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_institucion_nombre`, "");
-                  }}
-                  placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"}
-                  searchPlaceholder="Buscar institución..."
-                  disabled={isLoadingCatalogos}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <CampoNuevoNombre
-          control={control}
-          name={`formacion_academica.${index}.nueva_institucion_nombre`}
-          visible={watchedInstitucionId === ID_OTRA}
-          className="w-44"
-          placeholder="Nueva institución..."
-        />
-      </div>
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-sm font-medium leading-none invisible">X</span>
+    <div className="flex flex-col gap-4 rounded-lg border p-3 sm:p-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">Formación {index + 1}</span>
         <Button
           type="button"
-          variant={"destructive"}
+          variant="destructive"
           size="icon"
-          className={`${index === 0 ? "invisible" : ""} cursor-pointer`}
+          className={`${index === 0 ? "invisible" : ""} size-8 cursor-pointer`}
           onClick={() => remove(index)}
           aria-label={`Quitar formación académica ${index + 1}`}
         >
           <X />
         </Button>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FormField
+          control={control}
+          name={`formacion_academica.${index}.nivel_Academico_id`}
+          render={({ field }) => (
+            <FormItem className="min-w-0">
+              <FormLabel>Nivel Academico</FormLabel>
+              <Select
+                onValueChange={(v) => {
+                  field.onChange(Number.parseInt(v));
+                  setValue(`formacion_academica.${index}.carrera_id`, undefined);
+                  setValue(`formacion_academica.${index}.mencion_id`, undefined);
+                }}
+                value={field.value ? field.value.toString() : ""}
+              >
+                <FormControl>
+                  <SelectTrigger className="w-full truncate">
+                    <SelectValue placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {(catalogos?.nivelesAcademicos ?? []).map((nivel) => (
+                    <SelectItem key={nivel.id} value={`${nivel.id}`}>
+                      {nivel.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="flex min-w-0 flex-col gap-2">
+          <FormField
+            control={control}
+            name={`formacion_academica.${index}.carrera_id`}
+            render={({ field }) => (
+              <FormItem className="min-w-0">
+                <FormLabel>Carrera (Opcional)</FormLabel>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      ...carreras.map((c) => ({ value: `${c.id}`, label: c.nombre })),
+                      ...(permiteOtraCarrera ? [OPCION_OTRA] : []),
+                    ]}
+                    value={field.value?.toString() ?? ""}
+                    onChange={(v) => {
+                      field.onChange(Number(v));
+                      setValue(`formacion_academica.${index}.mencion_id`, undefined);
+                      if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_carrera_nombre`, "");
+                    }}
+                    placeholder={isLoadingCarrera ? "Cargando..." : "Seleccione"}
+                    searchPlaceholder="Buscar carrera..."
+                    disabled={isLoadingCarrera}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <CampoNuevoNombre
+            control={control}
+            name={`formacion_academica.${index}.nueva_carrera_nombre`}
+            visible={watchedCarreraId === ID_OTRA}
+            placeholder="Nueva carrera..."
+            descripcion="Se asociará al nivel académico seleccionado."
+            sinEtiqueta
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          <FormField
+            control={control}
+            name={`formacion_academica.${index}.mencion_id`}
+            render={({ field }) => (
+              <FormItem className="min-w-0">
+                <FormLabel>Mención (Opcional)</FormLabel>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      ...menciones.map((m) => ({ value: `${m.id}`, label: m.nombre })),
+                      ...(hasCarrera ? [OPCION_OTRA] : []),
+                    ]}
+                    value={field.value?.toString() ?? ""}
+                    onChange={(v) => {
+                      field.onChange(Number.parseInt(v));
+                      if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_mencion_nombre`, "");
+                    }}
+                    placeholder={isLoadingMencion ? "Cargando..." : "Seleccione"}
+                    searchPlaceholder="Buscar mención..."
+                    disabled={isLoadingMencion}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <CampoNuevoNombre
+            control={control}
+            name={`formacion_academica.${index}.nueva_mencion_nombre`}
+            visible={watchedMencionId === ID_OTRA}
+            placeholder="Nueva mención..."
+            sinEtiqueta
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-2">
+          <FormField
+            control={control}
+            name={`formacion_academica.${index}.institucion_id`}
+            render={({ field }) => (
+              <FormItem className="min-w-0">
+                <FormLabel>
+                  Institución {hasCarrera ? <span className="text-red-500">*</span> : "(Opcional)"}
+                </FormLabel>
+                <FormControl>
+                  <Combobox
+                    options={[
+                      ...(catalogos?.instituciones ?? []).map((i) => ({ value: i.id.toString(), label: i.nombre })),
+                      OPCION_OTRA,
+                    ]}
+                    value={field.value?.toString() ?? ""}
+                    onChange={(v) => {
+                      field.onChange(Number(v));
+                      if (Number(v) !== ID_OTRA) setValue(`formacion_academica.${index}.nueva_institucion_nombre`, "");
+                    }}
+                    placeholder={isLoadingCatalogos ? "Cargando..." : "Seleccione"}
+                    searchPlaceholder="Buscar institución..."
+                    disabled={isLoadingCatalogos}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <CampoNuevoNombre
+            control={control}
+            name={`formacion_academica.${index}.nueva_institucion_nombre`}
+            visible={watchedInstitucionId === ID_OTRA}
+            placeholder="Nueva institución..."
+            sinEtiqueta
+          />
+        </div>
       </div>
     </div>
   );
@@ -224,17 +227,20 @@ export function PasoAcademic({
   onSubmit,
   catalogos,
   isLoadingCatalogos,
+  erroresServidor,
 }: {
   defaultValues: PasoAcademyType;
   onSubmit: (values: PasoAcademyType) => void;
   catalogos: CatalogosExpedienteDTO | null;
   isLoadingCatalogos: boolean;
+  erroresServidor?: ErroresServidor | null;
 }) {
   const form = useForm<PasoAcademyType>({
     resolver: zodResolver(pasoAcademySchema),
     defaultValues,
     mode: "onChange",
   });
+  useErroresDelPaso(form, erroresServidor, 1);
   const { fields, append, remove } = useFieldArray({ name: "formacion_academica", control: form.control });
   const isError = Object.keys(form.formState.errors).length === 0;
 
@@ -250,8 +256,8 @@ export function PasoAcademic({
 
       <CardContent className="">
         <Form {...form}>
-          <form className="flex flex-col gap-2" onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="flex justify-end gap-2 mr-4 items-center ">
+          <form className="flex flex-col gap-4" onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="flex items-center justify-end gap-2">
               <div className="flex flex-col items-center justify-center">
                 <Label htmlFor="clean">Limpiar</Label>
                 <Button
@@ -273,7 +279,7 @@ export function PasoAcademic({
                 </div>
               )}
             </div>
-            <ScrollArea className="h-60 rounded-md w-full border p-2">
+            <div className="flex w-full flex-col gap-4">
               <h1 className="text-gray-600">Opcional si no posee formación académica</h1>
               {fields.map((field, index) => (
                 <AcademicRow
@@ -284,7 +290,7 @@ export function PasoAcademic({
                   isLoadingCatalogos={isLoadingCatalogos}
                 />
               ))}
-            </ScrollArea>
+            </div>
             {!isError && (
               <Badge
                 className="animate-pulse text-lg font-bold text-white w-full flex justify-center items-center text-center h-auto py-2 whitespace-normal"
@@ -294,7 +300,7 @@ export function PasoAcademic({
                 formación academica.
               </Badge>
             )}
-            <Button className="mt-4 w-full cursor-pointer">Siguiente</Button>
+            <Button className="mt-2 w-full cursor-pointer">Siguiente</Button>
           </form>
         </Form>
       </CardContent>

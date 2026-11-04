@@ -3,7 +3,12 @@ Repositorio ORM de Cargos (Reglas B4, B7, D-09).
 """
 from django.db import transaction
 
+from core.domain.categorias_motivo import Operacion
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
+from apps.catalogos.infrastructure.repositories.motivos_por_categoria import (
+    obtener_motivo_de_operacion,
+    validar_motivo_opcional,
+)
 from apps.cargos.domain import events
 from apps.cargos.domain.entities.cargo_asignacion import CargoAsignacion
 from apps.cargos.domain.entities.denominacion_cargo import DenominacionCargo
@@ -26,7 +31,6 @@ from apps.cargos.infrastructure.models.cargo_models import (
 from apps.cargos.infrastructure.repositories.repo_prestamos_cargo_orm import RepoPrestamosCargoORM
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
-    TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
 )
@@ -149,6 +153,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             raise NotFoundError(f"Cargo con id {cargo_id} no encontrado")
         if fila.employee_id is not None:
             raise ConflictError('Este código ya está ocupado por el empleado.')
+        validar_motivo_opcional(motivo_id, Operacion.ASIGNAR_CARGO)
 
         # Paridad con el legado (`EmployeeAssignmentSerializer.update`):
         # asignar transiciona el estatus a ACTIVO.
@@ -159,7 +164,15 @@ class RepoCargosORM(RepoPrestamosCargoORM):
 
         fila.employee_id = cedula
         fila.estatusid = estatus_activo
-        fila.save(update_fields=['employee', 'estatusid', 'fecha_actualizacion'])
+        campos = ['employee', 'estatusid', 'fecha_actualizacion']
+        # Códigos creados antes de corregir `crear_cargo` quedaron sin tipo de
+        # personal: al ocuparlos por personal activo se completa.
+        if fila.Tipo_personal_id is None:
+            tipo_activo = TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO').first()
+            if tipo_activo is not None:
+                fila.Tipo_personal = tipo_activo
+                campos.append('Tipo_personal')
+        fila.save(update_fields=campos)
 
         # Fase 2.5 del plan de reparación: cierra el gap documentado hasta
         # ahora (el legado registraba esto vía
@@ -186,6 +199,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         fila = AsigTrabajoModel.objects.filter(pk=cargo_id).first()
         if not fila:
             raise NotFoundError(f"Cargo con id {cargo_id} no encontrado")
+        validar_motivo_opcional(motivo_id, Operacion.DESASIGNAR_CARGO)
         cedula_anterior = fila.employee_id
         fila.employee_id = None
         fila.save(update_fields=['employee', 'fecha_actualizacion'])
@@ -237,7 +251,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
 
         try:
             estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
-        except EstatusModel.DoesNotExist as exc:
+            tipo_personal_activo = TipoPersonalModel.objects.get(tipo_personal__iexact='ACTIVO')
+        except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:
             raise ValidationError(f"Error de configuración: {exc}") from exc
 
         dependencia_id = datos.get('dependencia_id')
@@ -293,6 +308,9 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             denominacioncargoespecificoid_id=datos['especifica_id'],
             tiponominaid_id=datos['tipo_nomina_id'],
             estatusid=estatus_vacante,
+            # Los códigos creados desde Gestión de personal activo son de personal
+            # ACTIVO: sin este dato el historial de movimientos no puede registrarse.
+            Tipo_personal=tipo_personal_activo,
             Dependencia_id=dependencia_id,
             DireccionGeneral_id=direccion_general_id,
             DireccionLinea_id=direccion_linea_id,
@@ -386,6 +404,11 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         if 'Coordinacion' in datos:
             fila.Coordinacion_id = datos['Coordinacion'] if datos['Coordinacion'] and datos['Coordinacion'] > 0 else None
 
+        if fila.Tipo_personal_id is None:
+            tipo_activo = TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO').first()
+            if tipo_activo is not None:
+                fila.Tipo_personal = tipo_activo
+
         fila.save()
 
         if fila.Dependencia_id != dependencia_id_anterior and fila.employee_id is not None:
@@ -428,10 +451,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         if nuevo.estatusid_id != estatus_vacante.pk:
             raise ConflictError('El cargo seleccionado ya está ocupado.')
 
-        try:
-            motivo = TipoMovimientoModel.objects.get(pk=motivo_id)
-        except TipoMovimientoModel.DoesNotExist as exc:
-            raise NotFoundError(f"Motivo de movimiento {motivo_id} no encontrado.") from exc
+        motivo = obtener_motivo_de_operacion(motivo_id, Operacion.CAMBIAR_CARGO)
 
         empleado_cedula = actual.employee_id
 
@@ -500,10 +520,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         if fila.estatusid_id == nuevo_estatus.pk:
             raise ConflictError(f"El cargo ya se encuentra en estatus '{nuevo_estatus.estatus}'.")
 
-        try:
-            motivo = TipoMovimientoModel.objects.get(pk=motivo_id)
-        except TipoMovimientoModel.DoesNotExist as exc:
-            raise NotFoundError(f"Motivo de movimiento {motivo_id} no encontrado.") from exc
+        motivo = obtener_motivo_de_operacion(motivo_id, Operacion.CAMBIAR_ESTATUS_PUESTO)
 
         fila.estatusid = nuevo_estatus
         fila.observaciones = motivo.movimiento

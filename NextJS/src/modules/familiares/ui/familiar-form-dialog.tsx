@@ -6,6 +6,8 @@
  * (`/familiares/registrar`, paridad con `familiares/agregar-familiar/page.tsx`
  * del legado) — este diálogo ya no cubre creación.
  */
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import { MAPA_ERRORES_FAMILIAR } from "./errores-familiar";
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -79,7 +81,15 @@ export function FamiliarFormDialog({ familiar, onGuardado }: FamiliarFormDialogP
       setError(null);
       const resultado = await actualizarFamiliarAction(familiar.id, data as Partial<GuardarFamiliarInputDTO>);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        setError((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES_FAMILIAR);
+        setError(
+          sinUbicar.length
+            ? sinUbicar.join(" ")
+            : fallo.errores && Object.keys(fallo.errores).length
+              ? "Revise los campos marcados en rojo."
+              : fallo.error,
+        );
         return;
       }
       setOpen(false);

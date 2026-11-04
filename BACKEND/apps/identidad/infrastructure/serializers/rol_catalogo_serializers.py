@@ -19,7 +19,9 @@ class RolCatalogoLecturaSerializer(serializers.Serializer):
 class RolCatalogoEscrituraSerializer(serializers.Serializer):
     """Alta/edición de un rol. La normalización y unicidad viven en el caso de uso."""
 
-    nombre_rol = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    nombre_rol = serializers.CharField(
+        min_length=2, max_length=50, required=False, allow_blank=True, trim_whitespace=True
+    )
     descripcion_rol = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True
+        required=False, allow_blank=True, allow_null=True, max_length=500
     )

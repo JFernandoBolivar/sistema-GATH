@@ -14,7 +14,7 @@ export const cambiarPasswordFormSchema = z
       .string()
       .min(8, ERROR.MIN_LENGTH(8))
       .max(32, ERROR.MAX_LENGTH(32)),
-    confirm_password: z.string().min(1, ERROR.REQUIRED),
+    confirm_password: z.string().min(1, ERROR.REQUIRED).max(32, ERROR.MAX_LENGTH(32)),
   })
   .refine((data) => data.new_password === data.confirm_password, {
     message: "Las contraseñas no coinciden",

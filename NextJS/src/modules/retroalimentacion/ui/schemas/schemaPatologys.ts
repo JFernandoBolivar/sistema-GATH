@@ -5,8 +5,9 @@ export const schemaPatologys = z.object({
     .string({
       required_error: "Campo Requerido",
     })
-    .min(3, {
-      message: "Mínimo 3 Caracteres",
+    .trim()
+    .min(2, {
+      message: "Mínimo 2 Caracteres",
     })
     .max(100, {
       message: "Máximo 100 Caracteres",

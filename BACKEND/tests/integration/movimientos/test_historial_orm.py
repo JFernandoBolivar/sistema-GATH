@@ -21,6 +21,7 @@ from apps.cargos.infrastructure.models.cargo_models import (
 )
 from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
 from apps.catalogos.infrastructure.models.catalogo_models import (
+    CategoriaMovimientoModel,
     EstatusModel,
     GradoModel,
     NacionalidadModel,
@@ -77,7 +78,9 @@ def escenario():
     direccion = DireccionGeneralModel.objects.create(
         Codigo='DG1', direccion_general='OFICINA DE GESTION HUMANA', dependenciaId=dependencia)
     personal = TipoPersonalModel.objects.create(tipo_personal='ACTIVO')
-    motivo = TipoMovimientoModel.objects.create(movimiento='TRASLADO FISICO Y ADMINISTRATIVO')
+    categoria_traslado = CategoriaMovimientoModel.objects.create(categoria='TRASLADO')
+    motivo = TipoMovimientoModel.objects.create(
+        movimiento='TRASLADO FISICO Y ADMINISTRATIVO', categoria=categoria_traslado)
 
     trabajador = EmployeeModel.objects.create(
         cedulaidentidad=TRABAJADOR, nombres='Trabajador', apellidos='Prueba',

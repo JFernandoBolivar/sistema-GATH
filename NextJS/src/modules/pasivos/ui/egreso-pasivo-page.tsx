@@ -16,21 +16,13 @@ import { Card, CardContent } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Field } from "@/shared/ui/components/field";
 import { Label } from "@/shared/ui/components/label";
-import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner";
-import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/ui/components/select";
+import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 
-import type { CatalogoPasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
+import { SelectorPasivo } from "./components/selector-pasivo";
+import type { PasivoDTO } from "../application/dtos/pasivos-dto";
 import {
   egresarPasivoAction,
   getFamiliaresTitularAction,
-  getMotivosEgresoPasivoAction,
   getPasivoPorCedulaAction,
 } from "../infrastructure/actions/pasivos-actions";
 
@@ -45,8 +37,8 @@ export default function EgresoPasivoPage() {
   const router = useRouter();
   const [cedula, setCedula] = useState("");
   const [pasivo, setPasivo] = useState<PasivoDTO | null>(null);
-  const [motivos, setMotivos] = useState<CatalogoPasivoDTO[]>([]);
   const [motivoId, setMotivoId] = useState(0);
+  const [errorMotivo, setErrorMotivo] = useState<string | null>(null);
   const [familiares, setFamiliares] = useState<FamiliarTitular[]>([]);
   const [seleccion, setSeleccion] = useState<number[]>([]);
   const [conSobrevivientes, setConSobrevivientes] = useState(false);
@@ -64,20 +56,27 @@ export default function EgresoPasivoPage() {
     setConSobrevivientes(false);
     startTransition(async () => {
       try {
-        const [detalle, motivosLista] = await Promise.all([
-          getPasivoPorCedulaAction(cedulaLimpia),
-          getMotivosEgresoPasivoAction(),
-        ]);
+        const detalle = await getPasivoPorCedulaAction(cedulaLimpia);
         if (!detalle || typeof detalle !== "object" || "error" in detalle) {
           setError((detalle as { error?: string })?.error ?? "No se encontró el pasivo.");
           return;
         }
         setPasivo(detalle as PasivoDTO);
-        setMotivos(motivosLista);
       } catch {
         setError("No fue posible consultar el pasivo.");
       }
     });
+  };
+
+  const cambiar = () => {
+    setPasivo(null);
+    setError(null);
+    setCedula("");
+    setMotivoId(0);
+    setErrorMotivo(null);
+    setFamiliares([]);
+    setSeleccion([]);
+    setConSobrevivientes(false);
   };
 
   const activarSobrevivientes = (valor: boolean) => {
@@ -105,9 +104,15 @@ export default function EgresoPasivoPage() {
       return;
     }
     setError(null);
+    setErrorMotivo(null);
     startTransition(async () => {
       const resultado = await egresarPasivoAction(pasivo.cedula, motivoId, seleccion);
       if (!resultado || typeof resultado !== "object" || "error" in resultado) {
+        const errorDeMotivo = resultado && "errores" in resultado ? resultado.errores?.motivo_id?.[0] : undefined;
+        if (errorDeMotivo) {
+          setErrorMotivo(errorDeMotivo);
+          return;
+        }
         setError((resultado as { error?: string })?.error ?? "No fue posible egresar el pasivo.");
         return;
       }
@@ -124,41 +129,39 @@ export default function EgresoPasivoPage() {
       {/* Mismo contenedor que las pantallas de activos (Movimientos): ancho completo y p-6. */}
       <Card className="bg-card">
         <CardContent className="flex flex-col gap-5 p-6">
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-
-          <EmployeeSearchForm
-            onSearch={buscar}
-            label="Buscar Personal Jubilado/Pasivo"
-            placeholder="00000000"
-            disabled={isPending}
+          <SelectorPasivo
+            pasivo={pasivo}
+            buscando={isPending && !pasivo}
+            error={pasivo ? null : error}
+            onBuscar={buscar}
+            onCambiar={cambiar}
           />
+
+          {pasivo && error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
 
           {pasivo && (
             <div className="flex flex-col gap-4 border-t pt-4">
-              <EmployeeInfoBanner
-                employee={{ nombres: pasivo.nombreCompleto, apellidos: "", cedula: pasivo.cedula }}
-                hasSearched
-                isLoading={false}
-                extraFields={[{ label: "Tipo de pasivo", value: pasivo.tipoPasivo ?? "" }]}
-              />
-
               <Field>
                 <Label htmlFor="egreso-pasivo-motivo">Motivo de egreso</Label>
-                <Select
-                  value={motivoId ? String(motivoId) : undefined}
-                  onValueChange={(v) => setMotivoId(Number(v))}
-                >
-                  <SelectTrigger id="egreso-pasivo-motivo" className="w-full">
-                    <SelectValue placeholder="Seleccione el motivo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {motivos.map((m) => (
-                      <SelectItem key={m.id} value={String(m.id)}>
-                        {m.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MotivoSelect
+                  id="egreso-pasivo-motivo"
+                  operacion="egreso_pasivo"
+                  value={motivoId}
+                  onChange={(id) => {
+                    setMotivoId(id);
+                    setErrorMotivo(null);
+                  }}
+                  aria-invalid={errorMotivo ? true : undefined}
+                />
+                {errorMotivo && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {errorMotivo}
+                  </p>
+                )}
               </Field>
 
               <label className="inline-flex items-center gap-2 text-sm">

@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox } from "@/shared/ui/components/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import useSWR from "swr";
@@ -35,7 +35,6 @@ import {
 } from "../services/reportes-catalogos";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 import { Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -171,11 +170,11 @@ export default function ReportCode() {
           {isPending ? (
             <Loading promiseMessage="Consultando Reporte" />
           ) : (
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-3 gap-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {!puedePdf && (
                 <p
                   role="alert"
-                  className="col-span-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                  className="col-span-full rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
                 >
                   No tiene permiso para generar reportes en PDF (se requiere{" "}
                   {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
@@ -184,14 +183,14 @@ export default function ReportCode() {
               {avisoTope && (
                 <p
                   role="status"
-                  className="col-span-3 rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+                  className="col-span-full rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
                 >
                   {avisoTope}
                 </p>
               )}
-              <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
-                <ScrollArea className="w-full">
-                  <div className="flex flex-row w-full gap-2">
+              <div className="flex flex-col gap-2 col-span-full min-w-0 w-full">
+                <div className="w-full min-w-0">
+                  <div className="flex w-full flex-col gap-3 lg:flex-row">
                     {puedeEstructura && (
                       <fieldset className="flex flex-col w-full gap-3 border-2 p-2 rounded-sm border-green-600">
                         <legend className="text-green-800 font-semibold">
@@ -422,7 +421,7 @@ export default function ReportCode() {
                         control={form.control}
                         name="filtros.grado_id"
                         render={({ field }) => (
-                          <FormItem className="col-span-3">
+                          <FormItem className="col-span-full">
                             <FormLabel>Grado</FormLabel>
                             <Select
                               onValueChange={(values) => {
@@ -454,7 +453,7 @@ export default function ReportCode() {
                         control={form.control}
                         name="filtros.OrganismoAdscrito_id"
                         render={({ field }) => (
-                          <FormItem className="col-span-2">
+                          <FormItem className="md:col-span-2">
                             <FormLabel>Organismo Adscrito </FormLabel>
                             <FormControl>
                               <Combobox
@@ -515,9 +514,9 @@ export default function ReportCode() {
                       />
                     </fieldset>
                   </div>
-                </ScrollArea>
+                </div>
               </div>
-              <div className="flex flex-row gap-2 flex-1 w-full col-span-3">
+              <div className="flex flex-col gap-2 sm:flex-row flex-1 w-full col-span-full">
                 <Button className="flex-1 cursor-pointer" type="submit" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"

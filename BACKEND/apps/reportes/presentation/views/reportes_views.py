@@ -19,7 +19,6 @@ from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_distribucion_nomina,
     generar_reporte_familiares,
     generar_reporte_pasivos,
-    generar_reporte_pasivos_actuales,
     generar_reporte_personal,
     generar_reporte_tendencias,
     generar_reporte_vacantes,
@@ -33,6 +32,14 @@ from apps.reportes.domain.value_objects.permisos_reportes import (
 )
 from core.infrastructure.reportes import limite_de_reporte
 from core.presentation.descargas import aplicar_cabeceras_de_truncado
+from apps.exportaciones.presentation.serializers.exportaciones_serializers import (
+    TrabajoExportacionSerializer,
+)
+from apps.exportaciones.presentation.solicitud import pedir_exportacion
+from apps.reportes.domain.value_objects.condicion_trabajador import (
+    CONDICION_PASIVO,
+    normalizar_condicion,
+)
 from apps.reportes.infrastructure.repositories.repo_reportes_orm import RepoReportesORM
 from apps.reportes.presentation.serializers.reportes_serializers import ResultadoReporteSerializer
 
@@ -70,7 +77,7 @@ def _cabeceras_de_metadatos(respuesta: HttpResponse, metadatos: dict | None) -> 
 
 
 def _generar_reporte_personal(request, *, para_pdf: bool):
-    """Único punto de entrada de las tres variantes (JSON, PDF, Excel).
+    """Reporte de personal activo para la vista JSON (la exportación va por Celery).
 
     Aquí solo se cablea lo que la capa de aplicación no puede conocer: la
     decisión del permiso de estructura (motor IAM de `core`) y el tope de filas
@@ -89,17 +96,12 @@ def _generar_reporte_personal(request, *, para_pdf: bool):
     )
 
 
-def _generar_reporte_pasivos(request, *, para_pdf: bool):
-    """PDF/Excel de pasivos con el formulario de filtros de personal activo."""
-    return generar_reporte_pasivos_actuales(
-        RepoReportesORM(),
-        filtros=request.query_params.dict(),
-        registro=ReportFieldRegistryORM(),
-        puede_filtrar_estructura=usuario_tiene_permiso(
-            request.user, PERMISO_ESTRUCTURA_ORGANIZATIVA
-        ),
-        limite=limite_de_reporte(para_pdf=para_pdf),
-    )
+def _pedir_exportacion_familiares(request, formato: str):
+    """Familiares de ACTIVOS (por defecto) o de PASIVOS según `condicion` (validada)."""
+    condicion = normalizar_condicion(request.query_params.get('condicion'))
+    tipo = 'familiares_pasivos' if condicion == CONDICION_PASIVO else 'familiares_activos'
+    # `condicion` no es un filtro del registro: se resuelve aquí y no viaja en los filtros.
+    return pedir_exportacion(request, tipo=tipo, formato=formato, quitar_filtros=('condicion',))
 
 
 class ReportePersonalActivoView(APIView):
@@ -112,27 +114,23 @@ class ReportePersonalActivoView(APIView):
 
 
 class ReportePersonalActivoPdfView(APIView):
-    """GET /api/v1/reportes/personal-activo/pdf/ — Fase 2.4 del plan de reparación."""
+    """GET /api/v1/reportes/personal-activo/pdf/ — encola la exportación y responde 202."""
 
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_GENERAR_PDF)]
 
-    @extend_schema(tags=['Reportes'], summary='Descargar el reporte de personal activo en PDF', responses={200: OpenApiTypes.BINARY})
+    @extend_schema(tags=['Reportes'], summary='Exportar el reporte de personal activo en PDF (asíncrono)', responses={202: TrabajoExportacionSerializer})
     def get(self, request):
-        dto = _generar_reporte_personal(request, para_pdf=True)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_personal_activo.pdf', dto.metadatos)
+        return pedir_exportacion(request, tipo='personal_activo', formato='pdf')
 
 
 class ReportePersonalActivoExcelView(APIView):
-    """GET /api/v1/reportes/personal-activo/excel/ — Fase 2.4 del plan de reparación."""
+    """GET /api/v1/reportes/personal-activo/excel/ — encola la exportación y responde 202."""
 
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_GENERAR_EXCEL)]
 
-    @extend_schema(tags=['Reportes'], summary='Descargar el reporte de personal activo en Excel', responses={200: OpenApiTypes.BINARY})
+    @extend_schema(tags=['Reportes'], summary='Exportar el reporte de personal activo en Excel (asíncrono)', responses={202: TrabajoExportacionSerializer})
     def get(self, request):
-        dto = _generar_reporte_personal(request, para_pdf=False)
-        excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_personal_activo.xlsx', dto.metadatos)
+        return pedir_exportacion(request, tipo='personal_activo', formato='excel')
 
 
 class ReportePasivosView(APIView):
@@ -149,27 +147,23 @@ class ReportePasivosView(APIView):
 
 
 class ReportePasivosPdfView(APIView):
-    """GET /api/v1/reportes/pasivos/pdf/ — Fase 2.4 del plan de reparación."""
+    """GET /api/v1/reportes/pasivos/pdf/ — encola la exportación y responde 202."""
 
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_GENERAR_PDF)]
 
-    @extend_schema(tags=['Reportes'], summary='Descargar el reporte de pasivos en PDF', responses={200: OpenApiTypes.BINARY})
+    @extend_schema(tags=['Reportes'], summary='Exportar el reporte de pasivos en PDF (asíncrono)', responses={202: TrabajoExportacionSerializer})
     def get(self, request):
-        dto = _generar_reporte_pasivos(request, para_pdf=True)
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_pasivos.pdf', dto.metadatos)
+        return pedir_exportacion(request, tipo='pasivos', formato='pdf')
 
 
 class ReportePasivosExcelView(APIView):
-    """GET /api/v1/reportes/pasivos/excel/ — Fase 2.4 del plan de reparación."""
+    """GET /api/v1/reportes/pasivos/excel/ — encola la exportación y responde 202."""
 
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_GENERAR_EXCEL)]
 
-    @extend_schema(tags=['Reportes'], summary='Descargar el reporte de pasivos en Excel', responses={200: OpenApiTypes.BINARY})
+    @extend_schema(tags=['Reportes'], summary='Exportar el reporte de pasivos en Excel (asíncrono)', responses={202: TrabajoExportacionSerializer})
     def get(self, request):
-        dto = _generar_reporte_pasivos(request, para_pdf=False)
-        excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_pasivos.xlsx', dto.metadatos)
+        return pedir_exportacion(request, tipo='pasivos', formato='excel')
 
 
 class ReporteVacantesView(APIView):
@@ -214,42 +208,49 @@ class ReporteVacantesExcelView(APIView):
 class ReporteFamiliaresView(APIView):
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER_REPORTES)]
 
-    @extend_schema(tags=['Reportes'], summary='Generar reporte de familiares (cargas familiares)', responses={200: ResultadoReporteSerializer})
+    @extend_schema(tags=['Reportes'], summary='Generar reporte de familiares (cargas familiares) de trabajadores activos o pasivos', responses={200: ResultadoReporteSerializer})
     def get(self, request):
+        filtros = request.query_params.dict()
+        condicion = normalizar_condicion(filtros.pop('condicion', None))
         dto = generar_reporte_familiares(
             RepoReportesORM(),
-            filtros=request.query_params.dict(),
+            filtros=filtros,
             limite=limite_de_reporte(para_pdf=False),
+            condicion=condicion,
+            registro=ReportFieldRegistryORM(),
+            puede_filtrar_estructura=usuario_tiene_permiso(
+                request.user, PERMISO_ESTRUCTURA_ORGANIZATIVA
+            ),
         )
         return ok(ResultadoReporteSerializer(dto).data)
 
 
 class ReporteFamiliaresPdfView(APIView):
+    """GET /api/v1/reportes/familiares/pdf/ — encola la exportación y responde 202.
+
+    `condicion` (ACTIVO por defecto, o PASIVO) decide de qué trabajadores se
+    listan los familiares; Pasivos usa la misma vista con `condicion=PASIVO`.
+    """
+
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_GENERAR_PDF)]
 
-    @extend_schema(tags=['Reportes'], summary='Descargar el reporte de familiares en PDF', responses={200: OpenApiTypes.BINARY})
+    @extend_schema(tags=['Reportes'], summary='Exportar el reporte de familiares en PDF (asíncrono)', responses={202: TrabajoExportacionSerializer})
     def get(self, request):
-        dto = generar_reporte_familiares(
-            RepoReportesORM(),
-            filtros=request.query_params.dict(),
-            limite=limite_de_reporte(para_pdf=True),
-        )
-        pdf_bytes = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
-        return _respuesta_pdf(pdf_bytes, 'reporte_familiares.pdf', dto.metadatos)
+        return _pedir_exportacion_familiares(request, 'pdf')
 
 
 class ReporteFamiliaresExcelView(APIView):
+    """GET /api/v1/reportes/familiares/excel/ — encola la exportación y responde 202.
+
+    `condicion` (ACTIVO por defecto, o PASIVO) decide de qué trabajadores se
+    listan los familiares; Pasivos usa la misma vista con `condicion=PASIVO`.
+    """
+
     permission_classes = [IsAuthenticated, HasPermission(PERMISO_GENERAR_EXCEL)]
 
-    @extend_schema(tags=['Reportes'], summary='Descargar el reporte de familiares en Excel', responses={200: OpenApiTypes.BINARY})
+    @extend_schema(tags=['Reportes'], summary='Exportar el reporte de familiares en EXCEL (asíncrono)', responses={202: TrabajoExportacionSerializer})
     def get(self, request):
-        dto = generar_reporte_familiares(
-            RepoReportesORM(),
-            filtros=request.query_params.dict(),
-            limite=limite_de_reporte(para_pdf=False),
-        )
-        excel_bytes = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
-        return _respuesta_excel(excel_bytes, 'reporte_familiares.xlsx', dto.metadatos)
+        return _pedir_exportacion_familiares(request, 'excel')
 
 
 class ReporteCodigosView(APIView):

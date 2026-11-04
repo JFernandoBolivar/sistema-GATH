@@ -6,7 +6,7 @@ from datetime import date
 from django.db import transaction
 from django.db.models import Model, Q
 
-from core.domain.exceptions import NotFoundError
+from core.domain.exceptions import NotFoundError, ValidationError
 from apps.personal.domain.entities.empleado import Empleado
 from apps.personal.infrastructure.mappers.mapper_personal import (
     construir_expediente,
@@ -212,11 +212,40 @@ class RepoPersonalORM:
         # y para el expediente (antes se consultaban dos veces).
         antecedentes = _antecedentes_empleado(fila.pk)
         cerrados = [a for a in antecedentes if a.fecha_egreso is not None]
-        return empleado_a_entidad(
-            fila,
-            cerrados,
-            expediente=construir_expediente(fila, antecedentes=antecedentes),
+        expediente = construir_expediente(fila, antecedentes=antecedentes)
+        expediente['correo_alternativo'] = self._correo_alternativo_de(fila.cedulaidentidad)
+        return empleado_a_entidad(fila, cerrados, expediente=expediente)
+
+    @staticmethod
+    def _validar_correo_libre(correo: str | None, excluir_cedula: str | None = None) -> None:
+        """El correo institucional es único: se avisa sobre el campo en vez de fallar con un 500."""
+        if not correo:
+            return
+        qs = EmployeeModel.objects.filter(correo__iexact=correo)
+        if excluir_cedula:
+            qs = qs.exclude(cedulaidentidad=excluir_cedula)
+        if qs.exists():
+            raise ValidationError('Ya existe un trabajador con ese correo electrónico.', campo='correo')
+
+    @staticmethod
+    def _correo_alternativo_de(cedula: str) -> str | None:
+        """Correo alternativo del trabajador (vive en los datos complementarios de autogestión)."""
+        from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+
+        valor = (
+            DatosComplementariosTrabajadorModel.objects.filter(cedula=str(cedula).strip())
+            .values_list('correo_alternativo', flat=True)
+            .first()
         )
+        return (valor or '').strip() or None
+
+    @staticmethod
+    def _guardar_correo_alternativo(cedula: str, correo: str | None) -> None:
+        from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+
+        fila, _ = DatosComplementariosTrabajadorModel.objects.get_or_create(cedula=str(cedula).strip())
+        fila.correo_alternativo = (correo or '').strip() or None
+        fila.save(update_fields=['correo_alternativo', 'actualizado_en'])
 
     def _antecedentes_cerrados_bulk(self, empleado_ids: list) -> dict:
         agrupado: dict = {}
@@ -232,6 +261,10 @@ class RepoPersonalORM:
     # ------------------------------------------------------------------
     def crear_empleado(self, datos: dict) -> Empleado:
         nested = self._pop_nested(datos)
+        correo_alternativo = datos.pop('correo_alternativo', None)
+        if EmployeeModel.objects.filter(cedulaidentidad=datos['cedula']).exists():
+            raise ValidationError('Ya existe un trabajador con esa cédula de identidad.', campo='cedula')
+        self._validar_correo_libre(datos.get('correo'))
         with transaction.atomic():
             obj = EmployeeModel.objects.create(
                 cedulaidentidad=datos['cedula'],
@@ -248,6 +281,8 @@ class RepoPersonalORM:
                 nacionalidad_id=datos.get('nacionalidad_id', 1) or 1,
             )
             self._guardar_datos_anidados(obj, nested)
+            if correo_alternativo:
+                self._guardar_correo_alternativo(obj.cedulaidentidad, correo_alternativo)
         return self.obtener_por_cedula(obj.cedulaidentidad)
 
     def guardar_foto(self, cedula: str, clave: str) -> None:
@@ -264,10 +299,14 @@ class RepoPersonalORM:
 
     def actualizar_empleado(self, cedula: str, datos: dict) -> Empleado:
         nested = self._pop_nested(datos)
+        escribe_alternativo = 'correo_alternativo' in datos
+        correo_alternativo = datos.pop('correo_alternativo', None)
         with transaction.atomic():
             obj = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
             if not obj:
                 raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
+            if datos.get('correo'):
+                self._validar_correo_libre(datos['correo'], excluir_cedula=obj.cedulaidentidad)
             if 'nacionalidad_id' in datos and datos['nacionalidad_id']:
                 obj.nacionalidad_id = datos['nacionalidad_id']
             for k, v in datos.items():
@@ -275,6 +314,8 @@ class RepoPersonalORM:
                     setattr(obj, k, v)
             obj.save()
             self._guardar_datos_anidados(obj, nested)
+            if escribe_alternativo:
+                self._guardar_correo_alternativo(obj.cedulaidentidad, correo_alternativo)
         return self.obtener_por_cedula(cedula)
 
     @staticmethod

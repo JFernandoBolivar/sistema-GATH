@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
+import { CORREO_MAX, DIRECCION_MAX, cedulaZod, nombreZod } from "./reglas-personas";
 
 /**
  * Helpers para campos anidados: toleran el string vacío/NaN que deja
@@ -28,7 +29,7 @@ export const datosViviendaSchema = z.object({
   estadoId: numId.optional(),
   municipioId: numId.optional(),
   parroquiaId: numId.optional(),
-  direccionExacta: texto.optional(),
+  direccionExacta: z.preprocess(aNull, z.string().max(DIRECCION_MAX, { message: `La dirección admite máximo ${DIRECCION_MAX} caracteres` }).nullable()).optional(),
   condicionViviendaId: numId.optional(),
   codigoPostalId: numId.optional(),
 });
@@ -90,27 +91,51 @@ export const empleadoSchema = z.object({
     .string()
     .trim()
     .min(5, { message: "Cédula debe tener al menos 5 caracteres" })
+    .max(10, { message: "Cédula admite máximo 10 dígitos" })
     .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula solo debe contener dígitos" }),
+  // Edición: se tolera el punto de las iniciales del legado ("JOSE A.").
   nombres: z
     .string()
     .trim()
     .min(2, { message: "Nombres debe tener al menos 2 caracteres" })
-    .regex(REGEX.SOLO_LETRAS, { message: "Nombres solo debe contener letras" }),
+    .max(60, { message: "Nombres admite máximo 60 caracteres" })
+    .regex(REGEX.NAME_EDICION, { message: "Nombres solo debe contener letras" }),
   apellidos: z
     .string()
     .trim()
     .min(2, { message: "Apellidos debe tener al menos 2 caracteres" })
-    .regex(REGEX.SOLO_LETRAS, { message: "Apellidos solo debe contener letras" }),
+    .max(60, { message: "Apellidos admite máximo 60 caracteres" })
+    .regex(REGEX.NAME_EDICION, { message: "Apellidos solo debe contener letras" }),
   sexoId: z.number().positive({ message: "Seleccione un sexo válido" }),
   fechaNacimiento: z
     .string()
     .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" }),
-  correo: z.string().trim().email({ message: "Correo inválido" }).optional().nullable(),
+  correo: z
+    .string()
+    .trim()
+    .max(CORREO_MAX, { message: `Correo admite máximo ${CORREO_MAX} caracteres` })
+    .email({ message: "Correo inválido" })
+    .optional()
+    .nullable(),
+  correoAlternativo: z
+    .string()
+    .trim()
+    .max(CORREO_MAX, { message: `Correo admite máximo ${CORREO_MAX} caracteres` })
+    .email({ message: "Correo alternativo inválido" })
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   telefonoMovil: telefonoZod({ tipo: "movil" }),
   telefonoHabitacion: telefonoZod({ tipo: "cualquiera" }),
   estadoCivilId: z.number().positive().optional().nullable(),
   nacionalidadId: z.number().int().positive().optional().nullable(),
-  carnetPatria: z.string().trim().optional().nullable(),
+  carnetPatria: z
+    .string()
+    .trim()
+    .regex(/^\d{10}$/, { message: "El código del Carnet de la Patria debe tener 10 dígitos" })
+    .optional()
+    .nullable()
+    .or(z.literal("")),
   carnetPatriaSerial: serialCarnetPatriaZod(),
   datosVivienda: datosViviendaSchema.optional(),
   perfilSalud: perfilSaludSchema.optional(),
@@ -127,7 +152,7 @@ export type EmpleadoFormType = z.infer<typeof empleadoSchema>;
 /**
  * Revalidación zero-trust del ALTA (`registrarEmpleadoAction`) con las reglas
  * de negocio del legado (`shared/schemas/employees/register/*`), las mismas
- * que aplica el wizard por paso: cédula 7-12 dígitos, nombres/apellidos 3-30
+ * que aplica el wizard por paso: cédula 6-9 dígitos, nombres/apellidos 2-60
  * letras, nacimiento no futuro y edad mínima 16, carnet de la patria de 10
  * dígitos, estado civil, vivienda completa y tallas de camisa/pantalón/zapatos
  * obligatorias. La edición (`empleadoSchema.partial()`) conserva las reglas
@@ -145,24 +170,9 @@ function edadEnAnios(fechaIso: string) {
 }
 
 export const empleadoRegistroSchema = empleadoSchema.extend({
-  cedula: z
-    .string()
-    .trim()
-    .regex(REGEX.DIGITS, { message: "Solo Se Permiten Números" })
-    .min(7, { message: "Debe Ingresar Al Menos 7 Digitos" })
-    .max(12, { message: "Debe Maximo 12 Digitos" }),
-  nombres: z
-    .string()
-    .trim()
-    .regex(REGEX.SOLO_LETRAS, { message: "Solo Se Permiten Letras" })
-    .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
-    .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
-  apellidos: z
-    .string()
-    .trim()
-    .regex(REGEX.SOLO_LETRAS, { message: "Solo Se Permiten Letras" })
-    .min(3, { message: "Debe Ingresar Al Menos 3 Letras" })
-    .max(30, { message: "Debe Ingresar Maximo 30 Letras" }),
+  cedula: cedulaZod(),
+  nombres: nombreZod("El nombre"),
+  apellidos: nombreZod("El apellido"),
   fechaNacimiento: z
     .string()
     .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" })
@@ -186,7 +196,8 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
     direccionExacta: z
       .string()
       .trim()
-      .min(10, { message: "La Direccion Exacta Debe Tener Minimo 10 Caracteres" }),
+      .min(10, { message: "La Direccion Exacta Debe Tener Minimo 10 Caracteres" })
+      .max(DIRECCION_MAX, { message: `La dirección admite máximo ${DIRECCION_MAX} caracteres` }),
     condicionViviendaId: idRequerido("Debe Seleccionar Una Condicion De Vivienda"),
     codigoPostalId: idRequerido("Seleccione un código postal"),
   }),
@@ -210,3 +221,42 @@ export type ListadoEmpleadosFormType = z.infer<typeof listadoEmpleadosSchema>;
 export const empleadoCedulaSchema = z.object({
   cedula: z.string().trim().regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida" }),
 });
+
+/** Correo opcional del formulario (vacío permitido; máximo 254). */
+const correoFormulario = (mensaje: string) =>
+  z
+    .string()
+    .trim()
+    .max(CORREO_MAX, { message: `El correo admite máximo ${CORREO_MAX} caracteres` })
+    .refine((v) => v === "" || REGEX.EMAIL.test(v), { message: mensaje });
+
+/**
+ * Formulario «Actualizar Información Básica». `carnetPatriaOriginal` es el valor
+ * que ya tenía el trabajador: el código solo se exige de 10 dígitos si se cambia
+ * (hay expedientes del legado con otro formato).
+ */
+export function empleadoBasicoFormSchema(carnetPatriaOriginal = "") {
+  return z.object({
+    nombres: empleadoSchema.shape.nombres,
+    apellidos: empleadoSchema.shape.apellidos,
+    fechaNacimiento: z.string().min(1, { message: "La fecha de nacimiento es obligatoria" }),
+    sexoId: z.coerce.number({ message: "Seleccione el sexo" }).positive({ message: "Seleccione el sexo" }),
+    nacionalidadId: z.coerce
+      .number({ message: "Seleccione la nacionalidad" })
+      .positive({ message: "Seleccione la nacionalidad" }),
+    estadoCivilId: z.coerce.number().optional(),
+    correo: correoFormulario("Correo institucional inválido"),
+    correoAlternativo: correoFormulario("Correo alternativo inválido"),
+    telefonoMovil: telefonoZod({ tipo: "movil" }),
+    telefonoHabitacion: telefonoZod({ tipo: "cualquiera" }),
+    carnetPatria: z
+      .string()
+      .trim()
+      .max(30)
+      .refine((v) => v === "" || v === carnetPatriaOriginal || /^\d{10}$/.test(v), {
+        message: "El código del Carnet de la Patria debe tener 10 dígitos",
+      }),
+    carnetPatriaSerial: serialCarnetPatriaZod(),
+  });
+}
+export type EmpleadoBasicoFormValues = z.input<ReturnType<typeof empleadoBasicoFormSchema>>;

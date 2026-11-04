@@ -8,22 +8,18 @@
  */
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   actualizarPasivo,
   egresarPasivo,
   listarCatalogosRegistroPasivo,
-  listarMotivosEgresoPasivo,
   listarPasivos,
   listarPasivosPaginados,
   obtenerPasivoPorCedula,
   procesarEgreso,
   registrarPasivo,
 } from "../../application/use-cases/gestionar-pasivos";
-import {
-  listarMotivosEgreso,
-  listarTiposNomina,
-} from "../../application/use-cases/listar-catalogo-egreso";
+import { listarTiposNomina } from "../../application/use-cases/listar-catalogo-egreso";
 import { listarCatalogosExpedientePasivo } from "../../application/use-cases/listar-catalogos-expediente";
 import { repoPasivosApi } from "../repositories/repo-pasivos-api";
 import {
@@ -71,12 +67,15 @@ export async function getPasivoPorCedulaAction(cedula: string) {
   }
 }
 
+/** Error de una acción con, si el backend los dio, los errores por campo para `aplicarErroresServidor`. */
+type ErrorAccionPasivo = { error: string; errores?: Record<string, string[]> };
+
 export async function procesarEgresoAction(input: {
   cedula: string;
   motivoMovimientoId: number;
   tipoNominaId: number;
   liberarActivos: boolean;
-}) {
+}): Promise<Awaited<ReturnType<typeof procesarEgreso>> | ErrorAccionPasivo> {
   const validation = procesarEgresoSchema.safeParse(input);
   if (!validation.success) {
     return { error: "Datos de la transición inválidos. Revise los campos ingresados." };
@@ -91,35 +90,8 @@ export async function procesarEgresoAction(input: {
   } catch (error) {
     await logAudit({ traceId, action: "procesarEgresoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
-  }
-}
-
-export async function getMotivosEgresoAction() {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await listarMotivosEgreso(repoPasivosApi);
-    await logAudit({ traceId, action: "getMotivosEgresoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "getMotivosEgresoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
-  }
-}
-
-export async function getMotivosEgresoPasivoAction() {
-  const traceId = generateTraceId();
-  const startedAt = Date.now();
-  try {
-    const result = await listarMotivosEgresoPasivo(repoPasivosApi);
-    await logAudit({ traceId, action: "getMotivosEgresoPasivoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
-    return result;
-  } catch (error) {
-    await logAudit({ traceId, action: "getMotivosEgresoPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
-    handleSessionExpired(error);
-    throw error;
+    const e = errorDeAccion(error, "No fue posible procesar el pase a pasivo.");
+    return { error: e.error, errores: e.errores };
   }
 }
 
@@ -127,7 +99,7 @@ export async function egresarPasivoAction(
   cedula: string,
   motivoId: number,
   familiarIds: number[],
-) {
+): Promise<Awaited<ReturnType<typeof egresarPasivo>> | ErrorAccionPasivo> {
   const validacion = pasivoCedulaSchema.safeParse({ cedula });
   if (!validacion.success || !motivoId) {
     return { error: "Seleccione un pasivo y un motivo de egreso válido." };
@@ -146,8 +118,8 @@ export async function egresarPasivoAction(
   } catch (error) {
     await logAudit({ traceId, action: "egresarPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const mensaje = error instanceof Error && error.message ? error.message : "No fue posible egresar el pasivo.";
-    return { error: mensaje };
+    const e = errorDeAccion(error, "No fue posible egresar el pasivo.");
+    return { error: e.error, errores: e.errores };
   }
 }
 
@@ -255,7 +227,7 @@ export async function actualizarPasivoAction(
   } catch (error) {
     await logAudit({ traceId, action: "actualizarPasivoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar los datos del pasivo.");
   }
 }
 

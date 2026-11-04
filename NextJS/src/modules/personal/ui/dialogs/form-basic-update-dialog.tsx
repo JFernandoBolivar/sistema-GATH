@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import type { z } from "zod";
 
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import { Input } from "@/shared/ui/components/input";
-import { Label } from "@/shared/ui/components/label";
 import {
   Select,
   SelectContent,
@@ -19,16 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
-import {
-  SERIAL_CARNET_PATRIA,
-  SERIAL_CARNET_PATRIA_MSG,
-} from "@/shared/domain/validation/serial-carnet-patria";
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import {
   actualizarEmpleadoAction,
   subirFotoEmpleadoAction,
 } from "../../infrastructure/actions/personal-actions";
+import { CORREO_MAX, NOMBRE_MAX } from "../schema/reglas-personas";
+import { empleadoBasicoFormSchema } from "../schema/schema-empleado";
+import { CampoDialogo, avisoDeFallo, mensajeDe } from "./campo-dialogo";
 
 interface FormBasicUpdateDialogProps {
   empleado: EmpleadoDTO;
@@ -50,61 +51,80 @@ export default function FormBasicUpdateDialog({
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const { register, handleSubmit, setValue, watch } = useForm({
+  const carnetOriginal = empleado.carnetPatria ?? "";
+  const schema = useMemo(() => empleadoBasicoFormSchema(carnetOriginal), [carnetOriginal]);
+  type Entrada = z.input<typeof schema>;
+  type Salida = z.output<typeof schema>;
+
+  const form = useForm<Entrada, unknown, Salida>({
+    resolver: zodResolver(schema),
     defaultValues: {
       nombres: empleado.nombres,
       apellidos: empleado.apellidos,
       fechaNacimiento: empleado.fechaNacimiento ?? "",
       sexoId: empleado.sexoId,
       correo: empleado.correo ?? "",
+      correoAlternativo: empleado.correoAlternativo ?? "",
       telefonoMovil: empleado.telefonoMovil ?? "",
       telefonoHabitacion: empleado.telefonoHabitacion ?? "",
-      carnetPatria: empleado.carnetPatria ?? "",
+      carnetPatria: carnetOriginal,
       carnetPatriaSerial: empleado.carnetPatriaSerial ?? "",
       estadoCivilId: empleado.estadoCivilId ?? undefined,
       nacionalidadId: empleado.nacionalidadId ?? undefined,
     },
   });
+  const { register, handleSubmit, setValue, watch } = form;
+  const errores = form.formState.errors;
 
-  const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
+  const onSubmit = (data: Salida) => {
     startTransition(async () => {
       setError(null);
-      const serial = (data.carnetPatriaSerial ?? "").trim();
-      if (!SERIAL_CARNET_PATRIA.test(serial)) {
-        setError(SERIAL_CARNET_PATRIA_MSG);
-        toast.error(SERIAL_CARNET_PATRIA_MSG);
-        return;
-      }
       try {
+        const correoAlternativo = data.correoAlternativo.trim();
         const payload = {
           nombres: data.nombres,
           apellidos: data.apellidos,
           fechaNacimiento: data.fechaNacimiento || undefined,
           sexoId: Number(data.sexoId),
           correo: data.correo || null,
+          // "" borra el correo alternativo; solo se envía si cambió.
+          ...(correoAlternativo !== (empleado.correoAlternativo ?? "")
+            ? { correoAlternativo }
+            : {}),
           telefonoMovil: data.telefonoMovil || null,
           telefonoHabitacion: data.telefonoHabitacion || null,
-          carnetPatria: data.carnetPatria || null,
-          carnetPatriaSerial: serial || null,
+          // El código del carnet solo viaja si cambió (el del legado puede no cumplir el formato nuevo).
+          ...(data.carnetPatria !== carnetOriginal ? { carnetPatria: data.carnetPatria || null } : {}),
+          carnetPatriaSerial: data.carnetPatriaSerial || null,
           estadoCivilId: data.estadoCivilId ? Number(data.estadoCivilId) : null,
           ...(data.nacionalidadId ? { nacionalidadId: Number(data.nacionalidadId) } : {}),
         };
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
+        let avisoFoto: string | null = null;
         if (selectedFile) {
           const formData = new FormData();
           formData.append("file", selectedFile);
-          await subirFotoEmpleadoAction(empleado.cedula, formData);
+          const foto = await subirFotoEmpleadoAction(empleado.cedula, formData);
+          if (foto && typeof foto === "object" && "error" in foto) {
+            const falloFoto = foto as { error: string; errores?: Record<string, string[]> };
+            avisoFoto = falloFoto.errores?.file?.[0] ?? falloFoto.error;
+          }
         }
 
-        toast.success("Información básica actualizada exitosamente");
+        if (avisoFoto) {
+          toast.error(`Los datos se guardaron, pero la foto no se pudo subir: ${avisoFoto}`);
+        } else {
+          toast.success("Información básica actualizada exitosamente");
+        }
         setOpen(false);
         onGuardado();
       } catch {
@@ -139,7 +159,7 @@ export default function FormBasicUpdateDialog({
               </p>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
               <div className="gap-6">
                 <div className="border rounded-lg p-4 gap-3">
                   <CapturaFoto
@@ -156,39 +176,54 @@ export default function FormBasicUpdateDialog({
                       Datos personales
                     </h3>
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="nombres">Nombre *</Label>
+                      <CampoDialogo id="nombres" label="Nombre *" error={mensajeDe(errores.nombres)}>
                         <Input
                           id="nombres"
                           placeholder="Juan Bernardo"
-                          {...register("nombres", { required: true })}
+                          maxLength={NOMBRE_MAX}
+                          aria-invalid={!!errores.nombres || undefined}
+                          {...register("nombres")}
                         />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="apellidos">Apellidos *</Label>
+                      </CampoDialogo>
+                      <CampoDialogo id="apellidos" label="Apellidos *" error={mensajeDe(errores.apellidos)}>
                         <Input
                           id="apellidos"
                           placeholder="Perez Gutierrez"
-                          {...register("apellidos", { required: true })}
+                          maxLength={NOMBRE_MAX}
+                          aria-invalid={!!errores.apellidos || undefined}
+                          {...register("apellidos")}
                         />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="fechaNacimiento"> Fecha de Nacimiento *</Label>
+                      </CampoDialogo>
+                      <CampoDialogo
+                        id="fechaNacimiento"
+                        label="Fecha de Nacimiento *"
+                        error={mensajeDe(errores.fechaNacimiento)}
+                      >
                         <Input
                           id="fechaNacimiento"
                           type="date"
                           max={new Date().toISOString().split("T")[0]}
                           min="1900-01-01"
-                          {...register("fechaNacimiento", { required: true })}
+                          aria-invalid={!!errores.fechaNacimiento || undefined}
+                          {...register("fechaNacimiento")}
                         />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="nacionalidadId">Nacionalidad *</Label>
+                      </CampoDialogo>
+                      <CampoDialogo
+                        id="nacionalidadId"
+                        label="Nacionalidad *"
+                        error={mensajeDe(errores.nacionalidadId)}
+                      >
                         <Select
                           value={watch("nacionalidadId") ? String(watch("nacionalidadId")) : ""}
-                          onValueChange={(v) => setValue("nacionalidadId", Number(v))}
+                          onValueChange={(v) =>
+                            setValue("nacionalidadId", Number(v), { shouldValidate: true })
+                          }
                         >
-                          <SelectTrigger id="nacionalidadId" className="w-full truncate">
+                          <SelectTrigger
+                            id="nacionalidadId"
+                            className="w-full truncate"
+                            aria-invalid={!!errores.nacionalidadId || undefined}
+                          >
                             <SelectValue placeholder="V / E" />
                           </SelectTrigger>
                           <SelectContent>
@@ -199,16 +234,17 @@ export default function FormBasicUpdateDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="sexoId" className="cursor-pointer">
-                          Sexo *
-                        </Label>
+                      </CampoDialogo>
+                      <CampoDialogo id="sexoId" label="Sexo *" error={mensajeDe(errores.sexoId)}>
                         <Select
                           value={String(watch("sexoId") || "")}
-                          onValueChange={(v) => setValue("sexoId", Number(v))}
+                          onValueChange={(v) => setValue("sexoId", Number(v), { shouldValidate: true })}
                         >
-                          <SelectTrigger id="sexoId" className="w-full truncate">
+                          <SelectTrigger
+                            id="sexoId"
+                            className="w-full truncate"
+                            aria-invalid={!!errores.sexoId || undefined}
+                          >
                             <SelectValue placeholder="Seleccione un Genero" />
                           </SelectTrigger>
                           <SelectContent>
@@ -224,9 +260,12 @@ export default function FormBasicUpdateDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="estadoCivilId">Estado Civil </Label>
+                      </CampoDialogo>
+                      <CampoDialogo
+                        id="estadoCivilId"
+                        label="Estado Civil"
+                        error={mensajeDe(errores.estadoCivilId)}
+                      >
                         <Select
                           value={
                             watch("estadoCivilId") ? String(watch("estadoCivilId")) : undefined
@@ -244,61 +283,95 @@ export default function FormBasicUpdateDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                      </div>
+                      </CampoDialogo>
                     </div>
                   </section>
                   <section className="flex flex-col gap-4">
                     <h3 className="text-sm font-semibold text-muted-foreground">Contacto</h3>
-                    <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
-                      <div className="flex flex-col gap-2 sm:col-span-2">
-                        <Label htmlFor="correo">Correo Electronico</Label>
+                    <div className="grid grid-cols-1 gap-x-4 gap-y-5">
+                      <CampoDialogo id="correo" label="Correo institucional" error={mensajeDe(errores.correo)}>
                         <Input
                           id="correo"
                           type="email"
-                          placeholder="ejemplo@gmail.com"
+                          placeholder="usuario@conatel.gob.ve"
+                          maxLength={CORREO_MAX}
+                          aria-invalid={!!errores.correo || undefined}
                           {...register("correo")}
                         />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="telefonoMovil">Teléfono De Móvil</Label>
+                      </CampoDialogo>
+                      <CampoDialogo
+                        id="correoAlternativo"
+                        label="Correo alternativo"
+                        error={mensajeDe(errores.correoAlternativo)}
+                      >
+                        <Input
+                          id="correoAlternativo"
+                          type="email"
+                          placeholder="ejemplo@gmail.com"
+                          maxLength={CORREO_MAX}
+                          aria-invalid={!!errores.correoAlternativo || undefined}
+                          {...register("correoAlternativo")}
+                        />
+                      </CampoDialogo>
+                      <CampoDialogo
+                        id="telefonoMovil"
+                        label="Teléfono De Móvil"
+                        error={mensajeDe(errores.telefonoMovil)}
+                      >
                         <CampoTelefono
                           tipo="movil"
                           id="telefonoMovil"
                           value={watch("telefonoMovil")}
+                          invalido={!!errores.telefonoMovil}
                           onChange={(v) => setValue("telefonoMovil", v, { shouldDirty: true })}
                         />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="telefonoHabitacion">Teléfono De Habitación</Label>
+                      </CampoDialogo>
+                      <CampoDialogo
+                        id="telefonoHabitacion"
+                        label="Teléfono De Habitación"
+                        error={mensajeDe(errores.telefonoHabitacion)}
+                      >
                         <CampoTelefono
                           id="telefonoHabitacion"
                           value={watch("telefonoHabitacion")}
+                          invalido={!!errores.telefonoHabitacion}
                           onChange={(v) => setValue("telefonoHabitacion", v, { shouldDirty: true })}
                         />
-                      </div>
+                      </CampoDialogo>
                     </div>
                   </section>
                   <section className="flex flex-col gap-4">
                     <h3 className="text-sm font-semibold text-muted-foreground">Documento</h3>
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="carnetPatria">Código del Carnet de la Patria</Label>
+                      <CampoDialogo
+                        id="carnetPatria"
+                        label="Código del Carnet de la Patria"
+                        error={mensajeDe(errores.carnetPatria)}
+                      >
                         <Input
                           id="carnetPatria"
                           type="text"
-                          placeholder="000-0000000-00"
+                          inputMode="numeric"
+                          placeholder="0000000000"
+                          maxLength={30}
+                          aria-invalid={!!errores.carnetPatria || undefined}
                           {...register("carnetPatria")}
                         />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label htmlFor="carnetPatriaSerial">Serial del Carnet de la Patria</Label>
+                      </CampoDialogo>
+                      <CampoDialogo
+                        id="carnetPatriaSerial"
+                        label="Serial del Carnet de la Patria"
+                        error={mensajeDe(errores.carnetPatriaSerial)}
+                      >
                         <Input
                           id="carnetPatriaSerial"
                           type="text"
                           placeholder="Serial"
+                          maxLength={30}
+                          aria-invalid={!!errores.carnetPatriaSerial || undefined}
                           {...register("carnetPatriaSerial")}
                         />
-                      </div>
+                      </CampoDialogo>
                     </div>
                   </section>
                 </div>

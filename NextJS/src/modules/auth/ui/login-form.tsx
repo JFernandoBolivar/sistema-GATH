@@ -79,8 +79,9 @@ export default function LoginForm() {
                       autoCorrect="off"
                       spellCheck={false}
                       placeholder="correo@conatel.gob.ve"
+                      maxLength={254}
                       {...field}
-                      className="placeholder:text-white/60 hover:bg-slate-900/20"
+                      className="min-h-11 text-base sm:text-sm placeholder:text-white/60 hover:bg-slate-900/20"
                     />
                   </FormControl>
                   <FormMessage />
@@ -100,14 +101,15 @@ export default function LoginForm() {
                       <Input
                         type={showPassword ? "text" : "password"}
                         placeholder="Tu Contraseña"
-                        className="pr-10 hover:bg-slate-900/20 placeholder:text-white"
+                        maxLength={128}
+                        className="min-h-11 text-base sm:text-sm pr-10 hover:bg-slate-900/20 placeholder:text-white"
                         {...field}
                       />
                     </FormControl>
                     <button
                       type="button"
                       onClick={() => setShowPassword((prev) => !prev)}
-                      className="absolute right-3 text-slate-300 hover:text-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 rounded p-0.5"
+                      className="absolute right-3 text-slate-300 hover:text-white transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 rounded p-1 min-h-[36px] min-w-[36px] flex items-center justify-center"
                       tabIndex={-1}
                       aria-label={showPassword ? "Ocultar clave" : "Mostrar clave"}
                       title={showPassword ? "Ocultar clave" : "Mostrar clave"}
@@ -118,7 +120,7 @@ export default function LoginForm() {
                   <div className="flex items-center justify-end pt-1">
                     <Link
                       href="/recuperar-password"
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-200 hover:text-white underline-offset-4 hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded-sm"
+                      className="inline-flex items-center gap-1.5 min-h-[40px] text-sm font-medium text-sky-200 hover:text-white underline-offset-4 hover:underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 rounded-sm"
                     >
                       <KeyRound className="size-3.5 text-sky-300" />
                       <span>¿Olvidaste tu contraseña?</span>
@@ -130,7 +132,7 @@ export default function LoginForm() {
             />
           </div>
           {error && <FormMessage>{error}</FormMessage>}
-          <Button type="submit" disabled={isPending} className="w-full">
+          <Button type="submit" disabled={isPending} className="w-full min-h-11 text-base">
             {isPending ? "Iniciando sesión..." : "Iniciar Sesión"}
           </Button>
         </div>

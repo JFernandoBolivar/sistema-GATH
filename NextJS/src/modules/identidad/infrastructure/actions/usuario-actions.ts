@@ -7,9 +7,11 @@
  * (R7); registra auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
  * S17: no se registran PII.
  */
+import type { ZodError } from "zod";
+
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { repoUsuariosApi } from "../repositories/repo-usuarios-api";
 import { repoRolesApi } from "../repositories/repo-roles-api";
 import { listarPermisos, listarUsuarios, obtenerDetalleUsuario } from "../../application/use-cases/listar-usuarios";
@@ -40,11 +42,25 @@ import {
 } from "../../ui/schema/schema-usuario";
 import { actualizarRol, crearRol, eliminarRol } from "../../application/use-cases/gestionar-roles";
 
+/** Convierte los issues de Zod en `{ campo: ["mensaje"] }` para el formulario. */
+function erroresDeZod(error: ZodError): Record<string, string[]> {
+  const salida: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const ruta = issue.path.join(".");
+    if (!ruta) continue;
+    (salida[ruta] ??= []).push(issue.message);
+  }
+  return salida;
+}
+
 /** Lista usuarios paginados para la pantalla de administración (D4). */
 export async function listarUsuariosAction(rawFiltros?: unknown) {
   const parsed = usuariosFiltrosSchema.safeParse(rawFiltros ?? {});
   if (!parsed.success) {
-    return { error: "Filtros inválidos. Revise los valores ingresados." } as const;
+    return {
+      error: "Filtros inválidos. Revise los valores ingresados.",
+      errores: erroresDeZod(parsed.error),
+    } as const;
   }
   const filtros: UsuariosFiltrosType = parsed.data;
 
@@ -66,7 +82,7 @@ export async function listarUsuariosAction(rawFiltros?: unknown) {
   } catch (error) {
     await logAudit({ traceId, action: "listarUsuariosAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible cargar los usuarios.");
   }
 }
 
@@ -95,7 +111,10 @@ export async function registrarUsuarioAction(input: {
 }) {
   const validation = registrarUsuarioSchema.safeParse(input);
   if (!validation.success) {
-    return { error: "Datos del usuario inválidos. Revise los campos ingresados." } as const;
+    return {
+      error: "Datos del usuario inválidos. Revise los campos marcados en rojo.",
+      errores: erroresDeZod(validation.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -107,7 +126,7 @@ export async function registrarUsuarioAction(input: {
   } catch (error) {
     await logAudit({ traceId, action: "registrarUsuarioAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible registrar el usuario.");
   }
 }
 
@@ -118,10 +137,16 @@ export async function editarUsuarioAction(id: number, input: {
   const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
   const dataValida = editarUsuarioSchema.safeParse(input);
   if (!idValido.success || !dataValida.success) {
-    return { error: "Datos del usuario inválidos. Revise los campos ingresados." } as const;
+    return {
+      error: "Datos del usuario inválidos. Revise los campos marcados en rojo.",
+      errores: dataValida.success ? undefined : erroresDeZod(dataValida.error),
+    } as const;
   }
   if (dataValida.data.rolId && (!dataValida.data.motivo || dataValida.data.motivo.trim().length < 10)) {
-    return { error: "Indique el motivo del cambio de rol (al menos 10 caracteres)." } as const;
+    return {
+      error: "Indique el motivo del cambio de rol (al menos 10 caracteres).",
+      errores: { motivo: ["Indique el motivo del cambio de rol (al menos 10 caracteres)."] },
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -133,7 +158,7 @@ export async function editarUsuarioAction(id: number, input: {
   } catch (error) {
     await logAudit({ traceId, action: "editarUsuarioAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar el usuario.");
   }
 }
 
@@ -141,7 +166,10 @@ export async function cambiarEstadoUsuarioAction(id: number, isActive: boolean, 
   const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
   const dataValida = cambiarEstadoUsuarioSchema.safeParse({ isActive, motivo });
   if (!idValido.success || !dataValida.success) {
-    return { error: "Indique el motivo (al menos 10 caracteres)." } as const;
+    return {
+      error: "Indique el motivo (al menos 10 caracteres).",
+      errores: dataValida.success ? undefined : erroresDeZod(dataValida.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -153,7 +181,7 @@ export async function cambiarEstadoUsuarioAction(id: number, isActive: boolean, 
   } catch (error) {
     await logAudit({ traceId, action: "cambiarEstadoUsuarioAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible cambiar el estado del usuario.");
   }
 }
 
@@ -162,7 +190,10 @@ export async function restablecerAccesoAction(id: number, motivo: string) {
   const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
   const dataValida = restablecerAccesoSchema.safeParse({ motivo });
   if (!idValido.success || !dataValida.success) {
-    return { error: "Indique el motivo (al menos 10 caracteres)." } as const;
+    return {
+      error: "Indique el motivo (al menos 10 caracteres).",
+      errores: dataValida.success ? undefined : erroresDeZod(dataValida.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -178,7 +209,7 @@ export async function restablecerAccesoAction(id: number, motivo: string) {
   } catch (error) {
     await logAudit({ traceId, action: "restablecerAccesoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { error: error instanceof Error ? error.message : "No fue posible restablecer el acceso." } as const;
+    return errorDeAccion(error, "No fue posible restablecer el acceso.");
   }
 }
 
@@ -189,7 +220,10 @@ export async function cambiarCorreoAccesoAction(
 ) {
   const dataValida = cambiarCorreoAccesoSchema.safeParse(input);
   if (!dataValida.success) {
-    return { error: "Datos del correo inválidos. Indique el motivo (mínimo 10 caracteres)." } as const;
+    return {
+      error: "Datos del correo inválidos. Indique el motivo (mínimo 10 caracteres).",
+      errores: erroresDeZod(dataValida.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -206,7 +240,7 @@ export async function cambiarCorreoAccesoAction(
   } catch (error) {
     await logAudit({ traceId, action: "cambiarCorreoAccesoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { error: error instanceof Error ? error.message : "No fue posible cambiar el correo de acceso." } as const;
+    return errorDeAccion(error, "No fue posible cambiar el correo de acceso.");
   }
 }
 
@@ -215,7 +249,10 @@ export async function guardarOverridesAction(id: number, input: { allow: string[
   const idValido = usuarioIdSchema.safeParse({ usuarioId: id });
   const dataValida = guardarOverridesSchema.safeParse(input);
   if (!idValido.success || !dataValida.success) {
-    return { error: "Datos de permisos inválidos. Indique el motivo (mínimo 10 caracteres)." } as const;
+    return {
+      error: "Datos de permisos inválidos. Indique el motivo (mínimo 10 caracteres).",
+      errores: dataValida.success ? undefined : erroresDeZod(dataValida.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -227,7 +264,7 @@ export async function guardarOverridesAction(id: number, input: { allow: string[
   } catch (error) {
     await logAudit({ traceId, action: "guardarOverridesAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible guardar los permisos individuales.");
   }
 }
 
@@ -248,7 +285,10 @@ export async function obtenerMatrizAction() {
 export async function guardarMatrizAction(rolId: number, permisos: string[], motivo: string) {
   const dataValida = guardarMatrizSchema.safeParse({ rolId, permisos, motivo });
   if (!dataValida.success) {
-    return { error: "Indique el motivo (mínimo 10 caracteres) y confirme el cambio." } as const;
+    return {
+      error: "Indique el motivo (mínimo 10 caracteres) y confirme el cambio.",
+      errores: erroresDeZod(dataValida.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -265,7 +305,7 @@ export async function guardarMatrizAction(rolId: number, permisos: string[], mot
   } catch (error) {
     await logAudit({ traceId, action: "guardarMatrizAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible guardar la matriz de permisos.");
   }
 }
 
@@ -300,7 +340,10 @@ export async function getRolesAction() {
 export async function crearRolAction(input: { nombreRol: string; descripcionRol?: string | null }) {
   const validation = rolSchema.safeParse(input);
   if (!validation.success) {
-    return { error: "Datos del rol inválidos. Revise los campos ingresados." } as const;
+    return {
+      error: "Datos del rol inválidos. Revise los campos marcados en rojo.",
+      errores: erroresDeZod(validation.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -312,7 +355,7 @@ export async function crearRolAction(input: { nombreRol: string; descripcionRol?
   } catch (error) {
     await logAudit({ traceId, action: "crearRolAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible crear el rol.");
   }
 }
 
@@ -320,7 +363,10 @@ export async function actualizarRolAction(id: number, input: { nombreRol: string
   const idValido = rolIdSchema.safeParse({ rolId: id });
   const dataValida = rolSchema.safeParse(input);
   if (!idValido.success || !dataValida.success) {
-    return { error: "Datos del rol inválidos. Revise los campos ingresados." } as const;
+    return {
+      error: "Datos del rol inválidos. Revise los campos marcados en rojo.",
+      errores: dataValida.success ? undefined : erroresDeZod(dataValida.error),
+    } as const;
   }
 
   const traceId = generateTraceId();
@@ -332,7 +378,7 @@ export async function actualizarRolAction(id: number, input: { nombreRol: string
   } catch (error) {
     await logAudit({ traceId, action: "actualizarRolAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar el rol.");
   }
 }
 

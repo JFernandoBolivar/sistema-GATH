@@ -3,7 +3,7 @@
  * mismo origen `/api/auditoria/{pdf|excel}` (conserva la sesión y expone las
  * cabeceras X-Reporte-* de truncado).
  */
-import { metadatosDeTruncado } from "@/shared/lib/encabezados-reporte";
+import { archivoDeRespuesta, type OpcionesExportacion } from "@/shared/lib/exportaciones-asincronas";
 import type { ArchivoAuditoriaDTO, FiltrosAuditoria } from "../../application/dtos/auditoria-dto";
 import type { FormatoAuditoria } from "../../domain/ports/repo-auditoria";
 
@@ -15,6 +15,7 @@ const RUTA_POR_FORMATO: Record<FormatoAuditoria, string> = {
 export async function descargarAuditoria(
   formato: FormatoAuditoria,
   filtros: FiltrosAuditoria,
+  opciones: OpcionesExportacion = {},
 ): Promise<ArchivoAuditoriaDTO> {
   const params = new URLSearchParams();
   for (const [clave, valor] of Object.entries(filtros)) {
@@ -23,17 +24,13 @@ export async function descargarAuditoria(
     }
   }
   const query = params.toString();
-  const respuesta = await fetch(`${RUTA_POR_FORMATO[formato]}${query ? `?${query}` : ""}`);
-
-  if (!respuesta.ok) {
-    const cuerpo = (await respuesta.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(
-      cuerpo?.error?.trim() || `No fue posible generar la bitácora en ${formato.toUpperCase()}.`,
-    );
-  }
-
-  return {
-    blob: await respuesta.blob(),
-    ...metadatosDeTruncado(respuesta.headers),
-  };
+  const respuesta = await fetch(`${RUTA_POR_FORMATO[formato]}${query ? `?${query}` : ""}`, {
+    signal: opciones.signal,
+  });
+  // 202: exportación asíncrona (se espera el trabajo y se descarga el archivo).
+  return archivoDeRespuesta(
+    respuesta,
+    `No fue posible generar la bitácora en ${formato.toUpperCase()}.`,
+    opciones,
+  );
 }
