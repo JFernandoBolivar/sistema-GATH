@@ -185,6 +185,7 @@ export const repoPersonalApi: RepoPersonal = {
       sexo_id: data.sexoId,
       fecha_nacimiento: data.fechaNacimiento,
       correo: data.correo ?? null,
+      ...(data.correoAlternativo ? { correo_alternativo: data.correoAlternativo } : {}),
       telefono_movil: data.telefonoMovil ?? null,
       telefono_habitacion: data.telefonoHabitacion ?? null,
       estado_civil_id: data.estadoCivilId ?? null,
@@ -204,6 +205,7 @@ export const repoPersonalApi: RepoPersonal = {
     if (data.sexoId !== undefined) payload.sexo_id = data.sexoId;
     if (data.fechaNacimiento !== undefined) payload.fecha_nacimiento = data.fechaNacimiento;
     if (data.correo !== undefined) payload.correo = data.correo;
+    if (data.correoAlternativo !== undefined) payload.correo_alternativo = data.correoAlternativo;
     if (data.telefonoMovil !== undefined) payload.telefono_movil = data.telefonoMovil;
     if (data.telefonoHabitacion !== undefined) payload.telefono_habitacion = data.telefonoHabitacion;
     if (data.estadoCivilId !== undefined) payload.estado_civil_id = data.estadoCivilId;

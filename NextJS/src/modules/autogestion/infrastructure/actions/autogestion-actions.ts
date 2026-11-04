@@ -3,7 +3,7 @@
 import { auth } from "#/auth";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { Pregunta } from "@/app/types/types";
 import {
   autogestionApi,
@@ -113,9 +113,11 @@ export async function enviarAutogestionAction(
       durationMs: Date.now() - startedAt,
     });
     handleSessionExpired(error);
+    const err = errorDeAccion(error, "Ocurrió un error al enviar el formulario.");
     return {
       success: false,
-      message: "Ocurrió un error al enviar el formulario.",
+      message: err.error,
+      errores: err.errores,
     };
   }
 }
@@ -352,11 +354,11 @@ export const solicitarCarnetAction = async (payload: {
       durationMs: Date.now() - startedAt,
     });
     handleSessionExpired(error);
-    const message =
-      error instanceof Error ? error.message : "Error al solicitar el carnet institucional.";
+    const err = errorDeAccion(error, "Error al solicitar el carnet institucional.");
     return {
       success: false,
-      message,
+      message: err.error,
+      errores: err.errores,
     };
   }
 };

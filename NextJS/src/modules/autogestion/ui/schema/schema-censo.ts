@@ -9,7 +9,7 @@ import { REGEX } from "@/shared/domain/validation";
 export const itemRespuestaCensoSchema = z.object({
   preguntaId: z.number().positive({ message: "Pregunta inválida" }),
   opcionId: z.number().positive().optional().nullable(),
-  respuesta: z.string().trim().optional(),
+  respuesta: z.string().trim().max(500, "La respuesta no puede exceder 500 caracteres").optional(),
 });
 
 export const registrarCensoSchema = z.object({

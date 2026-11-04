@@ -39,6 +39,7 @@ export function CampoLogoUpload({
 }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [previewLocal, setPreviewLocal] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   // Cambia al subir o restaurar: evita que el navegador reuse la imagen en caché (misma URL).
   const [revision, setRevision] = useState(0);
@@ -57,13 +58,15 @@ export function CampoLogoUpload({
   }, [archivo]);
 
   const manejarSeleccion = (file: File | null) => {
+    setError(null);
     setArchivo(file);
     if (!file) return;
 
     startTransition(async () => {
       const resultado = await subirLogoConfiguracionAction(campo, file);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error(resultado.error);
+        const err = resultado as { error: string; errores?: Record<string, string[]> };
+        setError(err.errores?.archivo?.[0] ?? err.error);
         setArchivo(null);
         return;
       }
@@ -78,7 +81,7 @@ export function CampoLogoUpload({
   const previewMostrado = previewLocal ?? urlConRevision;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <p className="text-sm font-medium">{etiqueta}</p>
       {previewMostrado && (
         // eslint-disable-next-line @next/next/no-img-element -- preview de imagen remota/objeto local, no un asset de build
@@ -101,6 +104,11 @@ export function CampoLogoUpload({
           </div>
         )}
       </div>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <VersionesImagenDialog
         campo={campo}
         etiqueta={etiqueta}

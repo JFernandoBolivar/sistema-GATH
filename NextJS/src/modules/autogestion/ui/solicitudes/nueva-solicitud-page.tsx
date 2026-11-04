@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { cumpleCondicion } from "@/shared/lib/evaluador-iam";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
@@ -37,16 +38,17 @@ export default function NuevaSolicitudPage() {
     return res.datos;
   });
 
+  const form = useForm<SolicitudNuevaValores>({
+    resolver: zodResolver(solicitudNuevaSchema),
+    defaultValues: { campos: [], motivo: "" },
+  });
   const {
     control,
     register,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<SolicitudNuevaValores>({
-    resolver: zodResolver(solicitudNuevaSchema),
-    defaultValues: { campos: [], motivo: "" },
-  });
+  } = form;
 
   async function enviar(valores: SolicitudNuevaValores) {
     const res = await solicitarActualizacionAction(valores);
@@ -55,6 +57,12 @@ export default function NuevaSolicitudPage() {
       router.push("/autogestion/solicitudes");
     } else {
       setError("root", { message: res.mensaje });
+      if (res.errores) {
+        aplicarErroresServidor(form, res.errores, {
+          motivo: "motivo",
+          campos: "campos",
+        });
+      }
     }
   }
 

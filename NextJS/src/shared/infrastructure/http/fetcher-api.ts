@@ -76,16 +76,27 @@ async function buildHeaders(
   return headers;
 }
 
-async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+async function extractError(
+  response: Response,
+  fallback: string,
+): Promise<{ message: string; errores?: Record<string, string[]> }> {
   try {
-    const body = (await response.json()) as { message?: unknown };
-    if (typeof body?.message === "string" && body.message.trim().length > 0) {
-      return body.message;
+    const body = (await response.json()) as { message?: unknown; data?: { errores?: unknown } | null };
+    const message =
+      typeof body?.message === "string" && body.message.trim().length > 0 ? body.message : fallback;
+    const errores = body?.data?.errores;
+    if (errores && typeof errores === "object" && !Array.isArray(errores)) {
+      return { message, errores: errores as Record<string, string[]> };
     }
+    return { message };
   } catch {
     // Respuesta sin cuerpo JSON: se usa el mensaje de reserva.
   }
-  return fallback;
+  return { message: fallback };
+}
+
+async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+  return (await extractError(response, fallback)).message;
 }
 
 async function doFetch(
@@ -119,11 +130,11 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    const message = await extractErrorMessage(
+    const { message, errores } = await extractError(
       response,
       `Error ${response.status} al comunicarse con el servidor`,
     );
-    throw new ApiHttpError(message, response.status);
+    throw new ApiHttpError(message, response.status, errores);
   }
 
   if (response.status === 204) return undefined as T;

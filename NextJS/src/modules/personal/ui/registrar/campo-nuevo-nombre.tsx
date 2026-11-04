@@ -2,7 +2,8 @@
 
 /**
  * Input que aparece al elegir "Otra" en un catálogo académico (paridad con el
- * legado: mismo `&nbsp;` de label, placeholder y descripción).
+ * legado: mismo placeholder y descripción). Con `sinEtiqueta` va debajo de su
+ * selector (sin el `&nbsp;` de relleno que alineaba filas en una sola línea).
  */
 import type { Control, FieldPath, FieldValues } from "react-hook-form";
 
@@ -16,6 +17,7 @@ export function CampoNuevoNombre<T extends FieldValues>({
   placeholder,
   descripcion,
   className,
+  sinEtiqueta = false,
 }: {
   control: Control<T>;
   name: FieldPath<T>;
@@ -23,17 +25,24 @@ export function CampoNuevoNombre<T extends FieldValues>({
   placeholder: string;
   descripcion?: string;
   className?: string;
+  sinEtiqueta?: boolean;
 }) {
   return (
-    <div className={visible ? "" : "hidden"}>
+    <div className={visible ? "min-w-0" : "hidden"}>
       <FormField
         control={control}
         name={name}
         render={({ field }) => (
-          <FormItem>
-            <FormLabel>&nbsp;</FormLabel>
+          <FormItem className="min-w-0">
+            {!sinEtiqueta && <FormLabel>&nbsp;</FormLabel>}
             <FormControl>
-              <Input className={className} placeholder={placeholder} {...field} value={field.value ?? ""} />
+              <Input
+                className={className}
+                maxLength={200}
+                placeholder={placeholder}
+                {...field}
+                value={field.value ?? ""}
+              />
             </FormControl>
             {descripcion && <FormDescription className="text-xs">{descripcion}</FormDescription>}
             <FormMessage />

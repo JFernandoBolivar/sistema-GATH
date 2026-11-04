@@ -14,8 +14,9 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
-import { Field } from "@/shared/ui/components/field";
+import { Field, FieldError } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Label } from "@/shared/ui/components/label";
 import {
   Select,
@@ -41,8 +42,8 @@ import {
 } from "../infrastructure/actions/organizacion-actions";
 import { direccionLineaSchema, type DireccionLineaFormType } from "./schema/schema-organizacion";
 
-type Resultado = { error?: string; success?: boolean };
-const tieneError = (r: unknown): r is Resultado => !!r && typeof r === "object" && "error" in r;
+type Resultado = { error?: string; errores?: Record<string, string[]>; success?: boolean };
+const tieneError = (r: unknown): r is { error?: string; errores?: Record<string, string[]> } => !!r && typeof r === "object" && "error" in r;
 
 function CatalogSelect({ id, value, onChange, options, placeholder, ariaInvalid }: {
   id: string;
@@ -85,7 +86,11 @@ export default function DireccionLineaAdmin({ dirGenerales, items, onChanged }: 
       const resultado = editando
         ? await actualizarDireccionLineaAction(editando.id, input)
         : await crearDireccionLineaAction(input);
-      if (tieneError(resultado)) { setError(resultado.error ?? "Error desconocido."); return; }
+      if (tieneError(resultado)) {
+        const sinUbicar = aplicarErroresServidor(form, resultado.errores, {direccion_general_id: "direccionGeneralId"});
+        setError(resultado.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : resultado.error ?? "Error desconocido.");
+        return;
+      }
       setEditando(null);
       form.reset({ codigo: "", nombre: "", direccionGeneralId: null });
       onChanged();
@@ -111,10 +116,12 @@ export default function DireccionLineaAdmin({ dirGenerales, items, onChanged }: 
               <Field data-invalid={!!form.formState.errors.codigo}>
                 <Label htmlFor="dlCodigo">Código</Label>
                 <Input id="dlCodigo" {...form.register("codigo")} aria-invalid={!!form.formState.errors.codigo} />
+                <FieldError errors={[form.formState.errors.codigo]} />
               </Field>
               <Field data-invalid={!!form.formState.errors.nombre}>
                 <Label htmlFor="dlNombre">Nombre</Label>
                 <Input id="dlNombre" {...form.register("nombre")} aria-invalid={!!form.formState.errors.nombre} />
+                <FieldError errors={[form.formState.errors.nombre]} />
               </Field>
               <Field data-invalid={!!form.formState.errors.direccionGeneralId}>
                 <Label htmlFor="dlDirGeneral">Dirección general</Label>
@@ -126,6 +133,7 @@ export default function DireccionLineaAdmin({ dirGenerales, items, onChanged }: 
                   placeholder="Seleccione dirección general"
                   ariaInvalid={!!form.formState.errors.direccionGeneralId}
                 />
+                <FieldError errors={[form.formState.errors.direccionGeneralId]} />
               </Field>
             </div>
             <div className="flex items-center gap-2">

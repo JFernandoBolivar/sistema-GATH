@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/shared/ui/components/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/shared/ui/components/dialog";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import { useEvidenciaUrl } from "./use-evidencia-url";
 
@@ -54,6 +54,7 @@ export function VisorEvidencia({ solicitudId }: { solicitudId: string }) {
       <Dialog open={abierta} onOpenChange={setAbierta}>
         <DialogContent className="max-w-[min(96vw,1200px)] p-2 sm:p-4">
           <DialogTitle className="sr-only">Foto con la cédula</DialogTitle>
+          <DialogDescription className="sr-only">Visualización ampliada de la foto con la cédula</DialogDescription>
           {estado.estado === "lista" ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img

@@ -7,13 +7,11 @@ from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
 from core.presentation.cache_catalogos import ok_catalogo
-from core.presentation.envelope import fail, ok
+from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
-from apps.catalogos.infrastructure.models.catalogo_models import (
-    CategoriaMovimientoModel,
-    TipoMovimientoModel,
-)
 from apps.catalogos.infrastructure.mappers.mapper_catalogos import tipo_movimiento_a_entidad
+from apps.catalogos.infrastructure.repositories.motivos_por_categoria import crear_motivo_en_categoria
+from core.domain.categorias_motivo import categoria_conocida, categoria_de
 from apps.catalogos.application.use_cases.listar_geografia import (
     listar_estados,
     listar_municipios,
@@ -226,41 +224,35 @@ class CategoriasMovimientoListView(APIView):
 
 class TiposMovimientoListView(APIView):
     """
-    GET /api/v1/catalogos/tipos-movimiento/?categoria=EGRESO — Fase 2.5 del
-    plan de reparación. Sustituye a los 5 endpoints de listado por categoría
-    del legado (`RAC/views/historial_views.py`: fallecimiento, egreso,
-    internos/traslado, suspendido, suspendido_pasivo) con un único endpoint
-    filtrable por `categoria`, funcionalmente equivalente.
+    GET  /api/v1/catalogos/tipos-movimiento/?operacion=cambiar_cargo — motivos de la
+         categoría que corresponde a esa operación (mapa en `core.domain.categorias_motivo`).
+         `?categoria=EGRESO` sigue disponible para consultas genéricas (reportes).
+    POST /api/v1/catalogos/tipos-movimiento/ {movimiento, operacion|categoria} — crea un
+         motivo nuevo («Otros…») en la categoría de la operación. Requiere `catalogos.crear`.
+         Validación: 3–100 caracteres y sin duplicados (sin distinguir mayúsculas) en la categoría.
     """
     def get_permissions(self):
-        codigo = 'catalogos.ver' if self.request.method == 'GET' else 'cargos.prestar'
+        codigo = 'catalogos.ver' if self.request.method == 'GET' else 'catalogos.crear'
         return [IsAuthenticated(), HasPermission(codigo)()]
 
-    @extend_schema(tags=['Catálogos'], summary='Listar tipos de movimiento (motivos), opcionalmente filtrados por categoría', responses={200: CatalogoItemSerializer(many=True)})
+    @extend_schema(tags=['Catálogos'], summary='Listar tipos de movimiento (motivos), filtrados por operación o categoría', responses={200: CatalogoItemSerializer(many=True)})
     def get(self, request):
+        operacion = request.query_params.get('operacion')
         categoria = request.query_params.get('categoria')
+        if operacion:
+            categoria = categoria_de(operacion).value
         repo = RepoCatalogosORM()
         dtos = listar_tipos_movimiento(repo, categoria=categoria)
         return ok(CatalogoItemSerializer(dtos, many=True).data)
 
-    @extend_schema(tags=['Catálogos'], summary='Crear tipo de movimiento (motivo)', responses={201: CatalogoItemSerializer})
+    @extend_schema(tags=['Catálogos'], summary='Crear tipo de movimiento (motivo) en la categoría de una operación', responses={201: CatalogoItemSerializer})
     def post(self, request):
-        movimiento = request.data.get('movimiento', '').strip().upper()
-        categoria_nombre = request.data.get('categoria', '').strip()
-        if not movimiento:
-            return fail('El nombre del motivo es requerido.', status=400)
-        categoria_obj = None
-        if categoria_nombre:
-            categoria_obj, _ = CategoriaMovimientoModel.objects.get_or_create(
-                categoria__iexact=categoria_nombre, defaults={'categoria': categoria_nombre.upper()}
-            )
-        defaults = {}
-        if categoria_obj:
-            defaults['categoria'] = categoria_obj
-        tipo, _ = TipoMovimientoModel.objects.get_or_create(movimiento=movimiento, defaults=defaults)
-        if categoria_obj and not tipo.categoria:
-            tipo.categoria = categoria_obj
-            tipo.save(update_fields=['categoria'])
+        operacion = request.data.get('operacion')
+        if operacion:
+            categoria = categoria_de(operacion)
+        else:
+            categoria = categoria_conocida(request.data.get('categoria'))
+        tipo = crear_motivo_en_categoria(request.data.get('movimiento'), categoria)
         return ok(CatalogoItemSerializer(tipo_movimiento_a_entidad(tipo)).data, message='Motivo registrado correctamente.', status=201)
 
 

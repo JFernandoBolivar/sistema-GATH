@@ -43,7 +43,7 @@ export function AppNav() {
               ? "page"
               : undefined
           }
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
+          className="flex items-center gap-2 rounded-md px-3 py-2 min-h-10 text-sm transition-colors hover:bg-accent hover:text-accent-foreground aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
         >
           {s.href === "/inicio" && <Home className="size-3.5" aria-hidden="true" />}
           {s.label}

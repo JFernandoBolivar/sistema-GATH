@@ -10,7 +10,10 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { Form } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Combobox } from "@/shared/ui/components/combobox";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -50,7 +53,22 @@ import {
   patologyGroup,
   regionTallaCreateActions,
   tallaCreateActions,
+  type ResultadoRetro,
 } from "./services/retroalimentacion-services";
+
+/** Nombres del API que difieren de los del formulario. */
+const MAPA_ORGANISMO = { nombre: "Organismoadscrito" };
+const MAPA_TALLA = { region_id: "region", tipo_prenda_id: "tipo_prenda" };
+
+/** Marca en rojo el campo que el backend rechazó y avisa con un toast. */
+function avisarError<T extends FieldValues>(
+  form: UseFormReturn<T>,
+  response: ResultadoRetro,
+  mapa: Record<string, string> = {},
+) {
+  const sinUbicar = aplicarErroresServidor(form, response.errores, mapa);
+  toast.error(sinUbicar.length > 0 || !response.errores ? response.message : "Revise los campos marcados en rojo.");
+}
 
 export default function RetroalimentacionView() {
   const [isPending, startTransition] = useTransition();
@@ -155,7 +173,7 @@ export default function RetroalimentacionView() {
         formAds.reset();
         mutateAds();
       } else {
-        toast.error(response.message);
+        avisarError(formAds, response, MAPA_ORGANISMO);
       }
     });
   };
@@ -168,7 +186,7 @@ export default function RetroalimentacionView() {
         formAdsUpdate.reset();
         mutateAds();
       } else {
-        toast.error(response.message);
+        avisarError(formAdsUpdate, response, MAPA_ORGANISMO);
       }
     });
   };
@@ -180,7 +198,7 @@ export default function RetroalimentacionView() {
         toast.success(response.message);
         formDisability.reset();
       } else {
-        toast.error(response.message);
+        avisarError(formDisability, response);
       }
     });
   };
@@ -193,7 +211,7 @@ export default function RetroalimentacionView() {
         formDisabilityGroup.reset();
         mutateDisabilityCat();
       } else {
-        toast.error(response.message);
+        avisarError(formDisabilityGroup, response);
       }
     });
   };
@@ -205,7 +223,7 @@ export default function RetroalimentacionView() {
         toast.success(response.message);
         formTalla.reset();
       } else {
-        toast.error(response.message);
+        avisarError(formTalla, response, MAPA_TALLA);
       }
     });
   };
@@ -218,7 +236,7 @@ export default function RetroalimentacionView() {
         formRegionTalla.reset();
         mutateRegionTalla();
       } else {
-        toast.error(response.message);
+        avisarError(formRegionTalla, response);
       }
     });
   };
@@ -230,7 +248,7 @@ export default function RetroalimentacionView() {
         toast.success(response.message);
         formPatology.reset();
       } else {
-        toast.error(response.message);
+        avisarError(formPatology, response);
       }
     });
   };
@@ -243,7 +261,7 @@ export default function RetroalimentacionView() {
         formPatologyGroup.reset();
         mutatePatologyCat();
       } else {
-        toast.error(response.message);
+        avisarError(formPatologyGroup, response);
       }
     });
   };
@@ -256,7 +274,7 @@ export default function RetroalimentacionView() {
         formAllergiesGroup.reset();
         mutateAllergiesCat();
       } else {
-        toast.error(response.message);
+        avisarError(formAllergiesGroup, response);
       }
     });
   };
@@ -268,7 +286,7 @@ export default function RetroalimentacionView() {
         toast.success(response.message);
         formAllergies.reset();
       } else {
-        toast.error(response.message);
+        avisarError(formAllergies, response);
       }
     });
   };
@@ -295,7 +313,7 @@ export default function RetroalimentacionView() {
       title="Retroalimentación"
       description="Registre Nueva Información Para Mantener El Sistema"
     >
-      <Tabs defaultValue="ads" className="m-auto">
+      <Tabs defaultValue="ads" className="m-auto w-full">
         <TabsList className="gap-4 max-w-full justify-start overflow-x-auto">
           <TabsTrigger value="ads">Organismo Adscrito</TabsTrigger>
           <TabsTrigger value="dis">Discapacidades</TabsTrigger>
@@ -307,9 +325,9 @@ export default function RetroalimentacionView() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ads">
-          <div className="flex flex-row gap-2">
-            <Card className="grow bg-card">
+        <TabsContent value="ads" className="mt-4">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevo Organismo Adscrito
@@ -335,7 +353,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-card">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Actualizar Organismo Adscrito
@@ -347,31 +365,37 @@ export default function RetroalimentacionView() {
                     onSubmit={formAdsUpdate.handleSubmit(onSubmitUpdateAds)}
                     className="gap-3 flex flex-col"
                   >
-                    <SelectForm
-                      Formlabel="Organismo Adscrito"
-                      SelectLabelItem="Organismo Adscrito"
-                      form={formAdsUpdate}
-                      isLoading={isLoadingAds}
-                      options={organismoAds?.data ?? []}
-                      labelKey="Organismoadscrito"
-                      valueKey="id"
-                      nameSalect="id"
-                      placeholder="Seleccione un organismo adscrito"
-                      onCustomChange={(val) => {
-                        const numId = Number(val);
-                        formAdsUpdate.setValue("id", numId, { shouldValidate: true });
-                        const found = organismoAds?.data?.find((o) => o.id === numId);
-                        if (found) {
-                          formAdsUpdate.setValue("Organismoadscrito", found.Organismoadscrito, {
-                            shouldValidate: true,
-                          });
-                        }
-                      }}
-                      selectedValue={
-                        formAdsUpdate.watch("id")
-                          ? String(formAdsUpdate.watch("id"))
-                          : ""
-                      }
+                    <FormField
+                      control={formAdsUpdate.control}
+                      name="id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Organismo Adscrito</FormLabel>
+                          <FormControl>
+                            <Combobox
+                              options={(organismoAds?.data ?? []).map((o) => ({
+                                value: String(o.id),
+                                label: o.Organismoadscrito,
+                              }))}
+                              value={field.value ? String(field.value) : ""}
+                              onChange={(val) => {
+                                const numId = Number(val);
+                                formAdsUpdate.setValue("id", numId, { shouldValidate: true });
+                                const found = organismoAds?.data?.find((o) => o.id === numId);
+                                if (found) {
+                                  formAdsUpdate.setValue("Organismoadscrito", found.Organismoadscrito, {
+                                    shouldValidate: true,
+                                  });
+                                }
+                              }}
+                              placeholder={isLoadingAds ? "Cargando..." : "Seleccione un organismo adscrito"}
+                              searchPlaceholder="Buscar organismo..."
+                              disabled={isLoadingAds}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                     <InputForm
                       form={formAdsUpdate}
@@ -389,9 +413,9 @@ export default function RetroalimentacionView() {
           </div>
         </TabsContent>
 
-        <TabsContent value="dis">
-          <div className="flex gap-2">
-            <Card className="grow bg-card">
+        <TabsContent value="dis" className="mt-4">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Discapidades
@@ -417,7 +441,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-card">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Discapacidades
@@ -456,9 +480,9 @@ export default function RetroalimentacionView() {
           </div>
         </TabsContent>
 
-        <TabsContent value="pat">
-          <div className="flex gap-2">
-            <Card className="grow bg-card">
+        <TabsContent value="pat" className="mt-4">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Patologias
@@ -484,7 +508,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-card">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Patologias
@@ -523,9 +547,9 @@ export default function RetroalimentacionView() {
           </div>
         </TabsContent>
 
-        <TabsContent value="aler">
-          <div className="flex gap-2">
-            <Card className="grow bg-card">
+        <TabsContent value="aler" className="mt-4">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">
                   Agregar Nuevas Categoria de Alergias
@@ -551,7 +575,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-card">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nuevas Alergias</h2>
               </CardHeader>
@@ -588,9 +612,9 @@ export default function RetroalimentacionView() {
           </div>
         </TabsContent>
 
-        <TabsContent value="tallas">
-          <div className="flex gap-2">
-            <Card className="grow bg-card">
+        <TabsContent value="tallas" className="mt-4">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nueva Region</h2>
               </CardHeader>
@@ -614,7 +638,7 @@ export default function RetroalimentacionView() {
               </CardContent>
             </Card>
 
-            <Card className="grow bg-card">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardHeader>
                 <h2 className="text-2xl font-bold">Agregar Nueva Talla</h2>
               </CardHeader>
@@ -662,9 +686,9 @@ export default function RetroalimentacionView() {
           </div>
         </TabsContent>
 
-        <TabsContent value="retro-beneficio">
-          <div className="flex flex-row gap-2">
-            <Card className="grow bg-card">
+        <TabsContent value="retro-beneficio" className="mt-4">
+          <div className="flex flex-col gap-4 lg:flex-row">
+            <Card className="min-w-0 grow bg-card lg:basis-0">
               <CardContent className="flex flex-col justify-center gap-5">
                 <div className="flex gap-2">
                   {isPending ? (

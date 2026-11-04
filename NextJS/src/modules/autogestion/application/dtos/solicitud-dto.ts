@@ -28,4 +28,5 @@ export type DecisionCampoDTO = DecisionCampo;
 
 /** Resultado uniforme de las Server Actions de escritura. */
 export type ResultadoAccion<T = undefined> =
-  { ok: true; mensaje: string; datos: T } | { ok: false; mensaje: string };
+  | { ok: true; mensaje: string; datos: T }
+  | { ok: false; mensaje: string; errores?: Record<string, string[]> };

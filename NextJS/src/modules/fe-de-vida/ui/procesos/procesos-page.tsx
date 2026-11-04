@@ -37,6 +37,7 @@ export default function ProcesosPage() {
   const [offset, setOffset] = useState(0);
   const [limite, setLimite] = useState(LIMITE_PAGINA);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
+  const [erroresServidor, setErroresServidor] = useState<Record<string, string[]> | undefined>(undefined);
   const [pendiente, iniciar] = useTransition();
   const { data, error, isLoading, mutate } = useSWR(["fe-de-vida-procesos", estado, offset, limite], async () => {
     const res = await listarProcesosAction({ estado, limit: limite, offset });
@@ -59,7 +60,20 @@ export default function ProcesosPage() {
 
   function guardar(datos: DatosProceso) {
     const proceso = dialogo?.tipo === "form" ? dialogo.proceso : null;
-    ejecutar(() => (proceso ? editarProcesoAction(proceso.id, datos) : crearProcesoAction(datos)));
+    iniciar(async () => {
+      const res = await (proceso ? editarProcesoAction(proceso.id, datos) : crearProcesoAction(datos));
+      if (!res.ok) {
+        toast.error(res.mensaje);
+        if (res.errores) {
+          setErroresServidor(res.errores);
+        }
+        return;
+      }
+      toast.success(res.mensaje);
+      setErroresServidor(undefined);
+      setDialogo(null);
+      void mutate();
+    });
   }
 
   return (
@@ -69,7 +83,7 @@ export default function ProcesosPage() {
         descripcion="Cree, abra y cierre los procesos y conceda prórrogas."
         accion={
           gestiona ? (
-            <Button type="button" className="min-h-11" onClick={() => setDialogo({ tipo: "form", proceso: null })}>
+            <Button type="button" className="min-h-11" onClick={() => { setErroresServidor(undefined); setDialogo({ tipo: "form", proceso: null }); }}>
               <Plus aria-hidden /> Nuevo proceso
             </Button>
           ) : undefined
@@ -130,7 +144,7 @@ export default function ProcesosPage() {
               </dl>
               <div className="flex flex-wrap gap-2">
                 {gestiona && p.estado !== "CERRADO" ? (
-                  <Button type="button" variant="outline" className="min-h-11" onClick={() => setDialogo({ tipo: "form", proceso: p })}>
+                  <Button type="button" variant="outline" className="min-h-11" onClick={() => { setErroresServidor(undefined); setDialogo({ tipo: "form", proceso: p }); }}>
                     <Pencil aria-hidden /> Editar
                   </Button>
                 ) : null}
@@ -170,7 +184,7 @@ export default function ProcesosPage() {
       ) : null}
 
       {dialogo?.tipo === "form" ? (
-        <FormularioProceso proceso={dialogo.proceso} pendiente={pendiente} onCerrar={() => setDialogo(null)} onGuardar={guardar} />
+        <FormularioProceso proceso={dialogo.proceso} pendiente={pendiente} erroresServidor={erroresServidor} onCerrar={() => setDialogo(null)} onGuardar={guardar} />
       ) : null}
       {dialogo?.tipo === "prorrogas" ? <DialogoProrrogas proceso={dialogo.proceso} onCerrar={() => setDialogo(null)} /> : null}
     </div>

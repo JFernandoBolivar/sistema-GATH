@@ -5,7 +5,7 @@
  * reenvía los filtros a Django con la sesión) y devuelve el archivo junto con
  * las cabeceras `X-Reporte-*` de truncado.
  */
-import { metadatosDeTruncado } from "@/shared/lib/encabezados-reporte";
+import { archivoDeRespuesta, type OpcionesExportacion } from "@/shared/lib/exportaciones-asincronas";
 import type { ArchivoDescargado } from "../../domain/value-objects/resultado-historial";
 import type { FiltrosMovimientosApi } from "./movimientos-api";
 
@@ -30,18 +30,15 @@ function aQueryString(filtros?: FiltrosMovimientosApi): string {
 export async function descargarHistorial(
   formato: FormatoDescarga,
   filtros?: FiltrosMovimientosApi,
+  opciones: OpcionesExportacion = {},
 ): Promise<ArchivoDescargado> {
-  const respuesta = await fetch(`${RUTA_POR_FORMATO[formato]}${aQueryString(filtros)}`);
-
-  if (!respuesta.ok) {
-    const cuerpo = (await respuesta.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(
-      cuerpo?.error?.trim() || `No fue posible generar el documento en ${formato.toUpperCase()}.`,
-    );
-  }
-
-  return {
-    blob: await respuesta.blob(),
-    ...metadatosDeTruncado(respuesta.headers),
-  };
+  const respuesta = await fetch(`${RUTA_POR_FORMATO[formato]}${aQueryString(filtros)}`, {
+    signal: opciones.signal,
+  });
+  // 202: exportación asíncrona (se espera el trabajo y se descarga el archivo).
+  return archivoDeRespuesta(
+    respuesta,
+    `No fue posible generar el documento en ${formato.toUpperCase()}.`,
+    opciones,
+  );
 }

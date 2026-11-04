@@ -13,6 +13,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
     NacionalidadModel,
     SexoModel,
+    CategoriaMovimientoModel,
     TipoMovimientoModel,
     TipoNominaModel,
     TipoPersonalModel,
@@ -63,8 +64,12 @@ def escenario():
     tipo_personal = TipoPersonalModel.objects.create(tipo_personal='PASIVO')
     nomina = TipoNominaModel.objects.create(nomina='JUBILADO', es_activo=False)
     TipoNominaModel.objects.create(nomina='PENSIONADO SOBREVIVIENTE', es_activo=False)
-    fallecimiento = TipoMovimientoModel.objects.create(movimiento='FALLECIMIENTO')
-    renuncia = TipoMovimientoModel.objects.create(movimiento='RENUNCIA')
+    cat_egreso_pasivo = CategoriaMovimientoModel.objects.create(categoria='EGRESO PASIVO')
+    cat_egreso = CategoriaMovimientoModel.objects.create(categoria='EGRESO')
+    fallecimiento = TipoMovimientoModel.objects.create(movimiento='FALLECIMIENTO', categoria=cat_egreso_pasivo)
+    # Mismo texto «fallec» pero de la categoría de egreso de activos: no debe ofrecerse a un pasivo.
+    TipoMovimientoModel.objects.create(movimiento='FALLECIMIENTO EN SERVICIO', categoria=cat_egreso)
+    renuncia = TipoMovimientoModel.objects.create(movimiento='RENUNCIA', categoria=cat_egreso)
     cargo = DenominacionCargoModel.objects.create(cargo='PERSONAL PASIVO')
     cargo_esp = DenominacionCargoEspecificoModel.objects.create(cargo='PERSONAL PASIVO')
     dep = DependenciaModel.objects.create(Codigo='NA', dependencia='NIVEL DE APOYO')
@@ -104,7 +109,7 @@ def escenario():
     }
 
 
-def test_motivos_de_egreso_pasivo_solo_fallecimiento(escenario):
+def test_motivos_de_egreso_pasivo_son_los_de_su_categoria(escenario):
     respuesta = _cliente('pasivos.cambiar_condicion').get('/api/v1/pasivos/motivos-egreso/')
     assert respuesta.status_code == 200
     nombres = [m['nombre'] for m in respuesta.json()['data']]
@@ -137,6 +142,7 @@ def test_rechaza_motivo_de_activo(escenario):
         format='json',
     )
     assert respuesta.status_code == 400
+    assert 'motivo_id' in respuesta.json()['data']['errores']
     asignacion = AsigTrabajoModel.objects.get(employee=escenario['pasivo'])
     assert asignacion.estatusid.estatus == 'PASIVO'
 

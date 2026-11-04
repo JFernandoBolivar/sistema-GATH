@@ -132,11 +132,11 @@ export function FamiliarPerfilFisico({
     | undefined;
 
   return (
-    <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-purple-900 rounded-sm">
+    <fieldset className="min-w-0 border grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 p-2 border-purple-900 rounded-sm">
       <legend className="flex flex-row gap-2 text-purple-900 font-bold items-center">
         Información de Vestimenta <Shirt className="size-5" />
       </legend>
-      <div className="col-span-2 md:col-span-1">
+      <div className="md:col-span-1">
         <TallaSelect
           label="Talla De Camisa"
           campo="tallaCamisaId"
@@ -146,7 +146,7 @@ export function FamiliarPerfilFisico({
           errorMensaje={errores?.tallaCamisaId?.message}
         />
       </div>
-      <div className="col-span-2 md:col-span-1">
+      <div className="md:col-span-1">
         <TallaSelect
           label="Talla De Pantalón"
           campo="tallaPantalonId"
@@ -156,7 +156,7 @@ export function FamiliarPerfilFisico({
           errorMensaje={errores?.tallaPantalonId?.message}
         />
       </div>
-      <div className="col-span-2">
+      <div className="md:col-span-1">
         <TallaSelect
           label="Talla De Zapatos"
           campo="tallaZapatosId"
@@ -166,7 +166,7 @@ export function FamiliarPerfilFisico({
           errorMensaje={errores?.tallaZapatosId?.message}
         />
       </div>
-      <div className="col-span-2">
+      <div className="md:col-span-1">
         <TallaSelect
           label="Talla De Chaqueta"
           campo="tallaChaquetaId"

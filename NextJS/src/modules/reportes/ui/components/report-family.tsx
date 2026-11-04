@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox } from "@/shared/ui/components/combobox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import useSWR from "swr";
@@ -51,17 +51,29 @@ import {
 } from "../../application/use-cases/permisos-reporte";
 import { PERMISO_REPORTES } from "../../domain/value-objects/permisos-reportes";
 import { usePdfBlobUrl } from "../hooks/use-pdf-blob-url";
+import { useProgresoExportacion } from "@/shared/lib/use-progreso-exportacion";
+import { esCancelacion, guardarArchivo } from "@/shared/lib/exportaciones-asincronas";
 import { avisoTopeDeFilas } from "@/shared/lib/aviso-tope";
 import { useState, useTransition } from "react";
 import { schemaReportFamily, type SchemaReportFamilyType } from "../schema/report-schema-family";
 import Loading from "@/shared/ui/components/loading";
 import { Download, Eraser, Search } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatInTimeZone } from "date-fns-tz";
 
-export default function ReportFamily() {
+/**
+ * Reporte de familiares. `categoria="familiares"` trae solo los familiares de
+ * trabajadores ACTIVOS (Gestión de personal activo); `"familiares-pasivos"`, solo
+ * los de trabajadores PASIVOS (Gestión de personal pasivo). El backend valida la
+ * condición; aquí solo cambia la categoría que se envía al proxy de reportes.
+ */
+export default function ReportFamily({
+  categoria = "familiares",
+}: {
+  categoria?: "familiares" | "familiares-pasivos";
+}) {
   const [isPending, startTransition] = useTransition();
   const pdf = usePdfBlobUrl();
+  const exportacion = useProgresoExportacion();
   const [avisoTope, setAvisoTope] = useState<string | null>(null);
   const [stateId, setStateId] = useState<string>();
   const { data: session } = useSession();
@@ -136,7 +148,7 @@ export default function ReportFamily() {
   const form = useForm<SchemaReportFamilyType>({
     resolver: zodResolver(schemaReportFamily),
     defaultValues: {
-      categoria: "familiares",
+      categoria,
       agrupar_por: "tipo_nomina",
       tipo_reporte: "lista",
       filtros: {
@@ -183,14 +195,16 @@ export default function ReportFamily() {
     }
     startTransition(async () => {
       try {
-        const resultado = await postReport<SchemaReportFamilyType>(data);
+        const resultado = await postReport<SchemaReportFamilyType>(data, exportacion.iniciar());
         pdf.fijar(resultado.blob);
+        guardarArchivo(resultado.blob, `Reporte_${categoria === "familiares-pasivos" ? "Familiares_Pasivos" : "Familiares"}_${new Date().toISOString().slice(0, 10)}.pdf`);
         const aviso = avisoTopeDeFilas(resultado);
         setAvisoTope(aviso);
         // El formulario NO se limpia: el usuario conserva los filtros elegidos.
         if (aviso) toast.warning(aviso);
-        else toast.success("Reporte generado. Use «Descargar Reporte» para guardarlo.");
+        else toast.success("Reporte generado y descargado. Use «Descargar Reporte» para guardarlo otra vez.");
       } catch (err) {
+        if (esCancelacion(err)) return;
         setAvisoTope(null);
         toast.error(
           err instanceof Error && err.message
@@ -217,16 +231,16 @@ export default function ReportFamily() {
       <CardContent className="pt-6">
         <Form {...form}>
           {isPending ? (
-            <Loading promiseMessage="Consultando Reporte" />
+            <Loading promiseMessage={exportacion.texto} />
           ) : (
             <form
               onSubmit={form.handleSubmit(onSubmit)}
-              className="grid grid-cols-3 min-h-max gap-4"
+              className="grid grid-cols-1 gap-4 sm:grid-cols-3"
             >
               {!puedePdf && (
                 <p
                   role="alert"
-                  className="col-span-3 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                  className="col-span-full rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm font-medium text-destructive"
                 >
                   No tiene permiso para generar reportes en PDF (se requiere{" "}
                   {PERMISO_REPORTES.generarPdf}). Solicítelo a la Administración del sistema.
@@ -235,14 +249,14 @@ export default function ReportFamily() {
               {avisoTope && (
                 <p
                   role="status"
-                  className="col-span-3 rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
+                  className="col-span-full rounded-md border border-amber-500/50 bg-amber-50 p-3 text-sm font-medium text-amber-900"
                 >
                   {avisoTope}
                 </p>
               )}
-              <div className="flex flex-col gap-2 col-span-3 min-w-0 w-full">
-                <ScrollArea className="h-[600px] w-full pr-3">
-                  <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2 col-span-full min-w-0 w-full">
+                <div className="w-full min-w-0">
+                  <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                     <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-amber-700">
                       <legend className="text-amber-900 font-semibold px-1">
                         Información Básica Familiar
@@ -457,7 +471,7 @@ export default function ReportFamily() {
                     </fieldset>
 
                     {puedeEstructura && (
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 col-span-2">
+                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 md:col-span-2">
                         <legend className="text-green-800 font-semibold px-1">
                           Dirección Administrativa Del Empleado
                         </legend>
@@ -917,10 +931,10 @@ export default function ReportFamily() {
                       />
                     </fieldset>
                   </div>
-                </ScrollArea>
+                </div>
               </div>
 
-              <div className="flex flex-row gap-2 flex-1 w-full col-span-3 pt-2">
+              <div className="flex flex-col gap-2 sm:flex-row flex-1 w-full col-span-full pt-2">
                 <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"

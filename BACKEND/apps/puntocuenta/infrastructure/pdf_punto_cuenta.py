@@ -25,6 +25,12 @@ def _fila(label: str, valor: str, styles) -> Paragraph:
     return Paragraph(f"<b>{escape(label)}:</b> {escape(valor)}", styles['TableCell'])
 
 
+def _con_nivel(oficina: str | None, nivel: str | None) -> str:
+    if oficina and nivel:
+        return f"{oficina} ({nivel})"
+    return oficina or nivel or 'N/A'
+
+
 def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO) -> bytes:
     generado_en = datetime.now()
     page_config = PAGE_CONFIG['portrait']
@@ -48,8 +54,9 @@ def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO) -> bytes:
         _fila('Empleado', f"{dto.empleado_nombre or 'N/A'} (C.I. {dto.empleado_cedula})", styles),
         _fila('Cargo', str(dto.cargo_id), styles),
         Spacer(1, 8),
-        _fila('Dependencia de origen', dto.dependencia_origen_nombre or 'N/A', styles),
-        _fila('Dependencia de destino', dto.dependencia_destino_nombre or 'N/A', styles),
+        _fila('Punto de cuenta N.º', str(dto.id), styles),
+        _fila('Oficina/Gerencia de origen', _con_nivel(dto.oficina_origen, dto.dependencia_origen_nombre), styles),
+        _fila('Oficina/Gerencia de destino', _con_nivel(dto.oficina_destino, dto.dependencia_destino_nombre), styles),
         Spacer(1, 8),
         _fila('Motivo', dto.motivo_nombre or 'N/A', styles),
         _fila('Fecha', dto.fecha, styles),

@@ -16,11 +16,11 @@ import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/components/form";
-import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 
 import type { CatalogoEmpleadoDTO, CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { pasoHealthSchema, type PasoHealthType } from "../schema/schema-registro-pasos";
+import { useErroresDelPaso, type ErroresServidor } from "./errores-registro";
 
 type CampoLista = Extract<
   FieldPath<PasoHealthType>,
@@ -57,7 +57,7 @@ function ListaChequeo({
   const grupos = useMemo(() => agruparSaludPorCategoria(opciones), [opciones]);
 
   return (
-    <div className="flex-1">
+    <div className="min-w-0">
       <h2 className="font-bold mb-2">{titulo}</h2>
       {grupos.map((grupo, gIdx) => (
         <div key={gIdx} className="mb-2">
@@ -102,16 +102,20 @@ export function PasoHealth({
   onSubmit,
   catalogos,
   isLoadingCatalogos,
+  erroresServidor,
 }: {
   defaultValues: PasoHealthType;
   onSubmit: (values: PasoHealthType) => void;
   catalogos: CatalogosExpedienteDTO | null;
   isLoadingCatalogos: boolean;
+  erroresServidor?: ErroresServidor | null;
 }) {
   const form = useForm<PasoHealthType>({
     resolver: zodResolver(pasoHealthSchema),
     defaultValues,
   });
+
+  useErroresDelPaso(form, erroresServidor, 4);
 
   return (
     <Card>
@@ -123,7 +127,7 @@ export function PasoHealth({
         <CardAction className="text-gray-500">Paso 4: Perfil De Salud</CardAction>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="gap-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
               <FormField
                 control={form.control}
                 name="perfil_salud.grupoSanguineo"
@@ -153,8 +157,8 @@ export function PasoHealth({
                   </FormItem>
                 )}
               />
-              <ScrollArea className="h-80">
-                <div className="flex gap-4">
+              <div className="max-h-96 overflow-y-auto rounded-md border p-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <ListaChequeo
                     titulo="Patologias (Opcional)"
                     name="perfil_salud.patologiaCronica"
@@ -174,7 +178,7 @@ export function PasoHealth({
                     control={form.control}
                   />
                 </div>
-              </ScrollArea>
+              </div>
               <Button className="w-full">Siguiente</Button>
             </form>
           </Form>

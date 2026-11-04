@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { ArrowLeft, MailCheck, AlertCircle } from "lucide-react";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -39,7 +40,10 @@ export default function RecuperarPasswordForm() {
     startTransition(async () => {
       const result = await solicitarRecuperacionAction(values);
       if (!result.success) {
-        setError(result.message);
+        const sinUbicar = aplicarErroresServidor(form, result.errores, {
+          identificador: "identificador",
+        });
+        setError(sinUbicar.length > 0 || !result.errores ? result.message : "");
         return;
       }
       setEnviado(true);
@@ -64,7 +68,7 @@ export default function RecuperarPasswordForm() {
           </p>
         </div>
         <Link href="/login" className="w-full">
-          <Button variant="outline" className="w-full text-slate-900 bg-white hover:bg-slate-100">
+          <Button variant="outline" className="w-full min-h-11 text-base text-slate-900 bg-white hover:bg-slate-100">
             <ArrowLeft className="w-4 h-4 mr-2" /> Volver al Inicio de Sesión
           </Button>
         </Link>
@@ -93,8 +97,10 @@ export default function RecuperarPasswordForm() {
                   <FormControl>
                     <Input
                       placeholder="Ej. V-12345678 o usuario@conatel.gob.ve"
+                      minLength={3}
+                      maxLength={150}
                       {...field}
-                      className="placeholder:text-slate-300 text-white hover:bg-slate-900/20"
+                      className="min-h-11 text-base sm:text-sm placeholder:text-slate-300 text-white hover:bg-slate-900/20"
                     />
                   </FormControl>
                   <FormDescription className="text-slate-200">
@@ -113,14 +119,14 @@ export default function RecuperarPasswordForm() {
             </div>
           )}
 
-          <Button type="submit" disabled={isPending} className="w-full">
+          <Button type="submit" disabled={isPending} className="w-full min-h-11 text-base">
             {isPending ? "Procesando..." : "Enviar Enlace de Recuperación"}
           </Button>
 
           <div className="flex justify-center pt-2">
             <Link
               href="/login"
-              className="inline-flex items-center text-xs text-blue-200 hover:text-white underline-offset-4 hover:underline transition-colors"
+              className="inline-flex items-center min-h-[40px] text-xs text-blue-200 hover:text-white underline-offset-4 hover:underline transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Volver al Inicio de Sesión
             </Link>

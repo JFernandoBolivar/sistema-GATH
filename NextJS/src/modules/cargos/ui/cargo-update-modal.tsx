@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 import { Loading } from "@/shared/ui/components/loading";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Combobox } from "@/shared/ui/components/combobox";
 
 import type {
@@ -275,7 +276,19 @@ export default function CargoUpdateModal({
         onOpenChange(false);
         onUpdated?.();
       } else {
-        toast.error(response.message);
+        const sinUbicar = aplicarErroresServidor(form, response.errores, {
+          denominacion_id: "denominacioncargoid",
+          especifica_id: "denominacioncargoespecificoid",
+          tipo_nomina_id: "tiponominaid",
+          grado_id: "gradoid",
+          dependencia_id: "Dependencia",
+          direccion_general_id: "DireccionGeneral",
+          direccion_linea_id: "DireccionLinea",
+          coordinacion_id: "Coordinacion",
+          organismo_id: "OrganismoAdscritoid",
+          denominacioncargoid: "denominacioncargoid",
+        });
+        toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.message);
       }
     });
   };
@@ -302,7 +315,7 @@ export default function CargoUpdateModal({
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="flex flex-col gap-4"
               >
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField
                     control={form.control}
                     name="denominacioncargoid"
@@ -435,40 +448,25 @@ export default function CargoUpdateModal({
                     control={form.control}
                     name="OrganismoAdscritoid"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem className="sm:col-span-2">
                         <FormLabel>Organismo Adscrito (Opcional)</FormLabel>
-                        <Select
-                          value={field.value && field.value > 0 ? String(field.value) : undefined}
-                          onValueChange={(values) => {
-                            field.onChange(Number.parseInt(values));
-                          }}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="w-full truncate">
-                              <SelectValue
-                                placeholder={
-                                  isLoadingCatalogos
-                                    ? "Cargando Organismos Adscritos"
-                                    : "Seleccione Un Organismo Adscrito"
-                                }
-                              />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {organismosAds.map((item) => (
-                              <SelectItem key={item.id} value={String(item.id)}>
-                                {item.id}-{item.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Combobox
+                            options={organismosAds.map((o) => ({ value: String(o.id), label: `${o.id}-${o.nombre}` }))}
+                            value={field.value && field.value > 0 ? String(field.value) : ""}
+                            onChange={(v) => field.onChange(Number.parseInt(v))}
+                            disabled={isLoadingCatalogos}
+                            placeholder={isLoadingCatalogos ? "Cargando Organismos Adscritos" : "Seleccione Un Organismo Adscrito"}
+                            searchPlaceholder="Buscar organismo..."
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField
                     name="Dependencia"
                     control={form.control}

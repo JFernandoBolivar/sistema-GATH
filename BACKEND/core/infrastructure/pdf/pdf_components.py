@@ -121,7 +121,10 @@ HEADER_LABELS = {
 }
 
 
-def create_header(titulo: str, width, config: dict | None = None) -> list:
+def create_header(titulo: str, width, config: dict | None = None, mostrar_institucion: bool = False) -> list:
+    """Encabezado con logos y el título del documento. Por pedido del usuario
+    (2026-11-04) ningún PDF muestra el membrete «Comisión Nacional de
+    Telecomunicaciones (CONATEL)»: `mostrar_institucion=True` lo recupera."""
     styles = get_paragraph_styles()
     elementos = []
 
@@ -142,8 +145,9 @@ def create_header(titulo: str, width, config: dict | None = None) -> list:
             else f"{NOMBRE_EMPRESA_DEFECTO} <br/> {NOMBRE_EMPRESA_DEFECTO_LINEA2}"
         )
         header_text = (
-            f"<font size='9'><b>{linea_empresa}</b></font><br/>"
-            f"<font size='11'><b><br/>{titulo.upper()}</b></font>"
+            f"<font size='9'><b>{linea_empresa}</b></font><br/><font size='11'><b><br/>{titulo.upper()}</b></font>"
+            if mostrar_institucion
+            else f"<font size='11'><b>{titulo.upper()}</b></font>"
         )
 
     fila = []

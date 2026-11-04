@@ -18,6 +18,10 @@ from apps.autogestion.application.use_cases.obtener_mi_expediente import (
     obtener_mi_expediente,
     solicitar_mi_carnet,
 )
+from apps.autogestion.presentation.serializers.autogestion_serializers import (
+    SolicitarCarnetSerializer,
+)
+from apps.autogestion.presentation.views._comun import validar_entrada
 from apps.autogestion.infrastructure.repositories.repo_autogestion_orm import (
     RepoAutogestionORM,
 )
@@ -272,11 +276,12 @@ class SolicitarCarnetView(APIView):
         if not cedula:
             return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
 
+        datos = validar_entrada(SolicitarCarnetSerializer, request.data)
         carnet = solicitar_mi_carnet(
             RepoPortalTrabajadorORM(),
             str(cedula),
-            motivo_id=request.data.get('motivo_id'),
-            observaciones=request.data.get('observaciones'),
+            motivo_id=datos.get('motivo_id'),
+            observaciones=datos.get('observaciones'),
         )
         return ok(
             serializar_carnet(carnet),

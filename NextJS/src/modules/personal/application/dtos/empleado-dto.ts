@@ -101,6 +101,7 @@ export interface EmpleadoDTO {
   sexoId: number;
   sexoNombre: string;
   correo: string | null;
+  correoAlternativo?: string | null;
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   fechaNacimiento: string | null;
@@ -133,6 +134,7 @@ export interface GuardarEmpleadoInputDTO {
   fechaNacimiento: string;
   nacionalidadId?: number | null;
   correo?: string | null;
+  correoAlternativo?: string | null;
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   estadoCivilId?: number | null;

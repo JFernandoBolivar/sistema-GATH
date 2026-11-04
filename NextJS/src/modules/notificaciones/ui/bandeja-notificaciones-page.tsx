@@ -39,9 +39,6 @@ export const RETARDO_BUSQUEDA_MS = 400;
 
 type EstadoLectura = "todas" | "no" | "si";
 
-const CLASE_SELECT =
-  "border-input bg-background h-11 w-full rounded-md border px-3 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
-
 interface Props {
   /** Bandeja que se muestra: cada módulo ve solo sus notificaciones. */
   modulo: ModuloNotificaciones;
@@ -191,7 +188,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
             </SelectContent>
           </Select>
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:col-span-2">
+        <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${id}-desde`}>Desde</Label>
             <Input

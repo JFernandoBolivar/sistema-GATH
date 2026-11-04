@@ -26,6 +26,7 @@ import {
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { getCatalogoDependienteAction } from "../../infrastructure/actions/registro-actions";
 import { pasoPhysicalProfileSchema, type PasoPhysicalProfileType } from "../schema/schema-registro-pasos";
+import { useErroresDelPaso, type ErroresServidor } from "./errores-registro";
 
 const normalizar = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -70,7 +71,7 @@ function CampoTalla({
       control={control}
       name={name}
       render={({ field }) => (
-        <FormItem className={className}>
+        <FormItem className={`min-w-0 ${className ?? ""}`}>
           <FormLabel>{label}</FormLabel>
           <Select onValueChange={(v) => field.onChange(Number(v))} value={field.value ? field.value.toString() : ""}>
             <FormControl>
@@ -102,15 +103,18 @@ export function PasoPhysicalProfile({
   defaultValues,
   onSubmit,
   catalogos,
+  erroresServidor,
 }: {
   defaultValues: PasoPhysicalProfileType;
   onSubmit: (values: PasoPhysicalProfileType) => void;
   catalogos: CatalogosExpedienteDTO | null;
+  erroresServidor?: ErroresServidor | null;
 }) {
   const form = useForm<PasoPhysicalProfileType>({
     resolver: zodResolver(pasoPhysicalProfileSchema),
     defaultValues,
   });
+  useErroresDelPaso(form, erroresServidor, 5);
   const camisas = useTallasPorPrenda(catalogos, "camisa");
   const pantalones = useTallasPorPrenda(catalogos, "pantalon");
   const zapatos = useTallasPorPrenda(catalogos, "zapato");
@@ -124,18 +128,17 @@ export function PasoPhysicalProfile({
       <CardContent>
         <CardAction className="text-gray-600">Paso 5: Datos De Vestimenta</CardAction>
         <Form {...form}>
-          <form className="grid grid-cols-2 gap-2" onSubmit={form.handleSubmit(onSubmit)}>
+          <form className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>
             <CampoTalla control={form.control} name="perfil_fisico.tallaCamisa" label="Talla De Camisa" {...camisas} />
             <CampoTalla control={form.control} name="perfil_fisico.tallaPantalon" label="Talla De Pantalón" {...pantalones} />
             <CampoTalla
               control={form.control}
               name="perfil_fisico.tallaZapatos"
               label="Talla De Zapatos"
-              className="col-span-2"
               {...zapatos}
             />
             <CampoTalla control={form.control} name="perfil_fisico.tallaChaqueta" label="Talla De Chaqueta" {...chaquetas} />
-            <Button className="w-full col-span-2">Siguiente</Button>
+            <Button className="w-full sm:col-span-2">Siguiente</Button>
           </form>
         </Form>
       </CardContent>

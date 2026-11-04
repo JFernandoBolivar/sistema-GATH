@@ -28,3 +28,7 @@ class PuntoCuenta:
     usuario_id: int | None
     fecha: str
     documento_pdf_clave: str | None
+    oficina_origen_id: int | None = None
+    oficina_origen_nombre: str | None = None
+    oficina_destino_id: int | None = None
+    oficina_destino_nombre: str | None = None

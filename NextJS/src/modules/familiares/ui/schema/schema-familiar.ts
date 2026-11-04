@@ -91,31 +91,37 @@ export const familiarSchema = z.object({
     .nullable()
     .optional()
     .transform((v) => (v ? v : null))
-    .refine((v) => v === null || REGEX.CEDULA_NUM.test(v), {
-      message: "La cédula del familiar solo admite números (5 a 10 dígitos)",
+    .refine((v) => v === null || /^\d{6,9}$/.test(v), {
+      message: "La cédula del familiar solo admite números (6 a 9 dígitos)",
     }),
   primerNombre: z
     .string()
     .trim()
     .min(2, { message: "Primer nombre debe tener al menos 2 caracteres" })
+    .max(60, { message: "Primer nombre admite máximo 60 caracteres" })
     .regex(REGEX.SOLO_LETRAS, { message: "Primer nombre solo debe contener letras" }),
   segundoNombre: z
     .string()
     .trim()
+    .max(60, { message: "Segundo nombre admite máximo 60 caracteres" })
     .regex(REGEX.SOLO_LETRAS, { message: "Segundo nombre solo debe contener letras" })
     .optional()
-    .nullable(),
+    .nullable()
+    .or(z.literal("")),
   primerApellido: z
     .string()
     .trim()
     .min(2, { message: "Primer apellido debe tener al menos 2 caracteres" })
+    .max(60, { message: "Primer apellido admite máximo 60 caracteres" })
     .regex(REGEX.SOLO_LETRAS, { message: "Primer apellido solo debe contener letras" }),
   segundoApellido: z
     .string()
     .trim()
+    .max(60, { message: "Segundo apellido admite máximo 60 caracteres" })
     .regex(REGEX.SOLO_LETRAS, { message: "Segundo apellido solo debe contener letras" })
     .optional()
-    .nullable(),
+    .nullable()
+    .or(z.literal("")),
   parentescoId: z.number().positive({ message: "Seleccione un parentesco válido" }),
   ordenHijo: z.number().optional().nullable(),
   fechaNacimiento: z
@@ -124,7 +130,11 @@ export const familiarSchema = z.object({
   sexoId: z.number().positive({ message: "Seleccione un sexo válido" }),
   mismoEnte: z.boolean().default(false),
   heredero: z.boolean().default(false),
-  observaciones: z.string().optional().nullable(),
+  observaciones: z
+    .string()
+    .max(500, { message: "Las observaciones admiten máximo 500 caracteres" })
+    .optional()
+    .nullable(),
   formacionAcademica: formacionAcademicaFamiliarSchema,
   perfilSalud: perfilSaludFamiliarSchema,
   perfilFisico: perfilFisicoFamiliarSchema,

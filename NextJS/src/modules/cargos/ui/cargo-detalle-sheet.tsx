@@ -14,7 +14,7 @@
  * "trasladar"/"cambiar estatus"/"asignar"/"desasignar") — se documenta como
  * brecha pendiente de autorización explícita, no se inventa el endpoint.
  */
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRightLeft, Loader2, UserMinus, UserPlus } from "lucide-react";
@@ -32,6 +32,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import { MotivoSelect } from "./components/motivo-select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
 
 import type { CargoAsignacionDTO, CatalogoCargoItemDTO } from "../application/dtos/cargo-dto";
@@ -63,7 +65,9 @@ function EstatusBadge({ estatusNombre, estaVacante }: { estatusNombre: string; e
 interface CargoDetalleSheetProps {
   cargo: CargoAsignacionDTO | null;
   cargosVacantes: CargoAsignacionDTO[];
-  motivos: CatalogoCargoItemDTO[];
+  /** Errores por campo devueltos por el backend al trasladar / cambiar estatus (se marcan en rojo). */
+  erroresTraslado?: Record<string, string[]>;
+  erroresEstatus?: Record<string, string[]>;
   estatus: CatalogoCargoItemDTO[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -78,7 +82,8 @@ interface CargoDetalleSheetProps {
 export default function CargoDetalleSheet({
   cargo,
   cargosVacantes,
-  motivos,
+  erroresTraslado,
+  erroresEstatus,
   estatus,
   open,
   onOpenChange,
@@ -101,6 +106,13 @@ export default function CargoDetalleSheet({
     resolver: zodResolver(gestionarEstatusSchema),
     defaultValues: { cargoId: cargo?.id ?? 0, estatusId: undefined, motivoId: undefined },
   });
+
+  useEffect(() => {
+    aplicarErroresServidor(cambiarForm, erroresTraslado, { cargo_nuevo_id: "cargoNuevoId", motivo_id: "motivoId" });
+  }, [erroresTraslado, cambiarForm]);
+  useEffect(() => {
+    aplicarErroresServidor(estatusForm, erroresEstatus, { estatus_id: "estatusId", motivo_id: "motivoId" });
+  }, [erroresEstatus, estatusForm]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -197,19 +209,16 @@ export default function CargoDetalleSheet({
                     </Field>
                     <Field>
                       <Label htmlFor="trasladoMotivoId">Motivo</Label>
-                      <Select
-                        value={cambiarForm.watch("motivoId") ? String(cambiarForm.watch("motivoId")) : undefined}
-                        onValueChange={(v) => cambiarForm.setValue("motivoId", Number(v))}
-                      >
-                        <SelectTrigger id="trasladoMotivoId" className="w-full">
-                          <SelectValue placeholder="Seleccione un motivo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {motivos.map((m) => (
-                            <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <MotivoSelect
+                        id="trasladoMotivoId"
+                        operacion="cambiar_cargo"
+                        value={cambiarForm.watch("motivoId")}
+                        onChange={(id) => cambiarForm.setValue("motivoId", id, { shouldValidate: true })}
+                        aria-invalid={cambiarForm.formState.errors.motivoId ? true : undefined}
+                      />
+                      {cambiarForm.formState.errors.motivoId?.message && (
+                        <p role="alert" className="text-sm text-destructive">{cambiarForm.formState.errors.motivoId.message}</p>
+                      )}
                     </Field>
                     <Button type="submit" disabled={isPending}>
                       <ArrowRightLeft className="size-4" aria-hidden="true" /> Trasladar
@@ -246,19 +255,16 @@ export default function CargoDetalleSheet({
                     </Field>
                     <Field>
                       <Label htmlFor="detalleEstatusMotivoId">Motivo</Label>
-                      <Select
-                        value={estatusForm.watch("motivoId") ? String(estatusForm.watch("motivoId")) : undefined}
-                        onValueChange={(v) => estatusForm.setValue("motivoId", Number(v))}
-                      >
-                        <SelectTrigger id="detalleEstatusMotivoId" className="w-full">
-                          <SelectValue placeholder="Seleccione un motivo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {motivos.map((m) => (
-                            <SelectItem key={m.id} value={String(m.id)}>{m.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <MotivoSelect
+                        id="detalleEstatusMotivoId"
+                        operacion="cambiar_estatus_puesto"
+                        value={estatusForm.watch("motivoId")}
+                        onChange={(id) => estatusForm.setValue("motivoId", id, { shouldValidate: true })}
+                        aria-invalid={estatusForm.formState.errors.motivoId ? true : undefined}
+                      />
+                      {estatusForm.formState.errors.motivoId?.message && (
+                        <p role="alert" className="text-sm text-destructive">{estatusForm.formState.errors.motivoId.message}</p>
+                      )}
                     </Field>
                     <Button type="submit" disabled={isPending}>
                       Actualizar estatus

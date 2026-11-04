@@ -178,6 +178,7 @@ export default function UsuariosPage() {
               <Label htmlFor="filtro-cedula">Cédula</Label>
               <Input
                 id="filtro-cedula"
+                maxLength={20}
                 value={borrador.cedula ?? ""}
                 onChange={(e) => setBorrador({ ...borrador, cedula: e.target.value })}
               />
@@ -186,6 +187,7 @@ export default function UsuariosPage() {
               <Label htmlFor="filtro-nombre">Nombre</Label>
               <Input
                 id="filtro-nombre"
+                maxLength={100}
                 value={borrador.nombre ?? ""}
                 onChange={(e) => setBorrador({ ...borrador, nombre: e.target.value })}
               />
@@ -194,6 +196,7 @@ export default function UsuariosPage() {
               <Label htmlFor="filtro-correo">Correo</Label>
               <Input
                 id="filtro-correo"
+                maxLength={120}
                 value={borrador.correo ?? ""}
                 onChange={(e) => setBorrador({ ...borrador, correo: e.target.value })}
               />

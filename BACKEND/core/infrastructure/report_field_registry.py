@@ -141,6 +141,9 @@ MAPA_REPORTES = {
             "municipio_id": "datos_vivienda__municipio",
             "parroquia_id": "datos_vivienda__parroquia",
             "condicion_vivienda_id": "datos_vivienda__condicion_vivienda",
+            # Datos del TRABAJADOR (el formulario de familiares tambien los ofrece).
+            "estado_civil_id": "estadoCivil",
+            "nivel_academico_id": "formacion_academica__nivel_academico",
         }
     },
     "egresados": {

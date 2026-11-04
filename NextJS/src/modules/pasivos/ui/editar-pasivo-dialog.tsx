@@ -9,6 +9,7 @@ import { useEffect, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Loader2, Save } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
@@ -78,9 +79,12 @@ export function EditarPasivoDialog({
     startTransition(async () => {
       const resultado = await actualizarPasivoAction(pasivo.cedula, datos);
       if (!resultado || typeof resultado !== "object" || "error" in resultado) {
+        const err = resultado as { error?: string; errores?: Record<string, string[]> } | undefined;
+        const sinUbicar = aplicarErroresServidor(form, err?.errores);
         toast.error(
-          (resultado as { error?: string })?.error ??
-            "No fue posible actualizar los datos del pasivo.",
+          sinUbicar.length > 0 || !err?.errores
+            ? (err?.error ?? "No fue posible actualizar los datos del pasivo.")
+            : "Revise los campos marcados en rojo.",
         );
         return;
       }

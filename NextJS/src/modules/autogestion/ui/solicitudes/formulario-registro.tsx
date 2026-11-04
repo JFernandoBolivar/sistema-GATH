@@ -150,7 +150,7 @@ export function FormularioRegistro({
       <div key={c.campo} className="flex flex-col gap-1.5">
         {etiqueta}
         {c.tipo === "textarea" ? (
-          <Textarea rows={3} className="resize-none" {...comunes} {...register(c.campo)} />
+          <Textarea rows={3} maxLength={500} className="resize-none" {...comunes} {...register(c.campo)} />
         ) : c.tipo === "telefono" ? (
           <Controller
             control={form.control}
@@ -171,6 +171,7 @@ export function FormularioRegistro({
           <Input
             type={c.tipo === "fecha" ? "date" : c.tipo === "correo" ? "email" : "text"}
             autoComplete="off"
+            maxLength={c.tipo === "correo" ? 254 : c.tipo === "fecha" ? 10 : 250}
             {...comunes}
             {...register(c.campo)}
           />

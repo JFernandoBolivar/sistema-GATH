@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Card, CardContent } from "@/shared/ui/components/card";
 import {
   Form,
@@ -31,9 +32,9 @@ import { getEmpleadoPorCedulaAction } from "@/shared/infrastructure/actions/empl
 import type { EmpleadoDTO } from "@/shared/types/employee-dto";
 import {
   getEstatusAction,
-  getMotivosAction,
   gestionarEstatusAction,
 } from "@/modules/cargos/infrastructure/actions/cargos-actions";
+import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 import type { CatalogoCargoItemDTO } from "@/modules/cargos/application/dtos/cargo-dto";
 import {
   schemaStatusChangeUI,
@@ -47,9 +48,7 @@ export function CambiarEstatusPage() {
 
   // Catalogs
   const [statusNomina, setStatusNomina] = useState<CatalogoCargoItemDTO[]>([]);
-  const [internalReason, setInternalReason] = useState<CatalogoCargoItemDTO[]>([]);
   const [isLoadingStatusNomina, setIsLoadingStatusNomina] = useState(true);
-  const [isLoadingInternalReason, setIsLoadingInternalReason] = useState(true);
 
   // Employee state
   const [employee, setEmployee] = useState<EmpleadoDTO | null>(null);
@@ -70,22 +69,17 @@ export function CambiarEstatusPage() {
     let active = true;
     (async () => {
       try {
-        const [allStatuses, reasons] = await Promise.all([
-          getEstatusAction(),
-          getMotivosAction("ESTATUS").catch(() => getMotivosAction()),
-        ]);
+        const allStatuses = await getEstatusAction();
         if (!active) return;
         const filteredStatuses = allStatuses.filter((s) =>
           ESTATUS_PERMITIDOS_GESTION.includes(s.nombre.toUpperCase()),
         );
         setStatusNomina(filteredStatuses.length > 0 ? filteredStatuses : allStatuses);
-        setInternalReason(reasons && reasons.length > 0 ? reasons : await getMotivosAction());
       } catch {
         // Silencioso
       } finally {
         if (active) {
           setIsLoadingStatusNomina(false);
-          setIsLoadingInternalReason(false);
         }
       }
     })();
@@ -142,7 +136,12 @@ export function CambiarEstatusPage() {
           motivoId: data.motivo,
         });
         if (response && "error" in response) {
-          toast.error(response.error);
+          const sinUbicar = aplicarErroresServidor(form, response.errores, {
+            estatus_id: "estatus_id",
+            motivo_id: "motivo",
+            cargo_id: "cargo",
+          });
+          toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.error);
         } else {
           toast.success("Estatus del cargo actualizado correctamente.");
           clearEmployee();
@@ -263,31 +262,14 @@ export function CambiarEstatusPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Motivo De Cambio De Estatus</FormLabel>
-                            <Select
-                              onValueChange={(values) => {
-                                field.onChange(Number.parseInt(values));
-                              }}
-                              value={field.value && field.value > 0 ? `${field.value}` : ""}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full truncate">
-                                  <SelectValue
-                                    placeholder={
-                                      isLoadingInternalReason
-                                        ? "Cargando Motivos De Cambio De Estatus"
-                                        : "Seleccione Un Motivo De Cambio de Estatus"
-                                    }
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {internalReason.map((reason, i) => (
-                                  <SelectItem key={i} value={`${reason.id}`}>
-                                    {reason.nombre}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <FormControl>
+                              <MotivoSelect
+                                operacion="cambiar_estatus_puesto"
+                                value={field.value}
+                                onChange={field.onChange}
+                                aria-invalid={Boolean(form.formState.errors.motivo)}
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}

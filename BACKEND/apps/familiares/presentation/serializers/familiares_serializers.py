@@ -26,6 +26,19 @@ from apps.familiares.infrastructure.modelos_externos import (
 )
 
 
+# Longitudes (mismas que `schema-familiar.ts` en NextJS).
+CEDULA_MIN, CEDULA_MAX = 6, 9
+NOMBRE_MIN, NOMBRE_MAX = 2, 60
+OBSERVACIONES_MAX = 500
+
+
+def _nombre(value, *, edicion: bool, etiqueta: str):
+    limpio = validar_drf(validar_nombre, value, edicion=edicion, etiqueta=etiqueta)
+    if limpio and not (NOMBRE_MIN <= len(limpio) <= NOMBRE_MAX):
+        raise serializers.ValidationError(f'{etiqueta} debe tener entre {NOMBRE_MIN} y {NOMBRE_MAX} caracteres.')
+    return limpio
+
+
 class FormacionAcademicaFamiliarDetalleSerializer(serializers.Serializer):
     nivel_academico_id = serializers.IntegerField(read_only=True, allow_null=True)
     carrera_id = serializers.IntegerField(read_only=True, allow_null=True)
@@ -153,38 +166,45 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
     "<cédula del empleado>-<n>"; solo puede haber un heredero por empleado.
     """
     empleado_cedula = serializers.CharField(required=True, max_length=20)
-    primer_nombre = serializers.CharField(required=True, max_length=150)
-    segundo_nombre = serializers.CharField(required=False, allow_blank=True, max_length=150)
-    primer_apellido = serializers.CharField(required=True, max_length=150)
-    segundo_apellido = serializers.CharField(required=False, allow_blank=True, max_length=150)
-    cedula_familiar = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
+    primer_nombre = serializers.CharField(required=True, max_length=NOMBRE_MAX)
+    segundo_nombre = serializers.CharField(required=False, allow_blank=True, max_length=NOMBRE_MAX)
+    primer_apellido = serializers.CharField(required=True, max_length=NOMBRE_MAX)
+    segundo_apellido = serializers.CharField(required=False, allow_blank=True, max_length=NOMBRE_MAX)
+    cedula_familiar = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)  # sintética '<cédula>-<n>' en edición
     parentesco_id = serializers.IntegerField(required=True)
     fecha_nacimiento = serializers.DateField(required=True)
     sexo_id = serializers.IntegerField(required=True)
     mismo_ente = serializers.BooleanField(required=False, default=False)
     heredero = serializers.BooleanField(required=False, default=False)
-    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    observaciones = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=OBSERVACIONES_MAX,
+    )
     perfil_salud = PerfilSaludFamiliarEscrituraSerializer(required=False, allow_null=True)
     perfil_fisico = PerfilFisicoFamiliarEscrituraSerializer(required=False, allow_null=True)
     formacion_academica = FormacionAcademicaFamiliarEscrituraSerializer(required=False, allow_null=True)
 
     def validate_primer_nombre(self, value):
-        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El primer nombre')
+        return _nombre(value, edicion=self.partial, etiqueta='El primer nombre')
 
     def validate_segundo_nombre(self, value):
-        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El segundo nombre')
+        return _nombre(value, edicion=self.partial, etiqueta='El segundo nombre')
 
     def validate_primer_apellido(self, value):
-        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El primer apellido')
+        return _nombre(value, edicion=self.partial, etiqueta='El primer apellido')
 
     def validate_segundo_apellido(self, value):
-        return validar_drf(validar_nombre, value, edicion=self.partial, etiqueta='El segundo apellido')
+        return _nombre(value, edicion=self.partial, etiqueta='El segundo apellido')
 
     def validate_cedula_familiar(self, value):
         if self.partial and value and not value.strip().isdigit():
             # Edición de un registro legado con cédula sintética "<cédula>-<n>": se conserva.
             return value
-        return validar_drf(validar_cedula, value, etiqueta='La cédula del familiar')
+        limpia = validar_drf(validar_cedula, value, etiqueta='La cédula del familiar')
+        if limpia and not (CEDULA_MIN <= len(limpia) <= CEDULA_MAX):
+            raise serializers.ValidationError(
+                f'La cédula del familiar debe tener entre {CEDULA_MIN} y {CEDULA_MAX} dígitos.'
+            )
+        return limpia
 
     def validate(self, attrs):
         empleado_cedula = attrs.get('empleado_cedula') or self.context.get('empleado_cedula')

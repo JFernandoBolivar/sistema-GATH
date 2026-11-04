@@ -16,7 +16,8 @@ class RepoPuntoCuentaMemoria:
         self.filas: dict[int, PuntoCuenta] = {}
         self.siguiente_id = 1
 
-    def crear(self, *, cargo_id, cedula, dependencia_origen_id, dependencia_destino_id, motivo_id, usuario_id):
+    def crear(self, *, cargo_id, cedula, dependencia_origen_id, dependencia_destino_id, motivo_id, usuario_id,
+              oficina_origen_id=None, oficina_destino_id=None):
         entidad = PuntoCuenta(
             id=self.siguiente_id,
             cargo_id=cargo_id,
@@ -31,6 +32,10 @@ class RepoPuntoCuentaMemoria:
             usuario_id=usuario_id,
             fecha="2026-01-15T10:00:00+00:00",
             documento_pdf_clave=None,
+            oficina_origen_id=oficina_origen_id,
+            oficina_origen_nombre="OFICINA ORIGEN" if oficina_origen_id else None,
+            oficina_destino_id=oficina_destino_id,
+            oficina_destino_nombre="OFICINA DESTINO" if oficina_destino_id else None,
         )
         self.filas[entidad.id] = entidad
         self.siguiente_id += 1
@@ -87,3 +92,14 @@ def test_listar_puntos_cuenta():
 def test_obtener_punto_cuenta_inexistente_devuelve_none():
     repo = RepoPuntoCuentaMemoria()
     assert obtener_punto_cuenta(repo, 999) is None
+
+
+def test_generar_punto_cuenta_expone_las_oficinas_ademas_del_nivel():
+    repo = RepoPuntoCuentaMemoria()
+    dto = generar_punto_cuenta(
+        repo, cargo_id=10, cedula="123", dependencia_origen_id=1, dependencia_destino_id=1,
+        oficina_origen_id=7, oficina_destino_id=8, motivo_id=None, usuario_id=1,
+    )
+    assert dto.oficina_origen == "OFICINA ORIGEN"
+    assert dto.oficina_destino == "OFICINA DESTINO"
+    assert dto.oficina_origen_id == 7 and dto.oficina_destino_id == 8

@@ -1,8 +1,7 @@
 """
 Componentes de maquetación del PDF «Expediente del trabajador»: tarjeta de
 identificación, títulos de sección, grillas etiqueta/valor y tablas con
-anchos proporcionales. Tipografía: Helvetica (métricamente idéntica a Arial;
-la imagen Docker no trae Liberation Sans ni Arial, y no se agregan paquetes).
+anchos proporcionales. Tipografía: Arial (ver `core.infrastructure.pdf.fuentes`).
 """
 from xml.sax.saxutils import escape
 
@@ -19,7 +18,9 @@ GRIS_ETIQUETA = colors.HexColor('#6B7280')
 ZEBRA = colors.HexColor('#F7F9FC')
 NEGRO = colors.HexColor('#111827')
 
-SANS, SANS_B, SANS_I = 'Helvetica', 'Helvetica-Bold', 'Helvetica-Oblique'
+from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_CURSIVA, FUENTE_NEGRITA  # noqa: E402
+
+SANS, SANS_B, SANS_I = FUENTE, FUENTE_NEGRITA, FUENTE_CURSIVA
 
 _ESTILOS = {
     'nombre': ParagraphStyle('ExpNombre', fontName=SANS_B, fontSize=15, leading=18, textColor=NEGRO),
@@ -97,6 +98,7 @@ def grilla(pares: list[tuple[str, str]], ancho: float, columnas: int = 2) -> Tab
     t = Table(filas, colWidths=[ancho / columnas] * columnas)
     t.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('FONTNAME', (0, 0), (-1, -1), SANS),  # celdas vacías: Arial, no Helvetica
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -131,6 +133,7 @@ def tabla(columnas: list[str], filas: list[list[str]], pesos: list[float], ancho
     datos = [[_p(c, 'th') for c in columnas]] + [[_p(c, 'td') for c in fila] for fila in filas]
     t = TablaSeccion(datos, colWidths=anchos, repeatRows=1)
     estilo = [
+        ('FONTNAME', (0, 0), (-1, -1), SANS),
         ('BACKGROUND', (0, 0), (-1, 0), AZUL_CLARO),
         ('LINEBELOW', (0, 0), (-1, 0), 0.75, AZUL),
         ('GRID', (0, 0), (-1, -1), 0.4, GRIS_BORDE),

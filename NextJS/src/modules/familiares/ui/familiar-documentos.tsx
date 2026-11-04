@@ -22,7 +22,7 @@ export function FamiliarDocumentos({
   esHijo?: boolean;
 }) {
   return (
-    <fieldset className="border grid grid-cols-1 gap-4 col-span-2 p-4 border-orange-600 rounded-sm">
+    <fieldset className="border grid grid-cols-1 gap-4 md:col-span-2 p-4 border-orange-600 rounded-sm">
       <legend className="flex gap-2 text-orange-700 font-bold">
         Documentos Del Familiar
       </legend>

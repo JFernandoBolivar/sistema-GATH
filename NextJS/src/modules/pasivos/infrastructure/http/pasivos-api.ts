@@ -187,24 +187,12 @@ export const pasivosApi = {
       ),
     ),
 
-  getMotivosEgresoPasivo: () =>
-    list<CatalogoPasivoApiItem>(
-      apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/pasivos/motivos-egreso/"),
-    ),
-
   egresarPasivo: (cedula: string, motivoId: number, familiarIds: number[]) =>
     single<PasivoApiItem>(
       apiClient.post<ApiResponse<PasivoApiItem>>(
         `/api/v1/pasivos/${cedula}/egreso/`,
         { motivo_id: motivoId, sobrevivientes_familiar_ids: familiarIds },
       ),
-    ),
-
-  getMotivosEgreso: () =>
-    list<CatalogoPasivoApiItem>(
-      apiClient.get<ApiResponse<CatalogoPasivoApiItem[]>>("/api/v1/catalogos/tipos-movimiento/", {
-        params: { categoria: "EGRESO" },
-      }),
     ),
 
   getTiposNomina: (soloPasivos: boolean = true) =>

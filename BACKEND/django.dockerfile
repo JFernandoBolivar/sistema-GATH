@@ -11,6 +11,16 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
+# Arial para los PDF (core/infrastructure/pdf/fuentes.py): paquete oficial que
+# descarga las fuentes de Microsoft aceptando su licencia (componente contrib).
+# Si la descarga falla (servidor sin salida a internet), la imagen se construye
+# igual y los PDF usan Helvetica, de métricas idénticas.
+RUN sed -i 's/^Components: main$/Components: main contrib/' /etc/apt/sources.list.d/debian.sources \
+    && echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections \
+    && apt-get update \
+    && (DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ttf-mscorefonts-installer \
+        || echo "AVISO: no se pudo instalar Arial; los PDF usarán Helvetica") \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/Django
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

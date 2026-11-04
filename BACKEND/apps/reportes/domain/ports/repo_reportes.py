@@ -24,7 +24,13 @@ class RepoReportes(Protocol):
     ) -> ResultadoReporte:
         ...
 
-    def reporte_familiares(self, filtros: dict, limite: int) -> ResultadoReporte:
+    def reporte_familiares(
+        self,
+        consulta: ConsultaReportePersonal,
+        limite: int,
+        condicion: str = 'ACTIVO',
+        cedula_empleado: str | None = None,
+    ) -> ResultadoReporte:
         ...
 
     def reporte_codigos(self, filtros: dict, limite: int) -> ResultadoReporte:

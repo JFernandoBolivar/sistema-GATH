@@ -16,7 +16,16 @@ class NotFoundError(DomainError):
 
 
 class ValidationError(DomainError):
-    """Un Value Object o una regla de negocio detecta un dato inválido."""
+    """Un Value Object o una regla de negocio detecta un dato inválido.
+
+    `campo` (opcional) es el nombre del dato que falló, tal como llega en la
+    petición (p. ej. 'cedulaidentidad' o 'contacto_emergencia.0.telefono'), para
+    que el formulario lo marque en rojo.
+    """
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args)
+        self.campo = campo
 
 
 class PermissionDeniedError(DomainError):

@@ -2,35 +2,32 @@
 Vistas delgadas de Movimientos (Reglas B4, B7).
 Con Envelope unificado `ok()` / `fail()` y permisos PBAC.
 
-El historial general se pagina en el servidor (10 por defecto, tope 50) y las
-exportaciones PDF/Excel aplican el tope configurable de `core`, informan el
-truncado en cabeceras y, en el PDF, imprimen los filtros aplicados con sus
-etiquetas legibles.
+El historial general se pagina en el servidor (10 por defecto, tope 50). Las
+exportaciones PDF/Excel son asíncronas: la vista crea el trabajo (202) y el
+generador (`infrastructure/exportacion.py`) aplica el tope configurable de `core`,
+imprime los filtros con sus etiquetas legibles e informa el truncado.
 """
-from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema
 
-from core.infrastructure.pdf.report_excel import generar_reporte_excel
-from core.infrastructure.reportes import limite_de_reporte
-from core.presentation.descargas import aplicar_cabeceras_de_truncado
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
-from apps.movimientos.application.dtos.movimientos_dtos import DocumentoMovimientosDTO
 from apps.movimientos.application.use_cases.listar_historial import (
     consultar_historial,
-    exportar_historial,
     listar_historial_por_cargo,
     listar_historial_por_empleado,
 )
+from apps.exportaciones.presentation.serializers.exportaciones_serializers import (
+    TrabajoExportacionSerializer,
+)
+from apps.exportaciones.presentation.solicitud import pedir_exportacion
 from apps.movimientos.domain.value_objects.paginacion import Paginacion
 from apps.movimientos.domain.value_objects.permisos_movimientos import (
     PERMISO_EXPORTAR_EXCEL,
     PERMISO_EXPORTAR_PDF,
     PERMISO_VER,
 )
-from apps.movimientos.infrastructure.pdf_movimientos import construir_pdf_historial_movimientos
 from apps.movimientos.infrastructure.repositories.repo_movimientos_orm import RepoMovimientosORM
 from apps.movimientos.presentation.serializers.movimientos_serializers import (
     MovimientoCargoSerializer,
@@ -39,55 +36,6 @@ from apps.movimientos.presentation.serializers.movimientos_serializers import (
 _PERMISO_VER = HasPermission(PERMISO_VER)
 _PERMISO_PDF = HasPermission(PERMISO_EXPORTAR_PDF)
 _PERMISO_EXCEL = HasPermission(PERMISO_EXPORTAR_EXCEL)
-
-
-def _respuesta_pdf(pdf_bytes: bytes, nombre_archivo: str, documento: DocumentoMovimientosDTO) -> HttpResponse:
-    respuesta = HttpResponse(pdf_bytes, content_type='application/pdf')
-    respuesta['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
-    respuesta['X-Content-Type-Options'] = 'nosniff'
-    respuesta['Cache-Control'] = 'private, no-store'
-    aplicar_cabeceras_de_truncado(
-        respuesta,
-        total_encontrados=documento.total_encontrados,
-        limite=documento.limite,
-        truncado=documento.truncado,
-    )
-    return respuesta
-
-
-def _respuesta_excel(excel_bytes: bytes, nombre_archivo: str, documento: DocumentoMovimientosDTO) -> HttpResponse:
-    respuesta = HttpResponse(
-        excel_bytes, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    )
-    respuesta['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
-    respuesta['X-Content-Type-Options'] = 'nosniff'
-    respuesta['Cache-Control'] = 'private, no-store'
-    aplicar_cabeceras_de_truncado(
-        respuesta,
-        total_encontrados=documento.total_encontrados,
-        limite=documento.limite,
-        truncado=documento.truncado,
-    )
-    return respuesta
-
-
-def _columnas_y_filas(documento: DocumentoMovimientosDTO) -> tuple[list[str], list[dict]]:
-    columnas = ['#', 'codigo', 'fecha', 'tipo_movimiento', 'denominacion', 'cargo_especifico', 'grado', 'estatus', 'modificado_por']
-    filas = [
-        {
-            '#': idx + 1,
-            'codigo': m.codigo_puesto or 'N/A',
-            'fecha': m.fecha_movimiento,
-            'tipo_movimiento': m.tipo_movimiento or 'N/A',
-            'denominacion': m.denominacion_nombre or 'N/A',
-            'cargo_especifico': m.especifica_nombre or 'N/A',
-            'grado': m.grado_nombre or 'N/A',
-            'estatus': m.estatus_nombre or 'N/A',
-            'modificado_por': m.ejecutado_por_nombre or 'N/A',
-        }
-        for idx, m in enumerate(documento.movimientos)
-    ]
-    return columnas, filas
 
 
 class HistorialPorEmpleadoView(APIView):
@@ -121,41 +69,27 @@ class HistorialMovimientosView(APIView):
 
 
 class HistorialMovimientosPdfView(APIView):
-    """GET /api/v1/movimientos/pdf/ — Historial filtrado en PDF, con los filtros aplicados."""
+    """GET /api/v1/movimientos/pdf/ — encola la exportación del historial filtrado y responde 202."""
     permission_classes = [IsAuthenticated, _PERMISO_PDF]
 
-    @extend_schema(tags=['Movimientos'], summary='Exportar el historial de movimientos en PDF')
+    @extend_schema(
+        tags=['Movimientos'], summary='Exportar el historial de movimientos en PDF (asíncrono)',
+        responses={202: TrabajoExportacionSerializer},
+    )
     def get(self, request):
-        documento = exportar_historial(
-            RepoMovimientosORM(),
-            request.query_params.dict(),
-            limite=limite_de_reporte(para_pdf=True),
-        )
-        pdf_bytes = construir_pdf_historial_movimientos(
-            documento.movimientos,
-            filtros=documento.filtros,
-            usuario_nombre=str(request.user),
-            total_encontrados=documento.total_encontrados,
-            limite=documento.limite,
-            truncado=documento.truncado,
-        )
-        return _respuesta_pdf(pdf_bytes, 'historial-movimientos.pdf', documento)
+        return pedir_exportacion(request, tipo='movimientos', formato='pdf')
 
 
 class HistorialMovimientosExcelView(APIView):
-    """GET /api/v1/movimientos/excel/ — Historial filtrado en Excel (mismos filtros que el PDF)."""
+    """GET /api/v1/movimientos/excel/ — encola la exportación del historial filtrado y responde 202."""
     permission_classes = [IsAuthenticated, _PERMISO_EXCEL]
 
-    @extend_schema(tags=['Movimientos'], summary='Exportar el historial de movimientos en Excel')
+    @extend_schema(
+        tags=['Movimientos'], summary='Exportar el historial de movimientos en Excel (asíncrono)',
+        responses={202: TrabajoExportacionSerializer},
+    )
     def get(self, request):
-        documento = exportar_historial(
-            RepoMovimientosORM(),
-            request.query_params.dict(),
-            limite=limite_de_reporte(para_pdf=False),
-        )
-        columnas, filas = _columnas_y_filas(documento)
-        excel_bytes = generar_reporte_excel('Historial de movimientos', columnas, filas)
-        return _respuesta_excel(excel_bytes, 'historial-movimientos.xlsx', documento)
+        return pedir_exportacion(request, tipo='movimientos', formato='excel')
 
 
 class HistorialPorCargoView(APIView):

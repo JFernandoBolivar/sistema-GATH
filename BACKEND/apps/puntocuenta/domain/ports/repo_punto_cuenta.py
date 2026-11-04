@@ -16,6 +16,8 @@ class RepoPuntoCuenta(Protocol):
         dependencia_destino_id: int | None,
         motivo_id: int | None,
         usuario_id: int | None,
+        oficina_origen_id: int | None = None,
+        oficina_destino_id: int | None = None,
     ) -> PuntoCuenta: ...
 
     def adjuntar_documento(self, id: int, clave: str) -> PuntoCuenta: ...

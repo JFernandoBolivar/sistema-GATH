@@ -82,14 +82,17 @@ export function ParametrosPage() {
   const [ediciones, setEdiciones] = useState<Record<string, string>>({});
   const [pendiente, setPendiente] = useState<{ parametro: ParametroDTO; valor: string } | null>(null);
   const [historialDe, setHistorialDe] = useState<ParametroDTO | null>(null);
+  const [errorCampo, setErrorCampo] = useState<{ clave: string; mensaje: string } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function solicitarCambio(parametro: ParametroDTO, valor: string): boolean {
     const error = validarValorParametro(parametro, valor);
     if (error) {
+      setErrorCampo({ clave: parametro.clave, mensaje: error });
       toast.error(error);
       return false;
     }
+    setErrorCampo(null);
     setPendiente({ parametro, valor });
     return true;
   }
@@ -100,6 +103,7 @@ export function ParametrosPage() {
       delete copia[clave];
       return copia;
     });
+    setErrorCampo((previo) => (previo?.clave === clave ? null : previo));
   }
 
   function cancelar() {
@@ -116,14 +120,19 @@ export function ParametrosPage() {
         normalizarValorParametro(parametro, valor),
       );
       if (!resultado || typeof resultado !== "object" || "error" in resultado) {
-        toast.error(
-          (resultado as { error?: string })?.error ?? "No fue posible guardar el parámetro.",
-        );
+        const err = resultado as { error?: string; errores?: Record<string, string[]> } | null;
+        const mensaje =
+          err?.errores?.valor?.[0] ??
+          err?.error ??
+          "No fue posible guardar el parámetro.";
         cancelar();
+        setErrorCampo({ clave: parametro.clave, mensaje });
+        toast.error(mensaje);
         return;
       }
       toast.success(`«${parametro.etiqueta}» actualizado.`);
       setPendiente(null);
+      setErrorCampo(null);
       descartarEdicion(parametro.clave);
       await mutate();
     });
@@ -159,19 +168,26 @@ export function ParametrosPage() {
                 <CardContent className="flex flex-col divide-y">
                   {delGrupo.map((parametro) => {
                     const valor = ediciones[parametro.clave] ?? parametro.valor;
+                    const errorEste =
+                      errorCampo?.clave === parametro.clave ? errorCampo.mensaje : null;
                     return (
                       <div
                         key={parametro.clave}
                         data-parametro={parametro.clave}
                         className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div className="max-w-xl">
+                        <div className="min-w-0 max-w-xl">
                           <Label htmlFor={`param-${parametro.clave}`} className="text-base font-medium">
                             {parametro.etiqueta}
                           </Label>
                           <p className="text-sm text-muted-foreground">{parametro.descripcion}</p>
+                          {errorEste && (
+                            <p role="alert" className="mt-1 text-sm text-destructive">
+                              {errorEste}
+                            </p>
+                          )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                           {parametro.tipo === "booleano" ? (
                             <Switch
                               id={`param-${parametro.clave}`}
@@ -184,6 +200,7 @@ export function ParametrosPage() {
                                 }
                               }}
                               aria-label={parametro.etiqueta}
+                              aria-invalid={!!errorEste}
                             />
                           ) : parametro.opciones.length > 0 ? (
                             <Select
@@ -196,7 +213,8 @@ export function ParametrosPage() {
                               <SelectTrigger
                                 id={`param-${parametro.clave}`}
                                 aria-label={parametro.etiqueta}
-                                className="w-52 bg-white"
+                                aria-invalid={!!errorEste}
+                                className="w-full bg-white sm:w-52"
                               >
                                 <SelectValue />
                               </SelectTrigger>
@@ -222,10 +240,12 @@ export function ParametrosPage() {
                               max={parametro.maximo ?? undefined}
                               value={valor}
                               disabled={!puedeEditar || isPending}
-                              onChange={(e) =>
-                                setEdiciones((prev) => ({ ...prev, [parametro.clave]: e.target.value }))
-                              }
-                              className="w-44 bg-white"
+                              aria-invalid={!!errorEste}
+                              onChange={(e) => {
+                                setErrorCampo(null);
+                                setEdiciones((prev) => ({ ...prev, [parametro.clave]: e.target.value }));
+                              }}
+                              className="w-full bg-white sm:w-44"
                             />
                           )}
                           {parametro.tipo !== "booleano" && (
@@ -314,7 +334,7 @@ function HistorialDialog({
 
   return (
     <Dialog open={parametro !== null} onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Historial de «{parametro?.etiqueta}»</DialogTitle>
           <DialogDescription>Últimos cambios registrados en la bitácora, del más reciente al más antiguo.</DialogDescription>
@@ -327,7 +347,8 @@ function HistorialDialog({
           <p className="text-sm text-muted-foreground">Todavía no hay cambios registrados.</p>
         ) : (
           <>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[32rem] text-sm">
               <caption className="sr-only">Historial de cambios del parámetro</caption>
               <thead>
                 <tr className="border-b text-left">
@@ -348,7 +369,8 @@ function HistorialDialog({
                 ))}
               </tbody>
             </table>
-            <div className="flex items-center justify-end gap-2 pt-2">
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
               <Badge variant="outline">
                 Página {paginaDatos.pagina} de {paginaDatos.totalPaginas}
               </Badge>

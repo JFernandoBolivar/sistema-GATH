@@ -98,10 +98,11 @@ class ProcesoView(APIView):
         responses={200: ProcesoSerializer, **ERRORES},
     )
     def patch(self, request, proceso_id):
-        datos = dict(validar_entrada(EditarProcesoSerializer, request.data))
         with transaction.atomic():
             repo = RepoProcesosORM()
+            # Primero el 404: un id inexistente no debe responder 400 por el cuerpo.
             previo = obtener_proceso(repo, str(proceso_id))
+            datos = dict(validar_entrada(EditarProcesoSerializer, request.data))
             proceso = editar_proceso(repo, LectorAlcanceORM(), proceso_id=str(proceso_id), cambios=datos)
             auditar(request, 'PROCESO_EDITADO', proceso.id,
                     {'tipos_nomina': list(previo.tipos_nomina), 'dias_recordatorio': list(previo.dias_recordatorio)},

@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/shared/ui/components/button";
@@ -75,7 +76,13 @@ export default function ConfiguracionVisualPage() {
         colorFondo: esGenerico ? null : (data.colorFondo || null),
       });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error(resultado.error);
+        const err = resultado as { error: string; errores?: Record<string, string[]> };
+        const sinUbicar = aplicarErroresServidor(form, err.errores, {
+          nombre_empresa: "nombreEmpresa",
+        });
+        toast.error(
+          sinUbicar.length > 0 || !err.errores ? err.error : "Revise los campos marcados en rojo.",
+        );
         return;
       }
       setConfig(resultado);
@@ -120,9 +127,16 @@ export default function ConfiguracionVisualPage() {
 
               <div className={esGenerico ? "pointer-events-none opacity-50" : ""}>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Field>
+                  <Field data-invalid={!!form.formState.errors.nombreEmpresa}>
                     <Label htmlFor="nombreEmpresa">Nombre de la empresa</Label>
-                    <Input id="nombreEmpresa" {...form.register("nombreEmpresa")} disabled={esGenerico} />
+                    <Input
+                      id="nombreEmpresa"
+                      minLength={2}
+                      maxLength={200}
+                      {...form.register("nombreEmpresa")}
+                      aria-invalid={!!form.formState.errors.nombreEmpresa}
+                      disabled={esGenerico}
+                    />
                     {form.formState.errors.nombreEmpresa && (
                       <p role="alert" className="text-sm text-destructive">{form.formState.errors.nombreEmpresa.message}</p>
                     )}

@@ -1158,3 +1158,62 @@ forbidden_modules =
     AUTOGESTION
     apps.notificaciones
 allow_indirect_imports = True
+
+# ---- Exportaciones asincronas (PDF/Excel por Celery) ----
+# domain/application puros; `infrastructure` es la unica capa que reutiliza los
+# generadores de reportes, movimientos y auditoria (B16). Las vistas de esos
+# modulos importan `apps.exportaciones.presentation.solicitud` para encolar.
+[importlinter:contract:apps-exportaciones-domain-puro]
+name = apps.exportaciones.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.exportaciones.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-exportaciones-application-puro]
+name = apps.exportaciones.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.exportaciones.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-exportaciones-capas]
+name = capas del modulo exportaciones apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.exportaciones.presentation
+    apps.exportaciones.infrastructure
+    apps.exportaciones.application
+    apps.exportaciones.domain
+
+[importlinter:contract:apps-exportaciones-no-cruzado]
+name = apps.exportaciones.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.exportaciones.domain
+    apps.exportaciones.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+    apps.auditoria

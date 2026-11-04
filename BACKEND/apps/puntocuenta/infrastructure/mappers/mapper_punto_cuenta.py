@@ -5,7 +5,7 @@ módulos -- mismo patrón ya usado en `apps.cargos.infrastructure.repositories
 .repo_cargos_orm` para `apps.organizacion`/`apps.catalogos`).
 """
 from apps.catalogos.infrastructure.models.catalogo_models import TipoMovimientoModel
-from apps.organizacion.infrastructure.models.organizacion_models import DependenciaModel
+from apps.organizacion.infrastructure.models.organizacion_models import DependenciaModel, DireccionGeneralModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.puntocuenta.domain.entities.punto_cuenta import PuntoCuenta
 
@@ -15,6 +15,13 @@ def _nombre_dependencia(dependencia_id: int | None) -> str | None:
         return None
     fila = DependenciaModel.objects.filter(pk=dependencia_id).first()
     return fila.dependencia if fila else None
+
+
+def _nombre_oficina(oficina_id: int | None) -> str | None:
+    if not oficina_id:
+        return None
+    fila = DireccionGeneralModel.objects.filter(pk=oficina_id).first()
+    return fila.direccion_general if fila else None
 
 
 def _nombre_empleado(cedula: str) -> str | None:
@@ -44,4 +51,8 @@ def a_entidad(modelo) -> PuntoCuenta:
         usuario_id=modelo.usuario_id,
         fecha=modelo.fecha.isoformat(),
         documento_pdf_clave=modelo.documento_pdf_clave,
+        oficina_origen_id=modelo.oficina_origen_id,
+        oficina_origen_nombre=_nombre_oficina(modelo.oficina_origen_id),
+        oficina_destino_id=modelo.oficina_destino_id,
+        oficina_destino_nombre=_nombre_oficina(modelo.oficina_destino_id),
     )

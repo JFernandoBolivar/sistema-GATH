@@ -52,6 +52,7 @@ class EmpleadoSerializer(serializers.Serializer):
     sexo_id = serializers.IntegerField(read_only=True)
     sexo_nombre = serializers.CharField(read_only=True)
     correo = serializers.EmailField(read_only=True, allow_null=True)
+    correo_alternativo = serializers.CharField(read_only=True, allow_null=True, required=False)
     telefono_movil = serializers.CharField(read_only=True, allow_null=True)
     telefono_habitacion = serializers.CharField(read_only=True, allow_null=True)
     fecha_nacimiento = serializers.CharField(read_only=True, allow_null=True)

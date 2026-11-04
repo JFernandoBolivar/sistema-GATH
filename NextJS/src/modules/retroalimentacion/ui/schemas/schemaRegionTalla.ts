@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 export const schemaRegionTalla = z.object({
-  codigo: z.string({ required_error: "Campo Obligatorio" }).min(1, { message: "Campo Obligatorio" }),
+  codigo: z
+    .string({ required_error: "Campo Obligatorio" })
+    .trim()
+    .min(1, { message: "Campo Obligatorio" })
+    .max(10, { message: "Máximo 10 Caracteres" }),
 });
 
 export type RegionTallaSchema = z.infer<typeof schemaRegionTalla>;

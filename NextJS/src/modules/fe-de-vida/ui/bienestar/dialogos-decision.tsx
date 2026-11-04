@@ -1,9 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import {
   Dialog,
   DialogContent,
@@ -33,17 +34,28 @@ interface BaseProps {
 export function DialogoDevolver({
   abierto,
   pendiente,
+  erroresServidor,
   onCerrar,
   onConfirmar,
-}: BaseProps & { onConfirmar: (motivo: string, requiereNuevaFoto: boolean) => void }) {
+}: BaseProps & {
+  erroresServidor?: Record<string, string[]>;
+  onConfirmar: (motivo: string, requiereNuevaFoto: boolean) => void;
+}) {
+  const form = useForm<DevolverValores>({
+    resolver: zodResolver(devolverSchema),
+    defaultValues: { motivo: "", requiereNuevaFoto: false },
+  });
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<DevolverValores>({
-    resolver: zodResolver(devolverSchema),
-    defaultValues: { motivo: "", requiereNuevaFoto: false },
-  });
+  } = form;
+
+  useEffect(() => {
+    if (erroresServidor) {
+      aplicarErroresServidor(form, erroresServidor);
+    }
+  }, [erroresServidor, form]);
   return (
     <Dialog open={abierto} onOpenChange={(o) => !o && onCerrar()}>
       <DialogContent>
@@ -99,6 +111,7 @@ export function DialogoDevolver({
 export function DialogoTexto({
   abierto,
   pendiente,
+  erroresServidor,
   onCerrar,
   onConfirmar,
   titulo,
@@ -108,6 +121,7 @@ export function DialogoTexto({
   destructivo = false,
   aviso,
 }: BaseProps & {
+  erroresServidor?: Record<string, string[]>;
   onConfirmar: (texto: string) => void;
   titulo: string;
   descripcion: string;
@@ -117,14 +131,24 @@ export function DialogoTexto({
   /** Aclaración destacada sobre las consecuencias de la acción. */
   aviso?: ReactNode;
 }) {
+  const form = useForm<TextoObligatorioValores>({
+    resolver: zodResolver(textoObligatorioSchema(etiqueta)),
+    defaultValues: { texto: "" },
+  });
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<TextoObligatorioValores>({
-    resolver: zodResolver(textoObligatorioSchema(etiqueta)),
-    defaultValues: { texto: "" },
-  });
+  } = form;
+
+  useEffect(() => {
+    if (erroresServidor) {
+      aplicarErroresServidor(form, erroresServidor, {
+        motivo: "texto",
+        justificacion: "texto",
+      });
+    }
+  }, [erroresServidor, form]);
   return (
     <Dialog open={abierto} onOpenChange={(o) => !o && onCerrar()}>
       <DialogContent>
@@ -183,18 +207,31 @@ export function DialogoTexto({
 export function DialogoRetirarCheck({
   abierto,
   pendiente,
+  erroresServidor,
   onCerrar,
   onConfirmar,
-}: BaseProps & { onConfirmar: (motivo: string) => void }) {
+}: BaseProps & {
+  erroresServidor?: Record<string, string[]>;
+  onConfirmar: (motivo: string) => void;
+}) {
+  const form = useForm<RetirarCheckValores>({
+    resolver: zodResolver(retirarCheckSchema),
+    defaultValues: { motivo: "" },
+  });
   const {
     register,
     handleSubmit,
     control,
     formState: { errors },
-  } = useForm<RetirarCheckValores>({
-    resolver: zodResolver(retirarCheckSchema),
-    defaultValues: { motivo: "" },
-  });
+  } = form;
+
+  useEffect(() => {
+    if (erroresServidor) {
+      aplicarErroresServidor(form, erroresServidor, {
+        justificacion: "motivo",
+      });
+    }
+  }, [erroresServidor, form]);
   const escritos = useWatch({ control, name: "motivo" })?.length ?? 0;
   return (
     <Dialog open={abierto} onOpenChange={(o) => !o && onCerrar()}>

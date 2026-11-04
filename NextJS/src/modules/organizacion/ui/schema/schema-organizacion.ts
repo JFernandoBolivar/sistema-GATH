@@ -75,25 +75,25 @@ export type OrganismoAdscritoFormType = z.infer<typeof organismoAdscritoSchema>;
 export const hierarchyDependencySchema = z
   .object({
     dependency: z.object({
-      codigo: z.string().trim().min(1, "El código de la dependencia es requerido"),
-      nombre: z.string().trim().min(1, "El nombre de la dependencia es requerido"),
+      codigo: z.string().trim().min(1, "El código de la dependencia es requerido").max(20, ERROR.MAX_LENGTH(20)),
+      nombre: z.string().trim().min(2, ERROR.MIN_LENGTH(2)).max(200, ERROR.MAX_LENGTH(200)),
     }),
     direction_general: z
       .object({
-        codigo: z.string().optional(),
-        nombre: z.string().optional(),
+        codigo: z.string().trim().max(20, ERROR.MAX_LENGTH(20)).optional(),
+        nombre: z.string().trim().max(200, ERROR.MAX_LENGTH(200)).optional(),
       })
       .optional(),
     direction_line: z
       .object({
-        codigo: z.string().optional(),
-        nombre: z.string().optional(),
+        codigo: z.string().trim().max(20, ERROR.MAX_LENGTH(20)).optional(),
+        nombre: z.string().trim().max(200, ERROR.MAX_LENGTH(200)).optional(),
       })
       .optional(),
     coordination: z
       .object({
-        codigo: z.string().optional(),
-        nombre: z.string().optional(),
+        codigo: z.string().trim().max(20, ERROR.MAX_LENGTH(20)).optional(),
+        nombre: z.string().trim().max(200, ERROR.MAX_LENGTH(200)).optional(),
       })
       .optional(),
     activeDirectionGeneral: z.boolean().default(false),

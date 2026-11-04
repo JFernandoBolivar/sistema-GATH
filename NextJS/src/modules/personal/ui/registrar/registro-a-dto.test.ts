@@ -152,10 +152,18 @@ describe("empleadoRegistroSchema (revalidación del alta en el servidor)", () =>
   });
 
   it("aplica las reglas del legado en datos básicos", () => {
-    expect(pasa({ cedula: "123456" })).toBe(false);
-    expect(pasa({ cedula: "1234567890123" })).toBe(false);
-    expect(pasa({ nombres: "Al" })).toBe(false);
-    expect(pasa({ apellidos: "A".repeat(31) })).toBe(false);
+    expect(pasa({ cedula: "12345" })).toBe(false);
+    expect(pasa({ cedula: "123456" })).toBe(true);
+    expect(pasa({ cedula: "123456789" })).toBe(true);
+    expect(pasa({ cedula: "1234567890" })).toBe(false);
+    expect(pasa({ cedula: "30900439999999999999" })).toBe(false);
+    expect(pasa({ cedula: "12A45678" })).toBe(false);
+    expect(pasa({ nombres: "A" })).toBe(false);
+    expect(pasa({ nombres: "Al" })).toBe(true);
+    expect(pasa({ nombres: "Juan3" })).toBe(false);
+    expect(pasa({ nombres: "A".repeat(61) })).toBe(false);
+    expect(pasa({ apellidos: "A".repeat(60) })).toBe(true);
+    expect(pasa({ apellidos: "A".repeat(61) })).toBe(false);
     expect(pasa({ carnetPatria: "12345" })).toBe(false);
     expect(pasa({ carnetPatria: "1234567890" })).toBe(true);
     expect(pasa({ carnetPatriaSerial: "AB12cd" })).toBe(true);

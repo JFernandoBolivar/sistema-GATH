@@ -173,7 +173,10 @@ def _vacantes(limite=5000):
 
 
 def _familiares(limite=5000):
-    return generar_reporte_familiares(RepoReportesORM(), filtros={}, limite=limite)
+    # En este escenario A y B tienen registro de egreso: son trabajadores pasivos.
+    return generar_reporte_familiares(
+        RepoReportesORM(), filtros={}, limite=limite, condicion='PASIVO',
+    )
 
 
 def _egresos(limite=5000):

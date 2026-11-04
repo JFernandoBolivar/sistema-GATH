@@ -38,28 +38,28 @@ class OrganismoAdscritoSerializer(serializers.Serializer):
 
 
 class DependenciaWriteSerializer(serializers.Serializer):
-    codigo = serializers.CharField(max_length=20, required=True)
-    nombre = serializers.CharField(max_length=200, required=True)
+    codigo = serializers.CharField(min_length=1, max_length=20, required=True)
+    nombre = serializers.CharField(min_length=2, max_length=200, required=True)
 
 
 class DireccionGeneralWriteSerializer(serializers.Serializer):
-    codigo = serializers.CharField(max_length=20, required=True)
-    nombre = serializers.CharField(max_length=200, required=True)
+    codigo = serializers.CharField(min_length=1, max_length=20, required=True)
+    nombre = serializers.CharField(min_length=2, max_length=200, required=True)
     dependencia_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class DireccionLineaWriteSerializer(serializers.Serializer):
-    codigo = serializers.CharField(max_length=20, required=True)
-    nombre = serializers.CharField(max_length=200, required=True)
+    codigo = serializers.CharField(min_length=1, max_length=20, required=True)
+    nombre = serializers.CharField(min_length=2, max_length=200, required=True)
     direccion_general_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class CoordinacionWriteSerializer(serializers.Serializer):
-    codigo = serializers.CharField(max_length=20, required=True)
-    nombre = serializers.CharField(max_length=200, required=True)
+    codigo = serializers.CharField(min_length=1, max_length=20, required=True)
+    nombre = serializers.CharField(min_length=2, max_length=200, required=True)
     direccion_linea_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class OrganismoAdscritoWriteSerializer(serializers.Serializer):
-    nombre = serializers.CharField(max_length=50, required=True)
+    nombre = serializers.CharField(min_length=2, max_length=50, required=True)
     parent_id = serializers.IntegerField(required=False, allow_null=True)

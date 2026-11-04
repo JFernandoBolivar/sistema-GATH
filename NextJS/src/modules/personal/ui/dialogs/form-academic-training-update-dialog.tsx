@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Label } from "@/shared/ui/components/label";
-import { ScrollArea } from "@/shared/ui/components/scroll-area";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import {
   Select,
   SelectContent,
@@ -28,6 +28,24 @@ import { useCatalogoDependiente } from "../use-catalogo-dependiente";
 import { ID_OTRA, esNivelNoPosee } from "../catalogo-otra";
 import { resolverPendientesOtra, type PendienteOtra } from "../resolver-otra";
 import { Input } from "@/shared/ui/components/input";
+import { avisoDeFallo, mensajeDe } from "./campo-dialogo";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = {
+  formacion_academica: "formacionAcademica",
+  nivel_academico: "nivelAcademicoId",
+  carrera: "carreraId",
+  mencion: "mencionId",
+  institucion: "institucionId",
+};
+
+function MensajeFila({ error }: { error?: string }) {
+  return error ? (
+    <p role="alert" className="mt-1 text-xs text-destructive">
+      {error}
+    </p>
+  ) : null;
+}
 
 /** Select de catálogo en cascada (Carrera por nivel, Mención por carrera). */
 function SelectDependiente({
@@ -100,26 +118,26 @@ export default function FormAcademicTrainingUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { control, register, handleSubmit, setValue, watch } = useForm<FormAcademicTrainingValues>({
+  const form = useForm<FormAcademicTrainingValues>({
     defaultValues: {
       formacionAcademica:
         (empleado.formacionAcademica ?? []).length > 0
           ? (empleado.formacionAcademica ?? []).map((fa) => ({
               id: fa.id,
-              nivelAcademicoId: fa.nivelAcademicoId ?? undefined,
-              carreraId: fa.carreraId ?? undefined,
-              mencionId: fa.mencionId ?? undefined,
-              institucionId: fa.institucionId ?? undefined,
+              nivelAcademicoId: fa.nivelAcademicoId ?? 0,
+              carreraId: fa.carreraId ?? 0,
+              mencionId: fa.mencionId ?? 0,
+              institucionId: fa.institucionId ?? 0,
               nuevaCarreraNombre: "",
               nuevaMencionNombre: "",
               nuevaInstitucionNombre: "",
             }))
           : [
               {
-                nivelAcademicoId: undefined,
-                carreraId: undefined,
-                mencionId: undefined,
-                institucionId: undefined,
+                nivelAcademicoId: 0,
+                carreraId: 0,
+                mencionId: 0,
+                institucionId: 0,
                 nuevaCarreraNombre: "",
                 nuevaMencionNombre: "",
                 nuevaInstitucionNombre: "",
@@ -127,6 +145,9 @@ export default function FormAcademicTrainingUpdateDialog({
             ],
     },
   });
+
+  const { control, register, handleSubmit, setValue, watch } = form;
+  const erroresFilas = form.formState.errors.formacionAcademica;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -206,9 +227,10 @@ export default function FormAcademicTrainingUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
@@ -263,10 +285,10 @@ export default function FormAcademicTrainingUpdateDialog({
                       remove(fields.filter((_, i) => i !== 0).map((_, i) => i + 1));
                       setValue("formacionAcademica", [
                         {
-                          nivelAcademicoId: undefined,
-                          carreraId: undefined,
-                          mencionId: undefined,
-                          institucionId: undefined,
+                          nivelAcademicoId: 0,
+                          carreraId: 0,
+                          mencionId: 0,
+                          institucionId: 0,
                           nuevaCarreraNombre: "",
                           nuevaMencionNombre: "",
                           nuevaInstitucionNombre: "",
@@ -289,10 +311,10 @@ export default function FormAcademicTrainingUpdateDialog({
                     className="cursor-pointer size-8"
                     onClick={() =>
                       append({
-                        nivelAcademicoId: undefined,
-                        carreraId: undefined,
-                        mencionId: undefined,
-                        institucionId: undefined,
+                        nivelAcademicoId: 0,
+                        carreraId: 0,
+                        mencionId: 0,
+                        institucionId: 0,
                         nuevaCarreraNombre: "",
                         nuevaMencionNombre: "",
                         nuevaInstitucionNombre: "",
@@ -312,10 +334,24 @@ export default function FormAcademicTrainingUpdateDialog({
                   {fields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-3 items-start border-b pb-3 mb-2 w-full"
+                      className="@container flex flex-col gap-3 border-b pb-3 mb-2 w-full"
                     >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium">Formación {index + 1}</span>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-8 shrink-0`}
+                          onClick={() => remove(index)}
+                          aria-label={`Quitar formación académica ${index + 1}`}
+                        >
+                          <X className="size-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 items-start gap-3 @lg:grid-cols-2">
                       <div className="min-w-0">
-                        <Label className="text-xs">{index + 1}. Nivel Academico</Label>
+                        <Label className="text-xs">Nivel Academico</Label>
                         <Select
                           value={
                             watch(`formacionAcademica.${index}.nivelAcademicoId`)
@@ -328,7 +364,10 @@ export default function FormAcademicTrainingUpdateDialog({
                             setValue(`formacionAcademica.${index}.mencionId`, 0);
                           }}
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger
+                            className="w-full"
+                            aria-invalid={!!erroresFilas?.[index]?.nivelAcademicoId || undefined}
+                          >
                             <SelectValue placeholder="Seleccione" />
                           </SelectTrigger>
                           <SelectContent>
@@ -339,6 +378,7 @@ export default function FormAcademicTrainingUpdateDialog({
                             ))}
                           </SelectContent>
                         </Select>
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.nivelAcademicoId)} />
                       </div>
 
                       <div className="min-w-0">
@@ -363,9 +403,11 @@ export default function FormAcademicTrainingUpdateDialog({
                             )
                           }
                         />
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.carreraId)} />
                         {Number(watch(`formacionAcademica.${index}.carreraId`)) === ID_OTRA && (
                           <Input
                             className="mt-1"
+                            maxLength={200}
                             placeholder="Nueva carrera..."
                             {...register(`formacionAcademica.${index}.nuevaCarreraNombre`)}
                           />
@@ -382,9 +424,11 @@ export default function FormAcademicTrainingUpdateDialog({
                           respaldo={catalogos?.menciones ?? []}
                           permitirOtra={Number(watch(`formacionAcademica.${index}.carreraId`)) > 0}
                         />
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.mencionId)} />
                         {Number(watch(`formacionAcademica.${index}.mencionId`)) === ID_OTRA && (
                           <Input
                             className="mt-1"
+                            maxLength={200}
                             placeholder="Nueva mención..."
                             {...register(`formacionAcademica.${index}.nuevaMencionNombre`)}
                           />
@@ -415,25 +459,17 @@ export default function FormAcademicTrainingUpdateDialog({
                             <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
                           </SelectContent>
                         </Select>
+                        <MensajeFila error={mensajeDe(erroresFilas?.[index]?.institucionId)} />
                         {Number(watch(`formacionAcademica.${index}.institucionId`)) === ID_OTRA && (
                           <Input
                             className="mt-1"
+                            maxLength={200}
                             placeholder="Nueva institución..."
                             {...register(`formacionAcademica.${index}.nuevaInstitucionNombre`)}
                           />
                         )}
                       </div>
 
-                      <div className="pt-5 flex justify-end">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className={`${index === 0 ? "invisible" : ""} cursor-pointer size-8 shrink-0`}
-                          onClick={() => remove(index)}
-                        >
-                          <X className="size-4" />
-                        </Button>
                       </div>
                     </div>
                   ))}
