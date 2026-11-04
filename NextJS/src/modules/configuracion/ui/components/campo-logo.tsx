@@ -13,8 +13,16 @@ import { toast } from "sonner";
 
 import { FileUpload } from "@/shared/ui/components/file-upload";
 
+import type { ConfiguracionVisualDTO } from "../../application/dtos/configuracion-visual-dto";
 import type { CampoLogo } from "../../domain/ports/repo-configuracion-visual";
 import { subirLogoConfiguracionAction } from "../../infrastructure/actions/configuracion-actions";
+import { VersionesImagenDialog } from "./versiones-imagen-dialog";
+
+function urlDeCampo(campo: CampoLogo, config: ConfiguracionVisualDTO): string | null {
+  if (campo === "logo_principal_clave") return config.logoPrincipalUrl;
+  if (campo === "logo_secundario_clave") return config.logoSecundarioUrl;
+  return config.cintilloPieUrl;
+}
 
 export function CampoLogoUpload({
   campo,
@@ -32,6 +40,8 @@ export function CampoLogoUpload({
   const [archivo, setArchivo] = useState<File | null>(null);
   const [previewLocal, setPreviewLocal] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Cambia al subir o restaurar: evita que el navegador reuse la imagen en caché (misma URL).
+  const [revision, setRevision] = useState(0);
 
   // Sincroniza un recurso externo (object URL) con el archivo elegido; el
   // setState es inevitable porque la URL solo existe en el efecto (con su revoke).
@@ -58,18 +68,14 @@ export function CampoLogoUpload({
         return;
       }
       toast.success(`${etiqueta} actualizado correctamente.`);
-      const nuevaUrl =
-        campo === "logo_principal_clave"
-          ? resultado.logoPrincipalUrl
-          : campo === "logo_secundario_clave"
-            ? resultado.logoSecundarioUrl
-            : resultado.cintilloPieUrl;
-      onSubido(nuevaUrl);
+      onSubido(urlDeCampo(campo, resultado));
+      setRevision((r) => r + 1);
       setArchivo(null);
     });
   };
 
-  const previewMostrado = previewLocal ?? urlActual;
+  const urlConRevision = urlActual && revision > 0 ? `${urlActual}${urlActual.includes("?") ? "&" : "?"}v=${revision}` : urlActual;
+  const previewMostrado = previewLocal ?? urlConRevision;
 
   return (
     <div className="flex flex-col gap-2">
@@ -95,6 +101,16 @@ export function CampoLogoUpload({
           </div>
         )}
       </div>
+      <VersionesImagenDialog
+        campo={campo}
+        etiqueta={etiqueta}
+        deshabilitado={deshabilitado}
+        recarga={revision}
+        onRestaurada={(config) => {
+          onSubido(urlDeCampo(campo, config));
+          setRevision((r) => r + 1);
+        }}
+      />
       {deshabilitado && (
         <p className="text-xs text-muted-foreground">
           Deshabilitado: el cintillo genérico es de solo lectura (RN-009-01). Seleccione
