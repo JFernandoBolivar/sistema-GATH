@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean),
+  // Correos y notificaciones de fe de vida enviados antes del 2026-11-03 enlazaban a
+  // `/fe-de-vida` (no existe); se llevan a la pantalla real del pasivo. Solo la ruta
+  // exacta: `/fe-de-vida/verificar/...` (verificación pública) no se toca.
+  async redirects() {
+    return [{ source: "/fe-de-vida", destination: "/autogestion/fe-de-vida", permanent: false }];
+  },
   async headers() {
     return [
       {

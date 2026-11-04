@@ -70,12 +70,14 @@ export function Combobox({
           aria-describedby={describedBy}
           disabled={disabled}
           className={cn(
-            "w-full justify-between font-normal",
+            "w-full min-w-0 justify-between font-normal",
             !selected && "text-muted-foreground",
             className,
           )}
         >
-          <span className="truncate">{selected ? selected.label : placeholder}</span>
+          <span className="min-w-0 flex-1 truncate text-left" title={selected?.label}>
+            {selected ? selected.label : placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
