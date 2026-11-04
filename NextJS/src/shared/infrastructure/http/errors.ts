@@ -16,12 +16,31 @@ export class SessionExpiredError extends AuthSessionExpiredError {}
  */
 export class ApiHttpError extends Error {
   readonly status: number;
+  /** Errores por campo del backend (`data.errores`): `{ "cedula": ["..."], "contactos.0.telefono": ["..."] }`. */
+  readonly errores?: Record<string, string[]>;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, errores?: Record<string, string[]>) {
     super(message);
     this.name = "ApiHttpError";
     this.status = status;
+    this.errores = errores;
   }
+}
+
+/**
+ * Resultado de error de una Server Action: el mensaje y, si el backend los dio,
+ * los errores por campo para marcarlos en el formulario con `aplicarErroresServidor`.
+ */
+export interface ErrorDeAccion {
+  error: string;
+  errores?: Record<string, string[]>;
+}
+
+export function errorDeAccion(e: unknown, porDefecto: string): ErrorDeAccion {
+  if (e instanceof ApiHttpError) {
+    return e.errores ? { error: e.message, errores: e.errores } : { error: e.message };
+  }
+  return { error: e instanceof Error && e.message ? e.message : porDefecto };
 }
 
 /**

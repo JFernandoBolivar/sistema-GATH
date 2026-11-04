@@ -13,6 +13,8 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle
 
+from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
+
 COLORS = {
     'primary': colors.HexColor('#1a237e'),
     'secondary': colors.HexColor('#3949ab'),
@@ -27,13 +29,13 @@ COLORS = {
 }
 
 FONTS = {
-    'title': ('Helvetica-Bold', 14),
-    'subtitle': ('Helvetica-Bold', 12),
-    'body': ('Helvetica', 9),
-    'small': ('Helvetica', 8),
-    'tiny': ('Helvetica', 7),
-    'header_cell': ('Helvetica-Bold', 8),
-    'table_cell': ('Helvetica', 7),
+    'title': (FUENTE_NEGRITA, 14),
+    'subtitle': (FUENTE_NEGRITA, 12),
+    'body': (FUENTE, 9),
+    'small': (FUENTE, 8),
+    'tiny': (FUENTE, 7),
+    'header_cell': (FUENTE_NEGRITA, 8),
+    'table_cell': (FUENTE, 7),
 }
 
 PAGE_CONFIG = {

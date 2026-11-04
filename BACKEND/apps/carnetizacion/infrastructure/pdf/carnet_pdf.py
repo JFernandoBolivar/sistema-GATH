@@ -21,6 +21,7 @@ from io import BytesIO
 import qrcode
 import qrcode.constants
 from PIL import Image
+from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
@@ -47,7 +48,7 @@ class DatosCarnetPdf:
     foto_bytes: bytes | None = None
 
 
-def _calcular_tamano_fuente(texto: str, fuente: str = "Helvetica", max_ancho: float = _TEXTO_MAX_ANCHO, tamano_inicial: float = 8) -> float:
+def _calcular_tamano_fuente(texto: str, fuente: str = FUENTE, max_ancho: float = _TEXTO_MAX_ANCHO, tamano_inicial: float = 8) -> float:
     tamano = tamano_inicial
     while stringWidth(texto, fuente, tamano) > max_ancho and tamano > _TEXTO_MIN_FUENTE:
         tamano -= 0.5
@@ -72,7 +73,7 @@ def _dividir_texto_en_lineas(texto: str, fuente: str, tamano: float, max_ancho: 
 
 
 def _colocar_texto_ajustado(c: canvas.Canvas, texto: str, x: float, y: float, bold: bool = False, max_ancho: float | None = None, tamano_inicial: float = 8) -> None:
-    fuente = "Helvetica-Bold" if bold else "Helvetica"
+    fuente = FUENTE_NEGRITA if bold else FUENTE
     palabra_mas_larga = max(texto.split(), key=len) if texto.split() else texto
     tamano = _calcular_tamano_fuente(palabra_mas_larga, fuente, max_ancho or _TEXTO_MAX_ANCHO, tamano_inicial)
     lineas = _dividir_texto_en_lineas(texto, fuente, tamano, max_ancho) if max_ancho else [texto]
@@ -88,7 +89,7 @@ def _dibujar_placeholder_foto(c: canvas.Canvas, x: float, y: float, ancho: float
     c.setFillColorRGB(0.96, 0.96, 0.96)
     c.rect(x, y, ancho, alto, fill=1)
     c.setFillColorRGB(0.6, 0.6, 0.6)
-    c.setFont("Helvetica", 6)
+    c.setFont(FUENTE, 6)
     c.drawCentredString(x + ancho / 2, y + alto / 2 - 0.2 * cm, "FOTO")
 
 
@@ -98,7 +99,7 @@ def _dibujar_fondo_emergencia(c: canvas.Canvas) -> None:
     c.setStrokeColorRGB(0, 0.2, 0.4)
     c.setLineWidth(0.5)
     c.rect(0.1 * cm, 0.1 * cm, CARNET_WIDTH - 0.2 * cm, CARNET_HEIGHT - 0.2 * cm, fill=0)
-    c.setFont("Helvetica", 6)
+    c.setFont(FUENTE, 6)
     c.setFillColorRGB(0, 0, 0)
     c.drawCentredString(CARNET_WIDTH / 2, CARNET_HEIGHT / 2, "USANDO PLANTILLA OFICIAL")
 
@@ -120,7 +121,7 @@ def _dibujar_qr(c: canvas.Canvas, datos: DatosCarnetPdf, x: float, y: float, tam
     qr_buffer.seek(0)
     c.drawImage(ImageReader(qr_buffer), x, y, tamano, tamano)
 
-    c.setFont("Helvetica", 2.5)
+    c.setFont(FUENTE, 2.5)
     c.setFillColorRGB(0.6, 0.6, 0.6)
     c.drawString(x, y - 0.15 * cm, f"CI: {datos.cedula}")
 

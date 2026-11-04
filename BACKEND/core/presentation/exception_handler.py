@@ -21,6 +21,7 @@ rotación hacia `logs/backend/errors_backend.txt` (D-04).
 import logging
 import uuid
 
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.views import exception_handler as drf_exception_handler
 
 from core.domain.exceptions import (
@@ -56,7 +57,9 @@ def custom_exception_handler(exc, context):
             400,
         )
         logger.info('[TRACE:%s] %s: %s', trace_id, type(exc).__name__, exc)
-        return fail(message=str(exc), status=status)
+        campo = getattr(exc, 'campo', None)
+        datos = {'errores': {campo: [str(exc)]}} if campo else None
+        return fail(message=str(exc), status=status, data=datos)
 
     response = drf_exception_handler(exc, context)
 
@@ -66,9 +69,46 @@ def custom_exception_handler(exc, context):
         logger.exception('[TRACE:%s] Error no controlado', trace_id, exc_info=exc)
         return fail(message='Ha ocurrido un error interno. Contacte a soporte.', status=500)
 
+    # Validación de serializers: se conserva el detalle por campo en
+    # `data.errores` ({'campo': ['mensaje'], 'lista.0.campo': [...]}) para que el
+    # formulario marque en rojo cada dato con error (QA 2026-11-04).
+    if isinstance(exc, DRFValidationError):
+        errores = aplanar_errores(response.data)
+        generales = errores.pop('non_field_errors', []) + errores.pop('detail', [])
+        todos = [m for msgs in errores.values() for m in msgs] + generales
+        if not todos:
+            mensaje = 'Solicitud inválida.'
+        elif len(todos) == 1:
+            mensaje = todos[0]
+        else:
+            mensaje = f'Hay {len(todos)} datos por corregir. Revise los campos marcados en rojo.'
+        return fail(message=mensaje, status=response.status_code, data={'errores': errores} if errores else None)
+
     # Errores estándar de DRF (403, 404, 405, etc.): se homogeneizan al sobre C-1.
     mensaje = response.data.get('detail', 'Solicitud inválida.') if isinstance(response.data, dict) else 'Solicitud inválida.'
     return fail(message=str(mensaje), status=response.status_code)
+
+
+def aplanar_errores(detalle, prefijo: str = '') -> dict[str, list[str]]:
+    """{'a': ['x'], 'b': [{'c': ['y']}]} -> {'a': ['x'], 'b.0.c': ['y']}."""
+    salida: dict[str, list[str]] = {}
+    if isinstance(detalle, dict):
+        for clave, valor in detalle.items():
+            ruta = f'{prefijo}.{clave}' if prefijo else str(clave)
+            for k, v in aplanar_errores(valor, ruta).items():
+                salida.setdefault(k, []).extend(v)
+    elif isinstance(detalle, list):
+        if all(not isinstance(v, (dict, list)) for v in detalle):
+            if detalle:
+                salida[prefijo or 'non_field_errors'] = [str(v) for v in detalle]
+        else:
+            for i, valor in enumerate(detalle):
+                ruta = f'{prefijo}.{i}' if prefijo else str(i)
+                for k, v in aplanar_errores(valor, ruta).items():
+                    salida.setdefault(k, []).extend(v)
+    elif detalle not in (None, ''):
+        salida[prefijo or 'non_field_errors'] = [str(detalle)]
+    return salida
 
 
 def _obtener_trace_id(context: dict) -> str:
