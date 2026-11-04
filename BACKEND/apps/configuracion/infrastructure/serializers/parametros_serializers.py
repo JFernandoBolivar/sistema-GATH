@@ -2,6 +2,15 @@
 from rest_framework import serializers
 
 
+class OpcionParametroSerializer(serializers.Serializer):
+    valor = serializers.IntegerField()
+    etiqueta = serializers.CharField()
+
+    def to_representation(self, instance):
+        valor, etiqueta = instance
+        return {'valor': valor, 'etiqueta': etiqueta}
+
+
 class ParametroSerializer(serializers.Serializer):
     clave = serializers.CharField()
     etiqueta = serializers.CharField()
@@ -14,6 +23,7 @@ class ParametroSerializer(serializers.Serializer):
     maximo = serializers.IntegerField(allow_null=True)
     actualizado_por_id = serializers.IntegerField(allow_null=True)
     actualizado_en = serializers.CharField(allow_null=True)
+    opciones = OpcionParametroSerializer(many=True)
 
 
 class ParametroActualizarSerializer(serializers.Serializer):

@@ -33,6 +33,11 @@ export function validarValorParametro(parametro: ParametroDTO, valor: string): s
       ? null
       : "Seleccione verdadero o falso.";
   }
+  if (parametro.opciones.length > 0) {
+    const permitido =
+      texto === parametro.valor || parametro.opciones.some((o) => o.valor === texto);
+    return permitido ? null : "Seleccione una de las opciones.";
+  }
   if (parametro.tipo === "entero") {
     if (!/^-?\d+$/.test(texto)) return "Escriba un número entero.";
     const numero = Number(texto);
@@ -61,6 +66,17 @@ export function validarValorParametro(parametro: ParametroDTO, valor: string): s
     }
   }
   return null;
+}
+
+/**
+ * Texto legible de un valor: la etiqueta de su opción («1 año», «Nunca») o, si el
+ * valor guardado no está en la lista, «N días (personalizado)».
+ */
+export function etiquetaValorParametro(parametro: ParametroDTO, valor: string): string {
+  if (parametro.opciones.length === 0) return valor;
+  const opcion = parametro.opciones.find((o) => o.valor === valor);
+  if (opcion) return opcion.etiqueta;
+  return /^\d+$/.test(valor) ? `${valor} días (personalizado)` : valor;
 }
 
 /** Normaliza el texto que se envía al servidor (días ordenados y sin repetir). */

@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from celery import shared_task
 
 from apps.autogestion.infrastructure.models.actualizacion_models import SoporteDocumentalModel
+from apps.configuracion.domain.parametros import RETENCION_NUNCA
 from core.domain.configuracion import (
     CLAVE_RETENCION_EVIDENCIAS_DIAS,
     CLAVE_RETENCION_NOTIFICACIONES_DIAS,
@@ -37,13 +38,24 @@ DEFECTOS = {
 
 
 def _dias(clave: str) -> int:
+    """Días de retención; 0 = Nunca (no se borra nada de esa categoría)."""
     lector = obtener_lector_configuracion()
     if lector is None:
         return DEFECTOS[clave]
     try:
-        return max(1, lector.obtener_entero(clave))
+        dias = lector.obtener_entero(clave)
     except Exception:  # noqa: BLE001 - un parámetro roto no detiene la purga
         return DEFECTOS[clave]
+    return dias if dias >= RETENCION_NUNCA else DEFECTOS[clave]
+
+
+def _limite(clave: str, ahora: datetime, categoria: str) -> datetime | None:
+    """Fecha límite de purga, o None si la retención es «nunca»."""
+    dias = _dias(clave)
+    if dias == RETENCION_NUNCA:
+        logger.info('retencion: nunca', extra={'categoria': categoria})
+        return None
+    return ahora - timedelta(days=dias)
 
 
 def _purgar_evidencias(limite: datetime, almacen: SeaweedFSStorage) -> int:
@@ -119,19 +131,19 @@ def _purgar_notificaciones(limite: datetime) -> int:
 def purgar_retencion() -> dict:
     ahora = datetime.now(timezone.utc)
     almacen = SeaweedFSStorage()
+    limite_evidencias = _limite(CLAVE_RETENCION_EVIDENCIAS_DIAS, ahora, 'evidencias')
+    limite_soportes = _limite(CLAVE_RETENCION_SOPORTES_DIAS, ahora, 'soportes')
+    limite_notificaciones = _limite(CLAVE_RETENCION_NOTIFICACIONES_DIAS, ahora, 'notificaciones')
+    limite_outbox = _limite(CLAVE_RETENCION_OUTBOX_DIAS, ahora, 'outbox')
     resultado = {
-        'evidencias': _purgar_evidencias(
-            ahora - timedelta(days=_dias(CLAVE_RETENCION_EVIDENCIAS_DIAS)), almacen,
+        'evidencias': (
+            0 if limite_evidencias is None else _purgar_evidencias(limite_evidencias, almacen)
         ),
-        'soportes': _purgar_soportes(
-            ahora - timedelta(days=_dias(CLAVE_RETENCION_SOPORTES_DIAS)), almacen,
+        'soportes': 0 if limite_soportes is None else _purgar_soportes(limite_soportes, almacen),
+        'notificaciones': (
+            0 if limite_notificaciones is None else _purgar_notificaciones(limite_notificaciones)
         ),
-        'notificaciones': _purgar_notificaciones(
-            ahora - timedelta(days=_dias(CLAVE_RETENCION_NOTIFICACIONES_DIAS)),
-        ),
-        'outbox': _purgar_outbox(
-            ahora - timedelta(days=_dias(CLAVE_RETENCION_OUTBOX_DIAS)), almacen,
-        ),
+        'outbox': 0 if limite_outbox is None else _purgar_outbox(limite_outbox, almacen),
     }
     registrar_auditoria(
         trace_id=uuid.uuid4().hex,

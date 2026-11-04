@@ -36,6 +36,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
 import { Switch } from "@/components/ui/switch";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
@@ -46,7 +53,11 @@ import {
   listarParametrosAction,
 } from "../infrastructure/actions/parametros-actions";
 import { GRUPOS_PARAMETROS, PERMISO_CONFIGURACION } from "../domain/value-objects/permisos-configuracion";
-import { normalizarValorParametro, validarValorParametro } from "./schema/schema-parametros";
+import {
+  etiquetaValorParametro,
+  normalizarValorParametro,
+  validarValorParametro,
+} from "./schema/schema-parametros";
 
 const PAGINA_INICIAL = 1;
 
@@ -174,6 +185,34 @@ export function ParametrosPage() {
                               }}
                               aria-label={parametro.etiqueta}
                             />
+                          ) : parametro.opciones.length > 0 ? (
+                            <Select
+                              value={valor}
+                              disabled={!puedeEditar || isPending}
+                              onValueChange={(nuevo) =>
+                                setEdiciones((prev) => ({ ...prev, [parametro.clave]: nuevo }))
+                              }
+                            >
+                              <SelectTrigger
+                                id={`param-${parametro.clave}`}
+                                aria-label={parametro.etiqueta}
+                                className="w-52 bg-white"
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {!parametro.opciones.some((o) => o.valor === parametro.valor) && (
+                                  <SelectItem value={parametro.valor}>
+                                    {etiquetaValorParametro(parametro, parametro.valor)}
+                                  </SelectItem>
+                                )}
+                                {parametro.opciones.map((opcion) => (
+                                  <SelectItem key={opcion.valor} value={opcion.valor}>
+                                    {opcion.etiqueta}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           ) : (
                             <Input
                               id={`param-${parametro.clave}`}
@@ -226,8 +265,8 @@ export function ParametrosPage() {
               {pendiente && (
                 <>
                   ¿Guardar <strong>{pendiente.parametro.etiqueta}</strong> con el valor{" "}
-                  <strong>{pendiente.valor}</strong>? El valor anterior era{" "}
-                  <strong>{pendiente.parametro.valor}</strong>. Se aplicará sin reiniciar.
+                  <strong>{etiquetaValorParametro(pendiente.parametro, pendiente.valor)}</strong>? El valor anterior era{" "}
+                  <strong>{etiquetaValorParametro(pendiente.parametro, pendiente.parametro.valor)}</strong>. Se aplicará sin reiniciar.
                 </>
               )}
             </AlertDialogDescription>
@@ -303,8 +342,8 @@ function HistorialDialog({
                   <tr key={`${cambio.fecha}-${indice}`} className="border-b last:border-0">
                     <td className="py-2">{formatearFecha(cambio.fecha)}</td>
                     <td className="py-2">{cambio.actorCedula || "—"}</td>
-                    <td className="py-2">{cambio.valorPrevio}</td>
-                    <td className="py-2">{cambio.valorNuevo}</td>
+                    <td className="py-2">{parametro ? etiquetaValorParametro(parametro, cambio.valorPrevio) : cambio.valorPrevio}</td>
+                    <td className="py-2">{parametro ? etiquetaValorParametro(parametro, cambio.valorNuevo) : cambio.valorNuevo}</td>
                   </tr>
                 ))}
               </tbody>

@@ -2,6 +2,11 @@
 
 export type TipoParametro = "booleano" | "entero" | "texto";
 
+export interface OpcionParametroDTO {
+  valor: string;
+  etiqueta: string;
+}
+
 export interface ParametroDTO {
   clave: string;
   etiqueta: string;
@@ -14,6 +19,8 @@ export interface ParametroDTO {
   maximo: number | null;
   actualizadoPorId: number | null;
   actualizadoEn: string | null;
+  /** Si no está vacío, el valor se elige de esta lista (p. ej. retención). */
+  opciones: OpcionParametroDTO[];
 }
 
 export interface CambioParametroDTO {

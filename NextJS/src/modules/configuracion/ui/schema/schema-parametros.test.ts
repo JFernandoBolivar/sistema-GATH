@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { ParametroDTO } from "../../application/dtos/parametro-dto";
-import { normalizarValorParametro, validarValorParametro } from "./schema-parametros";
+import {
+  etiquetaValorParametro,
+  normalizarValorParametro,
+  validarValorParametro,
+} from "./schema-parametros";
 
 function parametro(overrides: Partial<ParametroDTO>): ParametroDTO {
   return {
@@ -16,9 +20,34 @@ function parametro(overrides: Partial<ParametroDTO>): ParametroDTO {
     maximo: 365,
     actualizadoPorId: null,
     actualizadoEn: null,
+    opciones: [],
     ...overrides,
   };
 }
+
+const OPCIONES_RETENCION = [
+  { valor: "30", etiqueta: "1 mes" },
+  { valor: "365", etiqueta: "1 año" },
+  { valor: "0", etiqueta: "Nunca" },
+];
+
+describe("parámetros con opciones (retención)", () => {
+  const p = parametro({ valor: "365", opciones: OPCIONES_RETENCION, minimo: null, maximo: null });
+
+  it("acepta solo las opciones, salvo el valor ya guardado", () => {
+    expect(validarValorParametro(p, "0")).toBeNull();
+    expect(validarValorParametro(p, "30")).toBeNull();
+    expect(validarValorParametro(p, "45")).not.toBeNull();
+    expect(validarValorParametro(parametro({ ...p, valor: "45" }), "45")).toBeNull();
+  });
+
+  it("muestra la etiqueta y marca los valores personalizados", () => {
+    expect(etiquetaValorParametro(p, "0")).toBe("Nunca");
+    expect(etiquetaValorParametro(p, "365")).toBe("1 año");
+    expect(etiquetaValorParametro(p, "45")).toBe("45 días (personalizado)");
+    expect(etiquetaValorParametro(parametro({}), "7")).toBe("7");
+  });
+});
 
 describe("validarValorParametro", () => {
   it("acepta un entero dentro del rango y rechaza fuera o no numérico", () => {

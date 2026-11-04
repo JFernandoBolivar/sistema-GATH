@@ -180,3 +180,22 @@ def test_recordatorios_usa_el_puerto_y_no_el_orm():
 
     assert respuesta.status_code == 200
     assert data(respuesta)['dias'] == [9, 2]
+
+
+def test_el_listado_expone_las_opciones_de_retencion():
+    parametros = data(cliente(PERMISO).get(BASE))
+    retencion = [p for p in parametros if p['grupo'] == 'retencion']
+    assert len(retencion) == 4
+    for p in retencion:
+        assert p['opciones'][0] == {'valor': 30, 'etiqueta': '1 mes'}
+        assert p['opciones'][-1] == {'valor': 0, 'etiqueta': 'Nunca'}
+    assert all(p['opciones'] == [] for p in parametros if p['grupo'] != 'retencion')
+
+
+def test_retencion_rechaza_un_valor_fuera_de_la_lista_y_acepta_nunca():
+    api = cliente(PERMISO)
+    url = f'{BASE}retencion.evidencias_dias/'
+    assert api.put(url, {'valor': '45'}, format='json').status_code == 400
+    respuesta = api.put(url, {'valor': '0'}, format='json')
+    assert respuesta.status_code == 200
+    assert data(respuesta)['valor'] == '0'

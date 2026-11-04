@@ -23,6 +23,7 @@ export function parametroApiADTO(item: ParametroApiItem): ParametroDTO {
     maximo: item.maximo,
     actualizadoPorId: item.actualizado_por_id,
     actualizadoEn: item.actualizado_en,
+    opciones: (item.opciones ?? []).map((o) => ({ valor: String(o.valor), etiqueta: o.etiqueta })),
   };
 }
 

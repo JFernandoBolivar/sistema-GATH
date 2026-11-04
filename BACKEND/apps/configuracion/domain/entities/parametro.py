@@ -15,6 +15,7 @@ class ParametroSistema:
     maximo: int | None
     actualizado_por_id: int | None = None
     actualizado_en: str | None = None
+    opciones: tuple[tuple[int, str], ...] = ()
 
 
 @dataclass(frozen=True)
