@@ -110,3 +110,53 @@ def test_contactos_de_emergencia_limita_a_tres_con_nota(_mock_config):
     assert "Se muestran 3 de 5 contactos registrados." in textos
     nombres = [t for t in textos if t.startswith("Nom") and t.endswith(" Ape")]
     assert list(dict.fromkeys(nombres)) == ["Nom1 Ape", "Nom2 Ape", "Nom3 Ape"]
+
+
+def test_total_apn_texto_muestra_anos_meses_y_dias():
+    from apps.personal.infrastructure.pdf_empleado import _total_apn_texto
+    dto = _dto_base(antecedentes=[
+        {"fecha_ingreso": "2010-04-11", "fecha_egreso": "2013-11-14", "organismo_nombre": "X"},
+        {"fecha_ingreso": "2020-01-01", "fecha_egreso": None, "organismo_nombre": "Abierto"},
+    ])
+    # 3*360 + 7*30 + 3 + 1 = 1294 días comerciales (el abierto no cuenta).
+    assert _total_apn_texto(dto) == "3 años, 7 meses, 4 días"
+    assert _total_apn_texto(_dto_base(antecedentes=[])) == "0 años, 0 meses, 0 días"
+
+
+@patch("apps.personal.infrastructure.pdf_empleado.construir_config_pdf", return_value=None)
+def test_historial_de_cargos_y_oficina_gerencia(_mock_config):
+    from reportlab.platypus import Paragraph
+    textos = []
+    orig_init = Paragraph.__init__
+
+    def init(self, text, *a, **kw):
+        textos.append(text)
+        orig_init(self, text, *a, **kw)
+
+    historial = [
+        {"desde": "2024-03-01", "hasta": None, "es_egreso": False, "movimiento": "Traslado",
+         "codigo": "C-02", "cargo": "Coordinador", "oficina": "Coordinación Y"},
+        {"desde": "2015-03-01", "hasta": "2024-03-01", "es_egreso": False, "movimiento": "Ingreso",
+         "codigo": "C-01", "cargo": "Analista", "oficina": "Dirección X"},
+    ]
+    with patch.object(Paragraph, "__init__", init):
+        pdf = construir_pdf_expediente_empleado(_dto_base(), usuario_nombre="Admin", historial_cargos=historial)
+    assert pdf.startswith(b"%PDF")
+    texto = " ".join(textos)
+    assert "HISTORIAL DE CARGOS" in texto.upper()
+    assert "01/03/2015" in texto and "Presente" in texto
+    assert "Oficina/Gerencia: Dirección General X" in texto
+    assert "Dependencia:" not in texto
+
+
+def test_reducir_imagen_para_pdf_achica_imagenes_grandes():
+    from io import BytesIO
+    from PIL import Image as PILImage
+    from core.infrastructure.pdf.pdf_components import reducir_imagen_para_pdf
+    buf = BytesIO()
+    PILImage.effect_noise((3000, 2000), 80).convert("RGB").save(buf, "PNG")
+    original = buf.getvalue()
+    reducida = reducir_imagen_para_pdf(original, 600)
+    assert len(reducida) < len(original)
+    with PILImage.open(BytesIO(reducida)) as img:
+        assert max(img.size) <= 600

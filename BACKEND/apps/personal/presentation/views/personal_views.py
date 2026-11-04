@@ -27,6 +27,7 @@ from apps.personal.application.use_cases.listar_personal import listar_personal_
 from apps.personal.application.use_cases.obtener_personal import obtener_personal_por_cedula
 from apps.personal.infrastructure.mappers.mapper_personal import ruta_foto
 from apps.personal.infrastructure.pdf_empleado import construir_pdf_expediente_empleado
+from apps.personal.infrastructure.repositories.consultas_historial_cargos import historial_cargos_de
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
 from apps.personal.infrastructure.serializers.empleado_escritura_serializers import (
     EmpleadoActualizarSerializer,
@@ -173,6 +174,7 @@ class EmpleadoDetallePdfView(APIView):
         dto = obtener_personal_por_cedula(repo, cedula=cedula)
         pdf_bytes = construir_pdf_expediente_empleado(
             dto, usuario_nombre=_quien_genera(request.user), foto_bytes=_foto_para_pdf(dto),
+            historial_cargos=historial_cargos_de(cedula),
         )
         return _respuesta_pdf(pdf_bytes, f"expediente-empleado-{cedula}.pdf")
 

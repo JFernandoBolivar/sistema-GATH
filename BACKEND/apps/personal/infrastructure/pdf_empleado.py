@@ -11,7 +11,8 @@ formato replica exactamente la de
 ingreso al organismo, total de años APN, dirección resumida de cargo,
 titular de encargaduría) para no divergir del Sheet de detalle.
 """
-from datetime import datetime
+from datetime import date, datetime
+from types import SimpleNamespace
 from io import BytesIO
 
 from reportlab.lib.units import mm
@@ -21,11 +22,12 @@ from reportlab.platypus import Image, SimpleDocTemplate, Spacer
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.personal.application.dtos.personal_dtos import EmpleadoDTO
+from apps.personal.shared.domain.services.tiempo_servicio import calcular_total_apn
 from core.domain.validacion_personas import formatear_telefono
 from core.infrastructure.pdf.expediente_estilos import (
     grilla, nota_gris, seccion, sin_registros, tabla, tarjeta_identificacion,
 )
-from core.infrastructure.pdf.pdf_components import create_header, draw_footer
+from core.infrastructure.pdf.pdf_components import create_header, draw_footer, reducir_imagen_para_pdf
 from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG
 
 SIN_DATO = "N/A"
@@ -45,11 +47,34 @@ def _fecha(v, por_defecto: str = SIN_DATO) -> str:
         return str(v)
 
 
-def _total_anos_apn(valor: float | None) -> str:
-    total = valor or 0.0
-    anos = int(total)
-    meses = round((total % 1) * 12)
-    return f"{anos} años, {meses} meses, 0 días"
+def _a_fecha(v) -> date | None:
+    if not v:
+        return None
+    if isinstance(v, date):
+        return v
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except ValueError:
+        return None
+
+
+def _plural(n: int, singular: str, plural: str) -> str:
+    return f"{n} {singular if n == 1 else plural}"
+
+
+def _total_apn_texto(dto: EmpleadoDTO) -> str:
+    """Años, meses y días exactos de los antecedentes cerrados, con la misma
+    función oficial que alimenta `total_anos_apn` (sin pasar por decimales)."""
+    periodos = [
+        SimpleNamespace(fecha_ingreso=_a_fecha(a.get('fecha_ingreso')), fecha_egreso=_a_fecha(a.get('fecha_egreso')))
+        for a in (dto.antecedentes or []) if a
+    ]
+    t = calcular_total_apn(periodos)
+    return ", ".join([
+        _plural(t['years'], 'año', 'años'),
+        _plural(t['months'], 'mes', 'meses'),
+        _plural(t['days'], 'día', 'días'),
+    ])
 
 
 def _fecha_ingreso_organismo(dto: EmpleadoDTO) -> str:
@@ -81,6 +106,7 @@ def _foto_flowable(foto_bytes: bytes | None):
     if not foto_bytes:
         return None
     try:
+        foto_bytes = reducir_imagen_para_pdf(foto_bytes, 500)
         ImageReader(BytesIO(foto_bytes)).getSize()
         return Image(BytesIO(foto_bytes), width=30 * mm, height=35 * mm, kind='proportional')
     except Exception:
@@ -95,6 +121,7 @@ def construir_pdf_expediente_empleado(
     dto: EmpleadoDTO,
     usuario_nombre: str | None = None,
     foto_bytes: bytes | None = None,
+    historial_cargos: list[dict] | None = None,
 ) -> bytes:
     generado_en = datetime.now()
     page_config = PAGE_CONFIG['portrait']
@@ -127,7 +154,7 @@ def construir_pdf_expediente_empleado(
         if cargo and cargo != SIN_DATO:
             lineas.append(f"Cargo: {cargo}")
         if dependencia and dependencia != SIN_DATO:
-            lineas.append(f"Dependencia: {dependencia}")
+            lineas.append(f"Oficina/Gerencia: {dependencia}")
 
     story = [
         tarjeta_identificacion(dto.nombre_completo, lineas, ancho, _foto_flowable(foto_bytes)),
@@ -144,7 +171,6 @@ def construir_pdf_expediente_empleado(
             ('Teléfono habitación', _val(formatear_telefono(dto.telefono_habitacion))),
             ('Carnet de la Patria (código)', _val(dto.carnet_patria)),
             ('Serial del Carnet de la Patria', _val(dto.carnet_patria_serial)),
-            ('Total APN', _total_anos_apn(dto.total_anos_apn)),
         ], ancho), ancho),
     ]
 
@@ -154,18 +180,32 @@ def construir_pdf_expediente_empleado(
                 str(idx + 1),
                 _val(a.get('codigo')),
                 _val(a.get('denominacion_cargo_especifico')),
-                _val(a.get('grado')),
                 _val(a.get('tipo_nomina')),
                 _direccion_resumida(a),
             ]
             for idx, a in enumerate(dto.asignaciones)
         ]
-        cuerpo = tabla(['#', 'Código', 'Cargo específico', 'Grado', 'Nómina', 'Dirección'], filas, [3, 11, 22, 10, 15, 39], ancho)
+        cuerpo = tabla(['#', 'Código', 'Cargo específico', 'Nómina', 'Oficina/Gerencia'], filas, [4, 12, 30, 15, 39], ancho)
     else:
         cuerpo = sin_registros()
     story += seccion('Datos laborales', cuerpo, ancho)
     story.append(Spacer(1, 6))
     story.append(grilla([('Fecha de ingreso', _fecha_ingreso_organismo(dto))], ancho))
+
+    if historial_cargos is not None:
+        filas = [
+            [
+                _fecha(h.get('desde')),
+                '—' if h.get('es_egreso') else _fecha(h.get('hasta'), 'Presente'),
+                _val(h.get('movimiento')),
+                _val(h.get('codigo')),
+                _val(h.get('cargo')),
+                _val(h.get('oficina')),
+            ]
+            for h in historial_cargos
+        ]
+        story += seccion('Historial de cargos', _tabla_o_vacio(
+            ['Desde', 'Hasta', 'Movimiento', 'Código', 'Cargo', 'Oficina/Gerencia'], filas, [12, 12, 13, 10, 23, 30], ancho), ancho)
 
     if dto.contrato_actual:
         c = dto.contrato_actual
@@ -182,6 +222,8 @@ def construir_pdf_expediente_empleado(
     ]
     story += seccion('Antecedentes laborales', _tabla_o_vacio(
         ['#', 'Fecha de ingreso', 'Fecha de egreso', 'Organismo'], filas, [4, 16, 16, 64], ancho), ancho)
+    story.append(Spacer(1, 6))
+    story.append(grilla([('Total APN', _total_apn_texto(dto))], ancho))
 
     if dto.encargadurias:
         filas = [

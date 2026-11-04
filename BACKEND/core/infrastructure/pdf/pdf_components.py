@@ -15,7 +15,14 @@ con un título genérico, en vez de inventar un segundo set de imágenes.
 """
 import logging
 import os
+from functools import lru_cache
 from io import BytesIO
+
+from PIL import Image as PILImage
+from reportlab import rl_config
+
+# Las imágenes van en binario dentro del PDF, no en ASCII85 (que las agranda un 25 %).
+rl_config.useA85 = 0
 from xml.sax.saxutils import escape
 
 from reportlab.lib.units import mm
@@ -38,18 +45,50 @@ def _ruta_asset(nombre: str) -> str | None:
     return ruta if os.path.exists(ruta) else None
 
 
-def _imagen_o_asset(config_bytes: bytes | None, nombre_asset: str):
+@lru_cache(maxsize=32)
+def reducir_imagen_para_pdf(datos: bytes, max_px: int) -> bytes:
+    """
+    Reduce la imagen para que su lado mayor no pase de `max_px` (≈300 ppp al
+    tamaño en que se dibuja): un logo o cintillo subido a resolución de
+    fotografía hacía pesar cada PDF varios MB. Conserva la transparencia (PNG)
+    y usa JPEG si no la hay. Si no se puede leer, devuelve los bytes intactos.
+    Cacheada: el mismo logo se reduce una sola vez por proceso.
+    """
+    try:
+        with PILImage.open(BytesIO(datos)) as img:
+            img.load()
+            tiene_alfa = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+            if max(img.size) <= max_px and len(datos) <= 400_000:
+                return datos
+            img.thumbnail((max_px, max_px), PILImage.LANCZOS)
+            salida = BytesIO()
+            if tiene_alfa:
+                img.convert('RGBA').save(salida, 'PNG', optimize=True)
+            else:
+                img.convert('RGB').save(salida, 'JPEG', quality=85, optimize=True)
+            reducida = salida.getvalue()
+            return reducida if len(reducida) < len(datos) else datos
+    except Exception:
+        logger.warning("No se pudo reducir una imagen del PDF; se usa la original.", exc_info=True)
+        return datos
+
+
+def _imagen_o_asset(config_bytes: bytes | None, nombre_asset: str, max_px: int = 400):
     """
     Devuelve una fuente de imagen válida para `reportlab.platypus.Image`
-    (acepta una ruta string o un file-like `BytesIO`, pero NO un
-    `ImageReader` ya instanciado): los bytes de `config` si vienen, si no el
-    asset hardcodeado de respaldo, si no `None`. `draw_footer()` (que usa
+    (un file-like `BytesIO`, NO un `ImageReader` ya instanciado): los bytes
+    de `config` si vienen, si no el asset hardcodeado de respaldo, si no
+    `None`, siempre reducidos a `max_px`. `draw_footer()` (que usa
     `canvas.drawImage`, con otra API) envuelve el resultado en `ImageReader`
     él mismo cuando hace falta.
     """
-    if config_bytes:
-        return BytesIO(config_bytes)
-    return _ruta_asset(nombre_asset)
+    if not config_bytes:
+        ruta = _ruta_asset(nombre_asset)
+        if not ruta:
+            return None
+        with open(ruta, 'rb') as f:
+            config_bytes = f.read()
+    return BytesIO(reducir_imagen_para_pdf(config_bytes, max_px))
 
 
 HEADER_LABELS = {
@@ -158,7 +197,7 @@ def create_stats_box(stats: dict, width=None) -> Table | Spacer:
 def draw_footer(canvas, doc, page_number: int, total_pages: int, texto: str | None = None, config: dict | None = None, texto_pagina: str | None = None) -> None:
     canvas.saveState()
     es_generico = bool(config) and config.get('tipo_cintillo') == 'GENERICO'
-    cintillo = None if es_generico else _imagen_o_asset(config.get('cintillo_pie_bytes') if config else None, 'cintillo2.png')
+    cintillo = None if es_generico else _imagen_o_asset(config.get('cintillo_pie_bytes') if config else None, 'cintillo2.png', max_px=1200)
     page_width, _page_height = doc.pagesize
 
     if cintillo:

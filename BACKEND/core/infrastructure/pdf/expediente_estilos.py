@@ -51,11 +51,25 @@ def titulo_seccion(titulo: str, ancho: float) -> Table:
 
 
 def seccion(titulo: str, cuerpo, ancho: float) -> list:
-    """Título + cuerpo; el título viaja junto al primer bloque (nunca queda solo)."""
+    """Título + cuerpo; el título viaja junto al primer bloque (nunca queda solo).
+
+    Si la sección no cabe entera pero quedan más de `_ESPACIO_MINIMO` puntos en
+    la hoja, se parte ahí (las tablas repiten su encabezado) en vez de saltar
+    de página dejando un hueco en blanco; con menos espacio, pasa completa a
+    la hoja siguiente.
+    """
     return [
         Spacer(1, 14),
-        KeepTogether([titulo_seccion(titulo, ancho), Spacer(1, 6), *(cuerpo if isinstance(cuerpo, list) else [cuerpo])]),
+        KeepTogether(
+            [titulo_seccion(titulo, ancho), Spacer(1, 6), *(cuerpo if isinstance(cuerpo, list) else [cuerpo])],
+            maxHeight=_ESPACIO_MINIMO,
+        ),
     ]
+
+
+# Alto mínimo (pt) que debe quedar en la hoja para empezar una sección partida:
+# el título y al menos un par de filas.
+_ESPACIO_MINIMO = 140
 
 
 def nota_gris(texto: str) -> Paragraph:
