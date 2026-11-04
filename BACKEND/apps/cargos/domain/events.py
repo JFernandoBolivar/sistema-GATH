@@ -28,9 +28,10 @@ pase a pasivo y `ORIGEN_SOBREVIVIENTES` para el alta de un beneficiario.
 
 cargo_dependencia_cambiada = django.dispatch.Signal()
 """
-Payload: cargo_id, cedula, dependencia_anterior_id, dependencia_nueva_id,
-motivo_id, usuario_id. Se emite ÚNICAMENTE desde `actualizar_cargo()` cuando
-el campo Dependencia (Gerencia/Oficina) cambió en la misma petición (nunca
+Payload: cargo_id, cedula, dependencia_anterior_id, dependencia_nueva_id
+(nivel), oficina_anterior_id, oficina_nueva_id (Gerencia/Oficina =
+DireccionGeneral), motivo_id, usuario_id. Se emite ÚNICAMENTE desde
+`actualizar_cargo()` cuando la Gerencia/Oficina (DireccionGeneral) cambió en la misma petición (nunca
 si solo cambian otros campos del cargo, como denominación o nómina, dentro
 de la misma oficina) — Punto de Cuenta automático, RN-006-01.
 """

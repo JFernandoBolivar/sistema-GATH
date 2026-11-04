@@ -27,6 +27,10 @@ def _a_dto(entidad) -> PuntoCuentaDTO:
         fecha=entidad.fecha,
         documento_pdf_clave=entidad.documento_pdf_clave,
         documento_generado=entidad.documento_pdf_clave is not None,
+        oficina_origen_id=entidad.oficina_origen_id,
+        oficina_origen=entidad.oficina_origen_nombre,
+        oficina_destino_id=entidad.oficina_destino_id,
+        oficina_destino=entidad.oficina_destino_nombre,
     )
 
 
@@ -39,6 +43,8 @@ def generar_punto_cuenta(
     dependencia_destino_id: int | None,
     motivo_id: int | None,
     usuario_id: int | None,
+    oficina_origen_id: int | None = None,
+    oficina_destino_id: int | None = None,
 ) -> PuntoCuentaDTO:
     entidad = repo.crear(
         cargo_id=cargo_id,
@@ -47,6 +53,8 @@ def generar_punto_cuenta(
         dependencia_destino_id=dependencia_destino_id,
         motivo_id=motivo_id,
         usuario_id=usuario_id,
+        oficina_origen_id=oficina_origen_id,
+        oficina_destino_id=oficina_destino_id,
     )
     return _a_dto(entidad)
 

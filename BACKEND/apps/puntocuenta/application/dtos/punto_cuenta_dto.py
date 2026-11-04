@@ -18,3 +18,7 @@ class PuntoCuentaDTO:
     fecha: str
     documento_pdf_clave: str | None
     documento_generado: bool
+    oficina_origen_id: int | None = None
+    oficina_origen: str | None = None
+    oficina_destino_id: int | None = None
+    oficina_destino: str | None = None

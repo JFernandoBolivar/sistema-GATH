@@ -20,10 +20,11 @@ from apps.cargos.domain.events import cargo_dependencia_cambiada, cargo_movimien
 from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
 
 
-def _fila_mock(*, dependencia_id, employee_id="12345678"):
+def _fila_mock(*, dependencia_id=1, oficina_id=1, employee_id="12345678"):
     fila = MagicMock()
     fila.pk = 10
     fila.Dependencia_id = dependencia_id
+    fila.DireccionGeneral_id = oficina_id
     fila.employee_id = employee_id
     return fila
 
@@ -53,22 +54,36 @@ def captura_movimiento_ejecutado():
 
 
 @pytest.mark.django_db
-def test_actualizar_cargo_emite_evento_si_cambia_dependencia(captura_dependencia_cambiada):
-    fila = _fila_mock(dependencia_id=1)
+def test_actualizar_cargo_emite_evento_si_cambia_la_oficina_en_el_mismo_nivel(captura_dependencia_cambiada):
+    fila = _fila_mock(dependencia_id=1, oficina_id=5)
     repo = RepoCargosORM()
     with patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.AsigTrabajoModel") as modelo_mock:
         modelo_mock.objects.select_for_update.return_value.filter.return_value.first.return_value = fila
         with patch.object(repo, "obtener_cargo", return_value="RESULTADO"):
-            repo.actualizar_cargo(cargo_id=10, datos={"Dependencia": 2, "motivo_id": 7}, usuario_id=99)
+            repo.actualizar_cargo(cargo_id=10, datos={"DireccionGeneral": 6, "motivo_id": 7}, usuario_id=99)
 
     assert len(captura_dependencia_cambiada.recibidos) == 1
     evento = captura_dependencia_cambiada.recibidos[0]
     assert evento["cargo_id"] == 10
     assert evento["cedula"] == "12345678"
     assert evento["dependencia_anterior_id"] == 1
-    assert evento["dependencia_nueva_id"] == 2
+    assert evento["dependencia_nueva_id"] == 1  # mismo nivel
+    assert evento["oficina_anterior_id"] == 5
+    assert evento["oficina_nueva_id"] == 6
     assert evento["motivo_id"] == 7
     assert evento["usuario_id"] == 99
+
+
+@pytest.mark.django_db
+def test_actualizar_cargo_no_emite_evento_si_cambia_solo_el_nivel(captura_dependencia_cambiada):
+    fila = _fila_mock(dependencia_id=1, oficina_id=5)
+    repo = RepoCargosORM()
+    with patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.AsigTrabajoModel") as modelo_mock:
+        modelo_mock.objects.select_for_update.return_value.filter.return_value.first.return_value = fila
+        with patch.object(repo, "obtener_cargo", return_value="RESULTADO"):
+            repo.actualizar_cargo(cargo_id=10, datos={"Dependencia": 2}, usuario_id=99)
+
+    assert captura_dependencia_cambiada.recibidos == []
 
 
 @pytest.mark.django_db
@@ -86,24 +101,24 @@ def test_actualizar_cargo_no_emite_evento_si_no_cambia_dependencia(captura_depen
 
 @pytest.mark.django_db
 def test_actualizar_cargo_no_emite_evento_si_dependencia_es_la_misma_explicita(captura_dependencia_cambiada):
-    fila = _fila_mock(dependencia_id=3)
+    fila = _fila_mock(oficina_id=3)
     repo = RepoCargosORM()
     with patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.AsigTrabajoModel") as modelo_mock:
         modelo_mock.objects.select_for_update.return_value.filter.return_value.first.return_value = fila
         with patch.object(repo, "obtener_cargo", return_value="RESULTADO"):
-            repo.actualizar_cargo(cargo_id=10, datos={"Dependencia": 3}, usuario_id=99)
+            repo.actualizar_cargo(cargo_id=10, datos={"DireccionGeneral": 3}, usuario_id=99)
 
     assert captura_dependencia_cambiada.recibidos == []
 
 
 @pytest.mark.django_db
 def test_actualizar_cargo_no_emite_evento_si_el_cargo_esta_vacante(captura_dependencia_cambiada):
-    fila = _fila_mock(dependencia_id=1, employee_id=None)
+    fila = _fila_mock(oficina_id=1, employee_id=None)
     repo = RepoCargosORM()
     with patch("apps.cargos.infrastructure.repositories.repo_cargos_orm.AsigTrabajoModel") as modelo_mock:
         modelo_mock.objects.select_for_update.return_value.filter.return_value.first.return_value = fila
         with patch.object(repo, "obtener_cargo", return_value="RESULTADO"):
-            repo.actualizar_cargo(cargo_id=10, datos={"Dependencia": 2}, usuario_id=99)
+            repo.actualizar_cargo(cargo_id=10, datos={"DireccionGeneral": 2}, usuario_id=99)
 
     assert captura_dependencia_cambiada.recibidos == []
 
@@ -118,9 +133,9 @@ def test_cambiar_cargo_incluye_dependencias_anterior_y_nueva_en_el_evento(captur
     from apps.movimientos.infrastructure.receivers import despachar_registro_historial
     cargo_movimiento_ejecutado.disconnect(despachar_registro_historial)
     try:
-        actual = _fila_mock(dependencia_id=1)
+        actual = _fila_mock(dependencia_id=1, oficina_id=5)
         actual.pk = 10
-        nuevo = _fila_mock(dependencia_id=2, employee_id=None)
+        nuevo = _fila_mock(dependencia_id=2, oficina_id=6, employee_id=None)
         nuevo.pk = 20
         nuevo.estatusid_id = 1  # coincide con estatus_vacante_mock.pk más abajo
 
@@ -148,3 +163,5 @@ def test_cambiar_cargo_incluye_dependencias_anterior_y_nueva_en_el_evento(captur
     assert evento["tipo_movimiento"] == "TRASLADO"
     assert evento["dependencia_anterior_id"] == 1
     assert evento["dependencia_nueva_id"] == 2
+    assert evento["oficina_anterior_id"] == 5
+    assert evento["oficina_nueva_id"] == 6

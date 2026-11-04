@@ -384,6 +384,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         # denominación/nómina/grado/organismo dentro de la misma Dependencia
         # NO dispara nada -- solo un cambio real de Dependencia lo hace.
         dependencia_id_anterior = fila.Dependencia_id
+        oficina_id_anterior = fila.DireccionGeneral_id
 
         if 'denominacioncargoid' in datos and datos['denominacioncargoid']:
             fila.denominacioncargoid_id = datos['denominacioncargoid']
@@ -411,13 +412,15 @@ class RepoCargosORM(RepoPrestamosCargoORM):
 
         fila.save()
 
-        if fila.Dependencia_id != dependencia_id_anterior and fila.employee_id is not None:
+        if fila.DireccionGeneral_id != oficina_id_anterior and fila.employee_id is not None:
             events.cargo_dependencia_cambiada.send(
                 sender=RepoCargosORM,
                 cargo_id=fila.pk,
                 cedula=fila.employee_id,
                 dependencia_anterior_id=dependencia_id_anterior,
                 dependencia_nueva_id=fila.Dependencia_id,
+                oficina_anterior_id=oficina_id_anterior,
+                oficina_nueva_id=fila.DireccionGeneral_id,
                 motivo_id=datos.get('motivo_id'),
                 usuario_id=usuario_id,
             )
@@ -454,6 +457,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         motivo = obtener_motivo_de_operacion(motivo_id, Operacion.CAMBIAR_CARGO)
 
         empleado_cedula = actual.employee_id
+        # Oficina del cargo que deja (antes de heredar contexto al nuevo).
+        oficina_anterior_id = actual.DireccionGeneral_id
 
         actual.employee_id = None
         actual.estatusid = estatus_vacante
@@ -494,6 +499,8 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             # no hace falta ninguna consulta extra para comparar.
             dependencia_anterior_id=actual.Dependencia_id,
             dependencia_nueva_id=nuevo.Dependencia_id,
+            oficina_anterior_id=oficina_anterior_id,
+            oficina_nueva_id=nuevo.DireccionGeneral_id,
             motivo_id=motivo_id,
             usuario_id=usuario_id,
             origen=events.ORIGEN_CARGOS,
