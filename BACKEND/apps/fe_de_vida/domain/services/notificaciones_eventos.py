@@ -21,7 +21,8 @@ PERMISO_CHECK_ADMINISTRADORA = 'fe_de_vida.check_administradora'
 TIPO_RECIBIDA = 'fe_de_vida.solicitud_recibida'     # copia del aviso de envío dirigida al pasivo
 TIPO_VALIDADA = TipoEvento.VALIDADA.value
 
-ENLACE_PASIVO = '/fe-de-vida'
+# Ruta real de la fe de vida del pasivo en el frontend (antes '/fe-de-vida', que no existe).
+ENLACE_PASIVO = '/autogestion/fe-de-vida'
 PLANTILLA_ENLACE_BIENESTAR = '/personal/fe-de-vida/{id}'
 
 ASUNTO_RECIBIDA = 'Hemos recibido su fe de vida - GATH CONATEL'

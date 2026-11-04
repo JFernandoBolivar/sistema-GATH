@@ -13,3 +13,11 @@ class PersonalConfig(AppConfig):
         )
 
         conectar_invalidacion_catalogos()
+
+        # Editar cualquier parte del expediente, familiares o cargo marca al trabajador
+        # como recién actualizado (orden de los listados).
+        from apps.personal.infrastructure.signals_actualizacion import (
+            conectar_marca_de_actualizacion,
+        )
+
+        conectar_marca_de_actualizacion()
