@@ -3,7 +3,7 @@
 /**
  * Página de administración "Configuración Visual" (HU 0009 — Cintillo
  * Editable): selector Genérico/Fijo + formulario de datos (nombre de
- * empresa, color de fondo) + 3 campos de carga de imagen independientes
+ * empresa) + 3 campos de carga de imagen independientes
  * (logo izquierdo, logo derecho, cintillo de pie), cada uno con su propio
  * preview y subida inmediata. RN-009-01: todo el formulario de datos/
  * imágenes queda deshabilitado mientras el tipo activo sea "Genérico".
@@ -71,6 +71,7 @@ export default function ConfiguracionVisualPage() {
       const resultado = await actualizarConfiguracionVisualAction({
         tipoCintillo: data.tipoCintillo,
         nombreEmpresa: esGenerico ? null : (data.nombreEmpresa || null),
+        // «Color de fondo» se quitó de la pantalla (ningún PDF lo usaba): se reenvía el valor guardado.
         colorFondo: esGenerico ? null : (data.colorFondo || null),
       });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
@@ -124,13 +125,6 @@ export default function ConfiguracionVisualPage() {
                     <Input id="nombreEmpresa" {...form.register("nombreEmpresa")} disabled={esGenerico} />
                     {form.formState.errors.nombreEmpresa && (
                       <p role="alert" className="text-sm text-destructive">{form.formState.errors.nombreEmpresa.message}</p>
-                    )}
-                  </Field>
-                  <Field>
-                    <Label htmlFor="colorFondo">Color de fondo (hex)</Label>
-                    <Input id="colorFondo" placeholder="#1E3A8A" {...form.register("colorFondo")} disabled={esGenerico} />
-                    {form.formState.errors.colorFondo && (
-                      <p role="alert" className="text-sm text-destructive">{form.formState.errors.colorFondo.message}</p>
                     )}
                   </Field>
                 </div>

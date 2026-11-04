@@ -24,6 +24,8 @@ from django.utils import timezone
 
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.identidad.application.dtos.cuenta_dto import RegistrarCuentaDTO
+from apps.identidad.domain.events import EventoIdentidad, TipoEventoIdentidad
+from apps.identidad.infrastructure.signals import publicar_evento_identidad
 from apps.identidad.application.use_cases.reactivar_cuenta_por_reingreso import (
     reactivar_cuenta_por_reingreso,
 )
@@ -196,6 +198,11 @@ class Command(BaseCommand):
                 RepoPasswordInicialORM().emitir(
                     cuenta.id, vencimiento_desde(ahora, dias)
                 )
+                # Mismo aviso que el alta al asignar el correo. El correo solo sale si el parámetro
+                # «Avisar al trabajador cuando se crea su cuenta» está encendido (apagado por defecto).
+                publicar_evento_identidad(EventoIdentidad(
+                    tipo=TipoEventoIdentidad.CUENTA_CREADA, cedula=cedula, dias_vigencia=dias,
+                ))
         except ConflictError:
             resumen['omitidas'] += 1
             return

@@ -20,6 +20,7 @@ class PasivoDTO:
     telefono_movil: str | None = None
     telefono_habitacion: str | None = None
     carnet_patria: str | None = None
+    carnet_patria_serial: str | None = None
     fecha_nacimiento: str | None = None
     sexo_nombre: str | None = None
     fecha_ingreso_organismo: str | None = None

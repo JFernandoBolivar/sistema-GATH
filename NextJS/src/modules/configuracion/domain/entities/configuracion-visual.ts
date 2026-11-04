@@ -20,3 +20,16 @@ export interface ConfiguracionVisual {
   actualizadoPorId: number | null;
   actualizadoEn: string | null;
 }
+
+/** Una versión (vigente o anterior) de una imagen del cintillo. */
+export interface VersionImagenCintillo {
+  id: string;
+  campo: string;
+  mime: string;
+  tamano: number;
+  subidoEn: string;
+  subidoPorCedula: string;
+  subidoPorNombre: string;
+  esVigente: boolean;
+  url: string;
+}

@@ -37,3 +37,27 @@ export const configuracionApi = {
       formData,
     ),
 };
+
+export interface VersionImagenCintilloApiItem {
+  id: string;
+  campo: string;
+  mime: string;
+  tamano: number;
+  subido_en: string;
+  subido_por_cedula: string;
+  subido_por_nombre: string;
+  es_vigente: boolean;
+  url: string;
+}
+
+export const versionesImagenApi = {
+  listar: (campo: keyof typeof SLUG_POR_CAMPO) =>
+    apiClient.get<ApiResponse<VersionImagenCintilloApiItem[]>>(
+      `/api/v1/configuracion/visual/logo/${SLUG_POR_CAMPO[campo]}/versiones/`,
+    ),
+
+  restaurar: (campo: keyof typeof SLUG_POR_CAMPO, versionId: string) =>
+    apiClient.post<ApiResponse<ConfiguracionVisualApiItem>>(
+      `/api/v1/configuracion/visual/logo/${SLUG_POR_CAMPO[campo]}/versiones/${versionId}/restaurar/`,
+    ),
+};

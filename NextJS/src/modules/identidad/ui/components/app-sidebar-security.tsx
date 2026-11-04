@@ -33,6 +33,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
+import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 import {
   RUTA_AUDITORIA,
   RUTA_PARAMETROS,
@@ -206,6 +207,7 @@ export function AppSidebarSecurity() {
                         )}
                       </>
                     ) : (
+                      <>
                       <SidebarMenuButton asChild>
                         <Link
                           href={item.url}
@@ -215,6 +217,11 @@ export function AppSidebarSecurity() {
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
+                      {(() => {
+                        const modulo = moduloDeRutaNotificaciones(item.url);
+                        return modulo ? <ContadorMenuNotificaciones modulo={modulo} /> : null;
+                      })()}
+                      </>
                     )}
                   </SidebarMenuItem>
                 ))}

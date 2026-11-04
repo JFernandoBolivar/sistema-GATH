@@ -37,6 +37,11 @@ ALTER TABLE "Employee"
     ADD COLUMN IF NOT EXISTS "nacionalidadId" integer NOT NULL DEFAULT 1
 """
 
+SQL_EMPLOYEE_SERIAL_CARNET = """
+ALTER TABLE "Employee"
+    ADD COLUMN IF NOT EXISTS "carnet_patria_serial" varchar(30) NULL
+"""
+
 SQL_PASSWORD_LARGA = """
 ALTER TABLE "USER_cuenta"
     ALTER COLUMN password TYPE varchar(255)
@@ -67,5 +72,6 @@ def aplicar_compatibilidad(connection=None) -> None:
         cursor.execute(SQL_SEED_E)
         if _existe_tabla(connection, "Employee"):
             cursor.execute(SQL_EMPLOYEE_NACIONALIDAD)
+            cursor.execute(SQL_EMPLOYEE_SERIAL_CARNET)
         if _existe_tabla(connection, "USER_cuenta"):
             cursor.execute(SQL_PASSWORD_LARGA)

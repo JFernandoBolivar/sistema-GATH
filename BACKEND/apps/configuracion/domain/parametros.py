@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from core.domain.configuracion import (
     CLAVE_AUTOGESTION_AVISO_DIAS,
+    CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO,
@@ -42,6 +43,18 @@ ACCION_PARAMETRO_ACTUALIZADO = 'configuracion.parametro_actualizado'
 MODULO_AUDITORIA = 'configuracion'
 RECURSO_AUDITORIA = 'parametro'
 
+# Plazos de retención seleccionables (días, etiqueta). 0 = Nunca: no se borra nada.
+RETENCION_NUNCA = 0
+OPCIONES_RETENCION: tuple[tuple[int, str], ...] = (
+    (30, '1 mes'),
+    (90, '3 meses'),
+    (180, '6 meses'),
+    (365, '1 año'),
+    (1095, '3 años'),
+    (2190, '6 años'),
+    (RETENCION_NUNCA, 'Nunca'),
+)
+
 MAX_DIAS_RECORDATORIO = 365
 MAX_RECORDATORIOS = 10
 
@@ -56,6 +69,8 @@ class ParametroDefinicion:
     defecto: str
     minimo: int | None = None
     maximo: int | None = None
+    # (valor, etiqueta); si no está vacío, solo se aceptan esos valores.
+    opciones: tuple[tuple[int, str], ...] = ()
 
 
 DEFINICIONES = (
@@ -76,6 +91,20 @@ DEFINICIONES = (
         descripcion=(
             'Envía por correo los avisos de ingreso, traslado, cambio de estatus y egreso '
             'del personal. Apagado, solo se muestran en el sistema.'
+        ),
+        grupo=GRUPO_NOTIFICACIONES,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
+        etiqueta='Enviar correos de acceso a los trabajadores',
+        descripcion=(
+            'Envía al trabajador los correos que le dan acceso a GATH: «Su cuenta está lista», '
+            '«Gestión Humana restableció su acceso» y «Este es ahora su correo de acceso». '
+            'Apagado, las cuentas se crean y restablecen igual pero no se envía ningún correo '
+            '(el aviso queda solo dentro del sistema): manténgalo apagado hasta que Gestión '
+            'Humana anuncie el sistema.'
         ),
         grupo=GRUPO_NOTIFICACIONES,
         tipo=TIPO_BOOLEANO,
@@ -135,52 +164,51 @@ DEFINICIONES = (
         clave=CLAVE_RETENCION_EVIDENCIAS_DIAS,
         etiqueta='Retención de evidencias de fe de vida',
         descripcion=(
-            'Días que se conservan las selfies y evidencias de las solicitudes de fe de vida. '
-            'Después se elimina el archivo; la constancia y la auditoría nunca se borran.'
+            'Tiempo que se conservan las selfies y evidencias de las solicitudes de fe de vida. '
+            'Después se elimina el archivo; la constancia y la auditoría nunca se borran. '
+            '«Nunca» conserva los archivos indefinidamente.'
         ),
         grupo=GRUPO_RETENCION,
         tipo=TIPO_ENTERO,
         defecto='365',
-        minimo=30,
-        maximo=3650,
+        opciones=OPCIONES_RETENCION,
     ),
     ParametroDefinicion(
         clave=CLAVE_RETENCION_SOPORTES_DIAS,
         etiqueta='Retención de soportes de autogestión',
         descripcion=(
-            'Días que se conservan los soportes documentales subidos por los trabajadores. '
-            'Al vencer se elimina el archivo y su registro de soporte.'
+            'Tiempo que se conservan los soportes documentales subidos por los trabajadores. '
+            'Al vencer se elimina el archivo y su registro de soporte. '
+            '«Nunca» conserva los archivos indefinidamente.'
         ),
         grupo=GRUPO_RETENCION,
         tipo=TIPO_ENTERO,
         defecto='365',
-        minimo=30,
-        maximo=3650,
+        opciones=OPCIONES_RETENCION,
     ),
     ParametroDefinicion(
         clave=CLAVE_RETENCION_NOTIFICACIONES_DIAS,
         etiqueta='Retención de notificaciones leídas',
         descripcion=(
-            'Días que se conservan las notificaciones ya leídas. Las no leídas no se purgan.'
+            'Tiempo que se conservan las notificaciones ya leídas. Las no leídas no se purgan. '
+            '«Nunca» las conserva indefinidamente.'
         ),
         grupo=GRUPO_RETENCION,
         tipo=TIPO_ENTERO,
         defecto='180',
-        minimo=30,
-        maximo=3650,
+        opciones=OPCIONES_RETENCION,
     ),
     ParametroDefinicion(
         clave=CLAVE_RETENCION_OUTBOX_DIAS,
         etiqueta='Retención del correo saliente',
         descripcion=(
-            'Días que se conservan los correos enviados o fallidos y sus adjuntos. '
-            'Los pendientes no se purgan.'
+            'Tiempo que se conservan los correos enviados o fallidos y sus adjuntos. '
+            'Los pendientes no se purgan. «Nunca» conserva los archivos indefinidamente.'
         ),
         grupo=GRUPO_RETENCION,
         tipo=TIPO_ENTERO,
         defecto='90',
-        minimo=30,
-        maximo=3650,
+        opciones=OPCIONES_RETENCION,
     ),
 )
 
@@ -194,8 +222,14 @@ def definicion_de(clave: str) -> ParametroDefinicion:
     return definicion
 
 
-def validar_valor(definicion: ParametroDefinicion, valor_crudo) -> str:
-    """Normaliza y valida el valor según el tipo; devuelve el texto a guardar."""
+def validar_valor(
+    definicion: ParametroDefinicion, valor_crudo, valor_actual: str | None = None
+) -> str:
+    """Normaliza y valida el valor según el tipo; devuelve el texto a guardar.
+
+    En los parámetros con opciones solo se aceptan esas, salvo el valor ya guardado
+    (compatibilidad con datos anteriores a la lista).
+    """
     texto = str(valor_crudo if valor_crudo is not None else '').strip()
     if definicion.tipo == TIPO_BOOLEANO:
         if texto.lower() not in ('true', 'false', '1', '0', 'si', 'sí', 'no'):
@@ -206,6 +240,14 @@ def validar_valor(definicion: ParametroDefinicion, valor_crudo) -> str:
             numero = int(texto)
         except ValueError as exc:
             raise ValidationError(f'«{definicion.etiqueta}» debe ser un número entero.') from exc
+        if definicion.opciones:
+            permitidos = {valor for valor, _ in definicion.opciones}
+            if numero not in permitidos and str(numero) != (valor_actual or '').strip():
+                etiquetas = ', '.join(etiqueta for _, etiqueta in definicion.opciones)
+                raise ValidationError(
+                    f'«{definicion.etiqueta}» debe ser una de estas opciones: {etiquetas}.'
+                )
+            return str(numero)
         if definicion.minimo is not None and numero < definicion.minimo:
             raise ValidationError(
                 f'«{definicion.etiqueta}» debe ser mayor o igual a {definicion.minimo}.'

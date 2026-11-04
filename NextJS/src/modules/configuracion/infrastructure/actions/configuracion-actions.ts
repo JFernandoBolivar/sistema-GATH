@@ -12,6 +12,8 @@ import type { ActualizarConfiguracionVisualInputDTO } from "../../application/dt
 import {
   actualizarConfiguracionVisual,
   obtenerConfiguracionVisual,
+  listarVersionesImagen,
+  restaurarVersionImagen,
   subirLogoConfiguracion,
 } from "../../application/use-cases/gestionar-configuracion-visual";
 import { repoConfiguracionVisualApi } from "../repositories/repo-configuracion-visual-api";
@@ -74,5 +76,36 @@ export async function subirLogoConfiguracionAction(campo: string, archivo: File)
     await logAudit({ traceId, action: "subirLogoConfiguracionAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { error: error instanceof Error && error.message ? error.message : "No fue posible subir la imagen." };
+  }
+}
+
+export async function listarVersionesImagenAction(campo: string) {
+  const validacionCampo = campoLogoSchema.safeParse(campo);
+  if (!validacionCampo.success) {
+    return { error: `Imagen inválida: ${campo}.` };
+  }
+  try {
+    return await listarVersionesImagen(repoConfiguracionVisualApi, validacionCampo.data);
+  } catch (error) {
+    handleSessionExpired(error);
+    return { error: error instanceof Error && error.message ? error.message : "No fue posible cargar las versiones." };
+  }
+}
+
+export async function restaurarVersionImagenAction(campo: string, versionId: string) {
+  const validacionCampo = campoLogoSchema.safeParse(campo);
+  if (!validacionCampo.success || !/^[0-9a-f-]{36}$/i.test(versionId)) {
+    return { error: "Versión de imagen inválida." };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await restaurarVersionImagen(repoConfiguracionVisualApi, validacionCampo.data, versionId);
+    await logAudit({ traceId, action: "restaurarVersionImagenAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "restaurarVersionImagenAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { error: error instanceof Error && error.message ? error.message : "No fue posible restaurar la imagen." };
   }
 }

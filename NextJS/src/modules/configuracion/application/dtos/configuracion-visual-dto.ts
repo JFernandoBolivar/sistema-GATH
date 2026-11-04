@@ -23,3 +23,15 @@ export interface ActualizarConfiguracionVisualInputDTO {
   nombreEmpresa?: string | null;
   colorFondo?: string | null;
 }
+
+export interface VersionImagenCintilloDTO {
+  id: string;
+  campo: string;
+  mime: string;
+  tamano: number;
+  subidoEn: string;
+  subidoPorCedula: string;
+  subidoPorNombre: string;
+  esVigente: boolean;
+  url: string;
+}

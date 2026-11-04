@@ -27,6 +27,7 @@ from apps.personal.application.use_cases.listar_personal import listar_personal_
 from apps.personal.application.use_cases.obtener_personal import obtener_personal_por_cedula
 from apps.personal.infrastructure.mappers.mapper_personal import ruta_foto
 from apps.personal.infrastructure.pdf_empleado import construir_pdf_expediente_empleado
+from apps.personal.infrastructure.repositories.consultas_historial_cargos import historial_cargos_de
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
 from apps.personal.infrastructure.serializers.empleado_escritura_serializers import (
     EmpleadoActualizarSerializer,
@@ -142,6 +143,28 @@ class EmpleadoDetailView(APIView):
     patch = put
 
 
+def _quien_genera(usuario) -> str:
+    """«Nombre Apellido (cédula)» del usuario que descarga; solo la cédula si no hay nombre."""
+    cedula = str(usuario)
+    try:
+        emp = usuario.cedula
+        nombre = f"{emp.nombres} {emp.apellidos}".strip()
+    except Exception:
+        return cedula
+    return f"{nombre} ({cedula})" if nombre else cedula
+
+
+def _foto_para_pdf(dto) -> bytes | None:
+    """Bytes de la foto del empleado, o None si no tiene o el almacén no responde."""
+    clave = dto.profile
+    if not clave or clave.startswith(('data:', 'http')):
+        return None
+    try:
+        return SeaweedFSStorage().descargar(clave)
+    except Exception:
+        return None
+
+
 class EmpleadoDetallePdfView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('personal.exportar_pdf')]
 
@@ -149,7 +172,10 @@ class EmpleadoDetallePdfView(APIView):
     def get(self, request, cedula: str):
         repo = RepoPersonalORM()
         dto = obtener_personal_por_cedula(repo, cedula=cedula)
-        pdf_bytes = construir_pdf_expediente_empleado(dto, usuario_nombre=str(request.user))
+        pdf_bytes = construir_pdf_expediente_empleado(
+            dto, usuario_nombre=_quien_genera(request.user), foto_bytes=_foto_para_pdf(dto),
+            historial_cargos=historial_cargos_de(cedula),
+        )
         return _respuesta_pdf(pdf_bytes, f"expediente-empleado-{cedula}.pdf")
 
 

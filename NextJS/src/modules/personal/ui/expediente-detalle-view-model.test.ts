@@ -48,6 +48,7 @@ function empleadoBase(): EmpleadoDTO {
     estadoCivilId: 1,
     estadoCivilNombre: "SOLTERO",
     carnetPatria: null,
+    carnetPatriaSerial: null,
     totalAnosApn: 4.5,
     datosVivienda: null,
     perfilSalud: null,

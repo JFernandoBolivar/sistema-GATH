@@ -107,3 +107,30 @@ def test_purga_respeta_retencion_y_no_toca_auditoria_ni_constancias(monkeypatch)
     assert ConstanciaFeDeVidaModel.objects.filter(pk=constancia.pk).exists()
     assert AuditoriaLog.objects.count() == auditoria_antes + 1
     assert AuditoriaLog.objects.order_by('-fecha_hora').first().accion == 'configuracion.retencion_aplicada'
+
+
+def test_retencion_nunca_no_borra_nada(monkeypatch):
+    from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
+    almacen = AlmacenFalso()
+    monkeypatch.setattr(retencion_tasks, 'SeaweedFSStorage', lambda: almacen)
+    for clave in retencion_tasks.DEFECTOS:
+        ParametroSistemaModel.objects.update_or_create(
+            clave=clave, defaults={'valor': '0', 'tipo': 'entero', 'grupo': 'retencion'},
+        )
+    proceso = _proceso('Proceso nunca')
+    vieja = SolicitudFeDeVidaModel.objects.create(
+        proceso=proceso, cedula='V-9', evidencia_clave='evidencias/x.jpg',
+    )
+    SolicitudFeDeVidaModel.objects.filter(pk=vieja.pk).update(created_at=_hace(5000))
+    notif = NotificacionModel.objects.create(
+        destinatario_cedula='V-9', tipo='aviso', titulo='Vieja', mensaje='x', leida=True,
+    )
+    NotificacionModel.objects.filter(pk=notif.pk).update(created_at=_hace(5000))
+
+    resultado = retencion_tasks.purgar_retencion()
+
+    assert resultado == {'evidencias': 0, 'soportes': 0, 'notificaciones': 0, 'outbox': 0}
+    assert almacen.eliminados == []
+    vieja.refresh_from_db()
+    assert vieja.evidencia_clave == 'evidencias/x.jpg'
+    assert NotificacionModel.objects.filter(pk=notif.pk).exists()

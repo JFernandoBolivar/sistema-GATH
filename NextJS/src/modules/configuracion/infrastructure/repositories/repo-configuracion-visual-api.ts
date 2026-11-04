@@ -2,8 +2,8 @@
  * Implementación del repositorio de Configuración Visual usando la API REST.
  */
 import type { RepoConfiguracionVisual } from "../../domain/ports/repo-configuracion-visual";
-import { configuracionApi } from "../http/configuracion-api";
-import { configuracionVisualApiAEntidad } from "../mappers/mapper-configuracion-visual";
+import { configuracionApi, versionesImagenApi } from "../http/configuracion-api";
+import { configuracionVisualApiAEntidad, versionImagenApiAEntidad } from "../mappers/mapper-configuracion-visual";
 
 export const repoConfiguracionVisualApi: RepoConfiguracionVisual = {
   async obtener() {
@@ -25,6 +25,16 @@ export const repoConfiguracionVisualApi: RepoConfiguracionVisual = {
     const formData = new FormData();
     formData.append("file", archivo);
     const envelope = await configuracionApi.subirLogo(campo, formData);
+    return configuracionVisualApiAEntidad(envelope.data);
+  },
+
+  async listarVersiones(campo) {
+    const envelope = await versionesImagenApi.listar(campo);
+    return envelope.data.map(versionImagenApiAEntidad);
+  },
+
+  async restaurarVersion(campo, versionId) {
+    const envelope = await versionesImagenApi.restaurar(campo, versionId);
     return configuracionVisualApiAEntidad(envelope.data);
   },
 };

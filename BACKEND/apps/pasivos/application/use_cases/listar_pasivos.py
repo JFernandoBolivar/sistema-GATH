@@ -22,6 +22,7 @@ def pasivo_a_dto(p: Pasivo) -> PasivoDTO:
         telefono_movil=p.telefono_movil,
         telefono_habitacion=p.telefono_habitacion,
         carnet_patria=p.carnet_patria,
+        carnet_patria_serial=p.carnet_patria_serial,
         fecha_nacimiento=p.fecha_nacimiento,
         sexo_nombre=p.sexo_nombre,
         fecha_ingreso_organismo=p.fecha_ingreso_organismo,

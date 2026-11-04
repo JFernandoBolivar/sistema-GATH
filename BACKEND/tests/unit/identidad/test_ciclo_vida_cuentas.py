@@ -146,13 +146,14 @@ def test_activo_con_correo_institucional_recibe_cuenta_con_cedula_como_password(
     assert [e.tipo for e in eventos] == [TipoEventoIdentidad.CUENTA_CREADA]
 
 
-def test_activo_con_correo_ajeno_al_dominio_no_recibe_cuenta(eventos):
+def test_activo_con_correo_personal_recibe_cuenta(eventos):
+    """Decisión del usuario (2026-11-03): ya no se exige el dominio institucional."""
     cuentas = CuentasMem()
     correos = CorreosMem({'123': 'ana@gmail.com'})
 
-    assert _alta(cuentas, correos, {'123': CondicionTrabajador.ACTIVO}, PasswordInicialMem(), eventos, '123') is None
-    assert not cuentas.existe_cuenta_para_cedula('123')
-    assert eventos == []
+    assert _alta(cuentas, correos, {'123': CondicionTrabajador.ACTIVO}, PasswordInicialMem(), eventos, '123')
+    assert cuentas.existe_cuenta_para_cedula('123')
+    assert eventos[0].tipo is TipoEventoIdentidad.CUENTA_CREADA
 
 
 def test_pasivo_elegido_por_rrhh_recibe_cuenta_con_correo_de_cualquier_dominio(eventos):
@@ -312,6 +313,26 @@ def test_elegir_el_institucional_no_cambia_el_correo_pero_avisa(eventos):
     assert len(eventos) == 1
 
 
+def test_crear_cuenta_sin_que_la_regla_lo_permita_lo_dice_claro(eventos):
+    """QA 2026-11-03: activo con correo personal → error claro, no «registrado» sin cuenta."""
+    cuentas = CuentasMem(cuentas=[])
+    correos = CorreosMem({'123': 'ana@gmail.com'})
+
+    with pytest.raises(ValidationError, match='asignación'):
+        cambiar_correo_acceso(correos, cuentas, eventos.append, lambda c: None, '123', 'INSTITUCIONAL', **seguridad())
+
+
+def test_crear_cuenta_con_el_correo_registrado(eventos):
+    cuentas = CuentasMem(cuentas=[])
+    correos = CorreosMem({'123': 'ana@gmail.com'})
+
+    def aprovisionar(ced):
+        cuentas._cuentas[9] = Cuenta(id=9, cedula=ced)
+
+    r = cambiar_correo_acceso(correos, cuentas, eventos.append, aprovisionar, '123', 'INSTITUCIONAL', **seguridad())
+    assert r.cuenta_creada and r.avisado
+
+
 def test_correo_ya_usado_por_otro_trabajador_se_rechaza(eventos):
     cuentas = CuentasMem(cuentas=[Cuenta(id=1, cedula='123')])
     correos = CorreosMem({'123': 'ana@conatel.gob.ve', '999': 'otro@gmail.com'}, {'123': 'otro@gmail.com'})
@@ -460,3 +481,38 @@ def test_restablecer_acceso_informa_el_plazo_en_el_evento(eventos):
     cuentas.version = VersionMem()
     restablecer_acceso(cuentas, PasswordInicialMem(), cuentas.version, eventos.append, 1, AHORA, dias_vigencia=5, **seguridad())
     assert eventos[0].dias_vigencia == 5
+
+
+def test_aviso_de_cuenta_creada_sin_correo_si_el_parametro_esta_apagado():
+    """QA 2026-11-03: hasta que Gestión Humana anuncie el sistema, el alta no manda correo."""
+    from apps.identidad.domain.events import EventoIdentidad
+    from apps.identidad.domain.services.notificaciones_eventos import solicitud_de_evento
+
+    evento = EventoIdentidad(tipo=TipoEventoIdentidad.CUENTA_CREADA, cedula='123', dias_vigencia=7)
+    assert solicitud_de_evento(evento, avisar_cuenta_creada_por_correo=False).correo is None
+    assert solicitud_de_evento(evento, avisar_cuenta_creada_por_correo=True).correo is not None
+
+
+def test_el_parametro_de_aviso_de_cuenta_viene_apagado_por_defecto():
+    from apps.configuracion.domain.parametros import DEFINICIONES_POR_CLAVE
+    from core.domain.configuracion import CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO
+
+    assert DEFINICIONES_POR_CLAVE[CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO].defecto == 'false'
+
+
+def test_el_interruptor_tambien_detiene_restablecimiento_y_correo_de_acceso():
+    from apps.identidad.domain.events import EventoIdentidad
+    from apps.identidad.domain.services.notificaciones_eventos import solicitud_de_evento
+
+    restablecido = EventoIdentidad(
+        tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula='123',
+        motivo=MotivoCambioPassword.RESTABLECIDO_RRHH.value, dias_vigencia=7,
+    )
+    correo_acceso = EventoIdentidad(tipo=TipoEventoIdentidad.CORREO_ACCESO_CAMBIADO, cedula='123')
+    voluntario = EventoIdentidad(
+        tipo=TipoEventoIdentidad.PASSWORD_CAMBIADA, cedula='123', motivo=MotivoCambioPassword.VOLUNTARIO.value,
+    )
+    assert solicitud_de_evento(restablecido, avisar_cuenta_creada_por_correo=False).correo is None
+    assert solicitud_de_evento(correo_acceso, avisar_cuenta_creada_por_correo=False).correo is None
+    # La alerta de seguridad por cambio de contraseña propio sale siempre.
+    assert solicitud_de_evento(voluntario, avisar_cuenta_creada_por_correo=False).correo is not None

@@ -215,6 +215,11 @@ export default function AutogestionPage() {
                     <span className="font-medium">Carnet Patria:</span>
                     <span>{miCenso.carnet_patria || "No registrado"}</span>
                   </div>
+                  <div className="flex items-center gap-2 text-gray-800">
+                    <Badge className="size-4 text-gray-500" />
+                    <span className="font-medium">Serial del Carnet de la Patria:</span>
+                    <span>{miCenso.carnet_patria_serial || "No registrado"}</span>
+                  </div>
                 </div>
 
                 <Separator className="my-4" />

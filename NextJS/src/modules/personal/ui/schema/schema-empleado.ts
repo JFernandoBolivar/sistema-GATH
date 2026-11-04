@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
+import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 
 /**
@@ -110,6 +111,7 @@ export const empleadoSchema = z.object({
   estadoCivilId: z.number().positive().optional().nullable(),
   nacionalidadId: z.number().int().positive().optional().nullable(),
   carnetPatria: z.string().trim().optional().nullable(),
+  carnetPatriaSerial: serialCarnetPatriaZod(),
   datosVivienda: datosViviendaSchema.optional(),
   perfilSalud: perfilSaludSchema.optional(),
   perfilFisico: perfilFisicoSchema.optional(),
@@ -176,6 +178,7 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
     .regex(/^\d{10}$/, { message: "Debe Ingresar 10 Digitos" })
     .optional()
     .nullable(),
+  carnetPatriaSerial: serialCarnetPatriaZod(),
   datosVivienda: z.object({
     estadoId: idRequerido("Debe Seleccionar Un Estado"),
     municipioId: idRequerido("Debe Seleccionar Un Municipio"),

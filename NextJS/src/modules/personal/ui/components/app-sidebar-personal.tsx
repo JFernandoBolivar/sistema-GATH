@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
+import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 
 type SubMenuItem = {
   title: string;
@@ -413,6 +414,7 @@ export function AppSidebarPersonal() {
                         )}
                       </>
                     ) : (
+                      <>
                       <SidebarMenuButton asChild isActive={pathname === item.url}>
                         <Link
                           href={item.url}
@@ -422,6 +424,11 @@ export function AppSidebarPersonal() {
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
+                      {(() => {
+                        const modulo = moduloDeRutaNotificaciones(item.url);
+                        return modulo ? <ContadorMenuNotificaciones modulo={modulo} /> : null;
+                      })()}
+                      </>
                     )}
                   </SidebarMenuItem>
                 ))}

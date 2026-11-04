@@ -2,7 +2,11 @@
  * Casos de uso de Configuración Visual (Reglas R2, R4).
  */
 import type { CampoLogo, RepoConfiguracionVisual } from "../../domain/ports/repo-configuracion-visual";
-import type { ActualizarConfiguracionVisualInputDTO, ConfiguracionVisualDTO } from "../dtos/configuracion-visual-dto";
+import type {
+  ActualizarConfiguracionVisualInputDTO,
+  ConfiguracionVisualDTO,
+  VersionImagenCintilloDTO,
+} from "../dtos/configuracion-visual-dto";
 
 function aDTO(e: Awaited<ReturnType<RepoConfiguracionVisual["obtener"]>>): ConfiguracionVisualDTO {
   return {
@@ -38,4 +42,21 @@ export async function subirLogoConfiguracion(
   archivo: File,
 ): Promise<ConfiguracionVisualDTO> {
   return aDTO(await repo.subirLogo(campo, archivo));
+}
+
+export async function listarVersionesImagen(
+  repo: RepoConfiguracionVisual,
+  campo: CampoLogo,
+): Promise<VersionImagenCintilloDTO[]> {
+  const versiones = await repo.listarVersiones(campo);
+  // Más reciente primero, sin depender del orden del servidor.
+  return [...versiones].sort((a, b) => b.subidoEn.localeCompare(a.subidoEn));
+}
+
+export async function restaurarVersionImagen(
+  repo: RepoConfiguracionVisual,
+  campo: CampoLogo,
+  versionId: string,
+): Promise<ConfiguracionVisualDTO> {
+  return aDTO(await repo.restaurarVersion(campo, versionId));
 }

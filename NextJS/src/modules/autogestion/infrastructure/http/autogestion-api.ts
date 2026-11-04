@@ -135,6 +135,7 @@ export interface CensoEmpleadoItem {
   apellidos: string;
   fecha_nacimiento: string | null;
   carnet_patria: string | null;
+  carnet_patria_serial: string | null;
   cargos: CensoCargoApiItem[];
   datos_vivienda: CensoViviendaApiItem | null;
   total_apn: { years: number; months: number; days: number };
@@ -150,6 +151,7 @@ export interface CensoEmpleadoItem {
 
 export interface SubmitPayload {
   carnet_patria: string;
+  carnet_patria_serial?: string;
   datos_vivienda?: {
     direccion_exacta?: string;
     estado_id?: number;

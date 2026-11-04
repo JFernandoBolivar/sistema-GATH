@@ -247,6 +247,7 @@ class RepoAutogestionORM:
             'apellidos': emp.apellidos,
             'fecha_nacimiento': emp.fecha_nacimiento.isoformat() if emp.fecha_nacimiento else None,
             'carnet_patria': emp.carnet_patria or '',
+            'carnet_patria_serial': emp.carnet_patria_serial or '',
             'cargos': cargos,
             'datos_vivienda': datos_vivienda,
             'total_apn': total_apn,
@@ -261,12 +262,19 @@ class RepoAutogestionORM:
         carnet_patria: str,
         datos_vivienda: dict | None,
         respuestas: list[dict],
+        carnet_patria_serial: str = '',
     ) -> dict:
         emp = EmployeeModel.objects.get(cedulaidentidad=cedula)
 
+        campos = []
         if carnet_patria:
             emp.carnet_patria = carnet_patria
-            emp.save(update_fields=['carnet_patria', 'fecha_actualizacion'])
+            campos.append('carnet_patria')
+        if carnet_patria_serial:
+            emp.carnet_patria_serial = carnet_patria_serial
+            campos.append('carnet_patria_serial')
+        if campos:
+            emp.save(update_fields=[*campos, 'fecha_actualizacion'])
 
         if datos_vivienda:
             vivienda_defaults = {
