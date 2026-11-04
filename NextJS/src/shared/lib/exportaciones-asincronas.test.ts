@@ -127,8 +127,8 @@ describe("exportaciones asíncronas (cliente)", () => {
   });
 
   it("texto de progreso", () => {
-    expect(textoDeProgreso(null)).toBe("Generando…");
-    expect(textoDeProgreso({ estado: "PENDIENTE", progreso: 0 })).toBe("En cola…");
-    expect(textoDeProgreso({ estado: "EN_PROCESO", progreso: 40.4 })).toBe("Generando… 40%");
+    expect(textoDeProgreso(null)).toBe("Generando reporte…");
+    expect(textoDeProgreso({ estado: "PENDIENTE", progreso: 0 })).toBe("Generando reporte…");
+    expect(textoDeProgreso({ estado: "EN_PROCESO", progreso: 40.4 })).toBe("Generando reporte… 40%");
   });
 });

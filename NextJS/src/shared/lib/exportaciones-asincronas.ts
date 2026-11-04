@@ -151,9 +151,11 @@ export async function archivoDeRespuesta(
 
 /** Texto para el botón/aviso mientras se genera: «Generando… 40%». */
 export function textoDeProgreso(progreso: ProgresoExportacion | null): string {
-  if (!progreso) return "Generando…";
-  if (progreso.estado === "PENDIENTE") return "En cola…";
-  return `Generando… ${Math.max(0, Math.min(100, Math.round(progreso.progreso)))}%`;
+  // Al usuario no se le muestra «en cola»: mientras espera o arranca se ve «Generando…»
+  // y el porcentaje aparece en cuanto hay avance real.
+  if (!progreso || progreso.estado === "PENDIENTE") return "Generando reporte…";
+  const porcentaje = Math.max(0, Math.min(100, Math.round(progreso.progreso)));
+  return porcentaje > 0 ? `Generando reporte… ${porcentaje}%` : "Generando reporte…";
 }
 
 export function esCancelacion(error: unknown): boolean {
