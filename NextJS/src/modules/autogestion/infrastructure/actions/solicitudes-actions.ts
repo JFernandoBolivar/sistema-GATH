@@ -2,7 +2,7 @@
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { ClaveCatalogo } from "../../domain/value-objects/campos-seccion";
 import type { OpcionCatalogo } from "../../domain/ports/repo-catalogos-autogestion";
 import type { FiltrosBandeja, FiltrosMisSolicitudes } from "../../domain/ports/repo-solicitudes";
@@ -67,9 +67,11 @@ async function ejecutar<T>(
   } catch (error) {
     await logAudit({ traceId, action: nombre, status: "FAILED", durationMs: Date.now() - inicio });
     handleSessionExpired(error);
+    const err = errorDeAccion(error, mensajeError);
     return {
       ok: false,
-      mensaje: error instanceof Error && error.message ? error.message : mensajeError,
+      mensaje: err.error,
+      errores: err.errores,
     };
   }
 }

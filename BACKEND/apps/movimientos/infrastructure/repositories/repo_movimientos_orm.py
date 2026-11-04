@@ -9,6 +9,7 @@ entre módulos hermanos.
 """
 from core.domain.exceptions import NotFoundError, ValidationError
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+from apps.catalogos.infrastructure.models.catalogo_models import TipoPersonalModel
 from apps.movimientos.domain.entities.movimiento import MovimientoCargo
 from apps.movimientos.infrastructure.mappers.mapper_movimientos import movimiento_a_entidad
 from apps.movimientos.infrastructure.models.movimiento_models import EmployeeMovementHistoryModel
@@ -59,10 +60,21 @@ class RepoMovimientosORM:
         # el cargo no los tiene, se prefiere fallar de forma explícita (y
         # que la transacción que originó el evento haga rollback) antes que
         # dejar una fila de auditoría a medias.
-        if cargo.Tipo_personal_id is None or cargo.Dependencia_id is None:
+        if cargo.Dependencia_id is None:
             raise ValidationError(
-                'El cargo no tiene tipo de personal o dependencia asignados: '
-                'la tabla física de historial exige ambos campos.'
+                f'El código {cargo.codigo} no tiene Nivel (Dependencia) asignado. '
+                'Edite el código en Gestión de códigos y complete su ubicación antes de asignarlo.'
+            )
+        tipo_personal_id = cargo.Tipo_personal_id
+        if tipo_personal_id is None:
+            # Códigos de personal activo creados sin tipo de personal.
+            tipo_personal_id = (
+                TipoPersonalModel.objects.filter(tipo_personal__iexact='ACTIVO')
+                .values_list('pk', flat=True).first()
+            )
+        if tipo_personal_id is None:
+            raise ValidationError(
+                'No está configurado el tipo de personal ACTIVO en el sistema. Contacte al administrador.'
             )
 
         fila = EmployeeMovementHistoryModel.objects.create(
@@ -73,7 +85,7 @@ class RepoMovimientosORM:
             gradoid_id=cargo.gradoid_id,
             tiponomina_id=cargo.tiponominaid_id,
             estatus_id=cargo.estatusid_id,
-            tipo_personal_id=cargo.Tipo_personal_id,
+            tipo_personal_id=tipo_personal_id,
             DependenciasId_id=cargo.Dependencia_id,
             DireccionGeneralid_id=cargo.DireccionGeneral_id,
             DireccionLineaid_id=cargo.DireccionLinea_id,
@@ -126,7 +138,7 @@ class RepoMovimientosORM:
         if filtros.tipo_movimiento:
             qs = qs.filter(
                 Q(tipo_movimiento__iexact=filtros.tipo_movimiento)
-                | Q(motivo__movimiento__icontains=filtros.tipo_movimiento)
+                | Q(motivo__movimiento__iexact=filtros.tipo_movimiento)
             )
         if filtros.fecha_inicio:
             qs = qs.filter(fecha_movimiento__date__gte=filtros.fecha_inicio)
@@ -155,7 +167,9 @@ class RepoMovimientosORM:
             TipoMovimientoModel,
         )
 
-        categorias_base = ['INGRESO', 'TRASLADO', 'EGRESO', 'ENCARGADURIA', 'ESTATUS', 'ESTATUS PASIVO']
+        categorias_base = [
+            'INGRESO', 'TRASLADO', 'EGRESO', 'ENCARGADURIA', 'ESTATUS', 'ESTATUS PASIVO', 'PASE A PASIVO', 'EGRESO PASIVO',
+        ]
         categorias_db = list(
             CategoriaMovimientoModel.objects.values_list('categoria', flat=True).order_by('categoria')
         )

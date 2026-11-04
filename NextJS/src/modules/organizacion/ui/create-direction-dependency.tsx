@@ -7,6 +7,7 @@
  * - RadioGroup para alternar entre Crear Dirección General, División/Coordinación y Coordinación
  * - Formulario reactivo correspondiente según la opción seleccionada
  */
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -167,7 +168,8 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
           getDireccionesGeneralesAction(Number(dependencyId)).then(setDirGenerales);
           onSuccess?.();
         } else if ("error" in res) {
-          toast.error(res.error);
+          const sinUbicar = aplicarErroresServidor(formDG, res.errores, { dependencia_id: "dependenciaId", direccion_general_id: "direccionGeneralId", direccion_linea_id: "direccionLineaId" });
+          toast.error(res.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : res.error);
         }
       } catch {
         toast.error("Ocurrió un error al crear la dirección general.");
@@ -194,7 +196,8 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
           getDireccionesLineaAction(Number(selectionDirectionGeneralId)).then(setDirLineas);
           onSuccess?.();
         } else if ("error" in res) {
-          toast.error(res.error);
+          const sinUbicar = aplicarErroresServidor(formDL, res.errores, { dependencia_id: "dependenciaId", direccion_general_id: "direccionGeneralId", direccion_linea_id: "direccionLineaId" });
+          toast.error(res.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : res.error);
         }
       } catch {
         toast.error("Ocurrió un error al crear la división.");
@@ -219,7 +222,8 @@ export default function CreateDirectionDependency({ onSuccess }: CreateDirection
           formCoord.reset({ codigo: "", nombre: "", direccionLineaId: Number(selectionDirectionLineId) });
           onSuccess?.();
         } else if ("error" in res) {
-          toast.error(res.error);
+          const sinUbicar = aplicarErroresServidor(formCoord, res.errores, { dependencia_id: "dependenciaId", direccion_general_id: "direccionGeneralId", direccion_linea_id: "direccionLineaId" });
+          toast.error(res.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : res.error);
         }
       } catch {
         toast.error("Ocurrió un error al crear la coordinación.");

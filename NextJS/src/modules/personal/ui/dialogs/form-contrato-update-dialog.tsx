@@ -20,6 +20,17 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import { avisoDeFallo, mensajeDe } from "./campo-dialogo";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = {
+  contrato: "contrato",
+  n_contrato: "nContrato",
+  fecha_ingreso: "fechaIngreso",
+  fecha_culminacion: "fechaCulminacion",
+  politica_id: "politicaId",
+};
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../../application/dtos/empleado-dto";
 import { actualizarEmpleadoAction } from "../../infrastructure/actions/personal-actions";
 
@@ -29,6 +40,14 @@ interface FormContratoUpdateDialogProps {
   onGuardado: () => void;
   triggerClassName?: string;
   triggerLabel?: string;
+}
+
+function MensajeFila({ error }: { error?: string }) {
+  return error ? (
+    <p role="alert" className="mt-1 text-xs text-destructive">
+      {error}
+    </p>
+  ) : null;
 }
 
 export default function FormContratoUpdateDialog({
@@ -58,7 +77,7 @@ export default function FormContratoUpdateDialog({
     esFijo: boolean;
   }
 
-  const { control, register, handleSubmit, setValue, watch } = useForm<{
+  const form = useForm<{
     contrato: ContratoFormItem[];
   }>({
     defaultValues: {
@@ -69,12 +88,15 @@ export default function FormContratoUpdateDialog({
               nContrato: c.nContrato ?? "",
               fechaIngreso: c.fechaIngreso ?? "",
               fechaCulminacion: c.fechaCulminacion ?? "",
-              politicaId: c.politicaId ?? undefined,
+              politicaId: c.politicaId ?? 0,
               esFijo: c.esFijo ?? false,
             }))
           : [],
     },
   });
+
+  const { control, register, handleSubmit, setValue, watch } = form;
+  const erroresContrato = form.formState.errors.contrato;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -112,9 +134,10 @@ export default function FormContratoUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
@@ -168,7 +191,7 @@ export default function FormContratoUpdateDialog({
                         nContrato: "",
                         fechaIngreso: "",
                         fechaCulminacion: "",
-                        politicaId: undefined,
+                        politicaId: 0,
                         esFijo: false,
                       });
                     }}
@@ -192,7 +215,7 @@ export default function FormContratoUpdateDialog({
                     return (
                       <div
                         key={field.id}
-                        className="relative grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[140px_140px_140px_1fr_auto] gap-3 items-start w-full py-2 border-b"
+                        className="@container relative grid grid-cols-1 gap-3 items-start w-full py-2 border-b @md:grid-cols-2 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]"
                       >
                         {isVencido && (
                           <Badge className="bg-red-600 text-white text-xs col-span-full w-fit mb-1">
@@ -200,7 +223,7 @@ export default function FormContratoUpdateDialog({
                           </Badge>
                         )}
 
-                        <div className="flex flex-col">
+                        <div className="flex min-w-0 flex-col">
                           <Label className="text-xs">{index + 1}. N° Contrato</Label>
                           <Input
                             {...register(`contrato.${index}.nContrato` as const)}
@@ -209,10 +232,13 @@ export default function FormContratoUpdateDialog({
                               isExisting ? "opacity-50 cursor-not-allowed bg-muted" : ""
                             }`}
                             placeholder="CTR-001"
+                            maxLength={30}
+                            aria-invalid={!!erroresContrato?.[index]?.nContrato || undefined}
                           />
+                          <MensajeFila error={mensajeDe(erroresContrato?.[index]?.nContrato)} />
                         </div>
 
-                        <div className="flex flex-col">
+                        <div className="flex min-w-0 flex-col">
                           <Label className="text-xs">Fecha Inicio</Label>
                           <Input
                             type="date"
@@ -220,24 +246,28 @@ export default function FormContratoUpdateDialog({
                             min="1930-01-01"
                             disabled={isVencido}
                             className="h-9 text-xs"
+                            aria-invalid={!!erroresContrato?.[index]?.fechaIngreso || undefined}
                             {...register(`contrato.${index}.fechaIngreso` as const, {
                               required: true,
                             })}
                           />
+                          <MensajeFila error={mensajeDe(erroresContrato?.[index]?.fechaIngreso)} />
                         </div>
 
-                        <div className="flex flex-col">
+                        <div className="flex min-w-0 flex-col">
                           <Label className="text-xs">Fecha Culminación</Label>
                           <Input
                             type="date"
                             min="1930-01-01"
                             disabled={isVencido}
                             className="h-9 text-xs"
+                            aria-invalid={!!erroresContrato?.[index]?.fechaCulminacion || undefined}
                             {...register(`contrato.${index}.fechaCulminacion` as const)}
                           />
+                          <MensajeFila error={mensajeDe(erroresContrato?.[index]?.fechaCulminacion)} />
                         </div>
 
-                        <div className="flex flex-col">
+                        <div className="flex min-w-0 flex-col">
                           <Label className="text-xs">Política</Label>
                           <Select
                             value={
@@ -250,7 +280,10 @@ export default function FormContratoUpdateDialog({
                             }
                             disabled={isVencido}
                           >
-                            <SelectTrigger className="w-full h-9 text-xs">
+                            <SelectTrigger
+                              className="w-full h-9 text-xs"
+                              aria-invalid={!!erroresContrato?.[index]?.politicaId || undefined}
+                            >
                               <SelectValue placeholder="Seleccione" />
                             </SelectTrigger>
                             <SelectContent>
@@ -261,6 +294,7 @@ export default function FormContratoUpdateDialog({
                               ))}
                             </SelectContent>
                           </Select>
+                          <MensajeFila error={mensajeDe(erroresContrato?.[index]?.politicaId)} />
                         </div>
 
                         {!isVencido && (

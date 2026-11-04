@@ -63,9 +63,17 @@ export async function GET(
   }
 
   try {
-    const { blob, headers: origen } = await apiClient.getBlobConRespuesta(ruta, {
+    const { blob, headers: origen, status } = await apiClient.getBlobConRespuesta(ruta, {
       params: filtrosDe(request),
     });
+    // Exportación asíncrona: Django responde 202 con el trabajo. Se reenvía tal cual
+    // y el navegador consulta su estado en /api/exportaciones/{id}.
+    if (status === 202) {
+      return new NextResponse(await blob.arrayBuffer(), {
+        status: 202,
+        headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store" },
+      });
+    }
     const cuerpo = await blob.arrayBuffer();
 
     const headers = new Headers({

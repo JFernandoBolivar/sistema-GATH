@@ -5,9 +5,11 @@
  * Zero-trust: se revalida la entrada con el schema Zod antes de invocar el
  * caso de uso. Captura errores y llama `handleSessionExpired`.
  */
+import type { ZodError } from "zod";
+
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { ActualizarConfiguracionVisualInputDTO } from "../../application/dtos/configuracion-visual-dto";
 import {
   actualizarConfiguracionVisual,
@@ -20,6 +22,17 @@ import { repoConfiguracionVisualApi } from "../repositories/repo-configuracion-v
 import { actualizarConfiguracionVisualSchema, campoLogoSchema } from "../../ui/schema/schema-configuracion-visual";
 
 const TAMANO_MAXIMO_LOGO_BYTES = 5 * 1024 * 1024; // 5MB, mismo límite que el resto de subidas del sistema.
+
+/** Convierte los issues de Zod en `{ campo: ["mensaje"] }` para el formulario. */
+function erroresDeZod(error: ZodError): Record<string, string[]> {
+  const salida: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const ruta = issue.path.join(".");
+    if (!ruta) continue;
+    (salida[ruta] ??= []).push(issue.message);
+  }
+  return salida;
+}
 
 export async function getConfiguracionVisualAction() {
   const traceId = generateTraceId();
@@ -38,7 +51,10 @@ export async function getConfiguracionVisualAction() {
 export async function actualizarConfiguracionVisualAction(input: ActualizarConfiguracionVisualInputDTO) {
   const validation = actualizarConfiguracionVisualSchema.safeParse(input);
   if (!validation.success) {
-    return { error: "Datos de configuración inválidos. Revise los campos ingresados." };
+    return {
+      error: "Datos de configuración inválidos. Revise los campos marcados en rojo.",
+      errores: erroresDeZod(validation.error),
+    };
   }
 
   const traceId = generateTraceId();
@@ -50,7 +66,7 @@ export async function actualizarConfiguracionVisualAction(input: ActualizarConfi
   } catch (error) {
     await logAudit({ traceId, action: "actualizarConfiguracionVisualAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { error: error instanceof Error && error.message ? error.message : "No fue posible actualizar la configuración." };
+    return errorDeAccion(error, "No fue posible actualizar la configuración.");
   }
 }
 
@@ -60,10 +76,13 @@ export async function subirLogoConfiguracionAction(campo: string, archivo: File)
     return { error: `Imagen inválida: ${campo}.` };
   }
   if (!(archivo instanceof File) || archivo.size === 0) {
-    return { error: "Seleccione un archivo válido." };
+    return { error: "Seleccione un archivo válido.", errores: { archivo: ["Seleccione una imagen válida."] } };
   }
   if (archivo.size > TAMANO_MAXIMO_LOGO_BYTES) {
-    return { error: "El tamaño máximo de la imagen es 5MB." };
+    return {
+      error: "El tamaño máximo de la imagen es 5MB.",
+      errores: { archivo: ["El tamaño máximo de la imagen es 5MB."] },
+    };
   }
 
   const traceId = generateTraceId();
@@ -75,7 +94,7 @@ export async function subirLogoConfiguracionAction(campo: string, archivo: File)
   } catch (error) {
     await logAudit({ traceId, action: "subirLogoConfiguracionAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { error: error instanceof Error && error.message ? error.message : "No fue posible subir la imagen." };
+    return errorDeAccion(error, "No fue posible subir la imagen.");
   }
 }
 
@@ -88,7 +107,7 @@ export async function listarVersionesImagenAction(campo: string) {
     return await listarVersionesImagen(repoConfiguracionVisualApi, validacionCampo.data);
   } catch (error) {
     handleSessionExpired(error);
-    return { error: error instanceof Error && error.message ? error.message : "No fue posible cargar las versiones." };
+    return errorDeAccion(error, "No fue posible cargar las versiones.");
   }
 }
 
@@ -106,6 +125,6 @@ export async function restaurarVersionImagenAction(campo: string, versionId: str
   } catch (error) {
     await logAudit({ traceId, action: "restaurarVersionImagenAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { error: error instanceof Error && error.message ? error.message : "No fue posible restaurar la imagen." };
+    return errorDeAccion(error, "No fue posible restaurar la imagen.");
   }
 }

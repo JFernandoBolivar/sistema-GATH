@@ -41,6 +41,8 @@ export function FamiliarCampos({
           </Label>
           <Input
             id="cedulaFamiliar"
+            inputMode="numeric"
+            maxLength={9}
             disabled={down}
             placeholder={
               down
@@ -72,24 +74,24 @@ export function FamiliarCampos({
 
         <Field data-invalid={!!form.formState.errors.primerNombre}>
           <Label htmlFor="primerNombre">Primer nombre *</Label>
-          <Input id="primerNombre" {...form.register("primerNombre")} aria-invalid={!!form.formState.errors.primerNombre} />
+          <Input id="primerNombre" maxLength={60} {...form.register("primerNombre")} aria-invalid={!!form.formState.errors.primerNombre} />
           {form.formState.errors.primerNombre && <p role="alert" className="text-sm text-destructive">{form.formState.errors.primerNombre.message}</p>}
         </Field>
 
         <Field>
           <Label htmlFor="segundoNombre">Segundo nombre</Label>
-          <Input id="segundoNombre" {...form.register("segundoNombre")} />
+          <Input id="segundoNombre" maxLength={60} {...form.register("segundoNombre")} />
         </Field>
 
         <Field data-invalid={!!form.formState.errors.primerApellido}>
           <Label htmlFor="primerApellido">Primer apellido *</Label>
-          <Input id="primerApellido" {...form.register("primerApellido")} aria-invalid={!!form.formState.errors.primerApellido} />
+          <Input id="primerApellido" maxLength={60} {...form.register("primerApellido")} aria-invalid={!!form.formState.errors.primerApellido} />
           {form.formState.errors.primerApellido && <p role="alert" className="text-sm text-destructive">{form.formState.errors.primerApellido.message}</p>}
         </Field>
 
         <Field>
           <Label htmlFor="segundoApellido">Segundo apellido</Label>
-          <Input id="segundoApellido" {...form.register("segundoApellido")} />
+          <Input id="segundoApellido" maxLength={60} {...form.register("segundoApellido")} />
         </Field>
 
         <Field data-invalid={!!form.formState.errors.parentescoId}>
@@ -156,7 +158,7 @@ export function FamiliarCampos({
 
         <Field className="md:col-span-2 lg:col-span-3">
           <Label htmlFor="observaciones">Observaciones</Label>
-          <Input id="observaciones" {...form.register("observaciones")} />
+          <Input id="observaciones" maxLength={500} {...form.register("observaciones")} />
         </Field>
       </div>
 

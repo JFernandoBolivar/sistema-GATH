@@ -88,12 +88,12 @@ export function FamiliarFormacionAcademica({
     | undefined;
 
   return (
-    <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-blue-700 rounded-sm">
+    <fieldset className="min-w-0 border grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 p-2 border-blue-700 rounded-sm">
       <legend className="flex gap-2 text-primary font-bold items-center">
         Información Academica <BookAIcon className="size-5" />
       </legend>
 
-      <div className="col-span-2 flex flex-col gap-2">
+      <div className="md:col-span-2 flex flex-col gap-2">
         <Field>
           <Label className="cursor-pointer">Nivel Académico</Label>
           <Select
@@ -132,7 +132,7 @@ export function FamiliarFormacionAcademica({
 
       {showMoreDetails && (
         <>
-          <div className="col-span-2 md:col-span-1 flex flex-col gap-2">
+          <div className="md:col-span-1 flex flex-col gap-2">
             <Field>
               <Label>Carrera (Opcional)</Label>
               <SelectDependienteFamiliar
@@ -157,7 +157,7 @@ export function FamiliarFormacionAcademica({
             </Field>
           </div>
 
-          <div className="col-span-2 md:col-span-1 flex flex-col gap-2">
+          <div className="md:col-span-1 flex flex-col gap-2">
             <Field>
               <Label>Mención (Opcional)</Label>
               <SelectDependienteFamiliar
@@ -179,7 +179,7 @@ export function FamiliarFormacionAcademica({
             </Field>
           </div>
 
-          <div className="col-span-2 md:col-span-1 flex flex-col gap-2">
+          <div className="md:col-span-1 flex flex-col gap-2">
             <Field>
               <Label className="cursor-pointer">Capacitación (Opcional)</Label>
               <Input
@@ -190,7 +190,7 @@ export function FamiliarFormacionAcademica({
             </Field>
           </div>
 
-          <div className="col-span-2 md:col-span-1 flex flex-col gap-2">
+          <div className="md:col-span-1 flex flex-col gap-2">
             <Field>
               <Label>
                 Institución{" "}

@@ -143,7 +143,12 @@ export default function RegistrarPasivoDirectoPage() {
           const formData = new FormData();
           formData.append("file", completo.file);
           try {
-            await subirFotoEmpleadoAction(completo.cedulaidentidad.trim(), formData);
+            const foto = await subirFotoEmpleadoAction(completo.cedulaidentidad.trim(), formData);
+            if (foto && typeof foto === "object" && "error" in foto) {
+              const falloFoto = foto as { error: string; errores?: Record<string, string[]> };
+              const detalle = falloFoto.errores?.file?.[0] ?? falloFoto.error;
+              toast.error(`El pasivo se registró, pero la foto no se pudo subir: ${detalle}`);
+            }
           } catch {
             toast.error("El pasivo se registró, pero no fue posible subir la foto.");
           }

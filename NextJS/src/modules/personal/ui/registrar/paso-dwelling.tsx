@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
 import { pasoDwellingSchema, type PasoDwellingType } from "../schema/schema-registro-pasos";
 import { useCatalogoDependiente } from "../use-catalogo-dependiente";
+import { useErroresDelPaso, type ErroresServidor } from "./errores-registro";
 
 export function PasoDwelling({
   defaultValues,
@@ -33,17 +34,20 @@ export function PasoDwelling({
   catalogos,
   isLoadingCatalogos,
   isPending,
+  erroresServidor,
 }: {
   defaultValues: PasoDwellingType;
   onSubmit: (values: PasoDwellingType) => void;
   catalogos: CatalogosExpedienteDTO | null;
   isLoadingCatalogos: boolean;
   isPending: boolean;
+  erroresServidor?: ErroresServidor | null;
 }) {
   const form = useForm<PasoDwellingType>({
     resolver: zodResolver(pasoDwellingSchema),
     defaultValues,
   });
+  useErroresDelPaso(form, erroresServidor, 6);
   const estadoId = useWatch({ control: form.control, name: "datos_vivienda.estado_id" });
   const municipioId = useWatch({ control: form.control, name: "datos_vivienda.municipio_id" });
 
@@ -63,12 +67,12 @@ export function PasoDwelling({
         <CardAction className="text-gray-500">Paso 6: Datos De Vivienda</CardAction>
         <div>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="datos_vivienda.estado_id"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="min-w-0">
                     <FormLabel>Estado *</FormLabel>
                     <FormControl>
                       <Combobox
@@ -94,7 +98,7 @@ export function PasoDwelling({
                 control={form.control}
                 name="datos_vivienda.municipio_id"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="min-w-0">
                     <FormLabel>Municipio *</FormLabel>
                     <FormControl>
                       <Combobox
@@ -118,7 +122,7 @@ export function PasoDwelling({
                 control={form.control}
                 name="datos_vivienda.parroquia"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="min-w-0">
                     <FormLabel>Parroquia *</FormLabel>
                     <FormControl>
                       <Combobox
@@ -139,7 +143,7 @@ export function PasoDwelling({
                 control={form.control}
                 name="datos_vivienda.condicion_vivienda_id"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="min-w-0">
                     <FormLabel>Condicion De Vivienda *</FormLabel>
                     <Select
                       value={field.value ? `${field.value}` : undefined}
@@ -169,10 +173,10 @@ export function PasoDwelling({
                 control={form.control}
                 name="datos_vivienda.direccion_exacta"
                 render={({ field }) => (
-                  <FormItem className="col-span-2">
+                  <FormItem className="min-w-0 md:col-span-2">
                     <FormLabel>Direccion Exacta *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Calle, Casa, Apartamento, Sector" {...field} />
+                      <Input placeholder="Calle, Casa, Apartamento, Sector" maxLength={300} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -182,7 +186,7 @@ export function PasoDwelling({
                 control={form.control}
                 name="datos_vivienda.codigo_postal_id"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="min-w-0">
                     <FormLabel>Código Postal *</FormLabel>
                     <FormControl>
                       <Combobox
@@ -198,7 +202,7 @@ export function PasoDwelling({
                   </FormItem>
                 )}
               />
-              <Button className="w-full col-span-2" disabled={isPending}>
+              <Button className="w-full md:col-span-2" disabled={isPending}>
                 Siguiente
               </Button>
             </form>

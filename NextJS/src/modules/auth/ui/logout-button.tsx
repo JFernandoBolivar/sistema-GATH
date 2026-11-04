@@ -26,7 +26,7 @@ export default function LogoutButton() {
   };
 
   return (
-    <Button variant="destructive" onClick={handleSignOut} disabled={isLoggingOut}>
+    <Button variant="destructive" onClick={handleSignOut} disabled={isLoggingOut} className="min-h-10 min-w-10" aria-label="Cerrar sesión" title="Cerrar sesión">
       <LogOut className="size-4" aria-hidden="true" />
     </Button>
   );

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, UserPlus } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
@@ -64,7 +65,9 @@ export default function UsuarioRegistrarPage() {
     startTransition(async () => {
       const resultado = await registrarUsuarioAction(data);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const err = resultado as { error: string; errores?: Record<string, string[]> };
+        const sinUbicar = aplicarErroresServidor(form, err.errores, { password: "password", cedula: "cedula", rol_id: "rolId" });
+        toast.error(sinUbicar.length > 0 || !err.errores ? err.error : "Revise los campos marcados en rojo.");
         return;
       }
       toast.success("Usuario registrado correctamente.");
@@ -98,6 +101,8 @@ export default function UsuarioRegistrarPage() {
                 <Input
                   id="cedula"
                   placeholder="Ej. 12345678"
+                  inputMode="numeric"
+                  maxLength={20}
                   {...form.register("cedula")}
                   aria-invalid={!!form.formState.errors.cedula}
                 />
@@ -112,6 +117,8 @@ export default function UsuarioRegistrarPage() {
                 <InputPassword
                   id="password"
                   placeholder="Mínimo 8 caracteres"
+                  minLength={8}
+                  maxLength={128}
                   {...form.register("password")}
                   aria-invalid={!!form.formState.errors.password}
                 />

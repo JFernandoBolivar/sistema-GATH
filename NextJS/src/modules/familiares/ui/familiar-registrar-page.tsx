@@ -59,6 +59,8 @@ import {
   getCatalogosFamiliarAction,
   subirDocumentoFamiliarAction,
 } from "../infrastructure/actions/familiares-actions";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import { MAPA_ERRORES_FAMILIAR } from "./errores-familiar";
 import { familiarSchema, type FamiliarFormType } from "./schema/schema-familiar";
 import { FamiliarFormacionAcademica } from "./familiar-formacion-academica";
 import { FamiliarPerfilSalud } from "./familiar-perfil-salud";
@@ -240,7 +242,10 @@ export default function FamiliarRegistrarPage() {
 
       const resultado = await crearFamiliarAction(payload);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        toast.error((resultado as { error: string }).error);
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        // El campo culpable queda en rojo con su mensaje; lo que no tiene campo va al aviso.
+        const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES_FAMILIAR);
+        toast.error(sinUbicar.length ? sinUbicar.join(" ") : fallo.error);
         return;
       }
 
@@ -282,7 +287,7 @@ export default function FamiliarRegistrarPage() {
     <PageLayout title="Agregar Familiar" description="Registre los familiares del empleado">
       <Card className="bg-card">
         <CardContent className="gap-5 bg-card p-6">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-4">
             <EmployeeSearchForm
               onSearch={handleSearch}
               disabled={isLoadingSearch || isPending}
@@ -302,26 +307,28 @@ export default function FamiliarRegistrarPage() {
           </div>
 
           {employee && (
-            <div className="mt-4">
+            <div className="mt-6">
               {isPending ? (
                 <Loading promiseMessage="Agregando Familiar" />
               ) : (
                 <form onSubmit={form.handleSubmit(onGuardar)} className="space-y-6" noValidate>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {/* FIELDSET 1: DATOS PERSONALES */}
-                    <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-green-600 rounded-sm">
+                    <fieldset className="min-w-0 border grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 p-2 border-green-600 rounded-sm">
                       <legend className="flex gap-2 text-green-700 font-bold items-center">
                         Datos Personales <Database className="size-5" />
                       </legend>
 
                       {/* Cédula Familiar */}
-                      <div className="col-span-2 flex flex-col gap-1.5">
+                      <div className="md:col-span-2 flex flex-col gap-1.5">
                         <Label htmlFor="cedulaFamiliar" className="cursor-pointer">
                           Cédula Familiar
                         </Label>
                         <Input
                           id="cedulaFamiliar"
                           type="text"
+                          inputMode="numeric"
+                          maxLength={9}
                           disabled={down}
                           placeholder={
                             down
@@ -359,6 +366,7 @@ export default function FamiliarRegistrarPage() {
                         <Input
                           id="primerNombre"
                           type="text"
+                          maxLength={60}
                           {...form.register("primerNombre")}
                           aria-invalid={!!form.formState.errors.primerNombre}
                         />
@@ -377,6 +385,7 @@ export default function FamiliarRegistrarPage() {
                         <Input
                           id="segundoNombre"
                           type="text"
+                          maxLength={60}
                           {...form.register("segundoNombre")}
                         />
                       </Field>
@@ -389,6 +398,7 @@ export default function FamiliarRegistrarPage() {
                         <Input
                           id="primerApellido"
                           type="text"
+                          maxLength={60}
                           {...form.register("primerApellido")}
                           aria-invalid={!!form.formState.errors.primerApellido}
                         />
@@ -407,6 +417,7 @@ export default function FamiliarRegistrarPage() {
                         <Input
                           id="segundoApellido"
                           type="text"
+                          maxLength={60}
                           {...form.register("segundoApellido")}
                         />
                       </Field>
@@ -481,12 +492,12 @@ export default function FamiliarRegistrarPage() {
                     </fieldset>
 
                     {/* FIELDSET 2: RELACIÓN Y PARENTESCO */}
-                    <fieldset className="border grid grid-cols-2 gap-4 col-span-2 p-2 border-amber-700 rounded-sm">
+                    <fieldset className="min-w-0 border grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 p-2 border-amber-700 rounded-sm">
                       <legend className="flex gap-2 text-warning font-bold items-center">
                         Relación Y Parentesco <Contact className="size-5" />
                       </legend>
 
-                      <Field data-invalid={!!form.formState.errors.parentescoId} className={esHijo ? "col-span-1" : "col-span-2"}>
+                      <Field data-invalid={!!form.formState.errors.parentescoId} className={esHijo ? "" : "md:col-span-2"}>
                         <Label className="cursor-pointer">Parentesco *</Label>
                         <Select
                           value={form.watch("parentescoId") ? String(form.watch("parentescoId")) : ""}
@@ -531,7 +542,7 @@ export default function FamiliarRegistrarPage() {
                         </Field>
                       )}
 
-                      <div className="flex flex-row items-center justify-center gap-3 m-auto col-span-1">
+                      <div className="flex flex-row items-center justify-center gap-3 m-auto">
                         <Label htmlFor="work" className="cursor-pointer text-sm">
                           ¿El Familiar Trabaja En Este Ente?
                         </Label>
@@ -543,7 +554,7 @@ export default function FamiliarRegistrarPage() {
                         />
                       </div>
 
-                      <div className="flex flex-row items-center justify-center gap-3 m-auto col-span-1">
+                      <div className="flex flex-row items-center justify-center gap-3 m-auto">
                         <Label htmlFor="soon" className="cursor-pointer text-sm">
                           ¿El Familiar Es Heredero?
                         </Label>
@@ -566,7 +577,7 @@ export default function FamiliarRegistrarPage() {
                     <FamiliarPerfilSalud form={form} catalogos={catalogos} />
 
                     {/* OBSERVACIONES */}
-                    <div className="col-span-2 flex flex-col gap-1.5">
+                    <div className="md:col-span-2 flex flex-col gap-1.5">
                       <Label htmlFor="observaciones" className="cursor-pointer">
                         Observaciones (Opcional)
                       </Label>
@@ -574,6 +585,7 @@ export default function FamiliarRegistrarPage() {
                         id="observaciones"
                         placeholder="Describa las observaciones del familiar..."
                         rows={4}
+                        maxLength={500}
                         className="mt-1"
                         {...form.register("observaciones")}
                       />

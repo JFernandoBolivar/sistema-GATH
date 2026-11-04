@@ -5,6 +5,7 @@
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
+import type { OperacionMotivo } from "../../domain/value-objects/operacion-motivo";
 
 export interface CargoApiItem {
   id: number;
@@ -255,18 +256,19 @@ export const cargosApi = {
       apiClient.post<ApiResponse<PrestamoApiItem>>(`/api/v1/cargos/prestamos/${prestamoId}/finalizar/`, body ?? {}),
     ),
 
-  getMotivos: (categoria?: string) =>
+  getMotivos: (operacion: OperacionMotivo) =>
     list<CatalogoApiItem>(
       apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/tipos-movimiento/", {
-        params: categoria ? { categoria } : undefined,
+        params: { operacion },
       }),
     ),
 
-  crearMotivo: (movimiento: string, categoria?: string) =>
+  /** Crea un motivo en la categoría que el backend asigna a la operación (requiere `catalogos.crear`). */
+  crearMotivo: (movimiento: string, operacion: OperacionMotivo) =>
     single<CatalogoApiItem>(
       apiClient.post<ApiResponse<CatalogoApiItem>>("/api/v1/catalogos/tipos-movimiento/", {
         movimiento,
-        categoria: categoria || "ENCARGADURIA",
+        operacion,
       }),
     ),
 
@@ -280,12 +282,13 @@ export const cargosApi = {
       apiClient.post<ApiResponse<CargoApiItem>>("/api/v1/cargos/crear/", body),
     ),
 
-  getTiposNomina: () =>
+  getTiposNomina: (soloEspeciales = false) =>
     list<CatalogoApiItem>(
       apiClient.get<ApiResponse<CatalogoApiItem[]>>("/api/v1/catalogos/tipos-nomina/", {
         // Cargos es gestión de personal activo: las nóminas de pasivos (jubilado,
         // pensionado) no aplican y no deben aparecer en ningún selector.
-        params: { solo_activos: true },
+        // `solo_especiales` = solo las nóminas con `requiereCodig` (autogeneran código).
+        params: soloEspeciales ? { solo_activos: true, solo_especiales: true } : { solo_activos: true },
       }),
     ),
 

@@ -13,7 +13,7 @@
  */
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { FiltrosListadoEmpleado } from "../../domain/ports/repo-personal";
 import type { GuardarEmpleadoInputDTO } from "../../application/dtos/empleado-dto";
 import {
@@ -131,8 +131,7 @@ export async function registrarEmpleadoAction(input: GuardarEmpleadoInputDTO) {
     // Se devuelve (no se relanza) para que el wizard muestre en el toast el
     // mensaje real del backend: Next oculta el mensaje de los errores lanzados
     // desde Server Actions en producción.
-    const mensaje = error instanceof Error && error.message ? error.message : "Error al registrar empleado";
-    return { error: mensaje };
+    return errorDeAccion(error, "Error al registrar empleado");
   }
 }
 
@@ -155,15 +154,24 @@ export async function actualizarEmpleadoAction(
   } catch (error) {
     await logAudit({ traceId, action: "actualizarEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    const mensaje = error instanceof Error && error.message ? error.message : "Error al actualizar empleado";
-    return { error: mensaje };
+    return errorDeAccion(error, "Error al actualizar empleado");
   }
 }
 
 export async function subirFotoEmpleadoAction(cedula: string, formData: FormData) {
   const validation = empleadoCedulaSchema.safeParse({ cedula });
   if (!validation.success) {
-    return { error: "Cédula inválida. Revise el formato ingresado." };
+    return {
+      error: "Cédula inválida. Revise el formato ingresado.",
+      errores: { cedula: validation.error.issues.map((issue) => issue.message) },
+    };
+  }
+  const archivo = formData.get("file") ?? formData.get("foto");
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return {
+      error: "Seleccione una foto válida.",
+      errores: { file: ["Seleccione una foto JPG o PNG."] },
+    };
   }
 
   const traceId = generateTraceId();
@@ -176,7 +184,7 @@ export async function subirFotoEmpleadoAction(cedula: string, formData: FormData
   } catch (error) {
     await logAudit({ traceId, action: "subirFotoEmpleadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible subir la foto.");
   }
 }
 

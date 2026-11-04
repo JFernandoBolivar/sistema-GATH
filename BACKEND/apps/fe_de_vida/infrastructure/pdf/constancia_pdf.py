@@ -81,7 +81,8 @@ class GeneradorConstanciaPDF:
 
         def _pagina(canvas, doc_):
             canvas.saveState()
-            for el in create_header('', width=doc_.width):
+            # Sin el membrete «Comisión Nacional de Telecomunicaciones (CONATEL)»: solo logos.
+            for el in create_header('', width=doc_.width, mostrar_institucion=False):
                 el.wrap(doc_.width, doc_.topMargin)
                 el.drawOn(canvas, doc_.leftMargin, doc_.pagesize[1] - pagina['topMargin'] + 10 * mm)
             canvas.restoreState()

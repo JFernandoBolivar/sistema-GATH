@@ -123,8 +123,8 @@ export default function OrganizacionPage() {
     <PageLayout title="Listado De Ubicaciones Administrativas">
       <Card className="bg-card">
         <CardContent>
-          <div className="grid grid-cols-2 w-full gap-5">
-            <div className="col-span-2 gap-2">
+          <div className="grid grid-cols-1 w-full gap-5 sm:grid-cols-2">
+            <div className="sm:col-span-2 space-y-2">
               <Label>Nivel</Label>
               <Combobox
                 options={dependencias.map((dp) => ({
@@ -183,7 +183,7 @@ export default function OrganizacionPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-5 mt-6">
+          <div className="grid grid-cols-1 gap-5 mt-6 lg:grid-cols-2">
             {dirLinea.length > 0 && (
               <div className="overflow-auto border rounded-2xl border-blue-700">
                 <Table>

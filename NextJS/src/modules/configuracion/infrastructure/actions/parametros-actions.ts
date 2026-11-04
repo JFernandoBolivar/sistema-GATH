@@ -7,7 +7,7 @@
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   actualizarParametro,
   diasRecordatorioFeDeVida,
@@ -20,7 +20,7 @@ import { valorParametroSchema } from "../../ui/schema/schema-parametros";
 async function conAuditoria<T>(
   accion: string,
   operacion: () => Promise<T>,
-): Promise<T | { error: string }> {
+): Promise<T | { error: string; errores?: Record<string, string[]> }> {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
@@ -40,12 +40,7 @@ async function conAuditoria<T>(
       durationMs: Date.now() - startedAt,
     });
     handleSessionExpired(error);
-    return {
-      error:
-        error instanceof Error && error.message
-          ? error.message
-          : "No fue posible completar la operación de configuración.",
-    };
+    return errorDeAccion(error, "No fue posible completar la operación de configuración.");
   }
 }
 
@@ -58,7 +53,10 @@ export async function listarParametrosAction() {
 export async function actualizarParametroAction(clave: string, valor: string) {
   const validacion = valorParametroSchema.safeParse({ valor });
   if (!validacion.success) {
-    return { error: "El valor del parámetro no es válido." };
+    return {
+      error: validacion.error.issues[0]?.message ?? "El valor del parámetro no es válido.",
+      errores: { valor: validacion.error.issues.map((issue) => issue.message) },
+    };
   }
   return conAuditoria("actualizarParametroAction", () =>
     actualizarParametro(repoParametrosApi, clave, validacion.data.valor),

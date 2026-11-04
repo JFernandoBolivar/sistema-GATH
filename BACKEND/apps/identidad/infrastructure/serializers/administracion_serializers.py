@@ -25,8 +25,12 @@ def _validar_motivo(valor: str) -> str:
 class GuardarOverridesSerializer(serializers.Serializer):
     """Reemplazo completo de los overrides individuales allow/deny de una cuenta."""
 
-    allow = serializers.ListField(child=serializers.CharField(max_length=100), required=False)
-    deny = serializers.ListField(child=serializers.CharField(max_length=100), required=False)
+    allow = serializers.ListField(
+        child=serializers.CharField(max_length=100), required=False, max_length=500
+    )
+    deny = serializers.ListField(
+        child=serializers.CharField(max_length=100), required=False, max_length=500
+    )
     motivo = serializers.CharField(max_length=500)
 
     def validate_motivo(self, valor):
@@ -41,7 +45,9 @@ class GuardarOverridesSerializer(serializers.Serializer):
 class GuardarMatrizSerializer(serializers.Serializer):
     """Conjunto completo de permisos de un rol, con confirmación y motivo."""
 
-    permisos = serializers.ListField(child=serializers.CharField(max_length=100))
+    permisos = serializers.ListField(
+        child=serializers.CharField(max_length=100), max_length=500
+    )
     motivo = serializers.CharField(max_length=500)
     confirmar = serializers.BooleanField()
 

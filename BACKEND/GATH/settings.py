@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'apps.configuracion',
     'apps.puntocuenta',
     'apps.auditoria',
+    'apps.exportaciones',
 ]
 
 AUTH_USER_MODEL = 'identidad.CuentaModel'
@@ -261,6 +262,13 @@ REPORTES_MAX_FILAS = config('REPORTES_MAX_FILAS', default=5000, cast=int)
 REPORTES_MAX_FILAS_PDF = max(
     config('REPORTES_MAX_FILAS_PDF', default=5000, cast=int), 1
 )
+# Exportaciones asíncronas (PDF/Excel grandes por Celery): vigencia del archivo en el
+# almacén, tope de exportaciones simultáneas por usuario, días que se conserva la fila
+# de un trabajo fallido/expirado y minutos tras los cuales uno atascado se cancela.
+EXPORTACIONES_TTL_HORAS = config('EXPORTACIONES_TTL_HORAS', default=24, cast=int)
+EXPORTACIONES_MAX_ACTIVAS_POR_USUARIO = config('EXPORTACIONES_MAX_ACTIVAS_POR_USUARIO', default=3, cast=int)
+EXPORTACIONES_RETENCION_FILAS_DIAS = config('EXPORTACIONES_RETENCION_FILAS_DIAS', default=7, cast=int)
+EXPORTACIONES_MAX_MINUTOS_EN_CURSO = config('EXPORTACIONES_MAX_MINUTOS_EN_CURSO', default=60, cast=int)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
 # Fe de vida: calidad mínima de la selfie (lado menor, px) y base del QR de verificación de la constancia.
@@ -313,6 +321,11 @@ CELERY_BEAT_SCHEDULE = {
     'autogestion-avisar-ventanas-por-expirar': {
         'task': 'autogestion.avisar_ventanas_por_expirar',
         'schedule': 1800.0,  # cada 30 minutos
+    },
+    # Exportaciones: cancela las atascadas, borra del almacén los archivos vencidos (idempotente).
+    'exportaciones-purgar': {
+        'task': 'exportaciones.purgar',
+        'schedule': 3600.0,  # cada hora
     },
     # Fe de vida (C17): cierra los procesos ABIERTOS cuya fecha de cierre ya pasó (idempotente).
     'fe-de-vida-cerrar-procesos-vencidos': {

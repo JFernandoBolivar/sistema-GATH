@@ -16,8 +16,9 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
-import { Field } from "@/shared/ui/components/field";
+import { Field, FieldError } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Label } from "@/shared/ui/components/label";
 import {
   Table,
@@ -36,8 +37,8 @@ import {
 } from "../infrastructure/actions/organizacion-actions";
 import { organismoAdscritoSchema, type OrganismoAdscritoFormType } from "./schema/schema-organizacion";
 
-type Resultado = { error?: string; success?: boolean };
-const tieneError = (r: unknown): r is Resultado => !!r && typeof r === "object" && "error" in r;
+type Resultado = { error?: string; errores?: Record<string, string[]>; success?: boolean };
+const tieneError = (r: unknown): r is { error?: string; errores?: Record<string, string[]> } => !!r && typeof r === "object" && "error" in r;
 
 export default function OrganismoAdmin({ items, onChanged }: { items: OrganismoAdscritoDTO[]; onChanged: () => void }) {
   const { data: session } = useSession();
@@ -58,7 +59,11 @@ export default function OrganismoAdmin({ items, onChanged }: { items: OrganismoA
       const resultado = editando
         ? await actualizarOrganismoAdscritoAction(editando.id, input)
         : await crearOrganismoAdscritoAction(input);
-      if (tieneError(resultado)) { setError(resultado.error ?? "Error desconocido."); return; }
+      if (tieneError(resultado)) {
+        const sinUbicar = aplicarErroresServidor(form, resultado.errores, {parent_id: "parentId"});
+        setError(resultado.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : resultado.error ?? "Error desconocido.");
+        return;
+      }
       setEditando(null);
       form.reset({ nombre: "", parentId: null });
       onChanged();
@@ -82,6 +87,7 @@ export default function OrganismoAdmin({ items, onChanged }: { items: OrganismoA
               <Field data-invalid={!!form.formState.errors.nombre}>
                 <Label htmlFor="orgNombre">Nombre</Label>
                 <Input id="orgNombre" {...form.register("nombre")} aria-invalid={!!form.formState.errors.nombre} />
+                <FieldError errors={[form.formState.errors.nombre]} />
               </Field>
             </div>
             <div className="flex items-center gap-2">

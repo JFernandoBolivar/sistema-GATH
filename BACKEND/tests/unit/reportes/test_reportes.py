@@ -54,7 +54,7 @@ class RepoReportesMemoria:
             metadatos={'truncado': False, 'total_encontrados': 1, 'limite': limite},
         )
 
-    def reporte_familiares(self, filtros, limite):
+    def reporte_familiares(self, consulta, limite, condicion='ACTIVO', cedula_empleado=None):
         return ResultadoReporte(
             titulo="Reporte de Familiares",
             columnas=['cedula_familiar', 'nombres', 'parentesco'],

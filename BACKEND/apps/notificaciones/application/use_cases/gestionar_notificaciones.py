@@ -31,7 +31,8 @@ def listar_notificaciones(
     if solo_no_leidas:
         leida = False
     filtro = FiltroNotificaciones(
-        modulo=validar_modulo(modulo), q=(q or '').strip()[:LONGITUD_MAXIMA_BUSQUEDA], tipo=(tipo or '').strip(), leida=leida, desde=desde, hasta=hasta,
+        modulo=validar_modulo(modulo), q=(q or '').strip()[:LONGITUD_MAXIMA_BUSQUEDA],
+        tipo=(tipo or '').strip()[:LONGITUD_MAXIMA_BUSQUEDA], leida=leida, desde=desde, hasta=hasta,
     )
     limite = max(1, min(limite, LIMITE_MAXIMO))
     desplazamiento = max(0, desplazamiento)

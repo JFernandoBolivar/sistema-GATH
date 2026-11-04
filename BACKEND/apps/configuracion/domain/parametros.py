@@ -12,6 +12,7 @@ from core.domain.configuracion import (
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
+    CLAVE_GENERAR_PUNTOS_CUENTA,
     CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO,
     CLAVE_NOTIFICAR_MOVIMIENTOS_POR_CORREO,
     CLAVE_PASSWORD_INICIAL_DIAS,
@@ -31,12 +32,14 @@ GRUPO_NOTIFICACIONES = 'notificaciones'
 GRUPO_PLAZOS = 'plazos'
 GRUPO_FE_DE_VIDA = 'fe_de_vida'
 GRUPO_RETENCION = 'retencion'
+GRUPO_PUNTOS_CUENTA = 'puntocuenta'
 
 GRUPOS = (
     (GRUPO_NOTIFICACIONES, 'Notificaciones'),
     (GRUPO_PLAZOS, 'Plazos'),
     (GRUPO_FE_DE_VIDA, 'Fe de vida'),
     (GRUPO_RETENCION, 'Retención de datos'),
+    (GRUPO_PUNTOS_CUENTA, 'Puntos de cuenta'),
 )
 
 ACCION_PARAMETRO_ACTUALIZADO = 'configuracion.parametro_actualizado'
@@ -74,6 +77,18 @@ class ParametroDefinicion:
 
 
 DEFINICIONES = (
+    ParametroDefinicion(
+        clave=CLAVE_GENERAR_PUNTOS_CUENTA,
+        etiqueta='Generar puntos de cuenta',
+        descripcion=(
+            'Genera automáticamente un punto de cuenta cuando un trabajador cambia de '
+            'Gerencia/Oficina (por actualización del código o por traslado). Apagado, '
+            'no se genera ninguno.'
+        ),
+        grupo=GRUPO_PUNTOS_CUENTA,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
     ParametroDefinicion(
         clave=CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO,
         etiqueta='Avisar a Bienestar por correo',

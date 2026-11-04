@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Combobox } from "@/shared/ui/components/combobox";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Switch } from "@/components/ui/switch";
 
 import type {
@@ -89,7 +90,6 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
   const [isLoadingCoord, setIsLoadingCoord] = useState(false);
 
   const [dependencyId, setDependencyId] = useState<string>("");
-  const [activeDirectionGeneral, setActiveDirectionGeneral] = useState<boolean>(false);
   const [activeDirectionLine, setActiveDirectionLine] = useState<boolean>(false);
   const [activeCoordination, setActiveCoordination] = useState<boolean>(false);
 
@@ -142,8 +142,8 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
     setCoordinaciones([]);
 
     const num = val ? Number(val) : undefined;
-    form.setValue("dependenciaId", num);
-    form.setValue("direccionGeneralId", undefined);
+    form.setValue("dependenciaId", num as number);
+    form.resetField("direccionGeneralId", { defaultValue: undefined });
     form.setValue("direccionLineaId", undefined);
     form.setValue("coordinacionId", undefined);
 
@@ -162,7 +162,7 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
     setCoordinaciones([]);
 
     const num = val ? Number(val) : undefined;
-    form.setValue("direccionGeneralId", num);
+    form.setValue("direccionGeneralId", num as number);
     form.setValue("direccionLineaId", undefined);
     form.setValue("coordinacionId", undefined);
 
@@ -190,21 +190,6 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
     }
   };
 
-  const onToggleDirectionGeneral = (bool: boolean) => {
-    setActiveDirectionGeneral(bool);
-    if (!bool) {
-      form.setValue("direccionGeneralId", undefined);
-      form.setValue("direccionLineaId", undefined);
-      form.setValue("coordinacionId", undefined);
-      setSelectedDirectionGeneralId("");
-      setSelectedDirectionLineId("");
-      setDireccionesLinea([]);
-      setCoordinaciones([]);
-      setActiveDirectionLine(false);
-      setActiveCoordination(false);
-    }
-  };
-
   const onToggleDirectionLine = (bool: boolean) => {
     setActiveDirectionLine(bool);
     if (!bool) {
@@ -224,10 +209,6 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
   };
 
   const onSubmit = (data: CrearCargoFormType) => {
-    if (activeDirectionGeneral && !selectedDirectionGeneralId) {
-      toast.error("Debe seleccionar una Dirección / Gerencia / Oficina.");
-      return;
-    }
     if (activeDirectionLine && !selectedDirectionLineId) {
       toast.error("Debe seleccionar una División / Coordinación.");
       return;
@@ -242,14 +223,25 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
         const payload = {
           ...data,
           dependenciaId: dependencyId ? Number(dependencyId) : undefined,
-          direccionGeneralId: activeDirectionGeneral && selectedDirectionGeneralId ? Number(selectedDirectionGeneralId) : undefined,
+          direccionGeneralId: selectedDirectionGeneralId ? Number(selectedDirectionGeneralId) : undefined,
           direccionLineaId: activeDirectionLine && selectedDirectionLineId ? Number(selectedDirectionLineId) : undefined,
           coordinacionId: activeCoordination && data.coordinacionId ? Number(data.coordinacionId) : undefined,
         };
 
         const result = await crearCargoAction(payload);
         if (result && typeof result === "object" && "error" in result) {
-          toast.error((result as { error: string }).error);
+          const err = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, err.errores, {
+            dependencia_id: "dependenciaId",
+            direccion_general_id: "direccionGeneralId",
+            direccion_linea_id: "direccionLineaId",
+            coordinacion_id: "coordinacionId",
+            denominacion_id: "denominacionId",
+            especifica_id: "especificaId",
+            tipo_nomina_id: "tipoNominaId",
+            grado_id: "gradoId",
+          });
+          toast.error(err.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : err.error);
           return;
         }
 
@@ -267,7 +259,6 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
         setDependencyId("");
         setSelectedDirectionGeneralId("");
         setSelectedDirectionLineId("");
-        setActiveDirectionGeneral(false);
         setActiveDirectionLine(false);
         setActiveCoordination(false);
         setDireccionesGenerales([]);
@@ -308,7 +299,7 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 items-baseline gap-6 place-content-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 items-start gap-4 md:gap-6">
                 {/* Denominación De Cargo */}
                 <FormField
                   control={form.control}
@@ -420,9 +411,7 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
                   name="dependenciaId"
                   control={form.control}
                   render={({ field }) => (
-                    <FormItem
-                      className={!activeDirectionGeneral ? "col-span-1 md:col-span-2" : "truncate"}
-                    >
+                    <FormItem className="min-w-0">
                       <FormLabel>Nivel</FormLabel>
                       <FormControl>
                         <Select
@@ -448,27 +437,16 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
                         </Select>
                       </FormControl>
                       <FormMessage />
-                      <FormDescription>
-                        <div className="flex flex-row items-center text-left gap-2 justify-center pt-1">
-                          ¿Desea Agregarle Una Dirección / Gerencia / Oficina?
-                          <Switch
-                            checked={activeDirectionGeneral}
-                            disabled={!dependencyId}
-                            onCheckedChange={onToggleDirectionGeneral}
-                          />
-                        </div>
-                      </FormDescription>
                     </FormItem>
                   )}
                 />
 
                 {/* Dirección / Gerencia / Oficina */}
-                {activeDirectionGeneral && (
-                  <FormField
+                <FormField
                     control={form.control}
                     name="direccionGeneralId"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="min-w-0">
                         <FormLabel>Dirección / Gerencia / Oficina</FormLabel>
                         <Select
                           value={field.value ? String(field.value) : undefined}
@@ -476,13 +454,15 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
                             field.onChange(Number(val));
                             onSelectDirectionGeneral(val);
                           }}
-                          disabled={isLoadingDG || direccionesGenerales.length === 0}
+                          disabled={!dependencyId || isLoadingDG || direccionesGenerales.length === 0}
                         >
                           <FormControl>
                             <SelectTrigger className="w-full truncate">
                               <SelectValue
                                 placeholder={
-                                  isLoadingDG
+                                  !dependencyId
+                                    ? "Primero seleccione el Nivel"
+                                    : isLoadingDG
                                     ? "Cargando Direcciones..."
                                     : direccionesGenerales.length === 0
                                     ? "No posee direcciones"
@@ -500,20 +480,19 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
                           </SelectContent>
                         </Select>
                         <FormDescription>
-                          <div className="flex flex-row items-center text-left gap-2 justify-center pt-1">
+                          <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
                             ¿Desea Agregarle Una División / Coordinación?
                             <Switch
                               checked={activeDirectionLine}
                               disabled={!selectedDirectionGeneralId}
                               onCheckedChange={onToggleDirectionLine}
                             />
-                          </div>
+                          </span>
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
-                )}
+                />
 
                 {/* División / Coordinación */}
                 {activeDirectionLine && (
@@ -556,14 +535,14 @@ export default function CargoCrearPage({ onSuccess }: CargoCrearPageProps) {
                             </SelectContent>
                           </Select>
                           <FormDescription>
-                            <div className="flex flex-row items-center text-left justify-center gap-2 pt-1">
+                            <span className="flex flex-wrap items-center justify-start gap-2 pt-2 text-left">
                               ¿Desea Agregarle Una Coordinación?
                               <Switch
                                 checked={activeCoordination}
                                 disabled={!selectedDirectionLineId}
                                 onCheckedChange={onToggleCoordination}
                               />
-                            </div>
+                            </span>
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

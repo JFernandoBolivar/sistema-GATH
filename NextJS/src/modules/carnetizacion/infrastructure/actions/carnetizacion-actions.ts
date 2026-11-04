@@ -6,9 +6,11 @@
  * caso de uso. Captura errores y llama `handleSessionExpired` (R7) y registra
  * la auditoría en `logs/frontend/audit_frontend.txt` (D-04/C-5).
  */
+import type { ZodError } from "zod";
+
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import {
   activarPlantillaCarnet,
   crearPlantillaCarnet,
@@ -30,6 +32,17 @@ import {
   validarHashSchema,
 } from "../../ui/schema/schema-carnet";
 
+/** Convierte los issues de Zod en `{ campo: ["mensaje"] }` para el formulario. */
+function erroresDeZod(error: ZodError): Record<string, string[]> {
+  const salida: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const ruta = issue.path.join(".");
+    if (!ruta) continue;
+    (salida[ruta] ??= []).push(issue.message);
+  }
+  return salida;
+}
+
 export async function getCarnetsAction(cedula?: string) {
   const cedulaValida = cedula ? cedula.trim() : undefined;
 
@@ -49,7 +62,10 @@ export async function getCarnetsAction(cedula?: string) {
 export async function emitirCarnetAction(empleadoCedula: string, motivoId: number, observaciones?: string) {
   const validation = emitirCarnetSchema.safeParse({ empleadoCedula, motivoId, observaciones });
   if (!validation.success) {
-    return { error: "Datos de emisión inválidos. Revise los campos ingresados." };
+    return {
+      error: "Datos de emisión inválidos. Revise los campos marcados en rojo.",
+      errores: erroresDeZod(validation.error),
+    };
   }
 
   const traceId = generateTraceId();
@@ -61,14 +77,17 @@ export async function emitirCarnetAction(empleadoCedula: string, motivoId: numbe
   } catch (error) {
     await logAudit({ traceId, action: "emitirCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible emitir el carnet.");
   }
 }
 
 export async function validarCarnetPorHashAction(securityHash: string) {
   const validation = validarHashSchema.safeParse({ securityHash });
   if (!validation.success) {
-    return { error: "Hash de seguridad inválido." };
+    return {
+      error: "Hash de seguridad inválido.",
+      errores: erroresDeZod(validation.error),
+    };
   }
 
   const traceId = generateTraceId();
@@ -80,7 +99,7 @@ export async function validarCarnetPorHashAction(securityHash: string) {
   } catch (error) {
     await logAudit({ traceId, action: "validarCarnetPorHashAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible validar el carnet.");
   }
 }
 
@@ -99,7 +118,7 @@ export async function validarCarnetPorIdAction(carnetId: number) {
   } catch (error) {
     await logAudit({ traceId, action: "validarCarnetPorIdAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible validar el carnet.");
   }
 }
 
@@ -121,7 +140,7 @@ export async function subirPlantillaCarnetAction(nombre: string, imagen: File, a
   const validation = subirPlantillaCarnetSchema.safeParse({ nombre, imagen, activar });
   if (!validation.success) {
     const errorMsg = validation.error.issues[0]?.message ?? "Datos de plantilla inválidos.";
-    return { error: errorMsg };
+    return { error: errorMsg, errores: erroresDeZod(validation.error) };
   }
 
   const { nombre: validNombre, imagen: validImagen, activar: validActivar } = validation.data;
@@ -134,7 +153,7 @@ export async function subirPlantillaCarnetAction(nombre: string, imagen: File, a
   } catch (error) {
     await logAudit({ traceId, action: "subirPlantillaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible subir la plantilla.");
   }
 }
 
@@ -153,7 +172,7 @@ export async function activarPlantillaCarnetAction(plantillaId: number) {
   } catch (error) {
     await logAudit({ traceId, action: "activarPlantillaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible activar la plantilla.");
   }
 }
 
@@ -172,7 +191,7 @@ export async function descargarPdfCarnetAction(carnetId: number) {
   } catch (error) {
     await logAudit({ traceId, action: "descargarPdfCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible descargar el carnet.");
   }
 }
 
@@ -191,7 +210,7 @@ export async function revocarCarnetAction(carnetId: number) {
   } catch (error) {
     await logAudit({ traceId, action: "revocarCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible revocar el carnet.");
   }
 }
 
@@ -212,7 +231,10 @@ export async function getEstadisticasCarnetsAction() {
 export async function buscarEmpleadoParaCarnetAction(cedula: string) {
   const validation = buscarEmpleadoCarnetSchema.safeParse({ cedula });
   if (!validation.success) {
-    return { error: "Cédula inválida. Ingrese solo dígitos numéricos." };
+    return {
+      error: "Cédula inválida. Ingrese solo dígitos numéricos.",
+      errores: erroresDeZod(validation.error),
+    };
   }
 
   const traceId = generateTraceId();
@@ -227,7 +249,7 @@ export async function buscarEmpleadoParaCarnetAction(cedula: string) {
   } catch (error) {
     await logAudit({ traceId, action: "buscarEmpleadoParaCarnetAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible consultar los datos del trabajador.");
   }
 }
 

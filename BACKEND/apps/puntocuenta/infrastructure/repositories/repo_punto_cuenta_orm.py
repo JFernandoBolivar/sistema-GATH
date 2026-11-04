@@ -13,6 +13,8 @@ class RepoPuntoCuentaORM:
         dependencia_destino_id,
         motivo_id,
         usuario_id,
+        oficina_origen_id=None,
+        oficina_destino_id=None,
     ):
         fila = PuntoCuentaModel.objects.create(
             cargo_id=cargo_id,
@@ -21,6 +23,8 @@ class RepoPuntoCuentaORM:
             dependencia_destino_id=dependencia_destino_id,
             motivo_id=motivo_id,
             usuario_id=usuario_id,
+            oficina_origen_id=oficina_origen_id,
+            oficina_destino_id=oficina_destino_id,
         )
         return a_entidad(fila)
 

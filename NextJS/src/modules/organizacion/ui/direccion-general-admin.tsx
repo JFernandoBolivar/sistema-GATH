@@ -14,8 +14,9 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
-import { Field } from "@/shared/ui/components/field";
+import { Field, FieldError } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Label } from "@/shared/ui/components/label";
 import {
   Select,
@@ -41,8 +42,8 @@ import {
 } from "../infrastructure/actions/organizacion-actions";
 import { direccionGeneralSchema, type DireccionGeneralFormType } from "./schema/schema-organizacion";
 
-type Resultado = { error?: string; success?: boolean };
-const tieneError = (r: unknown): r is Resultado => !!r && typeof r === "object" && "error" in r;
+type Resultado = { error?: string; errores?: Record<string, string[]>; success?: boolean };
+const tieneError = (r: unknown): r is { error?: string; errores?: Record<string, string[]> } => !!r && typeof r === "object" && "error" in r;
 
 function CatalogSelect({ id, value, onChange, options, placeholder, ariaInvalid }: {
   id: string;
@@ -84,7 +85,11 @@ export default function DireccionGeneralAdmin({ dependencias, items, onChanged }
       const resultado = editando
         ? await actualizarDireccionGeneralAction(editando.id, data)
         : await crearDireccionGeneralAction(data);
-      if (tieneError(resultado)) { setError(resultado.error ?? "Error desconocido."); return; }
+      if (tieneError(resultado)) {
+        const sinUbicar = aplicarErroresServidor(form, resultado.errores, {dependencia_id: "dependenciaId"});
+        setError(resultado.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : resultado.error ?? "Error desconocido.");
+        return;
+      }
       setEditando(null);
       form.reset({ codigo: "", nombre: "", dependenciaId: null });
       onChanged();
@@ -110,10 +115,12 @@ export default function DireccionGeneralAdmin({ dependencias, items, onChanged }
               <Field data-invalid={!!form.formState.errors.codigo}>
                 <Label htmlFor="dgCodigo">Código</Label>
                 <Input id="dgCodigo" {...form.register("codigo")} aria-invalid={!!form.formState.errors.codigo} />
+                <FieldError errors={[form.formState.errors.codigo]} />
               </Field>
               <Field data-invalid={!!form.formState.errors.nombre}>
                 <Label htmlFor="dgNombre">Nombre</Label>
                 <Input id="dgNombre" {...form.register("nombre")} aria-invalid={!!form.formState.errors.nombre} />
+                <FieldError errors={[form.formState.errors.nombre]} />
               </Field>
               <Field data-invalid={!!form.formState.errors.dependenciaId}>
                 <Label htmlFor="dgDependencia">Dependencia</Label>
@@ -125,6 +132,7 @@ export default function DireccionGeneralAdmin({ dependencias, items, onChanged }
                   placeholder="Seleccione dependencia"
                   ariaInvalid={!!form.formState.errors.dependenciaId}
                 />
+                <FieldError errors={[form.formState.errors.dependenciaId]} />
               </Field>
             </div>
             <div className="flex items-center gap-2">

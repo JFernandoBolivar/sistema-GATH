@@ -13,8 +13,8 @@ from rest_framework import serializers
 class RegistrarCuentaSerializer(serializers.Serializer):
     """Alta de cuenta (CRIT-05: protegida en la vista con permiso admin)."""
 
-    cedula = serializers.CharField(max_length=20)
-    password = serializers.CharField(write_only=True, min_length=1)
+    cedula = serializers.CharField(max_length=20, trim_whitespace=True)
+    password = serializers.CharField(write_only=True, min_length=8, max_length=128)
     rol_id = serializers.IntegerField(required=False, allow_null=True)
 
 
@@ -43,11 +43,17 @@ class CambiarEstadoCuentaSerializer(serializers.Serializer):
 class CambiarPasswordSerializer(serializers.Serializer):
     """Cambio de contraseña propia (CRIT-04: exige la contraseña actual)."""
 
-    password_actual = serializers.CharField(required=False, write_only=True)
-    current_password = serializers.CharField(required=False, write_only=True)
-    password_nuevo = serializers.CharField(required=False, write_only=True)
-    new_password = serializers.CharField(required=False, write_only=True)
-    password = serializers.CharField(required=False, write_only=True)
+    password_actual = serializers.CharField(required=False, write_only=True, max_length=128)
+    current_password = serializers.CharField(required=False, write_only=True, max_length=128)
+    password_nuevo = serializers.CharField(
+        required=False, write_only=True, min_length=8, max_length=128
+    )
+    new_password = serializers.CharField(
+        required=False, write_only=True, min_length=8, max_length=128
+    )
+    password = serializers.CharField(
+        required=False, write_only=True, min_length=8, max_length=128
+    )
 
     def validate(self, attrs):
         current = attrs.get('password_actual') or attrs.get('current_password')
@@ -63,7 +69,7 @@ class CambiarCorreoAccesoSerializer(serializers.Serializer):
     """Elección del correo de acceso: el institucional actual, el alternativo del trabajador u otro."""
 
     fuente = serializers.ChoiceField(choices=['INSTITUCIONAL', 'ALTERNATIVO', 'OTRO'])
-    correo = serializers.EmailField(required=False, allow_blank=True)
+    correo = serializers.EmailField(required=False, allow_blank=True, max_length=254)
     motivo = serializers.CharField(max_length=500)
 
     def validate_motivo(self, valor):

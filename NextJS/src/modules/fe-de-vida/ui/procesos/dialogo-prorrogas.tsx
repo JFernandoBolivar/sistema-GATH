@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/shared/ui/components/dialog";
 import { Textarea } from "@/shared/ui/components/textarea";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import type { ProcesoDTO } from "../../application/dtos/fe-de-vida-dto";
 import {
@@ -32,15 +33,16 @@ export function DialogoProrrogas({ proceso, onCerrar }: { proceso: ProcesoDTO; o
     if (!res.ok) throw new Error(res.mensaje);
     return res.datos;
   });
+  const form = useForm<ProrrogaValores>({
+    resolver: zodResolver(prorrogaSchema),
+    defaultValues: { cedula: "", nuevaFechaLimite: "", motivo: "" },
+  });
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ProrrogaValores>({
-    resolver: zodResolver(prorrogaSchema),
-    defaultValues: { cedula: "", nuevaFechaLimite: "", motivo: "" },
-  });
+  } = form;
 
   function conceder(v: ProrrogaValores) {
     iniciar(async () => {
@@ -51,6 +53,13 @@ export function DialogoProrrogas({ proceso, onCerrar }: { proceso: ProcesoDTO; o
       });
       if (!res.ok) {
         toast.error(res.mensaje);
+        if (res.errores) {
+          aplicarErroresServidor(form, res.errores, {
+            nueva_fecha_limite: "nuevaFechaLimite",
+            motivo: "motivo",
+            cedula: "cedula",
+          });
+        }
         return;
       }
       toast.success(res.mensaje);
@@ -71,17 +80,17 @@ export function DialogoProrrogas({ proceso, onCerrar }: { proceso: ProcesoDTO; o
         <form noValidate onSubmit={handleSubmit(conceder)} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="pr-cedula" className="text-base font-medium">Cédula (opcional)</label>
-            <Input id="pr-cedula" inputMode="numeric" autoComplete="off" aria-invalid={errors.cedula ? true : undefined} {...register("cedula")} />
+            <Input id="pr-cedula" inputMode="numeric" autoComplete="off" maxLength={10} aria-invalid={errors.cedula ? true : undefined} {...register("cedula")} />
             {errors.cedula ? <p role="alert" className="text-sm font-medium text-danger">{errors.cedula.message}</p> : null}
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="pr-fecha" className="text-base font-medium">Nueva fecha límite</label>
-            <Input id="pr-fecha" type="datetime-local" aria-invalid={errors.nuevaFechaLimite ? true : undefined} {...register("nuevaFechaLimite")} />
+            <Input id="pr-fecha" type="datetime-local" maxLength={35} aria-invalid={errors.nuevaFechaLimite ? true : undefined} {...register("nuevaFechaLimite")} />
             {errors.nuevaFechaLimite ? <p role="alert" className="text-sm font-medium text-danger">{errors.nuevaFechaLimite.message}</p> : null}
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="pr-motivo" className="text-base font-medium">Motivo</label>
-            <Textarea id="pr-motivo" rows={3} className="resize-none" aria-invalid={errors.motivo ? true : undefined} {...register("motivo")} />
+            <Textarea id="pr-motivo" rows={3} maxLength={500} className="resize-none" aria-invalid={errors.motivo ? true : undefined} {...register("motivo")} />
             {errors.motivo ? <p role="alert" className="text-sm font-medium text-danger">{errors.motivo.message}</p> : null}
           </div>
           <Button type="submit" className="min-h-11 w-fit" disabled={pendiente}>

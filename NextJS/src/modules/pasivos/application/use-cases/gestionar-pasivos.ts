@@ -79,12 +79,6 @@ export async function listarPasivosPaginados(
   };
 }
 
-export async function listarMotivosEgresoPasivo(
-  repo: RepoPasivos,
-): Promise<{ id: number; nombre: string }[]> {
-  return repo.listarMotivosEgresoPasivo();
-}
-
 export async function egresarPasivo(
   repo: RepoPasivos,
   cedula: string,

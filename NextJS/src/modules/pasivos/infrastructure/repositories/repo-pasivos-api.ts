@@ -66,10 +66,6 @@ export const repoPasivosApi: RepoPasivos = {
     return pasivoApiAEntidad(raw);
   },
 
-  async listarMotivosEgresoPasivo() {
-    return (await pasivosApi.getMotivosEgresoPasivo()).map(catalogoPasivoApiAEntidad);
-  },
-
   async egresarPasivo(cedula: string, motivoId: number, familiarIds: number[]) {
     const raw = await pasivosApi.egresarPasivo(cedula, motivoId, familiarIds);
     return pasivoApiAEntidad(raw);
@@ -138,11 +134,6 @@ export const repoPasivosApi: RepoPasivos = {
 
   async listarParroquias() {
     return (await pasivosApi.getParroquias()).map(catalogoPasivoApiAEntidad);
-  },
-
-  async listarMotivosEgreso() {
-    const raw = await pasivosApi.getMotivosEgreso();
-    return raw.map(catalogoPasivoApiAEntidad);
   },
 
   async listarTiposNomina(soloPasivos: boolean = true) {

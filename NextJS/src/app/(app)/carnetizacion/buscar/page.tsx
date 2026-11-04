@@ -23,6 +23,7 @@ import { schemaSearch } from "@/modules/carnetizacion/ui/schema/schema-carnet";
 import SearchForm from "@/modules/carnetizacion/ui/components/search-form";
 import type { EmployeeCarnet } from "@/modules/carnetizacion/domain/entities/carnet";
 import { toast } from "sonner";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 function truncarNombre(nombreCompleto: string): string {
   const partes = nombreCompleto.trim().split(/\s+/);
@@ -49,18 +50,28 @@ export default function BuscarPersonalPage() {
 
   const { data: results, isLoading } = useSWR(
     debouncedQuery.length >= 2 ? ["search-carnet", debouncedQuery] : null,
-    () => buscarPersonalCarnetAction(debouncedQuery),
+    async () => {
+      const resultado = await buscarPersonalCarnetAction(debouncedQuery);
+      if (resultado && typeof resultado === "object" && "error" in resultado) {
+        const fallo = resultado as { error: string; errores?: Record<string, string[]> };
+        aplicarErroresServidor(form, fallo.errores, { query: "query" });
+        throw new Error(fallo.error);
+      }
+      return resultado as EmployeeCarnet[];
+    },
     {
       onError: (err) => toast.error(`Error al buscar personal: ${err.message}`),
     },
   );
+
+  const lista = Array.isArray(results) ? results : [];
 
   const onSubmit = (values: { query: string }) => {
     setQuery(values.query);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = e.target.value.slice(0, 50);
     setQuery(value);
     form.setValue("query", value);
     if (value.length < 2) setDebouncedQuery("");
@@ -102,7 +113,7 @@ export default function BuscarPersonalPage() {
             </div>
           )}
 
-          {!isLoading && hasSearched && results?.length === 0 && (
+          {!isLoading && hasSearched && lista.length === 0 && (
             <Card className="shadow-sm">
               <CardContent className="text-center py-12">
                 <User className="size-14 mx-auto text-gray-300" />
@@ -118,7 +129,7 @@ export default function BuscarPersonalPage() {
           )}
 
           {!isLoading &&
-            (results as EmployeeCarnet[] | undefined)?.map((emp: EmployeeCarnet) => (
+            lista.map((emp: EmployeeCarnet) => (
               <Card
                 key={emp.id}
                 className="cursor-pointer transition-all hover:shadow-lg hover:border-blue-400 shadow-sm border"

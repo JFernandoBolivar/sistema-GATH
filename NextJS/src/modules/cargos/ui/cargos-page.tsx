@@ -55,7 +55,6 @@ import {
   getDireccionesGeneralesAction,
   getDireccionesLineaAction,
   getEstatusAction,
-  getMotivosAction,
   getTiposNominaAction,
 } from "../infrastructure/actions/cargos-actions";
 import CargoDetalleSheet from "./cargo-detalle-sheet";
@@ -88,7 +87,8 @@ export default function CargosPage() {
   const [isLoadingDL, setIsLoadingDL] = useState(false);
   const [isLoadingCoord, setIsLoadingCoord] = useState(false);
 
-  const [motivos, setMotivos] = useState<{ id: number; nombre: string }[]>([]);
+  const [erroresTraslado, setErroresTraslado] = useState<Record<string, string[]> | undefined>();
+  const [erroresEstatus, setErroresEstatus] = useState<Record<string, string[]> | undefined>();
   const [estatus, setEstatus] = useState<{ id: number; nombre: string }[]>([]);
   const [viendoDetalleId, setViendoDetalleId] = useState<number | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
@@ -132,15 +132,13 @@ export default function CargosPage() {
     const cargarCatalogosIniciales = async () => {
       setIsLoadingCatalogos(true);
       try {
-        const [nominasList, dependenciasList, motivosList, estatusList] = await Promise.all([
+        const [nominasList, dependenciasList, estatusList] = await Promise.all([
           getTiposNominaAction(),
           getDependenciasAction(),
-          getMotivosAction(),
           getEstatusAction(),
         ]);
         setNominas(nominasList);
         setDependencias(dependenciasList);
-        setMotivos(motivosList);
         setEstatus(estatusList);
       } catch {
         setError("No fue posible cargar los catálogos de filtro.");
@@ -287,9 +285,12 @@ export default function CargosPage() {
     if (!viendoDetalleId) return;
     startTransition(async () => {
       setError(null);
+      setErroresTraslado(undefined);
       const result = await cambiarCargoAction({ cargoActualId: viendoDetalleId, cargoNuevoId, motivoId });
       if (result && typeof result === "object" && "error" in result) {
-        setError((result as { error: string }).error);
+        const errores = (result as { errores?: Record<string, string[]> }).errores;
+        setErroresTraslado(errores);
+        setError(errores ? "Revise los campos marcados en rojo." : (result as { error: string }).error);
         return;
       }
       setDetalleAbierto(false);
@@ -301,9 +302,12 @@ export default function CargosPage() {
     if (!viendoDetalleId) return;
     startTransition(async () => {
       setError(null);
+      setErroresEstatus(undefined);
       const result = await gestionarEstatusAction({ cargoId: viendoDetalleId, estatusId, motivoId });
       if (result && typeof result === "object" && "error" in result) {
-        setError((result as { error: string }).error);
+        const errores = (result as { errores?: Record<string, string[]> }).errores;
+        setErroresEstatus(errores);
+        setError(errores ? "Revise los campos marcados en rojo." : (result as { error: string }).error);
         return;
       }
       cargarCargos();
@@ -331,7 +335,7 @@ export default function CargosPage() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSearch)}>
             <div className="flex flex-row items-center gap-2 w-full flex-1">
-              <div className="grid grid-cols-2 gap-2 w-full min-w-0">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 w-full min-w-0">
                 <FormField
                   name="codigo"
                   control={form.control}
@@ -390,7 +394,7 @@ export default function CargosPage() {
                   control={form.control}
                   name="dependencia_id"
                   render={({ field }) => (
-                    <FormItem className="col-span-2">
+                    <FormItem className="sm:col-span-2">
                       <FormLabel>Nivel</FormLabel>
                       <Select
                         value={field.value !== undefined ? String(field.value) : undefined}
@@ -491,7 +495,7 @@ export default function CargosPage() {
                   control={form.control}
                   name="coordinacion_id"
                   render={({ field }) => (
-                    <FormItem className="col-span-2">
+                    <FormItem className="sm:col-span-2">
                       <FormLabel>Coordinación</FormLabel>
                       <Select
                         value={field.value !== undefined ? String(field.value) : undefined}
@@ -566,7 +570,8 @@ export default function CargosPage() {
           }}
           cargo={cargoSeleccionado}
           cargosVacantes={cargosVacantes.filter((c) => c.id !== viendoDetalleId)}
-          motivos={motivos}
+          erroresTraslado={erroresTraslado}
+          erroresEstatus={erroresEstatus}
           estatus={estatus}
           onAsignar={onAsignar}
           onDesasignar={onDesasignar}

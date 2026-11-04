@@ -21,6 +21,8 @@ class PuntoCuentaModel(BaseModel):
     empleado_cedula = models.CharField(max_length=10, db_index=True)
     dependencia_origen_id = models.IntegerField(null=True, blank=True)
     dependencia_destino_id = models.IntegerField(null=True, blank=True)
+    oficina_origen_id = models.IntegerField(null=True, blank=True)
+    oficina_destino_id = models.IntegerField(null=True, blank=True)
     motivo_id = models.IntegerField(null=True, blank=True)
     usuario_id = models.IntegerField(null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True, db_index=True)  # Meta.ordering = -fecha

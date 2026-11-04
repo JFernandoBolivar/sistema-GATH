@@ -8,6 +8,7 @@ import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import type { RolDTO } from "../../application/dtos/usuario-dto";
 import { actualizarRolAction } from "../../infrastructure/actions/usuario-actions";
@@ -15,7 +16,8 @@ import { actualizarRolAction } from "../../infrastructure/actions/usuario-action
 const schemaRole = z.object({
   nombre_rol: z
     .string()
-    .min(1, { message: "El nombre del rol es obligatorio" })
+    .trim()
+    .min(2, { message: "El nombre del rol debe tener al menos 2 caracteres" })
     .max(50, { message: "Máximo 50 caracteres" }),
 });
 
@@ -44,7 +46,12 @@ export default function EditRole({
         });
 
         if (response && typeof response === "object" && "error" in response) {
-          toast.error(response.error as string);
+          const fallo = response as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, {
+            nombre: "nombre_rol",
+            nombre_rol: "nombre_rol",
+          });
+          if (sinUbicar.length > 0 || !fallo.errores) toast.error(fallo.error);
         } else {
           toast.success("Rol actualizado exitosamente");
           onFinish();

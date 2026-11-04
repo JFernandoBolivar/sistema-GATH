@@ -5,6 +5,7 @@
  * (`/api/movimientos/{pdf|excel}`), que conserva la sesión y devuelve las
  * cabeceras `X-Reporte-*` de truncado. Mismo patrón que el PDF de reportes.
  */
+import type { OpcionesExportacion } from "@/shared/lib/exportaciones-asincronas";
 import type { ArchivoDescargado } from "../../domain/value-objects/resultado-historial";
 import type { FiltrosMovimiento } from "../../domain/ports/repo-movimientos";
 import {
@@ -28,6 +29,7 @@ function aFiltrosApi(filtros?: FiltrosMovimiento) {
 export function descargarHistorialMovimientos(
   formato: FormatoDescarga,
   filtros?: FiltrosMovimiento,
+  opciones?: OpcionesExportacion,
 ): Promise<ArchivoDescargado> {
-  return descargarHistorial(formato, aFiltrosApi(filtros));
+  return descargarHistorial(formato, aFiltrosApi(filtros), opciones);
 }

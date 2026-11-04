@@ -16,6 +16,7 @@ import { useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Save } from "lucide-react";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 
 import { Button } from "@/shared/ui/components/button";
 import {
@@ -63,9 +64,19 @@ export default function CambiarPasswordDialog({
         form.reset();
         onCambiada();
       } else {
-        form.setError("current_password", {
-          message: response.message || "Error al cambiar la contraseña",
+        const sinUbicar = aplicarErroresServidor(form, response.errores, {
+          password_actual: "current_password",
+          current_password: "current_password",
+          password_nuevo: "new_password",
+          new_password: "new_password",
+          password_confirmacion: "confirm_password",
+          new_password_confirm: "confirm_password",
         });
+        if (sinUbicar.length > 0 || !response.errores) {
+          form.setError("current_password", {
+            message: response.message || "Error al cambiar la contraseña",
+          });
+        }
       }
     });
   };
@@ -81,7 +92,7 @@ export default function CambiarPasswordDialog({
       }}
     >
       <DialogContent
-        className="sm:max-w-md"
+        className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto sm:max-w-md"
         showCloseButton={!obligatorio}
         onPointerDownOutside={(e) => obligatorio && e.preventDefault()}
         onEscapeKeyDown={(e) => obligatorio && e.preventDefault()}
@@ -107,6 +118,7 @@ export default function CambiarPasswordDialog({
                   id="current_password"
                   autoComplete="current-password"
                   placeholder="••••••••"
+                  maxLength={128}
                   aria-invalid={fieldState.invalid}
                 />
                 {fieldState.error && (
@@ -128,6 +140,8 @@ export default function CambiarPasswordDialog({
                   id="new_password"
                   autoComplete="new-password"
                   placeholder="••••••••"
+                  minLength={8}
+                  maxLength={32}
                   aria-invalid={fieldState.invalid}
                 />
                 {fieldState.error && (
@@ -149,6 +163,8 @@ export default function CambiarPasswordDialog({
                   id="confirm_password"
                   autoComplete="new-password"
                   placeholder="••••••••"
+                  minLength={8}
+                  maxLength={32}
                   aria-invalid={fieldState.invalid}
                 />
                 {fieldState.error && (
@@ -159,7 +175,7 @@ export default function CambiarPasswordDialog({
               </Field>
             )}
           />
-          <Button type="submit" disabled={isPending} className="w-full">
+          <Button type="submit" disabled={isPending} className="w-full min-h-11 text-base">
             {isPending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : (

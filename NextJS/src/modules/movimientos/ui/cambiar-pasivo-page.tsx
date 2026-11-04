@@ -25,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/shared/ui/components/label";
 import { Loading } from "@/shared/ui/components/loading";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
 import { EmployeeInfoBanner } from "@/shared/components/employee-info-banner";
 
@@ -32,13 +33,10 @@ import { getEmpleadoPorCedulaAction } from "@/shared/infrastructure/actions/empl
 import type { EmpleadoDTO } from "@/shared/types/employee-dto";
 import {
   getTiposNominaAction,
-  getMotivosEgresoAction,
   procesarEgresoAction,
 } from "@/modules/pasivos/infrastructure/actions/pasivos-actions";
-import {
-  getEstatusAction,
-  getMotivosAction,
-} from "@/modules/cargos/infrastructure/actions/cargos-actions";
+import { getEstatusAction } from "@/modules/cargos/infrastructure/actions/cargos-actions";
+import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 import type { CatalogoPasivoApiItem } from "@/modules/pasivos/infrastructure/http/pasivos-api";
 import type { CatalogoCargoItemDTO } from "@/modules/cargos/application/dtos/cargo-dto";
 import {
@@ -54,10 +52,8 @@ export function CambiarPasivoPage() {
   // Catalogs
   const [nominaPasivo, setNominaPasivo] = useState<CatalogoPasivoApiItem[]>([]);
   const [statusEmployee, setStatusEmployee] = useState<CatalogoCargoItemDTO[]>([]);
-  const [reasonLeaving, setReasonLeaving] = useState<CatalogoPasivoApiItem[]>([]);
   const [isLoadingNominaPasivo, setIsLoadingNominaPasivo] = useState(true);
   const [isLoadingStatusEmployee, setIsLoadingStatusEmployee] = useState(true);
-  const [isLoadingReasonLeaving, setIsLoadingReasonLeaving] = useState(true);
 
   // Employee state
   const [employee, setEmployee] = useState<EmpleadoDTO | null>(null);
@@ -79,13 +75,9 @@ export function CambiarPasivoPage() {
     let active = true;
     (async () => {
       try {
-        const [nominas, allStatuses, reasons] = await Promise.all([
+        const [nominas, allStatuses] = await Promise.all([
           getTiposNominaAction(true),
           getEstatusAction(),
-          getMotivosEgresoAction().catch(async () => {
-            const general = await getMotivosAction("EGRESO").catch(() => getMotivosAction());
-            return general.map((g) => ({ id: g.id, nombre: g.nombre }));
-          }),
         ]);
         if (!active) return;
         const nominasPasivoFiltradas = nominas.filter((n) => {
@@ -106,14 +98,12 @@ export function CambiarPasivoPage() {
               ],
         );
 
-        setReasonLeaving(reasons && reasons.length > 0 ? reasons : []);
       } catch {
         // Silencioso
       } finally {
         if (active) {
           setIsLoadingNominaPasivo(false);
           setIsLoadingStatusEmployee(false);
-          setIsLoadingReasonLeaving(false);
         }
       }
     })();
@@ -195,7 +185,11 @@ export function CambiarPasivoPage() {
         });
 
         if (response && "error" in response) {
-          toast.error(response.error);
+          const sinUbicar = aplicarErroresServidor(form, response.errores, {
+            motivo_movimiento_id: "motivo",
+            tipo_nomina_id: "tiponominaid",
+          });
+          toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.error);
         } else {
           toast.success("Gestión realizada exitosamente");
           form.reset();
@@ -330,31 +324,14 @@ export function CambiarPasivoPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Motivo De Egreso/Pasivo</FormLabel>
-                          <Select
-                            onValueChange={(values) => {
-                              field.onChange(Number.parseInt(values));
-                            }}
-                            value={field.value && field.value > 0 ? `${field.value}` : ""}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="w-full truncate">
-                                <SelectValue
-                                  placeholder={
-                                    isLoadingReasonLeaving
-                                      ? "Cargando Motivos De Egreso/Pasivo"
-                                      : "Seleccione Un Motivo de Egreso/Pasivo"
-                                  }
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {reasonLeaving.map((reason, i) => (
-                                <SelectItem key={i} value={`${reason.id}`}>
-                                  {reason.nombre}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <MotivoSelect
+                              operacion="pase_a_pasivo"
+                              value={field.value}
+                              onChange={field.onChange}
+                              aria-invalid={Boolean(form.formState.errors.motivo)}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

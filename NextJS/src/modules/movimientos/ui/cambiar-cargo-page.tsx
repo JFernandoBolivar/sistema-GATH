@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { Combobox } from "@/shared/ui/components/combobox";
 import { Loading } from "@/shared/ui/components/loading";
 import { EmployeeSearchForm } from "@/shared/components/employee-search-form";
@@ -39,8 +40,8 @@ import {
   getDireccionesLineaAction,
   getCoordinacionesAction,
   getTiposNominaAction,
-  getMotivosAction,
 } from "@/modules/cargos/infrastructure/actions/cargos-actions";
+import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 import type {
   CargoAsignacionDTO,
   CatalogoCargoItemDTO,
@@ -67,14 +68,12 @@ export function CambiarCargoPage() {
   const [direccionesLinea, setDireccionesLinea] = useState<UnidadOrganizativaCargoDTO[]>([]);
   const [coordinaciones, setCoordinaciones] = useState<UnidadOrganizativaCargoDTO[]>([]);
   const [tiposNomina, setTiposNomina] = useState<CatalogoCargoItemDTO[]>([]);
-  const [motionReasons, setMotionReasons] = useState<CatalogoCargoItemDTO[]>([]);
 
   const [isLoadingDependency, setIsLoadingDependency] = useState(true);
   const [isLoadingDirectionGeneral, setIsLoadingDirectionGeneral] = useState(false);
   const [isLoadingDirectionLine, setIsLoadingDirectionLine] = useState(false);
   const [isLoadingCoordination, setIsLoadingCoordination] = useState(false);
   const [isLoadingNomina, setIsLoadingNomina] = useState(true);
-  const [isLoadingMotionReason, setIsLoadingMotionReason] = useState(true);
 
   // Search filter form
   const form = useForm<SchemaFilterFormType>({
@@ -108,22 +107,19 @@ export function CambiarCargoPage() {
     let active = true;
     (async () => {
       try {
-        const [deps, noms, reasons] = await Promise.all([
+        const [deps, noms] = await Promise.all([
           getDependenciasAction(),
           getTiposNominaAction(),
-          getMotivosAction("TRASLADO").catch(() => getMotivosAction()),
         ]);
         if (!active) return;
         setDependencias(deps);
         setTiposNomina(noms);
-        setMotionReasons(reasons && reasons.length > 0 ? reasons : await getMotivosAction());
       } catch {
         // Silencioso
       } finally {
         if (active) {
           setIsLoadingDependency(false);
           setIsLoadingNomina(false);
-          setIsLoadingMotionReason(false);
         }
       }
     })();
@@ -307,7 +303,11 @@ export function CambiarCargoPage() {
           motivoId: data.motivo,
         });
         if (response && "error" in response) {
-          toast.error(response.error);
+          const sinUbicar = aplicarErroresServidor(formChangeCode, response.errores, {
+            cargo_nuevo_id: "nuevo_cargo_id",
+            motivo_id: "motivo",
+          });
+          toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.error);
         } else {
           toast.success("Traslado realizado correctamente.");
           formChangeCode.reset({
@@ -448,38 +448,21 @@ export function CambiarCargoPage() {
                                 render={({ field }) => (
                                   <FormItem>
                                     <FormLabel>Motivo De Cambio De Cargo</FormLabel>
-                                    <Select
-                                      onValueChange={(values) => {
-                                        field.onChange(Number.parseInt(values));
-                                      }}
-                                      value={field.value && field.value > 0 ? `${field.value}` : ""}
-                                    >
-                                      <FormControl>
-                                        <SelectTrigger className="w-full truncate">
-                                          <SelectValue
-                                            placeholder={
-                                              isLoadingMotionReason
-                                                ? "Cargando Motivos De Cambio De Cargo"
-                                                : "Seleccione Un Código"
-                                            }
-                                          />
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        {motionReasons.map((reason) => (
-                                          <SelectItem key={reason.id} value={`${reason.id}`}>
-                                            {reason.nombre}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                                    <FormControl>
+                                      <MotivoSelect
+                                        operacion="cambiar_cargo"
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        aria-invalid={Boolean(formChangeCode.formState.errors.motivo)}
+                                      />
+                                    </FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
                               />
 
                               {selectedCode && (
-                                <div className="rounded-sm border-2 border-success/40 bg-success-soft p-2 mt-4 space-y-1 text-sm">
+                                <div className="rounded-sm border-2 border-success/40 bg-success-soft p-4 mt-4 space-y-1 text-sm break-words">
                                   <p>
                                     D / G / O:{" "}
                                     {selectedCode.direccionGeneralNombre ?? "N/A"}

@@ -17,7 +17,9 @@ from apps.cargos.domain.entities.prestamo_cargo import PrestamoCargo
 from apps.cargos.infrastructure.mappers.mapper_cargos import prestamo_a_entidad
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
-from apps.catalogos.infrastructure.models.catalogo_models import EstatusModel, TipoMovimientoModel
+from apps.catalogos.infrastructure.models.catalogo_models import EstatusModel
+from apps.catalogos.infrastructure.repositories.motivos_por_categoria import obtener_motivo_de_operacion
+from core.domain.categorias_motivo import Operacion
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
@@ -120,10 +122,7 @@ class RepoPrestamosCargoORM:
         if cargo.employee_id == cedula_encargado:
             raise ValidationError('El trabajador no puede ser encargado de su propio cargo.')
 
-        try:
-            motivo = TipoMovimientoModel.objects.get(pk=motivo_id)
-        except TipoMovimientoModel.DoesNotExist as exc:
-            raise NotFoundError(f"Motivo de movimiento {motivo_id} no encontrado.") from exc
+        motivo = obtener_motivo_de_operacion(motivo_id, Operacion.PRESTAMO_CARGO)
 
         hoy = timezone.localdate()
 

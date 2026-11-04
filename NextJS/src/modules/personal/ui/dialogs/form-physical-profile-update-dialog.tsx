@@ -9,6 +9,16 @@ import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Label } from "@/shared/ui/components/label";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import { avisoDeFallo, mensajeDe } from "./campo-dialogo";
+
+/** Ruta del API -> campo del formulario. */
+const MAPA_ERRORES = {
+  "perfil_fisico.tallaCamisa": "tallaCamisaId",
+  "perfil_fisico.tallaPantalon": "tallaPantalonId",
+  "perfil_fisico.tallaZapatos": "tallaZapatosId",
+  "perfil_fisico.tallaChaqueta": "tallaChaquetaId",
+}
 import {
   Select,
   SelectContent,
@@ -54,14 +64,17 @@ export default function FormPhysicalProfileUpdateDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const { handleSubmit, setValue, watch } = useForm({
+  const form = useForm({
     defaultValues: {
-      tallaCamisaId: empleado.perfilFisico?.tallaCamisaId ?? undefined,
-      tallaPantalonId: empleado.perfilFisico?.tallaPantalonId ?? undefined,
-      tallaZapatosId: empleado.perfilFisico?.tallaZapatosId ?? undefined,
-      tallaChaquetaId: empleado.perfilFisico?.tallaChaquetaId ?? undefined,
+      tallaCamisaId: empleado.perfilFisico?.tallaCamisaId ?? 0,
+      tallaPantalonId: empleado.perfilFisico?.tallaPantalonId ?? 0,
+      tallaZapatosId: empleado.perfilFisico?.tallaZapatosId ?? 0,
+      tallaChaquetaId: empleado.perfilFisico?.tallaChaquetaId ?? 0,
     },
   });
+
+  const { handleSubmit, setValue, watch } = form;
+  const errores = form.formState.errors;
 
   const tallaCamisaId = watch("tallaCamisaId");
   const tallaPantalonId = watch("tallaPantalonId");
@@ -70,10 +83,10 @@ export default function FormPhysicalProfileUpdateDialog({
 
   useEffect(() => {
     if (open) {
-      setValue("tallaCamisaId", empleado.perfilFisico?.tallaCamisaId ?? undefined);
-      setValue("tallaPantalonId", empleado.perfilFisico?.tallaPantalonId ?? undefined);
-      setValue("tallaZapatosId", empleado.perfilFisico?.tallaZapatosId ?? undefined);
-      setValue("tallaChaquetaId", empleado.perfilFisico?.tallaChaquetaId ?? undefined);
+      setValue("tallaCamisaId", empleado.perfilFisico?.tallaCamisaId ?? 0);
+      setValue("tallaPantalonId", empleado.perfilFisico?.tallaPantalonId ?? 0);
+      setValue("tallaZapatosId", empleado.perfilFisico?.tallaZapatosId ?? 0);
+      setValue("tallaChaquetaId", empleado.perfilFisico?.tallaChaquetaId ?? 0);
     }
   }, [open, empleado.perfilFisico, setValue]);
 
@@ -92,9 +105,10 @@ export default function FormPhysicalProfileUpdateDialog({
 
         const result = await actualizarEmpleadoAction(empleado.cedula, payload);
         if (result && typeof result === "object" && "error" in result) {
-          const msg = (result as { error: string }).error;
-          setError(msg);
-          toast.error(msg);
+          const fallo = result as { error: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, MAPA_ERRORES);
+          setError(avisoDeFallo(fallo, sinUbicar));
+          toast.error(fallo.error);
           return;
         }
 
@@ -163,8 +177,8 @@ export default function FormPhysicalProfileUpdateDialog({
               <div className="rounded bg-red-100 p-2 text-sm text-red-700 mb-3">{error}</div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
+            <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-1.5">
                 <Label htmlFor="tallaCamisaId">Talla De Camisa</Label>
                 <Select
                   value={tallaCamisaId ? String(tallaCamisaId) : ""}
@@ -172,7 +186,7 @@ export default function FormPhysicalProfileUpdateDialog({
                     setValue("tallaCamisaId", val ? Number(val) : (undefined as unknown as number))
                   }
                 >
-                  <SelectTrigger id="tallaCamisaId" className="w-full">
+                  <SelectTrigger id="tallaCamisaId" className="w-full truncate" aria-invalid={!!errores.tallaCamisaId || undefined}>
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
@@ -190,9 +204,14 @@ export default function FormPhysicalProfileUpdateDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {mensajeDe(errores.tallaCamisaId) && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {mensajeDe(errores.tallaCamisaId)}
+                  </p>
+                )}
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex min-w-0 flex-col gap-1.5">
                 <Label htmlFor="tallaPantalonId">Talla De Pantalón</Label>
                 <Select
                   value={tallaPantalonId ? String(tallaPantalonId) : ""}
@@ -203,7 +222,7 @@ export default function FormPhysicalProfileUpdateDialog({
                     )
                   }
                 >
-                  <SelectTrigger id="tallaPantalonId" className="w-full">
+                  <SelectTrigger id="tallaPantalonId" className="w-full truncate" aria-invalid={!!errores.tallaPantalonId || undefined}>
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
@@ -221,9 +240,14 @@ export default function FormPhysicalProfileUpdateDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {mensajeDe(errores.tallaPantalonId) && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {mensajeDe(errores.tallaPantalonId)}
+                  </p>
+                )}
               </div>
 
-              <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="flex min-w-0 flex-col gap-1.5">
                 <Label htmlFor="tallaZapatosId">Talla De Zapatos</Label>
                 <Select
                   value={tallaZapatosId ? String(tallaZapatosId) : ""}
@@ -231,7 +255,7 @@ export default function FormPhysicalProfileUpdateDialog({
                     setValue("tallaZapatosId", val ? Number(val) : (undefined as unknown as number))
                   }
                 >
-                  <SelectTrigger id="tallaZapatosId" className="w-full">
+                  <SelectTrigger id="tallaZapatosId" className="w-full truncate" aria-invalid={!!errores.tallaZapatosId || undefined}>
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
@@ -249,9 +273,14 @@ export default function FormPhysicalProfileUpdateDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {mensajeDe(errores.tallaZapatosId) && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {mensajeDe(errores.tallaZapatosId)}
+                  </p>
+                )}
               </div>
 
-              <div className="col-span-2 flex flex-col gap-1.5">
+              <div className="flex min-w-0 flex-col gap-1.5">
                 <Label htmlFor="tallaChaquetaId">Talla De Chaqueta</Label>
                 <Select
                   value={tallaChaquetaId ? String(tallaChaquetaId) : ""}
@@ -262,7 +291,7 @@ export default function FormPhysicalProfileUpdateDialog({
                     )
                   }
                 >
-                  <SelectTrigger id="tallaChaquetaId" className="w-full">
+                  <SelectTrigger id="tallaChaquetaId" className="w-full truncate" aria-invalid={!!errores.tallaChaquetaId || undefined}>
                     <SelectValue placeholder="Seleccione una talla" />
                   </SelectTrigger>
                   <SelectContent>
@@ -280,9 +309,14 @@ export default function FormPhysicalProfileUpdateDialog({
                     ))}
                   </SelectContent>
                 </Select>
+                {mensajeDe(errores.tallaChaquetaId) && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {mensajeDe(errores.tallaChaquetaId)}
+                  </p>
+                )}
               </div>
 
-              <Button className="w-full col-span-2 cursor-pointer mt-3" disabled={isPending}>
+              <Button className="w-full sm:col-span-2 cursor-pointer mt-3" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isPending ? "Actualizando Información" : "Actualizar"}
               </Button>

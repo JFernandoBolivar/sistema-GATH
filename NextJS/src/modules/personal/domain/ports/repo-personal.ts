@@ -58,6 +58,7 @@ export interface GuardarEmpleadoDatos {
   sexoId: number;
   fechaNacimiento: string;
   correo?: string | null;
+  correoAlternativo?: string | null;
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   estadoCivilId?: number | null;

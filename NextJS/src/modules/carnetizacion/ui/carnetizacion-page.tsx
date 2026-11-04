@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { BadgeCheck, BarChart3, IdCard, Loader2, Upload } from "lucide-react";
 import { useSession } from "next-auth/react";
 
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
@@ -83,6 +84,7 @@ export default function CarnetizacionPage() {
   const nombrePlantilla = useRef<HTMLInputElement>(null);
   const archivoPlantilla = useRef<HTMLInputElement>(null);
   const [activarPlantilla, setActivarPlantilla] = useState(false);
+  const [errorPlantilla, setErrorPlantilla] = useState<{ nombre?: string; imagen?: string } | null>(null);
 
   const emisionForm = useForm<EmitirCarnetFormType>({
     resolver: zodResolver(emitirCarnetSchema),
@@ -126,7 +128,13 @@ export default function CarnetizacionPage() {
       setError(null);
       const resultado = await emitirCarnetAction(data.empleadoCedula, data.motivoId, data.observaciones);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        setError((resultado as { error: string }).error);
+        const err = resultado as { error: string; errores?: Record<string, string[]> };
+        const sinUbicar = aplicarErroresServidor(emisionForm, err.errores, {
+          empleado_cedula: "empleadoCedula",
+          motivo_id: "motivoId",
+          observaciones: "observaciones",
+        });
+        setError(sinUbicar.length > 0 || !err.errores ? err.error : null);
         return;
       }
       emisionForm.reset({ empleadoCedula: "", observaciones: "" });
@@ -143,7 +151,11 @@ export default function CarnetizacionPage() {
       setError(null);
       const resultado = await validarCarnetPorHashAction(data.securityHash);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        setError((resultado as { error: string }).error);
+        const err = resultado as { error: string; errores?: Record<string, string[]> };
+        const sinUbicar = aplicarErroresServidor(validarForm, err.errores, {
+          security_hash: "securityHash",
+        });
+        setError(sinUbicar.length > 0 || !err.errores ? err.error : null);
         return;
       }
       setValidacion(resultado as ValidacionCarnetDTO);
@@ -179,14 +191,24 @@ export default function CarnetizacionPage() {
     const nombre = nombrePlantilla.current?.value?.trim();
     const imagen = archivoPlantilla.current?.files?.[0];
     if (!nombre || !imagen) {
+      setErrorPlantilla({
+        nombre: !nombre ? "Escriba el nombre de la plantilla." : undefined,
+        imagen: !imagen ? "Seleccione una imagen PNG o JPEG." : undefined,
+      });
       setError("Complete el nombre y seleccione una imagen.");
       return;
     }
+    setErrorPlantilla(null);
     startTransition(async () => {
       setError(null);
       const resultado = await subirPlantillaCarnetAction(nombre, imagen, activarPlantilla);
       if (resultado && typeof resultado === "object" && "error" in resultado) {
-        setError((resultado as { error: string }).error);
+        const err = resultado as { error: string; errores?: Record<string, string[]> };
+        setErrorPlantilla({
+          nombre: err.errores?.nombre?.join(" "),
+          imagen: err.errores?.imagen?.join(" "),
+        });
+        setError(err.errores ? null : err.error);
         return;
       }
       if (nombrePlantilla.current) nombrePlantilla.current.value = "";
@@ -253,13 +275,15 @@ export default function CarnetizacionPage() {
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList>
-          <TabsTrigger value="disenador">Diseñador / Emitir</TabsTrigger>
-          <TabsTrigger value="listado">Carnets</TabsTrigger>
-          <TabsTrigger value="validar">Validar</TabsTrigger>
-          <TabsTrigger value="plantillas">Plantillas</TabsTrigger>
-          <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
-        </TabsList>
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <TabsList className="w-max">
+            <TabsTrigger value="disenador">Diseñador / Emitir</TabsTrigger>
+            <TabsTrigger value="listado">Carnets</TabsTrigger>
+            <TabsTrigger value="validar">Validar</TabsTrigger>
+            <TabsTrigger value="plantillas">Plantillas</TabsTrigger>
+            <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="disenador">
           <DisenadorCarnet
@@ -281,15 +305,48 @@ export default function CarnetizacionPage() {
                 <form onSubmit={emisionForm.handleSubmit(onEmitir)} className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-end" noValidate>
                   <Field data-invalid={!!emisionForm.formState.errors.empleadoCedula}>
                     <Label htmlFor="empleadoCedula">Cédula del empleado</Label>
-                    <Input id="empleadoCedula" placeholder="Ej. 12345678" {...emisionForm.register("empleadoCedula")} aria-invalid={!!emisionForm.formState.errors.empleadoCedula} />
+                    <Input
+                      id="empleadoCedula"
+                      placeholder="Ej. 12345678"
+                      inputMode="numeric"
+                      maxLength={20}
+                      {...emisionForm.register("empleadoCedula")}
+                      aria-invalid={!!emisionForm.formState.errors.empleadoCedula}
+                    />
+                    {emisionForm.formState.errors.empleadoCedula && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {emisionForm.formState.errors.empleadoCedula.message}
+                      </p>
+                    )}
                   </Field>
                   <Field data-invalid={!!emisionForm.formState.errors.motivoId}>
                     <Label htmlFor="motivoId">Motivo (id)</Label>
-                    <Input type="number" id="motivoId" {...emisionForm.register("motivoId", { valueAsNumber: true })} aria-invalid={!!emisionForm.formState.errors.motivoId} />
+                    <Input
+                      type="number"
+                      id="motivoId"
+                      min={1}
+                      {...emisionForm.register("motivoId", { valueAsNumber: true })}
+                      aria-invalid={!!emisionForm.formState.errors.motivoId}
+                    />
+                    {emisionForm.formState.errors.motivoId && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {emisionForm.formState.errors.motivoId.message}
+                      </p>
+                    )}
                   </Field>
-                  <Field>
+                  <Field data-invalid={!!emisionForm.formState.errors.observaciones}>
                     <Label htmlFor="observaciones">Observaciones</Label>
-                    <Input id="observaciones" {...emisionForm.register("observaciones")} />
+                    <Input
+                      id="observaciones"
+                      maxLength={500}
+                      {...emisionForm.register("observaciones")}
+                      aria-invalid={!!emisionForm.formState.errors.observaciones}
+                    />
+                    {emisionForm.formState.errors.observaciones && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {emisionForm.formState.errors.observaciones.message}
+                      </p>
+                    )}
                   </Field>
                   <div className="md:col-span-3">
                     <Button type="submit" disabled={isPending}>
@@ -305,12 +362,21 @@ export default function CarnetizacionPage() {
                 data={carnets}
                 emptyMessage="Sin carnets."
                 toolbar={
-                  <form onSubmit={(e) => { e.preventDefault(); cargarCarnets(busqueda); }} className="flex items-end gap-2">
-                    <Field>
+                  <form
+                    onSubmit={(e) => { e.preventDefault(); cargarCarnets(busqueda); }}
+                    className="flex flex-col gap-2 sm:flex-row sm:items-end"
+                  >
+                    <Field className="min-w-0">
                       <Label htmlFor="busqueda" className="sr-only">Buscar por cédula</Label>
-                      <Input id="busqueda" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Cédula (opcional)" />
+                      <Input
+                        id="busqueda"
+                        value={busqueda}
+                        maxLength={20}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                        placeholder="Cédula (opcional)"
+                      />
                     </Field>
-                    <Button type="submit" variant="outline" disabled={isPending}>Buscar</Button>
+                    <Button type="submit" variant="outline" disabled={isPending} className="w-full sm:w-auto">Buscar</Button>
                   </form>
                 }
               />
@@ -328,7 +394,19 @@ export default function CarnetizacionPage() {
                 <form onSubmit={validarForm.handleSubmit(onValidar)} className="flex flex-col gap-4" noValidate>
                   <Field data-invalid={!!validarForm.formState.errors.securityHash}>
                     <Label htmlFor="securityHash">Hash de seguridad</Label>
-                    <Input id="securityHash" placeholder="Hash del carnet" {...validarForm.register("securityHash")} aria-invalid={!!validarForm.formState.errors.securityHash} />
+                    <Input
+                      id="securityHash"
+                      placeholder="Hash del carnet"
+                      minLength={8}
+                      maxLength={128}
+                      {...validarForm.register("securityHash")}
+                      aria-invalid={!!validarForm.formState.errors.securityHash}
+                    />
+                    {validarForm.formState.errors.securityHash && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {validarForm.formState.errors.securityHash.message}
+                      </p>
+                    )}
                   </Field>
                   <div>
                     <Button type="submit" disabled={isPending}>
@@ -344,9 +422,9 @@ export default function CarnetizacionPage() {
                       const input = e.currentTarget.elements.namedItem("carnetId") as HTMLInputElement;
                       onValidarPorId(Number(input.value));
                     }}
-                    className="flex items-end gap-2"
+                    className="flex flex-col gap-2 sm:flex-row sm:items-end"
                   >
-                    <Input name="carnetId" type="number" placeholder="Id del carnet" />
+                    <Input name="carnetId" type="number" min={1} placeholder="Id del carnet" className="min-w-0" />
                     <Button type="submit" variant="outline" disabled={isPending}>Validar</Button>
                   </form>
                 </div>
@@ -377,13 +455,32 @@ export default function CarnetizacionPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={onSubirPlantilla} className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end" noValidate>
-                  <Field>
+                  <Field data-invalid={!!errorPlantilla?.nombre}>
                     <Label htmlFor="nombrePlantilla">Nombre</Label>
-                    <Input id="nombrePlantilla" ref={nombrePlantilla} placeholder="Ej. Plantilla institucional" />
+                    <Input
+                      id="nombrePlantilla"
+                      ref={nombrePlantilla}
+                      placeholder="Ej. Plantilla institucional"
+                      minLength={2}
+                      maxLength={100}
+                      aria-invalid={!!errorPlantilla?.nombre}
+                    />
+                    {errorPlantilla?.nombre && (
+                      <p role="alert" className="text-sm text-destructive">{errorPlantilla.nombre}</p>
+                    )}
                   </Field>
-                  <Field>
+                  <Field data-invalid={!!errorPlantilla?.imagen}>
                     <Label htmlFor="imagenPlantilla">Imagen</Label>
-                    <Input id="imagenPlantilla" ref={archivoPlantilla} type="file" accept="image/*" />
+                    <Input
+                      id="imagenPlantilla"
+                      ref={archivoPlantilla}
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      aria-invalid={!!errorPlantilla?.imagen}
+                    />
+                    {errorPlantilla?.imagen && (
+                      <p role="alert" className="text-sm text-destructive">{errorPlantilla.imagen}</p>
+                    )}
                   </Field>
                   <div className="flex items-center gap-2 md:col-span-2">
                     <Checkbox id="activarPlantilla" checked={activarPlantilla} onCheckedChange={(c) => setActivarPlantilla(c === true)} />

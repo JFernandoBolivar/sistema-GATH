@@ -16,6 +16,8 @@ CLAVE_PASSWORD_INICIAL_DIAS = 'plazos.password_inicial_dias'
 CLAVE_AUTOGESTION_MAX_PRORROGAS = 'plazos.autogestion_max_prorrogas'
 CLAVE_AUTOGESTION_AVISO_DIAS = 'plazos.autogestion_aviso_dias'
 
+CLAVE_GENERAR_PUNTOS_CUENTA = 'puntocuenta.generar'
+
 CLAVE_FE_DE_VIDA_RECORDATORIOS = 'fe_de_vida.dias_recordatorio'
 
 # E5: retencion de datos operativos (nunca auditoria ni constancias).

@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
 import { toast } from "sonner";
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import {
   getPlantillasCarnetAction,
   subirPlantillaCarnetAction,
@@ -40,6 +41,7 @@ export default function PlantillasPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     form.setValue("imagen", file);
+    form.clearErrors("imagen");
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = () => setPreview(reader.result as string);
@@ -58,7 +60,16 @@ export default function PlantillasPage() {
           setFileInputKey((k) => k + 1);
           mutate();
         } else {
-          toast.error((result as { error?: string })?.error || "Error al subir la plantilla");
+          const fallo = result as { error?: string; errores?: Record<string, string[]> };
+          const sinUbicar = aplicarErroresServidor(form, fallo.errores, {
+            nombre: "nombre",
+            imagen: "imagen",
+          });
+          toast.error(
+            sinUbicar.length > 0 || !fallo.errores
+              ? fallo.error || "Error al subir la plantilla"
+              : "Revise los campos marcados en rojo.",
+          );
         }
       });
     },

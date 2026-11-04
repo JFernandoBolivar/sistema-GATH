@@ -25,6 +25,17 @@ import type { AllergiesSchema } from "../schemas/schemaAllergies";
 import type { RegionTallaSchema } from "../schemas/schemaRegionTalla";
 import type { TallaSchema } from "../schemas/schemaTalla";
 
+export interface ResultadoRetro {
+  success: boolean;
+  message: string;
+  /** Errores por campo del backend (`{ campo: ["mensaje"] }`) para `aplicarErroresServidor`. */
+  errores?: Record<string, string[]>;
+}
+
+function resultado(res: { success: boolean; message: string; errores?: Record<string, string[]> }): ResultadoRetro {
+  return { success: res.success, message: res.message, errores: res.errores };
+}
+
 // Data loaders
 export const getOrganismosAds = async () => {
   const items = await getOrganismosAdscritosAction();
@@ -78,10 +89,7 @@ export const adsCreateActions = async (values: AdsType) => {
   const res = await crearOrganismoAdscritoAction({
     nombre: values.Organismoadscrito,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const adsUpdateActions = async (values: AdsUpdateType) => {
@@ -89,20 +97,14 @@ export const adsUpdateActions = async (values: AdsUpdateType) => {
     id: values.id,
     nombre: values.Organismoadscrito,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const disabilityGroup = async (values: CategoryGroup) => {
   const res = await crearCategoriaDiscapacidadAction({
-    nombre: values.nombre_categoria,
+    nombre_categoria: values.nombre_categoria,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const disabilityCreateActions = async (values: DisabitySchema) => {
@@ -110,20 +112,14 @@ export const disabilityCreateActions = async (values: DisabitySchema) => {
     discapacidad: values.discapacidad,
     categoria_id: values.categoria_id,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const patologyGroup = async (values: CategoryGroup) => {
   const res = await crearCategoriaPatologiaAction({
-    nombre: values.nombre_categoria,
+    nombre_categoria: values.nombre_categoria,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const patologyCreateActions = async (values: PatologySchema) => {
@@ -131,20 +127,14 @@ export const patologyCreateActions = async (values: PatologySchema) => {
     patologia: values.patologia,
     categoria_id: values.categoria_id,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const allergiesGroup = async (values: CategoryGroup) => {
   const res = await crearCategoriaAlergiaAction({
-    nombre: values.nombre_categoria,
+    nombre_categoria: values.nombre_categoria,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const allergiesCreateActions = async (values: AllergiesSchema) => {
@@ -152,20 +142,14 @@ export const allergiesCreateActions = async (values: AllergiesSchema) => {
     alergia: values.alergia,
     categoria_id: values.categoria_id,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const regionTallaCreateActions = async (values: RegionTallaSchema) => {
   const res = await crearRegionTallaAction({
     codigo: values.codigo,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const tallaCreateActions = async (values: TallaSchema) => {
@@ -174,10 +158,7 @@ export const tallaCreateActions = async (values: TallaSchema) => {
     region_id: values.region,
     tipo_prenda_id: values.tipo_prenda,
   });
-  return {
-    success: res.success,
-    message: res.message,
-  };
+  return resultado(res);
 };
 
 export const getExcel = async () => {

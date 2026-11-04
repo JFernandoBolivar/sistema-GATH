@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
-import { handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { GuardarFamiliarInputDTO } from "../../application/dtos/familiar-dto";
 import {
   actualizarFamiliar,
@@ -64,7 +64,7 @@ export async function crearFamiliarAction(input: GuardarFamiliarInputDTO) {
   } catch (error) {
     await logAudit({ traceId, action: "crearFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible registrar al familiar.");
   }
 }
 
@@ -87,7 +87,7 @@ export async function actualizarFamiliarAction(
   } catch (error) {
     await logAudit({ traceId, action: "actualizarFamiliarAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    throw error;
+    return errorDeAccion(error, "No fue posible actualizar al familiar.");
   }
 }
 

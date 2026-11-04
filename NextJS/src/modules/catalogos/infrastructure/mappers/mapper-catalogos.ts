@@ -16,7 +16,9 @@ import type {
 } from "../http/catalogos-api";
 
 export function catalogoApiAEntidad(raw: CatalogoApiItem): CatalogoItem {
-  return { id: raw.id, nombre: raw.nombre };
+  const nombre =
+    raw.nombre ?? raw.nombre_categoria ?? raw.alergia ?? raw.patologia ?? raw.discapacidad ?? "";
+  return { id: raw.id, nombre };
 }
 
 export function regionApiAEntidad(raw: CatalogoApiItem): Region {

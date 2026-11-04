@@ -8,6 +8,7 @@
  * - Inputs pre-rellenados con el código y nombre actual para edición
  * - Botón "Actualizar" con feedback y toasts
  */
+import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -209,7 +210,8 @@ function UpdateDireccionGeneralSection({
           getDireccionesGeneralesAction(values.dependenciaId).then(setDirGenerales);
           onSuccess?.();
         } else if ("error" in res) {
-          toast.error(res.error);
+          const sinUbicar = aplicarErroresServidor(form, res.errores, { dependencia_id: "dependenciaId", direccion_general_id: "direccionGeneralId", direccion_linea_id: "direccionLineaId" });
+          toast.error(res.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : res.error);
         }
       } catch {
         toast.error("Ocurrió un error al actualizar.");
@@ -405,7 +407,8 @@ function UpdateDireccionLineaSection({
           getDireccionesLineaAction(values.direccionGeneralId).then(setDirLineas);
           onSuccess?.();
         } else if ("error" in res) {
-          toast.error(res.error);
+          const sinUbicar = aplicarErroresServidor(form, res.errores, { dependencia_id: "dependenciaId", direccion_general_id: "direccionGeneralId", direccion_linea_id: "direccionLineaId" });
+          toast.error(res.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : res.error);
         }
       } catch {
         toast.error("Ocurrió un error al actualizar.");
@@ -655,7 +658,8 @@ function UpdateCoordinacionSection({
           getCoordinacionesAction(values.direccionLineaId).then(setCoordinaciones);
           onSuccess?.();
         } else if ("error" in res) {
-          toast.error(res.error);
+          const sinUbicar = aplicarErroresServidor(form, res.errores, { dependencia_id: "dependenciaId", direccion_general_id: "direccionGeneralId", direccion_linea_id: "direccionLineaId" });
+          toast.error(res.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : res.error);
         }
       } catch {
         toast.error("Ocurrió un error al actualizar.");
@@ -870,7 +874,8 @@ function UpdateDependenciaSection({
           toast.success("Dependencia actualizada exitosamente.");
           onSuccess?.();
         } else if ("error" in res) {
-          toast.error(res.error);
+          const sinUbicar = aplicarErroresServidor(form, res.errores, { dependencia_id: "dependenciaId", direccion_general_id: "direccionGeneralId", direccion_linea_id: "direccionLineaId" });
+          toast.error(res.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : res.error);
         }
       } catch {
         toast.error("Ocurrió un error al actualizar.");

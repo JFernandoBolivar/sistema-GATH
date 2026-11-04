@@ -75,3 +75,38 @@ describe("Schema de Cargas Familiares", () => {
     expect(res.success).toBe(false);
   });
 });
+
+describe("Longitudes del familiar (QA 2026-11-04)", () => {
+  const base = {
+    empleadoCedula: "12345678",
+    primerNombre: "Maria",
+    primerApellido: "Perez",
+    parentescoId: 1,
+    fechaNacimiento: "2015-05-10",
+    sexoId: 2,
+    mismoEnte: false,
+    heredero: false,
+  };
+  const pasa = (c: Record<string, unknown>) => familiarSchema.safeParse({ ...base, ...c }).success;
+
+  it("cédula del familiar: solo dígitos, 6 a 9", () => {
+    expect(pasa({ cedulaFamiliar: "12345" })).toBe(false);
+    expect(pasa({ cedulaFamiliar: "123456" })).toBe(true);
+    expect(pasa({ cedulaFamiliar: "123456789" })).toBe(true);
+    expect(pasa({ cedulaFamiliar: "1234567890" })).toBe(false);
+    expect(pasa({ cedulaFamiliar: "30900439999999999999" })).toBe(false);
+    expect(pasa({ cedulaFamiliar: "12ab5678" })).toBe(false);
+  });
+
+  it("nombres de 2 a 60 caracteres; segundos opcionales (también vacíos)", () => {
+    expect(pasa({ primerNombre: "M" })).toBe(false);
+    expect(pasa({ primerNombre: "M".repeat(61) })).toBe(false);
+    expect(pasa({ segundoNombre: "" })).toBe(true);
+    expect(pasa({ segundoApellido: "A".repeat(61) })).toBe(false);
+  });
+
+  it("observaciones: máximo 500 caracteres", () => {
+    expect(pasa({ observaciones: "x".repeat(500) })).toBe(true);
+    expect(pasa({ observaciones: "x".repeat(501) })).toBe(false);
+  });
+});

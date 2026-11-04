@@ -7,7 +7,11 @@ export const emitirCarnetSchema = z.object({
     .trim()
     .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida" }),
   motivoId: z.number().positive({ message: "Seleccione un motivo de emisión" }),
-  observaciones: z.string().trim().optional(),
+  observaciones: z
+    .string()
+    .trim()
+    .max(500, { message: "Las observaciones no pueden superar 500 caracteres" })
+    .optional(),
 });
 
 /** Hash de seguridad de carnet (zero-trust R7). */
@@ -51,7 +55,11 @@ export const disenarCarnetSchema = z.object({
     .max(120, { message: "Nombre demasiado largo" }),
   motivoId: z.number().positive({ message: "Seleccione un motivo de emisión" }),
   plantillaId: z.number().optional(),
-  observaciones: z.string().trim().optional(),
+  observaciones: z
+    .string()
+    .trim()
+    .max(500, { message: "Las observaciones no pueden superar 500 caracteres" })
+    .optional(),
 });
 
 export type EmitirCarnetFormType = z.infer<typeof emitirCarnetSchema>;
@@ -96,6 +104,7 @@ export type SubirPlantillaCarnetFormType = z.infer<typeof subirPlantillaCarnetSc
 export const schemaSearch = z.object({
   query: z
     .string()
+    .trim()
     .min(2, "Debe ingresar al menos 2 caracteres")
     .max(50, "La búsqueda es demasiado larga"),
 });
@@ -103,6 +112,7 @@ export const schemaSearch = z.object({
 export const schemaGenerar = z.object({
   nombre: z
     .string()
+    .trim()
     .min(3, "El nombre debe tener al menos 3 caracteres")
     .max(200, "El nombre es demasiado largo"),
   motivo_id: z.coerce.number().positive("Debe seleccionar un motivo"),
@@ -111,6 +121,7 @@ export const schemaGenerar = z.object({
 export const schemaPlantilla = z.object({
   nombre: z
     .string()
+    .trim()
     .min(3, "El nombre debe tener al menos 3 caracteres")
     .max(100, "El nombre es demasiado largo"),
   imagen: z

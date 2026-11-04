@@ -125,6 +125,10 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
     } else {
       // 409: otra persona decidió, la ficha cambió o es la propia solicitud; el mensaje viene del servidor.
       setConflicto(res.mensaje);
+      if (res.errores) {
+        const lista = Object.entries(res.errores).flatMap(([k, msgs]) => msgs.map((m) => `${k}: ${m}`));
+        if (lista.length > 0) setErrores(lista);
+      }
     }
   }
 
