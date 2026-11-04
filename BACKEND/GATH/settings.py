@@ -230,8 +230,6 @@ SPECTACULAR_SETTINGS = {
 # Configuración del sistema de carnetización
 # Sin default propio: por omisión apunta a la ruta pública /validar del frontend.
 CARNET_VALIDATOR_URL = os.getenv('CARNET_VALIDATOR_URL') or f"{config('FRONTEND_URL', default='http://localhost:3001').rstrip('/')}/validar"
-CARNET_COMPANY_NAME = os.getenv('CARNET_COMPANY_NAME', 'CONATEL')
-NESTJS_URL = os.getenv('NESTJS_URL', 'http://localhost:5000/')
 # Vacío = pdf2image usa el poppler del PATH (Linux/Docker). En Windows, definir POPPLER_PATH.
 POPPLER_PATH = os.getenv('POPPLER_PATH') or None
 
