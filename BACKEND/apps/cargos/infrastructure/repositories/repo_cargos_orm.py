@@ -101,7 +101,9 @@ class RepoCargosORM(RepoPrestamosCargoORM):
                 'gradoid',
                 'employee',
             )
-            .all()
+            # Gestión de personal activo: los puestos de pasivos (P_…, tipo de
+            # personal PASIVO) se gestionan en el módulo de Pasivos.
+            .exclude(Tipo_personal__tipo_personal__iexact='PASIVO')
             .order_by('-fecha_actualizacion')
         )
         if tipo_nomina_id is not None:

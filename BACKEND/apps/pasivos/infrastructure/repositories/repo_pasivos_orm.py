@@ -48,6 +48,12 @@ from apps.personal.infrastructure.models.expediente_models import (
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
 
+def _actualizado(empleado) -> str:
+    """Última actualización del trabajador, comparable como texto ISO."""
+    fecha = getattr(empleado, 'fecha_actualizacion', None)
+    return fecha.isoformat() if fecha else ''
+
+
 class RepoPasivosORM(RepoSobrevivientesORM):
     @staticmethod
     def _cedulas_pasivas_egresadas() -> set[str]:
@@ -126,8 +132,10 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         que ponen los mappers y solo se mapean las filas de la página. El
         resultado es idéntico.
         """
-        # cédula -> (fecha_egreso como la expone el mapper, mapeo diferido)
-        por_cedula: dict[str, tuple[str, object]] = {}
+        # cédula -> (fecha_egreso como la expone el mapper, última actualización
+        # del trabajador, mapeo diferido). La fecha de egreso filtra; el orden es
+        # por última actualización (lo más reciente primero, QA 2026-11-03).
+        por_cedula: dict[str, tuple[str, str, object]] = {}
         cesados = self._cedulas_pasivas_egresadas()
 
         qs_egresados = (
@@ -152,7 +160,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             if str(fila.employee_id) in cesados:
                 continue
             por_cedula[str(fila.employee_id)] = (
-                str(fila.fecha_egreso), lambda fila=fila: pasivo_a_entidad(fila)
+                str(fila.fecha_egreso), _actualizado(fila.employee), lambda fila=fila: pasivo_a_entidad(fila)
             )
 
         qs_asignaciones = (
@@ -174,7 +182,8 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             qs_asignaciones = qs_asignaciones.filter(tiponominaid_id=tipo_nomina_id)
         for asig in qs_asignaciones:
             por_cedula[str(asig.employee_id)] = (
-                str(asig.fecha_actualizacion), lambda asig=asig: pasivo_desde_asignacion(asig)
+                str(asig.fecha_actualizacion), _actualizado(asig.employee),
+                lambda asig=asig: pasivo_desde_asignacion(asig),
             )
 
         candidatos = list(por_cedula.values())
@@ -182,10 +191,10 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             candidatos = [c for c in candidatos if (c[0] or '')[:10] >= str(fecha_desde)]
         if fecha_hasta:
             candidatos = [c for c in candidatos if (c[0] or '')[:10] <= str(fecha_hasta)]
-        candidatos.sort(key=lambda c: c[0] or '', reverse=True)
+        candidatos.sort(key=lambda c: (c[1], c[0] or ''), reverse=True)
         total = len(candidatos)
         pagina = candidatos[desplazamiento:desplazamiento + limite]
-        return [mapear() for _, mapear in pagina], total
+        return [mapear() for _, _, mapear in pagina], total
 
     def actualizar_datos_pasivo(self, cedula: str, datos: dict) -> Pasivo:
         """Datos básicos editables de un pasivo; reutiliza la actualización de Personal."""
