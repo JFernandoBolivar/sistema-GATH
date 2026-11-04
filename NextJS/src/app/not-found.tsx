@@ -59,10 +59,10 @@ export default function NotFound() {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
           <div className="transform hover:scale-110 transition-transform duration-500 hover:rotate-3">
             <Image
-              src="/images/image.png"
-              width={300} // Correcto: Ancho fijo
-              height={300} // Correcto: Alto fijo
-              alt="Logo Reportes"
+              src="/logoLogin.png"
+              width={300}
+              height={120}
+              alt="Logo de CONATEL"
               className="object-contain" // Mantiene la proporción dentro de los 300x150
               priority // Agrega esto para que cargue rápido en reportes
             />
@@ -117,15 +117,14 @@ export default function NotFound() {
                 : "translate-y-10 opacity-0"
             }`}
           >
-            {/* <Image
-              width={300}
-              height={150}
+            <Image
               src="/image.png"
-              alt="Edificio del Ministerio"
+              alt="Sede principal de CONATEL"
               fill
+              sizes="(max-width: 768px) 100vw, 600px"
               style={{ objectFit: "cover" }}
               className="group-hover:scale-110 transition-transform duration-700 ease-out"
-            /> */}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-blue-900/70 to-transparent group-hover:from-blue-900/50 transition-all duration-500"></div>
             <div className="absolute bottom-4 left-4 text-white text-sm font-medium transform group-hover:translate-x-2 transition-transform duration-300">
               Sede Principal

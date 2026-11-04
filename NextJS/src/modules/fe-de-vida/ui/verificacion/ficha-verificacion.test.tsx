@@ -33,7 +33,7 @@ describe("FichaVerificacion", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Constancia de Comparecencia o Fe de Vida" }),
     ).toBeTruthy();
-    expect(screen.getByText("Comisión Nacional de Telecomunicaciones (CONATEL)")).toBeTruthy();
+    expect(screen.queryByText("Comisión Nacional de Telecomunicaciones (CONATEL)")).toBeNull();
     expect(screen.getByRole("status").textContent).toMatch(/Constancia válida/);
     expect(screen.getByText("Fe de vida 2026-2027")).toBeTruthy();
     for (const etiqueta of [
