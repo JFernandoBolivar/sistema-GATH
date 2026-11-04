@@ -69,3 +69,44 @@ def test_genera_pdf_valido_con_secciones_opcionales_vacias(_mock_config):
 def test_respeta_cintillo_generico(_mock_config):
     pdf = construir_pdf_expediente_empleado(_dto_base())
     assert pdf.startswith(b"%PDF")
+
+
+@patch("apps.personal.infrastructure.pdf_empleado.construir_config_pdf", return_value=None)
+def test_quien_genero_va_en_el_pie_y_no_arriba(_mock_config):
+    from reportlab.pdfgen.canvas import Canvas
+    dibujadas = []
+    orig = Canvas.drawCentredString
+
+    def captura(self, x, y, text, *a, **kw):
+        dibujadas.append(text)
+        return orig(self, x, y, text, *a, **kw)
+
+    with patch.object(Canvas, "drawCentredString", captura):
+        pdf = construir_pdf_expediente_empleado(_dto_base(), usuario_nombre="Admin Prueba (3333333)")
+    assert pdf.startswith(b"%PDF")
+    assert any(t.startswith("Generado el ") and "por Admin Prueba (3333333)" in t and "Página 1 de " in t for t in dibujadas)
+    assert not any(t.startswith("Usuario:") for t in dibujadas)
+
+
+@patch("apps.personal.infrastructure.pdf_empleado.construir_config_pdf", return_value=None)
+def test_contactos_de_emergencia_limita_a_tres_con_nota(_mock_config):
+    from reportlab.pdfgen.canvas import Canvas
+
+    contactos = [
+        {"id": i, "nombres": f"Nom{i}", "apellidos": "Ape", "telefono": "04141234567", "relacion_nombre": "HERMANO"}
+        for i in (5, 1, 4, 2, 3)
+    ]
+    from reportlab.platypus import Paragraph
+    textos = []
+    orig_init = Paragraph.__init__
+
+    def init(self, text, *a, **kw):
+        textos.append(text)
+        orig_init(self, text, *a, **kw)
+
+    with patch.object(Paragraph, "__init__", init):
+        pdf = construir_pdf_expediente_empleado(_dto_base(contacto_emergencia=contactos))
+    assert pdf.startswith(b"%PDF")
+    assert "Se muestran 3 de 5 contactos registrados." in textos
+    nombres = [t for t in textos if t.startswith("Nom") and t.endswith(" Ape")]
+    assert list(dict.fromkeys(nombres)) == ["Nom1 Ape", "Nom2 Ape", "Nom3 Ape"]

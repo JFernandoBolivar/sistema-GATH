@@ -142,6 +142,28 @@ class EmpleadoDetailView(APIView):
     patch = put
 
 
+def _quien_genera(usuario) -> str:
+    """«Nombre Apellido (cédula)» del usuario que descarga; solo la cédula si no hay nombre."""
+    cedula = str(usuario)
+    try:
+        emp = usuario.cedula
+        nombre = f"{emp.nombres} {emp.apellidos}".strip()
+    except Exception:
+        return cedula
+    return f"{nombre} ({cedula})" if nombre else cedula
+
+
+def _foto_para_pdf(dto) -> bytes | None:
+    """Bytes de la foto del empleado, o None si no tiene o el almacén no responde."""
+    clave = dto.profile
+    if not clave or clave.startswith(('data:', 'http')):
+        return None
+    try:
+        return SeaweedFSStorage().descargar(clave)
+    except Exception:
+        return None
+
+
 class EmpleadoDetallePdfView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('personal.exportar_pdf')]
 
@@ -149,7 +171,9 @@ class EmpleadoDetallePdfView(APIView):
     def get(self, request, cedula: str):
         repo = RepoPersonalORM()
         dto = obtener_personal_por_cedula(repo, cedula=cedula)
-        pdf_bytes = construir_pdf_expediente_empleado(dto, usuario_nombre=str(request.user))
+        pdf_bytes = construir_pdf_expediente_empleado(
+            dto, usuario_nombre=_quien_genera(request.user), foto_bytes=_foto_para_pdf(dto),
+        )
         return _respuesta_pdf(pdf_bytes, f"expediente-empleado-{cedula}.pdf")
 
 

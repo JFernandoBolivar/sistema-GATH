@@ -155,7 +155,7 @@ def create_stats_box(stats: dict, width=None) -> Table | Spacer:
     return table
 
 
-def draw_footer(canvas, doc, page_number: int, total_pages: int, texto: str | None = None, config: dict | None = None) -> None:
+def draw_footer(canvas, doc, page_number: int, total_pages: int, texto: str | None = None, config: dict | None = None, texto_pagina: str | None = None) -> None:
     canvas.saveState()
     es_generico = bool(config) and config.get('tipo_cintillo') == 'GENERICO'
     cintillo = None if es_generico else _imagen_o_asset(config.get('cintillo_pie_bytes') if config else None, 'cintillo2.png')
@@ -170,7 +170,8 @@ def draw_footer(canvas, doc, page_number: int, total_pages: int, texto: str | No
         except Exception:
             logger.warning("No se pudo dibujar el cintillo del pie de página del PDF.", exc_info=True)
 
-    texto_pagina = f"Página {page_number} de {total_pages}" if total_pages else f"Página {page_number}"
+    if texto_pagina is None:
+        texto_pagina = f"Página {page_number} de {total_pages}" if total_pages else f"Página {page_number}"
     canvas.setFont(*FONTS['small'])
     canvas.setFillColor(COLORS['muted'])
     canvas.drawCentredString(page_width / 2, 16 * mm, texto_pagina)

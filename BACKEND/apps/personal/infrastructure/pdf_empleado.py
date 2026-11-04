@@ -13,17 +13,23 @@ titular de encargaduría) para no divergir del Sheet de detalle.
 """
 from datetime import datetime
 from io import BytesIO
-from xml.sax.saxutils import escape
 
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen.canvas import Canvas
+from reportlab.platypus import Image, SimpleDocTemplate, Spacer
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.personal.application.dtos.personal_dtos import EmpleadoDTO
 from core.domain.validacion_personas import formatear_telefono
-from core.infrastructure.pdf.pdf_components import create_data_table, create_header, draw_footer
-from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
+from core.infrastructure.pdf.expediente_estilos import (
+    grilla, nota_gris, seccion, sin_registros, tabla, tarjeta_identificacion,
+)
+from core.infrastructure.pdf.pdf_components import create_header, draw_footer
+from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG
 
 SIN_DATO = "N/A"
+MAX_CONTACTOS_PDF = 3
 
 
 def _val(v) -> str:
@@ -37,21 +43,6 @@ def _fecha(v, por_defecto: str = SIN_DATO) -> str:
         return datetime.fromisoformat(str(v).replace("Z", "+00:00")).strftime("%d/%m/%Y")
     except ValueError:
         return str(v)
-
-
-def _info_row(label: str, valor: str, styles) -> Paragraph:
-    return Paragraph(f"<b>{escape(label)}:</b> {escape(valor)}", styles['TableCell'])
-
-
-def _seccion(titulo: str, styles) -> Paragraph:
-    return Paragraph(escape(titulo), styles['TableHeader'])
-
-
-def _tabla_simple(columnas: list[str], filas: list[list[str]], styles):
-    if not filas:
-        return Paragraph('Sin registros.', styles['TableCell'])
-    dicts = [{col: fila[i] for i, col in enumerate(columnas)} for fila in filas]
-    return create_data_table(columnas, dicts)
 
 
 def _total_anos_apn(valor: float | None) -> str:
@@ -85,10 +76,28 @@ def _titular_encargaduria(enc: dict) -> str:
     return f"{titular_nombre} ({titular_cedula})" if titular_nombre else titular_cedula
 
 
-def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | None = None) -> bytes:
+def _foto_flowable(foto_bytes: bytes | None):
+    """Foto 3 x 3,5 cm; si los bytes no son una imagen válida, se omite sin dejar hueco."""
+    if not foto_bytes:
+        return None
+    try:
+        ImageReader(BytesIO(foto_bytes)).getSize()
+        return Image(BytesIO(foto_bytes), width=30 * mm, height=35 * mm, kind='proportional')
+    except Exception:
+        return None
+
+
+def _tabla_o_vacio(columnas, filas, pesos, ancho):
+    return tabla(columnas, filas, pesos, ancho) if filas else sin_registros()
+
+
+def construir_pdf_expediente_empleado(
+    dto: EmpleadoDTO,
+    usuario_nombre: str | None = None,
+    foto_bytes: bytes | None = None,
+) -> bytes:
     generado_en = datetime.now()
     page_config = PAGE_CONFIG['portrait']
-    styles = get_paragraph_styles()
     buffer = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -102,84 +111,79 @@ def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | No
         author='GATH - CONATEL',
         subject=f"Expediente generado el {generado_en.strftime('%d/%m/%Y %H:%M')}",
     )
+    ancho = doc.width
 
     cedula_mostrada = f"{dto.nacionalidad_codigo}-{dto.cedula}" if dto.nacionalidad_codigo else dto.cedula
-    texto_generacion = (
-        f"Usuario: {usuario_nombre}, " if usuario_nombre else ""
-    ) + f"Fecha de generación: {generado_en.strftime('%d/%m/%Y %H:%M:%S')}"
-
     vivienda = dto.datos_vivienda or {}
     salud = dto.perfil_salud or {}
     fisico = dto.perfil_fisico or {}
 
+    # Tarjeta de identificación (cédula, cargo y dependencia actuales).
+    lineas = [f"Cédula {cedula_mostrada}"]
+    if dto.asignaciones:
+        asig = dto.asignaciones[0]
+        cargo = asig.get('denominacion_cargo_especifico')
+        dependencia = asig.get('dependencia') or asig.get('direccion_general')
+        if cargo and cargo != SIN_DATO:
+            lineas.append(f"Cargo: {cargo}")
+        if dependencia and dependencia != SIN_DATO:
+            lineas.append(f"Dependencia: {dependencia}")
+
     story = [
-        Paragraph(escape(texto_generacion), styles['CenterSmall']),
-        Spacer(1, 4),
-        Paragraph(escape(f"{dto.nombre_completo} — Cédula {cedula_mostrada}"), styles['CenterSmall']),
-        Spacer(1, 6),
-        _seccion('DATOS PERSONALES', styles),
-        _info_row('Sexo', _val(dto.sexo_nombre), styles),
-        _info_row('Fecha de nacimiento', _fecha(dto.fecha_nacimiento), styles),
-        _info_row('Estado civil', _val(dto.estado_civil_nombre), styles),
-        _info_row('Carnet de la patria', _val(dto.carnet_patria), styles),
-        _info_row('Serial del Carnet de la Patria', _val(dto.carnet_patria_serial), styles),
-        _info_row('Correo', _val(dto.correo), styles),
-        _info_row('Teléfono móvil', _val(formatear_telefono(dto.telefono_movil)), styles),
-        _info_row('Teléfono habitación', _val(formatear_telefono(dto.telefono_habitacion)), styles),
-        _info_row('Total APN', _total_anos_apn(dto.total_anos_apn), styles),
-        Spacer(1, 6),
-        _seccion('DATOS LABORALES', styles),
+        tarjeta_identificacion(dto.nombre_completo, lineas, ancho, _foto_flowable(foto_bytes)),
+        *seccion('Datos personales', grilla([
+            ('Nombres', _val(dto.nombres)),
+            ('Apellidos', _val(dto.apellidos)),
+            ('Cédula', cedula_mostrada),
+            ('Nacionalidad', _val(dto.nacionalidad_nombre)),
+            ('Sexo', _val(dto.sexo_nombre)),
+            ('Fecha de nacimiento', _fecha(dto.fecha_nacimiento)),
+            ('Estado civil', _val(dto.estado_civil_nombre)),
+            ('Correo', _val(dto.correo)),
+            ('Teléfono móvil', _val(formatear_telefono(dto.telefono_movil))),
+            ('Teléfono habitación', _val(formatear_telefono(dto.telefono_habitacion))),
+            ('Carnet de la Patria (código)', _val(dto.carnet_patria)),
+            ('Serial del Carnet de la Patria', _val(dto.carnet_patria_serial)),
+            ('Total APN', _total_anos_apn(dto.total_anos_apn)),
+        ], ancho), ancho),
     ]
 
     if dto.asignaciones:
-        columnas = ['#', 'Código', 'Cargo Específico', 'Grado', 'Nómina', 'Dirección']
         filas = [
             [
                 str(idx + 1),
-                _val(asig.get('codigo')),
-                _val(asig.get('denominacion_cargo_especifico')),
-                _val(asig.get('grado')),
-                _val(asig.get('tipo_nomina')),
-                _direccion_resumida(asig),
+                _val(a.get('codigo')),
+                _val(a.get('denominacion_cargo_especifico')),
+                _val(a.get('grado')),
+                _val(a.get('tipo_nomina')),
+                _direccion_resumida(a),
             ]
-            for idx, asig in enumerate(dto.asignaciones)
+            for idx, a in enumerate(dto.asignaciones)
         ]
-        story.append(_tabla_simple(columnas, filas, styles))
+        cuerpo = tabla(['#', 'Código', 'Cargo específico', 'Grado', 'Nómina', 'Dirección'], filas, [3, 11, 22, 10, 15, 39], ancho)
     else:
-        story.append(Paragraph('Sin cargos asignados registrados', styles['TableCell']))
-    story.append(_info_row('Fecha de ingreso', _fecha_ingreso_organismo(dto), styles))
+        cuerpo = sin_registros()
+    story += seccion('Datos laborales', cuerpo, ancho)
+    story.append(Spacer(1, 6))
+    story.append(grilla([('Fecha de ingreso', _fecha_ingreso_organismo(dto))], ancho))
 
     if dto.contrato_actual:
         c = dto.contrato_actual
-        story.append(Spacer(1, 6))
-        story.append(_seccion('CONTRATO ACTUAL', styles))
-        story.append(_info_row('N° contrato', _val(c.get('n_contrato')), styles))
-        story.append(_info_row('Fecha de culminación', _fecha(c.get('fecha_culminacion'), 'Indefinido'), styles))
-        story.append(_info_row('Política', _val(c.get('politica_nombre')), styles))
-        story.append(_info_row('Tipo', 'Fijo' if c.get('es_fijo') else 'Suplente/Contratado', styles))
+        story += seccion('Contrato actual', grilla([
+            ('N° de contrato', _val(c.get('n_contrato'))),
+            ('Fecha de culminación', _fecha(c.get('fecha_culminacion'), 'Indefinido')),
+            ('Política', _val(c.get('politica_nombre'))),
+            ('Tipo', 'Fijo' if c.get('es_fijo') else 'Suplente/Contratado'),
+        ], ancho), ancho)
 
-    story.append(Spacer(1, 6))
-    story.append(_seccion('ANTECEDENTES LABORALES', styles))
-    if dto.antecedentes:
-        columnas = ['#', 'Fecha Ingreso', 'Fecha Egreso', 'Organismo']
-        filas = [
-            [
-                str(idx + 1),
-                _fecha(a.get('fecha_ingreso')),
-                _fecha(a.get('fecha_egreso'), 'Presente'),
-                _val(a.get('organismo_nombre')),
-            ]
-            for idx, a in enumerate(dto.antecedentes)
-        ]
-        story.append(_tabla_simple(columnas, filas, styles))
-        story.append(_info_row('Total APN', _total_anos_apn(dto.total_anos_apn), styles))
-    else:
-        story.append(Paragraph('Sin antecedentes registrados', styles['TableCell']))
+    filas = [
+        [str(idx + 1), _fecha(a.get('fecha_ingreso')), _fecha(a.get('fecha_egreso'), 'Presente'), _val(a.get('organismo_nombre'))]
+        for idx, a in enumerate(dto.antecedentes)
+    ]
+    story += seccion('Antecedentes laborales', _tabla_o_vacio(
+        ['#', 'Fecha de ingreso', 'Fecha de egreso', 'Organismo'], filas, [4, 16, 16, 64], ancho), ancho)
 
     if dto.encargadurias:
-        story.append(Spacer(1, 6))
-        story.append(_seccion('ENCARGADURÍAS', styles))
-        columnas = ['#', 'Cargo Encargado', 'Titular', 'Fecha Inicio', 'Fecha Fin', 'Estatus']
         filas = [
             [
                 str(idx + 1),
@@ -191,22 +195,20 @@ def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | No
             ]
             for idx, enc in enumerate(dto.encargadurias)
         ]
-        story.append(_tabla_simple(columnas, filas, styles))
+        story += seccion('Encargadurías', tabla(
+            ['#', 'Cargo encargado', 'Titular', 'Inicio', 'Fin', 'Estatus'], filas, [4, 28, 30, 12, 12, 14], ancho), ancho)
 
     if dto.datos_vivienda:
-        story.append(Spacer(1, 6))
-        story.append(_seccion('DATOS DE VIVIENDA', styles))
-        story.append(_info_row('Estado', _val(vivienda.get('estado_nombre')), styles))
-        story.append(_info_row('Municipio', _val(vivienda.get('municipio_nombre')), styles))
-        story.append(_info_row('Parroquia', _val(vivienda.get('parroquia_nombre')), styles))
-        story.append(_info_row('Dirección', _val(vivienda.get('direccion_exacta')), styles))
-        story.append(_info_row('Condición de vivienda', _val(vivienda.get('condicion_vivienda_nombre')), styles))
-        story.append(_info_row('Código postal', _val(vivienda.get('codigo_postal_nombre')), styles))
+        story += seccion('Datos de vivienda', grilla([
+            ('Estado', _val(vivienda.get('estado_nombre'))),
+            ('Municipio', _val(vivienda.get('municipio_nombre'))),
+            ('Parroquia', _val(vivienda.get('parroquia_nombre'))),
+            ('Código postal', _val(vivienda.get('codigo_postal_nombre'))),
+            ('Condición de vivienda', _val(vivienda.get('condicion_vivienda_nombre'))),
+            ('Dirección', _val(vivienda.get('direccion_exacta'))),
+        ], ancho), ancho)
 
-    story.append(Spacer(1, 6))
-    story.append(_seccion('FORMACIÓN ACADÉMICA', styles))
-    columnas_fa = ['Nivel', 'Carrera', 'Mención', 'Institución']
-    filas_fa = [
+    filas = [
         [
             _val(fa.get('nivel_academico_nombre')),
             _val(fa.get('carrera_nombre')),
@@ -215,12 +217,10 @@ def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | No
         ]
         for fa in dto.formacion_academica
     ]
-    story.append(_tabla_simple(columnas_fa, filas_fa, styles))
+    story += seccion('Formación académica', _tabla_o_vacio(
+        ['Nivel', 'Carrera', 'Mención', 'Institución'], filas, [16, 30, 20, 34], ancho), ancho)
 
-    story.append(Spacer(1, 6))
-    story.append(_seccion('FORMACIÓN COMPLEMENTARIA', styles))
-    columnas_fc = ['Capacitación', 'Institución', 'Inicio', 'Fin', 'Horas']
-    filas_fc = [
+    filas = [
         [
             _val(fc.get('capacitacion_nombre')),
             _val(fc.get('institucion_nombre')),
@@ -230,47 +230,72 @@ def construir_pdf_expediente_empleado(dto: EmpleadoDTO, usuario_nombre: str | No
         ]
         for fc in dto.formacion_complementaria
     ]
-    story.append(_tabla_simple(columnas_fc, filas_fc, styles))
+    story += seccion('Formación complementaria', _tabla_o_vacio(
+        ['Capacitación', 'Institución', 'Inicio', 'Fin', 'Horas'], filas, [28, 28, 12, 12, 12], ancho), ancho)
 
-    story.append(Spacer(1, 6))
-    story.append(_seccion('CONTACTO DE EMERGENCIA', styles))
-    columnas_ce = ['Nombre', 'Teléfono', 'Relación']
-    filas_ce = [
+    contactos = sorted(dto.contacto_emergencia, key=lambda c: (c.get('id') is None, c.get('id') or 0))
+    filas = [
         [
-            _val(f"{c.get('nombres', '')} {c.get('apellidos', '')}".strip()),
-            _val(formatear_telefono(c.get('telefono'))),
+            _val(f"{c.get('nombres') or ''} {c.get('apellidos') or ''}".strip()),
             _val(c.get('relacion_nombre')),
+            _val(formatear_telefono(c.get('telefono'))),
         ]
-        for c in dto.contacto_emergencia
+        for c in contactos[:MAX_CONTACTOS_PDF]
     ]
-    story.append(_tabla_simple(columnas_ce, filas_ce, styles))
+    cuerpo = _tabla_o_vacio(['Nombres y apellidos', 'Parentesco', 'Teléfono'], filas, [50, 25, 25], ancho)
+    if len(contactos) > MAX_CONTACTOS_PDF:
+        cuerpo = [cuerpo, Spacer(1, 3), nota_gris(f"Se muestran {MAX_CONTACTOS_PDF} de {len(contactos)} contactos registrados.")]
+    story += seccion('Contacto de emergencia', cuerpo, ancho)
 
     if dto.perfil_fisico:
-        story.append(Spacer(1, 6))
-        story.append(_seccion('PERFIL FÍSICO (TALLAS)', styles))
-        story.append(_info_row('Talla camisa', _val(fisico.get('talla_camisa_nombre')), styles))
-        story.append(_info_row('Talla pantalón', _val(fisico.get('talla_pantalon_nombre')), styles))
-        story.append(_info_row('Talla zapatos', _val(fisico.get('talla_zapatos_nombre')), styles))
-        story.append(_info_row('Talla chaqueta', _val(fisico.get('talla_chaqueta_nombre')), styles))
+        story += seccion('Perfil físico (tallas)', grilla([
+            ('Talla de camisa', _val(fisico.get('talla_camisa_nombre'))),
+            ('Talla de pantalón', _val(fisico.get('talla_pantalon_nombre'))),
+            ('Talla de zapatos', _val(fisico.get('talla_zapatos_nombre'))),
+            ('Talla de chaqueta', _val(fisico.get('talla_chaqueta_nombre'))),
+        ], ancho), ancho)
 
     if dto.perfil_salud:
-        story.append(Spacer(1, 6))
-        story.append(_seccion('SALUD', styles))
-        story.append(_info_row('Grupo sanguíneo', _val(salud.get('grupo_sanguineo_nombre')), styles))
-        story.append(_info_row('Alergias', ", ".join(salud.get('alergias_nombres') or []) or 'Ninguna', styles))
-        story.append(_info_row('Patologías crónicas', ", ".join(salud.get('patologias_cronicas_nombres') or []) or 'Ninguna', styles))
-        story.append(_info_row('Discapacidades', ", ".join(salud.get('discapacidades_nombres') or []) or 'Ninguna', styles))
+        story += seccion('Salud', grilla([
+            ('Grupo sanguíneo', _val(salud.get('grupo_sanguineo_nombre'))),
+            ('Alergias', ", ".join(salud.get('alergias_nombres') or []) or 'Ninguna'),
+            ('Patologías crónicas', ", ".join(salud.get('patologias_cronicas_nombres') or []) or 'Ninguna'),
+            ('Discapacidades', ", ".join(salud.get('discapacidades_nombres') or []) or 'Ninguna'),
+        ], ancho), ancho)
 
     config_pdf = construir_config_pdf()
+    quien = f" por {usuario_nombre}" if usuario_nombre else ""
+    texto_generado = f"Generado el {generado_en.strftime('%d/%m/%Y')} a las {generado_en.strftime('%H:%M')}{quien}"
 
-    def _en_pagina(canvas, doc_):
+    def _encabezado(canvas, doc_):
         canvas.saveState()
         for el in create_header('Expediente del trabajador', width=doc_.width, config=config_pdf):
             el.wrap(doc_.width, doc_.topMargin)
             el.drawOn(canvas, doc_.leftMargin, doc_.pagesize[1] - page_config['topMargin'] + 10)
         canvas.restoreState()
-        draw_footer(canvas, doc_, doc_.page, 0, f"Generado: {generado_en.strftime('%d/%m/%Y %H:%M')}", config=config_pdf)
 
-    doc.build(story, onFirstPage=_en_pagina, onLaterPages=_en_pagina)
+    class _CanvasNumerado(Canvas):
+        """Dibuja el pie al final para conocer el total de páginas («Página X de Y»)."""
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._estados = []
+
+        def showPage(self):
+            self._estados.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total = len(self._estados)
+            for estado in self._estados:
+                self.__dict__.update(estado)
+                draw_footer(
+                    self, doc, self._pageNumber, total, config=config_pdf,
+                    texto_pagina=f"{texto_generado} · Página {self._pageNumber} de {total}",
+                )
+                super().showPage()
+            super().save()
+
+    doc.build(story, onFirstPage=_encabezado, onLaterPages=_encabezado, canvasmaker=_CanvasNumerado)
     buffer.seek(0)
     return buffer.getvalue()
