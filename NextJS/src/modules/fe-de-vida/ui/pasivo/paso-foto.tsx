@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Camera, IdCard } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, IdCard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CapturaFoto, type OrigenFoto } from "@/shared/components/captura-foto/captura-foto";
 
@@ -37,7 +37,9 @@ export function PasoFoto({
       <h2 className="text-xl font-semibold">Foto con su cédula</h2>
       {/* Instrucciones en pasos cortos y letra grande: la usan personas jubiladas y pensionadas. */}
       <ul className="flex list-disc flex-col gap-1.5 pl-6 text-lg leading-relaxed font-medium">
-        <li>Que se vean su <strong>rostro</strong> y su <strong>cédula de identidad</strong>.</li>
+        <li>
+          Que se vean su <strong>rostro</strong> y su <strong>cédula de identidad</strong>.
+        </li>
         <li>Con buena luz y sin reflejos.</li>
         <li>Si la cámara no funciona, use «Subir foto» para cargar una foto desde su equipo.</li>
       </ul>
@@ -96,6 +98,7 @@ export function PasoFoto({
           onClick={onContinuar}
           disabled={!puedeContinuar || subiendo}
         >
+          {subiendo ? <Loader2 className="animate-spin" aria-hidden /> : null}
           {subiendo ? "Cargando foto…" : "Continuar"} <ArrowRight aria-hidden />
         </Button>
       </div>

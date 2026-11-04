@@ -20,7 +20,6 @@ from apps.identidad.domain.ports.repo_password_inicial import RepoPasswordInicia
 from apps.identidad.domain.services.politica_password_inicial import (
     DIAS_VIGENCIA_PASSWORD_INICIAL,
     ROL_AUTOGESTION_ID,
-    es_correo_institucional,
     vencimiento_desde,
 )
 from apps.identidad.domain.value_objects.condicion_trabajador import CondicionTrabajador
@@ -40,8 +39,10 @@ def aprovisionar_cuenta_trabajador(
 ) -> Cuenta | None:
     """Crea la cuenta si corresponde; devuelve la cuenta nueva o None si no hacía falta/no aplica.
 
-    `permitir_pasivo` solo lo activa la elección explícita de RRHH (endpoint `correo-acceso`): editar la ficha
-    de un pasivo que ya trae correo personal no le crea cuenta."""
+    Regla (decisión del usuario, 2026-11-03): cuando RRHH asigna un correo a un trabajador sin cuenta,
+    activo o pasivo, la cuenta se crea al momento, con cualquier dominio de correo. Es la misma regla
+    que ya aplicaba la sincronización diaria (`sincronizar_cuentas_trabajadores`), ahora inmediata.
+    `permitir_pasivo=False` conserva el comportamiento anterior para pasivos (no crea su cuenta)."""
     cedula = str(cedula or '').strip()
     if not cedula:
         return None
@@ -50,13 +51,9 @@ def aprovisionar_cuenta_trabajador(
         return None
 
     condicion = repo_condicion.condicion_por_cedula(cedula)
-    if condicion is CondicionTrabajador.PASIVO:
-        if not permitir_pasivo:
-            return None
-        # RRHH eligió su correo de acceso: cualquier dominio
-    elif condicion is CondicionTrabajador.ACTIVO and es_correo_institucional(correo, dominio_institucional):
-        pass
-    else:
+    if condicion is CondicionTrabajador.PASIVO and not permitir_pasivo:
+        return None
+    if condicion not in (CondicionTrabajador.ACTIVO, CondicionTrabajador.PASIVO) or '@' not in correo:
         return None
 
     cuenta = registrar_usuario(

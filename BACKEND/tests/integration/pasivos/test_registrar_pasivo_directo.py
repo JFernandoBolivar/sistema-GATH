@@ -51,6 +51,9 @@ def _cliente(*permisos):
 
 @pytest.fixture
 def catalogos():
+    # Un pasivo con correo recibe su cuenta AUTOGESTION al guardarse (decisión 2026-11-03): el rol debe existir.
+    from apps.identidad.infrastructure.models.cuenta_models import RolModel
+    RolModel.objects.get_or_create(id=3, defaults={'nombre_rol': 'AUTOGESTION'})
     NacionalidadModel.objects.get_or_create(
         pk=1, defaults={'codigo': 'V', 'nombre': 'Venezolana'},
     )

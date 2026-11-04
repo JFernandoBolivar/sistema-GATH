@@ -21,6 +21,7 @@ class RepoPersonalMemoria implements RepoPersonal {
       estadoCivilId: 1,
       estadoCivilNombre: "SOLTERO",
       carnetPatria: null,
+      carnetPatriaSerial: null,
       totalAnosApn: 4,
       asignaciones: [
         {

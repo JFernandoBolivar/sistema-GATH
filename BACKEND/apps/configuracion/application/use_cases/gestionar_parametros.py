@@ -3,6 +3,8 @@ Casos de uso de los parámetros del sistema (D9). Puros: reciben el repositorio 
 devuelven entidades; la auditoría (valor anterior y nuevo) la registra la capa
 de presentación con el puerto `AuditLogger`, como en el resto de módulos.
 """
+from dataclasses import replace
+
 from apps.configuracion.domain.entities.parametro import CambioParametro, ParametroSistema
 from apps.configuracion.domain.parametros import (
     DEFINICIONES,
@@ -32,7 +34,15 @@ def listar_parametros(repo: RepoParametros) -> list[ParametroSistema]:
                 minimo=definicion.minimo,
                 maximo=definicion.maximo,
             )
-        resultado.append(parametro)
+        # La definición es la fuente de verdad de textos y rangos (la fila solo guarda el valor).
+        resultado.append(replace(
+            parametro,
+            etiqueta=definicion.etiqueta,
+            descripcion=definicion.descripcion,
+            minimo=definicion.minimo,
+            maximo=definicion.maximo,
+            opciones=definicion.opciones,
+        ))
     return resultado
 
 
@@ -41,8 +51,10 @@ def actualizar_parametro(
 ) -> tuple[str, ParametroSistema]:
     """Valida y guarda; devuelve (valor anterior, parámetro actualizado)."""
     definicion = definicion_de(clave)
-    nuevo_valor = validar_valor(definicion, valor_crudo)
     actual = repo.obtener(clave)
+    nuevo_valor = validar_valor(
+        definicion, valor_crudo, actual.valor if actual is not None else None
+    )
     anterior = actual.valor if actual is not None else definicion.defecto
     parametro = ParametroSistema(
         clave=definicion.clave,
@@ -55,8 +67,9 @@ def actualizar_parametro(
         minimo=definicion.minimo,
         maximo=definicion.maximo,
         actualizado_por_id=actor_id,
+        opciones=definicion.opciones,
     )
-    return anterior, repo.guardar(parametro, actor_id)
+    return anterior, replace(repo.guardar(parametro, actor_id), opciones=definicion.opciones)
 
 
 def historial_parametro(

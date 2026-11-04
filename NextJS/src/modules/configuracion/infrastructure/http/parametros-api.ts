@@ -16,6 +16,7 @@ export interface ParametroApiItem {
   maximo: number | null;
   actualizado_por_id: number | null;
   actualizado_en: string | null;
+  opciones?: { valor: number; etiqueta: string }[];
 }
 
 export interface CambioParametroApiItem {

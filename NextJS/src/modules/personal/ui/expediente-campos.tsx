@@ -159,6 +159,14 @@ export function ExpedienteCampos({
             <Label htmlFor="carnetPatria">Carnet de la patria</Label>
             <Input id="carnetPatria" {...form.register("carnetPatria")} />
           </Field>
+          <Field>
+            <Label htmlFor="carnetPatriaSerial">Serial del Carnet de la Patria</Label>
+            <Input
+              id="carnetPatriaSerial"
+              placeholder="Serial"
+              {...form.register("carnetPatriaSerial")}
+            />
+          </Field>
         </div>
       </div>
 

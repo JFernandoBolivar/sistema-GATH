@@ -58,6 +58,7 @@ class EmpleadoSerializer(serializers.Serializer):
     estado_civil_id = serializers.IntegerField(read_only=True, allow_null=True)
     estado_civil_nombre = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria = serializers.CharField(read_only=True, allow_null=True)
+    carnet_patria_serial = serializers.CharField(read_only=True, allow_null=True)
     nacionalidad_id = serializers.IntegerField(read_only=True, default=1)
     nacionalidad_codigo = serializers.CharField(read_only=True, default="V")
     nacionalidad_nombre = serializers.CharField(read_only=True, default="VENEZOLANA")

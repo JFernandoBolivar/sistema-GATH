@@ -89,3 +89,37 @@ def test_historial_pagina_en_el_servidor():
     )
     assert total == 12
     assert len(filas) == 2
+
+
+CLAVES_RETENCION = [
+    d.clave for d in DEFINICIONES_POR_CLAVE.values() if d.grupo == 'retencion'
+]
+
+
+@pytest.mark.parametrize('clave', CLAVES_RETENCION)
+@pytest.mark.parametrize('valor', ['30', '90', '180', '365', '1095', '2190', '0'])
+def test_retencion_acepta_solo_las_opciones(clave, valor):
+    assert validar_valor(DEFINICIONES_POR_CLAVE[clave], valor) == valor
+
+
+@pytest.mark.parametrize('clave', CLAVES_RETENCION)
+@pytest.mark.parametrize('valor', ['1', '31', '3650', '-1', 'nunca'])
+def test_retencion_rechaza_otros_valores(clave, valor):
+    with pytest.raises(ValidationError):
+        validar_valor(DEFINICIONES_POR_CLAVE[clave], valor)
+
+
+def test_retencion_conserva_un_valor_actual_fuera_de_la_lista():
+    definicion = DEFINICIONES_POR_CLAVE[CLAVES_RETENCION[0]]
+    assert validar_valor(definicion, '45', valor_actual='45') == '45'
+    with pytest.raises(ValidationError):
+        validar_valor(definicion, '46', valor_actual='45')
+
+
+def test_listar_expone_las_opciones_de_retencion():
+    parametros = {p.clave: p for p in listar_parametros(RepoParametrosMemoria())}
+    for clave in CLAVES_RETENCION:
+        assert [v for v, _ in parametros[clave].opciones] == [30, 90, 180, 365, 1095, 2190, 0]
+        assert parametros[clave].opciones[-1][1] == 'Nunca'
+        assert int(parametros[clave].defecto) in {v for v, _ in parametros[clave].opciones}
+    assert parametros[CLAVE_PASSWORD_INICIAL_DIAS].opciones == ()

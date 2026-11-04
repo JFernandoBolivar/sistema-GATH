@@ -5,10 +5,11 @@ from core.domain.validacion_personas import (
     formatear_telefono,
     validar_cedula,
     validar_nombre,
+    validar_serial_carnet_patria,
     validar_telefono,
 )
 
-__all__ = ['validar_drf', 'validar_cedula', 'validar_nombre', 'validar_telefono', 'formatear_telefono']
+__all__ = ['validar_drf', 'validar_cedula', 'validar_nombre', 'validar_telefono', 'validar_serial_carnet_patria', 'formatear_telefono']
 
 
 def validar_drf(regla, value, **kwargs):

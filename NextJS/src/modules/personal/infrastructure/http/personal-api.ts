@@ -26,6 +26,7 @@ export interface EmpleadoApiItem {
   estado_civil_id: number | null;
   estado_civil_nombre: string | null;
   carnet_patria: string | null;
+  carnet_patria_serial: string | null;
   nacionalidad_id?: number | null;
   nacionalidad_codigo?: string | null;
   nacionalidad_nombre?: string | null;

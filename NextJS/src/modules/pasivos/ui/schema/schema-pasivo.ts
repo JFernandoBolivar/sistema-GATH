@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
+import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 
 /** Listado de pasivos por búsqueda (zero-trust R7). */
@@ -66,6 +67,7 @@ export const registrarPasivoSchema = z.object({
   telefonoMovil: telefonoMovilOpcional,
   telefonoHabitacion: telefonoHabitacionOpcional,
   carnetPatria: z.string().trim().max(30).nullable().optional(),
+  carnetPatriaSerial: serialCarnetPatriaZod(),
   datosVivienda: z
     .object({
       estado: z.number().int().positive().nullable().optional(),
@@ -96,6 +98,7 @@ export const actualizarPasivoSchema = z.object({
   telefonoMovil: telefonoMovilOpcional,
   telefonoHabitacion: telefonoHabitacionOpcional,
   carnetPatria: z.string().trim().max(30).nullable().optional(),
+  carnetPatriaSerial: serialCarnetPatriaZod(),
   fechaNacimiento: z.string().trim().nullable().optional(),
   estadoCivilId: z.number().int().positive().nullable().optional(),
   nacionalidadId: z.number().int().positive().nullable().optional(),
