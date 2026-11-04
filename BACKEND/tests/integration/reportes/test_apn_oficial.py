@@ -98,9 +98,9 @@ def test_paridad_sql_python_con_casos_variados(catalogo):
 
 def test_la_columna_legada_no_altera_la_anotacion(catalogo):
     emp = empleado('G9000002', catalogo, legado=Decimal('99.99'))
-    antecedente(emp, date(2010, 1, 1), date(2015, 1, 1))  # 5 años oficiales
+    antecedente(emp, date(2010, 1, 1), date(2015, 1, 1))  # 5 años exactos (enero: sin día inclusivo)
 
-    assert float(_anotado(emp) or 0) == pytest.approx(5.0027, abs=1e-4)
+    assert float(_anotado(emp) or 0) == pytest.approx(5.0, abs=1e-4)
 
 
 def test_filtros_apn_usan_el_valor_oficial_y_no_la_columna_legada(catalogo):
@@ -119,5 +119,24 @@ def test_la_columna_del_reporte_muestra_el_valor_oficial(catalogo):
 
     fila = next(f for f in _reporte({}).filas if f['cedula'] == 'G9000030')
 
-    assert fila['total_anos_apn'] == pytest.approx(5.0027, abs=1e-4)
+    assert fila['total_anos_apn'] == pytest.approx(5.0, abs=1e-4)
     assert 'total_anos_apn' in _reporte({}).columnas
+
+
+def test_paridad_sql_python_casos_rrhh_con_fusion(catalogo):
+    emp = empleado('G9000040', catalogo)
+    antecedente(emp, date(2012, 11, 12), date(2018, 3, 1))
+    antecedente(emp, date(2010, 4, 11), date(2013, 11, 14))   # se solapa: se fusiona
+    antecedente(emp, date(2019, 1, 31), date(2019, 6, 30))    # tramo aparte, día 31
+    antecedente(emp, date(2019, 6, 30), date(2019, 9, 15))    # contiguo al anterior
+    antecedente(emp, date(2021, 1, 1), None)                  # abierto: se ignora
+
+    esperado = _total_anos_apn_calculado(
+        AntecedenteServicioModel.objects.filter(empleado=emp)
+    )
+    assert float(_anotado(emp) or 0) == pytest.approx(esperado, abs=1e-4)
+
+
+def test_sql_empleado_sin_antecedentes_da_cero(catalogo):
+    emp = empleado('G9000050', catalogo)
+    assert float(_anotado(emp) or 0) == 0.0

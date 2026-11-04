@@ -204,10 +204,17 @@ def test_logo_configuracion_post_rechaza_archivo_invalido_y_usa_clave_uuid():
 
     bueno = view.initialize_request(factory.post("/x", {"file": _subido("a b.png", PNG, "image/png")}, format="multipart"))
     bueno.user = MagicMock(pk=1)
-    with patch("apps.configuracion.presentation.views.configuracion_visual_views.SeaweedFSStorage") as storage, \
-            patch("apps.configuracion.presentation.views.configuracion_visual_views.guardar_logo_configuracion") as guardar, \
-            patch("apps.configuracion.presentation.views.configuracion_visual_views.ConfiguracionVisualSerializer"):
+    vistas = "apps.configuracion.presentation.views.configuracion_visual_views"
+    # Desde el histórico de versiones, subir registra la versión (en vez de
+    # sobrescribir la clave directamente) y audita; ambos se mockean aquí.
+    with patch(f"{vistas}.SeaweedFSStorage") as storage, \
+            patch(f"{vistas}.registrar_version_imagen", return_value=(MagicMock(), MagicMock(id="v1"), [])) as registrar, \
+            patch(f"{vistas}.RepoConfiguracionVisualORM"), \
+            patch(f"{vistas}.RepoVersionesImagenCintilloORM"), \
+            patch(f"{vistas}.registrar_auditoria"), \
+            patch(f"{vistas}._dto_con_urls"), \
+            patch(f"{vistas}.ConfiguracionVisualSerializer"):
         view.post(bueno, campo="logo-principal")
     clave = storage.return_value.subir.call_args.args[0]
     assert clave.startswith("configuracion/logo-principal/") and " " not in clave
-    assert guardar.call_args.args[2] == clave
+    assert registrar.call_args.args[3] == clave

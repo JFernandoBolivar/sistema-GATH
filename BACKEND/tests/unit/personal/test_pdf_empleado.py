@@ -160,3 +160,23 @@ def test_reducir_imagen_para_pdf_achica_imagenes_grandes():
     assert len(reducida) < len(original)
     with PILImage.open(BytesIO(reducida)) as img:
         assert max(img.size) <= 600
+
+
+@patch("apps.personal.infrastructure.pdf_empleado.construir_config_pdf", return_value=None)
+def test_tabla_partida_lleva_titulo_de_continuacion(_mock_config):
+    from reportlab.platypus import Paragraph
+    textos = []
+    orig_init = Paragraph.__init__
+
+    def init(self, text, *a, **kw):
+        textos.append(text)
+        orig_init(self, text, *a, **kw)
+
+    antecedentes = [
+        {"fecha_ingreso": f"{1980 + i}-01-01", "fecha_egreso": f"{1980 + i}-06-30", "organismo_nombre": f"Organismo {i}"}
+        for i in range(40)
+    ]
+    with patch.object(Paragraph, "__init__", init):
+        pdf = construir_pdf_expediente_empleado(_dto_base(antecedentes=antecedentes))
+    assert pdf.startswith(b"%PDF")
+    assert "ANTECEDENTES LABORALES (CONTINUACIÓN)" in textos

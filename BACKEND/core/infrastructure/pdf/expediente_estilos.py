@@ -58,10 +58,14 @@ def seccion(titulo: str, cuerpo, ancho: float) -> list:
     de página dejando un hueco en blanco; con menos espacio, pasa completa a
     la hoja siguiente.
     """
+    bloques = cuerpo if isinstance(cuerpo, list) else [cuerpo]
+    for b in bloques:
+        if isinstance(b, TablaSeccion):
+            b.titulo_seccion, b.ancho_titulo = titulo, ancho
     return [
         Spacer(1, 14),
         KeepTogether(
-            [titulo_seccion(titulo, ancho), Spacer(1, 6), *(cuerpo if isinstance(cuerpo, list) else [cuerpo])],
+            [titulo_seccion(titulo, ancho), Spacer(1, 6), *bloques],
             maxHeight=_ESPACIO_MINIMO,
         ),
     ]
@@ -101,11 +105,31 @@ def grilla(pares: list[tuple[str, str]], ancho: float, columnas: int = 2) -> Tab
     return t
 
 
+class TablaSeccion(Table):
+    """Tabla de una sección: si se parte entre páginas, la parte que sigue lleva
+    arriba «<Título> (continuación)» además de repetir los encabezados."""
+
+    titulo_seccion: str | None = None
+    ancho_titulo: float = 0
+
+    def split(self, availWidth, availHeight):
+        partes = super().split(availWidth, availHeight)
+        if len(partes) != 2 or not self.titulo_seccion:
+            return partes
+        primera, resto = partes
+        resto.titulo_seccion, resto.ancho_titulo = self.titulo_seccion, self.ancho_titulo
+        return [primera, KeepTogether([
+            titulo_seccion(f"{self.titulo_seccion} (continuación)", self.ancho_titulo),
+            Spacer(1, 6),
+            resto,
+        ])]
+
+
 def tabla(columnas: list[str], filas: list[list[str]], pesos: list[float], ancho: float) -> Table:
     total = float(sum(pesos))
     anchos = [ancho * p / total for p in pesos]
     datos = [[_p(c, 'th') for c in columnas]] + [[_p(c, 'td') for c in fila] for fila in filas]
-    t = Table(datos, colWidths=anchos, repeatRows=1)
+    t = TablaSeccion(datos, colWidths=anchos, repeatRows=1)
     estilo = [
         ('BACKGROUND', (0, 0), (-1, 0), AZUL_CLARO),
         ('LINEBELOW', (0, 0), (-1, 0), 0.75, AZUL),
