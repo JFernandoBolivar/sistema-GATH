@@ -101,8 +101,9 @@ def preparar_consulta_personal(
     limpios = {
         clave: valor
         for clave, valor in (filtros or {}).items()
-        if _tiene_valor(valor)
+        if _tiene_valor(valor) and clave != 'fecha_corte'
     }
+    fecha_corte = _fecha_corte((filtros or {}).get('fecha_corte'))
 
     desconocidos = sorted(
         clave
@@ -138,7 +139,20 @@ def preparar_consulta_personal(
         tipo_reporte=tipo_reporte,
         agrupar_por=agrupar_por,
         agrupar_por_ruta=agrupar_por_ruta,
+        fecha_corte=fecha_corte,
     )
+
+
+def _fecha_corte(valor):
+    """Fecha de corte opcional del cálculo APN (AAAA-MM-DD); por defecto hoy."""
+    if valor in (None, ''):
+        return None
+    if isinstance(valor, date):
+        return valor
+    try:
+        return date.fromisoformat(str(valor).strip())
+    except ValueError:
+        raise ValidationError('La fecha de corte debe tener formato AAAA-MM-DD.') from None
 
 
 def _exigir_permiso_de_estructura(filtros: dict, puede_filtrar_estructura: bool) -> None:

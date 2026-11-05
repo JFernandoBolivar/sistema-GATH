@@ -33,6 +33,7 @@ import {
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+
 import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import { Separator } from "@/shared/ui/components/separator";
 import {
@@ -315,10 +316,27 @@ export default function EmpleadoDetalleSheet({
                         </TableRow>
                       ))}
                       <TableRow>
-                        <TableCell colSpan={3} className="text-right font-bold">
-                          {`Total: ${detalle.totalAnosApn}`}
+                        <TableCell colSpan={3} className="text-right font-semibold">
+                          {`Antecedentes (ciclos cerrados): ${detalle.apnAntecedentes}`}
                         </TableCell>
                       </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-right font-semibold">
+                          {`Tiempo en CONATEL (en curso): ${detalle.apnEnCurso ?? "Sin periodo en curso"}`}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-right font-bold">
+                          {`Total APN: ${detalle.apnTotal}`}
+                        </TableCell>
+                      </TableRow>
+                      {detalle.apnIncompleto ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right text-sm font-medium text-danger">
+                            Fecha de ingreso pendiente: el total APN está incompleto.
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
                     </TableBody>
                   </Table>
                 </CardContent>

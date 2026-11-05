@@ -1,23 +1,17 @@
 "use client";
 
+import { ContadorCampo } from "@/components/contador-caracteres";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { PageHeader } from "@/shared/ui/components/page-header";
-import { cumpleCondicion } from "@/shared/lib/evaluador-iam";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
-import {
-  SECCIONES_DEF,
-  claveCampo,
-  esSeccionConocida,
-} from "../../domain/value-objects/campos-seccion";
+import { SECCIONES_DEF, esSeccionConocida } from "../../domain/value-objects/campos-seccion";
 import {
   MOTIVO_MAX_CARACTERES,
   MOTIVO_MIN_MSG,
@@ -26,12 +20,14 @@ import {
   listarSeccionesAction,
   solicitarActualizacionAction,
 } from "../../infrastructure/actions/solicitudes-actions";
+import { SelectorCamposSolicitud } from "./selector-campos-solicitud";
+import { usePoliticaAutogestion } from "./use-politica-autogestion";
 import { solicitudNuevaSchema, type SolicitudNuevaValores } from "../schema/schema-solicitud";
 
 /** «Solicitar actualización»: elegir los campos concretos a actualizar y explicar el motivo. */
 export default function NuevaSolicitudPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { politica, isLoading: cargandoPolitica } = usePoliticaAutogestion();
   const { data, error, isLoading, mutate } = useSWR("secciones-autogestion", async () => {
     const res = await listarSeccionesAction();
     if (!res.ok) throw new Error(res.mensaje);
@@ -66,17 +62,22 @@ export default function NuevaSolicitudPage() {
     }
   }
 
-  if (status === "authenticated" && !cumpleCondicion("ACTIVO", session?.user?.condicionTrabajador)) {
+  if (!cargandoPolitica && politica && !politica.habilitado) {
     return (
       <div className="flex max-w-3xl flex-col gap-6">
         <PageHeader titulo="Solicitar actualización de datos" />
         <VistaVacia
-          titulo="Esta opción no está disponible para su condición"
-          descripcion="Solo los trabajadores activos pueden solicitar la actualización de sus datos."
+          titulo="Las solicitudes no están habilitadas para su condición"
+          descripcion="Bienestar Social todavía no habilitó la actualización de datos para su condición. Si ya tiene una solicitud en curso, puede continuarla desde «Mis solicitudes»."
         />
       </div>
     );
   }
+
+  const permitidas = new Set(politica?.secciones ?? []);
+  const seccionesDisponibles = (data ?? []).filter(
+    (s) => esSeccionConocida(s.codigo) && (permitidas.size === 0 || permitidas.has(s.codigo)),
+  );
 
   return (
     <div className="flex max-w-3xl flex-col gap-6">
@@ -84,7 +85,9 @@ export default function NuevaSolicitudPage() {
         titulo="Solicitar actualización de datos"
         descripcion="Elija qué datos necesita actualizar y cuéntenos el motivo. Bienestar Social le habilitará un plazo para cargar los cambios y sus soportes."
       />
-      {isLoading ? <VistaCargando mensaje="Cargando los campos disponibles…" onReintentar={() => mutate()} /> : null}
+      {isLoading || cargandoPolitica ? (
+        <VistaCargando mensaje="Cargando los campos disponibles…" onReintentar={() => mutate()} />
+      ) : null}
       {error ? (
         <VistaError
           mensaje="No se pudieron cargar las secciones disponibles."
@@ -96,7 +99,7 @@ export default function NuevaSolicitudPage() {
           <fieldset className="flex flex-col gap-3">
             <legend className="text-lg font-semibold">¿Qué datos desea actualizar?</legend>
             <p className="text-sm text-muted-foreground">
-              Marque solo los campos que necesita cambiar. Las secciones únicamente los agrupan. Su
+              Marque los campos que necesita cambiar. En grupo familiar, contactos de emergencia y formaciones, elija si desea agregar, corregir o quitar registros. Su
               correo institucional lo cambia Recursos Humanos, no puede solicitarlo aquí.
             </p>
             <Controller
@@ -104,51 +107,16 @@ export default function NuevaSolicitudPage() {
               name="campos"
               render={({ field }) => (
                 <ul className="flex flex-col gap-4">
-                  {data
-                    .filter((s) => esSeccionConocida(s.codigo))
-                    .map((s) => {
+                  {seccionesDisponibles.map((s) => {
                       const def = SECCIONES_DEF[s.codigo as keyof typeof SECCIONES_DEF];
                       return (
-                        <li key={s.codigo} className="rounded-lg border bg-card p-4">
-                          <p className="text-base font-semibold">{def.nombre}</p>
-                          <p className="text-sm text-muted-foreground">{def.descripcion}</p>
-                          {s.requiereSoporte ? (
-                            <p className="mt-1 text-sm font-medium text-warning">
-                              Exige adjuntar un soporte
-                            </p>
-                          ) : null}
-                          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                            {def.entidades.flatMap((e) =>
-                              e.campos.map((c) => {
-                                const clave = claveCampo(e.entidad, c.campo);
-                                const marcado = field.value.includes(clave);
-                                return (
-                                  <li key={clave}>
-                                    <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 has-[:checked]:border-primary has-[:checked]:bg-accent">
-                                      <Checkbox
-                                        checked={marcado}
-                                        onCheckedChange={(v) =>
-                                          field.onChange(
-                                            v
-                                              ? [...field.value, clave]
-                                              : field.value.filter((x) => x !== clave),
-                                          )
-                                        }
-                                        className="size-5"
-                                        aria-label={`${def.nombre}: ${c.etiqueta}`}
-                                      />
-                                      <span className="text-base">
-                                        {e.unica || e.campos.length === 1
-                                          ? c.etiqueta
-                                          : `${e.etiqueta}: ${c.etiqueta}`}
-                                      </span>
-                                    </label>
-                                  </li>
-                                );
-                              }),
-                            )}
-                          </ul>
-                        </li>
+                        <SelectorCamposSolicitud
+                          key={s.codigo}
+                          seccion={def}
+                          requiereSoporte={s.requiereSoporte}
+                          valor={field.value}
+                          onCambio={field.onChange}
+                        />
                       );
                     })}
                 </ul>
@@ -174,6 +142,7 @@ export default function NuevaSolicitudPage() {
               aria-describedby={errors.motivo ? "motivo-error" : undefined}
               {...register("motivo")}
             />
+            <ContadorCampo control={control} name="motivo" max={MOTIVO_MAX_CARACTERES} />
             <p className="text-sm text-muted-foreground">{MOTIVO_MIN_MSG}.</p>
             {errors.motivo ? (
               <p id="motivo-error" className="text-sm font-medium text-danger">

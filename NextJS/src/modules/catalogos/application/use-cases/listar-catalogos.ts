@@ -59,8 +59,11 @@ export async function listarTiposNomina(repo: RepoCatalogos): Promise<CatalogoIt
   return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
 }
 
-export async function listarParentescos(repo: RepoCatalogos): Promise<CatalogoItemDTO[]> {
-  const entidades = await repo.listarParentescos();
+export async function listarParentescos(
+  repo: RepoCatalogos,
+  uso?: "familiar" | "contacto",
+): Promise<CatalogoItemDTO[]> {
+  const entidades = await repo.listarParentescos(uso);
   return entidades.map((e) => ({ id: e.id, nombre: e.nombre }));
 }
 

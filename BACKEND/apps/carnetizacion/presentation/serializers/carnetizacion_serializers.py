@@ -1,6 +1,7 @@
 """
 Serializers de Presentación de Carnetización.
 """
+from core.domain.limites_texto import OBSERVACION_MIN, OBSERVACION_MAX, mensajes_texto
 from rest_framework import serializers
 
 
@@ -23,7 +24,8 @@ class EmitirCarnetInputSerializer(serializers.Serializer):
     )
     motivo_id = serializers.IntegerField(required=True)
     observaciones = serializers.CharField(
-        required=False, allow_blank=True, max_length=500, trim_whitespace=True
+        required=False, allow_blank=True, min_length=OBSERVACION_MIN, max_length=OBSERVACION_MAX, trim_whitespace=True,
+        error_messages=mensajes_texto('Las observaciones', OBSERVACION_MIN, OBSERVACION_MAX),
     )
 
 

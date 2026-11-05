@@ -1,5 +1,6 @@
 "use client";
 
+import { ContadorCampo } from "@/components/contador-caracteres";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
@@ -239,6 +240,7 @@ export default function FormDwellingUpdateDialog({
                   {...register("direccionExacta")}
                   placeholder="Calle, Casa, Apartamento, Sector"
                 />
+                <ContadorCampo control={form.control} name="direccionExacta" max={DIRECCION_MAX} />
               </CampoDialogo>
 
               <CampoDialogo id="codigoPostalId" label="Código Postal *" error={mensajeDe(errores.codigoPostalId)}>

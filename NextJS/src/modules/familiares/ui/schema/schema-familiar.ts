@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import { REGEX } from "@/shared/validation/regex";
 import { ID_OTRA_FAMILIAR } from "../catalogo-otra-familiar";
@@ -91,8 +92,8 @@ export const familiarSchema = z.object({
     .nullable()
     .optional()
     .transform((v) => (v ? v : null))
-    .refine((v) => v === null || /^\d{6,9}$/.test(v), {
-      message: "La cédula del familiar solo admite números (6 a 9 dígitos)",
+    .refine((v) => v === null || /^\d{5,9}$/.test(v), {
+      message: "La cédula del familiar solo admite números (5 a 9 dígitos)",
     }),
   primerNombre: z
     .string()
@@ -130,11 +131,7 @@ export const familiarSchema = z.object({
   sexoId: z.number().positive({ message: "Seleccione un sexo válido" }),
   mismoEnte: z.boolean().default(false),
   heredero: z.boolean().default(false),
-  observaciones: z
-    .string()
-    .max(500, { message: "Las observaciones admiten máximo 500 caracteres" })
-    .optional()
-    .nullable(),
+  observaciones: textoLibreOpcional("Las observaciones", LIMITES_TEXTO.observacion).optional().nullable(),
   formacionAcademica: formacionAcademicaFamiliarSchema,
   perfilSalud: perfilSaludFamiliarSchema,
   perfilFisico: perfilFisicoFamiliarSchema,

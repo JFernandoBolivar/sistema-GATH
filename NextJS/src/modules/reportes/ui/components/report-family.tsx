@@ -58,6 +58,7 @@ import { useState, useTransition } from "react";
 import { schemaReportFamily, type SchemaReportFamilyType } from "../schema/report-schema-family";
 import Loading from "@/shared/ui/components/loading";
 import { Download, Eraser, Search } from "lucide-react";
+import { GrupoFiltrosReporte, PanelFiltrosReporte } from "./panel-filtros-reporte";
 import { formatInTimeZone } from "date-fns-tz";
 
 /**
@@ -256,11 +257,8 @@ export default function ReportFamily({
               )}
               <div className="flex flex-col gap-2 col-span-full min-w-0 w-full">
                 <div className="w-full min-w-0">
-                  <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-amber-700">
-                      <legend className="text-amber-900 font-semibold px-1">
-                        Información Básica Familiar
-                      </legend>
+                  <PanelFiltrosReporte>
+                    <GrupoFiltrosReporte titulo="Información Básica Familiar" campos={["filtros.parentesco_id", "filtros.sexo_familiar_id", "filtros.edad_familiar_min", "filtros.edad_familiar_max"]}>
                       <FormField
                         control={form.control}
                         name="filtros.parentesco_id"
@@ -358,12 +356,9 @@ export default function ReportFamily({
                           </FormItem>
                         )}
                       />
-                    </fieldset>
+                    </GrupoFiltrosReporte>
 
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-violet-800">
-                      <legend className="text-violet-900 font-semibold px-1">
-                        Información De Salud
-                      </legend>
+                    <GrupoFiltrosReporte titulo="Información De Salud" campos={["filtros.grupo_sanguineo_id", "filtros.patologias_id", "filtros.discapacidades_id"]}>
                       <FormField
                         control={form.control}
                         name="filtros.grupo_sanguineo_id"
@@ -468,13 +463,10 @@ export default function ReportFamily({
                           </FormItem>
                         )}
                       />
-                    </fieldset>
+                    </GrupoFiltrosReporte>
 
                     {puedeEstructura && (
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 md:col-span-2">
-                        <legend className="text-green-800 font-semibold px-1">
-                          Dirección Administrativa Del Empleado
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Dirección Administrativa Del Empleado" campos={["filtros.dependencia_id", "filtros.direccion_general_id", "filtros.direccion_linea_id", "filtros.coordinacion_id"]}>
                         <FormField
                           control={form.control}
                           name="filtros.dependencia_id"
@@ -607,13 +599,10 @@ export default function ReportFamily({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
                     )}
 
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
-                      <legend className="text-red-900 font-semibold px-1">
-                        Información De Cargo Del Empleado
-                      </legend>
+                    <GrupoFiltrosReporte titulo="Información De Cargo Del Empleado" campos={["filtros.nomina_id"]}>
 
                       <FormField
                         control={form.control}
@@ -649,12 +638,9 @@ export default function ReportFamily({
                           </FormItem>
                         )}
                       />
-                    </fieldset>
+                    </GrupoFiltrosReporte>
 
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-blue-900">
-                      <legend className="text-blue-900 font-semibold px-1">
-                        Información Académica
-                      </legend>
+                    <GrupoFiltrosReporte titulo="Información Académica" campos={["filtros.nivel_academico_id"]}>
                       <FormField
                         control={form.control}
                         name="filtros.nivel_academico_id"
@@ -689,12 +675,9 @@ export default function ReportFamily({
                           </FormItem>
                         )}
                       />
-                    </fieldset>
+                    </GrupoFiltrosReporte>
 
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-black">
-                      <legend className="text-black font-semibold px-1">
-                        Información Básica Del Trabajador
-                      </legend>
+                    <GrupoFiltrosReporte titulo="Información Básica Del Trabajador" campos={["filtros.sexo_empleado_id", "filtros.edad_empleado_min", "filtros.edad_empleado_max"]}>
                       <FormField
                         control={form.control}
                         name="filtros.sexo_empleado_id"
@@ -764,12 +747,9 @@ export default function ReportFamily({
                           </FormItem>
                         )}
                       />
-                    </fieldset>
+                    </GrupoFiltrosReporte>
 
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-emerald-800">
-                      <legend className="text-emerald-800 font-semibold px-1">
-                        Dirección De Habitaciones
-                      </legend>
+                    <GrupoFiltrosReporte titulo="Dirección De Habitaciones" campos={["filtros.region_id", "filtros.estado_id", "filtros.municipio_id", "filtros.parroquia_id", "filtros.condicion_vivienda_id"]}>
                       <FormField
                         control={form.control}
                         name="filtros.region_id"
@@ -929,12 +909,12 @@ export default function ReportFamily({
                           </FormItem>
                         )}
                       />
-                    </fieldset>
-                  </div>
+                    </GrupoFiltrosReporte>
+                  </PanelFiltrosReporte>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row flex-1 w-full col-span-full pt-2">
+              <div className="sticky bottom-0 z-10 grid gap-2 border-t bg-card pt-3 sm:grid-cols-3 sm:flex-row col-span-full">
                 <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"

@@ -41,6 +41,7 @@ export interface CambioApi {
   campo: string;
   valor_anterior: unknown;
   valor_propuesto: unknown;
+  referencia: string | null;
   valor_actual: unknown;
   conflicto: boolean;
   decision: string;
@@ -53,6 +54,8 @@ export interface SoporteApi {
   id: string;
   seccion: string;
   tipo: string;
+  entidad_id: string | null;
+  referencia: string | null;
   mime_real: string;
   tamano_bytes: number;
   nombre_original: string;
@@ -67,6 +70,12 @@ export interface ProrrogaApi {
   motivo: string;
   prorrogada_por: string;
   fecha: string | null;
+}
+
+export interface PoliticaAutogestionApi {
+  condicion: string;
+  habilitado: boolean;
+  secciones: string[];
 }
 
 export interface DetalleSolicitudApi extends SolicitudApi {
@@ -123,6 +132,7 @@ function cuerpoBorrador(cambios: ItemBorrador[], version?: number): Record<strin
       campo: c.campo,
       valor: c.valor,
       ...(c.entidadId ? { entidad_id: c.entidadId } : {}),
+      ...(c.referencia ? { referencia: c.referencia } : {}),
     })),
   };
 }
@@ -157,6 +167,8 @@ export const solicitudesApi = {
       version !== undefined ? { version } : {},
     ),
   listarSecciones: () => apiClient.get<ApiResponse<SeccionApi[]>>(`${BASE}/secciones/`),
+  miPolitica: () =>
+    apiClient.get<ApiResponse<PoliticaAutogestionApi>>(`${BASE}/mi-politica/`),
   misDatosComplementarios: () =>
     apiClient.get<ApiResponse<DatosComplementariosApi>>(`${BASE}/mis-datos-complementarios/`),
 

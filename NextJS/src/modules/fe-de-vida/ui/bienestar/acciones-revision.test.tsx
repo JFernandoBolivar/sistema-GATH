@@ -6,6 +6,8 @@ import { decisionFake, solicitudFake } from "../../domain/services/fixtures-fe-d
 const devolver = vi.fn();
 const rechazar = vi.fn();
 const retirar = vi.fn();
+const reenviar = vi.fn();
+const regenerar = vi.fn();
 const toastOk = vi.fn();
 vi.mock("../../infrastructure/actions/fe-de-vida-actions", () => ({
   registrarCheckAction: vi.fn().mockResolvedValue({ ok: true, mensaje: "ok", datos: {} }),
@@ -13,6 +15,8 @@ vi.mock("../../infrastructure/actions/fe-de-vida-actions", () => ({
   devolverSolicitudAction: (...a: unknown[]) => devolver(...a),
   rechazarSolicitudAction: (...a: unknown[]) => rechazar(...a),
   retirarCheckAction: (...a: unknown[]) => retirar(...a),
+  reenviarConstanciaAction: (...a: unknown[]) => reenviar(...a),
+  regenerarConstanciaAction: (...a: unknown[]) => regenerar(...a),
 }));
 vi.mock("sonner", () => ({ toast: { success: (...a: unknown[]) => toastOk(...a), error: vi.fn() } }));
 
@@ -25,6 +29,7 @@ beforeEach(() => {
   devolver.mockReset().mockResolvedValue({ ok: true, mensaje: "Devuelta", datos: {} });
   rechazar.mockReset().mockResolvedValue({ ok: true, mensaje: "Rechazada", datos: {} });
   retirar.mockReset().mockResolvedValue({ ok: true, mensaje: "Check retirado.", datos: {} });
+  regenerar.mockReset().mockResolvedValue({ ok: true, mensaje: "ok", datos: { numero: "FV-1", plantillaVersion: 1, reenviado: false } });
   toastOk.mockReset();
 });
 
@@ -74,6 +79,25 @@ describe("AccionesRevision: solo se pintan las acciones que declara el servidor"
     expect(screen.getByRole("button", { name: /dar check/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /devolver para corrección/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rechazar/i })).toBeInTheDocument();
+  });
+
+  it("constancia validada: cada botón trae su ayuda y Regenerar pide confirmación", async () => {
+    render(
+      <AccionesRevision solicitud={solicitudFake()} acciones={["reenviar_constancia", "regenerar_constancia"]} onHecho={vi.fn()} />,
+    );
+    expect(screen.getByText(/envía otra vez por correo al pasivo la constancia actual, sin cambiarla/i)).toBeInTheDocument();
+    expect(screen.getByText(/úsalo solo si la constancia salió mal/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /regenerar constancia/i }));
+    expect(await screen.findByRole("button", { name: /^cancelar$/i })).toBeInTheDocument();
+    expect(regenerar).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: /^regenerar$/i }));
+    await waitFor(() => expect(regenerar).toHaveBeenCalledWith(solicitudFake().id, false));
+  });
+
+  it("sin la acción regenerar (analista) no se pinta el botón", () => {
+    render(<AccionesRevision solicitud={solicitudFake()} acciones={["reenviar_constancia"]} onHecho={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /regenerar constancia/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /reenviar constancia/i })).toBeInTheDocument();
   });
 
   it("sin acciones: aviso y ningún botón", () => {
@@ -145,5 +169,60 @@ describe("DialogoDevolver", () => {
   it("el campo del motivo no se puede redimensionar", () => {
     render(<DialogoDevolver abierto pendiente={false} onCerrar={vi.fn()} onConfirmar={vi.fn()} />);
     expect(screen.getByLabelText(/motivo/i)).toHaveClass("resize-none");
+  });
+});
+
+describe("Acciones de constancia (solicitudes VALIDADAS)", () => {
+  beforeEach(() => {
+    reenviar.mockReset().mockResolvedValue({
+      ok: true,
+      mensaje: "Constancia reenviada",
+      datos: {
+        destinatarioEnmascarado: "j***z@gmail.com",
+        copiaEnmascarada: null,
+        reenviosHoy: 1,
+        limiteDiario: 3,
+      },
+    });
+    regenerar.mockReset().mockResolvedValue({
+      ok: true,
+      mensaje: "Constancia regenerada",
+      datos: {
+        numero: "FV-2026-000001",
+        plantillaVersion: 2,
+        reenviado: false,
+      },
+    });
+  });
+
+  it("muestra botones «Reenviar constancia» y «Regenerar constancia» cuando las acciones están disponibles", () => {
+    const s = solicitudFake({ estado: "VALIDADA" });
+    render(<AccionesRevision solicitud={s} acciones={["reenviar_constancia", "regenerar_constancia"]} onHecho={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /reenviar constancia/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /regenerar constancia/i })).toBeInTheDocument();
+  });
+
+  it("al hacer clic en «Reenviar constancia» abre diálogo y al confirmar ejecuta reenviarConstanciaAction", async () => {
+    const onHecho = vi.fn();
+    const s = solicitudFake({ estado: "VALIDADA" });
+    render(<AccionesRevision solicitud={s} acciones={["reenviar_constancia"]} onHecho={onHecho} />);
+    await userEvent.click(screen.getByRole("button", { name: /reenviar constancia/i }));
+    expect(await screen.findByRole("heading", { name: /reenviar constancia de fe de vida/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /^reenviar constancia$/i }));
+    await waitFor(() => expect(reenviar).toHaveBeenCalledWith(s.id));
+    await waitFor(() => expect(onHecho).toHaveBeenCalled());
+  });
+
+  it("al hacer clic en «Regenerar constancia» abre diálogo con checkbox y ejecuta regenerarConstanciaAction", async () => {
+    const onHecho = vi.fn();
+    const s = solicitudFake({ estado: "VALIDADA" });
+    render(<AccionesRevision solicitud={s} acciones={["regenerar_constancia"]} onHecho={onHecho} />);
+    await userEvent.click(screen.getByRole("button", { name: /regenerar constancia/i }));
+    expect(await screen.findByRole("heading", { name: /regenerar constancia de fe de vida/i })).toBeInTheDocument();
+    const chk = screen.getByLabelText(/reenviar al correo del pasivo inmediatamente/i);
+    await userEvent.click(chk);
+    await userEvent.click(screen.getByRole("button", { name: /regenerar y reenviar/i }));
+    await waitFor(() => expect(regenerar).toHaveBeenCalledWith(s.id, true));
+    await waitFor(() => expect(onHecho).toHaveBeenCalled());
   });
 });

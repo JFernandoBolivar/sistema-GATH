@@ -16,13 +16,24 @@ Uso:
 import json
 from pathlib import Path
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.validators import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
 
+from apps.autogestion.infrastructure.models.actualizacion_models import (
+    DatosComplementariosTrabajadorModel,
+)
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+from apps.configuracion.domain.correo_acceso import (
+    DatosCorreoTrabajador,
+    resolver_correo_para_trabajador,
+)
+from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
+    RepoPoliticaCorreoAccesoORM,
+)
 from apps.identidad.application.dtos.cuenta_dto import RegistrarCuentaDTO
 from apps.identidad.domain.events import EventoIdentidad, TipoEventoIdentidad
 from apps.identidad.infrastructure.signals import publicar_evento_identidad
@@ -102,6 +113,16 @@ class Command(BaseCommand):
         }
 
         activos, pasivos = self._condiciones()
+        politica_repo = RepoPoliticaCorreoAccesoORM()
+        politica = politica_repo.obtener_politica()
+        excepciones = politica_repo.listar_cedulas_excepcion()
+        dom_inst = getattr(settings, 'DOMINIO_CORREO_INSTITUCIONAL', '@conatel.gob.ve')
+        complementarios = {
+            c.cedula: (c.correo_alternativo or '').strip()
+            for c in DatosComplementariosTrabajadorModel.objects.filter(
+                cedula__in=activos | pasivos
+            )
+        }
         cuentas = {
             cuenta.cedula_id: cuenta
             for cuenta in CuentaModel.objects.only(
@@ -114,6 +135,36 @@ class Command(BaseCommand):
             'cedulaidentidad', 'nombres', 'apellidos', 'correo'
         ).iterator():
             condicion = self._condicion(cedula, activos, pasivos)
+
+            if condicion is not None and cedula not in excepciones:
+                correo_alt = complementarios.get(cedula, '')
+                correo_inst = correo if dom_inst in correo.lower() else ''
+                datos_t = DatosCorreoTrabajador(
+                    cedula=cedula,
+                    nombre_completo=f'{nombres} {apellidos}'.strip(),
+                    condicion=condicion,
+                    correo_actual_acceso=correo,
+                    correo_institucional=correo_inst,
+                    correo_alternativo=correo_alt,
+                    correo_ficha=correo,
+                    tiene_cuenta=(cedula in cuentas),
+                    es_excepcion_manual=False,
+                )
+                correo_resuelto = resolver_correo_para_trabajador(datos_t, politica)
+                if not correo_resuelto:
+                    resumen['sin_correo'] += 1
+                    detalle['sin_correo'].append({
+                        'cedula': cedula,
+                        'nombre': f'{nombres} {apellidos}'.strip(),
+                        'condicion': condicion,
+                        'motivo': 'pasivos sin correo personal' if condicion == 'PASIVO' else 'sin correo institucional',
+                    })
+                    continue
+                if correo_resuelto != correo:
+                    if aplicar:
+                        EmployeeModel.objects.filter(cedulaidentidad=cedula).update(correo=correo_resuelto)
+                    correo = correo_resuelto
+
             try:
                 validate_email(correo)
             except DjangoValidationError:

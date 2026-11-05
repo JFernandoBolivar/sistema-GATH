@@ -113,6 +113,11 @@ export interface EmpleadoDTO {
   nacionalidadCodigo?: string | null;
   nacionalidadNombre?: string | null;
   totalAnosApn: number;
+  apnAntecedentes?: { years: number; months: number; days: number } | null;
+  apnEnCurso?: { years: number; months: number; days: number } | null;
+  apnTotal?: { years: number; months: number; days: number } | null;
+  apnIncompleto?: boolean;
+  fechaIngresoApn?: string | null;
   datosVivienda?: DatosViviendaDTO | null;
   perfilSalud?: PerfilSaludDTO | null;
   perfilFisico?: PerfilFisicoDTO | null;

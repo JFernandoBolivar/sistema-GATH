@@ -13,7 +13,7 @@ def _campos_cambio(c: CambioPropuesto) -> dict:
     return {
         'origen_tipo': c.origen_tipo, 'origen_id': c.origen_id, 'seccion': c.seccion, 'accion': c.accion,
         'entidad_destino': c.entidad_destino, 'entidad_id': c.entidad_id, 'campo': c.campo,
-        'valor_anterior': c.valor_anterior, 'valor_propuesto': c.valor_propuesto,
+        'valor_anterior': c.valor_anterior, 'valor_propuesto': c.valor_propuesto, 'referencia': c.referencia,
     }
 
 
@@ -52,6 +52,7 @@ class RepoSoportesORM:
             origen_tipo=soporte.origen_tipo, origen_id=soporte.origen_id, seccion=soporte.seccion, tipo=soporte.tipo,
             clave_s3=soporte.clave_s3, mime_real=soporte.mime_real, tamano_bytes=soporte.tamano_bytes,
             sha256=soporte.sha256, nombre_original=soporte.nombre_original, subido_por=soporte.subido_por,
+            entidad_id=soporte.entidad_id, referencia=soporte.referencia,
         )
         return soporte_a_entidad(m)
 

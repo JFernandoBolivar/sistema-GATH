@@ -19,14 +19,24 @@ from apps.fe_de_vida.presentation.views.proceso_views import (
     TiposPensionView,
     ProrrogasView,
 )
+from apps.fe_de_vida.presentation.views.presencial_views import (
+    BorradorPresencialView,
+    BuscarPasivoPresencialView,
+    EnviarPresencialView,
+    EvidenciaPresencialView,
+    IniciarOSolicitudPresencialView,
+)
 from apps.fe_de_vida.presentation.views.revision_views import (
     AprobarDirectoView,
     BandejaView,
     CheckView,
+    ConstanciaBienestarView,
     DetalleRevisionView,
     DevolverView,
     EvidenciaRevisionView,
     RechazarView,
+    ReenviarConstanciaView,
+    RegenerarConstanciaView,
     RetirarCheckView,
 )
 from apps.fe_de_vida.presentation.views.verificacion_publica_views import VerificarConstanciaPublicaView
@@ -52,6 +62,15 @@ urlpatterns = [
     path('solicitudes/<uuid:solicitud_id>/aprobar-directo/', AprobarDirectoView.as_view(), name='aprobar_directo'),
     path('solicitudes/<uuid:solicitud_id>/rechazar/', RechazarView.as_view(), name='rechazar'),
     path('solicitudes/<uuid:solicitud_id>/devolver/', DevolverView.as_view(), name='devolver'),
+    path('solicitudes/<uuid:solicitud_id>/reenviar-constancia/', ReenviarConstanciaView.as_view(), name='reenviar_constancia'),
+    path('solicitudes/<uuid:solicitud_id>/regenerar-constancia/', RegenerarConstanciaView.as_view(), name='regenerar_constancia'),
+    path('solicitudes/<uuid:solicitud_id>/constancia/', ConstanciaBienestarView.as_view(), name='solicitud_constancia'),
+    # Fe de vida presencial (Bienestar)
+    path('presencial/buscar/', BuscarPasivoPresencialView.as_view(), name='presencial_buscar'),
+    path('presencial/solicitudes/', IniciarOSolicitudPresencialView.as_view(), name='presencial_iniciar_solicitud'),
+    path('presencial/solicitudes/<uuid:solicitud_id>/borrador/', BorradorPresencialView.as_view(), name='presencial_borrador'),
+    path('presencial/solicitudes/<uuid:solicitud_id>/evidencia/', EvidenciaPresencialView.as_view(), name='presencial_evidencia'),
+    path('presencial/solicitudes/<uuid:solicitud_id>/enviar/', EnviarPresencialView.as_view(), name='presencial_enviar'),
     # Procesos y prórrogas
     path('procesos/', ProcesosView.as_view(), name='procesos'),
     path('procesos/tipos-pension/', TiposPensionView.as_view(), name='tipos_pension'),

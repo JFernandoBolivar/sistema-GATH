@@ -91,9 +91,15 @@ export const catalogosApi = {
     list<CatalogoApiItem>(
       apiClient.get<ApiResponse<CatalogoApiItem[]> | CatalogoApiItem[]>("/api/v1/catalogos/tipos-nomina/"),
     ),
-  getParentescos: () =>
+  getParentescos: (uso?: "familiar" | "contacto") =>
     list<CatalogoApiItem>(
-      apiClient.get<ApiResponse<CatalogoApiItem[]> | CatalogoApiItem[]>("/api/v1/catalogos/parentescos/"),
+      apiClient.get<ApiResponse<CatalogoApiItem[]> | CatalogoApiItem[]>("/api/v1/catalogos/parentescos/", {
+        params: uso ? { uso } : undefined,
+      }),
+    ),
+  crearParentesco: (data: { descripcion: string; uso: "contacto" }) =>
+    single<CatalogoApiItem>(
+      apiClient.post<ApiResponse<CatalogoApiItem> | CatalogoApiItem>("/api/v1/catalogos/parentescos/", data),
     ),
   getTiposProcedencia: () =>
     list<CatalogoApiItem>(

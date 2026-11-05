@@ -2,6 +2,7 @@
 DTOs de Pasivos (Regla B5).
 """
 from dataclasses import dataclass, field
+from datetime import date
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,11 @@ class PasivoDTO:
     formacion_complementaria: list = field(default_factory=list)
     contacto_emergencia: list = field(default_factory=list)
     antecedentes: list = field(default_factory=list)
+    apn_antecedentes: dict | None = None
+    apn_en_curso: dict | None = None
+    apn_total: dict | None = None
+    apn_incompleto: bool = False
+    fecha_ingreso_apn: str | None = None
     contrato_actual: dict | None = None
     cargos_historial: list = field(default_factory=list)
     contratos: list = field(default_factory=list)
@@ -47,6 +53,8 @@ class ProcesarEgresoDTO:
     tipo_nomina_id: int
     liberar_activos: bool = True
     usuario_id: int | None = None
+    # O8: fecha REAL de egreso del servicio activo (por defecto, hoy).
+    fecha_egreso: date | None = None
     # C20: si se indican, tras el egreso se da de alta a estos familiares como
     # pensionados por sobrevivencia (el motivo debe ser fallecimiento).
     sobrevivientes_familiar_ids: tuple[int, ...] = ()
@@ -66,6 +74,7 @@ class EgresarPasivoDTO:
     motivo_id: int
     sobrevivientes_familiar_ids: tuple[int, ...] = ()
     usuario_id: int | None = None
+    fecha_egreso: date | None = None
 
 
 @dataclass(frozen=True)

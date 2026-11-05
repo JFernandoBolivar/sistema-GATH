@@ -1,6 +1,9 @@
 "use client";
 
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useEffect, useId, useMemo } from "react";
+import useSWR from "swr";
 import { Controller, useForm, type FieldValues, type Resolver } from "react-hook-form";
 import { ZodObject, type ZodTypeAny } from "zod";
 import { Button } from "@/components/ui/button";
@@ -10,12 +13,16 @@ import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import {
   CAMPO_PADRE,
   type CampoDef,
+  type ClaveCatalogo,
   type EntidadDef,
 } from "../../domain/value-objects/campos-seccion";
+import { esHijoMenorSinCedula } from "../../domain/services/reglas-familiar";
 import { CLASE_CONTROL, SelectorCatalogo } from "./selector-catalogo";
+import { opcionesCatalogo } from "./opciones-catalogo";
 import { valorATexto } from "../schema/schema-solicitud";
+import { cn } from "@/lib/utils";
 
-type Valores = Record<string, string>;
+type Valores = Record<string, unknown>;
 
 /** Resolver RHF sobre un esquema Zod con entradas de texto; los errores se muestran por campo. */
 function resolverZod(esquema: ZodTypeAny): Resolver<Valores> {
@@ -73,9 +80,37 @@ export function FormularioRegistro({
 
   const form = useForm<Valores>({
     resolver: resolverZod(esquemaActivo),
-    defaultValues: Object.fromEntries(campos.map((c) => [c.campo, valorATexto(inicial[c.campo])])),
+    defaultValues: Object.fromEntries(
+      campos.map((c) => [
+        c.campo,
+        c.tipo === "multiple"
+          ? Array.isArray(inicial[c.campo])
+            ? (inicial[c.campo] as number[])
+            : []
+          : valorATexto(inicial[c.campo]),
+      ]),
+    ),
   });
   const { register, handleSubmit, watch, setValue, formState } = form;
+
+  // Regla de familiares: el hijo(a) menor de 9 años no lleva cédula (se genera al aplicar el cambio).
+  const esFamiliar = definicion.entidad === "familiar";
+  const { data: parentescos } = useSWR(
+    esFamiliar ? ["catalogo-autogestion", "parentescosFamilia", 0] : null,
+    () => opcionesCatalogo("parentescosFamilia"),
+    { revalidateOnFocus: false },
+  );
+  const parentescoId = Number(watch("parentesco_id")) || 0;
+  const parentescoNombre = parentescos?.find((o) => o.id === parentescoId)?.nombre ?? null;
+  const fechaNacimientoValor = watch("fecha_nacimiento");
+  const hijoMenor = esFamiliar && esHijoMenorSinCedula(
+    parentescoNombre,
+    typeof fechaNacimientoValor === "string" ? fechaNacimientoValor : null,
+  );
+  // La cédula no se muestra en el caso del hijo(a) menor; el resto de campos sigue igual.
+  const camposVisibles = esFamiliar
+    ? campos.filter((c) => c.campo !== "cedula_familiar" || !hijoMenor)
+    : campos;
 
   // Cascadas: al cambiar un padre se limpia el hijo (estado → municipio → parroquia, etc.).
   useEffect(() => {
@@ -90,13 +125,28 @@ export function FormularioRegistro({
   }, [watch, setValue]);
 
   function enviar(valores: FieldValues) {
-    onGuardar(valores as Record<string, unknown>);
+    const limpios = { ...valores } as Record<string, unknown>;
+    if (esFamiliar) {
+      if (hijoMenor) {
+        // No se envía cédula: el servidor genera la del titular con el orden correlativo.
+        delete limpios.cedula_familiar;
+      } else if (!String(limpios.cedula_familiar ?? "").trim()) {
+        form.setError("cedula_familiar", {
+          type: "required",
+          message: "La cédula del familiar es obligatoria.",
+        });
+        return;
+      }
+    }
+    onGuardar(limpios);
   }
 
   function renderCampo(c: CampoDef) {
     const id = `${idBase}-${c.campo}`;
     const error = formState.errors[c.campo]?.message as string | undefined;
-    const requerido = modo === "CREAR" && c.requeridoAlCrear;
+    const requerido =
+      (modo === "CREAR" && c.requeridoAlCrear) ||
+      (esFamiliar && c.campo === "cedula_familiar" && !hijoMenor);
     const etiqueta = (
       <label htmlFor={id} className="text-base font-medium">
         {c.etiqueta}
@@ -114,6 +164,32 @@ export function FormularioRegistro({
       "aria-describedby": error ? `${id}-error` : undefined,
     } as const;
 
+    if (c.tipo === "multiple" && c.catalogo) {
+      return (
+        <div key={c.campo} className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className="text-base font-medium" id={`${id}-label`}>
+            {c.etiqueta}
+            {requerido ? <span aria-hidden> *</span> : null}
+          </span>
+          <Controller
+            control={form.control}
+            name={c.campo}
+            render={({ field }) => (
+              <SelectorMultiple
+                id={id}
+                catalogo={c.catalogo as ClaveCatalogo}
+                etiqueta={c.etiqueta}
+                valor={Array.isArray(field.value) ? (field.value as number[]) : []}
+                onCambio={field.onChange}
+                error={error}
+                describedBy={comunes["aria-describedby"]}
+              />
+            )}
+          />
+          {mensaje}
+        </div>
+      );
+    }
     if (c.tipo === "catalogo" && c.catalogo) {
       const padreCampo = CAMPO_PADRE[c.campo];
       const padreValor = padreCampo ? Number(watch(padreCampo)) || null : null;
@@ -150,7 +226,10 @@ export function FormularioRegistro({
       <div key={c.campo} className="flex flex-col gap-1.5">
         {etiqueta}
         {c.tipo === "textarea" ? (
-          <Textarea rows={3} maxLength={500} className="resize-none" {...comunes} {...register(c.campo)} />
+          <>
+            <Textarea rows={3} maxLength={LIMITES_TEXTO.direccion.max} className="resize-none" {...comunes} {...register(c.campo)} />
+            <ContadorCampo control={form.control} name={c.campo} max={LIMITES_TEXTO.direccion.max} />
+          </>
         ) : c.tipo === "telefono" ? (
           <Controller
             control={form.control}
@@ -159,7 +238,7 @@ export function FormularioRegistro({
               <CampoTelefono
                 id={id}
                 tipo={c.campo === "telefono_movil" ? "movil" : "cualquiera"}
-                value={field.value}
+                value={typeof field.value === "string" ? field.value : String(field.value ?? "")}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 invalido={Boolean(error)}
@@ -188,7 +267,13 @@ export function FormularioRegistro({
       aria-label={`${definicion.etiqueta} (${seccion})`}
       className="flex flex-col gap-4 rounded-lg border bg-muted/40 p-4"
     >
-      <div className="grid gap-4 sm:grid-cols-2">{campos.map(renderCampo)}</div>
+      <div className="grid gap-4 sm:grid-cols-2">{camposVisibles.map(renderCampo)}</div>
+      {esFamiliar && hijoMenor ? (
+        <p role="note" className="text-sm text-muted-foreground">
+          Por ser hijo(a) menor de 9 años no se pide cédula: se generará automáticamente a
+          partir de la cédula del trabajador.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit">{textoGuardar}</Button>
         <Button type="button" variant="outline" onClick={onCancelar}>
@@ -196,5 +281,80 @@ export function FormularioRegistro({
         </Button>
       </div>
     </form>
+  );
+}
+
+interface PropsMultiple {
+  id: string;
+  catalogo: ClaveCatalogo;
+  etiqueta: string;
+  valor: number[];
+  onCambio: (valores: number[]) => void;
+  error?: string;
+  describedBy?: string;
+}
+
+/** Lista de selección múltiple (alergias, patologías, discapacidades) sobre un catálogo del servidor. */
+function SelectorMultiple({
+  id,
+  catalogo,
+  etiqueta,
+  valor,
+  onCambio,
+  error,
+  describedBy,
+}: PropsMultiple) {
+  const { data, error: fallo, isLoading } = useSWR(
+    ["catalogo-autogestion-multiple", catalogo],
+    () => opcionesCatalogo(catalogo),
+    { revalidateOnFocus: false },
+  );
+  const seleccion = new Set(valor);
+
+  function alternar(opcion: number) {
+    const siguiente = new Set(seleccion);
+    if (siguiente.has(opcion)) siguiente.delete(opcion);
+    else siguiente.add(opcion);
+    onCambio([...siguiente].sort((a, b) => a - b));
+  }
+
+  return (
+    <div
+      id={id}
+      role="group"
+      aria-label={etiqueta}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={describedBy}
+      className={cn(
+        "max-h-56 overflow-y-auto rounded-md border border-input bg-card p-2",
+        error && "border-danger",
+      )}
+    >
+      {isLoading ? (
+        <p className="p-1 text-sm text-muted-foreground">Cargando opciones…</p>
+      ) : fallo ? (
+        <p role="alert" className="p-1 text-sm font-medium text-danger">
+          No se pudieron cargar las opciones.
+        </p>
+      ) : (data ?? []).length === 0 ? (
+        <p className="p-1 text-sm text-muted-foreground">No hay opciones registradas.</p>
+      ) : (
+        <ul className="flex flex-col gap-0.5">
+          {(data ?? []).map((o) => (
+            <li key={o.id}>
+              <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-1 hover:bg-accent">
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  checked={seleccion.has(o.id)}
+                  onChange={() => alternar(o.id)}
+                />
+                <span className="text-base">{o.nombre}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

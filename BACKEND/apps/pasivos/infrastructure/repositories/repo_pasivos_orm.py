@@ -253,6 +253,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         cedula: str,
         motivo_id: int,
         usuario_id: int | None = None,
+        fecha_egreso=None,
     ) -> Pasivo:
         empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
         if not empleado:
@@ -281,12 +282,14 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             egreso.n_contrato = asignacion.codigo
             egreso.save(update_fields=['motivo_egreso', 'n_contrato'])
         else:
-            EmployeeEgresadoModel.objects.create(
+            egreso = EmployeeEgresadoModel.objects.create(
                 employee=empleado,
                 n_contrato=asignacion.codigo,
                 fechaingresoorganismo=timezone.now().date(),
                 motivo_egreso=motivo,
             )
+        if fecha_egreso:
+            EmployeeEgresadoModel.objects.filter(pk=egreso.pk).update(fecha_egreso=fecha_egreso)
 
         if usuario_id is not None:
             events.cargo_movimiento_ejecutado.send(
@@ -391,6 +394,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         tipo_nomina_id: int,
         liberar_activos: bool,
         usuario_id: int | None = None,
+        fecha_egreso=None,
     ) -> Pasivo:
         empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
         if not empleado:
@@ -418,7 +422,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             raise ValidationError(f"Error de configuración de catálogos: {exc}") from exc
 
         if liberar_activos:
-            self._cerrar_expediente_activo(empleado)
+            self._cerrar_expediente_activo(empleado, fecha_egreso)
             try:
                 estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
             except EstatusModel.DoesNotExist as exc:
@@ -462,6 +466,12 @@ class RepoPasivosORM(RepoSobrevivientesORM):
                 fechaingresoorganismo=timezone.now().date(),
                 motivo_egreso=motivo,
             )
+            if fecha_egreso:
+                # `fecha_egreso` es auto_now_add (fecha de procesamiento): se
+                # reemplaza por la fecha REAL indicada en el formulario (O8).
+                EmployeeEgresadoModel.objects.filter(pk=egreso.pk).update(
+                    fecha_egreso=fecha_egreso,
+                )
         CargoEgresadoModel.objects.create(
             egreso=egreso,
             codigo=ultima_asig.codigo,
@@ -494,14 +504,14 @@ class RepoPasivosORM(RepoSobrevivientesORM):
 
         return pasivo_desde_asignacion(nueva_asig)
 
-    def _cerrar_expediente_activo(self, empleado: EmployeeModel) -> None:
+    def _cerrar_expediente_activo(self, empleado: EmployeeModel, fecha_egreso=None) -> None:
         antecedente_activo = AntecedenteServicioModel.objects.filter(
             empleado=empleado, fecha_egreso__isnull=True
         ).first()
         if not antecedente_activo:
             return
 
-        antecedente_activo.fecha_egreso = timezone.now().date()
+        antecedente_activo.fecha_egreso = fecha_egreso or timezone.now().date()
         antecedente_activo.save(update_fields=['fecha_egreso'])
 
         contrato = ContratoModel.objects.filter(antecedente=antecedente_activo).first()

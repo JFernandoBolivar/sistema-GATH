@@ -10,6 +10,7 @@ endpoint de perfil de sesión que el gap analysis marcó como faltante.
 """
 import logging
 import secrets
+import uuid
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
@@ -86,6 +87,7 @@ from apps.identidad.presentation.serializers.recuperacion_password_serializers i
     SolicitarRecuperacionSerializer,
 )
 from core.domain.exceptions import DomainError
+from core.presentation.audit import origen_de_peticion
 from core.presentation.cookies import clear_jwt_cookies, set_jwt_cookies
 from core.presentation.envelope import fail, ok
 from core.presentation.schema import MensajeRespuestaSerializer
@@ -367,14 +369,17 @@ class SolicitarRecuperacionPasswordView(APIView):
             serializer.validated_data.get('frontend_url') or request.headers.get('Origin')
         )
 
+        metadata = origen_de_peticion(request)
+        metadata['trace_id'] = getattr(request, 'trace_id', None) or uuid.uuid4().hex
+
         # Se encola y se responde al instante con el mismo mensaje exista o no la
         # cuenta: así ni el tiempo de respuesta ni un error de SMTP delatan qué
         # correos o cédulas están registrados (enumeración por tiempo).
         try:
-            solicitar_recuperacion_password_task.delay(identificador, base_frontend)
+            solicitar_recuperacion_password_task.delay(identificador, base_frontend, metadata=metadata)
         except Exception:
             logger.warning('recuperacion.broker_no_disponible', exc_info=True)
-            procesar_solicitud_recuperacion(identificador, base_frontend)
+            procesar_solicitud_recuperacion(identificador, base_frontend, metadata=metadata)
         return ok(message=MENSAJE_RESPUESTA_GENERICO)
 
 

@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { FilePenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cumpleCondicion, tienePermiso } from "@/shared/lib/evaluador-iam";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { usePoliticaAutogestion } from "./use-politica-autogestion";
 
-/** Acceso a «Solicitar actualización» desde la ficha: solo con el permiso y la condición de trabajador activo. */
+/** Acceso a «Solicitar actualización» desde la ficha: permiso + configuración por condición (O12). */
 export function BotonSolicitarActualizacion() {
   const { data: session } = useSession();
+  const { politica } = usePoliticaAutogestion();
   const permitido =
     tienePermiso(session?.user?.permisos, "autogestion.solicitar_actualizacion") &&
-    cumpleCondicion("ACTIVO", session?.user?.condicionTrabajador);
+    politica?.habilitado === true;
   if (!permitido) return null;
   return (
     <Button asChild size="lg" className="w-full sm:w-fit">

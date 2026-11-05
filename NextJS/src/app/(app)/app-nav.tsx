@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Boxes, Home } from "lucide-react";
 import LogoutButton from "@/modules/auth/ui/logout-button";
+import { BotonInstalarApp } from "@/shared/ui/components";
 import { NOMBRE_ADMINISTRACION, RUTA_USUARIOS } from "@/shared/lib/administracion-sistema";
 
 const SECCIONES = [
@@ -50,6 +51,7 @@ export function AppNav() {
         </Link>
       ))}
       <div className="mt-4 px-2">
+        <BotonInstalarApp conTexto className="w-full justify-start mb-2" />
         <LogoutButton />
       </div>
     </nav>

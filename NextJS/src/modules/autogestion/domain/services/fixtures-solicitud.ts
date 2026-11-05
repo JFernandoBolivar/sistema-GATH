@@ -42,6 +42,7 @@ export function cambioFake(parcial: Partial<CambioEntity> = {}): CambioEntity {
     campo: "telefono_movil",
     valorAnterior: "0412-0000000",
     valorPropuesto: "0414-1111111",
+    referencia: null,
     valorActual: "0412-0000000",
     conflicto: false,
     decision: "PENDIENTE",

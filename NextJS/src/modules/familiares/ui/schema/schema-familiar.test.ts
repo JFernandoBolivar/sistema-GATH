@@ -89,8 +89,9 @@ describe("Longitudes del familiar (QA 2026-11-04)", () => {
   };
   const pasa = (c: Record<string, unknown>) => familiarSchema.safeParse({ ...base, ...c }).success;
 
-  it("cédula del familiar: solo dígitos, 6 a 9", () => {
-    expect(pasa({ cedulaFamiliar: "12345" })).toBe(false);
+  it("cédula del familiar: solo dígitos, 5 a 9", () => {
+    expect(pasa({ cedulaFamiliar: "12345" })).toBe(true);
+    expect(pasa({ cedulaFamiliar: "1234" })).toBe(false);
     expect(pasa({ cedulaFamiliar: "123456" })).toBe(true);
     expect(pasa({ cedulaFamiliar: "123456789" })).toBe(true);
     expect(pasa({ cedulaFamiliar: "1234567890" })).toBe(false);

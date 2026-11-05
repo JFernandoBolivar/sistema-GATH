@@ -8,7 +8,11 @@ from apps.configuracion.application.use_cases.gestionar_parametros import (
 )
 from apps.configuracion.domain.entities.parametro import CambioParametro, ParametroSistema
 from apps.configuracion.domain.parametros import (
+    CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
+    CLAVE_AUTOGESTION_ACTIVOS_SECCIONES,
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
+    CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
+    CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     CLAVE_PASSWORD_INICIAL_DIAS,
     DEFINICIONES_POR_CLAVE,
@@ -114,6 +118,21 @@ def test_retencion_conserva_un_valor_actual_fuera_de_la_lista():
     assert validar_valor(definicion, '45', valor_actual='45') == '45'
     with pytest.raises(ValidationError):
         validar_valor(definicion, '46', valor_actual='45')
+
+
+def test_autogestion_define_activos_encendido_y_pasivos_apagado_por_defecto():
+    assert DEFINICIONES_POR_CLAVE[CLAVE_AUTOGESTION_ACTIVOS_HABILITADO].defecto == 'true'
+    assert DEFINICIONES_POR_CLAVE[CLAVE_AUTOGESTION_PASIVOS_HABILITADO].defecto == 'false'
+
+
+@pytest.mark.parametrize('clave', (CLAVE_AUTOGESTION_ACTIVOS_SECCIONES, CLAVE_AUTOGESTION_PASIVOS_SECCIONES))
+def test_autogestion_secciones_normaliza_y_rechaza_desconocidas(clave):
+    definicion = DEFINICIONES_POR_CLAVE[clave]
+    assert validar_valor(definicion, 'vivienda, contacto, contacto') == 'contacto,vivienda'
+    with pytest.raises(ValidationError, match='desconocidas'):
+        validar_valor(definicion, 'contacto,inventada')
+    with pytest.raises(ValidationError, match='al menos una sección'):
+        validar_valor(definicion, ' , ')
 
 
 def test_listar_expone_las_opciones_de_retencion():

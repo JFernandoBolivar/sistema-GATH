@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
+import { useEffect, useState, type ReactNode } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -83,6 +85,7 @@ export function DialogoDevolver({
               aria-describedby={errors.motivo ? "dev-motivo-error" : undefined}
               {...register("motivo")}
             />
+            <ContadorCampo control={form.control} name="motivo" max={LIMITES_TEXTO.motivo.max} />
             {errors.motivo ? (
               <p id="dev-motivo-error" role="alert" className="text-sm font-medium text-danger">
                 {errors.motivo.message}
@@ -178,6 +181,7 @@ export function DialogoTexto({
               aria-describedby={errors.texto ? "dec-texto-error" : undefined}
               {...register("texto")}
             />
+            <ContadorCampo control={form.control} name="texto" max={LIMITES_TEXTO.motivo.max} />
             {errors.texto ? (
               <p id="dec-texto-error" role="alert" className="text-sm font-medium text-danger">
                 {errors.texto.message}
@@ -279,3 +283,87 @@ export function DialogoRetirarCheck({
     </Dialog>
   );
 }
+
+/** Diálogo de confirmación para reenviar constancia */
+export function DialogoReenviarConstancia({
+  abierto,
+  pendiente,
+  onCerrar,
+  onConfirmar,
+}: BaseProps & {
+  onConfirmar: () => void;
+}) {
+  return (
+    <Dialog open={abierto} onOpenChange={(o) => !o && onCerrar()}>
+      <DialogContent>
+        <div className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>Reenviar constancia de fe de vida</DialogTitle>
+            <DialogDescription>
+              Se enviará la constancia validada al correo de acceso del pasivo (y copia a su correo alternativo si es distinto).
+              Recuerde que existe un límite de 3 reenvíos por día.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="min-h-11" onClick={onCerrar} disabled={pendiente}>
+              Cancelar
+            </Button>
+            <Button type="button" className="min-h-11" onClick={onConfirmar} disabled={pendiente}>
+              {pendiente ? "Reenviando…" : "Reenviar constancia"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Diálogo para regenerar constancia con opción de reenvío */
+export function DialogoRegenerarConstancia({
+  abierto,
+  pendiente,
+  onCerrar,
+  onConfirmar,
+}: BaseProps & {
+  onConfirmar: (reenviar: boolean) => void;
+}) {
+  const [reenviar, setReenviar] = useState(false);
+
+  return (
+    <Dialog open={abierto} onOpenChange={(o) => !o && onCerrar()}>
+      <DialogContent>
+        <div className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>Regenerar constancia de fe de vida</DialogTitle>
+            <DialogDescription>
+              Se vuelve a crear el PDF con los datos y el formato actuales. Úsalo solo si la constancia salió
+              mal. Conserva el número y el código de verificación; el PDF anterior se reemplaza.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 rounded-lg border p-3">
+            <input
+              type="checkbox"
+              id="chk-reenviar"
+              className="size-4 rounded border-gray-300"
+              checked={reenviar}
+              onChange={(e) => setReenviar(e.target.checked)}
+              disabled={pendiente}
+            />
+            <label htmlFor="chk-reenviar" className="text-sm font-medium cursor-pointer">
+              Reenviar al correo del pasivo inmediatamente después de regenerar
+            </label>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="min-h-11" onClick={onCerrar} disabled={pendiente}>
+              Cancelar
+            </Button>
+            <Button type="button" className="min-h-11" onClick={() => onConfirmar(reenviar)} disabled={pendiente}>
+              {pendiente ? "Regenerando…" : reenviar ? "Regenerar y reenviar" : "Regenerar"}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

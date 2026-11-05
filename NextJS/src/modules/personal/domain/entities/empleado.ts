@@ -177,6 +177,11 @@ export interface Empleado {
   nacionalidadCodigo?: string | null;
   nacionalidadNombre?: string | null;
   totalAnosApn: number;
+  apnAntecedentes?: { years: number; months: number; days: number } | null;
+  apnEnCurso?: { years: number; months: number; days: number } | null;
+  apnTotal?: { years: number; months: number; days: number } | null;
+  apnIncompleto?: boolean;
+  fechaIngresoApn?: string | null;
   // Expediente anidado (solo poblado en el detalle, Fase 2.2).
   datosVivienda?: DatosVivienda | null;
   perfilSalud?: PerfilSalud | null;

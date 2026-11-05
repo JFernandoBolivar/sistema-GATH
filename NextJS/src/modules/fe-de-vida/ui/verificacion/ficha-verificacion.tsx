@@ -109,7 +109,6 @@ export function FichaVerificacion({ resultado }: { resultado: ResultadoVerificac
           priority
           className="h-20 w-auto dark:brightness-110"
         />
-        <p className="text-base font-semibold text-foreground">{TEXTOS_VERIFICACION.institucion}</p>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           {TEXTOS_VERIFICACION.titulo}
         </h1>

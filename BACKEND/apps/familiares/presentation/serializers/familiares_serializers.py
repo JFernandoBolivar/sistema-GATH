@@ -1,6 +1,7 @@
 """
 Serializers de Presentación de Familiares.
 """
+from core.domain.limites_texto import OBSERVACION_MIN, OBSERVACION_MAX, mensajes_texto
 from rest_framework import serializers
 
 from core.presentation.validadores_personas import validar_cedula, validar_drf, validar_nombre
@@ -27,9 +28,9 @@ from apps.familiares.infrastructure.modelos_externos import (
 
 
 # Longitudes (mismas que `schema-familiar.ts` en NextJS).
-CEDULA_MIN, CEDULA_MAX = 6, 9
+CEDULA_MIN, CEDULA_MAX = 5, 9
 NOMBRE_MIN, NOMBRE_MAX = 2, 60
-OBSERVACIONES_MAX = 500
+OBSERVACIONES_MAX = OBSERVACION_MAX
 
 
 def _nombre(value, *, edicion: bool, etiqueta: str):
@@ -177,7 +178,8 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
     mismo_ente = serializers.BooleanField(required=False, default=False)
     heredero = serializers.BooleanField(required=False, default=False)
     observaciones = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True, max_length=OBSERVACIONES_MAX,
+        required=False, allow_blank=True, allow_null=True, min_length=OBSERVACION_MIN, max_length=OBSERVACIONES_MAX,
+        error_messages=mensajes_texto('Las observaciones', OBSERVACION_MIN, OBSERVACION_MAX),
     )
     perfil_salud = PerfilSaludFamiliarEscrituraSerializer(required=False, allow_null=True)
     perfil_fisico = PerfilFisicoFamiliarEscrituraSerializer(required=False, allow_null=True)
@@ -216,6 +218,14 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
         excluir_id = self.instance.pk if self.instance else None
         cedula_familiar = (attrs.get('cedula_familiar') or '').strip() or None
         toca_identidad = not self.partial or {'cedula_familiar', 'parentesco_id', 'fecha_nacimiento'} & set(attrs.keys())
+
+        parentesco_id = attrs.get('parentesco_id')
+        if parentesco_id is not None:
+            parentesco = ParentescoModel.objects.filter(pk=parentesco_id).first()
+            if parentesco and not getattr(parentesco, 'aplica_familiar', True):
+                raise serializers.ValidationError(
+                    {'parentesco': 'El parentesco seleccionado no está permitido para familiares.'}
+                )
 
         if cedula_familiar or toca_identidad:
             parentesco_id = attrs.get('parentesco_id')

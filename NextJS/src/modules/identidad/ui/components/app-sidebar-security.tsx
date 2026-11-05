@@ -4,6 +4,7 @@ import {
   BadgePlus,
   BookCheck,
   ChevronDown,
+  FileText,
   ChevronRight,
   Home,
   IdCard,
@@ -37,6 +38,7 @@ import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/module
 import {
   RUTA_AUDITORIA,
   RUTA_PARAMETROS,
+  RUTA_PUNTO_CUENTA,
   RUTA_USUARIOS,
   RUTA_VISUAL,
   SECCION_CONFIGURACION,
@@ -124,6 +126,12 @@ const items: MenuItem[] = [
         title: "Identidad visual",
         url: RUTA_VISUAL,
         icon: BookCheck,
+        permiso: "configuracion.editar",
+      },
+      {
+        title: "Punto de cuenta",
+        url: RUTA_PUNTO_CUENTA,
+        icon: FileText,
         permiso: "configuracion.editar",
       },
     ],

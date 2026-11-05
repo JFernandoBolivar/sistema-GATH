@@ -60,3 +60,18 @@ class VerificacionConstancia:
     estado: str
     solicitud_id: str = ''
     certificada_por: tuple = ()
+
+
+@dataclass(frozen=True)
+class ItemPasivoPresencial:
+    cedula: str
+    nombre_completo: str
+    tipo_nomina: str
+    correo: str
+    tiene_cuenta: bool
+    proceso_vigente: ProcesoVigente | None
+    solicitud: SolicitudFeDeVida | None
+    constancia_numero: str | None
+    puede_iniciar: bool
+    puede_continuar: bool
+    puede_imprimir: bool

@@ -2,6 +2,7 @@
 Mappers de Personal.
 """
 import logging
+from datetime import date
 
 from django.urls import reverse
 
@@ -27,7 +28,17 @@ logger = logging.getLogger('gath.personal')
 _EXT_FOTO = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
 
 
-def _total_anos_apn_calculado(antecedentes_cerrados) -> float:
+def apn_oficial(antecedentes, *, fecha_corte=None, fecha_ingreso_respaldo=None, fecha_egreso=None) -> dict:
+    """Desglose APN oficial (cerrados + CONATEL en curso) con la fórmula de RRHH."""
+    return calcular_total_apn(
+        antecedentes or [],
+        fecha_corte=fecha_corte or date.today(),
+        fecha_ingreso_en_curso=fecha_ingreso_respaldo,
+        fecha_egreso_en_curso=fecha_egreso,
+    )
+
+
+def _total_anos_apn_calculado(apn: dict) -> float:
     """
     D-05 (Entrada #035/#036): decisión de negocio confirmada — el método
     comercial 30/360 de `calcular_total_apn` (Python) es la fuente
@@ -37,16 +48,12 @@ def _total_anos_apn_calculado(antecedentes_cerrados) -> float:
     (días calendario/365.25, incluye antecedentes abiertos — una regla de
     negocio distinta y divergente, confirmada con evidencia real de la BD
     de producción). Este mapper deja de leer esa columna.
-
-    `calcular_total_apn` devuelve {years, months, days}; se expone como un
-    único float (años) para no romper el contrato existente del DTO/entidad,
-    combinando las tres partes en una fracción de año.
     """
-    resultado = calcular_total_apn(antecedentes_cerrados or [])
+    total = apn.get("total_anos_apn") or apn
     return anios_fraccionarios(
-        years=resultado["years"],
-        months=resultado["months"],
-        days=resultado["days"],
+        years=total["years"],
+        months=total["months"],
+        days=total["days"],
     )
 
 
@@ -65,7 +72,12 @@ def ruta_foto(cedula: str, clave: str) -> str:
     return reverse('personal:empleado-foto', kwargs={'cedula': cedula}) + f"?v={version}"
 
 
-def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expediente: dict | None = None) -> Empleado:
+def empleado_a_entidad(
+    modelo: EmployeeModel,
+    antecedentes=None,
+    expediente: dict | None = None,
+    apn: dict | None = None,
+) -> Empleado:
     profile_val = getattr(modelo, 'profile', None)
     foto_url = None
     if profile_val and isinstance(profile_val, str):
@@ -83,6 +95,7 @@ def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expedi
     nac_obj = getattr(modelo, 'nacionalidad', None)
     nac_codigo = getattr(nac_obj, 'codigo', 'V') if nac_obj else 'V'
     nac_nombre = getattr(nac_obj, 'nombre', 'VENEZOLANA') if nac_obj else 'VENEZOLANA'
+    apn = apn or apn_oficial(antecedentes or [])
 
     return Empleado(
         id=modelo.pk,
@@ -102,7 +115,16 @@ def empleado_a_entidad(modelo: EmployeeModel, antecedentes_cerrados=None, expedi
         nacionalidad_id=nac_id,
         nacionalidad_codigo=nac_codigo,
         nacionalidad_nombre=nac_nombre,
-        total_anos_apn=_total_anos_apn_calculado(antecedentes_cerrados),
+        total_anos_apn=_total_anos_apn_calculado(apn),
+        apn_antecedentes=apn.get("antecedentes"),
+        apn_en_curso=apn.get("en_curso"),
+        apn_total={
+            "years": apn["years"], "months": apn["months"], "days": apn["days"],
+        },
+        apn_incompleto=not apn.get("completo", True),
+        fecha_ingreso_apn=(
+            str(apn.get("inicio_curso")) if apn.get("inicio_curso") else None
+        ),
         profile=profile_val,
         foto_url=foto_url,
         **(expediente or {}),

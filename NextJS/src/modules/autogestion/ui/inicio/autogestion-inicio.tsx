@@ -8,8 +8,9 @@ import { ArrowRight, FilePenLine, ListChecks, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
-import { cumpleCondicion, tienePermiso } from "@/shared/lib/evaluador-iam";
+import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { listarMisSolicitudesAction } from "../../infrastructure/actions/solicitudes-actions";
+import { usePoliticaAutogestion } from "../solicitudes/use-politica-autogestion";
 import { PRESENTACION_ESTADO } from "../estado-solicitud-ui";
 import { textoTiempoRestante, tiempoRestante } from "../../domain/services/reglas-solicitud";
 import { useAhora } from "../solicitudes/use-ahora";
@@ -68,11 +69,12 @@ export default function AutogestionInicio() {
   const ahora = useAhora();
   const hora = useHoraLocal();
   const permisos = session?.user?.permisos;
-  const esActivo = cumpleCondicion("ACTIVO", session?.user?.condicionTrabajador);
-  const verSolicitudes = esActivo && tienePermiso(permisos, "autogestion.ver_propio");
+  const { politica } = usePoliticaAutogestion();
+  const puedeSolicitar = politica?.habilitado === true;
+  const verLista = tienePermiso(permisos, "autogestion.ver_propio");
 
   const { data: solicitudes } = useSWR(
-    verSolicitudes ? "mis-solicitudes-inicio" : null,
+    verLista ? "mis-solicitudes-inicio" : null,
     async () => {
       const res = await listarMisSolicitudesAction();
       if (!res.ok) throw new Error(res.mensaje);
@@ -120,7 +122,7 @@ export default function AutogestionInicio() {
             texto="Consulte todos sus datos registrados en CONATEL."
           />
         ) : null}
-        {esActivo && tienePermiso(permisos, "autogestion.solicitar_actualizacion") ? (
+        {puedeSolicitar && tienePermiso(permisos, "autogestion.solicitar_actualizacion") ? (
           <Acceso
             href="/autogestion/solicitudes/nueva"
             icono={FilePenLine}
@@ -128,7 +130,7 @@ export default function AutogestionInicio() {
             texto="Corrija o complete sus datos de contacto, vivienda, estudios, familia o foto."
           />
         ) : null}
-        {verSolicitudes ? (
+        {verLista && (puedeSolicitar || (solicitudes?.length ?? 0) > 0) ? (
           <Acceso
             href="/autogestion/solicitudes"
             icono={ListChecks}

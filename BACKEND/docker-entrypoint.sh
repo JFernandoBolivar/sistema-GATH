@@ -8,6 +8,11 @@ python3 wait-for-postgres.py
 # Worker y beat comparten imagen pero no migran (SKIP_MIGRATE=1): solo django lo hace.
 if [ "${SKIP_MIGRATE:-0}" != "1" ]; then
   python3 manage.py migrate --noinput
+  # Catálogo de permisos y matriz de roles: idempotente. Se puede desactivar con
+  # SEED_PERMISOS=0 (p. ej. si la matriz se gestiona solo desde la pantalla).
+  if [ "${SEED_PERMISOS:-1}" != "0" ]; then
+    python3 manage.py seed_permisos
+  fi
 fi
 
 exec "$@"

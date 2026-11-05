@@ -36,6 +36,11 @@ class Pasivo:
     formacion_complementaria: list = field(default_factory=list)
     contacto_emergencia: list = field(default_factory=list)
     antecedentes: list = field(default_factory=list)
+    apn_antecedentes: dict | None = None
+    apn_en_curso: dict | None = None
+    apn_total: dict | None = None
+    apn_incompleto: bool = False
+    fecha_ingreso_apn: str | None = None
     contrato_actual: dict | None = None
     cargos_historial: list = field(default_factory=list)
     contratos: list = field(default_factory=list)

@@ -19,6 +19,8 @@ export interface ItemNavAutogestion {
   permiso?: string;
   /** Condición del trabajador exigida (el backend la vuelve a validar). */
   condicion?: CondicionTrabajador;
+  /** Solo visible si la configuración habilita solicitudes para la condición (O12). */
+  requiereAutogestionHabilitada?: boolean;
   /** `true`: en móvil va al menú «Más» y no a la barra inferior. */
   secundario?: boolean;
   /** Coincidencia exacta de ruta (Inicio) en lugar de por prefijo. */
@@ -43,7 +45,7 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
     href: "/autogestion/solicitudes/nueva",
     icono: FilePenLine,
     permiso: "autogestion.solicitar_actualizacion",
-    condicion: "ACTIVO",
+    requiereAutogestionHabilitada: true,
   },
   {
     id: "solicitudes",
@@ -51,7 +53,7 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
     href: "/autogestion/solicitudes",
     icono: ListChecks,
     permiso: "autogestion.ver_propio",
-    condicion: "ACTIVO",
+    requiereAutogestionHabilitada: true,
     excluir: ["/autogestion/solicitudes/nueva"],
   },
   {
@@ -85,9 +87,14 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
 export function itemsVisibles(
   permisos: string[] | null | undefined,
   condicionTrabajador: string | null | undefined,
+  opciones: { autogestionHabilitada?: boolean } = {},
   items: ItemNavAutogestion[] = ITEMS_NAV_AUTOGESTION,
 ): ItemNavAutogestion[] {
-  return filtrarMenuPorPermisos(items, permisos, condicionTrabajador);
+  const visibles = filtrarMenuPorPermisos(items, permisos, condicionTrabajador);
+  if (opciones.autogestionHabilitada === false) {
+    return visibles.filter((item) => !item.requiereAutogestionHabilitada);
+  }
+  return visibles;
 }
 
 /** Ruta activa: por prefijo, salvo los ítems de coincidencia exacta. */

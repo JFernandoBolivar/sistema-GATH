@@ -61,7 +61,11 @@ def tipo_nomina_a_entidad(modelo: TipoNominaModel) -> CatalogoItem:
 
 
 def parentesco_a_entidad(modelo: ParentescoModel) -> CatalogoItem:
-    return CatalogoItem(id=modelo.pk, nombre=modelo.descripcion_parentesco)
+    return CatalogoItem(
+        id=modelo.pk,
+        nombre=modelo.descripcion_parentesco,
+        extra={'aplica_familiar': getattr(modelo, 'aplica_familiar', True)},
+    )
 
 
 def tipo_procedencia_a_entidad(modelo: TipoProcedenciaModel) -> CatalogoItem:
@@ -94,4 +98,3 @@ def nacionalidad_a_entidad(modelo: NacionalidadModel) -> CatalogoItem:
         nombre=modelo.nombre,
         extra={'codigo': modelo.codigo},
     )
-

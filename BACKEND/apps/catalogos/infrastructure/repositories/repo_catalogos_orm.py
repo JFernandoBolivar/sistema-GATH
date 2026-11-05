@@ -83,8 +83,23 @@ class RepoCatalogosORM:
             qs = qs.filter(es_activo=True)
         return [tipo_nomina_a_entidad(tn) for tn in qs]
 
-    def listar_parentescos(self) -> list[CatalogoItem]:
-        return [parentesco_a_entidad(p) for p in ParentescoModel.objects.all().order_by('descripcion_parentesco')]
+    def listar_parentescos(self, solo_familiares: bool = False) -> list[CatalogoItem]:
+        qs = ParentescoModel.objects.all().order_by('descripcion_parentesco')
+        if solo_familiares:
+            qs = qs.filter(aplica_familiar=True)
+        return [parentesco_a_entidad(p) for p in qs]
+
+    def existe_parentesco(self, descripcion: str) -> bool:
+        return ParentescoModel.objects.filter(
+            descripcion_parentesco__iexact=descripcion.strip()
+        ).exists()
+
+    def crear_parentesco(self, descripcion: str, aplica_familiar: bool = False) -> CatalogoItem:
+        obj = ParentescoModel.objects.create(
+            descripcion_parentesco=descripcion.strip().upper(),
+            aplica_familiar=aplica_familiar,
+        )
+        return parentesco_a_entidad(obj)
 
     def listar_tipos_procedencia(self) -> list[CatalogoItem]:
         return [tipo_procedencia_a_entidad(tp) for tp in TipoProcedenciaModel.objects.all().order_by('tipo_procedencia')]
@@ -110,4 +125,3 @@ class RepoCatalogosORM:
 
     def listar_nacionalidades(self) -> list[CatalogoItem]:
         return [nacionalidad_a_entidad(n) for n in NacionalidadModel.objects.all().order_by('id')]
-

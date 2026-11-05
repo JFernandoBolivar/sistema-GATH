@@ -32,6 +32,11 @@ export const schemaReportEmployee = z.object({
         .transform((val) => (val ? parseInt(val, 10) : undefined))
         .pipe(z.number())
         .optional(),
+      fecha_corte: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Fecha de corte inválida" })
+        .optional()
+        .or(z.literal("")),
       edad_min: z
         .string()
         .transform((val) => (val ? parseInt(val, 10) : undefined))

@@ -17,6 +17,11 @@ export interface PasivoApiItem {
   tipo_pasivo: string;
   tipo_nomina_id: number | null;
   fecha_egreso: string | null;
+  apn_antecedentes?: { years: number; months: number; days: number } | null;
+  apn_en_curso?: { years: number; months: number; days: number } | null;
+  apn_total?: { years: number; months: number; days: number } | null;
+  apn_incompleto?: boolean;
+  fecha_ingreso_apn?: string | null;
   resolucion: string | null;
   observaciones: string | null;
   correo: string | null;
@@ -97,6 +102,7 @@ export interface ProcesarEgresoApiBody {
   motivo_movimiento_id: number;
   tipo_nomina_id: number;
   liberar_activos: boolean;
+  fecha_egreso?: string;
 }
 
 export interface FamiliarTitularApiItem {

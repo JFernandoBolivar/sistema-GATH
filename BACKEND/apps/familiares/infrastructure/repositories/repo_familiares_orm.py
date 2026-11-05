@@ -1,7 +1,8 @@
 """
 Repositorio ORM de Familiares (Reglas B4, B7).
 """
-from core.domain.exceptions import NotFoundError
+from core.domain.exceptions import NotFoundError, ValidationError
+from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel
 from apps.familiares.domain.entities.documento_familiar import DocumentoFamiliar
 from apps.familiares.domain.entities.familiar import Familiar
 from apps.familiares.infrastructure.mappers.mapper_familiares import (
@@ -66,6 +67,15 @@ class RepoFamiliaresORM:
         return familiar_a_entidad(fila) if fila else None
 
     def crear_familiar(self, familiar_datos: dict) -> Familiar:
+        parentesco_id = familiar_datos.get('parentesco_id')
+        if parentesco_id is not None:
+            parentesco = ParentescoModel.objects.filter(pk=parentesco_id).first()
+            if parentesco and not getattr(parentesco, 'aplica_familiar', True):
+                raise ValidationError(
+                    'El parentesco seleccionado no está permitido para familiares.',
+                    campo='parentesco',
+                )
+
         obj = EmployeefamilyModel.objects.create(
             employeecedula_id=familiar_datos['empleado_cedula'],
             primer_nombre=familiar_datos['primer_nombre'],
@@ -97,6 +107,16 @@ class RepoFamiliaresORM:
         obj = EmployeefamilyModel.objects.filter(pk=familiar_id).first()
         if not obj:
             raise NotFoundError(f"Familiar con id {familiar_id} no encontrado")
+
+        parentesco_id = datos.get('parentesco_id')
+        if parentesco_id is not None:
+            parentesco = ParentescoModel.objects.filter(pk=parentesco_id).first()
+            if parentesco and not getattr(parentesco, 'aplica_familiar', True):
+                raise ValidationError(
+                    'El parentesco seleccionado no está permitido para familiares.',
+                    campo='parentesco',
+                )
+
         perfil_salud = datos.pop('perfil_salud', None)
         perfil_fisico = datos.pop('perfil_fisico', None)
         formacion_academica = datos.pop('formacion_academica', None)

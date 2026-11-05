@@ -14,15 +14,16 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     NacionalidadModel,
     SexoModel,
 )
-from apps.personal.infrastructure.mappers.mapper_personal import (
-    _total_anos_apn_calculado,
-)
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.consultas_apn import (
     anotar_apn_oficial,
+)
+from apps.personal.shared.domain.services.tiempo_servicio import (
+    anios_fraccionarios,
+    calcular_total_apn,
 )
 from apps.cargos.infrastructure.models.cargo_models import (
     AsigTrabajoModel,
@@ -84,6 +85,16 @@ def _anotado(emp):
     ).get().apn_oficial
 
 
+def _esperado(emp):
+    resultado = calcular_total_apn(
+        AntecedenteServicioModel.objects.filter(empleado=emp),
+        fecha_corte=date.today(),
+    )
+    return anios_fraccionarios(
+        years=resultado['years'], months=resultado['months'], days=resultado['days'],
+    )
+
+
 def _reporte(filtros):
     return generar_reporte_personal(
         RepoReportesORM(),
@@ -106,9 +117,7 @@ def test_paridad_sql_python_con_casos_variados(catalogo):
     for inicio, fin in casos:
         antecedente(emp, inicio, fin)
 
-    esperado = _total_anos_apn_calculado(
-        AntecedenteServicioModel.objects.filter(empleado=emp)
-    )
+    esperado = _esperado(emp)
     obtenido = float(_anotado(emp) or 0)
 
     assert obtenido == pytest.approx(esperado, abs=1e-4)
@@ -149,9 +158,7 @@ def test_paridad_sql_python_casos_rrhh_con_fusion(catalogo):
     antecedente(emp, date(2019, 6, 30), date(2019, 9, 15))    # contiguo al anterior
     antecedente(emp, date(2021, 1, 1), None)                  # abierto: se ignora
 
-    esperado = _total_anos_apn_calculado(
-        AntecedenteServicioModel.objects.filter(empleado=emp)
-    )
+    esperado = _esperado(emp)
     assert float(_anotado(emp) or 0) == pytest.approx(esperado, abs=1e-4)
 
 

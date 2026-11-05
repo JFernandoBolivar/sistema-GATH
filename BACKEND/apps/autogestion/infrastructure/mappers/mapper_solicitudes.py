@@ -49,7 +49,7 @@ def cambio_a_entidad(m) -> CambioPropuesto:
     return CambioPropuesto(
         id=str(m.id), origen_tipo=m.origen_tipo, origen_id=str(m.origen_id), seccion=m.seccion, accion=m.accion,
         entidad_destino=m.entidad_destino, entidad_id=m.entidad_id, campo=m.campo,
-        valor_anterior=m.valor_anterior, valor_propuesto=m.valor_propuesto,
+        valor_anterior=m.valor_anterior, valor_propuesto=m.valor_propuesto, referencia=m.referencia,
         decision=DecisionCambio(m.decision), motivo_decision=m.motivo_decision, decidido_por=m.decidido_por,
         fecha_decision=m.fecha_decision,
     )
@@ -60,6 +60,7 @@ def soporte_a_entidad(m) -> SoporteDocumental:
         id=str(m.id), origen_tipo=m.origen_tipo, origen_id=str(m.origen_id), seccion=m.seccion, tipo=m.tipo,
         clave_s3=m.clave_s3, mime_real=m.mime_real, tamano_bytes=m.tamano_bytes, sha256=m.sha256,
         nombre_original=m.nombre_original, subido_por=m.subido_por, fecha=m.created_at,
+        entidad_id=m.entidad_id, referencia=m.referencia,
     )
 
 

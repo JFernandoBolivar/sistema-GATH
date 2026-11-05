@@ -10,6 +10,11 @@ from apps.personal.presentation.views.personal_views import (
     EmpleadoFotoView,
     EmpleadosListView,
 )
+from apps.personal.presentation.views.reportes_error_views import (
+    AtenderReporteErrorLaboralView,
+    ListarReportesErrorLaboralView,
+    ReportarErrorLaboralView,
+)
 from apps.personal.presentation.views.catalogos_soporte_views import (
     AlergiaCategoriaDetailView,
     AlergiaDetailView,
@@ -87,6 +92,12 @@ urlpatterns = [
     path('catalogos/discapacidades/categorias/<int:pk>/', DiscapacidadCategoriaDetailView.as_view(), name='catalogos-discapacidades-categoria-detail'),
     path('catalogos/discapacidades/', DiscapacidadesListView.as_view(), name='catalogos-discapacidades'),
     path('catalogos/discapacidades/<int:pk>/', DiscapacidadDetailView.as_view(), name='catalogos-discapacidad-detail'),
+
+    # Reportes de error en datos laborales (D20 / A11)
+    path('reportes-error/', ListarReportesErrorLaboralView.as_view(), name='listar-reportes-error'),
+    path('reportes-error/mis-reportes/', ReportarErrorLaboralView.as_view(), name='mis-reportes-error'),
+    path('reportes-error/crear/', ReportarErrorLaboralView.as_view(), name='crear-reporte-error'),
+    path('reportes-error/<uuid:pk>/atender/', AtenderReporteErrorLaboralView.as_view(), name='atender-reporte-error'),
 
     # Detalle de empleado y foto
     path('<str:cedula>/', EmpleadoDetailView.as_view(), name='empleado-detail'),

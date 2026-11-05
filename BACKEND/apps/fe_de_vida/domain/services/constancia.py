@@ -41,3 +41,23 @@ def texto_constancia(plantilla: PlantillaConstancia, pasivo: DatosPasivo, fecha:
         'condicion': pasivo.condicion.lower(),
     }
     return re.sub(r'\{(\w+)\}', lambda m: valores.get(m.group(1), m.group(0)), plantilla.texto)
+
+
+def enmascarar_correo(correo: str) -> str:
+    """Enmascara un correo para visualización segura, p. ej. j***z@gmail.com."""
+    if not correo or '@' not in correo:
+        return ''
+    partes = correo.strip().split('@', 1)
+    if len(partes) != 2:
+        return ''
+    usuario, dominio = partes
+    if not usuario:
+        return f'***@{dominio}'
+    if len(usuario) == 1:
+        masked = f'{usuario}***'
+    elif len(usuario) == 2:
+        masked = f'{usuario[0]}***{usuario[1]}'
+    else:
+        masked = f'{usuario[0]}***{usuario[-1]}'
+    return f'{masked}@{dominio}'
+

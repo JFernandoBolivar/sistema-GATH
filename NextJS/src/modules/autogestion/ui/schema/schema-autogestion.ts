@@ -1,10 +1,9 @@
+import { LIMITES_TEXTO, textoLibreRequerido } from "@/shared/validation/limites-texto";
 import z from "zod";
 import type { Pregunta } from "@/app/types/types";
 
 export const viviendaSchema = z.object({
-  direccion_exacta: z
-    .string()
-    .min(3, "La dirección debe tener al menos 3 caracteres"),
+  direccion_exacta: textoLibreRequerido("La dirección", LIMITES_TEXTO.direccion),
   estado_id: z.coerce.number().min(1, "Seleccione un estado"),
   municipio_id: z.coerce.number().min(1, "Seleccione un municipio"),
   parroquia: z.coerce.number().min(1, "Seleccione una parroquia"),

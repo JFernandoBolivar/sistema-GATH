@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aprobarDirectoSchema,
   confirmacionEnvioSchema,
   datosContactoSchema,
   devolverSchema,
@@ -27,6 +28,13 @@ describe("decisiones", () => {
     expect(devolverSchema.safeParse({ motivo: "  ", requiereNuevaFoto: false }).success).toBe(false);
     const r = devolverSchema.safeParse({ motivo: "Foto borrosa", requiereNuevaFoto: true });
     expect(r.success && r.data.requiereNuevaFoto).toBe(true);
+  });
+  it("el motivo exige de 10 a 500 caracteres (también la justificación de la aprobación directa)", () => {
+    expect(devolverSchema.safeParse({ motivo: "a".repeat(9), requiereNuevaFoto: false }).success).toBe(false);
+    expect(devolverSchema.safeParse({ motivo: "a".repeat(10), requiereNuevaFoto: false }).success).toBe(true);
+    expect(aprobarDirectoSchema.safeParse({ justificacion: "a".repeat(9) }).success).toBe(false);
+    expect(aprobarDirectoSchema.safeParse({ justificacion: "a".repeat(500) }).success).toBe(true);
+    expect(aprobarDirectoSchema.safeParse({ justificacion: "a".repeat(501) }).success).toBe(false);
   });
   it("el motivo no puede superar 500 caracteres", () => {
     expect(devolverSchema.safeParse({ motivo: "a".repeat(501), requiereNuevaFoto: false }).success).toBe(false);

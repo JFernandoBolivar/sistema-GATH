@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
@@ -19,6 +20,12 @@ export const procesarEgresoSchema = z.object({
   motivoMovimientoId: z.number().int().positive({ message: ERROR.REQUIRED }),
   tipoNominaId: z.number().int().positive({ message: ERROR.REQUIRED }),
   liberarActivos: z.boolean().default(true),
+  fechaEgreso: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Fecha de egreso inválida" })
+    .optional()
+    .or(z.literal("")),
 });
 
 export type ListadoPasivosFormType = z.infer<typeof listadoPasivosSchema>;
@@ -73,7 +80,7 @@ export const registrarPasivoSchema = z.object({
       estado: z.number().int().positive().nullable().optional(),
       municipio: z.number().int().positive().nullable().optional(),
       parroquia: z.number().int().positive().nullable().optional(),
-      direccion_exacta: z.string().trim().max(255).nullable().optional(),
+      direccion_exacta: textoLibreOpcional("La dirección", LIMITES_TEXTO.direccion).nullable().optional(),
     })
     .optional(),
 });

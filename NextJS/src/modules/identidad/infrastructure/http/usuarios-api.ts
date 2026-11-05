@@ -78,7 +78,7 @@ export interface PermisoApiItem {
 
 export type RegistrarUsuarioBody = {
   cedula: string;
-  password: string;
+  password?: string;
   rol_id?: number | null;
 };
 

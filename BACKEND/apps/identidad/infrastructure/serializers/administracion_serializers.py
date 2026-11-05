@@ -4,6 +4,7 @@ Serializers de la administración de usuarios y de la matriz de permisos (D4).
 Solo validan estructura y longitudes; las reglas de negocio viven en el
 dominio y en los casos de uso (B8).
 """
+from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
 from rest_framework import serializers
 
 from apps.identidad.infrastructure.serializers.cuenta_lectura_serializers import (
@@ -31,7 +32,7 @@ class GuardarOverridesSerializer(serializers.Serializer):
     deny = serializers.ListField(
         child=serializers.CharField(max_length=100), required=False, max_length=500
     )
-    motivo = serializers.CharField(max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
     def validate_motivo(self, valor):
         return _validar_motivo(valor)
@@ -48,7 +49,7 @@ class GuardarMatrizSerializer(serializers.Serializer):
     permisos = serializers.ListField(
         child=serializers.CharField(max_length=100), max_length=500
     )
-    motivo = serializers.CharField(max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
     confirmar = serializers.BooleanField()
 
     def validate_motivo(self, valor):

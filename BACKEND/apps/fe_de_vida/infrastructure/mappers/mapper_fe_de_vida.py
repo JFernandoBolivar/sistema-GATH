@@ -37,6 +37,9 @@ def decision_a_entidad(m) -> DecisionFeDeVida:
 def solicitud_a_entidad(m) -> SolicitudFeDeVida:
     return SolicitudFeDeVida(
         id=str(m.pk), proceso_id=str(m.proceso_id), cedula=m.cedula, estado=EstadoSolicitud(m.estado),
+        canal=getattr(m, 'canal', 'EN_LINEA') or 'EN_LINEA',
+        registrada_por=getattr(m, 'registrada_por', '') or '',
+        registrada_por_cedula=getattr(m, 'registrada_por_cedula', '') or '',
         version=m.version, envios=m.envios,
         origen_evidencia=OrigenEvidencia(m.origen_evidencia) if m.origen_evidencia else None,
         evidencia_clave=m.evidencia_clave, evidencia_sha256=m.evidencia_sha256, evidencia_mime=m.evidencia_mime,
@@ -51,6 +54,9 @@ def solicitud_a_entidad(m) -> SolicitudFeDeVida:
 def campos_solicitud(s: SolicitudFeDeVida) -> dict:
     return {
         'estado': s.estado.value, 'envios': s.envios,
+        'canal': s.canal,
+        'registrada_por': s.registrada_por,
+        'registrada_por_cedula': s.registrada_por_cedula,
         'origen_evidencia': s.origen_evidencia.value if s.origen_evidencia else '',
         'evidencia_clave': s.evidencia_clave, 'evidencia_sha256': s.evidencia_sha256,
         'evidencia_mime': s.evidencia_mime, 'evidencia_tamano': s.evidencia_tamano,

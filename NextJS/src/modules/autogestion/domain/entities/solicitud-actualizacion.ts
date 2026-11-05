@@ -15,13 +15,29 @@ export const ESTADOS_SOLICITUD = [
 ] as const;
 export type EstadoSolicitud = (typeof ESTADOS_SOLICITUD)[number];
 
-export const SECCIONES = ["contacto", "vivienda", "formacion", "familiar", "foto"] as const;
+export const SECCIONES = [
+  "identidad",
+  "contacto",
+  "vivienda",
+  "formacion",
+  "complementaria",
+  "familiar",
+  "salud",
+  "foto",
+] as const;
 export type SeccionCodigo = (typeof SECCIONES)[number];
 
 export type DecisionCambio = "PENDIENTE" | "APROBADO" | "RECHAZADO";
-export type AccionCambio = "MODIFICAR" | "CREAR";
+export type AccionCambio = "MODIFICAR" | "CREAR" | "ELIMINAR";
 
-export const TIPOS_SOPORTE = ["TITULO", "ACTA_NACIMIENTO", "CONSTANCIA", "FOTO", "OTRO"] as const;
+export const TIPOS_SOPORTE = [
+  "TITULO",
+  "ACTA_NACIMIENTO",
+  "CEDULA",
+  "CONSTANCIA",
+  "FOTO",
+  "OTRO",
+] as const;
 export type TipoSoporte = (typeof TIPOS_SOPORTE)[number];
 
 /** Estados finales: la solicitud ya no cambia. */
@@ -59,7 +75,13 @@ export interface SolicitudEntity {
   fechaDevolucion: string | null;
 }
 
-export type ValorCambio = string | number | boolean | null | Record<string, unknown>;
+export type ValorCambio =
+  | string
+  | number
+  | boolean
+  | null
+  | number[]
+  | Record<string, unknown>;
 
 export interface CambioEntity {
   id: string;
@@ -70,6 +92,8 @@ export interface CambioEntity {
   campo: string;
   valorAnterior: ValorCambio;
   valorPropuesto: ValorCambio;
+  /** Referencia temporal del registro nuevo (une el cambio con sus soportes). */
+  referencia: string | null;
   /** Valor vigente hoy en la ficha (solo en solicitudes ENVIADAS). */
   valorActual: ValorCambio;
   /** La ficha cambió tras la propuesta: no puede aprobarse tal cual. */
@@ -84,6 +108,10 @@ export interface SoporteEntity {
   id: string;
   seccion: string;
   tipo: string;
+  /** Registro existente al que respalda el documento. */
+  entidadId: string | null;
+  /** Referencia temporal del registro nuevo al que respalda el documento. */
+  referencia: string | null;
   mimeReal: string;
   tamanoBytes: number;
   nombreOriginal: string;
@@ -147,6 +175,7 @@ export interface ItemBorrador {
   campo: string;
   valor: ValorCambio;
   entidadId?: string | null;
+  referencia?: string | null;
 }
 
 export interface DecisionCampo {

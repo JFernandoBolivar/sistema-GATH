@@ -28,6 +28,7 @@ from apps.autogestion.presentation.views.solicitud_bienestar_views import (
 from apps.autogestion.presentation.views.solicitud_trabajador_views import (
     BorradorView,
     EnviarSolicitudView,
+    MiPoliticaAutogestionView,
     MisDatosComplementariosView,
     SeccionesView,
     SolicitudDetalleView,
@@ -50,6 +51,7 @@ urlpatterns = [
     path('soportes/<uuid:soporte_id>/archivo/', SoporteArchivoView.as_view(), name='soporte-archivo'),
     path('catalogos/<str:clave>/', CatalogoAutogestionView.as_view(), name='catalogo'),
     path('secciones/', SeccionesView.as_view(), name='secciones'),
+    path('mi-politica/', MiPoliticaAutogestionView.as_view(), name='mi-politica'),
     path('mis-datos-complementarios/', MisDatosComplementariosView.as_view(), name='mis-datos-complementarios'),
 
     # Bienestar Social

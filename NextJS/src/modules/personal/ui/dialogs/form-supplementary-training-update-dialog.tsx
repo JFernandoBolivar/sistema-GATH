@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Combobox } from "@/shared/ui/components/combobox";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -340,28 +341,25 @@ export default function FormSupplementaryTrainingUpdateDialog({
 
                       <div className="min-w-0">
                         <Label className="text-xs">Capacitación</Label>
-                        <Select
+                        <Combobox
+                          options={[
+                            ...(catalogos?.capacitaciones ?? []).map((cap) => ({
+                              value: String(cap.id),
+                              label: cap.nombre,
+                            })),
+                            { value: String(ID_OTRA), label: "Otra" },
+                          ]}
                           value={
                             watch(`formacionComplementaria.${index}.capacitacionId`)
                               ? String(watch(`formacionComplementaria.${index}.capacitacionId`))
-                              : undefined
+                              : ""
                           }
-                          onValueChange={(v) =>
+                          onChange={(v) =>
                             setValue(`formacionComplementaria.${index}.capacitacionId`, Number(v))
                           }
-                        >
-                          <SelectTrigger className="w-full h-9 text-xs">
-                            <SelectValue placeholder="Seleccione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(catalogos?.capacitaciones ?? []).map((cap) => (
-                              <SelectItem key={cap.id} value={String(cap.id)}>
-                                {cap.nombre}
-                              </SelectItem>
-                            ))}
-                            <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          placeholder="Seleccione"
+                          searchPlaceholder="Buscar capacitación..."
+                        />
                         {Number(watch(`formacionComplementaria.${index}.capacitacionId`)) ===
                           ID_OTRA && (
                           <Input
@@ -377,28 +375,25 @@ export default function FormSupplementaryTrainingUpdateDialog({
 
                       <div className="min-w-0">
                         <Label className="text-xs">Institución</Label>
-                        <Select
+                        <Combobox
+                          options={[
+                            ...(catalogos?.instituciones ?? []).map((inst) => ({
+                              value: String(inst.id),
+                              label: inst.nombre,
+                            })),
+                            { value: String(ID_OTRA), label: "Otra" },
+                          ]}
                           value={
                             watch(`formacionComplementaria.${index}.institucionId`)
                               ? String(watch(`formacionComplementaria.${index}.institucionId`))
-                              : undefined
+                              : ""
                           }
-                          onValueChange={(v) =>
+                          onChange={(v) =>
                             setValue(`formacionComplementaria.${index}.institucionId`, Number(v))
                           }
-                        >
-                          <SelectTrigger className="w-full h-9 text-xs">
-                            <SelectValue placeholder="Seleccione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(catalogos?.instituciones ?? []).map((inst) => (
-                              <SelectItem key={inst.id} value={String(inst.id)}>
-                                {inst.nombre}
-                              </SelectItem>
-                            ))}
-                            <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          placeholder="Seleccione"
+                          searchPlaceholder="Buscar institución..."
+                        />
                         {Number(watch(`formacionComplementaria.${index}.institucionId`)) ===
                           ID_OTRA && (
                           <Input

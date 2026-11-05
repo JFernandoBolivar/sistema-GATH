@@ -24,7 +24,19 @@ class PasivoCobertura:
     tipo_nomina: str
     correo: str
     tiene_cuenta: bool
+    canal: str = ''
+    correo_alternativo: str = ''
+    alternativo_validado: bool = False
 
     @property
     def sin_correo(self) -> bool:
-        return not self.correo
+        return not self.correo and not self.correo_alternativo
+
+
+@dataclass(frozen=True)
+class PasivoPresencialCandidato:
+    cedula: str
+    nombre_completo: str
+    tipo_nomina: str
+    correo: str
+    tiene_cuenta: bool

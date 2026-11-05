@@ -19,15 +19,24 @@ describe("itemsVisibles", () => {
       "censo",
     ]);
   });
-  it("sin condición ACTIVO (pasivo o sin asignación) se ocultan las entradas de activos", () => {
+  it("sin condición ACTIVO se ocultan solo las entradas propias de activos (censo)", () => {
     const permisos = [
       "autogestion.ver_propio",
       "autogestion.solicitar_actualizacion",
       "autogestion.censo_ver_propio",
     ];
-    expect(ids(permisos, "PASIVO")).toEqual(["inicio", "ficha"]);
-    expect(ids(permisos, "SIN_ASIGNACION")).toEqual(["inicio", "ficha"]);
-    expect(ids(permisos, null)).toEqual(["inicio", "ficha"]);
+    // O12: las solicitudes ya no dependen de la condición, sino de la configuración.
+    expect(ids(permisos, "PASIVO")).toEqual(["inicio", "ficha", "solicitar", "solicitudes"]);
+    expect(ids(permisos, "SIN_ASIGNACION")).toEqual(["inicio", "ficha", "solicitar", "solicitudes"]);
+    expect(ids(permisos, null)).toEqual(["inicio", "ficha", "solicitar", "solicitudes"]);
+  });
+
+  it("con la configuración apagada se ocultan solicitar y mis solicitudes", () => {
+    const permisos = ["autogestion.ver_propio", "autogestion.solicitar_actualizacion"];
+    const visibles = itemsVisibles(permisos, "PASIVO", { autogestionHabilitada: false }).map(
+      (i) => i.id,
+    );
+    expect(visibles).toEqual(["inicio", "ficha"]);
   });
   it("sin permisos solo queda Inicio y no se usa el nombre del rol", () => {
     expect(ids([], "ACTIVO")).toEqual(["inicio"]);

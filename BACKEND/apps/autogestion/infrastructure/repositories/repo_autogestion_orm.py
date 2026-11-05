@@ -4,6 +4,8 @@ Provee acceso a preguntas, detalle de censo, registro completo,
 gráficos agregados por jerarquía y exportación a Excel.
 """
 from django.db import transaction
+from datetime import date
+
 from apps.autogestion.domain.entities.pregunta_encuesta import PreguntaEncuesta
 from apps.autogestion.domain.entities.respuesta_encuesta import RespuestaEncuesta
 from apps.autogestion.infrastructure.mappers.mapper_autogestion import (
@@ -15,7 +17,7 @@ from apps.autogestion.infrastructure.models.autogestion_models import (
     RespuestasEncuestaModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
-from apps.personal.infrastructure.models.expediente_models import DatosViviendaModel
+from apps.personal.infrastructure.models.expediente_models import ContratoModel, DatosViviendaModel
 from apps.personal.shared.domain.services.tiempo_servicio import calcular_total_apn
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.autogestion.infrastructure.services.censo_report_service import (
@@ -114,12 +116,21 @@ class RepoAutogestionORM:
         respuestas_por_cedula: dict = {}
         for r in self._qs_respuestas_censo().filter(empleado_id__in=cedulas):
             respuestas_por_cedula.setdefault(r.empleado_id, []).append(r)
+        # Ingreso del contrato más reciente (respaldo del APN en curso), en bloque.
+        respaldo_por_id: dict = {}
+        for emp_id, ingreso in (
+            ContratoModel.objects.filter(antecedente__empleado_id__in=ids)
+            .order_by('-pk')
+            .values_list('antecedente__empleado_id', 'antecedente__fecha_ingreso')
+        ):
+            respaldo_por_id.setdefault(emp_id, ingreso)
         return [
             self._serializar_censo_empleado(
                 emp,
                 cargos=cargos_por_cedula.get(emp.cedulaidentidad, []),
                 vivienda=vivienda_por_id.get(emp.pk),
                 respuestas=respuestas_por_cedula.get(emp.cedulaidentidad, []),
+                respaldo_ingreso=respaldo_por_id.get(emp.pk),
             )
             for emp in empleados
         ]
@@ -145,6 +156,7 @@ class RepoAutogestionORM:
 
     def _serializar_censo_empleado(
         self, emp: EmployeeModel, cargos=None, vivienda=None, respuestas=None,
+        respaldo_ingreso=None,
     ) -> dict:
         """`cargos`/`vivienda`/`respuestas` precargados evitan N+1 en listados."""
         precargado = cargos is not None
@@ -233,7 +245,23 @@ class RepoAutogestionORM:
             for r in respuestas
         ]
 
-        total = calcular_total_apn(emp.antecedentes_servicio)
+        respaldo = respaldo_ingreso
+        if not precargado:
+            contrato_respaldo = (
+                ContratoModel.objects.filter(antecedente__empleado=emp)
+                .select_related('antecedente')
+                .order_by('-pk')
+                .first()
+            )
+            respaldo = (
+                contrato_respaldo.antecedente.fecha_ingreso
+                if contrato_respaldo and contrato_respaldo.antecedente else None
+            )
+        total = calcular_total_apn(
+            emp.antecedentes_servicio,
+            fecha_corte=date.today(),
+            fecha_ingreso_en_curso=respaldo,
+        )
         total_apn = {
             'years': total['years'],
             'months': total['months'],

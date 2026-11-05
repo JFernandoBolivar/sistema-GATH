@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertCircle,
   Bell,
   ArrowRightFromLine,
   ArrowRightLeft,
@@ -20,6 +21,7 @@ import {
   DoorOpen,
   FileChartLine,
   FileSpreadsheet,
+  FileText,
   FolderOpenDot,
   HeartPulse,
   CalendarClock,
@@ -114,6 +116,12 @@ const items: MenuItem[] = [
         url: "/familiares/consultar",
         icon: BookUser,
         permiso: "familiares.ver",
+      },
+      {
+        title: "Reportes de Error Laboral",
+        url: "/personal/reportes-error",
+        icon: AlertCircle,
+        permiso: "personal.reportes_error_ver",
       },
     ],
   },
@@ -217,6 +225,12 @@ const items: MenuItem[] = [
         icon: ListCheck,
         permiso: "movimientos.ver",
       },
+      {
+        title: "Puntos de Cuenta",
+        url: "/movimientos/puntos-cuenta",
+        icon: FileText,
+        permiso: "puntocuenta.ver",
+      },
     ],
   },
   {
@@ -281,6 +295,12 @@ const items: MenuItem[] = [
         url: "/personal/fe-de-vida",
         icon: ListCheck,
         permiso: "fe_de_vida.revisar",
+      },
+      {
+        title: "Registro presencial",
+        url: "/personal/fe-de-vida/presencial",
+        icon: BookUser,
+        permiso: "fe_de_vida.registrar_presencial",
       },
       {
         title: "Procesos y prórrogas",

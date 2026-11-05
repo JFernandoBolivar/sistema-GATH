@@ -2,36 +2,59 @@
 Validación pura de los cambios propuestos (B5): lista blanca por sección, forma y tipo del valor.
 La existencia de las referencias (ids de catálogos) la verifica el puerto `LectorFicha`.
 """
+from core.domain.limites_texto import DIRECCION_MAX, DIRECCION_MIN, OBSERVACION_MAX, OBSERVACION_MIN
 import re
 from datetime import date
 
 from apps.autogestion.domain.value_objects.secciones import (
+    CAMPO_ELIMINAR,
     CAMPO_REGISTRO_NUEVO,
     CAMPOS_POR_SECCION,
     CAMPOS_PROHIBIDOS,
+    ENTIDADES_ELIMINABLES,
     ENTIDADES_UNICAS,
+    MOTIVO_QUITAR_MAX,
+    MOTIVO_QUITAR_MIN,
     REQUERIDOS_AL_CREAR,
     Accion,
 )
 from core.domain.exceptions import ValidationError
-from core.domain.validacion_personas import validar_nombre, validar_telefono
+from core.domain.validacion_personas import validar_nombre, validar_serial_carnet_patria, validar_telefono
 
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
-_CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,10}$')
-_LARGOS = {'direccion_exacta': 500, 'observaciones': 1000}
+_CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,9}$')
+_LARGOS = {'direccion_exacta': DIRECCION_MAX, 'observaciones': OBSERVACION_MAX}
+_MINIMOS = {'direccion_exacta': DIRECCION_MIN, 'observaciones': OBSERVACION_MIN}
 _LARGO_TEXTO = 150
 _CAMPOS_BOOL = {'tiene_hijos'}
-_CAMPOS_FECHA = {'fecha_nacimiento'}
+_CAMPOS_FECHA = {'fecha_nacimiento', 'fecha_inicio', 'fecha_fin'}
 _CAMPOS_TELEFONO = {'telefono_movil', 'telefono_habitacion', 'telefono'}
 # Nombres de personas: solo letras y espacios (paridad con NAME del frontend).
 _CAMPOS_NOMBRE = {
     'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'nombres', 'apellidos',
 }
+# Listas de ids de catálogo (M2M del perfil de salud): se guardan ordenadas y sin repetidos.
+_CAMPOS_LISTA = {'alergias', 'patologias_cronicas', 'discapacidades'}
 _OPCIONALES_NULOS = {
     'segundo_nombre', 'segundo_apellido', 'observaciones', 'cedula_familiar', 'telefono_habitacion',
     'telefono', 'correo_alternativo', 'tiene_hijos', 'mencion_id', 'carrera_id', 'institucion_id',
-    'telefono_movil', 'relacion_id',
+    'telefono_movil', 'relacion_id', 'fecha_inicio', 'fecha_fin', 'dias_completados',
+    'horas_completadas', 'grupo_id', 'estadoCivil_id', 'carnet_patria', 'carnet_patria_serial',
+    'grupo_sanguineo_id', 'talla_camisa_id', 'talla_pantalon_id', 'talla_zapatos_id',
+    'talla_chaqueta_id',
 }
+_CEDULA_EMPLEADO = re.compile(r'^\d{5,9}$')
+
+
+def _normalizar_carnet_patria(valor: str) -> str:
+    """Código del Carnet de la Patria: 10 dígitos (tolera el formato legado `000-0000000-0`)."""
+    texto = valor.strip()
+    limpio = ''.join(ch for ch in texto if ch not in ' -')
+    if re.fullmatch(r'\d{3}-\d{7}-\d', texto):
+        limpio = limpio[:10]
+    if not (limpio.isascii() and limpio.isdigit() and len(limpio) == 10):
+        raise ValidationError('El código del Carnet de la Patria debe tener 10 dígitos.')
+    return limpio
 
 
 def validar_valor(campo: str, valor):
@@ -44,6 +67,17 @@ def validar_valor(campo: str, valor):
         if not isinstance(valor, bool):
             raise ValidationError(f"El campo '{campo}' debe ser verdadero o falso.")
         return valor
+    if campo in _CAMPOS_LISTA:
+        if not isinstance(valor, list):
+            raise ValidationError(f"El campo '{campo}' debe ser una lista de identificadores.")
+        ids: list[int] = []
+        for item in valor:
+            if isinstance(item, bool) or not isinstance(item, int) or item <= 0:
+                raise ValidationError(f"El campo '{campo}' debe contener identificadores numéricos válidos.")
+            ids.append(item)
+        if len(ids) > 100:
+            raise ValidationError(f"El campo '{campo}' tiene demasiados valores seleccionados.")
+        return sorted(set(ids))
     if campo.endswith('_id'):
         if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
             raise ValidationError(f"El campo '{campo}' debe ser un identificador numérico válido.")
@@ -62,6 +96,15 @@ def validar_valor(campo: str, valor):
             raise ValidationError(f"El campo '{campo}' no puede quedar vacío.")
     if campo == 'correo_alternativo' and (not _CORREO.match(valor) or len(valor) > 254):
         raise ValidationError("El correo alternativo no tiene un formato válido.")
+    if campo == 'cedulaidentidad' and not _CEDULA_EMPLEADO.match(valor):
+        raise ValidationError("La cédula de identidad debe tener entre 5 y 9 dígitos.")
+    if campo == 'carnet_patria':
+        valor = _normalizar_carnet_patria(valor)
+    if campo == 'carnet_patria_serial':
+        try:
+            valor = validar_serial_carnet_patria(valor) or ''
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from None
     if campo in _CAMPOS_NOMBRE:
         try:
             valor = validar_nombre(valor, edicion=True, etiqueta=f"El campo '{campo}'")
@@ -79,6 +122,9 @@ def validar_valor(campo: str, valor):
     maximo = _LARGOS.get(campo, _LARGO_TEXTO)
     if campo not in _CAMPOS_TELEFONO and len(valor) > maximo and campo != 'correo_alternativo':
         raise ValidationError(f"El campo '{campo}' excede la longitud permitida.")
+    minimo = _MINIMOS.get(campo)
+    if minimo and valor and len(valor) < minimo:
+        raise ValidationError(f"El campo '{campo}' debe tener al menos {minimo} caracteres.")
     return valor
 
 
@@ -110,12 +156,31 @@ def validar_estructura(seccion: str, entidad: str, accion: Accion, campo: str, e
         if campo != CAMPO_REGISTRO_NUEVO or entidad in {'employee', 'datos_complementarios'}:
             raise ValidationError(f"No se puede crear un registro nuevo de '{entidad}'.")
         return
+    if accion is Accion.ELIMINAR:
+        if entidad not in ENTIDADES_ELIMINABLES:
+            raise ValidationError(f"No se puede quitar un registro de '{entidad}'.")
+        if campo != CAMPO_ELIMINAR:
+            raise ValidationError("La acción QUITAR no lleva un campo concreto.")
+        if entidad_id is None:
+            raise ValidationError(f"Debe indicar el identificador del registro de '{entidad}' a quitar.")
+        return
     if campo not in campos_permitidos(seccion, entidad):
         raise ValidationError(f"El campo '{campo}' no es autogestionable en la sección '{seccion}'.")
     if entidad in ENTIDADES_UNICAS and entidad_id is not None:
         raise ValidationError(f"'{entidad}' es un registro único: no lleva identificador.")
     if entidad not in ENTIDADES_UNICAS and entidad_id is None:
         raise ValidationError(f"Debe indicar el identificador del registro de '{entidad}' a modificar.")
+
+
+def validar_motivo_eliminar(valor) -> str:
+    """Motivo obligatorio de una acción QUITAR: 10 a 300 caracteres."""
+    motivo = (valor or {}).get('motivo') if isinstance(valor, dict) else None
+    motivo = (motivo or '').strip()
+    if len(motivo) < MOTIVO_QUITAR_MIN:
+        raise ValidationError(f"El motivo para quitar el registro debe tener al menos {MOTIVO_QUITAR_MIN} caracteres.")
+    if len(motivo) > MOTIVO_QUITAR_MAX:
+        raise ValidationError(f"El motivo para quitar el registro no puede superar {MOTIVO_QUITAR_MAX} caracteres.")
+    return motivo
 
 
 def validar_registro_nuevo(seccion: str, entidad: str, valores: dict) -> dict:
@@ -130,4 +195,8 @@ def validar_registro_nuevo(seccion: str, entidad: str, valores: dict) -> dict:
     faltan = sorted(c for c in REQUERIDOS_AL_CREAR.get(entidad, frozenset()) if limpios.get(c) is None)
     if faltan:
         raise ValidationError(f"Faltan campos obligatorios de '{entidad}': {', '.join(faltan)}.")
+    if entidad == 'formacion_complementaria':
+        inicio, fin = limpios.get('fecha_inicio'), limpios.get('fecha_fin')
+        if inicio and fin and fin < inicio:
+            raise ValidationError("La fecha de fin del curso no puede ser anterior a la de inicio.")
     return limpios

@@ -69,6 +69,7 @@ import {
   eliminarOrganismoAdscrito,
 } from "../../application/use-cases/gestionar-catalogos";
 import { repoCatalogosApi } from "../repositories/repo-catalogos-api";
+import { catalogosApi } from "../http/catalogos-api";
 import {
   crearAlergiaSchema,
   crearCategoriaSchema,
@@ -204,17 +205,32 @@ export async function getTiposNominaAction() {
   }
 }
 
-export async function getParentescosAction() {
+export async function getParentescosAction(uso?: "familiar" | "contacto") {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await listarParentescos(repoCatalogosApi);
+    const result = await listarParentescos(repoCatalogosApi, uso);
     await logAudit({ traceId, action: "getParentescosAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
     await logAudit({ traceId, action: "getParentescosAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     throw error;
+  }
+}
+
+export async function crearParentescoAction(descripcion: string, uso: "contacto" = "contacto") {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const item = await catalogosApi.crearParentesco({ descripcion, uso });
+    await logAudit({ traceId, action: "crearParentescoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true, message: "Parentesco creado exitosamente.", data: item };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearParentescoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const e = errorDeAccion(error, "Error al crear parentesco");
+    return { success: false, message: e.error, errores: e.errores };
   }
 }
 

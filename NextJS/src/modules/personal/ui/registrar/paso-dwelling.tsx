@@ -5,6 +5,8 @@
  * con `form-dwelling.tsx` del legado). Cascada Estado -> Municipio ->
  * Parroquia y Estado -> Código Postal con los filtros del backend.
  */
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -176,8 +178,9 @@ export function PasoDwelling({
                   <FormItem className="min-w-0 md:col-span-2">
                     <FormLabel>Direccion Exacta *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Calle, Casa, Apartamento, Sector" maxLength={300} {...field} />
+                      <Input placeholder="Calle, Casa, Apartamento, Sector" maxLength={LIMITES_TEXTO.direccion.max} {...field} />
                     </FormControl>
+                    <ContadorCampo control={form.control} name="datos_vivienda.direccion_exacta" max={LIMITES_TEXTO.direccion.max} />
                     <FormMessage />
                   </FormItem>
                 )}

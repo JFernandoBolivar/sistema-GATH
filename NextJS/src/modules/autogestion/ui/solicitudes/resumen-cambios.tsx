@@ -27,7 +27,12 @@ export function ResumenCambios({
           <li key={c.id} className="rounded-lg border bg-card p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-base font-semibold">
-                {nombreSeccion(c.seccion)} · {etiquetaCampo(c.campo, c.entidadDestino)}
+                {nombreSeccion(c.seccion)} ·{" "}
+                {c.accion === "ELIMINAR"
+                  ? "Quitar registro"
+                  : c.accion === "CREAR"
+                    ? `Nuevo registro${c.entidadDestino ? `: ${etiquetaCampo(c.campo, c.entidadDestino)}` : ""}`
+                    : etiquetaCampo(c.campo, c.entidadDestino)}
               </p>
               {mostrarDecision ? (
                 <StatusBadge texto={d.texto} tono={d.tono} icono={d.icono} />
@@ -36,7 +41,9 @@ export function ResumenCambios({
             <p className="mt-1 break-words text-base">
               {c.campo === "profile"
                 ? "Foto nueva cargada"
-                : formatearValor(c.valorPropuesto, c.campo, nombres)}
+                : c.accion === "ELIMINAR"
+                  ? `Motivo: ${String((c.valorPropuesto as { motivo?: string } | null)?.motivo ?? "")}`
+                  : formatearValor(c.valorPropuesto, c.campo, nombres)}
             </p>
             {c.decision === "RECHAZADO" && c.motivoDecision ? (
               <p className="mt-1 text-sm text-danger">Motivo del rechazo: {c.motivoDecision}</p>

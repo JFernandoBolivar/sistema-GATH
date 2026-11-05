@@ -16,6 +16,8 @@ interface FieldCompareProps {
   conflicto?: boolean;
   /** Controles de decisión (aprobar/rechazar) o estado de la decisión. */
   decision?: ReactNode;
+  /** Documentos que respaldan este cambio concreto. */
+  documentos?: ReactNode;
   id?: string;
   className?: string;
 }
@@ -39,6 +41,7 @@ export function FieldCompare({
   diferencia,
   conflicto = false,
   decision,
+  documentos,
   id,
   className,
 }: FieldCompareProps) {
@@ -94,6 +97,7 @@ export function FieldCompare({
         </p>
       ) : null}
 
+      {documentos ? <div className="mt-3 border-t pt-3">{documentos}</div> : null}
       {decision ? <div className="mt-3 border-t pt-3">{decision}</div> : null}
     </section>
   );
