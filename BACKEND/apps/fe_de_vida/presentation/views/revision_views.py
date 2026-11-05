@@ -130,6 +130,7 @@ class DetalleRevisionView(APIView):
 
         permisos_revisor = PermisosRevision(
             revisar=puede(permisos.REVISAR), aprobar_directo=puede(permisos.APROBAR_DIRECTO),
+            regenerar=puede(permisos.CHECK_ADMINISTRADORA),
             check=puede(permisos.CHECK_ANALISTA) or puede(permisos.CHECK_ADMINISTRADORA),
         )
         detalle = detalle_para_revision(
@@ -307,7 +308,8 @@ class ReenviarConstanciaView(APIView):
 
 
 class RegenerarConstanciaView(APIView):
-    permission_classes = permisos.permisos_bienestar(permisos.REVISAR)
+    # Solo la administradora: regenerar reemplaza el PDF emitido (el número y el código se conservan).
+    permission_classes = permisos.permisos_bienestar(permisos.CHECK_ADMINISTRADORA)
 
     @extend_schema(
         tags=TAG, summary='Regenerar la constancia de fe de vida (PDF)',

@@ -855,3 +855,20 @@ def test_retirar_check_rechaza_a_quien_no_lo_dio_sin_motivo_y_tras_validada(pasi
     assert administradora.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200  # VALIDADA
     assert analista.post(url, {'motivo': MOTIVO_RETIRO}, format='json').status_code == 409
     assert not AuditoriaLog.objects.filter(accion='CHECK_RETIRADO').exists()
+
+
+def test_regenerar_constancia_solo_la_administradora_y_conserva_numero_y_codigo(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    sid, constancia = _constancia_validada(administradora, pasivo, django_capture_on_commit_callbacks)
+    ruta = f'{BASE}/solicitudes/{sid}/regenerar-constancia/'
+    assert analista.post(ruta, {}, format='json').status_code == 403
+    acciones_analista = cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/'))['acciones_disponibles']
+    assert 'regenerar_constancia' not in acciones_analista and 'reenviar_constancia' in acciones_analista
+    assert 'regenerar_constancia' in cuerpo(administradora.get(f'{BASE}/solicitudes/{sid}/'))['acciones_disponibles']
+    codigo = constancia.codigo_verificacion
+    r = administradora.post(ruta, {}, format='json')
+    assert r.status_code == 200 and cuerpo(r)['numero'] == constancia.numero
+    constancia.refresh_from_db()
+    assert constancia.codigo_verificacion == codigo
+    assert AuditoriaLog.objects.filter(accion='CONSTANCIA_REGENERADA', recurso_id=constancia.numero).exists()

@@ -332,8 +332,8 @@ export function DialogoRegenerarConstancia({
           <DialogHeader>
             <DialogTitle>Regenerar constancia de fe de vida</DialogTitle>
             <DialogDescription>
-              Se regenerará el archivo PDF conservando el mismo número correlativo y código de verificación,
-              aplicando la plantilla y URL de verificación vigentes.
+              Se vuelve a crear el PDF con los datos y el formato actuales. Úsalo solo si la constancia salió
+              mal. Conserva el número y el código de verificación; el PDF anterior se reemplaza.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2 rounded-lg border p-3">

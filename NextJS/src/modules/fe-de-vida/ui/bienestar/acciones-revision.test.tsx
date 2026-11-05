@@ -29,6 +29,7 @@ beforeEach(() => {
   devolver.mockReset().mockResolvedValue({ ok: true, mensaje: "Devuelta", datos: {} });
   rechazar.mockReset().mockResolvedValue({ ok: true, mensaje: "Rechazada", datos: {} });
   retirar.mockReset().mockResolvedValue({ ok: true, mensaje: "Check retirado.", datos: {} });
+  regenerar.mockReset().mockResolvedValue({ ok: true, mensaje: "ok", datos: { numero: "FV-1", plantillaVersion: 1, reenviado: false } });
   toastOk.mockReset();
 });
 
@@ -78,6 +79,25 @@ describe("AccionesRevision: solo se pintan las acciones que declara el servidor"
     expect(screen.getByRole("button", { name: /dar check/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /devolver para corrección/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rechazar/i })).toBeInTheDocument();
+  });
+
+  it("constancia validada: cada botón trae su ayuda y Regenerar pide confirmación", async () => {
+    render(
+      <AccionesRevision solicitud={solicitudFake()} acciones={["reenviar_constancia", "regenerar_constancia"]} onHecho={vi.fn()} />,
+    );
+    expect(screen.getByText(/envía otra vez por correo al pasivo la constancia actual, sin cambiarla/i)).toBeInTheDocument();
+    expect(screen.getByText(/úsalo solo si la constancia salió mal/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /regenerar constancia/i }));
+    expect(await screen.findByRole("button", { name: /^cancelar$/i })).toBeInTheDocument();
+    expect(regenerar).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: /^regenerar$/i }));
+    await waitFor(() => expect(regenerar).toHaveBeenCalledWith(solicitudFake().id, false));
+  });
+
+  it("sin la acción regenerar (analista) no se pinta el botón", () => {
+    render(<AccionesRevision solicitud={solicitudFake()} acciones={["reenviar_constancia"]} onHecho={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /regenerar constancia/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /reenviar constancia/i })).toBeInTheDocument();
   });
 
   it("sin acciones: aviso y ningún botón", () => {

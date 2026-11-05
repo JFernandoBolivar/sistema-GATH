@@ -54,6 +54,7 @@ class PermisosRevision:
     revisar: bool = False
     check: bool = False
     aprobar_directo: bool = False
+    regenerar: bool = False
 
 
 @dataclass(frozen=True)
@@ -124,9 +125,12 @@ class SolicitudFeDeVida:
         checar, quien la registró no puede dar check.
         """
         if self.estado is EstadoSolicitud.VALIDADA:
+            acciones_constancia = []
             if permisos.revisar:
-                return (ACCION_REENVIAR_CONSTANCIA, ACCION_REGENERAR_CONSTANCIA)
-            return ()
+                acciones_constancia.append(ACCION_REENVIAR_CONSTANCIA)
+            if permisos.regenerar:
+                acciones_constancia.append(ACCION_REGENERAR_CONSTANCIA)
+            return tuple(acciones_constancia)
         if not self.revisable or actor.cedula == self.cedula:
             return ()
         if self.dio_check(actor.cedula):

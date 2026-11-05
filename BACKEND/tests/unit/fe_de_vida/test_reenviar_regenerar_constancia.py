@@ -194,8 +194,10 @@ def test_acciones_disponibles_en_solicitud_validada():
     s_val = revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ADMINISTRADORA, ahora=AHORA)
 
     actor_revisor = ActorRevision('30000001', RolRevision.ANALISTA)
-    permisos = PermisosRevision(revisar=True)
+    permisos = PermisosRevision(revisar=True, regenerar=True)
 
     acciones = s_val.acciones_disponibles(actor_revisor, permisos)
     assert 'reenviar_constancia' in acciones
     assert 'regenerar_constancia' in acciones
+    # sin el permiso de administradora solo puede reenviar
+    assert s_val.acciones_disponibles(actor_revisor, PermisosRevision(revisar=True)) == ('reenviar_constancia',)

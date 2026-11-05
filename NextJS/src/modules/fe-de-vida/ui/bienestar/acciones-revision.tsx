@@ -25,6 +25,10 @@ import {
   DialogoTexto,
 } from "./dialogos-decision";
 
+const AYUDA_REENVIAR = "Envía otra vez por correo al pasivo la constancia actual, sin cambiarla.";
+const AYUDA_REGENERAR =
+  "Vuelve a crear el PDF con los datos y el formato actuales. Úsalo solo si la constancia salió mal. Conserva el número y el código de verificación.";
+
 type Dialogo = "devolver" | "rechazar" | "aprobar" | "retirar" | "reenviar" | "regenerar" | null;
 
 interface Props {
@@ -182,26 +186,32 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
             </Button>
           ) : null}
           {tiene("reenviar_constancia") ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={pendiente}
-              onClick={() => abrirDialogo("reenviar")}
-            >
-              <Mail aria-hidden /> Reenviar constancia
-            </Button>
+            <div className="flex max-w-xs flex-col gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                disabled={pendiente}
+                onClick={() => abrirDialogo("reenviar")}
+              >
+                <Mail aria-hidden /> Reenviar constancia
+              </Button>
+              <p className="text-sm text-muted-foreground">{AYUDA_REENVIAR}</p>
+            </div>
           ) : null}
           {tiene("regenerar_constancia") ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="min-h-11"
-              disabled={pendiente}
-              onClick={() => abrirDialogo("regenerar")}
-            >
-              <RefreshCw aria-hidden /> Regenerar constancia
-            </Button>
+            <div className="flex max-w-xs flex-col gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                disabled={pendiente}
+                onClick={() => abrirDialogo("regenerar")}
+              >
+                <RefreshCw aria-hidden /> Regenerar constancia
+              </Button>
+              <p className="text-sm text-muted-foreground">{AYUDA_REGENERAR}</p>
+            </div>
           ) : null}
         </div>
       )}
