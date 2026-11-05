@@ -27,6 +27,10 @@ from apps.configuracion.infrastructure.serializers.politica_correo_acceso_serial
     PoliticaCorreoAccesoSerializer,
     ResumenVistaPreviaSerializer,
 )
+from core.domain.exceptions import ColaTareasNoDisponible
+from core.domain.notificaciones import CorreoSolicitado, SolicitudNotificacion
+from core.infrastructure.providers import obtener_notificador
+from core.infrastructure.tasks.celery_queue import CeleryTaskQueue
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
@@ -34,6 +38,11 @@ from core.presentation.schema import MensajeRespuestaSerializer
 
 PERMISO_VER = 'configuracion.ver'
 PERMISO_EDITAR = 'configuracion.editar'
+
+# A partir de este tamaño el lote va a Celery; por debajo se aplica en la petición
+# para que la pantalla reciba el resumen de inmediato.
+UMBRAL_APLICACION_ASINCRONA = 200
+TAREA_APLICAR_LOTE = 'configuracion.aplicar_correo_acceso_lote'
 
 
 def _actor(request) -> dict:
@@ -179,6 +188,23 @@ class AplicarPoliticaCorreoAccesoView(APIView):
         incluir_excepciones = serializer.validated_data['incluir_excepciones']
 
         repo = RepoPoliticaCorreoAccesoORM()
+        total = len(repo.listar_trabajadores_por_grupo(grupo))
+        if total > UMBRAL_APLICACION_ASINCRONA:
+            try:
+                tarea_id = CeleryTaskQueue().encolar(
+                    TAREA_APLICAR_LOTE,
+                    grupo=grupo,
+                    motivo=motivo,
+                    incluir_excepciones=incluir_excepciones,
+                )
+                return ok(
+                    {'asincrono': True, 'tarea_id': tarea_id, 'total': total},
+                    f'El lote de {total} cuentas se procesará en segundo plano.',
+                )
+            except ColaTareasNoDisponible:
+                # Sin broker se aplica en la petición: mejor lento que perder el trabajo.
+                pass
+
         trace_id = _trace(request)
         actor_data = _actor(request)
         origen_data = origen_de_peticion(request)
@@ -196,12 +222,33 @@ class AplicarPoliticaCorreoAccesoView(APIView):
                 **origen_data,
             )
 
+        def notificar_por_cuenta(cedula: str, correo_nuevo: str, mot: str):
+            notificador = obtener_notificador()
+            if notificador is None:
+                return
+            notificador.notificar(SolicitudNotificacion(
+                tipo='configuracion.correo_acceso_actualizado',
+                titulo='Su correo de inicio de sesión cambió',
+                mensaje=(
+                    f'Desde ahora ingresa a GATH con {correo_nuevo}. '
+                    f'Motivo: {mot}. '
+                    'Si no reconoce este cambio, comuníquese con Gestión Humana.'
+                ),
+                cedula_destino=cedula,
+                ref_tipo='correo_acceso',
+                ref_id=cedula,
+                clave=correo_nuevo,
+                correo=CorreoSolicitado(asunto='Su correo de inicio de sesión en GATH'),
+                modulo='seguridad',
+            ))
+
         resultado = aplicar_politica_masiva(
             repo,
             grupo=grupo,
             motivo=motivo,
             incluir_excepciones=incluir_excepciones,
             auditar_cuenta=auditar_por_cuenta,
+            notificar_cuenta=notificar_por_cuenta,
         )
 
         return ok(

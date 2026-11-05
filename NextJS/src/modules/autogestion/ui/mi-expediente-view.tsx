@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCaracteres } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import React, { useState } from "react";
 import useSWR from "swr";
 import {
@@ -234,8 +236,15 @@ export default function MiExpedienteView() {
     }
   };
 
+  const largoObservaciones = observacionesSolicitud.trim().length;
+  const errorObservaciones =
+    largoObservaciones > 0 && largoObservaciones < LIMITES_TEXTO.observacion.min
+      ? `Las observaciones deben tener al menos ${LIMITES_TEXTO.observacion.min} caracteres`
+      : null;
+
   const handleSolicitarCarnet = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (errorObservaciones) return;
     setSolicitandoCarnet(true);
     setFeedbackCarnet(null);
     try {
@@ -1653,12 +1662,19 @@ export default function MiExpedienteView() {
                   <textarea
                     id="observaciones"
                     rows={3}
-                    maxLength={500}
+                    maxLength={LIMITES_TEXTO.observacion.max}
+                    aria-invalid={errorObservaciones ? true : undefined}
                     value={observacionesSolicitud}
                     onChange={(e) => setObservacionesSolicitud(e.target.value)}
                     placeholder="Indique detalles relevantes (ej. carnet deteriorado, vencimiento o cambio de adscripción)..."
-                    className="w-full p-3 bg-background border border-border rounded-lg text-foreground text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    className="w-full p-3 bg-background border border-border rounded-lg text-foreground text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none aria-invalid:border-destructive"
                   />
+                  <ContadorCaracteres valor={observacionesSolicitud} max={LIMITES_TEXTO.observacion.max} />
+                  {errorObservaciones ? (
+                    <p role="alert" className="text-sm font-medium text-destructive">
+                      {errorObservaciones}
+                    </p>
+                  ) : null}
                 </div>
 
                 {/* Información sobre el proceso de aprobación y modalidades de entrega */}

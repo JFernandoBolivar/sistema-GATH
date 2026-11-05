@@ -161,6 +161,8 @@ export interface CoberturaEntity {
   readonly nombreCompleto: string;
   readonly tipoNomina: string;
   readonly correo: string;
+  readonly correoAlternativo?: string;
+  readonly alternativoValidado?: boolean;
   readonly sinCorreo: boolean;
   readonly tieneCuenta: boolean;
   readonly canal?: string;

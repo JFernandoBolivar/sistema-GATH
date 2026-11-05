@@ -80,8 +80,14 @@ class RepoSolicitudesFeDeVidaORM:
 
     def listar(self, filtro: FiltroBandeja, limite: int, desplazamiento: int):
         qs = _base().all()
-        if filtro.proceso_id:
+        if filtro.proceso_ids is not None:
+            qs = qs.filter(proceso_id__in=filtro.proceso_ids)
+        elif filtro.proceso_id:
             qs = qs.filter(proceso_id=filtro.proceso_id)
+        elif filtro.historico:
+            qs = qs.filter(proceso__estado='CERRADO')
+        else:
+            qs = qs.filter(proceso__estado='ABIERTO')
         if filtro.estado:
             qs = qs.filter(estado=filtro.estado)
         if filtro.texto:

@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional, textoLibreRequerido } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import {
   DATE_ISO,
@@ -17,10 +18,10 @@ import {
   PLAZO_MIN_DIAS,
 } from "../../application/use-cases/gestionar-solicitud-bienestar";
 
-export const CEDULA_FAMILIAR = /^[A-Za-z]?-?\d{5,9}$/;
+// Acepta la cédula real y la sintética que el servidor genera para un hijo(a) menor de 9
+// años (`<cédula del titular>-<orden>`), que se conserva al editar ese familiar.
+export const CEDULA_FAMILIAR = /^(?:[A-Za-z]?-?\d{5,9}|\d{5,9}-\d+)$/;
 export const CEDULA_FAMILIAR_MSG = "Cédula inválida. Ejemplo: V-12345678";
-
-const MOTIVO_MAX = 500;
 
 const textoRequerido = (nombre: string, max = 150) =>
   z
@@ -119,7 +120,7 @@ export const viviendaSchema = z.object({
   estado_id: idCatalogo("el estado"),
   municipio_id: idCatalogo("el municipio"),
   parroquia_id: idCatalogo("la parroquia"),
-  direccion_exacta: textoRequerido("La dirección", 500),
+  direccion_exacta: textoLibreRequerido("La dirección", LIMITES_TEXTO.direccion),
   condicion_vivienda_id: idCatalogo("la condición de la vivienda"),
   codigo_postal_id: idCatalogo("el código postal"),
 });
@@ -164,7 +165,7 @@ export const familiarSchema = z.object({
       "La fecha de nacimiento no puede ser futura",
     ),
   sexo_id: idCatalogo("el sexo"),
-  observaciones: textoOpcional(1000),
+  observaciones: textoLibreOpcional("Las observaciones", LIMITES_TEXTO.observacion),
 });
 export type FamiliarValores = z.infer<typeof familiarSchema>;
 
@@ -251,17 +252,17 @@ export const prorrogaSchema = z.object({
       (v) => new Date(v).getTime() > Date.now(),
       "La nueva fecha límite debe ser posterior a hoy",
     ),
-  motivo: textoRequerido("El motivo", MOTIVO_MAX),
+  motivo: textoLibreRequerido("El motivo", LIMITES_TEXTO.motivo),
 });
 export type ProrrogaValores = z.infer<typeof prorrogaSchema>;
 
 export const rechazoSchema = z.object({
-  motivo: textoRequerido("El motivo del rechazo", MOTIVO_MAX),
+  motivo: textoLibreRequerido("El motivo del rechazo", LIMITES_TEXTO.motivo),
 });
 export type RechazoValores = z.infer<typeof rechazoSchema>;
 
 export const devolucionSchema = z.object({
-  motivo: textoRequerido("El motivo de la devolución", MOTIVO_MAX),
+  motivo: textoLibreRequerido("El motivo de la devolución", LIMITES_TEXTO.motivo),
 });
 export type DevolucionValores = z.infer<typeof devolucionSchema>;
 

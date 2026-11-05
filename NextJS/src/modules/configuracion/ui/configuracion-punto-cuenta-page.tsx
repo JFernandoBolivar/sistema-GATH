@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { ArrowLeft, Eye, FileText, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { ArrowLeft, CheckCircle2, Eye, FileText, Info, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -13,27 +13,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   guardarConfiguracionPuntoCuentaAction,
   obtenerConfiguracionPuntoCuentaAction,
 } from "@/modules/puntocuenta/infrastructure/actions/puntocuenta-actions";
-import type {
-  ConfiguracionPuntoCuenta,
-  FirmaItem,
-  ProcesosHabilitados,
+import {
+  type ConfiguracionPuntoCuenta,
+  type FirmaItem,
+  type PlantillaProceso,
+  type ProcesosHabilitados,
+  type VariableDisponible,
+  PROCESOS_METADATA,
+  VARIABLES_FALLBACK,
+  validarVariablesTexto,
 } from "@/modules/puntocuenta/domain/entities/configuracion-punto-cuenta";
 import { RUTA_CONFIGURACION } from "@/shared/lib/administracion-sistema";
 
-const VARIABLES_DISPONIBLES = [
-  { tag: "{nombre}", desc: "Nombre completo del trabajador" },
-  { tag: "{cedula}", desc: "Cédula de identidad" },
-  { tag: "{cargo}", desc: "Denominación del cargo / puesto" },
-  { tag: "{origen}", desc: "Gerencia / Oficina de origen" },
-  { tag: "{destino}", desc: "Gerencia / Oficina de destino" },
-  { tag: "{fecha}", desc: "Fecha del movimiento" },
-  { tag: "{motivo}", desc: "Motivo administrativo" },
-  { tag: "{numero}", desc: "Número correlativo de punto de cuenta" },
-];
+const PLANTILLA_GENERAL_KEY = "general";
+
+const PROCESOS_CLAVES = Object.keys(PROCESOS_METADATA) as (keyof ProcesosHabilitados)[];
 
 export function ConfiguracionPuntoCuentaPage() {
   const [isPending, startTransition] = useTransition();
@@ -53,6 +52,7 @@ export function ConfiguracionPuntoCuentaPage() {
     cambio_estatus: false,
   });
 
+  // Plantilla General
   const [titulo, setTitulo] = useState("PUNTO DE CUENTA");
   const [encabezado, setEncabezado] = useState(
     "Para su conocimiento y fines pertinentes, se notifica el siguiente movimiento de personal:"
@@ -60,11 +60,23 @@ export function ConfiguracionPuntoCuentaPage() {
   const [cuerpo, setCuerpo] = useState(
     "Por medio del presente punto de cuenta, se deja constancia del movimiento del funcionario {nombre}, titular de la cédula de identidad N.º {cedula}, en el cargo {cargo}. Movimiento desde {origen} hacia {destino}, con fecha {fecha} y motivo {motivo}, bajo el Punto de Cuenta N.º {numero}."
   );
+
+  // Plantillas por Proceso
+  const [plantillasProcesos, setPlantillasProcesos] = useState<Record<string, PlantillaProceso>>({});
+  const [tabActiva, setTabActiva] = useState<string>(PLANTILLA_GENERAL_KEY);
+
+  // Formato compartido y firmas
   const [mostrarNivel, setMostrarNivel] = useState(true);
   const [firmas, setFirmas] = useState<FirmaItem[]>([
     { cargo: "Director(a) General de Gestión Humana", nombre: "" },
   ]);
   const [version, setVersion] = useState(1);
+  const [variablesDisponibles, setVariablesDisponibles] = useState<VariableDisponible[]>(VARIABLES_FALLBACK);
+
+  const tagsPermitidosSet = useMemo(
+    () => new Set(variablesDisponibles.map((v) => v.tag)),
+    [variablesDisponibles]
+  );
 
   useEffect(() => {
     (async () => {
@@ -78,6 +90,10 @@ export function ConfiguracionPuntoCuentaPage() {
         if (res.data.titulo) setTitulo(res.data.titulo);
         if (res.data.encabezado !== undefined) setEncabezado(res.data.encabezado);
         if (res.data.cuerpo !== undefined) setCuerpo(res.data.cuerpo);
+        if (res.data.plantillas_procesos) setPlantillasProcesos(res.data.plantillas_procesos);
+        if (res.data.variables_disponibles && res.data.variables_disponibles.length > 0) {
+          setVariablesDisponibles(res.data.variables_disponibles);
+        }
         if (res.data.mostrar_nivel !== undefined) setMostrarNivel(res.data.mostrar_nivel);
         if (res.data.firmas && res.data.firmas.length > 0) setFirmas(res.data.firmas);
         if (res.data.version) setVersion(res.data.version);
@@ -95,8 +111,100 @@ export function ConfiguracionPuntoCuentaPage() {
     }));
   };
 
+  const plantillaActual = useMemo(() => {
+    if (tabActiva === PLANTILLA_GENERAL_KEY) {
+      return {
+        personalizado: true,
+        titulo,
+        encabezado,
+        cuerpo,
+      };
+    }
+    const proc = plantillasProcesos[tabActiva];
+    return {
+      personalizado: Boolean(proc?.personalizado),
+      titulo: proc?.titulo || "",
+      encabezado: proc?.encabezado || "",
+      cuerpo: proc?.cuerpo || "",
+    };
+  }, [tabActiva, titulo, encabezado, cuerpo, plantillasProcesos]);
+
+  const erroresVariablesActuales = useMemo(() => {
+    const errTitulo = validarVariablesTexto(plantillaActual.titulo, tagsPermitidosSet);
+    const errEncabezado = validarVariablesTexto(plantillaActual.encabezado, tagsPermitidosSet);
+    const errCuerpo = validarVariablesTexto(plantillaActual.cuerpo, tagsPermitidosSet);
+    const todas = Array.from(new Set([...errTitulo, ...errEncabezado, ...errCuerpo]));
+    return todas;
+  }, [plantillaActual, tagsPermitidosSet]);
+
+  const handleUpdatePlantillaActual = (campo: "titulo" | "encabezado" | "cuerpo", valor: string) => {
+    if (tabActiva === PLANTILLA_GENERAL_KEY) {
+      if (campo === "titulo") setTitulo(valor);
+      if (campo === "encabezado") setEncabezado(valor);
+      if (campo === "cuerpo") setCuerpo(valor);
+    } else {
+      setPlantillasProcesos((prev) => {
+        const actual = prev[tabActiva] || {
+          personalizado: true,
+          titulo: "",
+          encabezado: "",
+          cuerpo: "",
+        };
+        return {
+          ...prev,
+          [tabActiva]: {
+            ...actual,
+            [campo]: valor,
+          },
+        };
+      });
+    }
+  };
+
+  const handleTogglePersonalizado = (marcado: boolean) => {
+    if (tabActiva === PLANTILLA_GENERAL_KEY) return;
+    setPlantillasProcesos((prev) => {
+      const actual = prev[tabActiva] || {
+        personalizado: false,
+        titulo: "",
+        encabezado: "",
+        cuerpo: "",
+      };
+      return {
+        ...prev,
+        [tabActiva]: {
+          ...actual,
+          personalizado: marcado,
+          // Si activa por primera vez y está vacío, inicializar con los de la general
+          titulo: marcado ? (actual.titulo || titulo) : actual.titulo,
+          encabezado: marcado ? (actual.encabezado || encabezado) : actual.encabezado,
+          cuerpo: marcado ? (actual.cuerpo || cuerpo) : actual.cuerpo,
+        },
+      };
+    });
+  };
+
   const handleInsertarTag = (tag: string) => {
-    setCuerpo((prev) => `${prev} ${tag}`);
+    if (tabActiva === PLANTILLA_GENERAL_KEY) {
+      setCuerpo((prev) => (prev ? `${prev} ${tag}` : tag));
+    } else {
+      setPlantillasProcesos((prev) => {
+        const actual = prev[tabActiva] || {
+          personalizado: true,
+          titulo: "",
+          encabezado: "",
+          cuerpo: "",
+        };
+        const nuevoCuerpo = actual.cuerpo ? `${actual.cuerpo} ${tag}` : tag;
+        return {
+          ...prev,
+          [tabActiva]: {
+            ...actual,
+            cuerpo: nuevoCuerpo,
+          },
+        };
+      });
+    }
   };
 
   const handleAddFirma = () => {
@@ -116,12 +224,29 @@ export function ConfiguracionPuntoCuentaPage() {
   const handleVistaPrevia = async () => {
     setIsPreviewPending(true);
     try {
-      const payload: Partial<ConfiguracionPuntoCuenta> = {
-        titulo,
-        encabezado,
-        cuerpo,
+      let previewTitulo = titulo;
+      let previewEncabezado = encabezado;
+      let previewCuerpo = cuerpo;
+      let procesoParam: string | undefined = undefined;
+
+      if (tabActiva !== PLANTILLA_GENERAL_KEY) {
+        procesoParam = tabActiva;
+        const proc = plantillasProcesos[tabActiva];
+        if (proc && proc.personalizado) {
+          previewTitulo = proc.titulo.trim() || titulo;
+          previewEncabezado = proc.encabezado || encabezado;
+          previewCuerpo = proc.cuerpo || cuerpo;
+        }
+      }
+
+      const payload = {
+        titulo: previewTitulo,
+        encabezado: previewEncabezado,
+        cuerpo: previewCuerpo,
         firmas,
         mostrar_nivel: mostrarNivel,
+        proceso: procesoParam,
+        plantillas_procesos: plantillasProcesos,
       };
 
       const res = await fetch("/api/puntocuenta/vista-previa", {
@@ -131,7 +256,8 @@ export function ConfiguracionPuntoCuentaPage() {
       });
 
       if (!res.ok) {
-        throw new Error("No fue posible generar la vista previa en PDF.");
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || "No fue posible generar la vista previa en PDF.");
       }
 
       const blob = await res.blob();
@@ -145,6 +271,35 @@ export function ConfiguracionPuntoCuentaPage() {
   };
 
   const handleGuardar = () => {
+    // Validar variables de la plantilla general
+    const errGen = [
+      ...validarVariablesTexto(titulo, tagsPermitidosSet),
+      ...validarVariablesTexto(encabezado, tagsPermitidosSet),
+      ...validarVariablesTexto(cuerpo, tagsPermitidosSet),
+    ];
+    if (errGen.length > 0) {
+      toast.error(`La plantilla general contiene variables no válidas: ${errGen.join(", ")}`);
+      return;
+    }
+
+    // Validar variables de cada plantilla personalizada
+    for (const [procKey, plantilla] of Object.entries(plantillasProcesos)) {
+      if (plantilla.personalizado) {
+        const errProc = [
+          ...validarVariablesTexto(plantilla.titulo, tagsPermitidosSet),
+          ...validarVariablesTexto(plantilla.encabezado, tagsPermitidosSet),
+          ...validarVariablesTexto(plantilla.cuerpo, tagsPermitidosSet),
+        ];
+        if (errProc.length > 0) {
+          const meta = PROCESOS_METADATA[procKey as keyof ProcesosHabilitados];
+          toast.error(
+            `La plantilla de "${meta?.titulo || procKey}" contiene variables no válidas: ${errProc.join(", ")}`
+          );
+          return;
+        }
+      }
+    }
+
     startTransition(async () => {
       const datos: Partial<ConfiguracionPuntoCuenta> = {
         generar,
@@ -152,6 +307,7 @@ export function ConfiguracionPuntoCuentaPage() {
         titulo: titulo.trim(),
         encabezado,
         cuerpo,
+        plantillas_procesos: plantillasProcesos,
         firmas,
         mostrar_nivel: mostrarNivel,
       };
@@ -177,10 +333,13 @@ export function ConfiguracionPuntoCuentaPage() {
     );
   }
 
+  // Filtrar solo los procesos habilitados para las pestañas
+  const procesosHabilitadosParaPlantilla = PROCESOS_CLAVES.filter((k) => Boolean(procesos[k]));
+
   return (
     <PageLayout
       title="Configuración de Punto de Cuenta"
-      description="Interruptor general, procesos administrativos que generan punto de cuenta y diseño del documento PDF."
+      description="Interruptor general, procesos administrativos que generan punto de cuenta y diseño de plantillas en PDF."
     >
       <div className="space-y-6 max-w-4xl">
         {/* Volver y Versión */}
@@ -192,7 +351,7 @@ export function ConfiguracionPuntoCuentaPage() {
             <ArrowLeft className="size-4" /> Volver a Configuración
           </Link>
           <Badge variant="outline" className="text-xs">
-            Versión de plantilla: v{version}
+            Versión de configuración: v{version}
           </Badge>
         </div>
 
@@ -223,245 +382,341 @@ export function ConfiguracionPuntoCuentaPage() {
         {/* 2. Procesos que generan Punto de Cuenta */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Procesos que generan punto de cuenta</CardTitle>
+            <CardTitle className="text-base">Movimientos y procesos habilitados</CardTitle>
             <CardDescription>
-              Indique qué operaciones administrativas deben generar automáticamente un punto de cuenta cuando el interruptor general esté activado.
+              Indique qué operaciones administrativas generan automáticamente punto de cuenta. Cada movimiento habilitado puede personalizar su propia plantilla.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Cambio de Gerencia / Oficina</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Traslado o cambio de Dirección General (RN-006-01).
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.cambio_oficina}
-                  onCheckedChange={() => handleProcesoToggle("cambio_oficina")}
-                />
-              </div>
-
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Cambio de Nivel</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Cambio en el campo Nivel (Dependencia).
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.cambio_nivel}
-                  onCheckedChange={() => handleProcesoToggle("cambio_nivel")}
-                />
-              </div>
-
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Cambio de División / Coordinación</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Modificación de Dirección de Línea o Coordinación.
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.cambio_division}
-                  onCheckedChange={() => handleProcesoToggle("cambio_division")}
-                />
-              </div>
-
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Cambio de cargo (misma oficina)</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Cambio de denominación/puesto dentro de la misma oficina.
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.cambio_cargo_misma_oficina}
-                  onCheckedChange={() => handleProcesoToggle("cambio_cargo_misma_oficina")}
-                />
-              </div>
-
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Egreso de personal activo</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Desincorporación o egreso del trabajador.
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.egreso_activo}
-                  onCheckedChange={() => handleProcesoToggle("egreso_activo")}
-                />
-              </div>
-
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Pase a pasivo</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Pase a jubilado o pensionado de CONATEL.
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.pase_a_pasivo}
-                  onCheckedChange={() => handleProcesoToggle("pase_a_pasivo")}
-                />
-              </div>
-
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Encargaduría / Préstamo de cargo</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Asignación temporal de puesto en préstamo.
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.encargaduria_prestamo}
-                  onCheckedChange={() => handleProcesoToggle("encargaduria_prestamo")}
-                />
-              </div>
-
-              <div className="flex items-start justify-between p-3 rounded-lg border bg-card">
-                <div className="space-y-0.5 pr-2">
-                  <Label className="text-sm font-medium">Cambio de estatus</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Suspensión o modificación del estatus del puesto.
-                  </p>
-                </div>
-                <Switch
-                  checked={procesos.cambio_estatus}
-                  onCheckedChange={() => handleProcesoToggle("cambio_estatus")}
-                />
-              </div>
+              {PROCESOS_CLAVES.map((clave) => {
+                const meta = PROCESOS_METADATA[clave];
+                const estaHabilitado = Boolean(procesos[clave]);
+                const tienePersonalizada = Boolean(plantillasProcesos[clave]?.personalizado);
+                return (
+                  <div
+                    key={clave}
+                    className={`flex items-start justify-between p-3 rounded-lg border transition-colors ${
+                      estaHabilitado ? "bg-card border-border" : "bg-muted/30 border-muted text-muted-foreground"
+                    }`}
+                  >
+                    <div className="space-y-0.5 pr-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`proc-${clave}`} className="text-sm font-medium cursor-pointer">
+                          {meta.titulo}
+                        </Label>
+                        {estaHabilitado && tienePersonalizada && (
+                          <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-4">
+                            Personalizada
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{meta.descripcion}</p>
+                    </div>
+                    <Switch
+                      id={`proc-${clave}`}
+                      checked={estaHabilitado}
+                      onCheckedChange={() => handleProcesoToggle(clave)}
+                      aria-label={`Habilitar ${meta.titulo}`}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
-        {/* 3. Formato del Documento PDF */}
+        {/* 3. Plantillas del Documento PDF */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="size-4" aria-hidden /> Formato y contenido del PDF
+              <FileText className="size-4" aria-hidden /> Plantillas del documento PDF
             </CardTitle>
             <CardDescription>
-              Personalice los textos del documento oficial. Utiliza el cintillo institucional de CONATEL y tipografía Arial.
+              Cada movimiento habilitado puede tener su propio título, encabezado y cuerpo. Si no se personaliza, se utiliza automáticamente la plantilla general predeterminada.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div>
-              <Label htmlFor="titulo-doc" className="text-xs font-semibold">
-                Título del documento
-              </Label>
-              <Input
-                id="titulo-doc"
-                value={titulo}
-                onChange={(e) => setTitulo(e.target.value)}
-                placeholder="PUNTO DE CUENTA"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="encabezado-doc" className="text-xs font-semibold">
-                Texto de encabezado / introducción
-              </Label>
-              <Textarea
-                id="encabezado-doc"
-                value={encabezado}
-                onChange={(e) => setEncabezado(e.target.value)}
-                rows={2}
-                className="mt-1 resize-y"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <Label htmlFor="cuerpo-doc" className="text-xs font-semibold">
-                  Texto del cuerpo
-                </Label>
-                <span className="text-[11px] text-muted-foreground">
-                  Haga clic en una variable para insertarla
-                </span>
+            {/* Pestañas de plantillas */}
+            <Tabs value={tabActiva} onValueChange={setTabActiva} className="w-full">
+              <div className="overflow-x-auto pb-1">
+                <TabsList className="h-auto flex flex-wrap gap-1 bg-muted/60 p-1 justify-start">
+                  <TabsTrigger value={PLANTILLA_GENERAL_KEY} className="text-xs">
+                    Plantilla general
+                  </TabsTrigger>
+                  {procesosHabilitadosParaPlantilla.map((clave) => {
+                    const meta = PROCESOS_METADATA[clave];
+                    const esPersonalizado = Boolean(plantillasProcesos[clave]?.personalizado);
+                    return (
+                      <TabsTrigger key={clave} value={clave} className="text-xs gap-1.5">
+                        <span>{meta.titulo}</span>
+                        {esPersonalizado ? (
+                          <span className="size-1.5 rounded-full bg-primary" aria-label="Personalizado" />
+                        ) : null}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
               </div>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {VARIABLES_DISPONIBLES.map((v) => (
-                  <button
-                    key={v.tag}
-                    type="button"
-                    onClick={() => handleInsertarTag(v.tag)}
-                    title={v.desc}
-                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-muted hover:bg-muted/80 text-foreground border transition-colors cursor-pointer"
-                  >
-                    {v.tag}
-                  </button>
-                ))}
-              </div>
-              <Textarea
-                id="cuerpo-doc"
-                value={cuerpo}
-                onChange={(e) => setCuerpo(e.target.value)}
-                rows={4}
-                className="resize-y"
-              />
-            </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
-              <div className="space-y-0.5">
-                <Label className="text-sm font-medium">Mostrar Nivel administrativo</Label>
-                <p className="text-xs text-muted-foreground">
-                  Acompaña el nombre de la oficina con su nivel (ej. «Gerencia de Operaciones (Nivel Central)»).
-                </p>
-              </div>
-              <Switch checked={mostrarNivel} onCheckedChange={setMostrarNivel} />
-            </div>
-
-            {/* Firmas */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-semibold">Firmantes del documento</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Cargos y nombres que firman al pie del punto de cuenta.
+              {/* Contenido de Plantilla General */}
+              <TabsContent value={PLANTILLA_GENERAL_KEY} className="space-y-4 pt-3">
+                <div className="rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground flex items-start gap-2">
+                  <Info className="size-4 mt-0.5 text-primary shrink-0" aria-hidden />
+                  <p>
+                    Esta es la <strong>plantilla general predeterminada</strong>. Los movimientos habilitados que no cuenten con una plantilla personalizada utilizarán estos mismos textos.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleAddFirma}
-                  className="gap-1 text-xs"
-                >
-                  <Plus className="size-3.5" /> Añadir firmante
-                </Button>
+
+                <div>
+                  <Label htmlFor="titulo-general" className="text-xs font-semibold">
+                    Título del documento
+                  </Label>
+                  <Input
+                    id="titulo-general"
+                    value={titulo}
+                    onChange={(e) => handleUpdatePlantillaActual("titulo", e.target.value)}
+                    placeholder="PUNTO DE CUENTA"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="encabezado-general" className="text-xs font-semibold">
+                    Texto de encabezado / introducción
+                  </Label>
+                  <Textarea
+                    id="encabezado-general"
+                    value={encabezado}
+                    onChange={(e) => handleUpdatePlantillaActual("encabezado", e.target.value)}
+                    rows={2}
+                    className="mt-1 resize-y"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="cuerpo-general" className="text-xs font-semibold">
+                      Texto del cuerpo
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground">
+                      Haga clic en una variable para insertarla
+                    </span>
+                  </div>
+
+                  {/* Variables disponibles */}
+                  <div className="flex flex-wrap gap-1.5 mb-2" role="region" aria-label="Variables disponibles">
+                    {variablesDisponibles.map((v) => (
+                      <button
+                        key={v.tag}
+                        type="button"
+                        onClick={() => handleInsertarTag(v.tag)}
+                        title={v.desc}
+                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-muted hover:bg-muted/80 text-foreground border transition-colors cursor-pointer"
+                      >
+                        {v.tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  <Textarea
+                    id="cuerpo-general"
+                    value={cuerpo}
+                    onChange={(e) => handleUpdatePlantillaActual("cuerpo", e.target.value)}
+                    rows={4}
+                    className="resize-y"
+                  />
+                </div>
+              </TabsContent>
+
+              {/* Contenido de cada Proceso Específico */}
+              {procesosHabilitadosParaPlantilla.map((clave) => {
+                const meta = PROCESOS_METADATA[clave];
+                const procConfig = plantillasProcesos[clave];
+                const esPersonalizado = Boolean(procConfig?.personalizado);
+
+                return (
+                  <TabsContent key={clave} value={clave} className="space-y-4 pt-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                      <div className="space-y-0.5">
+                        <Label htmlFor={`switch-custom-${clave}`} className="text-sm font-semibold">
+                          Personalizar plantilla para {meta.titulo}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          {esPersonalizado
+                            ? "Plantilla exclusiva activa para este movimiento."
+                            : "Actualmente hereda la plantilla general predeterminada."}
+                        </p>
+                      </div>
+                      <Switch
+                        id={`switch-custom-${clave}`}
+                        checked={esPersonalizado}
+                        onCheckedChange={handleTogglePersonalizado}
+                        aria-label={`Personalizar plantilla para ${meta.titulo}`}
+                      />
+                    </div>
+
+                    {!esPersonalizado ? (
+                      <div className="space-y-3 opacity-60 pointer-events-none p-3 border rounded-lg bg-muted/10">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <CheckCircle2 className="size-3.5 text-muted-foreground" aria-hidden />
+                          Usando plantilla general:
+                        </p>
+                        <div>
+                          <Label className="text-xs">Título</Label>
+                          <Input value={titulo} disabled className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Encabezado</Label>
+                          <Textarea value={encabezado} disabled rows={2} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Cuerpo</Label>
+                          <Textarea value={cuerpo} disabled rows={3} className="mt-1" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor={`titulo-${clave}`} className="text-xs font-semibold">
+                            Título para {meta.titulo}
+                          </Label>
+                          <Input
+                            id={`titulo-${clave}`}
+                            value={procConfig?.titulo || ""}
+                            onChange={(e) => handleUpdatePlantillaActual("titulo", e.target.value)}
+                            placeholder={`PUNTO DE CUENTA - ${meta.titulo.toUpperCase()}`}
+                            className="mt-1"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor={`encabezado-${clave}`} className="text-xs font-semibold">
+                            Texto de encabezado / introducción
+                          </Label>
+                          <Textarea
+                            id={`encabezado-${clave}`}
+                            value={procConfig?.encabezado || ""}
+                            onChange={(e) => handleUpdatePlantillaActual("encabezado", e.target.value)}
+                            placeholder={encabezado}
+                            rows={2}
+                            className="mt-1 resize-y"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label htmlFor={`cuerpo-${clave}`} className="text-xs font-semibold">
+                              Texto del cuerpo para este movimiento
+                            </Label>
+                            <span className="text-[11px] text-muted-foreground">
+                              Haga clic en una variable para insertarla
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 mb-2" role="region" aria-label="Variables disponibles">
+                            {variablesDisponibles.map((v) => (
+                              <button
+                                key={v.tag}
+                                type="button"
+                                onClick={() => handleInsertarTag(v.tag)}
+                                title={v.desc}
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-muted hover:bg-muted/80 text-foreground border transition-colors cursor-pointer"
+                              >
+                                {v.tag}
+                              </button>
+                            ))}
+                          </div>
+
+                          <Textarea
+                            id={`cuerpo-${clave}`}
+                            value={procConfig?.cuerpo || ""}
+                            onChange={(e) => handleUpdatePlantillaActual("cuerpo", e.target.value)}
+                            placeholder={cuerpo}
+                            rows={4}
+                            className="resize-y"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+                );
+              })}
+            </Tabs>
+
+            {/* Alerta de variables no válidas si existen en la plantilla activa */}
+            {erroresVariablesActuales.length > 0 && (
+              <div role="alert" className="p-3 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive text-xs space-y-1">
+                <p className="font-semibold">Variables no reconocidas en el texto:</p>
+                <p>
+                  {erroresVariablesActuales.join(", ")} no son variables válidas. Las variables permitidas son:{" "}
+                  {variablesDisponibles.map((v) => v.tag).join(", ")}.
+                </p>
+              </div>
+            )}
+
+            {/* Ajustes de nivel y firmas (comunes) */}
+            <div className="pt-4 border-t space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label htmlFor="switch-nivel" className="text-sm font-medium">Mostrar Nivel administrativo</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Acompaña el nombre de la oficina con su nivel (ej. «Gerencia de Operaciones (Nivel Central)»).
+                  </p>
+                </div>
+                <Switch id="switch-nivel" checked={mostrarNivel} onCheckedChange={setMostrarNivel} />
               </div>
 
-              <div className="space-y-2">
-                {firmas.map((firma, idx) => (
-                  <div key={idx} className="flex gap-2 items-center">
-                    <Input
-                      placeholder="Cargo (ej. Director General de Gestión Humana)"
-                      value={firma.cargo}
-                      onChange={(e) => handleUpdateFirma(idx, "cargo", e.target.value)}
-                      className="text-xs"
-                    />
-                    <Input
-                      placeholder="Nombre (opcional)"
-                      value={firma.nombre}
-                      onChange={(e) => handleUpdateFirma(idx, "nombre", e.target.value)}
-                      className="text-xs"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveFirma(idx)}
-                      disabled={firmas.length <= 1}
-                      title="Quitar firma"
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
+              {/* Firmas comunes */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-semibold">Firmantes del documento (común para todas las plantillas)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Cargos y nombres que firman al pie del punto de cuenta.
+                    </p>
                   </div>
-                ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAddFirma}
+                    className="gap-1 text-xs"
+                  >
+                    <Plus className="size-3.5" /> Añadir firmante
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  {firmas.map((firma, idx) => (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Cargo (ej. Director General de Gestión Humana)"
+                        value={firma.cargo}
+                        onChange={(e) => handleUpdateFirma(idx, "cargo", e.target.value)}
+                        className="text-xs"
+                        aria-label={`Cargo del firmante ${idx + 1}`}
+                      />
+                      <Input
+                        placeholder="Nombre (opcional)"
+                        value={firma.nombre}
+                        onChange={(e) => handleUpdateFirma(idx, "nombre", e.target.value)}
+                        className="text-xs"
+                        aria-label={`Nombre del firmante ${idx + 1}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveFirma(idx)}
+                        disabled={firmas.length <= 1}
+                        title="Quitar firma"
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -473,7 +728,7 @@ export function ConfiguracionPuntoCuentaPage() {
             type="button"
             variant="outline"
             onClick={handleVistaPrevia}
-            disabled={isPreviewPending}
+            disabled={isPreviewPending || erroresVariablesActuales.length > 0}
             className="gap-1.5"
           >
             {isPreviewPending ? (
@@ -481,10 +736,14 @@ export function ConfiguracionPuntoCuentaPage() {
             ) : (
               <Eye className="size-4" />
             )}
-            Vista previa en PDF
+            Vista previa ({tabActiva === PLANTILLA_GENERAL_KEY ? "General" : PROCESOS_METADATA[tabActiva as keyof ProcesosHabilitados]?.titulo || tabActiva})
           </Button>
 
-          <Button onClick={handleGuardar} disabled={isPending} className="gap-1.5">
+          <Button
+            onClick={handleGuardar}
+            disabled={isPending || erroresVariablesActuales.length > 0}
+            className="gap-1.5"
+          >
             {isPending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (

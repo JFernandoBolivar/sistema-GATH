@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
 
@@ -91,12 +92,7 @@ export const crearCargoSchema = z.object({
   coordinacionId: z.number().int().positive().optional(),
   organismoId: z.number().int().positive().optional(),
   gradoId: z.number().int().positive().optional(),
-  observaciones: z
-    .string()
-    .trim()
-    .max(500, ERROR.MAX_LENGTH(500))
-    .refine((v) => v.length === 0 || v.length >= 3, { message: ERROR.MIN_LENGTH(3) })
-    .optional(),
+  observaciones: textoLibreOpcional("Las observaciones", LIMITES_TEXTO.observacion).optional(),
 });
 
 export type AsignarCargoFormType = z.infer<typeof asignarCargoSchema>;

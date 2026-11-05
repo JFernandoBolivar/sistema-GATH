@@ -54,9 +54,7 @@ def test_listado_devuelve_los_parametros_agrupables_con_su_defecto():
     assert respuesta.status_code == 200
     parametros = data(respuesta)
     assert len(parametros) == len(DEFINICIONES)  # todas las definiciones del sistema
-    assert {p['grupo'] for p in parametros} == {
-        'notificaciones', 'plazos', 'fe_de_vida', 'retencion', 'puntocuenta',
-    }
+    assert {p['grupo'] for p in parametros} == {d.grupo for d in DEFINICIONES}
     assert all(p['valor'] == p['defecto'] for p in parametros)
 
 

@@ -2,6 +2,7 @@
 Serializers de la fe de vida: toda entrada (cuerpo y parámetros de consulta) se valida aquí y la salida
 se arma con las funciones `a_dict_*` (enums a texto, sin rutas de archivos) para fijar el contrato OpenAPI.
 """
+from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
 from rest_framework import serializers
 
 from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
@@ -19,7 +20,7 @@ from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSo
 
 ACCIONES_CAMBIO = ('MODIFICAR', 'CREAR')
 MAX_CAMBIOS_BORRADOR = 60
-MAX_LONGITUD_MOTIVO = 500
+MAX_LONGITUD_MOTIVO = MOTIVO_MAX
 MAX_TIPOS = 50
 MAX_RECORDATORIOS = 10
 
@@ -36,6 +37,7 @@ class FiltroBandejaSerializer(PaginaSerializer):
     proceso_id = serializers.UUIDField(required=False)
     desde = serializers.DateField(required=False, help_text='Fecha de envío desde (inclusive).')
     hasta = serializers.DateField(required=False, help_text='Fecha de envío hasta (inclusive).')
+    historico = serializers.BooleanField(required=False, default=False, help_text='true: lista solicitudes de procesos cerrados.')
 
     def validate(self, datos):
         if datos.get('desde') and datos.get('hasta') and datos['desde'] > datos['hasta']:
@@ -99,11 +101,11 @@ class SubirEvidenciaSerializer(serializers.Serializer):
 
 
 class MotivoSerializer(serializers.Serializer):
-    motivo = serializers.CharField(min_length=1, max_length=MAX_LONGITUD_MOTIVO)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
 
 class JustificacionSerializer(serializers.Serializer):
-    justificacion = serializers.CharField(min_length=1, max_length=MAX_LONGITUD_MOTIVO)
+    justificacion = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('La justificación', MOTIVO_MIN, MOTIVO_MAX))
 
 
 class DevolverSerializer(MotivoSerializer):
@@ -139,7 +141,7 @@ class EditarProcesoSerializer(_ConfiguracionProcesoMixin):
 
 class ProrrogarSerializer(serializers.Serializer):
     nueva_fecha_limite = serializers.DateTimeField()
-    motivo = serializers.CharField(min_length=1, max_length=MAX_LONGITUD_MOTIVO)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
     cedula = serializers.CharField(
         required=False, allow_blank=True, max_length=15,
         help_text='Con cédula: prórroga individual. Vacía u omitida: prórroga general (todos los pasivos).',
@@ -279,6 +281,8 @@ class PasivoCoberturaSerializer(serializers.Serializer):
     nombre_completo = serializers.CharField()
     tipo_nomina = serializers.CharField()
     correo = serializers.CharField(allow_blank=True)
+    correo_alternativo = serializers.CharField(required=False, allow_blank=True, default='')
+    alternativo_validado = serializers.BooleanField(required=False, default=False)
     sin_correo = serializers.BooleanField()
     tiene_cuenta = serializers.BooleanField()
     canal = serializers.CharField(required=False, allow_blank=True, default='')
@@ -408,6 +412,8 @@ def a_dict_prorroga(p: ProrrogaProceso) -> dict:
 def a_dict_cobertura(p: PasivoCobertura) -> dict:
     return {
         'cedula': p.cedula, 'nombre_completo': p.nombre_completo, 'tipo_nomina': p.tipo_nomina, 'correo': p.correo,
+        'correo_alternativo': getattr(p, 'correo_alternativo', '') or '',
+        'alternativo_validado': bool(getattr(p, 'alternativo_validado', False)),
         'sin_correo': p.sin_correo, 'tiene_cuenta': p.tiene_cuenta,
         'canal': getattr(p, 'canal', '') or '',
     }

@@ -66,7 +66,7 @@ describe("Reglas compartidas", () => {
     expect(nombreZod("El nombre").safeParse("A1").success).toBe(false);
   });
 
-  it("dirección: máximo 300 caracteres", () => {
+  it("dirección: de 10 a 500 caracteres", () => {
     const vivienda = {
       direccion_exacta: "Calle 1, casa 2, sector 3",
       estado_id: 1,
@@ -77,7 +77,10 @@ describe("Reglas compartidas", () => {
     };
     expect(pasoDwellingSchema.safeParse({ datos_vivienda: vivienda }).success).toBe(true);
     expect(
-      pasoDwellingSchema.safeParse({ datos_vivienda: { ...vivienda, direccion_exacta: "x".repeat(301) } }).success,
+      pasoDwellingSchema.safeParse({ datos_vivienda: { ...vivienda, direccion_exacta: "x".repeat(501) } }).success,
+    ).toBe(false);
+    expect(
+      pasoDwellingSchema.safeParse({ datos_vivienda: { ...vivienda, direccion_exacta: "x".repeat(9) } }).success,
     ).toBe(false);
   });
 });

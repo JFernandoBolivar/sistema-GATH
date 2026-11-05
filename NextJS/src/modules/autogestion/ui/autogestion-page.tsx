@@ -6,6 +6,8 @@
  * zodResolver; las acciones van envueltas en useTransition (R8) y se delegan
  * a las Server Actions del módulo (R7). Opera con DTOs (R5).
  */
+import { ContadorCaracteres } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useEffect, useState, useTransition, type FormEvent } from "react";
 import { ClipboardList, FileDown, Loader2, Save, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -278,11 +280,15 @@ export default function AutogestionPage() {
                     ) : (
                       <textarea
                         rows={3}
-                        className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                        maxLength={LIMITES_TEXTO.motivo.max}
+                        className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm"
                         placeholder="Escriba su respuesta"
                         value={respuestas[pregunta.id]?.respuesta ?? ""}
                         onChange={(e) => setRespuesta(pregunta.id, { respuesta: e.target.value })}
                       />
+                    )}
+                    {!(pregunta.opciones?.length) && (
+                      <ContadorCaracteres valor={respuestas[pregunta.id]?.respuesta} max={LIMITES_TEXTO.motivo.max} />
                     )}
                   </CardContent>
                 </Card>

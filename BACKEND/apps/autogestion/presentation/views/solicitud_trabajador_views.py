@@ -29,6 +29,8 @@ from apps.autogestion.application.use_cases.edicion_trabajador import (
     obtener_solicitud_propia,
 )
 from apps.autogestion.application.use_cases.solicitud_ciclo import solicitar_actualizacion
+from apps.autogestion.domain.value_objects.secciones import CODIGOS_SECCIONES, SECCIONES_CATALOGO_INICIAL
+from apps.autogestion.infrastructure.politica_autogestion import obtener_politica
 from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.autogestion.infrastructure.repositories.repo_cambios_soportes_orm import (
     RepoCambiosPropuestosORM,
@@ -79,6 +81,7 @@ from core.presentation.permissions import HasPermission, usuario_tiene_permiso
 from core.presentation.schema import MensajeRespuestaSerializer
 
 TAG = ['Autogestión · Actualización de datos']
+_NOMBRES_SECCIONES = {codigo: nombre for codigo, nombre, _ in SECCIONES_CATALOGO_INICIAL}
 ERRORES = {400: MensajeRespuestaSerializer, 403: MensajeRespuestaSerializer, 404: MensajeRespuestaSerializer,
            409: MensajeRespuestaSerializer}
 
@@ -131,6 +134,7 @@ class SolicitudesView(APIView):
             solicitud = solicitar_actualizacion(
                 RepoSolicitudesORM(), RepoSeccionesORM(), PublicadorSenales(),
                 cedula=cedula, campos=datos.get('campos'), secciones=datos.get('secciones'), motivo=datos['motivo'],
+                politica=obtener_politica(cedula),
             )
             auditar(request, 'SOLICITUD_CREADA', solicitud.id, None,
                     {**resumen(solicitud), 'secciones': list(solicitud.secciones_solicitadas),
@@ -167,6 +171,7 @@ class BorradorView(APIView):
             guardar_borrador(
                 RepoSolicitudesORM(), RepoCambiosPropuestosORM(), LectorFichaORM(),
                 solicitud_id=str(solicitud_id), cedula=cedula, items=items, version=datos.get('version'), ahora=ahora(),
+                politica=obtener_politica(cedula),
             )
             auditar(request, 'BORRADOR_GUARDADO', str(solicitud_id), None, {'cambios': len(items)})
         return ok(_detalle_propio(cedula, str(solicitud_id)), 'Borrador guardado.')
@@ -233,7 +238,7 @@ class EnviarSolicitudView(APIView):
             solicitud = enviar_solicitud(
                 RepoSolicitudesORM(), RepoCambiosPropuestosORM(), RepoSoportesORM(), RepoSeccionesORM(),
                 PublicadorSenales(), LectorFichaORM(), solicitud_id=str(solicitud_id), cedula=cedula,
-                version=datos.get('version'), ahora=ahora(),
+                version=datos.get('version'), ahora=ahora(), politica=obtener_politica(cedula),
             )
             auditar(request, 'SOLICITUD_ENVIADA', solicitud.id, {'estado': estado_previo}, resumen(solicitud))
         return ok(serializar_solicitud(solicitud), 'Solicitud enviada a Bienestar Social.')
@@ -263,6 +268,29 @@ class SeccionesView(APIView):
             [{'codigo': s.codigo, 'nombre': s.nombre, 'requiere_soporte': s.requiere_soporte, 'activa': s.activa} for s in secciones],
             many=True,
         ).data)
+
+
+class MiPoliticaAutogestionView(APIView):
+    """Configuración vigente de solicitudes para la condición del usuario (O12)."""
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=TAG, summary='Mi política de solicitudes de actualización',
+        description='Si el flujo está habilitado para la condición del usuario y qué secciones puede pedir.',
+    )
+    def get(self, request):
+        politica = obtener_politica(cedula_de_sesion(request))
+        return ok({
+            'condicion': politica.condicion,
+            'habilitado': politica.habilitado,
+            'secciones': [c for c in CODIGOS_SECCIONES if c in politica.secciones],
+            'secciones_disponibles': [
+                {'codigo': codigo, 'nombre': nombre}
+                for codigo, nombre in _NOMBRES_SECCIONES.items()
+                if codigo in politica.secciones
+            ],
+        })
 
 
 class MisDatosComplementariosView(APIView):

@@ -1,6 +1,7 @@
 """
 Serializers de Presentación de Cargos.
 """
+from core.domain.limites_texto import OBSERVACION_MIN, OBSERVACION_MAX, mensajes_texto
 from rest_framework import serializers
 
 
@@ -125,7 +126,10 @@ class CrearCargoEspecialInputSerializer(serializers.Serializer):
     coordinacion_id = serializers.IntegerField(required=False, allow_null=True)
     organismo_id = serializers.IntegerField(required=False, allow_null=True)
     grado_id = serializers.IntegerField(required=False, allow_null=True)
-    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=500)
+    observaciones = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, min_length=OBSERVACION_MIN, max_length=OBSERVACION_MAX,
+        error_messages=mensajes_texto('Las observaciones', OBSERVACION_MIN, OBSERVACION_MAX),
+    )
 
 
 class CrearCargoInputSerializer(serializers.Serializer):
@@ -142,4 +146,7 @@ class CrearCargoInputSerializer(serializers.Serializer):
     coordinacion_id = serializers.IntegerField(required=False, allow_null=True)
     organismo_id = serializers.IntegerField(required=False, allow_null=True)
     grado_id = serializers.IntegerField(required=False, allow_null=True)
-    observaciones = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=500)
+    observaciones = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, min_length=OBSERVACION_MIN, max_length=OBSERVACION_MAX,
+        error_messages=mensajes_texto('Las observaciones', OBSERVACION_MIN, OBSERVACION_MAX),
+    )

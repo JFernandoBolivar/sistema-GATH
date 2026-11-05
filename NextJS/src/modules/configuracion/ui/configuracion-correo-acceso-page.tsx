@@ -178,9 +178,16 @@ export function ConfiguracionCorreoAccesoPage() {
         setErrorMotivo(res.error);
       } else {
         setModalAbierta(false);
-        setMensajeExito(
-          `Aplicación masiva exitosa: ${res.actualizados} cuentas actualizadas, ${res.sin_cambio} sin cambios, ${res.sin_cuenta} sin cuenta.`,
-        );
+        if (res.asincrono) {
+          setMensajeExito(
+            `El lote de ${res.total} cuentas se procesará en segundo plano. El avance queda auditado por cuenta.`,
+          );
+        } else {
+          const conflictos = res.conflictos ? `, ${res.conflictos} en conflicto` : "";
+          setMensajeExito(
+            `Aplicación masiva exitosa: ${res.actualizados} cuentas actualizadas, ${res.sin_cambio} sin cambios, ${res.sin_cuenta} sin cuenta${conflictos}.`,
+          );
+        }
       }
     } catch {
       setErrorMotivo("Error al ejecutar la aplicación masiva.");
@@ -266,10 +273,10 @@ export function ConfiguracionCorreoAccesoPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Mail className="size-5" /> Política vigente de resolución
+                <Mail className="size-5" /> Correo de inicio de sesión
               </CardTitle>
               <CardDescription>
-                Define qué correo se asigna prioritariamente a activos y pasivos, y qué hacer si no está disponible.
+                Define con qué correo entran al sistema y reciben los avisos los activos y los pasivos.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -292,7 +299,9 @@ export function ConfiguracionCorreoAccesoPage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Se usa al crear la cuenta del pasivo o al validar su fe de vida si actualizó el correo alternativo.
+                  El correo alternativo que el pasivo ya tiene registrado se usa de inmediato. Si lo
+                  cambia o agrega en la fe de vida, el nuevo pasa a ser de acceso cuando Bienestar la
+                  valida; si se rechaza o devuelve, sigue entrando con el anterior.
                 </p>
               </div>
 

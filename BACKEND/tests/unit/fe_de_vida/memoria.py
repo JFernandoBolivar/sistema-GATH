@@ -87,7 +87,8 @@ class RepoSolicitudesMem:
     def listar(self, filtro, limite, desplazamiento):
         filas = [
             s for s in self.filas.values()
-            if (not filtro.proceso_id or s.proceso_id == filtro.proceso_id)
+            if (filtro.proceso_ids is None or s.proceso_id in filtro.proceso_ids)
+            and (not filtro.proceso_id or s.proceso_id == filtro.proceso_id)
             and (not filtro.estado or s.estado.value == filtro.estado)
             and (not filtro.texto or filtro.texto in s.cedula)
         ]

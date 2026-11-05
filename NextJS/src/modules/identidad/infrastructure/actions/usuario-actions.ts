@@ -106,7 +106,7 @@ export async function obtenerDetalleUsuarioAction(id: number) {
 
 export async function registrarUsuarioAction(input: {
   cedula: string;
-  password: string;
+  password?: string;
   rolId?: number | null;
 }) {
   const validation = registrarUsuarioSchema.safeParse(input);

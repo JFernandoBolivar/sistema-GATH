@@ -6,6 +6,8 @@
  * antecedentes + contrato), factorizados para el módulo de personal sin
  * duplicar el JSX de cada campo.
  */
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { Controller, useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -220,7 +222,18 @@ export function ExpedienteCampos({
           </Field>
           <Field>
             <Label htmlFor="vivDireccion">Dirección exacta</Label>
-            <Input id="vivDireccion" {...form.register("datosVivienda.direccionExacta")} />
+            <Input
+              id="vivDireccion"
+              maxLength={LIMITES_TEXTO.direccion.max}
+              aria-invalid={form.formState.errors.datosVivienda?.direccionExacta ? true : undefined}
+              {...form.register("datosVivienda.direccionExacta")}
+            />
+            <ContadorCampo control={form.control} name="datosVivienda.direccionExacta" max={LIMITES_TEXTO.direccion.max} />
+            {form.formState.errors.datosVivienda?.direccionExacta ? (
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {form.formState.errors.datosVivienda.direccionExacta.message}
+              </p>
+            ) : null}
           </Field>
           <Field>
             <Label htmlFor="vivCondicion">Condición de vivienda</Label>

@@ -72,6 +72,12 @@ export interface ProrrogaApi {
   fecha: string | null;
 }
 
+export interface PoliticaAutogestionApi {
+  condicion: string;
+  habilitado: boolean;
+  secciones: string[];
+}
+
 export interface DetalleSolicitudApi extends SolicitudApi {
   cambios: CambioApi[];
   soportes: SoporteApi[];
@@ -161,6 +167,8 @@ export const solicitudesApi = {
       version !== undefined ? { version } : {},
     ),
   listarSecciones: () => apiClient.get<ApiResponse<SeccionApi[]>>(`${BASE}/secciones/`),
+  miPolitica: () =>
+    apiClient.get<ApiResponse<PoliticaAutogestionApi>>(`${BASE}/mi-politica/`),
   misDatosComplementarios: () =>
     apiClient.get<ApiResponse<DatosComplementariosApi>>(`${BASE}/mis-datos-complementarios/`),
 

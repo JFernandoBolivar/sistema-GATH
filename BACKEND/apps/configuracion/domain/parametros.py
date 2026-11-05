@@ -7,10 +7,15 @@ metadatos. Puro: sin Django.
 """
 from dataclasses import dataclass
 
+from apps.autogestion.domain.value_objects.secciones import CODIGOS_SECCIONES
 from core.domain.configuracion import (
+    CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
+    CLAVE_AUTOGESTION_ACTIVOS_SECCIONES,
     CLAVE_AUTOGESTION_AVISO_DIAS,
-    CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
+    CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
+    CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
+    CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
     CLAVE_GENERAR_PUNTOS_CUENTA,
@@ -34,14 +39,20 @@ GRUPO_PLAZOS = 'plazos'
 GRUPO_FE_DE_VIDA = 'fe_de_vida'
 GRUPO_RETENCION = 'retencion'
 GRUPO_PUNTOS_CUENTA = 'puntocuenta'
+GRUPO_AUTOGESTION = 'autogestion'
 
 GRUPOS = (
     (GRUPO_NOTIFICACIONES, 'Notificaciones'),
     (GRUPO_PLAZOS, 'Plazos'),
     (GRUPO_FE_DE_VIDA, 'Fe de vida'),
+    (GRUPO_AUTOGESTION, 'Autogestión'),
     (GRUPO_RETENCION, 'Retención de datos'),
     (GRUPO_PUNTOS_CUENTA, 'Puntos de cuenta'),
 )
+
+# Secciones que se pueden habilitar por condición. El orden y los códigos salen del
+# dominio de autogestión (no de una lista escrita a mano).
+SECCIONES_AUTOGESTION_DEFECTO = ','.join(CODIGOS_SECCIONES)
 
 ACCION_PARAMETRO_ACTUALIZADO = 'configuracion.parametro_actualizado'
 MODULO_AUDITORIA = 'configuracion'
@@ -78,6 +89,52 @@ class ParametroDefinicion:
 
 
 DEFINICIONES = (
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
+        etiqueta='Permitir solicitudes de actualización a trabajadores activos',
+        descripcion=(
+            'Habilita el flujo de solicitudes de actualización de datos para el personal '
+            'activo. Apagado, no pueden crear solicitudes nuevas ni editar borradores '
+            'nuevos; las solicitudes ya creadas siguen su curso.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_BOOLEANO,
+        defecto='true',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ACTIVOS_SECCIONES,
+        etiqueta='Secciones habilitadas para trabajadores activos',
+        descripcion=(
+            'Secciones que puede pedir un trabajador activo al solicitar la actualización. '
+            'Sepárelas con coma: ' + ', '.join(CODIGOS_SECCIONES) + '.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_TEXTO,
+        defecto=SECCIONES_AUTOGESTION_DEFECTO,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
+        etiqueta='Permitir solicitudes de actualización a trabajadores pasivos',
+        descripcion=(
+            'Habilita el flujo de solicitudes de actualización para el personal pasivo. '
+            'Apagado por defecto: el administrador debe activarlo. Las solicitudes ya '
+            'creadas siguen su curso.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
+        etiqueta='Secciones habilitadas para trabajadores pasivos',
+        descripcion=(
+            'Secciones que puede pedir un trabajador pasivo cuando el flujo está habilitado. '
+            'Sepárelas con coma: ' + ', '.join(CODIGOS_SECCIONES) + '.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_TEXTO,
+        defecto=SECCIONES_AUTOGESTION_DEFECTO,
+    ),
     ParametroDefinicion(
         clave=CLAVE_GENERAR_PUNTOS_CUENTA,
         etiqueta='Generar puntos de cuenta',
@@ -285,6 +342,24 @@ def validar_valor(
                 f'«{definicion.etiqueta}» debe ser menor o igual a {definicion.maximo}.'
             )
         return str(numero)
+    if definicion.clave in (
+        CLAVE_AUTOGESTION_ACTIVOS_SECCIONES, CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
+    ):
+        pedidas = {
+            parte.strip().lower()
+            for parte in texto.replace(';', ',').split(',')
+            if parte.strip()
+        }
+        desconocidas = sorted(pedidas - set(CODIGOS_SECCIONES))
+        if desconocidas:
+            raise ValidationError(
+                f'«{definicion.etiqueta}» tiene secciones desconocidas: '
+                + ', '.join(desconocidas)
+                + '.'
+            )
+        if not pedidas:
+            raise ValidationError(f'«{definicion.etiqueta}» debe incluir al menos una sección.')
+        return ','.join(codigo for codigo in CODIGOS_SECCIONES if codigo in pedidas)
     if definicion.clave == CLAVE_FE_DE_VIDA_RECORDATORIOS:
         dias = como_dias(texto)
         if not dias:

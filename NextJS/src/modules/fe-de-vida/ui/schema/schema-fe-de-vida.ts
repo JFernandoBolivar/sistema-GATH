@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreRequerido } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import { EMAIL, EMAIL_MSG, NO_HTML, NO_HTML_MSG } from "@/shared/validation";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
@@ -8,13 +9,7 @@ import { MAX_LONGITUD_MOTIVO } from "../../domain/value-objects/estados";
 const telefonoMovilOpcional = telefonoZod({ tipo: "movil" }).transform((v) => v ?? "");
 const telefonoHabitacionOpcional = telefonoZod({ tipo: "cualquiera" }).transform((v) => v ?? "");
 
-const motivo = (nombre: string) =>
-  z
-    .string({ required_error: `${nombre} es obligatorio` })
-    .trim()
-    .min(3, `${nombre} es obligatorio (mínimo 3 caracteres)`)
-    .max(MAX_LONGITUD_MOTIVO, `${nombre} no puede superar ${MAX_LONGITUD_MOTIVO} caracteres`)
-    .regex(NO_HTML, NO_HTML_MSG);
+const motivo = (nombre: string) => textoLibreRequerido(nombre, LIMITES_TEXTO.motivo);
 
 // ── Pasivo: datos de contacto del acta ──
 export const datosContactoSchema = z.object({
@@ -77,6 +72,7 @@ export const filtrosBandejaSchema = z
     procesoId: z.string().max(50),
     desde: z.string().max(35),
     hasta: z.string().max(35),
+    historico: z.boolean().optional(),
   })
   .refine((v) => !v.desde || !v.hasta || v.desde <= v.hasta, {
     message: "La fecha «desde» no puede ser posterior a «hasta»",

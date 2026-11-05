@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { itemActivo, itemsVisibles } from "../shell/nav-autogestion";
 import { ControlTamanoTexto } from "../shell/control-tamano-texto";
+import { usePoliticaAutogestion } from "../solicitudes/use-politica-autogestion";
 import { ContadorMenuNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 
 /**
@@ -31,7 +32,12 @@ export function AppSidebarAutogestion() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const condicion = session?.user?.condicionTrabajador;
-  const visibles = itemsVisibles(permisos, condicion).filter((item) => item.id !== "inicio");
+  const { politica } = usePoliticaAutogestion();
+  const visibles = itemsVisibles(permisos, condicion, {
+    // Mientras carga se mantiene el comportamiento anterior (visible) para no ocultar
+    // el menú por un instante; el backend vuelve a validar todo.
+    autogestionHabilitada: politica?.habilitado ?? true,
+  }).filter((item) => item.id !== "inicio");
   const inicio = "/dashboard";
 
   return (

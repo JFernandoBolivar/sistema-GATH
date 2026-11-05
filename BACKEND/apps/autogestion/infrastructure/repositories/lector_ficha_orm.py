@@ -16,6 +16,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoProcedenciaModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
+from apps.familiares.application.use_cases.validaciones_familiar import resolver_cedula_familiar
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
@@ -182,3 +183,27 @@ class LectorFichaORM:
             'descripcion_parentesco', flat=True,
         ).first() or ''
         return nombre.upper().startswith('HIJO')
+
+    def validar_familiar_alta(self, cedula: str, valores: dict) -> None:
+        """Alta de familiar: reutiliza `resolver_cedula_familiar` del módulo de familiares.
+
+        La cédula es obligatoria salvo para un(a) hijo(a) menor de 9 años, a quien se le
+        genera `<cédula del titular>-<siguiente orden>` al aplicarse el cambio. Aquí solo se
+        valida (el valor sintético se descarta); el orden real lo calcula el aplicador.
+        """
+        fecha = valores.get('fecha_nacimiento')
+        if isinstance(fecha, str):
+            try:
+                fecha = date.fromisoformat(fecha)
+            except ValueError:
+                fecha = None
+        try:
+            resolver_cedula_familiar(
+                cedula_familiar=valores.get('cedula_familiar'),
+                cedula_empleado=cedula,
+                es_hijo=self.es_parentesco_hijo(valores.get('parentesco_id')),
+                fecha_nacimiento=fecha,
+                siguiente_orden_hijo=1,
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc), campo='cedula_familiar') from None

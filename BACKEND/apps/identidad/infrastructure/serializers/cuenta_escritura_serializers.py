@@ -7,6 +7,7 @@ administrativa) viven en el dominio y en `application/use_cases/` (B8).
 
 D3: el departamento dejó de ser parte del contrato de identidad.
 """
+from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
 from rest_framework import serializers
 
 
@@ -14,7 +15,7 @@ class RegistrarCuentaSerializer(serializers.Serializer):
     """Alta de cuenta (CRIT-05: protegida en la vista con permiso admin)."""
 
     cedula = serializers.CharField(max_length=20, trim_whitespace=True)
-    password = serializers.CharField(write_only=True, min_length=8, max_length=128)
+    password = serializers.CharField(required=False, write_only=True, allow_blank=True, default='')
     rol_id = serializers.IntegerField(required=False, allow_null=True)
 
 
@@ -22,7 +23,8 @@ class ActualizarCuentaSerializer(serializers.Serializer):
     """Edición de rol de una cuenta existente (D4/M2: la contraseña NO se cambia aquí)."""
 
     rol_id = serializers.IntegerField(required=False, allow_null=True)
-    motivo = serializers.CharField(required=False, allow_blank=False, max_length=500)
+    motivo = serializers.CharField(required=False, allow_blank=False, min_length=MOTIVO_MIN, max_length=MOTIVO_MAX,
+                                   error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
     def validate(self, attrs):
         if 'password' in self.initial_data:
@@ -37,7 +39,7 @@ class CambiarEstadoCuentaSerializer(serializers.Serializer):
     """Activación/desactivación. `is_active` y `motivo` son obligatorios en D4."""
 
     is_active = serializers.BooleanField()
-    motivo = serializers.CharField(max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
 
 class CambiarPasswordSerializer(serializers.Serializer):
@@ -70,7 +72,7 @@ class CambiarCorreoAccesoSerializer(serializers.Serializer):
 
     fuente = serializers.ChoiceField(choices=['INSTITUCIONAL', 'ALTERNATIVO', 'OTRO'])
     correo = serializers.EmailField(required=False, allow_blank=True, max_length=254)
-    motivo = serializers.CharField(max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
     def validate_motivo(self, valor):
         if len((valor or '').strip()) < 10:
@@ -86,7 +88,7 @@ class CambiarCorreoAccesoSerializer(serializers.Serializer):
 class RestablecerAccesoSerializer(serializers.Serializer):
     """«Restablecer acceso» exige motivo para la auditoría (A1)."""
 
-    motivo = serializers.CharField(max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
     def validate_motivo(self, valor):
         if len((valor or '').strip()) < 10:

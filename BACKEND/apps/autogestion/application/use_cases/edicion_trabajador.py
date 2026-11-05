@@ -21,6 +21,7 @@ from apps.autogestion.domain.ports.repo_solicitudes import (
     RepoSoportes,
     RepoSolicitudes,
 )
+from apps.autogestion.domain.services.politica_condicion import PoliticaAutogestion
 from apps.autogestion.domain.services.validacion_cambios import (
     campos_permitidos,
     mismo_valor,
@@ -116,6 +117,8 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         for campo in valor:
             _exigir_campo_habilitado(solicitud, item.entidad, campo)
         lector.validar_referencias(valor)
+        if item.entidad == 'familiar':
+            lector.validar_familiar_alta(solicitud.cedula, valor)
         referencia = (item.referencia or '').strip() or None
         if referencia is not None and len(referencia) > 64:
             raise ValidationError("La referencia del registro nuevo es demasiado larga.")
@@ -128,6 +131,8 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         if item.entidad == 'datos_vivienda' and not lector.existe_registro_unico(solicitud.cedula, item.entidad):
             raise ValidationError("No hay vivienda registrada: proponga el registro completo con acción CREAR.")
         valor = validar_valor(item.campo, item.valor)
+        if item.entidad == 'familiar' and item.campo == 'cedula_familiar' and not valor:
+            raise ValidationError('La cédula del familiar es obligatoria.', campo='cedula_familiar')
         lector.validar_referencias({item.campo: valor})
         anterior = lector.valor_actual(solicitud.cedula, item.entidad, entidad_id, item.campo)
         if mismo_valor(item.campo, valor, anterior):
@@ -158,11 +163,16 @@ def _exigir_entidad_habilitada(solicitud: SolicitudActualizacion, seccion: str, 
 def guardar_borrador(
     repo: RepoSolicitudes, repo_cambios: RepoCambiosPropuestos, lector: LectorFicha,
     *, solicitud_id: str, cedula: str, items: list[ItemCambioDTO], version: int | None, ahora: datetime,
+    politica: PoliticaAutogestion | None = None,
 ) -> SolicitudActualizacion:
     """Reemplaza el borrador (salvo la foto, que se gestiona por soportes). Repetible mientras dure la ventana."""
     solicitud = obtener_solicitud_propia(repo, solicitud_id, cedula, bloquear=True)
     solicitud.exigir_ventana_vigente(ahora)
     exigir_version(solicitud, version)
+    if politica is not None:
+        # La ventana ya existe: no se re-evalúa el interruptor general, solo que las
+        # secciones tocadas sigan permitidas para la condición (O12).
+        politica.exigir_secciones({item.seccion for item in items if item.seccion})
     if len(items) > MAX_CAMBIOS:
         raise ValidationError(f"Máximo {MAX_CAMBIOS} cambios por solicitud.")
     vistos: set = set()
@@ -256,6 +266,7 @@ def enviar_solicitud(
     repo: RepoSolicitudes, repo_cambios: RepoCambiosPropuestos, repo_soportes: RepoSoportes,
     repo_secciones: RepoSecciones, publicador: PublicadorEventos, lector: LectorFicha,
     *, solicitud_id: str, cedula: str, version: int | None, ahora: datetime,
+    politica: PoliticaAutogestion | None = None,
 ) -> SolicitudActualizacion:
     """Cierra la ventana: valida que haya cambios y los soportes obligatorios de cada sección con cambios."""
     solicitud = obtener_solicitud_propia(repo, solicitud_id, cedula, bloquear=True)
@@ -264,6 +275,8 @@ def enviar_solicitud(
     cambios = repo_cambios.listar(ORIGEN_ACTUALIZACION, solicitud.id)
     if not cambios:
         raise ValidationError("No hay cambios que enviar. Guarde al menos un cambio en el borrador.")
+    if politica is not None:
+        politica.exigir_secciones({c.seccion for c in cambios})
     for c in cambios:
         _exigir_accion_habilitada(solicitud, c.entidad_destino, Accion(c.accion))
     soportes = repo_soportes.listar(ORIGEN_ACTUALIZACION, solicitud.id)

@@ -1,5 +1,6 @@
 "use client";
 
+import { ContadorCaracteres } from "@/components/contador-caracteres";
 import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -461,6 +462,7 @@ function FormularioQuitar({
         onChange={(e) => setMotivo(e.target.value)}
         className="resize-none"
       />
+      <ContadorCaracteres valor={motivo} max={MOTIVO_QUITAR_MAX} />
       <p className="text-sm text-muted-foreground">
         Entre {MOTIVO_QUITAR_MIN} y {MOTIVO_QUITAR_MAX} caracteres. Lo revisará Bienestar Social.
       </p>

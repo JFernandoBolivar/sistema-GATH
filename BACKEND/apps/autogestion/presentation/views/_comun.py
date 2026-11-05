@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from core.domain.exceptions import NotFoundError, ValidationError
 from core.infrastructure.error_utils import extract_first_error
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
-from core.presentation.permissions import HasPermission, RequiereCondicion
+from core.presentation.permissions import HasPermission
 
 MODULO_AUDITORIA = 'autogestion'
 RECURSO = 'SolicitudActualizacion'
@@ -36,8 +36,12 @@ def validar_entrada(serializer_cls, data):
 
 
 def permisos_trabajador(*codigos: str) -> list:
-    """Permisos de las acciones del trabajador: sesión + permiso + condición ACTIVO (validada en servidor)."""
-    return [IsAuthenticated, *[HasPermission(c) for c in codigos], RequiereCondicion('ACTIVO')]
+    """Permisos de las acciones del trabajador: sesión + permiso.
+
+    La condición (ACTIVO/PASIVO) y las secciones permitidas las valida la política
+    configurable (O12) en los casos de uso, no un guard fijo por ACTIVO.
+    """
+    return [IsAuthenticated, *[HasPermission(c) for c in codigos]]
 
 
 def auditar(request, accion: str, solicitud_id: str, previo: dict | None = None, nuevo: dict | None = None) -> None:

@@ -1,6 +1,7 @@
 """
 Serializers de Presentación de Familiares.
 """
+from core.domain.limites_texto import OBSERVACION_MIN, OBSERVACION_MAX, mensajes_texto
 from rest_framework import serializers
 
 from core.presentation.validadores_personas import validar_cedula, validar_drf, validar_nombre
@@ -29,7 +30,7 @@ from apps.familiares.infrastructure.modelos_externos import (
 # Longitudes (mismas que `schema-familiar.ts` en NextJS).
 CEDULA_MIN, CEDULA_MAX = 5, 9
 NOMBRE_MIN, NOMBRE_MAX = 2, 60
-OBSERVACIONES_MAX = 500
+OBSERVACIONES_MAX = OBSERVACION_MAX
 
 
 def _nombre(value, *, edicion: bool, etiqueta: str):
@@ -177,7 +178,8 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
     mismo_ente = serializers.BooleanField(required=False, default=False)
     heredero = serializers.BooleanField(required=False, default=False)
     observaciones = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True, max_length=OBSERVACIONES_MAX,
+        required=False, allow_blank=True, allow_null=True, min_length=OBSERVACION_MIN, max_length=OBSERVACIONES_MAX,
+        error_messages=mensajes_texto('Las observaciones', OBSERVACION_MIN, OBSERVACION_MAX),
     )
     perfil_salud = PerfilSaludFamiliarEscrituraSerializer(required=False, allow_null=True)
     perfil_fisico = PerfilFisicoFamiliarEscrituraSerializer(required=False, allow_null=True)

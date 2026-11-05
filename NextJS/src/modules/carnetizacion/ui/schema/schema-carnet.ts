@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import { REGEX } from "@/shared/validation/regex";
 
@@ -7,11 +8,7 @@ export const emitirCarnetSchema = z.object({
     .trim()
     .regex(REGEX.CEDULA_DIGITOS, { message: "Cédula inválida" }),
   motivoId: z.number().positive({ message: "Seleccione un motivo de emisión" }),
-  observaciones: z
-    .string()
-    .trim()
-    .max(500, { message: "Las observaciones no pueden superar 500 caracteres" })
-    .optional(),
+  observaciones: textoLibreOpcional("Las observaciones", LIMITES_TEXTO.observacion).optional(),
 });
 
 /** Hash de seguridad de carnet (zero-trust R7). */
@@ -55,11 +52,7 @@ export const disenarCarnetSchema = z.object({
     .max(120, { message: "Nombre demasiado largo" }),
   motivoId: z.number().positive({ message: "Seleccione un motivo de emisión" }),
   plantillaId: z.number().optional(),
-  observaciones: z
-    .string()
-    .trim()
-    .max(500, { message: "Las observaciones no pueden superar 500 caracteres" })
-    .optional(),
+  observaciones: textoLibreOpcional("Las observaciones", LIMITES_TEXTO.observacion).optional(),
 });
 
 export type EmitirCarnetFormType = z.infer<typeof emitirCarnetSchema>;

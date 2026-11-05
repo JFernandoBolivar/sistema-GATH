@@ -52,6 +52,7 @@ class ConfiguracionPuntoCuentaModel(BaseModel):
     cuerpo = models.TextField(blank=True, default=CUERPO_POR_DEFECTO)
     firmas = models.JSONField(default=_defecto_firmas)
     mostrar_nivel = models.BooleanField(default=True)
+    plantillas_procesos = models.JSONField(default=dict, blank=True)
     version = models.IntegerField(default=1)
     actualizado_por_id = models.IntegerField(null=True, blank=True)
 

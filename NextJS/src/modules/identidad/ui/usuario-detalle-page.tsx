@@ -27,6 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/ui/components/table";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { PermisoDTO, RolDTO, UsuarioDetalleDTO } from "../application/dtos/usuario-dto";
@@ -47,14 +55,7 @@ function fechaLegible(iso: string | null): string {
   return Number.isNaN(fecha.getTime()) ? "—" : fecha.toLocaleString("es-VE", { dateStyle: "short", timeStyle: "short" });
 }
 
-function porModulo(codigos: string[]): Map<string, string[]> {
-  const mapa = new Map<string, string[]>();
-  for (const codigo of codigos) {
-    const modulo = codigo.split(".")[0] ?? "otros";
-    mapa.set(modulo, [...(mapa.get(modulo) ?? []), codigo]);
-  }
-  return mapa;
-}
+
 
 export default function UsuarioDetallePage({ id }: { id: number }) {
   const { data: session } = useSession();
@@ -525,12 +526,109 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                 <ShieldCheck className="size-4" aria-hidden="true" /> Permisos individuales
               </CardTitle>
               <CardDescription>
-                Excepciones sobre el rol. Un deny siempre gana. El permiso efectivo lo calcula el servidor.
+                Excepciones directas asignadas al usuario sobre los permisos de su rol.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {puedeOverrides ? (
-                <>
+            <CardContent className="flex flex-col gap-5">
+              {/* Línea normativa O18: Rol: X — ver permisos del rol en la Matriz → */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-muted-foreground">Rol:</span>
+                  <strong className="font-semibold text-foreground">
+                    {detalle.permisos.rolNombre ?? detalle.rolNombre ?? "Sin rol"}
+                  </strong>
+                  <span className="text-muted-foreground">—</span>
+                  <Link
+                    href={detalle.rolId ? `/usuarios/matriz?rolId=${detalle.rolId}` : "/usuarios/matriz"}
+                    className="inline-flex items-center text-primary font-medium hover:underline underline-offset-4"
+                  >
+                    ver permisos del rol en la Matriz →
+                  </Link>
+                </div>
+                <Badge variant="outline" className="font-mono text-xs">
+                  v{detalle.permisos.version}
+                </Badge>
+              </div>
+
+              {/* Lista de excepciones individuales del usuario */}
+              <div className="flex flex-col gap-3">
+                <p className="text-sm font-semibold tracking-tight text-foreground">
+                  Excepciones individuales asignadas
+                </p>
+
+                {detalle.permisos.allow.length === 0 && detalle.permisos.deny.length === 0 ? (
+                  <div className="rounded-md border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Sin permisos individuales: usa solo los de su rol.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Permiso</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Motivo</TableHead>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead>Asignado por</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {detalle.permisos.allow.map((codigo) => (
+                          <TableRow key={`allow-${codigo}`}>
+                            <TableCell className="font-mono text-xs font-medium">
+                              {codigo}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                                Concedido (allow)
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {detalle.permisos.motivo || "Excepción individual aprobada"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {fechaLegible(detalle.permisos.fechaActualizacion ?? detalle.ultimoAcceso)}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {detalle.permisos.asignadoPor || "Administrador del sistema"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {detalle.permisos.deny.map((codigo) => (
+                          <TableRow key={`deny-${codigo}`}>
+                            <TableCell className="font-mono text-xs font-medium">
+                              {codigo}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="destructive" className="text-xs">
+                                Denegado (deny)
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {detalle.permisos.motivo || "Restricción individual aprobada"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {fechaLegible(detalle.permisos.fechaActualizacion ?? detalle.ultimoAcceso)}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {detalle.permisos.asignadoPor || "Administrador del sistema"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+
+              {/* Formulario de gestión para administradores con puedeOverrides */}
+              {puedeOverrides && (
+                <div className="border-t pt-4 flex flex-col gap-4">
+                  <p className="text-sm font-semibold tracking-tight text-foreground">
+                    Modificar permisos individuales
+                  </p>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <p className="mb-2 text-sm font-medium">Conceder (allow)</p>
@@ -654,36 +752,8 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                   <Button type="button" onClick={guardarOverrides} disabled={cargando} className="self-start">
                     <Save className="size-4" aria-hidden="true" /> Guardar permisos
                   </Button>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No tiene permiso para gestionar permisos individuales.
-                </p>
+                </div>
               )}
-
-              <div className="border-t pt-4">
-                <p className="mb-2 text-sm font-medium">
-                  Permiso efectivo ({detalle.permisos.efectivos.length})
-                </p>
-                {detalle.permisos.efectivos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin permisos efectivos.</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {[...porModulo(detalle.permisos.efectivos).entries()].map(([modulo, codigos]) => (
-                      <div key={modulo}>
-                        <p className="text-xs font-semibold uppercase text-muted-foreground">{modulo}</p>
-                        <ul className="flex flex-wrap gap-1">
-                          {codigos.map((codigo) => (
-                            <li key={codigo}>
-                              <Badge variant="outline">{codigo}</Badge>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
         </>

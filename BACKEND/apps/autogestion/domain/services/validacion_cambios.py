@@ -2,6 +2,7 @@
 Validación pura de los cambios propuestos (B5): lista blanca por sección, forma y tipo del valor.
 La existencia de las referencias (ids de catálogos) la verifica el puerto `LectorFicha`.
 """
+from core.domain.limites_texto import DIRECCION_MAX, DIRECCION_MIN, OBSERVACION_MAX, OBSERVACION_MIN
 import re
 from datetime import date
 
@@ -22,7 +23,8 @@ from core.domain.validacion_personas import validar_nombre, validar_serial_carne
 
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 _CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,9}$')
-_LARGOS = {'direccion_exacta': 500, 'observaciones': 1000}
+_LARGOS = {'direccion_exacta': DIRECCION_MAX, 'observaciones': OBSERVACION_MAX}
+_MINIMOS = {'direccion_exacta': DIRECCION_MIN, 'observaciones': OBSERVACION_MIN}
 _LARGO_TEXTO = 150
 _CAMPOS_BOOL = {'tiene_hijos'}
 _CAMPOS_FECHA = {'fecha_nacimiento', 'fecha_inicio', 'fecha_fin'}
@@ -120,6 +122,9 @@ def validar_valor(campo: str, valor):
     maximo = _LARGOS.get(campo, _LARGO_TEXTO)
     if campo not in _CAMPOS_TELEFONO and len(valor) > maximo and campo != 'correo_alternativo':
         raise ValidationError(f"El campo '{campo}' excede la longitud permitida.")
+    minimo = _MINIMOS.get(campo)
+    if minimo and valor and len(valor) < minimo:
+        raise ValidationError(f"El campo '{campo}' debe tener al menos {minimo} caracteres.")
     return valor
 
 

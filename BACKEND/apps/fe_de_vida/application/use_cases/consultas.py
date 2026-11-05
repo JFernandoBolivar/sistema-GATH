@@ -1,4 +1,5 @@
 """Consultas de fe de vida: propia del pasivo, historial, bandeja de Bienestar, evidencia, constancia y cobertura."""
+from dataclasses import replace
 from datetime import datetime
 
 from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
@@ -38,7 +39,7 @@ from apps.fe_de_vida.domain.ports.repos import (
 )
 from apps.fe_de_vida.domain.services.reglas_proceso import puede_enviar
 from apps.fe_de_vida.domain.services.verificacion import codigo_con_formato_valido, enmascarar_cedula
-from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud
+from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud
 from core.domain.exceptions import NotFoundError
 
 
@@ -91,11 +92,36 @@ def obtener_mi_constancia(
 # ── Bienestar ──
 def bandeja_revision(
     repo_sol: RepoSolicitudesFeDeVida, lector: LectorPasivos, *, filtro: FiltroBandeja, limite: int | None = None,
-    desplazamiento: int | None = None,
+    desplazamiento: int | None = None, repo_proc: RepoProcesos | None = None,
 ) -> tuple[list[tuple[SolicitudFeDeVida, str]], int]:
     """Página de la bandeja con el nombre de cada pasivo."""
     limite, desplazamiento = normalizar_pagina(limite, desplazamiento)
-    solicitudes, total = repo_sol.listar(filtro, limite, desplazamiento)
+    filtro_efectivo = filtro
+    if repo_proc is not None:
+        if filtro.historico:
+            cerrados = repo_proc.listar(EstadoProceso.CERRADO.value)
+            cerrados_ids = {p.id for p in cerrados}
+            if filtro.proceso_id:
+                if filtro.proceso_id not in cerrados_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=(filtro.proceso_id,))
+            else:
+                if not cerrados_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=tuple(cerrados_ids))
+        else:
+            abiertos = repo_proc.listar(EstadoProceso.ABIERTO.value)
+            abiertos_ids = {p.id for p in abiertos}
+            if filtro.proceso_id:
+                if filtro.proceso_id not in abiertos_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=(filtro.proceso_id,))
+            else:
+                if not abiertos_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=tuple(abiertos_ids))
+
+    solicitudes, total = repo_sol.listar(filtro_efectivo, limite, desplazamiento)
     nombres = lector.nombres_de([s.cedula for s in solicitudes])
     return [(s, nombres.get(s.cedula, s.cedula)) for s in solicitudes], total
 
@@ -115,12 +141,12 @@ def detalle_para_revision(
     for c in repo_cambios.listar(solicitud.id):
         actual = lector_valor.valor_actual(solicitud.cedula, c)
         cambios.append(CambioComparado(c, actual, c.accion == 'MODIFICAR' and actual != c.valor_anterior))
+    proceso = repo_procesos.obtener(solicitud.proceso_id) if repo_procesos else None
     acciones = (
         solicitud.acciones_disponibles(actor, permisos or PermisosRevision(), registrador_puede_checar=registrador_puede_checar)
-        if actor else ()
+        if actor and (proceso is None or proceso.estado is not EstadoProceso.CERRADO) else ()
     )
     actores = {d.actor_cedula for d in solicitud.decisiones}
-    proceso = repo_procesos.obtener(solicitud.proceso_id) if repo_procesos else None
     return DetalleRevision(
         solicitud, cambios, lector_pasivos.nombre_de(solicitud.cedula),
         ficha=lector_ficha.ficha(solicitud.cedula) if lector_ficha else None, acciones=acciones,

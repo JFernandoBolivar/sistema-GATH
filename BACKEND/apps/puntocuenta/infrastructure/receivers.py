@@ -56,6 +56,7 @@ def _generar_punto_cuenta_y_documento(
     division_origen_id=None,
     division_destino_id=None,
     configuracion=None,
+    proceso=None,
 ):
     if configuracion is None:
         configuracion = obtener_configuracion_activa()
@@ -93,7 +94,7 @@ def _generar_punto_cuenta_y_documento(
         from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
         from apps.puntocuenta.infrastructure.pdf_punto_cuenta import construir_pdf_punto_cuenta
 
-        pdf_bytes = construir_pdf_punto_cuenta(dto, configuracion=configuracion)
+        pdf_bytes = construir_pdf_punto_cuenta(dto, configuracion=configuracion, proceso=proceso)
         clave = f"puntocuenta/{dto.id}.pdf"
         SeaweedFSStorage().subir(clave, pdf_bytes, 'application/pdf')
         adjuntar_documento_punto_cuenta(repo, dto.id, clave)
@@ -135,6 +136,9 @@ def despachar_punto_cuenta_por_actualizacion(
     if not debe_generar:
         return
 
+    proc_tipo = 'cambio_oficina' if oficina_anterior_id != oficina_nueva_id else (
+        'cambio_nivel' if dependencia_anterior_id != dependencia_nueva_id else 'cambio_division'
+    )
     _generar_punto_cuenta_y_documento(
         cargo_id=cargo_id,
         cedula=cedula,
@@ -147,6 +151,7 @@ def despachar_punto_cuenta_por_actualizacion(
         motivo_id=motivo_id,
         usuario_id=usuario_id,
         configuracion=configuracion,
+        proceso=proc_tipo,
     )
 
 
@@ -187,6 +192,9 @@ def despachar_punto_cuenta_por_traslado(sender, cargo_id, cedula, tipo_movimient
     if not debe_generar:
         return
 
+    proc_tipo = 'cambio_oficina' if oficina_anterior_id != oficina_nueva_id else (
+        'cambio_nivel' if dependencia_anterior_id != dependencia_nueva_id else 'cambio_division'
+    )
     _generar_punto_cuenta_y_documento(
         cargo_id=cargo_id,
         cedula=cedula,
@@ -199,4 +207,5 @@ def despachar_punto_cuenta_por_traslado(sender, cargo_id, cedula, tipo_movimient
         motivo_id=motivo_id,
         usuario_id=usuario_id,
         configuracion=configuracion,
+        proceso=proc_tipo,
     )

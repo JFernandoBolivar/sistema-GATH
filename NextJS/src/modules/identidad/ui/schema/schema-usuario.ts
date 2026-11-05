@@ -2,6 +2,7 @@
  * Schemas Zod del módulo identidad (Regla R7). Mensajes y formatos
  * centralizados en `@/shared/domain/validation` — cero regex inline.
  */
+import { LIMITES_TEXTO, textoLibreOpcional, textoLibreRequerido } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
 
@@ -35,7 +36,7 @@ export const usuariosFiltrosSchema = z.object({
   pageSize: z.number().int().min(1).max(50).optional(),
 });
 
-/** Alta de cuenta (zero-trust R7). D3: sin departamento. */
+/** Alta de cuenta (zero-trust R7). D3: sin departamento. O17: password opcional en UI (la inicial es la cédula). */
 export const registrarUsuarioSchema = z.object({
   cedula: z
     .string()
@@ -45,39 +46,41 @@ export const registrarUsuarioSchema = z.object({
     .string()
     .min(8, ERROR.MIN_LENGTH(8))
     .max(128, ERROR.MAX_LENGTH(128))
-    .regex(REGEX.PASSWORD, ERROR.INVALID_PASSWORD),
+    .regex(REGEX.PASSWORD, ERROR.INVALID_PASSWORD)
+    .optional()
+    .or(z.literal("")),
   rolId: z.number().int().positive().optional().nullable(),
 });
 
 /** Edición de rol (D4/M2: la contraseña no se cambia por este endpoint). */
 export const editarUsuarioSchema = z.object({
   rolId: z.number().int().positive().optional().nullable(),
-  motivo: z.string().trim().max(500, ERROR.MAX_LENGTH(500)).optional(),
+  motivo: textoLibreOpcional("El motivo", LIMITES_TEXTO.motivo).optional(),
 });
 
 /** Cambio de estado (D4: motivo obligatorio). */
 export const cambiarEstadoUsuarioSchema = z.object({
   isActive: z.boolean(),
-  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+  motivo: textoLibreRequerido("El motivo", LIMITES_TEXTO.motivo),
 });
 
 /** Overrides individuales (D4: motivo obligatorio). */
 export const guardarOverridesSchema = z.object({
   allow: z.array(z.string().trim().min(1).max(100)).max(500),
   deny: z.array(z.string().trim().min(1).max(100)).max(500),
-  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+  motivo: textoLibreRequerido("El motivo", LIMITES_TEXTO.motivo),
 });
 
 /** Matriz de permisos (D4: confirmación y motivo). */
 export const guardarMatrizSchema = z.object({
   rolId: z.number().int().positive({ message: "Rol inválido" }),
   permisos: z.array(z.string().trim().min(1).max(100)).max(500),
-  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+  motivo: textoLibreRequerido("El motivo", LIMITES_TEXTO.motivo),
 });
 
 /** «Restablecer acceso» (A1): motivo obligatorio para la auditoría. */
 export const restablecerAccesoSchema = z.object({
-  motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+  motivo: textoLibreRequerido("El motivo", LIMITES_TEXTO.motivo),
 });
 
 /** Correo de acceso (D8/A2). */
@@ -91,7 +94,7 @@ export const cambiarCorreoAccesoSchema = z
       .max(254, ERROR.MAX_LENGTH(254))
       .optional()
       .or(z.literal("")),
-    motivo: z.string().trim().min(10, ERROR.MIN_LENGTH(10)).max(500, ERROR.MAX_LENGTH(500)),
+    motivo: textoLibreRequerido("El motivo", LIMITES_TEXTO.motivo),
   })
   .refine((v) => v.fuente !== "OTRO" || !!v.correo, {
     message: "Indique el correo cuando la fuente es OTRO",
@@ -124,12 +127,7 @@ export const rolSchema = z.object({
     .trim()
     .min(2, ERROR.MIN_LENGTH(2))
     .max(50, ERROR.MAX_LENGTH(50)),
-  descripcionRol: z
-    .string()
-    .trim()
-    .max(500, ERROR.MAX_LENGTH(500))
-    .optional()
-    .nullable(),
+  descripcionRol: textoLibreOpcional("La descripción", LIMITES_TEXTO.observacion).optional().nullable(),
 });
 
 /** Identificador de rol (zero-trust R7). */

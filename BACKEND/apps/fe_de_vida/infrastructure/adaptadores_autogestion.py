@@ -103,10 +103,14 @@ class ValidadorCambiosActaORM:
         if accion is Accion.CREAR:
             valor = validar_registro_nuevo(cambio.seccion, cambio.entidad_destino, cambio.valor_propuesto)
             self._lector.validar_referencias(valor)
+            if cambio.entidad_destino == 'familiar':
+                self._lector.validar_familiar_alta(cedula, valor)
             return CambioActa(cambio.seccion, accion.value, cambio.entidad_destino, CAMPO_REGISTRO_NUEVO, valor)
         if entidad_id is not None and not self._lector.pertenece_al_trabajador(cedula, cambio.entidad_destino, entidad_id):
             raise NotFoundError(f"El registro {entidad_id} de '{cambio.entidad_destino}' no pertenece al trabajador.")
         valor = validar_valor(cambio.campo, cambio.valor_propuesto)
+        if cambio.entidad_destino == 'familiar' and cambio.campo == 'cedula_familiar' and not valor:
+            raise ValidationError('La cédula del familiar es obligatoria.', campo='cedula_familiar')
         self._lector.validar_referencias({cambio.campo: valor})
         anterior = self._lector.valor_actual(cedula, cambio.entidad_destino, entidad_id, cambio.campo)
         if valor == anterior:

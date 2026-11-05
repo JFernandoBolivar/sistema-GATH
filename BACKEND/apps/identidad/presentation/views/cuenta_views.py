@@ -37,6 +37,8 @@ from apps.identidad.domain.services.reglas_administracion import (
     validar_operacion_sobre_cuenta_administrativa,
 )
 from apps.identidad.domain.entities.politica_acceso import PoliticaAcceso
+from apps.identidad.domain.events import EventoIdentidad, TipoEventoIdentidad
+from apps.identidad.domain.services.politica_password_inicial import vencimiento_desde
 from apps.identidad.domain.value_objects.administracion import (
     FiltrosUsuarios,
     PaginacionUsuarios,
@@ -257,13 +259,35 @@ class UsuarioRegistrarView(views.APIView):
                 ),
                 rol_id=rol_id,
             )
+            cedula_str = str(datos['cedula']).strip()
             cuenta = registrar_usuario(
                 repo,
                 RegistrarCuentaDTO(
-                    cedula=str(datos['cedula']),
-                    password=datos['password'],
+                    cedula=cedula_str,
+                    password=cedula_str,
                     rol_id=rol_id,
                 ),
+            )
+            lector = obtener_lector_configuracion()
+            dias = (
+                lector.obtener_entero(CLAVE_PASSWORD_INICIAL_DIAS)
+                if lector is not None else 7
+            )
+            RepoPasswordInicialORM().emitir(cuenta.id, vencimiento_desde(timezone.now(), dias))
+            publicar_evento_identidad(EventoIdentidad(
+                tipo=TipoEventoIdentidad.CUENTA_CREADA,
+                cedula=cuenta.cedula,
+                dias_vigencia=dias,
+            ))
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion='identidad.alta_usuario',
+                modulo=MODULO_AUDITORIA,
+                recurso_tipo=RECURSO_AUDITORIA,
+                recurso_id=str(cuenta.id),
+                estado_nuevo={'cedula': cuenta.cedula, 'rol_id': rol_id, 'password_inicial': True, 'dias_vigencia': dias},
+                **_actor(request),
+                **origen_de_peticion(request),
             )
         except (PermissionDeniedError, ConflictError) as error:
             _auditar_denegado(

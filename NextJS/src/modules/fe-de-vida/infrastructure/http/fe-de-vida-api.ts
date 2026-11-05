@@ -149,6 +149,8 @@ export interface CoberturaApi {
   nombre_completo: string;
   tipo_nomina: string;
   correo: string;
+  correo_alternativo?: string;
+  alternativo_validado?: boolean;
   sin_correo: boolean;
   tiene_cuenta: boolean;
   canal?: string;

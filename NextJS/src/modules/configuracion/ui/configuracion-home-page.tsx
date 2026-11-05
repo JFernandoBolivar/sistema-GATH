@@ -4,7 +4,7 @@
  * Portada de «Administración del sistema → Configuración» (D9).
  */
 import Link from "next/link";
-import { Settings, Image as ImageIcon, FileText, SlidersHorizontal, Mail } from "lucide-react";
+import { Settings, Image as ImageIcon, FileText, SlidersHorizontal, Mail, UserCog } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
   RUTA_REGLAS_CATALOGOS,
   RUTA_CORREO_ACCESO,
 } from "@/shared/lib/administracion-sistema";
+import { RUTA_AUTOGESTION_CONDICION } from "../domain/value-objects/claves-parametros";
 
 export function ConfiguracionHomePage() {
   return (
@@ -71,6 +72,19 @@ export function ConfiguracionHomePage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
               Interruptor general, procesos administrativos que generan punto de cuenta y formato personalizable del documento PDF.
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href={RUTA_AUTOGESTION_CONDICION} className="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Card className="h-full transition-colors hover:bg-accent/40">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <UserCog aria-hidden /> Solicitudes de actualización
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Interruptor por condición (activos/pasivos) y secciones que puede pedir cada trabajador.
             </CardContent>
           </Card>
         </Link>

@@ -97,6 +97,7 @@ class BandejaView(APIView):
             OpenApiParameter('texto', str, description='Cédula o nombre'), OpenApiParameter('estado', str),
             OpenApiParameter('proceso_id', str), OpenApiParameter('desde', str, description='YYYY-MM-DD'),
             OpenApiParameter('hasta', str, description='YYYY-MM-DD'),
+            OpenApiParameter('historico', bool, description='Si es True, lista solicitudes de procesos cerrados'),
             OpenApiParameter('limit', int, description='Por defecto 10, máximo 50'), OpenApiParameter('offset', int),
         ],
         responses={200: SolicitudSerializer(many=True), 400: MensajeRespuestaSerializer, 403: MensajeRespuestaSerializer},
@@ -110,7 +111,9 @@ class BandejaView(APIView):
             filtro=FiltroBandeja(
                 proceso_id=str(proceso_id) if proceso_id else None, estado=filtros.get('estado'),
                 texto=filtros.get('texto'), desde=filtros.get('desde'), hasta=filtros.get('hasta'),
+                historico=bool(filtros.get('historico', False)),
             ),
+            repo_proc=RepoProcesosORM(),
         )
         return ok(respuesta_pagina(total, filtros, [a_dict_solicitud(s, nombre) for s, nombre in filas]))
 

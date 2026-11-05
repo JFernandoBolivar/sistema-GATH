@@ -10,6 +10,7 @@ Alcance de datos anidados soportado en esta migración (documentado, ver
 de salud (escalar), formación académica, contacto de emergencia,
 antecedentes de servicio y contrato.
 """
+from core.domain.limites_texto import DIRECCION_MIN, DIRECCION_MAX as _DIRECCION_MAX, mensajes_texto
 import re
 from datetime import date
 
@@ -44,7 +45,7 @@ from apps.personal.infrastructure.models.expediente_models import (
 # Longitudes del expediente (mismas que el formulario de NextJS, `schema-empleado.ts`).
 CEDULA_MIN, CEDULA_MAX = 5, 9
 NOMBRE_MIN, NOMBRE_MAX = 2, 60
-DIRECCION_MAX = 300
+DIRECCION_MAX = _DIRECCION_MAX
 CORREO_MAX = 254
 
 
@@ -82,7 +83,10 @@ def _validar_codigo_carnet(value):
 
 
 class DatosViviendaEscrituraSerializer(serializers.ModelSerializer):
-    direccion_exacta = serializers.CharField(max_length=DIRECCION_MAX)
+    direccion_exacta = serializers.CharField(
+        min_length=DIRECCION_MIN, max_length=DIRECCION_MAX,
+        error_messages=mensajes_texto('La dirección', DIRECCION_MIN, DIRECCION_MAX),
+    )
 
     class Meta:
         model = DatosViviendaModel

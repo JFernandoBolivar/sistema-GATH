@@ -39,6 +39,7 @@ class RepoPoliticaCorreoAccesoMemoria:
         self.excepciones: set[str] = set()
         self.trabajadores: dict[str, DatosCorreoTrabajador] = {}
         self.empleados_guardados: dict[str, str] = {}
+        self.correos_ocupados: set[str] = set()
 
     def obtener_politica(self) -> PoliticaCorreoAcceso:
         return self.politica
@@ -64,6 +65,9 @@ class RepoPoliticaCorreoAccesoMemoria:
 
     def listar_trabajadores_por_grupo(self, grupo: str):
         return list(self.trabajadores.values())
+
+    def correo_en_uso_por_otro(self, cedula: str, correo: str) -> bool:
+        return correo.lower() in self.correos_ocupados and self.empleados_guardados.get(cedula) != correo
 
     def aplicar_correo_a_empleado(self, cedula: str, nuevo_correo: str) -> None:
         self.empleados_guardados[cedula] = nuevo_correo
@@ -253,6 +257,42 @@ def test_aplicar_politica_masiva_ejecuta_y_audita():
     assert repo.empleados_guardados['V-111'] == 'nuevo@gmail.com'
     assert len(auditados) == 1
     assert auditados[0] == ('V-111', 'viejo@ejemplo.com', 'nuevo@gmail.com', 'Migración masiva aprobada por RRHH')
+
+
+def test_aplicar_politica_masiva_reporta_conflictos_sin_romper_el_lote():
+    pol = PoliticaCorreoAcceso(politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO)
+    repo = RepoPoliticaCorreoAccesoMemoria(politica=pol)
+    for cedula, alternativo in (('V-111', 'compartido@gmail.com'), ('V-222', 'libre@gmail.com')):
+        repo.trabajadores[cedula] = DatosCorreoTrabajador(
+            cedula=cedula, nombre_completo=cedula, condicion='PASIVO',
+            correo_actual_acceso='viejo@ejemplo.com', correo_institucional='',
+            correo_alternativo=alternativo, correo_ficha='viejo@ejemplo.com', tiene_cuenta=True,
+        )
+    repo.correos_ocupados.add('compartido@gmail.com')
+
+    resultado = aplicar_politica_masiva(repo, grupo='pasivos', motivo='Migración aprobada por RRHH')
+
+    assert resultado['actualizados'] == 1
+    assert resultado['conflictos'] == 1
+    assert repo.empleados_guardados == {'V-222': 'libre@gmail.com'}
+
+
+def test_aplicar_politica_masiva_notifica_al_nuevo_correo_si_esta_encendido():
+    pol = PoliticaCorreoAcceso(
+        politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO, avisar_al_aplicar_masivo=True,
+    )
+    repo = RepoPoliticaCorreoAccesoMemoria(politica=pol)
+    repo.trabajadores['V-111'] = DatosCorreoTrabajador(
+        cedula='V-111', nombre_completo='Pasivo 1', condicion='PASIVO',
+        correo_actual_acceso='viejo@ejemplo.com', correo_institucional='',
+        correo_alternativo='nuevo@gmail.com', correo_ficha='viejo@ejemplo.com', tiene_cuenta=True,
+    )
+    notificados = []
+    aplicar_politica_masiva(
+        repo, grupo='pasivos', motivo='Migración aprobada por RRHH',
+        notificar_cuenta=lambda cedula, correo, motivo: notificados.append((cedula, correo, motivo)),
+    )
+    assert notificados == [('V-111', 'nuevo@gmail.com', 'Migración aprobada por RRHH')]
 
 
 # ==============================================================================

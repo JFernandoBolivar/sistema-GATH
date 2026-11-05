@@ -237,6 +237,8 @@ export function mapperCobertura(c: CoberturaApi): CoberturaEntity {
     nombreCompleto: c.nombre_completo,
     tipoNomina: c.tipo_nomina ?? "",
     correo: c.correo ?? "",
+    correoAlternativo: c.correo_alternativo ?? "",
+    alternativoValidado: typeof c.alternativo_validado === "boolean" ? c.alternativo_validado : true,
     sinCorreo: !!c.sin_correo,
     tieneCuenta: !!c.tiene_cuenta,
     canal: c.canal ?? "",

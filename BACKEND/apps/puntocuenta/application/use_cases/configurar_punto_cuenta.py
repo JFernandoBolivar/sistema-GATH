@@ -6,6 +6,7 @@ from django.db import transaction
 
 from core.domain.configuracion import CLAVE_GENERAR_PUNTOS_CUENTA
 from core.infrastructure.providers import obtener_lector_configuracion
+from apps.puntocuenta.domain.services.variables_plantilla import obtener_ayuda_variables
 from apps.puntocuenta.infrastructure.models.configuracion_punto_cuenta_model import (
     ConfiguracionPuntoCuentaModel,
     CUERPO_POR_DEFECTO,
@@ -42,6 +43,8 @@ def obtener_configuracion_activa() -> dict[str, Any]:
             'cuerpo': CUERPO_POR_DEFECTO,
             'firmas': list(FIRMAS_POR_DEFECTO),
             'mostrar_nivel': True,
+            'plantillas_procesos': {},
+            'variables_disponibles': obtener_ayuda_variables(),
             'version': 1,
             'actualizado_por_id': None,
         }
@@ -59,6 +62,8 @@ def obtener_configuracion_activa() -> dict[str, Any]:
         'cuerpo': cfg.cuerpo if cfg.cuerpo is not None else CUERPO_POR_DEFECTO,
         'firmas': list(cfg.firmas) if cfg.firmas is not None else list(FIRMAS_POR_DEFECTO),
         'mostrar_nivel': bool(cfg.mostrar_nivel),
+        'plantillas_procesos': dict(getattr(cfg, 'plantillas_procesos', None) or {}),
+        'variables_disponibles': obtener_ayuda_variables(),
         'version': cfg.version,
         'actualizado_por_id': cfg.actualizado_por_id,
         'updated_at': cfg.updated_at.isoformat() if hasattr(cfg, 'updated_at') and cfg.updated_at else None,
@@ -90,6 +95,12 @@ def guardar_configuracion(datos: dict[str, Any], usuario_id: int | None) -> dict
         elif cfg_actual and cfg_actual.procesos_habilitados:
             procesos.update(cfg_actual.procesos_habilitados)
 
+        plantillas = dict(
+            datos.get('plantillas_procesos')
+            if 'plantillas_procesos' in datos
+            else (getattr(cfg_actual, 'plantillas_procesos', None) or {})
+        )
+
         nuevo = ConfiguracionPuntoCuentaModel.objects.create(
             procesos_habilitados=procesos,
             titulo=str(datos.get('titulo') or (cfg_actual.titulo if cfg_actual else TITULO_POR_DEFECTO)).strip(),
@@ -97,6 +108,7 @@ def guardar_configuracion(datos: dict[str, Any], usuario_id: int | None) -> dict
             cuerpo=str(datos.get('cuerpo') if 'cuerpo' in datos else (cfg_actual.cuerpo if cfg_actual else CUERPO_POR_DEFECTO)),
             firmas=list(datos.get('firmas') if 'firmas' in datos else (cfg_actual.firmas if cfg_actual else FIRMAS_POR_DEFECTO)),
             mostrar_nivel=bool(datos.get('mostrar_nivel', cfg_actual.mostrar_nivel if cfg_actual else True)),
+            plantillas_procesos=plantillas,
             version=nueva_version,
             actualizado_por_id=usuario_id,
         )

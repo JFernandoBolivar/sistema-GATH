@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCaracteres } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useMemo, useState, useTransition } from "react";
 import { type FieldPath, type FieldValues, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -567,10 +569,12 @@ export default function AutogestionPage() {
                         <FormControl>
                           <Input
                             placeholder="Calle, Casa, Apartamento, Sector"
+                            maxLength={LIMITES_TEXTO.direccion.max}
                             {...field}
                             value={(field.value as string) ?? ""}
                           />
                         </FormControl>
+                        <ContadorCaracteres valor={field.value as string} max={LIMITES_TEXTO.direccion.max} />
                         <FormMessage />
                       </FormItem>
                     )}

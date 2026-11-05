@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
@@ -79,7 +80,7 @@ export const registrarPasivoSchema = z.object({
       estado: z.number().int().positive().nullable().optional(),
       municipio: z.number().int().positive().nullable().optional(),
       parroquia: z.number().int().positive().nullable().optional(),
-      direccion_exacta: z.string().trim().max(255).nullable().optional(),
+      direccion_exacta: textoLibreOpcional("La dirección", LIMITES_TEXTO.direccion).nullable().optional(),
     })
     .optional(),
 });

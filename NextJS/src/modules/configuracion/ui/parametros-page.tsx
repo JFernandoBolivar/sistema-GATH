@@ -45,6 +45,9 @@ import {
 } from "@/shared/ui/components/select";
 import { Switch } from "@/components/ui/switch";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { RUTA_PUNTO_CUENTA } from "@/shared/lib/administracion-sistema";
+import { CLAVE_GENERAR_PUNTOS_CUENTA } from "../domain/value-objects/claves-parametros";
+import Link from "next/link";
 
 import type { ParametroDTO, PaginaCambiosDTO } from "../application/dtos/parametro-dto";
 import {
@@ -189,19 +192,29 @@ export function ParametrosPage() {
                         </div>
                         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                           {parametro.tipo === "booleano" ? (
-                            <Switch
-                              id={`param-${parametro.clave}`}
-                              checked={valor === "true"}
-                              disabled={!puedeEditar || isPending}
-                              onCheckedChange={(marcado) => {
-                                const nuevo = marcado ? "true" : "false";
-                                if (solicitarCambio(parametro, nuevo)) {
-                                  setEdiciones((prev) => ({ ...prev, [parametro.clave]: nuevo }));
-                                }
-                              }}
-                              aria-label={parametro.etiqueta}
-                              aria-invalid={!!errorEste}
-                            />
+                            <div className="flex flex-wrap items-center gap-3">
+                              <Switch
+                                id={`param-${parametro.clave}`}
+                                checked={valor === "true"}
+                                disabled={!puedeEditar || isPending}
+                                onCheckedChange={(marcado) => {
+                                  const nuevo = marcado ? "true" : "false";
+                                  if (solicitarCambio(parametro, nuevo)) {
+                                    setEdiciones((prev) => ({ ...prev, [parametro.clave]: nuevo }));
+                                  }
+                                }}
+                                aria-label={parametro.etiqueta}
+                                aria-invalid={!!errorEste}
+                              />
+                              {parametro.clave === CLAVE_GENERAR_PUNTOS_CUENTA && (
+                                <Link
+                                  href={RUTA_PUNTO_CUENTA}
+                                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                >
+                                  Configurar movimientos y formato →
+                                </Link>
+                              )}
+                            </div>
                           ) : parametro.opciones.length > 0 ? (
                             <Select
                               value={valor}

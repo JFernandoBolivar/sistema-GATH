@@ -26,6 +26,13 @@ export type PaginaSolicitudesDTO = PaginaSolicitudesEntity;
 export type ItemBorradorDTO = ItemBorrador;
 export type DecisionCampoDTO = DecisionCampo;
 
+/** Configuración vigente de solicitudes para la condición del trabajador (O12). */
+export interface PoliticaAutogestionDTO {
+  condicion: string;
+  habilitado: boolean;
+  secciones: string[];
+}
+
 /** Resultado uniforme de las Server Actions de escritura. */
 export type ResultadoAccion<T = undefined> =
   | { ok: true; mensaje: string; datos: T }

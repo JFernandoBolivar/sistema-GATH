@@ -161,7 +161,7 @@ describe("viviendaSchema / formacionSchema", () => {
       estado_id: "1",
       municipio_id: "2",
       parroquia_id: "3",
-      direccion_exacta: "Calle 1",
+      direccion_exacta: "Calle 1, casa 2",
       condicion_vivienda_id: "4",
       codigo_postal_id: "5",
     });
@@ -171,6 +171,19 @@ describe("viviendaSchema / formacionSchema", () => {
       formacionSchema.parse({ nivel_academico_id: "2", carrera_id: "" }).carrera_id,
     ).toBeNull();
     expect(formacionSchema.safeParse({ nivel_academico_id: "" }).success).toBe(false);
+  });
+  it("la dirección exige de 10 a 500 caracteres", () => {
+    const base = {
+      estado_id: "1",
+      municipio_id: "2",
+      parroquia_id: "3",
+      condicion_vivienda_id: "4",
+      codigo_postal_id: "5",
+    };
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(9) }).success).toBe(false);
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(10) }).success).toBe(true);
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(500) }).success).toBe(true);
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(501) }).success).toBe(false);
   });
 });
 
@@ -184,6 +197,12 @@ describe("familiarSchema", () => {
   };
   it("acepta un familiar completo", () => {
     expect(familiarSchema.safeParse(base).success).toBe(true);
+  });
+  it("las observaciones, si se escriben, exigen de 5 a 500 caracteres", () => {
+    expect(familiarSchema.safeParse({ ...base, observaciones: "" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, observaciones: "abcd" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, observaciones: "abcde" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, observaciones: "x".repeat(501) }).success).toBe(false);
   });
   it("rechaza fecha futura, cédula inválida y datos faltantes", () => {
     expect(familiarSchema.safeParse({ ...base, fecha_nacimiento: "2999-01-01" }).success).toBe(

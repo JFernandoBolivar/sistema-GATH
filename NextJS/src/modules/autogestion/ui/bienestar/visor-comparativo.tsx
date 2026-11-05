@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCaracteres } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useMemo, useState } from "react";
 import { Check, CircleCheck, CircleX, FileText, X } from "lucide-react";
 import { toast } from "sonner";
@@ -300,12 +302,13 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
                           id={`${idCampo}-motivo`}
                           rows={2}
                           className="resize-none"
-                          maxLength={500}
+                          maxLength={LIMITES_TEXTO.motivo.max}
                           value={e.motivo}
                           onChange={(ev) =>
                             elegir(c.id, { aprobado: false, motivo: ev.target.value })
                           }
                         />
+                        <ContadorCaracteres valor={e.motivo} max={LIMITES_TEXTO.motivo.max} />
                       </div>
                     ) : null}
                   </fieldset>
@@ -344,10 +347,11 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
                 id="motivo-general"
                 rows={3}
                 className="resize-none"
-                maxLength={500}
+                maxLength={LIMITES_TEXTO.motivo.max}
                 value={motivoGeneral}
                 onChange={(ev) => setMotivoGeneral(ev.target.value)}
               />
+              <ContadorCaracteres valor={motivoGeneral} max={LIMITES_TEXTO.motivo.max} />
             </div>
           ) : null}
 

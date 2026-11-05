@@ -172,6 +172,9 @@ class FichaMem:
     def es_parentesco_hijo(self, parentesco_id):
         return parentesco_id == 3
 
+    def validar_familiar_alta(self, cedula, valores):
+        return None
+
     # AplicadorCambios
     def aplicar(self, cedula, cambios, soportes, actor_cedula):
         self.aplicaciones.append([c.campo for c in cambios])

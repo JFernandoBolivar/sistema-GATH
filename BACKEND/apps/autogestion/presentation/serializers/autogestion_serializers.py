@@ -1,6 +1,7 @@
 """
 Serializers de Presentación de Autogestión.
 """
+from core.domain.limites_texto import OBSERVACION_MIN, OBSERVACION_MAX, mensajes_texto
 from rest_framework import serializers
 
 
@@ -42,5 +43,5 @@ class RegistrarCensoInputSerializer(serializers.Serializer):
 
 class SolicitarCarnetSerializer(serializers.Serializer):
     motivo_id = serializers.IntegerField(required=False, allow_null=True)
-    observaciones = serializers.CharField(required=False, allow_blank=True, max_length=500)
+    observaciones = serializers.CharField(required=False, allow_blank=True, min_length=OBSERVACION_MIN, max_length=OBSERVACION_MAX, error_messages=mensajes_texto('Las observaciones', OBSERVACION_MIN, OBSERVACION_MAX))
 

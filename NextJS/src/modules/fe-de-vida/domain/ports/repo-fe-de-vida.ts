@@ -26,6 +26,7 @@ export interface FiltrosBandeja extends PaginaPedida {
   procesoId?: string;
   desde?: string;
   hasta?: string;
+  historico?: boolean;
 }
 
 export interface FiltrosHistorial extends PaginaPedida {

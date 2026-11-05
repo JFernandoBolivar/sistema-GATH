@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -226,11 +228,12 @@ export function DialogoProrrogar({ solicitud, abierto, onAbiertoChange, onHecho 
               className="resize-none"
               id="motivo-prorroga"
               rows={3}
-              maxLength={500}
+              maxLength={LIMITES_TEXTO.motivo.max}
               aria-invalid={errors.motivo ? true : undefined}
               aria-describedby={errors.motivo ? "motivo-prorroga-error" : undefined}
               {...register("motivo")}
             />
+            <ContadorCampo control={form.control} name="motivo" max={LIMITES_TEXTO.motivo.max} />
             <MensajeError id="motivo-prorroga-error" texto={errors.motivo?.message} />
           </div>
           <MensajeError id="prorroga-root" texto={errors.root?.message} />
@@ -324,12 +327,13 @@ function DialogoMotivo({
             <Textarea
               id={`motivo-${idBase}`}
               rows={4}
-              maxLength={500}
+              maxLength={LIMITES_TEXTO.motivo.max}
               className="resize-none"
               aria-invalid={errors.motivo ? true : undefined}
               aria-describedby={errors.motivo ? `motivo-${idBase}-error` : undefined}
               {...register("motivo")}
             />
+            <ContadorCampo control={form.control} name="motivo" max={LIMITES_TEXTO.motivo.max} />
             <MensajeError id={`motivo-${idBase}-error`} texto={errors.motivo?.message} />
           </div>
           <MensajeError id={`${idBase}-root`} texto={errors.root?.message} />

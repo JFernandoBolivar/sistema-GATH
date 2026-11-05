@@ -12,6 +12,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.puntocuenta.application.dtos.punto_cuenta_dto import PuntoCuentaDTO
+from apps.puntocuenta.domain.services.variables_plantilla import DICCIONARIO_VARIABLES
 from core.infrastructure.pdf.pdf_components import create_header, draw_footer
 from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
 
@@ -24,6 +25,30 @@ def _formatear_lugar(oficina: str | None, nivel: str | None, mostrar_nivel: bool
     if oficina and nivel:
         return f"{oficina} ({nivel})"
     return oficina or nivel or 'N/A'
+
+
+def resolver_plantilla_proceso(configuracion: dict, proceso: str | None = None) -> tuple[str, str, str]:
+    """
+    Resuelve (titulo, encabezado, cuerpo) según el tipo de proceso administrativo.
+    Si el proceso está habilitado y tiene plantilla personalizada, la usa;
+    de lo contrario, hace fallback automático a la plantilla general.
+    """
+    titulo_gen = configuracion.get('titulo') or 'PUNTO DE CUENTA'
+    encabezado_gen = configuracion.get('encabezado') or ''
+    cuerpo_gen = configuracion.get('cuerpo') or ''
+
+    if not proceso:
+        return titulo_gen, encabezado_gen, cuerpo_gen
+
+    plantillas = configuracion.get('plantillas_procesos') or {}
+    cfg_proc = plantillas.get(proceso)
+    if isinstance(cfg_proc, dict) and cfg_proc.get('personalizado'):
+        titulo = (cfg_proc.get('titulo') or '').strip() or titulo_gen
+        encabezado = cfg_proc.get('encabezado') if cfg_proc.get('encabezado') is not None else encabezado_gen
+        cuerpo = cfg_proc.get('cuerpo') if cfg_proc.get('cuerpo') is not None else cuerpo_gen
+        return titulo, encabezado, cuerpo
+
+    return titulo_gen, encabezado_gen, cuerpo_gen
 
 
 def _reemplazar_variables(texto: str, variables: dict[str, str]) -> str:
@@ -65,14 +90,18 @@ def _construir_bloque_firmas(firmas: list[dict], styles, width: float) -> Table 
     return t
 
 
-def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None = None) -> bytes:
+def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None = None, proceso: str | None = None) -> bytes:
     if configuracion is None:
         from apps.puntocuenta.application.use_cases.configurar_punto_cuenta import obtener_configuracion_activa
         configuracion = obtener_configuracion_activa()
 
     generado_en = datetime.now()
     page_config = PAGE_CONFIG['portrait']
+    from reportlab.lib.styles import getSampleStyleSheet
+    sample_sheet = getSampleStyleSheet()
     styles = get_paragraph_styles()
+    if 'Normal' not in styles:
+        styles['Normal'] = sample_sheet['Normal']
     buffer = BytesIO()
 
     doc = SimpleDocTemplate(
@@ -105,8 +134,7 @@ def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None =
         'numero': numero_txt,
     }
 
-    encabezado_raw = configuracion.get('encabezado') or ''
-    cuerpo_raw = configuracion.get('cuerpo') or ''
+    titulo_doc, encabezado_raw, cuerpo_raw = resolver_plantilla_proceso(configuracion, proceso)
 
     encabezado_procesado = _reemplazar_variables(encabezado_raw, variables)
     cuerpo_procesado = _reemplazar_variables(cuerpo_raw, variables)
@@ -121,7 +149,6 @@ def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None =
     story.append(Spacer(1, 15))
 
     # Título central
-    titulo_doc = configuracion.get('titulo') or 'PUNTO DE CUENTA'
     story.append(Paragraph(f"<para align='center'><b><font size='14'>{escape(titulo_doc)}</font></b></para>", styles['Title']))
     story.append(Spacer(1, 15))
 
@@ -173,7 +200,7 @@ def construir_pdf_punto_cuenta(dto: PuntoCuentaDTO, configuracion: dict | None =
     return buffer.getvalue()
 
 
-def generar_vista_previa_pdf(configuracion: dict) -> bytes:
+def generar_vista_previa_pdf(configuracion: dict, proceso: str | None = None) -> bytes:
     """Genera un PDF de muestra con datos ficticios para previsualización."""
     dto_ejemplo = PuntoCuentaDTO(
         id='00000000-0000-0000-0000-000000000000',
@@ -204,4 +231,4 @@ def generar_vista_previa_pdf(configuracion: dict) -> bytes:
         anio=2026,
         secuencia=1,
     )
-    return construir_pdf_punto_cuenta(dto_ejemplo, configuracion)
+    return construir_pdf_punto_cuenta(dto_ejemplo, configuracion, proceso=proceso)

@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useEffect, useId, useMemo } from "react";
 import useSWR from "swr";
 import { Controller, useForm, type FieldValues, type Resolver } from "react-hook-form";
@@ -14,6 +16,7 @@ import {
   type ClaveCatalogo,
   type EntidadDef,
 } from "../../domain/value-objects/campos-seccion";
+import { esHijoMenorSinCedula } from "../../domain/services/reglas-familiar";
 import { CLASE_CONTROL, SelectorCatalogo } from "./selector-catalogo";
 import { opcionesCatalogo } from "./opciones-catalogo";
 import { valorATexto } from "../schema/schema-solicitud";
@@ -90,6 +93,25 @@ export function FormularioRegistro({
   });
   const { register, handleSubmit, watch, setValue, formState } = form;
 
+  // Regla de familiares: el hijo(a) menor de 9 años no lleva cédula (se genera al aplicar el cambio).
+  const esFamiliar = definicion.entidad === "familiar";
+  const { data: parentescos } = useSWR(
+    esFamiliar ? ["catalogo-autogestion", "parentescosFamilia", 0] : null,
+    () => opcionesCatalogo("parentescosFamilia"),
+    { revalidateOnFocus: false },
+  );
+  const parentescoId = Number(watch("parentesco_id")) || 0;
+  const parentescoNombre = parentescos?.find((o) => o.id === parentescoId)?.nombre ?? null;
+  const fechaNacimientoValor = watch("fecha_nacimiento");
+  const hijoMenor = esFamiliar && esHijoMenorSinCedula(
+    parentescoNombre,
+    typeof fechaNacimientoValor === "string" ? fechaNacimientoValor : null,
+  );
+  // La cédula no se muestra en el caso del hijo(a) menor; el resto de campos sigue igual.
+  const camposVisibles = esFamiliar
+    ? campos.filter((c) => c.campo !== "cedula_familiar" || !hijoMenor)
+    : campos;
+
   // Cascadas: al cambiar un padre se limpia el hijo (estado → municipio → parroquia, etc.).
   useEffect(() => {
     const sub = watch((_valores, { name, type }) => {
@@ -103,13 +125,28 @@ export function FormularioRegistro({
   }, [watch, setValue]);
 
   function enviar(valores: FieldValues) {
-    onGuardar(valores as Record<string, unknown>);
+    const limpios = { ...valores } as Record<string, unknown>;
+    if (esFamiliar) {
+      if (hijoMenor) {
+        // No se envía cédula: el servidor genera la del titular con el orden correlativo.
+        delete limpios.cedula_familiar;
+      } else if (!String(limpios.cedula_familiar ?? "").trim()) {
+        form.setError("cedula_familiar", {
+          type: "required",
+          message: "La cédula del familiar es obligatoria.",
+        });
+        return;
+      }
+    }
+    onGuardar(limpios);
   }
 
   function renderCampo(c: CampoDef) {
     const id = `${idBase}-${c.campo}`;
     const error = formState.errors[c.campo]?.message as string | undefined;
-    const requerido = modo === "CREAR" && c.requeridoAlCrear;
+    const requerido =
+      (modo === "CREAR" && c.requeridoAlCrear) ||
+      (esFamiliar && c.campo === "cedula_familiar" && !hijoMenor);
     const etiqueta = (
       <label htmlFor={id} className="text-base font-medium">
         {c.etiqueta}
@@ -189,7 +226,10 @@ export function FormularioRegistro({
       <div key={c.campo} className="flex flex-col gap-1.5">
         {etiqueta}
         {c.tipo === "textarea" ? (
-          <Textarea rows={3} maxLength={500} className="resize-none" {...comunes} {...register(c.campo)} />
+          <>
+            <Textarea rows={3} maxLength={LIMITES_TEXTO.direccion.max} className="resize-none" {...comunes} {...register(c.campo)} />
+            <ContadorCampo control={form.control} name={c.campo} max={LIMITES_TEXTO.direccion.max} />
+          </>
         ) : c.tipo === "telefono" ? (
           <Controller
             control={form.control}
@@ -227,7 +267,13 @@ export function FormularioRegistro({
       aria-label={`${definicion.etiqueta} (${seccion})`}
       className="flex flex-col gap-4 rounded-lg border bg-muted/40 p-4"
     >
-      <div className="grid gap-4 sm:grid-cols-2">{campos.map(renderCampo)}</div>
+      <div className="grid gap-4 sm:grid-cols-2">{camposVisibles.map(renderCampo)}</div>
+      {esFamiliar && hijoMenor ? (
+        <p role="note" className="text-sm text-muted-foreground">
+          Por ser hijo(a) menor de 9 años no se pide cédula: se generará automáticamente a
+          partir de la cédula del trabajador.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit">{textoGuardar}</Button>
         <Button type="button" variant="outline" onClick={onCancelar}>

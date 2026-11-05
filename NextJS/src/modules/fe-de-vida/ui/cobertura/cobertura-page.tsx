@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
-import { CLASE_CONTROL } from "@/modules/autogestion/ui/solicitudes/selector-catalogo";
 import { LIMITE_PAGINA } from "../../domain/value-objects/estados";
+
+const CLASE_CONTROL =
+  "h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 import {
   listarCoberturaAction,
   listarTiposPensionAction,
@@ -130,7 +132,25 @@ export default function CoberturaPage() {
                       <span className="text-sm text-muted-foreground">{p.cedula}</span>
                     </td>
                     <td className="px-4 py-3">{p.tipoNomina}</td>
-                    <td className="px-4 py-3 break-all">{p.correo || "Sin correo"}</td>
+                    <td className="px-4 py-3 break-all">
+                      {p.correo || p.correoAlternativo ? (
+                        <div className="flex flex-col gap-1">
+                          {p.correo ? <span>{p.correo}</span> : null}
+                          {p.correoAlternativo ? (
+                            <div className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                              <span>Alternativo: {p.correoAlternativo}</span>
+                              {!p.alternativoValidado ? (
+                                <span className="inline-flex items-center rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                                  Alternativo sin validar
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Sin correo</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-2">
                         {p.sinCorreo ? <StatusBadge texto="Sin correo" tono="warning" icono={MailX} /> : null}

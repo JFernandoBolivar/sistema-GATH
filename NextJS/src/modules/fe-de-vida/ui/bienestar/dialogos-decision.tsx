@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useEffect, useState, type ReactNode } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -83,6 +85,7 @@ export function DialogoDevolver({
               aria-describedby={errors.motivo ? "dev-motivo-error" : undefined}
               {...register("motivo")}
             />
+            <ContadorCampo control={form.control} name="motivo" max={LIMITES_TEXTO.motivo.max} />
             {errors.motivo ? (
               <p id="dev-motivo-error" role="alert" className="text-sm font-medium text-danger">
                 {errors.motivo.message}
@@ -178,6 +181,7 @@ export function DialogoTexto({
               aria-describedby={errors.texto ? "dec-texto-error" : undefined}
               {...register("texto")}
             />
+            <ContadorCampo control={form.control} name="texto" max={LIMITES_TEXTO.motivo.max} />
             {errors.texto ? (
               <p id="dec-texto-error" role="alert" className="text-sm font-medium text-danger">
                 {errors.texto.message}

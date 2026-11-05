@@ -1,6 +1,7 @@
 """
 Serializers para la Política de Correo de Acceso (A7).
 """
+from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
 from rest_framework import serializers
 
 
@@ -40,5 +41,5 @@ class ResumenVistaPreviaSerializer(serializers.Serializer):
 
 class AplicarPoliticaMasivaRequestSerializer(serializers.Serializer):
     grupo = serializers.ChoiceField(choices=['activos', 'pasivos'])
-    motivo = serializers.CharField(min_length=5, max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
     incluir_excepciones = serializers.BooleanField(default=False)

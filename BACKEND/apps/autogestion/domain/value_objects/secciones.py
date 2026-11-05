@@ -21,6 +21,11 @@ class Seccion(str, Enum):
     FOTO = 'foto'
 
 
+# Catálogo de secciones en el orden del dominio: lo consume la configuración de
+# solicitudes por condición (O12) y la pantalla de Administración del sistema.
+CODIGOS_SECCIONES: tuple[str, ...] = tuple(seccion.value for seccion in Seccion)
+
+
 class Accion(str, Enum):
     MODIFICAR = 'MODIFICAR'
     CREAR = 'CREAR'

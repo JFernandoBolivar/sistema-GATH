@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from apps.autogestion.domain.entities.solicitud_actualizacion import ProrrogaVentana, SolicitudActualizacion
 from apps.autogestion.domain.events import EventoAutogestion, PublicadorEventos, TipoEvento
 from apps.autogestion.domain.ports.repo_solicitudes import RepoSecciones, RepoSolicitudes
+from apps.autogestion.domain.services.politica_condicion import PoliticaAutogestion
 from apps.autogestion.domain.services.validacion_motivo import validar_motivo_solicitud
 from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES, EstadoSolicitud
 from apps.autogestion.domain.value_objects.secciones import campos_de_secciones, secciones_de_campos, seccion_de_clave
@@ -34,6 +35,7 @@ def obtener_solicitud(repo: RepoSolicitudes, solicitud_id: str, bloquear: bool =
 def solicitar_actualizacion(
     repo: RepoSolicitudes, secciones_repo: RepoSecciones, publicador: PublicadorEventos,
     *, cedula: str, motivo: str, campos: list[str] | None = None, secciones: list[str] | None = None,
+    politica: PoliticaAutogestion | None = None,
 ) -> SolicitudActualizacion:
     """
     El trabajador pide actualizar CAMPOS concretos (`entidad.campo`, decisión G); queda SOLICITADA hasta que
@@ -49,6 +51,9 @@ def solicitar_actualizacion(
     if desconocidos:
         raise ValidationError(f"Campos no autogestionables: {', '.join(desconocidos)}.")
     secciones = secciones_de_campos(campos)
+    if politica is not None:
+        politica.exigir_habilitado()
+        politica.exigir_secciones(secciones, campo='campos')
     activas = {s.codigo for s in secciones_repo.listar(solo_activas=True)}
     inactivas = sorted(set(secciones) - activas)
     if inactivas:

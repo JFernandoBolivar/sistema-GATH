@@ -50,6 +50,7 @@ def aplicar_politica_masiva(
     motivo: str,
     incluir_excepciones: bool = False,
     auditar_cuenta: Callable[[str, str, str | None, str], None] | None = None,
+    notificar_cuenta: Callable[[str, str, str], None] | None = None,
 ) -> dict:
     """
     Aplica la política de correo de acceso a todos los trabajadores del grupo.
@@ -73,6 +74,7 @@ def aplicar_politica_masiva(
     actualizados = 0
     sin_cambio = 0
     sin_cuenta = 0
+    conflictos = 0
 
     for item in vista_previa.items:
         if item.es_excepcion_manual and not incluir_excepciones:
@@ -87,10 +89,17 @@ def aplicar_politica_masiva(
                 if auditar_cuenta:
                     auditar_cuenta(item.cedula, item.correo_actual, None, motivo_limpio)
         elif item.cambiara and item.correo_propuesto:
+            # `Employee.correo` es unique: si otro trabajador ya usa ese correo se
+            # reporta el conflicto y se continúa con el resto (no se rompe el lote).
+            if repo.correo_en_uso_por_otro(item.cedula, item.correo_propuesto):
+                conflictos += 1
+                continue
             repo.aplicar_correo_a_empleado(item.cedula, item.correo_propuesto)
             actualizados += 1
             if auditar_cuenta:
                 auditar_cuenta(item.cedula, item.correo_actual, item.correo_propuesto, motivo_limpio)
+            if notificar_cuenta and politica.avisar_al_aplicar_masivo:
+                notificar_cuenta(item.cedula, item.correo_propuesto, motivo_limpio)
         else:
             sin_cambio += 1
 
@@ -98,5 +107,6 @@ def aplicar_politica_masiva(
         'actualizados': actualizados,
         'sin_cambio': sin_cambio,
         'sin_cuenta': sin_cuenta,
+        'conflictos': conflictos,
         'total': len(vista_previa.items),
     }

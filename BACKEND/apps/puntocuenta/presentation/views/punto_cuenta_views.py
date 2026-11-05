@@ -169,7 +169,8 @@ class PuntoCuentaVistaPreviaPdfView(APIView):
         serializer = ActualizarConfiguracionPuntoCuentaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        pdf_bytes = generar_vista_previa_pdf(serializer.validated_data)
+        proceso = serializer.validated_data.get('proceso') or request.query_params.get('proceso')
+        pdf_bytes = generar_vista_previa_pdf(serializer.validated_data, proceso=proceso)
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
         response['Content-Disposition'] = 'inline; filename="vista_previa_punto_cuenta.pdf"'
         return response

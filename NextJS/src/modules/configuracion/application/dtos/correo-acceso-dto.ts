@@ -42,7 +42,10 @@ export interface ResultadoAplicarMasivoDTO {
   actualizados: number;
   sin_cambio: number;
   sin_cuenta: number;
-  total_procesados: number;
-  grupo: string;
-  motivo: string;
+  /** Correos propuestos que ya usa otra cuenta: se reportan y no rompen el lote. */
+  conflictos?: number;
+  total: number;
+  /** Grupo grande: se encoló en Celery y se procesará en segundo plano. */
+  asincrono?: boolean;
+  tarea_id?: string;
 }

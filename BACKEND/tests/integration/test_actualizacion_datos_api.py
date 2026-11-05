@@ -35,7 +35,12 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     TipoPrendaModel,
 )
 from apps.personal.infrastructure.models.expediente_models import PerfilFisicoModel, PerfilSaludModel
+from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.domain.configuracion import (
+    CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
+    CLAVE_AUTOGESTION_ACTIVOS_SECCIONES,
+)
 from core.infrastructure.models.auditoria import AuditoriaLog
 
 BASE = '/api/v1/autogestion'
@@ -93,6 +98,9 @@ def entorno(monkeypatch):
         'apps.autogestion.infrastructure.repositories.aplicador_cambios_orm.SeaweedFSStorage', AlmacenFalso,
     )
     monkeypatch.setattr('core.presentation.permissions.obtener_resolutor_condicion', lambda: ResolutorCondicion())
+    monkeypatch.setattr(  # la política configurable (O12) resuelve la condición por su propio camino
+        'apps.autogestion.infrastructure.politica_autogestion.obtener_resolutor_condicion', lambda: ResolutorCondicion(),
+    )
 
 
 @pytest.fixture
@@ -246,10 +254,11 @@ def test_permisos_y_condicion(trabajador, analista, datos):
     assert trabajador.post(f'{BASE}/bienestar/solicitudes/{sid}/habilitar/', {'plazo_dias': 3}, format='json').status_code == 403
     assert trabajador.post(f'{BASE}/bienestar/solicitudes/{sid}/decidir/', {'version': 1, 'decisiones': []}, format='json').status_code == 403
     assert trabajador.get(f'{BASE}/bienestar/solicitudes/').status_code == 403
-    assert analista.post(f'{BASE}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'x'}, format='json').status_code == 403
-    # Solo ACTIVO puede solicitar: un trabajador sin asignación (o pasivo) recibe 403 aunque tenga el permiso.
+    assert analista.post(f'{BASE}/solicitudes/', {'secciones': ['contacto'], 'motivo': 'Necesito actualizar estos datos de contacto'}, format='json').status_code == 403
+    # Sin asignación no hay política que lo habilite (O12): la política configurable responde 400, no un 403 fijo.
     sin_asignacion = cliente(ANALISTA, PERMISOS_TRABAJADOR, 9)
-    assert sin_asignacion.post(f'{BASE}/solicitudes/', {'secciones': ['vivienda'], 'motivo': 'x'}, format='json').status_code == 403
+    r = sin_asignacion.post(f'{BASE}/solicitudes/', {'secciones': ['vivienda'], 'motivo': 'Necesito actualizar estos datos de contacto'}, format='json')
+    assert r.status_code == 400 and 'no están habilitadas' in r.json()['message']
     # Con solo `bienestar.revisar_actualizacion` se puede rechazar una SOLICITADA, no una ENVIADA.
     revisor = cliente(ADMINISTRADORA, {'bienestar.revisar_actualizacion'}, 5)
     assert revisor.post(f'{BASE}/bienestar/solicitudes/{sid}/rechazar/', {'motivo': 'Sin sustento'}, format='json').status_code == 200
@@ -357,7 +366,7 @@ def test_campo_por_campo_motivo_devuelta_y_reenvio(trabajador, analista, datos):
     assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [CAMBIO]}, format='json').status_code == 200
     assert trabajador.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json').status_code == 200
     # Devolver exige motivo y permiso de decisión; el trabajador corrige y reenvía.
-    assert trabajador.post(f'{BASE}/bienestar/solicitudes/{sid}/devolver/', {'motivo': 'x'}, format='json').status_code == 403
+    assert trabajador.post(f'{BASE}/bienestar/solicitudes/{sid}/devolver/', {'motivo': 'Necesito actualizar estos datos de contacto'}, format='json').status_code == 403
     assert analista.post(f'{BASE}/bienestar/solicitudes/{sid}/devolver/', {'motivo': ''}, format='json').status_code == 400
     r = analista.post(f'{BASE}/bienestar/solicitudes/{sid}/devolver/', {'motivo': 'El número no coincide'}, format='json')
     assert r.status_code == 200 and data(r)['estado'] == 'DEVUELTA'
@@ -493,6 +502,99 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
     assert PerfilFisicoModel.objects.get(empleado=empleado).tallaCamisa_id == talla.pk
     # La solicitud y sus reservas siguen a la nueva cédula.
     assert SolicitudActualizacionModel.objects.get(pk=sid).cedula == nueva_cedula
+
+
+def _parametro(clave, valor, tipo='texto'):
+    ParametroSistemaModel.objects.update_or_create(
+        clave=clave,
+        defaults={
+            'etiqueta': clave, 'descripcion': clave, 'grupo': 'autogestion',
+            'tipo': tipo, 'valor': valor,
+        },
+    )
+
+
+def test_configuracion_por_condicion_controla_las_solicitudes(trabajador, datos, monkeypatch):
+    monkeypatch.setattr(
+        'apps.autogestion.infrastructure.politica_autogestion.obtener_resolutor_condicion',
+        lambda: ResolutorCondicion(),
+    )
+    # ACTIVOS apagado: no se crea ninguna solicitud nueva.
+    _parametro(CLAVE_AUTOGESTION_ACTIVOS_HABILITADO, 'false', 'booleano')
+    r = trabajador.post(
+        f'{BASE}/solicitudes/',
+        {'secciones': ['contacto'], 'motivo': 'Actualizo mi teléfono de contacto personal'}, format='json',
+    )
+    assert r.status_code == 400, r.content
+    assert 'no están habilitadas' in r.json()['message']
+
+    # Encendido, pero solo contacto: vivienda queda fuera.
+    _parametro(CLAVE_AUTOGESTION_ACTIVOS_HABILITADO, 'true', 'booleano')
+    _parametro(CLAVE_AUTOGESTION_ACTIVOS_SECCIONES, 'contacto')
+    r = trabajador.post(
+        f'{BASE}/solicitudes/',
+        {'secciones': ['vivienda'], 'motivo': 'Actualizo mi dirección de residencia actual'}, format='json',
+    )
+    assert r.status_code == 400, r.content
+    assert 'no están habilitadas' in r.json()['message']
+
+    r = trabajador.post(
+        f'{BASE}/solicitudes/',
+        {'secciones': ['contacto'], 'motivo': 'Actualizo mi teléfono de contacto personal'}, format='json',
+    )
+    assert r.status_code == 201, r.content
+
+
+def test_mi_politica_refleja_la_configuracion_de_la_condicion(trabajador, datos, monkeypatch):
+    monkeypatch.setattr(
+        'apps.autogestion.infrastructure.politica_autogestion.obtener_resolutor_condicion',
+        lambda: ResolutorCondicion(),
+    )
+    _parametro(CLAVE_AUTOGESTION_ACTIVOS_HABILITADO, 'true', 'booleano')
+    _parametro(CLAVE_AUTOGESTION_ACTIVOS_SECCIONES, 'contacto,vivienda')
+    r = trabajador.get(f'{BASE}/mi-politica/')
+    assert r.status_code == 200, r.content
+    politica = data(r)
+    assert politica['condicion'] == 'ACTIVO'
+    assert politica['habilitado'] is True
+    assert politica['secciones'] == ['contacto', 'vivienda']
+
+
+def test_familiar_adulto_sin_cedula_se_rechaza_por_campo(trabajador, analista, datos):
+    ParentescoModel.objects.get_or_create(id=2, defaults={'descripcion_parentesco': 'HERMANO'})
+    sid = solicitar(trabajador, ('familiar',))
+    habilitar(analista, sid)
+    cambio = {
+        'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
+            'primer_nombre': 'PEDRO', 'primer_apellido': 'PRUEBA', 'parentesco_id': 2,
+            'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 30)).isoformat(), 'sexo_id': 1,
+        },
+    }
+    r = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [cambio]}, format='json')
+    assert r.status_code == 400, r.content
+    assert 'cedula_familiar' in data(r)['errores']
+    assert not CambioPropuestoModel.objects.filter(origen_id=sid).exists()
+
+
+def test_hijo_menor_de_9_sin_cedula_se_acepta_y_con_cedula_del_titular_se_rechaza(trabajador, analista, datos):
+    sid = solicitar(trabajador, ('familiar',))
+    habilitar(analista, sid)
+    base = {
+        'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
+            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': 1,
+        },
+    }
+    sin_cedula = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [base]}, format='json')
+    assert sin_cedula.status_code == 200, sin_cedula.content
+    guardado = CambioPropuestoModel.objects.get(origen_id=sid)
+    assert 'cedula_familiar' not in guardado.valor_propuesto
+
+    # La cédula del familiar no puede repetir la del titular.
+    con_cedula_titular = dict(base, valor=dict(base['valor'], cedula_familiar=TRABAJADOR))
+    r = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [con_cedula_titular]}, format='json')
+    assert r.status_code == 400, r.content
+    assert 'cedula_familiar' in data(r)['errores']
 
 
 def test_acciones_solicitadas_en_seccion_de_lista(trabajador, analista, datos):

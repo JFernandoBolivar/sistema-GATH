@@ -58,6 +58,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { CalendarIcon, Download, Eraser, Search } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { GrupoFiltrosReporte, PanelFiltrosReporte } from "./panel-filtros-reporte";
 import { useState, useTransition } from "react";
 import {
   muestraFiltroEstructura,
@@ -306,12 +307,9 @@ export default function ReportEmployee({
               )}
               <div className="flex flex-col gap-2 col-span-full min-w-0 w-full">
                 <div className="w-full min-w-0">
-                  <div className="flex flex-col gap-4">
+                  <PanelFiltrosReporte>
                     {puedeEstructura && categoria !== "pasivos" && (
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600">
-                        <legend className="text-green-800 font-semibold px-1">
-                          Dirección Administrativa
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Dirección Administrativa" campos={["filtros.dependencia_id", "filtros.direccion_general_id", "filtros.direccion_linea_id", "filtros.coordinacion_id"]}>
                         <FormField
                           control={form.control}
                           name="filtros.dependencia_id"
@@ -443,14 +441,11 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
                     )}
 
-                    <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
-                        <legend className="text-red-900 font-semibold px-1">
-                          Información De Cargo
-                        </legend>
+                    <div className="contents">
+                      <GrupoFiltrosReporte titulo="Información De Cargo" campos={["filtros.cargo_especifico_id", "filtros.cargo_id", "filtros.nomina_id", "filtros.grado_id", "filtros.OrganismoAdscrito_id"]}>
 
                         <FormField
                           control={form.control}
@@ -600,12 +595,9 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-violet-800">
-                        <legend className="text-violet-900 font-semibold px-1">
-                          Información De Salud
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Información De Salud" campos={["filtros.grupo_sanguineo_id", "filtros.patologia_id", "filtros.discapacidad_id"]}>
                         <FormField
                           control={form.control}
                           name="filtros.grupo_sanguineo_id"
@@ -710,12 +702,9 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-blue-900">
-                        <legend className="text-blue-900 font-semibold px-1">
-                          Información Académica
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Información Académica" campos={["filtros.nivel_academico_id", "filtros.carrera_id", "filtros.mencion_id"]}>
                         <FormField
                           control={form.control}
                           name="filtros.nivel_academico_id"
@@ -816,12 +805,9 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-purple-700">
-                        <legend className="text-purple-700 font-semibold px-1">
-                          Formación Complementaria
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Formación Complementaria" campos={["filtros.capacitacion_id", "filtros.procedencia_id", "filtros.grupo_id"]}>
                         <FormField
                           control={form.control}
                           name="filtros.capacitacion_id"
@@ -904,12 +890,9 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-black">
-                        <legend className="text-black font-semibold px-1">
-                          Información Básica
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Información Básica" campos={["filtros.sexo_id", "filtros.edad_min", "filtros.edad_max"]}>
                         <FormField
                           control={form.control}
                           name="filtros.sexo_id"
@@ -979,12 +962,9 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-amber-700">
-                        <legend className="text-amber-900 font-semibold px-1">
-                          Fechas De Ingresos/APN
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Fechas De Ingresos/APN" campos={["filtros.apn_min", "filtros.fecha_corte", "filtros.apn_max", "filtros.fecha_ingreso_Desde", "filtros.fecha_ingreso_Hasta"]}>
                         <FormField
                           control={form.control}
                           name="filtros.apn_min"
@@ -1115,12 +1095,9 @@ export default function ReportEmployee({
                             «Fecha de ingreso», y da resultados engañosos. RRHH
                             debe confirmar qué significa «Fecha APN»; el mapeo del
                             backend se conserva. «Años APN» no se toca. */}
-                      </fieldset>
+                      </GrupoFiltrosReporte>
 
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-emerald-800">
-                        <legend className="text-emerald-800 font-semibold px-1">
-                          Dirección De Habitaciones
-                        </legend>
+                      <GrupoFiltrosReporte titulo="Dirección De Habitaciones" campos={["filtros.region_id", "filtros.estado_id", "filtros.municipio_id", "filtros.parroquia_id", "filtros.condicion_vivienda_id"]}>
                         <FormField
                           control={form.control}
                           name="filtros.region_id"
@@ -1280,13 +1257,13 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
-                      </fieldset>
+                      </GrupoFiltrosReporte>
                     </div>
-                  </div>
+                  </PanelFiltrosReporte>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-2 sm:flex-row flex-1 w-full col-span-full pt-2">
+              <div className="sticky bottom-0 z-10 grid gap-2 border-t bg-card pt-3 sm:grid-cols-3 sm:flex-row col-span-full">
                 <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"

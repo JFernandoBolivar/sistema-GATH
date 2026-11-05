@@ -82,7 +82,7 @@ def test_correo_alternativo_valida_formato():
 def test_direccion_exacta_limita_longitud():
     from apps.personal.infrastructure.serializers.empleado_escritura_serializers import DatosViviendaEscrituraSerializer
 
-    assert DatosViviendaEscrituraSerializer().fields["direccion_exacta"].max_length == 300
+    assert DatosViviendaEscrituraSerializer().fields["direccion_exacta"].max_length == 500
 
 
 def test_contacto_de_emergencia_valida_nombres():

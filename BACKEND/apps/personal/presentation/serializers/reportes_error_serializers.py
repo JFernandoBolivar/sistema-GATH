@@ -1,6 +1,7 @@
 """
 Serializers DRF para Reportes de Error en Datos Laborales (C-1 / D-10).
 """
+from core.domain.limites_texto import OBSERVACION_MIN, mensajes_texto
 from rest_framework import serializers
 
 from apps.personal.domain.entities.reporte_error import (
@@ -29,7 +30,9 @@ class CrearReporteErrorSerializer(serializers.Serializer):
 
 class AtenderReporteErrorSerializer(serializers.Serializer):
     observacion = serializers.CharField(
+        min_length=OBSERVACION_MIN,
         max_length=LONGITUD_MAXIMA_DESCRIPCION,
+        error_messages=mensajes_texto('La observación', OBSERVACION_MIN, LONGITUD_MAXIMA_DESCRIPCION),
         required=False,
         allow_blank=True,
         trim_whitespace=True,

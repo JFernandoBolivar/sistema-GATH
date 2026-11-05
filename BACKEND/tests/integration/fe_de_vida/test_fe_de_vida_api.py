@@ -21,12 +21,17 @@ from apps.cargos.infrastructure.models.cargo_models import (
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
     NacionalidadModel,
+    ParentescoModel,
     SexoModel,
     TipoNominaModel,
     TipoPersonalModel,
 )
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
-from apps.fe_de_vida.infrastructure.adaptadores_autogestion import AplicadorCambiosActaORM, RepoCambiosActaORM
+from apps.fe_de_vida.infrastructure.adaptadores_autogestion import (
+    AplicadorCambiosActaORM,
+    RepoCambiosActaORM,
+    ValidadorCambiosActaORM,
+)
 from apps.fe_de_vida.infrastructure.models.proceso_models import ProcesoFeDeVidaModel
 from apps.fe_de_vida.infrastructure.models.solicitud_models import (
     ConstanciaFeDeVidaModel,
@@ -36,6 +41,7 @@ from apps.fe_de_vida.infrastructure.models.solicitud_models import (
 from apps.fe_de_vida.infrastructure.tasks.cierre_procesos_tasks import cerrar_procesos_vencidos_tarea
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.domain.exceptions import ValidationError
 from core.infrastructure.models.auditoria import AuditoriaLog
 
 BASE = '/api/v1/fe-de-vida'
@@ -356,6 +362,7 @@ def test_bandeja_pagina_y_filtra(analista, administradora, pasivo):
     pid = proceso_abierto(administradora)
     otro_proceso = ProcesoFeDeVidaModel.objects.create(
         nombre='Otro', fecha_apertura=timezone.now() - timedelta(days=9), fecha_cierre=timezone.now() + timedelta(days=9),
+        estado='ABIERTO',  # la bandeja solo muestra procesos abiertos (O13): el segundo debe estarlo para entrar
     )
     ahora = timezone.localtime()  # el filtro por fecha usa el día local (America/Caracas), no el UTC
     for i in range(12):
@@ -412,7 +419,7 @@ def test_procesos_crear_listar_prorrogar_y_cerrar(administradora, analista, pasi
     # prórroga individual: rehabilita la solicitud y devuelve el proceso como vigente solo para esa cédula
     assert analista.post(f'{BASE}/procesos/{pid}/prorrogas/', {}, format='json').status_code == 403
     r = administradora.post(f'{BASE}/procesos/{pid}/prorrogas/', {
-        'nueva_fecha_limite': (ahora + timedelta(days=3)).isoformat(), 'motivo': 'Viaje', 'cedula': PASIVO,
+        'nueva_fecha_limite': (ahora + timedelta(days=3)).isoformat(), 'motivo': 'Viaje al exterior', 'cedula': PASIVO,
     }, format='json')
     assert r.status_code == 201 and cuerpo(r)['general'] is False
     assert cuerpo(pasivo.get(f'{BASE}/procesos/vigente/'))['puede_enviar'] is True
@@ -470,12 +477,34 @@ def test_aplicador_c19_aprueba_y_escribe_en_la_ficha_real(datos, administradora)
     assert len(pendientes) == 1
 
 
+def test_validar_acta_familiar_reutiliza_la_regla_de_cedula_de_familiares(datos):
+    """Hijo(a) menor de 9 sin cédula se acepta (se generará titular-N); el resto la exige."""
+    ParentescoModel.objects.get_or_create(id=1, defaults={'descripcion_parentesco': 'HIJO (A)'})
+    ParentescoModel.objects.get_or_create(id=2, defaults={'descripcion_parentesco': 'HERMANO'})
+    sexo_id = SexoModel.objects.values_list('pk', flat=True).first()
+    base = {
+        'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'sexo_id': sexo_id,
+        'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(),
+    }
+    validador = ValidadorCambiosActaORM()
+    menor = validador.validar(
+        PASIVO, CambioActa('familiar', 'CREAR', 'familiar', '*', dict(base, parentesco_id=1)),
+    )
+    assert menor is not None and 'cedula_familiar' not in menor.valor_propuesto
+
+    with pytest.raises(ValidationError) as error:
+        validador.validar(
+            PASIVO, CambioActa('familiar', 'CREAR', 'familiar', '*', dict(base, parentesco_id=2)),
+        )
+    assert error.value.campo == 'cedula_familiar'
+
+
 # ── Decisión H: devolver para corrección ──
 def test_devolver_exige_motivo_conserva_o_retira_la_foto_y_permite_corregir_y_reenviar(pasivo, analista, administradora):
     pid = proceso_abierto(administradora)
     sid = solicitud_enviada(pasivo, pid)
     assert analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': ' '}, format='json').status_code == 400
-    assert analista.post(f'{BASE}/solicitudes/{sid}/solicitar-repeticion/', {'motivo': 'x'}, format='json').status_code == 404
+    assert analista.post(f'{BASE}/solicitudes/{sid}/solicitar-repeticion/', {'motivo': 'Motivo de prueba'}, format='json').status_code == 404
     r = analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'Teléfono ilegible'}, format='json')
     d = cuerpo(r)
     assert r.status_code == 200 and d['estado'] == 'DEVUELTA' and d['requiere_nueva_foto'] is False and d['tiene_evidencia'] is True
@@ -500,9 +529,9 @@ def test_rechazar_es_definitivo_y_exige_motivo(pasivo, analista, administradora)
     pid = proceso_abierto(administradora)
     sid = solicitud_enviada(pasivo, pid)
     assert analista.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': ''}, format='json').status_code == 400
-    assert cuerpo(analista.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': 'Falsa'}, format='json'))['estado'] == 'RECHAZADA'
+    assert cuerpo(analista.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': 'Documentación falsa'}, format='json'))['estado'] == 'RECHAZADA'
     assert pasivo.put(f'{BASE}/mis-solicitudes/{sid}/borrador/', {'cambios': []}, format='json').status_code == 400
-    assert analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'x'}, format='json').status_code == 409
+    assert analista.post(f'{BASE}/solicitudes/{sid}/devolver/', {'motivo': 'Motivo de prueba'}, format='json').status_code == 409
 
 
 def test_permisos_de_procesos_y_prorrogas_son_solo_de_la_administradora(analista, administradora, pasivo):
@@ -821,7 +850,7 @@ def test_la_administradora_que_dio_su_check_aprueba_directo(pasivo, administrado
     sid = solicitud_enviada(pasivo, proceso_abierto(administradora))
     assert administradora.post(f'{BASE}/solicitudes/{sid}/check/').status_code == 200
     assert acciones(administradora, sid) == ['aprobar_directo', 'retirar_check']
-    assert administradora.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': 'x'}, format='json').status_code == 409
+    assert administradora.post(f'{BASE}/solicitudes/{sid}/rechazar/', {'motivo': 'Motivo de prueba'}, format='json').status_code == 409
     with django_capture_on_commit_callbacks(execute=True):
         r = administradora.post(f'{BASE}/solicitudes/{sid}/aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}, format='json')
     assert r.status_code == 200 and cuerpo(r)['estado'] == 'VALIDADA'

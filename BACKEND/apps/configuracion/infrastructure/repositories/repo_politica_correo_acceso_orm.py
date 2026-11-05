@@ -168,6 +168,14 @@ class RepoPoliticaCorreoAccesoORM:
 
         return resultado
 
+    def correo_en_uso_por_otro(self, cedula: str, correo: str) -> bool:
+        """`Employee.correo` es unique: evita que el lote falle al asignar uno repetido."""
+        return (
+            EmployeeModel.objects.filter(correo__iexact=correo)
+            .exclude(cedulaidentidad=cedula)
+            .exists()
+        )
+
     def aplicar_correo_a_empleado(self, cedula: str, nuevo_correo: str) -> None:
         """Actualiza el correo de acceso en la ficha del empleado."""
         EmployeeModel.objects.filter(cedulaidentidad=cedula).update(

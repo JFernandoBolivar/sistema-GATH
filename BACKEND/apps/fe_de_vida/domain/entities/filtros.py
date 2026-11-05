@@ -10,6 +10,8 @@ class FiltroBandeja:
     texto: str | None = None        # cédula o parte del nombre
     desde: date | None = None       # fecha de envío (inclusive)
     hasta: date | None = None
+    historico: bool = False
+    proceso_ids: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)

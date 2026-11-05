@@ -11,6 +11,7 @@ import type {
   DecisionCampoDTO,
   ItemBorradorDTO,
   PaginaSolicitudesDTO,
+  PoliticaAutogestionDTO,
   ResultadoAccion,
   SeccionDTO,
   SolicitudDTO,
@@ -39,6 +40,7 @@ import {
   rechazarSolicitud,
 } from "../../application/use-cases/gestionar-solicitud-bienestar";
 import { repoSolicitudesApi } from "../repositories/repo-solicitudes-api";
+import { solicitudesApi } from "../http/solicitudes-api";
 import { repoCatalogosAutogestionApi } from "../repositories/repo-catalogos-autogestion-api";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -96,6 +98,17 @@ export async function obtenerMiSolicitudAction(
 export async function listarSeccionesAction(): Promise<ResultadoAccion<SeccionDTO[]>> {
   return ejecutar("listarSeccionesAction", "", "No se pudieron cargar las secciones.", () =>
     listarSeccionesActivas(repoSolicitudesApi),
+  );
+}
+
+export async function obtenerMiPoliticaAutogestionAction(): Promise<
+  ResultadoAccion<PoliticaAutogestionDTO>
+> {
+  return ejecutar(
+    "obtenerMiPoliticaAutogestionAction",
+    "",
+    "No se pudo cargar la configuración de solicitudes.",
+    async () => (await solicitudesApi.miPolitica()).data,
   );
 }
 

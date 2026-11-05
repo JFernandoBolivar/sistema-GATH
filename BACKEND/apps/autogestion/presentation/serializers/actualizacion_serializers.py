@@ -4,6 +4,7 @@ Serializers de la solicitud de actualización: entrada validada y salida documen
 La salida se arma con las funciones `a_dict_*` (convierten enums a texto) y se pasa por el
 serializer correspondiente, que fija formato de fechas y documenta el contrato OpenAPI.
 """
+from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
 from rest_framework import serializers
 
 from apps.autogestion.application.dtos.actualizacion_dtos import DetalleSolicitudDTO
@@ -50,7 +51,7 @@ class HabilitarVentanaSerializer(serializers.Serializer):
 
 class ProrrogarVentanaSerializer(serializers.Serializer):
     nueva_fecha_fin = serializers.DateTimeField(help_text='Nueva fecha límite (posterior a la vigente y a hoy).')
-    motivo = serializers.CharField(min_length=1, max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
 
 class ItemCambioSerializer(serializers.Serializer):
@@ -86,24 +87,29 @@ class EnviarSolicitudSerializer(serializers.Serializer):
 class DecisionCampoSerializer(serializers.Serializer):
     cambio_id = serializers.UUIDField()
     aprobado = serializers.BooleanField()
-    motivo = serializers.CharField(max_length=500, required=False, allow_blank=True, default='',
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, required=False, allow_blank=True, default='',
+                                   error_messages=mensajes_texto('El motivo del rechazo', MOTIVO_MIN, MOTIVO_MAX),
                                    help_text='Obligatorio al rechazar el campo.')
 
 
 class DecidirCambiosSerializer(serializers.Serializer):
     version = serializers.IntegerField(min_value=1, help_text='Versión de la solicitud que vio quien decide (bloqueo optimista).')
     decisiones = serializers.ListField(child=DecisionCampoSerializer(), allow_empty=False, max_length=200)
-    motivo_general = serializers.CharField(max_length=500, required=False, allow_blank=True, default='',
+    motivo_general = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, required=False, allow_blank=True, default='',
+                                           error_messages=mensajes_texto('El motivo general', MOTIVO_MIN, MOTIVO_MAX),
                                            help_text='Obligatorio si no se aprueba ningún campo (rechazo total).')
 
 
 class RechazarSolicitudSerializer(serializers.Serializer):
-    motivo = serializers.CharField(min_length=1, max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo del rechazo', MOTIVO_MIN, MOTIVO_MAX))
     version = serializers.IntegerField(required=False, min_value=1)
 
 
 class DevolverSolicitudSerializer(serializers.Serializer):
-    motivo = serializers.CharField(min_length=1, max_length=500, help_text='Obligatorio: lo ve el trabajador para corregir.')
+    motivo = serializers.CharField(
+        min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo de la devolución', MOTIVO_MIN, MOTIVO_MAX),
+        help_text='Obligatorio: lo ve el trabajador para corregir.',
+    )
     version = serializers.IntegerField(required=False, min_value=1)
 
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCaracteres } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import React, { useState, useTransition } from "react";
 import useSWR from "swr";
 import {
@@ -92,8 +94,14 @@ export function ReportesErrorLaboralPageView() {
     setFeedbackAtencion(null);
   };
 
+  const largoAtencion = observacionesAtencion.trim().length;
+  const errorAtencion =
+    largoAtencion > 0 && largoAtencion < LIMITES_TEXTO.observacion.min
+      ? `La observación debe tener al menos ${LIMITES_TEXTO.observacion.min} caracteres`
+      : null;
+
   const handleConfirmarAtender = () => {
-    if (!reporteAAtender) return;
+    if (!reporteAAtender || errorAtencion) return;
     startTransition(async () => {
       const res = await atenderReporteErrorLaboralAction(
         reporteAAtender.id,
@@ -353,8 +361,16 @@ export function ReportesErrorLaboralPageView() {
                 value={observacionesAtencion}
                 onChange={(e) => setObservacionesAtencion(e.target.value)}
                 disabled={guardandoAtencion}
-                maxLength={500}
+                maxLength={LIMITES_TEXTO.observacion.max}
+                className="resize-none"
+                aria-invalid={errorAtencion ? true : undefined}
               />
+              <ContadorCaracteres valor={observacionesAtencion} max={LIMITES_TEXTO.observacion.max} />
+              {errorAtencion ? (
+                <p role="alert" className="text-sm font-medium text-destructive">
+                  {errorAtencion}
+                </p>
+              ) : null}
             </div>
           </div>
 

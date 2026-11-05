@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 
 /**
@@ -9,7 +10,8 @@ export const CEDULA_MAX = 9;
 export const NOMBRE_MIN = 2;
 export const NOMBRE_MAX = 60;
 export const CORREO_MAX = 254;
-export const DIRECCION_MAX = 300;
+export const DIRECCION_MIN = LIMITES_TEXTO.direccion.min;
+export const DIRECCION_MAX = LIMITES_TEXTO.direccion.max;
 
 /** Letras (con acentos y ñ), espacios y apóstrofo. */
 export const SOLO_LETRAS_ESPACIOS = /^[a-zA-ZáéíóúüñàèìòùÁÉÍÓÚÜÑÀÈÌÒÙ\s'’`]+$/;
