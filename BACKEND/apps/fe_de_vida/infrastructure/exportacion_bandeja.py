@@ -10,7 +10,6 @@ from typing import Callable
 from xml.sax.saxutils import escape
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, Spacer
 
@@ -19,8 +18,8 @@ from apps.fe_de_vida.application.use_cases.consultas import normalizar_filtro_ba
 from apps.fe_de_vida.domain.entities.bandeja_exportacion import PasivoBandeja
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
 from apps.fe_de_vida.infrastructure.exportacion_comun import (
-    AZUL,
     ajustar_anchos,
+    escribir_encabezado_institucional,
     escribir_tabla,
 )
 from apps.fe_de_vida.infrastructure.pdf.comun import (
@@ -124,20 +123,13 @@ def _fila(pasivo: PasivoBandeja) -> dict:
 def _excel(filtro: FiltroBandeja, filas: list[PasivoBandeja], total: int) -> bytes:
     libro = Workbook()
     hoja = libro.active
-    hoja.title = 'Bandeja'
-    hoja['A1'] = TITULO
-    hoja['A1'].font = Font(bold=True, size=16, color=AZUL)
-    hoja['A2'] = _descripcion_proceso(filtro)
-    hoja['A2'].font = Font(bold=True, size=12)
-    hoja['A3'] = f"Generado el {datetime.now():%d/%m/%Y %H:%M} · {total} solicitud(es)"
-    hoja['A3'].font = Font(italic=True, color='666666')
-    fila = 5
-    for etiqueta, valor in _pares_de_filtros(filtro):
-        hoja.cell(row=fila, column=1, value=etiqueta).font = Font(bold=True)
-        hoja.cell(row=fila, column=2, value=valor)
-        fila += 1
-    fila += 1
+    hoja.title = 'Bandeja de fe de vida'
     encabezados = ['Cédula', 'Nombres', 'Apellidos', 'Correo', 'Teléfono', 'Estatus', 'Fecha de envío', 'Número de acta']
+    fila = escribir_encabezado_institucional(
+        hoja, titulo=TITULO, subtitulo=_descripcion_proceso(filtro),
+        filtros=[*_pares_de_filtros(filtro), ('Solicitudes encontradas', str(total))],
+        generado_en=datetime.now(), columnas=len(encabezados),
+    )
     datos = [
         [
             pasivo.cedula, pasivo.nombres, pasivo.apellidos, pasivo.correo, pasivo.telefono,

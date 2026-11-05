@@ -78,7 +78,7 @@ export function ReportesErrorLaboralPageView() {
       }),
   );
 
-  const items = (data ?? []).filter((r) => {
+  const items = (Array.isArray(data) ? data : []).filter((r) => {
     if (!busqueda.trim()) return true;
     const q = busqueda.toLowerCase().trim();
     return (

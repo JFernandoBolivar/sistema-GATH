@@ -179,9 +179,9 @@ class RepoEstadisticas(Protocol):
 
     def listar(
         self, proceso: ProcesoFeDeVida, filtro: FiltroEstadisticas, *,
-        faltantes: bool, limite: int, desplazamiento: int,
+        faltantes: bool = False, alcance: str | None = None, limite: int, desplazamiento: int,
     ) -> tuple[list[PasivoEstadistica], int]:
-        """Pasivos del proceso: los que faltan por responder o los de una casilla de la matriz."""
+        """Pasivos del proceso: los que faltan por responder, respondieron, ambos o los de una casilla."""
         ...
 
 

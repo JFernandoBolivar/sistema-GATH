@@ -63,5 +63,28 @@ describe("casos de uso de estadísticas", () => {
       proceso_id: "abc", tipo_nomina_id: 3, estado: "VALIDADA", canal: "EN_LINEA",
       desde: "2026-10-01", hasta: undefined, listado: "celda",
     });
+
+    expect(parametrosExportacion(
+      { procesoId: "abc" },
+      {
+        formato: "pdf",
+        incluirResumen: true,
+        incluirGraficos: false,
+        incluirListado: true,
+        alcanceListado: "respondieron",
+      },
+    )).toEqual({
+      proceso_id: "abc",
+      tipo_nomina_id: undefined,
+      estado: undefined,
+      canal: undefined,
+      desde: undefined,
+      hasta: undefined,
+      formato: "pdf",
+      incluir_resumen: true,
+      incluir_graficos: false,
+      incluir_listado: true,
+      alcance_listado: "respondieron",
+    });
   });
 });

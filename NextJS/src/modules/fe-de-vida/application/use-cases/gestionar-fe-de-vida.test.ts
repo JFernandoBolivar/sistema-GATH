@@ -43,11 +43,19 @@ describe("revisión", () => {
     await devolverSolicitud(repo, "i", " Foto borrosa ", true);
     expect(repo.devolver).toHaveBeenCalledWith("i", "Foto borrosa", true);
   });
-  it("la bandeja normaliza filtros y valida el rango de fechas", async () => {
+  it("la bandeja normaliza filtros, envía el histórico y valida el rango de fechas", async () => {
     const repo = repoFake();
     await listarBandeja(repo, { texto: " 123 ", estado: "", limit: 999 });
     expect(repo.listarBandeja).toHaveBeenCalledWith(
       expect.objectContaining({ texto: "123", estado: undefined, limit: 50, offset: 0 }),
+    );
+    await listarBandeja(repo, { historico: true });
+    expect(repo.listarBandeja).toHaveBeenLastCalledWith(
+      expect.objectContaining({ historico: true }),
+    );
+    await listarBandeja(repo, { historico: false });
+    expect(repo.listarBandeja).toHaveBeenLastCalledWith(
+      expect.objectContaining({ historico: undefined }),
     );
     await expect(listarBandeja(repo, { desde: "2026-02-01", hasta: "2026-01-01" })).rejects.toThrow(/inválido/);
   });
