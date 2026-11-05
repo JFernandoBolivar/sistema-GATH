@@ -12,6 +12,7 @@ from rest_framework.views import APIView
 from apps.fe_de_vida.application.use_cases._comun import evento, obtener_solicitud
 from apps.fe_de_vida.application.use_cases.consultas import buscar_pasivos_presencial, obtener_proceso_vigente
 from apps.fe_de_vida.application.use_cases.solicitudes_pasivo import (
+    exigir_celular,
     guardar_borrador,
     iniciar_solicitud_vigente,
     subir_evidencia,
@@ -211,6 +212,8 @@ class BorradorPresencialView(APIView):
                 raise NotFoundError("La solicitud de fe de vida no existe.")
             if not solicitud.editable:
                 raise ValidationError(f"La solicitud está {solicitud.estado.value}: ya no admite cambios.")
+            exigir_celular(RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud_id=solicitud.id, cedula=solicitud.cedula)
+
             exigir_puede_enviar(
                 repo_proc.obtener(solicitud.proceso_id),
                 repo_proc.listar_prorrogas(solicitud.proceso_id),

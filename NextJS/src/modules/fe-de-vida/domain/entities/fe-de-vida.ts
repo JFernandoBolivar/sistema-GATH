@@ -144,6 +144,7 @@ export interface VigenteEntity {
   readonly proceso: ProcesoEntity;
   readonly solicitud: SolicitudEntity | null;
   readonly puedeEnviar: boolean;
+  readonly guiaVista: boolean;
 }
 
 export interface ProrrogaEntity {

@@ -346,3 +346,35 @@ def test_detalle_revision_proceso_cerrado_sin_acciones_de_revision(m):
         actor=ADMINISTRADORA, permisos=permisos_rev, repo_procesos=m.procesos,
     )
     assert det_cerrado.acciones == ()
+
+
+def test_guia_vista_por_cuenta_y_proceso(m):
+    vigente = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=PASIVO, ahora=AHORA)
+    assert vigente is not None
+    assert vigente.guia_vista is False
+    consultas.marcar_guia_proceso_vista(m.procesos, proceso_id=vigente.proceso.id, cedula=PASIVO)
+    vigente_despues = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=PASIVO, ahora=AHORA)
+    assert vigente_despues.guia_vista is True
+    vigente_otro = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=OTRO_PASIVO, ahora=AHORA)
+    assert vigente_otro.guia_vista is False
+
+
+class _FichaMem:
+    def __init__(self, movil):
+        self.movil = movil
+
+    def ficha(self, cedula):
+        return {'empleado': {'telefono_movil': self.movil}}
+
+
+def test_celular_obligatorio_para_enviar_acta(m):
+    s = iniciar(m)
+    with pytest.raises(ValidationError) as e:  # sin celular en el expediente ni en el acta
+        sp.exigir_celular(m.cambios, _FichaMem(None), solicitud_id=s.id, cedula=PASIVO)
+    assert e.value.campo == 'telefono_movil'
+    sp.exigir_celular(m.cambios, _FichaMem('04140000000'), solicitud_id=s.id, cedula=PASIVO)  # ya consta
+    m.cambios.reemplazar(s.id, [CambioActa('contacto', 'MODIFICAR', 'employee', 'telefono_movil', '04125550000')])
+    sp.exigir_celular(m.cambios, _FichaMem(None), solicitud_id=s.id, cedula=PASIVO)  # propuesto en el acta
+    m.cambios.reemplazar(s.id, [CambioActa('contacto', 'MODIFICAR', 'employee', 'telefono_movil', '')])
+    with pytest.raises(ValidationError):  # vaciarlo tampoco vale
+        sp.exigir_celular(m.cambios, _FichaMem('04140000000'), solicitud_id=s.id, cedula=PASIVO)

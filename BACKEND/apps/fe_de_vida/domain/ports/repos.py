@@ -4,6 +4,11 @@ from typing import Protocol
 
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.constancia import Certificador, ConstanciaFeDeVida, PlantillaConstancia
+from apps.fe_de_vida.domain.entities.estadisticas import (
+    ConteosEstadistica,
+    FiltroEstadisticas,
+    PasivoEstadistica,
+)
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja, FiltroCobertura
 from apps.fe_de_vida.domain.entities.pasivo import DatosPasivo, PasivoCobertura, PasivoPresencialCandidato, TipoPension
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
@@ -30,6 +35,11 @@ class RepoProcesos(Protocol):
     def agregar_prorroga(self, prorroga: ProrrogaProceso) -> ProrrogaProceso: ...
 
     def listar_prorrogas(self, proceso_id: str) -> list[ProrrogaProceso]: ...
+
+    def ha_visto_guia(self, proceso_id: str, cedula: str) -> bool: ...
+
+    def marcar_guia_vista(self, proceso_id: str, cedula: str) -> None: ...
+
 
 
 class LectorAlcance(Protocol):
@@ -155,6 +165,23 @@ class LectorFichaPasivo(Protocol):
 class RepoCobertura(Protocol):
     def listar(self, filtro: FiltroCobertura, limite: int, desplazamiento: int) -> tuple[list[PasivoCobertura], int]:
         """Pasivos (según su asignación laboral) sin correo o sin cuenta de acceso."""
+        ...
+
+
+class RepoEstadisticas(Protocol):
+    """Consultas agregadas de la pantalla de estadísticas (O21), sin N+1."""
+
+    def contar(
+        self, proceso: ProcesoFeDeVida, filtro: FiltroEstadisticas,
+    ) -> ConteosEstadistica:
+        """KPIs, desglose por tipo/estado/canal y matriz tipo × estado del proceso."""
+        ...
+
+    def listar(
+        self, proceso: ProcesoFeDeVida, filtro: FiltroEstadisticas, *,
+        faltantes: bool, limite: int, desplazamiento: int,
+    ) -> tuple[list[PasivoEstadistica], int]:
+        """Pasivos del proceso: los que faltan por responder o los de una casilla de la matriz."""
         ...
 
 

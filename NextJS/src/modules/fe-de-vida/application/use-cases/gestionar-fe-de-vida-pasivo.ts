@@ -17,6 +17,10 @@ export function obtenerVigente(repo: RepoFeDeVida): Promise<VigenteDTO | null> {
   return repo.obtenerVigente();
 }
 
+export function marcarGuiaVista(repo: RepoFeDeVida, procesoId: string): Promise<boolean> {
+  return repo.marcarGuiaVista(procesoId);
+}
+
 export function iniciarSolicitud(repo: RepoFeDeVida): Promise<SolicitudDTO> {
   return repo.iniciarSolicitud();
 }

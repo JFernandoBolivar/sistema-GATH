@@ -20,6 +20,7 @@ MODULO_AUDITORIA = 'fe_de_vida'
 RECURSO_SOLICITUD = 'SolicitudFeDeVida'
 RECURSO_PROCESO = 'ProcesoFeDeVida'
 RECURSO_COBERTURA = 'CoberturaFeDeVida'
+RECURSO_ESTADISTICAS = 'EstadisticasFeDeVida'
 
 
 def cedula_de_sesion(request) -> str:

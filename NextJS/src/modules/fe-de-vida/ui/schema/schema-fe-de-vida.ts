@@ -5,15 +5,21 @@ import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { MAX_DIAS_RECORDATORIO } from "../../domain/services/reglas";
 import { MAX_LONGITUD_MOTIVO } from "../../domain/value-objects/estados";
 
-/** Teléfonos con código de país (D-13): el celular debe ser móvil, la habitación puede ser fija. */
-const telefonoMovilOpcional = telefonoZod({ tipo: "movil" }).transform((v) => v ?? "");
+/** Teléfonos con código de país (D-13): el celular es obligatorio y móvil; la habitación es opcional y puede ser fija. */
+const MENSAJE_CELULAR_OBLIGATORIO = "El teléfono celular es obligatorio";
+const telefonoMovilObligatorio = z
+  .string({ required_error: MENSAJE_CELULAR_OBLIGATORIO })
+  .trim()
+  .min(1, MENSAJE_CELULAR_OBLIGATORIO)
+  .pipe(telefonoZod({ tipo: "movil" }))
+  .transform((v) => v ?? "");
 const telefonoHabitacionOpcional = telefonoZod({ tipo: "cualquiera" }).transform((v) => v ?? "");
 
 const motivo = (nombre: string) => textoLibreRequerido(nombre, LIMITES_TEXTO.motivo);
 
 // ── Pasivo: datos de contacto del acta ──
 export const datosContactoSchema = z.object({
-  telefonoMovil: telefonoMovilOpcional,
+  telefonoMovil: telefonoMovilObligatorio,
   telefonoHabitacion: telefonoHabitacionOpcional,
   correoAlternativo: z.string().trim().max(254, "El correo no puede superar 254 caracteres").regex(EMAIL, EMAIL_MSG).or(z.literal("")),
   tieneHijos: z.enum(["si", "no"], {

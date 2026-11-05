@@ -3,8 +3,10 @@ import { feDeVidaApi, type CuerpoProceso } from "../http/fe-de-vida-api";
 import {
   mapperCobertura,
   mapperDetalle,
+  mapperEstadisticas,
   mapperInicioPresencial,
   mapperPagina,
+  mapperPasivoEstadistica,
   mapperPasivoPresencial,
   mapperProceso,
   mapperProrroga,
@@ -32,6 +34,10 @@ function cuerpoProceso(d: Parameters<RepoFeDeVida["crearProceso"]>[0]): CuerpoPr
 export const repoFeDeVidaApi: RepoFeDeVida = {
   async obtenerVigente() {
     return mapperVigente((await feDeVidaApi.vigente()).data);
+  },
+  async marcarGuiaVista(procesoId: string) {
+    const res = await feDeVidaApi.marcarGuiaVista(procesoId);
+    return Boolean(res.data?.guia_vista);
   },
   async iniciarSolicitud() {
     return mapperSolicitud((await feDeVidaApi.iniciar()).data);
@@ -167,6 +173,34 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
         })
       ).data,
       mapperCobertura,
+    );
+  },
+
+  async obtenerEstadisticas(f) {
+    const { procesoId, tipoNominaId, ...resto } = f;
+    return mapperEstadisticas(
+      (
+        await feDeVidaApi.estadisticas({
+          ...resto,
+          proceso_id: procesoId,
+          tipo_nomina_id: tipoNominaId,
+        })
+      ).data,
+    );
+  },
+
+  async listarPasivosEstadistica(f) {
+    const { procesoId, tipoNominaId, faltantes, ...resto } = f;
+    return mapperPagina(
+      (
+        await feDeVidaApi.pasivosEstadistica({
+          ...resto,
+          proceso_id: procesoId,
+          tipo_nomina_id: tipoNominaId,
+          faltantes,
+        })
+      ).data,
+      mapperPasivoEstadistica,
     );
   },
 

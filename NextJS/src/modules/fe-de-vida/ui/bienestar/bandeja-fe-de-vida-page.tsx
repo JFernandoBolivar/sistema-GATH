@@ -6,13 +6,20 @@ import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronRight, History, Search } from "lucide-react";
+import { ChevronRight, Download, History, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
+import {
+  archivoDeRespuesta,
+  esCancelacion,
+  guardarArchivo,
+} from "@/shared/lib/exportaciones-asincronas";
+import { useProgresoExportacion } from "@/shared/lib/use-progreso-exportacion";
 import { LIMITE_PAGINA } from "../../domain/value-objects/estados";
 import {
   listarBandejaAction,
@@ -23,6 +30,7 @@ import { formatearFechaHora } from "../comun/formato";
 import { PaginacionNav } from "../comun/paginacion-nav";
 import { filtrosBandejaSchema, type FiltrosBandejaValores } from "../schema/schema-fe-de-vida";
 import { baseFeDeVida } from "../rutas-fe-de-vida";
+import { consultaExportarBandeja, parametrosExportarBandeja } from "./exportar-bandeja";
 
 type PestanaBandeja = "vigente" | "historico";
 
@@ -39,6 +47,8 @@ export default function BandejaFeDeVidaPage() {
   const [filtros, setFiltros] = useState<FiltrosBandejaValores>(VACIOS);
   const [offset, setOffset] = useState(0);
   const [limite, setLimite] = useState(LIMITE_PAGINA);
+  const exportacion = useProgresoExportacion();
+  const [exportando, setExportando] = useState<"pdf" | "excel" | null>(null);
 
   const {
     register,
@@ -84,6 +94,24 @@ export default function BandejaFeDeVidaPage() {
 
   const sinProcesoAbierto = !esHistorico && !procesosAbiertos.isLoading && (procesosAbiertos.data ?? []).length === 0;
 
+  async function exportar(formato: "pdf" | "excel") {
+    setExportando(formato);
+    const opciones = exportacion.iniciar();
+    try {
+      const query = consultaExportarBandeja(parametrosExportarBandeja(filtros, esHistorico, formato));
+      const respuesta = await fetch(`/api/fe-de-vida/bandeja/exportar?${query}`, {
+        signal: opciones.signal,
+        cache: "no-store",
+      });
+      const archivo = await archivoDeRespuesta(respuesta, "No se pudo generar el archivo.", opciones);
+      guardarArchivo(archivo.blob, `bandeja-fe-de-vida.${formato === "pdf" ? "pdf" : "xlsx"}`);
+    } catch (e) {
+      if (!esCancelacion(e)) toast.error(e instanceof Error ? e.message : "No se pudo generar el archivo.");
+    } finally {
+      setExportando(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
       <PageHeader
@@ -92,6 +120,28 @@ export default function BandejaFeDeVidaPage() {
           esHistorico
             ? "Consulte las solicitudes de fe de vida de procesos cerrados (solo lectura)."
             : "Revise las fe de vida enviadas por los pasivos en el proceso vigente."
+        }
+        accion={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => void exportar("excel")}
+              disabled={exportando !== null}
+            >
+              <Download aria-hidden /> {exportando === "excel" ? `Excel · ${exportacion.texto}` : "Exportar Excel"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => void exportar("pdf")}
+              disabled={exportando !== null}
+            >
+              <Download aria-hidden /> {exportando === "pdf" ? `PDF · ${exportacion.texto}` : "Exportar PDF"}
+            </Button>
+          </div>
         }
       />
 

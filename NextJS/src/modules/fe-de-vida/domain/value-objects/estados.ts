@@ -56,6 +56,7 @@ export const PERMISOS_FE_DE_VIDA = {
   gestionarProcesos: "fe_de_vida.gestionar_procesos",
   prorrogar: "fe_de_vida.prorrogar",
   verCobertura: "fe_de_vida.ver_cobertura",
+  verEstadisticas: "fe_de_vida.ver_estadisticas",
   verificarConstancia: "fe_de_vida.verificar_constancia",
   registrarPresencial: "fe_de_vida.registrar_presencial",
 } as const;

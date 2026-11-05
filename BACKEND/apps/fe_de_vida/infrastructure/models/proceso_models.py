@@ -51,3 +51,22 @@ class ProrrogaProcesoModel(BaseModel):
 
     def __str__(self) -> str:
         return f'Prórroga({self.cedula or "general"} hasta {self.nueva_fecha_limite:%Y-%m-%d})'
+
+
+class GuiaFeDeVidaVistaModel(BaseModel):
+    """Registro inmutable de que un pasivo vio la guía interactiva en un proceso de fe de vida (O22)."""
+
+    proceso = models.ForeignKey(ProcesoFeDeVidaModel, on_delete=models.CASCADE, related_name='guias_vistas')
+    cedula = models.CharField(max_length=15, db_index=True)
+
+    class Meta:
+        db_table = 'fe_de_vida_guia_vista'
+        verbose_name = 'guía de fe de vida vista'
+        verbose_name_plural = 'guías de fe de vida vistas'
+        constraints = [
+            models.UniqueConstraint(fields=['proceso', 'cedula'], name='fv_guia_vista_proceso_cedula_uniq'),
+        ]
+
+    def __str__(self) -> str:
+        return f'GuiaVista({self.cedula}, {self.proceso_id})'
+
