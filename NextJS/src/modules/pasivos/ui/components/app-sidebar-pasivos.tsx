@@ -116,10 +116,10 @@ const items: MenuItem[] = [
     icon: HeartPulse,
     subMenu: [
       {
-        title: "Bandeja de revisión",
-        url: "/pasivos/fe-de-vida",
-        icon: ListCheck,
-        permiso: "fe_de_vida.revisar",
+        title: "Procesos y prórrogas",
+        url: "/pasivos/fe-de-vida/procesos",
+        icon: CalendarClock,
+        permiso: "fe_de_vida.gestionar_procesos",
       },
       {
         title: "Registro presencial",
@@ -128,10 +128,10 @@ const items: MenuItem[] = [
         permiso: "fe_de_vida.registrar_presencial",
       },
       {
-        title: "Procesos y prórrogas",
-        url: "/pasivos/fe-de-vida/procesos",
-        icon: CalendarClock,
-        permiso: "fe_de_vida.gestionar_procesos",
+        title: "Bandeja de revisión",
+        url: "/pasivos/fe-de-vida",
+        icon: ListCheck,
+        permiso: "fe_de_vida.revisar",
       },
       {
         title: "Cobertura de pasivos",
