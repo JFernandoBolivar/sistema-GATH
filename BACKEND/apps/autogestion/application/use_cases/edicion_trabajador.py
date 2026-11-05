@@ -37,10 +37,14 @@ from apps.autogestion.domain.value_objects.secciones import (
     DOCUMENTOS_EXIGIDOS,
     MAX_CONTACTOS_EMERGENCIA,
     ORIGEN_ACTUALIZACION,
+    ENTIDADES_DE_LISTA,
     TIPOS_SOPORTE_POR_SECCION,
+    VERBO_ACCION,
     Accion,
     Seccion,
     TipoSoporte,
+    acciones_solicitadas,
+    clave_accion,
     clave_campo,
 )
 from core.domain.exceptions import NotFoundError, ValidationError
@@ -57,8 +61,23 @@ def obtener_solicitud_propia(repo: RepoSolicitudes, solicitud_id: str, cedula: s
     return solicitud
 
 
+def _exigir_accion_habilitada(solicitud: SolicitudActualizacion, entidad: str, accion: Accion) -> None:
+    """En entidades de lista solo se admiten las acciones (agregar, corregir, quitar) que el trabajador pidió."""
+    if entidad in ENTIDADES_DE_LISTA and accion.value not in acciones_solicitadas(entidad, solicitud.campos_habilitados):
+        raise ValidationError(
+            f"En esta solicitud no pidió {VERBO_ACCION[accion.value]} en '{entidad}': esa acción no está habilitada.",
+            campo='accion',
+        )
+
+
+def _usa_acciones(solicitud: SolicitudActualizacion, entidad: str) -> bool:
+    return any(clave_accion(entidad, a) in solicitud.campos_habilitados for a in Accion)
+
+
 def _exigir_campo_habilitado(solicitud: SolicitudActualizacion, entidad: str, campo: str) -> None:
     """Decisión G: solo se edita lo que el trabajador pidió y Bienestar habilitó, campo por campo."""
+    if _usa_acciones(solicitud, entidad):
+        return  # pedida por acciones: todos los campos de la entidad quedan editables
     if clave_campo(entidad, campo) not in solicitud.campos_habilitados:
         raise ValidationError(f"El campo '{campo}' de '{entidad}' no fue solicitado ni habilitado en esta solicitud.")
 
@@ -74,6 +93,7 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         raise ValidationError(f"Acción inválida: '{item.accion}'.") from None
     entidad_id = str(item.entidad_id) if item.entidad_id not in (None, '') else None
     validar_estructura(item.seccion, item.entidad, accion, item.campo, entidad_id)
+    _exigir_accion_habilitada(solicitud, item.entidad, accion)
 
     if accion is Accion.ELIMINAR:
         _exigir_entidad_habilitada(solicitud, item.seccion, item.entidad)
@@ -127,7 +147,9 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
 def _exigir_entidad_habilitada(solicitud: SolicitudActualizacion, seccion: str, entidad: str) -> None:
     """Para QUITAR basta con que se haya habilitado al menos un campo de la entidad."""
     permitidos = campos_permitidos(seccion, entidad)
-    if not any(clave_campo(entidad, c) in solicitud.campos_habilitados for c in permitidos):
+    if not _usa_acciones(solicitud, entidad) and not any(
+        clave_campo(entidad, c) in solicitud.campos_habilitados for c in permitidos
+    ):
         raise ValidationError(
             f"Ningún campo de '{entidad}' fue solicitado ni habilitado en esta solicitud."
         )
@@ -242,6 +264,8 @@ def enviar_solicitud(
     cambios = repo_cambios.listar(ORIGEN_ACTUALIZACION, solicitud.id)
     if not cambios:
         raise ValidationError("No hay cambios que enviar. Guarde al menos un cambio en el borrador.")
+    for c in cambios:
+        _exigir_accion_habilitada(solicitud, c.entidad_destino, Accion(c.accion))
     soportes = repo_soportes.listar(ORIGEN_ACTUALIZACION, solicitud.id)
     con_soporte = {s.seccion for s in soportes}
     exigen = {s.codigo for s in repo_secciones.listar(solo_activas=False) if s.requiere_soporte}

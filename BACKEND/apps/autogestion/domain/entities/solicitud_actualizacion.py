@@ -13,7 +13,7 @@ from apps.autogestion.domain.value_objects.estado_solicitud import (
     EstadoSolicitud,
     validar_transicion,
 )
-from apps.autogestion.domain.value_objects.secciones import SECCION_DE_CAMPO, DecisionCambio, campos_de_secciones
+from apps.autogestion.domain.value_objects.secciones import DecisionCambio, campos_de_secciones, seccion_de_clave
 from core.domain.exceptions import ConflictError, ValidationError
 
 PLAZO_DIAS_MIN = 1
@@ -73,7 +73,7 @@ class SolicitudActualizacion:
         if not secciones or not set(secciones) <= set(self.secciones_solicitadas):
             raise ValidationError("Las secciones a habilitar deben ser un subconjunto no vacío de las solicitadas.")
         solicitados = self.campos_solicitados or campos_de_secciones(self.secciones_solicitadas)
-        habilitados = tuple(c for c in solicitados if SECCION_DE_CAMPO[c] in secciones)
+        habilitados = tuple(c for c in solicitados if seccion_de_clave(c) in secciones)
         return replace(
             self, estado=EstadoSolicitud.HABILITADA, secciones_habilitadas=tuple(secciones), campos_habilitados=habilitados,
             ventana_inicio=ahora, ventana_fin=ahora + timedelta(days=plazo_dias), plazo_dias=plazo_dias,

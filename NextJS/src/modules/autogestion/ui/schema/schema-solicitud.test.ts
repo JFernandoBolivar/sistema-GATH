@@ -38,6 +38,19 @@ describe("solicitudNuevaSchema", () => {
       solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo }).success,
     ).toBe(true);
   });
+  it("acepta acciones de secciones de lista y rechaza las inventadas", () => {
+    const base = { motivo };
+    expect(
+      solicitudNuevaSchema.safeParse({ ...base, campos: ["familiar.@CREAR", "familiar.@ELIMINAR"] })
+        .success,
+    ).toBe(true);
+    expect(solicitudNuevaSchema.safeParse({ ...base, campos: ["familiar.@BORRAR"] }).success).toBe(
+      false,
+    );
+    expect(solicitudNuevaSchema.safeParse({ ...base, campos: ["employee.@CREAR"] }).success).toBe(
+      false,
+    );
+  });
   it("rechaza campos desconocidos (el correo institucional), HTML y motivos largos", () => {
     expect(solicitudNuevaSchema.safeParse({ campos: ["employee.correo"], motivo }).success).toBe(
       false,

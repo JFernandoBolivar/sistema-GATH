@@ -493,3 +493,19 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
     assert PerfilFisicoModel.objects.get(empleado=empleado).tallaCamisa_id == talla.pk
     # La solicitud y sus reservas siguen a la nueva cédula.
     assert SolicitudActualizacionModel.objects.get(pk=sid).cedula == nueva_cedula
+
+
+def test_acciones_solicitadas_en_seccion_de_lista(trabajador, analista, datos):
+    r = trabajador.post(
+        f'{BASE}/solicitudes/',
+        {'campos': ['familiar.@CREAR'], 'motivo': 'Quiero agregar un familiar nuevo a mi grupo'}, format='json',
+    )
+    assert r.status_code == 201, r.content
+    assert data(r)['campos_solicitados'] == ['familiar.@CREAR']
+    sid = data(r)['id']
+    assert data(habilitar(analista, sid) and analista.get(f'{BASE}/bienestar/solicitudes/{sid}/'))['campos_habilitados'] == ['familiar.@CREAR']
+    quitar = {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'ELIMINAR', 'campo': '*', 'entidad_id': '1', 'valor': {'motivo': 'Ya no vive con el trabajador'}}
+    rechazo = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': [quitar]}, format='json')
+    assert rechazo.status_code == 400 and 'quitar' in rechazo.content.decode()
+    mal = trabajador.post(f'{BASE}/solicitudes/', {'campos': ['familiar.@BORRAR'], 'motivo': 'Quiero agregar un familiar nuevo a mi grupo'}, format='json')
+    assert mal.status_code == 400

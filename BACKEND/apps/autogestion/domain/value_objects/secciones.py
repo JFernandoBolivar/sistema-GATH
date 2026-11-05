@@ -96,6 +96,12 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
 }
 
 
+# Entidades de lista (varios registros por trabajador): en la solicitud se piden por ACCIÓN
+# (agregar, corregir, quitar) y no por campos sueltos.
+ENTIDADES_DE_LISTA = frozenset({
+    'familiar', 'formacion_academica', 'formacion_complementaria', 'contacto_emergencia',
+})
+
 
 def clave_campo(entidad: str, campo: str) -> str:
     """Identificador de un campo solicitable: `entidad.campo` (B16, decisión G)."""
@@ -111,6 +117,51 @@ SECCION_DE_CAMPO: dict[str, str] = {
 }
 
 
+# Entidad -> todos sus campos (unión entre secciones).
+CAMPOS_DE_ENTIDAD: dict[str, frozenset[str]] = {}
+for _entidades in CAMPOS_POR_SECCION.values():
+    for _entidad, _campos in _entidades.items():
+        CAMPOS_DE_ENTIDAD[_entidad] = CAMPOS_DE_ENTIDAD.get(_entidad, frozenset()) | _campos
+
+# Marca que distingue una acción solicitada (`entidad.@CREAR`) de un campo (`entidad.campo`).
+PREFIJO_ACCION = '@'
+
+
+def clave_accion(entidad: str, accion: Accion | str) -> str:
+    """Identificador de una acción solicitable sobre una entidad de lista: `entidad.@ACCION`."""
+    valor = accion.value if isinstance(accion, Accion) else accion
+    return f'{entidad}.{PREFIJO_ACCION}{valor}'
+
+
+# Toda acción solicitable -> sección que la agrupa.
+SECCION_DE_ACCION: dict[str, str] = {
+    clave_accion(entidad, accion): seccion
+    for seccion, entidades in CAMPOS_POR_SECCION.items()
+    for entidad in entidades
+    if entidad in ENTIDADES_DE_LISTA
+    for accion in Accion
+}
+
+
+def seccion_de_clave(clave: str) -> str | None:
+    """Sección de una clave solicitable, sea campo (`entidad.campo`) o acción (`entidad.@ACCION`)."""
+    return SECCION_DE_CAMPO.get(clave) or SECCION_DE_ACCION.get(clave)
+
+
+def acciones_solicitadas(entidad: str, claves) -> frozenset[str]:
+    """
+    Acciones permitidas sobre una entidad de lista según las claves habilitadas.
+    Con claves de acción, solo esas; con campos sueltos (solicitudes anteriores), todas; si no hay nada, ninguna.
+    """
+    claves = set(claves)
+    pedidas = frozenset(a.value for a in Accion if clave_accion(entidad, a) in claves)
+    if pedidas:
+        return pedidas
+    if any(clave_campo(entidad, c) in claves for c in CAMPOS_DE_ENTIDAD.get(entidad, ())):
+        return frozenset(a.value for a in Accion)
+    return frozenset()
+
+
 def campos_de_secciones(secciones) -> tuple[str, ...]:
     """Todos los campos de las secciones indicadas (compatibilidad con solicitudes por sección entera)."""
     elegidas = set(secciones)
@@ -119,7 +170,7 @@ def campos_de_secciones(secciones) -> tuple[str, ...]:
 
 def secciones_de_campos(campos) -> tuple[str, ...]:
     """Secciones que agrupan los campos, en el orden del catálogo de secciones."""
-    usadas = {SECCION_DE_CAMPO[c] for c in campos}
+    usadas = {seccion_de_clave(c) for c in campos}
     return tuple(s.value for s in Seccion if s.value in usadas)
 
 
@@ -135,9 +186,14 @@ REQUERIDOS_AL_CREAR: dict[str, frozenset[str]] = {
 }
 
 # Entidades que se pueden QUITAR desde la autogestión (con motivo obligatorio).
-ENTIDADES_ELIMINABLES = frozenset({
-    'familiar', 'formacion_academica', 'formacion_complementaria', 'contacto_emergencia',
-})
+ENTIDADES_ELIMINABLES = ENTIDADES_DE_LISTA
+
+# Cómo se nombra cada acción en lenguaje claro (mensajes de error y revisión de Bienestar).
+VERBO_ACCION: dict[str, str] = {
+    Accion.CREAR.value: 'agregar',
+    Accion.MODIFICAR.value: 'corregir',
+    Accion.ELIMINAR.value: 'quitar',
+}
 
 # Máximo de contactos de emergencia por trabajador.
 MAX_CONTACTOS_EMERGENCIA = 3

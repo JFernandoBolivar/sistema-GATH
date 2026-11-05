@@ -3,7 +3,7 @@
  * (`apps/autogestion/domain/value_objects/secciones.py`): el servidor sigue siendo la fuente de verdad
  * y revalida; aquí solo se describe qué formulario mostrar y cómo rotular cada campo.
  */
-import type { SeccionCodigo } from "../entities/solicitud-actualizacion";
+import type { AccionCambio, SeccionCodigo } from "../entities/solicitud-actualizacion";
 
 export type TipoCampo =
   "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple";
@@ -407,8 +407,64 @@ export function claveCampo(entidad: string, campo: string): string {
   return `${entidad}.${campo}`;
 }
 
-/** Sección que agrupa un campo solicitable (`entidad.campo`), si existe. */
+/** Acciones que se piden sobre los registros de una sección de lista (valores del backend). */
+export const ACCIONES_SOLICITABLES = [
+  { accion: "CREAR", etiqueta: "Agregar", frase: "agregar" },
+  { accion: "MODIFICAR", etiqueta: "Corregir", frase: "corregir datos de" },
+  { accion: "ELIMINAR", etiqueta: "Quitar", frase: "quitar" },
+] as const satisfies readonly { accion: AccionCambio; etiqueta: string; frase: string }[];
+
+/** Entidades de lista: en el paso 1 se piden por acción, no por campos sueltos. */
+export const ENTIDADES_DE_LISTA: Record<string, { grupo: string; objeto: string }> = {
+  familiar: { grupo: "Grupo familiar", objeto: "un familiar" },
+  contacto_emergencia: { grupo: "Contactos de emergencia", objeto: "un contacto de emergencia" },
+  formacion_academica: { grupo: "Formación académica", objeto: "una formación académica" },
+  formacion_complementaria: {
+    grupo: "Formación complementaria",
+    objeto: "una formación complementaria",
+  },
+};
+
+/** Prefijo que distingue una acción solicitada (`entidad.@CREAR`) de un campo (igual que el servidor). */
+export const PREFIJO_ACCION = "@";
+
+export function esEntidadDeLista(entidad: string): boolean {
+  return entidad in ENTIDADES_DE_LISTA;
+}
+
+/** Identificador de una acción solicitable sobre una entidad de lista: `entidad.@ACCION`. */
+export function claveAccion(entidad: string, accion: AccionCambio): string {
+  return `${entidad}.${PREFIJO_ACCION}${accion}`;
+}
+
+/** Acciones permitidas sobre una entidad de lista según lo habilitado (solicitudes viejas: todas). */
+export function accionesPermitidas(entidad: string, claves: string[]): AccionCambio[] {
+  const pedidas = ACCIONES_SOLICITABLES.map((a) => a.accion).filter((a) =>
+    claves.includes(claveAccion(entidad, a)),
+  );
+  if (pedidas.length > 0) return pedidas;
+  const hayCampos = claves.some((c) => c.startsWith(`${entidad}.`));
+  return hayCampos ? ACCIONES_SOLICITABLES.map((a) => a.accion) : [];
+}
+
+/** ¿La entidad se pidió por acciones (solicitud nueva) y no por campos sueltos? */
+export function pedidaPorAcciones(entidad: string, claves: string[]): boolean {
+  return ACCIONES_SOLICITABLES.some((a) => claves.includes(claveAccion(entidad, a.accion)));
+}
+
+/** Sección que agrupa un campo o acción solicitable (`entidad.campo` o `entidad.@ACCION`), si existe. */
 export function seccionDeCampo(clave: string): SeccionCodigo | undefined {
+  const punto = clave.indexOf(".");
+  const entidadClave = punto < 0 ? clave : clave.slice(0, punto);
+  const resto = punto < 0 ? "" : clave.slice(punto + 1);
+  if (resto.startsWith(PREFIJO_ACCION)) {
+    const accion = ACCIONES_SOLICITABLES.find((a) => a.accion === resto.slice(1));
+    if (!accion || !esEntidadDeLista(entidadClave)) return undefined;
+    for (const seccion of Object.values(SECCIONES_DEF)) {
+      if (seccion.entidades.some((e) => e.entidad === entidadClave)) return seccion.codigo;
+    }
+    return undefined;
+  }
   for (const seccion of Object.values(SECCIONES_DEF)) {
     for (const e of seccion.entidades) {
       if (e.campos.some((c) => claveCampo(e.entidad, c.campo) === clave)) return seccion.codigo;
@@ -420,6 +476,10 @@ export function seccionDeCampo(clave: string): SeccionCodigo | undefined {
 /** Etiqueta legible de un campo solicitable `entidad.campo`. */
 export function etiquetaClaveCampo(clave: string): string {
   const [entidad, ...resto] = clave.split(".");
+  const accion = ACCIONES_SOLICITABLES.find((a) => `${PREFIJO_ACCION}${a.accion}` === resto.join("."));
+  if (accion && esEntidadDeLista(entidad)) {
+    return `Quiere ${accion.frase} ${ENTIDADES_DE_LISTA[entidad].objeto}`;
+  }
   return etiquetaCampo(resto.join("."), entidad);
 }
 

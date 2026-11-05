@@ -9,7 +9,7 @@ from apps.autogestion.domain.events import EventoAutogestion, PublicadorEventos,
 from apps.autogestion.domain.ports.repo_solicitudes import RepoSecciones, RepoSolicitudes
 from apps.autogestion.domain.services.validacion_motivo import validar_motivo_solicitud
 from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES, EstadoSolicitud
-from apps.autogestion.domain.value_objects.secciones import SECCION_DE_CAMPO, campos_de_secciones, secciones_de_campos
+from apps.autogestion.domain.value_objects.secciones import campos_de_secciones, secciones_de_campos, seccion_de_clave
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
 MOTIVO_MAX = 500
@@ -45,7 +45,7 @@ def solicitar_actualizacion(
     campos = tuple(dict.fromkeys(campos or campos_de_secciones(secciones or ())))
     if not campos:
         raise ValidationError("Debe indicar al menos un campo a actualizar.")
-    desconocidos = sorted(set(campos) - set(SECCION_DE_CAMPO))
+    desconocidos = sorted(c for c in set(campos) if seccion_de_clave(c) is None)
     if desconocidos:
         raise ValidationError(f"Campos no autogestionables: {', '.join(desconocidos)}.")
     secciones = secciones_de_campos(campos)

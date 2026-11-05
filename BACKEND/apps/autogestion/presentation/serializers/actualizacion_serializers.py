@@ -135,7 +135,7 @@ class SolicitudSerializer(serializers.Serializer):
     fecha_solicitud = serializers.DateTimeField(allow_null=True)
     fecha_envio = serializers.DateTimeField(allow_null=True)
     fecha_decision = serializers.DateTimeField(allow_null=True)
-    campos_solicitados = serializers.ListField(child=serializers.CharField(), help_text='`entidad.campo` pedidos por el trabajador.')
+    campos_solicitados = serializers.ListField(child=serializers.CharField(), help_text='`entidad.campo` o, en secciones de lista, `entidad.@ACCION` (CREAR, MODIFICAR, ELIMINAR) pedidos por el trabajador.')
     campos_habilitados = serializers.ListField(child=serializers.CharField(), help_text='Únicos campos que el trabajador puede editar.')
     motivo_devolucion = serializers.CharField(help_text='Motivo de la última devolución de Bienestar.')
     devuelta_por = serializers.CharField()

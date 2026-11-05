@@ -5,6 +5,7 @@ import { Pencil, Plus, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type {
+  AccionCambio,
   ItemBorrador,
   SeccionCodigo,
   SoporteEntity,
@@ -16,8 +17,11 @@ import {
   type RegistroBorrador,
 } from "../../domain/services/borrador";
 import {
+  accionesPermitidas,
   claveCampo,
+  esEntidadDeLista,
   etiquetaCampo,
+  pedidaPorAcciones,
   type EntidadDef,
 } from "../../domain/value-objects/campos-seccion";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
@@ -74,19 +78,34 @@ export function EditorEntidad({
   soportes = [],
   onCambioSoportes,
 }: Props) {
+  // Pedida por acciones (Agregar/Corregir/Quitar): todos sus campos son editables; si no, solo los habilitados.
+  const porAcciones = pedidaPorAcciones(definicionCompleta.entidad, camposHabilitados);
   const definicion = useMemo<EntidadDef>(
     () => ({
       ...definicionCompleta,
-      campos: definicionCompleta.campos.filter((c) =>
-        camposHabilitados.includes(claveCampo(definicionCompleta.entidad, c.campo)),
-      ),
+      campos: porAcciones
+        ? definicionCompleta.campos
+        : definicionCompleta.campos.filter((c) =>
+            camposHabilitados.includes(claveCampo(definicionCompleta.entidad, c.campo)),
+          ),
     }),
-    [definicionCompleta, camposHabilitados],
+    [definicionCompleta, camposHabilitados, porAcciones],
   );
+  // En secciones de lista solo se ofrecen las acciones solicitadas (las solicitudes viejas permiten todas).
+  const acciones = esEntidadDeLista(definicionCompleta.entidad)
+    ? accionesPermitidas(definicionCompleta.entidad, camposHabilitados)
+    : null;
+  const permiteAccion = (accion: AccionCambio) => acciones === null || acciones.includes(accion);
   // Crear un registro nuevo exige tener habilitados todos sus campos obligatorios.
-  const puedeCrearBase = definicionCompleta.campos
-    .filter((c) => c.requeridoAlCrear)
-    .every((c) => camposHabilitados.includes(claveCampo(definicionCompleta.entidad, c.campo)));
+  const puedeCrearBase =
+    permiteAccion("CREAR") &&
+    definicionCompleta.campos
+      .filter((c) => c.requeridoAlCrear)
+      .every(
+        (c) =>
+          porAcciones ||
+          camposHabilitados.includes(claveCampo(definicionCompleta.entidad, c.campo)),
+      );
   const [abierto, setAbierto] = useState<Abierto>(null);
   const esquema = esquemaDeEntidad(seccion, definicion.entidad);
   const vigentes = useMemo(
@@ -229,7 +248,7 @@ export function EditorEntidad({
                 <Undo2 aria-hidden /> Quitar cambio
               </Button>
             ) : null}
-            {!editando && !yaQuitado ? (
+            {!editando && !yaQuitado && (permiteAccion("MODIFICAR") || propuesto) ? (
               <Button
                 type="button"
                 variant="outline"
@@ -239,7 +258,7 @@ export function EditorEntidad({
                 <Pencil aria-hidden /> {propuesto ? "Editar cambio" : "Modificar"}
               </Button>
             ) : null}
-            {v && definicion.creable && !definicion.unica && !yaQuitado ? (
+            {v && definicion.creable && !definicion.unica && !yaQuitado && permiteAccion("ELIMINAR") ? (
               <Button
                 type="button"
                 variant="outline"
