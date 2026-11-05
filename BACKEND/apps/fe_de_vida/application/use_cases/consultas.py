@@ -1,6 +1,7 @@
 """Consultas de fe de vida: propia del pasivo, historial, bandeja de Bienestar, evidencia, constancia y cobertura."""
+import uuid
 from dataclasses import replace
-from datetime import datetime
+from datetime import date, datetime
 
 from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
     CambioComparado,
@@ -40,7 +41,7 @@ from apps.fe_de_vida.domain.ports.repos import (
 from apps.fe_de_vida.domain.services.reglas_proceso import puede_enviar
 from apps.fe_de_vida.domain.services.verificacion import codigo_con_formato_valido, enmascarar_cedula
 from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud
-from core.domain.exceptions import NotFoundError
+from core.domain.exceptions import NotFoundError, ValidationError
 
 
 # ── Pasivo ──
@@ -60,7 +61,16 @@ def obtener_proceso_vigente(
         return None
     proceso = max(candidatos.values(), key=lambda p: p.fecha_apertura)
     habilitado = puede_enviar(proceso, repo_proc.listar_prorrogas(proceso.id), cedula, ahora)
-    return ProcesoVigente(proceso, repo_sol.obtener_de(proceso.id, cedula), habilitado)
+    guia_vista = repo_proc.ha_visto_guia(proceso.id, cedula) if hasattr(repo_proc, 'ha_visto_guia') else False
+    return ProcesoVigente(proceso, repo_sol.obtener_de(proceso.id, cedula), habilitado, guia_vista)
+
+
+def marcar_guia_proceso_vista(
+    repo_proc: RepoProcesos, *, proceso_id: str, cedula: str,
+) -> None:
+    """Registra en el servidor que el pasivo ha visto la guía interactiva en este proceso (O22)."""
+    repo_proc.marcar_guia_vista(proceso_id, cedula)
+
 
 
 def obtener_mi_solicitud(
@@ -90,6 +100,43 @@ def obtener_mi_constancia(
 
 
 # ── Bienestar ──
+def normalizar_filtro_bandeja(datos) -> FiltroBandeja:
+    """Valida los filtros de la bandeja (pantalla y exportación) con 400 por campo."""
+    datos = datos or {}
+
+    def _texto(clave):
+        valor = datos.get(clave)
+        texto = str(valor).strip() if valor is not None else ''
+        return texto or None
+
+    proceso_id = _texto('proceso_id')
+    if proceso_id:
+        try:
+            uuid.UUID(proceso_id)
+        except ValueError as exc:
+            raise ValidationError('El proceso indicado no es válido.', campo='proceso_id') from exc
+    estado = _texto('estado')
+    if estado and estado not in {e.value for e in EstadoSolicitud}:
+        raise ValidationError('El estado de la fe de vida no es válido.', campo='estado')
+
+    def _fecha(clave):
+        valor = _texto(clave)
+        if not valor:
+            return None
+        try:
+            return date.fromisoformat(valor)
+        except ValueError as exc:
+            raise ValidationError('La fecha debe tener el formato AAAA-MM-DD.', campo=clave) from exc
+
+    desde, hasta = _fecha('desde'), _fecha('hasta')
+    if desde and hasta and desde > hasta:
+        raise ValidationError('El rango de fechas es inválido: "desde" es posterior a "hasta".', campo='desde')
+    return FiltroBandeja(
+        proceso_id=proceso_id, estado=estado, texto=_texto('texto'), desde=desde, hasta=hasta,
+        historico=str(datos.get('historico', '')).lower() in ('1', 'true', 'si', 'sí'),
+    )
+
+
 def bandeja_revision(
     repo_sol: RepoSolicitudesFeDeVida, lector: LectorPasivos, *, filtro: FiltroBandeja, limite: int | None = None,
     desplazamiento: int | None = None, repo_proc: RepoProcesos | None = None,

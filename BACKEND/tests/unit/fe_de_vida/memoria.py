@@ -53,6 +53,15 @@ class RepoProcesosMem:
     def listar_prorrogas(self, proceso_id):
         return [p for p in self.prorrogas if p.proceso_id == proceso_id]
 
+    def ha_visto_guia(self, proceso_id, cedula):
+        return (proceso_id, cedula) in getattr(self, '_guias_vistas', set())
+
+    def marcar_guia_vista(self, proceso_id, cedula):
+        if not hasattr(self, '_guias_vistas'):
+            self._guias_vistas = set()
+        self._guias_vistas.add((proceso_id, cedula))
+
+
 
 class RepoSolicitudesMem:
     def __init__(self):

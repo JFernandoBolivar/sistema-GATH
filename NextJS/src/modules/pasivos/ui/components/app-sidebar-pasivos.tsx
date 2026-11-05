@@ -139,6 +139,12 @@ const items: MenuItem[] = [
         icon: MailX,
         permiso: "fe_de_vida.ver_cobertura",
       },
+      {
+        title: "Estadísticas",
+        url: "/pasivos/fe-de-vida/estadisticas",
+        icon: BarChart3,
+        permiso: "fe_de_vida.ver_estadisticas",
+      },
     ],
   },
   {

@@ -12,6 +12,8 @@ import type {
   TipoPensionEntity,
   VigenteEntity,
 } from "../entities/fe-de-vida";
+import type { EstadoSolicitud } from "../value-objects/estados";
+import type { EstadisticasEntity, PasivoEstadisticaEntity } from "../entities/estadisticas";
 import type { ReenvioConstanciaDTO, RegenerarConstanciaDTO } from "../../application/dtos/fe-de-vida-dto";
 import type { OrigenEvidencia } from "../value-objects/estados";
 
@@ -42,6 +44,30 @@ export interface FiltrosCobertura extends PaginaPedida {
   tipoNominaId?: number;
   sinCorreo?: boolean;
   sinCuenta?: boolean;
+}
+
+export interface FiltrosEstadisticas extends PaginaPedida {
+  procesoId?: string;
+  tipoNominaId?: number;
+  estado?: EstadoSolicitud;
+  canal?: "EN_LINEA" | "PRESENCIAL";
+  desde?: string;
+  hasta?: string;
+}
+
+/** Listado del detalle: faltan por responder o una casilla de la matriz. */
+export interface FiltrosListadoEstadistica extends FiltrosEstadisticas {
+  faltantes?: boolean;
+}
+
+export interface FiltrosExportacionEstadistica {
+  procesoId?: string;
+  tipoNominaId?: number;
+  estado?: EstadoSolicitud;
+  canal?: "EN_LINEA" | "PRESENCIAL";
+  desde?: string;
+  hasta?: string;
+  listado: "faltantes" | "celda";
 }
 
 /** Cambio propuesto del acta tal como se envía al borrador. */
@@ -80,6 +106,7 @@ export interface EvidenciaNueva {
 export interface RepoFeDeVida {
   // Pasivo
   obtenerVigente(): Promise<VigenteEntity | null>;
+  marcarGuiaVista(procesoId: string): Promise<boolean>;
   iniciarSolicitud(): Promise<SolicitudEntity>;
   listarMisSolicitudes(f: FiltrosHistorial): Promise<PaginaEntity<SolicitudEntity>>;
   obtenerMiSolicitud(id: string): Promise<DetalleSolicitudEntity>;
@@ -109,6 +136,9 @@ export interface RepoFeDeVida {
   prorrogar(procesoId: string, d: DatosProrroga): Promise<ProrrogaEntity>;
   // Cobertura
   listarCobertura(f: FiltrosCobertura): Promise<PaginaEntity<CoberturaEntity>>;
+  // Estadísticas (O21)
+  obtenerEstadisticas(f: FiltrosEstadisticas): Promise<EstadisticasEntity>;
+  listarPasivosEstadistica(f: FiltrosListadoEstadistica): Promise<PaginaEntity<PasivoEstadisticaEntity>>;
   // Presencial
   buscarPasivosPresencial(f: { texto?: string } & PaginaPedida): Promise<PaginaEntity<PasivoPresencialEntity>>;
   iniciarSolicitudPresencial(cedula: string): Promise<InicioPresencialEntity>;

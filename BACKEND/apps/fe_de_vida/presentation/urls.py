@@ -8,6 +8,7 @@ from apps.fe_de_vida.presentation.views.pasivo_views import (
     IniciarSolicitudView,
     MiConstanciaView,
     MisSolicitudesView,
+    MarcarGuiaVistaView,
     MiSolicitudView,
     ProcesoVigenteView,
 )
@@ -26,6 +27,12 @@ from apps.fe_de_vida.presentation.views.presencial_views import (
     EvidenciaPresencialView,
     IniciarOSolicitudPresencialView,
 )
+from apps.fe_de_vida.presentation.views.estadisticas_views import (
+    EstadisticasView,
+    ExportarEstadisticasView,
+    PasivosEstadisticaView,
+)
+from apps.fe_de_vida.presentation.views.exportar_bandeja_views import ExportarBandejaView
 from apps.fe_de_vida.presentation.views.revision_views import (
     AprobarDirectoView,
     BandejaView,
@@ -46,6 +53,7 @@ app_name = 'fe_de_vida'
 urlpatterns = [
     # Pasivo (permiso fe_de_vida.* + condición PASIVO)
     path('procesos/vigente/', ProcesoVigenteView.as_view(), name='proceso_vigente'),
+    path('procesos/vigente/guia-vista/', MarcarGuiaVistaView.as_view(), name='marcar_guia_vista'),
     path('procesos/vigente/solicitud/', IniciarSolicitudView.as_view(), name='iniciar_solicitud'),
     path('mis-solicitudes/', MisSolicitudesView.as_view(), name='mis_solicitudes'),
     path('mis-solicitudes/<uuid:solicitud_id>/', MiSolicitudView.as_view(), name='mi_solicitud'),
@@ -55,6 +63,7 @@ urlpatterns = [
     path('mis-solicitudes/<uuid:solicitud_id>/constancia/', MiConstanciaView.as_view(), name='mi_constancia'),
     # Bienestar
     path('solicitudes/', BandejaView.as_view(), name='bandeja'),
+    path('solicitudes/exportar/', ExportarBandejaView.as_view(), name='bandeja_exportar'),
     path('solicitudes/<uuid:solicitud_id>/', DetalleRevisionView.as_view(), name='detalle_revision'),
     path('solicitudes/<uuid:solicitud_id>/evidencia/', EvidenciaRevisionView.as_view(), name='evidencia_revision'),
     path('solicitudes/<uuid:solicitud_id>/check/', CheckView.as_view(), name='check'),
@@ -80,6 +89,10 @@ urlpatterns = [
     path('procesos/<uuid:proceso_id>/prorrogas/', ProrrogasView.as_view(), name='prorrogas'),
     # Cobertura y verificación
     path('cobertura/pasivos/', CoberturaPasivosView.as_view(), name='cobertura_pasivos'),
+    # Estadísticas (O21)
+    path('estadisticas/', EstadisticasView.as_view(), name='estadisticas'),
+    path('estadisticas/pasivos/', PasivosEstadisticaView.as_view(), name='estadisticas_pasivos'),
+    path('estadisticas/exportar/', ExportarEstadisticasView.as_view(), name='estadisticas_exportar'),
     path('constancias/verificar/<str:codigo>/', VerificarConstanciaView.as_view(), name='verificar_constancia'),
     path('constancias/publica/<str:codigo>/', VerificarConstanciaPublicaView.as_view(), name='verificar_constancia_publica'),
 ]

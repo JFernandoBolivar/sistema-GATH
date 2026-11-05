@@ -4,7 +4,8 @@ import { ContadorCampo } from "@/components/contador-caracteres";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useEffect, useId, useMemo } from "react";
 import useSWR from "swr";
-import { Controller, useForm, type FieldValues, type Resolver } from "react-hook-form";
+import { Controller, useForm, type FieldErrors, type FieldValues, type Resolver } from "react-hook-form";
+import { toast } from "sonner";
 import { ZodObject, type ZodTypeAny } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,7 +139,21 @@ export function FormularioRegistro({
         return;
       }
     }
-    onGuardar(limpios);
+    try {
+      onGuardar(limpios);
+    } catch {
+      toast.error("No se pudo agregar al borrador. Intente de nuevo.");
+    }
+  }
+
+  /** Con errores de validación: aviso, y foco en el primer campo con error (todos quedan en rojo). */
+  function alInvalido(errores: FieldErrors<Valores>) {
+    toast.error("Revise los campos marcados en rojo.");
+    const primero = camposVisibles.find((c) => errores[c.campo]);
+    if (!primero) return;
+    const el = document.getElementById(`${idBase}-${primero.campo}`);
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    el?.focus({ preventScroll: true });
   }
 
   function renderCampo(c: CampoDef) {
@@ -205,7 +220,13 @@ export function FormularioRegistro({
           error={error}
           registro={register(c.campo)}
           valor={watch(c.campo) as string | number | null | undefined}
-          onCambio={(v) => setValue(c.campo, v, { shouldValidate: true, shouldDirty: true })}
+          onCambio={(v) => {
+            setValue(c.campo, v, { shouldValidate: true, shouldDirty: true });
+            // El selector con buscador no dispara el `watch` de cambio: se limpian los dependientes aquí.
+            for (const [hijo, padre] of Object.entries(CAMPO_PADRE)) {
+              if (padre === c.campo && camposDelEsquema.includes(hijo)) setValue(hijo, "");
+            }
+          }}
         />
       );
     }
@@ -262,7 +283,7 @@ export function FormularioRegistro({
 
   return (
     <form
-      onSubmit={handleSubmit(enviar)}
+      onSubmit={handleSubmit(enviar, alInvalido)}
       noValidate
       aria-label={`${definicion.etiqueta} (${seccion})`}
       className="flex flex-col gap-4 rounded-lg border bg-muted/40 p-4"
