@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, CheckCircle2, Flag, Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -12,7 +14,14 @@ import {
   DialogTrigger,
 } from "@/shared/ui/components/dialog";
 import { Button } from "@/shared/ui/components/button";
-import { Label } from "@/shared/ui/components/label";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/ui/components/form";
 import { Textarea } from "@/shared/ui/components/textarea";
 import {
   Select,
@@ -23,44 +32,47 @@ import {
 } from "@/shared/ui/components/select";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/components/alert";
 import { crearReporteErrorLaboralAction } from "@/modules/personal/infrastructure/actions/personal-actions";
+import {
+  DESCRIPCION_MAX,
+  reporteErrorLaboralSchema,
+  type ReporteErrorLaboralValores,
+} from "../schema/schema-reporte-error";
 
-const OPCIONES_DATOS = [
+const OPCIONES_DATOS: ReadonlyArray<{
+  valor: ReporteErrorLaboralValores["dato"];
+  etiqueta: string;
+}> = [
   { valor: "cargo", etiqueta: "Cargo" },
   { valor: "oficina", etiqueta: "Oficina / Gerencia" },
   { valor: "fecha_ingreso", etiqueta: "Fecha de ingreso" },
   { valor: "otro", etiqueta: "Otro dato laboral" },
-] as const;
-
-type TipoDatoReportado = (typeof OPCIONES_DATOS)[number]["valor"];
+];
 
 export function ModalReportarErrorLaboral() {
   const [abierto, setAbierto] = useState(false);
-  const [dato, setDato] = useState<TipoDatoReportado>("cargo");
-  const [descripcion, setDescripcion] = useState("");
-  const [enviando, setEnviando] = useState(false);
   const [feedback, setFeedback] = useState<{
     tipo: "exito" | "error";
     mensaje: string;
   } | null>(null);
 
-  const longitud = descripcion.trim().length;
-  const descripcionValida = longitud >= 10 && longitud <= 500;
+  const form = useForm<ReporteErrorLaboralValores>({
+    resolver: zodResolver(reporteErrorLaboralSchema),
+    defaultValues: { dato: "cargo", descripcion: "" },
+    mode: "onChange",
+  });
+  const enviando = form.formState.isSubmitting;
+  const longitud = (useWatch({ control: form.control, name: "descripcion" }) ?? "").length;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!descripcionValida || enviando) return;
-
-    setEnviando(true);
+  const onSubmit = async (v: ReporteErrorLaboralValores) => {
     setFeedback(null);
-
     try {
-      const res = await crearReporteErrorLaboralAction(dato, descripcion.trim());
+      const res = await crearReporteErrorLaboralAction(v.dato, v.descripcion);
       if (res.success) {
         setFeedback({
           tipo: "exito",
           mensaje: "Reporte de discrepancia enviado a Talento Humano exitosamente.",
         });
-        setDescripcion("");
+        form.reset();
         setTimeout(() => {
           setAbierto(false);
           setFeedback(null);
@@ -76,8 +88,6 @@ export function ModalReportarErrorLaboral() {
         tipo: "error",
         mensaje: "Error de comunicación con el servidor. Intente más tarde.",
       });
-    } finally {
-      setEnviando(false);
     }
   };
 
@@ -105,99 +115,100 @@ export function ModalReportarErrorLaboral() {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
-          {feedback && (
-            <Alert
-              variant={feedback.tipo === "exito" ? "default" : "destructive"}
-              className={
-                feedback.tipo === "exito"
-                  ? "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200"
-                  : ""
-              }
-            >
-              {feedback.tipo === "exito" ? (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}
-              <AlertTitle>
-                {feedback.tipo === "exito" ? "Reporte enviado" : "Error"}
-              </AlertTitle>
-              <AlertDescription>{feedback.mensaje}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="select-dato-laboral">Dato que presenta error</Label>
-            <Select
-              value={dato}
-              onValueChange={(val) => setDato(val as TipoDatoReportado)}
-              disabled={enviando}
-            >
-              <SelectTrigger id="select-dato-laboral">
-                <SelectValue placeholder="Seleccione el campo..." />
-              </SelectTrigger>
-              <SelectContent>
-                {OPCIONES_DATOS.map((opc) => (
-                  <SelectItem key={opc.valor} value={opc.valor}>
-                    {opc.etiqueta}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="descripcion-error-laboral">Descripción del error</Label>
-              <span
-                className={`text-xs ${
-                  longitud === 0
-                    ? "text-muted-foreground"
-                    : descripcionValida
-                    ? "text-emerald-600"
-                    : "text-destructive"
-                }`}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+            {feedback && (
+              <Alert
+                variant={feedback.tipo === "exito" ? "default" : "destructive"}
+                className={
+                  feedback.tipo === "exito"
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200"
+                    : ""
+                }
               >
-                {longitud} / 500 caracteres (mínimo 10)
-              </span>
-            </div>
-            <Textarea
-              id="descripcion-error-laboral"
-              placeholder="Explique detalladamente cuál es la información correcta (ej. según resolución de nombramiento, fecha exacta de ingreso, etc.)."
-              rows={4}
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              disabled={enviando}
-              maxLength={500}
-            />
-          </div>
+                {feedback.tipo === "exito" ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4" />
+                )}
+                <AlertTitle>{feedback.tipo === "exito" ? "Reporte enviado" : "Error"}</AlertTitle>
+                <AlertDescription>{feedback.mensaje}</AlertDescription>
+              </Alert>
+            )}
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setAbierto(false)}
-              disabled={enviando}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={!descripcionValida || enviando}
-              className="gap-2"
-            >
-              {enviando ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Enviando…
-                </>
-              ) : (
-                "Enviar reporte a RRHH"
+            <FormField
+              control={form.control}
+              name="dato"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dato que presenta error</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={enviando}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleccione el campo..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {OPCIONES_DATOS.map((opc) => (
+                        <SelectItem key={opc.valor} value={opc.valor}>
+                          {opc.etiqueta}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
+            />
+
+            <FormField
+              control={form.control}
+              name="descripcion"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descripción del error</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      {...field}
+                      rows={5}
+                      maxLength={DESCRIPCION_MAX}
+                      disabled={enviando}
+                      className="h-32 resize-none"
+                      placeholder="Explique detalladamente cuál es la información correcta (ej. según resolución de nombramiento, fecha exacta de ingreso, etc.)."
+                    />
+                  </FormControl>
+                  <div className="flex items-start justify-between gap-2">
+                    <FormMessage />
+                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                      {longitud}/{DESCRIPCION_MAX}
+                    </span>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAbierto(false)}
+                disabled={enviando}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={enviando} className="gap-2">
+                {enviando ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Enviando…
+                  </>
+                ) : (
+                  "Enviar reporte a RRHH"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
