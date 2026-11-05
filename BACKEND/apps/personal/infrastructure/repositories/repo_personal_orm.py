@@ -9,6 +9,7 @@ from django.db.models import Model, Q
 from core.domain.exceptions import NotFoundError, ValidationError
 from apps.personal.domain.entities.empleado import Empleado
 from apps.personal.infrastructure.mappers.mapper_personal import (
+    apn_oficial,
     construir_expediente,
     empleado_a_entidad,
 )
@@ -129,6 +130,7 @@ class RepoPersonalORM:
         antecedentes_por_empleado = self._antecedentes_cerrados_bulk(
             [e.pk for e in empleados]
         )
+        respaldos = self._fecha_ingreso_respaldo_bulk([e.pk for e in empleados])
         from apps.personal.infrastructure.mappers.mapper_personal import contrato_a_dict
         contratos_qs = ContratoModel.objects.filter(
             antecedente__empleado_id__in=[e.pk for e in empleados]
@@ -139,14 +141,21 @@ class RepoPersonalORM:
             if emp_id not in contrato_por_empleado:
                 contrato_por_empleado[emp_id] = contrato_a_dict(c)
 
-        return [
-            empleado_a_entidad(
-                e,
-                antecedentes_por_empleado.get(e.pk, []),
-                expediente={'contrato_actual': contrato_por_empleado.get(e.pk)},
+        resultado = []
+        for e in empleados:
+            antecedentes = antecedentes_por_empleado.get(e.pk, [])
+            apn = apn_oficial(
+                antecedentes, fecha_ingreso_respaldo=respaldos.get(e.pk),
             )
-            for e in empleados
-        ]
+            resultado.append(
+                empleado_a_entidad(
+                    e,
+                    antecedentes,
+                    expediente={'contrato_actual': contrato_por_empleado.get(e.pk)},
+                    apn=apn,
+                )
+            )
+        return resultado
 
     def listar_empleados(
         self,
@@ -211,10 +220,17 @@ class RepoPersonalORM:
         # Los antecedentes se cargan una vez y se reutilizan para el total APN
         # y para el expediente (antes se consultaban dos veces).
         antecedentes = _antecedentes_empleado(fila.pk)
-        cerrados = [a for a in antecedentes if a.fecha_egreso is not None]
         expediente = construir_expediente(fila, antecedentes=antecedentes)
+        # El respaldo del APN en curso sale de los contratos del expediente
+        # (ya ordenados por `-pk`): evita repetir la consulta de contratos.
+        ingreso_respaldo = next(
+            (c['fecha_ingreso'] for c in expediente.get('contratos', []) if c and c.get('fecha_ingreso')),
+            None,
+        )
+        respaldo = date.fromisoformat(ingreso_respaldo) if ingreso_respaldo else None
+        apn = apn_oficial(antecedentes, fecha_ingreso_respaldo=respaldo)
         expediente['correo_alternativo'] = self._correo_alternativo_de(fila.cedulaidentidad)
-        return empleado_a_entidad(fila, cerrados, expediente=expediente)
+        return empleado_a_entidad(fila, antecedentes, expediente=expediente, apn=apn)
 
     @staticmethod
     def _validar_correo_libre(correo: str | None, excluir_cedula: str | None = None) -> None:
@@ -247,11 +263,28 @@ class RepoPersonalORM:
         fila.correo_alternativo = (correo or '').strip() or None
         fila.save(update_fields=['correo_alternativo', 'actualizado_en'])
 
-    def _antecedentes_cerrados_bulk(self, empleado_ids: list) -> dict:
+    @staticmethod
+    def _fecha_ingreso_respaldo_bulk(empleado_ids: list) -> dict:
+        """Fecha de ingreso del contrato más reciente por empleado (respaldo si no hay antecedente abierto)."""
         agrupado: dict = {}
-        qs = AntecedenteServicioModel.objects.filter(
-            empleado_id__in=empleado_ids, fecha_egreso__isnull=False,
+        qs = (
+            ContratoModel.objects.filter(
+                antecedente__empleado_id__in=empleado_ids,
+                antecedente__fecha_ingreso__isnull=False,
+            )
+            .select_related('antecedente')
+            .order_by('antecedente__empleado_id', '-pk')
         )
+        for c in qs:
+            emp_id = c.antecedente.empleado_id
+            if emp_id not in agrupado:
+                agrupado[emp_id] = c.antecedente.fecha_ingreso
+        return agrupado
+
+    def _antecedentes_cerrados_bulk(self, empleado_ids: list) -> dict:
+        """Todos los antecedentes por empleado (cerrados y abiertos) para el APN oficial."""
+        agrupado: dict = {}
+        qs = AntecedenteServicioModel.objects.filter(empleado_id__in=empleado_ids)
         for ant in qs:
             agrupado.setdefault(ant.empleado_id, []).append(ant)
         return agrupado

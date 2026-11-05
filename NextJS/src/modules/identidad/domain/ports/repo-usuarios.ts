@@ -42,7 +42,7 @@ export interface UsuarioDetalleEntity {
 
 export interface UsuarioRegistrarInput {
   readonly cedula: string;
-  readonly password: string;
+  readonly password?: string;
   readonly rolId?: number | null;
 }
 

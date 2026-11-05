@@ -123,6 +123,10 @@ export interface DetalleExpedienteViewModel {
   carnetPatria: string;
   carnetPatriaSerial: string;
   totalAnosApn: string;
+  apnAntecedentes: string;
+  apnEnCurso: string | null;
+  apnTotal: string;
+  apnIncompleto: boolean;
   fechaIngresoOrganismo: string;
   cargosAsignados: DetalleCargoAsignadoVM[];
   vivienda: DetalleViviendaVM | null;
@@ -169,6 +173,8 @@ export function construirDetalleExpediente(
   const anosApn = empleado.totalAnosApn ?? 0;
   const anos = Math.floor(anosApn);
   const meses = Math.round((anosApn % 1) * 12);
+  const formatearDesglose = (valor?: { years: number; months: number; days: number } | null) =>
+    valor ? `${valor.years} años, ${valor.months} meses, ${valor.days} días` : "Sin datos";
 
   const todosContratos =
     empleado.contratos && empleado.contratos.length > 0
@@ -197,6 +203,10 @@ export function construirDetalleExpediente(
     carnetPatria: empleado.carnetPatria ?? SIN_DATO,
     carnetPatriaSerial: empleado.carnetPatriaSerial ?? SIN_DATO,
     totalAnosApn: `${anos} años, ${meses} meses, 0 días`,
+    apnAntecedentes: formatearDesglose(empleado.apnAntecedentes),
+    apnEnCurso: empleado.apnEnCurso ? formatearDesglose(empleado.apnEnCurso) : null,
+    apnTotal: formatearDesglose(empleado.apnTotal),
+    apnIncompleto: Boolean(empleado.apnIncompleto),
     fechaIngresoOrganismo: fechaIngresoOrg,
     cargosAsignados: (empleado.asignaciones ?? []).map((asig) => ({
       id: asig.id,

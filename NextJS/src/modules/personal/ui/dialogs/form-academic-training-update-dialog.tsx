@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/shared/ui/components/dialog";
+import { Combobox } from "@/shared/ui/components/combobox";
 import { Label } from "@/shared/ui/components/label";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import {
@@ -47,7 +48,7 @@ function MensajeFila({ error }: { error?: string }) {
   ) : null;
 }
 
-/** Select de catálogo en cascada (Carrera por nivel, Mención por carrera). */
+/** Combobox con buscador de catálogo en cascada (Carrera por nivel, Mención por carrera). */
 function SelectDependiente({
   tipo,
   padreId,
@@ -68,19 +69,17 @@ function SelectDependiente({
     respaldo,
   });
   return (
-    <Select value={value ? String(value) : ""} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder={isLoading ? "Cargando..." : "Seleccione"} />
-      </SelectTrigger>
-      <SelectContent>
-        {opciones.map((o) => (
-          <SelectItem key={o.id} value={String(o.id)}>
-            {o.nombre}
-          </SelectItem>
-        ))}
-        {permitirOtra && <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>}
-      </SelectContent>
-    </Select>
+    <Combobox
+      options={[
+        ...opciones.map((o) => ({ value: String(o.id), label: o.nombre })),
+        ...(permitirOtra ? [{ value: String(ID_OTRA), label: "Otra" }] : []),
+      ]}
+      value={value ? String(value) : ""}
+      onChange={(v) => onChange(Number(v))}
+      placeholder={isLoading ? "Cargando..." : "Seleccione"}
+      searchPlaceholder={tipo === "carreras" ? "Buscar carrera..." : "Buscar mención..."}
+      disabled={isLoading}
+    />
   );
 }
 
@@ -437,28 +436,25 @@ export default function FormAcademicTrainingUpdateDialog({
 
                       <div className="min-w-0">
                         <Label className="text-xs">Institución (Opcional)</Label>
-                        <Select
+                        <Combobox
+                          options={[
+                            ...(catalogos?.instituciones ?? []).map((inst) => ({
+                              value: String(inst.id),
+                              label: inst.nombre,
+                            })),
+                            { value: String(ID_OTRA), label: "Otra" },
+                          ]}
                           value={
                             watch(`formacionAcademica.${index}.institucionId`)
                               ? String(watch(`formacionAcademica.${index}.institucionId`))
-                              : undefined
+                              : ""
                           }
-                          onValueChange={(v) =>
+                          onChange={(v) =>
                             setValue(`formacionAcademica.${index}.institucionId`, Number(v))
                           }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(catalogos?.instituciones ?? []).map((inst) => (
-                              <SelectItem key={inst.id} value={String(inst.id)}>
-                                {inst.nombre}
-                              </SelectItem>
-                            ))}
-                            <SelectItem value={String(ID_OTRA)}>Otra</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          placeholder="Seleccione"
+                          searchPlaceholder="Buscar institución..."
+                        />
                         <MensajeFila error={mensajeDe(erroresFilas?.[index]?.institucionId)} />
                         {Number(watch(`formacionAcademica.${index}.institucionId`)) === ID_OTRA && (
                           <Input

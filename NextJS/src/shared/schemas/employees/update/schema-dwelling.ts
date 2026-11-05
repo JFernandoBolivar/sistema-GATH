@@ -1,14 +1,9 @@
+import { LIMITES_TEXTO, textoLibreRequerido } from "@/shared/validation/limites-texto";
 import { z } from "zod"
 
 export const schemaDwellingUpdate = z.object({
   datos_vivienda: z.object({
-    direccion_exacta: z
-      .string({
-        message: "Debe Ingresar Información Valida",
-      })
-      .min(3, {
-        message: "Minimo 3 Caracteres",
-      }),
+    direccion_exacta: textoLibreRequerido("La dirección", LIMITES_TEXTO.direccion),
     estado_id: z
       .number({
         message: "Debe Ingresar Información Valida",

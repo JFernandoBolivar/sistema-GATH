@@ -3,7 +3,7 @@ import { REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { contactoEmergenciaFormSchema } from "./schema-contacto-emergencia";
-import { CORREO_MAX, DIRECCION_MAX, cedulaZod, nombreZod } from "./reglas-personas";
+import { CORREO_MAX, DIRECCION_MAX, DIRECCION_MIN, cedulaZod, nombreZod } from "./reglas-personas";
 
 /**
  * Schemas Zod por paso del wizard de registro (`/personal/registrar`), con los
@@ -262,7 +262,8 @@ export const pasoDwellingSchema = z.object({
         message: "Debe Ingresar Información Valida",
         required_error: "Este Campo Es Requerido",
       })
-      .min(10, "La Direccion Exacta Debe Tener Minimo 10 Caracteres")
+      .trim()
+      .min(DIRECCION_MIN, `La dirección debe tener al menos ${DIRECCION_MIN} caracteres`)
       .max(DIRECCION_MAX, `La dirección admite máximo ${DIRECCION_MAX} caracteres`),
     estado_id: z
       .number({

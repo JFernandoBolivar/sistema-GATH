@@ -141,6 +141,28 @@ Permiso `fe_de_vida.prorrogar`, `fe_de_vida.gestionar_procesos` o `fe_de_vida.ve
 ### POST `procesos/{id}/prorrogas/`
 Permiso `fe_de_vida.prorrogar` o `fe_de_vida.gestionar_procesos` (en el seed, solo Administradora). Request `{"nueva_fecha_limite": "ISO", "motivo": "...", "cedula": "opcional"}`; con `cedula` es individual, sin ella es general. No amplía el alcance del proceso. Response 201: Prórroga.
 
+### GET `solicitudes/{id}/constancia/`
+Permiso `fe_de_vida.revisar`, `fe_de_vida.ver_panel` o `fe_de_vida.registrar_presencial`. Descarga el PDF de la constancia de una solicitud `VALIDADA` para su impresión física. Response: PDF `inline`. 404 si no existe o aún no está validada. Audita `CONSTANCIA_IMPRESA`.
+
+---
+
+## Fe de vida presencial (Bienestar)
+
+### GET `presencial/buscar/`
+Permiso `fe_de_vida.registrar_presencial`. Query: `texto` (cédula o nombre, obligatorio), `limit`, `offset`. Busca pasivos y muestra su estado respecto al proceso vigente (puede iniciar, continuar o imprimir constancia si ya está validada). Response: página de `{cedula, nombre_completo, tipo_nomina, correo, tiene_cuenta, proceso_vigente, solicitud, constancia_numero, puede_iniciar, puede_continuar, puede_imprimir}`.
+
+### POST `presencial/solicitudes/`
+Permiso `fe_de_vida.registrar_presencial`. Request `{"cedula": "..."}`. Crea o recupera la solicitud presencial del pasivo en el proceso vigente, cargando su expediente y el borrador previo si existe. Response: `{solicitud, cambios, ficha}`.
+
+### PUT `presencial/solicitudes/{id}/borrador/`
+Permiso `fe_de_vida.registrar_presencial`. Request: `{"cambios": [...]}` (mismo esquema de borrador). Actualiza los cambios del acta. Response: `{solicitud, cambios}`.
+
+### POST `presencial/solicitudes/{id}/evidencia/`
+Permiso `fe_de_vida.registrar_presencial`. Multipart: `file`, `origen: CAMARA|ARCHIVO`, `metadatos`. Response: Solicitud.
+
+### POST `presencial/solicitudes/{id}/enviar/`
+Permiso `fe_de_vida.registrar_presencial`. Request `{"declaracion_presencial": true}` (obligatorio). Certifica la comparecencia física del pasivo y envía la solicitud a revisión marcada `canal: PRESENCIAL`, `registrada_por: <nombre>`. Audita `FE_DE_VIDA_REGISTRADA_PRESENCIAL`. Response: Solicitud.
+
 ---
 
 ## Cobertura y verificación

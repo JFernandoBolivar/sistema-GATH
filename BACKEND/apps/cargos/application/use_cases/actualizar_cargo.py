@@ -3,6 +3,7 @@ Caso de uso: Actualizar Cargo (atributos de cargo, nómina, grado, ubicación).
 Réplica funcional de `update_position` (`PUT /api/codigos/<id>/`) del legado.
 """
 from apps.cargos.application.dtos.cargos_dtos import CargoAsignacionDTO
+from apps.cargos.application.use_cases.crear_cargo import validar_ubicacion_minima
 from apps.cargos.domain.ports.repo_cargos import RepoCargos
 
 
@@ -12,6 +13,9 @@ def actualizar_cargo(
     datos: dict,
     usuario_id: int | None = None,
 ) -> CargoAsignacionDTO:
+    # D10: al editar se exige la misma ubicación mínima que al crear (Nivel +
+    # Dirección/Gerencia/Oficina), con el error atado a su campo.
+    validar_ubicacion_minima(datos.get('Dependencia'), datos.get('DireccionGeneral'))
     entidad = repo.actualizar_cargo(cargo_id=cargo_id, datos=datos, usuario_id=usuario_id)
     return CargoAsignacionDTO(
         id=entidad.id,

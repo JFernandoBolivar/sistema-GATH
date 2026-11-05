@@ -64,6 +64,54 @@ logger = logging.getLogger('gath.identidad')
 
 def aprovisionar_por_cedula(cedula: str, permitir_pasivo: bool = False):
     """Alta automática de la cuenta de `cedula` si corresponde (idempotente)."""
+    if RepoCuentasORM().existe_cuenta_para_cedula(cedula):
+        return None
+    try:
+        from apps.configuracion.domain.correo_acceso import (
+            DatosCorreoTrabajador,
+            resolver_correo_para_trabajador,
+        )
+        from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
+            RepoPoliticaCorreoAccesoORM,
+        )
+        repo_cond = RepoCondicionTrabajadorORM()
+        cond = repo_cond.condicion_por_cedula(cedula)
+        es_pasivo = (cond is CondicionTrabajador.PASIVO)
+
+        if es_pasivo and not permitir_pasivo:
+            return None
+
+        repo_corr = RepoCorreoAccesoORM()
+        correo_ficha = repo_corr.correo_de(cedula)
+        correo_alt = repo_corr.correo_alternativo_de(cedula)
+        dom_inst = getattr(settings, 'DOMINIO_CORREO_INSTITUCIONAL', '@conatel.gob.ve')
+        correo_inst = correo_ficha if dom_inst in correo_ficha.lower() else ''
+
+        politica_repo = RepoPoliticaCorreoAccesoORM()
+        politica = politica_repo.obtener_politica()
+        excepciones = politica_repo.listar_cedulas_excepcion()
+
+        datos = DatosCorreoTrabajador(
+            cedula=str(cedula),
+            nombre_completo='',
+            condicion='PASIVO' if es_pasivo else 'ACTIVO',
+            correo_actual_acceso=correo_ficha,
+            correo_institucional=correo_inst,
+            correo_alternativo=correo_alt,
+            correo_ficha=correo_ficha,
+            tiene_cuenta=False,
+            es_excepcion_manual=(str(cedula) in excepciones),
+        )
+        correo_resuelto = resolver_correo_para_trabajador(datos, politica)
+        if not correo_resuelto:
+            return None
+
+        if not datos.es_excepcion_manual and correo_resuelto != correo_ficha:
+            if not repo_corr.correo_en_uso_por_otro(cedula, correo_resuelto):
+                repo_corr.establecer_correo(cedula, correo_resuelto)
+    except Exception:
+        logger.exception('no se pudo evaluar la política de correo de acceso para %s', cedula)
+
     lector = obtener_lector_configuracion()
     dias = (
         lector.obtener_entero(CLAVE_PASSWORD_INICIAL_DIAS)

@@ -29,6 +29,9 @@ export interface PermisosUsuarioDTO {
   deny: string[];
   efectivos: string[];
   version: number;
+  motivo?: string | null;
+  fechaActualizacion?: string | null;
+  asignadoPor?: string | null;
 }
 
 export interface UsuarioDetalleDTO extends UsuarioDTO {
@@ -59,7 +62,7 @@ export type UsuariosFiltrosDTO = FiltrosUsuariosDTO;
 
 export interface RegistrarUsuarioInputDTO {
   cedula: string;
-  password: string;
+  password?: string;
   rolId?: number | null;
 }
 

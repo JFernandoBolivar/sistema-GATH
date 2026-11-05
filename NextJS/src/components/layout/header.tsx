@@ -4,6 +4,7 @@ import type { ModuloNotificaciones } from "@/modules/notificaciones/domain/entit
 import { CampanaNotificaciones } from "@/modules/notificaciones/ui/campana-notificaciones";
 import { SignOut } from "@/components/signout-button";
 import { BotonCambiarPassword } from "@/modules/auth/ui/boton-cambiar-password";
+import { BotonInstalarApp } from "@/shared/ui/components";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -131,6 +132,7 @@ export function HeaderLayout({
       </div>
 
       <div className="flex w-full shrink-0 items-center justify-end gap-1 pr-7 sm:w-auto sm:gap-2 sm:pr-0">
+        <BotonInstalarApp variante="oscura" />
         <CampanaNotificaciones
           variante="oscura"
           modulo={moduloNotificaciones}

@@ -8,7 +8,9 @@ import type {
   DecisionEntity,
   DetalleRevisionEntity,
   DetalleSolicitudEntity,
+  InicioPresencialEntity,
   PaginaEntity,
+  PasivoPresencialEntity,
   ProcesoEntity,
   ProrrogaEntity,
   SolicitudEntity,
@@ -26,9 +28,32 @@ export type ProcesoDTO = ProcesoEntity;
 export type VigenteDTO = VigenteEntity;
 export type ProrrogaDTO = ProrrogaEntity;
 export type CoberturaDTO = CoberturaEntity;
+export type PasivoPresencialDTO = PasivoPresencialEntity;
+export type InicioPresencialDTO = InicioPresencialEntity;
+
 export type TipoPensionDTO = TipoPensionEntity;
 export type EvidenciaImagenDTO = EvidenciaImagenEntity;
 export type PaginaDTO<T> = PaginaEntity<T>;
+
+export interface ReenvioConstanciaDTO {
+  numero: string;
+  destinatario: string;
+  destinatarioEnmascarado: string;
+  copia: string | null;
+  copiaEnmascarada: string | null;
+  reenviosHoy: number;
+  limiteDiario: number;
+}
+
+export interface RegenerarConstanciaDTO {
+  numero: string;
+  plantillaVersion: number;
+  reenviado: boolean;
+  destinatarioEnmascarado?: string | null;
+  copiaEnmascarada?: string | null;
+  reenviosHoy?: number | null;
+}
+
 
 /** Resultado serializable de una Server Action (nunca lanza al cliente). */
 export type ResultadoAccion<T = undefined> =

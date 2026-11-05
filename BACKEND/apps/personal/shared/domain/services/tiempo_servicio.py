@@ -76,28 +76,83 @@ def _fusionar_periodos(periodos):
     return fusionados
 
 
-def calcular_total_apn(antecedentes_qs):
+def calcular_total_apn(
+    antecedentes_qs,
+    *,
+    fecha_corte=None,
+    fecha_ingreso_en_curso=None,
+    fecha_egreso_en_curso=None,
+):
     """
-    Suma todos los antecedentes cerrados y retorna el total.
-    Los periodos contiguos o solapados se fusionan antes de calcular, para
-    que el dia inclusivo se aplique una sola vez por segmento real de
-    tiempo servido, no una vez por cada antecedente individual.
+    Suma los antecedentes cerrados y, cuando se indica `fecha_corte`, el periodo
+    EN CURSO en CONATEL (desde el antecedente abierto o, si falta, desde la
+    fecha de ingreso de respaldo —el primer contrato vigente—) hasta la fecha
+    de corte o de egreso. Los periodos solapados o contiguos se fusionan antes
+    de calcular, para que el día inclusivo se aplique una sola vez por segmento
+    real de tiempo servido.
+
+    Sin `fecha_corte` conserva el comportamiento histórico (solo cerrados) y
+    devuelve exactamente `{years, months, days}` para no romper a los llamadores
+    que aún no piden el desglose.
+
+    Con `fecha_corte` devuelve además:
+      - `antecedentes`: tiempo de los ciclos cerrados;
+      - `en_curso`: tiempo del periodo CONATEL en curso (o None);
+      - `total_dias`: días comerciales totales;
+      - `completo`: False si no hay fecha de ingreso para el periodo en curso.
 
     Acepta un QuerySet, una lista o el RelatedManager de `antecedentes_servicio`
     (el manager de la relación inversa no es iterable directamente).
     """
     if hasattr(antecedentes_qs, "all"):
         antecedentes_qs = antecedentes_qs.all()
-    periodos = [
+    antecedentes = list(antecedentes_qs)
+
+    cerrados = [
         (ant.fecha_ingreso, ant.fecha_egreso)
-        for ant in antecedentes_qs
+        for ant in antecedentes
         if ant.fecha_ingreso and ant.fecha_egreso
     ]
+    abiertos = [
+        ant.fecha_ingreso
+        for ant in antecedentes
+        if ant.fecha_ingreso and not ant.fecha_egreso
+    ]
 
+    antecedentes_resultado = _total_desde_periodos(cerrados)
+
+    if fecha_corte is None:
+        return antecedentes_resultado
+
+    inicio_curso = min(abiertos) if abiertos else fecha_ingreso_en_curso
+    fin_curso = fecha_egreso_en_curso or fecha_corte
+    en_curso = None
+    periodos = list(cerrados)
+    completo = inicio_curso is not None
+    if inicio_curso is not None and fin_curso >= inicio_curso:
+        periodos.append((inicio_curso, fin_curso))
+        en_curso = _total_desde_periodos([(inicio_curso, fin_curso)])
+
+    total = _total_desde_periodos(periodos)
+    return {
+        **total,
+        'total_dias': _dias_desde_periodos(periodos),
+        'antecedentes': antecedentes_resultado,
+        'en_curso': en_curso,
+        'inicio_curso': inicio_curso,
+        'completo': completo,
+    }
+
+
+def _dias_desde_periodos(periodos) -> int:
     total_dias = 0
     for inicio, fin in _fusionar_periodos(periodos):
         total_dias += calcular_tiempo_comercial(inicio, fin)["total_dias"]
+    return total_dias
 
+
+def _total_desde_periodos(periodos) -> dict:
+    total_dias = _dias_desde_periodos(periodos)
     years = total_dias // 360
     resto = total_dias % 360
     months = resto // 30

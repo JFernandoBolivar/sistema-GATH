@@ -15,6 +15,8 @@
  *    - Documentos Del Familiar (border-orange-600, FileUpload cédula y partida condicional)
  * 4. Botón "Agregar Familiar" a ancho completo, Loading animado mientras procesa y toast vía Sonner.
  */
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -585,10 +587,11 @@ export default function FamiliarRegistrarPage() {
                         id="observaciones"
                         placeholder="Describa las observaciones del familiar..."
                         rows={4}
-                        maxLength={500}
-                        className="mt-1"
+                        maxLength={LIMITES_TEXTO.observacion.max}
+                        className="mt-1 resize-none"
                         {...form.register("observaciones")}
                       />
+                      <ContadorCampo control={form.control} name="observaciones" max={LIMITES_TEXTO.observacion.max} />
                     </div>
 
                     {/* FIELDSET 6: DOCUMENTOS */}

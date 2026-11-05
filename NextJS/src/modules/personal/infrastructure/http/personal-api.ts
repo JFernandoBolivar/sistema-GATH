@@ -32,6 +32,11 @@ export interface EmpleadoApiItem {
   nacionalidad_codigo?: string | null;
   nacionalidad_nombre?: string | null;
   total_anos_apn: number;
+  apn_antecedentes?: { years: number; months: number; days: number } | null;
+  apn_en_curso?: { years: number; months: number; days: number } | null;
+  apn_total?: { years: number; months: number; days: number } | null;
+  apn_incompleto?: boolean;
+  fecha_ingreso_apn?: string | null;
   datos_vivienda: Record<string, unknown> | null;
   perfil_salud: Record<string, unknown> | null;
   perfil_fisico: Record<string, unknown> | null;
@@ -191,7 +196,44 @@ export const personalApi = {
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/organizacion/organismos-adscritos/")),
   getNacionalidades: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/nacionalidades/")),
-  getParentescos: () =>
-    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/parentescos/")),
+  getParentescos: (uso: "familiar" | "contacto" = "contacto") =>
+    list<CatalogoEmpleadoApiItem>(
+      apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/parentescos/", {
+        params: { uso },
+      }),
+    ),
+
+  // --- Reportes de Error en Datos Laborales (A11 / D20) ---
+  getReportesErrorLaboral: (params?: { estado?: string; dato?: string; search?: string }) =>
+    list<ReporteErrorLaboralApiItem>(
+      apiClient.get<ApiResponse<ReporteErrorLaboralApiItem[]>>("/api/v1/personal/reportes-error/", {
+        params,
+      }),
+    ),
+  crearReporteErrorLaboral: (payload: { dato: string; descripcion: string }) =>
+    single<ReporteErrorLaboralApiItem>(
+      apiClient.post<ApiResponse<ReporteErrorLaboralApiItem>>("/api/v1/personal/reportes-error/crear/", payload),
+    ),
+  atenderReporteErrorLaboral: (id: string, payload: { observaciones?: string }) =>
+    single<ReporteErrorLaboralApiItem>(
+      apiClient.post<ApiResponse<ReporteErrorLaboralApiItem>>(`/api/v1/personal/reportes-error/${id}/atender/`, payload),
+    ),
 };
+
+export interface ReporteErrorLaboralApiItem {
+  id: string;
+  trabajador_cedula: string;
+  trabajador_nombre: string;
+  dato: "cargo" | "oficina" | "fecha_ingreso" | "otro";
+  descripcion: string;
+  estado: "PENDIENTE" | "ATENDIDO";
+  creado_el: string;
+  actualizado_el: string;
+  atendido_por_id?: number | null;
+  atendido_por_cedula?: string;
+  atendido_por_nombre?: string;
+  atendido_el?: string | null;
+  observacion_atencion?: string;
+}
+
 

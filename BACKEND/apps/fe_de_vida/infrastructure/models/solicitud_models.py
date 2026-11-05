@@ -28,9 +28,16 @@ class SolicitudFeDeVidaModel(BaseModel):
         DOBLE_CHECK = 'DOBLE_CHECK'
         DIRECTA_ADMINISTRADORA = 'DIRECTA_ADMINISTRADORA'
 
+    class Canal(models.TextChoices):
+        EN_LINEA = 'EN_LINEA', 'En línea'
+        PRESENCIAL = 'PRESENCIAL', 'Presencial'
+
     proceso = models.ForeignKey(ProcesoFeDeVidaModel, on_delete=models.PROTECT, related_name='solicitudes')
     cedula = models.CharField(max_length=15, db_index=True)
     estado = models.CharField(max_length=24, choices=Estado.choices, default=Estado.BORRADOR)
+    canal = models.CharField(max_length=20, choices=Canal.choices, default=Canal.EN_LINEA)
+    registrada_por = models.CharField(max_length=150, blank=True, default='')
+    registrada_por_cedula = models.CharField(max_length=15, blank=True, default='')
     version = models.PositiveIntegerField(default=1)
     envios = models.PositiveSmallIntegerField(default=0)
     origen_evidencia = models.CharField(max_length=10, choices=Origen.choices, blank=True, default='')
@@ -127,3 +134,23 @@ class PlantillaConstanciaModel(BaseModel):
 
     def __str__(self) -> str:
         return f'Plantilla v{self.version}'
+
+
+class ReenvioConstanciaModel(BaseModel):
+    """Registro de cada reenvío de constancia por correo, con fines de trazabilidad y límite diario."""
+
+    constancia = models.ForeignKey(ConstanciaFeDeVidaModel, on_delete=models.CASCADE, related_name='reenvios')
+    actor_cedula = models.CharField(max_length=15)
+    destinatario = models.EmailField()
+    copia = models.EmailField(blank=True, default='')
+    fecha = models.DateField(db_index=True)
+
+    class Meta:
+        db_table = 'fe_de_vida_reenvio_constancia'
+        ordering = ['-created_at']
+        verbose_name = 'reenvío de constancia'
+        verbose_name_plural = 'reenvíos de constancia'
+
+    def __str__(self) -> str:
+        return f'Reenvío {self.constancia.numero} a {self.destinatario} el {self.fecha}'
+

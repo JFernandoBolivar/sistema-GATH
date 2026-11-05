@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ERROR, REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
-import { CORREO_MAX, DIRECCION_MAX, cedulaZod, nombreZod } from "./reglas-personas";
+import { CORREO_MAX, DIRECCION_MAX, DIRECCION_MIN, cedulaZod, nombreZod } from "./reglas-personas";
 
 /**
  * Helpers para campos anidados: toleran el string vacío/NaN que deja
@@ -29,7 +29,7 @@ export const datosViviendaSchema = z.object({
   estadoId: numId.optional(),
   municipioId: numId.optional(),
   parroquiaId: numId.optional(),
-  direccionExacta: z.preprocess(aNull, z.string().max(DIRECCION_MAX, { message: `La dirección admite máximo ${DIRECCION_MAX} caracteres` }).nullable()).optional(),
+  direccionExacta: z.preprocess(aNull, z.string().max(DIRECCION_MAX, { message: `La dirección admite máximo ${DIRECCION_MAX} caracteres` }).refine((v) => v.trim().length === 0 || v.trim().length >= DIRECCION_MIN, { message: `La dirección debe tener al menos ${DIRECCION_MIN} caracteres` }).nullable()).optional(),
   condicionViviendaId: numId.optional(),
   codigoPostalId: numId.optional(),
 });
@@ -196,7 +196,7 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
     direccionExacta: z
       .string()
       .trim()
-      .min(10, { message: "La Direccion Exacta Debe Tener Minimo 10 Caracteres" })
+      .min(DIRECCION_MIN, { message: `La dirección debe tener al menos ${DIRECCION_MIN} caracteres` })
       .max(DIRECCION_MAX, { message: `La dirección admite máximo ${DIRECCION_MAX} caracteres` }),
     condicionViviendaId: idRequerido("Debe Seleccionar Una Condicion De Vivienda"),
     codigoPostalId: idRequerido("Seleccione un código postal"),

@@ -47,6 +47,10 @@ from apps.cargos.presentation.serializers.cargos_serializers import (
     GestionarEstatusPuestoInputSerializer,
     PrestamoCargoSerializer,
 )
+from apps.puntocuenta.infrastructure.contexto import (
+    limpiar_ultimo_punto_cuenta,
+    obtener_ultimo_punto_cuenta,
+)
 
 
 class DenominacionesListView(APIView):
@@ -237,6 +241,7 @@ class ActualizarCargoView(APIView):
         responses={200: CargoAsignacionSerializer},
     )
     def put(self, request, cargo_id: int):
+        limpiar_ultimo_punto_cuenta()
         serializer = ActualizarCargoInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -247,7 +252,11 @@ class ActualizarCargoView(APIView):
             datos=serializer.validated_data,
             usuario_id=request.user.pk,
         )
-        return ok(CargoAsignacionSerializer(dto).data, 'Cargo actualizado correctamente.')
+        data = CargoAsignacionSerializer(dto).data
+        pc = obtener_ultimo_punto_cuenta()
+        if pc:
+            data['punto_cuenta'] = {'id': str(pc.id), 'numero': pc.numero}
+        return ok(data, 'Cargo actualizado correctamente.')
 
 
 class CrearCargoView(APIView):
@@ -316,6 +325,7 @@ class CambiarCargoView(APIView):
 
     @extend_schema(tags=['Cargos'], summary='Trasladar empleado a otro cargo vacante', request=CambiarCargoInputSerializer, responses={200: CargoAsignacionSerializer})
     def post(self, request, cargo_actual_id: int):
+        limpiar_ultimo_punto_cuenta()
         serializer = CambiarCargoInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -327,7 +337,11 @@ class CambiarCargoView(APIView):
             motivo_id=serializer.validated_data['motivo_id'],
             usuario_id=request.user.pk,
         )
-        return ok(CargoAsignacionSerializer(dto).data, 'Traslado realizado correctamente.')
+        data = CargoAsignacionSerializer(dto).data
+        pc = obtener_ultimo_punto_cuenta()
+        if pc:
+            data['punto_cuenta'] = {'id': str(pc.id), 'numero': pc.numero}
+        return ok(data, 'Traslado realizado correctamente.')
 
 
 class GestionarEstatusPuestoView(APIView):

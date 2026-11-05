@@ -35,6 +35,8 @@ const detalle = detalleFake({
       id: "s1",
       seccion: "contacto",
       tipo: "CONSTANCIA",
+      entidadId: null,
+      referencia: null,
       mimeReal: "application/pdf",
       tamanoBytes: 2048,
       nombreOriginal: "constancia.pdf",

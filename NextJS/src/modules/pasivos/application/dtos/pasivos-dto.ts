@@ -43,6 +43,11 @@ export interface PasivoDTO {
   tipoPasivo: string;
   tipoNominaId: number | null;
   fechaEgreso: string | null;
+  apnAntecedentes?: { years: number; months: number; days: number } | null;
+  apnEnCurso?: { years: number; months: number; days: number } | null;
+  apnTotal?: { years: number; months: number; days: number } | null;
+  apnIncompleto?: boolean;
+  fechaIngresoApn?: string | null;
   resolucion: string | null;
   observaciones: string | null;
   correo: string | null;

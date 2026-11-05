@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO } from "@/shared/domain/validation/limites-texto";
 import type { CambioEntity, DecisionCampo } from "../entities/solicitud-actualizacion";
 
 export type ResultadoDecision = "TOTAL" | "PARCIAL" | "RECHAZO";
@@ -44,12 +45,26 @@ export function validarDecisiones(
         `El campo «${c.campo}» cambió en la ficha después de la propuesta: solo puede rechazarse.`,
       );
     }
-    if (!d.aprobado && d.motivo.trim().length === 0) {
-      errores.push(`Indique el motivo del rechazo del campo «${c.campo}».`);
+    if (!d.aprobado) {
+      const largo = d.motivo.trim().length;
+      if (largo === 0) {
+        errores.push(`Indique el motivo del rechazo del campo «${c.campo}».`);
+      } else if (largo < LIMITES_TEXTO.motivo.min) {
+        errores.push(`El motivo del rechazo del campo «${c.campo}» debe tener al menos ${LIMITES_TEXTO.motivo.min} caracteres.`);
+      } else if (largo > LIMITES_TEXTO.motivo.max) {
+        errores.push(`El motivo del rechazo del campo «${c.campo}» no puede superar ${LIMITES_TEXTO.motivo.max} caracteres.`);
+      }
     }
   }
   if (pendientes.length > 0 && decisiones.every((d) => !d.aprobado) && !motivoGeneral.trim()) {
     errores.push("Si no se aprueba ningún campo, indique el motivo general del rechazo.");
+  }
+  const largoGeneral = motivoGeneral.trim().length;
+  if (largoGeneral > 0 && largoGeneral < LIMITES_TEXTO.motivo.min) {
+    errores.push(`El motivo general debe tener al menos ${LIMITES_TEXTO.motivo.min} caracteres.`);
+  }
+  if (largoGeneral > LIMITES_TEXTO.motivo.max) {
+    errores.push(`El motivo general no puede superar ${LIMITES_TEXTO.motivo.max} caracteres.`);
   }
   return errores;
 }

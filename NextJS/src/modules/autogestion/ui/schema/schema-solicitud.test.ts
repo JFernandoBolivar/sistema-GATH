@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   contactoSchema,
   contactoEmergenciaSchema,
+  complementariaSchema,
   esquemaDeEntidad,
   familiarSchema,
   formacionSchema,
   habilitarVentanaSchema,
+  identidadSchema,
+  perfilFisicoSchema,
+  perfilSaludSchema,
   prorrogaSchema,
   devolucionSchema,
   rechazoSchema,
@@ -33,6 +37,19 @@ describe("solicitudNuevaSchema", () => {
     expect(
       solicitudNuevaSchema.safeParse({ campos: ["employee.telefono_movil"], motivo }).success,
     ).toBe(true);
+  });
+  it("acepta acciones de secciones de lista y rechaza las inventadas", () => {
+    const base = { motivo };
+    expect(
+      solicitudNuevaSchema.safeParse({ ...base, campos: ["familiar.@CREAR", "familiar.@ELIMINAR"] })
+        .success,
+    ).toBe(true);
+    expect(solicitudNuevaSchema.safeParse({ ...base, campos: ["familiar.@BORRAR"] }).success).toBe(
+      false,
+    );
+    expect(solicitudNuevaSchema.safeParse({ ...base, campos: ["employee.@CREAR"] }).success).toBe(
+      false,
+    );
   });
   it("rechaza campos desconocidos (el correo institucional), HTML y motivos largos", () => {
     expect(solicitudNuevaSchema.safeParse({ campos: ["employee.correo"], motivo }).success).toBe(
@@ -144,7 +161,7 @@ describe("viviendaSchema / formacionSchema", () => {
       estado_id: "1",
       municipio_id: "2",
       parroquia_id: "3",
-      direccion_exacta: "Calle 1",
+      direccion_exacta: "Calle 1, casa 2",
       condicion_vivienda_id: "4",
       codigo_postal_id: "5",
     });
@@ -154,6 +171,19 @@ describe("viviendaSchema / formacionSchema", () => {
       formacionSchema.parse({ nivel_academico_id: "2", carrera_id: "" }).carrera_id,
     ).toBeNull();
     expect(formacionSchema.safeParse({ nivel_academico_id: "" }).success).toBe(false);
+  });
+  it("la dirección exige de 10 a 500 caracteres", () => {
+    const base = {
+      estado_id: "1",
+      municipio_id: "2",
+      parroquia_id: "3",
+      condicion_vivienda_id: "4",
+      codigo_postal_id: "5",
+    };
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(9) }).success).toBe(false);
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(10) }).success).toBe(true);
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(500) }).success).toBe(true);
+    expect(viviendaSchema.safeParse({ ...base, direccion_exacta: "x".repeat(501) }).success).toBe(false);
   });
 });
 
@@ -168,11 +198,19 @@ describe("familiarSchema", () => {
   it("acepta un familiar completo", () => {
     expect(familiarSchema.safeParse(base).success).toBe(true);
   });
+  it("las observaciones, si se escriben, exigen de 5 a 500 caracteres", () => {
+    expect(familiarSchema.safeParse({ ...base, observaciones: "" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, observaciones: "abcd" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, observaciones: "abcde" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, observaciones: "x".repeat(501) }).success).toBe(false);
+  });
   it("rechaza fecha futura, cédula inválida y datos faltantes", () => {
     expect(familiarSchema.safeParse({ ...base, fecha_nacimiento: "2999-01-01" }).success).toBe(
       false,
     );
     expect(familiarSchema.safeParse({ ...base, cedula_familiar: "xx" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, cedula_familiar: "1234" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, cedula_familiar: "12345" }).success).toBe(true);
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "Ana2" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_apellido: "Perez1" }).success).toBe(false);
@@ -180,6 +218,10 @@ describe("familiarSchema", () => {
 });
 
 describe("esquemaDeEntidad", () => {
+  it("resuelve el curso y exige la capacitación", () => {
+    expect(complementariaSchema.safeParse({ capacitacion_id: "2" }).success).toBe(true);
+    expect(complementariaSchema.safeParse({ capacitacion_id: "" }).success).toBe(false);
+  });
   it("resuelve por sección y entidad; desconocidas devuelven null", () => {
     expect(esquemaDeEntidad("contacto", "employee")).not.toBeNull();
     expect(
@@ -226,5 +268,61 @@ describe("devolucionSchema", () => {
   it("exige motivo", () => {
     expect(devolucionSchema.safeParse({ motivo: "" }).success).toBe(false);
     expect(devolucionSchema.safeParse({ motivo: "Falta la constancia" }).success).toBe(true);
+  });
+});
+
+describe("identidad (D19)", () => {
+  const valido = {
+    nombres: "MARIA ELENA",
+    apellidos: "PEREZ",
+    fecha_nacimiento: "1990-01-01",
+    cedulaidentidad: "12345678",
+    estadoCivil_id: "",
+    carnet_patria: "123-4567890-1",
+    carnet_patria_serial: "ABC123",
+  };
+
+  it("acepta el formulario completo y está registrado para el borrador", () => {
+    expect(identidadSchema.safeParse(valido).success).toBe(true);
+    expect(esquemaDeEntidad("identidad", "employee")).not.toBeNull();
+  });
+
+  it("exige cédula de 5 a 9 dígitos y fecha no futura", () => {
+    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234" }).success).toBe(false);
+    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234567890" }).success).toBe(
+      false,
+    );
+    expect(identidadSchema.safeParse({ ...valido, fecha_nacimiento: "2999-01-01" }).success).toBe(
+      false,
+    );
+  });
+
+  it("el Carnet de la Patria debe tener 10 dígitos (acepta el formato legado)", () => {
+    expect(identidadSchema.safeParse({ ...valido, carnet_patria: "123" }).success).toBe(false);
+    expect(identidadSchema.safeParse({ ...valido, carnet_patria: "000-0000000-0" }).success).toBe(
+      true,
+    );
+  });
+});
+
+describe("salud y tallas (D21)", () => {
+  it("normaliza las listas (sin repetidos y ordenadas) y no exige documento", () => {
+    const r = perfilSaludSchema.safeParse({
+      grupo_sanguineo_id: "",
+      alergias: [3, 1, 3],
+      patologias_cronicas: [],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.alergias).toEqual([1, 3]);
+      expect(r.data.patologias_cronicas).toEqual([]);
+      expect(r.data.discapacidades).toEqual([]);
+    }
+    expect(esquemaDeEntidad("salud", "perfil_salud")).not.toBeNull();
+    expect(esquemaDeEntidad("salud", "perfil_fisico")).not.toBeNull();
+  });
+
+  it("las tallas son opcionales en el borrador", () => {
+    expect(perfilFisicoSchema.safeParse({}).success).toBe(true);
   });
 });

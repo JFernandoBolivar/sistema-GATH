@@ -17,7 +17,9 @@ class RepoPuntoCuentaMemoria:
         self.siguiente_id = 1
 
     def crear(self, *, cargo_id, cedula, dependencia_origen_id, dependencia_destino_id, motivo_id, usuario_id,
-              oficina_origen_id=None, oficina_destino_id=None):
+              oficina_origen_id=None, oficina_destino_id=None, **kwargs):
+        division_origen_id = kwargs.get('division_origen_id')
+        division_destino_id = kwargs.get('division_destino_id')
         entidad = PuntoCuenta(
             id=self.siguiente_id,
             cargo_id=cargo_id,
@@ -36,6 +38,15 @@ class RepoPuntoCuentaMemoria:
             oficina_origen_nombre="OFICINA ORIGEN" if oficina_origen_id else None,
             oficina_destino_id=oficina_destino_id,
             oficina_destino_nombre="OFICINA DESTINO" if oficina_destino_id else None,
+            division_origen_id=division_origen_id,
+            division_origen_nombre="DIVISION ORIGEN" if division_origen_id else None,
+            division_destino_id=division_destino_id,
+            division_destino_nombre="DIVISION DESTINO" if division_destino_id else None,
+            numero=kwargs.get('numero'),
+            anio=kwargs.get('anio'),
+            secuencia=kwargs.get('secuencia'),
+            configuracion_version=kwargs.get('configuracion_version'),
+            snapshot_formato=kwargs.get('snapshot_formato'),
         )
         self.filas[entidad.id] = entidad
         self.siguiente_id += 1
@@ -43,14 +54,16 @@ class RepoPuntoCuentaMemoria:
 
     def adjuntar_documento(self, id, clave):
         from dataclasses import replace
-        self.filas[id] = replace(self.filas[id], documento_pdf_clave=clave)
-        return self.filas[id]
+        key = int(id) if str(id).isdigit() else id
+        self.filas[key] = replace(self.filas[key], documento_pdf_clave=clave)
+        return self.filas[key]
 
-    def listar(self):
+    def listar(self, filtros=None):
         return list(self.filas.values())
 
     def obtener_por_id(self, id):
-        return self.filas.get(id)
+        key = int(id) if str(id).isdigit() else id
+        return self.filas.get(key)
 
 
 def test_generar_punto_cuenta_crea_el_registro_sin_documento_todavia():
@@ -64,7 +77,7 @@ def test_generar_punto_cuenta_crea_el_registro_sin_documento_todavia():
         motivo_id=5,
         usuario_id=99,
     )
-    assert dto.id == 1
+    assert str(dto.id) == "1"
     assert dto.dependencia_origen_id == 1
     assert dto.dependencia_destino_id == 2
     assert dto.documento_generado is False

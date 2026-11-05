@@ -4,6 +4,8 @@ import type {
   DetalleRevisionDTO,
   EvidenciaImagenDTO,
   PaginaDTO,
+  ReenvioConstanciaDTO,
+  RegenerarConstanciaDTO,
   SolicitudDTO,
 } from "../dtos/fe-de-vida-dto";
 import { normalizarPagina, vacioAUndefined } from "./paginacion";
@@ -89,3 +91,21 @@ export async function rechazarSolicitud(
 ): Promise<SolicitudDTO> {
   return repo.rechazar(id, exigirTexto(motivo, "El motivo"));
 }
+
+/** Reenvía la constancia de fe de vida por correo (límite 3/día). */
+export function reenviarConstancia(
+  repo: RepoFeDeVida,
+  id: string,
+): Promise<ReenvioConstanciaDTO> {
+  return repo.reenviarConstancia(id);
+}
+
+/** Regenera el PDF de la constancia (con opción de reenvío). */
+export function regenerarConstancia(
+  repo: RepoFeDeVida,
+  id: string,
+  reenviar = false,
+): Promise<RegenerarConstanciaDTO> {
+  return repo.regenerarConstancia(id, reenviar);
+}
+

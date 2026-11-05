@@ -27,6 +27,12 @@ class Empleado:
     nacionalidad_codigo: str = "V"
     nacionalidad_nombre: str = "VENEZOLANA"
     total_anos_apn: float = 0.0
+    # O8: desglose oficial APN (ciclos cerrados + CONATEL en curso).
+    apn_antecedentes: dict | None = None
+    apn_en_curso: dict | None = None
+    apn_total: dict | None = None
+    apn_incompleto: bool = False
+    fecha_ingreso_apn: str | None = None
     profile: str | None = None
     foto_url: str | None = None
     # Expediente anidado (Fase 2.2 del plan de reparación): solo se puebla en

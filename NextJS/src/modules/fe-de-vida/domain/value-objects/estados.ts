@@ -29,6 +29,8 @@ export const ACCIONES_REVISION = [
   "devolver",
   "rechazar",
   "retirar_check",
+  "reenviar_constancia",
+  "regenerar_constancia",
 ] as const;
 export type AccionRevision = (typeof ACCIONES_REVISION)[number];
 export type OrigenEvidencia = "CAMARA" | "ARCHIVO";
@@ -55,6 +57,7 @@ export const PERMISOS_FE_DE_VIDA = {
   prorrogar: "fe_de_vida.prorrogar",
   verCobertura: "fe_de_vida.ver_cobertura",
   verificarConstancia: "fe_de_vida.verificar_constancia",
+  registrarPresencial: "fe_de_vida.registrar_presencial",
 } as const;
 
 export const LIMITE_PAGINA = 10;

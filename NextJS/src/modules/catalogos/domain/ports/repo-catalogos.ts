@@ -18,7 +18,7 @@ export interface RepoCatalogos {
   listarEstatus(): Promise<CatalogoItem[]>;
   listarTiposPersonal(): Promise<CatalogoItem[]>;
   listarTiposNomina(): Promise<CatalogoItem[]>;
-  listarParentescos(): Promise<CatalogoItem[]>;
+  listarParentescos(uso?: "familiar" | "contacto"): Promise<CatalogoItem[]>;
   listarTiposProcedencia(): Promise<CatalogoItem[]>;
   listarGrados(): Promise<CatalogoItem[]>;
   listarCategoriasMovimiento(): Promise<CatalogoItem[]>;
@@ -74,4 +74,3 @@ export interface RepoCatalogos {
   actualizarOrganismoAdscrito(id: number, datos: { nombre: string; parent_id?: number | null }): Promise<CatalogoItem>;
   eliminarOrganismoAdscrito(id: number): Promise<void>;
 }
-

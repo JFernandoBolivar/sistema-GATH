@@ -75,6 +75,7 @@ export async function procesarEgresoAction(input: {
   motivoMovimientoId: number;
   tipoNominaId: number;
   liberarActivos: boolean;
+  fechaEgreso?: string;
 }): Promise<Awaited<ReturnType<typeof procesarEgreso>> | ErrorAccionPasivo> {
   const validation = procesarEgresoSchema.safeParse(input);
   if (!validation.success) {

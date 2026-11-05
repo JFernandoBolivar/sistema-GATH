@@ -8,7 +8,12 @@ asignación vigente por empleado (ACTIVA o la más reciente) y fecha de ingreso 
 reingreso más reciente. Los datos relacionados se traen en lotes (sin N+1).
 """
 from core.domain.exceptions import ValidationError
+from django.db.models import Exists, OuterRef
 
+from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
+    ContratoModel,
+)
 from apps.personal.infrastructure.repositories.consultas_apn import anotar_apn_oficial
 from apps.reportes.domain.entities.consulta_reporte import ConsultaReportePersonal
 from apps.reportes.domain.entities.resultado_reporte import ResultadoReporte
@@ -35,6 +40,23 @@ _LOOKUPS_APN = {
     'total_anos_apn__lte': 'apn_oficial__lte',
 }
 _CAMPO_APN = 'apn_oficial'
+
+
+def _anotar_ingreso_apn(queryset):
+    """Marca si el trabajador tiene alguna fecha de ingreso (antecedente o contrato)."""
+    return queryset.annotate(
+        _tiene_ingreso_apn=Exists(
+            AntecedenteServicioModel.objects.filter(
+                empleado=OuterRef('pk'), fecha_ingreso__isnull=False,
+            )
+        ),
+        _tiene_contrato_apn=Exists(
+            ContratoModel.objects.filter(
+                antecedente__empleado=OuterRef('pk'),
+                antecedente__fecha_ingreso__isnull=False,
+            )
+        ),
+    )
 
 
 def _lookups_oficiales(lookups: dict) -> dict:
@@ -141,10 +163,11 @@ class RepoReportesORM:
 
         # Solo personal activo (mismo criterio que el listado de Personal
         # Activo): los pasivos nunca se mezclan en este reporte.
-        qs = anotar_apn_oficial(
+        qs = _anotar_ingreso_apn(anotar_apn_oficial(
             EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad')
-            .filter(filtro_por_condicion(CONDICION_ACTIVO, 'cedulaidentidad'))
-        )
+            .filter(filtro_por_condicion(CONDICION_ACTIVO, 'cedulaidentidad')),
+            fecha_corte=consulta.fecha_corte,
+        ))
         if consulta.lookups:
             # `distinct()`: los filtros por estructura/salud/formación navegan
             # relaciones multivaluadas (asignaciones, familiares, títulos).
@@ -192,11 +215,12 @@ class RepoReportesORM:
                     if asig and asig.OrganismoAdscritoid else 'CONATEL'
                 ),
                 'total_anos_apn': round(float(e.apn_oficial or 0), 4),
+                'apn_aviso': '' if (e._tiene_ingreso_apn or e._tiene_contrato_apn) else 'Fecha de ingreso pendiente',
             })
 
         return ResultadoReporte(
             titulo="Reporte de Personal Activo",
-            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn'],
+            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn', 'apn_aviso'],
             filas=filas,
             total_registros=len(filas),
             metadatos=metadatos,
@@ -212,10 +236,11 @@ class RepoReportesORM:
         """
         from apps.personal.infrastructure.models.personal_models import EmployeeModel
 
-        qs = anotar_apn_oficial(
+        qs = _anotar_ingreso_apn(anotar_apn_oficial(
             EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad')
-            .filter(filtro_por_condicion(CONDICION_PASIVO, 'cedulaidentidad'))
-        )
+            .filter(filtro_por_condicion(CONDICION_PASIVO, 'cedulaidentidad')),
+            fecha_corte=consulta.fecha_corte,
+        ))
 
         if consulta.lookups:
             qs = qs.filter(**_lookups_oficiales(consulta.lookups))
@@ -274,6 +299,7 @@ class RepoReportesORM:
                     if asig and asig.OrganismoAdscritoid else 'CONATEL'
                 ),
                 'total_anos_apn': round(float(e.apn_oficial or 0), 4),
+                'apn_aviso': '' if (e._tiene_ingreso_apn or e._tiene_contrato_apn) else 'Fecha de ingreso pendiente',
             })
 
         return ResultadoReporte(
@@ -281,6 +307,7 @@ class RepoReportesORM:
             columnas=[
                 '#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso',
                 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn',
+                'apn_aviso',
             ],
             filas=filas,
             total_registros=len(filas),

@@ -23,8 +23,24 @@ class LectorFicha(Protocol):
         """Para `datos_vivienda`: si ya existe el registro del trabajador (MODIFICAR) o hay que CREAR."""
         ...
 
+    def contar_registros(self, cedula: str, entidad: str) -> int:
+        """Cuántos registros de `entidad` tiene hoy el trabajador (límite de contactos, etc.)."""
+        ...
+
     def validar_referencias(self, valores: dict) -> None:
         """Lanza `ValidationError` si algún `*_id` no existe en su catálogo."""
+        ...
+
+    def es_parentesco_hijo(self, parentesco_id) -> bool:
+        """Si el parentesco corresponde a un hijo(a): exige partida de nacimiento."""
+        ...
+
+    def validar_familiar_alta(self, cedula: str, valores: dict) -> None:
+        """Alta de familiar: cédula obligatoria salvo hijo(a) menor de 9 años.
+
+        Reutiliza la regla del módulo de familiares (cédula del titular + orden). Lanza
+        `ValidationError` con `campo='cedula_familiar'`.
+        """
         ...
 
 

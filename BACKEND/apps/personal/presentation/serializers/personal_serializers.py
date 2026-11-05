@@ -64,6 +64,11 @@ class EmpleadoSerializer(serializers.Serializer):
     nacionalidad_codigo = serializers.CharField(read_only=True, default="V")
     nacionalidad_nombre = serializers.CharField(read_only=True, default="VENEZOLANA")
     total_anos_apn = serializers.FloatField(read_only=True)
+    apn_antecedentes = serializers.DictField(read_only=True, allow_null=True)
+    apn_en_curso = serializers.DictField(read_only=True, allow_null=True)
+    apn_total = serializers.DictField(read_only=True, allow_null=True)
+    apn_incompleto = serializers.BooleanField(read_only=True)
+    fecha_ingreso_apn = serializers.CharField(read_only=True, allow_null=True)
     profile = serializers.CharField(read_only=True, allow_null=True, required=False)
     foto_url = serializers.CharField(read_only=True, allow_null=True, required=False)
     # Expediente anidado (Fase 2.2, `PLAN_REPARACION_GATH.md`): solo viene

@@ -4,11 +4,12 @@ Serializers de la solicitud de actualización: entrada validada y salida documen
 La salida se arma con las funciones `a_dict_*` (convierten enums a texto) y se pasa por el
 serializer correspondiente, que fija formato de fechas y documenta el contrato OpenAPI.
 """
+from core.domain.limites_texto import MOTIVO_MIN, MOTIVO_MAX, mensajes_texto
 from rest_framework import serializers
 
 from apps.autogestion.application.dtos.actualizacion_dtos import DetalleSolicitudDTO
 
-ACCIONES = ('MODIFICAR', 'CREAR')
+ACCIONES = ('MODIFICAR', 'CREAR', 'ELIMINAR')
 
 
 # ── Entrada ──
@@ -50,16 +51,18 @@ class HabilitarVentanaSerializer(serializers.Serializer):
 
 class ProrrogarVentanaSerializer(serializers.Serializer):
     nueva_fecha_fin = serializers.DateTimeField(help_text='Nueva fecha límite (posterior a la vigente y a hoy).')
-    motivo = serializers.CharField(min_length=1, max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo', MOTIVO_MIN, MOTIVO_MAX))
 
 
 class ItemCambioSerializer(serializers.Serializer):
     seccion = serializers.CharField(max_length=30)
-    entidad = serializers.CharField(max_length=40, help_text='employee | datos_complementarios | datos_vivienda | formacion_academica | contacto_emergencia | familiar')
+    entidad = serializers.CharField(max_length=40, help_text='employee | datos_complementarios | datos_vivienda | formacion_academica | formacion_complementaria | contacto_emergencia | familiar')
     accion = serializers.ChoiceField(choices=ACCIONES)
-    campo = serializers.CharField(max_length=60, help_text="Campo a modificar; '*' al CREAR un registro.")
-    valor = serializers.JSONField(allow_null=True, help_text='Valor propuesto; al CREAR, un objeto con los campos del registro.')
+    campo = serializers.CharField(max_length=60, help_text="Campo a modificar; '*' al CREAR o QUITAR un registro.")
+    valor = serializers.JSONField(allow_null=True, help_text='Valor propuesto; al CREAR, un objeto con los campos del registro; al QUITAR, {"motivo": "..."}.')
     entidad_id = serializers.CharField(max_length=32, required=False, allow_null=True, allow_blank=True)
+    referencia = serializers.CharField(max_length=64, required=False, allow_null=True, allow_blank=True,
+                                       help_text='Identificador temporal del registro nuevo (une el cambio con sus soportes).')
 
 
 class GuardarBorradorSerializer(serializers.Serializer):
@@ -69,7 +72,11 @@ class GuardarBorradorSerializer(serializers.Serializer):
 
 class SubirSoporteSerializer(serializers.Serializer):
     seccion = serializers.CharField(max_length=30)
-    tipo = serializers.ChoiceField(choices=['TITULO', 'ACTA_NACIMIENTO', 'CONSTANCIA', 'FOTO', 'OTRO'])
+    tipo = serializers.ChoiceField(choices=['TITULO', 'ACTA_NACIMIENTO', 'CEDULA', 'CONSTANCIA', 'FOTO', 'OTRO'])
+    entidad_id = serializers.CharField(max_length=32, required=False, allow_null=True, allow_blank=True,
+                                       help_text='Registro existente al que respalda el documento.')
+    referencia = serializers.CharField(max_length=64, required=False, allow_null=True, allow_blank=True,
+                                       help_text='Identificador temporal del registro nuevo al que respalda el documento.')
     file = serializers.FileField(help_text='PDF, JPG o PNG (máx. 10 MB; la foto: JPG/PNG de hasta 5 MB).')
 
 
@@ -80,24 +87,29 @@ class EnviarSolicitudSerializer(serializers.Serializer):
 class DecisionCampoSerializer(serializers.Serializer):
     cambio_id = serializers.UUIDField()
     aprobado = serializers.BooleanField()
-    motivo = serializers.CharField(max_length=500, required=False, allow_blank=True, default='',
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, required=False, allow_blank=True, default='',
+                                   error_messages=mensajes_texto('El motivo del rechazo', MOTIVO_MIN, MOTIVO_MAX),
                                    help_text='Obligatorio al rechazar el campo.')
 
 
 class DecidirCambiosSerializer(serializers.Serializer):
     version = serializers.IntegerField(min_value=1, help_text='Versión de la solicitud que vio quien decide (bloqueo optimista).')
     decisiones = serializers.ListField(child=DecisionCampoSerializer(), allow_empty=False, max_length=200)
-    motivo_general = serializers.CharField(max_length=500, required=False, allow_blank=True, default='',
+    motivo_general = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, required=False, allow_blank=True, default='',
+                                           error_messages=mensajes_texto('El motivo general', MOTIVO_MIN, MOTIVO_MAX),
                                            help_text='Obligatorio si no se aprueba ningún campo (rechazo total).')
 
 
 class RechazarSolicitudSerializer(serializers.Serializer):
-    motivo = serializers.CharField(min_length=1, max_length=500)
+    motivo = serializers.CharField(min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo del rechazo', MOTIVO_MIN, MOTIVO_MAX))
     version = serializers.IntegerField(required=False, min_value=1)
 
 
 class DevolverSolicitudSerializer(serializers.Serializer):
-    motivo = serializers.CharField(min_length=1, max_length=500, help_text='Obligatorio: lo ve el trabajador para corregir.')
+    motivo = serializers.CharField(
+        min_length=MOTIVO_MIN, max_length=MOTIVO_MAX, error_messages=mensajes_texto('El motivo de la devolución', MOTIVO_MIN, MOTIVO_MAX),
+        help_text='Obligatorio: lo ve el trabajador para corregir.',
+    )
     version = serializers.IntegerField(required=False, min_value=1)
 
 
@@ -129,7 +141,7 @@ class SolicitudSerializer(serializers.Serializer):
     fecha_solicitud = serializers.DateTimeField(allow_null=True)
     fecha_envio = serializers.DateTimeField(allow_null=True)
     fecha_decision = serializers.DateTimeField(allow_null=True)
-    campos_solicitados = serializers.ListField(child=serializers.CharField(), help_text='`entidad.campo` pedidos por el trabajador.')
+    campos_solicitados = serializers.ListField(child=serializers.CharField(), help_text='`entidad.campo` o, en secciones de lista, `entidad.@ACCION` (CREAR, MODIFICAR, ELIMINAR) pedidos por el trabajador.')
     campos_habilitados = serializers.ListField(child=serializers.CharField(), help_text='Únicos campos que el trabajador puede editar.')
     motivo_devolucion = serializers.CharField(help_text='Motivo de la última devolución de Bienestar.')
     devuelta_por = serializers.CharField()
@@ -145,6 +157,7 @@ class CambioPropuestoSerializer(serializers.Serializer):
     campo = serializers.CharField()
     valor_anterior = serializers.JSONField(allow_null=True)
     valor_propuesto = serializers.JSONField(allow_null=True)
+    referencia = serializers.CharField(allow_null=True)
     valor_actual = serializers.JSONField(allow_null=True, help_text='Valor vigente hoy en la ficha (solo en solicitudes ENVIADAS).')
     conflicto = serializers.BooleanField(help_text='La ficha cambió tras la propuesta: no puede aprobarse tal cual.')
     decision = serializers.CharField(help_text='PENDIENTE | APROBADO | RECHAZADO')
@@ -157,6 +170,8 @@ class SoporteSerializer(serializers.Serializer):
     id = serializers.UUIDField()
     seccion = serializers.CharField()
     tipo = serializers.CharField()
+    entidad_id = serializers.CharField(allow_null=True)
+    referencia = serializers.CharField(allow_null=True)
     mime_real = serializers.CharField()
     tamano_bytes = serializers.IntegerField()
     nombre_original = serializers.CharField()
@@ -220,7 +235,8 @@ def a_dict_cambio(item) -> dict:
     return {
         'id': c.id, 'seccion': c.seccion, 'accion': c.accion, 'entidad_destino': c.entidad_destino,
         'entidad_id': c.entidad_id, 'campo': c.campo, 'valor_anterior': c.valor_anterior,
-        'valor_propuesto': c.valor_propuesto, 'valor_actual': item.valor_actual, 'conflicto': item.conflicto,
+        'valor_propuesto': c.valor_propuesto, 'referencia': c.referencia,
+        'valor_actual': item.valor_actual, 'conflicto': item.conflicto,
         'decision': c.decision.value, 'motivo_decision': c.motivo_decision, 'decidido_por': c.decidido_por,
         'fecha_decision': c.fecha_decision,
     }
@@ -229,6 +245,7 @@ def a_dict_cambio(item) -> dict:
 def a_dict_soporte(s) -> dict:
     return {
         'id': s.id, 'seccion': s.seccion, 'tipo': s.tipo, 'mime_real': s.mime_real,
+        'entidad_id': s.entidad_id, 'referencia': s.referencia,
         'tamano_bytes': s.tamano_bytes, 'nombre_original': s.nombre_original, 'fecha': s.fecha,
         'url_archivo': f'/api/v1/autogestion/soportes/{s.id}/archivo/',
     }

@@ -1,6 +1,6 @@
 x-backend-env: &backend-env
-  DJANGO_DB_HOST: host.docker.internal
-  FRONTEND_URL: http://localhost:3001
+  DJANGO_DB_HOST: ${DJANGO_DB_HOST:-host.docker.internal}
+  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
   REDIS_URL: redis://:${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}@redis:6379/0
   # Celery (A1): broker RabbitMQ (vhost gath) y resultados en Redis db 1.
   CELERY_BROKER_URL: amqp://${RABBITMQ_USER:?RABBITMQ_USER no definido (ver .env.example)}:${RABBITMQ_PASS:?RABBITMQ_PASS no definido (ver .env.example)}@rabbitmq:5672/gath
@@ -52,7 +52,7 @@ services:
       bootstrap:
         condition: service_completed_successfully
     ports:
-      - "8001:8000"
+      - "${PUERTO_DJANGO:-8001}:8000"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=3)\""]
       interval: 30s
@@ -61,8 +61,8 @@ services:
       start_period: 60s
     volumes:
       - staticfiles:/app/Django/staticfiles
-      - "/opt/gath/BACKEND/media:/app/Django/media"
-      - "/opt/gath/BACKEND/staticfiles:/app/Django/staticfiles"
+      - "${GATH_MEDIA_DIR:-/opt/gath/BACKEND/media}:/app/Django/media"
+      - "${GATH_STATICFILES_DIR:-/opt/gath/BACKEND/staticfiles}:/app/Django/staticfiles"
     restart: always
 
   # ── Celery (A1): misma imagen que django, sin puertos al host ───────────────
@@ -78,7 +78,7 @@ services:
     environment:
       <<: *backend-env
       SKIP_MIGRATE: "1"
-    command: ["celery", "-A", "GATH", "worker", "-Q", "gath", "-l", "info", "--concurrency=2"]
+    command: ["celery", "-A", "GATH", "worker", "-Q", "gath", "-l", "info", "--concurrency=${CELERY_CONCURRENCY:-2}"]
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks: [backend, broker, storage, cache]
@@ -131,9 +131,9 @@ services:
       - ./NextJS/.env
     environment:
       - DJANGO_API_SERVER=http://djangoapp:8000
-      - NEXTAUTH_URL=http://localhost:3001
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3001}
     ports:
-      - "3001:3000"
+      - "${PUERTO_NEXTJS:-3001}:3000"
     networks:
       backend:
     depends_on:

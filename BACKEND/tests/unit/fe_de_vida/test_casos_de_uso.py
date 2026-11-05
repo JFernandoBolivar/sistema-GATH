@@ -307,3 +307,42 @@ def test_evidencia_para_revision_sin_foto_falla(m):
 
 def test_verificador_doble_basico():
     assert VerificadorMem().es_pasivo(PASIVO) and not VerificadorMem().es_pasivo('1')
+
+
+def test_bandeja_revision_solo_proceso_abierto_por_defecto_y_vacia_si_no_hay_abiertos(m):
+    s = m.solicitud_enviada()
+    # Con proceso abierto:
+    filas, total = consultas.bandeja_revision(
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(), repo_proc=m.procesos,
+    )
+    assert total == 1 and filas[0][0].id == s.id
+
+    # Si se cierra el proceso:
+    procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
+    filas_despues, total_despues = consultas.bandeja_revision(
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(), repo_proc=m.procesos,
+    )
+    assert total_despues == 0 and filas_despues == []
+
+    # Pero en el histórico sí aparece la solicitud del proceso cerrado:
+    filas_hist, total_hist = consultas.bandeja_revision(
+        m.solicitudes, LectorPasivosMem(), filtro=FiltroBandeja(historico=True), repo_proc=m.procesos,
+    )
+    assert total_hist == 1 and filas_hist[0][0].id == s.id
+
+
+def test_detalle_revision_proceso_cerrado_sin_acciones_de_revision(m):
+    s = m.solicitud_enviada()
+    permisos_rev = consultas.PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+    det_abierto = consultas.detalle_para_revision(
+        m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id,
+        actor=ADMINISTRADORA, permisos=permisos_rev, repo_procesos=m.procesos,
+    )
+    assert len(det_abierto.acciones) > 0
+
+    procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
+    det_cerrado = consultas.detalle_para_revision(
+        m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id,
+        actor=ADMINISTRADORA, permisos=permisos_rev, repo_procesos=m.procesos,
+    )
+    assert det_cerrado.acciones == ()

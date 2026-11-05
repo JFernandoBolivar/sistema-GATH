@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional, textoLibreRequerido } from "@/shared/validation/limites-texto";
 import { z } from "zod";
 import {
   DATE_ISO,
@@ -17,10 +18,10 @@ import {
   PLAZO_MIN_DIAS,
 } from "../../application/use-cases/gestionar-solicitud-bienestar";
 
-export const CEDULA_FAMILIAR = /^[A-Za-z]?-?\d{5,10}$/;
+// Acepta la cédula real y la sintética que el servidor genera para un hijo(a) menor de 9
+// años (`<cédula del titular>-<orden>`), que se conserva al editar ese familiar.
+export const CEDULA_FAMILIAR = /^(?:[A-Za-z]?-?\d{5,9}|\d{5,9}-\d+)$/;
 export const CEDULA_FAMILIAR_MSG = "Cédula inválida. Ejemplo: V-12345678";
-
-const MOTIVO_MAX = 500;
 
 const textoRequerido = (nombre: string, max = 150) =>
   z
@@ -119,7 +120,7 @@ export const viviendaSchema = z.object({
   estado_id: idCatalogo("el estado"),
   municipio_id: idCatalogo("el municipio"),
   parroquia_id: idCatalogo("la parroquia"),
-  direccion_exacta: textoRequerido("La dirección", 500),
+  direccion_exacta: textoLibreRequerido("La dirección", LIMITES_TEXTO.direccion),
   condicion_vivienda_id: idCatalogo("la condición de la vivienda"),
   codigo_postal_id: idCatalogo("el código postal"),
 });
@@ -132,6 +133,17 @@ export const formacionSchema = z.object({
   institucion_id: idCatalogoOpcional,
 });
 export type FormacionValores = z.infer<typeof formacionSchema>;
+
+export const complementariaSchema = z.object({
+  capacitacion_id: idCatalogo("la capacitación"),
+  institucion_id: idCatalogoOpcional,
+  fecha_inicio: z.string().regex(DATE_ISO, DATE_ISO_MSG).optional().or(z.literal("")),
+  fecha_fin: z.string().regex(DATE_ISO, DATE_ISO_MSG).optional().or(z.literal("")),
+  horas_completadas: textoOpcional(20),
+  dias_completados: textoOpcional(20),
+  grupo_id: idCatalogoOpcional,
+});
+export type ComplementariaValores = z.infer<typeof complementariaSchema>;
 
 export const familiarSchema = z.object({
   primer_nombre: nombreRequerido("El primer nombre"),
@@ -153,9 +165,72 @@ export const familiarSchema = z.object({
       "La fecha de nacimiento no puede ser futura",
     ),
   sexo_id: idCatalogo("el sexo"),
-  observaciones: textoOpcional(1000),
+  observaciones: textoLibreOpcional("Las observaciones", LIMITES_TEXTO.observacion),
 });
 export type FamiliarValores = z.infer<typeof familiarSchema>;
+
+// ── Identidad (D19/D21) ──
+export const CEDULA_EMPLEADO = /^\d{5,9}$/;
+export const CEDULA_EMPLEADO_MSG = "La cédula debe tener entre 5 y 9 dígitos";
+
+const fechaNacimientoSchema = z
+  .string()
+  .regex(DATE_ISO, DATE_ISO_MSG)
+  .refine((v) => new Date(v).getTime() <= Date.now(), "La fecha de nacimiento no puede ser futura");
+
+/** Código del Carnet de la Patria: 10 dígitos; acepta el formato legado `000-0000000-0`. */
+export function normalizarCarnetPatria(valor: string): string {
+  const texto = valor.trim();
+  if (/^\d{3}-\d{7}-\d$/.test(texto)) return texto.replace(/[ -]/g, "").slice(0, 10);
+  return texto.replace(/[ -]/g, "");
+}
+
+export const identidadSchema = z.object({
+  nombres: nombreRequerido("Los nombres"),
+  apellidos: nombreRequerido("Los apellidos"),
+  fecha_nacimiento: fechaNacimientoSchema,
+  cedulaidentidad: z
+    .string({ required_error: "La cédula es obligatoria" })
+    .trim()
+    .regex(CEDULA_EMPLEADO, CEDULA_EMPLEADO_MSG),
+  estadoCivil_id: idCatalogoOpcional,
+  carnet_patria: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => normalizarCarnetPatria(v ?? ""))
+    .refine((v) => v === "" || /^\d{10}$/.test(v), "El Carnet de la Patria debe tener 10 dígitos"),
+  carnet_patria_serial: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9]{0,30}$/, "El serial solo admite letras y números (máximo 30)")
+    .optional()
+    .or(z.literal("")),
+});
+export type IdentidadValores = z.infer<typeof identidadSchema>;
+
+// ── Salud y tallas (D21, sin documento) ──
+const listaIds = z
+  .array(z.union([z.number().int().positive(), z.string().regex(/^\d+$/)]))
+  .transform((valores) => [...new Set(valores.map(Number))].sort((a, b) => a - b))
+  .default([]);
+
+export const perfilSaludSchema = z.object({
+  grupo_sanguineo_id: idCatalogoOpcional,
+  alergias: listaIds,
+  patologias_cronicas: listaIds,
+  discapacidades: listaIds,
+});
+export type PerfilSaludValores = z.infer<typeof perfilSaludSchema>;
+
+export const perfilFisicoSchema = z.object({
+  talla_camisa_id: idCatalogoOpcional,
+  talla_pantalon_id: idCatalogoOpcional,
+  talla_zapatos_id: idCatalogoOpcional,
+  talla_chaqueta_id: idCatalogoOpcional,
+});
+export type PerfilFisicoValores = z.infer<typeof perfilFisicoSchema>;
 
 // ── Bienestar ──
 export const habilitarVentanaSchema = z.object({
@@ -177,17 +252,17 @@ export const prorrogaSchema = z.object({
       (v) => new Date(v).getTime() > Date.now(),
       "La nueva fecha límite debe ser posterior a hoy",
     ),
-  motivo: textoRequerido("El motivo", MOTIVO_MAX),
+  motivo: textoLibreRequerido("El motivo", LIMITES_TEXTO.motivo),
 });
 export type ProrrogaValores = z.infer<typeof prorrogaSchema>;
 
 export const rechazoSchema = z.object({
-  motivo: textoRequerido("El motivo del rechazo", MOTIVO_MAX),
+  motivo: textoLibreRequerido("El motivo del rechazo", LIMITES_TEXTO.motivo),
 });
 export type RechazoValores = z.infer<typeof rechazoSchema>;
 
 export const devolucionSchema = z.object({
-  motivo: textoRequerido("El motivo de la devolución", MOTIVO_MAX),
+  motivo: textoLibreRequerido("El motivo de la devolución", LIMITES_TEXTO.motivo),
 });
 export type DevolucionValores = z.infer<typeof devolucionSchema>;
 
@@ -213,6 +288,7 @@ const tieneHijosSchema = z.object({
 
 /** Esquema del formulario según `seccion:entidad`. El servidor revalida todo. */
 export const ESQUEMAS_ENTIDAD = {
+  "identidad:employee": identidadSchema,
   "contacto:employee": contactoSchema.pick({ telefono_movil: true, telefono_habitacion: true }),
   "contacto:datos_complementarios": contactoSchema.pick({ correo_alternativo: true }),
   "contacto:contacto_emergencia": contactoEmergenciaSchema,
@@ -220,6 +296,8 @@ export const ESQUEMAS_ENTIDAD = {
   "formacion:formacion_academica": formacionSchema,
   "familiar:datos_complementarios": tieneHijosSchema,
   "familiar:familiar": familiarSchema,
+  "salud:perfil_salud": perfilSaludSchema,
+  "salud:perfil_fisico": perfilFisicoSchema,
 } as const;
 
 export type ClaveEsquemaEntidad = keyof typeof ESQUEMAS_ENTIDAD;

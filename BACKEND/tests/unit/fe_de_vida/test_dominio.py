@@ -273,8 +273,11 @@ def test_acciones_disponibles_segun_quien_reviso():
 
 def test_sin_acciones_cuando_la_solicitud_ya_no_es_revisable():
     validada = pendiente().dar_check(ANALISTA, AHORA).dar_check(ADMINISTRADORA, AHORA)
-    assert validada.acciones_disponibles(ANALISTA, PERMISOS_ANALISTA) == ()
-    assert validada.acciones_disponibles(ADMINISTRADORA, PERMISOS_ADMIN) == ()
+    assert validada.acciones_disponibles(ANALISTA, PermisosRevision()) == ()
+    assert validada.acciones_disponibles(ADMINISTRADORA, PermisosRevision()) == ()
+    rechazada = pendiente().rechazar(ADMINISTRADORA, MOTIVO_VALIDO, AHORA)
+    assert rechazada.acciones_disponibles(ANALISTA, PERMISOS_ANALISTA) == ()
+    assert rechazada.acciones_disponibles(ADMINISTRADORA, PERMISOS_ADMIN) == ()
 
 
 def test_retirar_el_check_devuelve_la_solicitud_a_pendiente_y_devuelve_las_acciones():

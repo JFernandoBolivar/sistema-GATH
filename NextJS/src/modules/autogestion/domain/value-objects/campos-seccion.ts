@@ -3,10 +3,10 @@
  * (`apps/autogestion/domain/value_objects/secciones.py`): el servidor sigue siendo la fuente de verdad
  * y revalida; aquí solo se describe qué formulario mostrar y cómo rotular cada campo.
  */
-import type { SeccionCodigo } from "../entities/solicitud-actualizacion";
+import type { AccionCambio, SeccionCodigo } from "../entities/solicitud-actualizacion";
 
 export type TipoCampo =
-  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo";
+  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple";
 
 export type ClaveCatalogo =
   | "estados"
@@ -18,8 +18,20 @@ export type ClaveCatalogo =
   | "carreras"
   | "menciones"
   | "instituciones"
+  | "capacitaciones"
+  | "gruposCapacitacion"
   | "parentescos"
-  | "sexos";
+  | "parentescosFamilia"
+  | "sexos"
+  | "estadosCiviles"
+  | "gruposSanguineos"
+  | "alergias"
+  | "patologias"
+  | "discapacidades"
+  | "tallasCamisa"
+  | "tallasPantalon"
+  | "tallasZapatos"
+  | "tallasChaqueta";
 
 export interface CampoDef {
   campo: string;
@@ -50,6 +62,38 @@ export interface SeccionDef {
 export const CAMPO_REGISTRO_NUEVO = "*";
 
 export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
+  identidad: {
+    codigo: "identidad",
+    nombre: "Identidad",
+    descripcion:
+      "Nombres, apellidos, fecha de nacimiento y cédula. La copia de la cédula es obligatoria. El estado civil y el Carnet de la Patria no requieren documento.",
+    entidades: [
+      {
+        entidad: "employee",
+        etiqueta: "Datos de identidad",
+        unica: true,
+        creable: false,
+        campos: [
+          { campo: "nombres", etiqueta: "Nombres", tipo: "texto" },
+          { campo: "apellidos", etiqueta: "Apellidos", tipo: "texto" },
+          { campo: "fecha_nacimiento", etiqueta: "Fecha de nacimiento", tipo: "fecha" },
+          { campo: "cedulaidentidad", etiqueta: "Cédula de identidad", tipo: "texto" },
+          {
+            campo: "estadoCivil_id",
+            etiqueta: "Estado civil",
+            tipo: "catalogo",
+            catalogo: "estadosCiviles",
+          },
+          { campo: "carnet_patria", etiqueta: "Carnet de la Patria", tipo: "texto" },
+          {
+            campo: "carnet_patria_serial",
+            etiqueta: "Serial del Carnet de la Patria",
+            tipo: "texto",
+          },
+        ],
+      },
+    ],
+  },
   contacto: {
     codigo: "contacto",
     nombre: "Contacto",
@@ -178,6 +222,44 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
       },
     ],
   },
+  complementaria: {
+    codigo: "complementaria",
+    nombre: "Formación complementaria",
+    descripcion: "Cursos y capacitaciones. Debe adjuntar el certificado o constancia.",
+    entidades: [
+      {
+        entidad: "formacion_complementaria",
+        etiqueta: "Curso o capacitación",
+        unica: false,
+        creable: true,
+        campos: [
+          {
+            campo: "capacitacion_id",
+            etiqueta: "Capacitación",
+            tipo: "catalogo",
+            catalogo: "capacitaciones",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "institucion_id",
+            etiqueta: "Institución",
+            tipo: "catalogo",
+            catalogo: "instituciones",
+          },
+          { campo: "fecha_inicio", etiqueta: "Fecha de inicio", tipo: "fecha" },
+          { campo: "fecha_fin", etiqueta: "Fecha de fin", tipo: "fecha" },
+          { campo: "horas_completadas", etiqueta: "Horas completadas", tipo: "texto" },
+          { campo: "dias_completados", etiqueta: "Días completados", tipo: "texto" },
+          {
+            campo: "grupo_id",
+            etiqueta: "Grupo",
+            tipo: "catalogo",
+            catalogo: "gruposCapacitacion",
+          },
+        ],
+      },
+    ],
+  },
   familiar: {
     codigo: "familiar",
     nombre: "Grupo familiar",
@@ -216,7 +298,7 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             campo: "parentesco_id",
             etiqueta: "Parentesco",
             tipo: "catalogo",
-            catalogo: "parentescos",
+            catalogo: "parentescosFamilia",
             requeridoAlCrear: true,
           },
           {
@@ -233,6 +315,73 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             requeridoAlCrear: true,
           },
           { campo: "observaciones", etiqueta: "Observaciones", tipo: "textarea" },
+        ],
+      },
+    ],
+  },
+  salud: {
+    codigo: "salud",
+    nombre: "Salud y tallas",
+    descripcion:
+      "Grupo sanguíneo, alergias, patologías crónicas, discapacidades y tallas. No requiere documento.",
+    entidades: [
+      {
+        entidad: "perfil_salud",
+        etiqueta: "Perfil de salud",
+        unica: true,
+        creable: false,
+        campos: [
+          {
+            campo: "grupo_sanguineo_id",
+            etiqueta: "Grupo sanguíneo",
+            tipo: "catalogo",
+            catalogo: "gruposSanguineos",
+          },
+          { campo: "alergias", etiqueta: "Alergias", tipo: "multiple", catalogo: "alergias" },
+          {
+            campo: "patologias_cronicas",
+            etiqueta: "Patologías crónicas",
+            tipo: "multiple",
+            catalogo: "patologias",
+          },
+          {
+            campo: "discapacidades",
+            etiqueta: "Discapacidades",
+            tipo: "multiple",
+            catalogo: "discapacidades",
+          },
+        ],
+      },
+      {
+        entidad: "perfil_fisico",
+        etiqueta: "Tallas",
+        unica: true,
+        creable: false,
+        campos: [
+          {
+            campo: "talla_camisa_id",
+            etiqueta: "Talla de camisa",
+            tipo: "catalogo",
+            catalogo: "tallasCamisa",
+          },
+          {
+            campo: "talla_pantalon_id",
+            etiqueta: "Talla de pantalón",
+            tipo: "catalogo",
+            catalogo: "tallasPantalon",
+          },
+          {
+            campo: "talla_zapatos_id",
+            etiqueta: "Talla de zapatos",
+            tipo: "catalogo",
+            catalogo: "tallasZapatos",
+          },
+          {
+            campo: "talla_chaqueta_id",
+            etiqueta: "Talla de chaqueta",
+            tipo: "catalogo",
+            catalogo: "tallasChaqueta",
+          },
         ],
       },
     ],
@@ -258,8 +407,64 @@ export function claveCampo(entidad: string, campo: string): string {
   return `${entidad}.${campo}`;
 }
 
-/** Sección que agrupa un campo solicitable (`entidad.campo`), si existe. */
+/** Acciones que se piden sobre los registros de una sección de lista (valores del backend). */
+export const ACCIONES_SOLICITABLES = [
+  { accion: "CREAR", etiqueta: "Agregar", frase: "agregar" },
+  { accion: "MODIFICAR", etiqueta: "Corregir", frase: "corregir datos de" },
+  { accion: "ELIMINAR", etiqueta: "Quitar", frase: "quitar" },
+] as const satisfies readonly { accion: AccionCambio; etiqueta: string; frase: string }[];
+
+/** Entidades de lista: en el paso 1 se piden por acción, no por campos sueltos. */
+export const ENTIDADES_DE_LISTA: Record<string, { grupo: string; objeto: string }> = {
+  familiar: { grupo: "Grupo familiar", objeto: "un familiar" },
+  contacto_emergencia: { grupo: "Contactos de emergencia", objeto: "un contacto de emergencia" },
+  formacion_academica: { grupo: "Formación académica", objeto: "una formación académica" },
+  formacion_complementaria: {
+    grupo: "Formación complementaria",
+    objeto: "una formación complementaria",
+  },
+};
+
+/** Prefijo que distingue una acción solicitada (`entidad.@CREAR`) de un campo (igual que el servidor). */
+export const PREFIJO_ACCION = "@";
+
+export function esEntidadDeLista(entidad: string): boolean {
+  return entidad in ENTIDADES_DE_LISTA;
+}
+
+/** Identificador de una acción solicitable sobre una entidad de lista: `entidad.@ACCION`. */
+export function claveAccion(entidad: string, accion: AccionCambio): string {
+  return `${entidad}.${PREFIJO_ACCION}${accion}`;
+}
+
+/** Acciones permitidas sobre una entidad de lista según lo habilitado (solicitudes viejas: todas). */
+export function accionesPermitidas(entidad: string, claves: string[]): AccionCambio[] {
+  const pedidas = ACCIONES_SOLICITABLES.map((a) => a.accion).filter((a) =>
+    claves.includes(claveAccion(entidad, a)),
+  );
+  if (pedidas.length > 0) return pedidas;
+  const hayCampos = claves.some((c) => c.startsWith(`${entidad}.`));
+  return hayCampos ? ACCIONES_SOLICITABLES.map((a) => a.accion) : [];
+}
+
+/** ¿La entidad se pidió por acciones (solicitud nueva) y no por campos sueltos? */
+export function pedidaPorAcciones(entidad: string, claves: string[]): boolean {
+  return ACCIONES_SOLICITABLES.some((a) => claves.includes(claveAccion(entidad, a.accion)));
+}
+
+/** Sección que agrupa un campo o acción solicitable (`entidad.campo` o `entidad.@ACCION`), si existe. */
 export function seccionDeCampo(clave: string): SeccionCodigo | undefined {
+  const punto = clave.indexOf(".");
+  const entidadClave = punto < 0 ? clave : clave.slice(0, punto);
+  const resto = punto < 0 ? "" : clave.slice(punto + 1);
+  if (resto.startsWith(PREFIJO_ACCION)) {
+    const accion = ACCIONES_SOLICITABLES.find((a) => a.accion === resto.slice(1));
+    if (!accion || !esEntidadDeLista(entidadClave)) return undefined;
+    for (const seccion of Object.values(SECCIONES_DEF)) {
+      if (seccion.entidades.some((e) => e.entidad === entidadClave)) return seccion.codigo;
+    }
+    return undefined;
+  }
   for (const seccion of Object.values(SECCIONES_DEF)) {
     for (const e of seccion.entidades) {
       if (e.campos.some((c) => claveCampo(e.entidad, c.campo) === clave)) return seccion.codigo;
@@ -271,6 +476,10 @@ export function seccionDeCampo(clave: string): SeccionCodigo | undefined {
 /** Etiqueta legible de un campo solicitable `entidad.campo`. */
 export function etiquetaClaveCampo(clave: string): string {
   const [entidad, ...resto] = clave.split(".");
+  const accion = ACCIONES_SOLICITABLES.find((a) => `${PREFIJO_ACCION}${a.accion}` === resto.join("."));
+  if (accion && esEntidadDeLista(entidad)) {
+    return `Quiere ${accion.frase} ${ENTIDADES_DE_LISTA[entidad].objeto}`;
+  }
   return etiquetaCampo(resto.join("."), entidad);
 }
 
@@ -329,6 +538,7 @@ export const CAMPO_PADRE: Record<string, string> = {
 /** Tipos de soporte admitidos por sección (espejo de `TIPOS_SOPORTE_POR_SECCION` del backend). */
 export const TIPOS_SOPORTE_POR_SECCION: Record<SeccionCodigo, { valor: string; texto: string }[]> =
   {
+    identidad: [{ valor: "CEDULA", texto: "Copia de la cédula" }],
     contacto: [
       { valor: "CONSTANCIA", texto: "Constancia" },
       { valor: "OTRO", texto: "Otro documento" },
@@ -342,10 +552,16 @@ export const TIPOS_SOPORTE_POR_SECCION: Record<SeccionCodigo, { valor: string; t
       { valor: "CONSTANCIA", texto: "Constancia de estudios" },
       { valor: "OTRO", texto: "Otro documento" },
     ],
+    complementaria: [
+      { valor: "CONSTANCIA", texto: "Certificado o constancia" },
+      { valor: "OTRO", texto: "Otro documento" },
+    ],
     familiar: [
-      { valor: "ACTA_NACIMIENTO", texto: "Acta de nacimiento" },
+      { valor: "CEDULA", texto: "Copia de la cédula" },
+      { valor: "ACTA_NACIMIENTO", texto: "Partida de nacimiento" },
       { valor: "CONSTANCIA", texto: "Constancia" },
       { valor: "OTRO", texto: "Otro documento" },
     ],
+    salud: [],
     foto: [{ valor: "FOTO", texto: "Foto" }],
   };

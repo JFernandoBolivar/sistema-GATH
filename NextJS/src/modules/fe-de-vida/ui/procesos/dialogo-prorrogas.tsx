@@ -1,5 +1,7 @@
 "use client";
 
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useTransition } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
@@ -90,7 +92,8 @@ export function DialogoProrrogas({ proceso, onCerrar }: { proceso: ProcesoDTO; o
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="pr-motivo" className="text-base font-medium">Motivo</label>
-            <Textarea id="pr-motivo" rows={3} maxLength={500} className="resize-none" aria-invalid={errors.motivo ? true : undefined} {...register("motivo")} />
+            <Textarea id="pr-motivo" rows={3} maxLength={LIMITES_TEXTO.motivo.max} className="resize-none" aria-invalid={errors.motivo ? true : undefined} {...register("motivo")} />
+            <ContadorCampo control={form.control} name="motivo" max={LIMITES_TEXTO.motivo.max} />
             {errors.motivo ? <p role="alert" className="text-sm font-medium text-danger">{errors.motivo.message}</p> : null}
           </div>
           <Button type="submit" className="min-h-11 w-fit" disabled={pendiente}>
