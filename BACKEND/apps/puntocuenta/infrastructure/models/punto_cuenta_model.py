@@ -23,6 +23,13 @@ class PuntoCuentaModel(BaseModel):
     dependencia_destino_id = models.IntegerField(null=True, blank=True)
     oficina_origen_id = models.IntegerField(null=True, blank=True)
     oficina_destino_id = models.IntegerField(null=True, blank=True)
+    division_origen_id = models.IntegerField(null=True, blank=True)
+    division_destino_id = models.IntegerField(null=True, blank=True)
+    numero = models.CharField(max_length=30, null=True, blank=True, db_index=True)
+    anio = models.IntegerField(null=True, blank=True, db_index=True)
+    secuencia = models.IntegerField(null=True, blank=True)
+    configuracion_version = models.IntegerField(null=True, blank=True)
+    snapshot_formato = models.JSONField(null=True, blank=True)
     motivo_id = models.IntegerField(null=True, blank=True)
     usuario_id = models.IntegerField(null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True, db_index=True)  # Meta.ordering = -fecha

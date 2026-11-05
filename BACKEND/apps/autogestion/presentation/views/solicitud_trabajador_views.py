@@ -161,6 +161,7 @@ class BorradorView(APIView):
         items = [ItemCambioDTO(
             seccion=i['seccion'], entidad=i['entidad'], accion=i['accion'], campo=i['campo'],
             valor=i['valor'], entidad_id=i.get('entidad_id') or None,
+            referencia=i.get('referencia') or None,
         ) for i in datos['cambios']]
         with transaction.atomic():
             guardar_borrador(
@@ -194,6 +195,7 @@ class SoportesView(APIView):
                 RepoSolicitudesORM(), RepoSoportesORM(), RepoCambiosPropuestosORM(), LectorFichaORM(), SeaweedFSStorage(),
                 solicitud_id=str(solicitud_id), cedula=cedula, seccion=datos['seccion'], tipo=datos['tipo'],
                 contenido=contenido, mime=tipo.mime, extension=ext, nombre_original=archivo.name, ahora=ahora(),
+                entidad_id=datos.get('entidad_id') or None, referencia=datos.get('referencia') or None,
             )
             auditar(request, 'SOPORTE_ADJUNTADO', str(solicitud_id), None,
                     {'soporte_id': soporte.id, 'seccion': soporte.seccion, 'tipo': soporte.tipo, 'sha256': soporte.sha256})
@@ -230,7 +232,7 @@ class EnviarSolicitudView(APIView):
             estado_previo = obtener_solicitud_propia(RepoSolicitudesORM(), str(solicitud_id), cedula).estado.value
             solicitud = enviar_solicitud(
                 RepoSolicitudesORM(), RepoCambiosPropuestosORM(), RepoSoportesORM(), RepoSeccionesORM(),
-                PublicadorSenales(), solicitud_id=str(solicitud_id), cedula=cedula,
+                PublicadorSenales(), LectorFichaORM(), solicitud_id=str(solicitud_id), cedula=cedula,
                 version=datos.get('version'), ahora=ahora(),
             )
             auditar(request, 'SOLICITUD_ENVIADA', solicitud.id, {'estado': estado_previo}, resumen(solicitud))

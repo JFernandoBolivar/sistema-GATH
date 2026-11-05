@@ -185,6 +185,7 @@ Catálogo maestro de 91 permisos oficiales registrados en `PERMISOS_CATALOGO`.
 | `fe_de_vida.gestionar_procesos` | Crear, editar (en borrador), abrir y cerrar procesos de fe de vida y fijar su alcance por tipo de pensión (solo ADMIN_BIENESTAR) |
 | `fe_de_vida.prorrogar` | Conceder prórrogas individuales o generales (solo ADMIN_BIENESTAR) |
 | `fe_de_vida.ver_cobertura` | Consultar el reporte de pasivos sin correo o sin cuenta |
+| `fe_de_vida.registrar_presencial` | Registrar la fe de vida de un pasivo que asiste de manera presencial |
 
 ### 1.17 Notificaciones (`notificaciones`)
 | Código de Permiso | Descripción Oficial |
@@ -345,6 +346,7 @@ Abreviaturas de columnas:
 | **`fe_de_vida.gestionar_procesos`** | ✅ | | | | | | | ✅ |
 | **`fe_de_vida.prorrogar`** | ✅ | | | | | | | ✅ |
 | **`fe_de_vida.ver_cobertura`** | ✅ | | | | | | ✅ | ✅ |
+| **`fe_de_vida.registrar_presencial`** | ✅ | | | | | | ✅ | ✅ |
 | **`notificaciones.ver_propias`** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **`notificaciones.administrar`** | ✅ | | | | | | | |
 | **TOTAL PERMISOS** | **91** | **53** | **10** | **12** | **19** | **6** | **28** | **31** |

@@ -19,6 +19,7 @@ CLAVE_AUTOGESTION_AVISO_DIAS = 'plazos.autogestion_aviso_dias'
 CLAVE_GENERAR_PUNTOS_CUENTA = 'puntocuenta.generar'
 
 CLAVE_FE_DE_VIDA_RECORDATORIOS = 'fe_de_vida.dias_recordatorio'
+CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR = 'fe_de_vida.registrador_puede_checar'
 
 # E5: retencion de datos operativos (nunca auditoria ni constancias).
 CLAVE_RETENCION_EVIDENCIAS_DIAS = 'retencion.evidencias_dias'

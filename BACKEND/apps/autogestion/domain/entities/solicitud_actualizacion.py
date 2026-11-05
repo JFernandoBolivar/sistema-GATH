@@ -144,6 +144,7 @@ class CambioPropuesto:
     valor_propuesto: object
     entidad_id: str | None = None
     valor_anterior: object = None
+    referencia: str | None = None
     decision: DecisionCambio = DecisionCambio.PENDIENTE
     motivo_decision: str = ''
     decidido_por: str = ''
@@ -171,6 +172,8 @@ class SoporteDocumental:
     nombre_original: str
     subido_por: str
     fecha: datetime | None = None
+    entidad_id: str | None = None
+    referencia: str | None = None
 
 
 @dataclass(frozen=True)

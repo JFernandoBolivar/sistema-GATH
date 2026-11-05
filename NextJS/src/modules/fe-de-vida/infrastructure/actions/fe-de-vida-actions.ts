@@ -8,9 +8,13 @@ import type {
   DetalleRevisionDTO,
   DetalleSolicitudDTO,
   EvidenciaImagenDTO,
+  InicioPresencialDTO,
   PaginaDTO,
+  PasivoPresencialDTO,
   ProcesoDTO,
   ProrrogaDTO,
+  ReenvioConstanciaDTO,
+  RegenerarConstanciaDTO,
   ResultadoAccion,
   SolicitudDTO,
   TipoPensionDTO,
@@ -33,6 +37,8 @@ import {
   obtenerDetalleRevision,
   obtenerEvidencia,
   rechazarSolicitud,
+  reenviarConstancia,
+  regenerarConstancia,
   registrarCheck,
   retirarCheck,
 } from "../../application/use-cases/gestionar-fe-de-vida-bienestar";
@@ -47,6 +53,14 @@ import {
   listarTiposPension,
   prorrogarProceso,
 } from "../../application/use-cases/gestionar-procesos";
+import {
+  buscarPasivosPresencial,
+  descargarConstanciaBienestar,
+  enviarPresencial,
+  guardarBorradorPresencial,
+  iniciarSolicitudPresencial,
+  subirEvidenciaPresencial,
+} from "../../application/use-cases/gestionar-fe-de-vida-presencial";
 import type {
   CambioEntrada,
   DatosProceso,
@@ -234,6 +248,29 @@ export async function rechazarSolicitudAction(
   );
 }
 
+export async function reenviarConstanciaAction(
+  id: string,
+): Promise<ResultadoAccion<ReenvioConstanciaDTO>> {
+  return ejecutar(
+    "feDeVida.reenviarConstancia",
+    "Constancia reenviada por correo.",
+    "No se pudo reenviar la constancia.",
+    () => reenviarConstancia(repo, idValido(id)),
+  );
+}
+
+export async function regenerarConstanciaAction(
+  id: string,
+  reenviar = false,
+): Promise<ResultadoAccion<RegenerarConstanciaDTO>> {
+  return ejecutar(
+    "feDeVida.regenerarConstancia",
+    "Constancia regenerada exitosamente.",
+    "No se pudo regenerar la constancia.",
+    () => regenerarConstancia(repo, idValido(id), reenviar),
+  );
+}
+
 // ── Procesos y prórrogas ──
 export async function listarProcesosAction(
   filtros: Partial<FiltrosProcesos> = {},
@@ -299,5 +336,85 @@ export async function listarCoberturaAction(
 ): Promise<ResultadoAccion<PaginaDTO<CoberturaDTO>>> {
   return ejecutar("feDeVida.cobertura", "", "No se pudo cargar la cobertura.", () =>
     listarCobertura(repo, filtros),
+  );
+}
+
+// ── Presencial (Bienestar Social) ──
+export async function buscarPasivosPresencialAction(
+  filtros: { texto?: string; limit?: number; offset?: number } = {},
+): Promise<ResultadoAccion<PaginaDTO<PasivoPresencialDTO>>> {
+  return ejecutar("feDeVida.buscarPresencial", "", "No se pudo realizar la búsqueda.", () =>
+    buscarPasivosPresencial(repo, filtros),
+  );
+}
+
+export async function iniciarSolicitudPresencialAction(
+  cedula: string,
+): Promise<ResultadoAccion<InicioPresencialDTO>> {
+  return ejecutar(
+    "feDeVida.iniciarPresencial",
+    "Solicitud presencial iniciada.",
+    "No se pudo iniciar la solicitud presencial.",
+    () => iniciarSolicitudPresencial(repo, cedula),
+  );
+}
+
+export async function guardarBorradorPresencialAction(
+  id: string,
+  cambios: CambioEntrada[],
+): Promise<ResultadoAccion<DetalleSolicitudDTO>> {
+  return ejecutar(
+    "feDeVida.borradorPresencial",
+    "Borrador presencial guardado.",
+    "No se pudo guardar el borrador.",
+    () => guardarBorradorPresencial(repo, idValido(id), cambios),
+  );
+}
+
+export async function subirEvidenciaPresencialAction(
+  formData: FormData,
+): Promise<ResultadoAccion<SolicitudDTO>> {
+  return ejecutar(
+    "feDeVida.evidenciaPresencial",
+    "Foto cargada correctamente.",
+    "No se pudo cargar la foto.",
+    async () => {
+      const archivo = formData.get("file");
+      if (!(archivo instanceof File)) throw new Error("Seleccione una foto.");
+      const origen = String(formData.get("origen") ?? "");
+      if (origen !== "CAMARA" && origen !== "ARCHIVO") {
+        throw new Error("El origen de la foto debe ser CAMARA o ARCHIVO.");
+      }
+      return subirEvidenciaPresencial(repo, idValido(String(formData.get("solicitudId") ?? "")), {
+        archivo,
+        origen,
+        metadatos: { nombre_archivo: archivo.name, tamano_bytes: archivo.size },
+      });
+    },
+  );
+}
+
+export async function enviarPresencialAction(
+  id: string,
+): Promise<ResultadoAccion<SolicitudDTO>> {
+  return ejecutar(
+    "feDeVida.enviarPresencial",
+    "Acta presencial consignada con éxito.",
+    "No se pudo consignar la solicitud presencial.",
+    () => enviarPresencial(repo, idValido(id)),
+  );
+}
+
+export async function descargarConstanciaBienestarAction(
+  id: string,
+): Promise<ResultadoAccion<string>> {
+  return ejecutar(
+    "feDeVida.constanciaBienestar",
+    "",
+    "No se pudo descargar la constancia.",
+    async () => {
+      const blob = await descargarConstanciaBienestar(repo, idValido(id));
+      return Buffer.from(await blob.arrayBuffer()).toString("base64");
+    },
   );
 }

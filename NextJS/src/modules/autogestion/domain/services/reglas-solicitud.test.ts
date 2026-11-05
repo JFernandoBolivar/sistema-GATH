@@ -89,6 +89,8 @@ describe("soportes obligatorios", () => {
           id: "s",
           seccion: "formacion",
           tipo: "TITULO",
+          entidadId: null,
+          referencia: null,
           mimeReal: "application/pdf",
           tamanoBytes: 1,
           nombreOriginal: "t.pdf",

@@ -20,6 +20,7 @@ from apps.autogestion.infrastructure.models.actualizacion_models import (
 from apps.autogestion.infrastructure.tasks.expirar_ventanas_tasks import expirar_ventanas_vencidas
 from apps.catalogos.infrastructure.models.catalogo_models import NacionalidadModel, ParentescoModel, SexoModel
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+from apps.familiares.infrastructure.models.familiar_models import FamilyDocumentModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.infrastructure.models.auditoria import AuditoriaLog
 
@@ -61,6 +62,9 @@ class AlmacenFalso:
     def descargar_flujo(self, clave, tamano_bloque=65536):
         yield self.objetos[clave]
 
+    def descargar(self, clave):
+        return self.objetos[clave]
+
 
 class ResolutorCondicion:
     def condicion_de(self, cedula):
@@ -71,6 +75,9 @@ class ResolutorCondicion:
 def entorno(monkeypatch):
     AlmacenFalso.objetos = {}
     monkeypatch.setattr('apps.autogestion.presentation.views.solicitud_trabajador_views.SeaweedFSStorage', AlmacenFalso)
+    monkeypatch.setattr(
+        'apps.autogestion.infrastructure.repositories.aplicador_cambios_orm.SeaweedFSStorage', AlmacenFalso,
+    )
     monkeypatch.setattr('core.presentation.permissions.obtener_resolutor_condicion', lambda: ResolutorCondicion())
 
 
@@ -364,3 +371,53 @@ def test_mis_solicitudes_paginan_en_servidor_y_filtran_por_estado_y_fechas(traba
     assert trabajador.get(base + '?estado=XYZ').status_code == 400
     assert trabajador.get(f'{base}?fecha_desde={hoy}&fecha_hasta=2000-01-01').status_code == 400
     assert trabajador.get(base + '?fecha_desde=ayer').status_code == 400
+
+def test_quitar_y_corregir_con_documento_por_registro_copia_al_expediente(trabajador, analista):
+    sid = solicitar(trabajador, ('familiar',))
+    habilitar(analista, sid)
+    referencia = 'ref-nuevo-familiar'
+    cambios = [
+        {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'referencia': referencia, 'valor': {
+            'primer_nombre': 'MATEO', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 5)).isoformat(), 'sexo_id': 1}},
+    ]
+    assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json').status_code == 200
+    acta = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'familiar', 'tipo': 'ACTA_NACIMIENTO', 'referencia': referencia,
+        'file': SimpleUploadedFile('acta.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert acta.status_code == 201, acta.content
+    assert trabajador.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json').status_code == 200
+    comparativo = data(analista.get(f'{BASE}/bienestar/solicitudes/{sid}/comparativo/'))
+    decisiones = [{'cambio_id': c['id'], 'aprobado': True, 'motivo': ''} for c in comparativo['cambios']]
+    r = analista.post(f'{BASE}/bienestar/solicitudes/{sid}/decidir/',
+                      {'version': comparativo['version'], 'decisiones': decisiones}, format='json')
+    assert r.status_code == 200, r.content
+    familiar = EmployeefamilyModel.objects.get(employeecedula_id=TRABAJADOR, primer_nombre='MATEO')
+    documento = FamilyDocumentModel.objects.get(familymember_id=familiar.pk)
+    assert documento.document_type == 'partida_nacimiento'
+    assert documento.file.name in AlmacenFalso.objetos
+
+
+def test_quitar_contacto_aprobado_lo_elimina_de_la_ficha(trabajador, analista):
+    from apps.personal.infrastructure.models.expediente_models import ContactoEmergenciaModel
+
+    empleado = EmployeeModel.objects.get(cedulaidentidad=TRABAJADOR)
+    contacto = ContactoEmergenciaModel.objects.create(
+        empleado=empleado, nombres='VIEJO', apellidos='CONTACTO', telefono='+584141234567',
+        relacion=ParentescoModel.objects.get(id=1),
+    )
+    sid = solicitar(trabajador, ('contacto',))
+    habilitar(analista, sid)
+    cambios = [
+        {'seccion': 'contacto', 'entidad': 'contacto_emergencia', 'accion': 'ELIMINAR', 'campo': '*',
+         'entidad_id': str(contacto.pk), 'valor': {'motivo': 'El contacto ya no está disponible'}},
+    ]
+    assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json').status_code == 200
+    assert trabajador.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json').status_code == 200
+    comparativo = data(analista.get(f'{BASE}/bienestar/solicitudes/{sid}/comparativo/'))
+    decisiones = [{'cambio_id': c['id'], 'aprobado': True, 'motivo': ''} for c in comparativo['cambios']]
+    r = analista.post(f'{BASE}/bienestar/solicitudes/{sid}/decidir/',
+                      {'version': comparativo['version'], 'decisiones': decisiones}, format='json')
+    assert r.status_code == 200, r.content
+    assert not ContactoEmergenciaModel.objects.filter(pk=contacto.pk).exists()

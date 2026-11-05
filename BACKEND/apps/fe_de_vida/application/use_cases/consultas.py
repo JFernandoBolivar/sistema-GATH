@@ -6,6 +6,7 @@ from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
     DetalleRevision,
     DetalleSolicitud,
     EvidenciaLeible,
+    ItemPasivoPresencial,
     ProcesoVigente,
     VerificacionConstancia,
 )
@@ -24,6 +25,7 @@ from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaPro
 from apps.fe_de_vida.domain.entities.solicitud import ActorRevision, PermisosRevision, SolicitudFeDeVida
 from apps.fe_de_vida.domain.events import PublicadorEventos, PublicadorNulo, TipoEvento
 from apps.fe_de_vida.domain.ports.repos import (
+    BuscadorPasivosPresencial,
     LectorAlcance,
     LectorFichaPasivo,
     LectorPasivos,
@@ -102,6 +104,7 @@ def detalle_para_revision(
     repo_sol: RepoSolicitudesFeDeVida, repo_cambios: RepoCambiosActa, lector_valor: LectorValorActual,
     lector_pasivos: LectorPasivos, *, solicitud_id: str, lector_ficha: LectorFichaPasivo | None = None,
     actor: ActorRevision | None = None, permisos: PermisosRevision | None = None, repo_procesos: RepoProcesos | None = None,
+    registrador_puede_checar: bool = False,
 ) -> DetalleRevision:
     """
     Solicitud con cada respuesta frente al dato real de hoy (comparativo), la ficha completa del pasivo (si se
@@ -112,7 +115,10 @@ def detalle_para_revision(
     for c in repo_cambios.listar(solicitud.id):
         actual = lector_valor.valor_actual(solicitud.cedula, c)
         cambios.append(CambioComparado(c, actual, c.accion == 'MODIFICAR' and actual != c.valor_anterior))
-    acciones = solicitud.acciones_disponibles(actor, permisos or PermisosRevision()) if actor else ()
+    acciones = (
+        solicitud.acciones_disponibles(actor, permisos or PermisosRevision(), registrador_puede_checar=registrador_puede_checar)
+        if actor else ()
+    )
     actores = {d.actor_cedula for d in solicitud.decisiones}
     proceso = repo_procesos.obtener(solicitud.proceso_id) if repo_procesos else None
     return DetalleRevision(
@@ -199,3 +205,50 @@ def listar_cobertura(
 ) -> tuple[list[PasivoCobertura], int]:
     limite, desplazamiento = normalizar_pagina(limite, desplazamiento)
     return repo.listar(filtro, limite, desplazamiento)
+
+
+# ── Presencial (Bienestar Social) ──
+def buscar_pasivos_presencial(
+    buscador: BuscadorPasivosPresencial,
+    repo_proc: RepoProcesos,
+    repo_sol: RepoSolicitudesFeDeVida,
+    alcance: LectorAlcance,
+    repo_const: RepoConstancias,
+    *,
+    texto: str,
+    limite: int,
+    desplazamiento: int,
+    ahora: datetime,
+) -> tuple[list[ItemPasivoPresencial], int]:
+    candidatos, total = buscador.buscar(texto, limite, desplazamiento)
+    resultados: list[ItemPasivoPresencial] = []
+    for c in candidatos:
+        vigente = obtener_proceso_vigente(repo_proc, repo_sol, alcance, cedula=c.cedula, ahora=ahora)
+        solicitud = vigente.solicitud if vigente else repo_sol.listar_de_cedula(c.cedula)
+        if isinstance(solicitud, list):
+            solicitud = solicitud[0] if solicitud else None
+
+        constancia_numero: str | None = None
+        if solicitud and solicitud.estado is EstadoSolicitud.VALIDADA:
+            constancia = repo_const.obtener_de_solicitud(solicitud.id)
+            if constancia:
+                constancia_numero = constancia.numero
+
+        puede_iniciar = bool(vigente and vigente.puede_enviar and not solicitud)
+        puede_continuar = bool(vigente and vigente.puede_enviar and solicitud and solicitud.editable)
+        puede_imprimir = bool(solicitud and solicitud.estado is EstadoSolicitud.VALIDADA and constancia_numero)
+
+        resultados.append(ItemPasivoPresencial(
+            cedula=c.cedula,
+            nombre_completo=c.nombre_completo,
+            tipo_nomina=c.tipo_nomina,
+            correo=c.correo,
+            tiene_cuenta=c.tiene_cuenta,
+            proceso_vigente=vigente,
+            solicitud=solicitud,
+            constancia_numero=constancia_numero,
+            puede_iniciar=puede_iniciar,
+            puede_continuar=puede_continuar,
+            puede_imprimir=puede_imprimir,
+        ))
+    return resultados, total

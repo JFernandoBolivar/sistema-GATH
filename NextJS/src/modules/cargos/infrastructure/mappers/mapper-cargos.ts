@@ -45,6 +45,7 @@ export function cargoApiAEntidad(raw: CargoApiItem): CargoAsignacion {
     observaciones: raw.observaciones,
     estaVacante: raw.esta_vacante,
     fechaActualizacion: raw.fecha_actualizacion ?? null,
+    puntoCuenta: raw.punto_cuenta ? { id: String(raw.punto_cuenta.id), numero: raw.punto_cuenta.numero } : null,
   };
 }
 

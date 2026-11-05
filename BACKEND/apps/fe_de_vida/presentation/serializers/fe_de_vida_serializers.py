@@ -7,6 +7,7 @@ from rest_framework import serializers
 from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
     DetalleRevision,
     DetalleSolicitud,
+    ItemPasivoPresencial,
     ProcesoVigente,
     VerificacionConstancia,
 )
@@ -55,6 +56,21 @@ class FiltroCoberturaSerializer(PaginaSerializer):
     tipo_nomina_id = serializers.IntegerField(required=False, min_value=1, help_text='Tipo de pensión (TipoNomina).')
     sin_correo = serializers.BooleanField(required=False, default=False)
     sin_cuenta = serializers.BooleanField(required=False, default=False)
+
+
+class BuscarPasivoPresencialSerializer(PaginaSerializer):
+    texto = serializers.CharField(required=True, min_length=1, max_length=80, help_text='Cédula o nombre del pasivo.')
+
+
+class IniciarSolicitudPresencialSerializer(serializers.Serializer):
+    cedula = serializers.CharField(required=True, max_length=15)
+
+
+class EnviarPresencialSerializer(serializers.Serializer):
+    declaracion_presencial = serializers.BooleanField(
+        required=True,
+        help_text='true: El funcionario certifica que el pasivo compareció y declaró presencialmente.',
+    )
 
 
 # ── Entrada: cuerpos ──
@@ -149,6 +165,9 @@ class SolicitudSerializer(serializers.Serializer):
     cedula = serializers.CharField()
     nombre = serializers.CharField(required=False)
     estado = serializers.CharField()
+    canal = serializers.CharField(required=False, default='EN_LINEA')
+    registrada_por = serializers.CharField(required=False, allow_blank=True, default='')
+    registrada_por_cedula = serializers.CharField(required=False, allow_blank=True, default='')
     version = serializers.IntegerField()
     envios = serializers.IntegerField()
     origen_evidencia = serializers.CharField(allow_null=True)
@@ -191,9 +210,36 @@ class DetalleRevisionSerializer(serializers.Serializer):
                   'de `autogestion/mi-expediente`. Nulo sin el permiso `fe_de_vida.revisar`.',
     )
     acciones_disponibles = serializers.ListField(
-        child=serializers.ChoiceField(choices=['dar_check', 'aprobar_directo', 'devolver', 'rechazar', 'retirar_check']),
+        child=serializers.ChoiceField(choices=[
+            'dar_check', 'aprobar_directo', 'devolver', 'rechazar', 'retirar_check',
+            'reenviar_constancia', 'regenerar_constancia',
+        ]),
         help_text='Acciones que el usuario actual puede ejecutar hoy; las decide el dominio.',
     )
+
+
+class ReenvioConstanciaRespuestaSerializer(serializers.Serializer):
+    numero = serializers.CharField()
+    destinatario = serializers.CharField()
+    destinatario_enmascarado = serializers.CharField()
+    copia = serializers.CharField(allow_null=True, required=False)
+    copia_enmascarada = serializers.CharField(allow_null=True, required=False)
+    reenvios_hoy = serializers.IntegerField()
+    limite_diario = serializers.IntegerField()
+
+
+class RegenerarConstanciaEntradaSerializer(serializers.Serializer):
+    reenviar = serializers.BooleanField(default=False, required=False)
+
+
+class RegenerarConstanciaRespuestaSerializer(serializers.Serializer):
+    numero = serializers.CharField()
+    plantilla_version = serializers.IntegerField()
+    reenviado = serializers.BooleanField()
+    destinatario_enmascarado = serializers.CharField(allow_null=True, required=False)
+    copia_enmascarada = serializers.CharField(allow_null=True, required=False)
+    reenvios_hoy = serializers.IntegerField(allow_null=True, required=False)
+
 
 
 class TipoPensionSerializer(serializers.Serializer):
@@ -235,6 +281,21 @@ class PasivoCoberturaSerializer(serializers.Serializer):
     correo = serializers.CharField(allow_blank=True)
     sin_correo = serializers.BooleanField()
     tiene_cuenta = serializers.BooleanField()
+    canal = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class PasivoPresencialSerializer(serializers.Serializer):
+    cedula = serializers.CharField()
+    nombre_completo = serializers.CharField()
+    tipo_nomina = serializers.CharField()
+    correo = serializers.CharField(allow_blank=True)
+    tiene_cuenta = serializers.BooleanField()
+    proceso_vigente = serializers.DictField(allow_null=True)
+    solicitud = SolicitudSerializer(allow_null=True)
+    constancia_numero = serializers.CharField(allow_null=True, required=False)
+    puede_iniciar = serializers.BooleanField()
+    puede_continuar = serializers.BooleanField()
+    puede_imprimir = serializers.BooleanField()
 
 
 class CertificanteSerializer(serializers.Serializer):
@@ -281,6 +342,9 @@ def pagina(total: int, limite: int, desplazamiento: int, resultados: list) -> di
 def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None, nombres_actores: dict | None = None) -> dict:
     datos = {
         'id': s.id, 'proceso_id': s.proceso_id, 'cedula': s.cedula, 'estado': s.estado.value, 'version': s.version,
+        'canal': getattr(s, 'canal', 'EN_LINEA') or 'EN_LINEA',
+        'registrada_por': getattr(s, 'registrada_por', '') or '',
+        'registrada_por_cedula': getattr(s, 'registrada_por_cedula', '') or '',
         'envios': s.envios, 'origen_evidencia': s.origen_evidencia.value if s.origen_evidencia else None,
         'tiene_evidencia': bool(s.evidencia_clave), 'via_aprobacion': s.via_aprobacion.value if s.via_aprobacion else None,
         'fecha_envio': s.fecha_envio, 'fecha_validacion': s.fecha_validacion,
@@ -345,6 +409,7 @@ def a_dict_cobertura(p: PasivoCobertura) -> dict:
     return {
         'cedula': p.cedula, 'nombre_completo': p.nombre_completo, 'tipo_nomina': p.tipo_nomina, 'correo': p.correo,
         'sin_correo': p.sin_correo, 'tiene_cuenta': p.tiene_cuenta,
+        'canal': getattr(p, 'canal', '') or '',
     }
 
 
@@ -363,4 +428,26 @@ def a_dict_verificacion_publica(v: VerificacionConstancia) -> dict:
     return {
         'numero': v.numero, 'emitida_en': v.emitida_en, 'proceso_nombre': v.proceso_nombre,
         'nombre_completo': v.nombre_completo, 'cedula_enmascarada': v.cedula, 'estado': ESTADO_CONSTANCIA_VALIDA,
+    }
+
+
+def a_dict_item_presencial(item: ItemPasivoPresencial) -> dict:
+    vigente = item.proceso_vigente
+    return {
+        'cedula': item.cedula,
+        'nombre_completo': item.nombre_completo,
+        'tipo_nomina': item.tipo_nomina,
+        'correo': item.correo,
+        'tiene_cuenta': item.tiene_cuenta,
+        'proceso_vigente': {
+            'id': vigente.proceso.id,
+            'nombre': vigente.proceso.nombre,
+            'estado': vigente.proceso.estado.value,
+            'puede_enviar': vigente.puede_enviar,
+        } if vigente else None,
+        'solicitud': a_dict_solicitud(item.solicitud, item.nombre_completo) if item.solicitud else None,
+        'constancia_numero': item.constancia_numero,
+        'puede_iniciar': item.puede_iniciar,
+        'puede_continuar': item.puede_continuar,
+        'puede_imprimir': item.puede_imprimir,
     }

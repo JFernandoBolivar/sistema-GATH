@@ -194,7 +194,7 @@ export default function CargoUpdateModal({
   }, [cargo, open, form]);
 
   const handleDependenciaChange = async (val: string) => {
-    const num = Number.parseInt(val);
+    const num = Number.parseInt(val, 10) || 0;
     setDependencyId(val);
     form.setValue("Dependencia", num);
     form.setValue("DireccionGeneral", 0);
@@ -220,7 +220,7 @@ export default function CargoUpdateModal({
   };
 
   const handleDireccionGeneralChange = async (val: string) => {
-    const num = Number.parseInt(val);
+    const num = Number.parseInt(val, 10) || 0;
     setSelecteIdDirectionGeneral(val);
     form.setValue("DireccionGeneral", num);
     form.setValue("DireccionLinea", 0);
@@ -243,7 +243,7 @@ export default function CargoUpdateModal({
   };
 
   const handleDireccionLineaChange = async (val: string) => {
-    const num = Number.parseInt(val);
+    const num = Number.parseInt(val, 10) || 0;
     setSelecteIdDirectionLine(val);
     form.setValue("DireccionLinea", num);
     form.setValue("Coordinacion", 0);
@@ -272,7 +272,20 @@ export default function CargoUpdateModal({
       };
       const response = await actualizarCargoAction(cargo.id, payload);
       if (response.success) {
-        toast.success(response.message);
+        const pc = response.data?.puntoCuenta;
+        if (pc?.id) {
+          toast.success(`Se generó el punto de cuenta N.º ${pc.numero || pc.id}`, {
+            action: {
+              label: "Descargar PDF",
+              onClick: () => {
+                window.open(`/api/puntocuenta/${pc.id}/pdf`, "_blank");
+              },
+            },
+            duration: 10000,
+          });
+        } else {
+          toast.success(response.message);
+        }
         onOpenChange(false);
         onUpdated?.();
       } else {
@@ -478,7 +491,10 @@ export default function CargoUpdateModal({
                             value={field.value && field.value > 0 ? String(field.value) : undefined}
                             onValueChange={handleDependenciaChange}
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger
+                              className="w-full"
+                              aria-invalid={!!form.formState.errors.Dependencia || undefined}
+                            >
                               <SelectValue
                                 placeholder={
                                   isLoadingCatalogos
@@ -516,7 +532,10 @@ export default function CargoUpdateModal({
                             disabled={!dependencyId || Number(dependencyId) === 0}
                             onValueChange={handleDireccionGeneralChange}
                           >
-                            <SelectTrigger className="w-full">
+                            <SelectTrigger
+                              className="w-full"
+                              aria-invalid={!!form.formState.errors.DireccionGeneral || undefined}
+                            >
                               <SelectValue
                                 placeholder={
                                   isLoadingDirectionGeneral

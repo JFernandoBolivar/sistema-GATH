@@ -1,0 +1,102 @@
+"""
+Casos de uso para la administración de la Política de Correo de Acceso y Aplicación Masiva (A7).
+"""
+from __future__ import annotations
+
+from typing import Callable, Sequence
+
+from apps.configuracion.domain.correo_acceso import (
+    GrupoTrabajadores,
+    PoliticaCorreoAcceso,
+    ResumenVistaPrevia,
+    generar_vista_previa_masiva,
+    resolver_correo_para_trabajador,
+)
+from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
+    RepoPoliticaCorreoAccesoORM,
+)
+from core.domain.exceptions import ValidationError
+
+
+def obtener_politica_correo_acceso(
+    repo: RepoPoliticaCorreoAccesoORM,
+) -> PoliticaCorreoAcceso:
+    return repo.obtener_politica()
+
+
+def actualizar_politica_correo_acceso(
+    repo: RepoPoliticaCorreoAccesoORM,
+    datos: dict,
+    actor_id: int | None = None,
+) -> tuple[PoliticaCorreoAcceso, PoliticaCorreoAcceso]:
+    return repo.actualizar_politica(datos, actor_id=actor_id)
+
+
+def obtener_vista_previa_masiva(
+    repo: RepoPoliticaCorreoAccesoORM,
+    grupo: str,
+    incluir_excepciones: bool = False,
+) -> ResumenVistaPrevia:
+    politica = repo.obtener_politica()
+    trabajadores = repo.listar_trabajadores_por_grupo(grupo)
+    return generar_vista_previa_masiva(
+        trabajadores, politica, incluir_excepciones=incluir_excepciones
+    )
+
+
+def aplicar_politica_masiva(
+    repo: RepoPoliticaCorreoAccesoORM,
+    grupo: str,
+    motivo: str,
+    incluir_excepciones: bool = False,
+    auditar_cuenta: Callable[[str, str, str | None, str], None] | None = None,
+) -> dict:
+    """
+    Aplica la política de correo de acceso a todos los trabajadores del grupo.
+    - Valida motivo obligatorio.
+    - Respeta excepciones salvo que se marque incluir_excepciones.
+    - Audita cada cambio por cuenta.
+    """
+    motivo_limpio = (motivo or '').strip()
+    if len(motivo_limpio) < 5:
+        raise ValidationError(
+            'El motivo de la aplicación masiva es obligatorio y debe tener al menos 5 caracteres.',
+            campo='motivo',
+        )
+
+    politica = repo.obtener_politica()
+    trabajadores = repo.listar_trabajadores_por_grupo(grupo)
+    vista_previa = generar_vista_previa_masiva(
+        trabajadores, politica, incluir_excepciones=incluir_excepciones
+    )
+
+    actualizados = 0
+    sin_cambio = 0
+    sin_cuenta = 0
+
+    for item in vista_previa.items:
+        if item.es_excepcion_manual and not incluir_excepciones:
+            continue
+
+        if item.quedara_sin_cuenta:
+            sin_cuenta += 1
+            if item.cambiara:
+                # Se limpia el correo si antes tenía uno inválido/no elegible
+                repo.aplicar_correo_a_empleado(item.cedula, '')
+                actualizados += 1
+                if auditar_cuenta:
+                    auditar_cuenta(item.cedula, item.correo_actual, None, motivo_limpio)
+        elif item.cambiara and item.correo_propuesto:
+            repo.aplicar_correo_a_empleado(item.cedula, item.correo_propuesto)
+            actualizados += 1
+            if auditar_cuenta:
+                auditar_cuenta(item.cedula, item.correo_actual, item.correo_propuesto, motivo_limpio)
+        else:
+            sin_cambio += 1
+
+    return {
+        'actualizados': actualizados,
+        'sin_cambio': sin_cambio,
+        'sin_cuenta': sin_cuenta,
+        'total': len(vista_previa.items),
+    }

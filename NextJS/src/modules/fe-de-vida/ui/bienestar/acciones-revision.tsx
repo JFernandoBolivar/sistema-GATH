@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCheck, RotateCcw, ShieldCheck, Undo2, XCircle } from "lucide-react";
+import { CheckCheck, Mail, RefreshCw, RotateCcw, ShieldCheck, Undo2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { SolicitudDTO } from "../../application/dtos/fe-de-vida-dto";
@@ -11,13 +11,21 @@ import {
   aprobarDirectoAction,
   devolverSolicitudAction,
   rechazarSolicitudAction,
+  reenviarConstanciaAction,
+  regenerarConstanciaAction,
   registrarCheckAction,
   retirarCheckAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import { formatearFechaHora } from "../comun/formato";
-import { DialogoDevolver, DialogoRetirarCheck, DialogoTexto } from "./dialogos-decision";
+import {
+  DialogoDevolver,
+  DialogoReenviarConstancia,
+  DialogoRegenerarConstancia,
+  DialogoRetirarCheck,
+  DialogoTexto,
+} from "./dialogos-decision";
 
-type Dialogo = "devolver" | "rechazar" | "aprobar" | "retirar" | null;
+type Dialogo = "devolver" | "rechazar" | "aprobar" | "retirar" | "reenviar" | "regenerar" | null;
 
 interface Props {
   solicitud: SolicitudDTO;
@@ -51,6 +59,39 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
   function abrirDialogo(d: Dialogo) {
     setErroresServidor(undefined);
     setDialogo(d);
+  }
+
+  function ejecutarReenvio() {
+    iniciar(async () => {
+      const res = await reenviarConstanciaAction(solicitud.id);
+      if (!res.ok) {
+        toast.error(res.mensaje);
+        return;
+      }
+      const correo = res.datos.destinatarioEnmascarado;
+      const copia = res.datos.copiaEnmascarada ? ` (con copia a ${res.datos.copiaEnmascarada})` : "";
+      toast.success(`Constancia reenviada a ${correo}${copia}. (${res.datos.reenviosHoy}/${res.datos.limiteDiario} reenvíos hoy)`);
+      setDialogo(null);
+      onHecho();
+    });
+  }
+
+  function ejecutarRegeneracion(reenviar: boolean) {
+    iniciar(async () => {
+      const res = await regenerarConstanciaAction(solicitud.id, reenviar);
+      if (!res.ok) {
+        toast.error(res.mensaje);
+        return;
+      }
+      if (res.datos.reenviado && res.datos.destinatarioEnmascarado) {
+        const copia = res.datos.copiaEnmascarada ? ` (con copia a ${res.datos.copiaEnmascarada})` : "";
+        toast.success(`Constancia N.º ${res.datos.numero} regenerada y reenviada a ${res.datos.destinatarioEnmascarado}${copia}.`);
+      } else {
+        toast.success(`Constancia N.º ${res.datos.numero} regenerada con plantilla v${res.datos.plantillaVersion}.`);
+      }
+      setDialogo(null);
+      onHecho();
+    });
   }
 
   function ejecutar(fn: () => ReturnType<typeof registrarCheckAction>) {
@@ -140,6 +181,28 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
               <RotateCcw aria-hidden /> Retirar mi check
             </Button>
           ) : null}
+          {tiene("reenviar_constancia") ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={pendiente}
+              onClick={() => abrirDialogo("reenviar")}
+            >
+              <Mail aria-hidden /> Reenviar constancia
+            </Button>
+          ) : null}
+          {tiene("regenerar_constancia") ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={pendiente}
+              onClick={() => abrirDialogo("regenerar")}
+            >
+              <RefreshCw aria-hidden /> Regenerar constancia
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -200,6 +263,22 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
           erroresServidor={erroresServidor}
           onCerrar={() => setDialogo(null)}
           onConfirmar={(motivo) => ejecutar(() => retirarCheckAction(solicitud.id, motivo))}
+        />
+      ) : null}
+      {dialogo === "reenviar" ? (
+        <DialogoReenviarConstancia
+          abierto
+          pendiente={pendiente}
+          onCerrar={() => setDialogo(null)}
+          onConfirmar={ejecutarReenvio}
+        />
+      ) : null}
+      {dialogo === "regenerar" ? (
+        <DialogoRegenerarConstancia
+          abierto
+          pendiente={pendiente}
+          onCerrar={() => setDialogo(null)}
+          onConfirmar={ejecutarRegeneracion}
         />
       ) : null}
     </section>

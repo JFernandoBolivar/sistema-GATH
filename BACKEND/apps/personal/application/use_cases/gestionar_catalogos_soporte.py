@@ -212,23 +212,28 @@ def eliminar_tipo_prenda(repo: RepoCatalogosSoporte, id: int) -> None:
 # Alta inline de catálogos académicos (opción "Otra X" del registro)
 # ----------------------------------------------------------------------
 
+def _nombre_catalogo(campo: str, valor: str) -> str:
+    """Los nombres de catálogos académicos se guardan siempre en MAYÚSCULAS."""
+    return _validar_texto(campo, valor, 200).upper()
+
+
 def crear_carrera(repo: RepoCatalogosSoporte, nombre: str, nivel_academico_id: int) -> Carrera:
-    nombre_limpio = _validar_texto("nombre", nombre, 200)
+    nombre_limpio = _nombre_catalogo("nombre", nombre)
     nivel_id = _validar_id("nivel_academico_id", nivel_academico_id)
     return repo.crear_carrera(nombre_limpio, nivel_id)
 
 
 def crear_mencion(repo: RepoCatalogosSoporte, nombre: str, carrera_id: int) -> Mencion:
-    nombre_limpio = _validar_texto("nombre", nombre, 200)
+    nombre_limpio = _nombre_catalogo("nombre", nombre)
     padre_id = _validar_id("carrera_id", carrera_id)
     return repo.crear_mencion(nombre_limpio, padre_id)
 
 
 def crear_institucion(repo: RepoCatalogosSoporte, nombre: str) -> Institucion:
-    nombre_limpio = _validar_texto("nombre", nombre, 200)
+    nombre_limpio = _nombre_catalogo("nombre", nombre)
     return repo.crear_institucion(nombre_limpio)
 
 
 def crear_capacitacion(repo: RepoCatalogosSoporte, nombre: str) -> Capacitacion:
-    nombre_limpio = _validar_texto("nombre", nombre, 200)
+    nombre_limpio = _nombre_catalogo("nombre", nombre)
     return repo.crear_capacitacion(nombre_limpio)

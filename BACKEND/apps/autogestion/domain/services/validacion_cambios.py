@@ -6,10 +6,14 @@ import re
 from datetime import date
 
 from apps.autogestion.domain.value_objects.secciones import (
+    CAMPO_ELIMINAR,
     CAMPO_REGISTRO_NUEVO,
     CAMPOS_POR_SECCION,
     CAMPOS_PROHIBIDOS,
+    ENTIDADES_ELIMINABLES,
     ENTIDADES_UNICAS,
+    MOTIVO_QUITAR_MAX,
+    MOTIVO_QUITAR_MIN,
     REQUERIDOS_AL_CREAR,
     Accion,
 )
@@ -17,11 +21,11 @@ from core.domain.exceptions import ValidationError
 from core.domain.validacion_personas import validar_nombre, validar_telefono
 
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
-_CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,10}$')
+_CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,9}$')
 _LARGOS = {'direccion_exacta': 500, 'observaciones': 1000}
 _LARGO_TEXTO = 150
 _CAMPOS_BOOL = {'tiene_hijos'}
-_CAMPOS_FECHA = {'fecha_nacimiento'}
+_CAMPOS_FECHA = {'fecha_nacimiento', 'fecha_inicio', 'fecha_fin'}
 _CAMPOS_TELEFONO = {'telefono_movil', 'telefono_habitacion', 'telefono'}
 # Nombres de personas: solo letras y espacios (paridad con NAME del frontend).
 _CAMPOS_NOMBRE = {
@@ -30,7 +34,8 @@ _CAMPOS_NOMBRE = {
 _OPCIONALES_NULOS = {
     'segundo_nombre', 'segundo_apellido', 'observaciones', 'cedula_familiar', 'telefono_habitacion',
     'telefono', 'correo_alternativo', 'tiene_hijos', 'mencion_id', 'carrera_id', 'institucion_id',
-    'telefono_movil', 'relacion_id',
+    'telefono_movil', 'relacion_id', 'fecha_inicio', 'fecha_fin', 'dias_completados',
+    'horas_completadas', 'grupo_id',
 }
 
 
@@ -110,12 +115,31 @@ def validar_estructura(seccion: str, entidad: str, accion: Accion, campo: str, e
         if campo != CAMPO_REGISTRO_NUEVO or entidad in {'employee', 'datos_complementarios'}:
             raise ValidationError(f"No se puede crear un registro nuevo de '{entidad}'.")
         return
+    if accion is Accion.ELIMINAR:
+        if entidad not in ENTIDADES_ELIMINABLES:
+            raise ValidationError(f"No se puede quitar un registro de '{entidad}'.")
+        if campo != CAMPO_ELIMINAR:
+            raise ValidationError("La acción QUITAR no lleva un campo concreto.")
+        if entidad_id is None:
+            raise ValidationError(f"Debe indicar el identificador del registro de '{entidad}' a quitar.")
+        return
     if campo not in campos_permitidos(seccion, entidad):
         raise ValidationError(f"El campo '{campo}' no es autogestionable en la sección '{seccion}'.")
     if entidad in ENTIDADES_UNICAS and entidad_id is not None:
         raise ValidationError(f"'{entidad}' es un registro único: no lleva identificador.")
     if entidad not in ENTIDADES_UNICAS and entidad_id is None:
         raise ValidationError(f"Debe indicar el identificador del registro de '{entidad}' a modificar.")
+
+
+def validar_motivo_eliminar(valor) -> str:
+    """Motivo obligatorio de una acción QUITAR: 10 a 300 caracteres."""
+    motivo = (valor or {}).get('motivo') if isinstance(valor, dict) else None
+    motivo = (motivo or '').strip()
+    if len(motivo) < MOTIVO_QUITAR_MIN:
+        raise ValidationError(f"El motivo para quitar el registro debe tener al menos {MOTIVO_QUITAR_MIN} caracteres.")
+    if len(motivo) > MOTIVO_QUITAR_MAX:
+        raise ValidationError(f"El motivo para quitar el registro no puede superar {MOTIVO_QUITAR_MAX} caracteres.")
+    return motivo
 
 
 def validar_registro_nuevo(seccion: str, entidad: str, valores: dict) -> dict:
@@ -130,4 +154,8 @@ def validar_registro_nuevo(seccion: str, entidad: str, valores: dict) -> dict:
     faltan = sorted(c for c in REQUERIDOS_AL_CREAR.get(entidad, frozenset()) if limpios.get(c) is None)
     if faltan:
         raise ValidationError(f"Faltan campos obligatorios de '{entidad}': {', '.join(faltan)}.")
+    if entidad == 'formacion_complementaria':
+        inicio, fin = limpios.get('fecha_inicio'), limpios.get('fecha_fin')
+        if inicio and fin and fin < inicio:
+            raise ValidationError("La fecha de fin del curso no puede ser anterior a la de inicio.")
     return limpios

@@ -2,20 +2,19 @@
 Entidad de Dominio `PuntoCuenta` (Punto de Cuenta automático).
 
 Registro contable/administrativo generado automáticamente (RN-006-01)
-cuando el campo Dependencia (Gerencia/Oficina) de un cargo cambia -- nunca
-cuando solo cambian cargo/salario dentro de la misma oficina. Append-only:
+cuando una operación habilitada en la configuración ocurre. Append-only:
 no se edita ni se elimina, es un registro histórico.
 
 Los campos `*_nombre` se resuelven en el repositorio (join de lectura, no
-se persisten) para no duplicar informacion ya dueña de otros módulos
-(personal/organizacion/catalogos) en esta tabla propia.
+se persisten) para no duplicar información ya dueña de otros módulos.
 """
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
 class PuntoCuenta:
-    id: int
+    id: Any
     cargo_id: int
     empleado_cedula: str
     empleado_nombre: str | None
@@ -32,3 +31,14 @@ class PuntoCuenta:
     oficina_origen_nombre: str | None = None
     oficina_destino_id: int | None = None
     oficina_destino_nombre: str | None = None
+    division_origen_id: int | None = None
+    division_origen_nombre: str | None = None
+    division_destino_id: int | None = None
+    division_destino_nombre: str | None = None
+    numero: str | None = None
+    anio: int | None = None
+    secuencia: int | None = None
+    cargo_codigo: str | None = None
+    cargo_nombre: str | None = None
+    configuracion_version: int | None = None
+    snapshot_formato: dict | None = None

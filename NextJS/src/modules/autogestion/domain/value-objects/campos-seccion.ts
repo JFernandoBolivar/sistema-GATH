@@ -18,7 +18,10 @@ export type ClaveCatalogo =
   | "carreras"
   | "menciones"
   | "instituciones"
+  | "capacitaciones"
+  | "gruposCapacitacion"
   | "parentescos"
+  | "parentescosFamilia"
   | "sexos";
 
 export interface CampoDef {
@@ -178,6 +181,44 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
       },
     ],
   },
+  complementaria: {
+    codigo: "complementaria",
+    nombre: "Formación complementaria",
+    descripcion: "Cursos y capacitaciones. Debe adjuntar el certificado o constancia.",
+    entidades: [
+      {
+        entidad: "formacion_complementaria",
+        etiqueta: "Curso o capacitación",
+        unica: false,
+        creable: true,
+        campos: [
+          {
+            campo: "capacitacion_id",
+            etiqueta: "Capacitación",
+            tipo: "catalogo",
+            catalogo: "capacitaciones",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "institucion_id",
+            etiqueta: "Institución",
+            tipo: "catalogo",
+            catalogo: "instituciones",
+          },
+          { campo: "fecha_inicio", etiqueta: "Fecha de inicio", tipo: "fecha" },
+          { campo: "fecha_fin", etiqueta: "Fecha de fin", tipo: "fecha" },
+          { campo: "horas_completadas", etiqueta: "Horas completadas", tipo: "texto" },
+          { campo: "dias_completados", etiqueta: "Días completados", tipo: "texto" },
+          {
+            campo: "grupo_id",
+            etiqueta: "Grupo",
+            tipo: "catalogo",
+            catalogo: "gruposCapacitacion",
+          },
+        ],
+      },
+    ],
+  },
   familiar: {
     codigo: "familiar",
     nombre: "Grupo familiar",
@@ -216,7 +257,7 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             campo: "parentesco_id",
             etiqueta: "Parentesco",
             tipo: "catalogo",
-            catalogo: "parentescos",
+            catalogo: "parentescosFamilia",
             requeridoAlCrear: true,
           },
           {
@@ -342,8 +383,13 @@ export const TIPOS_SOPORTE_POR_SECCION: Record<SeccionCodigo, { valor: string; t
       { valor: "CONSTANCIA", texto: "Constancia de estudios" },
       { valor: "OTRO", texto: "Otro documento" },
     ],
+    complementaria: [
+      { valor: "CONSTANCIA", texto: "Certificado o constancia" },
+      { valor: "OTRO", texto: "Otro documento" },
+    ],
     familiar: [
-      { valor: "ACTA_NACIMIENTO", texto: "Acta de nacimiento" },
+      { valor: "CEDULA", texto: "Copia de la cédula" },
+      { valor: "ACTA_NACIMIENTO", texto: "Partida de nacimiento" },
       { valor: "CONSTANCIA", texto: "Constancia" },
       { valor: "OTRO", texto: "Otro documento" },
     ],

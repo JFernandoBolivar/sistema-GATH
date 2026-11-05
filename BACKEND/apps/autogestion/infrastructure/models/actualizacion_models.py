@@ -93,10 +93,12 @@ class CambioPropuestoModel(BaseModel):
     origen_tipo = models.CharField(max_length=20)  # ACTUALIZACION | FE_DE_VIDA
     origen_id = models.UUIDField()
     seccion = models.CharField(max_length=30)
-    accion = models.CharField(max_length=10)  # MODIFICAR | CREAR
+    accion = models.CharField(max_length=10)  # MODIFICAR | CREAR | ELIMINAR
     entidad_destino = models.CharField(max_length=40)
     entidad_id = models.CharField(max_length=32, null=True, blank=True)
     campo = models.CharField(max_length=60)
+    # Identificador temporal del registro nuevo (CREAR): une el cambio con sus soportes.
+    referencia = models.CharField(max_length=64, null=True, blank=True)
     valor_anterior = models.JSONField(null=True, blank=True)
     valor_propuesto = models.JSONField(null=True, blank=True)
     decision = models.CharField(max_length=10, choices=Decision.choices, default=Decision.PENDIENTE)
@@ -114,13 +116,16 @@ class SoporteDocumentalModel(BaseModel):
     origen_tipo = models.CharField(max_length=20)
     origen_id = models.UUIDField()
     seccion = models.CharField(max_length=30)
-    tipo = models.CharField(max_length=20)  # TITULO|ACTA_NACIMIENTO|CONSTANCIA|FOTO|OTRO
+    tipo = models.CharField(max_length=20)  # TITULO|ACTA_NACIMIENTO|CEDULA|CONSTANCIA|FOTO|OTRO
     clave_s3 = models.CharField(max_length=255)
     mime_real = models.CharField(max_length=60)
     tamano_bytes = models.PositiveBigIntegerField()
     sha256 = models.CharField(max_length=64)
     nombre_original = models.CharField(max_length=200, blank=True, default='')
     subido_por = models.CharField(max_length=15)
+    # Documento por registro: id del registro existente o referencia temporal del nuevo.
+    entidad_id = models.CharField(max_length=32, null=True, blank=True)
+    referencia = models.CharField(max_length=64, null=True, blank=True)
 
     class Meta:
         db_table = 'autogestion_soporte_documental'

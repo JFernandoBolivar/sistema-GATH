@@ -164,6 +164,119 @@ export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, o
   );
 }
 
+/** Soporte de UN registro concreto (documento que respalda la cédula, el parentesco o el título). */
+export function SoporteRegistro({
+  solicitudId,
+  seccion,
+  entidadId,
+  referencia,
+  soportes,
+  onCambio,
+}: {
+  solicitudId: string;
+  seccion: SeccionCodigo;
+  entidadId?: string | null;
+  referencia?: string | null;
+  soportes: SoporteEntity[];
+  onCambio: () => void;
+}) {
+  const idBase = useId();
+  const tipos = TIPOS_SOPORTE_POR_SECCION[seccion];
+  const [tipo, setTipo] = useState(tipos[0].valor);
+  const [error, setError] = useState<string | null>(null);
+  const [pendiente, iniciar] = useTransition();
+  const entrada = useRef<HTMLInputElement>(null);
+  const propios = soportes.filter(
+    (s) =>
+      s.seccion === seccion &&
+      ((entidadId && s.entidadId === entidadId) || (referencia && s.referencia === referencia)),
+  );
+
+  function subir(archivo: File) {
+    const problema = validarArchivoSoporte(archivo, false);
+    if (problema) {
+      setError(problema);
+      return;
+    }
+    setError(null);
+    iniciar(async () => {
+      const datos = new FormData();
+      datos.set("solicitudId", solicitudId);
+      datos.set("seccion", seccion);
+      datos.set("tipo", tipo);
+      if (entidadId) datos.set("entidadId", entidadId);
+      if (referencia) datos.set("referencia", referencia);
+      datos.set("file", archivo);
+      const res = await subirSoporteAction(datos);
+      if (res.ok) {
+        toast.success(res.mensaje);
+        if (entrada.current) entrada.current.value = "";
+        onCambio();
+      } else {
+        setError(res.mensaje);
+      }
+    });
+  }
+
+  return (
+    <div className="mt-2 flex flex-col gap-2 rounded-md border border-dashed p-3">
+      <p className="text-sm font-medium">Documento que respalda este registro</p>
+      {propios.length > 0 ? (
+        <ul className="flex flex-col gap-1">
+          {propios.map((s) => (
+            <li key={s.id}>
+              <EnlaceSoporte s={s} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">Aún no ha cargado el documento.</p>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`${idBase}-tipo`} className="text-sm">
+            Tipo
+          </label>
+          <select
+            id={`${idBase}-tipo`}
+            className={CLASE_CONTROL}
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value)}
+          >
+            {tipos.map((t) => (
+              <option key={t.valor} value={t.valor}>
+                {t.texto}
+              </option>
+            ))}
+          </select>
+        </div>
+        <input
+          ref={entrada}
+          type="file"
+          aria-label="Archivo del registro (PDF, JPG o PNG, hasta 10 MB)"
+          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+          disabled={pendiente}
+          onChange={(e) => {
+            const archivo = e.target.files?.[0];
+            if (archivo) subir(archivo);
+          }}
+          className="min-h-11 max-w-full rounded-md border border-input bg-card p-2 text-sm file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:font-semibold file:text-primary-foreground"
+        />
+      </div>
+      {pendiente ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Procesando…
+        </p>
+      ) : null}
+      {error ? (
+        <p role="alert" className="text-sm font-medium text-danger">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /** Foto de perfil (carnet): cámara del dispositivo o archivo; reemplaza a la anterior. */
 export function FotoSeccion({
   solicitudId,

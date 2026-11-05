@@ -135,6 +135,11 @@ export default function CoberturaPage() {
                       <div className="flex flex-wrap gap-2">
                         {p.sinCorreo ? <StatusBadge texto="Sin correo" tono="warning" icono={MailX} /> : null}
                         {!p.tieneCuenta ? <StatusBadge texto="Sin cuenta" tono="danger" icono={UserX} /> : null}
+                        {p.canal === "PRESENCIAL" ? (
+                          <StatusBadge texto="Presencial" tono="info" />
+                        ) : p.canal === "EN_LINEA" ? (
+                          <StatusBadge texto="En línea" tono="neutral" />
+                        ) : null}
                       </div>
                     </td>
                   </tr>

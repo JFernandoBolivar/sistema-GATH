@@ -121,6 +121,7 @@ class RepoSeccionesMem:
             'contacto': SeccionAutogestionable('contacto', 'Contacto', False),
             'vivienda': SeccionAutogestionable('vivienda', 'Vivienda', False),
             'formacion': SeccionAutogestionable('formacion', 'Formación', True),
+            'complementaria': SeccionAutogestionable('complementaria', 'Formación complementaria', True),
             'familiar': SeccionAutogestionable('familiar', 'Familiares', True),
             'foto': SeccionAutogestionable('foto', 'Foto', False),
         }
@@ -160,10 +161,22 @@ class FichaMem:
     def validar_referencias(self, valores):
         return None
 
+    def contar_registros(self, cedula, entidad):
+        return sum(1 for (e, _) in self.datos if e == entidad)
+
+    def datos_registro(self, cedula, entidad, entidad_id):
+        return dict(self.datos.get((entidad, entidad_id), {}))
+
+    def es_parentesco_hijo(self, parentesco_id):
+        return parentesco_id == 3
+
     # AplicadorCambios
     def aplicar(self, cedula, cambios, soportes, actor_cedula):
         self.aplicaciones.append([c.campo for c in cambios])
         for c in cambios:
+            if c.accion == 'ELIMINAR':
+                self.datos.pop((c.entidad_destino, c.entidad_id), None)
+                continue
             self.datos.setdefault((c.entidad_destino, c.entidad_id), {})[c.campo] = c.valor_propuesto
 
 

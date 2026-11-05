@@ -29,6 +29,9 @@ export interface SolicitudEntity {
   readonly tieneEvidencia: boolean;
   readonly viaAprobacion: string | null;
   readonly requiereNuevaFoto: boolean;
+  readonly canal?: string;
+  readonly registradaPor?: string;
+  readonly registradaPorCedula?: string;
   readonly fechaEnvio: string | null;
   readonly fechaValidacion: string | null;
   readonly decisiones: readonly DecisionEntity[];
@@ -160,6 +163,27 @@ export interface CoberturaEntity {
   readonly correo: string;
   readonly sinCorreo: boolean;
   readonly tieneCuenta: boolean;
+  readonly canal?: string;
+}
+
+export interface PasivoPresencialEntity {
+  readonly cedula: string;
+  readonly nombreCompleto: string;
+  readonly tipoNomina: string;
+  readonly correo: string;
+  readonly tieneCuenta: boolean;
+  readonly procesoVigente: unknown | null;
+  readonly solicitud: SolicitudEntity | null;
+  readonly constanciaNumero: string | null;
+  readonly puedeIniciar: boolean;
+  readonly puedeContinuar: boolean;
+  readonly puedeImprimir: boolean;
+}
+
+export interface InicioPresencialEntity {
+  readonly solicitud: SolicitudEntity;
+  readonly cambios: readonly CambioEntity[];
+  readonly ficha: Record<string, unknown>;
 }
 
 /** Foto con la cédula tal como la sirve el backend (bytes en base64 para cruzar la Server Action). */

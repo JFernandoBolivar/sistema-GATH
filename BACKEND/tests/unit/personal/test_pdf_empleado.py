@@ -118,9 +118,19 @@ def test_total_apn_texto_muestra_anos_meses_y_dias():
         {"fecha_ingreso": "2010-04-11", "fecha_egreso": "2013-11-14", "organismo_nombre": "X"},
         {"fecha_ingreso": "2020-01-01", "fecha_egreso": None, "organismo_nombre": "Abierto"},
     ])
-    # 3*360 + 7*30 + 3 + 1 = 1294 días comerciales (el abierto no cuenta).
-    assert _total_apn_texto(dto) == "3 años, 7 meses, 4 días"
-    assert _total_apn_texto(_dto_base(antecedentes=[])) == "0 años, 0 meses, 0 días"
+    # Fecha de corte fija (O8: el periodo en curso suma hasta hoy).
+    from datetime import date as _date
+    corte = _date(2021, 1, 1)
+
+    class _FechaFija(_date):
+        @classmethod
+        def today(cls):
+            return corte
+
+    with patch("apps.personal.infrastructure.pdf_empleado.date", _FechaFija):
+        # Cerrado: 3*360 + 7*30 + 3 + 1 = 1294; en curso 2020-01-01..2021-01-01 = 360.
+        assert _total_apn_texto(dto) == "4 años, 7 meses, 4 días"
+        assert _total_apn_texto(_dto_base(antecedentes=[])) == "0 años, 0 meses, 0 días"
 
 
 @patch("apps.personal.infrastructure.pdf_empleado.construir_config_pdf", return_value=None)

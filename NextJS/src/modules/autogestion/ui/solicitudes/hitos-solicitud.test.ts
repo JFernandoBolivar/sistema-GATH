@@ -98,7 +98,7 @@ describe("formatearValor", () => {
     expect(formatearValor(5, "estado_id")).toBe("Código 5");
     expect(
       formatearValor({ primer_nombre: "Ana", parentesco_id: 2 }, "*", {
-        parentescos: { 2: "Hija" },
+        parentescosFamilia: { 2: "Hija" },
       }),
     ).toBe("Ana · Hija");
   });

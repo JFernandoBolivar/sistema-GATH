@@ -52,8 +52,8 @@ export const repoCatalogosApi: RepoCatalogos = {
     return raw.map(catalogoApiAEntidad);
   },
 
-  async listarParentescos() {
-    const raw = await catalogosApi.getParentescos();
+  async listarParentescos(uso?: "familiar" | "contacto") {
+    const raw = await catalogosApi.getParentescos(uso);
     return raw.map(catalogoApiAEntidad);
   },
 

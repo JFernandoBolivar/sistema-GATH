@@ -29,6 +29,9 @@ export interface SolicitudApi {
   tiene_evidencia: boolean;
   via_aprobacion: string | null;
   requiere_nueva_foto?: boolean;
+  canal?: string;
+  registrada_por?: string;
+  registrada_por_cedula?: string;
   fecha_envio: string | null;
   fecha_validacion: string | null;
   decisiones: DecisionApi[];
@@ -148,6 +151,27 @@ export interface CoberturaApi {
   correo: string;
   sin_correo: boolean;
   tiene_cuenta: boolean;
+  canal?: string;
+}
+
+export interface PasivoPresencialApi {
+  cedula: string;
+  nombre_completo: string;
+  tipo_nomina: string;
+  correo: string;
+  tiene_cuenta: boolean;
+  proceso_vigente: Record<string, unknown> | null;
+  solicitud: SolicitudApi | null;
+  constancia_numero: string | null;
+  puede_iniciar: boolean;
+  puede_continuar: boolean;
+  puede_imprimir: boolean;
+}
+
+export interface InicioPresencialApi {
+  solicitud: SolicitudApi;
+  cambios: CambioApi[];
+  ficha: Record<string, unknown>;
 }
 
 export interface PaginaApi<T> {
@@ -189,6 +213,25 @@ export interface VerificacionApi {
   estado: string;
   solicitud_id?: string;
   certificada_por?: CertificanteApi[];
+}
+
+export interface ReenvioConstanciaApi {
+  numero: string;
+  destinatario: string;
+  destinatario_enmascarado: string;
+  copia: string | null;
+  copia_enmascarada: string | null;
+  reenvios_hoy: number;
+  limite_diario: number;
+}
+
+export interface RegenerarConstanciaApi {
+  numero: string;
+  plantilla_version: number;
+  reenviado: boolean;
+  destinatario_enmascarado?: string | null;
+  copia_enmascarada?: string | null;
+  reenvios_hoy?: number | null;
 }
 
 export const feDeVidaApi = {
@@ -236,6 +279,13 @@ export const feDeVidaApi = {
     }),
   rechazar: (id: string, motivo: string) =>
     apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/solicitudes/${id}/rechazar/`, { motivo }),
+  reenviarConstancia: (id: string) =>
+    apiClient.post<ApiResponse<ReenvioConstanciaApi>>(`${BASE}/solicitudes/${id}/reenviar-constancia/`),
+  regenerarConstancia: (id: string, reenviar = false) =>
+    apiClient.post<ApiResponse<RegenerarConstanciaApi>>(
+      `${BASE}/solicitudes/${id}/regenerar-constancia/`,
+      { reenviar },
+    ),
 
   procesos: (params: Params) =>
     apiClient.get<ApiResponse<PaginaApi<ProcesoApi>>>(`${BASE}/procesos/`, { params }),
@@ -255,4 +305,21 @@ export const feDeVidaApi = {
 
   cobertura: (params: Params) =>
     apiClient.get<ApiResponse<PaginaApi<CoberturaApi>>>(`${BASE}/cobertura/pasivos/`, { params }),
+
+  buscarPasivoPresencial: (params: Params) =>
+    apiClient.get<ApiResponse<PaginaApi<PasivoPresencialApi>>>(`${BASE}/presencial/buscar/`, { params }),
+  iniciarPresencial: (cedula: string) =>
+    apiClient.post<ApiResponse<InicioPresencialApi>>(
+      `${BASE}/presencial/solicitudes/`,
+      { cedula },
+    ),
+  borradorPresencial: (id: string, cambios: unknown[]) =>
+    apiClient.put<ApiResponse<DetalleApi>>(`${BASE}/presencial/solicitudes/${id}/borrador/`, { cambios }),
+  evidenciaPresencial: (id: string, form: FormData) =>
+    apiClient.postForm<ApiResponse<SolicitudApi>>(`${BASE}/presencial/solicitudes/${id}/evidencia/`, form),
+  enviarPresencial: (id: string, declaracionPresencial = true) =>
+    apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/presencial/solicitudes/${id}/enviar/`, {
+      declaracion_presencial: declaracionPresencial,
+    }),
+  constanciaBienestar: (id: string) => apiClient.getBlob(`${BASE}/solicitudes/${id}/constancia/`),
 };

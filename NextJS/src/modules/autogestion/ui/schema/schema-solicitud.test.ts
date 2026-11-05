@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   contactoSchema,
   contactoEmergenciaSchema,
+  complementariaSchema,
   esquemaDeEntidad,
   familiarSchema,
   formacionSchema,
@@ -173,6 +174,8 @@ describe("familiarSchema", () => {
       false,
     );
     expect(familiarSchema.safeParse({ ...base, cedula_familiar: "xx" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, cedula_familiar: "1234" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, cedula_familiar: "12345" }).success).toBe(true);
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "Ana2" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_apellido: "Perez1" }).success).toBe(false);
@@ -180,6 +183,10 @@ describe("familiarSchema", () => {
 });
 
 describe("esquemaDeEntidad", () => {
+  it("resuelve el curso y exige la capacitación", () => {
+    expect(complementariaSchema.safeParse({ capacitacion_id: "2" }).success).toBe(true);
+    expect(complementariaSchema.safeParse({ capacitacion_id: "" }).success).toBe(false);
+  });
   it("resuelve por sección y entidad; desconocidas devuelven null", () => {
     expect(esquemaDeEntidad("contacto", "employee")).not.toBeNull();
     expect(

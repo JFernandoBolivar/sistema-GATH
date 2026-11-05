@@ -41,6 +41,7 @@ export interface CambioApi {
   campo: string;
   valor_anterior: unknown;
   valor_propuesto: unknown;
+  referencia: string | null;
   valor_actual: unknown;
   conflicto: boolean;
   decision: string;
@@ -53,6 +54,8 @@ export interface SoporteApi {
   id: string;
   seccion: string;
   tipo: string;
+  entidad_id: string | null;
+  referencia: string | null;
   mime_real: string;
   tamano_bytes: number;
   nombre_original: string;
@@ -123,6 +126,7 @@ function cuerpoBorrador(cambios: ItemBorrador[], version?: number): Record<strin
       campo: c.campo,
       valor: c.valor,
       ...(c.entidadId ? { entidad_id: c.entidadId } : {}),
+      ...(c.referencia ? { referencia: c.referencia } : {}),
     })),
   };
 }

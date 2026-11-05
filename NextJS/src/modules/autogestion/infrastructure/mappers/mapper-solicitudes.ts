@@ -36,7 +36,7 @@ function aDecision(valor: string): DecisionCambio {
 }
 
 function aAccion(valor: string): AccionCambio {
-  if (valor === "MODIFICAR" || valor === "CREAR") return valor;
+  if (valor === "MODIFICAR" || valor === "CREAR" || valor === "ELIMINAR") return valor;
   throw new Error(`El servidor devolvió una acción desconocida: ${valor}`);
 }
 
@@ -76,6 +76,7 @@ export function mapperCambio(r: CambioApi): CambioEntity {
     campo: r.campo,
     valorAnterior: (r.valor_anterior ?? null) as ValorCambio,
     valorPropuesto: (r.valor_propuesto ?? null) as ValorCambio,
+    referencia: r.referencia ?? null,
     valorActual: (r.valor_actual ?? null) as ValorCambio,
     conflicto: Boolean(r.conflicto),
     decision: aDecision(r.decision),
@@ -90,6 +91,8 @@ export function mapperSoporte(r: SoporteApi): SoporteEntity {
     id: r.id,
     seccion: r.seccion,
     tipo: r.tipo,
+    entidadId: r.entidad_id ?? null,
+    referencia: r.referencia ?? null,
     mimeReal: r.mime_real,
     tamanoBytes: r.tamano_bytes,
     nombreOriginal: r.nombre_original,

@@ -28,6 +28,47 @@ def test_calcular_total_apn_suma_antecedentes_cerrados():
     assert resultado["years"] == 1
 
 
+def test_calcular_total_apn_incluye_periodo_en_curso_hasta_la_fecha_de_corte():
+    antecedentes = [
+        # 3 años previos cerrados (enero: sin día inclusivo => 1080 días).
+        SimpleNamespace(fecha_ingreso=date(2010, 1, 1), fecha_egreso=date(2013, 1, 1)),
+        # CONATEL en curso: 4a 5m 20d hasta el 20/06/2018 (junio suma día inclusivo).
+        SimpleNamespace(fecha_ingreso=date(2014, 1, 1), fecha_egreso=None),
+    ]
+    resultado = calcular_total_apn(antecedentes, fecha_corte=date(2018, 6, 20))
+    assert (resultado['years'], resultado['months'], resultado['days']) == (7, 5, 20)
+    assert resultado['antecedentes'] == {'years': 3, 'months': 0, 'days': 0}
+    assert (resultado['en_curso']['years'], resultado['en_curso']['months'], resultado['en_curso']['days']) == (4, 5, 20)
+    assert resultado['completo'] is True
+
+
+def test_calcular_total_apn_sin_fecha_de_ingreso_queda_incompleto():
+    antecedentes = [
+        SimpleNamespace(fecha_ingreso=date(2010, 1, 1), fecha_egreso=date(2013, 1, 1)),
+    ]
+    resultado = calcular_total_apn(antecedentes, fecha_corte=date(2026, 1, 1))
+    assert resultado['years'] == 3
+    assert resultado['en_curso'] is None
+    assert resultado['completo'] is False
+
+
+def test_calcular_total_apn_fusiona_el_periodo_en_curso_con_los_cerrados():
+    antecedentes = [
+        SimpleNamespace(fecha_ingreso=date(2010, 1, 1), fecha_egreso=date(2014, 1, 1)),
+        SimpleNamespace(fecha_ingreso=date(2014, 1, 1), fecha_egreso=date(2018, 1, 1)),
+    ]
+    resultado = calcular_total_apn(antecedentes, fecha_corte=date(2018, 1, 1))
+    assert (resultado['years'], resultado['months'], resultado['days']) == (8, 0, 0)
+
+
+def test_calcular_total_apn_sin_fecha_de_corte_conserva_solo_cerrados():
+    antecedentes = [
+        SimpleNamespace(fecha_ingreso=date(2010, 1, 1), fecha_egreso=date(2013, 1, 1)),
+        SimpleNamespace(fecha_ingreso=date(2014, 1, 1), fecha_egreso=None),
+    ]
+    assert calcular_total_apn(antecedentes) == {'years': 3, 'months': 0, 'days': 0}
+
+
 def test_calcular_total_apn_con_multiples_periodos():
     antecedentes = [
         SimpleNamespace(fecha_ingreso=date(2018, 1, 1), fecha_egreso=date(2019, 1, 1)),

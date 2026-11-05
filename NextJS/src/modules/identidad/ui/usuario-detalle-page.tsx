@@ -125,6 +125,11 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
         setRolId(d.rolId ? String(d.rolId) : "__none");
         setAllow(d.permisos.allow);
         setDeny(d.permisos.deny);
+        if (d.condicion?.toUpperCase() === "PASIVO") {
+          setFuenteCorreo("ALTERNATIVO");
+        } else {
+          setFuenteCorreo("INSTITUCIONAL");
+        }
       } catch {
         setError("No fue posible cargar el usuario.");
       }

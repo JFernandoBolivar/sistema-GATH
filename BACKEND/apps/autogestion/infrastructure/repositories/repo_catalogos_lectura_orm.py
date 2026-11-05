@@ -26,4 +26,8 @@ class RepoCatalogosLecturaORM:
             return [_item(i.pk, i.nombre_carrera) for i in r.listar_carreras(nivel_academico_id=padre_id)]
         if clave == 'menciones':
             return [_item(i.pk, i.nombre_mencion) for i in r.listar_menciones(carrera_id=padre_id)]
+        if clave == 'capacitaciones':
+            return [_item(i.pk, i.nombre_capacitacion) for i in r.listar_capacitaciones()]
+        if clave == 'grupos-capacitacion':
+            return [_item(i.pk, i.nombre_grupo) for i in r.listar_grupos_capacitacion()]
         return [_item(i.pk, i.nombre_institucion) for i in r.listar_instituciones()]

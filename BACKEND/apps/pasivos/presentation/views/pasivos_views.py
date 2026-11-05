@@ -215,6 +215,7 @@ class PasivoEgresoView(APIView):
                         datos.get('sobrevivientes_familiar_ids') or ()
                     ),
                     usuario_id=getattr(request.user, 'pk', None),
+                    fecha_egreso=datos.get('fecha_egreso'),
                 ),
             )
             registrar_auditoria(
@@ -264,6 +265,7 @@ class ProcesarEgresoView(APIView):
                     tipo_nomina_id=datos['tipo_nomina_id'],
                     liberar_activos=datos['liberar_activos'],
                     usuario_id=request.user.pk,
+                    fecha_egreso=datos.get('fecha_egreso'),
                     sobrevivientes_familiar_ids=tuple(datos['sobrevivientes_familiar_ids']),
                 ),
                 sobrevivientes,

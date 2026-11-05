@@ -8,6 +8,7 @@ conoce el ORM, así que `lookups` guarda claves del registro aprobado
 sobre el modelo `Employee` (`campos_permitidos`/`filtros_permitidos`).
 """
 from dataclasses import dataclass, field
+from datetime import date
 
 from core.domain.exceptions import ValidationError
 
@@ -22,6 +23,8 @@ class ConsultaReportePersonal:
     tipo_reporte: str = 'lista'
     agrupar_por: str | None = None
     agrupar_por_ruta: str | None = None
+    # O8: fecha de corte opcional del cálculo APN (por defecto, hoy).
+    fecha_corte: date | None = None
 
     def __post_init__(self):
         if self.tipo_reporte not in TIPOS_REPORTE:

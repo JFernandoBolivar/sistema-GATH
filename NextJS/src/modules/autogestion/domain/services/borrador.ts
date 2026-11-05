@@ -12,8 +12,12 @@ export interface RegistroBorrador {
   entidad: string;
   /** Identificador del registro modificado; `null` en registros únicos y en registros nuevos. */
   entidadId: string | null;
-  accion: "MODIFICAR" | "CREAR";
+  accion: "MODIFICAR" | "CREAR" | "ELIMINAR";
   valores: Record<string, ValorCambio>;
+  /** Referencia temporal de un registro nuevo (une el cambio con sus soportes). */
+  referencia?: string | null;
+  /** Motivo obligatorio de un QUITAR (10 a 300 caracteres). */
+  motivo?: string;
 }
 
 /** La foto se gestiona por soportes: el servidor rechaza `seccion=foto` en el borrador. */
@@ -26,6 +30,7 @@ export function cambioAItem(cambio: CambioEntity): ItemBorrador | null {
     campo: cambio.campo,
     valor: cambio.valorPropuesto,
     entidadId: cambio.entidadId,
+    referencia: cambio.referencia,
   };
 }
 
@@ -50,6 +55,18 @@ export function itemsARegistros(items: ItemBorrador[]): RegistroBorrador[] {
         entidadId: null,
         accion: "CREAR",
         valores: esObjeto(item.valor) ? ({ ...item.valor } as Record<string, ValorCambio>) : {},
+        referencia: item.referencia ?? null,
+      });
+      continue;
+    }
+    if (item.accion === "ELIMINAR") {
+      registros.push({
+        seccion,
+        entidad: item.entidad,
+        entidadId: item.entidadId ?? null,
+        accion: "ELIMINAR",
+        valores: {},
+        motivo: esObjeto(item.valor) ? String(item.valor.motivo ?? "") : "",
       });
       continue;
     }
@@ -81,6 +98,19 @@ export function registrosAItems(registros: RegistroBorrador[]): ItemBorrador[] {
           accion: "CREAR",
           campo: CAMPO_REGISTRO_NUEVO,
           valor: r.valores,
+          referencia: r.referencia ?? null,
+        },
+      ];
+    }
+    if (r.accion === "ELIMINAR") {
+      return [
+        {
+          seccion: r.seccion,
+          entidad: r.entidad,
+          accion: "ELIMINAR",
+          campo: CAMPO_REGISTRO_NUEVO,
+          valor: { motivo: r.motivo ?? "" },
+          entidadId: r.entidadId,
         },
       ];
     }

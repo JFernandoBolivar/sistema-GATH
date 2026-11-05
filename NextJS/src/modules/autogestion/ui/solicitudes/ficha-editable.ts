@@ -84,6 +84,20 @@ export function registrosFicha(d: MiExpedienteDTO, entidad: string): FichaRegist
         },
         resumen: unir(f.nivel_academico_nombre, f.carrera_nombre, f.institucion_nombre),
       }));
+    case "formacion_complementaria":
+      return (e.formacion_complementaria ?? []).map((f) => ({
+        id: String(f.id),
+        valores: {
+          capacitacion_id: f.capacitacion_id,
+          institucion_id: f.institucion_id,
+          fecha_inicio: f.fecha_inicio?.slice(0, 10),
+          fecha_fin: f.fecha_fin?.slice(0, 10),
+          horas_completadas: f.horas_completadas,
+          dias_completados: f.dias_completados,
+          grupo_id: f.grupo_id,
+        },
+        resumen: unir(f.capacitacion_nombre, f.institucion_nombre, f.fecha_inicio),
+      }));
     case "contacto_emergencia":
       return (e.contacto_emergencia ?? []).map((c) => ({
         id: String(c.id),

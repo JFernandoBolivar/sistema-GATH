@@ -14,6 +14,7 @@ class Seccion(str, Enum):
     CONTACTO = 'contacto'
     VIVIENDA = 'vivienda'
     FORMACION = 'formacion'
+    COMPLEMENTARIA = 'complementaria'
     FAMILIAR = 'familiar'
     FOTO = 'foto'
 
@@ -21,6 +22,7 @@ class Seccion(str, Enum):
 class Accion(str, Enum):
     MODIFICAR = 'MODIFICAR'
     CREAR = 'CREAR'
+    ELIMINAR = 'ELIMINAR'
 
 
 class DecisionCambio(str, Enum):
@@ -32,6 +34,7 @@ class DecisionCambio(str, Enum):
 class TipoSoporte(str, Enum):
     TITULO = 'TITULO'
     ACTA_NACIMIENTO = 'ACTA_NACIMIENTO'
+    CEDULA = 'CEDULA'
     CONSTANCIA = 'CONSTANCIA'
     FOTO = 'FOTO'
     OTRO = 'OTRO'
@@ -40,6 +43,7 @@ class TipoSoporte(str, Enum):
 ORIGEN_ACTUALIZACION = 'ACTUALIZACION'
 ORIGEN_FE_DE_VIDA = 'FE_DE_VIDA'
 CAMPO_REGISTRO_NUEVO = '*'  # en CREAR el valor propuesto es un dict con todos los campos
+CAMPO_ELIMINAR = '*'  # en ELIMINAR el valor propuesto es {'motivo': ...}
 
 # Entidades de un solo registro por trabajador (no llevan entidad_id).
 ENTIDADES_UNICAS = frozenset({'employee', 'datos_complementarios', 'datos_vivienda'})
@@ -58,6 +62,12 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
     },
     'formacion': {
         'formacion_academica': frozenset({'nivel_academico_id', 'carrera_id', 'mencion_id', 'institucion_id'}),
+    },
+    'complementaria': {
+        'formacion_complementaria': frozenset({
+            'capacitacion_id', 'institucion_id', 'fecha_inicio', 'fecha_fin',
+            'dias_completados', 'horas_completadas', 'procedencia_id', 'grupo_id',
+        }),
     },
     'familiar': {
         'familiar': frozenset({
@@ -103,9 +113,21 @@ REQUERIDOS_AL_CREAR: dict[str, frozenset[str]] = {
         'estado_id', 'municipio_id', 'parroquia_id', 'direccion_exacta', 'condicion_vivienda_id', 'codigo_postal_id',
     }),
     'formacion_academica': frozenset({'nivel_academico_id'}),
+    'formacion_complementaria': frozenset({'capacitacion_id'}),
     'contacto_emergencia': frozenset({'nombres', 'apellidos', 'telefono', 'relacion_id'}),
     'familiar': frozenset({'primer_nombre', 'primer_apellido', 'parentesco_id', 'fecha_nacimiento', 'sexo_id'}),
 }
+
+# Entidades que se pueden QUITAR desde la autogestión (con motivo obligatorio).
+ENTIDADES_ELIMINABLES = frozenset({
+    'familiar', 'formacion_academica', 'formacion_complementaria', 'contacto_emergencia',
+})
+
+# Máximo de contactos de emergencia por trabajador.
+MAX_CONTACTOS_EMERGENCIA = 3
+# Motivo de una acción QUITAR: 10 a 300 caracteres.
+MOTIVO_QUITAR_MIN = 10
+MOTIVO_QUITAR_MAX = 300
 
 # Campos que jamás se aceptan (identidad, correo principal/login, cargo, oficina, estatus).
 CAMPOS_PROHIBIDOS = frozenset({
@@ -118,6 +140,7 @@ SECCIONES_CATALOGO_INICIAL = (
     ('contacto', 'Contacto (teléfonos, correo alternativo y contacto de emergencia)', False),
     ('vivienda', 'Vivienda', False),
     ('formacion', 'Formación académica', True),
+    ('complementaria', 'Formación complementaria (cursos y capacitaciones)', True),
     ('familiar', 'Grupo familiar', True),
     ('foto', 'Foto', False),
 )
@@ -126,6 +149,18 @@ TIPOS_SOPORTE_POR_SECCION: dict[str, frozenset[TipoSoporte]] = {
     'contacto': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
     'vivienda': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
     'formacion': frozenset({TipoSoporte.TITULO, TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
-    'familiar': frozenset({TipoSoporte.ACTA_NACIMIENTO, TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
+    'complementaria': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
+    'familiar': frozenset({
+        TipoSoporte.CEDULA, TipoSoporte.ACTA_NACIMIENTO, TipoSoporte.CONSTANCIA, TipoSoporte.OTRO,
+    }),
     'foto': frozenset({TipoSoporte.FOTO}),
+}
+
+# Documentos exigidos por acción sobre una entidad (se validan al enviar).
+# La clave es (entidad, accion); el valor son los tipos aceptados (al menos uno).
+DOCUMENTOS_EXIGIDOS: dict[tuple[str, str], frozenset[TipoSoporte]] = {
+    ('formacion_academica', 'CREAR'): frozenset({TipoSoporte.TITULO, TipoSoporte.CONSTANCIA}),
+    ('formacion_academica', 'MODIFICAR'): frozenset({TipoSoporte.TITULO, TipoSoporte.CONSTANCIA}),
+    ('formacion_complementaria', 'CREAR'): frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
+    ('formacion_complementaria', 'MODIFICAR'): frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
 }

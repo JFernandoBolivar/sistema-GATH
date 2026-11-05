@@ -92,8 +92,11 @@ async function listarCatalogo(
   return envelope.data ?? [];
 }
 
-async function listarCatalogoMaestro(path: string): Promise<CatalogoFamiliarApiItem[]> {
-  const envelope = await apiClient.get<ApiResponse<CatalogoFamiliarApiItem[]>>(`/api/v1/catalogos/${path}/`);
+async function listarCatalogoMaestro(
+  path: string,
+  params?: Record<string, string | number | undefined>,
+): Promise<CatalogoFamiliarApiItem[]> {
+  const envelope = await apiClient.get<ApiResponse<CatalogoFamiliarApiItem[]>>(`/api/v1/catalogos/${path}/`, { params });
   return envelope.data ?? [];
 }
 
@@ -143,7 +146,7 @@ export const familiaresApi = {
       )
     ).data,
 
-  getParentescos: () => listarCatalogoMaestro("parentescos"),
+  getParentescos: () => listarCatalogoMaestro("parentescos", { uso: "familiar" }),
 
   getSexos: () => listarCatalogoMaestro("sexos"),
 

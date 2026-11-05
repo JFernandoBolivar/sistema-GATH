@@ -26,6 +26,11 @@ class EmpleadoDTO:
     nacionalidad_codigo: str = "V"
     nacionalidad_nombre: str = "VENEZOLANA"
     total_anos_apn: float = 0.0
+    apn_antecedentes: dict | None = None
+    apn_en_curso: dict | None = None
+    apn_total: dict | None = None
+    apn_incompleto: bool = False
+    fecha_ingreso_apn: str | None = None
     profile: str | None = None
     foto_url: str | None = None
     datos_vivienda: dict | None = None

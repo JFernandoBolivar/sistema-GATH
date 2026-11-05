@@ -29,7 +29,7 @@ class RepoPasivos(Protocol):
         ...
 
     def egresar_pasivo(
-        self, cedula: str, motivo_id: int, usuario_id: int | None = None,
+        self, cedula: str, motivo_id: int, usuario_id: int | None = None, fecha_egreso=None,
     ) -> Pasivo:
         """Egreso de un pasivo: cambia su estatus y registra el egreso."""
         ...
@@ -44,6 +44,7 @@ class RepoPasivos(Protocol):
         tipo_nomina_id: int,
         liberar_activos: bool,
         usuario_id: int | None = None,
+        fecha_egreso=None,
     ) -> Pasivo:
         """
         Transición activo → pasivo (B4.1 del plan de reparación, réplica de

@@ -35,6 +35,7 @@ export interface CargoApiItem {
   observaciones: string | null;
   esta_vacante: boolean;
   fecha_actualizacion?: string | null;
+  punto_cuenta?: { id: string; numero: string | null } | null;
 }
 
 export type ActualizarCargoBody = {

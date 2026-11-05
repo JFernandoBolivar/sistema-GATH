@@ -210,6 +210,7 @@ export default function ReportEmployee({
         OrganismoAdscrito_id: undefined,
         apn_min: undefined,
         apn_max: undefined,
+        fecha_corte: undefined,
         edad_min: undefined,
         edad_max: undefined,
         fecha_ingreso_Desde: undefined,
@@ -997,6 +998,19 @@ export default function ReportEmployee({
                                   value={field.value !== undefined ? String(field.value) : ""}
                                   type="number"
                                 />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="filtros.fecha_corte"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Fecha De Corte APN (opcional)</FormLabel>
+                              <FormControl>
+                                <Input type="date" {...field} value={field.value ?? ""} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>

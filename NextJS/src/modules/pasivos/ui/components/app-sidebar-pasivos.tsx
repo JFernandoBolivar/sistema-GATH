@@ -122,6 +122,12 @@ const items: MenuItem[] = [
         permiso: "fe_de_vida.revisar",
       },
       {
+        title: "Registro presencial",
+        url: "/pasivos/fe-de-vida/presencial",
+        icon: BookUser,
+        permiso: "fe_de_vida.registrar_presencial",
+      },
+      {
         title: "Procesos y prórrogas",
         url: "/pasivos/fe-de-vida/procesos",
         icon: CalendarClock,

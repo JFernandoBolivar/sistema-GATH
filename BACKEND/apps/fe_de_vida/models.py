@@ -4,10 +4,11 @@ from apps.fe_de_vida.infrastructure.models.solicitud_models import (
     ConstanciaFeDeVidaModel,
     DecisionFeDeVidaModel,
     PlantillaConstanciaModel,
+    ReenvioConstanciaModel,
     SolicitudFeDeVidaModel,
 )
 
 __all__ = [
     'ProcesoFeDeVidaModel', 'ProrrogaProcesoModel', 'SolicitudFeDeVidaModel', 'DecisionFeDeVidaModel',
-    'ConstanciaFeDeVidaModel', 'PlantillaConstanciaModel',
+    'ConstanciaFeDeVidaModel', 'PlantillaConstanciaModel', 'ReenvioConstanciaModel',
 ]

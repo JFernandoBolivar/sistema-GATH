@@ -138,6 +138,17 @@ def construir_pdf_expediente_pasivo(dto: PasivoDTO) -> bytes:
     else:
         story.append(Paragraph('Sin antecedentes registrados.', styles['TableCell']))
 
+    def _apn(valor):
+        if not valor:
+            return 'Sin datos'
+        return f"{valor['years']}a {valor['months']}m {valor['days']}d"
+
+    story.append(_info_row('Antecedentes (ciclos cerrados)', _apn(dto.apn_antecedentes), styles))
+    story.append(_info_row('Tiempo en CONATEL (en curso)', _apn(dto.apn_en_curso) if dto.apn_en_curso else 'Sin periodo en curso', styles))
+    story.append(_info_row('Total APN', _apn(dto.apn_total), styles))
+    if dto.apn_incompleto:
+        story.append(_info_row('Aviso', 'Fecha de ingreso pendiente: el total APN está incompleto.', styles))
+
     story.append(Spacer(1, 6))
     story.append(_seccion('SALUD Y BIENESTAR', styles))
     story.append(_info_row('Grupo sanguíneo', _val(salud.get('grupo_sanguineo_nombre')), styles))

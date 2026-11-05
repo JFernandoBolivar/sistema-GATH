@@ -7,7 +7,9 @@ import type {
   DetalleSolicitudEntity,
   FamiliarFicha,
   FichaPasivoEntity,
+  InicioPresencialEntity,
   PaginaEntity,
+  PasivoPresencialEntity,
   ProcesoEntity,
   ProrrogaEntity,
   SolicitudEntity,
@@ -28,7 +30,9 @@ import type {
   DetalleApi,
   DetalleRevisionApi,
   FichaApi,
+  InicioPresencialApi,
   PaginaApi,
+  PasivoPresencialApi,
   ProcesoApi,
   ProrrogaApi,
   SolicitudApi,
@@ -80,6 +84,9 @@ export function mapperSolicitud(s: SolicitudApi): SolicitudEntity {
     tieneEvidencia: !!s.tiene_evidencia,
     viaAprobacion: s.via_aprobacion ?? null,
     requiereNuevaFoto: !!s.requiere_nueva_foto,
+    canal: s.canal ?? "EN_LINEA",
+    registradaPor: s.registrada_por,
+    registradaPorCedula: s.registrada_por_cedula,
     fechaEnvio: s.fecha_envio ?? null,
     fechaValidacion: s.fecha_validacion ?? null,
     decisiones: (s.decisiones ?? []).map(mapperDecision),
@@ -232,6 +239,31 @@ export function mapperCobertura(c: CoberturaApi): CoberturaEntity {
     correo: c.correo ?? "",
     sinCorreo: !!c.sin_correo,
     tieneCuenta: !!c.tiene_cuenta,
+    canal: c.canal ?? "",
+  };
+}
+
+export function mapperPasivoPresencial(p: PasivoPresencialApi): PasivoPresencialEntity {
+  return {
+    cedula: p.cedula,
+    nombreCompleto: p.nombre_completo,
+    tipoNomina: p.tipo_nomina ?? "",
+    correo: p.correo ?? "",
+    tieneCuenta: !!p.tiene_cuenta,
+    procesoVigente: p.proceso_vigente ?? null,
+    solicitud: p.solicitud ? mapperSolicitud(p.solicitud) : null,
+    constanciaNumero: p.constancia_numero ?? null,
+    puedeIniciar: !!p.puede_iniciar,
+    puedeContinuar: !!p.puede_continuar,
+    puedeImprimir: !!p.puede_imprimir,
+  };
+}
+
+export function mapperInicioPresencial(d: InicioPresencialApi): InicioPresencialEntity {
+  return {
+    solicitud: mapperSolicitud(d.solicitud),
+    cambios: (d.cambios ?? []).map(mapperCambio),
+    ficha: d.ficha ?? {},
   };
 }
 

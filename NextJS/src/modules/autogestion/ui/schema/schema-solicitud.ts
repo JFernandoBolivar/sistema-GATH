@@ -17,7 +17,7 @@ import {
   PLAZO_MIN_DIAS,
 } from "../../application/use-cases/gestionar-solicitud-bienestar";
 
-export const CEDULA_FAMILIAR = /^[A-Za-z]?-?\d{5,10}$/;
+export const CEDULA_FAMILIAR = /^[A-Za-z]?-?\d{5,9}$/;
 export const CEDULA_FAMILIAR_MSG = "Cédula inválida. Ejemplo: V-12345678";
 
 const MOTIVO_MAX = 500;
@@ -132,6 +132,17 @@ export const formacionSchema = z.object({
   institucion_id: idCatalogoOpcional,
 });
 export type FormacionValores = z.infer<typeof formacionSchema>;
+
+export const complementariaSchema = z.object({
+  capacitacion_id: idCatalogo("la capacitación"),
+  institucion_id: idCatalogoOpcional,
+  fecha_inicio: z.string().regex(DATE_ISO, DATE_ISO_MSG).optional().or(z.literal("")),
+  fecha_fin: z.string().regex(DATE_ISO, DATE_ISO_MSG).optional().or(z.literal("")),
+  horas_completadas: textoOpcional(20),
+  dias_completados: textoOpcional(20),
+  grupo_id: idCatalogoOpcional,
+});
+export type ComplementariaValores = z.infer<typeof complementariaSchema>;
 
 export const familiarSchema = z.object({
   primer_nombre: nombreRequerido("El primer nombre"),

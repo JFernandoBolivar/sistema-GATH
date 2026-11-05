@@ -138,7 +138,23 @@ export default function BandejaFeDeVidaPage() {
                         <span className="text-sm text-muted-foreground">{s.cedula}</span>
                       </td>
                       <td className="px-4 py-3">{formatearFechaHora(s.fechaEnvio)}</td>
-                      <td className="px-4 py-3"><StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1 items-start">
+                          <StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} />
+                          {s.canal === "PRESENCIAL" ? (
+                            <span
+                              className="inline-flex items-center rounded-md bg-secondary/80 px-2 py-0.5 text-xs font-semibold text-secondary-foreground"
+                              title={s.registradaPor ? `Registrada por: ${s.registradaPor}` : "Registrada presencialmente"}
+                            >
+                              Presencial
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              En línea
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <Button asChild variant="outline" className="min-h-11">
                           <Link href={`${base}/${s.id}`} aria-label={`Abrir la fe de vida de ${s.nombre || s.cedula}`}>

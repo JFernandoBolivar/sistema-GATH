@@ -658,6 +658,17 @@ class CorreoAccesoView(views.APIView):
             **_actor(request),
             **origen_de_peticion(request),
         )
+        try:
+            from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
+                RepoPoliticaCorreoAccesoORM,
+            )
+            RepoPoliticaCorreoAccesoORM().registrar_excepcion_manual(
+                cedula=str(cedula),
+                motivo=motivo or 'Ajuste manual individual',
+                actor_cedula=str(getattr(request.user, 'cedula_id', '') or ''),
+            )
+        except Exception:
+            pass
         return ok(
             {
                 'correo': resultado.correo,

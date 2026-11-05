@@ -20,6 +20,7 @@ class ItemCambioDTO:
     campo: str
     valor: object
     entidad_id: str | None = None
+    referencia: str | None = None
 
 
 @dataclass(frozen=True)

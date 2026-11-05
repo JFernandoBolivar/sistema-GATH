@@ -3,7 +3,9 @@ import { feDeVidaApi, type CuerpoProceso } from "../http/fe-de-vida-api";
 import {
   mapperCobertura,
   mapperDetalle,
+  mapperInicioPresencial,
   mapperPagina,
+  mapperPasivoPresencial,
   mapperProceso,
   mapperProrroga,
   mapperSolicitud,
@@ -95,6 +97,29 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
   async rechazar(id, motivo) {
     return mapperSolicitud((await feDeVidaApi.rechazar(id, motivo)).data);
   },
+  async reenviarConstancia(id) {
+    const res = (await feDeVidaApi.reenviarConstancia(id)).data;
+    return {
+      numero: res.numero,
+      destinatario: res.destinatario,
+      destinatarioEnmascarado: res.destinatario_enmascarado,
+      copia: res.copia,
+      copiaEnmascarada: res.copia_enmascarada,
+      reenviosHoy: res.reenvios_hoy,
+      limiteDiario: res.limite_diario,
+    };
+  },
+  async regenerarConstancia(id, reenviar = false) {
+    const res = (await feDeVidaApi.regenerarConstancia(id, reenviar)).data;
+    return {
+      numero: res.numero,
+      plantillaVersion: res.plantilla_version,
+      reenviado: res.reenviado,
+      destinatarioEnmascarado: res.destinatario_enmascarado,
+      copiaEnmascarada: res.copia_enmascarada,
+      reenviosHoy: res.reenvios_hoy,
+    };
+  },
 
   async listarProcesos(f) {
     return mapperPagina((await feDeVidaApi.procesos({ ...f })).data, mapperProceso);
@@ -143,6 +168,43 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
       ).data,
       mapperCobertura,
     );
+  },
+
+  async buscarPasivosPresencial(f) {
+    return mapperPagina(
+      (await feDeVidaApi.buscarPasivoPresencial({ ...f })).data,
+      mapperPasivoPresencial,
+    );
+  },
+  async iniciarSolicitudPresencial(cedula) {
+    const res = (await feDeVidaApi.iniciarPresencial(cedula)).data;
+    return mapperInicioPresencial(res);
+  },
+  async guardarBorradorPresencial(id, cambios) {
+    const cuerpo = cambios.map((c) => ({
+      seccion: c.seccion,
+      entidad: c.entidad,
+      accion: c.accion,
+      campo: c.campo,
+      valor: c.valor,
+      entidad_id: c.entidadId ?? null,
+    }));
+    return mapperDetalle((await feDeVidaApi.borradorPresencial(id, cuerpo)).data);
+  },
+  async subirEvidenciaPresencial(id, evidencia) {
+    const form = new FormData();
+    form.append("file", evidencia.archivo);
+    form.append("origen", evidencia.origen);
+    if (evidencia.metadatos) {
+      form.append("metadatos", JSON.stringify(evidencia.metadatos));
+    }
+    return mapperSolicitud((await feDeVidaApi.evidenciaPresencial(id, form)).data);
+  },
+  async enviarPresencial(id) {
+    return mapperSolicitud((await feDeVidaApi.enviarPresencial(id, true)).data);
+  },
+  async descargarConstanciaBienestar(id) {
+    return feDeVidaApi.constanciaBienestar(id);
   },
 };
 

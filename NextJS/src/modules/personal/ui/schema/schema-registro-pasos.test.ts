@@ -17,9 +17,10 @@ const basico = {
 describe("Reglas de longitud del paso 1 del registro", () => {
   const pasa = (c: Record<string, unknown>) => pasoBasicInfoSchema.safeParse({ ...basico, ...c }).success;
 
-  it("cédula: solo dígitos, 6 a 9", () => {
+  it("cédula: solo dígitos, 5 a 9", () => {
     expect(pasa({})).toBe(true);
-    expect(pasa({ cedulaidentidad: "12345" })).toBe(false);
+    expect(pasa({ cedulaidentidad: "12345" })).toBe(true);
+    expect(pasa({ cedulaidentidad: "1234" })).toBe(false);
     expect(pasa({ cedulaidentidad: "123456" })).toBe(true);
     expect(pasa({ cedulaidentidad: "123456789" })).toBe(true);
     expect(pasa({ cedulaidentidad: "1234567890" })).toBe(false);
@@ -58,8 +59,9 @@ describe("Reglas de longitud del paso 1 del registro", () => {
 
 describe("Reglas compartidas", () => {
   it("cedulaZod y nombreZod", () => {
+    expect(cedulaZod().safeParse("12345").success).toBe(true);
     expect(cedulaZod().safeParse("1234567").success).toBe(true);
-    expect(cedulaZod().safeParse("123").success).toBe(false);
+    expect(cedulaZod().safeParse("1234").success).toBe(false);
     expect(nombreZod("El nombre").safeParse("Ana").success).toBe(true);
     expect(nombreZod("El nombre").safeParse("A1").success).toBe(false);
   });

@@ -42,7 +42,7 @@ from apps.personal.infrastructure.models.expediente_models import (
 
 
 # Longitudes del expediente (mismas que el formulario de NextJS, `schema-empleado.ts`).
-CEDULA_MIN, CEDULA_MAX = 6, 9
+CEDULA_MIN, CEDULA_MAX = 5, 9
 NOMBRE_MIN, NOMBRE_MAX = 2, 60
 DIRECCION_MAX = 300
 CORREO_MAX = 254

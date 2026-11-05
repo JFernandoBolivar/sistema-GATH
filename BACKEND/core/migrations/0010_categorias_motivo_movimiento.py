@@ -19,8 +19,9 @@ Qué hace:
    EGRESO, que sirve al egreso de activos) NO se tocan.
 3. Si «EGRESO PASIVO» queda sin ningún motivo, crea «FALLECIMIENTO» para
    que la pantalla de egreso de pasivos no quede vacía.
-4. Garantiza (en INGRESO; puede repetir un nombre que también está en PASE A PASIVO, en otra categoría) los motivos que el sistema asigna solo al dar de alta
-   un pasivo: JUBILACION DE DERECHO, PENSION DE INVALIDEZ, PENSION POR SOBREVIVIENTE.
+4. Garantiza (en PASE A PASIVO) los motivos que el sistema asigna solo al dar
+   de alta un pasivo: JUBILACION DE DERECHO, PENSION DE INVALIDEZ,
+   PENSION POR SOBREVIVIENTE. D13: no se crean copias en INGRESO.
 
 No se revierte: no hay forma segura de distinguir lo sembrado de lo creado luego.
 """
@@ -53,7 +54,6 @@ def sembrar(apps, schema_editor):
             return
         egreso_pasivo = _id_categoria(c, 'EGRESO PASIVO')
         pase = _id_categoria(c, 'PASE A PASIVO')
-        ingreso = _id_categoria(c, 'INGRESO')
         c.execute(f'SELECT id FROM {CAT} WHERE UPPER(categoria) = %s', ['FALLECIMIENTO'])
         fallecimiento = [f[0] for f in c.fetchall()]
 
@@ -64,7 +64,7 @@ def sembrar(apps, schema_editor):
         )
         c.execute(
             f"UPDATE {TIPO} SET \"categoriaId\" = %s WHERE UPPER(movimiento) LIKE '%%PENSION POR SOBREV%%' AND {reasignables}",
-            [ingreso, fallecimiento],
+            [pase, fallecimiento],
         )
         c.execute(
             f"UPDATE {TIPO} SET \"categoriaId\" = %s WHERE (UPPER(movimiento) LIKE '%%JUBIL%%' "
@@ -83,10 +83,10 @@ def sembrar(apps, schema_editor):
         for nombre in ('JUBILACION DE DERECHO', 'PENSION DE INVALIDEZ', 'PENSION POR SOBREVIVIENTE'):
             c.execute(
                 f'SELECT 1 FROM {TIPO} WHERE UPPER(movimiento) = %s AND "categoriaId" = %s LIMIT 1',
-                [nombre, ingreso],
+                [nombre, pase],
             )
             if c.fetchone() is None:
-                c.execute(f'INSERT INTO {TIPO} (movimiento, "categoriaId") VALUES (%s, %s)', [nombre, ingreso])
+                c.execute(f'INSERT INTO {TIPO} (movimiento, "categoriaId") VALUES (%s, %s)', [nombre, pase])
 
 
 class Migration(migrations.Migration):

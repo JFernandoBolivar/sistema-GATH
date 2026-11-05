@@ -31,7 +31,10 @@ const RUTAS: Record<ClaveCatalogo, RutaCatalogo> = {
   carreras: { ruta: "/api/v1/autogestion/catalogos/carreras/", filtroPadre: "nivel_academico_id" },
   menciones: { ruta: "/api/v1/autogestion/catalogos/menciones/", filtroPadre: "carrera_id" },
   instituciones: { ruta: "/api/v1/autogestion/catalogos/instituciones/" },
-  parentescos: { ruta: "/api/v1/catalogos/parentescos/" },
+  capacitaciones: { ruta: "/api/v1/autogestion/catalogos/capacitaciones/" },
+  gruposCapacitacion: { ruta: "/api/v1/autogestion/catalogos/grupos-capacitacion/" },
+  parentescos: { ruta: "/api/v1/catalogos/parentescos/?uso=contacto" },
+  parentescosFamilia: { ruta: "/api/v1/catalogos/parentescos/?uso=familiar" },
   sexos: { ruta: "/api/v1/catalogos/sexos/" },
 };
 

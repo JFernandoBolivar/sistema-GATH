@@ -54,8 +54,12 @@ def listar_tipos_nomina(
     return _convertir(entidades)
 
 
-def listar_parentescos(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
-    return _convertir(repo.listar_parentescos())
+def listar_parentescos(repo: RepoCatalogos, solo_familiares: bool = False) -> list[CatalogoItemDTO]:
+    try:
+        entidades = repo.listar_parentescos(solo_familiares=solo_familiares)
+    except TypeError:
+        entidades = repo.listar_parentescos()
+    return _convertir(entidades)
 
 
 def listar_tipos_procedencia(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
@@ -80,4 +84,3 @@ def listar_tipos_movimiento(repo: RepoCatalogos, categoria: str | None = None) -
 
 def listar_nacionalidades(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
     return _convertir(repo.listar_nacionalidades())
-

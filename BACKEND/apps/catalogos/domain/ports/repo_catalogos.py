@@ -34,7 +34,13 @@ class RepoCatalogos(Protocol):
     ) -> list[CatalogoItem]:
         ...
 
-    def listar_parentescos(self) -> list[CatalogoItem]:
+    def listar_parentescos(self, solo_familiares: bool = False) -> list[CatalogoItem]:
+        ...
+
+    def existe_parentesco(self, descripcion: str) -> bool:
+        ...
+
+    def crear_parentesco(self, descripcion: str, aplica_familiar: bool = False) -> CatalogoItem:
         ...
 
     def listar_tipos_procedencia(self) -> list[CatalogoItem]:
@@ -54,4 +60,3 @@ class RepoCatalogos(Protocol):
 
     def listar_nacionalidades(self) -> list[CatalogoItem]:
         ...
-

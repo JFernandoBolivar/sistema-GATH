@@ -1,11 +1,11 @@
 """Puertos de persistencia y servicios de la fe de vida (D-09, B21). Sin Django."""
-from datetime import datetime
+from datetime import date, datetime
 from typing import Protocol
 
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.constancia import Certificador, ConstanciaFeDeVida, PlantillaConstancia
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja, FiltroCobertura
-from apps.fe_de_vida.domain.entities.pasivo import DatosPasivo, PasivoCobertura, TipoPension
+from apps.fe_de_vida.domain.entities.pasivo import DatosPasivo, PasivoCobertura, PasivoPresencialCandidato, TipoPension
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
 
@@ -123,6 +123,14 @@ class RepoConstancias(Protocol):
 
     def registrar_pdf(self, constancia_id: str, clave_pdf: str) -> ConstanciaFeDeVida: ...
 
+    def actualizar_plantilla_version(self, constancia_id: str, version: int) -> None: ...
+
+    def contar_reenvios_hoy(self, constancia_id: str, fecha: date) -> int: ...
+
+    def registrar_reenvio(
+        self, constancia_id: str, actor_cedula: str, destinatario: str, copia: str, fecha: date,
+    ) -> None: ...
+
 
 class LectorPasivos(Protocol):
     def datos(self, cedula: str) -> DatosPasivo:
@@ -155,3 +163,9 @@ class GeneradorConstancia(Protocol):
         self, *, constancia: ConstanciaFeDeVida, plantilla: PlantillaConstancia, texto: str, proceso_nombre: str,
         emitida_en: datetime, via_directa: bool, url_verificacion: str,
     ) -> bytes: ...
+
+
+class BuscadorPasivosPresencial(Protocol):
+    def buscar(self, texto: str, limite: int, desplazamiento: int) -> tuple[list[PasivoPresencialCandidato], int]:
+        """Busca pasivos por cédula o nombre en la base de datos de personal y asignaciones."""
+        ...

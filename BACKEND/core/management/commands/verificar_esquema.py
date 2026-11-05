@@ -76,6 +76,7 @@ class Command(BaseCommand):
             self._nacionalidad,
             self._columna_nacionalidad,
             self._columna_serial_carnet,
+            self._columna_parentesco_aplica_familiar,
             self._password_larga,
             self._historial_migraciones,
             self._roles,
@@ -165,6 +166,16 @@ class Command(BaseCommand):
                 "estado": OK if existe else AVISO,
                 "nombre": "Employee.carnet_patria_serial",
                 "detalle": "existe" if existe else "no existe (core.0009 la agrega al migrar)",
+            }
+        ]
+
+    def _columna_parentesco_aplica_familiar(self):
+        existe = self._existe_columna("RAC_parentesco", "aplica_familiar")
+        return [
+            {
+                "estado": OK if existe else AVISO,
+                "nombre": "RAC_parentesco.aplica_familiar",
+                "detalle": "existe" if existe else "no existe (core.0013 la agrega al migrar)",
             }
         ]
 

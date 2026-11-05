@@ -56,6 +56,33 @@ describe("borrador", () => {
     expect(registrosAItems(registros).find((i) => i.accion === "CREAR")?.campo).toBe("*");
   });
 
+  it("conserva el QUITAR con su motivo y la referencia del registro nuevo", () => {
+    const items = [
+      {
+        seccion: "familiar",
+        entidad: "familiar",
+        accion: "ELIMINAR" as const,
+        campo: "*",
+        valor: { motivo: "Ya no vive con el trabajador" },
+        entidadId: "7",
+      },
+      {
+        seccion: "familiar",
+        entidad: "familiar",
+        accion: "CREAR" as const,
+        campo: "*",
+        valor: { primer_nombre: "Luis" },
+        referencia: "ref-1",
+      },
+    ];
+    const registros = itemsARegistros(items);
+    expect(registros).toHaveLength(2);
+    const ida = registrosAItems(registros);
+    const quitar = ida.find((i) => i.accion === "ELIMINAR");
+    expect(quitar).toMatchObject({ entidadId: "7", valor: { motivo: "Ya no vive con el trabajador" } });
+    expect(ida.find((i) => i.accion === "CREAR")?.referencia).toBe("ref-1");
+  });
+
   it("diferencias ignora vacíos equivalentes y solo devuelve lo cambiado", () => {
     expect(diferencias({ a: "x", b: null, c: 3 }, { a: "x", b: "", c: 4 })).toEqual({ c: 4 });
     expect(diferencias({ a: null }, { a: " hola " })).toEqual({ a: "hola" });

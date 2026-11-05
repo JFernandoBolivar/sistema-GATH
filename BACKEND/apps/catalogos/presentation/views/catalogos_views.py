@@ -4,9 +4,9 @@ Con Envelope unificado `ok()` / `fail()` y permiso `catalogos.ver`.
 """
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 
-from core.presentation.cache_catalogos import ok_catalogo
+from core.presentation.cache_catalogos import invalidar_catalogos, ok_catalogo
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 from apps.catalogos.infrastructure.mappers.mapper_catalogos import tipo_movimiento_a_entidad
@@ -31,9 +31,11 @@ from apps.catalogos.application.use_cases.listar_tablas_maestras import (
     listar_tipos_procedencia,
     listar_nacionalidades,
 )
+from apps.catalogos.application.use_cases.crear_parentesco import crear_parentesco
 from apps.catalogos.infrastructure.repositories.repo_catalogos_orm import RepoCatalogosORM
 from apps.catalogos.presentation.serializers.catalogos_serializers import (
     CatalogoItemSerializer,
+    CrearParentescoInputSerializer,
     EstadoSerializer,
     MunicipioSerializer,
     ParroquiaSerializer,
@@ -161,17 +163,55 @@ class TiposNominaListView(APIView):
 
 
 class ParentescosListView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('catalogos.ver')]
+    """
+    GET  /api/v1/catalogos/parentescos/?uso=familiar|contacto — filtra por uso.
+         `?uso=familiar`: solo parentescos permitidos para familiares (aplica_familiar=True).
+         `?uso=contacto`: todos los parentescos (familiares y de emergencia).
+    POST /api/v1/catalogos/parentescos/ {descripcion, uso: "contacto"} — crea un nuevo
+         parentesco con aplica_familiar=False. Requiere `catalogos.crear`.
+    """
+    def get_permissions(self):
+        codigo = 'catalogos.ver' if self.request.method == 'GET' else 'catalogos.crear'
+        return [IsAuthenticated(), HasPermission(codigo)()]
 
-    @extend_schema(tags=['Catálogos'], summary='Listar parentescos familiares', responses={200: CatalogoItemSerializer(many=True)})
+    @extend_schema(
+        tags=['Catálogos'],
+        summary='Listar parentescos familiares o de contactos',
+        parameters=[
+            OpenApiParameter('uso', type=str, description='familiar (solo familiares) o contacto (todos)'),
+        ],
+        responses={200: CatalogoItemSerializer(many=True)},
+    )
     def get(self, request):
+        uso = request.query_params.get('uso', '').lower()
+        solo_familiares = (uso == 'familiar')
+        clave = f'catalogos:parentescos:{uso or "todos"}'
         return ok_catalogo(
             request,
-            'catalogos:parentescos',
+            clave,
             lambda: CatalogoItemSerializer(
-                listar_parentescos(RepoCatalogosORM()), many=True
+                listar_parentescos(RepoCatalogosORM(), solo_familiares=solo_familiares),
+                many=True,
             ).data,
         )
+
+    @extend_schema(
+        tags=['Catálogos'],
+        summary='Crear nuevo parentesco (para contactos de emergencia)',
+        request=CrearParentescoInputSerializer,
+        responses={201: CatalogoItemSerializer},
+    )
+    def post(self, request):
+        serializer = CrearParentescoInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        repo = RepoCatalogosORM()
+        dto = crear_parentesco(
+            repo=repo,
+            descripcion=serializer.validated_data['descripcion'],
+            uso=serializer.validated_data['uso'],
+        )
+        invalidar_catalogos()
+        return ok(CatalogoItemSerializer(dto).data, message='Parentesco registrado correctamente.', status=201)
 
 
 class TiposProcedenciaListView(APIView):
@@ -268,4 +308,3 @@ class NacionalidadesListView(APIView):
                 listar_nacionalidades(RepoCatalogosORM()), many=True
             ).data,
         )
-

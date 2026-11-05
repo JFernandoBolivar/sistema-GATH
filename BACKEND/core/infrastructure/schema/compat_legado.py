@@ -47,8 +47,13 @@ ALTER TABLE "USER_cuenta"
     ALTER COLUMN password TYPE varchar(255)
 """
 
+SQL_PARENTESCO_APLICA_FAMILIAR = """
+ALTER TABLE "RAC_parentesco"
+    ADD COLUMN IF NOT EXISTS "aplica_familiar" boolean NOT NULL DEFAULT true
+"""
+
 # Tablas legadas que deben existir para que el ALTER tenga sentido.
-TABLAS_REQUERIDAS = ("Employee", "USER_cuenta")
+TABLAS_REQUERIDAS = ("Employee", "USER_cuenta", "RAC_parentesco")
 
 
 def _existe_tabla(connection, tabla: str) -> bool:
@@ -75,3 +80,5 @@ def aplicar_compatibilidad(connection=None) -> None:
             cursor.execute(SQL_EMPLOYEE_SERIAL_CARNET)
         if _existe_tabla(connection, "USER_cuenta"):
             cursor.execute(SQL_PASSWORD_LARGA)
+        if _existe_tabla(connection, "RAC_parentesco"):
+            cursor.execute(SQL_PARENTESCO_APLICA_FAMILIAR)

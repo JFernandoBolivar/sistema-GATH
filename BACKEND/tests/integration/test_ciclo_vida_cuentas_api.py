@@ -175,7 +175,15 @@ def test_alta_automatica_del_activo_al_cargar_correo_institucional(base, condici
 
 
 def test_activo_con_correo_personal_recibe_cuenta_al_asignarle_el_correo(base, condicion):
-    """Decisión del usuario (2026-11-03): al asignar un correo, activo o pasivo, se crea la cuenta."""
+    """Bajo política A7: si la política permite usar el siguiente disponible, recibe cuenta."""
+    from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
+        RepoPoliticaCorreoAccesoORM,
+    )
+    from apps.configuracion.domain.correo_acceso import PoliticaFaltaCorreo
+
+    RepoPoliticaCorreoAccesoORM().actualizar_politica({
+        'si_falta_elegido': PoliticaFaltaCorreo.USAR_SIGUIENTE.value,
+    })
     condicion['20999002'] = CondicionTrabajador.ACTIVO
 
     empleado('20999002', 'luis@gmail.com')
@@ -184,7 +192,15 @@ def test_activo_con_correo_personal_recibe_cuenta_al_asignarle_el_correo(base, c
 
 
 def test_pasivo_con_correo_recibe_cuenta_al_guardar_su_ficha(base, condicion):
-    """Decisión del usuario (2026-11-03): igual que la sincronización, pero al momento."""
+    """Bajo política A7: si la política permite usar el siguiente disponible, recibe cuenta."""
+    from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
+        RepoPoliticaCorreoAccesoORM,
+    )
+    from apps.configuracion.domain.correo_acceso import PoliticaFaltaCorreo
+
+    RepoPoliticaCorreoAccesoORM().actualizar_politica({
+        'si_falta_elegido': PoliticaFaltaCorreo.USAR_SIGUIENTE.value,
+    })
     condicion['20999003'] = CondicionTrabajador.PASIVO
 
     emp = empleado('20999003', 'maria@gmail.com')

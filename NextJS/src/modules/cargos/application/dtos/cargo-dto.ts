@@ -36,6 +36,7 @@ export interface CargoAsignacionDTO {
   observaciones: string | null;
   estaVacante: boolean;
   fechaActualizacion?: string | null;
+  puntoCuenta?: { id: string; numero: string | null } | null;
 }
 
 export interface ActualizarCargoInputDTO {

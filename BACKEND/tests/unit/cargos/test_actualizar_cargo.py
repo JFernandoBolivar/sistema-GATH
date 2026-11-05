@@ -6,7 +6,7 @@ import pytest
 
 from apps.cargos.application.use_cases.actualizar_cargo import actualizar_cargo
 from apps.cargos.domain.entities.cargo_asignacion import CargoAsignacion
-from core.domain.exceptions import NotFoundError
+from core.domain.exceptions import NotFoundError, ValidationError
 
 
 class RepoCargosMemoria:
@@ -80,5 +80,32 @@ def test_actualizar_cargo_exitoso():
 
 def test_actualizar_cargo_inexistente_lanza_not_found():
     repo = RepoCargosMemoria([])
+    datos = {
+        'denominacioncargoid': 1,
+        'Dependencia': 3,
+        'DireccionGeneral': 4,
+    }
     with pytest.raises(NotFoundError):
-        actualizar_cargo(repo, cargo_id=999, datos={'denominacioncargoid': 1}, usuario_id=1)
+        actualizar_cargo(repo, cargo_id=999, datos=datos, usuario_id=1)
+
+
+def test_actualizar_cargo_exige_nivel():
+    repo = RepoCargosMemoria([])
+    datos = {
+        'denominacioncargoid': 1,
+        'DireccionGeneral': 4,
+    }
+    with pytest.raises(ValidationError) as exc:
+        actualizar_cargo(repo, cargo_id=10, datos=datos, usuario_id=1)
+    assert exc.value.campo == 'dependencia_id'
+
+
+def test_actualizar_cargo_exige_direccion_general():
+    repo = RepoCargosMemoria([])
+    datos = {
+        'denominacioncargoid': 1,
+        'Dependencia': 3,
+    }
+    with pytest.raises(ValidationError) as exc:
+        actualizar_cargo(repo, cargo_id=10, datos=datos, usuario_id=1)
+    assert exc.value.campo == 'direccion_general_id'

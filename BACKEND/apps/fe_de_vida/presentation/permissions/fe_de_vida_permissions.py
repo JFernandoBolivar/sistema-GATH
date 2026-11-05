@@ -16,6 +16,7 @@ VER_PANEL = 'fe_de_vida.ver_panel'
 GESTIONAR_PROCESOS = 'fe_de_vida.gestionar_procesos'
 PRORROGAR = 'fe_de_vida.prorrogar'
 VER_COBERTURA = 'fe_de_vida.ver_cobertura'
+REGISTRAR_PRESENCIAL = 'fe_de_vida.registrar_presencial'
 
 
 def permisos_pasivo(codigo: str) -> list:

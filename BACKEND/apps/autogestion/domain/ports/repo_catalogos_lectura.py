@@ -2,6 +2,7 @@ from typing import Protocol
 
 CLAVES_CATALOGO = (
     'condiciones-vivienda', 'codigos-postales', 'niveles-academicos', 'carreras', 'menciones', 'instituciones',
+    'capacitaciones', 'grupos-capacitacion',
 )
 
 

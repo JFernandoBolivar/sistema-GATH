@@ -16,11 +16,14 @@ def _asignaciones_pasivas():
 
 class RepoCoberturaORM:
     def listar(self, filtro: FiltroCobertura, limite: int, desplazamiento: int):
+        from apps.fe_de_vida.infrastructure.models.solicitud_models import SolicitudFeDeVidaModel
         pasivas = _asignaciones_pasivas()
         if filtro.tipo_nomina_id:
             pasivas = pasivas.filter(tiponominaid_id=filtro.tipo_nomina_id)
+        solicitudes_pasivo = SolicitudFeDeVidaModel.objects.filter(cedula=OuterRef('cedulaidentidad')).order_by('-created_at')
         qs = EmployeeModel.objects.filter(Exists(pasivas)).annotate(
             tipo_nomina=Subquery(pasivas.order_by('-fecha_actualizacion').values('tiponominaid__nomina')[:1]),
+            canal_fv=Subquery(solicitudes_pasivo.values('canal')[:1]),
         )
         sin_correo = Q(correo__isnull=True) | Q(correo='')
         sin_cuenta = Q(cuenta__isnull=True)
@@ -42,6 +45,7 @@ class RepoCoberturaORM:
             PasivoCobertura(
                 cedula=e.cedulaidentidad, nombre_completo=f'{e.nombres} {e.apellidos}'.strip(),
                 tipo_nomina=e.tipo_nomina or '', correo=e.correo or '', tiene_cuenta=hasattr(e, 'cuenta'),
+                canal=getattr(e, 'canal_fv', '') or '',
             )
             for e in qs.select_related('cuenta')[desplazamiento:desplazamiento + limite]
         ]

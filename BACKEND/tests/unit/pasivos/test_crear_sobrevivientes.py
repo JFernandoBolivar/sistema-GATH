@@ -114,7 +114,7 @@ class RepoEgresoMemoria(RepoSobrevivientesMemoria):
         self.egresos = []
 
     def procesar_egreso_a_pasivo(self, cedula, motivo_movimiento_id, tipo_nomina_id, liberar_activos,
-                                 usuario_id=None):
+                                 usuario_id=None, fecha_egreso=None):
         self.egresos.append(cedula)
         return Pasivo(id=1, cedula=cedula, nombres="T", apellidos="T", tipo_pasivo="PASIVO")
 

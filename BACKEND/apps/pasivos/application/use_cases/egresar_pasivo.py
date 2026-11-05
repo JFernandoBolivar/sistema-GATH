@@ -15,6 +15,7 @@ def egresar_pasivo(repo: RepoPasivos, dto: EgresarPasivoDTO):
         cedula=dto.cedula,
         motivo_id=dto.motivo_id,
         usuario_id=dto.usuario_id,
+        fecha_egreso=dto.fecha_egreso,
     )
     resultados = []
     if dto.sobrevivientes_familiar_ids:

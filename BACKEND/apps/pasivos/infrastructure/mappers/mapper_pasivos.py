@@ -1,11 +1,54 @@
 """
 Mappers de Pasivos.
 """
+from datetime import date
+from types import SimpleNamespace
+
 from apps.pasivos.domain.entities.pasivo import Pasivo
 from apps.pasivos.infrastructure.models.pasivo_models import (
     CargoEgresadoModel,
     EmployeeEgresadoModel,
 )
+from apps.personal.shared.domain.services.tiempo_servicio import calcular_total_apn
+
+
+def _a_fecha(valor) -> date | None:
+    if valor in (None, ''):
+        return None
+    if isinstance(valor, date):
+        return valor
+    try:
+        return date.fromisoformat(str(valor)[:10])
+    except ValueError:
+        return None
+
+
+def _apn_desde_expediente(expediente: dict | None, fecha_egreso) -> dict:
+    """Desglose APN del pasivo con la fórmula oficial, hasta su fecha de egreso."""
+    antecedentes = [
+        SimpleNamespace(
+            fecha_ingreso=_a_fecha(a.get('fecha_ingreso')),
+            fecha_egreso=_a_fecha(a.get('fecha_egreso')),
+        )
+        for a in (expediente or {}).get('antecedentes', [])
+        if a
+    ]
+    contratos = (expediente or {}).get('contratos') or []
+    respaldo = next(
+        (
+            _a_fecha(c.get('fecha_ingreso'))
+            for c in contratos
+            if c and c.get('fecha_ingreso')
+        ),
+        None,
+    )
+    corte = _a_fecha(fecha_egreso)
+    return calcular_total_apn(
+        antecedentes,
+        fecha_corte=corte or date.today(),
+        fecha_ingreso_en_curso=respaldo,
+        fecha_egreso_en_curso=corte,
+    )
 
 
 def cargo_egresado_a_dict(c: CargoEgresadoModel) -> dict:
@@ -84,6 +127,7 @@ def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = No
     # el motivo del movimiento de egreso (ANULACIÓN, ABANDONO, etc.).
     tipo_nomina = cargos[0]['tipo_nomina_nombre'] if cargos else "PASIVO"
     tipo_nomina_id = cargos[0]['tipo_nomina_id'] if cargos else None
+    apn = _apn_desde_expediente(expediente, modelo.fecha_egreso)
     return Pasivo(
         id=modelo.pk,
         cedula=str(modelo.employee_id),
@@ -104,6 +148,13 @@ def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = No
         estado_civil_id=emp.estadoCivil_id if emp else None,
         nacionalidad_id=emp.nacionalidad_id if emp else None,
         cargos_historial=cargos,
+        apn_antecedentes=apn.get('antecedentes'),
+        apn_en_curso=apn.get('en_curso'),
+        apn_total={'years': apn['years'], 'months': apn['months'], 'days': apn['days']},
+        apn_incompleto=not apn.get('completo', True),
+        fecha_ingreso_apn=(
+            str(apn.get('inicio_curso')) if apn.get('inicio_curso') else None
+        ),
         **(expediente or {}),
     )
 
@@ -116,6 +167,7 @@ def pasivo_desde_asignacion(asignacion, expediente: dict | None = None) -> Pasiv
     `EmployeeEgresadoModel` (egreso definitivo, ver `pasivo_a_entidad`).
     """
     emp = asignacion.employee
+    apn = _apn_desde_expediente(expediente, asignacion.fecha_actualizacion)
     return Pasivo(
         id=asignacion.pk,
         cedula=str(asignacion.employee_id),
@@ -136,5 +188,12 @@ def pasivo_desde_asignacion(asignacion, expediente: dict | None = None) -> Pasiv
         fecha_ingreso_organismo=_fecha_ingreso_organismo(asignacion, expediente),
         estado_civil_id=emp.estadoCivil_id if emp else None,
         nacionalidad_id=emp.nacionalidad_id if emp else None,
+        apn_antecedentes=apn.get('antecedentes'),
+        apn_en_curso=apn.get('en_curso'),
+        apn_total={'years': apn['years'], 'months': apn['months'], 'days': apn['days']},
+        apn_incompleto=not apn.get('completo', True),
+        fecha_ingreso_apn=(
+            str(apn.get('inicio_curso')) if apn.get('inicio_curso') else None
+        ),
         **(expediente or {}),
     )

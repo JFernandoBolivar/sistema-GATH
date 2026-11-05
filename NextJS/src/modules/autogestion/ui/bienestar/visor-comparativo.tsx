@@ -51,6 +51,22 @@ function valorActualDe(c: CambioDTO, nombres: NombresCatalogo): string {
   return formatearValor(c.valorActual, c.campo, nombres);
 }
 
+/** Documentos que respaldan el cambio: por registro y, en altas, el soporte de sección. */
+function soportesDelCambio(c: CambioDTO, detalle: SolicitudDetalleDTO) {
+  const propios = detalle.soportes.filter(
+    (s) =>
+      s.seccion === c.seccion &&
+      ((c.entidadId && s.entidadId === c.entidadId) ||
+        (c.referencia && s.referencia === c.referencia)),
+  );
+  if (propios.length > 0) return propios;
+  return c.accion === "CREAR"
+    ? detalle.soportes.filter(
+        (s) => s.seccion === c.seccion && !s.entidadId && !s.referencia,
+      )
+    : [];
+}
+
 interface Props {
   detalle: SolicitudDetalleDTO;
   /** Quien decide: el servidor exige `bienestar.aprobar` y que no sea el propio solicitante. */
@@ -207,15 +223,49 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
             <FieldCompare
               key={c.id}
               id={idCampo}
-              etiqueta={`${nombreSeccion(c.seccion)} · ${etiquetaCampo(c.campo, c.entidadDestino)}`}
+              etiqueta={`${nombreSeccion(c.seccion)} · ${
+                c.accion === "ELIMINAR"
+                  ? "Quitar registro"
+                  : c.accion === "CREAR"
+                    ? `Nuevo registro${c.entidadDestino ? ` (${c.entidadDestino})` : ""}`
+                    : etiquetaCampo(c.campo, c.entidadDestino)
+              }`}
               actual={valorActualDe(c, nombres)}
               propuesto={
-                c.campo === "profile"
-                  ? "Foto nueva (ver soportes)"
-                  : formatearValor(c.valorPropuesto, c.campo, nombres)
+                c.accion === "ELIMINAR"
+                  ? `Se propone quitar. Motivo: ${String((c.valorPropuesto as { motivo?: string } | null)?.motivo ?? "")}`
+                  : c.campo === "profile"
+                    ? "Foto nueva (ver soportes)"
+                    : formatearValor(c.valorPropuesto, c.campo, nombres)
               }
               diferencia={tipoDiferencia(c)}
               conflicto={c.conflicto}
+              documentos={
+                <div className="text-sm">
+                  <p className="font-medium">Documentos de este cambio</p>
+                  {(() => {
+                    const docs = soportesDelCambio(c, detalle);
+                    if (docs.length === 0)
+                      return <p className="text-muted-foreground">Sin documento asociado.</p>;
+                    return (
+                      <ul className="mt-1 flex flex-col gap-1">
+                        {docs.map((s) => (
+                          <li key={s.id}>
+                            <a
+                              href={s.urlArchivo}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary underline-offset-2 hover:underline"
+                            >
+                              {s.nombreOriginal || s.tipo} ({formatearTamano(s.tamanoBytes)})
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+                </div>
+              }
               decision={
                 esPendiente && puedeDecidir ? (
                   <fieldset className="flex flex-col gap-3">

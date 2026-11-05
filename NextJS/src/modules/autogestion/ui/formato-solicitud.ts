@@ -31,7 +31,9 @@ const CATALOGO_POR_CAMPO: Record<string, string> = {
   carrera_id: "carreras",
   mencion_id: "menciones",
   institucion_id: "instituciones",
-  parentesco_id: "parentescos",
+  capacitacion_id: "capacitaciones",
+  grupo_id: "gruposCapacitacion",
+  parentesco_id: "parentescosFamilia",
   relacion_id: "parentescos",
   sexo_id: "sexos",
 };

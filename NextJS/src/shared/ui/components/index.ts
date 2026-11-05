@@ -15,6 +15,7 @@ export * from "./alert-dialog";
 export * from "./aspect-ratio";
 export * from "./avatar";
 export * from "./badge";
+export * from "./boton-instalar-app";
 export * from "./breadcrumb";
 export * from "./button";
 export * from "./button-group";

@@ -22,14 +22,19 @@ from apps.autogestion.domain.ports.repo_solicitudes import (
     RepoSolicitudes,
 )
 from apps.autogestion.domain.services.validacion_cambios import (
+    campos_permitidos,
     mismo_valor,
     validar_estructura,
+    validar_motivo_eliminar,
     validar_registro_nuevo,
     validar_valor,
 )
 from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
 from apps.autogestion.domain.value_objects.secciones import (
+    CAMPO_ELIMINAR,
     CAMPO_REGISTRO_NUEVO,
+    DOCUMENTOS_EXIGIDOS,
+    MAX_CONTACTOS_EMERGENCIA,
     ORIGEN_ACTUALIZACION,
     TIPOS_SOPORTE_POR_SECCION,
     Accion,
@@ -69,12 +74,31 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
     entidad_id = str(item.entidad_id) if item.entidad_id not in (None, '') else None
     validar_estructura(item.seccion, item.entidad, accion, item.campo, entidad_id)
 
+    if accion is Accion.ELIMINAR:
+        _exigir_entidad_habilitada(solicitud, item.seccion, item.entidad)
+        if entidad_id is None or not lector.pertenece_al_trabajador(solicitud.cedula, item.entidad, entidad_id):
+            raise NotFoundError(f"El registro {entidad_id} de '{item.entidad}' no pertenece al trabajador.")
+        motivo = validar_motivo_eliminar(item.valor)
+        clave = (item.entidad, entidad_id, CAMPO_ELIMINAR)
+        if clave in ya_vistos:
+            raise ValidationError(f"Ya propuso quitar el registro {entidad_id} de '{item.entidad}'.")
+        ya_vistos.add(clave)
+        return CambioPropuesto(
+            id='', origen_tipo=ORIGEN_ACTUALIZACION, origen_id=solicitud.id, seccion=item.seccion,
+            accion=accion.value, entidad_destino=item.entidad, entidad_id=entidad_id, campo=CAMPO_ELIMINAR,
+            valor_anterior=lector.datos_registro(solicitud.cedula, item.entidad, entidad_id),
+            valor_propuesto={'motivo': motivo},
+        )
+
     if accion is Accion.CREAR:
         valor = validar_registro_nuevo(item.seccion, item.entidad, item.valor)
         for campo in valor:
             _exigir_campo_habilitado(solicitud, item.entidad, campo)
         lector.validar_referencias(valor)
-        clave = (item.entidad, None, CAMPO_REGISTRO_NUEVO, str(sorted(valor.items())))
+        referencia = (item.referencia or '').strip() or None
+        if referencia is not None and len(referencia) > 64:
+            raise ValidationError("La referencia del registro nuevo es demasiado larga.")
+        clave = (item.entidad, None, CAMPO_REGISTRO_NUEVO, referencia or str(sorted(valor.items())))
         anterior = None
     else:
         _exigir_campo_habilitado(solicitud, item.entidad, item.campo)
@@ -87,6 +111,7 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         anterior = lector.valor_actual(solicitud.cedula, item.entidad, entidad_id, item.campo)
         if mismo_valor(item.campo, valor, anterior):
             return None  # sin diferencia real: no se propone
+        referencia = None
         clave = (item.entidad, entidad_id, item.campo)
     if clave in ya_vistos:
         raise ValidationError(f"Cambio repetido para '{item.entidad}.{item.campo}'.")
@@ -94,8 +119,17 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
     return CambioPropuesto(
         id='', origen_tipo=ORIGEN_ACTUALIZACION, origen_id=solicitud.id, seccion=item.seccion,
         accion=accion.value, entidad_destino=item.entidad, entidad_id=entidad_id, campo=item.campo,
-        valor_anterior=anterior, valor_propuesto=valor,
+        valor_anterior=anterior, valor_propuesto=valor, referencia=referencia,
     )
+
+
+def _exigir_entidad_habilitada(solicitud: SolicitudActualizacion, seccion: str, entidad: str) -> None:
+    """Para QUITAR basta con que se haya habilitado al menos un campo de la entidad."""
+    permitidos = campos_permitidos(seccion, entidad)
+    if not any(clave_campo(entidad, c) in solicitud.campos_habilitados for c in permitidos):
+        raise ValidationError(
+            f"Ningún campo de '{entidad}' fue solicitado ni habilitado en esta solicitud."
+        )
 
 
 def guardar_borrador(
@@ -110,8 +144,26 @@ def guardar_borrador(
         raise ValidationError(f"Máximo {MAX_CAMBIOS} cambios por solicitud.")
     vistos: set = set()
     cambios = [c for c in (_preparar_cambio(i, solicitud, lector, vistos) for i in items) if c is not None]
+    _validar_limite_contactos(solicitud.cedula, cambios, lector)
     repo_cambios.reemplazar(ORIGEN_ACTUALIZACION, solicitud.id, cambios, conservar_secciones=(Seccion.FOTO.value,))
     return repo.guardar(solicitud, solicitud.version)  # sube la versión: el borrador cambió
+
+
+def _validar_limite_contactos(cedula: str, cambios: list[CambioPropuesto], lector: LectorFicha) -> None:
+    """El trabajador no puede quedar con más de `MAX_CONTACTOS_EMERGENCIA` contactos."""
+    del_contacto = [
+        c for c in cambios if c.entidad_destino == 'contacto_emergencia' and c.accion == Accion.ELIMINAR.value
+    ]
+    nuevos = [
+        c for c in cambios if c.entidad_destino == 'contacto_emergencia' and c.accion == Accion.CREAR.value
+    ]
+    if not del_contacto and not nuevos:
+        return
+    vigentes = lector.contar_registros(cedula, 'contacto_emergencia')
+    if vigentes - len(del_contacto) + len(nuevos) > MAX_CONTACTOS_EMERGENCIA:
+        raise ValidationError(
+            f"Puede registrar como máximo {MAX_CONTACTOS_EMERGENCIA} contactos de emergencia."
+        )
 
 
 def adjuntar_soporte(
@@ -119,6 +171,7 @@ def adjuntar_soporte(
     lector: LectorFicha, almacen: FileStorage,
     *, solicitud_id: str, cedula: str, seccion: str, tipo: str, contenido: bytes, mime: str,
     extension: str, nombre_original: str, ahora: datetime,
+    entidad_id: str | None = None, referencia: str | None = None,
 ) -> SoporteDocumental:
     """Sube el soporte (o la foto) a SeaweedFS y lo vincula a la sección. La foto crea el cambio `profile`."""
     solicitud = obtener_solicitud_propia(repo, solicitud_id, cedula, bloquear=True)
@@ -148,6 +201,7 @@ def adjuntar_soporte(
         id='', origen_tipo=ORIGEN_ACTUALIZACION, origen_id=solicitud.id, seccion=seccion, tipo=tipo_enum.value,
         clave_s3=clave, mime_real=mime, tamano_bytes=len(contenido), sha256=hashlib.sha256(contenido).hexdigest(),
         nombre_original=(nombre_original or '')[:200], subido_por=cedula,
+        entidad_id=(entidad_id or None), referencia=(referencia or None),
     ))
     if es_foto:
         repo_cambios.guardar(CambioPropuesto(
@@ -177,7 +231,7 @@ def eliminar_soporte(
 
 def enviar_solicitud(
     repo: RepoSolicitudes, repo_cambios: RepoCambiosPropuestos, repo_soportes: RepoSoportes,
-    repo_secciones: RepoSecciones, publicador: PublicadorEventos,
+    repo_secciones: RepoSecciones, publicador: PublicadorEventos, lector: LectorFicha,
     *, solicitud_id: str, cedula: str, version: int | None, ahora: datetime,
 ) -> SolicitudActualizacion:
     """Cierra la ventana: valida que haya cambios y los soportes obligatorios de cada sección con cambios."""
@@ -190,9 +244,12 @@ def enviar_solicitud(
     soportes = repo_soportes.listar(ORIGEN_ACTUALIZACION, solicitud.id)
     con_soporte = {s.seccion for s in soportes}
     exigen = {s.codigo for s in repo_secciones.listar(solo_activas=False) if s.requiere_soporte}
-    faltan = sorted({c.seccion for c in cambios if c.seccion in exigen and c.seccion not in con_soporte})
+    # QUITAR no exige documento: solo cuentan las secciones con altas o correcciones.
+    con_cambio_documentado = {c.seccion for c in cambios if c.accion != Accion.ELIMINAR.value}
+    faltan = sorted(con_cambio_documentado & exigen - con_soporte)
     if faltan:
         raise ValidationError(f"Falta el soporte obligatorio en: {', '.join(faltan)}.")
+    _validar_documentos_por_registro(cambios, soportes, lector)
     guardada = repo.guardar(enviada, solicitud.version)
     reenvio = solicitud.estado is EstadoSolicitud.DEVUELTA
     publicador.publicar(EventoAutogestion(
@@ -201,3 +258,66 @@ def enviar_solicitud(
         {'secciones': sorted({c.seccion for c in cambios}), 'cambios': len(cambios), 'fecha': ahora.isoformat()},
     ))
     return guardada
+
+
+def _soportes_del_cambio(cambio: CambioPropuesto, soportes: list[SoporteDocumental]) -> list[SoporteDocumental]:
+    """Soportes asociados al registro concreto (por id o por la referencia temporal del nuevo)."""
+    propios = [
+        s for s in soportes
+        if s.seccion == cambio.seccion and (
+            (cambio.entidad_id and s.entidad_id == cambio.entidad_id)
+            or (cambio.referencia and s.referencia == cambio.referencia)
+        )
+    ]
+    if propios:
+        return propios
+    # Compatibilidad: un soporte de sección sin registro solo respalda altas (CREAR).
+    if cambio.accion == Accion.CREAR.value:
+        return [s for s in soportes if s.seccion == cambio.seccion and not s.entidad_id and not s.referencia]
+    return []
+
+
+def _documentos_exigidos(cambio: CambioPropuesto, lector: LectorFicha) -> list[frozenset[TipoSoporte]]:
+    """Tipos de documento que respaldan este cambio (cada elemento exige al menos un soporte)."""
+    if cambio.accion == Accion.ELIMINAR.value:
+        return []
+    if cambio.entidad_destino == 'familiar':
+        valores = cambio.valor_propuesto if isinstance(cambio.valor_propuesto, dict) else {}
+        exigidos: list[frozenset[TipoSoporte]] = []
+        es_hijo = lector.es_parentesco_hijo(valores.get('parentesco_id')) if cambio.accion == Accion.CREAR.value \
+            else (cambio.campo == 'parentesco_id' and lector.es_parentesco_hijo(valores))
+        if cambio.accion == Accion.CREAR.value:
+            if es_hijo:
+                exigidos.append(frozenset({TipoSoporte.ACTA_NACIMIENTO}))
+            if valores.get('cedula_familiar'):
+                exigidos.append(frozenset({TipoSoporte.CEDULA}))
+            if not exigidos:
+                exigidos.append(frozenset({TipoSoporte.ACTA_NACIMIENTO, TipoSoporte.CONSTANCIA}))
+        elif cambio.campo == 'cedula_familiar':
+            exigidos.append(frozenset({TipoSoporte.CEDULA}))
+        elif cambio.campo == 'parentesco_id':
+            exigidos.append(frozenset(
+                {TipoSoporte.ACTA_NACIMIENTO} if es_hijo
+                else {TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}
+            ))
+        return exigidos
+    tipos = DOCUMENTOS_EXIGIDOS.get((cambio.entidad_destino, cambio.accion))
+    return [tipos] if tipos else []
+
+
+def _validar_documentos_por_registro(
+    cambios: list[CambioPropuesto], soportes: list[SoporteDocumental], lector: LectorFicha,
+) -> None:
+    """Cada cambio que lo exige debe tener su documento (por registro, con respaldo por sección)."""
+    faltantes: list[str] = []
+    for cambio in cambios:
+        for tipos in _documentos_exigidos(cambio, lector):
+            propios = _soportes_del_cambio(cambio, soportes)
+            if not any(s.tipo in tipos for s in propios):
+                nombres = ', '.join(sorted(t.value for t in tipos))
+                registro = cambio.entidad_id or cambio.referencia or 'nuevo'
+                faltantes.append(f"{cambio.entidad_destino} ({registro}): {nombres}")
+    if faltantes:
+        raise ValidationError(
+            "Falta el documento que respalde: " + '; '.join(sorted(set(faltantes))) + '.'
+        )

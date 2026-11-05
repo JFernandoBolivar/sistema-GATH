@@ -62,6 +62,7 @@ export const repoPasivosApi: RepoPasivos = {
       motivo_movimiento_id: input.motivoMovimientoId,
       tipo_nomina_id: input.tipoNominaId,
       liberar_activos: input.liberarActivos,
+      ...(input.fechaEgreso ? { fecha_egreso: input.fechaEgreso } : {}),
     });
     return pasivoApiAEntidad(raw);
   },

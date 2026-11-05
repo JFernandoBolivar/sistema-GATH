@@ -77,7 +77,8 @@ CATEGORIA_POR_OPERACION: dict[Operacion, CategoriaMotivo] = {
 CATEGORIAS_FALLECIMIENTO: frozenset[str] = frozenset({CategoriaMotivo.EGRESO_PASIVO.value, 'FALLECIMIENTO'})
 
 # Motivos que el sistema asigna solo (no los elige el usuario). Se buscan por nombre
-# exacto dentro de la categoría INGRESO; una migración de datos garantiza que existan.
+# exacto dentro de la categoría PASE A PASIVO (D13); una migración de datos garantiza
+# que existan y que no queden copias en INGRESO.
 MOTIVO_SISTEMA_JUBILACION = 'JUBILACION DE DERECHO'
 MOTIVO_SISTEMA_PENSION_INVALIDEZ = 'PENSION DE INVALIDEZ'
 MOTIVO_SISTEMA_PENSION_SOBREVIVIENTE = 'PENSION POR SOBREVIVIENTE'

@@ -4,6 +4,7 @@ devuelve una copia y valida la máquina de estados y la regla de doble check. Si
 """
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from enum import Enum
 
 from apps.fe_de_vida.domain.value_objects.estados import (
     ESTADOS_EDITABLES,
@@ -18,6 +19,11 @@ from apps.fe_de_vida.domain.value_objects.estados import (
 from apps.fe_de_vida.domain.services.validacion_motivo import validar_motivo
 from core.domain.exceptions import ConflictError, ValidationError
 
+class Canal(str, Enum):
+    EN_LINEA = 'EN_LINEA'
+    PRESENCIAL = 'PRESENCIAL'
+
+
 MENSAJE_YA_DIO_CHECK = "Usted ya aprobó esta fe de vida; la siguiente revisión corresponde a otra persona."
 
 ACCION_CHECK = 'dar_check'
@@ -25,6 +31,8 @@ ACCION_APROBAR_DIRECTO = 'aprobar_directo'
 ACCION_DEVOLVER = 'devolver'
 ACCION_RECHAZAR = 'rechazar'
 ACCION_RETIRAR_CHECK = 'retirar_check'
+ACCION_REENVIAR_CONSTANCIA = 'reenviar_constancia'
+ACCION_REGENERAR_CONSTANCIA = 'regenerar_constancia'
 
 
 @dataclass(frozen=True)
@@ -64,6 +72,9 @@ class SolicitudFeDeVida:
     proceso_id: str
     cedula: str
     estado: EstadoSolicitud = EstadoSolicitud.BORRADOR
+    canal: str = 'EN_LINEA'
+    registrada_por: str = ''
+    registrada_por_cedula: str = ''
     version: int = 1
     envios: int = 0
     origen_evidencia: OrigenEvidencia | None = None
@@ -103,12 +114,19 @@ class SolicitudFeDeVida:
     def dio_check(self, cedula: str) -> bool:
         return any(d.actor_cedula == cedula for d in self.checks_vigentes())
 
-    def acciones_disponibles(self, actor: ActorRevision, permisos: PermisosRevision) -> tuple[str, ...]:
+    def acciones_disponibles(
+        self, actor: ActorRevision, permisos: PermisosRevision, *, registrador_puede_checar: bool = False,
+    ) -> tuple[str, ...]:
         """
         Acciones que `actor` puede ejecutar hoy sobre la solicitud (la regla vive aquí; la interfaz solo las pinta).
         Quien ya dio su check no puede dar otro, devolver ni rechazar: solo retirarlo o, si es la Administradora,
-        aprobar de forma directa. Nadie revisa su propia fe de vida.
+        aprobar de forma directa. Nadie revisa su propia fe de vida. Si es presencial y el registrador no puede
+        checar, quien la registró no puede dar check.
         """
+        if self.estado is EstadoSolicitud.VALIDADA:
+            if permisos.revisar:
+                return (ACCION_REENVIAR_CONSTANCIA, ACCION_REGENERAR_CONSTANCIA)
+            return ()
         if not self.revisable or actor.cedula == self.cedula:
             return ()
         if self.dio_check(actor.cedula):
@@ -117,7 +135,17 @@ class SolicitudFeDeVida:
                 acciones.insert(0, ACCION_APROBAR_DIRECTO)
             return tuple(acciones)
         acciones = []
-        if permisos.check and not any(d.rol is actor.rol for d in self.checks_vigentes()):
+        es_registrador = (
+            self.canal == 'PRESENCIAL'
+            and bool(self.registrada_por_cedula)
+            and self.registrada_por_cedula == actor.cedula
+        )
+        puede_check = (
+            permisos.check
+            and not any(d.rol is actor.rol for d in self.checks_vigentes())
+            and not (es_registrador and not registrador_puede_checar)
+        )
+        if puede_check:
             acciones.append(ACCION_CHECK)
         if permisos.aprobar_directo and actor.rol is RolRevision.ADMINISTRADORA:
             acciones.append(ACCION_APROBAR_DIRECTO)
@@ -155,12 +183,21 @@ class SolicitudFeDeVida:
         if actor.cedula == self.cedula:
             raise ConflictError("No puede revisar su propia fe de vida.")
 
-    def dar_check(self, actor: ActorRevision, ahora: datetime) -> 'SolicitudFeDeVida':
+    def dar_check(
+        self, actor: ActorRevision, ahora: datetime, *, registrador_puede_checar: bool = False,
+    ) -> 'SolicitudFeDeVida':
         """
         Doble check, orden indistinto. El primero deja la solicitud en PENDIENTE_SEGUNDO_CHECK; el segundo,
         de la OTRA persona y del OTRO rol, la valida. Un check solo nunca valida (la Analista no valida sola).
         """
         self._exigir_revisable(actor)
+        if (
+            self.canal == 'PRESENCIAL'
+            and bool(self.registrada_por_cedula)
+            and self.registrada_por_cedula == actor.cedula
+            and not registrador_puede_checar
+        ):
+            raise ConflictError("Quien registró la fe de vida presencial no puede dar el check de revisión.")
         previos = self.checks_vigentes()
         if any(d.actor_cedula == actor.cedula for d in previos):
             raise ConflictError(MENSAJE_YA_DIO_CHECK)

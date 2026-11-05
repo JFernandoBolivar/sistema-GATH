@@ -309,7 +309,20 @@ export function CambiarCargoPage() {
           });
           toast.error(response.errores && sinUbicar.length === 0 ? "Revise los campos marcados en rojo." : response.error);
         } else {
-          toast.success("Traslado realizado correctamente.");
+          const pc = (response as { puntoCuenta?: { id?: number | string; numero?: string } } | null | undefined)?.puntoCuenta;
+          if (pc?.id) {
+            toast.success(`Se generó el punto de cuenta N.º ${pc.numero || pc.id}`, {
+              action: {
+                label: "Descargar PDF",
+                onClick: () => {
+                  window.open(`/api/puntocuenta/${pc.id}/pdf`, "_blank");
+                },
+              },
+              duration: 10000,
+            });
+          } else {
+            toast.success("Traslado realizado correctamente.");
+          }
           formChangeCode.reset({
             code_old: 0,
             nuevo_cargo_id: 0,

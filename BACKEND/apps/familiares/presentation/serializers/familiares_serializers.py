@@ -27,7 +27,7 @@ from apps.familiares.infrastructure.modelos_externos import (
 
 
 # Longitudes (mismas que `schema-familiar.ts` en NextJS).
-CEDULA_MIN, CEDULA_MAX = 6, 9
+CEDULA_MIN, CEDULA_MAX = 5, 9
 NOMBRE_MIN, NOMBRE_MAX = 2, 60
 OBSERVACIONES_MAX = 500
 
@@ -216,6 +216,14 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
         excluir_id = self.instance.pk if self.instance else None
         cedula_familiar = (attrs.get('cedula_familiar') or '').strip() or None
         toca_identidad = not self.partial or {'cedula_familiar', 'parentesco_id', 'fecha_nacimiento'} & set(attrs.keys())
+
+        parentesco_id = attrs.get('parentesco_id')
+        if parentesco_id is not None:
+            parentesco = ParentescoModel.objects.filter(pk=parentesco_id).first()
+            if parentesco and not getattr(parentesco, 'aplica_familiar', True):
+                raise serializers.ValidationError(
+                    {'parentesco': 'El parentesco seleccionado no está permitido para familiares.'}
+                )
 
         if cedula_familiar or toca_identidad:
             parentesco_id = attrs.get('parentesco_id')

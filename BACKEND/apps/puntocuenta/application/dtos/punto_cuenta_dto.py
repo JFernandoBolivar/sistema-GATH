@@ -1,10 +1,11 @@
 """DTOs de Punto de Cuenta (Regla B2)."""
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
 class PuntoCuentaDTO:
-    id: int
+    id: Any
     cargo_id: int
     empleado_cedula: str
     empleado_nombre: str | None
@@ -22,3 +23,14 @@ class PuntoCuentaDTO:
     oficina_origen: str | None = None
     oficina_destino_id: int | None = None
     oficina_destino: str | None = None
+    division_origen_id: int | None = None
+    division_origen: str | None = None
+    division_destino_id: int | None = None
+    division_destino: str | None = None
+    numero: str | None = None
+    anio: int | None = None
+    secuencia: int | None = None
+    cargo_codigo: str | None = None
+    cargo_nombre: str | None = None
+    configuracion_version: int | None = None
+    snapshot_formato: dict | None = None

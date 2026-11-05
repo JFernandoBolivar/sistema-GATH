@@ -22,8 +22,11 @@ from apps.personal.infrastructure.models.expediente_models import (
     ContactoEmergenciaModel,
     DatosViviendaModel,
     FormacionAcademicaModel,
+    FormacionComplementariaModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from apps.personal.infrastructure.models.catalogos_soporte_models import CapacitacionModel, GrupoCapacitacionModel
+from apps.catalogos.infrastructure.models.catalogo_models import TipoProcedenciaModel
 from core.domain.exceptions import ValidationError
 
 _CATALOGOS = {
@@ -31,7 +34,8 @@ _CATALOGOS = {
     'condicion_vivienda_id': CondicionViviendaModel, 'codigo_postal_id': CodigoPostalModel,
     'nivel_academico_id': NivelAcademicoModel, 'carrera_id': CarreraModel, 'mencion_id': MencionModel,
     'institucion_id': InstitucionModel, 'parentesco_id': ParentescoModel, 'sexo_id': SexoModel,
-    'relacion_id': ParentescoModel,
+    'relacion_id': ParentescoModel, 'capacitacion_id': CapacitacionModel,
+    'grupo_id': GrupoCapacitacionModel, 'procedencia_id': TipoProcedenciaModel,
 }
 _ALIAS_FAMILIAR = {'cedula_familiar': 'cedulaFamiliar', 'fecha_nacimiento': 'fechanacimiento'}
 
@@ -56,6 +60,8 @@ class LectorFichaORM:
             return None
         if entidad == 'formacion_academica':
             return FormacionAcademicaModel.objects.filter(pk=pk, empleado__cedulaidentidad=cedula).first()
+        if entidad == 'formacion_complementaria':
+            return FormacionComplementariaModel.objects.filter(pk=pk, empleado__cedulaidentidad=cedula).first()
         if entidad == 'contacto_emergencia':
             return ContactoEmergenciaModel.objects.filter(pk=pk, empleado__cedulaidentidad=cedula).first()
         if entidad == 'familiar':
@@ -76,8 +82,41 @@ class LectorFichaORM:
     def existe_registro_unico(self, cedula, entidad) -> bool:
         return self._registro(cedula, entidad, None) is not None
 
+    def contar_registros(self, cedula: str, entidad: str) -> int:
+        """Cuántos registros de `entidad` tiene hoy el trabajador (para límites como 3 contactos)."""
+        if entidad == 'contacto_emergencia':
+            return ContactoEmergenciaModel.objects.filter(empleado__cedulaidentidad=cedula).count()
+        if entidad == 'formacion_academica':
+            return FormacionAcademicaModel.objects.filter(empleado__cedulaidentidad=cedula).count()
+        if entidad == 'formacion_complementaria':
+            return FormacionComplementariaModel.objects.filter(empleado__cedulaidentidad=cedula).count()
+        if entidad == 'familiar':
+            return EmployeefamilyModel.objects.filter(employeecedula_id=cedula).count()
+        return 0
+
+    def datos_registro(self, cedula: str, entidad: str, entidad_id: str | None) -> dict:
+        """Resumen de los valores del registro (para mostrar el «antes» de un QUITAR)."""
+        fila = self._registro(cedula, entidad, entidad_id)
+        if fila is None:
+            return {}
+        resultado = {}
+        for campo in ('nombres', 'apellidos', 'primer_nombre', 'primer_apellido', 'cedulaFamiliar',
+                      'fechaInicio', 'fechaFin', 'nivel_academico_id', 'capacitacion_id'):
+            valor = getattr(fila, campo, None)
+            if valor is not None:
+                resultado[campo] = valor.isoformat() if isinstance(valor, date) else valor
+        return resultado
+
     def validar_referencias(self, valores: dict) -> None:
         for campo, valor in valores.items():
             modelo = _CATALOGOS.get(campo)
             if modelo is not None and valor is not None and not modelo.objects.filter(pk=valor).exists():
                 raise ValidationError(f"El valor {valor} de '{campo}' no existe en su catálogo.")
+
+    def es_parentesco_hijo(self, parentesco_id) -> bool:
+        if parentesco_id is None:
+            return False
+        nombre = ParentescoModel.objects.filter(pk=parentesco_id).values_list(
+            'descripcion_parentesco', flat=True,
+        ).first() or ''
+        return nombre.upper().startswith('HIJO')

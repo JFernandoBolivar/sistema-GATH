@@ -2,11 +2,16 @@
 Vistas de BIENESTAR SOCIAL (C5): bandeja, detalle con comparativo, foto (bytes por streaming), doble check,
 aprobación directa con justificación, rechazo y solicitud de repetición. Vistas delgadas; sin ORM.
 """
+from django.conf import settings
 from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.views import APIView
 
+from apps.fe_de_vida.application.use_cases.constancias import (
+    reenviar_constancia,
+    regenerar_constancia,
+)
 from apps.fe_de_vida.application.use_cases.consultas import (
     bandeja_revision,
     detalle_para_revision,
@@ -27,8 +32,10 @@ from apps.fe_de_vida.infrastructure.adaptadores_autogestion import (
     LectorValorActualORM,
     RepoCambiosActaORM,
 )
+from apps.fe_de_vida.infrastructure.pdf.constancia_pdf import GeneradorConstanciaPDF
 from apps.fe_de_vida.infrastructure.repositories.lector_ficha_pasivo_orm import LectorFichaPasivoORM
 from apps.fe_de_vida.infrastructure.repositories.lector_pasivos_orm import LectorPasivosORM
+from apps.fe_de_vida.infrastructure.repositories.repo_constancias_orm import RepoConstanciasORM
 from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesFeDeVidaORM
 from apps.fe_de_vida.infrastructure.signals import PublicadorSenales
@@ -39,6 +46,9 @@ from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     JustificacionSerializer,
     DevolverSerializer,
     MotivoSerializer,
+    ReenvioConstanciaRespuestaSerializer,
+    RegenerarConstanciaEntradaSerializer,
+    RegenerarConstanciaRespuestaSerializer,
     SolicitudSerializer,
     a_dict_revision,
     a_dict_solicitud,
@@ -53,7 +63,9 @@ from apps.fe_de_vida.presentation.views._comun import (
     resumen,
     validar_entrada,
 )
-from core.domain.exceptions import PermissionDeniedError
+from core.domain.configuracion import CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR
+from core.domain.exceptions import ConflictError, NotFoundError, PermissionDeniedError
+from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.presentation.archivos import respuesta_archivo
 from core.presentation.envelope import ok
@@ -63,6 +75,17 @@ from core.presentation.schema import MensajeRespuestaSerializer
 TAG = ['Fe de vida · Bienestar']
 ERRORES = {400: MensajeRespuestaSerializer, 403: MensajeRespuestaSerializer, 404: MensajeRespuestaSerializer,
            409: MensajeRespuestaSerializer}
+NOMBRE_CONSTANCIA = 'constancia-fe-de-vida.pdf'
+
+
+def _registrador_puede_checar() -> bool:
+    try:
+        lector = obtener_lector_configuracion()
+        if lector:
+            return lector.obtener_booleano(CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR)
+    except Exception:
+        pass
+    return False
 
 
 class BandejaView(APIView):
@@ -113,6 +136,7 @@ class DetalleRevisionView(APIView):
             RepoSolicitudesFeDeVidaORM(), RepoCambiosActaORM(), LectorValorActualORM(), LectorPasivosORM(),
             solicitud_id=str(solicitud_id), lector_ficha=LectorFichaPasivoORM() if permisos_revisor.revisar else None,
             actor=actor_revision(request), permisos=permisos_revisor, repo_procesos=RepoProcesosORM(),
+            registrador_puede_checar=_registrador_puede_checar(),
         )
         return ok(a_dict_revision(detalle))
 
@@ -157,6 +181,7 @@ class CheckView(APIView):
             previa = resumen(anterior) if anterior else None
             solicitud = dar_check(
                 repo, AplicadorCambiosActaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id), actor=actor, ahora=ahora(),
+                registrador_puede_checar=_registrador_puede_checar(),
             )
             auditar(request, 'CHECK_DADO', solicitud.id, previa, {**resumen(solicitud), 'rol': actor.rol.value})
         return ok(a_dict_solicitud(solicitud), 'Check registrado.')
@@ -244,3 +269,127 @@ class DevolverView(APIView):
             auditar(request, 'SOLICITUD_DEVUELTA', solicitud.id, None,
                     {**resumen(solicitud), 'motivo': datos['motivo'], 'requiere_nueva_foto': datos['requiere_nueva_foto']})
         return ok(a_dict_solicitud(solicitud), 'Fe de vida devuelta para corrección.')
+
+
+class ReenviarConstanciaView(APIView):
+    permission_classes = permisos.permisos_bienestar(permisos.REVISAR)
+
+    @extend_schema(
+        tags=TAG, summary='Reenviar la constancia de fe de vida por correo',
+        description='Reenvía el PDF al correo de acceso del pasivo (+ copia al alternativo si es distinto). Límite de 3 reenvíos por día.',
+        request=None,
+        responses={200: ReenvioConstanciaRespuestaSerializer, **ERRORES},
+    )
+    def post(self, request, solicitud_id):
+        notificador = obtener_notificador()
+        if notificador is None:
+            raise ConflictError("Servicio de notificaciones no disponible.")
+        with transaction.atomic():
+            resultado = reenviar_constancia(
+                RepoSolicitudesFeDeVidaORM(), RepoConstanciasORM(), RepoProcesosORM(),
+                LectorPasivosORM(), notificador,
+                solicitud_id=str(solicitud_id), actor_cedula=cedula_de_sesion(request), ahora=ahora(),
+            )
+            auditar(
+                request, 'CONSTANCIA_REENVIADA', resultado['numero'],
+                nuevo={
+                    'solicitud_id': str(solicitud_id),
+                    'destinatario': resultado['destinatario'],
+                    'copia': resultado['copia'],
+                    'reenvios_hoy': resultado['reenvios_hoy'],
+                },
+                recurso_tipo='ConstanciaFeDeVida',
+            )
+        msg = f"Constancia reenviada a {resultado['destinatario_enmascarado']}"
+        if resultado.get('copia_enmascarada'):
+            msg += f" (con copia a {resultado['copia_enmascarada']})"
+        return ok(resultado, msg)
+
+
+class RegenerarConstanciaView(APIView):
+    permission_classes = permisos.permisos_bienestar(permisos.REVISAR)
+
+    @extend_schema(
+        tags=TAG, summary='Regenerar la constancia de fe de vida (PDF)',
+        description='Regenera el PDF con el MISMO número y código de verificación, plantilla y URL vigentes. Admite opción de reenviar.',
+        request=RegenerarConstanciaEntradaSerializer,
+        responses={200: RegenerarConstanciaRespuestaSerializer, **ERRORES},
+    )
+    def post(self, request, solicitud_id):
+        datos = validar_entrada(RegenerarConstanciaEntradaSerializer, request.data)
+        reenviar = datos.get('reenviar', False)
+        with transaction.atomic():
+            constancia = regenerar_constancia(
+                RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), RepoConstanciasORM(),
+                LectorPasivosORM(), GeneradorConstanciaPDF(), SeaweedFSStorage(),
+                solicitud_id=str(solicitud_id), url_verificacion_base=settings.FE_DE_VIDA_URL_VERIFICACION,
+                ahora=ahora(),
+            )
+            auditar(
+                request, 'CONSTANCIA_REGENERADA', constancia.numero,
+                nuevo={
+                    'solicitud_id': str(solicitud_id),
+                    'plantilla_version': constancia.plantilla_version,
+                    'reenviar': reenviar,
+                },
+                recurso_tipo='ConstanciaFeDeVida',
+            )
+            reenvio_res = None
+            if reenviar:
+                notificador = obtener_notificador()
+                if notificador is None:
+                    raise ConflictError("Servicio de notificaciones no disponible.")
+                reenvio_res = reenviar_constancia(
+                    RepoSolicitudesFeDeVidaORM(), RepoConstanciasORM(), RepoProcesosORM(),
+                    LectorPasivosORM(), notificador,
+                    solicitud_id=str(solicitud_id), actor_cedula=cedula_de_sesion(request), ahora=ahora(),
+                )
+                auditar(
+                    request, 'CONSTANCIA_REENVIADA', constancia.numero,
+                    nuevo={
+                        'solicitud_id': str(solicitud_id),
+                        'destinatario': reenvio_res['destinatario'],
+                        'copia': reenvio_res['copia'],
+                        'reenvios_hoy': reenvio_res['reenvios_hoy'],
+                    },
+                    recurso_tipo='ConstanciaFeDeVida',
+                )
+
+        respuesta = {
+            'numero': constancia.numero,
+            'plantilla_version': constancia.plantilla_version,
+            'reenviado': reenviar,
+            'destinatario_enmascarado': reenvio_res['destinatario_enmascarado'] if reenvio_res else None,
+            'copia_enmascarada': reenvio_res['copia_enmascarada'] if reenvio_res else None,
+            'reenvios_hoy': reenvio_res['reenvios_hoy'] if reenvio_res else None,
+        }
+        msg = 'Constancia regenerada exitosamente.'
+        if reenviar and reenvio_res:
+            msg += f" Reenviada a {reenvio_res['destinatario_enmascarado']}."
+        return ok(respuesta, msg)
+
+
+class ConstanciaBienestarView(APIView):
+    permission_classes = permisos.permisos_bienestar(
+        permisos.REVISAR, permisos.VER_PANEL, permisos.REGISTRAR_PRESENCIAL,
+    )
+
+    @extend_schema(
+        tags=TAG, summary='Descargar / Imprimir constancia de fe de vida (PDF)',
+        description='Descarga o abre el PDF de la constancia de una solicitud VALIDADA para su impresión física.',
+        responses={200: OpenApiTypes.BINARY, **ERRORES},
+    )
+    def get(self, request, solicitud_id):
+        repo_sol = RepoSolicitudesFeDeVidaORM()
+        solicitud = repo_sol.obtener(str(solicitud_id))
+        if solicitud is None:
+            raise NotFoundError("La solicitud de fe de vida no existe.")
+        constancia = RepoConstanciasORM().obtener_de_solicitud(solicitud.id)
+        if constancia is None or not constancia.clave_pdf:
+            raise NotFoundError("La constancia aún no está disponible.")
+        auditar(request, 'CONSTANCIA_IMPRESA', str(solicitud_id), None, {'numero': constancia.numero})
+        respuesta = respuesta_archivo(SeaweedFSStorage(), constancia.clave_pdf, cache='private, no-store')
+        respuesta['Content-Disposition'] = f'inline; filename="{NOMBRE_CONSTANCIA}"'
+        return respuesta
+
+

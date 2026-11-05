@@ -37,6 +37,7 @@ def procesar_egreso(
         tipo_nomina_id=dto.tipo_nomina_id,
         liberar_activos=dto.liberar_activos,
         usuario_id=dto.usuario_id,
+        fecha_egreso=dto.fecha_egreso,
     )
     if dto.sobrevivientes_familiar_ids:
         # La nómina del titular no aplica al beneficiario: se usa la de

@@ -62,19 +62,26 @@ def _plural(n: int, singular: str, plural: str) -> str:
     return f"{n} {singular if n == 1 else plural}"
 
 
+def _apn_texto(valor: dict | None) -> str:
+    if not valor:
+        return "Sin datos"
+    return ", ".join([
+        _plural(valor['years'], 'año', 'años'),
+        _plural(valor['months'], 'mes', 'meses'),
+        _plural(valor['days'], 'día', 'días'),
+    ])
+
+
 def _total_apn_texto(dto: EmpleadoDTO) -> str:
-    """Años, meses y días exactos de los antecedentes cerrados, con la misma
-    función oficial que alimenta `total_anos_apn` (sin pasar por decimales)."""
+    """Total APN oficial: ciclos cerrados + CONATEL en curso (O8)."""
+    if dto.apn_total:
+        return _apn_texto(dto.apn_total)
     periodos = [
         SimpleNamespace(fecha_ingreso=_a_fecha(a.get('fecha_ingreso')), fecha_egreso=_a_fecha(a.get('fecha_egreso')))
         for a in (dto.antecedentes or []) if a
     ]
-    t = calcular_total_apn(periodos)
-    return ", ".join([
-        _plural(t['years'], 'año', 'años'),
-        _plural(t['months'], 'mes', 'meses'),
-        _plural(t['days'], 'día', 'días'),
-    ])
+    t = calcular_total_apn(periodos, fecha_corte=date.today())
+    return _apn_texto(t)
 
 
 def _fecha_ingreso_organismo(dto: EmpleadoDTO) -> str:
@@ -223,7 +230,14 @@ def construir_pdf_expediente_empleado(
     story += seccion('Antecedentes laborales', _tabla_o_vacio(
         ['#', 'Fecha de ingreso', 'Fecha de egreso', 'Organismo'], filas, [4, 16, 16, 64], ancho), ancho)
     story.append(Spacer(1, 6))
-    story.append(grilla([('Total APN', _total_apn_texto(dto))], ancho))
+    filas_apn = [
+        ('Antecedentes (ciclos cerrados)', _apn_texto(dto.apn_antecedentes)),
+        ('Tiempo en CONATEL (en curso)', _apn_texto(dto.apn_en_curso) if dto.apn_en_curso else 'Sin periodo en curso'),
+        ('Total APN', _total_apn_texto(dto)),
+    ]
+    if dto.apn_incompleto:
+        filas_apn.append(('Aviso', 'Fecha de ingreso pendiente: el total APN está incompleto.'))
+    story.append(grilla(filas_apn, ancho))
 
     if dto.encargadurias:
         filas = [

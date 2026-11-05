@@ -1,10 +1,17 @@
 """Motivos por categoría: listado por operación, alta («Otros…») y validación al ejecutar."""
+import importlib
+from types import SimpleNamespace
+
 import pytest
+from django.db import connection
 from rest_framework.test import APIClient
 
 from apps.catalogos.infrastructure.models.catalogo_models import CategoriaMovimientoModel, TipoMovimientoModel
-from apps.catalogos.infrastructure.repositories.motivos_por_categoria import obtener_motivo_de_operacion
-from core.domain.categorias_motivo import Operacion
+from apps.catalogos.infrastructure.repositories.motivos_por_categoria import (
+    obtener_motivo_de_operacion,
+    obtener_motivo_de_sistema,
+)
+from core.domain.categorias_motivo import MOTIVO_SISTEMA_JUBILACION, Operacion
 from core.domain.exceptions import ValidationError
 
 pytestmark = pytest.mark.django_db
@@ -81,3 +88,88 @@ def test_obtener_motivo_valida_la_categoria_y_marca_el_campo(motivos):
     with pytest.raises(ValidationError) as exc:
         obtener_motivo_de_operacion(fallecimiento.pk, Operacion.CAMBIAR_CARGO)
     assert exc.value.campo == 'motivo_id'
+
+
+# ---------------------------------------------------------------------------
+# D13: motivos del sistema en PASE A PASIVO y migración de duplicados
+# ---------------------------------------------------------------------------
+
+def _migracion():
+    return importlib.import_module('core.migrations.0012_motivos_pase_a_pasivo')
+
+
+def _aplicar_migracion():
+    _migracion().ajustar(None, SimpleNamespace(connection=connection))
+
+
+@pytest.fixture
+def categorias_pase():
+    return {
+        'egreso': CategoriaMovimientoModel.objects.create(categoria='EGRESO'),
+        'ingreso': CategoriaMovimientoModel.objects.create(categoria='INGRESO'),
+        'pase': CategoriaMovimientoModel.objects.create(categoria='PASE A PASIVO'),
+    }
+
+
+def test_migracion_mueve_el_original_y_reasigna_las_fk_del_duplicado(categorias_pase):
+    original = TipoMovimientoModel.objects.create(
+        movimiento='JUBILACION DE DERECHO', categoria=categorias_pase['egreso'],
+    )
+    duplicado = TipoMovimientoModel.objects.create(
+        movimiento='JUBILACION DE DERECHO', categoria=categorias_pase['ingreso'],
+    )
+    with connection.cursor() as c:
+        c.execute(
+            'CREATE TABLE tmp_ref_motivo '
+            '(id serial primary key, motivo_id int REFERENCES "Tipo_movimiento"(id))'
+        )
+        c.execute('INSERT INTO tmp_ref_motivo (motivo_id) VALUES (%s)', [duplicado.pk])
+
+    _aplicar_migracion()
+
+    original.refresh_from_db()
+    assert original.categoria_id == categorias_pase['pase'].pk
+    assert not TipoMovimientoModel.objects.filter(pk=duplicado.pk).exists()
+    with connection.cursor() as c:
+        c.execute('SELECT motivo_id FROM tmp_ref_motivo')
+        assert c.fetchone()[0] == original.pk
+        c.execute('DROP TABLE tmp_ref_motivo')
+
+
+def test_migracion_mueve_el_de_ingreso_si_no_hay_original_en_egreso(categorias_pase):
+    solo_ingreso = TipoMovimientoModel.objects.create(
+        movimiento='PENSION DE INVALIDEZ', categoria=categorias_pase['ingreso'],
+    )
+
+    _aplicar_migracion()
+
+    solo_ingreso.refresh_from_db()
+    assert solo_ingreso.categoria_id == categorias_pase['pase'].pk
+    assert TipoMovimientoModel.objects.filter(pk=solo_ingreso.pk).exists()
+
+
+def test_migracion_es_idempotente(categorias_pase):
+    TipoMovimientoModel.objects.create(
+        movimiento='PENSION POR SOBREVIVIENTE', categoria=categorias_pase['ingreso'],
+    )
+
+    _aplicar_migracion()
+    _aplicar_migracion()
+
+    filas = TipoMovimientoModel.objects.filter(movimiento='PENSION POR SOBREVIVIENTE')
+    assert filas.count() == 1
+    assert filas.first().categoria_id == categorias_pase['pase'].pk
+
+
+def test_motivo_de_sistema_se_busca_en_pase_a_pasivo(categorias_pase):
+    en_ingreso = TipoMovimientoModel.objects.create(
+        movimiento=MOTIVO_SISTEMA_JUBILACION, categoria=categorias_pase['ingreso'],
+    )
+    en_pase = TipoMovimientoModel.objects.create(
+        movimiento=MOTIVO_SISTEMA_JUBILACION, categoria=categorias_pase['pase'],
+    )
+
+    encontrado = obtener_motivo_de_sistema(MOTIVO_SISTEMA_JUBILACION)
+
+    assert encontrado.pk == en_pase.pk
+    assert encontrado.pk != en_ingreso.pk

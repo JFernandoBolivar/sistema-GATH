@@ -32,6 +32,11 @@ export interface EmpleadoApiItem {
   nacionalidad_codigo?: string | null;
   nacionalidad_nombre?: string | null;
   total_anos_apn: number;
+  apn_antecedentes?: { years: number; months: number; days: number } | null;
+  apn_en_curso?: { years: number; months: number; days: number } | null;
+  apn_total?: { years: number; months: number; days: number } | null;
+  apn_incompleto?: boolean;
+  fecha_ingreso_apn?: string | null;
   datos_vivienda: Record<string, unknown> | null;
   perfil_salud: Record<string, unknown> | null;
   perfil_fisico: Record<string, unknown> | null;
@@ -191,7 +196,11 @@ export const personalApi = {
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/organizacion/organismos-adscritos/")),
   getNacionalidades: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/nacionalidades/")),
-  getParentescos: () =>
-    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/parentescos/")),
+  getParentescos: (uso: "familiar" | "contacto" = "contacto") =>
+    list<CatalogoEmpleadoApiItem>(
+      apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/catalogos/parentescos/", {
+        params: { uso },
+      }),
+    ),
 };
 

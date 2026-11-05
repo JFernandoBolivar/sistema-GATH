@@ -58,10 +58,15 @@ def validar_motivo_opcional(motivo_id: int | None, operacion, campo: str = 'moti
 
 
 def obtener_motivo_de_sistema(nombre: str) -> TipoMovimientoModel | None:
-    """Motivo que el sistema asigna solo (nombre exacto) dentro de la categoría INGRESO."""
+    """Motivo que el sistema asigna solo (nombre exacto) dentro de PASE A PASIVO.
+
+    D13: estos motivos (jubilación, pensión de invalidez y pensión por
+    sobreviviente) son de pase a pasivo, no de ingreso.
+    """
     return (
         TipoMovimientoModel.objects.filter(
-            movimiento__iexact=nombre, categoria__categoria__iexact=CategoriaMotivo.INGRESO.value,
+            movimiento__iexact=nombre,
+            categoria__categoria__iexact=CategoriaMotivo.PASE_A_PASIVO.value,
         )
         .order_by('pk')
         .first()

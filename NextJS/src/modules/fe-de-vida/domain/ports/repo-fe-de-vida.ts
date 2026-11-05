@@ -3,13 +3,16 @@ import type {
   DetalleRevisionEntity,
   DetalleSolicitudEntity,
   EvidenciaImagenEntity,
+  InicioPresencialEntity,
   PaginaEntity,
+  PasivoPresencialEntity,
   ProcesoEntity,
   ProrrogaEntity,
   SolicitudEntity,
   TipoPensionEntity,
   VigenteEntity,
 } from "../entities/fe-de-vida";
+import type { ReenvioConstanciaDTO, RegenerarConstanciaDTO } from "../../application/dtos/fe-de-vida-dto";
 import type { OrigenEvidencia } from "../value-objects/estados";
 
 export interface PaginaPedida {
@@ -92,6 +95,8 @@ export interface RepoFeDeVida {
   aprobarDirecto(id: string, justificacion: string): Promise<SolicitudEntity>;
   devolver(id: string, motivo: string, requiereNuevaFoto: boolean): Promise<SolicitudEntity>;
   rechazar(id: string, motivo: string): Promise<SolicitudEntity>;
+  reenviarConstancia(id: string): Promise<ReenvioConstanciaDTO>;
+  regenerarConstancia(id: string, reenviar?: boolean): Promise<RegenerarConstanciaDTO>;
   // Procesos
   listarProcesos(f: FiltrosProcesos): Promise<PaginaEntity<ProcesoEntity>>;
   listarTiposPension(): Promise<TipoPensionEntity[]>;
@@ -103,4 +108,11 @@ export interface RepoFeDeVida {
   prorrogar(procesoId: string, d: DatosProrroga): Promise<ProrrogaEntity>;
   // Cobertura
   listarCobertura(f: FiltrosCobertura): Promise<PaginaEntity<CoberturaEntity>>;
+  // Presencial
+  buscarPasivosPresencial(f: { texto?: string } & PaginaPedida): Promise<PaginaEntity<PasivoPresencialEntity>>;
+  iniciarSolicitudPresencial(cedula: string): Promise<InicioPresencialEntity>;
+  guardarBorradorPresencial(id: string, cambios: CambioEntrada[]): Promise<DetalleSolicitudEntity>;
+  subirEvidenciaPresencial(id: string, evidencia: EvidenciaNueva): Promise<SolicitudEntity>;
+  enviarPresencial(id: string): Promise<SolicitudEntity>;
+  descargarConstanciaBienestar(id: string): Promise<Blob>;
 }

@@ -45,15 +45,16 @@ def borrador(m, sol, items, cedula=TRABAJADOR, ahora=AHORA):
     return guardar_borrador(m.solicitudes, m.cambios, m.ficha, solicitud_id=sol.id, cedula=cedula, items=items, version=None, ahora=ahora)
 
 
-def soporte(m, sol, seccion='formacion', tipo='TITULO', cedula=TRABAJADOR):
+def soporte(m, sol, seccion='formacion', tipo='TITULO', cedula=TRABAJADOR, entidad_id=None, referencia=None):
     return adjuntar_soporte(
         m.solicitudes, m.soportes, m.cambios, m.ficha, m.almacen, solicitud_id=sol.id, cedula=cedula, seccion=seccion,
         tipo=tipo, contenido=b'%PDF-1.4 x', mime='application/pdf', extension='.pdf', nombre_original='titulo.pdf', ahora=AHORA,
+        entidad_id=entidad_id, referencia=referencia,
     )
 
 
 def enviar(m, sol, cedula=TRABAJADOR):
-    return enviar_solicitud(m.solicitudes, m.cambios, m.soportes, m.secciones, m.publicador,
+    return enviar_solicitud(m.solicitudes, m.cambios, m.soportes, m.secciones, m.publicador, m.ficha,
                             solicitud_id=sol.id, cedula=cedula, version=None, ahora=AHORA)
 
 

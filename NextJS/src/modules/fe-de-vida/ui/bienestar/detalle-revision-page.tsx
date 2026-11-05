@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import useSWR from "swr";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2, Printer } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { PageHeader } from "@/shared/ui/components/page-header";
@@ -14,7 +15,10 @@ import { formatearValor } from "@/modules/autogestion/ui/formato-solicitud";
 import type { DetalleRevisionDTO } from "../../application/dtos/fe-de-vida-dto";
 import { oficinaDeAdscripcion } from "../../domain/services/reglas";
 import { PERMISOS_FE_DE_VIDA } from "../../domain/value-objects/estados";
-import { obtenerDetalleRevisionAction } from "../../infrastructure/actions/fe-de-vida-actions";
+import {
+  descargarConstanciaBienestarAction,
+  obtenerDetalleRevisionAction,
+} from "../../infrastructure/actions/fe-de-vida-actions";
 import { PRESENTACION_SOLICITUD } from "../comun/estado-ui";
 import { formatearFechaHora } from "../comun/formato";
 import { useSesionFeDeVida } from "../comun/use-sesion-fe-de-vida";
@@ -44,6 +48,10 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
     ["Tipo de pensión", asig?.tipoNomina ?? "Sin dato"],
     ["Oficina de adscripción", oficina ?? "Sin dato"],
     ["Proceso", procesoNombre || "Sin dato"],
+    ["Canal", solicitud.canal === "PRESENCIAL" ? "Presencial" : "En línea"],
+    ...(solicitud.canal === "PRESENCIAL" && solicitud.registradaPor
+      ? [["Registrada por", solicitud.registradaPor] as [string, string]]
+      : []),
     ["Fecha de envío", formatearFechaHora(solicitud.fechaEnvio)],
   ];
   return (
@@ -63,6 +71,7 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
 /** Revisión de una fe de vida: resumen, ficha completa con lo declarado, foto y decisión. */
 export default function DetalleRevisionPage({ id }: { id: string }) {
   const { puede } = useSesionFeDeVida();
+  const [imprimiendo, setImprimiendo] = useState(false);
   const { data, error, isLoading, mutate } = useSWR(["fe-de-vida-revision", id], async () => {
     const res = await obtenerDetalleRevisionAction(id);
     if (!res.ok) throw new Error(res.mensaje);
@@ -101,13 +110,60 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
   const { solicitud, acciones } = data;
   const p = PRESENTACION_SOLICITUD[solicitud.estado];
 
+  async function imprimirConstancia() {
+    setImprimiendo(true);
+    try {
+      const res = await descargarConstanciaBienestarAction(solicitud.id);
+      if (!res.ok) {
+        toast.error(res.mensaje);
+        return;
+      }
+      const byteCharacters = atob(res.datos);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      if (!win) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `constancia-${solicitud.cedula}.pdf`;
+        a.click();
+      }
+    } catch {
+      toast.error("No se pudo generar la constancia para impresión.");
+    } finally {
+      setImprimiendo(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-6">
       <PageHeader
         migas={volver}
         titulo={`Fe de vida de ${solicitud.nombre || solicitud.cedula}`}
         descripcion="Revise los datos que el pasivo declara frente a lo que hoy figura en su expediente."
-        accion={<StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} />}
+        accion={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} />
+            {solicitud.estado === "VALIDADA" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10 gap-1.5"
+                disabled={imprimiendo}
+                onClick={imprimirConstancia}
+              >
+                {imprimiendo ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+                Imprimir constancia
+              </Button>
+            ) : null}
+          </div>
+        }
       />
       <Resumen detalle={data} />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)]">

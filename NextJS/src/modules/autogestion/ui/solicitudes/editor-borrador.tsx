@@ -176,6 +176,9 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
                     nombres={nombres}
                     camposHabilitados={detalle.camposHabilitados}
                     onItems={setItems}
+                    solicitudId={detalle.id}
+                    soportes={detalle.soportes}
+                    onCambioSoportes={onActualizar}
                   />
                 ))}
                 <SoportesSeccion

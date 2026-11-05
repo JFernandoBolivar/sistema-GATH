@@ -145,6 +145,111 @@ def test_solicitar_recuperacion_identificador_vacio_lanza_validation_error():
     assert "correo institucional o cédula" in str(exc.value)
 
 
+def test_solicitar_recuperacion_auditoria_y_log_enviado(caplog):
+    """A10: Resultado 'enviado' registra log INFO y auditoría SUCCESS sin cambiar mensaje."""
+    mock_email = MagicMock()
+    mock_token = MagicMock(return_value="tok-123")
+    mock_auditor = MagicMock()
+
+    with caplog.at_level("INFO", logger="security_backend"):
+        res = solicitar_recuperacion_password(
+            RepoRecuperacionMemoria(_cuenta(cedula="V-22222222", correo="test@conatel.gob.ve")),
+            identificador="V-22222222",
+            base_frontend="http://localhost:3001",
+            enviar_email_fn=mock_email,
+            generar_token_fn=mock_token,
+            auditor_fn=mock_auditor,
+            metadata={"ip_origen": "192.168.1.50", "user_agent": "Mozilla/5.0"},
+        )
+
+    assert res == MENSAJE_RESPUESTA_GENERICO
+    mock_email.assert_called_once()
+    assert any("resultado=enviado" in r.message and "cedula=V-22222222" in r.message for r in caplog.records)
+    mock_auditor.assert_called_once()
+    kw = mock_auditor.call_args.kwargs
+    assert kw["resultado"] == "SUCCESS"
+    assert kw["actor_cedula"] == "V-22222222"
+    assert kw["estado_nuevo"]["resultado"] == "enviado"
+    assert kw["estado_nuevo"]["correo"] == "test@conatel.gob.ve"
+    assert kw["ip_origen"] == "192.168.1.50"
+
+
+def test_solicitar_recuperacion_auditoria_y_log_cedula_sin_cuenta(caplog):
+    """A10: Resultado 'cedula_sin_cuenta' registra log WARNING y auditoría FAILED sin delatar existencia."""
+    mock_auditor = MagicMock()
+
+    with caplog.at_level("WARNING", logger="security_backend"):
+        res = solicitar_recuperacion_password(
+            RepoRecuperacionMemoria(None),
+            identificador="V-99999999",
+            base_frontend="http://localhost:3001",
+            enviar_email_fn=MagicMock(),
+            generar_token_fn=MagicMock(),
+            auditor_fn=mock_auditor,
+            metadata={"ip_origen": "10.0.0.1"},
+        )
+
+    assert res == MENSAJE_RESPUESTA_GENERICO
+    assert any("resultado=cedula_sin_cuenta" in r.message and "V-99999999" in r.message for r in caplog.records)
+    mock_auditor.assert_called_once()
+    kw = mock_auditor.call_args.kwargs
+    assert kw["resultado"] == "FAILED"
+    assert kw["actor_id"] is None
+    assert kw["actor_cedula"] == "V-99999999"
+    assert kw["estado_nuevo"]["resultado"] == "cedula_sin_cuenta"
+    assert kw["estado_nuevo"]["identificador"] == "V-99999999"
+
+
+def test_solicitar_recuperacion_auditoria_y_log_cuenta_sin_correo(caplog):
+    """A10: Resultado 'cuenta_sin_correo' registra log WARNING y auditoría FAILED."""
+    mock_auditor = MagicMock()
+
+    with caplog.at_level("WARNING", logger="security_backend"):
+        res = solicitar_recuperacion_password(
+            RepoRecuperacionMemoria(_cuenta(cedula="V-33333333", correo=None)),
+            identificador="V-33333333",
+            base_frontend="http://localhost:3001",
+            enviar_email_fn=MagicMock(),
+            generar_token_fn=MagicMock(),
+            auditor_fn=mock_auditor,
+        )
+
+    assert res == MENSAJE_RESPUESTA_GENERICO
+    assert any("resultado=cuenta_sin_correo" in r.message and "V-33333333" in r.message for r in caplog.records)
+    mock_auditor.assert_called_once()
+    kw = mock_auditor.call_args.kwargs
+    assert kw["resultado"] == "FAILED"
+    assert kw["actor_cedula"] == "V-33333333"
+    assert kw["estado_nuevo"]["resultado"] == "cuenta_sin_correo"
+
+
+def test_solicitar_recuperacion_auditoria_y_log_fallo_envio(caplog):
+    """A10: Resultado 'fallo_envio' registra log ERROR y auditoría FAILED con detalle del error."""
+    mock_auditor = MagicMock()
+
+    def _smtp_falla(*_):
+        raise ConnectionResetError("Conexión reiniciada por el servidor SMTP")
+
+    with caplog.at_level("ERROR", logger="security_backend"):
+        with pytest.raises(ValidationError):
+            solicitar_recuperacion_password(
+                RepoRecuperacionMemoria(_cuenta(cedula="V-44444444", correo="fallo@conatel.gob.ve")),
+                identificador="V-44444444",
+                base_frontend="http://localhost:3001",
+                enviar_email_fn=_smtp_falla,
+                generar_token_fn=MagicMock(return_value="t-123"),
+                auditor_fn=mock_auditor,
+            )
+
+    assert any("resultado=fallo_envio" in r.message and "Conexión reiniciada" in r.message for r in caplog.records)
+    mock_auditor.assert_called_once()
+    kw = mock_auditor.call_args.kwargs
+    assert kw["resultado"] == "FAILED"
+    assert kw["actor_cedula"] == "V-44444444"
+    assert kw["estado_nuevo"]["resultado"] == "fallo_envio"
+    assert "Conexión reiniciada" in kw["estado_nuevo"]["error"]
+
+
 def test_restablecer_password_exitoso():
     repo = RepoRecuperacionMemoria(_cuenta(cedula="V-12345678", password_hash="hash_antiguo_1234567890"))
     mock_validar_token = MagicMock(return_value=(1, "V-12345678", "hash_antiguo_123"))
@@ -288,3 +393,36 @@ def test_vista_restablecer_password_api(mock_restablecer_uc):
     assert response.status_code == 200
     assert response.data["status"] == "success"
     assert response.data["message"] == "Contraseña restablecida correctamente."
+
+
+@patch("apps.identidad.presentation.views.auth_views.solicitar_recuperacion_password_task")
+def test_vista_recuperacion_por_cedula_no_revela_existencia_de_cuenta(mock_tarea):
+    """A10: Solicitudes por cédula reciben la misma respuesta 200 y encolan metadatos de auditoría."""
+    from rest_framework.test import APIRequestFactory
+    from apps.identidad.application.use_cases.solicitar_recuperacion_password import MENSAJE_RESPUESTA_GENERICO
+    from apps.identidad.presentation.views.auth_views import SolicitarRecuperacionPasswordView
+
+    factory = APIRequestFactory()
+    view = SolicitarRecuperacionPasswordView.as_view()
+
+    for cedula in ["V-11111111", "V-99999999"]:
+        req = factory.post(
+            "/api/v1/identidad/auth/solicitar-recuperacion/",
+            {"identificador": cedula},
+            format="json",
+            REMOTE_ADDR="192.168.1.100",
+            HTTP_USER_AGENT="Mozilla/5.0 TestBrowser",
+        )
+        resp = view(req)
+        assert resp.status_code == 200
+        assert resp.data["status"] == "success"
+        assert resp.data["message"] == MENSAJE_RESPUESTA_GENERICO
+
+    assert mock_tarea.delay.call_count == 2
+    ultimo_llamado = mock_tarea.delay.call_args
+    assert ultimo_llamado.args[0] == "V-99999999"
+    metadata = ultimo_llamado.kwargs.get("metadata")
+    assert metadata is not None
+    assert metadata["ip_origen"] == "192.168.1.100"
+    assert "TestBrowser" in metadata["user_agent"]
+    assert "trace_id" in metadata

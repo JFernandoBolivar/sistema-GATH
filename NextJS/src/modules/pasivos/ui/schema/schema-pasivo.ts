@@ -19,6 +19,12 @@ export const procesarEgresoSchema = z.object({
   motivoMovimientoId: z.number().int().positive({ message: ERROR.REQUIRED }),
   tipoNominaId: z.number().int().positive({ message: ERROR.REQUIRED }),
   liberarActivos: z.boolean().default(true),
+  fechaEgreso: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Fecha de egreso inválida" })
+    .optional()
+    .or(z.literal("")),
 });
 
 export type ListadoPasivosFormType = z.infer<typeof listadoPasivosSchema>;

@@ -79,6 +79,11 @@ class PasivoSerializer(serializers.Serializer):
     formacion_complementaria = FormacionComplementariaLecturaSerializer(read_only=True, many=True)
     contacto_emergencia = ContactoEmergenciaLecturaSerializer(read_only=True, many=True)
     antecedentes = AntecedenteServicioLecturaSerializer(read_only=True, many=True)
+    apn_antecedentes = serializers.DictField(read_only=True, allow_null=True)
+    apn_en_curso = serializers.DictField(read_only=True, allow_null=True)
+    apn_total = serializers.DictField(read_only=True, allow_null=True)
+    apn_incompleto = serializers.BooleanField(read_only=True)
+    fecha_ingreso_apn = serializers.CharField(read_only=True, allow_null=True)
     contrato_actual = ContratoLecturaSerializer(read_only=True, allow_null=True)
     cargos_historial = CargoEgresadoSerializer(read_only=True, many=True)
 
@@ -89,6 +94,7 @@ class ProcesarEgresoInputSerializer(serializers.Serializer):
     motivo_movimiento_id = serializers.IntegerField(required=True)
     tipo_nomina_id = serializers.IntegerField(required=True)
     liberar_activos = serializers.BooleanField(required=False, default=True)
+    fecha_egreso = serializers.DateField(required=False, allow_null=True)
     sobrevivientes_familiar_ids = serializers.ListField(
         child=serializers.IntegerField(), required=False, default=list,
         help_text='C20: familiares a dar de alta como pensionados por sobrevivencia (motivo fallecimiento).',
@@ -119,6 +125,7 @@ class PasivoEgresoInputSerializer(serializers.Serializer):
     """Egreso de un pasivo (fallecimiento) y sobrevivientes opcionales."""
 
     motivo_id = serializers.IntegerField(required=True)
+    fecha_egreso = serializers.DateField(required=False, allow_null=True)
     sobrevivientes_familiar_ids = serializers.ListField(
         child=serializers.IntegerField(), required=False, default=list,
     )

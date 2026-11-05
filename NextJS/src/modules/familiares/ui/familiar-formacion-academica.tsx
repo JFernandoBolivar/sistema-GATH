@@ -10,6 +10,7 @@ import { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { BookAIcon } from "lucide-react";
 
+import { Combobox } from "@/shared/ui/components/combobox";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -44,19 +45,17 @@ function SelectDependienteFamiliar({
 }) {
   const { opciones, isLoading } = useCatalogoDependienteFamiliar(tipo, padreId, { valorActual: value, respaldo });
   return (
-    <Select value={value ? String(value) : ""} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder={isLoading ? "Cargando..." : "Seleccione"} />
-      </SelectTrigger>
-      <SelectContent>
-        {opciones.map((o) => (
-          <SelectItem key={o.id} value={String(o.id)}>
-            {o.nombre}
-          </SelectItem>
-        ))}
-        {permitirOtra && <SelectItem value={String(ID_OTRA_FAMILIAR)}>Otra</SelectItem>}
-      </SelectContent>
-    </Select>
+    <Combobox
+      options={[
+        ...opciones.map((o) => ({ value: String(o.id), label: o.nombre })),
+        ...(permitirOtra ? [{ value: String(ID_OTRA_FAMILIAR), label: "Otra" }] : []),
+      ]}
+      value={value ? String(value) : ""}
+      onChange={(v) => onChange(Number(v))}
+      placeholder={isLoading ? "Cargando..." : "Seleccione"}
+      searchPlaceholder={tipo === "carreras" ? "Buscar carrera..." : "Buscar mención..."}
+      disabled={isLoading}
+    />
   );
 }
 
@@ -200,22 +199,23 @@ export function FamiliarFormacionAcademica({
                   "(Opcional)"
                 )}
               </Label>
-              <Select
+              <Combobox
+                options={[
+                  ...(catalogos?.instituciones ?? []).map((inst) => ({
+                    value: String(inst.id),
+                    label: inst.nombre,
+                  })),
+                  { value: String(ID_OTRA_FAMILIAR), label: "Otra" },
+                ]}
                 value={institucionId ? String(institucionId) : ""}
-                onValueChange={(v) => form.setValue("formacionAcademica.institucionId", Number(v), { shouldValidate: true })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(catalogos?.instituciones ?? []).map((inst) => (
-                    <SelectItem key={inst.id} value={String(inst.id)}>
-                      {inst.nombre}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value={String(ID_OTRA_FAMILIAR)}>Otra</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(v) =>
+                  form.setValue("formacionAcademica.institucionId", Number(v), {
+                    shouldValidate: true,
+                  })
+                }
+                placeholder="Seleccione"
+                searchPlaceholder="Buscar institución..."
+              />
               {institucionId === ID_OTRA_FAMILIAR && (
                 <Input
                   className="mt-1"

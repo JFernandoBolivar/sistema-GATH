@@ -25,13 +25,13 @@ def _errores(serializer_cls, campo, valor, **kwargs):
     return None
 
 
-@pytest.mark.parametrize("valor", ["12345", "1234567890", "30900439999999999999", "12a45678", "12.345.678"])
+@pytest.mark.parametrize("valor", ["1234", "1234567890", "30900439999999999999", "12a45678", "12.345.678"])
 def test_cedula_del_alta_rechaza_longitud_y_formato_invalidos(valor):
     assert _errores(EmpleadoCrearSerializer, "cedula", valor) is not None
 
 
-@pytest.mark.parametrize("valor", ["123456", "12345678", "123456789"])
-def test_cedula_del_alta_acepta_6_a_9_digitos(valor):
+@pytest.mark.parametrize("valor", ["12345", "123456", "12345678", "123456789"])
+def test_cedula_del_alta_acepta_5_a_9_digitos(valor):
     assert _errores(EmpleadoCrearSerializer, "cedula", valor) is None
 
 
@@ -95,9 +95,13 @@ def test_contacto_de_emergencia_valida_nombres():
     assert _errores(ContactoEmergenciaEscrituraSerializer, "nombres", "María") is None
 
 
-@pytest.mark.parametrize("valor", ["12345", "1234567890", "30900439999999999999"])
-def test_cedula_del_familiar_exige_6_a_9_digitos(valor):
+@pytest.mark.parametrize("valor", ["1234567890", "30900439999999999999"])
+def test_cedula_del_familiar_exige_5_a_9_digitos(valor):
     assert _errores(RegistrarFamiliarInputSerializer, "cedula_familiar", valor) is not None
+
+
+def test_cedula_del_familiar_acepta_5_digitos():
+    assert _errores(RegistrarFamiliarInputSerializer, "cedula_familiar", "12345") is None
 
 
 def test_nombres_del_familiar_limitan_a_60():

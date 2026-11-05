@@ -33,12 +33,12 @@ def _al_validar(
 
 def dar_check(
     repo: RepoSolicitudesFeDeVida, aplicador: AplicadorCambiosActa, publicador: PublicadorEventos | None = None,
-    *, solicitud_id: str, actor: ActorRevision, ahora: datetime,
+    *, solicitud_id: str, actor: ActorRevision, ahora: datetime, registrador_puede_checar: bool = False,
 ) -> SolicitudFeDeVida:
     """Primer check -> PENDIENTE_SEGUNDO_CHECK; segundo (otro rol y otra persona) -> VALIDADA."""
     publicador = publicador or PublicadorNulo()
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
-    nueva = solicitud.dar_check(actor, ahora)
+    nueva = solicitud.dar_check(actor, ahora, registrador_puede_checar=registrador_puede_checar)
     tipo = TipoEvento.VALIDADA if nueva.estado is EstadoSolicitud.VALIDADA else TipoEvento.PRIMER_CHECK
     return _al_validar(repo, aplicador, publicador, solicitud, nueva, actor, ahora, tipo)
 

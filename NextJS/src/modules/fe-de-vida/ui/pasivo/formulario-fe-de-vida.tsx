@@ -26,9 +26,12 @@ import { formatearValor } from "@/modules/autogestion/ui/formato-solicitud";
 import type { DetalleSolicitudDTO, SolicitudDTO } from "../../application/dtos/fe-de-vida-dto";
 import { requiereFotoNueva, puedeEnviarFeDeVida } from "../../domain/services/reglas";
 import {
+  enviarPresencialAction,
   enviarSolicitudAction,
   guardarBorradorAction,
+  guardarBorradorPresencialAction,
   subirEvidenciaAction,
+  subirEvidenciaPresencialAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import {
   confirmacionEnvioSchema,
@@ -70,16 +73,31 @@ interface Props {
   solicitud: SolicitudDTO;
   detalle: DetalleSolicitudDTO;
   onActualizar: () => void;
+  modo?: "en_linea" | "presencial";
+  fichaInicial?: Record<string, unknown> | null;
 }
 
 /** Formulario por pasos de la fe de vida: datos, emergencia y dirección, hijos, foto y envío. */
-export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) {
+export function FormularioFeDeVida({
+  solicitud,
+  detalle,
+  onActualizar,
+  modo = "en_linea",
+  fichaInicial,
+}: Props) {
+  const esPresencial = modo === "presencial";
   const {
-    data: ficha,
+    data: dataFicha,
     error,
-    isLoading,
+    isLoading: loadingFicha,
     mutate,
-  } = useSWR("mi-expediente-fe-de-vida", () => getMiExpedienteAction());
+  } = useSWR(
+    esPresencial ? null : "mi-expediente-fe-de-vida",
+    () => getMiExpedienteAction(),
+  );
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  const ficha = (esPresencial ? fichaInicial : dataFicha) as NonNullable<typeof dataFicha>;
+  const isLoading = !esPresencial && loadingFicha;
   const inicial = useMemo(() => cambiosAItems(detalle.cambios), [detalle.cambios]);
   const [items, setItems] = useState<ItemBorrador[]>(inicial);
   const [indice, setIndice] = useState(0);
@@ -142,7 +160,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
 
   function guardarYAvanzar(nuevos: ItemBorrador[], siguiente: number) {
     iniciarGuardado(async () => {
-      const res = await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
+      const accionBorrador = esPresencial ? guardarBorradorPresencialAction : guardarBorradorAction;
+      const res = await accionBorrador(solicitud.id, aEntrada(nuevos));
       if (!res.ok) {
         toast.error(res.mensaje);
         if (res.errores) {
@@ -178,7 +197,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
       form.append("solicitudId", solicitud.id);
       form.append("file", await reducirFoto(foto.archivo));
       form.append("origen", foto.origen);
-      const res = await subirEvidenciaAction(form);
+      const accionEvidencia = esPresencial ? subirEvidenciaPresencialAction : subirEvidenciaAction;
+      const res = await accionEvidencia(form);
       if (!res.ok) {
         toast.error(res.mensaje);
         return;
@@ -199,7 +219,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
       return;
     }
     iniciarEnvio(async () => {
-      const guardado = await guardarBorradorAction(solicitud.id, aEntrada(items));
+      const accionBorrador = esPresencial ? guardarBorradorPresencialAction : guardarBorradorAction;
+      const guardado = await accionBorrador(solicitud.id, aEntrada(items));
       if (!guardado.ok) {
         toast.error(guardado.mensaje);
         if (guardado.errores) {
@@ -223,7 +244,8 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
         }
         return;
       }
-      const res = await enviarSolicitudAction(solicitud.id);
+      const accionEnviar = esPresencial ? enviarPresencialAction : enviarSolicitudAction;
+      const res = await accionEnviar(solicitud.id);
       if (!res.ok) {
         toast.error(res.mensaje);
         if (res.errores) {
@@ -410,7 +432,9 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
                   {confirmacion.watch("declaro") ? "Declaración confirmada" : "Último paso"}
                 </span>
                 <span className="text-lg leading-snug font-semibold text-foreground">
-                  Declaro que los datos y la foto son verdaderos y que soy la persona de la cédula.
+                  {esPresencial
+                    ? "El pasivo declaró presencialmente ante este funcionario los datos consignados en esta acta y presentó su documento de identidad."
+                    : "Declaro que los datos y la foto son verdaderos y que soy la persona de la cédula."}
                 </span>
               </span>
               <input
@@ -449,7 +473,11 @@ export function FormularioFeDeVida({ solicitud, detalle, onActualizar }: Props) 
               }
             >
               {enviando ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}{" "}
-              {enviando ? "Enviando…" : "Enviar fe de vida"}
+              {enviando
+                ? "Enviando…"
+                : esPresencial
+                  ? "Consignar fe de vida presencial"
+                  : "Enviar fe de vida"}
             </Button>
           </div>
           {!viviendaOk ? (

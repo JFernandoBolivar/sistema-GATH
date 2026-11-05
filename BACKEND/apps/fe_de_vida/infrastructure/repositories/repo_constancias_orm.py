@@ -1,5 +1,5 @@
 """Repositorio ORM de la constancia de fe de vida y su plantilla versionada."""
-from datetime import datetime
+from datetime import date, datetime
 
 from django.db import IntegrityError, transaction
 from django.db.models import Max
@@ -11,7 +11,11 @@ from apps.fe_de_vida.domain.services.constancia import (
     generar_codigo_verificacion,
     prefijo_anual,
 )
-from apps.fe_de_vida.infrastructure.models.solicitud_models import ConstanciaFeDeVidaModel, PlantillaConstanciaModel
+from apps.fe_de_vida.infrastructure.models.solicitud_models import (
+    ConstanciaFeDeVidaModel,
+    PlantillaConstanciaModel,
+    ReenvioConstanciaModel,
+)
 from core.domain.exceptions import ConflictError, NotFoundError
 
 INTENTOS_NUMERACION = 5  # reintentos si dos validaciones simultáneas piden el mismo correlativo
@@ -64,3 +68,18 @@ class RepoConstanciasORM:
         if not actualizadas:
             raise NotFoundError("La constancia no existe.")
         return _a_entidad(ConstanciaFeDeVidaModel.objects.get(pk=constancia_id))
+
+    def actualizar_plantilla_version(self, constancia_id: str, version: int) -> None:
+        ConstanciaFeDeVidaModel.objects.filter(pk=constancia_id).update(plantilla_version=version)
+
+    def contar_reenvios_hoy(self, constancia_id: str, fecha: date) -> int:
+        return ReenvioConstanciaModel.objects.filter(constancia_id=constancia_id, fecha=fecha).count()
+
+    def registrar_reenvio(
+        self, constancia_id: str, actor_cedula: str, destinatario: str, copia: str, fecha: date,
+    ) -> None:
+        ReenvioConstanciaModel.objects.create(
+            constancia_id=constancia_id, actor_cedula=actor_cedula,
+            destinatario=destinatario, copia=copia, fecha=fecha,
+        )
+

@@ -12,6 +12,7 @@ from core.domain.configuracion import (
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
+    CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
     CLAVE_GENERAR_PUNTOS_CUENTA,
     CLAVE_NOTIFICAR_BIENESTAR_POR_CORREO,
     CLAVE_NOTIFICAR_MOVIMIENTOS_POR_CORREO,
@@ -174,6 +175,18 @@ DEFINICIONES = (
         grupo=GRUPO_FE_DE_VIDA,
         tipo=TIPO_TEXTO,
         defecto='30,15,7,3,1',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
+        etiqueta='Permitir que quien registra una fe de vida presencial dé uno de los checks',
+        descripcion=(
+            'Permite que el funcionario de Bienestar que registró la fe de vida presencial '
+            'pueda también dar uno de los dos checks de revisión. Apagado por defecto: '
+            'quien registró no puede dar check (sí la aprobación directa si es Administradora).'
+        ),
+        grupo=GRUPO_FE_DE_VIDA,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
     ),
     ParametroDefinicion(
         clave=CLAVE_RETENCION_EVIDENCIAS_DIAS,

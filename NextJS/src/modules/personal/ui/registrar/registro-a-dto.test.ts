@@ -152,7 +152,8 @@ describe("empleadoRegistroSchema (revalidación del alta en el servidor)", () =>
   });
 
   it("aplica las reglas del legado en datos básicos", () => {
-    expect(pasa({ cedula: "12345" })).toBe(false);
+    expect(pasa({ cedula: "12345" })).toBe(true);
+    expect(pasa({ cedula: "1234" })).toBe(false);
     expect(pasa({ cedula: "123456" })).toBe(true);
     expect(pasa({ cedula: "123456789" })).toBe(true);
     expect(pasa({ cedula: "1234567890" })).toBe(false);

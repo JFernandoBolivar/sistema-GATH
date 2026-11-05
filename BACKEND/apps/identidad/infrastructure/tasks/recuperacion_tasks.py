@@ -11,6 +11,7 @@ Por el broker solo viaja el identificador escrito por el usuario y la URL base
 de confianza: el token se genera aquí, nunca se encola.
 """
 import logging
+from typing import Any, Callable
 
 from celery import shared_task
 
@@ -27,8 +28,18 @@ from core.domain.exceptions import DomainError
 logger = logging.getLogger('security_backend')
 
 
-def procesar_solicitud_recuperacion(identificador: str, base_frontend: str) -> None:
+def procesar_solicitud_recuperacion(
+    identificador: str,
+    base_frontend: str,
+    metadata: dict | None = None,
+    auditor_fn: Callable[..., Any] | None = None,
+) -> None:
     """Busca la cuenta y envía el correo; los errores quedan en el log, nunca en la respuesta."""
+    if auditor_fn is None:
+        from core.presentation.audit import registrar_auditoria
+
+        auditor_fn = registrar_auditoria
+
     try:
         solicitar_recuperacion_password(
             RepoRecuperacionPasswordORM(),
@@ -36,6 +47,8 @@ def procesar_solicitud_recuperacion(identificador: str, base_frontend: str) -> N
             base_frontend=base_frontend,
             enviar_email_fn=enviar_correo_recuperacion,
             generar_token_fn=generar_token_recuperacion,
+            auditor_fn=auditor_fn,
+            metadata=metadata,
         )
     except DomainError:
         # El caso de uso ya registró el detalle (p. ej. el fallo de SMTP).
@@ -43,5 +56,9 @@ def procesar_solicitud_recuperacion(identificador: str, base_frontend: str) -> N
 
 
 @shared_task(name='identidad.solicitar_recuperacion_password', ignore_result=True)
-def solicitar_recuperacion_password_task(identificador: str, base_frontend: str) -> None:
-    procesar_solicitud_recuperacion(identificador, base_frontend)
+def solicitar_recuperacion_password_task(
+    identificador: str,
+    base_frontend: str,
+    metadata: dict | None = None,
+) -> None:
+    procesar_solicitud_recuperacion(identificador, base_frontend, metadata=metadata)

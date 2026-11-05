@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import { Loading } from "@/shared/ui/components/loading";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
@@ -68,6 +69,7 @@ export function CambiarPasivoPage() {
       motivo: 0,
       tiponominaid: 0,
       liberar_activos: false,
+      fecha_egreso: "",
     },
   });
 
@@ -127,6 +129,7 @@ export function CambiarPasivoPage() {
           motivo: 0,
           tiponominaid: 0,
           liberar_activos: false,
+      fecha_egreso: "",
         });
       } else {
         setEmployee(null);
@@ -150,6 +153,7 @@ export function CambiarPasivoPage() {
       motivo: 0,
       tiponominaid: 0,
       liberar_activos: false,
+      fecha_egreso: "",
     });
   };
 
@@ -182,6 +186,7 @@ export function CambiarPasivoPage() {
           motivoMovimientoId: data.motivo,
           tipoNominaId: effectiveNominaId,
           liberarActivos: validatePeace ? (data.liberar_activos ?? false) : true,
+          fechaEgreso: data.fecha_egreso || undefined,
         });
 
         if (response && "error" in response) {
@@ -336,6 +341,22 @@ export function CambiarPasivoPage() {
                         </FormItem>
                       )}
                     />
+
+                    {validatePeace ? (
+                      <FormField
+                        control={form.control}
+                        name="fecha_egreso"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Fecha Real De Egreso</FormLabel>
+                            <FormControl>
+                              <Input type="date" max={new Date().toISOString().slice(0, 10)} {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ) : null}
 
                     <Button className="w-full mt-2" disabled={isPending}>
                       {isPending ? "Cargando..." : "Ejecutar Cambio"}

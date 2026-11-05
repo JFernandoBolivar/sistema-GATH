@@ -85,7 +85,7 @@ def _post(view_cls, url, data):
 def test_crear_carrera_limpia_nombre_y_asocia_nivel(repo):
     carrera = crear_carrera(repo, "  Ingeniería de Sistemas  ", 3)
 
-    assert carrera.nombre == "Ingeniería de Sistemas"
+    assert carrera.nombre == "INGENIERÍA DE SISTEMAS"
     assert carrera.nivel_academico_id == 3
     assert carrera in repo.carreras
 
@@ -114,7 +114,7 @@ def test_vista_crear_carrera_responde_201_con_el_registro(monkeypatch, repo):
     response = _post(vistas.CarrerasListView, "/api/v1/personal/catalogos/carreras/", {"nombre": "Medicina", "nivel_academico_id": 1})
 
     assert response.status_code == 201
-    assert response.data["data"] == {"id": 2, "nombre": "Medicina", "nivel_academico_id": 1}
+    assert response.data["data"] == {"id": 2, "nombre": "MEDICINA", "nivel_academico_id": 1}
 
 
 def test_vista_crear_carrera_exige_nivel_academico(monkeypatch, repo):
@@ -132,7 +132,7 @@ def test_vista_crear_carrera_exige_nivel_academico(monkeypatch, repo):
 def test_crear_mencion_asocia_la_carrera(repo):
     mencion = crear_mencion(repo, " Control ", 1)
 
-    assert mencion == Mencion(id=2, nombre="Control", carrera_id=1)
+    assert mencion == Mencion(id=2, nombre="CONTROL", carrera_id=1)
 
 
 def test_crear_mencion_exige_carrera_existente(repo):
@@ -156,7 +156,7 @@ def test_vista_crear_mencion_responde_201(monkeypatch, repo):
     response = _post(vistas.MencionesListView, "/api/v1/personal/catalogos/menciones/", {"nombre": "Control", "carrera_id": 1})
 
     assert response.status_code == 201
-    assert response.data["data"] == {"id": 2, "nombre": "Control", "carrera_id": 1}
+    assert response.data["data"] == {"id": 2, "nombre": "CONTROL", "carrera_id": 1}
 
 
 # ----------------------------------------------------------------------
@@ -188,7 +188,7 @@ def test_vista_crear_institucion_responde_201(monkeypatch, repo):
 # ----------------------------------------------------------------------
 
 def test_crear_capacitacion(repo):
-    assert crear_capacitacion(repo, " Oratoria ") == Capacitacion(id=2, nombre="Oratoria")
+    assert crear_capacitacion(repo, " Oratoria ") == Capacitacion(id=2, nombre="ORATORIA")
 
 
 def test_crear_capacitacion_rechaza_vacio_y_duplicado(repo):
@@ -204,4 +204,4 @@ def test_vista_crear_capacitacion_responde_201(monkeypatch, repo):
     response = _post(vistas.CapacitacionesListView, "/api/v1/personal/catalogos/capacitaciones/", {"nombre": "Oratoria"})
 
     assert response.status_code == 201
-    assert response.data["data"] == {"id": 2, "nombre": "Oratoria"}
+    assert response.data["data"] == {"id": 2, "nombre": "ORATORIA"}

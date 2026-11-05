@@ -6,4 +6,6 @@ export interface ProcesarEgresoInput {
   motivoMovimientoId: number;
   tipoNominaId: number;
   liberarActivos: boolean;
+  /** O8: fecha real de egreso del servicio activo (AAAA-MM-DD). */
+  fechaEgreso?: string;
 }

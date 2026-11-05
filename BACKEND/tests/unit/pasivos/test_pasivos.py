@@ -40,7 +40,8 @@ class RepoPasivosMemoria:
     def obtener_por_cedula(self, cedula):
         return next((p for p in self.pasivos if p.cedula == cedula), None)
 
-    def procesar_egreso_a_pasivo(self, cedula, motivo_movimiento_id, tipo_nomina_id, liberar_activos, usuario_id=None):
+    def procesar_egreso_a_pasivo(self, cedula, motivo_movimiento_id, tipo_nomina_id, liberar_activos, usuario_id=None,
+                                 fecha_egreso=None):
         if cedula not in self.empleados_con_cargo:
             raise ValidationError('El empleado no tiene cargos previos para realizar el pase a pasivo.')
         self.procesados.append({
