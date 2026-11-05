@@ -9,7 +9,6 @@ from io import BytesIO
 from typing import Callable
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.fe_de_vida.application.use_cases.estadisticas import (
@@ -20,10 +19,9 @@ from apps.fe_de_vida.application.use_cases.estadisticas import (
 from apps.fe_de_vida.domain.entities.estadisticas import EstadisticasFeDeVida, PasivoEstadistica
 from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud
 from apps.fe_de_vida.infrastructure.exportacion_comun import (
-    AZUL,
-    AZUL_CLARO,
-    BORDE,
     ajustar_anchos,
+    escribir_encabezado_institucional,
+    escribir_seccion,
     escribir_tabla,
 )
 from apps.fe_de_vida.infrastructure.pdf.comun import ETIQUETAS_CANAL, ETIQUETAS_ESTADO
@@ -87,21 +85,13 @@ def _excel_estadisticas(
 ) -> bytes:
     libro = Workbook()
     resumen = libro.active
-    resumen.title = 'Resumen'
+    resumen.title = 'Resumen e indicadores'
     conteos = estadisticas.conteos
     tipos = {t.id: t.nombre for t in estadisticas.tipos}
     filtro = estadisticas.filtro
+    generado_en = datetime.now()
+    estados = [e.value for e in EstadoSolicitud]
 
-    resumen['A1'] = 'Estadísticas de fe de vida'
-    resumen['A1'].font = Font(bold=True, size=16, color=AZUL)
-    resumen['A2'] = estadisticas.proceso.nombre if estadisticas.proceso else 'Sin proceso'
-    resumen['A2'].font = Font(bold=True, size=12)
-    resumen['A3'] = f"Generado el {datetime.now():%d/%m/%Y %H:%M}"
-    resumen['A3'].font = Font(italic=True, color='666666')
-
-    fila = 5
-    resumen.cell(row=fila, column=1, value='Filtros aplicados').font = Font(bold=True, size=11)
-    fila += 1
     aplicados = [('Proceso', estadisticas.proceso.nombre if estadisticas.proceso else 'Sin proceso')]
     if filtro.tipo_nomina_id:
         aplicados.append(('Tipo de pasivo', tipos.get(filtro.tipo_nomina_id, str(filtro.tipo_nomina_id))))
@@ -113,56 +103,49 @@ def _excel_estadisticas(
         aplicados.append(('Enviadas desde', filtro.desde.strftime('%d/%m/%Y')))
     if filtro.hasta:
         aplicados.append(('Enviadas hasta', filtro.hasta.strftime('%d/%m/%Y')))
-    for etiqueta, valor in aplicados:
-        resumen.cell(row=fila, column=1, value=etiqueta).font = Font(bold=True)
-        resumen.cell(row=fila, column=2, value=valor)
-        fila += 1
 
-    fila += 1
-    resumen.cell(row=fila, column=1, value='Indicadores').font = Font(bold=True, size=11)
-    fila += 1
+    fila = escribir_encabezado_institucional(
+        resumen, titulo='Estadísticas de fe de vida',
+        subtitulo=estadisticas.proceso.nombre if estadisticas.proceso else 'Sin proceso',
+        filtros=aplicados, generado_en=generado_en, columnas=10,
+    )
+
+    fila = escribir_seccion(resumen, fila, 'Indicadores del proceso', 10)
     kpis = [
-        ('Total de pasivos', conteos.total),
-        ('Respondieron', conteos.respondieron),
-        ('Faltan por responder', conteos.faltan),
-        ('Validadas', conteos.validadas),
-        ('% de respuesta', f'{estadisticas.porcentaje_respondieron:.1f}%'),
+        ['Total de pasivos', conteos.total],
+        ['Respondieron', conteos.respondieron],
+        ['Faltan por responder', conteos.faltan],
+        ['Validadas', conteos.validadas],
+        ['% de pasivos que respondieron', f'{estadisticas.porcentaje_respondieron:.1f}%'],
     ]
-    for etiqueta, valor in kpis:
-        celda = resumen.cell(row=fila, column=1, value=etiqueta)
-        celda.fill = PatternFill('solid', start_color=AZUL_CLARO)
-        celda.border = BORDE
-        valor_celda = resumen.cell(row=fila, column=2, value=valor)
-        valor_celda.font = Font(bold=True)
-        valor_celda.border = BORDE
-        fila += 1
+    fila = escribir_tabla(resumen, fila, ['Indicador', 'Valor'], kpis, congelar=False) + 2
+    ajustar_anchos(resumen, ['Indicador', 'Valor'], kpis)
 
-    fila += 1
-    resumen.cell(row=fila, column=1, value='Respondieron por tipo de pasivo').font = Font(bold=True, size=11)
-    fila += 1
+    fila = escribir_seccion(resumen, fila, 'Respondieron por tipo de pasivo', 10)
     filas_tipo = [
         [f.tipo_nomina, f.total, f.respondieron, f.faltan, f.validadas]
         for f in conteos.por_tipo
     ]
     fila = escribir_tabla(
         resumen, fila, ['Tipo de pasivo', 'Total', 'Respondieron', 'Faltan', 'Validadas'], filas_tipo,
+        congelar=False,
     ) + 2
+    ajustar_anchos(resumen, ['Tipo de pasivo', 'Total', 'Respondieron', 'Faltan', 'Validadas'], filas_tipo)
 
-    resumen.cell(row=fila, column=1, value='Matriz tipo de pasivo × estado').font = Font(bold=True, size=11)
-    fila += 1
-    estados = [e.value for e in EstadoSolicitud]
+    fila = escribir_seccion(resumen, fila, 'Matriz tipo de pasivo × estado', 10)
     celdas = {(f.tipo_nomina_id, f.estado): f.total for f in conteos.matriz}
     filas_matriz = [
         [f.tipo_nomina, *[celdas.get((f.tipo_nomina_id, estado), 0) for estado in estados],
          sum(celdas.get((f.tipo_nomina_id, estado), 0) for estado in estados)]
         for f in conteos.por_tipo
     ]
-    fila = escribir_tabla(
+    escribir_tabla(
         resumen, fila, ['Tipo de pasivo', *estados, 'Total'], filas_matriz,
     )
     ajustar_anchos(resumen, ['Tipo de pasivo', *estados, 'Total'], filas_matriz)
+    resumen.freeze_panes = 'A5'
 
-    listado = libro.create_sheet('Listado')
+    listado = libro.create_sheet('Listado de pasivos')
     columnas = ['Cédula', 'Nombre completo', 'Tipo de pasivo', 'Correo', 'Teléfono']
     if not faltantes:
         columnas += ['Estado', 'Canal', 'Fecha de envío']
@@ -176,7 +159,13 @@ def _excel_estadisticas(
                 pasivo.fecha_envio.strftime('%d/%m/%Y %H:%M') if pasivo.fecha_envio else '',
             ]
         filas.append(fila_pasivo)
-    escribir_tabla(listado, 1, columnas, filas)
+    fila = escribir_encabezado_institucional(
+        listado, titulo='Estadísticas de fe de vida · Listado de pasivos',
+        subtitulo=estadisticas.proceso.nombre if estadisticas.proceso else 'Sin proceso',
+        filtros=[*aplicados, ('Registros exportados', str(len(filas)))],
+        generado_en=generado_en, columnas=len(columnas),
+    )
+    escribir_tabla(listado, fila, columnas, filas)
     ajustar_anchos(listado, columnas, filas)
 
     buffer = BytesIO()

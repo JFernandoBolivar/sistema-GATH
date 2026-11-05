@@ -238,3 +238,38 @@ def test_constancia_bienestar_imprimir_endpoint(datos):
     assert r.status_code == 200
     assert r['Content-Type'] == 'application/pdf'
     assert b''.join(r.streaming_content).startswith(b'%PDF')
+
+
+def _iniciar_sin_celular(datos):
+    """Pasivo sin celular en el expediente y solicitud presencial iniciada; devuelve (cliente, id)."""
+    EmployeeModel.objects.filter(cedulaidentidad=PASIVO).update(telefono_movil='')
+    cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})
+    pid = _cuerpo(cli_admin.post(f'{BASE}/procesos/', {
+        'nombre': 'JUBILADOS 2026', 'fecha_apertura': '2026-01-01T00:00:00Z', 'fecha_cierre': '2026-12-31T23:59:59Z',
+    }, format='json'))['id']
+    cli_admin.post(f'{BASE}/procesos/{pid}/abrir/')
+    cli = _cliente(ANALISTA, {'fe_de_vida.registrar_presencial'})
+    sid = _cuerpo(cli.post(f'{BASE}/presencial/solicitudes/', {'cedula': PASIVO}, format='json'))['solicitud']['id']
+    return cli, sid
+
+
+def _borrador_contacto(valor):
+    # Mismo cuerpo que arma el frontend en el paso Contacto (+58 · 0414 · 7574312 => E.164).
+    return {'cambios': [{
+        'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR',
+        'campo': 'telefono_movil', 'valor': valor, 'entidad_id': None,
+    }]}
+
+
+def test_borrador_presencial_acepta_celular_del_mismo_borrador(datos):
+    cli, sid = _iniciar_sin_celular(datos)
+    r = cli.put(f'{BASE}/presencial/solicitudes/{sid}/borrador/', _borrador_contacto('+584147574312'), format='json')
+    assert r.status_code == 200, r.content
+    assert _cuerpo(r)['cambios'][0]['valor_propuesto'] == '+584147574312'
+
+
+def test_borrador_presencial_rechaza_celular_vacio(datos):
+    cli, sid = _iniciar_sin_celular(datos)
+    r = cli.put(f'{BASE}/presencial/solicitudes/{sid}/borrador/', {'cambios': []}, format='json')
+    assert r.status_code == 400
+    assert 'celular' in r.content.decode().lower()

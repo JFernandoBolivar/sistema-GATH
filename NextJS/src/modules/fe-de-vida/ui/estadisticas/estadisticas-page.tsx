@@ -284,7 +284,7 @@ export default function EstadisticasPage() {
           <>
             <section aria-label="Indicadores del proceso" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Kpi
-                titulo="Pasivos obligados"
+                titulo="Total de pasivos"
                 valor={String(data.kpis.total)}
                 detalle={`${data.proceso.nombre} · ${data.proceso.estado.toLowerCase()}`}
                 tono="text-foreground"
@@ -302,7 +302,7 @@ export default function EstadisticasPage() {
                 tono="text-amber-700 dark:text-amber-400"
               />
               <Kpi
-                titulo="Validadas"
+                titulo="Validadas por Bienestar"
                 valor={`${data.kpis.validadas}`}
                 detalle={`${data.kpis.porcentajeValidadas.toFixed(1)} % del total`}
                 tono="text-sky-700 dark:text-sky-400"
@@ -320,7 +320,9 @@ export default function EstadisticasPage() {
               </article>
               <article className="rounded-xl border bg-card p-4 lg:col-span-2">
                 <h2 className="text-lg font-semibold">Respondieron por tipo de pasivo</h2>
-                <p className="mb-2 text-sm text-muted-foreground">Cada barra suma el total del tipo de pasivo.</p>
+                <p className="mb-2 text-sm text-muted-foreground">
+                  Barras apiladas: respondieron y faltan por tipo de pasivo.
+                </p>
                 <GraficoTipos datos={datosBarrasTipos(data.porTipo)} />
               </article>
             </section>

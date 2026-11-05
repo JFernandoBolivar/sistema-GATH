@@ -33,6 +33,7 @@ export async function listarBandeja(
     procesoId: vacioAUndefined(filtros.procesoId),
     desde: vacioAUndefined(filtros.desde),
     hasta: vacioAUndefined(filtros.hasta),
+    historico: filtros.historico || undefined,
   });
 }
 

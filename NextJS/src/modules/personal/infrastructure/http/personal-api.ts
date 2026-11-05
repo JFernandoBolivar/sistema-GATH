@@ -204,12 +204,13 @@ export const personalApi = {
     ),
 
   // --- Reportes de Error en Datos Laborales (A11 / D20) ---
-  getReportesErrorLaboral: (params?: { estado?: string; dato?: string; search?: string }) =>
-    list<ReporteErrorLaboralApiItem>(
-      apiClient.get<ApiResponse<ReporteErrorLaboralApiItem[]>>("/api/v1/personal/reportes-error/", {
-        params,
-      }),
-    ),
+  getReportesErrorLaboral: async (params?: { estado?: string; dato?: string; search?: string }) => {
+    const envelope = await apiClient.get<ApiResponse<PaginaReportesErrorLaboralApi>>(
+      "/api/v1/personal/reportes-error/",
+      { params },
+    );
+    return envelope.data?.items ?? [];
+  },
   crearReporteErrorLaboral: (payload: { dato: string; descripcion: string }) =>
     single<ReporteErrorLaboralApiItem>(
       apiClient.post<ApiResponse<ReporteErrorLaboralApiItem>>("/api/v1/personal/reportes-error/crear/", payload),
@@ -234,6 +235,13 @@ export interface ReporteErrorLaboralApiItem {
   atendido_por_nombre?: string;
   atendido_el?: string | null;
   observacion_atencion?: string;
+}
+
+export interface PaginaReportesErrorLaboralApi {
+  items: ReporteErrorLaboralApiItem[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 

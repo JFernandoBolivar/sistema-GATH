@@ -52,7 +52,7 @@ describe("EstadisticasPage", () => {
   it("muestra los KPI, la matriz y el canal", async () => {
     mockEstadisticas.mockResolvedValue({ ok: true, datos: BASE });
     renderPagina();
-    expect(await screen.findByText("Pasivos obligados")).toBeInTheDocument();
+    expect(await screen.findByText("Total de pasivos")).toBeInTheDocument();
     expect(screen.getByText("60.0 % del total")).toBeInTheDocument();
     expect(screen.getByText("40.0 % · sin envío (incluye borradores)")).toBeInTheDocument();
     expect(screen.getByText("Matriz tipo de pasivo × estado")).toBeInTheDocument();

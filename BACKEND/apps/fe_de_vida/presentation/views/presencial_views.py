@@ -212,8 +212,6 @@ class BorradorPresencialView(APIView):
                 raise NotFoundError("La solicitud de fe de vida no existe.")
             if not solicitud.editable:
                 raise ValidationError(f"La solicitud está {solicitud.estado.value}: ya no admite cambios.")
-            exigir_celular(RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud_id=solicitud.id, cedula=solicitud.cedula)
-
             exigir_puede_enviar(
                 repo_proc.obtener(solicitud.proceso_id),
                 repo_proc.listar_prorrogas(solicitud.proceso_id),
@@ -227,6 +225,8 @@ class BorradorPresencialView(APIView):
                 solicitud_id=solicitud.id, cedula=solicitud.cedula,
                 cambios=cambios_entrada, ahora=momento,
             )
+            # Después de guardar: vale el celular que trae este mismo borrador (si falla, la transacción se revierte).
+            exigir_celular(repo_cambios, LectorFichaPasivoORM(), solicitud_id=solicitud.id, cedula=solicitud.cedula)
             auditar(
                 request, 'BORRADOR_PRESENCIAL_GUARDADO', solicitud.id, None,
                 {'cambios_guardados': len(guardados)},

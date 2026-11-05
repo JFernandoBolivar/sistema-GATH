@@ -52,7 +52,6 @@ import { avisoTopeDeFilas } from "@/shared/lib/aviso-tope";
 import { useState, useTransition } from "react";
 import { schemaReportLeaving, type SchemaReportLeavingType } from "../schema/report-schema-leaving";
 import Loading from "@/shared/ui/components/loading";
-import { GrupoFiltrosReporte, PanelFiltrosReporte } from "./panel-filtros-reporte";
 
 export default function ReportLeaving() {
   const [isPending, startTransition] = useTransition();
@@ -192,9 +191,12 @@ export default function ReportLeaving() {
               )}
               <div className="flex flex-col gap-2 col-span-full min-w-0 w-full">
                 <div className="w-full min-w-0">
-                  <PanelFiltrosReporte>
+                  <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                     {puedeEstructura && (
-                      <GrupoFiltrosReporte titulo="Dirección Administrativa" campos={["filtros.dependencia_id", "filtros.direccion_general_id", "filtros.direccion_linea_id", "filtros.coordinacion_id"]}>
+                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 md:col-span-2">
+                        <legend className="text-green-800 font-semibold px-1">
+                          Dirección Administrativa
+                        </legend>
                         <FormField
                           control={form.control}
                           name="filtros.dependencia_id"
@@ -326,10 +328,13 @@ export default function ReportLeaving() {
                             </FormItem>
                           )}
                         />
-                      </GrupoFiltrosReporte>
+                      </fieldset>
                     )}
 
-                    <GrupoFiltrosReporte titulo="Información De Cargo" campos={["filtros.cargo_especifico_id", "filtros.cargo_id", "filtros.nomina_id", "filtros.grado_id"]}>
+                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
+                      <legend className="text-red-900 font-semibold px-1">
+                        Información De Cargo
+                      </legend>
                       <FormField
                         control={form.control}
                         name="filtros.cargo_especifico_id"
@@ -454,9 +459,10 @@ export default function ReportLeaving() {
                           </FormItem>
                         )}
                       />
-                    </GrupoFiltrosReporte>
+                    </fieldset>
 
-                    <GrupoFiltrosReporte titulo="Información Básica" campos={["filtros.sexo_id", "filtros.edad_min", "filtros.edad_max"]}>
+                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-black">
+                      <legend className="text-black font-semibold px-1">Información Básica</legend>
                       <FormField
                         control={form.control}
                         name="filtros.sexo_id"
@@ -526,9 +532,10 @@ export default function ReportLeaving() {
                           </FormItem>
                         )}
                       />
-                    </GrupoFiltrosReporte>
+                    </fieldset>
 
-                    <GrupoFiltrosReporte titulo="Fecha De Egreso" campos={[]}>
+                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-gray-600 md:col-span-2">
+                      <legend className="text-gray-800 font-semibold px-1">Fecha De Egreso</legend>
                       <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
                         <FormDate
                           form={form}
@@ -541,12 +548,12 @@ export default function ReportLeaving() {
                           nameInput="filtros.fecha_egreso_Hasta"
                         />
                       </div>
-                    </GrupoFiltrosReporte>
-                  </PanelFiltrosReporte>
+                    </fieldset>
+                  </div>
                 </div>
               </div>
 
-              <div className="sticky bottom-0 z-10 grid gap-2 border-t bg-card pt-3 sm:grid-cols-3 sm:flex-row col-span-full">
+              <div className="flex flex-col gap-2 sm:flex-row flex-1 w-full col-span-full pt-2">
                 <Button type="submit" className="flex-1 cursor-pointer" disabled={!puedePdf}>
                   {filtrosForm && Object.values(filtrosForm).some((v) => !!v)
                     ? "Consultar Reporte"

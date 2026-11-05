@@ -117,12 +117,6 @@ const items: MenuItem[] = [
         icon: BookUser,
         permiso: "familiares.ver",
       },
-      {
-        title: "Reportes de Error Laboral",
-        url: "/personal/reportes-error",
-        icon: AlertCircle,
-        permiso: "personal.reportes_error_ver",
-      },
     ],
   },
   {
@@ -282,6 +276,12 @@ const items: MenuItem[] = [
         url: "/personal/bienestar/solicitudes",
         icon: ListCheck,
         permiso: "bienestar.ver_solicitudes",
+      },
+      {
+        title: "Reportes de Error Laboral",
+        url: "/personal/reportes-error",
+        icon: AlertCircle,
+        permiso: "personal.reportes_error_ver",
       },
     ],
   },

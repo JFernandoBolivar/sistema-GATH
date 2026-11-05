@@ -126,7 +126,12 @@ def test_excel_bandeja_tiene_las_columnas_y_el_numero_de_acta(datos):
     generador = GeneradorExportacionDjango()
     archivo = generador.generar('fe_de_vida_bandeja', 'excel', _parametros(), lambda _p: None)
     libro = load_workbook(io.BytesIO(archivo.contenido))
-    hoja = libro['Bandeja']
+    hoja = libro['Bandeja de fe de vida']
+    assert hoja['A1'].value == 'Bandeja de fe de vida'
+    assert any(
+        str(celda.value) == 'Solicitudes encontradas'
+        for fila in hoja.iter_rows() for celda in fila
+    )
     fila_cabecera = next(
         fila[0].row for fila in hoja.iter_rows() if fila and fila[0].value == 'Cédula'
     )
@@ -134,6 +139,8 @@ def test_excel_bandeja_tiene_las_columnas_y_el_numero_de_acta(datos):
     assert cabecera == [
         'Cédula', 'Nombres', 'Apellidos', 'Correo', 'Teléfono', 'Estatus', 'Fecha de envío', 'Número de acta',
     ]
+    assert hoja.cell(row=fila_cabecera, column=1).fill.start_color.rgb.endswith('1A237E')
+    assert hoja.cell(row=fila_cabecera, column=1).font.color.rgb.endswith('FFFFFF')
     assert 'numero_solicitud' not in [str(c).lower() for c in cabecera]
     filas = {
         hoja.cell(row=fila, column=1).value: [hoja.cell(row=fila, column=col).value for col in range(1, 9)]

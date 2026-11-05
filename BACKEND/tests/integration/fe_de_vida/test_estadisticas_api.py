@@ -224,10 +224,30 @@ def test_exportaciones_se_encolan_y_generan_pdf_y_excel(datos):
     assert archivo_pdf.contenido.startswith(b'%PDF') and archivo_pdf.metadatos['total_encontrados'] == 2
     archivo_excel = generador.generar('fe_de_vida_estadisticas', 'excel', parametros, lambda _p: None)
     libro = load_workbook(filename=__import__('io').BytesIO(archivo_excel.contenido))
-    assert libro.sheetnames == ['Resumen', 'Listado']
-    assert libro['Listado'].auto_filter.ref is not None
-    cabecera = [celda.value for celda in libro['Listado'][1]]
+    assert libro.sheetnames == ['Resumen e indicadores', 'Listado de pasivos']
+    resumen = libro['Resumen e indicadores']
+    assert resumen['A1'].value == 'Estadísticas de fe de vida'
+    assert resumen['A1'].font.bold is True
+    assert resumen.freeze_panes == 'A5'
+    assert any(
+        str(celda.value).startswith('Total de pasivos')
+        for fila in resumen.iter_rows() for celda in fila
+    )
+    hoja = libro['Listado de pasivos']
+    assert hoja.auto_filter.ref is not None
+    fila_cabecera = next(
+        fila[0].row for fila in hoja.iter_rows() if fila and fila[0].value == 'Cédula'
+    )
+    cabecera = [celda.value for celda in hoja[fila_cabecera]]
     assert cabecera[:3] == ['Cédula', 'Nombre completo', 'Tipo de pasivo']
+    assert hoja.freeze_panes == f'A{fila_cabecera + 1}'
+    assert hoja['A1'].value == 'Estadísticas de fe de vida · Listado de pasivos'
+    primera_cabecera = hoja.cell(row=fila_cabecera, column=1)
+    assert primera_cabecera.fill.start_color.rgb.endswith('1A237E')
+    assert primera_cabecera.font.color.rgb.endswith('FFFFFF')
+    assert hoja.column_dimensions['B'].width and hoja.column_dimensions['B'].width <= 45
+    if hoja.max_row > fila_cabecera + 2:
+        assert hoja.cell(row=fila_cabecera + 2, column=1).fill.start_color.rgb.endswith('F4F6FB')
 
     celda = {'filtros': {'listado': 'celda', 'estado': 'VALIDADA'}}
     archivo_celda = generador.generar('fe_de_vida_estadisticas', 'pdf', celda, lambda _p: None)
