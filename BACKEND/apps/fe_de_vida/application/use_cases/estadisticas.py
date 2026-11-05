@@ -116,12 +116,15 @@ def listar_pasivos_estadistica(
     repo_proc: RepoProcesos,
     *,
     filtro: FiltroEstadisticas,
-    faltantes: bool,
+    faltantes: bool = False,
+    alcance: str | None = None,
     limite: int,
     desplazamiento: int,
 ) -> tuple[list[PasivoEstadistica], int]:
-    """Listado paginado del detalle («faltan por responder» o una casilla de la matriz)."""
+    """Listado paginado del detalle («faltan por responder», «respondieron», «ambos» o una casilla)."""
     proceso = resolver_proceso(repo_proc, filtro.proceso_id)
     if proceso is None:
         return [], 0
-    return repo.listar(proceso, filtro, faltantes=faltantes, limite=limite, desplazamiento=desplazamiento)
+    return repo.listar(
+        proceso, filtro, faltantes=faltantes, alcance=alcance, limite=limite, desplazamiento=desplazamiento,
+    )

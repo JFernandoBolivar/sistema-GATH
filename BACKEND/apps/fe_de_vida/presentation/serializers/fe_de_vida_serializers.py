@@ -87,14 +87,29 @@ class FiltroEstadisticasSerializer(PaginaSerializer):
 
 
 class ExportarEstadisticasSerializer(FiltroEstadisticasSerializer):
-    """Parámetros del archivo: `faltantes` (sin envío) o `celda` (con estado, la casilla exacta)."""
+    """Parámetros de la exportación configurada de estadísticas de fe de vida (O25)."""
 
-    listado = serializers.ChoiceField(choices=['faltantes', 'celda'], required=False, default='faltantes')
+    formato = serializers.ChoiceField(choices=['pdf', 'excel'], required=False, default='excel')
+    incluir_resumen = serializers.BooleanField(required=False, default=True)
+    incluir_graficos = serializers.BooleanField(required=False, default=True)
+    incluir_listado = serializers.BooleanField(required=False, default=True)
+    alcance_listado = serializers.ChoiceField(
+        choices=['faltan', 'respondieron', 'ambos'],
+        required=False,
+        default='faltan',
+        help_text='Qué pasivos incluir en el listado: faltan, respondieron o ambos.',
+    )
+    listado = serializers.ChoiceField(choices=['faltantes', 'celda'], required=False)
 
     def validate(self, datos):
         datos = super().validate(datos)
         if datos.get('listado') == 'celda' and not datos.get('estado'):
             raise serializers.ValidationError('Para exportar una casilla debe indicar el estado.')
+        resumen = datos.get('incluir_resumen', True)
+        graficos = datos.get('incluir_graficos', True)
+        listado = datos.get('incluir_listado', True)
+        if not (resumen or graficos or listado):
+            raise serializers.ValidationError('Debe seleccionar al menos una sección para el reporte.')
         return datos
 
 

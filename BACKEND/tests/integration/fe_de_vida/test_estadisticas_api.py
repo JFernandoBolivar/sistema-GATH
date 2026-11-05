@@ -254,6 +254,32 @@ def test_exportaciones_se_encolan_y_generan_pdf_y_excel(datos):
     assert archivo_celda.contenido.startswith(b'%PDF')
     assert archivo_celda.metadatos['total_encontrados'] == 1
 
+    # O25 C y D: opciones configuradas de secciones y alcance
+    opciones_solo_graficos = {
+        'filtros': {
+            'incluir_resumen': 'false',
+            'incluir_graficos': 'true',
+            'incluir_listado': 'false',
+        },
+    }
+    validar_parametros(opciones_solo_graficos)
+    pdf_graficos = generador.generar('fe_de_vida_estadisticas', 'pdf', opciones_solo_graficos, lambda _p: None)
+    assert pdf_graficos.contenido.startswith(b'%PDF')
+    assert pdf_graficos.metadatos['total_encontrados'] == 0
+
+    opciones_respondieron = {
+        'filtros': {
+            'incluir_resumen': 'true',
+            'incluir_listado': 'true',
+            'alcance_listado': 'respondieron',
+        },
+    }
+    validar_parametros(opciones_respondieron)
+    excel_respondieron = generador.generar('fe_de_vida_estadisticas', 'excel', opciones_respondieron, lambda _p: None)
+    libro_resp = load_workbook(filename=__import__('io').BytesIO(excel_respondieron.contenido))
+    assert 'Listado de pasivos' in libro_resp.sheetnames
+    assert excel_respondieron.metadatos['total_encontrados'] == 2
+
 
 def test_validacion_de_parametros_de_exportacion(datos):
     with pytest.raises(ValidationError):
@@ -262,3 +288,11 @@ def test_validacion_de_parametros_de_exportacion(datos):
         validar_parametros({'filtros': {'listado': 'otro'}})
     with pytest.raises(ValidationError):
         validar_parametros({'filtros': {'desde': '2026-12-31', 'hasta': '2026-01-01'}})
+    with pytest.raises(ValidationError):
+        validar_parametros({
+            'filtros': {
+                'incluir_resumen': 'false',
+                'incluir_graficos': 'false',
+                'incluir_listado': 'false',
+            },
+        })

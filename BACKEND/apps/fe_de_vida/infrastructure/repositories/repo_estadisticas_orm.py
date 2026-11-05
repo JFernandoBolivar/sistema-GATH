@@ -140,11 +140,17 @@ class RepoEstadisticasORM:
 
     def listar(
         self, proceso: ProcesoFeDeVida, filtro: FiltroEstadisticas, *,
-        faltantes: bool, limite: int, desplazamiento: int,
+        faltantes: bool = False, alcance: str | None = None, limite: int, desplazamiento: int,
     ) -> tuple[list[PasivoEstadistica], int]:
         qs = self._base(proceso, filtro)
-        if faltantes:
+        modo = (alcance or ('faltan' if faltantes else 'celda')).lower().strip()
+        if modo in ('faltan', 'faltantes'):
             qs = qs.filter(fecha_envio_fv__isnull=True)
+        elif modo in ('respondieron', 'respondidas'):
+            qs = self._con_filtros_de_solicitud(qs, filtro).filter(fecha_envio_fv__isnull=False)
+        elif modo == 'ambos':
+            if filtro.estado or filtro.canal or filtro.desde or filtro.hasta:
+                qs = self._con_filtros_de_solicitud(qs, filtro)
         else:
             qs = self._con_filtros_de_solicitud(qs, filtro).exclude(estado_fv__isnull=True)
         qs = qs.order_by('apellidos', 'nombres')

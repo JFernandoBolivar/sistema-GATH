@@ -15,6 +15,7 @@ import {
 } from "@/shared/lib/exportaciones-asincronas";
 import { useProgresoExportacion } from "@/shared/lib/use-progreso-exportacion";
 import type { PasivoEstadisticaDTO } from "../../application/dtos/fe-de-vida-dto";
+import type { OpcionesReporteEstadisticas } from "../../application/use-cases/gestionar-estadisticas";
 import {
   parametrosExportacion,
 } from "../../application/use-cases/gestionar-estadisticas";
@@ -26,6 +27,7 @@ import {
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import { PaginacionNav } from "../comun/paginacion-nav";
 import { useSesionFeDeVida } from "../comun/use-sesion-fe-de-vida";
+import { DialogoExportarEstadisticas } from "./dialogo-exportar-estadisticas";
 import {
   ETIQUETAS_ESTADO_MATRIZ,
   ETIQUETA_CANAL,
@@ -73,6 +75,7 @@ export default function EstadisticasPage() {
   const [limite, setLimite] = useState(LIMITE_PAGINA);
   const exportacion = useProgresoExportacion();
   const [exportando, setExportando] = useState<string | null>(null);
+  const [dialogoExportarAbierto, setDialogoExportarAbierto] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
     ["fe-de-vida-estadisticas", filtros],
@@ -153,6 +156,42 @@ export default function EstadisticasPage() {
         archivo.blob,
         `${listadoExportacion === "faltantes" ? "faltan-por-responder" : "casilla-fe-de-vida"}.${formato === "pdf" ? "pdf" : "xlsx"}`,
       );
+    } catch (e) {
+      if (!esCancelacion(e)) toast.error(e instanceof Error ? e.message : "No se pudo generar el archivo.");
+    } finally {
+      setExportando(null);
+    }
+  }
+
+  async function exportarReporte(opciones: OpcionesReporteEstadisticas) {
+    const etiqueta = `${opciones.formato.toUpperCase()} (${opciones.alcanceListado})`;
+    setExportando(etiqueta);
+    const progreso = exportacion.iniciar();
+    const canal = filtros.canal === "EN_LINEA" || filtros.canal === "PRESENCIAL" ? filtros.canal : undefined;
+    try {
+      const params = parametrosExportacion(
+        {
+          ...filtros,
+          canal,
+          tipoNominaId: filtros.tipoNominaId ? Number(filtros.tipoNominaId) : undefined,
+          estado: (filtros.estado || undefined) as EstadoSolicitud | undefined,
+        },
+        opciones,
+      );
+      const query = new URLSearchParams();
+      for (const [clave, valor] of Object.entries(params)) {
+        if (valor !== undefined && valor !== null && String(valor) !== "") query.set(clave, String(valor));
+      }
+      const respuesta = await fetch(`/api/fe-de-vida/estadisticas/exportar?${query.toString()}`, {
+        signal: progreso.signal,
+        cache: "no-store",
+      });
+      const archivo = await archivoDeRespuesta(respuesta, "No se pudo generar el archivo.", progreso);
+      guardarArchivo(
+        archivo.blob,
+        `estadisticas-fe-de-vida.${opciones.formato === "pdf" ? "pdf" : "xlsx"}`,
+      );
+      toast.success(`Reporte ${opciones.formato.toUpperCase()} generado exitosamente.`);
     } catch (e) {
       if (!esCancelacion(e)) toast.error(e instanceof Error ? e.message : "No se pudo generar el archivo.");
     } finally {
@@ -368,11 +407,13 @@ export default function EstadisticasPage() {
                   >
                     <Inbox aria-hidden /> Ver faltantes ({data.kpis.faltan})
                   </Button>
-                  <Button type="button" className="min-h-11" onClick={() => void exportar("excel", "faltantes")} disabled={exportando !== null}>
-                    <FileSpreadsheet aria-hidden /> Excel faltantes
-                  </Button>
-                  <Button type="button" variant="outline" className="min-h-11" onClick={() => void exportar("pdf", "faltantes")} disabled={exportando !== null}>
-                    <FileText aria-hidden /> PDF faltantes
+                  <Button
+                    type="button"
+                    className="min-h-11 gap-2"
+                    onClick={() => setDialogoExportarAbierto(true)}
+                    disabled={exportando !== null}
+                  >
+                    <Download aria-hidden /> Generar reporte
                   </Button>
                 </div>
               </div>
@@ -506,6 +547,14 @@ export default function EstadisticasPage() {
           </>
         ) : null}
       </div>
+
+      <DialogoExportarEstadisticas
+        abierto={dialogoExportarAbierto}
+        alCerrar={() => setDialogoExportarAbierto(false)}
+        alConfirmar={exportarReporte}
+        estadisticas={data ?? null}
+        filtrosActivos={filtros}
+      />
     </div>
   );
 }
