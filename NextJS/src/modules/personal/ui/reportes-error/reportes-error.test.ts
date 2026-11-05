@@ -48,22 +48,27 @@ describe("Módulo Personal - Reportes de Error Laboral (A11 / D20)", () => {
     expect(resultado.estado).toBe("PENDIENTE");
   });
 
-  it("getReportesErrorLaboral envía filtros por estado y dato", async () => {
+  it("getReportesErrorLaboral desenvuelve la página {items} y envía filtros por estado y dato", async () => {
     const mockList = {
       status: "success",
       message: "Listado",
-      data: [
-        {
-          id: "rep-1",
-          trabajador_cedula: "11111111",
-          trabajador_nombre: "Maria Gonzalez",
-          dato: "oficina",
-          descripcion: "Oficina desactualizada.",
-          estado: "PENDIENTE",
-          creado_el: "2026-11-02T10:00:00Z",
-          actualizado_el: "2026-11-02T10:00:00Z",
-        },
-      ],
+      data: {
+        items: [
+          {
+            id: "rep-1",
+            trabajador_cedula: "11111111",
+            trabajador_nombre: "Maria Gonzalez",
+            dato: "oficina",
+            descripcion: "Oficina desactualizada.",
+            estado: "PENDIENTE",
+            creado_el: "2026-11-02T10:00:00Z",
+            actualizado_el: "2026-11-02T10:00:00Z",
+          },
+        ],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      },
     };
     get.mockResolvedValue(mockList);
 
@@ -77,6 +82,15 @@ describe("Módulo Personal - Reportes de Error Laboral (A11 / D20)", () => {
     });
     expect(resultado).toHaveLength(1);
     expect(resultado[0].dato).toBe("oficina");
+  });
+
+  it("getReportesErrorLaboral devuelve [] si la página viene vacía", async () => {
+    get.mockResolvedValue({
+      status: "success",
+      message: "Sin reportes",
+      data: { items: [], total: 0, limit: 20, offset: 0 },
+    });
+    await expect(personalApi.getReportesErrorLaboral()).resolves.toEqual([]);
   });
 
   it("atenderReporteErrorLaboral llama endpoint de atención con id y observaciones", async () => {

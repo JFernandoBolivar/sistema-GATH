@@ -117,12 +117,6 @@ const items: MenuItem[] = [
         icon: BookUser,
         permiso: "familiares.ver",
       },
-      {
-        title: "Reportes de Error Laboral",
-        url: "/personal/reportes-error",
-        icon: AlertCircle,
-        permiso: "personal.reportes_error_ver",
-      },
     ],
   },
   {
@@ -283,6 +277,12 @@ const items: MenuItem[] = [
         icon: ListCheck,
         permiso: "bienestar.ver_solicitudes",
       },
+      {
+        title: "Reportes de Error Laboral",
+        url: "/personal/reportes-error",
+        icon: AlertCircle,
+        permiso: "personal.reportes_error_ver",
+      },
     ],
   },
   {
@@ -291,10 +291,10 @@ const items: MenuItem[] = [
     url: "#",
     subMenu: [
       {
-        title: "Bandeja de revisión",
-        url: "/personal/fe-de-vida",
-        icon: ListCheck,
-        permiso: "fe_de_vida.revisar",
+        title: "Procesos y prórrogas",
+        url: "/personal/fe-de-vida/procesos",
+        icon: CalendarClock,
+        permiso: "fe_de_vida.gestionar_procesos",
       },
       {
         title: "Registro presencial",
@@ -303,10 +303,10 @@ const items: MenuItem[] = [
         permiso: "fe_de_vida.registrar_presencial",
       },
       {
-        title: "Procesos y prórrogas",
-        url: "/personal/fe-de-vida/procesos",
-        icon: CalendarClock,
-        permiso: "fe_de_vida.gestionar_procesos",
+        title: "Bandeja de revisión",
+        url: "/personal/fe-de-vida",
+        icon: ListCheck,
+        permiso: "fe_de_vida.revisar",
       },
       {
         title: "Cobertura de pasivos",

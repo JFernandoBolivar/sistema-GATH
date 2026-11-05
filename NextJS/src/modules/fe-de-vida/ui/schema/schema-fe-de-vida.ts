@@ -8,7 +8,7 @@ import { MAX_LONGITUD_MOTIVO } from "../../domain/value-objects/estados";
 /** Teléfonos con código de país (D-13): el celular es obligatorio y móvil; la habitación es opcional y puede ser fija. */
 const MENSAJE_CELULAR_OBLIGATORIO = "El teléfono celular es obligatorio";
 const telefonoMovilObligatorio = z
-  .string({ required_error: MENSAJE_CELULAR_OBLIGATORIO })
+  .string({ required_error: MENSAJE_CELULAR_OBLIGATORIO, invalid_type_error: MENSAJE_CELULAR_OBLIGATORIO })
   .trim()
   .min(1, MENSAJE_CELULAR_OBLIGATORIO)
   .pipe(telefonoZod({ tipo: "movil" }))

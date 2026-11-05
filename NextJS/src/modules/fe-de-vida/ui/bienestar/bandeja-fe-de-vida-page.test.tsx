@@ -164,4 +164,45 @@ describe("BandejaFeDeVidaPage", () => {
 
     expect(screen.getByRole("link", { name: /ver detalle de la fe de vida de pasivo dos/i })).toBeInTheDocument();
   });
+
+  it("muestra los botones de exportar Excel y PDF y lanza la exportación con los filtros", async () => {
+    const user = userEvent.setup();
+    mockListarProcesos.mockImplementation(async (f: { estado?: string }) => {
+      if (f?.estado === "ABIERTO") {
+        return { ok: true, datos: { count: 1, results: [PROCESO_ABIERTO] } };
+      }
+      return { ok: true, datos: { count: 0, results: [] } };
+    });
+    mockListarBandeja.mockResolvedValue({
+      ok: true,
+      datos: { count: 1, results: [SOLICITUD_ABIERTA] },
+    });
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/octet-stream" }),
+      blob: async () =>
+        new Blob(["test"], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+    window.URL.createObjectURL = vi.fn(() => "blob:test");
+    window.URL.revokeObjectURL = vi.fn();
+
+    renderConSwr(<BandejaFeDeVidaPage />);
+
+    const botonExcel = screen.getByRole("button", { name: /exportar excel/i });
+    const botonPdf = screen.getByRole("button", { name: /exportar pdf/i });
+    expect(botonExcel).toBeInTheDocument();
+    expect(botonPdf).toBeInTheDocument();
+
+    await user.click(botonExcel);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/fe-de-vida/bandeja/exportar?formato=excel"),
+      expect.objectContaining({ cache: "no-store" }),
+    );
+  });
 });
