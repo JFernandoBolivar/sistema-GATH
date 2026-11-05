@@ -46,20 +46,27 @@ def dar_check(
 def aprobar_directo(
     repo: RepoSolicitudesFeDeVida, aplicador: AplicadorCambiosActa, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, justificacion: str, ahora: datetime,
+    registrador_puede_checar: bool = False,
 ) -> SolicitudFeDeVida:
     """Excepción de la Administradora (fe_de_vida.aprobar_directo): justificación obligatoria y auditada."""
     publicador = publicador or PublicadorNulo()
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
-    nueva = solicitud.aprobar_directo(actor, justificacion, ahora)
+    nueva = solicitud.aprobar_directo(
+        actor, justificacion, ahora, registrador_puede_checar=registrador_puede_checar,
+    )
     return _al_validar(repo, aplicador, publicador, solicitud, nueva, actor, ahora, TipoEvento.APROBACION_DIRECTA)
 
 
 def rechazar(
     repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, motivo: str, ahora: datetime,
+    registrador_puede_checar: bool = False,
 ) -> SolicitudFeDeVida:
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
-    guardada = repo.guardar(solicitud.rechazar(actor, motivo, ahora), solicitud.version)
+    guardada = repo.guardar(
+        solicitud.rechazar(actor, motivo, ahora, registrador_puede_checar=registrador_puede_checar),
+        solicitud.version,
+    )
     (publicador or PublicadorNulo()).publicar(evento(TipoEvento.RECHAZADA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios))
     return guardada
 
@@ -67,10 +74,17 @@ def rechazar(
 def devolver(
     repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, motivo: str, requiere_nueva_foto: bool = False, ahora: datetime,
+    registrador_puede_checar: bool = False,
 ) -> SolicitudFeDeVida:
     """Devuelve el acta para corrección (motivo obligatorio); la foto nueva solo se exige si el revisor lo pide."""
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
-    guardada = repo.guardar(solicitud.devolver(actor, motivo, ahora, requiere_nueva_foto), solicitud.version)
+    guardada = repo.guardar(
+        solicitud.devolver(
+            actor, motivo, ahora, requiere_nueva_foto,
+            registrador_puede_checar=registrador_puede_checar,
+        ),
+        solicitud.version,
+    )
     (publicador or PublicadorNulo()).publicar(evento(
         TipoEvento.DEVUELTA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios,
         requiere_nueva_foto=requiere_nueva_foto,
@@ -81,10 +95,14 @@ def devolver(
 def retirar_check(
     repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, motivo: str, ahora: datetime,
+    registrador_puede_checar: bool = False,
 ) -> SolicitudFeDeVida:
     """Retira el check propio (aún sin validación completa); justificación obligatoria. Avisa a Bienestar (sin correo)."""
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
-    guardada = repo.guardar(solicitud.retirar_check(actor, motivo, ahora), solicitud.version)
+    guardada = repo.guardar(
+        solicitud.retirar_check(actor, motivo, ahora, registrador_puede_checar=registrador_puede_checar),
+        solicitud.version,
+    )
     (publicador or PublicadorNulo()).publicar(evento(
         TipoEvento.CHECK_RETIRADO, guardada, actor.cedula, rol=actor.rol.value, envio=guardada.envios,
         secuencia=len(guardada.decisiones), motivo=guardada.decisiones[-1].motivo,

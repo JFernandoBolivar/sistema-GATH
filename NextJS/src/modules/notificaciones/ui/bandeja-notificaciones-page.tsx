@@ -22,7 +22,7 @@ import {
   esClaveDeNotificaciones,
   usePuedeAbrirEnlace,
 } from "./notificaciones-swr";
-import { TIPOS_POR_MODULO } from "./tipos-notificacion";
+import { TIPOS_NOTIFICACION } from "./tipos-notificacion";
 import {
   Select,
   SelectContent,
@@ -40,15 +40,17 @@ export const RETARDO_BUSQUEDA_MS = 400;
 type EstadoLectura = "todas" | "no" | "si";
 
 interface Props {
-  /** Bandeja que se muestra: cada módulo ve solo sus notificaciones. */
+  /** Se conserva por compatibilidad con los shells; la bandeja ahora es única por usuario. */
   modulo: ModuloNotificaciones;
 }
 
 /**
- * Bandeja completa de notificaciones del usuario en un módulo: filtros (texto con retardo, tipo,
+ * Bandeja completa de notificaciones del usuario: filtros (texto con retardo, tipo,
  * lectura y fechas) y paginación en servidor (anterior/siguiente + total).
  */
 export default function BandejaNotificacionesPage({ modulo }: Props) {
+  // La lectura es por usuario: el módulo del shell ya no filtra la bandeja.
+  void modulo;
   const id = useId();
   const [texto, setTexto] = useState("");
   const [q, setQ] = useState("");
@@ -60,7 +62,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
   const [pendiente, startTransition] = useTransition();
   const { mutate } = useSWRConfig();
   const puedeAbrirEnlace = usePuedeAbrirEnlace();
-  const tipos = TIPOS_POR_MODULO[modulo];
+  const tipos = TIPOS_NOTIFICACION;
 
   // Búsqueda con retardo: no se consulta al servidor en cada pulsación.
   useEffect(() => {
@@ -75,7 +77,6 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
 
   const fechasInvertidas = Boolean(desde && hasta && desde > hasta);
   const filtros: FiltrosNotificaciones = {
-    modulo,
     q: q || undefined,
     tipo: tipo || undefined,
     leida: estado === "todas" ? undefined : estado === "si",
@@ -86,7 +87,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
   };
 
   const { data, error, isLoading } = useSWR(
-    fechasInvertidas ? null : claveBandeja(modulo, filtros),
+    fechasInvertidas ? null : claveBandeja(filtros),
     async () => desenvolver(await listarNotificacionesAction(filtros)),
     { shouldRetryOnError: false, keepPreviousData: true },
   );
@@ -101,7 +102,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
 
   const marcarTodas = () =>
     startTransition(async () => {
-      await marcarTodasLeidasAction(modulo);
+      await marcarTodasLeidasAction();
       await refrescar();
     });
 
@@ -116,7 +117,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
     <div className="flex flex-col gap-6 p-4 sm:p-6">
       <PageHeader
         titulo="Notificaciones"
-        descripcion="Aquí encuentra los avisos de este módulo."
+        descripcion="Aquí encuentra todos sus avisos, sin importar el módulo en que se generaron."
         accion={
           <Button
             type="button"
@@ -240,7 +241,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
           descripcion={
             hayFiltros
               ? "Pruebe con otros filtros."
-              : "Cuando haya novedades en este módulo, las verá aquí."
+              : "Cuando haya novedades, las verá aquí."
           }
         />
       ) : (

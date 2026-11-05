@@ -24,6 +24,7 @@ vi.mock("next-auth/react", () => ({
 
 import { CampanaNotificaciones } from "./campana-notificaciones";
 import BandejaNotificacionesPage from "./bandeja-notificaciones-page";
+import { claveBandeja, claveConteo, claveRecientes } from "./notificaciones-swr";
 
 const ID = (i: number) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`;
 
@@ -86,6 +87,16 @@ async function elegir(user: ReturnType<typeof userEvent.setup>, etiqueta: string
   await user.click(await screen.findByRole("option", { name: new RegExp(`^${opcion}$`) }));
 }
 
+describe("Claves compartidas de notificaciones", () => {
+  it("son las mismas para todos los módulos (lectura por usuario)", () => {
+    expect(claveConteo()).toBe("notificaciones/conteo");
+    expect(claveRecientes()).toBe("notificaciones/recientes");
+    expect(claveBandeja({ limite: 10 })).toBe(
+      'notificaciones/bandeja/{"limite":10}',
+    );
+  });
+});
+
 describe("CampanaNotificaciones", () => {
   it("muestra el conteo del módulo en el nombre accesible del botón", async () => {
     render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
@@ -95,7 +106,7 @@ describe("CampanaNotificaciones", () => {
       await screen.findByRole("button", { name: "Notificaciones: 2 notificaciones sin leer" }),
     ).toBeDefined();
     expect(screen.getByRole("status").textContent).toBe("2 notificaciones sin leer");
-    expect(acciones.contarNoLeidasAction).toHaveBeenCalledWith("personal");
+    expect(acciones.contarNoLeidasAction).toHaveBeenCalledWith();
   });
 
   it("sin el permiso no se muestra ni se consulta nada", () => {
@@ -115,7 +126,6 @@ describe("CampanaNotificaciones", () => {
     expect(await screen.findByText("Aviso 1")).toBeDefined();
     expect(screen.getAllByText(/^Aviso \d$/)).toHaveLength(4);
     expect(acciones.listarNotificacionesAction).toHaveBeenCalledWith({
-      modulo: "personal",
       leida: false,
       limite: 4,
     });
@@ -131,7 +141,7 @@ describe("CampanaNotificaciones", () => {
     expect(enlace.getAttribute("href")).toBe("/personal/notificaciones");
   });
 
-  it("«Marcar todas como leídas» marca solo las del módulo y refresca el conteo", async () => {
+  it("«Marcar todas como leídas» marca las del usuario y refresca el conteo", async () => {
     const user = userEvent.setup();
     render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
       wrapper: Envoltorio,
@@ -140,7 +150,7 @@ describe("CampanaNotificaciones", () => {
     expect(await screen.findByText("Ventana habilitada")).toBeDefined();
     acciones.contarNoLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 0 });
     await user.click(screen.getByRole("button", { name: /Marcar todas como leídas/ }));
-    await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith("personal"));
+    await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith());
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Notificaciones: Sin notificaciones nuevas" }),
@@ -170,7 +180,6 @@ describe("BandejaNotificacionesPage", () => {
     render(<BandejaNotificacionesPage modulo="personal" />, { wrapper: Envoltorio });
     await screen.findByText("Ventana habilitada");
     expect(ultimaLlamadaListar()).toEqual({
-      modulo: "personal",
       limite: 10,
       desplazamiento: 0,
     });
@@ -285,11 +294,11 @@ describe("BandejaNotificacionesPage", () => {
     expect(acciones.listarNotificacionesAction.mock.calls.length).toBeLessThanOrEqual(llamadas + 1);
   });
 
-  it("«Marcar todas como leídas» marca solo las del módulo", async () => {
+  it("«Marcar todas como leídas» marca todas las del usuario", async () => {
     const user = userEvent.setup();
     render(<BandejaNotificacionesPage modulo="personal" />, { wrapper: Envoltorio });
     await screen.findByText("Ventana habilitada");
     await user.click(screen.getByRole("button", { name: /Marcar todas como leídas/ }));
-    await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith("personal"));
+    await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith());
   });
 });

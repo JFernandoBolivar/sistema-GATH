@@ -2,7 +2,10 @@
 Pruebas de integración para los endpoints de Fe de Vida Presencial (A9).
 """
 import io
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
@@ -209,6 +212,76 @@ def test_flujo_completo_fe_de_vida_presencial(datos):
     m = SolicitudFeDeVidaModel.objects.get(pk=sid)
     assert m.canal == 'PRESENCIAL'
     assert m.registrada_por_cedula == ANALISTA
+
+
+def _proceso_abierto_y_solicitud_presencial(registrada_por=ANALISTA):
+    ahora = timezone.now()
+    proceso = ProcesoFeDeVidaModel.objects.create(
+        nombre='Proceso presencial FIX-QA4', fecha_apertura=ahora,
+        fecha_cierre=ahora + timedelta(days=30), estado='ABIERTO',
+    )
+    return SolicitudFeDeVidaModel.objects.create(
+        proceso=proceso, cedula=PASIVO, estado='PENDIENTE_REVISION', canal='PRESENCIAL',
+        registrada_por='ANA LOPEZ', registrada_por_cedula=registrada_por, fecha_envio=ahora,
+        origen_evidencia='CAMARA', evidencia_clave='fotos/qa4.jpg',
+    )
+
+
+def test_registrador_presencial_no_puede_decidir_y_otro_analista_si(datos, monkeypatch):
+    monkeypatch.setattr(
+        'apps.fe_de_vida.presentation.views.revision_views._registrador_puede_checar', lambda: False,
+    )
+    sol = _proceso_abierto_y_solicitud_presencial()
+    registrador = _cliente(ANALISTA, {
+        'fe_de_vida.revisar', 'fe_de_vida.check_analista',
+    })
+    otro = _cliente('20000009', {'fe_de_vida.revisar', 'fe_de_vida.check_analista'}, pk=9)
+
+    detalle = _cuerpo(registrador.get(f'{BASE}/solicitudes/{sol.id}/'))
+    assert detalle['acciones_disponibles'] == []
+
+    rutas = [
+        (f'{BASE}/solicitudes/{sol.id}/check/', None),
+        (f'{BASE}/solicitudes/{sol.id}/devolver/', {'motivo': 'Corrija el teléfono'}),
+        (f'{BASE}/solicitudes/{sol.id}/rechazar/', {'motivo': 'Documentación ilegible'}),
+    ]
+    for ruta, cuerpo in rutas:
+        r = registrador.post(ruta, cuerpo, format='json')
+        assert r.status_code == 409, (ruta, r.content)
+        assert 'registró esta fe de vida' in r.json()['message']
+
+    # Otro analista sí puede revisar.
+    assert otro.post(f'{BASE}/solicitudes/{sol.id}/check/').status_code == 200
+
+
+def test_administradora_registradora_no_puede_aprobar_directo(datos, monkeypatch):
+    monkeypatch.setattr(
+        'apps.fe_de_vida.presentation.views.revision_views._registrador_puede_checar', lambda: False,
+    )
+    sol = _proceso_abierto_y_solicitud_presencial(registrada_por=ADMINISTRADORA)
+    registradora = _cliente(ADMINISTRADORA, {
+        'fe_de_vida.revisar', 'fe_de_vida.check_administradora', 'fe_de_vida.aprobar_directo',
+    })
+    detalle = _cuerpo(registradora.get(f'{BASE}/solicitudes/{sol.id}/'))
+    assert detalle['acciones_disponibles'] == []
+    r = registradora.post(
+        f'{BASE}/solicitudes/{sol.id}/aprobar-directo/',
+        {'justificacion': 'Pasivo sin movilidad'}, format='json',
+    )
+    assert r.status_code == 409 and 'registró esta fe de vida' in r.json()['message']
+
+
+def test_registrador_presencial_decide_si_el_parametro_esta_encendido(datos, monkeypatch):
+    monkeypatch.setattr(
+        'apps.fe_de_vida.presentation.views.revision_views._registrador_puede_checar', lambda: True,
+    )
+    sol = _proceso_abierto_y_solicitud_presencial()
+    registrador = _cliente(ANALISTA, {
+        'fe_de_vida.revisar', 'fe_de_vida.check_analista',
+    })
+    detalle = _cuerpo(registrador.get(f'{BASE}/solicitudes/{sol.id}/'))
+    assert {'dar_check', 'devolver', 'rechazar'} <= set(detalle['acciones_disponibles'])
+    assert registrador.post(f'{BASE}/solicitudes/{sol.id}/check/').status_code == 200
 
 
 def test_constancia_bienestar_imprimir_endpoint(datos):

@@ -138,22 +138,28 @@ def test_listado_filtros_limite_y_fechas(db):
     assert c.get(f'{BASE}/?modulo=autogestion&desde=2026-05-02&hasta=2026-05-01').status_code == 400
 
 
-def test_aislamiento_por_modulo_en_listado_conteo_y_leer_todas(db, django_capture_on_commit_callbacks):
+def test_aislamiento_por_modulo_y_bandeja_unica_por_usuario(db, django_capture_on_commit_callbacks):
     crear(TRABAJADOR, 3)
     crear(TRABAJADOR, 2, modulo='personal')
     c = cliente(TRABAJADOR)
     assert data(c.get(f'{BASE}/?modulo=personal'))['count'] == 2
     assert data(c.get(f'{BASE}/?modulo=autogestion'))['count'] == 3
     assert data(c.get(f'{BASE}/?modulo=carnetizacion'))['count'] == 0
+    # Sin módulo: todas las notificaciones del usuario (bandeja única compartida).
+    assert data(c.get(f'{BASE}/'))['count'] == 5
+    assert data(c.get(f'{BASE}/conteo/')) == {'no_leidas': 5}
     assert data(c.get(f'{BASE}/conteo/?modulo=personal')) == {'no_leidas': 2}
     assert data(c.get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 3}
     with django_capture_on_commit_callbacks(execute=True):
         assert data(c.post(f'{BASE}/leer-todas/?modulo=personal'))['marcadas'] == 2
     assert data(c.get(f'{BASE}/conteo/?modulo=personal')) == {'no_leidas': 0}
     assert data(c.get(f'{BASE}/conteo/?modulo=autogestion')) == {'no_leidas': 3}
-    for url in (f'{BASE}/', f'{BASE}/?modulo=zzz', f'{BASE}/conteo/'):
-        assert c.get(url).status_code == 400
-    assert c.post(f'{BASE}/leer-todas/').status_code == 400
+    assert data(c.get(f'{BASE}/conteo/')) == {'no_leidas': 3}
+    assert c.get(f'{BASE}/?modulo=zzz').status_code == 400
+    # «Marcar todas» sin módulo marca todas las del usuario.
+    with django_capture_on_commit_callbacks(execute=True):
+        assert data(c.post(f'{BASE}/leer-todas/'))['marcadas'] == 3
+    assert data(c.get(f'{BASE}/conteo/')) == {'no_leidas': 0}
 
 
 def test_pagina_por_defecto_10_y_tope_50(db):

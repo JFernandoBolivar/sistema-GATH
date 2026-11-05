@@ -15,14 +15,18 @@ LIMITE_MAXIMO = 50  # techo de seguridad del servidor
 LONGITUD_MAXIMA_BUSQUEDA = 100
 
 
-def validar_modulo(modulo: str) -> str:
+def validar_modulo(modulo: str | None) -> str | None:
+    """Vacío = bandeja única del usuario; si viene, debe ser un módulo conocido."""
+    modulo = (modulo or '').strip()
+    if not modulo:
+        return None
     if modulo not in MODULOS_NOTIFICACION:
         raise ValidationError('Indique un módulo válido: ' + ', '.join(MODULOS_NOTIFICACION) + '.')
     return modulo
 
 
 def listar_notificaciones(
-    repo: RepoNotificaciones, cedula: str, modulo: str, *, solo_no_leidas: bool = False, limite: int = LIMITE_PREDETERMINADO, desplazamiento: int = 0,
+    repo: RepoNotificaciones, cedula: str, modulo: str | None, *, solo_no_leidas: bool = False, limite: int = LIMITE_PREDETERMINADO, desplazamiento: int = 0,
     q: str = '', tipo: str = '', leida: bool | None = None, desde: date | None = None, hasta: date | None = None,
 ) -> tuple[list[Notificacion], int, int, int]:
     """Devuelve (página, total, límite aplicado, desplazamiento aplicado). El límite se acota a LIMITE_MAXIMO."""
@@ -40,9 +44,9 @@ def listar_notificaciones(
     return pagina, total, limite, desplazamiento
 
 
-def conteo_no_leidas(repo: RepoNotificaciones, cache: CacheConteo, cedula: str, modulo: str) -> int:
+def conteo_no_leidas(repo: RepoNotificaciones, cache: CacheConteo, cedula: str, modulo: str | None = None) -> int:
     """Contador barato para el polling de la campana: caché con invalidación al crear o leer."""
-    validar_modulo(modulo)
+    modulo = validar_modulo(modulo)
     en_cache = cache.obtener(cedula, modulo)
     if en_cache is not None:
         return en_cache
@@ -57,7 +61,7 @@ def marcar_leida(repo: RepoNotificaciones, cache: CacheConteo, cedula: str, noti
     cache.invalidar(cedula)
 
 
-def marcar_todas_leidas(repo: RepoNotificaciones, cache: CacheConteo, cedula: str, modulo: str, ahora: datetime) -> int:
+def marcar_todas_leidas(repo: RepoNotificaciones, cache: CacheConteo, cedula: str, modulo: str | None, ahora: datetime) -> int:
     marcadas = repo.marcar_todas_leidas(cedula, validar_modulo(modulo), ahora)
     if marcadas:
         cache.invalidar(cedula)

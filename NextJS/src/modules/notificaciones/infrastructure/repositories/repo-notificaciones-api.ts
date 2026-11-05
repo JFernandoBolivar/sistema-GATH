@@ -14,5 +14,4 @@ export const repoNotificacionesApi: RepoNotificaciones = {
   },
   async marcarTodasLeidas(modulo) {
     return (await notificacionesApi.marcarTodasLeidas(modulo)).data.marcadas;
-  },
-};
+  },};

@@ -1,18 +1,16 @@
 import { useSession } from "next-auth/react";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import type { ResultadoNotificacion } from "../application/dtos/notificacion-dto";
-import type { ModuloNotificaciones } from "../domain/entities/notificacion";
 
 export const PERMISO_NOTIFICACIONES = "notificaciones.ver_propias";
 const PERMISO_AUTOGESTION = "autogestion.ver_propio";
 
 /** Todas las claves SWR del módulo empiezan por este prefijo para poder refrescarlas juntas. */
 export const PREFIJO_CLAVES = "notificaciones/";
-export const claveConteo = (modulo: ModuloNotificaciones) => `${PREFIJO_CLAVES}conteo/${modulo}`;
-export const claveRecientes = (modulo: ModuloNotificaciones) =>
-  `${PREFIJO_CLAVES}recientes/${modulo}`;
-export const claveBandeja = (modulo: ModuloNotificaciones, filtros: object) =>
-  `${PREFIJO_CLAVES}bandeja/${modulo}/${JSON.stringify(filtros)}`;
+/** Clave única por usuario: la campana, el menú y la página comparten el mismo dato en todos los módulos. */
+export const claveConteo = () => `${PREFIJO_CLAVES}conteo`;
+export const claveRecientes = () => `${PREFIJO_CLAVES}recientes`;
+export const claveBandeja = (filtros: object) => `${PREFIJO_CLAVES}bandeja/${JSON.stringify(filtros)}`;
 
 /** Intervalo del sondeo del contador (ms). Además se revalida al recuperar el foco. */
 export const INTERVALO_SONDEO_MS = 60_000;

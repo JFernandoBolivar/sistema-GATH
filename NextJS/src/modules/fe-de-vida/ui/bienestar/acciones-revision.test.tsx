@@ -106,6 +106,39 @@ describe("AccionesRevision: solo se pintan las acciones que declara el servidor"
     expect(screen.getByText(/no hay acciones disponibles/i)).toBeInTheDocument();
   });
 
+  it("si el usuario registró la fe de vida presencial: aviso específico en vez de botones", () => {
+    const s = solicitudFake({
+      estado: "PENDIENTE_REVISION",
+      canal: "PRESENCIAL",
+      registradaPorCedula: "20000001",
+    });
+    render(<AccionesRevision solicitud={s} acciones={[]} onHecho={vi.fn()} esRegistrador />);
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /usted registró esta fe de vida de forma presencial\. la revisión debe hacerla otra persona de bienestar social/i,
+    );
+    expect(screen.queryByText(/no hay acciones disponibles/i)).toBeNull();
+  });
+
+  it("con el parámetro activo el registrador sí ve las acciones y no aparece el aviso", () => {
+    const s = solicitudFake({
+      estado: "PENDIENTE_REVISION",
+      canal: "PRESENCIAL",
+      registradaPorCedula: "20000001",
+    });
+    render(
+      <AccionesRevision
+        solicitud={s}
+        acciones={["dar_check", "devolver", "rechazar"]}
+        onHecho={vi.fn()}
+        esRegistrador
+      />,
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: /dar check/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /devolver para corrección/i })).toBeInTheDocument();
+  });
+
   it("rechazar pide motivo y lo envía", async () => {
     const onHecho = vi.fn();
     render(<AccionesRevision solicitud={solicitudFake()} acciones={["rechazar"]} onHecho={onHecho} />);

@@ -31,9 +31,9 @@ import {
 export const CANTIDAD_RECIENTES = 4;
 
 interface Props {
-  /** Bandeja del módulo en que está la cabecera: solo cuenta y muestra sus notificaciones. */
+  /** Se conserva por compatibilidad con los shells; la bandeja ahora es única por usuario. */
   modulo: ModuloNotificaciones;
-  /** Ruta de la página de notificaciones DEL MÓDULO ACTUAL («Ver todas» lleva allí). */
+  /** Ruta de la página de notificaciones («Ver todas» lleva allí). */
   rutaBandeja: string;
   /** `oscura`: sobre cabecera de color (texto blanco); `clara`: sobre fondo claro. */
   variante?: "oscura" | "clara";
@@ -51,14 +51,16 @@ export function CampanaNotificaciones(props: Props) {
 }
 
 function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: Props) {
+  // La lectura es por usuario: el módulo del shell ya no filtra el contador ni la lista.
+  void modulo;
   const [abierto, setAbierto] = useState(false);
   const puedeAbrirEnlace = usePuedeAbrirEnlace();
   const [pendiente, startTransition] = useTransition();
   const { mutate } = useSWRConfig();
 
   const { data: noLeidas = 0 } = useSWR(
-    claveConteo(modulo),
-    async () => desenvolver(await contarNoLeidasAction(modulo)),
+    claveConteo(),
+    async () => desenvolver(await contarNoLeidasAction()),
     {
       refreshInterval: INTERVALO_SONDEO_MS,
       refreshWhenHidden: false,
@@ -72,10 +74,10 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
     error,
     isLoading,
   } = useSWR(
-    abierto ? claveRecientes(modulo) : null,
+    abierto ? claveRecientes() : null,
     async () =>
       desenvolver(
-        await listarNotificacionesAction({ modulo, leida: false, limite: CANTIDAD_RECIENTES }),
+        await listarNotificacionesAction({ leida: false, limite: CANTIDAD_RECIENTES }),
       ).resultados.slice(0, CANTIDAD_RECIENTES),
     { shouldRetryOnError: false },
   );
@@ -90,7 +92,7 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
 
   const marcarTodas = () =>
     startTransition(async () => {
-      await marcarTodasLeidasAction(modulo);
+      await marcarTodasLeidasAction();
       await refrescar();
     });
 
@@ -146,7 +148,7 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
           ) : error ? (
             <VistaError
               mensaje="No se pudieron cargar sus notificaciones."
-              onReintentar={() => void mutate(claveRecientes(modulo))}
+              onReintentar={() => void mutate(claveRecientes())}
             />
           ) : !recientes?.length ? (
             <VistaVacia titulo="No tiene notificaciones sin leer" className="p-4" />

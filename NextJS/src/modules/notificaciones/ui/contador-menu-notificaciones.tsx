@@ -33,9 +33,11 @@ export function ContadorMenuNotificaciones({ modulo }: { modulo: ModuloNotificac
 }
 
 function ContadorActivo({ modulo }: { modulo: ModuloNotificaciones }) {
+  // La lectura es por usuario: el módulo del shell ya no filtra el contador.
+  void modulo;
   const { data: noLeidas = 0 } = useSWR(
-    claveConteo(modulo),
-    async () => desenvolver(await contarNoLeidasAction(modulo)),
+    claveConteo(),
+    async () => desenvolver(await contarNoLeidasAction()),
     {
       refreshInterval: INTERVALO_SONDEO_MS,
       refreshWhenHidden: false,

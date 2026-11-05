@@ -44,11 +44,11 @@ export const notificacionesApi = {
         offset: filtros.desplazamiento,
       })}`,
     ),
-  contar: (modulo: string) =>
+  contar: (modulo?: string) =>
     apiClient.get<ApiResponse<{ no_leidas: number }>>(`${BASE}/conteo/${queryParams({ modulo })}`),
   marcarLeida: (id: string) =>
     apiClient.post<ApiResponse<{ id: string; leida: boolean }>>(`${BASE}/${id}/leer/`),
-  marcarTodasLeidas: (modulo: string) =>
+  marcarTodasLeidas: (modulo?: string) =>
     apiClient.post<ApiResponse<{ marcadas: number }>>(
       `${BASE}/leer-todas/${queryParams({ modulo })}`,
     ),
