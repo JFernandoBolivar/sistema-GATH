@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import useSWR from "swr";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Loader2, Send, Shield, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Send, Shield, ShieldAlert, ShieldCheck, Users } from "lucide-react";
 import { reducirFoto } from "@/shared/components/captura-foto/reducir-foto";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -34,13 +34,21 @@ import {
   subirEvidenciaPresencialAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
 import {
+  eliminarFotoLocal,
+  guardarFotoLocal,
+  recuperarFotoLocal,
+} from "../../infrastructure/storage/foto-local-storage";
+import { AvisoConectividad } from "../comun/aviso-conectividad";
+import {
   confirmacionEnvioSchema,
   type ConfirmacionEnvioValores,
   type DatosContactoValores,
 } from "../schema/schema-fe-de-vida";
 import { aEntrada, cambiosAItems, fusionarContacto, valoresIniciales } from "./borrador-items";
+import { BotonVerGuia, PanelGuiaFeDeVida } from "./panel-guia-fe-de-vida";
 import { PasoContacto } from "./paso-contacto";
 import { PasoFoto } from "./paso-foto";
+import { ejecutarConReintento } from "./subida-con-reintento";
 
 type Paso = "contacto" | "emergencia" | "hijos" | "foto" | "revisar";
 
@@ -51,6 +59,12 @@ const TITULOS: Record<Paso, string> = {
   foto: "Foto con su cédula",
   revisar: "Revisar y enviar",
 };
+
+function pasoFormularioAGuia(p: Paso): number {
+  if (p === "foto") return 3;
+  if (p === "revisar") return 4;
+  return 2;
+}
 
 const entidadDe = (seccion: "contacto" | "vivienda" | "familiar", entidad: string): EntidadDef => {
   const def = SECCIONES_DEF[seccion].entidades.find((e) => e.entidad === entidad);
@@ -103,12 +117,46 @@ export function FormularioFeDeVida({
   const [indice, setIndice] = useState(0);
   const [foto, setFoto] = useState<{ archivo: File; origen: OrigenFoto } | null>(null);
   const [fotoSubida, setFotoSubida] = useState(false);
+  const [fotoRecuperadaLocal, setFotoRecuperadaLocal] = useState(false);
+  const [mensajeSubida, setMensajeSubida] = useState<string | undefined>(undefined);
+  const [guiaAbierta, setGuiaAbierta] = useState(false);
   const [erroresContacto, setErroresContacto] = useState<Record<string, string[]> | undefined>(undefined);
   const [guardando, iniciarGuardado] = useTransition();
   const [subiendo, iniciarSubida] = useTransition();
   const [enviando, iniciarEnvio] = useTransition();
   const nombres = useNombresCatalogo(
     items.map((i) => ({ campo: i.campo, valorPropuesto: i.valor })),
+  );
+
+  // Recuperación preventiva de foto guardada localmente en IndexedDB tras recarga o corte de red
+  useEffect(() => {
+    let montado = true;
+    if (!solicitud.tieneEvidencia && !foto) {
+      recuperarFotoLocal(solicitud.id).then((guardada) => {
+        if (montado && guardada) {
+          setFoto({ archivo: guardada.archivo, origen: guardada.origen });
+          setFotoRecuperadaLocal(true);
+        }
+      });
+    }
+    return () => {
+      montado = false;
+    };
+  }, [solicitud.id, solicitud.tieneEvidencia, foto]);
+
+  const manejarFoto = useCallback(
+    (archivo: File | null, origen: OrigenFoto | null) => {
+      if (archivo && origen) {
+        setFoto({ archivo, origen });
+        setFotoRecuperadaLocal(false);
+        void guardarFotoLocal(solicitud.id, archivo, origen);
+      } else {
+        setFoto(null);
+        setFotoRecuperadaLocal(false);
+        void eliminarFotoLocal(solicitud.id);
+      }
+    },
+    [solicitud.id],
   );
 
   const tieneHijos = useMemo(() => {
@@ -193,18 +241,54 @@ export function FormularioFeDeVida({
       return;
     }
     iniciarSubida(async () => {
-      const form = new FormData();
-      form.append("solicitudId", solicitud.id);
-      form.append("file", await reducirFoto(foto.archivo));
-      form.append("origen", foto.origen);
+      // Guardado preventivo local en caso de desconexión abrupta
+      await guardarFotoLocal(solicitud.id, foto.archivo, foto.origen);
+
+      setMensajeSubida("Subiendo foto con su cédula…");
+      const archivoReducido = await reducirFoto(foto.archivo);
       const accionEvidencia = esPresencial ? subirEvidenciaPresencialAction : subirEvidenciaAction;
-      const res = await accionEvidencia(form);
+
+      const res = await ejecutarConReintento(
+        async (intento) => {
+          const form = new FormData();
+          form.append("solicitudId", solicitud.id);
+          form.append("file", archivoReducido);
+          form.append("origen", foto.origen);
+          return await accionEvidencia(form);
+        },
+        (resOError) => {
+          if (!resOError) return true;
+          if (typeof resOError === "object" && "ok" in resOError) {
+            // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+            const r = resOError as { ok: boolean };
+            return !r.ok;
+          }
+          return true;
+        },
+        {
+          intentosMaximos: 3,
+          demoraBaseMs: 1000,
+          factorBackoff: 2,
+          onIntento: (intento, total) => {
+            setMensajeSubida(`Reintentando subida (${intento} de ${total})…`);
+          },
+        },
+      );
+
+      setMensajeSubida(undefined);
+
       if (!res.ok) {
-        toast.error(res.mensaje);
+        toast.error(
+          "No se pudo subir la foto por problemas de conexión. Su foto quedó guardada en este dispositivo; podrá reintentar al recuperar la conexión.",
+        );
         return;
       }
+
+      // Subida completada: limpiar copia local y avanzar
+      await eliminarFotoLocal(solicitud.id);
       setFotoSubida(true);
       setFoto(null);
+      setFotoRecuperadaLocal(false);
       setIndice(indice + 1);
     });
   }
@@ -247,13 +331,32 @@ export function FormularioFeDeVida({
       const accionEnviar = esPresencial ? enviarPresencialAction : enviarSolicitudAction;
       const res = await accionEnviar(solicitud.id);
       if (!res.ok) {
-        toast.error(res.mensaje);
         if (res.errores) {
           aplicarErroresServidor(confirmacion, res.errores);
+          const keys = Object.keys(res.errores);
+          if (keys.some((k) => ["telefono_movil", "telefono_habitacion", "correo_alternativo", "tiene_hijos"].includes(k))) {
+            setErroresContacto(res.errores);
+            const idx = pasos.indexOf("contacto");
+            if (idx !== -1) setIndice(idx);
+          } else if (keys.some((k) => k.includes("emergencia") || k.includes("vivienda") || k.includes("direccion"))) {
+            const idx = pasos.indexOf("emergencia");
+            if (idx !== -1) setIndice(idx);
+          } else if (keys.some((k) => k.includes("familiar") || k.includes("hijo"))) {
+            const idx = pasos.indexOf("hijos");
+            if (idx !== -1) setIndice(idx);
+          } else if (keys.some((k) => k.includes("evidencia") || k.includes("foto"))) {
+            const idx = pasos.indexOf("foto");
+            if (idx !== -1) setIndice(idx);
+          }
         }
+        toast.error(res.mensaje);
         return;
       }
-      toast.success(res.mensaje);
+      toast.success(
+        esPresencial
+          ? "Fe de vida presencial registrada y constancia emitida."
+          : "Fe de vida enviada. Su constancia está lista.",
+      );
       onActualizar();
     });
   }
@@ -265,25 +368,29 @@ export function FormularioFeDeVida({
 
   return (
     <div className="flex flex-col gap-6">
-      <nav aria-label="Pasos de la fe de vida">
-        <ol className="flex flex-wrap gap-2">
-          {pasos.map((p, i) => (
-            <li
-              key={p}
-              aria-current={i === indice ? "step" : undefined}
-              className={`rounded-full border px-3 py-1 text-sm font-medium ${
-                i === indice
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : i < indice
-                    ? "border-success/40 bg-success-soft text-success"
-                    : "text-muted-foreground"
-              }`}
-            >
-              {i + 1}. {TITULOS[p]}
-            </li>
-          ))}
-        </ol>
-      </nav>
+      <AvisoConectividad className="w-full" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Pasos de la fe de vida">
+          <ol className="flex flex-wrap gap-2">
+            {pasos.map((p, i) => (
+              <li
+                key={p}
+                aria-current={i === indice ? "step" : undefined}
+                className={`rounded-full border px-3 py-1 text-sm font-medium ${
+                  i === indice
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : i < indice
+                      ? "border-success/40 bg-success-soft text-success"
+                      : "text-muted-foreground"
+                }`}
+              >
+                {i + 1}. {TITULOS[p]}
+              </li>
+            ))}
+          </ol>
+        </nav>
+        <BotonVerGuia onClick={() => setGuiaAbierta(true)} />
+      </div>
       <p role="status" aria-live="polite" className="sr-only">
         Paso {indice + 1} de {pasos.length}: {TITULOS[paso]}
       </p>
@@ -300,10 +407,25 @@ export function FormularioFeDeVida({
 
       {paso === "emergencia" ? (
         <div className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold">Contacto de emergencia y dirección</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <MapPin className="size-5 text-primary" aria-hidden />
+            Contacto de emergencia y dirección de habitación
+          </h2>
           <p className="text-base text-muted-foreground">
             Revise estos datos y corríjalos si cambiaron. Si están bien, continúe.
           </p>
+
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-foreground flex flex-col gap-1.5">
+            <p className="flex items-center gap-1.5 font-medium">
+              <ShieldAlert className="size-4 text-primary" aria-hidden />
+              <span>Ejemplo de contacto y vivienda:</span>
+            </p>
+            <ul className="list-disc pl-5 text-xs text-muted-foreground flex flex-col gap-1">
+              <li><strong>Contacto de emergencia:</strong> Familiar o persona de confianza (nombres, apellidos y teléfono activo).</li>
+              <li><strong>Dirección de habitación:</strong> Estado, municipio, parroquia, avenida/calle y número de casa o edificio.</li>
+            </ul>
+          </div>
+
           {ENTIDADES_EMERGENCIA.map(([seccion, def]) => (
             <EditorEntidad
               key={def.entidad}
@@ -328,12 +450,26 @@ export function FormularioFeDeVida({
 
       {paso === "hijos" ? (
         <div className="flex flex-col gap-4">
-          <h2 className="text-xl font-semibold">Sus hijos</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <Users className="size-5 text-primary" aria-hidden />
+            Sus hijos
+          </h2>
           <p className="text-base text-muted-foreground">
             {hayHijosRegistrados || hayHijoPropuesto
               ? "Aparecen los hijos que ya tenemos registrados. Corrija sus datos o agregue los que falten."
               : "No tiene hijos registrados. Use «Agregar familiar» para registrar al menos uno."}
           </p>
+
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-foreground flex flex-col gap-1.5">
+            <p className="flex items-center gap-1.5 font-medium">
+              <Users className="size-4 text-primary" aria-hidden />
+              <span>Ejemplo de registro de hijos:</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Indique la cédula (si tiene), nombres, apellidos y fecha de nacimiento de sus hijos menores de edad o dependientes directos.
+            </p>
+          </div>
+
           <EditorEntidad
             seccion="familiar"
             definicion={ENTIDAD_HIJOS}
@@ -359,7 +495,9 @@ export function FormularioFeDeVida({
           exigeNueva={exigeNueva}
           fotoElegida={foto?.archivo ?? null}
           subiendo={subiendo}
-          onFoto={(archivo, origen) => setFoto(archivo && origen ? { archivo, origen } : null)}
+          mensajeSubida={mensajeSubida}
+          fotoRecuperadaLocal={fotoRecuperadaLocal}
+          onFoto={manejarFoto}
           onAtras={() => setIndice(indice - 1)}
           onContinuar={subirFotoYContinuar}
         />
@@ -407,47 +545,28 @@ export function FormularioFeDeVida({
                   : "border-primary/25 bg-primary/5 hover:border-primary/50 hover:shadow-md",
               )}
             >
-              <span
-                aria-hidden
-                className={cn(
-                  "flex size-11 shrink-0 items-center justify-center rounded-full transition-colors",
-                  confirmacion.watch("declaro")
-                    ? "bg-success text-white"
-                    : "bg-primary/10 text-primary",
-                )}
-              >
-                {confirmacion.watch("declaro") ? (
-                  <ShieldCheck className="size-6" />
-                ) : (
-                  <Shield className="size-6" />
-                )}
-              </span>
-              <span className="flex flex-1 flex-col gap-1">
-                <span
-                  className={cn(
-                    "text-xs font-semibold tracking-wider uppercase",
-                    confirmacion.watch("declaro") ? "text-success" : "text-primary",
-                  )}
-                >
-                  {confirmacion.watch("declaro") ? "Declaración confirmada" : "Último paso"}
-                </span>
-                <span className="text-lg leading-snug font-semibold text-foreground">
-                  {esPresencial
-                    ? "El pasivo declaró presencialmente ante este funcionario los datos consignados en esta acta y presentó su documento de identidad."
-                    : "Declaro que los datos y la foto son verdaderos y que soy la persona de la cédula."}
-                </span>
-              </span>
               <input
                 type="checkbox"
-                className="mt-2.5 size-6 shrink-0 cursor-pointer accent-primary"
-                aria-describedby={
-                  confirmacion.formState.errors.declaro ? "fv-declaro-error" : undefined
-                }
+                className="mt-1 size-5 accent-success transition-transform group-hover:scale-110"
                 {...confirmacion.register("declaro")}
               />
+              <div className="flex flex-col gap-1">
+                <span className="flex items-center gap-2 text-base font-semibold text-foreground">
+                  {confirmacion.watch("declaro") ? (
+                    <ShieldCheck className="size-5 text-success" aria-hidden />
+                  ) : (
+                    <Shield className="size-5 text-primary" aria-hidden />
+                  )}
+                  Declaración jurada de fe de vida
+                </span>
+                <span className="text-base leading-relaxed text-muted-foreground">
+                  Declaro bajo fe de juramento que la información suministrada y los recaudos
+                  consignados son fidedignos y corresponden a mi persona.
+                </span>
+              </div>
             </label>
             {confirmacion.formState.errors.declaro ? (
-              <p id="fv-declaro-error" role="alert" className="text-sm font-medium text-danger">
+              <p role="alert" className="text-sm font-medium text-danger">
                 {confirmacion.formState.errors.declaro.message}
               </p>
             ) : null}
@@ -467,19 +586,19 @@ export function FormularioFeDeVida({
               className="min-h-11"
               disabled={
                 enviando ||
-                // Hasta marcar la declaración el botón se ve deshabilitado (QA 2026-11-03).
                 !confirmacion.watch("declaro") ||
                 !puedeEnviarFeDeVida({ fotoVigente, viviendaOk, tieneHijos, hijosOk })
               }
             >
-              {enviando ? <Loader2 className="animate-spin" aria-hidden /> : <Send aria-hidden />}{" "}
-              {enviando
-                ? "Enviando…"
-                : esPresencial
-                  ? "Consignar fe de vida presencial"
-                  : "Enviar fe de vida"}
+              {enviando ? <Loader2 className="animate-spin" aria-hidden /> : null}
+              {enviando ? "Enviando…" : "Enviar fe de vida"} <Send aria-hidden />
             </Button>
           </div>
+          {!fotoVigente ? (
+            <p role="status" className="text-sm font-medium text-warning">
+              Debe cargar su foto con la cédula antes de enviar.
+            </p>
+          ) : null}
           {!viviendaOk ? (
             <p role="status" className="text-sm font-medium text-warning">
               Registre sus datos de vivienda antes de enviar.
@@ -492,6 +611,11 @@ export function FormularioFeDeVida({
           ) : null}
         </form>
       ) : null}
+      <PanelGuiaFeDeVida
+        abierto={guiaAbierta}
+        onOpenChange={setGuiaAbierta}
+        pasoActual={pasoFormularioAGuia(paso)}
+      />
     </div>
   );
 }

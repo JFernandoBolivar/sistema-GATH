@@ -15,6 +15,7 @@ from apps.fe_de_vida.domain.ports.repos import (
     RepoCambiosActa,
     RepoProcesos,
     LectorAlcance,
+    LectorFichaPasivo,
     RepoSolicitudesFeDeVida,
     ValidadorCambiosActa,
     VerificadorPasivo,
@@ -100,6 +101,23 @@ def subir_evidencia(
         origen_ev, clave, hashlib.sha256(contenido).hexdigest(), mime, len(contenido), meta,
     )
     return repo_sol.guardar(actualizada, solicitud.version)
+
+
+MENSAJE_CELULAR_OBLIGATORIO = "El teléfono celular es obligatorio."
+
+
+def exigir_celular(repo_cambios: RepoCambiosActa, lector_ficha: LectorFichaPasivo, *, solicitud_id: str, cedula: str) -> None:
+    """
+    El teléfono celular es obligatorio en el acta (pasivo y presencial): vale el propuesto en el borrador o, si el
+    acta no lo toca, el que ya consta en el expediente.
+    """
+    for c in repo_cambios.listar(solicitud_id):
+        if c.entidad_destino == 'employee' and c.campo == 'telefono_movil' and c.accion == 'MODIFICAR':
+            if str(c.valor_propuesto or '').strip():
+                return
+            raise ValidationError(MENSAJE_CELULAR_OBLIGATORIO, campo='telefono_movil')
+    if not str(lector_ficha.ficha(cedula)['empleado'].get('telefono_movil') or '').strip():
+        raise ValidationError(MENSAJE_CELULAR_OBLIGATORIO, campo='telefono_movil')
 
 
 def enviar_solicitud(

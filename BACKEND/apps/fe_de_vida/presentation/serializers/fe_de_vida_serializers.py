@@ -13,10 +13,16 @@ from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
     VerificacionConstancia,
 )
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
+from apps.fe_de_vida.domain.entities.estadisticas import EstadisticasFeDeVida, PasivoEstadistica
 from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
-from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud, OrigenEvidencia
+from apps.fe_de_vida.domain.value_objects.estados import (
+    CANALES_SOLICITUD,
+    EstadoProceso,
+    EstadoSolicitud,
+    OrigenEvidencia,
+)
 
 ACCIONES_CAMBIO = ('MODIFICAR', 'CREAR')
 MAX_CAMBIOS_BORRADOR = 60
@@ -49,6 +55,10 @@ class FiltroHistorialSerializer(PaginaSerializer):
     estado = serializers.ChoiceField(required=False, choices=[e.value for e in EstadoSolicitud])
 
 
+class ExportarBandejaSerializer(FiltroBandejaSerializer):
+    formato = serializers.ChoiceField(choices=['pdf', 'excel'], required=False, default='excel')
+
+
 class FiltroProcesosSerializer(PaginaSerializer):
     estado = serializers.ChoiceField(required=False, choices=[e.value for e in EstadoProceso])
 
@@ -58,6 +68,34 @@ class FiltroCoberturaSerializer(PaginaSerializer):
     tipo_nomina_id = serializers.IntegerField(required=False, min_value=1, help_text='Tipo de pensión (TipoNomina).')
     sin_correo = serializers.BooleanField(required=False, default=False)
     sin_cuenta = serializers.BooleanField(required=False, default=False)
+
+
+class FiltroEstadisticasSerializer(PaginaSerializer):
+    """Filtros de la pantalla y de las exportaciones (proceso, tipo, estado, canal y fechas)."""
+
+    proceso_id = serializers.UUIDField(required=False, help_text='Por defecto, el proceso ABIERTO más reciente.')
+    tipo_nomina_id = serializers.IntegerField(required=False, min_value=1, help_text='Tipo de pasivo (TipoNomina).')
+    estado = serializers.ChoiceField(required=False, choices=[e.value for e in EstadoSolicitud])
+    canal = serializers.ChoiceField(required=False, choices=list(CANALES_SOLICITUD))
+    desde = serializers.DateField(required=False, help_text='Fecha de envío desde (inclusive).')
+    hasta = serializers.DateField(required=False, help_text='Fecha de envío hasta (inclusive).')
+
+    def validate(self, datos):
+        if datos.get('desde') and datos.get('hasta') and datos['desde'] > datos['hasta']:
+            raise serializers.ValidationError('El rango de fechas es inválido: "desde" es posterior a "hasta".')
+        return datos
+
+
+class ExportarEstadisticasSerializer(FiltroEstadisticasSerializer):
+    """Parámetros del archivo: `faltantes` (sin envío) o `celda` (con estado, la casilla exacta)."""
+
+    listado = serializers.ChoiceField(choices=['faltantes', 'celda'], required=False, default='faltantes')
+
+    def validate(self, datos):
+        datos = super().validate(datos)
+        if datos.get('listado') == 'celda' and not datos.get('estado'):
+            raise serializers.ValidationError('Para exportar una casilla debe indicar el estado.')
+        return datos
 
 
 class BuscarPasivoPresencialSerializer(PaginaSerializer):
@@ -264,6 +302,11 @@ class ProcesoVigenteSerializer(serializers.Serializer):
     proceso = ProcesoSerializer()
     solicitud = SolicitudSerializer(allow_null=True)
     puede_enviar = serializers.BooleanField()
+    guia_vista = serializers.BooleanField(default=False)
+
+
+class MarcarGuiaVistaSerializer(serializers.Serializer):
+    proceso_id = serializers.UUIDField(help_text='ID del proceso de fe de vida cuya guía fue vista.')
 
 
 class ProrrogaSerializer(serializers.Serializer):
@@ -274,6 +317,82 @@ class ProrrogaSerializer(serializers.Serializer):
     nueva_fecha_limite = serializers.DateTimeField()
     motivo = serializers.CharField()
     concedida_por = serializers.CharField()
+
+
+class ProcesoResumenSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    nombre = serializers.CharField()
+    estado = serializers.CharField()
+    apertura = serializers.DateTimeField(allow_null=True)
+    cierre = serializers.DateTimeField(allow_null=True)
+
+
+class KpisEstadisticasSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    respondieron = serializers.IntegerField()
+    faltan = serializers.IntegerField()
+    validadas = serializers.IntegerField()
+    porcentaje_respondieron = serializers.FloatField()
+    porcentaje_faltan = serializers.FloatField()
+    porcentaje_validadas = serializers.FloatField()
+
+
+class FilaTipoSerializer(serializers.Serializer):
+    tipo_nomina_id = serializers.IntegerField(allow_null=True)
+    tipo_nomina = serializers.CharField()
+    total = serializers.IntegerField()
+    respondieron = serializers.IntegerField()
+    faltan = serializers.IntegerField()
+    validadas = serializers.IntegerField()
+
+
+class FilaEstadoSerializer(serializers.Serializer):
+    estado = serializers.CharField()
+    total = serializers.IntegerField()
+
+
+class FilaCanalSerializer(serializers.Serializer):
+    canal = serializers.CharField(allow_blank=True)
+    total = serializers.IntegerField()
+
+
+class FilaMatrizSerializer(serializers.Serializer):
+    tipo_nomina_id = serializers.IntegerField(allow_null=True)
+    tipo_nomina = serializers.CharField()
+    estado = serializers.CharField()
+    total = serializers.IntegerField()
+
+
+class FiltrosAplicadosSerializer(serializers.Serializer):
+    proceso_id = serializers.CharField(allow_null=True)
+    tipo_nomina_id = serializers.IntegerField(allow_null=True)
+    estado = serializers.CharField(allow_null=True)
+    canal = serializers.CharField(allow_null=True)
+    desde = serializers.DateField(allow_null=True)
+    hasta = serializers.DateField(allow_null=True)
+
+
+class EstadisticasSerializer(serializers.Serializer):
+    proceso = ProcesoResumenSerializer(allow_null=True)
+    procesos = ProcesoResumenSerializer(many=True)
+    tipos = TipoPensionSerializer(many=True)
+    kpis = KpisEstadisticasSerializer()
+    por_tipo = FilaTipoSerializer(many=True)
+    por_estado = FilaEstadoSerializer(many=True)
+    por_canal = FilaCanalSerializer(many=True)
+    matriz = FilaMatrizSerializer(many=True)
+    filtros = FiltrosAplicadosSerializer()
+
+
+class PasivoEstadisticaSerializer(serializers.Serializer):
+    cedula = serializers.CharField()
+    nombre_completo = serializers.CharField()
+    tipo_nomina = serializers.CharField(allow_blank=True)
+    correo = serializers.CharField(allow_blank=True)
+    telefono = serializers.CharField(allow_blank=True)
+    estado = serializers.CharField(allow_blank=True)
+    canal = serializers.CharField(allow_blank=True)
+    fecha_envio = serializers.DateTimeField(allow_null=True)
 
 
 class PasivoCoberturaSerializer(serializers.Serializer):
@@ -399,6 +518,7 @@ def a_dict_vigente(v: ProcesoVigente, nombres_tipos: dict[int, str] | None = Non
     return {
         'proceso': a_dict_proceso(v.proceso, nombres_tipos), 'solicitud': a_dict_solicitud(v.solicitud) if v.solicitud else None,
         'puede_enviar': v.puede_enviar,
+        'guia_vista': getattr(v, 'guia_vista', False),
     }
 
 
@@ -456,4 +576,55 @@ def a_dict_item_presencial(item: ItemPasivoPresencial) -> dict:
         'puede_iniciar': item.puede_iniciar,
         'puede_continuar': item.puede_continuar,
         'puede_imprimir': item.puede_imprimir,
+    }
+
+
+def a_dict_estadisticas(e: EstadisticasFeDeVida) -> dict:
+    conteos = e.conteos
+    return {
+        'proceso': {
+            'id': e.proceso.id, 'nombre': e.proceso.nombre, 'estado': e.proceso.estado,
+            'apertura': e.proceso.apertura, 'cierre': e.proceso.cierre,
+        } if e.proceso else None,
+        'procesos': [
+            {'id': p.id, 'nombre': p.nombre, 'estado': p.estado, 'apertura': p.apertura, 'cierre': p.cierre}
+            for p in e.procesos
+        ],
+        'tipos': [{'id': t.id, 'nombre': t.nombre} for t in e.tipos],
+        'kpis': {
+            'total': conteos.total, 'respondieron': conteos.respondieron, 'faltan': conteos.faltan,
+            'validadas': conteos.validadas,
+            'porcentaje_respondieron': e.porcentaje_respondieron,
+            'porcentaje_faltan': e.porcentaje_faltan,
+            'porcentaje_validadas': e.porcentaje_validadas,
+        },
+        'por_tipo': [
+            {
+                'tipo_nomina_id': f.tipo_nomina_id, 'tipo_nomina': f.tipo_nomina, 'total': f.total,
+                'respondieron': f.respondieron, 'faltan': f.faltan, 'validadas': f.validadas,
+            }
+            for f in conteos.por_tipo
+        ],
+        'por_estado': [{'estado': f.estado, 'total': f.total} for f in conteos.por_estado],
+        'por_canal': [{'canal': f.canal, 'total': f.total} for f in conteos.por_canal],
+        'matriz': [
+            {
+                'tipo_nomina_id': f.tipo_nomina_id, 'tipo_nomina': f.tipo_nomina,
+                'estado': f.estado, 'total': f.total,
+            }
+            for f in conteos.matriz
+        ],
+        'filtros': {
+            'proceso_id': e.filtro.proceso_id, 'tipo_nomina_id': e.filtro.tipo_nomina_id,
+            'estado': e.filtro.estado, 'canal': e.filtro.canal,
+            'desde': e.filtro.desde, 'hasta': e.filtro.hasta,
+        },
+    }
+
+
+def a_dict_pasivo_estadistica(p: PasivoEstadistica) -> dict:
+    return {
+        'cedula': p.cedula, 'nombre_completo': p.nombre_completo, 'tipo_nomina': p.tipo_nomina,
+        'correo': p.correo, 'telefono': p.telefono, 'estado': p.estado, 'canal': p.canal,
+        'fecha_envio': p.fecha_envio,
     }

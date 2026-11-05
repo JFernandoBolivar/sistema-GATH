@@ -132,6 +132,7 @@ export interface VigenteApi {
   proceso: ProcesoApi;
   solicitud: SolicitudApi | null;
   puede_enviar: boolean;
+  guia_vista?: boolean;
 }
 
 export interface ProrrogaApi {
@@ -154,6 +155,80 @@ export interface CoberturaApi {
   sin_correo: boolean;
   tiene_cuenta: boolean;
   canal?: string;
+}
+
+export interface ProcesoResumenEstadisticaApi {
+  id: string;
+  nombre: string;
+  estado: string;
+  apertura: string | null;
+  cierre: string | null;
+}
+
+export interface KpisEstadisticaApi {
+  total: number;
+  respondieron: number;
+  faltan: number;
+  validadas: number;
+  porcentaje_respondieron: number;
+  porcentaje_faltan: number;
+  porcentaje_validadas: number;
+}
+
+export interface FilaTipoEstadisticaApi {
+  tipo_nomina_id: number | null;
+  tipo_nomina: string;
+  total: number;
+  respondieron: number;
+  faltan: number;
+  validadas: number;
+}
+
+export interface FilaEstadoEstadisticaApi {
+  estado: string;
+  total: number;
+}
+
+export interface FilaCanalEstadisticaApi {
+  canal: string;
+  total: number;
+}
+
+export interface FilaMatrizEstadisticaApi {
+  tipo_nomina_id: number | null;
+  tipo_nomina: string;
+  estado: string;
+  total: number;
+}
+
+export interface EstadisticasApi {
+  proceso: ProcesoResumenEstadisticaApi | null;
+  procesos: ProcesoResumenEstadisticaApi[];
+  tipos: TipoPensionApi[];
+  kpis: KpisEstadisticaApi;
+  por_tipo: FilaTipoEstadisticaApi[];
+  por_estado: FilaEstadoEstadisticaApi[];
+  por_canal: FilaCanalEstadisticaApi[];
+  matriz: FilaMatrizEstadisticaApi[];
+  filtros: {
+    proceso_id: string | null;
+    tipo_nomina_id: number | null;
+    estado: string | null;
+    canal: string | null;
+    desde: string | null;
+    hasta: string | null;
+  };
+}
+
+export interface PasivoEstadisticaApi {
+  cedula: string;
+  nombre_completo: string;
+  tipo_nomina: string;
+  correo: string;
+  telefono: string;
+  estado: string;
+  canal: string;
+  fecha_envio: string | null;
 }
 
 export interface PasivoPresencialApi {
@@ -238,6 +313,8 @@ export interface RegenerarConstanciaApi {
 
 export const feDeVidaApi = {
   vigente: () => apiClient.get<ApiResponse<VigenteApi | null>>(`${BASE}/procesos/vigente/`),
+  marcarGuiaVista: (proceso_id: string) =>
+    apiClient.post<ApiResponse<{ guia_vista: boolean }>>(`${BASE}/procesos/vigente/guia-vista/`, { proceso_id }),
   iniciar: () => apiClient.post<ApiResponse<SolicitudApi>>(`${BASE}/procesos/vigente/solicitud/`),
   misSolicitudes: (params: Params) =>
     apiClient.get<ApiResponse<PaginaApi<SolicitudApi>>>(`${BASE}/mis-solicitudes/`, { params }),
@@ -307,6 +384,14 @@ export const feDeVidaApi = {
 
   cobertura: (params: Params) =>
     apiClient.get<ApiResponse<PaginaApi<CoberturaApi>>>(`${BASE}/cobertura/pasivos/`, { params }),
+
+  estadisticas: (params: Params) =>
+    apiClient.get<ApiResponse<EstadisticasApi>>(`${BASE}/estadisticas/`, { params }),
+  pasivosEstadistica: (params: Params) =>
+    apiClient.get<ApiResponse<PaginaApi<PasivoEstadisticaApi>>>(
+      `${BASE}/estadisticas/pasivos/`,
+      { params },
+    ),
 
   buscarPasivoPresencial: (params: Params) =>
     apiClient.get<ApiResponse<PaginaApi<PasivoPresencialApi>>>(`${BASE}/presencial/buscar/`, { params }),

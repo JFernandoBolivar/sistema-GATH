@@ -75,6 +75,10 @@ class OrigenEvidencia(str, Enum):
     ARCHIVO = 'ARCHIVO'
 
 
+CANAL_EN_LINEA = 'EN_LINEA'
+CANAL_PRESENCIAL = 'PRESENCIAL'
+CANALES_SOLICITUD = (CANAL_EN_LINEA, CANAL_PRESENCIAL)
+
 CONDICION_PASIVO = 'PASIVO'  # condición del trabajador que hace fe de vida (la calcula el servidor)
 ORIGEN_FE_DE_VIDA = 'FE_DE_VIDA'  # valor de `origen_tipo` en CambioPropuesto (compartido con autogestión)
 

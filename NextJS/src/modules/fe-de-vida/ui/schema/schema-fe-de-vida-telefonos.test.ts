@@ -5,9 +5,20 @@ import { datosContactoSchema } from "./schema-fe-de-vida";
 const base = { correoAlternativo: "", tieneHijos: "no" as const };
 
 describe("teléfonos de fe de vida (D-13)", () => {
-  it("son opcionales", () => {
+  it("el celular es obligatorio y la habitación opcional", () => {
+    const sinCelular = datosContactoSchema.safeParse({
+      ...base,
+      telefonoMovil: "",
+      telefonoHabitacion: "",
+    });
+    expect(sinCelular.success).toBe(false);
+    expect(sinCelular.error?.issues[0]?.message).toBe("El teléfono celular es obligatorio");
     expect(
-      datosContactoSchema.safeParse({ ...base, telefonoMovil: "", telefonoHabitacion: "" }).success,
+      datosContactoSchema.safeParse({
+        ...base,
+        telefonoMovil: "04121234567",
+        telefonoHabitacion: "",
+      }).success,
     ).toBe(true);
   });
   it("aceptan venezolanos con y sin 0 y con código de país", () => {
@@ -29,7 +40,7 @@ describe("teléfonos de fe de vida (D-13)", () => {
     expect(
       datosContactoSchema.safeParse({
         ...base,
-        telefonoMovil: "",
+        telefonoMovil: "04121234567",
         telefonoHabitacion: "02121234567",
       }).success,
     ).toBe(true);
@@ -40,8 +51,11 @@ describe("teléfonos de fe de vida (D-13)", () => {
         .success,
     ).toBe(false);
     expect(
-      datosContactoSchema.safeParse({ ...base, telefonoMovil: "", telefonoHabitacion: "123" })
-        .success,
+      datosContactoSchema.safeParse({
+        ...base,
+        telefonoMovil: "04121234567",
+        telefonoHabitacion: "123",
+      }).success,
     ).toBe(false);
   });
 });

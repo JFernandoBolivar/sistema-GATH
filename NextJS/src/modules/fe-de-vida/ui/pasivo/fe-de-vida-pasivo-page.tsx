@@ -11,22 +11,41 @@ import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vi
 import { esEditablePorPasivo } from "../../domain/services/reglas";
 import {
   iniciarSolicitudAction,
+  marcarGuiaVistaAction,
   obtenerMiSolicitudAction,
   obtenerVigenteAction,
 } from "../../infrastructure/actions/fe-de-vida-actions";
+import { AvisoConectividad } from "../comun/aviso-conectividad";
 import { formatearFechaHora } from "../comun/formato";
 import { FormularioFeDeVida } from "./formulario-fe-de-vida";
+import { BotonVerGuia, PanelGuiaFeDeVida } from "./panel-guia-fe-de-vida";
 import { SeguimientoSolicitud } from "./seguimiento-solicitud";
 
 /** Fe de vida del pasivo: proceso vigente, formulario por pasos o seguimiento de su solicitud. */
 export default function FeDeVidaPasivoPage() {
   const [corrigiendo, setCorrigiendo] = useState(false);
+  const [guiaManual, setGuiaManual] = useState(false);
+  const [autoCerrada, setAutoCerrada] = useState(false);
   const [iniciando, iniciar] = useTransition();
+
   const vigente = useSWR("fe-de-vida-vigente", async () => {
     const res = await obtenerVigenteAction();
     if (!res.ok) throw new Error(res.mensaje);
     return res.datos;
   });
+
+  const guiaAbierta = guiaManual || (Boolean(vigente.data) && !vigente.data?.guiaVista && !autoCerrada);
+
+  function cerrarGuia(abierta: boolean) {
+    setGuiaManual(abierta);
+    if (!abierta) setAutoCerrada(true);
+    if (!abierta && vigente.data && !vigente.data.guiaVista) {
+      const procesoId = vigente.data.proceso.id;
+      void marcarGuiaVistaAction(procesoId);
+      void vigente.mutate({ ...vigente.data, guiaVista: true }, false);
+    }
+  }
+
   const solicitudId = vigente.data?.solicitud?.id ?? null;
   const detalle = useSWR(solicitudId ? ["fe-de-vida-mi-solicitud", solicitudId] : null, async () => {
     const res = await obtenerMiSolicitudAction(solicitudId as string);
@@ -40,6 +59,13 @@ export default function FeDeVidaPasivoPage() {
         <History aria-hidden /> Historial
       </Link>
     </Button>
+  );
+
+  const accionesCabecera = (
+    <div className="flex flex-wrap items-center gap-2">
+      <BotonVerGuia onClick={() => setGuiaManual(true)} className="min-h-11" />
+      {historial}
+    </div>
   );
 
   function recargar() {
@@ -60,8 +86,10 @@ export default function FeDeVidaPasivoPage() {
   }
 
   let cuerpo;
+  let pasoGuoia = 1;
+
   if (vigente.isLoading) {
-    cuerpo = <VistaCargando mensaje="Cargando su fe de vida…" onReintentar={() => vigente.mutate()} />;
+    cuerpo = <VistaCargando mensaje="Cargando el proceso de fe de vida…" onReintentar={() => vigente.mutate()} />;
   } else if (vigente.error) {
     cuerpo = <VistaError mensaje="No se pudo cargar el proceso de fe de vida." onReintentar={() => vigente.mutate()} />;
   } else if (!vigente.data) {
@@ -79,13 +107,17 @@ export default function FeDeVidaPasivoPage() {
       </p>
     );
     if (!solicitud) {
+      pasoGuoia = 1;
       cuerpo = (
         <div className="flex flex-col gap-4">
           {encabezado}
           {puedeEnviar ? (
-            <Button type="button" className="min-h-11 w-fit" onClick={empezar} disabled={iniciando}>
-              {iniciando ? "Iniciando…" : "Comenzar mi fe de vida"}
-            </Button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" className="min-h-11 w-fit" onClick={empezar} disabled={iniciando}>
+                {iniciando ? "Iniciando…" : "Comenzar mi fe de vida"}
+              </Button>
+              <BotonVerGuia onClick={() => setGuiaManual(true)} className="min-h-11" />
+            </div>
           ) : (
             <p role="status" className="text-base">El plazo de este proceso ya terminó.</p>
           )}
@@ -96,6 +128,7 @@ export default function FeDeVidaPasivoPage() {
     } else if (detalle.error || !detalle.data) {
       cuerpo = <VistaError mensaje="No se pudo cargar su solicitud." onReintentar={() => detalle.mutate()} />;
     } else if (esEditablePorPasivo(solicitud) && puedeEnviar && (solicitud.estado === "BORRADOR" || corrigiendo)) {
+      pasoGuoia = 2;
       cuerpo = (
         <div className="flex flex-col gap-4">
           {encabezado}
@@ -103,10 +136,15 @@ export default function FeDeVidaPasivoPage() {
         </div>
       );
     } else {
+      pasoGuoia = 5;
       cuerpo = (
         <div className="flex flex-col gap-4">
           {encabezado}
-          <SeguimientoSolicitud solicitud={solicitud} onCorregir={puedeEnviar ? () => setCorrigiendo(true) : undefined} />
+          <SeguimientoSolicitud
+            solicitud={solicitud}
+            onCorregir={puedeEnviar ? () => setCorrigiendo(true) : undefined}
+            onVerGuia={() => setGuiaManual(true)}
+          />
         </div>
       );
     }
@@ -117,9 +155,15 @@ export default function FeDeVidaPasivoPage() {
       <PageHeader
         titulo="Fe de vida"
         descripcion="Confirme sus datos y envíe su foto con la cédula para recibir su constancia."
-        accion={historial}
+        accion={accionesCabecera}
       />
+      <AvisoConectividad className="w-full" />
       <div aria-live="polite">{cuerpo}</div>
+      <PanelGuiaFeDeVida
+        abierto={guiaAbierta}
+        onOpenChange={cerrarGuia}
+        pasoActual={pasoGuoia}
+      />
     </div>
   );
 }

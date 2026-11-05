@@ -5,7 +5,11 @@ from django.db.models import Q
 
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.infrastructure.mappers.mapper_fe_de_vida import proceso_a_entidad, prorroga_a_entidad
-from apps.fe_de_vida.infrastructure.models.proceso_models import ProcesoFeDeVidaModel, ProrrogaProcesoModel
+from apps.fe_de_vida.infrastructure.models.proceso_models import (
+    GuiaFeDeVidaVistaModel,
+    ProcesoFeDeVidaModel,
+    ProrrogaProcesoModel,
+)
 from core.domain.exceptions import ConflictError, NotFoundError
 
 
@@ -63,3 +67,10 @@ class RepoProcesosORM:
 
     def listar_prorrogas(self, proceso_id: str) -> list[ProrrogaProceso]:
         return [prorroga_a_entidad(m) for m in ProrrogaProcesoModel.objects.filter(proceso_id=proceso_id)]
+
+    def ha_visto_guia(self, proceso_id: str, cedula: str) -> bool:
+        return GuiaFeDeVidaVistaModel.objects.filter(proceso_id=proceso_id, cedula=cedula).exists()
+
+    def marcar_guia_vista(self, proceso_id: str, cedula: str) -> None:
+        GuiaFeDeVidaVistaModel.objects.get_or_create(proceso_id=proceso_id, cedula=cedula)
+

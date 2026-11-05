@@ -45,7 +45,8 @@ export default function FeDeVidaPresencialPage() {
   const [imprimiendoId, setImprimiendoId] = useState<string | null>(null);
 
   const { data, error, isLoading, mutate } = useSWR(
-    ["fe-de-vida-presencial-buscar", busqueda, offset, limite],
+    // Sin texto no se consulta: el backend exige un criterio de búsqueda.
+    busqueda ? ["fe-de-vida-presencial-buscar", busqueda, offset, limite] : null,
     async () => {
       const res = await buscarPasivosPresencialAction({
         texto: busqueda,

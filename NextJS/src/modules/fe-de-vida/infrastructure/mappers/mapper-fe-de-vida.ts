@@ -24,14 +24,20 @@ import {
   type TipoDecision,
 } from "../../domain/value-objects/estados";
 import type {
+  EstadisticasEntity,
+  PasivoEstadisticaEntity,
+} from "../../domain/entities/estadisticas";
+import type {
   CambioApi,
   CoberturaApi,
   DecisionApi,
   DetalleApi,
   DetalleRevisionApi,
+  EstadisticasApi,
   FichaApi,
   InicioPresencialApi,
   PaginaApi,
+  PasivoEstadisticaApi,
   PasivoPresencialApi,
   ProcesoApi,
   ProrrogaApi,
@@ -216,6 +222,7 @@ export function mapperVigente(v: VigenteApi | null): VigenteEntity | null {
     proceso: mapperProceso(v.proceso),
     solicitud: v.solicitud ? mapperSolicitud(v.solicitud) : null,
     puedeEnviar: !!v.puede_enviar,
+    guiaVista: Boolean(v.guia_vista),
   };
 }
 
@@ -271,4 +278,61 @@ export function mapperInicioPresencial(d: InicioPresencialApi): InicioPresencial
 
 export function mapperPagina<A, E>(p: PaginaApi<A>, fn: (a: A) => E): PaginaEntity<E> {
   return { count: p.count ?? 0, limit: p.limit ?? 10, offset: p.offset ?? 0, results: (p.results ?? []).map(fn) };
+}
+
+export function mapperEstadisticas(e: EstadisticasApi): EstadisticasEntity {
+  return {
+    proceso: e.proceso,
+    procesos: e.procesos ?? [],
+    tipos: e.tipos ?? [],
+    kpis: {
+      total: e.kpis.total ?? 0,
+      respondieron: e.kpis.respondieron ?? 0,
+      faltan: e.kpis.faltan ?? 0,
+      validadas: e.kpis.validadas ?? 0,
+      porcentajeRespondieron: e.kpis.porcentaje_respondieron ?? 0,
+      porcentajeFaltan: e.kpis.porcentaje_faltan ?? 0,
+      porcentajeValidadas: e.kpis.porcentaje_validadas ?? 0,
+    },
+    porTipo: (e.por_tipo ?? []).map((f) => ({
+      tipoNominaId: f.tipo_nomina_id,
+      tipoNomina: f.tipo_nomina || "Sin tipo de pasivo",
+      total: f.total,
+      respondieron: f.respondieron,
+      faltan: f.faltan,
+      validadas: f.validadas,
+    })),
+    porEstado: (e.por_estado ?? []).map((f) => ({
+      estado: mapperEstadoSolicitud(f.estado),
+      total: f.total,
+    })),
+    porCanal: (e.por_canal ?? []).map((f) => ({ canal: f.canal, total: f.total })),
+    matriz: (e.matriz ?? []).map((f) => ({
+      tipoNominaId: f.tipo_nomina_id,
+      tipoNomina: f.tipo_nomina || "Sin tipo de pasivo",
+      estado: mapperEstadoSolicitud(f.estado),
+      total: f.total,
+    })),
+    filtros: {
+      procesoId: e.filtros.proceso_id,
+      tipoNominaId: e.filtros.tipo_nomina_id,
+      estado: e.filtros.estado ? mapperEstadoSolicitud(e.filtros.estado) : null,
+      canal: e.filtros.canal === "EN_LINEA" || e.filtros.canal === "PRESENCIAL" ? e.filtros.canal : null,
+      desde: e.filtros.desde,
+      hasta: e.filtros.hasta,
+    },
+  };
+}
+
+export function mapperPasivoEstadistica(p: PasivoEstadisticaApi): PasivoEstadisticaEntity {
+  return {
+    cedula: p.cedula,
+    nombreCompleto: p.nombre_completo,
+    tipoNomina: p.tipo_nomina ?? "",
+    correo: p.correo ?? "",
+    telefono: p.telefono ?? "",
+    estado: p.estado ? mapperEstadoSolicitud(p.estado) : "",
+    canal: p.canal ?? "",
+    fechaEnvio: p.fecha_envio ?? null,
+  };
 }

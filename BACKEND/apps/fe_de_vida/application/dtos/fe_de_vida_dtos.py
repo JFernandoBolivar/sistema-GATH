@@ -46,6 +46,8 @@ class ProcesoVigente:
     proceso: ProcesoFeDeVida
     solicitud: SolicitudFeDeVida | None
     puede_enviar: bool
+    guia_vista: bool = False
+
 
 
 @dataclass(frozen=True)

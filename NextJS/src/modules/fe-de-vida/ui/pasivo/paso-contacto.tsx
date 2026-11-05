@@ -1,9 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  Briefcase,
+  Building2,
+  Calendar,
+  Contact2,
+  IdCard,
+  Loader2,
+  Mail,
+  Phone,
+  Smartphone,
+  User,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
@@ -25,14 +39,19 @@ interface Props {
 function DatoSoloLectura({
   etiqueta,
   valor,
+  icono,
 }: {
   etiqueta: string;
   valor: string | null | undefined;
+  icono?: ReactNode;
 }) {
   return (
     <div className="rounded-md bg-muted p-3">
-      <dt className="text-sm font-medium text-muted-foreground">{etiqueta}</dt>
-      <dd className="mt-1 break-words text-base">{valor || "Sin dato"}</dd>
+      <dt className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+        {icono ? <span className="size-4 shrink-0 text-muted-foreground" aria-hidden>{icono}</span> : null}
+        <span>{etiqueta}</span>
+      </dt>
+      <dd className="mt-1 break-words text-base font-medium text-foreground">{valor || "Sin dato"}</dd>
     </div>
   );
 }
@@ -72,37 +91,42 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
   return (
     <form onSubmit={handleSubmit(onContinuar)} noValidate className="flex flex-col gap-6">
       <section aria-labelledby="datos-fijos" className="flex flex-col gap-3">
-        <h2 id="datos-fijos" className="text-xl font-semibold">
+        <h2 id="datos-fijos" className="text-xl font-semibold flex items-center gap-2">
+          <User className="size-5 text-primary" aria-hidden />
           Sus datos registrados
         </h2>
         <p className="text-base text-muted-foreground">
           Estos datos no se pueden cambiar aquí. Si alguno es incorrecto, avise a Bienestar Social.
         </p>
         <dl className="grid gap-3 sm:grid-cols-2">
-          <DatoSoloLectura etiqueta="Cédula" valor={e.cedula} />
-          <DatoSoloLectura etiqueta="Nombres y apellidos" valor={e.nombre_completo} />
-          <DatoSoloLectura etiqueta="Fecha de nacimiento" valor={e.fecha_nacimiento} />
-          <DatoSoloLectura etiqueta="Correo principal (para ingresar)" valor={e.correo} />
+          <DatoSoloLectura etiqueta="Cédula" valor={e.cedula} icono={<IdCard className="size-4" />} />
+          <DatoSoloLectura etiqueta="Nombres y apellidos" valor={e.nombre_completo} icono={<User className="size-4" />} />
+          <DatoSoloLectura etiqueta="Fecha de nacimiento" valor={e.fecha_nacimiento} icono={<Calendar className="size-4" />} />
+          <DatoSoloLectura etiqueta="Correo principal (para ingresar)" valor={e.correo} icono={<Mail className="size-4" />} />
           <DatoSoloLectura
             etiqueta="Tipo de pensión o jubilación"
             valor={asignacion?.tipo_nomina}
+            icono={<Award className="size-4" />}
           />
-          <DatoSoloLectura etiqueta="Cargo" valor={asignacion?.denominacion_cargo} />
+          <DatoSoloLectura etiqueta="Cargo" valor={asignacion?.denominacion_cargo} icono={<Briefcase className="size-4" />} />
           <DatoSoloLectura
             etiqueta="Oficina de adscripción"
             valor={oficinaDeAdscripcion(asignacion)}
+            icono={<Building2 className="size-4" />}
           />
         </dl>
       </section>
 
       <section aria-labelledby="datos-contacto" className="flex flex-col gap-4">
-        <h2 id="datos-contacto" className="text-xl font-semibold">
+        <h2 id="datos-contacto" className="text-xl font-semibold flex items-center gap-2">
+          <Contact2 className="size-5 text-primary" aria-hidden />
           Contacto
         </h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="fv-movil" className="text-base font-medium">
-              Teléfono celular
+            <label htmlFor="fv-movil" className="text-base font-medium flex items-center gap-1.5">
+              <Smartphone className="size-4 text-primary" aria-hidden />
+              <span>Teléfono celular <span aria-hidden>*</span></span>
             </label>
             <Controller
               control={control}
@@ -115,10 +139,13 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   invalido={Boolean(errors.telefonoMovil)}
-                  aria-describedby={errors.telefonoMovil ? "fv-movil-error" : undefined}
+                  aria-describedby={errors.telefonoMovil ? "fv-movil-error" : "fv-movil-ayuda"}
                 />
               )}
             />
+            <p id="fv-movil-ayuda" className="text-xs text-muted-foreground">
+              Ejemplo: 0412-1234567, 0414-9876543 o 0416-5551234 (11 dígitos).
+            </p>
             {errors.telefonoMovil ? (
               <p id="fv-movil-error" role="alert" className="text-sm font-medium text-danger">
                 {errors.telefonoMovil.message}
@@ -126,8 +153,9 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
             ) : null}
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="fv-habitacion" className="text-base font-medium">
-              Teléfono de habitación
+            <label htmlFor="fv-habitacion" className="text-base font-medium flex items-center gap-1.5">
+              <Phone className="size-4 text-primary" aria-hidden />
+              <span>Teléfono de habitación</span>
             </label>
             <Controller
               control={control}
@@ -139,10 +167,13 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   invalido={Boolean(errors.telefonoHabitacion)}
-                  aria-describedby={errors.telefonoHabitacion ? "fv-habitacion-error" : undefined}
+                  aria-describedby={errors.telefonoHabitacion ? "fv-habitacion-error" : "fv-habitacion-ayuda"}
                 />
               )}
             />
+            <p id="fv-habitacion-ayuda" className="text-xs text-muted-foreground">
+              Ejemplo: 0212-5551234 o 0241-8765432 (con código de área).
+            </p>
             {errors.telefonoHabitacion ? (
               <p id="fv-habitacion-error" role="alert" className="text-sm font-medium text-danger">
                 {errors.telefonoHabitacion.message}
@@ -151,19 +182,21 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="fv-correo-alt" className="text-base font-medium">
-            Correo alternativo (personal o de emergencia)
+          <label htmlFor="fv-correo-alt" className="text-base font-medium flex items-center gap-1.5">
+            <Mail className="size-4 text-primary" aria-hidden />
+            <span>Correo alternativo (personal o de emergencia)</span>
           </label>
           <Input
             id="fv-correo-alt"
             type="email"
             autoComplete="email"
+            placeholder="ejemplo@correo.com"
             aria-invalid={errors.correoAlternativo ? true : undefined}
             aria-describedby={errors.correoAlternativo ? "fv-correo-error" : "fv-correo-ayuda"}
             {...register("correoAlternativo")}
           />
-          <p id="fv-correo-ayuda" className="text-sm text-muted-foreground">
-            También recibirá en este correo una copia de su constancia.
+          <p id="fv-correo-ayuda" className="text-xs text-muted-foreground">
+            Ejemplo: minombre@gmail.com. Recibirá en este correo un duplicado de su constancia.
           </p>
           {errors.correoAlternativo ? (
             <p id="fv-correo-error" role="alert" className="text-sm font-medium text-danger">
@@ -175,9 +208,15 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
 
       <fieldset
         className="flex flex-col gap-2"
-        aria-describedby={errors.tieneHijos ? "fv-hijos-error" : undefined}
+        aria-describedby={errors.tieneHijos ? "fv-hijos-error" : "fv-hijos-ayuda"}
       >
-        <legend className="text-xl font-semibold">¿Tiene hijos?</legend>
+        <legend className="text-xl font-semibold flex items-center gap-2">
+          <Users className="size-5 text-primary" aria-hidden />
+          ¿Tiene hijos?
+        </legend>
+        <p id="fv-hijos-ayuda" className="text-sm text-muted-foreground">
+          Indique «Sí» si tiene hijos (menores de edad o dependientes) para verificar o registrar sus datos.
+        </p>
         <div className="flex flex-wrap gap-3">
           {(
             [

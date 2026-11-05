@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Download, Pencil } from "lucide-react";
+import { Download, HelpCircle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LineaTiempo, type HitoLineaTiempo } from "@/shared/ui/components/linea-tiempo";
@@ -46,10 +46,12 @@ interface Props {
   solicitud: SolicitudDTO;
   /** Pasa al formulario para corregir y reenviar. */
   onCorregir?: () => void;
+  /** Abre la guía interactiva de pasos. */
+  onVerGuia?: () => void;
 }
 
 /** Estado, línea de tiempo, motivo de devolución o rechazo y descarga de la constancia. */
-export function SeguimientoSolicitud({ solicitud, onCorregir }: Props) {
+export function SeguimientoSolicitud({ solicitud, onCorregir, onVerGuia }: Props) {
   const [descargando, iniciar] = useTransition();
   const p = PRESENTACION_SOLICITUD[solicitud.estado];
   const motivo = motivoDeEstado(solicitud);
@@ -90,6 +92,11 @@ export function SeguimientoSolicitud({ solicitud, onCorregir }: Props) {
       <LineaTiempo hitos={hitosSolicitud(solicitud)} etiqueta="Avance de su fe de vida" />
 
       <div className="flex flex-wrap gap-3">
+        {onVerGuia ? (
+          <Button type="button" variant="outline" className="min-h-11" onClick={onVerGuia}>
+            <HelpCircle aria-hidden /> Ver guía
+          </Button>
+        ) : null}
         {solicitud.estado === "DEVUELTA" && onCorregir ? (
           <Button type="button" className="min-h-11" onClick={onCorregir}>
             <Pencil aria-hidden /> Corregir y reenviar

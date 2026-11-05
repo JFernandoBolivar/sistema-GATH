@@ -31,6 +31,7 @@ import { formatearValor, type NombresCatalogo } from "../formato-solicitud";
 import { registrosFicha, type FichaRegistro } from "./ficha-editable";
 import { FormularioRegistro } from "./formulario-registro";
 import { SoporteRegistro } from "./soportes-seccion";
+import { nuevaReferencia } from "./nueva-referencia";
 
 interface Props {
   seccion: SeccionCodigo;
@@ -183,7 +184,7 @@ export function EditorEntidad({
         entidadId: null,
         accion: "CREAR",
         valores: limpiarNulos(valores),
-        referencia: crypto.randomUUID(),
+        referencia: nuevaReferencia(),
       },
     ]);
   }
@@ -416,7 +417,7 @@ export function EditorEntidad({
         entidadId: null,
         accion: "CREAR",
         valores: limpiarNulos(valores),
-        referencia: crypto.randomUUID(),
+        referencia: nuevaReferencia(),
       },
     ]);
   }

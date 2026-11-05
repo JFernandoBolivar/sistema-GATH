@@ -7,9 +7,11 @@ import type {
   CoberturaDTO,
   DetalleRevisionDTO,
   DetalleSolicitudDTO,
+  EstadisticasDTO,
   EvidenciaImagenDTO,
   InicioPresencialDTO,
   PaginaDTO,
+  PasivoEstadisticaDTO,
   PasivoPresencialDTO,
   ProcesoDTO,
   ProrrogaDTO,
@@ -26,6 +28,7 @@ import {
   guardarBorrador,
   iniciarSolicitud,
   listarMisSolicitudes,
+  marcarGuiaVista,
   obtenerMiSolicitud,
   obtenerVigente,
   subirEvidencia,
@@ -54,6 +57,10 @@ import {
   prorrogarProceso,
 } from "../../application/use-cases/gestionar-procesos";
 import {
+  listarPasivosEstadistica,
+  obtenerEstadisticas,
+} from "../../application/use-cases/gestionar-estadisticas";
+import {
   buscarPasivosPresencial,
   descargarConstanciaBienestar,
   enviarPresencial,
@@ -67,7 +74,9 @@ import type {
   DatosProrroga,
   FiltrosBandeja,
   FiltrosCobertura,
+  FiltrosEstadisticas,
   FiltrosHistorial,
+  FiltrosListadoEstadistica,
   FiltrosProcesos,
 } from "../../domain/ports/repo-fe-de-vida";
 import { repoFeDeVidaApi as repo } from "../repositories/repo-fe-de-vida-api";
@@ -108,6 +117,14 @@ async function ejecutar<T>(
 export async function obtenerVigenteAction(): Promise<ResultadoAccion<VigenteDTO | null>> {
   return ejecutar("feDeVida.vigente", "", "No se pudo cargar el proceso de fe de vida.", () =>
     obtenerVigente(repo),
+  );
+}
+
+export async function marcarGuiaVistaAction(
+  procesoId: string,
+): Promise<ResultadoAccion<boolean>> {
+  return ejecutar("feDeVida.marcarGuiaVista", "Guía marcada como vista.", "No se pudo registrar la guía vista.", () =>
+    marcarGuiaVista(repo, idValido(procesoId)),
   );
 }
 
@@ -336,6 +353,23 @@ export async function listarCoberturaAction(
 ): Promise<ResultadoAccion<PaginaDTO<CoberturaDTO>>> {
   return ejecutar("feDeVida.cobertura", "", "No se pudo cargar la cobertura.", () =>
     listarCobertura(repo, filtros),
+  );
+}
+
+// ── Estadísticas (O21) ──
+export async function obtenerEstadisticasAction(
+  filtros: Partial<FiltrosEstadisticas> = {},
+): Promise<ResultadoAccion<EstadisticasDTO>> {
+  return ejecutar("feDeVida.estadisticas", "", "No se pudieron cargar las estadísticas.", () =>
+    obtenerEstadisticas(repo, filtros),
+  );
+}
+
+export async function listarPasivosEstadisticaAction(
+  filtros: Partial<FiltrosListadoEstadistica> = {},
+): Promise<ResultadoAccion<PaginaDTO<PasivoEstadisticaDTO>>> {
+  return ejecutar("feDeVida.estadisticasListado", "", "No se pudo cargar el listado.", () =>
+    listarPasivosEstadistica(repo, filtros),
   );
 }
 

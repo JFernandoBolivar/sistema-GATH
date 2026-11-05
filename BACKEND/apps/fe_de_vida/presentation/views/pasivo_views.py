@@ -11,12 +11,14 @@ from rest_framework.views import APIView
 
 from apps.fe_de_vida.application.use_cases.consultas import (
     listar_mis_solicitudes,
+    marcar_guia_proceso_vista,
     obtener_mi_constancia,
     obtener_mi_solicitud,
     obtener_proceso_vigente,
 )
 from apps.fe_de_vida.application.use_cases.solicitudes_pasivo import (
     enviar_solicitud,
+    exigir_celular,
     guardar_borrador,
     iniciar_solicitud_vigente,
     subir_evidencia,
@@ -24,6 +26,7 @@ from apps.fe_de_vida.application.use_cases.solicitudes_pasivo import (
 from apps.fe_de_vida.infrastructure.adaptadores_autogestion import RepoCambiosActaORM, ValidadorCambiosActaORM
 from apps.fe_de_vida.infrastructure.imagen_evidencia import sanear_imagen
 from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
+from apps.fe_de_vida.infrastructure.repositories.lector_ficha_pasivo_orm import LectorFichaPasivoORM
 from apps.fe_de_vida.infrastructure.repositories.repo_constancias_orm import RepoConstanciasORM
 from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
 from apps.fe_de_vida.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesFeDeVidaORM
@@ -38,6 +41,7 @@ from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     DetalleSolicitudSerializer,
     FiltroHistorialSerializer,
     GuardarBorradorSerializer,
+    MarcarGuiaVistaSerializer,
     ProcesoVigenteSerializer,
     SolicitudSerializer,
     SubirEvidenciaSerializer,
@@ -84,6 +88,23 @@ class ProcesoVigenteView(APIView):
             RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), LectorAlcanceORM(), cedula=cedula, ahora=ahora(),
         )
         return ok(a_dict_vigente(vigente, nombres_de_tipos(vigente.proceso)) if vigente else None)
+
+
+class MarcarGuiaVistaView(APIView):
+    permission_classes = permisos_pasivo(SOLICITAR)
+
+    @extend_schema(
+        tags=TAG, summary='Registrar que el pasivo ha visto la guía interactiva en el proceso vigente',
+        request=MarcarGuiaVistaSerializer,
+        responses={200: MensajeRespuestaSerializer, **ERRORES},
+    )
+    def post(self, request):
+        cedula = cedula_de_sesion(request)
+        datos = validar_entrada(MarcarGuiaVistaSerializer, request.data)
+        proceso_id = str(datos['proceso_id'])
+        marcar_guia_proceso_vista(RepoProcesosORM(), proceso_id=proceso_id, cedula=cedula)
+        return ok({'mensaje': 'Guía marcada como vista en el servidor.', 'guia_vista': True})
+
 
 
 class IniciarSolicitudView(APIView):
@@ -201,6 +222,7 @@ class EnviarView(APIView):
     def post(self, request, solicitud_id):
         cedula = cedula_de_sesion(request)
         with transaction.atomic():
+            exigir_celular(RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud_id=str(solicitud_id), cedula=cedula)
             solicitud = enviar_solicitud(
                 RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), PublicadorSenales(),
                 solicitud_id=str(solicitud_id), cedula=cedula, ahora=ahora(),

@@ -18,6 +18,10 @@ import type {
   EvidenciaImagenEntity,
   VigenteEntity,
 } from "../../domain/entities/fe-de-vida";
+import type {
+  EstadisticasEntity,
+  PasivoEstadisticaEntity,
+} from "../../domain/entities/estadisticas";
 
 export type DecisionDTO = DecisionEntity;
 export type SolicitudDTO = SolicitudEntity;
@@ -34,6 +38,8 @@ export type InicioPresencialDTO = InicioPresencialEntity;
 export type TipoPensionDTO = TipoPensionEntity;
 export type EvidenciaImagenDTO = EvidenciaImagenEntity;
 export type PaginaDTO<T> = PaginaEntity<T>;
+export type EstadisticasDTO = EstadisticasEntity;
+export type PasivoEstadisticaDTO = PasivoEstadisticaEntity;
 
 export interface ReenvioConstanciaDTO {
   numero: string;
