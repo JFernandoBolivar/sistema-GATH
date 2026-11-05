@@ -202,5 +202,38 @@ export const personalApi = {
         params: { uso },
       }),
     ),
+
+  // --- Reportes de Error en Datos Laborales (A11 / D20) ---
+  getReportesErrorLaboral: (params?: { estado?: string; dato?: string; search?: string }) =>
+    list<ReporteErrorLaboralApiItem>(
+      apiClient.get<ApiResponse<ReporteErrorLaboralApiItem[]>>("/api/v1/personal/reportes-error/", {
+        params,
+      }),
+    ),
+  crearReporteErrorLaboral: (payload: { dato: string; descripcion: string }) =>
+    single<ReporteErrorLaboralApiItem>(
+      apiClient.post<ApiResponse<ReporteErrorLaboralApiItem>>("/api/v1/personal/reportes-error/crear/", payload),
+    ),
+  atenderReporteErrorLaboral: (id: string, payload: { observaciones?: string }) =>
+    single<ReporteErrorLaboralApiItem>(
+      apiClient.post<ApiResponse<ReporteErrorLaboralApiItem>>(`/api/v1/personal/reportes-error/${id}/atender/`, payload),
+    ),
 };
+
+export interface ReporteErrorLaboralApiItem {
+  id: string;
+  trabajador_cedula: string;
+  trabajador_nombre: string;
+  dato: "cargo" | "oficina" | "fecha_ingreso" | "otro";
+  descripcion: string;
+  estado: "PENDIENTE" | "ATENDIDO";
+  creado_el: string;
+  actualizado_el: string;
+  atendido_por_id?: number | null;
+  atendido_por_cedula?: string;
+  atendido_por_nombre?: string;
+  atendido_el?: string | null;
+  observacion_atencion?: string;
+}
+
 

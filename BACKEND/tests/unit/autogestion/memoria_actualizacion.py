@@ -118,11 +118,13 @@ class RepoSoportesMem:
 class RepoSeccionesMem:
     def __init__(self):
         self.filas = {
+            'identidad': SeccionAutogestionable('identidad', 'Identidad', False),
             'contacto': SeccionAutogestionable('contacto', 'Contacto', False),
             'vivienda': SeccionAutogestionable('vivienda', 'Vivienda', False),
             'formacion': SeccionAutogestionable('formacion', 'Formación', True),
             'complementaria': SeccionAutogestionable('complementaria', 'Formación complementaria', True),
             'familiar': SeccionAutogestionable('familiar', 'Familiares', True),
+            'salud': SeccionAutogestionable('salud', 'Salud y tallas', False),
             'foto': SeccionAutogestionable('foto', 'Foto', False),
         }
 

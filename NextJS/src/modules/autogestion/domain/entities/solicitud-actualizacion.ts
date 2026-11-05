@@ -16,11 +16,13 @@ export const ESTADOS_SOLICITUD = [
 export type EstadoSolicitud = (typeof ESTADOS_SOLICITUD)[number];
 
 export const SECCIONES = [
+  "identidad",
   "contacto",
   "vivienda",
   "formacion",
   "complementaria",
   "familiar",
+  "salud",
   "foto",
 ] as const;
 export type SeccionCodigo = (typeof SECCIONES)[number];
@@ -73,7 +75,13 @@ export interface SolicitudEntity {
   fechaDevolucion: string | null;
 }
 
-export type ValorCambio = string | number | boolean | null | Record<string, unknown>;
+export type ValorCambio =
+  | string
+  | number
+  | boolean
+  | null
+  | number[]
+  | Record<string, unknown>;
 
 export interface CambioEntity {
   id: string;

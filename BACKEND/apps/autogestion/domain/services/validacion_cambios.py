@@ -18,7 +18,7 @@ from apps.autogestion.domain.value_objects.secciones import (
     Accion,
 )
 from core.domain.exceptions import ValidationError
-from core.domain.validacion_personas import validar_nombre, validar_telefono
+from core.domain.validacion_personas import validar_nombre, validar_serial_carnet_patria, validar_telefono
 
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 _CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,9}$')
@@ -31,12 +31,28 @@ _CAMPOS_TELEFONO = {'telefono_movil', 'telefono_habitacion', 'telefono'}
 _CAMPOS_NOMBRE = {
     'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido', 'nombres', 'apellidos',
 }
+# Listas de ids de catálogo (M2M del perfil de salud): se guardan ordenadas y sin repetidos.
+_CAMPOS_LISTA = {'alergias', 'patologias_cronicas', 'discapacidades'}
 _OPCIONALES_NULOS = {
     'segundo_nombre', 'segundo_apellido', 'observaciones', 'cedula_familiar', 'telefono_habitacion',
     'telefono', 'correo_alternativo', 'tiene_hijos', 'mencion_id', 'carrera_id', 'institucion_id',
     'telefono_movil', 'relacion_id', 'fecha_inicio', 'fecha_fin', 'dias_completados',
-    'horas_completadas', 'grupo_id',
+    'horas_completadas', 'grupo_id', 'estadoCivil_id', 'carnet_patria', 'carnet_patria_serial',
+    'grupo_sanguineo_id', 'talla_camisa_id', 'talla_pantalon_id', 'talla_zapatos_id',
+    'talla_chaqueta_id',
 }
+_CEDULA_EMPLEADO = re.compile(r'^\d{5,9}$')
+
+
+def _normalizar_carnet_patria(valor: str) -> str:
+    """Código del Carnet de la Patria: 10 dígitos (tolera el formato legado `000-0000000-0`)."""
+    texto = valor.strip()
+    limpio = ''.join(ch for ch in texto if ch not in ' -')
+    if re.fullmatch(r'\d{3}-\d{7}-\d', texto):
+        limpio = limpio[:10]
+    if not (limpio.isascii() and limpio.isdigit() and len(limpio) == 10):
+        raise ValidationError('El código del Carnet de la Patria debe tener 10 dígitos.')
+    return limpio
 
 
 def validar_valor(campo: str, valor):
@@ -49,6 +65,17 @@ def validar_valor(campo: str, valor):
         if not isinstance(valor, bool):
             raise ValidationError(f"El campo '{campo}' debe ser verdadero o falso.")
         return valor
+    if campo in _CAMPOS_LISTA:
+        if not isinstance(valor, list):
+            raise ValidationError(f"El campo '{campo}' debe ser una lista de identificadores.")
+        ids: list[int] = []
+        for item in valor:
+            if isinstance(item, bool) or not isinstance(item, int) or item <= 0:
+                raise ValidationError(f"El campo '{campo}' debe contener identificadores numéricos válidos.")
+            ids.append(item)
+        if len(ids) > 100:
+            raise ValidationError(f"El campo '{campo}' tiene demasiados valores seleccionados.")
+        return sorted(set(ids))
     if campo.endswith('_id'):
         if isinstance(valor, bool) or not isinstance(valor, int) or valor <= 0:
             raise ValidationError(f"El campo '{campo}' debe ser un identificador numérico válido.")
@@ -67,6 +94,15 @@ def validar_valor(campo: str, valor):
             raise ValidationError(f"El campo '{campo}' no puede quedar vacío.")
     if campo == 'correo_alternativo' and (not _CORREO.match(valor) or len(valor) > 254):
         raise ValidationError("El correo alternativo no tiene un formato válido.")
+    if campo == 'cedulaidentidad' and not _CEDULA_EMPLEADO.match(valor):
+        raise ValidationError("La cédula de identidad debe tener entre 5 y 9 dígitos.")
+    if campo == 'carnet_patria':
+        valor = _normalizar_carnet_patria(valor)
+    if campo == 'carnet_patria_serial':
+        try:
+            valor = validar_serial_carnet_patria(valor) or ''
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from None
     if campo in _CAMPOS_NOMBRE:
         try:
             valor = validar_nombre(valor, edicion=True, etiqueta=f"El campo '{campo}'")

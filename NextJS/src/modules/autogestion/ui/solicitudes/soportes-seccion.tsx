@@ -41,11 +41,13 @@ function EnlaceSoporte({ s }: { s: SoporteEntity }) {
 export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, onCambio }: Props) {
   const idBase = useId();
   const tipos = TIPOS_SOPORTE_POR_SECCION[seccion];
-  const [tipo, setTipo] = useState(tipos[0].valor);
+  const [tipo, setTipo] = useState(tipos[0]?.valor ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const entrada = useRef<HTMLInputElement>(null);
   const propios = soportes.filter((s) => s.seccion === seccion);
+
+  if (tipos.length === 0) return null;
 
   function subir(archivo: File) {
     const problema = validarArchivoSoporte(archivo, false);
@@ -182,7 +184,7 @@ export function SoporteRegistro({
 }) {
   const idBase = useId();
   const tipos = TIPOS_SOPORTE_POR_SECCION[seccion];
-  const [tipo, setTipo] = useState(tipos[0].valor);
+  const [tipo, setTipo] = useState(tipos[0]?.valor ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const entrada = useRef<HTMLInputElement>(null);
@@ -191,6 +193,8 @@ export function SoporteRegistro({
       s.seccion === seccion &&
       ((entidadId && s.entidadId === entidadId) || (referencia && s.referencia === referencia)),
   );
+
+  if (tipos.length === 0) return null;
 
   function subir(archivo: File) {
     const problema = validarArchivoSoporte(archivo, false);

@@ -11,11 +11,13 @@ from enum import Enum
 
 
 class Seccion(str, Enum):
+    IDENTIDAD = 'identidad'
     CONTACTO = 'contacto'
     VIVIENDA = 'vivienda'
     FORMACION = 'formacion'
     COMPLEMENTARIA = 'complementaria'
     FAMILIAR = 'familiar'
+    SALUD = 'salud'
     FOTO = 'foto'
 
 
@@ -46,9 +48,15 @@ CAMPO_REGISTRO_NUEVO = '*'  # en CREAR el valor propuesto es un dict con todos l
 CAMPO_ELIMINAR = '*'  # en ELIMINAR el valor propuesto es {'motivo': ...}
 
 # Entidades de un solo registro por trabajador (no llevan entidad_id).
-ENTIDADES_UNICAS = frozenset({'employee', 'datos_complementarios', 'datos_vivienda'})
+ENTIDADES_UNICAS = frozenset({'employee', 'datos_complementarios', 'datos_vivienda', 'perfil_salud', 'perfil_fisico'})
 
 CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
+    'identidad': {
+        'employee': frozenset({
+            'nombres', 'apellidos', 'fecha_nacimiento', 'cedulaidentidad',
+            'estadoCivil_id', 'carnet_patria', 'carnet_patria_serial',
+        }),
+    },
     'contacto': {
         'employee': frozenset({'telefono_movil', 'telefono_habitacion'}),
         'datos_complementarios': frozenset({'correo_alternativo'}),
@@ -75,6 +83,14 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
             'cedula_familiar', 'parentesco_id', 'fecha_nacimiento', 'sexo_id', 'observaciones',
         }),
         'datos_complementarios': frozenset({'tiene_hijos'}),
+    },
+    'salud': {
+        'perfil_salud': frozenset({
+            'grupo_sanguineo_id', 'alergias', 'patologias_cronicas', 'discapacidades',
+        }),
+        'perfil_fisico': frozenset({
+            'talla_camisa_id', 'talla_pantalon_id', 'talla_zapatos_id', 'talla_chaqueta_id',
+        }),
     },
     'foto': {'employee': frozenset({'profile'})},
 }
@@ -129,23 +145,46 @@ MAX_CONTACTOS_EMERGENCIA = 3
 MOTIVO_QUITAR_MIN = 10
 MOTIVO_QUITAR_MAX = 300
 
-# Campos que jamás se aceptan (identidad, correo principal/login, cargo, oficina, estatus).
+# Campos de identidad que exigen copia de la cédula al proponerse (D19).
+CAMPOS_IDENTIDAD_CON_CEDULA = frozenset({'nombres', 'apellidos', 'fecha_nacimiento', 'cedulaidentidad'})
+
+# Tipo de prenda (categoría del catálogo `TipoPrenda`) que corresponde a cada talla.
+# La categoría real vive en la base de datos; aquí solo se indica cuál aplica a cada columna.
+TIPO_PRENDA_POR_CAMPO_TALLA: dict[str, str] = {
+    'talla_camisa_id': 'camisa',
+    'talla_pantalon_id': 'pantalon',
+    'talla_zapatos_id': 'zapato',
+    'talla_chaqueta_id': 'chaqueta',
+}
+
+# Clave del catálogo de solo lectura -> categoría de `TipoPrenda` que filtra sus tallas.
+CATALOGOS_TALLA: dict[str, str] = {
+    'tallas-camisa': 'camisa',
+    'tallas-pantalon': 'pantalon',
+    'tallas-zapatos': 'zapato',
+    'tallas-chaqueta': 'chaqueta',
+}
+
+# Campos que jamás se aceptan (correo principal/login, cargo, oficina, estatus).
 CAMPOS_PROHIBIDOS = frozenset({
-    'cedula', 'cedulaidentidad', 'nombres_empleado', 'fecha_nacimiento_empleado', 'correo',
+    'cedula', 'nombres_empleado', 'fecha_nacimiento_empleado', 'correo',
     'cargo', 'oficina', 'dependencia', 'estatus', 'sexoid', 'nacionalidad',
 })
 
 SECCIONES_CATALOGO_INICIAL = (
     # (codigo, nombre, requiere_soporte)
+    ('identidad', 'Identidad (nombres, apellidos, fecha de nacimiento y cédula)', False),
     ('contacto', 'Contacto (teléfonos, correo alternativo y contacto de emergencia)', False),
     ('vivienda', 'Vivienda', False),
     ('formacion', 'Formación académica', True),
     ('complementaria', 'Formación complementaria (cursos y capacitaciones)', True),
     ('familiar', 'Grupo familiar', True),
+    ('salud', 'Salud y tallas', False),
     ('foto', 'Foto', False),
 )
 
 TIPOS_SOPORTE_POR_SECCION: dict[str, frozenset[TipoSoporte]] = {
+    'identidad': frozenset({TipoSoporte.CEDULA}),
     'contacto': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
     'vivienda': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
     'formacion': frozenset({TipoSoporte.TITULO, TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
@@ -153,6 +192,7 @@ TIPOS_SOPORTE_POR_SECCION: dict[str, frozenset[TipoSoporte]] = {
     'familiar': frozenset({
         TipoSoporte.CEDULA, TipoSoporte.ACTA_NACIMIENTO, TipoSoporte.CONSTANCIA, TipoSoporte.OTRO,
     }),
+    'salud': frozenset(),
     'foto': frozenset({TipoSoporte.FOTO}),
 }
 

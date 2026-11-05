@@ -90,8 +90,8 @@ export function EditorEntidad({
   const [abierto, setAbierto] = useState<Abierto>(null);
   const esquema = esquemaDeEntidad(seccion, definicion.entidad);
   const vigentes = useMemo(
-    () => registrosFicha(ficha, definicion.entidad),
-    [ficha, definicion.entidad],
+    () => registrosFicha(ficha, definicion.entidad, seccion),
+    [ficha, definicion.entidad, seccion],
   );
   const registros = useMemo(
     () =>

@@ -26,6 +26,7 @@ import { cambiosAItems } from "../../domain/services/borrador";
 import { seccionesSinSoporte } from "../../domain/services/reglas-solicitud";
 import {
   SECCIONES_DEF,
+  TIPOS_SOPORTE_POR_SECCION,
   esSeccionConocida,
   nombreSeccion,
 } from "../../domain/value-objects/campos-seccion";
@@ -181,13 +182,15 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
                     onCambioSoportes={onActualizar}
                   />
                 ))}
-                <SoportesSeccion
-                  solicitudId={detalle.id}
-                  seccion={codigo}
-                  soportes={detalle.soportes}
-                  obligatorio={requiereSoporte}
-                  onCambio={onActualizar}
-                />
+                {TIPOS_SOPORTE_POR_SECCION[codigo].length > 0 ? (
+                  <SoportesSeccion
+                    solicitudId={detalle.id}
+                    seccion={codigo}
+                    soportes={detalle.soportes}
+                    obligatorio={requiereSoporte}
+                    onCambio={onActualizar}
+                  />
+                ) : null}
               </>
             )}
           </section>

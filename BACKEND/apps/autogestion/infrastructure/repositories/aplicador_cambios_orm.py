@@ -10,6 +10,7 @@ from collections import defaultdict
 from datetime import date
 from pathlib import PurePosixPath
 
+from django.db import connection
 from django.db.models import ProtectedError
 
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
@@ -26,6 +27,7 @@ from apps.personal.infrastructure.models.expediente_models import (
     ContactoEmergenciaModel,
     FormacionAcademicaModel,
     FormacionComplementariaModel,
+    PerfilFisicoModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
@@ -41,6 +43,27 @@ _CAMPOS_COMPLEMENTARIA = {
     'fecha_inicio': 'fechaInicio', 'fecha_fin': 'fechaFin', 'capacitacion_id': 'capacitacion_id',
     'institucion_id': 'institucion_id', 'procedencia_id': 'procedencia_id', 'grupo_id': 'grupo_id',
 }
+# Tablas/columnas que guardan la cédula del trabajador como dato (no como historial de auditoría).
+# Las FKs están diferidas en la base: se actualizan los hijos y luego `Employee`, todo en la
+# transacción de la decisión (las comprobaciones de integridad se hacen al confirmar).
+_REFERENCIAS_CEDULA = (
+    ('AsigTrabajo', 'employeeCedula'),
+    ('EmployeeEgresado', 'employeeCedula'),
+    ('PrestamoCargo', 'empleadoEncargadoCedula'),
+    ('RAC_employeefamily', 'employeeCedula'),
+    ('RAC_historicalemployeefamily', 'employeeCedula'),
+    ('RespuestasEncuesta', 'empleado_cedula'),
+    ('USER_cuenta', 'cedula'),
+    ('autogestion_seccion_abierta', 'cedula'),
+    ('autogestion_solicitud_actualizacion', 'cedula'),
+    ('configuracion_excepcion_correo_acceso', 'cedula'),
+    ('datos_complementarios_trabajador', 'cedula'),
+    ('fe_de_vida_prorroga_proceso', 'cedula'),
+    ('fe_de_vida_solicitud', 'cedula'),
+    ('identidad_intento_fallido', 'cedula'),
+    ('identidad_usuario_permiso', 'cedula'),
+    ('puntocuenta_punto_cuenta', 'empleado_cedula'),
+)
 _DOCUMENTO_FAMILIAR = {'CEDULA': 'cedula', 'ACTA_NACIMIENTO': 'partida_nacimiento'}
 
 
@@ -58,6 +81,8 @@ class AplicadorCambiosORM:
         datos_empleado: dict = {}
         vivienda: dict = {}
         complementarios: dict = {}
+        salud: dict = {}
+        fisico: dict = {}
         foto: str | None = None
         ediciones: dict[tuple, dict] = defaultdict(dict)  # (entidad, id) -> campos
         eliminaciones: list[CambioPropuesto] = []
@@ -80,11 +105,22 @@ class AplicadorCambiosORM:
                 vivienda[c.campo] = c.valor_propuesto
             elif c.entidad_destino == 'datos_complementarios':
                 complementarios[c.campo] = c.valor_propuesto
+            elif c.entidad_destino == 'perfil_salud':
+                salud[c.campo] = c.valor_propuesto
+            elif c.entidad_destino == 'perfil_fisico':
+                fisico[c.campo] = c.valor_propuesto
             else:
                 ediciones[(c.entidad_destino, c.entidad_id)][c.campo] = c.valor_propuesto
 
         if vivienda:
             datos_empleado['datos_vivienda'] = vivienda
+        if salud:
+            datos_empleado['perfil_salud'] = salud
+        if fisico:
+            datos_empleado['perfil_fisico'] = self._perfil_fisico_completo(empleado, fisico)
+        cedula_nueva = datos_empleado.pop('cedulaidentidad', None)
+        if cedula_nueva and str(cedula_nueva) != cedula:
+            cedula = self._renombrar_cedula(empleado, cedula, str(cedula_nueva))
         if datos_empleado:
             RepoPersonalORM().actualizar_empleado(cedula, datos_empleado)
         if foto:
@@ -141,6 +177,53 @@ class AplicadorCambiosORM:
     @staticmethod
     def _empleado_pk(cedula: str) -> int:
         return EmployeeModel.objects.values_list('pk', flat=True).get(cedulaidentidad=cedula)
+
+    @staticmethod
+    def _perfil_fisico_completo(empleado: EmployeeModel, cambios: dict) -> dict:
+        """Completa las tallas que no cambian: `_upsert_perfil_fisico` escribe las cuatro de una vez."""
+        actual = PerfilFisicoModel.objects.filter(empleado=empleado).first()
+        valores = {
+            'talla_camisa_id': getattr(actual, 'tallaCamisa_id', None) if actual else None,
+            'talla_pantalon_id': getattr(actual, 'tallaPantalon_id', None) if actual else None,
+            'talla_zapatos_id': getattr(actual, 'tallaZapatos_id', None) if actual else None,
+            'talla_chaqueta_id': getattr(actual, 'tallaChaqueta_id', None) if actual else None,
+        }
+        valores.update(cambios)
+        return valores
+
+    def _renombrar_cedula(self, empleado: EmployeeModel, cedula_actual: str, cedula_nueva: str) -> str:
+        """Cambia la cédula del trabajador y todas las referencias que la guardan como dato.
+
+        Las FKs de la base están `DEFERRABLE INITIALLY DEFERRED`: dentro de la transacción de la
+        decisión se actualizan primero los hijos y luego `Employee`, y la integridad se comprueba
+        al confirmar. No se tocan las columnas de auditoría/historial (`actor_cedula`, etc.).
+        """
+        if EmployeeModel.objects.filter(cedulaidentidad=cedula_nueva).exclude(pk=empleado.pk).exists():
+            raise ConflictError(f"Ya existe un trabajador con la cédula {cedula_nueva}.")
+        tablas = sorted({tabla for tabla, _ in _REFERENCIAS_CEDULA})
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT table_name, column_name
+                FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = ANY(%s)
+                """,
+                [tablas],
+            )
+            existentes = {(tabla, columna) for tabla, columna in cursor.fetchall()}
+            for tabla, columna in _REFERENCIAS_CEDULA:
+                # Las tablas legadas pueden no existir en una base reconstruida (pruebas).
+                if (tabla, columna) not in existentes:
+                    continue
+                cursor.execute(
+                    f'UPDATE "{tabla}" SET "{columna}" = %s WHERE "{columna}" = %s',
+                    [cedula_nueva, cedula_actual],
+                )
+        empleado.cedulaidentidad = cedula_nueva
+        empleado.save(update_fields=['cedulaidentidad'])
+        invalidar_mi_expediente(cedula_actual)
+        invalidar_mi_expediente(cedula_nueva)
+        return cedula_nueva
 
     def _crear_familiar(self, cedula: str, v: dict) -> int:
         fecha = date.fromisoformat(v['fecha_nacimiento'])

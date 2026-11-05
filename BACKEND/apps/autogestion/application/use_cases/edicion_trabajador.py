@@ -33,6 +33,7 @@ from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicit
 from apps.autogestion.domain.value_objects.secciones import (
     CAMPO_ELIMINAR,
     CAMPO_REGISTRO_NUEVO,
+    CAMPOS_IDENTIDAD_CON_CEDULA,
     DOCUMENTOS_EXIGIDOS,
     MAX_CONTACTOS_EMERGENCIA,
     ORIGEN_ACTUALIZACION,
@@ -271,6 +272,9 @@ def _soportes_del_cambio(cambio: CambioPropuesto, soportes: list[SoporteDocument
     ]
     if propios:
         return propios
+    # Registros únicos (sin id): su documento es el soporte de sección (p. ej. la copia de cédula).
+    if cambio.entidad_id is None and cambio.referencia is None:
+        return [s for s in soportes if s.seccion == cambio.seccion and not s.entidad_id and not s.referencia]
     # Compatibilidad: un soporte de sección sin registro solo respalda altas (CREAR).
     if cambio.accion == Accion.CREAR.value:
         return [s for s in soportes if s.seccion == cambio.seccion and not s.entidad_id and not s.referencia]
@@ -281,6 +285,8 @@ def _documentos_exigidos(cambio: CambioPropuesto, lector: LectorFicha) -> list[f
     """Tipos de documento que respaldan este cambio (cada elemento exige al menos un soporte)."""
     if cambio.accion == Accion.ELIMINAR.value:
         return []
+    if cambio.seccion == Seccion.IDENTIDAD.value and cambio.campo in CAMPOS_IDENTIDAD_CON_CEDULA:
+        return [frozenset({TipoSoporte.CEDULA})]
     if cambio.entidad_destino == 'familiar':
         valores = cambio.valor_propuesto if isinstance(cambio.valor_propuesto, dict) else {}
         exigidos: list[frozenset[TipoSoporte]] = []

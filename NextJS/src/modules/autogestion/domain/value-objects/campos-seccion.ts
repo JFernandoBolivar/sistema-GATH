@@ -6,7 +6,7 @@
 import type { SeccionCodigo } from "../entities/solicitud-actualizacion";
 
 export type TipoCampo =
-  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo";
+  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple";
 
 export type ClaveCatalogo =
   | "estados"
@@ -22,7 +22,16 @@ export type ClaveCatalogo =
   | "gruposCapacitacion"
   | "parentescos"
   | "parentescosFamilia"
-  | "sexos";
+  | "sexos"
+  | "estadosCiviles"
+  | "gruposSanguineos"
+  | "alergias"
+  | "patologias"
+  | "discapacidades"
+  | "tallasCamisa"
+  | "tallasPantalon"
+  | "tallasZapatos"
+  | "tallasChaqueta";
 
 export interface CampoDef {
   campo: string;
@@ -53,6 +62,38 @@ export interface SeccionDef {
 export const CAMPO_REGISTRO_NUEVO = "*";
 
 export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
+  identidad: {
+    codigo: "identidad",
+    nombre: "Identidad",
+    descripcion:
+      "Nombres, apellidos, fecha de nacimiento y cédula. La copia de la cédula es obligatoria. El estado civil y el Carnet de la Patria no requieren documento.",
+    entidades: [
+      {
+        entidad: "employee",
+        etiqueta: "Datos de identidad",
+        unica: true,
+        creable: false,
+        campos: [
+          { campo: "nombres", etiqueta: "Nombres", tipo: "texto" },
+          { campo: "apellidos", etiqueta: "Apellidos", tipo: "texto" },
+          { campo: "fecha_nacimiento", etiqueta: "Fecha de nacimiento", tipo: "fecha" },
+          { campo: "cedulaidentidad", etiqueta: "Cédula de identidad", tipo: "texto" },
+          {
+            campo: "estadoCivil_id",
+            etiqueta: "Estado civil",
+            tipo: "catalogo",
+            catalogo: "estadosCiviles",
+          },
+          { campo: "carnet_patria", etiqueta: "Carnet de la Patria", tipo: "texto" },
+          {
+            campo: "carnet_patria_serial",
+            etiqueta: "Serial del Carnet de la Patria",
+            tipo: "texto",
+          },
+        ],
+      },
+    ],
+  },
   contacto: {
     codigo: "contacto",
     nombre: "Contacto",
@@ -278,6 +319,73 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
       },
     ],
   },
+  salud: {
+    codigo: "salud",
+    nombre: "Salud y tallas",
+    descripcion:
+      "Grupo sanguíneo, alergias, patologías crónicas, discapacidades y tallas. No requiere documento.",
+    entidades: [
+      {
+        entidad: "perfil_salud",
+        etiqueta: "Perfil de salud",
+        unica: true,
+        creable: false,
+        campos: [
+          {
+            campo: "grupo_sanguineo_id",
+            etiqueta: "Grupo sanguíneo",
+            tipo: "catalogo",
+            catalogo: "gruposSanguineos",
+          },
+          { campo: "alergias", etiqueta: "Alergias", tipo: "multiple", catalogo: "alergias" },
+          {
+            campo: "patologias_cronicas",
+            etiqueta: "Patologías crónicas",
+            tipo: "multiple",
+            catalogo: "patologias",
+          },
+          {
+            campo: "discapacidades",
+            etiqueta: "Discapacidades",
+            tipo: "multiple",
+            catalogo: "discapacidades",
+          },
+        ],
+      },
+      {
+        entidad: "perfil_fisico",
+        etiqueta: "Tallas",
+        unica: true,
+        creable: false,
+        campos: [
+          {
+            campo: "talla_camisa_id",
+            etiqueta: "Talla de camisa",
+            tipo: "catalogo",
+            catalogo: "tallasCamisa",
+          },
+          {
+            campo: "talla_pantalon_id",
+            etiqueta: "Talla de pantalón",
+            tipo: "catalogo",
+            catalogo: "tallasPantalon",
+          },
+          {
+            campo: "talla_zapatos_id",
+            etiqueta: "Talla de zapatos",
+            tipo: "catalogo",
+            catalogo: "tallasZapatos",
+          },
+          {
+            campo: "talla_chaqueta_id",
+            etiqueta: "Talla de chaqueta",
+            tipo: "catalogo",
+            catalogo: "tallasChaqueta",
+          },
+        ],
+      },
+    ],
+  },
   foto: {
     codigo: "foto",
     nombre: "Foto",
@@ -370,6 +478,7 @@ export const CAMPO_PADRE: Record<string, string> = {
 /** Tipos de soporte admitidos por sección (espejo de `TIPOS_SOPORTE_POR_SECCION` del backend). */
 export const TIPOS_SOPORTE_POR_SECCION: Record<SeccionCodigo, { valor: string; texto: string }[]> =
   {
+    identidad: [{ valor: "CEDULA", texto: "Copia de la cédula" }],
     contacto: [
       { valor: "CONSTANCIA", texto: "Constancia" },
       { valor: "OTRO", texto: "Otro documento" },
@@ -393,5 +502,6 @@ export const TIPOS_SOPORTE_POR_SECCION: Record<SeccionCodigo, { valor: string; t
       { valor: "CONSTANCIA", texto: "Constancia" },
       { valor: "OTRO", texto: "Otro documento" },
     ],
+    salud: [],
     foto: [{ valor: "FOTO", texto: "Foto" }],
   };

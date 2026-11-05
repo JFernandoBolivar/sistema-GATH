@@ -183,7 +183,7 @@ def test_una_solicitud_abierta_por_trabajador_y_seccion():
 def test_secciones_desconocidas_o_vacias_se_rechazan():
     m = Mundo()
     with pytest.raises(ValidationError):
-        solicitar(m, ('identidad',))
+        solicitar(m, ('datos-bancarios',))
     with pytest.raises(ValidationError):
         solicitar(m, ())
 

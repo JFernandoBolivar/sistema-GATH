@@ -7,6 +7,9 @@ import {
   familiarSchema,
   formacionSchema,
   habilitarVentanaSchema,
+  identidadSchema,
+  perfilFisicoSchema,
+  perfilSaludSchema,
   prorrogaSchema,
   devolucionSchema,
   rechazoSchema,
@@ -233,5 +236,61 @@ describe("devolucionSchema", () => {
   it("exige motivo", () => {
     expect(devolucionSchema.safeParse({ motivo: "" }).success).toBe(false);
     expect(devolucionSchema.safeParse({ motivo: "Falta la constancia" }).success).toBe(true);
+  });
+});
+
+describe("identidad (D19)", () => {
+  const valido = {
+    nombres: "MARIA ELENA",
+    apellidos: "PEREZ",
+    fecha_nacimiento: "1990-01-01",
+    cedulaidentidad: "12345678",
+    estadoCivil_id: "",
+    carnet_patria: "123-4567890-1",
+    carnet_patria_serial: "ABC123",
+  };
+
+  it("acepta el formulario completo y está registrado para el borrador", () => {
+    expect(identidadSchema.safeParse(valido).success).toBe(true);
+    expect(esquemaDeEntidad("identidad", "employee")).not.toBeNull();
+  });
+
+  it("exige cédula de 5 a 9 dígitos y fecha no futura", () => {
+    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234" }).success).toBe(false);
+    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234567890" }).success).toBe(
+      false,
+    );
+    expect(identidadSchema.safeParse({ ...valido, fecha_nacimiento: "2999-01-01" }).success).toBe(
+      false,
+    );
+  });
+
+  it("el Carnet de la Patria debe tener 10 dígitos (acepta el formato legado)", () => {
+    expect(identidadSchema.safeParse({ ...valido, carnet_patria: "123" }).success).toBe(false);
+    expect(identidadSchema.safeParse({ ...valido, carnet_patria: "000-0000000-0" }).success).toBe(
+      true,
+    );
+  });
+});
+
+describe("salud y tallas (D21)", () => {
+  it("normaliza las listas (sin repetidos y ordenadas) y no exige documento", () => {
+    const r = perfilSaludSchema.safeParse({
+      grupo_sanguineo_id: "",
+      alergias: [3, 1, 3],
+      patologias_cronicas: [],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.alergias).toEqual([1, 3]);
+      expect(r.data.patologias_cronicas).toEqual([]);
+      expect(r.data.discapacidades).toEqual([]);
+    }
+    expect(esquemaDeEntidad("salud", "perfil_salud")).not.toBeNull();
+    expect(esquemaDeEntidad("salud", "perfil_fisico")).not.toBeNull();
+  });
+
+  it("las tallas son opcionales en el borrador", () => {
+    expect(perfilFisicoSchema.safeParse({}).success).toBe(true);
   });
 });

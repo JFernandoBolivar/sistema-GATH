@@ -36,6 +36,15 @@ const RUTAS: Record<ClaveCatalogo, RutaCatalogo> = {
   parentescos: { ruta: "/api/v1/catalogos/parentescos/?uso=contacto" },
   parentescosFamilia: { ruta: "/api/v1/catalogos/parentescos/?uso=familiar" },
   sexos: { ruta: "/api/v1/catalogos/sexos/" },
+  estadosCiviles: { ruta: "/api/v1/autogestion/catalogos/estados-civiles/" },
+  gruposSanguineos: { ruta: "/api/v1/autogestion/catalogos/grupos-sanguineos/" },
+  alergias: { ruta: "/api/v1/autogestion/catalogos/alergias/" },
+  patologias: { ruta: "/api/v1/autogestion/catalogos/patologias/" },
+  discapacidades: { ruta: "/api/v1/autogestion/catalogos/discapacidades/" },
+  tallasCamisa: { ruta: "/api/v1/autogestion/catalogos/tallas-camisa/" },
+  tallasPantalon: { ruta: "/api/v1/autogestion/catalogos/tallas-pantalon/" },
+  tallasZapatos: { ruta: "/api/v1/autogestion/catalogos/tallas-zapatos/" },
+  tallasChaqueta: { ruta: "/api/v1/autogestion/catalogos/tallas-chaqueta/" },
 };
 
 export const repoCatalogosAutogestionApi: RepoCatalogosAutogestion = {

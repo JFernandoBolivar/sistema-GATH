@@ -67,6 +67,7 @@ Catálogo maestro de 91 permisos oficiales registrados en `PERMISOS_CATALOGO`.
 | `personal.reincorporar` | Reincorporar trabajador egresado |
 | `personal.carga_masiva` | Ejecutar importación masiva de personal vía Excel |
 | `personal.exportar_pdf` | Exportar el expediente de un trabajador activo en PDF |
+| `personal.reportes_error_ver` | Consultar y gestionar reportes de error en datos laborales |
 
 ### 1.5 Personal Pasivo (`pasivos`)
 | Código de Permiso | Descripción Oficial |
@@ -278,6 +279,7 @@ Abreviaturas de columnas:
 | **`personal.reincorporar`** | ✅ | ✅ | | | | | | |
 | **`personal.carga_masiva`** | ✅ | ✅ | | | | | | |
 | **`personal.exportar_pdf`** | ✅ | ✅ | | | ✅ | | ✅ | ✅ |
+| **`personal.reportes_error_ver`** | ✅ | ✅ | | | | | | |
 | **`pasivos.ver`** | ✅ | ✅ | | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **`pasivos.ver_detalle`** | ✅ | ✅ | | | ✅ | | ✅ | ✅ |
 | **`pasivos.crear`** | ✅ | ✅ | | | | | | |

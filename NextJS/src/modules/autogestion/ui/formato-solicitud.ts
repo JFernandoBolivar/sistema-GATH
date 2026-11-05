@@ -36,6 +36,15 @@ const CATALOGO_POR_CAMPO: Record<string, string> = {
   parentesco_id: "parentescosFamilia",
   relacion_id: "parentescos",
   sexo_id: "sexos",
+  estadoCivil_id: "estadosCiviles",
+  grupo_sanguineo_id: "gruposSanguineos",
+  alergias: "alergias",
+  patologias_cronicas: "patologias",
+  discapacidades: "discapacidades",
+  talla_camisa_id: "tallasCamisa",
+  talla_pantalon_id: "tallasPantalon",
+  talla_zapatos_id: "tallasZapatos",
+  talla_chaqueta_id: "tallasChaqueta",
 };
 
 /** Campos que guardan teléfonos (E.164): se muestran con código de país. */
@@ -53,6 +62,10 @@ export function formatearValor(
 ): string {
   if (valor === null || valor === undefined || valor === "") return "Sin dato";
   if (typeof valor === "boolean") return valor ? "Sí" : "No";
+  if (Array.isArray(valor)) {
+    if (valor.length === 0) return "Ninguno";
+    return valor.map((v) => formatearValor(v as ValorCambio, campo, nombres)).join(", ");
+  }
   if (typeof valor === "object") {
     return Object.entries(valor)
       .filter(([, v]) => v !== null && v !== "")

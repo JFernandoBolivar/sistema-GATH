@@ -18,9 +18,23 @@ from apps.autogestion.infrastructure.models.actualizacion_models import (
     SolicitudActualizacionModel,
 )
 from apps.autogestion.infrastructure.tasks.expirar_ventanas_tasks import expirar_ventanas_vencidas
-from apps.catalogos.infrastructure.models.catalogo_models import NacionalidadModel, ParentescoModel, SexoModel
+from apps.catalogos.infrastructure.models.catalogo_models import (
+    EstadoCivilModel,
+    NacionalidadModel,
+    ParentescoModel,
+    SexoModel,
+)
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.familiares.infrastructure.models.familiar_models import FamilyDocumentModel
+from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    AlergiaModel,
+    CategoriaAlergiaModel,
+    GrupoSanguineoModel,
+    RegionTallaModel,
+    TallaModel,
+    TipoPrendaModel,
+)
+from apps.personal.infrastructure.models.expediente_models import PerfilFisicoModel, PerfilSaludModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.infrastructure.models.auditoria import AuditoriaLog
 
@@ -91,8 +105,10 @@ def datos(db):
             'telefono_movil': '04141111111', 'telefono_habitacion': '02121111111', 'profile': 'perfiles/viejo.jpg',
         })
     ParentescoModel.objects.get_or_create(id=1, defaults={'descripcion_parentesco': 'HIJO (A)'})
-    for codigo, nombre, soporte in (('contacto', 'Contacto', False), ('vivienda', 'Vivienda', False),
-                                    ('formacion', 'Formación', True), ('familiar', 'Grupo familiar', True), ('foto', 'Foto', False)):
+    for codigo, nombre, soporte in (('identidad', 'Identidad', False), ('contacto', 'Contacto', False),
+                                    ('vivienda', 'Vivienda', False), ('formacion', 'Formación', True),
+                                    ('familiar', 'Grupo familiar', True), ('salud', 'Salud y tallas', False),
+                                    ('foto', 'Foto', False)):
         SeccionAutogestionableModel.objects.get_or_create(codigo=codigo, defaults={'nombre': nombre, 'requiere_soporte': soporte})
     return sexo
 
@@ -312,7 +328,9 @@ def test_mi_expediente_incluye_datos_complementarios_y_rrhh_los_gestiona(datos, 
 
 def test_secciones_publicas_y_configurables_solo_con_permiso(trabajador, datos):
     secciones = data(trabajador.get(f'{BASE}/secciones/'))
-    assert {s['codigo'] for s in secciones} == {'contacto', 'vivienda', 'formacion', 'familiar', 'foto'}
+    assert {s['codigo'] for s in secciones} == {
+        'identidad', 'contacto', 'vivienda', 'formacion', 'familiar', 'salud', 'foto',
+    }
     assert next(s for s in secciones if s['codigo'] == 'formacion')['requiere_soporte'] is True
     assert trabajador.patch(f'{BASE}/bienestar/secciones/vivienda/', {'requiere_soporte': True}, format='json').status_code == 403
     admin = cliente(ADMINISTRADORA, {'bienestar.configurar_secciones'}, 3)
@@ -421,3 +439,57 @@ def test_quitar_contacto_aprobado_lo_elimina_de_la_ficha(trabajador, analista):
                       {'version': comparativo['version'], 'decisiones': decisiones}, format='json')
     assert r.status_code == 200, r.content
     assert not ContactoEmergenciaModel.objects.filter(pk=contacto.pk).exists()
+
+
+def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analista):
+    """D19: la identidad exige copia de cédula y el cambio de cédula arrastra sus referencias.
+    D21: estado civil, carnet, salud y tallas entran sin documento."""
+    estado = EstadoCivilModel.objects.get_or_create(estadoCivil='O10 PRUEBA')[0]
+    categoria = CategoriaAlergiaModel.objects.get_or_create(nombre_categoria='O10 PRUEBA')[0]
+    alergia = AlergiaModel.objects.get_or_create(alergia='O10 PRUEBA', defaults={'categoria': categoria})[0]
+    grupo = GrupoSanguineoModel.objects.get_or_create(GrupoSanguineo='O10 PRUEBA')[0]
+    region = RegionTallaModel.objects.get_or_create(codigo='O10', defaults={'descripcion': 'O10'})[0]
+    prenda = TipoPrendaModel.objects.get_or_create(categoria='Camisa')[0]
+    talla = TallaModel.objects.create(valor='O10', region=region, tipo_prenda=prenda)
+    nueva_cedula = '20999999'
+
+    sid = solicitar(trabajador, ('identidad', 'salud'))
+    habilitar(analista, sid)
+    cambios = [
+        {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'nombres', 'valor': 'MARIA ELENA'},
+        {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'cedulaidentidad', 'valor': nueva_cedula},
+        {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'fecha_nacimiento', 'valor': '1990-05-04'},
+        {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'estadoCivil_id', 'valor': estado.pk},
+        {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'carnet_patria', 'valor': '123-4567890-1'},
+        {'seccion': 'salud', 'entidad': 'perfil_salud', 'accion': 'MODIFICAR', 'campo': 'grupo_sanguineo_id', 'valor': grupo.pk},
+        {'seccion': 'salud', 'entidad': 'perfil_salud', 'accion': 'MODIFICAR', 'campo': 'alergias', 'valor': [alergia.pk]},
+        {'seccion': 'salud', 'entidad': 'perfil_fisico', 'accion': 'MODIFICAR', 'campo': 'talla_camisa_id', 'valor': talla.pk},
+    ]
+    assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json').status_code == 200
+    # Sin copia de cédula no se puede enviar una solicitud de identidad.
+    sin_soporte = trabajador.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json')
+    assert sin_soporte.status_code == 400 and 'CEDULA' in str(sin_soporte.json())
+    cedula = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'identidad', 'tipo': 'CEDULA',
+        'file': SimpleUploadedFile('cedula.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert cedula.status_code == 201, cedula.content
+    assert trabajador.post(f'{BASE}/solicitudes/{sid}/enviar/', {}, format='json').status_code == 200
+
+    comparativo = data(analista.get(f'{BASE}/bienestar/solicitudes/{sid}/comparativo/'))
+    decisiones = [{'cambio_id': c['id'], 'aprobado': True, 'motivo': ''} for c in comparativo['cambios']]
+    r = analista.post(f'{BASE}/bienestar/solicitudes/{sid}/decidir/',
+                      {'version': comparativo['version'], 'decisiones': decisiones}, format='json')
+    assert r.status_code == 200, r.content
+
+    assert not EmployeeModel.objects.filter(cedulaidentidad=TRABAJADOR).exists()
+    empleado = EmployeeModel.objects.get(cedulaidentidad=nueva_cedula)
+    assert empleado.nombres == 'MARIA ELENA'
+    assert empleado.fecha_nacimiento.isoformat() == '1990-05-04'
+    assert empleado.estadoCivil_id == estado.pk
+    assert empleado.carnet_patria == '1234567890'
+    salud = PerfilSaludModel.objects.get(empleado=empleado)
+    assert list(salud.alergias.values_list('pk', flat=True)) == [alergia.pk]
+    assert PerfilFisicoModel.objects.get(empleado=empleado).tallaCamisa_id == talla.pk
+    # La solicitud y sus reservas siguen a la nueva cédula.
+    assert SolicitudActualizacionModel.objects.get(pk=sid).cedula == nueva_cedula

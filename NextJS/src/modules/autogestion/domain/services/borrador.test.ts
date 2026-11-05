@@ -111,4 +111,9 @@ describe("borrador", () => {
     expect(resultado).toHaveLength(1);
     expect(resultado[0].entidad).toBe("datos_complementarios");
   });
+
+  it("compara listas de catálogo (salud) por contenido y no por referencia", () => {
+    expect(diferencias({ alergias: [2, 1] }, { alergias: [1, 2] })).toEqual({});
+    expect(diferencias({ alergias: [1] }, { alergias: [1, 3] })).toEqual({ alergias: [1, 3] });
+  });
 });

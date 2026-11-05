@@ -69,6 +69,7 @@ PERMISOS_CATALOGO = [
     ("personal.reincorporar", "Reincorporar trabajador egresado"),
     ("personal.carga_masiva", "Ejecutar importación masiva de personal vía Excel"),
     ("personal.exportar_pdf", "Exportar el expediente de un trabajador activo en PDF"),
+    ("personal.reportes_error_ver", "Consultar y gestionar reportes de error en datos laborales"),
 
     # ─── 5. PERSONAL PASIVO ───
     ("pasivos.ver", "Consultar listado y ficha básica de personal pasivo"),
@@ -209,6 +210,7 @@ ROL_ASIGNACIONES = {
         "personal.reincorporar",
         "personal.carga_masiva",
         "personal.exportar_pdf",
+        "personal.reportes_error_ver",
         "pasivos.ver",
         "pasivos.ver_detalle",
         "pasivos.crear",

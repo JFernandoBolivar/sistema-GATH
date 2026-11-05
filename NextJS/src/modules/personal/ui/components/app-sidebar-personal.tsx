@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertCircle,
   Bell,
   ArrowRightFromLine,
   ArrowRightLeft,
@@ -115,6 +116,12 @@ const items: MenuItem[] = [
         url: "/familiares/consultar",
         icon: BookUser,
         permiso: "familiares.ver",
+      },
+      {
+        title: "Reportes de Error Laboral",
+        url: "/personal/reportes-error",
+        icon: AlertCircle,
+        permiso: "personal.reportes_error_ver",
       },
     ],
   },

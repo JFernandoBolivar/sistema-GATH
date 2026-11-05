@@ -13,10 +13,35 @@ const unir = (...partes: (string | null | undefined)[]) =>
   partes.filter(Boolean).join(" · ") || "Sin datos";
 
 /** Datos vigentes por entidad, derivados de «mi expediente». Solo lectura: la ficha no se toca. */
-export function registrosFicha(d: MiExpedienteDTO, entidad: string): FichaRegistro[] {
+export function registrosFicha(
+  d: MiExpedienteDTO,
+  entidad: string,
+  seccion?: string,
+): FichaRegistro[] {
   const e = d.empleado;
   switch (entidad) {
     case "employee":
+      if (seccion === "identidad") {
+        return [
+          {
+            id: null,
+            valores: {
+              nombres: e.nombres,
+              apellidos: e.apellidos,
+              fecha_nacimiento: e.fecha_nacimiento?.slice(0, 10),
+              cedulaidentidad: e.cedula,
+              estadoCivil_id: e.estado_civil_id ?? null,
+              carnet_patria: e.carnet_patria ?? null,
+              carnet_patria_serial: e.carnet_patria_serial ?? null,
+            },
+            resumen: unir(
+              `${e.nombres} ${e.apellidos}`,
+              `C.I. ${e.cedula}`,
+              e.estado_civil_nombre,
+            ),
+          },
+        ];
+      }
       return [
         {
           id: null,
@@ -129,6 +154,50 @@ export function registrosFicha(d: MiExpedienteDTO, entidad: string): FichaRegist
         },
         resumen: unir(`${f.primer_nombre} ${f.primer_apellido}`, f.parentesco_nombre),
       }));
+    case "perfil_salud": {
+      const s = e.perfil_salud;
+      return [
+        {
+          id: null,
+          valores: {
+            grupo_sanguineo_id: s?.grupo_sanguineo_id ?? null,
+            alergias: s?.alergias ?? [],
+            patologias_cronicas: s?.patologias_cronicas ?? [],
+            discapacidades: s?.discapacidades ?? [],
+          },
+          resumen: unir(
+            s?.grupo_sanguineo_nombre ? `Grupo sanguíneo ${s.grupo_sanguineo_nombre}` : null,
+            s?.alergias_nombres?.length ? `Alergias: ${s.alergias_nombres.join(", ")}` : null,
+            s?.patologias_cronicas_nombres?.length
+              ? `Patologías: ${s.patologias_cronicas_nombres.join(", ")}`
+              : null,
+            s?.discapacidades_nombres?.length
+              ? `Discapacidades: ${s.discapacidades_nombres.join(", ")}`
+              : null,
+          ),
+        },
+      ];
+    }
+    case "perfil_fisico": {
+      const pf = e.perfil_fisico;
+      return [
+        {
+          id: null,
+          valores: {
+            talla_camisa_id: pf?.talla_camisa_id ?? null,
+            talla_pantalon_id: pf?.talla_pantalon_id ?? null,
+            talla_zapatos_id: pf?.talla_zapatos_id ?? null,
+            talla_chaqueta_id: pf?.talla_chaqueta_id ?? null,
+          },
+          resumen: unir(
+            pf?.talla_camisa_nombre ? `Camisa ${pf.talla_camisa_nombre}` : null,
+            pf?.talla_pantalon_nombre ? `Pantalón ${pf.talla_pantalon_nombre}` : null,
+            pf?.talla_zapatos_nombre ? `Zapatos ${pf.talla_zapatos_nombre}` : null,
+            pf?.talla_chaqueta_nombre ? `Chaqueta ${pf.talla_chaqueta_nombre}` : null,
+          ),
+        },
+      ];
+    }
     default:
       return [];
   }

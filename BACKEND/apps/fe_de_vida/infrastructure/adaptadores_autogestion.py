@@ -27,9 +27,13 @@ from apps.fe_de_vida.domain.value_objects.lista_blanca import CAMPOS_ADICIONALES
 from core.domain.exceptions import NotFoundError, ValidationError
 
 
+# Secciones de autogestión que la fe de vida no hereda: identidad (solo nombres/apellidos/fecha, vía CAMPOS_ADICIONALES_ACTA) y salud.
+SECCIONES_SOLO_AUTOGESTION = frozenset({'identidad', 'salud'})
+
+
 def _unir_listas() -> dict[str, dict[str, frozenset[str]]]:
     """Lista blanca del acta = la de autogestión + los campos adicionales de fe de vida (sin modificar la original)."""
-    unida = {sec: dict(ents) for sec, ents in CAMPOS_POR_SECCION.items()}
+    unida = {sec: dict(ents) for sec, ents in CAMPOS_POR_SECCION.items() if sec not in SECCIONES_SOLO_AUTOGESTION}
     for seccion, entidades in CAMPOS_ADICIONALES_ACTA.items():
         destino = unida.setdefault(seccion, {})
         for entidad, campos in entidades.items():

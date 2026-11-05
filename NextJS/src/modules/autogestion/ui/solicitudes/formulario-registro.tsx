@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo } from "react";
+import useSWR from "swr";
 import { Controller, useForm, type FieldValues, type Resolver } from "react-hook-form";
 import { ZodObject, type ZodTypeAny } from "zod";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,15 @@ import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import {
   CAMPO_PADRE,
   type CampoDef,
+  type ClaveCatalogo,
   type EntidadDef,
 } from "../../domain/value-objects/campos-seccion";
 import { CLASE_CONTROL, SelectorCatalogo } from "./selector-catalogo";
+import { opcionesCatalogo } from "./opciones-catalogo";
 import { valorATexto } from "../schema/schema-solicitud";
+import { cn } from "@/lib/utils";
 
-type Valores = Record<string, string>;
+type Valores = Record<string, unknown>;
 
 /** Resolver RHF sobre un esquema Zod con entradas de texto; los errores se muestran por campo. */
 function resolverZod(esquema: ZodTypeAny): Resolver<Valores> {
@@ -73,7 +77,16 @@ export function FormularioRegistro({
 
   const form = useForm<Valores>({
     resolver: resolverZod(esquemaActivo),
-    defaultValues: Object.fromEntries(campos.map((c) => [c.campo, valorATexto(inicial[c.campo])])),
+    defaultValues: Object.fromEntries(
+      campos.map((c) => [
+        c.campo,
+        c.tipo === "multiple"
+          ? Array.isArray(inicial[c.campo])
+            ? (inicial[c.campo] as number[])
+            : []
+          : valorATexto(inicial[c.campo]),
+      ]),
+    ),
   });
   const { register, handleSubmit, watch, setValue, formState } = form;
 
@@ -114,6 +127,32 @@ export function FormularioRegistro({
       "aria-describedby": error ? `${id}-error` : undefined,
     } as const;
 
+    if (c.tipo === "multiple" && c.catalogo) {
+      return (
+        <div key={c.campo} className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className="text-base font-medium" id={`${id}-label`}>
+            {c.etiqueta}
+            {requerido ? <span aria-hidden> *</span> : null}
+          </span>
+          <Controller
+            control={form.control}
+            name={c.campo}
+            render={({ field }) => (
+              <SelectorMultiple
+                id={id}
+                catalogo={c.catalogo as ClaveCatalogo}
+                etiqueta={c.etiqueta}
+                valor={Array.isArray(field.value) ? (field.value as number[]) : []}
+                onCambio={field.onChange}
+                error={error}
+                describedBy={comunes["aria-describedby"]}
+              />
+            )}
+          />
+          {mensaje}
+        </div>
+      );
+    }
     if (c.tipo === "catalogo" && c.catalogo) {
       const padreCampo = CAMPO_PADRE[c.campo];
       const padreValor = padreCampo ? Number(watch(padreCampo)) || null : null;
@@ -159,7 +198,7 @@ export function FormularioRegistro({
               <CampoTelefono
                 id={id}
                 tipo={c.campo === "telefono_movil" ? "movil" : "cualquiera"}
-                value={field.value}
+                value={typeof field.value === "string" ? field.value : String(field.value ?? "")}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 invalido={Boolean(error)}
@@ -196,5 +235,80 @@ export function FormularioRegistro({
         </Button>
       </div>
     </form>
+  );
+}
+
+interface PropsMultiple {
+  id: string;
+  catalogo: ClaveCatalogo;
+  etiqueta: string;
+  valor: number[];
+  onCambio: (valores: number[]) => void;
+  error?: string;
+  describedBy?: string;
+}
+
+/** Lista de selección múltiple (alergias, patologías, discapacidades) sobre un catálogo del servidor. */
+function SelectorMultiple({
+  id,
+  catalogo,
+  etiqueta,
+  valor,
+  onCambio,
+  error,
+  describedBy,
+}: PropsMultiple) {
+  const { data, error: fallo, isLoading } = useSWR(
+    ["catalogo-autogestion-multiple", catalogo],
+    () => opcionesCatalogo(catalogo),
+    { revalidateOnFocus: false },
+  );
+  const seleccion = new Set(valor);
+
+  function alternar(opcion: number) {
+    const siguiente = new Set(seleccion);
+    if (siguiente.has(opcion)) siguiente.delete(opcion);
+    else siguiente.add(opcion);
+    onCambio([...siguiente].sort((a, b) => a - b));
+  }
+
+  return (
+    <div
+      id={id}
+      role="group"
+      aria-label={etiqueta}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={describedBy}
+      className={cn(
+        "max-h-56 overflow-y-auto rounded-md border border-input bg-card p-2",
+        error && "border-danger",
+      )}
+    >
+      {isLoading ? (
+        <p className="p-1 text-sm text-muted-foreground">Cargando opciones…</p>
+      ) : fallo ? (
+        <p role="alert" className="p-1 text-sm font-medium text-danger">
+          No se pudieron cargar las opciones.
+        </p>
+      ) : (data ?? []).length === 0 ? (
+        <p className="p-1 text-sm text-muted-foreground">No hay opciones registradas.</p>
+      ) : (
+        <ul className="flex flex-col gap-0.5">
+          {(data ?? []).map((o) => (
+            <li key={o.id}>
+              <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded px-1 hover:bg-accent">
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  checked={seleccion.has(o.id)}
+                  onChange={() => alternar(o.id)}
+                />
+                <span className="text-base">{o.nombre}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

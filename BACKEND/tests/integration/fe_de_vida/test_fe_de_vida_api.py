@@ -684,7 +684,7 @@ def test_acta_rechaza_campos_fuera_de_la_lista_blanca_de_fe_de_vida(pasivo, admi
 def test_la_lista_blanca_de_autogestion_no_cambia():
     from apps.autogestion.domain.value_objects.secciones import CAMPOS_POR_SECCION
     from apps.fe_de_vida.infrastructure.adaptadores_autogestion import CAMPOS_ACTA
-    assert 'identidad' not in CAMPOS_POR_SECCION and 'nombres' not in CAMPOS_POR_SECCION['contacto']['employee']
+    assert 'nombres' not in CAMPOS_POR_SECCION['contacto']['employee'] and 'salud' not in CAMPOS_ACTA
     assert CAMPOS_ACTA['identidad']['employee'] == {'nombres', 'apellidos', 'fecha_nacimiento'}
     assert CAMPOS_ACTA['contacto']['employee'] == CAMPOS_POR_SECCION['contacto']['employee']
 

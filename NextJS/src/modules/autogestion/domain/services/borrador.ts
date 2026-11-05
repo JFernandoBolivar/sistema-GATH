@@ -128,6 +128,9 @@ export function registrosAItems(registros: RegistroBorrador[]): ItemBorrador[] {
 /** Normaliza para comparar: vacío, `undefined` y `null` son lo mismo. */
 export function normalizarValor(valor: unknown): ValorCambio {
   if (valor === undefined || valor === null) return null;
+  if (Array.isArray(valor)) {
+    return [...valor].map(Number).sort((a, b) => a - b);
+  }
   if (typeof valor === "string") return valor.trim() === "" ? null : valor.trim();
   return valor as ValorCambio;
 }
@@ -140,7 +143,9 @@ export function diferencias(
   const cambios: Record<string, ValorCambio> = {};
   for (const [campo, valor] of Object.entries(nuevos)) {
     const nuevo = normalizarValor(valor);
-    if (nuevo !== normalizarValor(original[campo])) cambios[campo] = nuevo;
+    const anterior = normalizarValor(original[campo]);
+    // Comparación estructural: las listas de catálogo (M2M) son arreglos distintos cada render.
+    if (JSON.stringify(nuevo) !== JSON.stringify(anterior)) cambios[campo] = nuevo;
   }
   return cambios;
 }

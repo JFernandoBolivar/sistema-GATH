@@ -236,3 +236,86 @@ export async function descargarEmpleadoPdfAction(cedula: string) {
   }
 }
 
+export async function crearReporteErrorLaboralAction(dato: string, descripcion: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await personalApi.crearReporteErrorLaboral({ dato, descripcion });
+    await logAudit({
+      traceId,
+      action: "crearReporteErrorLaboralAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return { success: true, data: res };
+  } catch (error) {
+    await logAudit({
+      traceId,
+      action: "crearReporteErrorLaboralAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error al reportar discrepancia laboral.",
+    };
+  }
+}
+
+export async function getReportesErrorLaboralAction(params?: {
+  estado?: string;
+  dato?: string;
+  search?: string;
+}) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await personalApi.getReportesErrorLaboral(params);
+    await logAudit({
+      traceId,
+      action: "getReportesErrorLaboralAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return res;
+  } catch (error) {
+    await logAudit({
+      traceId,
+      action: "getReportesErrorLaboralAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function atenderReporteErrorLaboralAction(id: string, observaciones?: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await personalApi.atenderReporteErrorLaboral(id, { observaciones });
+    await logAudit({
+      traceId,
+      action: "atenderReporteErrorLaboralAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return { success: true, data: res };
+  } catch (error) {
+    await logAudit({
+      traceId,
+      action: "atenderReporteErrorLaboralAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error al atender el reporte.",
+    };
+  }
+}
+
+

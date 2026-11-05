@@ -62,6 +62,7 @@ import {
   DialogTitle,
 } from "@/shared/ui/components/dialog";
 import { BotonSolicitarActualizacion } from "./solicitudes/boton-solicitar-actualizacion";
+import { ModalReportarErrorLaboral } from "./components/modal-reportar-error-laboral";
 import { formatearTelefono } from "@/shared/domain/validation/telefono";
 import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
 
@@ -639,6 +640,9 @@ export default function MiExpedienteView() {
 
         {/* TAB 2: TRAYECTORIA LABORAL & CARGO */}
         <TabsContent value="laboral" className="space-y-6 focus-visible:outline-none">
+          <div className="flex justify-end">
+            <ModalReportarErrorLaboral />
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-4 border-b bg-muted/20">
