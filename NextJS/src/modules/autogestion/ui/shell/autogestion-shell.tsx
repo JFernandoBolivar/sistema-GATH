@@ -22,7 +22,7 @@ export function AutogestionShell({ children }: Readonly<{ children: ReactNode }>
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>
-        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-auto p-4 sm:p-6">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full p-4 sm:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

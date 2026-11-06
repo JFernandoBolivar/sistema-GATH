@@ -16,6 +16,12 @@ class EmployeefamilyModel(models.Model):
         to_field='cedulaidentidad',
     )
     cedulaFamiliar = models.CharField(max_length=10, db_column='cedulaFamiliar', blank=True, null=True)
+    # Orden de nacimiento elegido para hijos menores sin cédula propia. Nullable:
+    # las 578 cédulas sintéticas ya generadas quedan con NULL (sin backfill).
+    orden_hijo = models.PositiveSmallIntegerField(
+        db_column='ordenHijo', null=True, blank=True,
+        help_text='Orden de nacimiento del hijo; solo para menores sin cédula propia.',
+    )
 
     primer_nombre = models.CharField(max_length=150)
     segundo_nombre = models.CharField(null=True, blank=True, max_length=150)

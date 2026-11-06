@@ -3,6 +3,7 @@
 import { ContadorCaracteres } from "@/components/contador-caracteres";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import {
   User,
@@ -66,7 +67,10 @@ import {
 import { BotonSolicitarActualizacion } from "./solicitudes/boton-solicitar-actualizacion";
 import { ModalReportarErrorLaboral } from "./components/modal-reportar-error-laboral";
 import { formatearTelefono } from "@/shared/domain/validation/telefono";
+import { formatearTiempoServicio } from "../domain/formatear-tiempo-servicio";
 import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
+import { useGuia, BotonVerGuia } from "@/shared/ui/guias";
+import { GUIA_AUTOGESTION_INICIO, GUIA_MI_FICHA } from "./guias/definiciones-guias";
 
 import {
   getMiExpedienteAction,
@@ -114,6 +118,7 @@ function duracionServicio(ingreso?: string | null, egreso?: string | null): stri
   return partes.join(" y ");
 }
 
+
 function formatearLista(items: unknown[] | undefined): string {
   if (!items || items.length === 0) return "Ninguna reportada";
   return items
@@ -142,6 +147,15 @@ export default function MiExpedienteView() {
     tipo: "success" | "error";
     mensaje: string;
   } | null>(null);
+
+  const pathname = usePathname() ?? "";
+  const esFicha = pathname.includes("/ficha");
+  const guiaActual = esFicha ? GUIA_MI_FICHA : GUIA_AUTOGESTION_INICIO;
+
+  const { iniciarGuia } = useGuia({
+    guia: guiaActual,
+    autoIniciar: true,
+  });
 
   if (isLoading) {
     return (
@@ -309,14 +323,17 @@ export default function MiExpedienteView() {
       )}
 
       {/* Cabecera Institucional CONATEL */}
-      <Card className="min-w-0 overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0">
-        <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-6 md:p-8 text-white relative overflow-hidden">
+      <Card
+        data-guia-id="inicio-cabecera"
+        className="min-w-0 overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0"
+      >
+        <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 h-1.5 w-48 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 rounded-bl-full opacity-80" />
 
-          <div className="relative z-10 flex min-w-0 flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 flex-col items-start gap-5 sm:flex-row sm:items-center">
-              <div className="relative shrink-0">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-blue-600/40 to-slate-900/60 border-2 border-amber-400/40 flex items-center justify-center shadow-xl backdrop-blur-sm overflow-hidden">
+          <div className="relative z-10 flex min-w-0 flex-col items-stretch justify-between gap-5 sm:gap-6 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 flex-col items-center sm:items-start gap-4 sm:flex-row sm:gap-6 text-center sm:text-left">
+              <div className="relative shrink-0 mx-auto sm:mx-0">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-blue-600/40 to-slate-900/60 border-2 border-amber-400/40 flex items-center justify-center shadow-xl backdrop-blur-sm overflow-hidden">
                   {empleado.foto_url && !fotoError ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -326,7 +343,7 @@ export default function MiExpedienteView() {
                       onError={() => setFotoError(true)}
                     />
                   ) : (
-                    <User className="w-10 h-10 sm:w-12 sm:h-12 text-amber-300" />
+                    <User className="w-12 h-12 sm:w-14 sm:h-14 text-amber-300" />
                   )}
                 </div>
                 {MOSTRAR_CARNET && carnet_activo?.activo && (
@@ -339,60 +356,64 @@ export default function MiExpedienteView() {
                 )}
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="text-xs font-bold tracking-wider text-amber-300 uppercase px-3 py-1 rounded-md bg-amber-400/15 border border-amber-400/30">
+              <div className="min-w-0 space-y-2.5 w-full">
+                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                  <span className="text-[11px] sm:text-xs font-bold tracking-wider text-amber-300 uppercase px-2.5 py-1 rounded-md bg-amber-400/15 border border-amber-400/30">
                     CONATEL • GATH
                   </span>
                   <Badge
                     variant="secondary"
-                    className="bg-white/15 text-white hover:bg-white/25 text-sm font-mono px-3 py-0.5"
+                    className="bg-white/15 text-white hover:bg-white/25 text-xs sm:text-sm font-mono px-2.5 py-0.5"
                   >
                     C.I. {empleado.cedula}
                   </Badge>
                   {MOSTRAR_CARNET &&
                     (carnet_activo ? (
-                      <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-sm gap-1.5 py-0.5 px-3">
+                      <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-xs sm:text-sm gap-1.5 py-0.5 px-2.5">
                         <FileCheck className="w-3.5 h-3.5" /> Carnet Vigente
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
-                        className="border-amber-400/50 text-amber-300 text-sm py-0.5 px-3"
+                        className="border-amber-400/50 text-amber-300 text-xs sm:text-sm py-0.5 px-2.5"
                       >
                         Sin carnet emitido
                       </Badge>
                     ))}
+                  <BotonVerGuia
+                    onClick={iniciarGuia}
+                    className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+                  />
                 </div>
 
-                <h1 className="break-words text-2xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-3xl lg:text-4xl">
+                <h1 className="break-words text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm text-center sm:text-left">
                   {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
                 </h1>
 
-                <p className="text-blue-100 text-sm sm:text-base font-medium flex items-center gap-2 flex-wrap">
-                  <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 shrink-0" />
+                <p className="text-blue-100 text-xs sm:text-base font-medium flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 flex-wrap">
+                  <Briefcase className="w-4 h-4 text-amber-300 shrink-0" />
                   <span className="font-semibold text-white">{cargoPrincipal}</span>
                   <span className="text-blue-300/70">•</span>
                   <span className="text-blue-200">{oficinaPrincipal}</span>
                 </p>
 
-                <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-sm text-blue-100 pt-1">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 sm:gap-x-5 text-xs sm:text-sm text-blue-100 pt-1">
                   {empleado.correo && (
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Mail className="w-4 h-4 shrink-0 text-amber-300" />{" "}
+                    <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                      <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-amber-300" />{" "}
                       <span className="break-all">{empleado.correo}</span>
                     </span>
                   )}
                   {empleado.telefono_movil && (
-                    <span className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-amber-300 shrink-0" />{" "}
+                    <span className="flex items-center gap-1.5 sm:gap-2">
+                      <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
                       {formatearTelefono(empleado.telefono_movil)}
                     </span>
                   )}
                   {empleado.total_anos_apn !== undefined && (
-                    <span className="flex items-center gap-2 font-semibold text-amber-200">
-                      <Clock className="w-4 h-4 text-amber-300 shrink-0" />{" "}
-                      {empleado.total_anos_apn} años de servicio en APN
+                    <span className="flex items-center gap-1.5 sm:gap-2 font-semibold text-amber-200">
+                      <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
+                      {formatearTiempoServicio(empleado.total_anos_apn)}
                     </span>
                   )}
                 </div>
@@ -402,6 +423,7 @@ export default function MiExpedienteView() {
             {MOSTRAR_CARNET && (
               <div className="flex w-full shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:w-auto lg:flex-col lg:items-end">
                 <Button
+                  data-guia-id="ficha-carnet"
                   onClick={() => setActiveTab("carnet")}
                   className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold shadow-lg text-sm h-11 px-5 gap-2 sm:flex-1 lg:w-auto lg:flex-none"
                 >
@@ -423,14 +445,19 @@ export default function MiExpedienteView() {
           tabIndex={0}
           className="w-full whitespace-nowrap pb-2"
         >
-          <TabsList className="inline-flex h-auto p-1.5 bg-muted/80 rounded-xl border border-border/50 min-w-full sm:min-w-0 justify-start sm:justify-center gap-1.5">
+          <TabsList
+            data-guia-id="inicio-pestanas"
+            className="inline-flex h-auto p-1.5 bg-muted/80 rounded-xl border border-border/50 min-w-full sm:min-w-0 justify-start sm:justify-center gap-1.5"
+          >
             <TabsTrigger
+              data-guia-id="ficha-datos-personales"
               value="personal"
               className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
               <User className="w-4 h-4 text-blue-500" /> Datos Personales
             </TabsTrigger>
             <TabsTrigger
+              data-guia-id="ficha-datos-laborales"
               value="laboral"
               className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
@@ -649,7 +676,7 @@ export default function MiExpedienteView() {
 
         {/* TAB 2: TRAYECTORIA LABORAL & CARGO */}
         <TabsContent value="laboral" className="space-y-6 focus-visible:outline-none">
-          <div className="flex justify-end">
+          <div className="flex justify-end" data-guia-id="ficha-reportar-error">
             <ModalReportarErrorLaboral />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -810,7 +837,7 @@ export default function MiExpedienteView() {
                   No se registran contratos anteriores en el expediente.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div>
                   <Table className="min-w-[560px]">
                     <TableHeader>
                       <TableRow className="text-sm">
@@ -1375,7 +1402,7 @@ export default function MiExpedienteView() {
                   No posee cargas familiares registradas en su expediente.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div>
                   <Table className="min-w-[720px]">
                     <TableHeader>
                       <TableRow className="text-sm">

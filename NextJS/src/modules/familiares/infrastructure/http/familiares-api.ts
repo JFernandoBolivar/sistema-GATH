@@ -45,6 +45,7 @@ export interface FamiliarApiItem {
   id: number;
   empleado_cedula: string;
   cedula_familiar: string | null;
+  orden_hijo?: number | null;
   primer_nombre: string;
   segundo_nombre: string | null;
   primer_apellido: string;

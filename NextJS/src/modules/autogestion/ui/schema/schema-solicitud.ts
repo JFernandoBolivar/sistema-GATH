@@ -157,6 +157,14 @@ export const familiarSchema = z.object({
     .optional()
     .or(z.literal("")),
   parentesco_id: idCatalogo("el parentesco"),
+  orden_hijo: z
+    .union([z.string(), z.number()])
+    .optional()
+    .nullable()
+    .refine(
+      (v) => v === undefined || v === null || v === "" || (Number(v) >= 1 && Number(v) <= 99),
+      "El orden de nacimiento debe estar entre 1 y 99",
+    ),
   fecha_nacimiento: z
     .string()
     .regex(DATE_ISO, DATE_ISO_MSG)

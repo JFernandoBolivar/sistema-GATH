@@ -30,6 +30,10 @@ export function FamiliarCampos({
 }) {
   const [down, setDown] = useState(false);
   const fechaNac = form.watch("fechaNacimiento");
+  const maxOrden = Math.max(
+    0,
+    Math.min(27, 10 - String(form.watch("empleadoCedula") ?? "").length - 1),
+  );
 
   return (
     <>
@@ -65,6 +69,35 @@ export function FamiliarCampos({
               className="cursor-pointer"
             />
           </div>
+          {down && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="ordenHijo" className="cursor-pointer">
+                Orden de nacimiento *
+              </Label>
+              <select
+                id="ordenHijo"
+                className="h-11 w-full rounded-md border bg-transparent px-3 text-base"
+                value={form.watch("ordenHijo") ? String(form.watch("ordenHijo")) : ""}
+                onChange={(e) =>
+                  form.setValue("ordenHijo", e.target.value ? Number(e.target.value) : null, {
+                    shouldValidate: true,
+                  })
+                }
+              >
+                <option value="">Seleccione un orden</option>
+                {Array.from({ length: maxOrden }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              {form.formState.errors.ordenHijo && (
+                <p role="alert" className="text-sm text-destructive">
+                  {form.formState.errors.ordenHijo.message}
+                </p>
+              )}
+            </div>
+          )}
           {form.formState.errors.cedulaFamiliar && (
             <p role="alert" className="text-sm text-destructive">
               {form.formState.errors.cedulaFamiliar.message}

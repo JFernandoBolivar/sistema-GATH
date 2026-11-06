@@ -11,6 +11,7 @@ import type { UseFormReturn } from "react-hook-form";
 import { HeartPulse } from "lucide-react";
 
 import { Checkbox } from "@/shared/ui/components/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Field } from "@/shared/ui/components/field";
 import { Label } from "@/shared/ui/components/label";
 import {
@@ -132,7 +133,7 @@ export function FamiliarPerfilSalud({
         {errores?.grupoSanguineoId && <p role="alert" className="text-sm text-destructive">{errores.grupoSanguineoId.message}</p>}
       </Field>
 
-      <div className="max-h-96 w-full overflow-y-auto md:col-span-2 border rounded-sm p-3 bg-muted/10">
+      <ScrollArea className="max-h-96 w-full md:col-span-2 border rounded-sm p-3 bg-muted/10">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="min-w-0">
             <GrupoChecklist
@@ -162,7 +163,7 @@ export function FamiliarPerfilSalud({
             />
           </div>
         </div>
-      </div>
+      </ScrollArea>
     </fieldset>
   );
 }

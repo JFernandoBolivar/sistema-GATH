@@ -19,6 +19,7 @@ class Familiar:
     segundo_nombre: str | None = None
     segundo_apellido: str | None = None
     cedula_familiar: str | None = None
+    orden_hijo: int | None = None
     mismo_ente: bool = False
     heredero: bool = False
     observaciones: str | None = None

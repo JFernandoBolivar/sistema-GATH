@@ -40,6 +40,7 @@ def familiar_a_entidad(
         id=modelo.pk,
         empleado_cedula=str(modelo.employeecedula_id),
         cedula_familiar=modelo.cedulaFamiliar,
+        orden_hijo=modelo.orden_hijo,
         primer_nombre=modelo.primer_nombre,
         segundo_nombre=modelo.segundo_nombre,
         primer_apellido=modelo.primer_apellido,

@@ -16,7 +16,10 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoProcedenciaModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
-from apps.familiares.application.use_cases.validaciones_familiar import resolver_cedula_familiar
+from apps.familiares.application.use_cases.validaciones_familiar import (
+    es_parentesco_hijo,
+    resolver_cedula_familiar,
+)
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
@@ -182,28 +185,40 @@ class LectorFichaORM:
         nombre = ParentescoModel.objects.filter(pk=parentesco_id).values_list(
             'descripcion_parentesco', flat=True,
         ).first() or ''
-        return nombre.upper().startswith('HIJO')
+        return es_parentesco_hijo(nombre)
 
     def validar_familiar_alta(self, cedula: str, valores: dict) -> None:
         """Alta de familiar: reutiliza `resolver_cedula_familiar` del módulo de familiares.
 
         La cédula es obligatoria salvo para un(a) hijo(a) menor de 9 años, a quien se le
-        genera `<cédula del titular>-<siguiente orden>` al aplicarse el cambio. Aquí solo se
-        valida (el valor sintético se descarta); el orden real lo calcula el aplicador.
+        genera `<cédula del titular>-<orden elegido>`. El orden es obligatorio y aquí se
+        valida también el duplicado; la cédula resultante se expone en
+        `cedula_generada` para que la revisión la muestre antes de aplicar.
         """
+        from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+
         fecha = valores.get('fecha_nacimiento')
         if isinstance(fecha, str):
             try:
                 fecha = date.fromisoformat(fecha)
             except ValueError:
                 fecha = None
+        existentes = {
+            str(c) for c in EmployeefamilyModel.objects.filter(
+                employeecedula_id=cedula,
+            ).values_list('cedulaFamiliar', flat=True) if c
+        }
         try:
-            resolver_cedula_familiar(
+            resuelta = resolver_cedula_familiar(
                 cedula_familiar=valores.get('cedula_familiar'),
                 cedula_empleado=cedula,
                 es_hijo=self.es_parentesco_hijo(valores.get('parentesco_id')),
                 fecha_nacimiento=fecha,
-                siguiente_orden_hijo=1,
+                orden_hijo=valores.get('orden_hijo'),
+                cedulas_existentes=existentes,
             )
         except ValueError as exc:
-            raise ValidationError(str(exc), campo='cedula_familiar') from None
+            campo = 'orden_hijo' if 'orden' in str(exc).lower() else 'cedula_familiar'
+            raise ValidationError(str(exc), campo=campo) from None
+        if not (valores.get('cedula_familiar') or '').strip():
+            valores['cedula_generada'] = resuelta

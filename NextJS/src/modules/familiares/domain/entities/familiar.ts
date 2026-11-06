@@ -33,6 +33,7 @@ export interface Familiar {
   id: number;
   empleadoCedula: string;
   cedulaFamiliar: string | null;
+  ordenHijo?: number | null;
   primerNombre: string;
   segundoNombre: string | null;
   primerApellido: string;

@@ -16,6 +16,7 @@ from apps.autogestion.infrastructure.models.autogestion_models import (
     RespuestasEncuestaModel,
     TipoPreguntaModel,
 )
+from apps.autogestion.infrastructure.models.guia_vista_models import GuiaVistaModel
 
 __all__ = [
     'TipoPreguntaModel',
@@ -29,4 +30,5 @@ __all__ = [
     'SoporteDocumentalModel',
     'SeccionAutogestionableModel',
     'DatosComplementariosTrabajadorModel',
+    'GuiaVistaModel',
 ]

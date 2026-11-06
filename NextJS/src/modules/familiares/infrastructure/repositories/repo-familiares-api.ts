@@ -51,6 +51,7 @@ export const repoFamiliaresApi: RepoFamiliares = {
       primer_apellido: data.primerApellido,
       segundo_apellido: data.segundoApellido,
       parentesco_id: data.parentescoId,
+      orden_hijo: data.ordenHijo,
       fecha_nacimiento: data.fechaNacimiento,
       sexo_id: data.sexoId,
       mismo_ente: data.mismoEnte,
@@ -74,6 +75,7 @@ export const repoFamiliaresApi: RepoFamiliares = {
     if (data.segundoApellido !== undefined) payload.segundo_apellido = data.segundoApellido;
     if (data.cedulaFamiliar !== undefined) payload.cedula_familiar = data.cedulaFamiliar;
     if (data.parentescoId !== undefined) payload.parentesco_id = data.parentescoId;
+    if (data.ordenHijo !== undefined) payload.orden_hijo = data.ordenHijo;
     if (data.sexoId !== undefined) payload.sexo_id = data.sexoId;
     if (data.fechaNacimiento !== undefined) payload.fecha_nacimiento = data.fechaNacimiento;
     if (data.mismoEnte !== undefined) payload.mismo_ente = data.mismoEnte;

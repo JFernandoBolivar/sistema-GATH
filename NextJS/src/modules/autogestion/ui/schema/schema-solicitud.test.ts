@@ -215,6 +215,14 @@ describe("familiarSchema", () => {
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "Ana2" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_apellido: "Perez1" }).success).toBe(false);
   });
+  it("TLF-1: acepta y valida el orden de nacimiento", () => {
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "2" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: 2 }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "0" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "100" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "abc" }).success).toBe(false);
+  });
 });
 
 describe("esquemaDeEntidad", () => {

@@ -164,7 +164,7 @@ def test_flujo_completo_solicita_habilita_carga_envia_y_aprueba_parcial(trabajad
         {'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'telefono_habitacion', 'valor': '02129998877'},
         {'seccion': 'contacto', 'entidad': 'datos_complementarios', 'accion': 'MODIFICAR', 'campo': 'correo_alternativo', 'valor': 'maria@gmail.com'},
         {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
-            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 1,
             'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': 1}},
     ]
     r = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json')
@@ -405,7 +405,7 @@ def test_quitar_y_corregir_con_documento_por_registro_copia_al_expediente(trabaj
     referencia = 'ref-nuevo-familiar'
     cambios = [
         {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'referencia': referencia, 'valor': {
-            'primer_nombre': 'MATEO', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'primer_nombre': 'MATEO', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 2,
             'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 5)).isoformat(), 'sexo_id': 1}},
     ]
     assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json').status_code == 200
@@ -581,7 +581,7 @@ def test_hijo_menor_de_9_sin_cedula_se_acepta_y_con_cedula_del_titular_se_rechaz
     habilitar(analista, sid)
     base = {
         'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
-            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 1,
             'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': 1,
         },
     }
@@ -589,6 +589,7 @@ def test_hijo_menor_de_9_sin_cedula_se_acepta_y_con_cedula_del_titular_se_rechaz
     assert sin_cedula.status_code == 200, sin_cedula.content
     guardado = CambioPropuestoModel.objects.get(origen_id=sid)
     assert 'cedula_familiar' not in guardado.valor_propuesto
+    assert guardado.valor_propuesto['cedula_generada'] == f'{TRABAJADOR}-1'
 
     # La cédula del familiar no puede repetir la del titular.
     con_cedula_titular = dict(base, valor=dict(base['valor'], cedula_familiar=TRABAJADOR))

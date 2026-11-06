@@ -124,10 +124,20 @@ export const familiarSchema = z.object({
     .nullable()
     .or(z.literal("")),
   parentescoId: z.number().positive({ message: "Seleccione un parentesco válido" }),
-  ordenHijo: z.number().optional().nullable(),
+  ordenHijo: z
+    .number()
+    .int()
+    .min(1, { message: "El orden de nacimiento debe ser mayor que cero" })
+    .max(99, { message: "El orden de nacimiento no es válido" })
+    .optional()
+    .nullable(),
   fechaNacimiento: z
     .string()
-    .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" }),
+    .regex(REGEX.FECHA_ISO, { message: "Formato de fecha inválido (YYYY-MM-DD)" })
+    .refine(
+      (v) => new Date(v).getTime() <= Date.now(),
+      "La fecha de nacimiento no puede ser futura",
+    ),
   sexoId: z.number().positive({ message: "Seleccione un sexo válido" }),
   mismoEnte: z.boolean().default(false),
   heredero: z.boolean().default(false),

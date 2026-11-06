@@ -61,7 +61,7 @@ export function AppSidebarAutogestion() {
                 ))}
               </div>
             ) : (
-              <SidebarMenu>
+              <SidebarMenu data-guia-id="inicio-menu-lateral">
                 <SidebarMenuItem className="mt-2">
                   <SidebarMenuButton asChild isActive={pathname === inicio}>
                     <Link href={inicio} className="flex min-h-11 items-center text-base">
@@ -112,7 +112,7 @@ export function AppSidebarAutogestion() {
                   Rol: {session.user.role?.nombre_rol || "Sin Rol"}
                 </h2>
               </div>
-              <div className="mt-2">
+              <div className="mt-2" data-guia-id="inicio-tamano-texto">
                 <ControlTamanoTexto condicionTrabajador={condicion} />
               </div>
             </div>

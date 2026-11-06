@@ -13,6 +13,7 @@ from apps.autogestion.presentation.views.autogestion_views import (
 )
 
 from apps.autogestion.presentation.views.catalogos_views import CatalogoAutogestionView
+from apps.autogestion.presentation.views.guia_vista_views import GuiasVistasView
 from apps.autogestion.presentation.views.solicitud_bienestar_views import (
     BandejaView,
     ComparativoView,
@@ -94,4 +95,7 @@ urlpatterns = [
     # Registro y consulta individual por cédula
     path('censo/<str:cedula>/', CensoEmpleadoView.as_view(), name='censo-empleado'),
     path('censo-vivienda/<str:cedula>/', CensoEmpleadoView.as_view(), name='censo-vivienda-empleado'),
+
+    # Guías interactivas (O35)
+    path('guias/', GuiasVistasView.as_view(), name='guias-vistas'),
 ]

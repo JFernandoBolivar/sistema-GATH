@@ -86,6 +86,7 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
         'familiar': frozenset({
             'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
             'cedula_familiar', 'parentesco_id', 'fecha_nacimiento', 'sexo_id', 'observaciones',
+            'orden_hijo',
         }),
         'datos_complementarios': frozenset({'tiene_hijos'}),
     },

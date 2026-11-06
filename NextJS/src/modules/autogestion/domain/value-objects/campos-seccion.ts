@@ -6,7 +6,7 @@
 import type { AccionCambio, SeccionCodigo } from "../entities/solicitud-actualizacion";
 
 export type TipoCampo =
-  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple";
+  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple" | "entero";
 
 export type ClaveCatalogo =
   | "estados"
@@ -306,6 +306,11 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             etiqueta: "Fecha de nacimiento",
             tipo: "fecha",
             requeridoAlCrear: true,
+          },
+          {
+            campo: "orden_hijo",
+            etiqueta: "Orden de nacimiento",
+            tipo: "entero",
           },
           {
             campo: "sexo_id",

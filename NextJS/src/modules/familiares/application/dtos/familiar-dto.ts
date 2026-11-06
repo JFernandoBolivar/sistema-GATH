@@ -31,6 +31,7 @@ export interface FamiliarDTO {
   id: number;
   empleadoCedula: string;
   cedulaFamiliar: string | null;
+  ordenHijo?: number | null;
   primerNombre: string;
   segundoNombre: string | null;
   primerApellido: string;
@@ -110,6 +111,7 @@ export interface GuardarFamiliarInputDTO {
   primerApellido: string;
   segundoApellido?: string | null;
   parentescoId: number;
+  ordenHijo?: number | null;
   fechaNacimiento: string;
   sexoId: number;
   mismoEnte: boolean;

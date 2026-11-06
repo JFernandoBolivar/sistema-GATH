@@ -23,6 +23,8 @@ import {
 import { SelectorCamposSolicitud } from "./selector-campos-solicitud";
 import { usePoliticaAutogestion } from "./use-politica-autogestion";
 import { solicitudNuevaSchema, type SolicitudNuevaValores } from "../schema/schema-solicitud";
+import { useGuia, BotonVerGuia } from "@/shared/ui/guias";
+import { GUIA_NUEVA_SOLICITUD } from "../guias/definiciones-guias";
 
 /** «Solicitar actualización»: elegir los campos concretos a actualizar y explicar el motivo. */
 export default function NuevaSolicitudPage() {
@@ -45,6 +47,11 @@ export default function NuevaSolicitudPage() {
     setError,
     formState: { errors, isSubmitting },
   } = form;
+
+  const { iniciarGuia } = useGuia({
+    guia: GUIA_NUEVA_SOLICITUD,
+    autoIniciar: true,
+  });
 
   async function enviar(valores: SolicitudNuevaValores) {
     const res = await solicitarActualizacionAction(valores);
@@ -84,6 +91,7 @@ export default function NuevaSolicitudPage() {
       <PageHeader
         titulo="Solicitar actualización de datos"
         descripcion="Elija qué datos necesita actualizar y cuéntenos el motivo. Bienestar Social le habilitará un plazo para cargar los cambios y sus soportes."
+        accion={<BotonVerGuia onClick={iniciarGuia} />}
       />
       {isLoading || cargandoPolitica ? (
         <VistaCargando mensaje="Cargando los campos disponibles…" onReintentar={() => mutate()} />
@@ -96,7 +104,7 @@ export default function NuevaSolicitudPage() {
       ) : null}
       {data ? (
         <form onSubmit={handleSubmit(enviar)} noValidate className="flex flex-col gap-6">
-          <fieldset className="flex flex-col gap-3">
+          <fieldset data-guia-id="solicitud-selector-campos" className="flex flex-col gap-3">
             <legend className="text-lg font-semibold">¿Qué datos desea actualizar?</legend>
             <p className="text-sm text-muted-foreground">
               Marque los campos que necesita cambiar. En grupo familiar, contactos de emergencia y formaciones, elija si desea agregar, corregir o quitar registros. Su
@@ -129,7 +137,7 @@ export default function NuevaSolicitudPage() {
             ) : null}
           </fieldset>
 
-          <div className="flex flex-col gap-1.5">
+          <div data-guia-id="solicitud-motivo" className="flex flex-col gap-1.5">
             <label htmlFor="motivo" className="text-lg font-semibold">
               Motivo de la actualización
             </label>
@@ -160,7 +168,13 @@ export default function NuevaSolicitudPage() {
             </p>
           ) : null}
 
-          <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={isSubmitting}>
+          <Button
+            data-guia-id="solicitud-boton-enviar"
+            type="submit"
+            size="lg"
+            className="w-full sm:w-fit"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "Enviando solicitud…" : "Enviar solicitud"}
           </Button>
         </form>

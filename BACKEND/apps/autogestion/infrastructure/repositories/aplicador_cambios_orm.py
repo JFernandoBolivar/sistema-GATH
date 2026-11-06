@@ -20,7 +20,10 @@ from apps.autogestion.domain.value_objects.secciones import Accion
 from apps.autogestion.infrastructure.cache.mi_expediente_cache import invalidar_mi_expediente
 from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.autogestion.infrastructure.repositories.repo_secciones_complementarios_orm import RepoDatosComplementariosORM
-from apps.familiares.application.use_cases.validaciones_familiar import resolver_cedula_familiar
+from apps.familiares.application.use_cases.validaciones_familiar import (
+    es_parentesco_hijo,
+    resolver_cedula_familiar,
+)
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.familiares.infrastructure.repositories.repo_familiares_orm import RepoFamiliaresORM
 from apps.personal.infrastructure.models.expediente_models import (
@@ -232,7 +235,10 @@ class AplicadorCambiosORM:
             cedula_familiar = resolver_cedula_familiar(
                 cedula_familiar=v.get('cedula_familiar'), cedula_empleado=cedula,
                 es_hijo=self._es_hijo(v['parentesco_id']), fecha_nacimiento=fecha,
-                siguiente_orden_hijo=existentes.count() + 1,
+                orden_hijo=v.get('orden_hijo'),
+                cedulas_existentes={
+                    str(c) for c in existentes.values_list('cedulaFamiliar', flat=True) if c
+                },
             )
         except ValueError as exc:
             raise ConflictError(f"No se pudo agregar al familiar: {exc} Rechace el campo o pida corregirlo.") from None
@@ -242,7 +248,7 @@ class AplicadorCambiosORM:
             'empleado_cedula': cedula, 'cedula_familiar': cedula_familiar, 'fecha_nacimiento': fecha,
             **{k: v.get(k) for k in (
                 'primer_nombre', 'segundo_nombre', 'primer_apellido', 'segundo_apellido',
-                'parentesco_id', 'sexo_id', 'observaciones',
+                'parentesco_id', 'sexo_id', 'observaciones', 'orden_hijo',
             )},
         })
         return familiar.id
@@ -251,7 +257,7 @@ class AplicadorCambiosORM:
     def _es_hijo(parentesco_id: int) -> bool:
         from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel
         nombre = ParentescoModel.objects.filter(pk=parentesco_id).values_list('descripcion_parentesco', flat=True).first() or ''
-        return nombre.upper().startswith('HIJO')
+        return es_parentesco_hijo(nombre)
 
     # ── Ediciones de registros existentes ──
     def _editar(self, cedula: str, entidad: str, entidad_id: str, campos: dict) -> None:

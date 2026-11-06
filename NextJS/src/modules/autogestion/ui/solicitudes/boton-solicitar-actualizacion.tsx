@@ -16,7 +16,7 @@ export function BotonSolicitarActualizacion() {
     politica?.habilitado === true;
   if (!permitido) return null;
   return (
-    <Button asChild size="lg" className="w-full sm:w-fit">
+    <Button asChild size="lg" className="w-full sm:w-fit" data-guia-id="inicio-boton-solicitar">
       <Link href="/autogestion/solicitudes/nueva">
         <FilePenLine aria-hidden /> Solicitar actualización de mis datos
       </Link>

@@ -184,7 +184,7 @@ export function DetalleFamiliar({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent className="w-full overflow-hidden sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>Información Detallada Del Familiar</SheetTitle>
         </SheetHeader>

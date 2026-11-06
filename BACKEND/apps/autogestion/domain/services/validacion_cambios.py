@@ -27,6 +27,7 @@ _LARGOS = {'direccion_exacta': DIRECCION_MAX, 'observaciones': OBSERVACION_MAX}
 _MINIMOS = {'direccion_exacta': DIRECCION_MIN, 'observaciones': OBSERVACION_MIN}
 _LARGO_TEXTO = 150
 _CAMPOS_BOOL = {'tiene_hijos'}
+_CAMPOS_ENTERO = {'orden_hijo'}
 _CAMPOS_FECHA = {'fecha_nacimiento', 'fecha_inicio', 'fecha_fin'}
 _CAMPOS_TELEFONO = {'telefono_movil', 'telefono_habitacion', 'telefono'}
 # Nombres de personas: solo letras y espacios (paridad con NAME del frontend).
@@ -41,7 +42,7 @@ _OPCIONALES_NULOS = {
     'telefono_movil', 'relacion_id', 'fecha_inicio', 'fecha_fin', 'dias_completados',
     'horas_completadas', 'grupo_id', 'estadoCivil_id', 'carnet_patria', 'carnet_patria_serial',
     'grupo_sanguineo_id', 'talla_camisa_id', 'talla_pantalon_id', 'talla_zapatos_id',
-    'talla_chaqueta_id',
+    'talla_chaqueta_id', 'orden_hijo',
 }
 _CEDULA_EMPLEADO = re.compile(r'^\d{5,9}$')
 
@@ -67,6 +68,14 @@ def validar_valor(campo: str, valor):
         if not isinstance(valor, bool):
             raise ValidationError(f"El campo '{campo}' debe ser verdadero o falso.")
         return valor
+    if campo in _CAMPOS_ENTERO:
+        try:
+            numero = int(str(valor).strip())
+        except (TypeError, ValueError):
+            raise ValidationError('El orden de nacimiento debe ser un número entero.') from None
+        if not 1 <= numero <= 99:
+            raise ValidationError('El orden de nacimiento debe estar entre 1 y 99.')
+        return numero
     if campo in _CAMPOS_LISTA:
         if not isinstance(valor, list):
             raise ValidationError(f"El campo '{campo}' debe ser una lista de identificadores.")

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ZodObject, type ZodTypeAny } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import {
@@ -110,7 +111,11 @@ export function FormularioRegistro({
   );
   // La cédula no se muestra en el caso del hijo(a) menor; el resto de campos sigue igual.
   const camposVisibles = esFamiliar
-    ? campos.filter((c) => c.campo !== "cedula_familiar" || !hijoMenor)
+    ? campos.filter(
+        (c) =>
+          (c.campo !== "cedula_familiar" || !hijoMenor) &&
+          (c.campo !== "orden_hijo" || hijoMenor),
+      )
     : campos;
 
   // Cascadas: al cambiar un padre se limpia el hijo (estado → municipio → parroquia, etc.).
@@ -129,8 +134,15 @@ export function FormularioRegistro({
     const limpios = { ...valores } as Record<string, unknown>;
     if (esFamiliar) {
       if (hijoMenor) {
-        // No se envía cédula: el servidor genera la del titular con el orden correlativo.
+        // No se envía cédula: el servidor genera la del titular con el orden elegido.
         delete limpios.cedula_familiar;
+        if (!String(limpios.orden_hijo ?? "").trim()) {
+          form.setError("orden_hijo", {
+            type: "required",
+            message: "El orden de nacimiento es obligatorio para un hijo menor de 9 años.",
+          });
+          return;
+        }
       } else if (!String(limpios.cedula_familiar ?? "").trim()) {
         form.setError("cedula_familiar", {
           type: "required",
@@ -161,7 +173,8 @@ export function FormularioRegistro({
     const error = formState.errors[c.campo]?.message as string | undefined;
     const requerido =
       (modo === "CREAR" && c.requeridoAlCrear) ||
-      (esFamiliar && c.campo === "cedula_familiar" && !hijoMenor);
+      (esFamiliar && c.campo === "cedula_familiar" && !hijoMenor) ||
+      (esFamiliar && c.campo === "orden_hijo" && hijoMenor);
     const etiqueta = (
       <label htmlFor={id} className="text-base font-medium">
         {c.etiqueta}
@@ -243,6 +256,22 @@ export function FormularioRegistro({
         </div>
       );
     }
+    if (c.tipo === "entero") {
+      return (
+        <div key={c.campo} className="flex flex-col gap-1.5">
+          {etiqueta}
+          <select className={CLASE_CONTROL} {...comunes} {...register(c.campo)}>
+            <option value="">Seleccione un orden</option>
+            {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          {mensaje}
+        </div>
+      );
+    }
     return (
       <div key={c.campo} className="flex flex-col gap-1.5">
         {etiqueta}
@@ -291,8 +320,8 @@ export function FormularioRegistro({
       <div className="grid gap-4 sm:grid-cols-2">{camposVisibles.map(renderCampo)}</div>
       {esFamiliar && hijoMenor ? (
         <p role="note" className="text-sm text-muted-foreground">
-          Por ser hijo(a) menor de 9 años no se pide cédula: se generará automáticamente a
-          partir de la cédula del trabajador.
+          Por ser hijo(a) menor de 9 años no se pide cédula: se generará automáticamente como
+          «cédula del titular - orden de nacimiento».
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -340,14 +369,14 @@ function SelectorMultiple({
   }
 
   return (
-    <div
+    <ScrollArea
       id={id}
       role="group"
       aria-label={etiqueta}
       aria-invalid={error ? true : undefined}
       aria-describedby={describedBy}
       className={cn(
-        "max-h-56 overflow-y-auto rounded-md border border-input bg-card p-2",
+        "max-h-56 rounded-md border border-input bg-card p-2",
         error && "border-danger",
       )}
     >
@@ -376,6 +405,6 @@ function SelectorMultiple({
           ))}
         </ul>
       )}
-    </div>
+    </ScrollArea>
   );
 }

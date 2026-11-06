@@ -46,6 +46,24 @@ describe("Schema de Cargas Familiares", () => {
     if (res.success) expect(res.data.cedulaFamiliar).toBeNull();
   });
 
+  it("TLF-1: rechaza fechas futuras y órdenes fuera de rango", () => {
+    const base = {
+      empleadoCedula: "12345678",
+      primerNombre: "María",
+      primerApellido: "Pérez",
+      parentescoId: 1,
+      fechaNacimiento: "2022-05-10",
+      sexoId: 2,
+      mismoEnte: false,
+      heredero: true,
+      ordenHijo: 2,
+    };
+    expect(familiarSchema.safeParse(base).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, fechaNacimiento: "2099-01-01" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, ordenHijo: 0 }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, ordenHijo: 100 }).success).toBe(false);
+  });
+
   it("falla si cedulaFamiliar tiene contenido pero no es válida", () => {
     const res = familiarSchema.safeParse({
       empleadoCedula: "12345678",
