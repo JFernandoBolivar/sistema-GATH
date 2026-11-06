@@ -2,7 +2,7 @@ import BandejaSolicitudesPage from "@/modules/autogestion/ui/bienestar/bandeja-s
 
 export default function Page() {
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full">
       <BandejaSolicitudesPage />
     </div>
   );

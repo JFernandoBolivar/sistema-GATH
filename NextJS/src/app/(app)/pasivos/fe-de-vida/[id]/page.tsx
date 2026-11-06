@@ -7,7 +7,7 @@ export default async function PasivosFeDeVidaDetallePage({
 }) {
   const { id } = await params;
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full">
       <DetalleRevisionPage id={id} />
     </div>
   );

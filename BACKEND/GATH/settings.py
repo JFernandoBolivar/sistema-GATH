@@ -227,9 +227,21 @@ SPECTACULAR_SETTINGS = {
     'ENUM_NAME_OVERRIDES': {},
 }
 
+# H11: URL pública del frontend (enlaces de correo, validador de carnets, QR de fe de vida).
+# En producción y QA (DJANGO_DEBUG=False) DEBE configurarse en el entorno (.env);
+# el default http://localhost:3001 solo aplica como fallback en desarrollo local (DEBUG=True).
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
+if not DEBUG and FRONTEND_URL == 'http://localhost:3001':
+    import logging
+    logging.getLogger('django.security').warning(
+        "FRONTEND_URL está usando 'http://localhost:3001' con DJANGO_DEBUG=False. "
+        "En entornos de producción o QA debe configurarse en el entorno para evitar "
+        "que los QR y enlaces de verificación apunten a localhost."
+    )
+
 # Configuración del sistema de carnetización
 # Sin default propio: por omisión apunta a la ruta pública /validar del frontend.
-CARNET_VALIDATOR_URL = os.getenv('CARNET_VALIDATOR_URL') or f"{config('FRONTEND_URL', default='http://localhost:3001').rstrip('/')}/validar"
+CARNET_VALIDATOR_URL = config('CARNET_VALIDATOR_URL', default=f"{FRONTEND_URL.rstrip('/')}/validar")
 # Vacío = pdf2image usa el poppler del PATH (Linux/Docker). En Windows, definir POPPLER_PATH.
 POPPLER_PATH = os.getenv('POPPLER_PATH') or None
 
@@ -268,7 +280,6 @@ EXPORTACIONES_MAX_ACTIVAS_POR_USUARIO = config('EXPORTACIONES_MAX_ACTIVAS_POR_US
 EXPORTACIONES_RETENCION_FILAS_DIAS = config('EXPORTACIONES_RETENCION_FILAS_DIAS', default=7, cast=int)
 EXPORTACIONES_MAX_MINUTOS_EN_CURSO = config('EXPORTACIONES_MAX_MINUTOS_EN_CURSO', default=60, cast=int)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
-FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3001')
 # Fe de vida: calidad mínima de la selfie (lado menor, px) y base del QR de verificación de la constancia.
 FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX = config('FE_DE_VIDA_EVIDENCIA_LADO_MINIMO_PX', default=480, cast=int)
 FE_DE_VIDA_URL_VERIFICACION = config(

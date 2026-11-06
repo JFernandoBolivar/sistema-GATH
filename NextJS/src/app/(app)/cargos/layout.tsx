@@ -23,7 +23,7 @@ export default function CargosLayout({
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>
-        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-auto">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

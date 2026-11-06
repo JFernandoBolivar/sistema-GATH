@@ -4,7 +4,7 @@ import * as React from "react";
 import { use } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
+import { PanelLeftIcon, XIcon } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -188,7 +189,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) max-w-[calc(100vw-3rem)] p-0 [&>button]:z-50 [&>button]:flex [&>button]:size-11 [&>button]:min-h-[44px] [&>button]:min-w-[44px] [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-background [&>button]:text-foreground [&>button]:shadow-md [&>button]:opacity-100 hover:[&>button]:bg-accent [&>button]:top-3 [&>button]:right-3 [&>button]:touch-manipulation"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -200,7 +201,25 @@ function Sidebar({
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="flex h-full w-full flex-col overflow-hidden">
+            <div className="sticky top-0 z-40 flex items-center justify-between border-b border-sidebar-border bg-sidebar px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Menú
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpenMobile(false)}
+                className="min-h-[44px] min-w-[44px] gap-1.5 px-3 font-medium text-sidebar-foreground hover:bg-sidebar-accent touch-manipulation"
+                aria-label="Cerrar menú de navegación"
+              >
+                <XIcon className="size-4 shrink-0" aria-hidden="true" />
+                <span>Cerrar</span>
+              </Button>
+            </div>
+            <div className="flex-1 overflow-y-auto">{children}</div>
+          </div>
         </SheetContent>
       </Sheet>
     );
@@ -369,17 +388,22 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
+        "flex min-h-0 flex-1 flex-col group-data-[collapsible=icon]:overflow-hidden",
         className,
       )}
       {...props}
-    />
+    >
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex flex-col gap-2">{children}</div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+    </div>
   );
 }
 

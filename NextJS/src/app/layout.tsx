@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import "@fontsource-variable/source-sans-3";
+import "driver.js/dist/driver.css";
+import "@/shared/ui/guias/guias.css";
 import "./globals.css";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AuthController } from "@/components/auth-timer";

@@ -1,6 +1,6 @@
 x-backend-env: &backend-env
   DJANGO_DB_HOST: ${DJANGO_DB_HOST:-host.docker.internal}
-  FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+  # FRONTEND_URL se toma de BACKEND/.env (env_file) para no pisar la URL real.
   REDIS_URL: redis://:${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}@redis:6379/0
   # Celery (A1): broker RabbitMQ (vhost gath) y resultados en Redis db 1.
   CELERY_BROKER_URL: amqp://${RABBITMQ_USER:?RABBITMQ_USER no definido (ver .env.example)}:${RABBITMQ_PASS:?RABBITMQ_PASS no definido (ver .env.example)}@rabbitmq:5672/gath

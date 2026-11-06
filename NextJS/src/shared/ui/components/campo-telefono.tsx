@@ -56,7 +56,7 @@ interface Estado {
 }
 
 const CLASE_BOTON = cn(
-  "flex h-11 shrink-0 items-center justify-between gap-1 rounded-md border border-input bg-transparent px-3 text-base md:text-sm",
+  "flex h-11 shrink-0 items-center justify-between gap-1 rounded-md border border-input bg-transparent px-2 sm:px-3 text-sm",
   "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none",
   "disabled:cursor-not-allowed disabled:opacity-50",
 );
@@ -138,7 +138,7 @@ export function CampoTelefono({
   const descripcionPrefijo = OPERADORAS_VE[estado.prefijo] ?? ZONAS_VE[estado.prefijo];
 
   return (
-    <div className={cn("flex w-full gap-2", className)}>
+    <div className={cn("flex w-full min-w-0 items-center gap-1.5 sm:gap-2", className)}>
       <Popover open={paisAbierto} onOpenChange={setPaisAbierto}>
         <PopoverTrigger asChild>
           <button
@@ -147,10 +147,10 @@ export function CampoTelefono({
             aria-label={`Código de país: ${actual?.nombre ?? estado.pais} (${actual?.prefijo ?? ""})`}
             title={actual ? `${actual.nombre} (${actual.prefijo})` : undefined}
             data-pais={estado.pais}
-            className={cn(CLASE_BOTON, "w-[5rem]")}
+            className={cn(CLASE_BOTON, "w-[3.75rem] min-w-[3.75rem] px-1.5 sm:w-[4.75rem] sm:min-w-[4.75rem] sm:px-2.5")}
           >
-            <span className="tabular-nums">{actual?.prefijo ?? "+"}</span>
-            <ChevronDown className="size-4 opacity-60" aria-hidden />
+            <span className="tabular-nums text-xs sm:text-sm font-medium">{actual?.prefijo ?? "+"}</span>
+            <ChevronDown className="size-3.5 sm:size-4 opacity-60 shrink-0" aria-hidden />
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-72 p-0" align="start">
@@ -197,13 +197,13 @@ export function CampoTelefono({
               data-prefijo={estado.prefijo}
               className={cn(
                 CLASE_BOTON,
-                "w-[5.75rem]",
+                "w-[4.25rem] min-w-[4.25rem] px-1.5 sm:w-[5.25rem] sm:min-w-[5.25rem] sm:px-2.5",
                 !estado.prefijo && "text-muted-foreground",
                 invalido && !estado.prefijo && "border-destructive",
               )}
             >
-              <span className="tabular-nums">{estado.prefijo || "Código"}</span>
-              <ChevronDown className="size-4 opacity-60" aria-hidden />
+              <span className="tabular-nums text-xs sm:text-sm font-medium truncate">{estado.prefijo || "Cód."}</span>
+              <ChevronDown className="size-3.5 sm:size-4 opacity-60 shrink-0" aria-hidden />
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-80 p-0" align="start">
@@ -268,7 +268,7 @@ export function CampoTelefono({
         type="tel"
         inputMode="numeric"
         autoComplete="tel-national"
-        className="min-w-0 flex-1"
+        className="min-w-0 flex-1 px-2.5 sm:px-3 text-sm sm:text-base tabular-nums"
         placeholder={placeholder ?? (esVE ? "1234567" : "Número")}
         value={estado.numero}
         disabled={disabled}

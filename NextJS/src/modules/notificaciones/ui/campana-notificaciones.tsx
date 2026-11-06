@@ -5,6 +5,7 @@ import Link from "next/link";
 import useSWR, { useSWRConfig } from "swr";
 import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/components/popover";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import { cn } from "@/lib/utils";
@@ -153,19 +154,21 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
           ) : !recientes?.length ? (
             <VistaVacia titulo="No tiene notificaciones sin leer" className="p-4" />
           ) : (
-            <ul className="flex max-h-[60svh] flex-col gap-2 overflow-y-auto">
-              {recientes.map((n) => (
-                <NotificacionItem
-                  key={n.id}
-                  notificacion={n}
-                  compacta
-                  deshabilitado={pendiente}
-                  onMarcarLeida={marcarLeida}
-                  onNavegar={() => setAbierto(false)}
-                  puedeAbrirEnlace={puedeAbrirEnlace}
-                />
-              ))}
-            </ul>
+            <ScrollArea className="max-h-[60svh]">
+              <ul className="flex flex-col gap-2 p-1">
+                {recientes.map((n) => (
+                  <NotificacionItem
+                    key={n.id}
+                    notificacion={n}
+                    compacta
+                    deshabilitado={pendiente}
+                    onMarcarLeida={marcarLeida}
+                    onNavegar={() => setAbierto(false)}
+                    puedeAbrirEnlace={puedeAbrirEnlace}
+                  />
+                ))}
+              </ul>
+            </ScrollArea>
           )}
 
           <Button asChild variant="outline" className="min-h-11">

@@ -35,6 +35,7 @@ import {
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import { MotivoSelect } from "./components/motivo-select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/shared/ui/components/sheet";
+import { ScrollArea } from "@/shared/ui/components/scroll-area";
 
 import type { CargoAsignacionDTO, CatalogoCargoItemDTO } from "../application/dtos/cargo-dto";
 import {
@@ -116,10 +117,11 @@ export default function CargoDetalleSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent className="flex w-full flex-col overflow-hidden sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>Detalle del código</SheetTitle>
         </SheetHeader>
+        <ScrollArea className="flex-1">
         {!cargo ? (
           <div className="flex justify-center py-10">
             <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
@@ -275,6 +277,7 @@ export default function CargoDetalleSheet({
             )}
           </div>
         )}
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   );

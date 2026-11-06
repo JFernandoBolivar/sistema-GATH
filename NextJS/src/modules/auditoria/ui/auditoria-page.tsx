@@ -451,7 +451,7 @@ function DetalleAuditoriaDialog({
 
   return (
     <Dialog open={id !== null} onOpenChange={(abierto) => !abierto && (onCerrar(), onRefrescar())}>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-hidden">
         <DialogHeader>
           <DialogTitle>Detalle del registro</DialogTitle>
           <DialogDescription>

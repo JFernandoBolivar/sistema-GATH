@@ -16,6 +16,7 @@ import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servid
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { Button } from "@/shared/ui/components/button";
 import { Badge } from "@/shared/ui/components/badge";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import {
   Card,
   CardContent,
@@ -275,7 +276,7 @@ export default function CarnetizacionPage() {
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <TablaDesplegable etiqueta="Secciones de carnetización">
           <TabsList className="w-max">
             <TabsTrigger value="disenador">Diseñador / Emitir</TabsTrigger>
             <TabsTrigger value="listado">Carnets</TabsTrigger>
@@ -283,7 +284,7 @@ export default function CarnetizacionPage() {
             <TabsTrigger value="plantillas">Plantillas</TabsTrigger>
             <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
           </TabsList>
-        </div>
+        </TablaDesplegable>
 
         <TabsContent value="disenador">
           <DisenadorCarnet

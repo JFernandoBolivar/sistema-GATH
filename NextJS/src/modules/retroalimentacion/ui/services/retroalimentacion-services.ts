@@ -16,7 +16,6 @@ import {
   getTiposPrendaAction,
   getRegionesTallaAction,
 } from "@/modules/catalogos/infrastructure/actions/catalogos-actions";
-import { descargarReporteExcelAction } from "@/modules/reportes/infrastructure/actions/reportes-actions";
 import type { AdsType, AdsUpdateType } from "../schemas/schemaAds";
 import type { CategoryGroup } from "../schemas/schemaCategory";
 import type { DisabitySchema } from "../schemas/schemaDisability";
@@ -159,8 +158,4 @@ export const tallaCreateActions = async (values: TallaSchema) => {
     tipo_prenda_id: values.tipo_prenda,
   });
   return resultado(res);
-};
-
-export const getExcel = async () => {
-  return await descargarReporteExcelAction("personal-activo");
 };

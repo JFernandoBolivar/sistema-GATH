@@ -553,7 +553,7 @@ export default function CargosPage() {
         {isPending && cargos.length === 0 ? (
           <Loading className="mt-6 border-none shadow-none" promiseMessage="Cargando Cargos..." />
         ) : (
-          <div className="mt-4 w-full overflow-x-auto">
+          <div className="mt-4 w-full">
             <DataTable
               columns={columnas}
               data={cargos}

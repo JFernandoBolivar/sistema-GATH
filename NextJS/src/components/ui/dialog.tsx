@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 function Dialog({
   ...props
@@ -65,7 +66,6 @@ function DialogContent({
         )}
         {...props}
       >
-        {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
@@ -75,6 +75,9 @@ function DialogContent({
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
+        <ScrollArea className="max-h-[80vh] w-full">
+          <div className="flex flex-col gap-4">{children}</div>
+        </ScrollArea>
       </DialogPrimitive.Content>
     </DialogPortal>
   );

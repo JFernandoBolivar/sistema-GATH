@@ -229,15 +229,36 @@ button,
   user-select: none;
 }
 @media (max-width: 1023px) {
-  button,
-  [role="button"] {
+  /* Zona táctil de 44px solo para controles de acción. Se excluyen las piezas
+     geométricas (checkbox, radio, switch) y los botones compactos de Sonner,
+     que quedaban ovalados o deformados. */
+  button:not([role="checkbox"]):not([role="radio"]):not([role="switch"]):not([data-close-button]):not([data-button]):not([data-cancel]),
+  [role="button"]:not([role="checkbox"]):not([role="radio"]):not([role="switch"]):not([data-close-button]) {
     min-height: 44px;
   }
-  input,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select,
   textarea {
     font-size: 16px;
     min-height: 44px;
+  }
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"] {
+    min-height: 0;
+  }
+  /* El control sigue siendo pequeño, pero conserva el área táctil. */
+  button[role="checkbox"],
+  button[role="radio"],
+  button[role="switch"] {
+    position: relative;
+  }
+  button[role="checkbox"]::after,
+  button[role="radio"]::after,
+  button[role="switch"]::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
   }
   form .grid-cols-2,
   form .grid-cols-3,
@@ -247,6 +268,26 @@ button,
   .overflow-x-auto {
     overscroll-behavior-x: contain;
   }
+}
+
+/* Fecha vacía: sin caja blanca y con el ícono de calendario separado. */
+input[type="date"] {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.25;
+  padding-right: 0.5rem;
+}
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-inline-start: 0.5rem;
+  padding: 0;
+  opacity: 0.7;
+  cursor: pointer;
+}
+input[type="date"]:not(:focus):invalid::-webkit-datetime-edit {
+  color: var(--muted-foreground);
 }
 @supports (padding: env(safe-area-inset-bottom)) {
   body {

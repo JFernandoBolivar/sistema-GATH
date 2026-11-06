@@ -23,7 +23,7 @@ export default function PasivosLayout({
         >
           <SidebarTrigger className="text-white scale-110" />
         </HeaderLayout>
-        <main id="contenido-principal" tabIndex={-1} className="w-full min-w-0 h-full overflow-auto">
+        <main id="contenido-principal" tabIndex={-1} className="w-full min-w-0 h-full">
           {children}
         </main>
       </SidebarInset>

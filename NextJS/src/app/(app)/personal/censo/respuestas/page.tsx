@@ -12,6 +12,7 @@ import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Form,
   FormControl,
@@ -617,7 +618,7 @@ export default function ConsultarCensoPage() {
         {isLoading ? (
           <Loading promiseMessage="Cargando respuestas..." />
         ) : (
-          <div className="h-[60vh] w-full max-w-full overflow-auto rounded-md border bg-white">
+          <ScrollArea className="h-[60vh] w-full max-w-full rounded-md border bg-white">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -658,15 +659,15 @@ export default function ConsultarCensoPage() {
                               <Eye className="size-4 mr-1" /> Ver
                             </Button>
                           </SheetTriggerUI>
-                          <SheetContentUI className="w-[600px] sm:max-w-xl overflow-y-auto">
+                          <SheetContentUI className="flex w-[600px] flex-col overflow-hidden sm:max-w-xl">
                             <SheetHeaderUI>
                               <SheetTitleUI>
                                 Detalle del Censo: {emp.nombres} {emp.apellidos}
                               </SheetTitleUI>
                             </SheetHeaderUI>
-                            <div className="px-4 pb-4 mt-4">
+                            <ScrollArea className="flex-1 px-4 pb-4 mt-4">
                               <DetalleCenso empleado={emp} />
-                            </div>
+                            </ScrollArea>
                           </SheetContentUI>
                         </SheetUI>
                       </TableCell>
@@ -675,7 +676,7 @@ export default function ConsultarCensoPage() {
                 )}
               </TableBody>
             </Table>
-          </div>
+          </ScrollArea>
         )}
       </div>
     </PageLayout>

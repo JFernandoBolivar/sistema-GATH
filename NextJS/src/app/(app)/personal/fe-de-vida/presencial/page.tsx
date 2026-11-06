@@ -2,7 +2,7 @@ import FeDeVidaPresencialPage from "@/modules/fe-de-vida/ui/presencial/fe-de-vid
 
 export default function PersonalFeDeVidaPresencialRoute() {
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full">
       <FeDeVidaPresencialPage />
     </div>
   );

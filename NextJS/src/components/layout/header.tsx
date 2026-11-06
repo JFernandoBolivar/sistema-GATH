@@ -68,30 +68,31 @@ export function HeaderLayout({
   const seccionAdministracion = SECCION_POR_RUTA[pathName[1] ?? ""];
 
   return (
-    <header className="sticky top-0 z-50 flex w-full flex-row flex-wrap items-center justify-between border-b border-border bg-blue-900/100 px-3 py-3 shadow-sm sm:flex-nowrap sm:px-6 sm:py-4">
-      <div className="w-full min-w-0 text-white sm:flex-1">
-        <div className="flex flex-row justify-start gap-4">
-          <div className="self-center">{children}</div>
-          <div className="flex min-w-0 max-w-[38vw] flex-col sm:max-w-none">
-            <h1 className="break-words text-base font-semibold leading-tight text-white sm:text-xl">{title}</h1>
-            {subtitle && <p className="hidden break-words text-sm text-white sm:block">{subtitle}</p>}
-            {seccionAdministracion && (
-              <Breadcrumb className="text-white mt-1.5">
-                <BreadcrumbList className="text-white text-sm">
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link href="/dashboard">{NOMBRE_ADMINISTRACION}</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="text-white">{seccionAdministracion}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            )}
-            {puedeGestionarPersonal && (isPasivo || isActivo) && (
-              <Breadcrumb className="hidden text-white mt-1.5 cursor-pointer lg:block">
+    <header className="sticky top-0 z-50 flex w-full items-center justify-between gap-2 border-b border-border bg-blue-900/100 px-2 py-2 shadow-sm sm:px-6 sm:py-4">
+      <div className="flex min-w-0 flex-1 items-center gap-2 text-white sm:flex-1">
+        <div className="shrink-0 self-center">{children}</div>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h1 className="truncate text-sm font-semibold leading-tight text-white sm:whitespace-normal sm:text-xl">
+            {title}
+          </h1>
+          {subtitle && <p className="hidden break-words text-sm text-white sm:block">{subtitle}</p>}
+          {seccionAdministracion && (
+            <Breadcrumb className="mt-1.5 hidden text-white sm:block">
+              <BreadcrumbList className="text-white text-sm">
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/dashboard">{NOMBRE_ADMINISTRACION}</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="text-white">{seccionAdministracion}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          )}
+          {puedeGestionarPersonal && (isPasivo || isActivo) && (
+            <Breadcrumb className="mt-1.5 hidden cursor-pointer text-white lg:block">
                 <BreadcrumbList className="text-white">
                   <BreadcrumbItem className="contents">
                     <DropdownMenu>
@@ -128,10 +129,9 @@ export function HeaderLayout({
               </Breadcrumb>
             )}
           </div>
-        </div>
       </div>
 
-      <div className="flex w-full shrink-0 items-center justify-end gap-1 pr-7 sm:w-auto sm:gap-2 sm:pr-0">
+      <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-2">
         <BotonInstalarApp variante="oscura" />
         <CampanaNotificaciones
           variante="oscura"

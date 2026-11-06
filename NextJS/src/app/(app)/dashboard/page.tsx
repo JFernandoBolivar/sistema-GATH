@@ -6,9 +6,10 @@
  * imágenes por módulo.
  *
  * Solo se muestran los módulos de primer nivel: Administración del sistema,
- * Gestión de Trabajadores, Carnetización y Autogestión. Cargos, Familiares,
- * Organización, Movimientos, Pasivos, Reportes y Catálogos viven dentro del
- * módulo Gestión de Trabajadores y no son tarjetas del dashboard.
+ * Gestión de Trabajadores, Gestión de Personal Pasivo, Carnetización y
+ * Autogestión. Cargos, Familiares, Organización, Movimientos, Reportes y
+ * Catálogos viven dentro del módulo Gestión de Trabajadores y no son tarjetas
+ * del dashboard.
  *
  * Los módulos se muestran por PERMISO (`tienePermiso`, R16), no por rol ni
  * departamento. Conserva el diálogo obligatorio de cambio de contraseña.
@@ -53,6 +54,14 @@ const MODULOS: Modulo[] = [
     permiso: "personal.ver",
   },
   {
+    id: "PASIVOS",
+    name: "Gestión de Personal Pasivo",
+    imageSrc: "/images/departments/datos.jpg",
+    href: "/pasivos",
+    alt: "Gestión de personal pasivo",
+    permiso: "pasivos.ver",
+  },
+  {
     id: "Carnetizacion",
     name: "Carnetización",
     imageSrc: "/images/departments/carnetizacion.png",
@@ -63,7 +72,7 @@ const MODULOS: Modulo[] = [
   {
     id: "AUTOGESTION",
     name: "Autogestión",
-    imageSrc: "/images/departments/datos.jpg",
+    imageSrc: "/images/departments/autogestion.svg",
     href: "/autogestion",
     alt: "Autogestión de personal",
     permiso: "autogestion.ver_propio",
@@ -130,6 +139,7 @@ export default function Dashboard() {
                 width={100}
                 src={modulo.imageSrc}
                 alt={modulo.alt}
+                unoptimized={modulo.imageSrc.endsWith(".svg")}
                 className="relative h-60 w-full overflow-hidden object-contain"
               />
               <Card className="rounded bg-muted/25 text-center">
