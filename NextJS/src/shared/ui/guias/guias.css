@@ -111,37 +111,43 @@
 }
 
 .driver-popover.gath-guia-popover .driver-popover-footer button {
+  text-shadow: none !important;
+  -webkit-font-smoothing: antialiased;
   font-size: 0.8125rem;
   font-weight: 600;
-  padding: 0.4rem 0.85rem;
+  padding: 0.45rem 0.9rem;
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1.25;
+  touch-action: manipulation;
 }
 
 /* Botón Anterior */
 .driver-popover.gath-guia-popover .driver-popover-prev-btn {
-  background-color: var(--secondary, #f1f5f9);
-  color: var(--secondary-foreground, #0f172a);
-  border: 1px solid var(--border, #cbd5e1);
+  text-shadow: none !important;
+  background-color: var(--secondary, #f1f5f9) !important;
+  color: var(--secondary-foreground, #0f172a) !important;
+  border: 1px solid var(--border, #cbd5e1) !important;
 }
 
 .driver-popover.gath-guia-popover .driver-popover-prev-btn:hover {
-  background-color: var(--muted, #e2e8f0);
+  background-color: var(--muted, #e2e8f0) !important;
 }
 
 .dark .driver-popover.gath-guia-popover .driver-popover-prev-btn {
-  background-color: var(--secondary, #1e293b);
-  color: var(--secondary-foreground, #f8fafc);
-  border-color: var(--border, #334155);
+  text-shadow: none !important;
+  background-color: var(--secondary, #1e293b) !important;
+  color: var(--secondary-foreground, #f8fafc) !important;
+  border-color: var(--border, #334155) !important;
 }
 
 /* Botón Siguiente / Entendido */
 .driver-popover.gath-guia-popover .driver-popover-next-btn {
-  background-color: var(--primary, #002b5c);
-  color: var(--primary-foreground, #ffffff);
-  border: 1px solid transparent;
+  text-shadow: none !important;
+  background-color: var(--primary, #002b5c) !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
 }
 
 .driver-popover.gath-guia-popover .driver-popover-next-btn:hover {
@@ -178,5 +184,12 @@
   /* Ocultar la flecha en móvil para evitar que apunte erróneamente fuera del panel inferior */
   .driver-popover.gath-guia-popover .driver-popover-arrow {
     display: none !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-footer button {
+    min-height: 40px !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+    text-shadow: none !important;
   }
 }

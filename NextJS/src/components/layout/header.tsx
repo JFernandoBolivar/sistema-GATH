@@ -5,27 +5,10 @@ import { CampanaNotificaciones } from "@/modules/notificaciones/ui/campana-notif
 import { SignOut } from "@/components/signout-button";
 import { BotonCambiarPassword } from "@/modules/auth/ui/boton-cambiar-password";
 import { BotonInstalarApp } from "@/shared/ui/components";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronDownIcon } from "lucide-react";
-import { useSession } from "next-auth/react";
-import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SelectorGestionPersonal } from "@/components/layout/selector-gestion-personal";
 import {
   NOMBRE_ADMINISTRACION,
   SECCION_POR_RUTA,
@@ -46,25 +29,7 @@ export function HeaderLayout({
   /** Página de notificaciones del módulo actual («Ver todas»). */
   rutaNotificaciones: string;
 }>) {
-  const { data: session } = useSession();
-  const permisos = session?.user?.permisos;
-  const puedeGestionarPersonal =
-    tienePermiso(permisos, "personal.ver") && tienePermiso(permisos, "pasivos.ver");
   const pathName = usePathname().split("/");
-  const pasivoPath = ["pasivos", "gestion-pasivos"];
-  const activoPath = [
-    "personal",
-    "gestion-trabajadores",
-    "familiares",
-    "organizacion",
-    "cargos",
-    "movimientos",
-    "reportes",
-    "retroalimentacion",
-  ];
-
-  const isPasivo = pasivoPath.some((p) => pathName.includes(p));
-  const isActivo = activoPath.some((p) => pathName.includes(p));
   const seccionAdministracion = SECCION_POR_RUTA[pathName[1] ?? ""];
 
   return (
@@ -91,43 +56,7 @@ export function HeaderLayout({
               </BreadcrumbList>
             </Breadcrumb>
           )}
-          {puedeGestionarPersonal && (isPasivo || isActivo) && (
-            <Breadcrumb className="mt-1.5 hidden cursor-pointer text-white lg:block">
-                <BreadcrumbList className="text-white">
-                  <BreadcrumbItem className="contents">
-                    <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        className="flex items-center gap-1 text-[1rem] cursor-pointer"
-                        variant={"secondary"}
-                      >
-                        {isPasivo
-                          ? "Gestion Personal Pasivo"
-                          : isActivo
-                          ? "Gestion Personal Activo"
-                          : "Gestión Personal"}
-                        <ChevronDownIcon className="size-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem className="cursor-pointer" asChild>
-                          <Link href={"/personal"}>
-                            Gestión De Personal Activo
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer" asChild>
-                          <Link href={"/pasivos"}>
-                            Gestión De Personal Pasivo
-                          </Link>
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                    </DropdownMenu>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            )}
+          <SelectorGestionPersonal className="mt-1.5 hidden lg:block" />
           </div>
       </div>
 

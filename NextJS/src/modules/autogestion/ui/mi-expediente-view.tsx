@@ -837,7 +837,7 @@ export default function MiExpedienteView() {
                   No se registran contratos anteriores en el expediente.
                 </div>
               ) : (
-                <div>
+                <div className="w-full overflow-x-auto">
                   <Table className="min-w-[560px]">
                     <TableHeader>
                       <TableRow className="text-sm">
@@ -1402,7 +1402,7 @@ export default function MiExpedienteView() {
                   No posee cargas familiares registradas en su expediente.
                 </div>
               ) : (
-                <div>
+                <div className="w-full overflow-x-auto">
                   <Table className="min-w-[720px]">
                     <TableHeader>
                       <TableRow className="text-sm">

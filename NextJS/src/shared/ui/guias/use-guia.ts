@@ -131,6 +131,17 @@ export function useGuia({
           prevBtnText: "← Anterior",
           nextBtnText: esUltimo ? "Entendido ✓" : "Siguiente →",
           doneBtnText: "Entendido ✓",
+          onNextClick: () => {
+            if (esUltimo) {
+              completadaRef.current = true;
+              driverInstance.destroy();
+            } else {
+              driverInstance.moveNext();
+            }
+          },
+          onPrevClick: () => {
+            driverInstance.movePrevious();
+          },
         },
       };
     });
@@ -161,9 +172,9 @@ export function useGuia({
         driverInstance.destroy();
       },
       onDestroyStarted: () => {
-        if (driverInstance.isLastStep()) {
-          completadaRef.current = true;
-        }
+        // En el último paso o al presionar Entendido, asegurar cierre y marcar como vista
+        completadaRef.current = true;
+        driverInstance.destroy();
       },
       onDestroyed: () => {
         setActiva(false);

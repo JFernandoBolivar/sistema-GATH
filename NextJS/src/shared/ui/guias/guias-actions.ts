@@ -11,8 +11,12 @@ export async function consultarGuiasVistasAction(): Promise<{
   vistas: Record<string, number>;
 }> {
   try {
-    const res = await apiClient.get<RegistroGuiaVista[]>(RUTA_GUIAS);
-    const lista = Array.isArray(res) ? res : [];
+    const res = await apiClient.get<RegistroGuiaVista[] | { data?: RegistroGuiaVista[] }>(RUTA_GUIAS);
+    const lista = Array.isArray(res)
+      ? res
+      : Array.isArray((res as { data?: RegistroGuiaVista[] })?.data)
+        ? (res as { data: RegistroGuiaVista[] }).data
+        : [];
     const vistas: Record<string, number> = {};
     for (const item of lista) {
       if (!vistas[item.guia_id] || item.version > vistas[item.guia_id]) {

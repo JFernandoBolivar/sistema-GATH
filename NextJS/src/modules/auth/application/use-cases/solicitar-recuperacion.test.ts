@@ -16,15 +16,15 @@ function fakeRepo(overrides: Partial<RepoAutenticacion> = {}): RepoAutenticacion
 describe("solicitarRecuperacion", () => {
   it("delega en repo.solicitarRecuperacion con identificador limpio", async () => {
     const repo = fakeRepo();
-    const resultado = await solicitarRecuperacion(repo, "  usuario@conatel.gob.ve  ");
+    const resultado = await solicitarRecuperacion(repo, "  usuario@conatel.gob.ve  ", "https://gath.ejemplo.gob.ve");
 
-    expect(repo.solicitarRecuperacion).toHaveBeenCalledWith("usuario@conatel.gob.ve");
+    expect(repo.solicitarRecuperacion).toHaveBeenCalledWith("usuario@conatel.gob.ve", "https://gath.ejemplo.gob.ve");
     expect(resultado).toBe("Instrucciones enviadas al correo institucional.");
   });
 
   it("rechaza identificador vacío sin llamar al repo", async () => {
     const repo = fakeRepo();
-    await expect(solicitarRecuperacion(repo, "   ")).rejects.toThrow("El identificador es requerido.");
+    await expect(solicitarRecuperacion(repo, "   ", "https://gath.ejemplo.gob.ve")).rejects.toThrow("El identificador es requerido.");
     expect(repo.solicitarRecuperacion).not.toHaveBeenCalled();
   });
 
@@ -33,6 +33,6 @@ describe("solicitarRecuperacion", () => {
       solicitarRecuperacion: vi.fn().mockRejectedValue(new Error("Error de red")),
     });
 
-    await expect(solicitarRecuperacion(repo, "V-12345678")).rejects.toThrow("Error de red");
+    await expect(solicitarRecuperacion(repo, "V-12345678", "https://gath.ejemplo.gob.ve")).rejects.toThrow("Error de red");
   });
 });

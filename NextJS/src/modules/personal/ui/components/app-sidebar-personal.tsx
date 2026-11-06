@@ -54,6 +54,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { SelectorGestionPersonal } from "@/components/layout/selector-gestion-personal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
 import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
@@ -386,6 +387,7 @@ export function AppSidebarPersonal() {
               className="h-full w-full object-cover rounded-2xl"
             />
           </SidebarGroupLabel>
+          <SelectorGestionPersonal className="mt-3 px-2 lg:hidden" tono="claro" />
           <SidebarGroupContent>
             {!session ? (
               <>

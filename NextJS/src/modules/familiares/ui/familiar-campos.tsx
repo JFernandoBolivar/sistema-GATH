@@ -41,7 +41,7 @@ export function FamiliarCampos({
         {/* Cédula del familiar */}
         <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-3">
           <Label htmlFor="cedulaFamiliar" className="cursor-pointer">
-            Cédula del familiar
+            Cédula del familiar {!down && "*"}
           </Label>
           <Input
             id="cedulaFamiliar"

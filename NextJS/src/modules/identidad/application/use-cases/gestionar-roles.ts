@@ -6,7 +6,13 @@ import type { RolDTO, GuardarRolInputDTO } from "../dtos/usuario-dto";
 import type { RolEntity } from "../../domain/entities/rol-entity";
 
 function aDto(e: RolEntity): RolDTO {
-  return { id: e.id, nombreRol: e.nombreRol, descripcionRol: e.descripcionRol };
+  return {
+    id: e.id,
+    nombreRol: e.nombreRol,
+    descripcionRol: e.descripcionRol,
+    nUsuarios: e.nUsuarios,
+    nPermisos: e.nPermisos,
+  };
 }
 
 export async function listarRoles(repo: RepoRoles): Promise<RolDTO[]> {

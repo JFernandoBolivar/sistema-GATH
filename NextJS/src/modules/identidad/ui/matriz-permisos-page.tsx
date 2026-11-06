@@ -259,7 +259,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
             type="button"
             variant="outline"
             size="sm"
-            className="ml-auto"
+            className="hidden sm:inline-flex ml-auto"
             onClick={() => setModoComparar((valor) => !valor)}
           >
             {modoComparar ? "Vista por rol" : "Comparar roles"}
@@ -421,7 +421,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
             </div>
 
             {rolActual ? (
-              <div className="flex flex-col gap-3 pb-20">
+              <div className="flex flex-col gap-3 pb-28 sm:pb-24">
                 {filasPorModulo.map(([modulo, filas]) => {
                   const abierto = buscando || !cerrados.has(modulo);
                   const activosModulo = filas.filter((f) => (borrador[rolActual.rolId] ?? []).includes(f.codigo)).length;

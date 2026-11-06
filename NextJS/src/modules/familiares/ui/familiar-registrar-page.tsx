@@ -347,7 +347,7 @@ export default function FamiliarRegistrarPage() {
                       {/* Cédula Familiar */}
                       <div className="md:col-span-2 flex flex-col gap-1.5">
                         <Label htmlFor="cedulaFamiliar" className="cursor-pointer">
-                          Cédula Familiar
+                          Cédula Familiar {!down && "*"}
                         </Label>
                         <Input
                           id="cedulaFamiliar"

@@ -174,7 +174,11 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
               No tiene permiso para ver la ficha completa del pasivo; se muestran solo los datos que propone.
             </p>
           ) : null}
-          {data.cambios.length === 0 ? (
+          {solicitud.estado === "BORRADOR" ? (
+            <p className="rounded-lg border bg-card p-4 text-base text-muted-foreground">
+              La solicitud está en borrador. El pasivo aún no ha enviado sus datos.
+            </p>
+          ) : data.cambios.length === 0 ? (
             <p className="rounded-lg border bg-card p-4 text-base text-muted-foreground">
               El pasivo confirmó sus datos sin proponer cambios.
             </p>
@@ -188,7 +192,11 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
           <ScrollArea className="h-full">
             <div className="flex flex-col gap-4">
           {puede(PERMISOS_FE_DE_VIDA.verEvidencia) ? (
-            <VisorEvidencia solicitudId={solicitud.id} />
+            <VisorEvidencia
+              solicitudId={solicitud.id}
+              estadoSolicitud={solicitud.estado}
+              tieneEvidencia={solicitud.tieneEvidencia}
+            />
           ) : (
             <p className="rounded-lg border bg-card p-4 text-base">No tiene permiso para ver la foto.</p>
           )}

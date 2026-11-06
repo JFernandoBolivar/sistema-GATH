@@ -15,9 +15,10 @@
  * (raíz, sin capas Onion) pese a que la arquitectura nueva (`app-nav.tsx`,
  * `inicio/page.tsx`, `error.tsx`/`global-error.tsx`) ya dependía de él.
  */
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { ZodError } from "zod";
 import { authCookieSecure } from "@/shared/commons/auth-cookies";
+import { origenDeCabeceras } from "@/shared/lib/origen-peticion";
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -287,9 +288,12 @@ export async function solicitarRecuperacionAction(
   const startedAt = Date.now();
 
   try {
+    const cabeceras = await headers();
+    const origen = origenDeCabeceras(cabeceras);
     const message = await solicitarRecuperacion(
       repoAutenticacionApi,
       validation.data.identificador,
+      origen ?? "",
     );
     await logAudit({
       traceId,

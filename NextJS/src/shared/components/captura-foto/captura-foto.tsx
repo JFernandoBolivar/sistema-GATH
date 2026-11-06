@@ -53,11 +53,11 @@ export function CapturaFoto({
   const [enVivo, setEnVivo] = useState(false);
   const [frontal, setFrontal] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [errorCamara, setErrorCamara] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [vistaPrevia, setVistaPrevia] = useState<string | null>(() =>
     valorInicial ? URL.createObjectURL(valorInicial) : null,
   );
-  const tieneVistaInicial = useRef(valorInicial !== null);
   const [tactil, setTactil] = useState(false);
   const [arrastrando, setArrastrando] = useState(false);
 
@@ -81,6 +81,7 @@ export function CapturaFoto({
   const abrirCamara = useCallback(
     async (usarFrontal: boolean) => {
       setError(null);
+      setErrorCamara(null);
       detener();
       try {
         const flujo = await navigator.mediaDevices.getUserMedia({
@@ -91,8 +92,11 @@ export function CapturaFoto({
         setEnVivo(true);
         setAviso(null);
       } catch (e) {
-        setModo("subir");
-        setAviso(mensajeErrorCamara(e));
+        // El motivo real se muestra en su lugar: negar el permiso, no tener
+        // cámara y tenerla ocupada son problemas distintos. No se cambia a
+        // «Subir foto» como si fuera un permiso denegado; ese botón sigue
+        // disponible como respaldo.
+        setErrorCamara(mensajeErrorCamara(e));
       }
     },
     [detener],
@@ -103,10 +107,7 @@ export function CapturaFoto({
     void detectarCamara().then((estado) => {
       if (!activo) return;
       setCamara(estado);
-      if (estado.estado === "disponible") {
-        setModo("camara");
-        if (!tieneVistaInicial.current) void abrirCamara(true);
-      } else if (estado.estado === "no-disponible") setAviso(estado.motivo);
+      if (estado.estado === "no-disponible") setAviso(estado.motivo);
     });
     // eslint-disable-next-line react-hooks/set-state-in-effect -- detección de dispositivo táctil, solo disponible en el cliente
     setTactil(
@@ -116,7 +117,7 @@ export function CapturaFoto({
       activo = false;
       detener();
     };
-  }, [detener, abrirCamara]);
+  }, [detener]);
 
   // Conecta el flujo al <video> una vez que el elemento existe.
   useEffect(() => {
@@ -129,6 +130,7 @@ export function CapturaFoto({
   function elegirModo(nuevo: Modo) {
     setModo(nuevo);
     setError(null);
+    setErrorCamara(null);
     if (nuevo === "camara") {
       if (!vistaPrevia) void abrirCamara(frontal);
     } else {
@@ -240,6 +242,23 @@ export function CapturaFoto({
                     className="aspect-[4/3] w-full object-cover"
                   />
                   {guia ? <div className="pointer-events-none absolute inset-0">{guia}</div> : null}
+                </div>
+              ) : errorCamara ? (
+                <div className="flex flex-col items-start gap-2">
+                  <p
+                    role="alert"
+                    className="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger"
+                  >
+                    {errorCamara}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={disabled}
+                    onClick={() => void abrirCamara(frontal)}
+                  >
+                    <RefreshCw aria-hidden /> Reintentar cámara
+                  </Button>
                 </div>
               ) : (
                 <p role="status" className="text-sm text-muted-foreground">

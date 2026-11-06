@@ -31,7 +31,12 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            // `camera=(self)` en toda la app: la navegación SPA conserva la
+            // política del documento con el que se cargó la sesión, así que
+            // acotarla a una ruta dejaba sin cámara a /personal/registrar, Mi
+            // ficha o Carnetización tras navegar. El permiso real lo sigue
+            // pidiendo el navegador; micrófono y geolocalización quedan denegados.
+            value: "camera=(self), microphone=(), geolocation=()",
           },
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           // CSP base sin tocar scripts ni estilos (no cambia el render): impide
@@ -50,25 +55,6 @@ const nextConfig: NextConfig = {
                 },
               ]
             : []),
-        ],
-      },
-      // La cámara solo se habilita en las pantallas de fe de vida.
-      {
-        source: "/personal/fe-de-vida/:path*",
-        headers: [
-          {
-            key: "Permissions-Policy",
-            value: "camera=(self), microphone=(), geolocation=()",
-          },
-        ],
-      },
-      {
-        source: "/autogestion/fe-de-vida/:path*",
-        headers: [
-          {
-            key: "Permissions-Policy",
-            value: "camera=(self), microphone=(), geolocation=()",
-          },
         ],
       },
     ];

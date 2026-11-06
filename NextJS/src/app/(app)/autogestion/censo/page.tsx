@@ -207,20 +207,20 @@ export default function AutogestionPage() {
                   Resumen de su Autogestión
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-3">
-                  <div className="flex items-center gap-2 text-gray-800">
-                    <IdCard className="size-4 text-gray-500" />
+                  <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
+                    <IdCard className="size-4 text-gray-500 shrink-0" />
                     <span className="font-medium">Cédula:</span>
-                    <span>{miCenso.cedula}</span>
+                    <span className="break-all">{miCenso.cedula}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-800">
-                    <Badge className="size-4 text-gray-500" />
+                  <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
+                    <Badge className="size-4 text-gray-500 shrink-0" />
                     <span className="font-medium">Carnet Patria:</span>
-                    <span>{miCenso.carnet_patria || "No registrado"}</span>
+                    <span className="break-all">{miCenso.carnet_patria || "No registrado"}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-800">
-                    <Badge className="size-4 text-gray-500" />
+                  <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
+                    <Badge className="size-4 text-gray-500 shrink-0" />
                     <span className="font-medium">Serial del Carnet de la Patria:</span>
-                    <span>{miCenso.carnet_patria_serial || "No registrado"}</span>
+                    <span className="break-all">{miCenso.carnet_patria_serial || "No registrado"}</span>
                   </div>
                 </div>
 

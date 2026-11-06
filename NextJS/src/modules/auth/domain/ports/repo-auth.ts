@@ -24,7 +24,7 @@ export interface RepoAutenticacion {
   /** Cambia la contraseña de la cuenta autenticada; devuelve el mensaje del backend. */
   cambiarPassword(input: CambiarPasswordInput): Promise<string>;
   /** Solicita el correo de recuperación para el identificador (cédula o correo); devuelve el mensaje del backend. */
-  solicitarRecuperacion(identificador: string): Promise<string>;
+  solicitarRecuperacion(identificador: string, frontendUrl: string): Promise<string>;
   /** Restablece la contraseña usando el token firmado; devuelve el mensaje del backend. */
   restablecerPassword(input: RestablecerPasswordInput): Promise<string>;
 }

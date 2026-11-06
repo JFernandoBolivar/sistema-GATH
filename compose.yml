@@ -131,7 +131,6 @@ services:
       - ./NextJS/.env
     environment:
       - DJANGO_API_SERVER=http://djangoapp:8000
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3001}
     ports:
       - "${PUERTO_NEXTJS:-3001}:3000"
     networks:

@@ -55,12 +55,19 @@ export async function postCambiarPassword(input: {
   return envelope.message;
 }
 
-/** POST al endpoint de solicitud de recuperación de contraseña (público, con skipAuth). */
-export async function postSolicitarRecuperacion(identificador: string): Promise<string> {
-  const frontendUrl =
-    typeof window !== "undefined" ? window.location.origin : process.env.NEXTAUTH_URL;
+/**
+ * POST al endpoint de solicitud de recuperación de contraseña (público, con skipAuth).
+ * `frontendUrl` es el origen real de la petición (proxy/túnel incluidos): el
+ * backend lo usa para armar el enlace del correo.
+ */
+export async function postSolicitarRecuperacion(
+  identificador: string,
+  frontendUrl: string,
+): Promise<string> {
   if (!frontendUrl) {
-    throw new Error("Falta NEXTAUTH_URL: no se puede construir el enlace de recuperación.");
+    throw new Error(
+      "No se pudo determinar la dirección del sitio para el enlace de recuperación.",
+    );
   }
 
   const envelope = await apiClient.post<ApiResponse<null>>(

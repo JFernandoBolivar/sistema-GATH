@@ -294,10 +294,25 @@ export function ConfiguracionReglasCatalogosPage() {
       description="Control y configuración de marcas de tablas maestras que gobiernan reglas operativas del sistema."
     >
       <Tabs defaultValue="parentescos" className="w-full space-y-6">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 max-w-xl">
-          <TabsTrigger value="parentescos">Parentescos</TabsTrigger>
-          <TabsTrigger value="motivos">Motivos de Movimiento</TabsTrigger>
-          <TabsTrigger value="nominas">Tipos de Nómina</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 max-w-xl !h-auto sm:!h-9 group-data-[orientation=horizontal]/tabs:!h-auto sm:group-data-[orientation=horizontal]/tabs:!h-9 p-1 gap-1 sm:gap-0">
+          <TabsTrigger
+            value="parentescos"
+            className="!h-auto sm:!h-full py-2 sm:py-0 px-3 text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center min-h-[40px] sm:min-h-0"
+          >
+            Parentescos
+          </TabsTrigger>
+          <TabsTrigger
+            value="motivos"
+            className="!h-auto sm:!h-full py-2 sm:py-0 px-3 text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center min-h-[40px] sm:min-h-0"
+          >
+            Motivos de Movimiento
+          </TabsTrigger>
+          <TabsTrigger
+            value="nominas"
+            className="!h-auto sm:!h-full py-2 sm:py-0 px-3 text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center min-h-[40px] sm:min-h-0"
+          >
+            Tipos de Nómina
+          </TabsTrigger>
         </TabsList>
 
         {/* ------------------------------------------------------------- */}
@@ -320,7 +335,7 @@ export function ConfiguracionReglasCatalogosPage() {
                   <Skeleton className="h-8 w-full" />
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -410,7 +425,7 @@ export function ConfiguracionReglasCatalogosPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-md border bg-background">
+                    <div className="rounded-md border bg-background overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -572,7 +587,7 @@ export function ConfiguracionReglasCatalogosPage() {
                   <Skeleton className="h-8 w-full" />
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>

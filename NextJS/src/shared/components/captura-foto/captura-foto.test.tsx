@@ -40,11 +40,15 @@ describe("CapturaFoto", () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  it("con cámara ofrece «Tomar foto» y «Subir foto» y abre la vista en vivo", async () => {
+  it("con cámara ofrece «Tomar foto» y «Subir foto» y abre la vista en vivo al pulsar", async () => {
     simularMedios({ camaras: 2 });
+    const usuario = userEvent.setup();
     render(<CapturaFoto onChange={vi.fn()} />);
-    expect(await screen.findByRole("button", { name: /tomar foto/i })).toBeInTheDocument();
+    const tomar = await screen.findByRole("button", { name: /tomar foto/i });
     expect(screen.getByRole("button", { name: /subir foto/i })).toBeInTheDocument();
+    // No se abre sola: la cámara se pide con una acción explícita del usuario.
+    expect(screen.queryByLabelText(/vista en vivo/i)).not.toBeInTheDocument();
+    await usuario.click(tomar);
     expect(await screen.findByLabelText(/vista en vivo/i)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /cambiar cámara/i })).toBeInTheDocument();
   });
@@ -76,14 +80,35 @@ describe("CapturaFoto", () => {
     expect(screen.getByLabelText(/archivo jpg o png/i)).toBeInTheDocument();
   });
 
-  it("si se niega el permiso muestra el aviso y cambia a subir foto", async () => {
+  it("si se niega el permiso muestra el motivo real, sin saltar a «Subir foto»", async () => {
     simularMedios({
       camaras: 1,
       getUserMedia: () => Promise.reject(new DOMException("denegado", "NotAllowedError")),
     });
+    const usuario = userEvent.setup();
     render(<CapturaFoto onChange={vi.fn()} />);
-    expect(await screen.findByText(/no se concedió el permiso/i)).toBeInTheDocument();
+    await usuario.click(await screen.findByRole("button", { name: /tomar foto/i }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent(/no permitió el acceso a la cámara/i);
+    expect(screen.getByRole("button", { name: /reintentar cámara/i })).toBeInTheDocument();
+    // El respaldo sigue disponible, pero no se cambia de modo por su cuenta.
+    await usuario.click(screen.getByRole("button", { name: /subir foto/i }));
     expect(await screen.findByLabelText(/archivo jpg o png/i)).toBeInTheDocument();
+  });
+
+  it("distingue la cámara inexistente de un permiso denegado", async () => {
+    simularMedios({
+      camaras: 1,
+      getUserMedia: () => Promise.reject(new DOMException("sin cámara", "NotFoundError")),
+    });
+    const usuario = userEvent.setup();
+    render(<CapturaFoto onChange={vi.fn()} />);
+    await usuario.click(await screen.findByRole("button", { name: /tomar foto/i }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent(/no se encontró ninguna cámara/i);
+    expect(alerta).not.toHaveTextContent(/permiso/i);
   });
 
   it("entrega el archivo válido con origen ARCHIVO y permite repetir", async () => {
@@ -124,7 +149,9 @@ describe("CapturaFoto", () => {
 
   it("libera la cámara al desmontar", async () => {
     const { stop } = simularMedios({ camaras: 1 });
+    const usuario = userEvent.setup();
     const { unmount } = render(<CapturaFoto onChange={vi.fn()} />);
+    await usuario.click(await screen.findByRole("button", { name: /tomar foto/i }));
     await screen.findByLabelText(/vista en vivo/i);
     unmount();
     await waitFor(() => expect(stop).toHaveBeenCalled());

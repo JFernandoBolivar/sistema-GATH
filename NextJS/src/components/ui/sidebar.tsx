@@ -19,7 +19,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -189,7 +188,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) max-w-[calc(100vw-3rem)] p-0 [&>button]:z-50 [&>button]:flex [&>button]:size-11 [&>button]:min-h-[44px] [&>button]:min-w-[44px] [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:border [&>button]:border-border [&>button]:bg-background [&>button]:text-foreground [&>button]:shadow-md [&>button]:opacity-100 hover:[&>button]:bg-accent [&>button]:top-3 [&>button]:right-3 [&>button]:touch-manipulation"
+          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) max-w-[calc(100vw-3rem)] gap-0 p-0 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -218,7 +217,7 @@ function Sidebar({
                 <span>Cerrar</span>
               </Button>
             </div>
-            <div className="flex-1 overflow-y-auto">{children}</div>
+            <div className="flex min-h-0 flex-1 flex-col [&_[data-slot=sidebar-footer]]:sticky [&_[data-slot=sidebar-footer]]:bottom-0 [&_[data-slot=sidebar-footer]]:z-10 [&_[data-slot=sidebar-footer]]:bg-sidebar">{children}</div>
           </div>
         </SheetContent>
       </Sheet>
@@ -394,15 +393,12 @@ function SidebarContent({ className, children, ...props }: React.ComponentProps<
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col group-data-[collapsible=icon]:overflow-hidden",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden",
         className,
       )}
       {...props}
     >
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-2">{children}</div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      {children}
     </div>
   );
 }

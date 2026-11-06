@@ -1,16 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { Maximize2 } from "lucide-react";
+import { Camera, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/shared/ui/components/dialog";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import { useEvidenciaUrl } from "./use-evidencia-url";
 
 /** Foto del pasivo con su cédula, servida por el backend (cada consulta queda auditada). */
-export function VisorEvidencia({ solicitudId }: { solicitudId: string }) {
+export function VisorEvidencia({
+  solicitudId,
+  estadoSolicitud,
+  tieneEvidencia,
+}: {
+  solicitudId: string;
+  estadoSolicitud?: string;
+  tieneEvidencia?: boolean;
+}) {
   const [abierta, setAbierta] = useState(false);
-  const { estado, reintentar, falloLaImagen } = useEvidenciaUrl(solicitudId);
+  const { estado, reintentar, falloLaImagen } = useEvidenciaUrl(solicitudId, {
+    estadoSolicitud,
+    tieneEvidencia,
+  });
   const lista = estado.estado === "lista";
 
   return (
@@ -31,6 +42,20 @@ export function VisorEvidencia({ solicitudId }: { solicitudId: string }) {
       </div>
       {estado.estado === "cargando" ? (
         <VistaCargando mensaje="Cargando la foto…" onReintentar={reintentar} />
+      ) : null}
+      {estado.estado === "sin_foto" ? (
+        <div
+          role="status"
+          className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground"
+        >
+          <Camera className="size-8 text-muted-foreground/60" aria-hidden="true" />
+          <p className="font-medium text-foreground">{estado.mensaje}</p>
+          <p className="text-xs">
+            {estadoSolicitud === "BORRADOR"
+              ? "La solicitud se encuentra en borrador. La fotografía con la cédula aparecerá una vez que el pasivo la consigne y complete el envío."
+              : "No se registra fotografía vigente para esta solicitud."}
+          </p>
+        </div>
       ) : null}
       {estado.estado === "error" ? <VistaError mensaje={estado.mensaje} onReintentar={reintentar} /> : null}
       {lista ? (

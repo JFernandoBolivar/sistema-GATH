@@ -65,4 +65,22 @@ describe("VisorEvidencia", () => {
     unmount();
     await waitFor(() => expect(revocar).toHaveBeenCalledWith("blob:foto-1"));
   });
+
+  it("en borrador o sin foto muestra aviso neutro sin error ni reintento", async () => {
+    render(<VisorEvidencia solicitudId="abc" estadoSolicitud="BORRADOR" tieneEvidencia={false} />);
+    expect(screen.getByRole("status")).toHaveTextContent(/el pasivo aún no ha cargado la foto/i);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: /reintentar/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /ver completa/i })).toBeDisabled();
+    expect(obtener).not.toHaveBeenCalled();
+  });
+
+  it("si el backend indica que no tiene foto vigente muestra aviso neutro sin error ni reintento", async () => {
+    obtener.mockResolvedValueOnce({ ok: false, mensaje: "La solicitud no tiene foto vigente." });
+    render(<VisorEvidencia solicitudId="abc" />);
+    expect(await screen.findByText(/el pasivo aún no ha cargado la foto/i)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: /reintentar/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /ver completa/i })).toBeDisabled();
+  });
 });

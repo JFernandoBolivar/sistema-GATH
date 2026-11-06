@@ -6,10 +6,11 @@
  * imágenes por módulo.
  *
  * Solo se muestran los módulos de primer nivel: Administración del sistema,
- * Gestión de Trabajadores, Gestión de Personal Pasivo, Carnetización y
- * Autogestión. Cargos, Familiares, Organización, Movimientos, Reportes y
- * Catálogos viven dentro del módulo Gestión de Trabajadores y no son tarjetas
- * del dashboard.
+ * Gestión de Trabajadores, Carnetización y Autogestión. El personal pasivo se
+ * gestiona dentro de Gestión de Trabajadores con el selector
+ * «Gestión Personal Activo/Pasivo» de la cabecera (no es una tarjeta aparte).
+ * Cargos, Familiares, Organización, Movimientos, Reportes y Catálogos viven
+ * dentro del módulo Gestión de Trabajadores y no son tarjetas del dashboard.
  *
  * Los módulos se muestran por PERMISO (`tienePermiso`, R16), no por rol ni
  * departamento. Conserva el diálogo obligatorio de cambio de contraseña.
@@ -52,14 +53,6 @@ const MODULOS: Modulo[] = [
     href: "/personal",
     alt: "Gestión de trabajadores",
     permiso: "personal.ver",
-  },
-  {
-    id: "PASIVOS",
-    name: "Gestión de Personal Pasivo",
-    imageSrc: "/images/departments/datos.jpg",
-    href: "/pasivos",
-    alt: "Gestión de personal pasivo",
-    permiso: "pasivos.ver",
   },
   {
     id: "Carnetizacion",

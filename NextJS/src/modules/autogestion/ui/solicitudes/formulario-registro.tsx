@@ -171,10 +171,18 @@ export function FormularioRegistro({
   function renderCampo(c: CampoDef) {
     const id = `${idBase}-${c.campo}`;
     const error = formState.errors[c.campo]?.message as string | undefined;
+    const esCampoFamiliarRequerido =
+      esFamiliar &&
+      (c.campo === "primer_nombre" ||
+        c.campo === "primer_apellido" ||
+        c.campo === "parentesco_id" ||
+        c.campo === "fecha_nacimiento" ||
+        c.campo === "sexo_id" ||
+        (c.campo === "cedula_familiar" && !hijoMenor) ||
+        (c.campo === "orden_hijo" && hijoMenor));
     const requerido =
       (modo === "CREAR" && c.requeridoAlCrear) ||
-      (esFamiliar && c.campo === "cedula_familiar" && !hijoMenor) ||
-      (esFamiliar && c.campo === "orden_hijo" && hijoMenor);
+      Boolean(esCampoFamiliarRequerido);
     const etiqueta = (
       <label htmlFor={id} className="text-base font-medium">
         {c.etiqueta}

@@ -59,19 +59,23 @@ export async function detectarCamara(): Promise<EstadoCamara> {
   }
 }
 
-/** Traduce el error de `getUserMedia` a un mensaje claro. */
+/** Traduce el error de `getUserMedia` a un mensaje claro y específico. */
 export function mensajeErrorCamara(error: unknown): string {
   const nombre = error instanceof DOMException ? error.name : "";
   switch (nombre) {
     case "NotAllowedError":
+      return "El navegador no permitió el acceso a la cámara (permiso del sitio o política de la página). Autorícelo en el navegador o use «Usar la cámara del teléfono» o «Subir foto».";
     case "SecurityError":
-      return "No se concedió el permiso de la cámara. Permítalo en el navegador o suba una foto.";
+      return "El navegador bloqueó la cámara por seguridad. La página debe abrirse por HTTPS; use «Usar la cámara del teléfono» o suba una foto.";
     case "NotFoundError":
+      return "No se encontró ninguna cámara en este dispositivo. Use «Usar la cámara del teléfono» o suba una foto.";
     case "OverconstrainedError":
-      return "No se encontró una cámara disponible. Suba una foto.";
+      return "La cámara no admite la configuración solicitada. Intente con otra cámara o suba una foto.";
     case "NotReadableError":
-      return "La cámara está siendo usada por otra aplicación. Ciérrela o suba una foto.";
+      return "La cámara está siendo usada por otra aplicación. Ciérrela e intente de nuevo, o suba una foto.";
+    case "AbortError":
+      return "La cámara se interrumpió antes de abrirse. Intente de nuevo o suba una foto.";
     default:
-      return "No se pudo abrir la cámara. Suba una foto.";
+      return "No se pudo abrir la cámara. Intente de nuevo, use «Usar la cámara del teléfono» o suba una foto.";
   }
 }
