@@ -14,9 +14,14 @@ export interface ReporteItemPersonal {
 export interface ReporteItemPasivo {
   cedula: string;
   nombreCompleto: string;
+  nombres?: string;
+  apellidos?: string;
   tipoPersonal: string;
+  tipoPasivo: string;
   fechaEgreso: string;
-  motivoEgreso: string;
+  motivoEgreso?: string;
+  contacto: string;
+  estadoFeDeVida: string;
 }
 
 export interface ReporteItemVacante {

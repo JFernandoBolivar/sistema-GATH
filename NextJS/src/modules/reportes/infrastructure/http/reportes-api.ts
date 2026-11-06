@@ -50,10 +50,15 @@ export interface ReportePersonalApiItem {
 
 export interface ReportePasivoApiItem {
   cedula: string;
-  nombre_completo: string;
-  tipo_personal: string;
-  fecha_egreso: string;
-  motivo_egreso: string;
+  nombres?: string;
+  apellidos?: string;
+  nombre_completo?: string;
+  tipo_pasivo?: string;
+  tipo_personal?: string;
+  fecha_egreso?: string;
+  motivo_egreso?: string;
+  contacto?: string;
+  estado_fe_de_vida?: string;
 }
 
 export interface ReporteVacanteApiItem {

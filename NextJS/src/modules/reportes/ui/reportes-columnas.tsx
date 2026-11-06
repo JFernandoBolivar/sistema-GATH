@@ -86,12 +86,26 @@ export function construirColumnasReportePasivos(): ColumnDef<ReporteItemPasivoDT
       cell: ({ row }) => <span className="font-medium">{row.original.cedula}</span>,
     },
     { accessorKey: "nombreCompleto", header: "Nombre" },
-    { accessorKey: "tipoPersonal", header: "Tipo" },
+    {
+      accessorKey: "tipoPasivo",
+      header: "Tipo de pasivo",
+      cell: ({ row }) => <span>{row.original.tipoPasivo || row.original.tipoPersonal || "—"}</span>,
+    },
     {
       accessorKey: "fechaEgreso",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Egreso" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Pase a pasivo" />,
+      cell: ({ row }) => <span>{row.original.fechaEgreso || "—"}</span>,
     },
-    { accessorKey: "motivoEgreso", header: "Motivo" },
+    {
+      accessorKey: "contacto",
+      header: "Contacto",
+      cell: ({ row }) => <span>{row.original.contacto || "—"}</span>,
+    },
+    {
+      accessorKey: "estadoFeDeVida",
+      header: "Fe de vida",
+      cell: ({ row }) => <span>{row.original.estadoFeDeVida || "—"}</span>,
+    },
     {
       id: "actions",
       header: "Acciones",

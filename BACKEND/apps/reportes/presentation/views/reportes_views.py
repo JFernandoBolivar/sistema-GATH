@@ -19,6 +19,7 @@ from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_distribucion_nomina,
     generar_reporte_familiares,
     generar_reporte_pasivos,
+    generar_reporte_pasivos_actuales,
     generar_reporte_personal,
     generar_reporte_tendencias,
     generar_reporte_vacantes,
@@ -138,9 +139,14 @@ class ReportePasivosView(APIView):
 
     @extend_schema(tags=['Reportes'], summary='Generar reporte de personal pasivo y egresados', responses={200: ResultadoReporteSerializer})
     def get(self, request):
-        dto = generar_reporte_pasivos(
+        filtros = request.query_params.dict()
+        dto = generar_reporte_pasivos_actuales(
             RepoReportesORM(),
-            filtros=request.query_params.dict(),
+            filtros=filtros,
+            registro=ReportFieldRegistryORM(),
+            puede_filtrar_estructura=usuario_tiene_permiso(
+                request.user, PERMISO_ESTRUCTURA_ORGANIZATIVA
+            ),
             limite=limite_de_reporte(para_pdf=False),
         )
         return ok(ResultadoReporteSerializer(dto).data)

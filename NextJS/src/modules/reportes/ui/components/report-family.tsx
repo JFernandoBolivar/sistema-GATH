@@ -470,7 +470,7 @@ export default function ReportFamily({
                       />
                     </fieldset>
 
-                    {puedeEstructura && (
+                    {puedeEstructura && categoria !== "familiares-pasivos" && (
                       <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-green-600 md:col-span-2">
                         <legend className="text-green-800 font-semibold px-1">
                           Dirección Administrativa Del Empleado
@@ -610,46 +610,48 @@ export default function ReportFamily({
                       </fieldset>
                     )}
 
-                    <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
-                      <legend className="text-red-900 font-semibold px-1">
-                        Información De Cargo Del Empleado
-                      </legend>
+                    {categoria !== "familiares-pasivos" && (
+                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
+                        <legend className="text-red-900 font-semibold px-1">
+                          Información De Cargo Del Empleado
+                        </legend>
 
-                      <FormField
-                        control={form.control}
-                        name="filtros.nomina_id"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tipo de Nómina</FormLabel>
-                            <Select
-                              onValueChange={(values) => {
-                                field.onChange(Number.parseInt(values));
-                              }}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full truncate">
-                                  <SelectValue
-                                    placeholder={`${
-                                      isLoadingNomina
-                                        ? "Cargando Nóminas"
-                                        : "Seleccione un Tipo de Nómina"
-                                    }`}
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {nomina?.data.map((nom, i) => (
-                                  <SelectItem key={i} value={`${nom.id}`}>
-                                    {nom.nomina || nom.nombre}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </fieldset>
+                        <FormField
+                          control={form.control}
+                          name="filtros.nomina_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tipo de Nómina</FormLabel>
+                              <Select
+                                onValueChange={(values) => {
+                                  field.onChange(Number.parseInt(values));
+                                }}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="w-full truncate">
+                                    <SelectValue
+                                      placeholder={`${
+                                        isLoadingNomina
+                                          ? "Cargando Nóminas"
+                                          : "Seleccione un Tipo de Nómina"
+                                      }`}
+                                    />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {nomina?.data.map((nom, i) => (
+                                    <SelectItem key={i} value={`${nom.id}`}>
+                                      {nom.nomina || nom.nombre}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </fieldset>
+                    )}
 
                     <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-blue-900">
                       <legend className="text-blue-900 font-semibold px-1">
