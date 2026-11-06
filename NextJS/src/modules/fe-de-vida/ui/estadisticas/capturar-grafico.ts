@@ -6,6 +6,8 @@
  * opacidades) porque el SVG serializado se dibuja fuera del documento y no
  * resolvería las clases de Tailwind ni `var(--color-*)`.
  */
+import { PALETA_GRAFICOS } from "./paleta-graficos";
+
 const PROPIEDADES = [
   "fill",
   "stroke",
@@ -54,7 +56,7 @@ export async function capturarGraficoPng(contenedor: HTMLElement, escala = 2): P
     canvas.height = alto * escala;
     const contexto = canvas.getContext("2d");
     if (!contexto) throw new Error("El navegador no pudo preparar la imagen.");
-    contexto.fillStyle = "#FFFFFF";
+    contexto.fillStyle = PALETA_GRAFICOS.blanco;
     contexto.fillRect(0, 0, canvas.width, canvas.height);
     contexto.drawImage(imagen, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL("image/png");

@@ -64,6 +64,8 @@ def generar_reporte_pdf(
         masc = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('M', 'MASCULINO'))
         fem = sum(1 for f in filas if str(f.get('sexo', '')).strip().upper() in ('F', 'FEMENINO'))
         stats = {'Total Empleados': total, 'Masculino': masc, 'Femenino': fem}
+    elif 'tipo_pasivo' in columnas:
+        stats = {'Total Pasivos': len(filas)}
     elif 'motivo_egreso' in columnas or 'fecha_egreso' in columnas:
         stats = {'Total Egresados': len(filas)}
     elif 'codigo' in columnas and 'estatus' in columnas:
@@ -80,6 +82,8 @@ def generar_reporte_pdf(
         col_widths = [10 * mm, 17 * mm, 22 * mm, 30 * mm, 30 * mm, 22 * mm, 15 * mm, 30 * mm, 40 * mm, 45 * mm]
     elif columnas == ['#', 'cedula_empleado', 'nombre_empleado', 'cedula_familiar', 'nombre_familiar', 'parentesco', 'fecha_nacimiento', 'sexo']:
         col_widths = [10 * mm, 24 * mm, 48 * mm, 24 * mm, 48 * mm, 25 * mm, 25 * mm, 15 * mm]
+    elif columnas == ['#', 'cedula', 'nombres', 'apellidos', 'tipo_pasivo', 'fecha_egreso', 'contacto', 'estado_fe_de_vida']:
+        col_widths = [10 * mm, 24 * mm, 42 * mm, 42 * mm, 38 * mm, 26 * mm, 55 * mm, 40 * mm]
     elif columnas == ['#', 'cedula', 'nombre_completo', 'fecha_ingreso', 'fecha_egreso', 'motivo_egreso', 'ultimo_cargo']:
         col_widths = [10 * mm, 22 * mm, 55 * mm, 25 * mm, 25 * mm, 45 * mm, 75 * mm]
     elif columnas == ['#', 'codigo', 'cedula', 'empleado', 'cargo', 'cargo_especifico', 'grado', 'tipo_nomina', 'organismo_adscrito', 'estatus']:

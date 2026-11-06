@@ -485,18 +485,28 @@ def test_validar_acta_familiar_reutiliza_la_regla_de_cedula_de_familiares(datos)
     base = {
         'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'sexo_id': sexo_id,
         'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(),
+        'orden_hijo': 2,
     }
     validador = ValidadorCambiosActaORM()
     menor = validador.validar(
         PASIVO, CambioActa('familiar', 'CREAR', 'familiar', '*', dict(base, parentesco_id=1)),
     )
     assert menor is not None and 'cedula_familiar' not in menor.valor_propuesto
+    assert menor.valor_propuesto['cedula_generada'] == f'{PASIVO}-2'
 
     with pytest.raises(ValidationError) as error:
         validador.validar(
             PASIVO, CambioActa('familiar', 'CREAR', 'familiar', '*', dict(base, parentesco_id=2)),
         )
     assert error.value.campo == 'cedula_familiar'
+
+    with pytest.raises(ValidationError) as error_orden:
+        validador.validar(
+            PASIVO,
+            CambioActa('familiar', 'CREAR', 'familiar', '*',
+                       {**base, 'parentesco_id': 1, 'orden_hijo': None}),
+        )
+    assert error_orden.value.campo == 'orden_hijo'
 
 
 # ── Decisión H: devolver para corrección ──

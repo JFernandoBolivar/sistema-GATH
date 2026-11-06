@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetClose,
@@ -141,7 +142,8 @@ export function PanelGuiaFeDeVida({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-5">
+        <ScrollArea className="flex-1">
+          <div className="space-y-6 p-5">
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 text-xs text-foreground md:text-sm">
             <p className="font-semibold text-primary">Importante para el pasivo</p>
             <p className="mt-1 text-muted-foreground">
@@ -237,6 +239,7 @@ export function PanelGuiaFeDeVida({
             })}
           </ol>
         </div>
+        </ScrollArea>
 
         <div className="sticky bottom-0 border-t bg-card p-4">
           <SheetClose asChild>

@@ -179,7 +179,9 @@ function tablaFamiliares(k: Constructor, e: EntradaModelo): TablaRevision {
           f("segundo_apellido"),
         ) ?? "",
         f("parentesco_id"),
-        f("cedula_familiar"),
+        v.cedula_generada
+          ? `${String(v.cedula_generada)} (se generará al aprobar)`
+          : f("cedula_familiar"),
         v.fecha_nacimiento ? formatearFechaCivil(String(v.fecha_nacimiento)) : "",
       ],
       marca: "nuevo",

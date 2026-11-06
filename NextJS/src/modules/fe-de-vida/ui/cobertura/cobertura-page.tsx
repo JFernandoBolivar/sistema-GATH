@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import { LIMITE_PAGINA } from "../../domain/value-objects/estados";
 
@@ -112,7 +113,7 @@ export default function CoberturaPage() {
         {error ? <VistaError mensaje="No se pudo cargar la cobertura." onReintentar={() => mutate()} /> : null}
         {data && data.results.length === 0 ? <VistaVacia titulo="Sin resultados" descripcion="Ningún pasivo coincide con los filtros." /> : null}
         {data && data.results.length > 0 ? (
-          <div role="region" aria-label="Cobertura de pasivos" tabIndex={0} className="overflow-x-auto rounded-xl border bg-card">
+          <TablaDesplegable etiqueta="Cobertura de pasivos" className="rounded-xl border bg-card">
             <table className="w-full min-w-[720px] text-left text-base">
               <caption className="sr-only">Pasivos sin correo o sin cuenta</caption>
               <thead className="border-b bg-muted text-sm">
@@ -166,7 +167,7 @@ export default function CoberturaPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TablaDesplegable>
         ) : null}
       </div>
       {data && data.count > 0 ? (

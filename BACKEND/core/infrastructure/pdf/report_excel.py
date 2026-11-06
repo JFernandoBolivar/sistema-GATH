@@ -1,51 +1,49 @@
 """
-Motor genérico de reportes Excel (Fase 2.4 del plan de reparación,
-`PLAN_REPARACION_GATH.md`). Vive junto a `report_pdf.py` porque comparte el
-mismo insumo genérico (columnas/filas de un `ResultadoReporte`) — no hay un
-motor Excel legado que portar (el único que existía era
-`AUTOGESTION/services/excel_service.py`, específico del censo, ver Fase 2.6).
+Motor genérico de reportes Excel (Fase 2.4 del plan de reparación).
+
+Comparte el estilo institucional único de `core.infrastructure.excel.estilo_reporte`
+(TLF-K): Arial, azul CONATEL, cebra suave, bordes finos, anchos automáticos y
+configuración de impresión horizontal. No hay estilos propios del módulo.
 """
+from datetime import datetime
 from io import BytesIO
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
-from openpyxl.utils import get_column_letter
 
-from core.infrastructure.pdf.excel_seguro import forzar_texto
+from core.infrastructure.excel.estilo_reporte import (
+    ajustar_anchos,
+    configurar_impresion,
+    escribir_encabezado_institucional,
+    escribir_pie,
+    escribir_tabla,
+)
 
 
 def generar_reporte_excel(
     titulo: str, columnas: list[str], filas: list[dict],
     filtros: list[tuple[str, str]] | None = None,
 ) -> bytes:
-    wb = Workbook()
-    ws = wb.active
-    ws.title = titulo[:31] or 'Reporte'
+    libro = Workbook()
+    hoja = libro.active
+    hoja.title = (titulo[:31] or 'Reporte').strip()
 
-    encabezado_fill = PatternFill(start_color='1A237E', end_color='1A237E', fill_type='solid')
-    encabezado_font = Font(color='FFFFFF', bold=True)
+    generado_en = datetime.now()
+    encabezados = [columna.replace('_', ' ').capitalize() for columna in columnas]
+    datos = [[fila.get(columna) for columna in columnas] for fila in filas]
 
-    fila_encabezado = 1
-    if filtros:
-        for etiqueta, valor in filtros:
-            ws.cell(row=fila_encabezado, column=1, value=f'{etiqueta}:').font = Font(bold=True)
-            forzar_texto(ws.cell(row=fila_encabezado, column=2, value=str(valor)))
-            fila_encabezado += 1
-        fila_encabezado += 1  # fila en blanco antes de la tabla
-
-    for col_idx, columna in enumerate(columnas, start=1):
-        celda = ws.cell(row=fila_encabezado, column=col_idx, value=columna.replace('_', ' ').upper())
-        celda.fill = encabezado_fill
-        celda.font = encabezado_font
-
-    for fila_idx, fila in enumerate(filas, start=fila_encabezado + 1):
-        for col_idx, columna in enumerate(columnas, start=1):
-            forzar_texto(ws.cell(row=fila_idx, column=col_idx, value=fila.get(columna)))
-
-    for col_idx in range(1, len(columnas) + 1):
-        ws.column_dimensions[get_column_letter(col_idx)].width = 22
+    fila = escribir_encabezado_institucional(
+        hoja,
+        titulo=titulo,
+        subtitulo='Reporte institucional',
+        filtros=[*(filtros or []), ('Registros exportados', str(len(datos)))],
+        generado_en=generado_en,
+        columnas=len(columnas),
+    )
+    fila = escribir_tabla(hoja, fila, encabezados, datos)
+    ajustar_anchos(hoja, encabezados, datos)
+    escribir_pie(hoja, fila + 2, len(columnas), f'Generado el {generado_en:%d/%m/%Y %H:%M}')
+    configurar_impresion(hoja, len(columnas), fila)
 
     buffer = BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
+    libro.save(buffer)
     return buffer.getvalue()

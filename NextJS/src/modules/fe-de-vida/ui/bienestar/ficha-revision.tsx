@@ -1,5 +1,6 @@
 import { FilePlus2, PencilLine, TriangleAlert } from "lucide-react";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import type { DatoRevision, FilaRevision, MarcaCambio, SeccionRevision, TablaRevision } from "./modelo-revision";
 
 /** Insignia del cambio: lleva ícono y texto (nunca solo color). */
@@ -71,11 +72,9 @@ function Tabla({ tabla }: { tabla: TablaRevision }) {
       {tabla.filas.length === 0 ? (
         <p className="text-base text-muted-foreground">{tabla.vacio}</p>
       ) : (
-        <div
-          role="region"
-          aria-labelledby={id}
-          tabIndex={0}
-          className="overflow-x-auto rounded-md border focus-visible:outline-2 focus-visible:outline-ring"
+        <TablaDesplegable
+          etiqueta={tabla.titulo}
+          className="rounded-md border focus-visible:outline-2 focus-visible:outline-ring"
         >
           <table aria-labelledby={id} className="w-full min-w-[32rem] text-left">
             <thead className="bg-muted text-sm text-muted-foreground">
@@ -93,7 +92,7 @@ function Tabla({ tabla }: { tabla: TablaRevision }) {
               ))}
             </tbody>
           </table>
-        </div>
+        </TablaDesplegable>
       )}
     </div>
   );

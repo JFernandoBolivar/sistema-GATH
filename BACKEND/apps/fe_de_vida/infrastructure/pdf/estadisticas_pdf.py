@@ -27,10 +27,7 @@ from apps.fe_de_vida.infrastructure.pdf.comun import (
 )
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from core.infrastructure.pdf.paleta import (
-    AMARILLO_ACENTO,
-    AZUL_CONATEL,
-    AZUL_INTERMEDIO,
-    AZUL_OSCURO,
+    COLOR_BARRAS_ESTADO,
     COLOR_FALTANTES,
     COLOR_RESPONDIDOS,
     GRIS_BORDE,
@@ -89,7 +86,7 @@ def _grafico_tipos(estadisticas: EstadisticasFeDeVida, ancho: float) -> Drawing:
     dibujo.add(grafico)
 
     dibujo.add(String(36 * mm, 45 * mm, '■ Respondieron', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_RESPONDIDOS))
-    dibujo.add(String(72 * mm, 45 * mm, '■ Faltan por responder', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_FALTANTES))
+    dibujo.add(String(72 * mm, 45 * mm, '■ Faltan', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=GRIS_TEXTO))
     return dibujo
 
 
@@ -111,7 +108,7 @@ def _grafico_estados(estadisticas: EstadisticasFeDeVida, ancho: float) -> Drawin
     grafico.valueAxis.labels.fontName = FUENTE
     grafico.valueAxis.labels.fontSize = 7
     grafico.valueAxis.valueMin = 0
-    grafico.bars[0].fillColor = AZUL_INTERMEDIO
+    grafico.bars[0].fillColor = COLOR_BARRAS_ESTADO
     dibujo.add(grafico)
     return dibujo
 
@@ -145,7 +142,7 @@ def _grafico_cobertura(estadisticas: EstadisticasFeDeVida, ancho: float) -> Draw
     pastel.simpleLabels = 0
     dibujo.add(pastel)
     dibujo.add(String(36 * mm, 44 * mm, f'■ Respondieron: {conteos.respondieron}', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_RESPONDIDOS))
-    dibujo.add(String(36 * mm, 39 * mm, f'■ Faltan: {conteos.faltan}', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_FALTANTES))
+    dibujo.add(String(36 * mm, 39 * mm, f'■ Faltan: {conteos.faltan}', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=GRIS_TEXTO))
     dibujo.add(String(36 * mm, 30 * mm, f'Total: {conteos.total}', fontName=FUENTE, fontSize=8, fillColor=GRIS_TEXTO))
     return dibujo
 

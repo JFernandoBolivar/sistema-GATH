@@ -231,7 +231,7 @@ def test_exportaciones_se_encolan_y_generan_pdf_y_excel(datos):
     resumen = libro['Resumen e indicadores']
     assert resumen['A1'].value == 'Estadísticas de fe de vida'
     assert resumen['A1'].font.bold is True
-    assert resumen.freeze_panes == 'A5'
+    assert resumen.freeze_panes and int(resumen.freeze_panes[1:]) > 5  # panel inmovilizado bajo el encabezado de la matriz
     assert any(
         str(celda.value).startswith('Total de pasivos')
         for fila in resumen.iter_rows() for celda in fila
@@ -246,11 +246,11 @@ def test_exportaciones_se_encolan_y_generan_pdf_y_excel(datos):
     assert hoja.freeze_panes == f'A{fila_cabecera + 1}'
     assert hoja['A1'].value == 'Estadísticas de fe de vida · Listado de pasivos'
     primera_cabecera = hoja.cell(row=fila_cabecera, column=1)
-    assert primera_cabecera.fill.start_color.rgb.endswith('1A237E')
+    assert primera_cabecera.fill.start_color.rgb.endswith('0B4A9E')
     assert primera_cabecera.font.color.rgb.endswith('FFFFFF')
     assert hoja.column_dimensions['B'].width and hoja.column_dimensions['B'].width <= 45
     if hoja.max_row > fila_cabecera + 2:
-        assert hoja.cell(row=fila_cabecera + 2, column=1).fill.start_color.rgb.endswith('F4F6FB')
+        assert hoja.cell(row=fila_cabecera + 2, column=1).fill.start_color.rgb.endswith('F7F9FC')
 
     celda = {'filtros': {'listado': 'celda', 'estado': 'VALIDADA'}}
     archivo_celda = generador.generar('fe_de_vida_estadisticas', 'pdf', celda, lambda _p: None)
@@ -291,6 +291,14 @@ def test_validacion_de_parametros_de_exportacion(datos):
         validar_parametros({'filtros': {'listado': 'otro'}})
     with pytest.raises(ValidationError):
         validar_parametros({'filtros': {'desde': '2026-12-31', 'hasta': '2026-01-01'}})
+    with pytest.raises(ValidationError):
+        validar_parametros({
+            'filtros': {
+                'incluir_resumen': 'false',
+                'incluir_graficos': 'false',
+                'incluir_listado': 'false',
+            },
+        })
 
 
 def _png_b64(lado=600):
@@ -323,18 +331,80 @@ def test_valida_los_png_de_graficos_que_envia_la_pantalla(datos):
 
 def test_el_pdf_usa_los_png_capturados_de_la_pantalla(datos):
     from apps.exportaciones.infrastructure.generadores import GeneradorExportacionDjango
+    from pdf2image import convert_from_bytes
 
     parametros = {'filtros': {'listado': 'faltantes', 'incluir_graficos': True},
                   'imagenes': [{'nombre': 'tipos', 'data': _png_b64()}]}
     validar_parametros(parametros)
     archivo = GeneradorExportacionDjango().generar('fe_de_vida_estadisticas', 'pdf', parametros, lambda _p: None)
     assert archivo.contenido.startswith(b'%PDF')
+    assert archivo.contenido.rstrip().endswith(b'%%EOF')
     assert len(archivo.contenido) > 1000
-    with pytest.raises(ValidationError):
-        validar_parametros({
-            'filtros': {
-                'incluir_resumen': 'false',
-                'incluir_graficos': 'false',
-                'incluir_listado': 'false',
-            },
-        })
+    assert convert_from_bytes(archivo.contenido), 'El PDF con imágenes debe abrirse y renderizar.'
+
+
+def test_el_pdf_sin_imagenes_tambien_es_valido(datos):
+    from apps.exportaciones.infrastructure.generadores import GeneradorExportacionDjango
+    from pdf2image import convert_from_bytes
+
+    parametros = {'filtros': {'listado': 'faltantes'}}
+    validar_parametros(parametros)
+    archivo = GeneradorExportacionDjango().generar('fe_de_vida_estadisticas', 'pdf', parametros, lambda _p: None)
+    assert archivo.contenido.startswith(b'%PDF')
+    assert archivo.contenido.rstrip().endswith(b'%%EOF')
+    assert convert_from_bytes(archivo.contenido), 'El PDF sin imágenes debe abrirse y renderizar.'
+
+def test_descarga_http_del_pdf_con_imagenes_es_valida(datos, monkeypatch):
+    """TLF-L: el flujo real de descarga entrega un PDF completo y abrible."""
+    from pdf2image import convert_from_bytes
+
+    from apps.exportaciones.infrastructure.generadores import GeneradorExportacionDjango
+    from apps.exportaciones.infrastructure.models.trabajo_exportacion_model import (
+        TrabajoExportacionModel,
+    )
+
+    parametros = {
+        'filtros': {'listado': 'faltantes', 'incluir_graficos': True},
+        'imagenes': [{'nombre': 'tipos', 'data': _png_b64()}],
+    }
+    archivo = GeneradorExportacionDjango().generar(
+        'fe_de_vida_estadisticas', 'pdf', parametros, lambda _p: None,
+    )
+
+    class Almacen:
+        def descargar_flujo(self, clave, tamano_bloque=65536):
+            assert clave == 'exportaciones/prueba.pdf'
+            for inicio in range(0, len(archivo.contenido), 4096):
+                yield archivo.contenido[inicio:inicio + 4096]
+
+    monkeypatch.setattr(
+        'apps.exportaciones.presentation.views.exportaciones_views.SeaweedFSStorage',
+        lambda: Almacen(),
+    )
+
+    trabajo = TrabajoExportacionModel.objects.create(
+        solicitante_id=1, solicitante_cedula='V1', tipo='fe_de_vida_estadisticas',
+        formato='pdf', estado='LISTO', progreso=100, parametros={},
+        clave_archivo='exportaciones/prueba.pdf', nombre_archivo='estadisticas.pdf',
+        tamano_bytes=len(archivo.contenido), metadatos={},
+        expira_en=timezone.now() + timedelta(hours=1),
+    )
+
+    class Usuario:
+        is_authenticated = True
+        is_active = True
+        pk = id = 1
+
+        def tiene_permiso(self, codigo):
+            return True
+
+    cliente = APIClient()
+    cliente.force_authenticate(user=Usuario())
+    respuesta = cliente.get(f'/api/v1/exportaciones/{trabajo.id}/descargar/')
+    assert respuesta.status_code == 200, respuesta.content
+    cuerpo = b''.join(respuesta.streaming_content)
+    assert respuesta['Content-Type'] == 'application/pdf'
+    assert respuesta['Content-Length'] == str(len(cuerpo))
+    assert cuerpo == archivo.contenido
+    assert cuerpo.startswith(b'%PDF') and cuerpo.rstrip().endswith(b'%%EOF')
+    assert convert_from_bytes(cuerpo)

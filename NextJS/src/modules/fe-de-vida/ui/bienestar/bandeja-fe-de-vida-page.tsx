@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import {
   archivoDeRespuesta,
@@ -247,7 +248,7 @@ export default function BandejaFeDeVidaPage() {
               />
             ) : null}
             {data && data.results.length > 0 ? (
-              <div role="region" aria-label="Fe de vida del personal pasivo" tabIndex={0} className="overflow-x-auto rounded-xl border bg-card">
+              <TablaDesplegable etiqueta="Fe de vida del personal pasivo" className="rounded-xl border bg-card">
                 <table className="w-full min-w-[640px] text-left text-base">
                   <caption className="sr-only">Fe de vida del personal pasivo</caption>
                   <thead className="border-b bg-muted text-sm">
@@ -305,7 +306,7 @@ export default function BandejaFeDeVidaPage() {
                     })}
                   </tbody>
                 </table>
-              </div>
+              </TablaDesplegable>
             ) : null}
           </div>
           {data && data.count > 0 ? (

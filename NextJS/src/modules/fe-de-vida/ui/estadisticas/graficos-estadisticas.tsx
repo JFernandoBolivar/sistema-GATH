@@ -28,10 +28,10 @@ import { COLORES_COBERTURA, PALETA_GRAFICOS, SERIES_GRAFICOS } from "./paleta-gr
 
 const CONFIG_TIPOS: ChartConfig = {
   respondieron: { label: "Respondieron", color: SERIES_GRAFICOS[0] },
-  faltan: { label: "Faltan por responder", color: SERIES_GRAFICOS[1] },
+  faltan: { label: "Faltan", color: SERIES_GRAFICOS[1] },
 };
 const CONFIG_ESTADOS: ChartConfig = {
-  total: { label: "Solicitudes", color: PALETA_GRAFICOS.azulIntermedio },
+  total: { label: "Solicitudes", color: PALETA_GRAFICOS.azulConatel },
 };
 const CONFIG_DONUT: ChartConfig = { value: { label: "Pasivos" } };
 
@@ -55,19 +55,20 @@ export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: B
           tickLine={false}
           axisLine={false}
           interval={0}
-          angle={-15}
+          angle={-30}
           textAnchor="end"
-          height={54}
-          tick={TIPOGRAFIA}
+          height={68}
+          tickMargin={8}
+          tick={{ ...TIPOGRAFIA, fontSize: 11 }}
         />
         <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={TIPOGRAFIA} />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Legend wrapperStyle={TIPOGRAFIA} />
-        <Bar dataKey="respondieron" stackId="cobertura" fill="var(--color-respondieron)" radius={[0, 0, 6, 6]}>
-          <LabelList dataKey="respondieron" position="inside" fill={PALETA_GRAFICOS.blanco} fontSize={11} />
+        <Bar dataKey="respondieron" stackId="cobertura" fill="var(--color-respondieron)" radius={[0, 0, 6, 6]} minPointSize={2}>
+          <LabelList dataKey="respondieron" position="inside" fill={PALETA_GRAFICOS.blanco} fontSize={11} fontWeight={600} />
         </Bar>
-        <Bar dataKey="faltan" stackId="cobertura" fill="var(--color-faltan)" radius={[6, 6, 0, 0]}>
-          <LabelList dataKey="faltan" position="inside" fill={PALETA_GRAFICOS.blanco} fontSize={11} />
+        <Bar dataKey="faltan" stackId="cobertura" fill="var(--color-faltan)" radius={[6, 6, 0, 0]} minPointSize={2}>
+          <LabelList dataKey="faltan" position="inside" fill={PALETA_GRAFICOS.azulOscuro} fontSize={11} fontWeight={600} />
         </Bar>
       </BarChart>
     </ChartContainer>

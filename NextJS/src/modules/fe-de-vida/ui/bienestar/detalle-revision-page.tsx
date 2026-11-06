@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
@@ -182,8 +183,10 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
         </div>
         <aside
           aria-label="Foto y decisión"
-          className="order-1 flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:order-2 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto"
+          className="order-1 flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:order-2 lg:max-h-[calc(100dvh-2rem)]"
         >
+          <ScrollArea className="h-full">
+            <div className="flex flex-col gap-4">
           {puede(PERMISOS_FE_DE_VIDA.verEvidencia) ? (
             <VisorEvidencia solicitudId={solicitud.id} />
           ) : (
@@ -200,6 +203,8 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
             }
           />
           <LineaTiempo hitos={hitosRevision(solicitud)} etiqueta="Avance de la solicitud" />
+            </div>
+          </ScrollArea>
         </aside>
       </div>
     </div>

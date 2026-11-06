@@ -2,11 +2,13 @@
 
 import { useRef, useState } from "react";
 import useSWR from "swr";
-import { Download, FileSpreadsheet, FileText, ImageDown, Inbox, Search } from "lucide-react";
+import { Download, ImageDown, Inbox, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/shared/ui/components/page-header";
+import { FiltrosColapsables, FiltroFechasPar } from "@/shared/ui/components/filtros-movil-colapsable";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import {
   archivoDeRespuesta,
@@ -262,91 +264,110 @@ export default function EstadisticasPage() {
         descripcion="Cuántos pasivos debían hacerla, cuántos respondieron, quiénes faltan y en qué estado está cada solicitud."
       />
 
-      <form
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          setDetalle(null);
-          setOffset(0);
-          void mutate();
-        }}
-        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3"
-      >
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="e-proceso" className="text-base font-medium">Proceso</label>
-          <select
-            id="e-proceso"
-            className={CLASE_CONTROL}
-            value={filtros.procesoId}
-            onChange={(e) => aplicar({ ...filtros, procesoId: e.target.value })}
-          >
-            <option value="">Proceso vigente</option>
-            {(data?.procesos ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre} ({p.estado === "ABIERTO" ? "abierto" : p.estado === "CERRADO" ? "cerrado" : "en preparación"})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="e-tipo" className="text-base font-medium">Tipo de pasivo</label>
-          <select
-            id="e-tipo"
-            className={CLASE_CONTROL}
-            value={filtros.tipoNominaId}
-            onChange={(e) => aplicar({ ...filtros, tipoNominaId: e.target.value })}
-          >
-            <option value="">Todos</option>
-            {(data?.tipos ?? []).map((t) => (
-              <option key={t.id} value={t.id}>{t.nombre}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="e-estado" className="text-base font-medium">Estado</label>
-          <select
-            id="e-estado"
-            className={CLASE_CONTROL}
-            value={filtros.estado}
-            onChange={(e) => aplicar({ ...filtros, estado: e.target.value })}
-          >
-            <option value="">Todos</option>
-            {ESTADOS_SOLICITUD.map((estado) => (
-              <option key={estado} value={estado}>{ETIQUETAS_ESTADO_MATRIZ[estado]}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="e-canal" className="text-base font-medium">Canal</label>
-          <select
-            id="e-canal"
-            className={CLASE_CONTROL}
-            value={filtros.canal}
-            onChange={(e) => aplicar({ ...filtros, canal: e.target.value })}
-          >
-            <option value="">Todos</option>
-            <option value="EN_LINEA">En línea</option>
-            <option value="PRESENCIAL">Presencial</option>
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="e-desde" className="text-base font-medium">Enviadas desde</label>
-          <Input id="e-desde" type="date" value={filtros.desde} onChange={(e) => aplicar({ ...filtros, desde: e.target.value })} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="e-hasta" className="text-base font-medium">Enviadas hasta</label>
-          <Input id="e-hasta" type="date" value={filtros.hasta} onChange={(e) => aplicar({ ...filtros, hasta: e.target.value })} />
-        </div>
-        <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
-          <Button type="submit" className="min-h-11"><Search aria-hidden /> Actualizar</Button>
-          <Button type="button" variant="outline" className="min-h-11" onClick={() => aplicar(FILTROS_VACIOS)}>
-            Limpiar filtros
-          </Button>
-          <p className="ml-auto text-sm text-muted-foreground">
-            Los indicadores son del proceso y tipo elegidos; estado, canal y fechas afinan los desgloses.
-          </p>
-        </div>
-      </form>
+      {(() => {
+        const conteoFiltros = [
+          filtros.procesoId,
+          filtros.tipoNominaId,
+          filtros.estado,
+          filtros.canal,
+          filtros.desde,
+          filtros.hasta,
+        ].filter(Boolean).length;
+
+        return (
+          <FiltrosColapsables conteoActivos={conteoFiltros} titulo="Filtros de estadísticas">
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                setDetalle(null);
+                setOffset(0);
+                void mutate();
+              }}
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="e-proceso" className="text-sm sm:text-base font-medium">Proceso</label>
+                <select
+                  id="e-proceso"
+                  className={CLASE_CONTROL}
+                  value={filtros.procesoId}
+                  onChange={(e) => aplicar({ ...filtros, procesoId: e.target.value })}
+                >
+                  <option value="">Proceso vigente</option>
+                  {(data?.procesos ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre} ({p.estado === "ABIERTO" ? "abierto" : p.estado === "CERRADO" ? "cerrado" : "en preparación"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="e-tipo" className="text-sm sm:text-base font-medium">Tipo de pasivo</label>
+                <select
+                  id="e-tipo"
+                  className={CLASE_CONTROL}
+                  value={filtros.tipoNominaId}
+                  onChange={(e) => aplicar({ ...filtros, tipoNominaId: e.target.value })}
+                >
+                  <option value="">Todos</option>
+                  {(data?.tipos ?? []).map((t) => (
+                    <option key={t.id} value={t.id}>{t.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="e-estado" className="text-sm sm:text-base font-medium">Estado</label>
+                <select
+                  id="e-estado"
+                  className={CLASE_CONTROL}
+                  value={filtros.estado}
+                  onChange={(e) => aplicar({ ...filtros, estado: e.target.value })}
+                >
+                  <option value="">Todos</option>
+                  {ESTADOS_SOLICITUD.map((estado) => (
+                    <option key={estado} value={estado}>{ETIQUETAS_ESTADO_MATRIZ[estado]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="e-canal" className="text-sm sm:text-base font-medium">Canal</label>
+                <select
+                  id="e-canal"
+                  className={CLASE_CONTROL}
+                  value={filtros.canal}
+                  onChange={(e) => aplicar({ ...filtros, canal: e.target.value })}
+                >
+                  <option value="">Todos</option>
+                  <option value="EN_LINEA">En línea</option>
+                  <option value="PRESENCIAL">Presencial</option>
+                </select>
+              </div>
+              <FiltroFechasPar>
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  <label htmlFor="e-desde" className="text-sm sm:text-base font-medium truncate">Enviadas desde</label>
+                  <Input id="e-desde" type="date" value={filtros.desde} onChange={(e) => aplicar({ ...filtros, desde: e.target.value })} />
+                </div>
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  <label htmlFor="e-hasta" className="text-sm sm:text-base font-medium truncate">Enviadas hasta</label>
+                  <Input id="e-hasta" type="date" value={filtros.hasta} onChange={(e) => aplicar({ ...filtros, hasta: e.target.value })} />
+                </div>
+              </FiltroFechasPar>
+              <div className="flex flex-col gap-3 sm:col-span-2 lg:col-span-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="submit" className="min-h-11"><Search aria-hidden /> Actualizar</Button>
+                  <Button type="button" variant="outline" className="min-h-11" onClick={() => aplicar(FILTROS_VACIOS)}>
+                    Limpiar filtros
+                  </Button>
+                </div>
+                <p className="w-full text-xs sm:text-sm text-muted-foreground">
+                  Los indicadores son del proceso y tipo elegidos; estado, canal y fechas afinan los desgloses.
+                </p>
+              </div>
+            </form>
+          </FiltrosColapsables>
+        );
+      })()}
 
       <div aria-live="polite" className="flex flex-col gap-6">
         {isLoading ? <VistaCargando mensaje="Calculando estadísticas…" onReintentar={() => mutate()} /> : null}
@@ -495,7 +516,7 @@ export default function EstadisticasPage() {
                   </Button>
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              <TablaDesplegable etiqueta="Matriz de tipos de pasivo por estado de fe de vida">
                 <table className="w-full min-w-[900px] text-left text-sm">
                   <caption className="sr-only">Matriz de tipos de pasivo por estado de fe de vida</caption>
                   <thead className="border-b bg-muted">
@@ -534,7 +555,7 @@ export default function EstadisticasPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </TablaDesplegable>
             </section>
 
             {detalle ? (
@@ -574,7 +595,7 @@ export default function EstadisticasPage() {
                 ) : null}
                 {listado && listado.results.length > 0 ? (
                   <>
-                    <div className="overflow-x-auto">
+                    <TablaDesplegable etiqueta="Pasivos del detalle seleccionado">
                       <table className="w-full min-w-[760px] text-left text-sm">
                         <caption className="sr-only">Pasivos del detalle seleccionado</caption>
                         <thead className="border-b bg-muted">
@@ -608,7 +629,7 @@ export default function EstadisticasPage() {
                           ))}
                         </tbody>
                       </table>
-                    </div>
+                    </TablaDesplegable>
                     <PaginacionNav
                       etiqueta="Paginación del detalle de estadísticas"
                       total={listado.count}

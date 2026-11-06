@@ -19,7 +19,9 @@ from apps.fe_de_vida.domain.entities.bandeja_exportacion import PasivoBandeja
 from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja
 from apps.fe_de_vida.infrastructure.exportacion_comun import (
     ajustar_anchos,
+    configurar_impresion,
     escribir_encabezado_institucional,
+    escribir_pie,
     escribir_tabla,
 )
 from apps.fe_de_vida.infrastructure.pdf.comun import (
@@ -125,10 +127,11 @@ def _excel(filtro: FiltroBandeja, filas: list[PasivoBandeja], total: int) -> byt
     hoja = libro.active
     hoja.title = 'Bandeja de fe de vida'
     encabezados = ['Cédula', 'Nombres', 'Apellidos', 'Correo', 'Teléfono', 'Estatus', 'Fecha de envío', 'Número de acta']
+    generado_en = datetime.now()
     fila = escribir_encabezado_institucional(
         hoja, titulo=TITULO, subtitulo=_descripcion_proceso(filtro),
         filtros=[*_pares_de_filtros(filtro), ('Solicitudes encontradas', str(total))],
-        generado_en=datetime.now(), columnas=len(encabezados),
+        generado_en=generado_en, columnas=len(encabezados),
     )
     datos = [
         [
@@ -141,6 +144,8 @@ def _excel(filtro: FiltroBandeja, filas: list[PasivoBandeja], total: int) -> byt
     ]
     escribir_tabla(hoja, fila, encabezados, datos)
     ajustar_anchos(hoja, encabezados, datos)
+    escribir_pie(hoja, hoja.max_row + 2, len(encabezados), f'Generado el {generado_en:%d/%m/%Y %H:%M}')
+    configurar_impresion(hoja, len(encabezados), hoja.max_row)
     buffer = BytesIO()
     libro.save(buffer)
     return buffer.getvalue()
