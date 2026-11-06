@@ -3,11 +3,14 @@
 Cubre KPIs, desgloses por tipo/estado/canal, matriz, filtros, permisos,
 listados paginados y la generación real de los archivos PDF y Excel.
 """
+import base64
+import io
 from datetime import timedelta
 
 import pytest
 from django.utils import timezone
 from openpyxl import load_workbook
+from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.cargos.infrastructure.models.cargo_models import (
@@ -288,6 +291,45 @@ def test_validacion_de_parametros_de_exportacion(datos):
         validar_parametros({'filtros': {'listado': 'otro'}})
     with pytest.raises(ValidationError):
         validar_parametros({'filtros': {'desde': '2026-12-31', 'hasta': '2026-01-01'}})
+
+
+def _png_b64(lado=600):
+    buffer = io.BytesIO()
+    Image.new('RGB', (lado, lado), (11, 74, 158)).save(buffer, format='PNG')
+    return base64.b64encode(buffer.getvalue()).decode('ascii')
+
+
+def test_valida_los_png_de_graficos_que_envia_la_pantalla(datos):
+    from apps.fe_de_vida.infrastructure.exportacion_estadisticas import validar_imagenes_graficos
+
+    validas = validar_imagenes_graficos([
+        {'nombre': 'cobertura', 'data': f'data:image/png;base64,{_png_b64()}'},
+        {'nombre': 'tipos', 'data': _png_b64()},
+        {'nombre': 'estados', 'data': _png_b64()},
+    ])
+    assert [i['nombre'] for i in validas] == ['cobertura', 'tipos', 'estados']
+
+    with pytest.raises(ValidationError):
+        validar_imagenes_graficos([{'nombre': 'otro', 'data': _png_b64()}])
+    with pytest.raises(ValidationError):
+        validar_imagenes_graficos([{'nombre': 'tipos', 'data': 'no-es-base64'}])
+    with pytest.raises(ValidationError):
+        validar_imagenes_graficos([{'nombre': 'tipos', 'data': _png_b64(lado=5000)}])
+    with pytest.raises(ValidationError):
+        validar_imagenes_graficos([
+            {'nombre': 'tipos', 'data': _png_b64()}, {'nombre': 'tipos', 'data': _png_b64()},
+        ])
+
+
+def test_el_pdf_usa_los_png_capturados_de_la_pantalla(datos):
+    from apps.exportaciones.infrastructure.generadores import GeneradorExportacionDjango
+
+    parametros = {'filtros': {'listado': 'faltantes', 'incluir_graficos': True},
+                  'imagenes': [{'nombre': 'tipos', 'data': _png_b64()}]}
+    validar_parametros(parametros)
+    archivo = GeneradorExportacionDjango().generar('fe_de_vida_estadisticas', 'pdf', parametros, lambda _p: None)
+    assert archivo.contenido.startswith(b'%PDF')
+    assert len(archivo.contenido) > 1000
     with pytest.raises(ValidationError):
         validar_parametros({
             'filtros': {

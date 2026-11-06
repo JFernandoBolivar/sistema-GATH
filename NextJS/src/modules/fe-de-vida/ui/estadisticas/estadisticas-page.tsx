@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import useSWR from "swr";
-import { Download, FileSpreadsheet, FileText, Inbox, Search } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, ImageDown, Inbox, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
 import { PaginacionNav } from "../comun/paginacion-nav";
 import { useSesionFeDeVida } from "../comun/use-sesion-fe-de-vida";
 import { DialogoExportarEstadisticas } from "./dialogo-exportar-estadisticas";
+import { capturarGraficoPng, descargarPng } from "./capturar-grafico";
 import {
   ETIQUETAS_ESTADO_MATRIZ,
   ETIQUETA_CANAL,
@@ -76,6 +77,9 @@ export default function EstadisticasPage() {
   const exportacion = useProgresoExportacion();
   const [exportando, setExportando] = useState<string | null>(null);
   const [dialogoExportarAbierto, setDialogoExportarAbierto] = useState(false);
+  const refCobertura = useRef<HTMLDivElement>(null);
+  const refTipos = useRef<HTMLDivElement>(null);
+  const refEstados = useRef<HTMLDivElement>(null);
 
   const { data, error, isLoading, mutate } = useSWR(
     ["fe-de-vida-estadisticas", filtros],
@@ -122,6 +126,30 @@ export default function EstadisticasPage() {
     setFiltros(v);
     setDetalle(null);
     setOffset(0);
+  }
+
+  async function capturar(nombre: string, ref: React.RefObject<HTMLDivElement | null>) {
+    if (!ref.current) throw new Error(`El gráfico «${nombre}» no está visible.`);
+    return capturarGraficoPng(ref.current);
+  }
+
+  async function descargarGrafico(nombre: string, ref: React.RefObject<HTMLDivElement | null>) {
+    try {
+      descargarPng(await capturar(nombre, ref), `grafico-${nombre}-fe-de-vida`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo descargar el gráfico.");
+    }
+  }
+
+  async function descargarTodosLosGraficos() {
+    for (const [nombre, ref] of [
+      ["cobertura", refCobertura],
+      ["tipos", refTipos],
+      ["estados", refEstados],
+    ] as const) {
+      if (!ref.current) continue;
+      await descargarGrafico(nombre, ref);
+    }
   }
 
   async function exportar(
@@ -182,7 +210,23 @@ export default function EstadisticasPage() {
       for (const [clave, valor] of Object.entries(params)) {
         if (valor !== undefined && valor !== null && String(valor) !== "") query.set(clave, String(valor));
       }
+
+      const imagenes: Array<{ nombre: string; data: string }> = [];
+      if (opciones.formato === "pdf" && opciones.incluirGraficos) {
+        for (const [nombre, ref] of [
+          ["cobertura", refCobertura],
+          ["tipos", refTipos],
+          ["estados", refEstados],
+        ] as const) {
+          if (!ref.current) continue;
+          imagenes.push({ nombre, data: await capturar(nombre, ref) });
+        }
+      }
+
       const respuesta = await fetch(`/api/fe-de-vida/estadisticas/exportar?${query.toString()}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imagenes }),
         signal: progreso.signal,
         cache: "no-store",
       });
@@ -348,29 +392,63 @@ export default function EstadisticasPage() {
               />
             </section>
 
+            <section className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-semibold">Gráficos del proceso</h2>
+                <p className="text-sm text-muted-foreground">
+                  Se incluyen en el PDF y puede descargarlos como PNG.
+                </p>
+              </div>
+              <Button type="button" variant="outline" className="min-h-11" onClick={() => void descargarTodosLosGraficos()}>
+                <ImageDown aria-hidden /> Descargar todos
+              </Button>
+            </section>
+
             <section className="grid gap-4 lg:grid-cols-3">
               <article className="rounded-xl border bg-card p-4 lg:col-span-1">
-                <h2 className="text-lg font-semibold">Cobertura</h2>
-                <p className="mb-2 text-sm text-muted-foreground">Respondieron frente a quienes faltan.</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-lg font-semibold">Cobertura</h2>
+                    <p className="mb-2 text-sm text-muted-foreground">Respondieron frente a quienes faltan.</p>
+                  </div>
+                  <Button type="button" size="sm" variant="ghost" aria-label="Descargar gráfico de cobertura" onClick={() => void descargarGrafico("cobertura", refCobertura)}>
+                    <ImageDown aria-hidden />
+                  </Button>
+                </div>
                 <GraficoDonut
+                  contenedorRef={refCobertura}
                   datos={datosDonutCobertura(data.kpis.respondieron, data.kpis.faltan)}
                   total={data.kpis.total}
                 />
               </article>
               <article className="rounded-xl border bg-card p-4 lg:col-span-2">
-                <h2 className="text-lg font-semibold">Respondieron por tipo de pasivo</h2>
-                <p className="mb-2 text-sm text-muted-foreground">
-                  Barras apiladas: respondieron y faltan por tipo de pasivo.
-                </p>
-                <GraficoTipos datos={datosBarrasTipos(data.porTipo)} />
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-lg font-semibold">Respondieron por tipo de pasivo</h2>
+                    <p className="mb-2 text-sm text-muted-foreground">
+                      Barras apiladas: respondieron y faltan por tipo de pasivo.
+                    </p>
+                  </div>
+                  <Button type="button" size="sm" variant="ghost" aria-label="Descargar gráfico por tipo de pasivo" onClick={() => void descargarGrafico("tipos", refTipos)}>
+                    <ImageDown aria-hidden />
+                  </Button>
+                </div>
+                <GraficoTipos contenedorRef={refTipos} datos={datosBarrasTipos(data.porTipo)} />
               </article>
             </section>
 
             <section className="grid gap-4 lg:grid-cols-2">
               <article className="rounded-xl border bg-card p-4">
-                <h2 className="text-lg font-semibold">Solicitudes por estado</h2>
-                <p className="mb-2 text-sm text-muted-foreground">Incluye borradores y vencidas del proceso.</p>
-                <GraficoEstados datos={datosBarrasEstados(data.porEstado)} />
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="text-lg font-semibold">Solicitudes por estado</h2>
+                    <p className="mb-2 text-sm text-muted-foreground">Incluye borradores y vencidas del proceso.</p>
+                  </div>
+                  <Button type="button" size="sm" variant="ghost" aria-label="Descargar gráfico por estado" onClick={() => void descargarGrafico("estados", refEstados)}>
+                    <ImageDown aria-hidden />
+                  </Button>
+                </div>
+                <GraficoEstados contenedorRef={refEstados} datos={datosBarrasEstados(data.porEstado)} />
               </article>
               <article className="rounded-xl border bg-card p-4">
                 <h2 className="text-lg font-semibold">Canal de las respuestas</h2>

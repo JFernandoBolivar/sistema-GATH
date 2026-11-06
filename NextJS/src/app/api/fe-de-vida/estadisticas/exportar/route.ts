@@ -41,3 +41,30 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: mensaje }, { status });
   }
 }
+
+/** Igual que el GET, pero con los PNG de los gráficos capturados en la pantalla. */
+export async function POST(req: NextRequest) {
+  try {
+    const params: Record<string, string> = {};
+    req.nextUrl.searchParams.forEach((valor, clave) => {
+      if (valor !== "") params[clave] = valor;
+    });
+    const cuerpo = (await req.json().catch(() => ({}))) as { imagenes?: unknown };
+    const envelope = await apiClient.post<unknown>(
+      RUTA,
+      { imagenes: Array.isArray(cuerpo.imagenes) ? cuerpo.imagenes : [] },
+      { params },
+    );
+    return NextResponse.json(envelope, {
+      status: 202,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch (error) {
+    if (error instanceof SessionExpiredError) {
+      return NextResponse.json({ error: "La sesión expiró. Vuelva a iniciar sesión." }, { status: 401 });
+    }
+    const status = error instanceof ApiHttpError ? error.status : 500;
+    const mensaje = error instanceof ApiHttpError ? error.message : MENSAJE;
+    return NextResponse.json({ error: mensaje }, { status });
+  }
+}

@@ -1,7 +1,20 @@
 "use client";
 
 /** Gráficos de presentación pura: reciben los datos ya calculados por `datos-graficos.ts`. */
-import { Bar, BarChart, CartesianGrid, Cell, Label, Pie, PieChart, XAxis, YAxis } from "recharts";
+import type { Ref } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Label,
+  LabelList,
+  Legend,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import {
   ChartContainer,
@@ -11,63 +24,95 @@ import {
 } from "@/shared/ui/components/chart";
 
 import type { BarraEstado, BarraTipo, DonutCobertura } from "./datos-graficos";
+import { COLORES_COBERTURA, PALETA_GRAFICOS, SERIES_GRAFICOS } from "./paleta-graficos";
 
 const CONFIG_TIPOS: ChartConfig = {
-  respondieron: { label: "Respondieron", color: "var(--chart-1)" },
-  faltan: { label: "Faltan por responder", color: "var(--chart-3)" },
+  respondieron: { label: "Respondieron", color: SERIES_GRAFICOS[0] },
+  faltan: { label: "Faltan por responder", color: SERIES_GRAFICOS[1] },
 };
-const CONFIG_ESTADOS: ChartConfig = { total: { label: "Solicitudes", color: "var(--chart-2)" } };
+const CONFIG_ESTADOS: ChartConfig = {
+  total: { label: "Solicitudes", color: PALETA_GRAFICOS.azulIntermedio },
+};
 const CONFIG_DONUT: ChartConfig = { value: { label: "Pasivos" } };
-const COLORES_DONUT = ["var(--chart-1)", "var(--chart-3)"];
 
-export function GraficoTipos({ datos }: { datos: BarraTipo[] }) {
+const TIPOGRAFIA = {
+  fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+  fontSize: 12,
+};
+
+interface PropsGrafico {
+  contenedorRef?: Ref<HTMLDivElement>;
+}
+
+export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: BarraTipo[] }) {
   if (datos.length === 0) return null;
   return (
-    <ChartContainer config={CONFIG_TIPOS} className="max-h-72 w-full">
-      <BarChart data={datos} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
-        <CartesianGrid vertical={false} />
-        <XAxis dataKey="name" tickLine={false} axisLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
-        <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
+    <ChartContainer ref={contenedorRef} config={CONFIG_TIPOS} className="max-h-72 w-full font-sans">
+      <BarChart data={datos} margin={{ top: 24, right: 12, left: 0, bottom: 8 }}>
+        <CartesianGrid vertical={false} stroke={PALETA_GRAFICOS.grisBorde} strokeDasharray="3 3" />
+        <XAxis
+          dataKey="name"
+          tickLine={false}
+          axisLine={false}
+          interval={0}
+          angle={-15}
+          textAnchor="end"
+          height={54}
+          tick={TIPOGRAFIA}
+        />
+        <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={TIPOGRAFIA} />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="respondieron" stackId="cobertura" fill="var(--color-respondieron)" radius={[0, 0, 4, 4]} />
-        <Bar dataKey="faltan" stackId="cobertura" fill="var(--color-faltan)" radius={[4, 4, 0, 0]} />
+        <Legend wrapperStyle={TIPOGRAFIA} />
+        <Bar dataKey="respondieron" stackId="cobertura" fill="var(--color-respondieron)" radius={[0, 0, 6, 6]}>
+          <LabelList dataKey="respondieron" position="inside" fill={PALETA_GRAFICOS.blanco} fontSize={11} />
+        </Bar>
+        <Bar dataKey="faltan" stackId="cobertura" fill="var(--color-faltan)" radius={[6, 6, 0, 0]}>
+          <LabelList dataKey="faltan" position="inside" fill={PALETA_GRAFICOS.blanco} fontSize={11} />
+        </Bar>
       </BarChart>
     </ChartContainer>
   );
 }
 
-export function GraficoEstados({ datos }: { datos: BarraEstado[] }) {
+export function GraficoEstados({ datos, contenedorRef }: PropsGrafico & { datos: BarraEstado[] }) {
   if (datos.length === 0) return null;
   return (
-    <ChartContainer config={CONFIG_ESTADOS} className="max-h-72 w-full">
-      <BarChart data={datos} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-        <CartesianGrid horizontal={false} />
-        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-        <YAxis type="category" dataKey="name" width={128} tickLine={false} axisLine={false} />
+    <ChartContainer ref={contenedorRef} config={CONFIG_ESTADOS} className="max-h-72 w-full font-sans">
+      <BarChart data={datos} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
+        <CartesianGrid horizontal={false} stroke={PALETA_GRAFICOS.grisBorde} strokeDasharray="3 3" />
+        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={TIPOGRAFIA} />
+        <YAxis type="category" dataKey="name" width={132} tickLine={false} axisLine={false} tick={TIPOGRAFIA} />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="total" fill="var(--color-total)" radius={[0, 4, 4, 0]} />
+        <Bar dataKey="total" fill="var(--color-total)" radius={[0, 6, 6, 0]} barSize={18}>
+          <LabelList dataKey="total" position="right" fill={PALETA_GRAFICOS.grisTexto} fontSize={11} />
+        </Bar>
       </BarChart>
     </ChartContainer>
   );
 }
 
-export function GraficoDonut({ datos, total }: { datos: DonutCobertura[]; total: number }) {
+export function GraficoDonut({
+  datos,
+  total,
+  contenedorRef,
+}: PropsGrafico & { datos: DonutCobertura[]; total: number }) {
   return (
-    <ChartContainer config={CONFIG_DONUT} className="mx-auto aspect-square max-h-64">
+    <ChartContainer ref={contenedorRef} config={CONFIG_DONUT} className="mx-auto aspect-square max-h-64 font-sans">
       <PieChart>
         <ChartTooltip
           content={<ChartTooltipContent hideLabel nameKey="name" formatter={(valor, nombre) => [`${valor}`, nombre]} />}
         />
+        <Legend wrapperStyle={TIPOGRAFIA} />
         <Pie data={datos} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} strokeWidth={4}>
           {datos.map((entrada, indice) => (
-            <Cell key={entrada.name} fill={COLORES_DONUT[indice % COLORES_DONUT.length]} />
+            <Cell key={entrada.name} fill={COLORES_COBERTURA[indice % COLORES_COBERTURA.length]} />
           ))}
           <Label
             content={({ viewBox }) => {
               if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) return null;
               const { cx, cy } = viewBox;
               return (
-                <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontFamily={TIPOGRAFIA.fontFamily}>
                   <tspan x={cx} y={cy} className="fill-foreground text-2xl font-bold">
                     {total}
                   </tspan>
