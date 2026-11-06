@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from core.domain.exceptions import ValidationError
 
 
-# Ámbitos de la bandeja: cada notificación pertenece a UN módulo y solo se ve en la bandeja de ese módulo.
+# Ámbitos con los que se etiqueta una notificación. La campana del usuario las muestra todas
+# (bandeja única por usuario) y el filtro por módulo queda como opción del API.
 MODULOS_NOTIFICACION = ('autogestion', 'personal', 'pasivos', 'carnetizacion', 'seguridad')
 MODULO_POR_DEFECTO = 'autogestion'
 

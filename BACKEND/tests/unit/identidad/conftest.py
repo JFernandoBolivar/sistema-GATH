@@ -166,7 +166,10 @@ class RepoCuentasMemoria:
         from core.domain.exceptions import NotFoundError
 
         if self._cedulas_validas is not None and cedula not in self._cedulas_validas:
-            raise NotFoundError(f"La cédula '{cedula}' no pertenece a ningún empleado registrado.")
+            raise NotFoundError(
+                f"La cédula '{cedula}' no pertenece a ningún empleado registrado.",
+                campo='cedula',
+            )
 
         nueva = Cuenta(
             id=self._siguiente_id, cedula=cedula,

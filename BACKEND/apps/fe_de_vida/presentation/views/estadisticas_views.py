@@ -12,6 +12,7 @@ from apps.fe_de_vida.application.use_cases.estadisticas import (
 from apps.fe_de_vida.infrastructure.repositories.lector_alcance_orm import LectorAlcanceORM
 from apps.fe_de_vida.infrastructure.repositories.repo_estadisticas_orm import RepoEstadisticasORM
 from apps.fe_de_vida.infrastructure.repositories.repo_procesos_orm import RepoProcesosORM
+from apps.fe_de_vida.infrastructure.exportacion_estadisticas import validar_imagenes_graficos
 from apps.fe_de_vida.presentation.permissions import fe_de_vida_permissions as permisos
 from apps.fe_de_vida.presentation.serializers.fe_de_vida_serializers import (
     EstadisticasSerializer,
@@ -127,5 +128,21 @@ class ExportarEstadisticasView(APIView):
         formato = (request.query_params.get('formato') or 'excel').lower()
         return pedir_exportacion(
             request, tipo=TIPO_FE_DE_VIDA_ESTADISTICAS, formato=formato,
+            quitar_filtros=('formato',),
+        )
+
+    @extend_schema(
+        tags=TAG, summary='Exportación con los gráficos PNG capturados de la pantalla',
+        description='Mismo contrato que el GET; el cuerpo JSON trae `imagenes: [{nombre, data}]` (máx. 4).',
+        request=None,
+        responses={202: None, 400: MensajeRespuestaSerializer, 403: MensajeRespuestaSerializer},
+    )
+    def post(self, request):
+        validar_entrada(ExportarEstadisticasSerializer, request.query_params)
+        formato = (request.query_params.get('formato') or 'excel').lower()
+        imagenes = validar_imagenes_graficos(request.data.get('imagenes'))
+        return pedir_exportacion(
+            request, tipo=TIPO_FE_DE_VIDA_ESTADISTICAS, formato=formato,
+            extra={'imagenes': imagenes} if imagenes else None,
             quitar_filtros=('formato',),
         )

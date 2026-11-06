@@ -8,12 +8,15 @@ Totalmente condicional según las opciones elegidas por el usuario en el diálog
 - Listado de pasivos según alcance (faltan por responder, respondieron o ambos)
 """
 from datetime import datetime
+from io import BytesIO
 from xml.sax.saxutils import escape
 
-from reportlab.graphics.charts.barcharts import HorizontalBarChart, VerticalBarChart
+from reportlab.graphics.charts.barcharts import HorizontalBarChart
+from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics.shapes import Drawing, String
 from reportlab.lib.units import mm
-from reportlab.platypus import KeepTogether, PageBreak, Paragraph, Spacer, Table
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Image as ImagenPDF, KeepTogether, PageBreak, Paragraph, Spacer, Table, TableStyle
 
 from apps.fe_de_vida.domain.entities.estadisticas import EstadisticasFeDeVida, PasivoEstadistica
 from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud
@@ -58,41 +61,35 @@ def _texto_filtros(estadisticas: EstadisticasFeDeVida, tipos: dict[int, str]) ->
 
 
 def _grafico_tipos(estadisticas: EstadisticasFeDeVida, ancho: float) -> Drawing:
-    """Gráfico vertical con la paleta CONATEL: azul institucional y amarillo de acento (sin rojo)."""
+    """Barras horizontales por tipo de pasivo: etiquetas legibles y paleta CONATEL."""
     filas = list(estadisticas.conteos.por_tipo)[:8]
-    dibujo = Drawing(ancho, 58 * mm)
+    dibujo = Drawing(ancho, 50 * mm)
     if not filas:
-        dibujo.add(String(10, 28 * mm, 'Sin datos para los filtros aplicados.', fontName=FUENTE, fontSize=9, fillColor=GRIS_MUTED))
+        dibujo.add(String(8, 25 * mm, 'Sin datos para los filtros aplicados.', fontName=FUENTE, fontSize=8, fillColor=GRIS_MUTED))
         return dibujo
 
-    grafico = VerticalBarChart()
-    grafico.x, grafico.y = 18 * mm, 18 * mm
-    grafico.width, grafico.height = ancho - 26 * mm, 32 * mm
+    grafico = HorizontalBarChart()
+    grafico.x, grafico.y = 36 * mm, 8 * mm
+    grafico.width, grafico.height = ancho - 40 * mm, 32 * mm
     grafico.data = [
         [f.respondieron for f in filas],
         [f.faltan for f in filas],
     ]
-    nombres = [(f.tipo_nomina or 'Sin tipo')[:18] for f in filas]
-    grafico.categoryAxis.categoryNames = nombres
+    grafico.categoryAxis.categoryNames = [(f.tipo_nomina or 'Sin tipo')[:28] for f in filas]
     grafico.categoryAxis.labels.fontName = FUENTE
     grafico.categoryAxis.labels.fontSize = 6.5
-    grafico.categoryAxis.labels.angle = 20
-    grafico.categoryAxis.labels.dx = -4
-    grafico.categoryAxis.labels.dy = -6
     grafico.valueAxis.labels.fontName = FUENTE
     grafico.valueAxis.labels.fontSize = 6.5
     grafico.valueAxis.valueMin = 0
     max_val = max([f.total for f in filas] or [1])
     grafico.valueAxis.valueStep = max(1, (max_val // 5) or 1)
-
     grafico.bars[0].fillColor = COLOR_RESPONDIDOS
     grafico.bars[1].fillColor = COLOR_FALTANTES
-    grafico.groupSpacing = 8
+    grafico.groupSpacing = 6
     dibujo.add(grafico)
 
-    # Leyenda sobria con colores CONATEL
-    dibujo.add(String(18 * mm, 52 * mm, '■ Respondieron', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_RESPONDIDOS))
-    dibujo.add(String(55 * mm, 52 * mm, '■ Faltan por responder', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_FALTANTES))
+    dibujo.add(String(36 * mm, 45 * mm, '■ Respondieron', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_RESPONDIDOS))
+    dibujo.add(String(72 * mm, 45 * mm, '■ Faltan por responder', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_FALTANTES))
     return dibujo
 
 
@@ -116,6 +113,40 @@ def _grafico_estados(estadisticas: EstadisticasFeDeVida, ancho: float) -> Drawin
     grafico.valueAxis.valueMin = 0
     grafico.bars[0].fillColor = AZUL_INTERMEDIO
     dibujo.add(grafico)
+    return dibujo
+
+
+def _imagen_grafico(datos: bytes, ancho: float, alto_maximo: float = 68 * mm) -> ImagenPDF:
+    """PNG que envió la pantalla (2x), escalado al ancho de la página sin deformar."""
+    lector = ImageReader(BytesIO(datos))
+    ancho_px, alto_px = lector.getSize()
+    alto = ancho * (alto_px / ancho_px) if ancho_px else alto_maximo
+    if alto > alto_maximo:
+        alto = alto_maximo
+        ancho = alto * (ancho_px / alto_px)
+    return ImagenPDF(BytesIO(datos), width=ancho, height=alto)
+
+
+def _grafico_cobertura(estadisticas: EstadisticasFeDeVida, ancho: float) -> Drawing:
+    """Respaldo del gráfico de cobertura cuando la pantalla no envía su PNG."""
+    conteos = estadisticas.conteos
+    dibujo = Drawing(ancho, 48 * mm)
+    if not conteos.total:
+        dibujo.add(String(6, 22 * mm, 'Sin pasivos para los filtros aplicados.', fontName=FUENTE, fontSize=8, fillColor=GRIS_MUTED))
+        return dibujo
+    pastel = Pie()
+    pastel.x, pastel.y = 1 * mm, 2 * mm
+    pastel.width = pastel.height = 32 * mm
+    pastel.data = [conteos.respondieron, conteos.faltan]
+    pastel.slices[0].fillColor = COLOR_RESPONDIDOS
+    pastel.slices[1].fillColor = COLOR_FALTANTES
+    pastel.slices[0].strokeColor = pastel.slices[1].strokeColor = None
+    pastel.sideLabels = False
+    pastel.simpleLabels = 0
+    dibujo.add(pastel)
+    dibujo.add(String(36 * mm, 44 * mm, f'■ Respondieron: {conteos.respondieron}', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_RESPONDIDOS))
+    dibujo.add(String(36 * mm, 39 * mm, f'■ Faltan: {conteos.faltan}', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_FALTANTES))
+    dibujo.add(String(36 * mm, 30 * mm, f'Total: {conteos.total}', fontName=FUENTE, fontSize=8, fillColor=GRIS_TEXTO))
     return dibujo
 
 
@@ -178,10 +209,12 @@ def generar_estadisticas_pdf(
     incluir_graficos: bool = True,
     incluir_listado: bool = True,
     alcance_listado: str = 'faltan',
+    imagenes: dict[str, bytes] | None = None,
     config: dict | None = None,
 ) -> bytes:
     """Construye el PDF de estadísticas respetando las secciones solicitadas."""
     generado_en = datetime.now()
+    imagenes = imagenes or {}
     page_config = PAGE_CONFIG['landscape']
     estilos = get_paragraph_styles()
     ancho = page_config['pagesize'][0] - page_config['leftMargin'] - page_config['rightMargin']
@@ -228,15 +261,35 @@ def generar_estadisticas_pdf(
     # ── Sección 2: Gráficos estadísticos ──
     if incluir_graficos:
         conteos = estadisticas.conteos
-        story.append(KeepTogether([
-            Paragraph('<b>Respondieron por tipo de pasivo</b>', estilos['TableCell']),
-            _grafico_tipos(estadisticas, ancho),
+        ancho_cobertura = ancho * 0.28
+        ancho_tipos = ancho * 0.68
+        cobertura = (
+            _imagen_grafico(imagenes['cobertura'], ancho_cobertura)
+            if imagenes.get('cobertura') else _grafico_cobertura(estadisticas, ancho_cobertura)
+        )
+        tipos = (
+            _imagen_grafico(imagenes['tipos'], ancho_tipos)
+            if imagenes.get('tipos') else _grafico_tipos(estadisticas, ancho_tipos)
+        )
+        fila_graficos = Table([[
+            [Paragraph('<b>Cobertura de la fe de vida</b>', estilos['TableCell']), cobertura],
+            [Paragraph('<b>Respondieron por tipo de pasivo</b>', estilos['TableCell']), tipos],
+        ]], colWidths=[ancho * 0.30, ancho * 0.70])
+        fila_graficos.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
         ]))
-        story.append(Spacer(1, 2 * mm))
+        story.append(fila_graficos)
+        story.append(Spacer(1, 3 * mm))
 
+        estados = (
+            _imagen_grafico(imagenes['estados'], ancho)
+            if imagenes.get('estados') else _grafico_estados(estadisticas, ancho)
+        )
         story.append(KeepTogether([
             Paragraph('<b>Solicitudes por estado</b>', estilos['TableCell']),
-            _grafico_estados(estadisticas, ancho),
+            estados,
         ]))
         if conteos.por_canal:
             canales = ' · '.join(

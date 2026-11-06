@@ -76,7 +76,7 @@ class NotificacionesView(APIView):
     @extend_schema(
         tags=TAG, summary='Mis notificaciones (paginadas, más recientes primero)',
         parameters=[
-            OpenApiParameter('modulo', str, required=True, description='Bandeja: autogestion | personal | pasivos | carnetizacion | seguridad'),
+            OpenApiParameter('modulo', str, required=False, description='Opcional: filtra una bandeja (autogestion | personal | pasivos | carnetizacion | seguridad). Sin él, todas las del usuario.'),
             OpenApiParameter('no_leidas', bool, description='1/true: solo las no leídas (atajo de leida=no)'),
             OpenApiParameter('leida', str, description='si | no | vacío (todas)'),
             OpenApiParameter('q', str, description='Texto en título o mensaje (icontains, máx. 100 caracteres)'),
@@ -108,8 +108,8 @@ class ConteoNoLeidasView(APIView):
     permission_classes = PERMISOS
 
     @extend_schema(
-        tags=TAG, summary='Contador de no leídas de un módulo (ligero, para el polling de la campana)',
-        parameters=[OpenApiParameter('modulo', str, required=True)],
+        tags=TAG, summary='Contador de no leídas del usuario (ligero, para el polling de la campana)',
+        parameters=[OpenApiParameter('modulo', str, required=False, description='Opcional; sin él cuenta todas las del usuario.')],
         responses={200: ConteoNoLeidasSerializer, **ERRORES},
     )
     def get(self, request):
@@ -136,8 +136,8 @@ class LeerTodasView(APIView):
     permission_classes = PERMISOS
 
     @extend_schema(
-        tags=TAG, summary='Marcar todas mis notificaciones de un módulo como leídas',
-        parameters=[OpenApiParameter('modulo', str, required=True)],
+        tags=TAG, summary='Marcar todas mis notificaciones como leídas (o solo las de un módulo)',
+        parameters=[OpenApiParameter('modulo', str, required=False, description='Opcional; sin él marca todas las del usuario.')],
         request=None, responses={200: MarcadasLeidasSerializer, **ERRORES},
     )
     def post(self, request):

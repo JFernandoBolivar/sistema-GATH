@@ -10,9 +10,16 @@ respuestas HTTP ocurre exclusivamente en `core/presentation/exception_handler.py
 class DomainError(Exception):
     """Raíz de toda excepción de negocio en GATH."""
 
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args)
+        self.campo = campo
+
 
 class NotFoundError(DomainError):
     """El recurso solicitado no existe."""
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args, campo=campo)
 
 
 class ValidationError(DomainError):
@@ -24,16 +31,21 @@ class ValidationError(DomainError):
     """
 
     def __init__(self, *args, campo: str | None = None):
-        super().__init__(*args)
-        self.campo = campo
+        super().__init__(*args, campo=campo)
 
 
 class PermissionDeniedError(DomainError):
     """El actor no tiene el permiso o la propiedad requerida sobre el recurso."""
 
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args, campo=campo)
+
 
 class ConflictError(DomainError):
     """La operación entra en conflicto con el estado actual del recurso (409)."""
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args, campo=campo)
 
 
 class AlmacenamientoNoDisponible(DomainError):

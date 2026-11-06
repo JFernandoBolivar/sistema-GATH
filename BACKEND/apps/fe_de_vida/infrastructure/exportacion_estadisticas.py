@@ -5,10 +5,12 @@ al revés. Los filtros y opciones de generación se validan antes de encolar
 (`validar_parametros`) para que cualquier parámetro inválido sea un 400 inmediato.
 """
 from datetime import datetime
+from base64 import b64decode, b64encode
 from io import BytesIO
 from typing import Callable
 
 from openpyxl import Workbook
+from PIL import Image
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
 from apps.fe_de_vida.application.use_cases.estadisticas import (
@@ -33,6 +35,61 @@ from core.domain.exceptions import ValidationError
 
 MAX_FILAS = 20000
 ALCANCES_VALIDOS = ('faltan', 'faltantes', 'respondieron', 'respondidas', 'ambos', 'celda')
+
+# Gráficos que la pantalla puede enviar como PNG (mismos que dibuja el PDF de respaldo).
+GRAFICOS_VALIDOS = ('cobertura', 'tipos', 'estados')
+MAX_GRAFICOS = len(GRAFICOS_VALIDOS)
+MAX_BYTES_GRAFICO = 2_000_000
+MAX_LADO_GRAFICO = 2400
+PREFIJO_PNG = 'data:image/png;base64,'
+
+
+def validar_imagenes_graficos(valor) -> list[dict]:
+    """Valida los PNG que envía la pantalla: tipo, tamaño, dimensiones y nombres únicos."""
+    if valor in (None, ''):
+        return []
+    if not isinstance(valor, list) or len(valor) > MAX_GRAFICOS:
+        raise ValidationError('Los gráficos enviados no son válidos.', campo='imagenes')
+    salida, nombres = [], set()
+    for item in valor:
+        if not isinstance(item, dict):
+            raise ValidationError('Cada gráfico debe ser un objeto con nombre y datos.', campo='imagenes')
+        nombre = str(item.get('nombre') or '').strip()
+        if nombre not in GRAFICOS_VALIDOS or nombre in nombres:
+            raise ValidationError('El gráfico enviado no es válido.', campo='imagenes')
+        datos = str(item.get('data') or '').strip()
+        if datos.startswith(PREFIJO_PNG):
+            datos = datos[len(PREFIJO_PNG):]
+        try:
+            contenido = b64decode(datos, validate=True)
+        except Exception as exc:
+            raise ValidationError('El gráfico enviado no es una imagen válida.', campo='imagenes') from exc
+        if not contenido or len(contenido) > MAX_BYTES_GRAFICO:
+            raise ValidationError('El gráfico supera el tamaño permitido.', campo='imagenes')
+        try:
+            with Image.open(BytesIO(contenido)) as imagen:
+                imagen.verify()
+            with Image.open(BytesIO(contenido)) as imagen:
+                if imagen.format != 'PNG':
+                    raise ValidationError('Los gráficos deben ser PNG.', campo='imagenes')
+                ancho, alto = imagen.size
+        except ValidationError:
+            raise
+        except Exception as exc:
+            raise ValidationError('El gráfico enviado no es una imagen PNG válida.', campo='imagenes') from exc
+        if ancho > MAX_LADO_GRAFICO or alto > MAX_LADO_GRAFICO:
+            raise ValidationError('El gráfico tiene dimensiones demasiado grandes.', campo='imagenes')
+        nombres.add(nombre)
+        salida.append({'nombre': nombre, 'data': b64encode(contenido).decode('ascii')})
+    return salida
+
+
+def imagenes_para_pdf(parametros: dict) -> dict[str, bytes]:
+    """Convierte los PNG validados del trabajo en bytes listos para reportlab."""
+    return {
+        item['nombre']: b64decode(item['data'])
+        for item in validar_imagenes_graficos(parametros.get('imagenes'))
+    }
 
 
 def _bool(val, default: bool = True) -> bool:
@@ -68,6 +125,7 @@ def _opciones(parametros: dict) -> tuple[dict, bool, bool, bool, str]:
 def validar_parametros(parametros: dict) -> None:
     filtros, _res, _graf, _list, _alcance = _opciones(parametros)
     normalizar_filtros(filtros)
+    validar_imagenes_graficos(parametros.get('imagenes'))
 
 
 def generar_archivo_estadisticas(
@@ -100,6 +158,7 @@ def generar_archivo_estadisticas(
             incluir_graficos=incluir_graficos,
             incluir_listado=incluir_listado,
             alcance_listado=alcance,
+            imagenes=imagenes_para_pdf(parametros),
             config=construir_config_pdf(),
         )
     else:

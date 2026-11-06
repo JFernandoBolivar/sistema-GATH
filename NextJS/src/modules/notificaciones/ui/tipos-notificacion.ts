@@ -43,3 +43,12 @@ export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> 
   pasivos: [],
   seguridad: [],
 };
+
+/** Unión sin duplicados de todos los tipos, para la bandeja única del usuario. */
+export const TIPOS_NOTIFICACION: TipoNotificacion[] = Array.from(
+  new Map(
+    Object.values(TIPOS_POR_MODULO)
+      .flat()
+      .map((tipo) => [tipo.codigo, tipo]),
+  ).values(),
+).sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));

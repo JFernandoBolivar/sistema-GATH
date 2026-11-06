@@ -167,10 +167,13 @@ def test_cada_bandeja_solo_ve_las_de_su_modulo_y_el_limite_por_defecto_es_10():
     assert conteo_no_leidas(repo, cache, '9', 'autogestion') == 12  # la otra bandeja no se toca
 
 
-def test_el_modulo_es_obligatorio_y_debe_ser_conocido():
+def test_el_modulo_es_opcional_pero_si_viene_debe_ser_conocido():
     from core.domain.exceptions import ValidationError
     _, repo, _, cache, _ = montar()
-    for malo in ('', 'inventado'):
+    # Sin módulo: bandeja única del usuario (todas sus notificaciones).
+    listar_notificaciones(repo, '9', '')
+    conteo_no_leidas(repo, cache, '9', '')
+    for malo in ('inventado', 'otro'):
         with pytest.raises(ValidationError):
             listar_notificaciones(repo, '9', malo)
         with pytest.raises(ValidationError):

@@ -289,7 +289,7 @@ class UsuarioRegistrarView(views.APIView):
                 **_actor(request),
                 **origen_de_peticion(request),
             )
-        except (PermissionDeniedError, ConflictError) as error:
+        except (PermissionDeniedError, ConflictError, NotFoundError) as error:
             _auditar_denegado(
                 request,
                 accion='identidad.alta_usuario_denegada',

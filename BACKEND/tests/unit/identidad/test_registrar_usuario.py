@@ -22,12 +22,14 @@ def test_registra_una_cuenta_nueva(repo_cuentas):
 def test_rechaza_cedula_que_ya_tiene_cuenta(repo_cuentas):
     dto = RegistrarCuentaDTO(cedula='V-11111111', password='x')
 
-    with pytest.raises(ConflictError):
+    with pytest.raises(ConflictError) as exc_info:
         registrar_usuario(repo_cuentas, dto)
+    assert exc_info.value.campo == 'cedula'
 
 
 def test_rechaza_cedula_sin_empleado_asociado(repo_cuentas):
     dto = RegistrarCuentaDTO(cedula='V-99999999', password='x')
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(NotFoundError) as exc_info:
         registrar_usuario(repo_cuentas, dto)
+    assert exc_info.value.campo == 'cedula'

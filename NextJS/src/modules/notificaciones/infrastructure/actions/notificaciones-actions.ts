@@ -41,7 +41,7 @@ export async function listarNotificacionesAction(
 }
 
 export async function contarNoLeidasAction(
-  modulo: ModuloNotificaciones,
+  modulo?: ModuloNotificaciones,
 ): Promise<ResultadoNotificacion<number>> {
   return ejecutar("", "No se pudo consultar el número de notificaciones.", () =>
     contarNoLeidas(repoNotificacionesApi, modulo),
@@ -60,7 +60,7 @@ export async function marcarLeidaAction(id: string): Promise<ResultadoNotificaci
 }
 
 export async function marcarTodasLeidasAction(
-  modulo: ModuloNotificaciones,
+  modulo?: ModuloNotificaciones,
 ): Promise<ResultadoNotificacion<number>> {
   return ejecutar(
     "Notificaciones marcadas como leídas.",
