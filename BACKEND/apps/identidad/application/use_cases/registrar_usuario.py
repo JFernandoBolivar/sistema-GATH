@@ -18,7 +18,7 @@ def registrar_usuario(
 ) -> Cuenta:
     """Da de alta la cuenta de una cédula que aún no tiene acceso."""
     if repo.existe_cuenta_para_cedula(dto.cedula):
-        raise ConflictError('La cédula ya tiene una cuenta de acceso.')
+        raise ConflictError('La cédula ya tiene una cuenta de acceso.', campo='cedula')
 
     if validar_fortaleza is not None:
         validar_fortaleza(dto.password)

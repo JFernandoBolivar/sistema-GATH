@@ -1,18 +1,22 @@
 "use client";
 
 /**
- * Alta de usuarios en ruta propia (D4, O17).
- * Cédula con búsqueda en vivo, rol y correo que se usará.
- * La contraseña inicial es la cédula y se fuerza cambio al ingresar.
+ * Alta de usuarios en ruta propia (D4, O17, FIX-QA7).
+ * Cédula con búsqueda y validación estricta:
+ * El select de rol y el botón de registro solo se muestran tras confirmar que
+ * (a) existe como trabajador y (b) NO tiene cuenta de acceso.
+ * Estados: inicial, buscando, no-trabajador, ya-tiene-cuenta, valido.
  */
 import { useEffect, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  ExternalLink,
   Info,
   KeyRound,
   Loader2,
@@ -20,6 +24,7 @@ import {
   RefreshCw,
   Search,
   User,
+  UserCheck,
   UserPlus,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -49,9 +54,26 @@ import {
 
 import type { EmpleadoDTO } from "@/modules/personal/application/dtos/empleado-dto";
 import { getEmpleadoPorCedulaAction } from "@/modules/personal/infrastructure/actions/personal-actions";
-import type { RolDTO } from "../application/dtos/usuario-dto";
-import { getRolesAction, registrarUsuarioAction } from "../infrastructure/actions/usuario-actions";
+import type { RolDTO, UsuarioDTO } from "../application/dtos/usuario-dto";
+import {
+  getRolesAction,
+  listarUsuariosAction,
+  registrarUsuarioAction,
+} from "../infrastructure/actions/usuario-actions";
 import { registrarUsuarioSchema, type RegistrarUsuarioFormType } from "./schema/schema-usuario";
+
+export type EstadoValidacionTrabajador =
+  | "inicial"
+  | "buscando"
+  | "no-trabajador"
+  | "ya-tiene-cuenta"
+  | "valido";
+
+interface CuentaExistenteInfo {
+  id: number;
+  rolNombre: string | null;
+  isActive: boolean;
+}
 
 export default function UsuarioRegistrarPage() {
   const router = useRouter();
@@ -60,9 +82,10 @@ export default function UsuarioRegistrarPage() {
   const [isPending, startTransition] = useTransition();
   const [roles, setRoles] = useState<RolDTO[]>([]);
 
-  // Búsqueda en vivo del trabajador por cédula
-  const [trabajador, setTrabajador] = useState<EmpleadoDTO | null | "no-encontrado">(null);
-  const [buscandoTrabajador, setBuscandoTrabajador] = useState(false);
+  // Estados de validación por cédula (FIX-QA7)
+  const [estadoValidacion, setEstadoValidacion] = useState<EstadoValidacionTrabajador>("inicial");
+  const [trabajador, setTrabajador] = useState<EmpleadoDTO | null>(null);
+  const [cuentaExistente, setCuentaExistente] = useState<CuentaExistenteInfo | null>(null);
 
   const form = useForm<RegistrarUsuarioFormType>({
     resolver: zodResolver(registrarUsuarioSchema),
@@ -81,27 +104,62 @@ export default function UsuarioRegistrarPage() {
   useEffect(() => {
     const cedulaLimpia = (cedulaActual || "").trim();
     if (cedulaLimpia.length < 5) {
+      setEstadoValidacion("inicial");
       setTrabajador(null);
-      setBuscandoTrabajador(false);
+      setCuentaExistente(null);
       return;
     }
 
     let cancelado = false;
-    setBuscandoTrabajador(true);
+    setEstadoValidacion("buscando");
 
     const timer = setTimeout(async () => {
       try {
-        const res = await getEmpleadoPorCedulaAction(cedulaLimpia);
+        const [resEmpleado, resUsuarios] = await Promise.all([
+          getEmpleadoPorCedulaAction(cedulaLimpia),
+          listarUsuariosAction({ cedula: cedulaLimpia, pageSize: 10 }),
+        ]);
+
         if (cancelado) return;
-        if (res && typeof res === "object" && !("error" in res)) {
-          setTrabajador(res as EmpleadoDTO);
-        } else {
-          setTrabajador("no-encontrado");
+
+        const esEmpleado =
+          resEmpleado && typeof resEmpleado === "object" && !("error" in resEmpleado);
+
+        if (!esEmpleado) {
+          setTrabajador(null);
+          setCuentaExistente(null);
+          setEstadoValidacion("no-trabajador");
+          return;
         }
+
+        const empleado = resEmpleado as EmpleadoDTO;
+        setTrabajador(empleado);
+
+        // Comprobar si ya existe una cuenta de usuario asociada a esa cédula
+        const resultados =
+          resUsuarios && typeof resUsuarios === "object" && "resultados" in resUsuarios
+            ? (resUsuarios.resultados as UsuarioDTO[])
+            : [];
+        const cuenta = resultados.find((u) => u.cedula.trim() === cedulaLimpia);
+
+        if (cuenta) {
+          setCuentaExistente({
+            id: cuenta.id,
+            rolNombre: cuenta.rolNombre,
+            isActive: cuenta.isActive,
+          });
+          setEstadoValidacion("ya-tiene-cuenta");
+          return;
+        }
+
+        setCuentaExistente(null);
+        setEstadoValidacion("valido");
       } catch {
-        if (!cancelado) setTrabajador("no-encontrado");
-      } finally {
-        if (!cancelado) setBuscandoTrabajador(false);
+        if (!cancelado) {
+          setTrabajador(null);
+          setCuentaExistente(null);
+          setEstadoValidacion("no-trabajador");
+        }
       }
     }, 350);
 
@@ -116,6 +174,10 @@ export default function UsuarioRegistrarPage() {
       toast.error("No tiene permisos para registrar usuarios.");
       return;
     }
+    if (estadoValidacion !== "valido") {
+      toast.error("Debe validar la cédula del trabajador antes de registrar.");
+      return;
+    }
     startTransition(async () => {
       const resultado = await registrarUsuarioAction({
         cedula: data.cedula,
@@ -127,7 +189,9 @@ export default function UsuarioRegistrarPage() {
           cedula: "cedula",
           rol_id: "rolId",
         });
-        toast.error(sinUbicar.length > 0 || !err.errores ? err.error : "Revise los campos marcados en rojo.");
+        toast.error(
+          sinUbicar.length > 0 || !err.errores ? err.error : "Revise los campos marcados en rojo.",
+        );
         return;
       }
       toast.success("Usuario registrado correctamente.");
@@ -135,8 +199,9 @@ export default function UsuarioRegistrarPage() {
     });
   };
 
-  const trabajadorValido = trabajador && typeof trabajador === "object" ? trabajador : null;
-  const cargoPrincipal = trabajadorValido?.asignaciones?.[0]?.denominacionCargo || "Sin cargo asignado";
+  const trabajadorValido = trabajador;
+  const cargoPrincipal =
+    trabajadorValido?.asignaciones?.[0]?.denominacionCargo || "Sin cargo asignado";
   const condicionLaboral = trabajadorValido?.asignaciones?.[0]?.tipoNomina || "No especificada";
   const oficinaDependencia =
     trabajadorValido?.asignaciones?.[0]?.direccionGeneral ||
@@ -193,7 +258,7 @@ export default function UsuarioRegistrarPage() {
             <CardHeader>
               <CardTitle>Datos de la cuenta</CardTitle>
               <CardDescription>
-                Indique la cédula del trabajador para validar su existencia y asigne el rol correspondiente.
+                Indique la cédula del trabajador para validar su existencia y registrar su cuenta.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -202,16 +267,28 @@ export default function UsuarioRegistrarPage() {
                 <Field data-invalid={!!form.formState.errors.cedula}>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="cedula">Cédula del trabajador</Label>
-                    {buscandoTrabajador && (
+                    {estadoValidacion === "buscando" && (
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse">
                         <Loader2 className="size-3 animate-spin text-primary" />
-                        Buscando trabajador...
+                        Buscando...
                       </span>
                     )}
-                    {!buscandoTrabajador && trabajadorValido && (
+                    {estadoValidacion === "valido" && (
                       <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                         <CheckCircle2 className="size-3.5" />
-                        Trabajador encontrado
+                        Trabajador válido
+                      </span>
+                    )}
+                    {estadoValidacion === "ya-tiene-cuenta" && (
+                      <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                        <UserCheck className="size-3.5" />
+                        Cuenta existente
+                      </span>
+                    )}
+                    {estadoValidacion === "no-trabajador" && (
+                      <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                        <AlertTriangle className="size-3.5" />
+                        No registrado
                       </span>
                     )}
                   </div>
@@ -223,7 +300,15 @@ export default function UsuarioRegistrarPage() {
                       maxLength={20}
                       {...form.register("cedula")}
                       aria-invalid={!!form.formState.errors.cedula}
-                      className={trabajadorValido ? "border-emerald-500/60 focus-visible:ring-emerald-500/20" : ""}
+                      className={
+                        estadoValidacion === "valido"
+                          ? "border-emerald-500/60 focus-visible:ring-emerald-500/20"
+                          : estadoValidacion === "ya-tiene-cuenta"
+                            ? "border-blue-500/60 focus-visible:ring-blue-500/20"
+                            : estadoValidacion === "no-trabajador"
+                              ? "border-amber-500/60 focus-visible:ring-amber-500/20"
+                              : ""
+                      }
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                       <Search className="size-4" />
@@ -234,85 +319,157 @@ export default function UsuarioRegistrarPage() {
                       {form.formState.errors.cedula.message}
                     </p>
                   )}
-                  {!buscandoTrabajador && trabajador === "no-encontrado" && (
-                    <p role="alert" className="text-xs text-amber-600 dark:text-amber-400">
-                      No se localizó ningún empleado con esta cédula en la base de datos de personal.
-                    </p>
-                  )}
                 </Field>
 
-                {/* Rol select */}
-                <Field className="flex flex-col gap-1.5">
-                  <Label htmlFor="rol">Rol del sistema</Label>
-                  <Select
-                    value={form.watch("rolId") ? String(form.watch("rolId")) : undefined}
-                    onValueChange={(v) => form.setValue("rolId", Number(v))}
-                  >
-                    <SelectTrigger id="rol" className="w-full">
-                      <SelectValue placeholder="Seleccione un rol institucional" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((r) => (
-                        <SelectItem key={r.id} value={String(r.id)}>
-                          {r.nombreRol}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Define los permisos efectivos de acceso y acciones permitidas en el sistema.
-                  </p>
-                </Field>
-
-                {/* Correo que se usará */}
-                <div className="rounded-lg border bg-muted/30 p-4 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <Mail className="size-3.5" />
-                    <span>Correo que se usará para el acceso</span>
+                {/* Estado 1: Buscando */}
+                {estadoValidacion === "buscando" && (
+                  <div className="rounded-lg border bg-muted/40 p-4 text-xs text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin text-primary shrink-0" />
+                    <span>Buscando datos del trabajador y verificando cuentas en el sistema...</span>
                   </div>
-                  {trabajadorValido ? (
-                    trabajadorValido.correo ? (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-medium text-foreground">
-                            {trabajadorValido.correo}
-                          </span>
-                          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
-                            Registrado
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          El usuario iniciará sesión y recibirá la notificación de cuenta en este correo.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300 text-xs">
-                        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-                        <span>
-                          El trabajador no tiene correo registrado en su expediente. La cuenta se creará, pero no podrá recibir credenciales por correo hasta que se registre uno.
-                        </span>
-                      </div>
-                    )
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Se utilizará automáticamente el correo institucional registrado en el expediente del trabajador al ingresar su cédula.
-                    </p>
-                  )}
-                </div>
+                )}
 
-                <Button
-                  type="submit"
-                  size="lg"
-                  disabled={isPending || !puedeCrear || buscandoTrabajador}
-                  className="w-full mt-2"
-                >
-                  {isPending ? (
-                    <Loader2 className="size-4 animate-spin mr-2" aria-hidden="true" />
-                  ) : (
-                    <UserPlus className="size-4 mr-2" aria-hidden="true" />
-                  )}
-                  {isPending ? "Registrando usuario..." : "Registrar usuario"}
-                </Button>
+                {/* Estado 2: No es un trabajador registrado en el sistema (sin acciones) */}
+                {estadoValidacion === "no-trabajador" && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200 flex flex-col gap-1.5"
+                  >
+                    <div className="flex items-center gap-2 font-semibold">
+                      <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                      <span>No es un trabajador registrado en el sistema</span>
+                    </div>
+                    <p className="text-muted-foreground">
+                      No se encontró ningún expediente de personal activo ni egresado con esta cédula. Para asignarle una cuenta institucional, primero debe estar registrado en el organismo.
+                    </p>
+                  </div>
+                )}
+
+                {/* Estado 3: Ya tiene una cuenta (con rol actual, estado y enlace Ver usuario; sin botón registrar) */}
+                {estadoValidacion === "ya-tiene-cuenta" && cuentaExistente && (
+                  <div
+                    role="status"
+                    className="rounded-lg border border-blue-200 bg-blue-50/70 p-4 text-xs text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100 flex flex-col gap-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 font-semibold text-sm">
+                        <UserCheck className="size-4 text-blue-600 dark:text-blue-400" />
+                        <span>Ya tiene una cuenta</span>
+                      </div>
+                      <Badge variant={cuentaExistente.isActive ? "default" : "secondary"} className="text-xs">
+                        {cuentaExistente.isActive ? "Activa" : "Inactiva"}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col gap-1 text-muted-foreground">
+                      <p>
+                        Este trabajador ya posee una cuenta de acceso institucional en el sistema:
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 mt-1 py-1 font-mono text-xs">
+                        <div>
+                          <span className="text-muted-foreground block text-[11px] font-sans">Rol actual:</span>
+                          <span className="font-semibold text-foreground">
+                            {cuentaExistente.rolNombre || "Sin rol asignado"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[11px] font-sans">Estado:</span>
+                          <span className="font-semibold text-foreground">
+                            {cuentaExistente.isActive ? "Activo" : "Desactivado"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-1 flex items-center justify-end">
+                      <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
+                        <Link href={`/usuarios/${cuentaExistente.id}`}>
+                          Ver usuario
+                          <ExternalLink className="size-3.5" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Estado Inicial: Información previa a la búsqueda */}
+                {estadoValidacion === "inicial" && (
+                  <div className="rounded-lg border border-dashed p-4 text-xs text-muted-foreground text-center">
+                    Ingrese la cédula del trabajador para validar su existencia y registrar su cuenta.
+                  </div>
+                )}
+
+                {/* Estado 4: Trabajador válido -> Recién aquí se muestran el rol, correo y botón registrar */}
+                {estadoValidacion === "valido" && (
+                  <>
+                    {/* Rol select */}
+                    <Field className="flex flex-col gap-1.5">
+                      <Label htmlFor="rol">Rol del sistema</Label>
+                      <Select
+                        value={form.watch("rolId") ? String(form.watch("rolId")) : undefined}
+                        onValueChange={(v) => form.setValue("rolId", Number(v))}
+                      >
+                        <SelectTrigger id="rol" className="w-full">
+                          <SelectValue placeholder="Seleccione un rol institucional" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.map((r) => (
+                            <SelectItem key={r.id} value={String(r.id)}>
+                              {r.nombreRol}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Define los permisos efectivos de acceso y acciones permitidas en el sistema.
+                      </p>
+                    </Field>
+
+                    {/* Correo que se usará */}
+                    <div className="rounded-lg border bg-muted/30 p-4 flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <Mail className="size-3.5" />
+                        <span>Correo que se usará para el acceso</span>
+                      </div>
+                      {trabajadorValido ? (
+                        trabajadorValido.correo ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm font-medium text-foreground">
+                                {trabajadorValido.correo}
+                              </span>
+                              <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                                Registrado
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              El usuario iniciará sesión y recibirá la notificación de cuenta en este correo.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-2 text-amber-700 dark:text-amber-300 text-xs">
+                            <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+                            <span>
+                              El trabajador no tiene correo registrado en su expediente. La cuenta se creará, pero no podrá recibir credenciales por correo hasta que se registre uno.
+                            </span>
+                          </div>
+                        )
+                      ) : null}
+                    </div>
+
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={isPending || !puedeCrear}
+                      className="w-full mt-2"
+                    >
+                      {isPending ? (
+                        <Loader2 className="size-4 animate-spin mr-2" aria-hidden="true" />
+                      ) : (
+                        <UserPlus className="size-4 mr-2" aria-hidden="true" />
+                      )}
+                      {isPending ? "Registrando usuario..." : "Registrar usuario"}
+                    </Button>
+                  </>
+                )}
               </form>
             </CardContent>
           </Card>
@@ -377,7 +534,7 @@ export default function UsuarioRegistrarPage() {
                 <div className="flex flex-col items-center justify-center p-6 text-center text-muted-foreground border border-dashed rounded-lg">
                   <Search className="size-8 stroke-1 text-muted-foreground/60 mb-2" />
                   <p className="text-xs font-medium">
-                    {trabajador === "no-encontrado"
+                    {estadoValidacion === "no-trabajador"
                       ? "No hay trabajador que mostrar con la cédula indicada."
                       : "Escriba la cédula del trabajador para consultar sus datos laborales."}
                   </p>

@@ -228,7 +228,8 @@ class RepoCuentasORM:
     def crear(self, cedula: str, password: str, rol_id: int | None) -> Cuenta:
         if not EmployeeModel.objects.filter(cedulaidentidad=cedula).exists():
             raise NotFoundError(
-                f"La cédula '{cedula}' no pertenece a ningún empleado registrado."
+                f"La cédula '{cedula}' no pertenece a ningún empleado registrado.",
+                campo='cedula',
             )
 
         fila = CuentaModel(cedula_id=cedula, rol_id=rol_id)
