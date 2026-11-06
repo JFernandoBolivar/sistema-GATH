@@ -64,6 +64,12 @@ def data(r):
 @pytest.fixture(autouse=True)
 def entorno(monkeypatch, settings):
     monkeypatch.setattr('core.presentation.permissions.obtener_resolutor_condicion', lambda: ResolutorCondicion())
+    # La política de solicitudes (O12) resuelve la condición por su propio módulo;
+    # sin este parche el trabajador cae en PASIVO y la solicitud se rechaza.
+    monkeypatch.setattr(
+        'apps.autogestion.infrastructure.politica_autogestion.obtener_resolutor_condicion',
+        lambda: ResolutorCondicion(),
+    )
     settings.EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
 
