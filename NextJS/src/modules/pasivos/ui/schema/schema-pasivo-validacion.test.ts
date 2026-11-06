@@ -36,6 +36,35 @@ describe("validación de nombres y números (crítica 2026-11-03)", () => {
     expect(actualizarPasivoSchema.safeParse({ apellidos: "PEREZ 3" }).success).toBe(false);
   });
 
+  it("FIX-QA8: los dos correos se validan y no pueden ser iguales", () => {
+    const alta = registrarPasivoSchema.safeParse({
+      ...base,
+      correo: "institucional@conatel.gob.ve",
+      correoAlternativo: "personal@gmail.com",
+    });
+    expect(alta.success).toBe(true);
+    expect(
+      registrarPasivoSchema.safeParse({
+        ...base,
+        correo: "institucional@conatel.gob.ve",
+        correoAlternativo: "INSTITUCIONAL@conatel.gob.ve",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      actualizarPasivoSchema.safeParse({
+        correo: "institucional@conatel.gob.ve",
+        correoAlternativo: "personal@gmail.com",
+      }).success,
+    ).toBe(true);
+    expect(
+      actualizarPasivoSchema.safeParse({
+        correo: "institucional@conatel.gob.ve",
+        correoAlternativo: "institucional@conatel.gob.ve",
+      }).success,
+    ).toBe(false);
+  });
+
   it("familiar: parentesco obligatorio y cédula solo con dígitos", () => {
     const familiar = {
       empleadoCedula: "12345678",

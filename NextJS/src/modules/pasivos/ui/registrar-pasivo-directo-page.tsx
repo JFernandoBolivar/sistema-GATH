@@ -46,6 +46,7 @@ const valoresIniciales = {
   sexoid: 0,
   estadoCivil: 0,
   correo: "",
+  correoAlternativo: "",
   telefono_movil: "",
   telefono_habitacion: "",
   carnet_patria: "",
@@ -241,7 +242,7 @@ export default function RegistrarPasivoDirectoPage() {
 
   switch (paso) {
     case 1:
-      return <PasoBasicInfo key="p1" defaultValues={valores} onSubmit={siguiente} {...comunes} titulo="Registrar Nuevo Pasivo" />;
+      return <PasoBasicInfo key="p1" defaultValues={valores} onSubmit={siguiente} {...comunes} titulo="Registrar Nuevo Pasivo" correoObligatorio="alternativo" />;
     case 2:
       return <PasoAcademic key="p2" defaultValues={valores} onSubmit={siguiente} {...comunes} />;
     case 3:

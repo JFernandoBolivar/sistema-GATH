@@ -135,6 +135,7 @@ export function pasivoApiAEntidad(raw: PasivoApiItem): Pasivo {
     resolucion: raw.resolucion,
     observaciones: raw.observaciones,
     correo: raw.correo ?? null,
+    correoAlternativo: raw.correo_alternativo ?? null,
     telefonoMovil: raw.telefono_movil ?? null,
     telefonoHabitacion: raw.telefono_habitacion ?? null,
     carnetPatria: raw.carnet_patria ?? null,

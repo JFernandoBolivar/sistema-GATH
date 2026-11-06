@@ -50,6 +50,7 @@ export function PasoBasicInfo({
   isLoadingCatalogos,
   titulo = "Registrar Nuevo Trabajador",
   erroresServidor,
+  correoObligatorio = "institucional",
 }: {
   defaultValues: Partial<PasoBasicInfoType>;
   onSubmit: (values: PasoBasicInfoType) => void;
@@ -57,6 +58,8 @@ export function PasoBasicInfo({
   isLoadingCatalogos: boolean;
   titulo?: string;
   erroresServidor?: ErroresServidor | null;
+  /** Correo que exige la política de acceso: activos = institucional, pasivos = alternativo. */
+  correoObligatorio?: "institucional" | "alternativo";
 }) {
   const [file, setFile] = useState<File | null>(defaultValues.file ?? null);
 
@@ -87,7 +90,19 @@ export function PasoBasicInfo({
   }, [validateCedula, cedulaLimpia]);
 
   const onSubmitPaso = (data: PasoBasicInfoType) => {
-    if (!validateCedula) onSubmit(data);
+    if (validateCedula) return;
+    const campo = correoObligatorio === "institucional" ? "correo" : "correoAlternativo";
+    if (!data[campo]?.trim()) {
+      form.setError(campo, {
+        type: "manual",
+        message:
+          correoObligatorio === "institucional"
+            ? "El correo institucional es obligatorio"
+            : "El correo alternativo es obligatorio",
+      });
+      return;
+    }
+    onSubmit(data);
   };
 
   return (
@@ -162,7 +177,7 @@ export function PasoBasicInfo({
                 <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                   <InputForm
                     form={form}
-                    label="Nombre *"
+                    label="Nombres *"
                     nameInput="nombres"
                     placeholder="Juan Bernardo"
                     type="text"
@@ -227,7 +242,7 @@ export function PasoBasicInfo({
                     name="estadoCivil"
                     render={({ field }) => (
                       <FormItem className="flex flex-col gap-2">
-                        <FormLabel>Estado Civil </FormLabel>
+                        <FormLabel>Estado Civil *</FormLabel>
                         <Select
                           value={field.value ? `${field.value}` : undefined}
                           onValueChange={(v) => field.onChange(Number.parseInt(v))}
@@ -257,17 +272,24 @@ export function PasoBasicInfo({
               <section className="flex flex-col gap-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">Contacto</h3>
                 <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <InputForm
-                      className="w-full"
-                      form={form}
-                      label="Correo Electronico"
-                      nameInput="correo"
-                      placeholder="ejemplo@gmail.com"
-                      type="email"
-                      maxLength={CORREO_MAX}
-                    />
-                  </div>
+                  <InputForm
+                    className="w-full"
+                    form={form}
+                    label={`Correo institucional${correoObligatorio === "institucional" ? " *" : ""}`}
+                    nameInput="correo"
+                    placeholder="usuario@conatel.gob.ve"
+                    type="email"
+                    maxLength={CORREO_MAX}
+                  />
+                  <InputForm
+                    className="w-full"
+                    form={form}
+                    label={`Correo alternativo${correoObligatorio === "alternativo" ? " *" : ""}`}
+                    nameInput="correoAlternativo"
+                    placeholder="ejemplo@gmail.com"
+                    type="email"
+                    maxLength={CORREO_MAX}
+                  />
                   <FormField
                     control={form.control}
                     name="telefono_movil"

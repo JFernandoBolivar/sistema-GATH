@@ -20,8 +20,25 @@ import { CORREO_MAX, DIRECCION_MAX, DIRECCION_MIN, cedulaZod, nombreZod } from "
 
 const opcionalVacio = (v: unknown) => (v === "" ? undefined : v);
 
+const correoOpcional = (mensaje: string) =>
+  z.preprocess(
+    opcionalVacio,
+    z
+      .string()
+      .max(CORREO_MAX, { message: `El correo admite máximo ${CORREO_MAX} caracteres` })
+      .regex(REGEX.EMAIL, { message: mensaje })
+      .optional(),
+  );
+
+/** Los dos correos deben ser distintos cuando ambos están informados. */
+const correosDistintos = <T extends { correo?: string; correoAlternativo?: string }>(d: T) => {
+  const institucional = d.correo?.trim().toLowerCase();
+  const alternativo = d.correoAlternativo?.trim().toLowerCase();
+  return !institucional || !alternativo || institucional !== alternativo;
+};
+
 // --- Paso 1: Información básica -------------------------------------------
-export const pasoBasicInfoSchema = z.object({
+export const pasoBasicInfoBaseSchema = z.object({
   nacionalidad_id: z
     .number({ message: "Debe Seleccionar Una Nacionalidad" })
     .refine((val) => val !== 0, { message: "Debe Seleccionar Una Nacionalidad" }),
@@ -51,14 +68,8 @@ export const pasoBasicInfoSchema = z.object({
   estadoCivil: z
     .number({ message: "Debe Ingresar Un Estado Civil Valido" })
     .refine((val) => val !== 0, { message: "Debe Seleccionar Un Esttado Civil" }),
-  correo: z.preprocess(
-    opcionalVacio,
-    z
-      .string()
-      .max(CORREO_MAX, { message: `El correo admite máximo ${CORREO_MAX} caracteres` })
-      .regex(REGEX.EMAIL, { message: "Solo Se Permiten Correos" })
-      .optional(),
-  ),
+  correo: correoOpcional("Solo Se Permiten Correos"),
+  correoAlternativo: correoOpcional("El correo alternativo no es válido"),
   telefono_habitacion: telefonoZod({ tipo: "cualquiera" }),
   telefono_movil: telefonoZod({ tipo: "movil" }),
   carnet_patria: z.preprocess(
@@ -75,6 +86,11 @@ export const pasoBasicInfoSchema = z.object({
     .array(contactoEmergenciaFormSchema)
     .max(5, { message: "Máximo 5 contactos de emergencia" })
     .optional(),
+});
+
+export const pasoBasicInfoSchema = pasoBasicInfoBaseSchema.refine(correosDistintos, {
+  message: "El correo alternativo debe ser distinto del institucional",
+  path: ["correoAlternativo"],
 });
 export type PasoBasicInfoType = z.infer<typeof pasoBasicInfoSchema>;
 

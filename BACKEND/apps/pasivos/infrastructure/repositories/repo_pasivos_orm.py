@@ -226,6 +226,19 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         # armado de expediente que `apps.personal` (sin duplicar la consulta).
         empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
         expediente = construir_expediente(empleado) if empleado else None
+        if expediente is not None:
+            from apps.autogestion.infrastructure.models.actualizacion_models import (
+                DatosComplementariosTrabajadorModel,
+            )
+
+            # El correo alternativo vive en los datos complementarios de
+            # autogestión: no se duplica ni se guarda en `Employee`.
+            expediente['correo_alternativo'] = (
+                DatosComplementariosTrabajadorModel.objects
+                .filter(cedula=cedula)
+                .values_list('correo_alternativo', flat=True)
+                .first()
+            )
 
         asignacion = (
             AsigTrabajoModel.objects.select_related('employee', 'employee__sexoid', 'tiponominaid')

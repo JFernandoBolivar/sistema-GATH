@@ -159,7 +159,7 @@ export default function FormContratoUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Gestión de Contratos</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
@@ -201,7 +201,7 @@ export default function FormContratoUpdateDialog({
                 </div>
               </div>
 
-              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
+              <div className="max-h-[55vh] overflow-hidden rounded-md w-full border p-3">
                 {fields.length === 0 && (
                   <h1 className="text-gray-600 text-center py-4 text-sm">
                     No hay contratos registrados.

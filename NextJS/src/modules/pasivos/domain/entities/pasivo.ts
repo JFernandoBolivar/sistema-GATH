@@ -118,6 +118,7 @@ export interface Pasivo {
   resolucion: string | null;
   observaciones: string | null;
   correo: string | null;
+  correoAlternativo: string | null;
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   carnetPatria: string | null;
@@ -166,6 +167,7 @@ export interface RegistrarPasivoInput {
   estadoCivilId?: number | null;
   nacionalidadId?: number | null;
   correo?: string | null;
+  correoAlternativo?: string | null;
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   carnetPatria?: string | null;
@@ -214,6 +216,7 @@ export interface ActualizarPasivoInput {
   nombres?: string;
   apellidos?: string;
   correo?: string | null;
+  correoAlternativo?: string | null;
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   carnetPatria?: string | null;

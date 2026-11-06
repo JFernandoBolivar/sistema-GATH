@@ -261,6 +261,15 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
             raise serializers.ValidationError('El empleado debe ser mayor de 15 años.')
         return value
 
+    def validate(self, attrs):
+        correo = (attrs.get('correo') or '').strip().lower()
+        alternativo = (attrs.get('correo_alternativo') or '').strip().lower()
+        if correo and alternativo and correo == alternativo:
+            raise serializers.ValidationError({
+                'correo_alternativo': 'El correo alternativo debe ser distinto del institucional.',
+            })
+        return attrs
+
     def to_internal_value(self, data):
         """
         Convierte `estado_civil_id` (instancia resuelta por

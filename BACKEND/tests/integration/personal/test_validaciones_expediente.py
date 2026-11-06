@@ -79,6 +79,20 @@ def test_correo_alternativo_valida_formato():
     assert vacio.is_valid(), vacio.errors
 
 
+def test_los_dos_correos_no_pueden_ser_iguales():
+    iguales = EmpleadoActualizarSerializer(
+        data={"correo": "ana@conatel.gob.ve", "correo_alternativo": "ANA@conatel.gob.ve"},
+        partial=True,
+    )
+    assert not iguales.is_valid()
+    assert "correo_alternativo" in iguales.errors
+    distintos = EmpleadoActualizarSerializer(
+        data={"correo": "ana@conatel.gob.ve", "correo_alternativo": "ana@gmail.com"},
+        partial=True,
+    )
+    assert distintos.is_valid(), distintos.errors
+
+
 def test_direccion_exacta_limita_longitud():
     from apps.personal.infrastructure.serializers.empleado_escritura_serializers import DatosViviendaEscrituraSerializer
 

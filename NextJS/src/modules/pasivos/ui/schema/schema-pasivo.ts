@@ -47,6 +47,17 @@ export const filtrosPasivosSchema = z.object({
 const telefonoMovilOpcional = telefonoZod({ tipo: "movil" });
 const telefonoHabitacionOpcional = telefonoZod({ tipo: "cualquiera" });
 
+/** Los dos correos deben ser distintos cuando ambos están informados. */
+const correosDistintos = (d: { correo?: string | null; correoAlternativo?: string | null }) => {
+  const institucional = d.correo?.trim().toLowerCase();
+  const alternativo = d.correoAlternativo?.trim().toLowerCase();
+  return !institucional || !alternativo || institucional !== alternativo;
+};
+const MENSAJE_CORREOS_IGUALES: { message: string; path: (string | number)[] } = {
+  message: "El correo alternativo debe ser distinto del institucional",
+  path: ["correoAlternativo"],
+};
+
 /** Alta directa de jubilado/pensionado (permiso pasivos.crear). */
 export const registrarPasivoSchema = z.object({
   cedula: z
@@ -71,6 +82,13 @@ export const registrarPasivoSchema = z.object({
   estadoCivilId: z.number().int().positive().nullable().optional(),
   nacionalidadId: z.number().int().positive().nullable().optional(),
   correo: z.string().trim().email({ message: "Correo inválido" }).max(254).nullable().optional(),
+  correoAlternativo: z
+    .string()
+    .trim()
+    .email({ message: "Correo alternativo inválido" })
+    .max(254)
+    .nullable()
+    .optional(),
   telefonoMovil: telefonoMovilOpcional,
   telefonoHabitacion: telefonoHabitacionOpcional,
   carnetPatria: z.string().trim().max(30).nullable().optional(),
@@ -83,7 +101,7 @@ export const registrarPasivoSchema = z.object({
       direccion_exacta: textoLibreOpcional("La dirección", LIMITES_TEXTO.direccion).nullable().optional(),
     })
     .optional(),
-});
+}).refine(correosDistintos, MENSAJE_CORREOS_IGUALES);
 
 /** Datos básicos editables del pasivo (permiso pasivos.editar). */
 export const actualizarPasivoSchema = z.object({
@@ -102,6 +120,13 @@ export const actualizarPasivoSchema = z.object({
     .regex(REGEX.NAME_EDICION, { message: "Los apellidos solo admiten letras y espacios" })
     .optional(),
   correo: z.string().trim().email({ message: "Correo inválido" }).max(254).nullable().optional(),
+  correoAlternativo: z
+    .string()
+    .trim()
+    .email({ message: "Correo alternativo inválido" })
+    .max(254)
+    .nullable()
+    .optional(),
   telefonoMovil: telefonoMovilOpcional,
   telefonoHabitacion: telefonoHabitacionOpcional,
   carnetPatria: z.string().trim().max(30).nullable().optional(),
@@ -109,7 +134,7 @@ export const actualizarPasivoSchema = z.object({
   fechaNacimiento: z.string().trim().nullable().optional(),
   estadoCivilId: z.number().int().positive().nullable().optional(),
   nacionalidadId: z.number().int().positive().nullable().optional(),
-});
+}).refine(correosDistintos, MENSAJE_CORREOS_IGUALES);
 
 export type FiltrosPasivosFormType = z.infer<typeof filtrosPasivosSchema>;
 export type ActualizarPasivoFormType = z.infer<typeof actualizarPasivoSchema>;

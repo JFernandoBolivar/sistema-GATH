@@ -116,12 +116,12 @@ export default function EmpleadoDetalleSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-hidden p-0">
-        <ScrollArea className="h-full p-6">
-          <SheetHeader className="mb-4 pr-8 p-0">
-            <div className="flex items-center justify-between">
-              <SheetTitle>Información Detallada Del Trabajador</SheetTitle>
+        <ScrollArea className="h-full p-3.5 sm:p-6">
+          <SheetHeader className="mb-4 pr-6 sm:pr-8 p-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <SheetTitle className="text-base sm:text-lg">Información Detallada Del Trabajador</SheetTitle>
               {puedeExportarPdf && (
-                <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf}>
+                <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf} className="w-full sm:w-auto">
                   {exportandoPdf ? <Loader2 className="size-4 animate-spin mr-1" /> : <FileDown className="size-4 mr-1" />}
                   Exportar PDF
                 </Button>
@@ -131,8 +131,8 @@ export default function EmpleadoDetalleSheet({
 
           <div className="flex flex-col gap-4">
             {/* 1. Header con Foto de Perfil, Nombre y Diálogo Básico */}
-            <div className="mx-auto flex w-60 flex-col items-center gap-2">
-              <div className="h-60 w-60 overflow-hidden rounded-md border bg-slate-100 shadow-sm">
+            <div className="mx-auto flex w-full max-w-[200px] sm:max-w-60 flex-col items-center gap-2">
+              <div className="h-36 w-36 sm:h-52 sm:w-52 overflow-hidden rounded-md border bg-slate-100 shadow-sm">
                 {/* Foto autenticada del mismo origen; `next/image` no reenvía cookies al optimizador. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -144,7 +144,7 @@ export default function EmpleadoDetalleSheet({
                   }}
                 />
               </div>
-              <h2 className="w-full text-center text-lg font-bold">
+              <h2 className="w-full text-center text-base sm:text-lg font-bold">
                 {empleado.nombres} {empleado.apellidos}
               </h2>
               {puedeEditar && (
@@ -156,8 +156,8 @@ export default function EmpleadoDetalleSheet({
                     setVersionFoto((v) => v + 1);
                     onGuardado();
                   }}
-                  triggerLabel="Actualizar Información Basica"
-                  triggerClassName="w-full cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                  triggerLabel="Actualizar Información Básica"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                 />
               )}
             </div>
@@ -247,35 +247,37 @@ export default function EmpleadoDetalleSheet({
                 {detalle.encargadurias.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Sin encargadurías registradas</p>
                 ) : (
-                  <Table className="w-full">
-                    <TableCaption>Lista De Encargadurías Del Trabajador</TableCaption>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[50px]">#</TableHead>
-                        <TableHead>Cargo Encargado</TableHead>
-                        <TableHead>Titular</TableHead>
-                        <TableHead>Fecha Inicio</TableHead>
-                        <TableHead>Fecha Fin</TableHead>
-                        <TableHead>Estatus</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detalle.encargadurias.map((enc, idx) => (
-                        <TableRow key={enc.id || idx}>
-                          <TableCell className="font-medium">{idx + 1}</TableCell>
-                          <TableCell>{enc.cargoEncargado}</TableCell>
-                          <TableCell>{enc.titular}</TableCell>
-                          <TableCell>{enc.fechaInicio}</TableCell>
-                          <TableCell>{enc.fechaFin}</TableCell>
-                          <TableCell>
-                            <Badge variant={enc.estatus === "ACTIVO" ? "default" : "destructive"}>
-                              {enc.estatus}
-                            </Badge>
-                          </TableCell>
+                  <div className="w-full overflow-x-auto">
+                    <Table className="w-full min-w-[500px]">
+                      <TableCaption>Lista De Encargadurías Del Trabajador</TableCaption>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[50px]">#</TableHead>
+                          <TableHead>Cargo Encargado</TableHead>
+                          <TableHead>Titular</TableHead>
+                          <TableHead>Fecha Inicio</TableHead>
+                          <TableHead>Fecha Fin</TableHead>
+                          <TableHead>Estatus</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {detalle.encargadurias.map((enc, idx) => (
+                          <TableRow key={enc.id || idx}>
+                            <TableCell className="font-medium">{idx + 1}</TableCell>
+                            <TableCell>{enc.cargoEncargado}</TableCell>
+                            <TableCell>{enc.titular}</TableCell>
+                            <TableCell>{enc.fechaInicio}</TableCell>
+                            <TableCell>{enc.fechaFin}</TableCell>
+                            <TableCell>
+                              <Badge variant={enc.estatus === "ACTIVO" ? "default" : "destructive"}>
+                                {enc.estatus}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -284,7 +286,7 @@ export default function EmpleadoDetalleSheet({
             {antecedentesList.length > 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex flex-row items-center justify-between gap-3">
+                  <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                     <div>Antecedentes</div>
                     {puedeEditar && (
                       <FormBackgroundUpdateDialog
@@ -292,53 +294,55 @@ export default function EmpleadoDetalleSheet({
                         catalogos={catalogos}
                         onGuardado={onGuardado}
                         triggerLabel="Agregar Antecedentes"
-                        triggerClassName="cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                       />
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table className="w-full table-fixed">
-                    <TableCaption>Lista De Antecedentes En La APN.</TableCaption>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[120px]">Fecha De ingreso</TableHead>
-                        <TableHead className="w-[120px]">Fecha De Egreso</TableHead>
-                        <TableHead>Institución/Ente</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {antecedentesList.map((ant, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium">{ant.fechaIngreso || "N/A"}</TableCell>
-                          <TableCell>{ant.fechaEgreso || "Presente"}</TableCell>
-                          <TableCell className="truncate max-w-[200px]">{ant.organismo || "N/A"}</TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-right font-semibold">
-                          {`Antecedentes (ciclos cerrados): ${detalle.apnAntecedentes}`}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-right font-semibold">
-                          {`Tiempo en CONATEL (en curso): ${detalle.apnEnCurso ?? "Sin periodo en curso"}`}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-right font-bold">
-                          {`Total APN: ${detalle.apnTotal}`}
-                        </TableCell>
-                      </TableRow>
-                      {detalle.apnIncompleto ? (
+                  <div className="w-full overflow-x-auto">
+                    <Table className="w-full min-w-[460px] table-fixed">
+                      <TableCaption>Lista De Antecedentes En La APN.</TableCaption>
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={3} className="text-right text-sm font-medium text-danger">
-                            Fecha de ingreso pendiente: el total APN está incompleto.
+                          <TableHead className="w-[120px]">Fecha De ingreso</TableHead>
+                          <TableHead className="w-[120px]">Fecha De Egreso</TableHead>
+                          <TableHead>Institución/Ente</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {antecedentesList.map((ant, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{ant.fechaIngreso || "N/A"}</TableCell>
+                            <TableCell>{ant.fechaEgreso || "Presente"}</TableCell>
+                            <TableCell className="truncate max-w-[200px]">{ant.organismo || "N/A"}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right font-semibold">
+                            {`Antecedentes (ciclos cerrados): ${detalle.apnAntecedentes}`}
                           </TableCell>
                         </TableRow>
-                      ) : null}
-                    </TableBody>
-                  </Table>
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right font-semibold">
+                            {`Tiempo en CONATEL (en curso): ${detalle.apnEnCurso ?? "Sin periodo en curso"}`}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-right font-bold">
+                            {`Total APN: ${detalle.apnTotal}`}
+                          </TableCell>
+                        </TableRow>
+                        {detalle.apnIncompleto ? (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-right text-sm font-medium text-danger">
+                              Fecha de ingreso pendiente: el total APN está incompleto.
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             ) : (
@@ -348,7 +352,7 @@ export default function EmpleadoDetalleSheet({
                   catalogos={catalogos}
                   onGuardado={onGuardado}
                   triggerLabel="Agregar Antecedentes Y Ingreso Al Organismo (Opcion Solo Valida Para Este Caso)"
-                  triggerClassName="w-full cursor-pointer bg-red-700 hover:bg-red-900 text-white"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                 />
               )
             )}
@@ -357,7 +361,7 @@ export default function EmpleadoDetalleSheet({
             {contratosList.length > 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex flex-row items-center justify-between gap-3">
+                  <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                     <div>Contratos</div>
                     {puedeEditar && (
                       <FormContratoUpdateDialog
@@ -365,43 +369,45 @@ export default function EmpleadoDetalleSheet({
                         catalogos={catalogos}
                         onGuardado={onGuardado}
                         triggerLabel="Agregar Contratos"
-                        triggerClassName="cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                       />
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table className="w-full table-fixed">
-                    <TableCaption>Lista De Contratos.</TableCaption>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[120px] truncate">N° Contrato</TableHead>
-                        <TableHead className="w-[100px] truncate">Fecha Ingreso</TableHead>
-                        <TableHead className="w-[120px] truncate">Fecha Culminación</TableHead>
-                        <TableHead className="truncate">Política</TableHead>
-                        <TableHead className="w-[100px] truncate">Estatus</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contratosList.map((c, i) => {
-                        const estatus = c.estatusNombre || (c.esFijo ? "FIJO" : "ACTIVO");
-                        const politica = c.politicaNombre ?? catalogos?.politicas.find((p) => p.id === c.politicaId)?.nombre ?? "N/A";
-                        return (
-                          <TableRow key={c.id || i}>
-                            <TableCell className="font-medium">{c.nContrato || "N/A"}</TableCell>
-                            <TableCell>{c.fechaIngreso || "N/A"}</TableCell>
-                            <TableCell>{c.fechaCulminacion || "—"}</TableCell>
-                            <TableCell className="truncate max-w-[150px]">{politica}</TableCell>
-                            <TableCell>
-                              <Badge variant={estatus === "VENCIDO" ? "destructive" : "default"}>
-                                {estatus}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  <div className="w-full overflow-x-auto">
+                    <Table className="w-full min-w-[500px] table-fixed">
+                      <TableCaption>Lista De Contratos.</TableCaption>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[120px] truncate">N° Contrato</TableHead>
+                          <TableHead className="w-[100px] truncate">Fecha Ingreso</TableHead>
+                          <TableHead className="w-[120px] truncate">Fecha Culminación</TableHead>
+                          <TableHead className="truncate">Política</TableHead>
+                          <TableHead className="w-[100px] truncate">Estatus</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {contratosList.map((c, i) => {
+                          const estatus = c.estatusNombre || (c.esFijo ? "FIJO" : "ACTIVO");
+                          const politica = c.politicaNombre ?? catalogos?.politicas.find((p) => p.id === c.politicaId)?.nombre ?? "N/A";
+                          return (
+                            <TableRow key={c.id || i}>
+                              <TableCell className="font-medium">{c.nContrato || "N/A"}</TableCell>
+                              <TableCell>{c.fechaIngreso || "N/A"}</TableCell>
+                              <TableCell>{c.fechaCulminacion || "—"}</TableCell>
+                              <TableCell className="truncate max-w-[150px]">{politica}</TableCell>
+                              <TableCell>
+                                <Badge variant={estatus === "VENCIDO" ? "destructive" : "default"}>
+                                  {estatus}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             ) : (
@@ -411,7 +417,7 @@ export default function EmpleadoDetalleSheet({
                   catalogos={catalogos}
                   onGuardado={onGuardado}
                   triggerLabel="Agregar Contratos"
-                  triggerClassName="w-full cursor-pointer bg-red-700 hover:bg-red-900 text-white"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                 />
               )
             )}
@@ -419,7 +425,7 @@ export default function EmpleadoDetalleSheet({
             {/* 5. Datos de Vivienda */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                   <div className="flex flex-row items-center gap-2">
                     Datos De Vivienda <House className="size-5" />
                   </div>
@@ -429,13 +435,13 @@ export default function EmpleadoDetalleSheet({
                       catalogos={catalogos}
                       onGuardado={onGuardado}
                       triggerLabel="Actualizar"
-                      triggerClassName="cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                     />
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 place-content-center gap-y-1.5 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
                   <div className="font-medium text-muted-foreground">Estado:</div>
                   <div>{detalle.vivienda?.estado ?? "N/A"}</div>
                   <div className="font-medium text-muted-foreground">Municipio:</div>
@@ -455,7 +461,7 @@ export default function EmpleadoDetalleSheet({
             {/* 6. Formaciones Académicas */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                   <div className="flex flex-row items-center gap-2">
                     Formaciones Academicas <GraduationCap className="size-5" />
                   </div>
@@ -465,34 +471,36 @@ export default function EmpleadoDetalleSheet({
                       catalogos={catalogos}
                       onGuardado={onGuardado}
                       triggerLabel="Actualizar"
-                      triggerClassName="cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                     />
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {detalle.formacionAcademica.length > 0 ? (
-                  <Table className="w-full table-fixed">
-                    <TableCaption>Lista De Formaciones Academicas.</TableCaption>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nivel Academico</TableHead>
-                        <TableHead>Carrera</TableHead>
-                        <TableHead>Mención</TableHead>
-                        <TableHead>Institución</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detalle.formacionAcademica.map((fa, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium">{fa.nivelAcademico}</TableCell>
-                          <TableCell className="truncate max-w-[150px]">{fa.carrera}</TableCell>
-                          <TableCell>{fa.mencion}</TableCell>
-                          <TableCell className="truncate max-w-[200px]">{fa.institucion}</TableCell>
+                  <div className="w-full overflow-x-auto">
+                    <Table className="w-full min-w-[500px] table-fixed">
+                      <TableCaption>Lista De Formaciones Academicas.</TableCaption>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nivel Academico</TableHead>
+                          <TableHead>Carrera</TableHead>
+                          <TableHead>Mención</TableHead>
+                          <TableHead>Institución</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {detalle.formacionAcademica.map((fa, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{fa.nivelAcademico}</TableCell>
+                            <TableCell className="truncate max-w-[150px]">{fa.carrera}</TableCell>
+                            <TableCell>{fa.mencion}</TableCell>
+                            <TableCell className="truncate max-w-[200px]">{fa.institucion}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 ) : (
                   <div className="py-6 text-center text-muted-foreground text-sm">
                     Sin formación académica registrada
@@ -505,7 +513,7 @@ export default function EmpleadoDetalleSheet({
             {detalle.formacionComplementaria.length > 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex flex-row items-center justify-between gap-3">
+                  <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                     <div>Formación Complementaria</div>
                     {puedeEditar && (
                       <FormSupplementaryTrainingUpdateDialog
@@ -513,39 +521,41 @@ export default function EmpleadoDetalleSheet({
                         catalogos={catalogos}
                         onGuardado={onGuardado}
                         triggerLabel="Actualizar"
-                        triggerClassName="cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                       />
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Table className="w-full table-fixed">
-                    <TableCaption>Lista De Formación Complementaria.</TableCaption>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="truncate">Capacitación</TableHead>
-                        <TableHead className="w-[120px]">Fecha De Inicio</TableHead>
-                        <TableHead className="w-[120px]">Fecha De Fin</TableHead>
-                        <TableHead>Institución</TableHead>
-                        <TableHead>Procedencia</TableHead>
-                        <TableHead>Grupo</TableHead>
-                        <TableHead>Horas</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detalle.formacionComplementaria.map((fc, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium truncate max-w-[180px]">{fc.capacitacion}</TableCell>
-                          <TableCell>{fc.fechaInicio}</TableCell>
-                          <TableCell>{fc.fechaFin}</TableCell>
-                          <TableCell className="truncate max-w-[150px]">{fc.institucion}</TableCell>
-                          <TableCell>{fc.procedencia}</TableCell>
-                          <TableCell>{fc.grupo}</TableCell>
-                          <TableCell>{fc.horasCompletadas}</TableCell>
+                  <div className="w-full overflow-x-auto">
+                    <Table className="w-full min-w-[600px] table-fixed">
+                      <TableCaption>Lista De Formación Complementaria.</TableCaption>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="truncate">Capacitación</TableHead>
+                          <TableHead className="w-[120px]">Fecha De Inicio</TableHead>
+                          <TableHead className="w-[120px]">Fecha De Fin</TableHead>
+                          <TableHead>Institución</TableHead>
+                          <TableHead>Procedencia</TableHead>
+                          <TableHead>Grupo</TableHead>
+                          <TableHead>Horas</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {detalle.formacionComplementaria.map((fc, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium truncate max-w-[180px]">{fc.capacitacion}</TableCell>
+                            <TableCell>{fc.fechaInicio}</TableCell>
+                            <TableCell>{fc.fechaFin}</TableCell>
+                            <TableCell className="truncate max-w-[150px]">{fc.institucion}</TableCell>
+                            <TableCell>{fc.procedencia}</TableCell>
+                            <TableCell>{fc.grupo}</TableCell>
+                            <TableCell>{fc.horasCompletadas}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             ) : (
@@ -555,7 +565,7 @@ export default function EmpleadoDetalleSheet({
                   catalogos={catalogos}
                   onGuardado={onGuardado}
                   triggerLabel="Agregar Formación Complementaria (Opción Solo Válida Para Este Caso)"
-                  triggerClassName="w-full cursor-pointer bg-red-700 hover:bg-red-900 text-white"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                 />
               )
             )}
@@ -563,7 +573,7 @@ export default function EmpleadoDetalleSheet({
             {/* 8. Contacto de Emergencia (Mejora funcional preservada) */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                   <span className="text-sm font-semibold">Contacto de emergencia</span>
                   {puedeEditar && (
                     <FormEmergencyContactsUpdateDialog
@@ -579,24 +589,26 @@ export default function EmpleadoDetalleSheet({
                 {detalle.contactoEmergencia.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Sin contactos de emergencia registrados.</p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead>Teléfono</TableHead>
-                        <TableHead>Relación</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detalle.contactoEmergencia.map((c, i) => (
-                        <TableRow key={i}>
-                          <TableCell className="font-medium">{c.nombreCompleto}</TableCell>
-                          <TableCell>{c.telefono}</TableCell>
-                          <TableCell>{c.relacion}</TableCell>
+                  <div className="w-full overflow-x-auto">
+                    <Table className="w-full min-w-[360px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Teléfono</TableHead>
+                          <TableHead>Relación</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {detalle.contactoEmergencia.map((c, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{c.nombreCompleto}</TableCell>
+                            <TableCell>{c.telefono}</TableCell>
+                            <TableCell>{c.relacion}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -604,7 +616,7 @@ export default function EmpleadoDetalleSheet({
             {/* 9. Información de Vestimenta */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                   <div className="flex flex-row items-center gap-2">
                     Información De Vestimenta <Shirt className="size-5" />
                   </div>
@@ -614,13 +626,13 @@ export default function EmpleadoDetalleSheet({
                       catalogos={catalogos}
                       onGuardado={onGuardado}
                       triggerLabel="Actualizar"
-                      triggerClassName="cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                     />
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 place-content-center gap-y-1.5 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
                   <div className="font-medium text-muted-foreground">Talla De Camisa:</div>
                   <div>{detalle.fisico?.tallaCamisa ?? "N/A"}</div>
                   <div className="font-medium text-muted-foreground">Talla de Pantalon:</div>
@@ -636,7 +648,7 @@ export default function EmpleadoDetalleSheet({
             {/* 10. Información de Salud */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                   <div className="flex flex-row items-center gap-2">
                     Información De Salud <Ambulance className="size-5" />
                   </div>
@@ -646,59 +658,63 @@ export default function EmpleadoDetalleSheet({
                       catalogos={catalogos}
                       onGuardado={onGuardado}
                       triggerLabel="Actualizar"
-                      triggerClassName="cursor-pointer bg-blue-700 hover:bg-blue-900 text-white"
+                      triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                     />
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 place-content-center gap-y-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-3 text-sm">
                   <div className="font-medium text-muted-foreground">Tipo De Sangre:</div>
                   <div className="font-semibold">{detalle.salud?.grupoSanguineo ?? "N/A"}</div>
 
                   {detalle.salud?.patologiasCronicas && detalle.salud.patologiasCronicas.length > 0 && (
-                    <Table className="col-span-2">
-                      <TableCaption>Lista De Patologias Del Trabajador</TableCaption>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Categoria</TableHead>
-                          <TableHead>Patología</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {detalle.salud.patologiasCronicas.map((p, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-medium">{p.categoria}</TableCell>
-                            <TableCell>{p.nombre}</TableCell>
+                    <div className="col-span-1 sm:col-span-2 w-full overflow-x-auto">
+                      <Table className="w-full min-w-[320px]">
+                        <TableCaption>Lista De Patologias Del Trabajador</TableCaption>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Categoria</TableHead>
+                            <TableHead>Patología</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {detalle.salud.patologiasCronicas.map((p, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-medium">{p.categoria}</TableCell>
+                              <TableCell>{p.nombre}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
 
                   {detalle.salud?.discapacidades && detalle.salud.discapacidades.length > 0 && (
-                    <Table className="col-span-2">
-                      <TableCaption>Lista De Discapacidades Del Trabajador</TableCaption>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Categoria</TableHead>
-                          <TableHead>Discapacidad</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {detalle.salud.discapacidades.map((d, i) => (
-                          <TableRow key={i}>
-                            <TableCell className="font-medium">{d.categoria}</TableCell>
-                            <TableCell>{d.nombre}</TableCell>
+                    <div className="col-span-1 sm:col-span-2 w-full overflow-x-auto">
+                      <Table className="w-full min-w-[320px]">
+                        <TableCaption>Lista De Discapacidades Del Trabajador</TableCaption>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Categoria</TableHead>
+                            <TableHead>Discapacidad</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {detalle.salud.discapacidades.map((d, i) => (
+                            <TableRow key={i}>
+                              <TableCell className="font-medium">{d.categoria}</TableCell>
+                              <TableCell>{d.nombre}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
 
                   {detalle.salud?.alergias && detalle.salud.alergias.length > 0 && (
-                    <div className="col-span-2">
-                      <Table>
+                    <div className="col-span-1 sm:col-span-2 w-full overflow-x-auto">
+                      <Table className="w-full min-w-[320px]">
                         <TableCaption>Lista De Alergias Del Trabajador</TableCaption>
                         <TableHeader>
                           <TableRow>

@@ -167,7 +167,7 @@ export function PasoSupplementaryTraining({
                           name={`formacion_complementaria.${index}.capacitacion_id`}
                           render={({ field }) => (
                             <FormItem className="min-w-0">
-                              <FormLabel>Capacitación</FormLabel>
+                              <FormLabel>Capacitación *</FormLabel>
                               <FormControl>
                                 <Combobox
                                   options={[
@@ -240,7 +240,7 @@ export function PasoSupplementaryTraining({
                         name={`formacion_complementaria.${index}.procedencia_id`}
                         render={({ field }) => (
                           <FormItem className="min-w-0">
-                            <FormLabel>Procedencia</FormLabel>
+                            <FormLabel>Procedencia *</FormLabel>
                             <Select
                               onValueChange={(v) => {
                                 field.onChange(Number(v));

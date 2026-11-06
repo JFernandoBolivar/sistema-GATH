@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ERROR, REGEX } from "@/shared/domain/validation";
+import { REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { CORREO_MAX, DIRECCION_MAX, DIRECCION_MIN, cedulaZod, nombreZod } from "./reglas-personas";
@@ -236,7 +236,8 @@ const correoFormulario = (mensaje: string) =>
  * (hay expedientes del legado con otro formato).
  */
 export function empleadoBasicoFormSchema(carnetPatriaOriginal = "") {
-  return z.object({
+  return z
+    .object({
     nombres: empleadoSchema.shape.nombres,
     apellidos: empleadoSchema.shape.apellidos,
     fechaNacimiento: z.string().min(1, { message: "La fecha de nacimiento es obligatoria" }),
@@ -257,6 +258,17 @@ export function empleadoBasicoFormSchema(carnetPatriaOriginal = "") {
         message: "El código del Carnet de la Patria debe tener 10 dígitos",
       }),
     carnetPatriaSerial: serialCarnetPatriaZod(),
-  });
+    })
+    .refine(
+      (d) => {
+        const institucional = d.correo?.trim().toLowerCase();
+        const alternativo = d.correoAlternativo?.trim().toLowerCase();
+        return !institucional || !alternativo || institucional !== alternativo;
+      },
+      {
+        message: "El correo alternativo debe ser distinto del institucional",
+        path: ["correoAlternativo"],
+      },
+    );
 }
 export type EmpleadoBasicoFormValues = z.input<ReturnType<typeof empleadoBasicoFormSchema>>;

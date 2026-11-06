@@ -18,6 +18,7 @@ class PasivoDTO:
     resolucion: str | None = None
     observaciones: str | None = None
     correo: str | None = None
+    correo_alternativo: str | None = None
     telefono_movil: str | None = None
     telefono_habitacion: str | None = None
     carnet_patria: str | None = None

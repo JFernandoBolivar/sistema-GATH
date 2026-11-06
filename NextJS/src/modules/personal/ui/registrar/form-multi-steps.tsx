@@ -50,6 +50,7 @@ const valoresIniciales = {
   sexoid: 0,
   estadoCivil: 0,
   correo: "",
+  correoAlternativo: "",
   telefono_movil: "",
   telefono_habitacion: "",
   carnet_patria: "",

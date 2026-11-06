@@ -25,6 +25,7 @@ export function registroPasosADTO(data: RegistroPasosType): GuardarEmpleadoInput
     sexoId: Number(data.sexoid),
     fechaNacimiento: format(data.fecha_nacimiento, "yyyy-MM-dd"),
     correo: texto(data.correo),
+    correoAlternativo: texto(data.correoAlternativo),
     telefonoMovil: texto(data.telefono_movil),
     telefonoHabitacion: texto(data.telefono_habitacion),
     estadoCivilId: id(data.estadoCivil),

@@ -41,6 +41,7 @@ const VACIOS: ActualizarPasivoFormType = {
   nombres: "",
   apellidos: "",
   correo: null,
+  correoAlternativo: null,
   telefonoMovil: null,
   telefonoHabitacion: null,
   carnetPatria: null,
@@ -66,6 +67,7 @@ export function EditarPasivoDialog({
       nombres: pasivo.nombres,
       apellidos: pasivo.apellidos,
       correo: pasivo.correo,
+      correoAlternativo: pasivo.correoAlternativo,
       telefonoMovil: pasivo.telefonoMovil,
       telefonoHabitacion: pasivo.telefonoHabitacion,
       carnetPatria: pasivo.carnetPatria,
@@ -96,7 +98,7 @@ export function EditarPasivoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Editar datos del pasivo</DialogTitle>
           <DialogDescription>
@@ -109,7 +111,7 @@ export function EditarPasivoDialog({
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field data-invalid={!!form.formState.errors.nombres}>
-              <Label htmlFor="edit-nombres">Nombres</Label>
+              <Label htmlFor="edit-nombres">Nombres *</Label>
               <Input id="edit-nombres" {...form.register("nombres")} />
               {form.formState.errors.nombres && (
                 <p role="alert" className="text-sm text-destructive">
@@ -118,7 +120,7 @@ export function EditarPasivoDialog({
               )}
             </Field>
             <Field data-invalid={!!form.formState.errors.apellidos}>
-              <Label htmlFor="edit-apellidos">Apellidos</Label>
+              <Label htmlFor="edit-apellidos">Apellidos *</Label>
               <Input id="edit-apellidos" {...form.register("apellidos")} />
               {form.formState.errors.apellidos && (
                 <p role="alert" className="text-sm text-destructive">
@@ -127,11 +129,24 @@ export function EditarPasivoDialog({
               )}
             </Field>
             <Field data-invalid={!!form.formState.errors.correo}>
-              <Label htmlFor="edit-correo">Correo</Label>
+              <Label htmlFor="edit-correo">Correo institucional</Label>
               <Input id="edit-correo" type="email" {...form.register("correo")} />
               {form.formState.errors.correo && (
                 <p role="alert" className="text-sm text-destructive">
                   {form.formState.errors.correo.message}
+                </p>
+              )}
+            </Field>
+            <Field data-invalid={!!form.formState.errors.correoAlternativo}>
+              <Label htmlFor="edit-correo-alternativo">Correo alternativo</Label>
+              <Input
+                id="edit-correo-alternativo"
+                type="email"
+                {...form.register("correoAlternativo")}
+              />
+              {form.formState.errors.correoAlternativo && (
+                <p role="alert" className="text-sm text-destructive">
+                  {form.formState.errors.correoAlternativo.message}
                 </p>
               )}
             </Field>

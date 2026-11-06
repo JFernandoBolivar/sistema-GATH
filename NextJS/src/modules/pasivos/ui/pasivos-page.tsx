@@ -13,8 +13,8 @@ import { ChevronLeft, ChevronRight, Eraser, Loader2, Search } from "lucide-react
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/shared/ui/components/button";
-import { Card, CardContent } from "@/shared/ui/components/card";
 import { DataTable } from "@/shared/ui/components/data-table";
+import { FiltrosColapsables } from "@/shared/ui/components/filtros-movil-colapsable";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
 import {
@@ -126,72 +126,82 @@ export default function PasivosPage() {
       description="Jubilados, pensionados y sobrevivientes registrados en el sistema."
     >
       <div className="flex flex-col gap-4">
-        <Card className="bg-white">
-          <CardContent className="p-4">
-            <form onSubmit={aplicar} className="flex flex-row items-end gap-2 flex-wrap" noValidate>
-              <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
-                <Label htmlFor="filtro-cedula">Buscar Cédula</Label>
-                <Input
-                  id="filtro-cedula"
-                  value={borrador.cedula ?? ""}
-                  onChange={(e) => setBorrador((p) => ({ ...p, cedula: e.target.value }))}
-                  placeholder="buscar cedula..."
-                />
-              </div>
-              <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
-                <Label htmlFor="filtro-codigo">Buscar Código De Trabajador</Label>
-                <Input
-                  id="filtro-codigo"
-                  value={borrador.codigo ?? ""}
-                  onChange={(e) => setBorrador((p) => ({ ...p, codigo: e.target.value }))}
-                  placeholder="buscar codigo de trabajador..."
-                />
-              </div>
-              <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
-                <Label htmlFor="filtro-nomina">Tipo de Nomina</Label>
-                <Select
-                  value={borrador.tipoNominaId ? String(borrador.tipoNominaId) : "todos"}
-                  onValueChange={(v) =>
-                    setBorrador((p) => ({
-                      ...p,
-                      tipoNominaId: v === "todos" ? undefined : Number(v),
-                    }))
-                  }
-                >
-                  <SelectTrigger id="filtro-nomina" className="w-full">
-                    <SelectValue placeholder="Ninguno" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Ninguno</SelectItem>
-                    {tiposNomina.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end gap-2">
-                <Button type="submit" className="cursor-pointer shrink-0" disabled={isPending}>
-                  {isPending ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Search className="size-4" aria-hidden="true" />
-                  )}
-                  Buscar
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="cursor-pointer shrink-0"
-                  onClick={limpiar}
-                >
-                  Limpiar <Eraser className="size-4 ml-1" />
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+        {(() => {
+          const conteoFiltros = [
+            borrador.cedula?.trim(),
+            borrador.codigo?.trim(),
+            borrador.tipoNominaId,
+          ].filter(Boolean).length;
+
+          return (
+            <FiltrosColapsables conteoActivos={conteoFiltros} titulo="Filtros de búsqueda">
+              <form onSubmit={aplicar} className="flex flex-col gap-3" noValidate>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <Label htmlFor="filtro-cedula">Buscar Cédula</Label>
+                    <Input
+                      id="filtro-cedula"
+                      value={borrador.cedula ?? ""}
+                      onChange={(e) => setBorrador((p) => ({ ...p, cedula: e.target.value }))}
+                      placeholder="Buscar cédula..."
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <Label htmlFor="filtro-codigo">Buscar Código De Trabajador</Label>
+                    <Input
+                      id="filtro-codigo"
+                      value={borrador.codigo ?? ""}
+                      onChange={(e) => setBorrador((p) => ({ ...p, codigo: e.target.value }))}
+                      placeholder="Buscar código..."
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <Label htmlFor="filtro-nomina">Tipo de Nómina</Label>
+                    <Select
+                      value={borrador.tipoNominaId ? String(borrador.tipoNominaId) : "todos"}
+                      onValueChange={(v) =>
+                        setBorrador((p) => ({
+                          ...p,
+                          tipoNominaId: v === "todos" ? undefined : Number(v),
+                        }))
+                      }
+                    >
+                      <SelectTrigger id="filtro-nomina" className="w-full">
+                        <SelectValue placeholder="Ninguno" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Ninguno</SelectItem>
+                        {tiposNomina.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto cursor-pointer"
+                    onClick={limpiar}
+                  >
+                    Limpiar <Eraser className="size-4 ml-1" />
+                  </Button>
+                  <Button type="submit" className="w-full sm:w-auto cursor-pointer" disabled={isPending}>
+                    {isPending ? (
+                      <Loader2 className="size-4 animate-spin mr-1" aria-hidden="true" />
+                    ) : (
+                      <Search className="size-4 mr-1" aria-hidden="true" />
+                    )}
+                    Buscar
+                  </Button>
+                </div>
+              </form>
+            </FiltrosColapsables>
+          );
+        })()}
 
         {(error || errorLista) && (
           <p role="alert" className="text-sm text-destructive">

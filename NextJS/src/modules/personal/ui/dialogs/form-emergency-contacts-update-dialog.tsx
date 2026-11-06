@@ -96,7 +96,7 @@ export default function FormEmergencyContactsUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Actualizar Contactos De Emergencia</DialogTitle>
         <Card className="w-full h-full border-0 shadow-none">
           <CardHeader>

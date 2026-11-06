@@ -51,6 +51,7 @@ export interface PasivoDTO {
   resolucion: string | null;
   observaciones: string | null;
   correo: string | null;
+  correoAlternativo: string | null;
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   carnetPatria: string | null;

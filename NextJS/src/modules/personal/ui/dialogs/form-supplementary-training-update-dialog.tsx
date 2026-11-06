@@ -211,7 +211,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Actualizar Formación Complementaria</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
@@ -291,7 +291,7 @@ export default function FormSupplementaryTrainingUpdateDialog({
                 </div>
               </div>
 
-              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
+              <div className="max-h-[55vh] overflow-hidden rounded-md w-full border p-3">
                 <h1 className="text-gray-600 text-sm mb-3">
                   Opcional si no posee formación complementaria
                 </h1>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { contactoEmergenciaFormSchema } from "./schema-contacto-emergencia";
 import { empleadoSchema } from "./schema-empleado";
-import { pasoBasicInfoSchema } from "./schema-registro-pasos";
+import { pasoBasicInfoBaseSchema } from "./schema-registro-pasos";
 
 const contacto = {
   nombres: "Ana Maria",
@@ -46,7 +46,7 @@ describe("teléfono del contacto de emergencia (D-13)", () => {
 
 describe("teléfonos del paso 1 del wizard (D-13)", () => {
   const campos = (extra: Record<string, unknown>) =>
-    pasoBasicInfoSchema.pick({ telefono_movil: true, telefono_habitacion: true }).safeParse(extra);
+    pasoBasicInfoBaseSchema.pick({ telefono_movil: true, telefono_habitacion: true }).safeParse(extra);
 
   it("son opcionales", () => {
     expect(campos({}).success).toBe(true);

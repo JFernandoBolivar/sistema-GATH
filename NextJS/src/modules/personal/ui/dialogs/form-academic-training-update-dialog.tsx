@@ -251,7 +251,7 @@ export default function FormAcademicTrainingUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Actualizar Formación Académica</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none">
@@ -325,7 +325,7 @@ export default function FormAcademicTrainingUpdateDialog({
                 </div>
               </div>
 
-              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
+              <div className="max-h-[55vh] overflow-hidden rounded-md w-full border p-3">
                 <h1 className="text-gray-600 text-sm mb-3">
                   Opcional si no posee formación académica
                 </h1>

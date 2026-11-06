@@ -162,7 +162,7 @@ export default function FormPhysicalProfileUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-xl p-0">
         <DialogTitle className="sr-only">Actualizar Información de Vestimenta</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">

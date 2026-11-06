@@ -218,7 +218,7 @@ export function ReportesErrorLaboralPageView() {
               <p className="text-sm font-medium">No se encontraron reportes con los filtros seleccionados.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
               <Table>
                 <TableHeader>
                   <TableRow>

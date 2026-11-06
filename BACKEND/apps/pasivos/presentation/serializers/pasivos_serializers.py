@@ -61,6 +61,7 @@ class PasivoSerializer(serializers.Serializer):
     resolucion = serializers.CharField(read_only=True, allow_null=True)
     observaciones = serializers.CharField(read_only=True, allow_null=True)
     correo = serializers.CharField(read_only=True, allow_null=True)
+    correo_alternativo = serializers.CharField(read_only=True, allow_null=True)
     telefono_movil = serializers.CharField(read_only=True, allow_null=True)
     telefono_habitacion = serializers.CharField(read_only=True, allow_null=True)
     carnet_patria = serializers.CharField(read_only=True, allow_null=True)
@@ -143,6 +144,7 @@ class PasivoCrearInputSerializer(serializers.Serializer):
     estado_civil_id = serializers.IntegerField(required=False, allow_null=True)
     nacionalidad_id = serializers.IntegerField(required=False, allow_null=True)
     correo = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
+    correo_alternativo = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
     telefono_movil = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     telefono_habitacion = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     carnet_patria = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)
@@ -158,6 +160,15 @@ class PasivoCrearInputSerializer(serializers.Serializer):
 
     def validate_cedula(self, value):
         return _validar(validar_cedula, value)
+
+    def validate(self, attrs):
+        correo = (attrs.get('correo') or '').strip().lower()
+        alternativo = (attrs.get('correo_alternativo') or '').strip().lower()
+        if correo and alternativo and correo == alternativo:
+            raise serializers.ValidationError({
+                'correo_alternativo': 'El correo alternativo debe ser distinto del institucional.',
+            })
+        return attrs
 
     def validate_nombres(self, value):
         value = _validar(validar_nombre, value, etiqueta='Los nombres')
@@ -196,6 +207,7 @@ class PasivoActualizarInputSerializer(serializers.Serializer):
     nombres = serializers.CharField(required=False, max_length=150)
     apellidos = serializers.CharField(required=False, max_length=150)
     correo = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
+    correo_alternativo = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
     telefono_movil = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     telefono_habitacion = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=20)
     carnet_patria = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=30)

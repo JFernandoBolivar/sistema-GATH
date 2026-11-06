@@ -235,6 +235,41 @@ def test_rechaza_cedula_duplicada(catalogos):
     assert api.post('/api/v1/pasivos/', cuerpo, format='json').status_code == 409
 
 
+def test_registrar_pasivo_directo_guarda_los_dos_correos(catalogos):
+    """FIX-QA8: el alta de pasivo guarda institucional y alternativo sin duplicar el dato."""
+    from apps.autogestion.infrastructure.models.actualizacion_models import (
+        DatosComplementariosTrabajadorModel,
+    )
+
+    cuerpo = _cuerpo(catalogos, cedula='997784')
+    cuerpo.update({
+        'correo': 'institucional@conatel.gob.ve',
+        'correo_alternativo': 'personal@gmail.com',
+    })
+    respuesta = _cliente('pasivos.crear').post('/api/v1/pasivos/', cuerpo, format='json')
+
+    assert respuesta.status_code == 201, respuesta.content
+    datos = respuesta.json()['data']
+    assert datos['correo'] == 'institucional@conatel.gob.ve'
+    assert EmployeeModel.objects.get(cedulaidentidad='997784').correo == 'institucional@conatel.gob.ve'
+    assert DatosComplementariosTrabajadorModel.objects.get(
+        cedula='997784',
+    ).correo_alternativo == 'personal@gmail.com'
+
+
+def test_registrar_pasivo_directo_rechaza_correos_iguales(catalogos):
+    """FIX-QA8: los dos correos no pueden ser el mismo."""
+    cuerpo = _cuerpo(catalogos, cedula='997785')
+    cuerpo.update({
+        'correo': 'igual@conatel.gob.ve',
+        'correo_alternativo': 'IGUAL@conatel.gob.ve',
+    })
+    respuesta = _cliente('pasivos.crear').post('/api/v1/pasivos/', cuerpo, format='json')
+
+    assert respuesta.status_code == 400
+    assert not EmployeeModel.objects.filter(cedulaidentidad='997785').exists()
+
+
 def test_sin_permiso_de_crear_responde_403(catalogos):
     respuesta = _cliente('pasivos.ver').post(
         '/api/v1/pasivos/', _cuerpo(catalogos), format='json',
@@ -253,6 +288,7 @@ def test_actualizar_pasivo_acepta_el_mismo_payload_anidado_que_personal(catalogo
         '/api/v1/pasivos/997780/',
         {
             'correo': 'pasivo@example.com',
+            'correo_alternativo': 'pasivo.alt@gmail.com',
             'perfil_fisico': {
                 'talla_camisa_id': None,
                 'talla_pantalon_id': None,
@@ -268,6 +304,7 @@ def test_actualizar_pasivo_acepta_el_mismo_payload_anidado_que_personal(catalogo
     assert respuesta.status_code == 200, respuesta.content
     datos = respuesta.json()['data']
     assert datos['correo'] == 'pasivo@example.com'
+    assert datos['correo_alternativo'] == 'pasivo.alt@gmail.com'
     assert datos['formacion_academica'] == []
 
 

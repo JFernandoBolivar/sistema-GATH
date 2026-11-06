@@ -25,6 +25,7 @@ export interface PasivoApiItem {
   resolucion: string | null;
   observaciones: string | null;
   correo: string | null;
+  correo_alternativo?: string | null;
   telefono_movil: string | null;
   telefono_habitacion: string | null;
   carnet_patria: string | null;
@@ -66,6 +67,7 @@ export interface ActualizarPasivoApiBody {
   nombres?: string;
   apellidos?: string;
   correo?: string | null;
+  correo_alternativo?: string | null;
   telefono_movil?: string | null;
   telefono_habitacion?: string | null;
   carnet_patria?: string | null;
@@ -85,6 +87,7 @@ export interface RegistrarPasivoApiBody {
   estado_civil_id?: number | null;
   nacionalidad_id?: number | null;
   correo?: string | null;
+  correo_alternativo?: string | null;
   telefono_movil?: string | null;
   telefono_habitacion?: string | null;
   carnet_patria?: string | null;

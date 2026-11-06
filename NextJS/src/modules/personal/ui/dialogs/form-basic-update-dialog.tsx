@@ -142,7 +142,7 @@ export default function FormBasicUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-2xl p-0">
         <DialogTitle className="sr-only">Actualizar Información Básica</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none">
@@ -176,7 +176,7 @@ export default function FormBasicUpdateDialog({
                       Datos personales
                     </h3>
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
-                      <CampoDialogo id="nombres" label="Nombre *" error={mensajeDe(errores.nombres)}>
+                      <CampoDialogo id="nombres" label="Nombres *" error={mensajeDe(errores.nombres)}>
                         <Input
                           id="nombres"
                           placeholder="Juan Bernardo"

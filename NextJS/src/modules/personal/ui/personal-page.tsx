@@ -18,7 +18,6 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Eraser, Search } from "lucide-react";
 
@@ -41,6 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DataTable } from "@/shared/ui/components/data-table";
+import { FiltrosColapsables } from "@/shared/ui/components/filtros-movil-colapsable";
 import Loading from "@/shared/ui/components/loading";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
@@ -63,7 +63,7 @@ export default function PersonalPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const esAdmin = tienePermiso(permisos, "*");
-  const puedeCrear = esAdmin || tienePermiso(permisos, "personal.crear");
+  const _puedeCrear = esAdmin || tienePermiso(permisos, "personal.crear");
   const puedeEditar = esAdmin || tienePermiso(permisos, "personal.editar_personales");
   const puedeVerDetalle = esAdmin || tienePermiso(permisos, "personal.ver_detalle");
   const puedeExportarPdf = esAdmin || tienePermiso(permisos, "personal.exportar_pdf");
@@ -78,7 +78,7 @@ export default function PersonalPage() {
   const [viendoDetalle, setViendoDetalle] = useState<EmpleadoDTO | null>(null);
   const [detalleAbierto, setDetalleAbierto] = useState(false);
   const [exportandoPdf, setExportandoPdf] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [_isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cedulaFotoRef = useRef<string | null>(null);
@@ -275,94 +275,107 @@ export default function PersonalPage() {
 
   return (
     <PageLayout title="Consultar Trabajador" description="Información Detallada Del Trabajador">
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSearch)}
-          className="flex flex-col justify-start gap-2 flex-1 mb-4"
-        >
-          <div className="flex flex-row items-center gap-2 flex-wrap">
-            <FormField
-              name="cedulaidentidad"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Buscar Cédula</FormLabel>
-                  <FormControl>
-                    <Input
-                      className="bg-white"
-                      type="text"
-                      placeholder="buscar cedula..."
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              name="codigo"
-              control={form.control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Buscar Código De Trabajador</FormLabel>
-                  <FormControl>
-                    <Input
-                      className="bg-white"
-                      type="text"
-                      placeholder="buscar codigo de trabajador..."
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="tipo_nomina"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Nomina</FormLabel>
-                  <Select
-                    onValueChange={(values) => {
-                      field.onChange(values === "0" ? undefined : Number.parseInt(values));
-                    }}
-                    value={field.value ? String(field.value) : "0"}
+      {(() => {
+        const formValores = form.watch();
+        const conteoFiltros = [
+          formValores.cedulaidentidad?.trim(),
+          formValores.codigo?.trim(),
+          formValores.tipo_nomina && formValores.tipo_nomina !== 0 ? formValores.tipo_nomina : undefined,
+        ].filter(Boolean).length;
+
+        return (
+          <FiltrosColapsables conteoActivos={conteoFiltros} titulo="Filtros de búsqueda" className="mb-4">
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSearch)}
+                className="flex flex-col gap-3"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <FormField
+                    name="cedulaidentidad"
+                    control={form.control}
+                    render={({ field }) => (
+                      <FormItem className="min-w-0">
+                        <FormLabel>Buscar Cédula</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="Buscar cédula..."
+                            {...field}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    name="codigo"
+                    control={form.control}
+                    render={({ field }) => (
+                      <FormItem className="min-w-0">
+                        <FormLabel>Buscar Código De Trabajador</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="Buscar código..."
+                            {...field}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="tipo_nomina"
+                    render={({ field }) => (
+                      <FormItem className="min-w-0">
+                        <FormLabel>Tipo de Nómina</FormLabel>
+                        <Select
+                          onValueChange={(values) => {
+                            field.onChange(values === "0" ? undefined : Number.parseInt(values));
+                          }}
+                          value={field.value ? String(field.value) : "0"}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full truncate">
+                              <SelectValue
+                                placeholder={
+                                  cargandoNominas ? "Cargando Nóminas" : "Seleccione un Tipo de Nómina"
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="0">Ninguno</SelectItem>
+                            {nominas.map((nom) => (
+                              <SelectItem key={nom.id} value={String(nom.id)}>
+                                {nom.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto cursor-pointer"
+                    type="button"
+                    onClick={cleanFields}
                   >
-                    <FormControl>
-                      <SelectTrigger className="w-[220px] truncate bg-white">
-                        <SelectValue
-                          placeholder={
-                            cargandoNominas ? "Cargando Nominas" : "Seleccione un Tipo de Nomina"
-                          }
-                        />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="0">Ninguno</SelectItem>
-                      {nominas.map((nom) => (
-                        <SelectItem key={nom.id} value={String(nom.id)}>
-                          {nom.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="cursor-pointer self-end">
-              Buscar <Search className="size-4 ml-1" />
-            </Button>
-            <Button
-              variant="outline"
-              className="cursor-pointer self-end"
-              type="button"
-              onClick={cleanFields}
-            >
-              Limpiar <Eraser className="size-4 ml-1" />
-            </Button>
-          </div>
-        </form>
-      </Form>
+                    Limpiar <Eraser className="size-4 ml-1" />
+                  </Button>
+                  <Button type="submit" className="w-full sm:w-auto cursor-pointer">
+                    Buscar <Search className="size-4 ml-1" />
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </FiltrosColapsables>
+        );
+      })()}
 
       {error && (
         <p role="alert" className="text-sm text-destructive mb-2">

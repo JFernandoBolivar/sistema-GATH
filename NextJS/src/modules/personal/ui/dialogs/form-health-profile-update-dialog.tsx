@@ -161,7 +161,7 @@ export default function FormHealthProfileUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Datos De Salud</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
@@ -206,7 +206,7 @@ export default function FormHealthProfileUpdateDialog({
                 )}
               </div>
 
-              <div className="max-h-[55vh] overflow-y-auto w-full border rounded-md p-4">
+              <div className="max-h-[55vh] overflow-hidden w-full border rounded-md p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Patologías */}
                   <div className="flex-1">

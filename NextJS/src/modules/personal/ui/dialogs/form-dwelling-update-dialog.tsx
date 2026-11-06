@@ -129,7 +129,7 @@ export default function FormDwellingUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-xl p-0">
         <DialogTitle className="sr-only">Actualizar Datos de Vivienda</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none">
