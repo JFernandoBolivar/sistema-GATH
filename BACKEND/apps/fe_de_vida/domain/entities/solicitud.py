@@ -25,6 +25,9 @@ class Canal(str, Enum):
 
 
 MENSAJE_YA_DIO_CHECK = "Usted ya aprobó esta fe de vida; la siguiente revisión corresponde a otra persona."
+MENSAJE_REGISTRADOR_NO_DECIDE = (
+    "Usted registró esta fe de vida de forma presencial: la revisión debe hacerla otra persona de Bienestar Social."
+)
 
 ACCION_CHECK = 'dar_check'
 ACCION_APROBAR_DIRECTO = 'aprobar_directo'
@@ -115,6 +118,18 @@ class SolicitudFeDeVida:
     def dio_check(self, cedula: str) -> bool:
         return any(d.actor_cedula == cedula for d in self.checks_vigentes())
 
+    def es_registrador(self, cedula: str) -> bool:
+        """Quien llenó el acta en Registro presencial (solo aplica al canal PRESENCIAL)."""
+        return (
+            self.canal == Canal.PRESENCIAL.value
+            and bool(self.registrada_por_cedula)
+            and self.registrada_por_cedula == cedula
+        )
+
+    def _exigir_no_registrador(self, actor: ActorRevision, registrador_puede_decidir: bool) -> None:
+        if self.es_registrador(actor.cedula) and not registrador_puede_decidir:
+            raise ConflictError(MENSAJE_REGISTRADOR_NO_DECIDE)
+
     def acciones_disponibles(
         self, actor: ActorRevision, permisos: PermisosRevision, *, registrador_puede_checar: bool = False,
     ) -> tuple[str, ...]:
@@ -133,21 +148,20 @@ class SolicitudFeDeVida:
             return tuple(acciones_constancia)
         if not self.revisable or actor.cedula == self.cedula:
             return ()
+        # Quien registró la fe de vida presencial no decide sobre ella (check, devolver,
+        # rechazar, aprobación directa ni retirar check), salvo que el parámetro habilite
+        # explícitamente al registrador para decidir.
+        if self.es_registrador(actor.cedula) and not registrador_puede_checar:
+            return ()
         if self.dio_check(actor.cedula):
             acciones = [ACCION_RETIRAR_CHECK]
             if permisos.aprobar_directo and actor.rol is RolRevision.ADMINISTRADORA:
                 acciones.insert(0, ACCION_APROBAR_DIRECTO)
             return tuple(acciones)
         acciones = []
-        es_registrador = (
-            self.canal == 'PRESENCIAL'
-            and bool(self.registrada_por_cedula)
-            and self.registrada_por_cedula == actor.cedula
-        )
         puede_check = (
             permisos.check
             and not any(d.rol is actor.rol for d in self.checks_vigentes())
-            and not (es_registrador and not registrador_puede_checar)
         )
         if puede_check:
             acciones.append(ACCION_CHECK)
@@ -195,13 +209,7 @@ class SolicitudFeDeVida:
         de la OTRA persona y del OTRO rol, la valida. Un check solo nunca valida (la Analista no valida sola).
         """
         self._exigir_revisable(actor)
-        if (
-            self.canal == 'PRESENCIAL'
-            and bool(self.registrada_por_cedula)
-            and self.registrada_por_cedula == actor.cedula
-            and not registrador_puede_checar
-        ):
-            raise ConflictError("Quien registró la fe de vida presencial no puede dar el check de revisión.")
+        self._exigir_no_registrador(actor, registrador_puede_checar)
         previos = self.checks_vigentes()
         if any(d.actor_cedula == actor.cedula for d in previos):
             raise ConflictError(MENSAJE_YA_DIO_CHECK)
@@ -217,9 +225,13 @@ class SolicitudFeDeVida:
             decisiones=self.decisiones + (decision,), fecha_validacion=ahora,
         )
 
-    def aprobar_directo(self, actor: ActorRevision, justificacion: str, ahora: datetime) -> 'SolicitudFeDeVida':
+    def aprobar_directo(
+        self, actor: ActorRevision, justificacion: str, ahora: datetime, *,
+        registrador_puede_checar: bool = False,
+    ) -> 'SolicitudFeDeVida':
         """Excepción: solo la Administradora, con justificación obligatoria (auditada)."""
         self._exigir_revisable(actor)
+        self._exigir_no_registrador(actor, registrador_puede_checar)
         if actor.rol is not RolRevision.ADMINISTRADORA:
             raise ConflictError("Solo la Administradora de Bienestar puede aprobar de forma directa.")
         if not justificacion or not justificacion.strip():
@@ -233,12 +245,16 @@ class SolicitudFeDeVida:
             decisiones=self.decisiones + (decision,), fecha_validacion=ahora,
         )
 
-    def retirar_check(self, actor: ActorRevision, motivo: str, ahora: datetime) -> 'SolicitudFeDeVida':
+    def retirar_check(
+        self, actor: ActorRevision, motivo: str, ahora: datetime, *,
+        registrador_puede_checar: bool = False,
+    ) -> 'SolicitudFeDeVida':
         """
         Quien dio un check que aún no completó la validación puede retirarlo (justificación obligatoria). Si no
         queda ningún check vigente, la solicitud vuelve a PENDIENTE_REVISION. El retiro queda en el historial.
         """
         self._exigir_revisable(actor)
+        self._exigir_no_registrador(actor, registrador_puede_checar)
         if not self.dio_check(actor.cedula):
             raise ConflictError("Usted no tiene un check vigente en esta fe de vida para retirar.")
         motivo = validar_motivo(motivo)
@@ -251,8 +267,10 @@ class SolicitudFeDeVida:
 
     def _cerrar_con_motivo(
         self, actor: ActorRevision, motivo: str, ahora: datetime, tipo: TipoDecision, nuevo: EstadoSolicitud,
+        *, registrador_puede_checar: bool = False,
     ) -> 'SolicitudFeDeVida':
         self._exigir_revisable(actor)
+        self._exigir_no_registrador(actor, registrador_puede_checar)
         if self.dio_check(actor.cedula):
             raise ConflictError(MENSAJE_YA_DIO_CHECK)
         if not motivo or not motivo.strip():
@@ -261,17 +279,27 @@ class SolicitudFeDeVida:
         decision = DecisionFeDeVida(tipo, actor.rol, actor.cedula, self.envios, ahora, motivo.strip())
         return replace(self, estado=nuevo, decisiones=self.decisiones + (decision,))
 
-    def rechazar(self, actor: ActorRevision, motivo: str, ahora: datetime) -> 'SolicitudFeDeVida':
-        return self._cerrar_con_motivo(actor, motivo, ahora, TipoDecision.RECHAZO, EstadoSolicitud.RECHAZADA)
+    def rechazar(
+        self, actor: ActorRevision, motivo: str, ahora: datetime, *,
+        registrador_puede_checar: bool = False,
+    ) -> 'SolicitudFeDeVida':
+        return self._cerrar_con_motivo(
+            actor, motivo, ahora, TipoDecision.RECHAZO, EstadoSolicitud.RECHAZADA,
+            registrador_puede_checar=registrador_puede_checar,
+        )
 
     def devolver(
-        self, actor: ActorRevision, motivo: str, ahora: datetime, requiere_nueva_foto: bool = False,
+        self, actor: ActorRevision, motivo: str, ahora: datetime, requiere_nueva_foto: bool = False, *,
+        registrador_puede_checar: bool = False,
     ) -> 'SolicitudFeDeVida':
         """
         Devuelta para corrección (motivo obligatorio): el pasivo corrige los datos del acta y, si el revisor lo
         pide, la foto (entonces la vigente pasa al historial). Los checks no se reutilizan al reenviar.
         """
-        nueva = self._cerrar_con_motivo(actor, motivo, ahora, TipoDecision.DEVOLUCION, EstadoSolicitud.DEVUELTA)
+        nueva = self._cerrar_con_motivo(
+            actor, motivo, ahora, TipoDecision.DEVOLUCION, EstadoSolicitud.DEVUELTA,
+            registrador_puede_checar=registrador_puede_checar,
+        )
         nueva = replace(nueva, requiere_nueva_foto=requiere_nueva_foto)
         if not requiere_nueva_foto:
             return nueva

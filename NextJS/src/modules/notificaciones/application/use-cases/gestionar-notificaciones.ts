@@ -47,7 +47,7 @@ export async function listarNotificaciones(
 
 export async function contarNoLeidas(
   repo: RepoNotificaciones,
-  modulo: ModuloNotificaciones,
+  modulo?: ModuloNotificaciones,
 ): Promise<number> {
   return Math.max(await repo.contarNoLeidas(modulo), 0);
 }
@@ -59,7 +59,7 @@ export async function marcarNotificacionLeida(repo: RepoNotificaciones, id: stri
 
 export async function marcarTodasLeidas(
   repo: RepoNotificaciones,
-  modulo: ModuloNotificaciones,
+  modulo?: ModuloNotificaciones,
 ): Promise<number> {
   return repo.marcarTodasLeidas(modulo);
 }

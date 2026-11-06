@@ -210,6 +210,7 @@ class RetirarCheckView(APIView):
             previa = resumen(anterior) if anterior else None
             solicitud = retirar_check(
                 repo, PublicadorSenales(), solicitud_id=str(solicitud_id), actor=actor, motivo=datos['motivo'], ahora=ahora(),
+                registrador_puede_checar=_registrador_puede_checar(),
             )
             auditar(request, 'CHECK_RETIRADO', solicitud.id, previa,
                     {**resumen(solicitud), 'rol': actor.rol.value, 'motivo': solicitud.decisiones[-1].motivo})
@@ -232,6 +233,7 @@ class AprobarDirectoView(APIView):
             solicitud = aprobar_directo(
                 RepoSolicitudesFeDeVidaORM(), AplicadorCambiosActaORM(), PublicadorSenales(),
                 solicitud_id=str(solicitud_id), actor=actor, justificacion=datos['justificacion'], ahora=ahora(),
+                registrador_puede_checar=_registrador_puede_checar(),
             )
             auditar(request, 'APROBACION_DIRECTA_ADMINISTRADORA', solicitud.id, None,
                     {**resumen(solicitud), 'justificacion': datos['justificacion']})
@@ -249,6 +251,7 @@ class RechazarView(APIView):
             solicitud = rechazar(
                 RepoSolicitudesFeDeVidaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id),
                 actor=actor_revision(request), motivo=datos['motivo'], ahora=ahora(),
+                registrador_puede_checar=_registrador_puede_checar(),
             )
             auditar(request, 'RECHAZADA', solicitud.id, None, {**resumen(solicitud), 'motivo': datos['motivo']})
         return ok(a_dict_solicitud(solicitud), 'Fe de vida rechazada.')
@@ -269,6 +272,7 @@ class DevolverView(APIView):
                 RepoSolicitudesFeDeVidaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id),
                 actor=actor_revision(request), motivo=datos['motivo'],
                 requiere_nueva_foto=datos['requiere_nueva_foto'], ahora=ahora(),
+                registrador_puede_checar=_registrador_puede_checar(),
             )
             auditar(request, 'SOLICITUD_DEVUELTA', solicitud.id, None,
                     {**resumen(solicitud), 'motivo': datos['motivo'], 'requiere_nueva_foto': datos['requiere_nueva_foto']})

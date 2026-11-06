@@ -7,9 +7,9 @@ from apps.notificaciones.domain.entities.notificacion import Notificacion
 
 @dataclass(frozen=True)
 class FiltroNotificaciones:
-    """`modulo` es obligatorio (bandeja); el resto son opcionales (None/'' = sin filtrar). Fechas: días inclusivos."""
+    """`modulo` opcional: vacío/None = todas las notificaciones del usuario (bandeja única). Fechas: días inclusivos."""
 
-    modulo: str
+    modulo: str | None = None
     q: str = ''
     tipo: str = ''
     leida: bool | None = None
@@ -26,10 +26,10 @@ class RepoNotificaciones(Protocol):
         self, cedula: str, filtro: FiltroNotificaciones, limite: int, desplazamiento: int,
     ) -> tuple[list[Notificacion], int]: ...
 
-    def contar_no_leidas(self, cedula: str, modulo: str) -> int: ...
+    def contar_no_leidas(self, cedula: str, modulo: str | None = None) -> int: ...
 
     def marcar_leida(self, cedula: str, notificacion_id: str, ahora) -> bool:
         """True si la notificación existe y es del destinatario (aunque ya estuviera leída); False si no."""
         ...
 
-    def marcar_todas_leidas(self, cedula: str, modulo: str, ahora) -> int: ...
+    def marcar_todas_leidas(self, cedula: str, modulo: str | None, ahora) -> int: ...

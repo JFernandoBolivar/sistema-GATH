@@ -36,6 +36,8 @@ interface Props {
   /** Acciones que el servidor permite al usuario actual: aquí solo se pintan, la regla no se duplica. */
   acciones: readonly AccionRevision[];
   onHecho: () => void;
+  /** Quien llenó el acta en Registro presencial: no decide sobre lo que registró. */
+  esRegistrador?: boolean;
 }
 
 /** Mensaje de estado de la sección Decisión según quién dio el primer check. */
@@ -53,12 +55,14 @@ export function mensajeEstadoCheck(
 }
 
 /** Botones de la revisión: solo los que el servidor declara disponibles para quien mira. */
-export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
+export function AccionesRevision({ solicitud, acciones, onHecho, esRegistrador = false }: Props) {
   const [dialogo, setDialogo] = useState<Dialogo>(null);
   const [erroresServidor, setErroresServidor] = useState<Record<string, string[]> | undefined>(undefined);
   const [pendiente, iniciar] = useTransition();
   const tiene = (a: AccionRevision) => acciones.includes(a);
   const mensaje = mensajeEstadoCheck(solicitud, acciones);
+  const revisable = solicitud.estado === "PENDIENTE_REVISION" || solicitud.estado === "PENDIENTE_SEGUNDO_CHECK";
+  const avisoRegistrador = esRegistrador && revisable && acciones.length === 0;
 
   function abrirDialogo(d: Dialogo) {
     setErroresServidor(undefined);
@@ -126,9 +130,19 @@ export function AccionesRevision({ solicitud, acciones, onHecho }: Props) {
         </p>
       ) : null}
       {acciones.length === 0 ? (
-        <p className="text-base text-muted-foreground">
-          No hay acciones disponibles para usted en este estado.
-        </p>
+        avisoRegistrador ? (
+          <p
+            role="status"
+            className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-base text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+          >
+            Usted registró esta fe de vida de forma presencial. La revisión debe hacerla otra
+            persona de Bienestar Social.
+          </p>
+        ) : (
+          <p className="text-base text-muted-foreground">
+            No hay acciones disponibles para usted en este estado.
+          </p>
+        )
       ) : (
         <div className="flex flex-wrap gap-3">
           {tiene("dar_check") ? (

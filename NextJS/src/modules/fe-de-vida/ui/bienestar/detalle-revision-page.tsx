@@ -70,7 +70,7 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
 
 /** Revisión de una fe de vida: resumen, ficha completa con lo declarado, foto y decisión. */
 export default function DetalleRevisionPage({ id }: { id: string }) {
-  const { puede } = useSesionFeDeVida();
+  const { puede, cedula } = useSesionFeDeVida();
   const [imprimiendo, setImprimiendo] = useState(false);
   const { data, error, isLoading, mutate } = useSWR(["fe-de-vida-revision", id], async () => {
     const res = await obtenerDetalleRevisionAction(id);
@@ -189,7 +189,16 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
           ) : (
             <p className="rounded-lg border bg-card p-4 text-base">No tiene permiso para ver la foto.</p>
           )}
-          <AccionesRevision solicitud={solicitud} acciones={acciones} onHecho={() => mutate()} />
+          <AccionesRevision
+            solicitud={solicitud}
+            acciones={acciones}
+            onHecho={() => mutate()}
+            esRegistrador={
+              solicitud.canal === "PRESENCIAL" &&
+              !!solicitud.registradaPorCedula &&
+              solicitud.registradaPorCedula === cedula
+            }
+          />
           <LineaTiempo hitos={hitosRevision(solicitud)} etiqueta="Avance de la solicitud" />
         </aside>
       </div>

@@ -16,12 +16,12 @@ logger = logging.getLogger('gath.notificaciones')
 TTL_SEGUNDOS = 120
 
 
-def _clave(cedula: str, modulo: str) -> str:
-    return f'notif:no_leidas:{cedula}:{modulo}'
+def _clave(cedula: str, modulo: str | None) -> str:
+    return f'notif:no_leidas:{cedula}:{modulo or "todos"}'
 
 
 class CacheConteoDjango:
-    def obtener(self, cedula: str, modulo: str) -> int | None:
+    def obtener(self, cedula: str, modulo: str | None) -> int | None:
         try:
             valor = cache.get(_clave(cedula, modulo))
         except Exception as exc:  # noqa: BLE001
@@ -29,7 +29,7 @@ class CacheConteoDjango:
             return None
         return valor if isinstance(valor, int) else None
 
-    def guardar(self, cedula: str, modulo: str, total: int) -> None:
+    def guardar(self, cedula: str, modulo: str | None, total: int) -> None:
         try:
             cache.set(_clave(cedula, modulo), total, TTL_SEGUNDOS)
         except Exception as exc:  # noqa: BLE001
@@ -38,7 +38,7 @@ class CacheConteoDjango:
     def invalidar(self, cedula: str) -> None:
         def _borrar():
             try:
-                cache.delete_many([_clave(cedula, m) for m in MODULOS_NOTIFICACION])
+                cache.delete_many([_clave(cedula, m) for m in (*MODULOS_NOTIFICACION, None)])
             except Exception as exc:  # noqa: BLE001
                 logger.warning('caché de notificaciones no disponible (delete): %s', exc)
 
