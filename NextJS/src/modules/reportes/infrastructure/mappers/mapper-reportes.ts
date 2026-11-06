@@ -29,6 +29,7 @@ export function reportePersonalApiAEntidad(raw: ReportePersonalApiItem): Reporte
     tipoPersonal: raw.tipo_personal,
     fechaIngreso: raw.fecha_ingreso,
     totalAnosApn: raw.total_anos_apn,
+    sinFechaApn: Boolean(raw.apn_aviso),
   };
 }
 

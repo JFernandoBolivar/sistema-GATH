@@ -47,7 +47,6 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import type { CatalogosExpedienteDTO, EmpleadoDTO } from "../application/dtos/empleado-dto";
 import {
   descargarEmpleadoPdfAction,
-  getEmpleadoPorCedulaAction,
   getEmpleadosAction,
   getInicioPersonalAction,
   subirFotoEmpleadoAction,
@@ -55,6 +54,7 @@ import {
 import { obtenerCatalogosExpediente } from "../infrastructure/cache/catalogos-expediente-cache";
 import EmpleadoDetalleSheet from "./empleado-detalle-sheet";
 import { construirDetalleExpediente } from "./expediente-detalle-view-model";
+import { useExpedienteVigente } from "./use-expediente-vigente";
 import { construirColumnasPersonal } from "./personal-columns";
 import { listadoEmpleadosSchema, type ListadoEmpleadosFormType } from "./schema/schema-empleado";
 
@@ -75,13 +75,27 @@ export default function PersonalPage() {
   const [nominas, setNominas] = useState<{ id: number; nombre: string }[]>([]);
   const [cargandoNominas, setCargandoNominas] = useState(false);
   const [cargandoPersonal, setCargandoPersonal] = useState(true);
-  const [viendoDetalle, setViendoDetalle] = useState<EmpleadoDTO | null>(null);
-  const [detalleAbierto, setDetalleAbierto] = useState(false);
+  const [cedulaDetalle, setCedulaDetalle] = useState<string | null>(null);
   const [exportandoPdf, setExportandoPdf] = useState(false);
   const [_isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cedulaFotoRef = useRef<string | null>(null);
+
+  // El detalle se deriva de la cédula vigente: al cambiar de persona se vacía
+  // al instante y se descartan las respuestas de cualquier otra cédula.
+  const {
+    empleado: viendoDetalle,
+    revision: revisionDetalle,
+    recargar: recargarDetalle,
+  } = useExpedienteVigente({
+    cedula: cedulaDetalle,
+    activo: cedulaDetalle !== null,
+    onError: (mensaje) => {
+      setError(mensaje);
+      setCedulaDetalle(null);
+    },
+  });
 
   const form = useForm<ListadoEmpleadosFormType>({
     resolver: zodResolver(listadoEmpleadosSchema),
@@ -183,21 +197,11 @@ export default function PersonalPage() {
   };
 
   const onVerDetalle = (cedula: string) => {
-    setDetalleAbierto(true);
-    setViendoDetalle(null);
+    setError(null);
+    setCedulaDetalle(cedula);
     // Los catálogos van en paralelo y no bloquean la apertura: el expediente
     // se pinta con los nombres que ya trae el backend.
     void asegurarCatalogos();
-    startTransition(async () => {
-      setError(null);
-      const resultado = await getEmpleadoPorCedulaAction(cedula);
-      if (resultado && typeof resultado === "object" && "error" in resultado) {
-        setError((resultado as { error: string }).error);
-        setDetalleAbierto(false);
-        return;
-      }
-      setViendoDetalle(resultado as EmpleadoDTO);
-    });
   };
 
   const onSubirFotoClick = (cedula: string) => {
@@ -408,10 +412,9 @@ export default function PersonalPage() {
       )}
 
       <EmpleadoDetalleSheet
-        open={detalleAbierto}
+        open={cedulaDetalle !== null}
         onOpenChange={(open) => {
-          setDetalleAbierto(open);
-          if (!open) setViendoDetalle(null);
+          if (!open) setCedulaDetalle(null);
         }}
         empleado={viendoDetalle}
         catalogos={catalogos}
@@ -419,11 +422,12 @@ export default function PersonalPage() {
         onExportarPdf={onExportarPdf}
         onGuardado={() => {
           cargar(form.getValues(), pagina);
-          if (viendoDetalle) onVerDetalle(viendoDetalle.cedula);
+          recargarDetalle();
         }}
         exportandoPdf={exportandoPdf}
         puedeExportarPdf={puedeExportarPdf}
         puedeEditar={puedeEditar}
+        revision={revisionDetalle}
       />
     </PageLayout>
   );

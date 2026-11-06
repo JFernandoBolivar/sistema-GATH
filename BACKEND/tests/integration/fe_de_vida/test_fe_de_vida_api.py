@@ -742,6 +742,21 @@ def _constancia_validada(administradora, pasivo, django_capture_on_commit_callba
     return sid, ConstanciaFeDeVidaModel.objects.get(solicitud_id=sid)
 
 
+def test_proceso_cerrado_validada_permite_reenviar_y_regenerar_constancia(
+    pasivo, analista, administradora, django_capture_on_commit_callbacks,
+):
+    sid, constancia = _constancia_validada(administradora, pasivo, django_capture_on_commit_callbacks)
+    pid = str(constancia.solicitud.proceso_id)
+    assert administradora.post(f'{BASE}/procesos/{pid}/cerrar/').status_code == 200
+    det_analista = cuerpo(analista.get(f'{BASE}/solicitudes/{sid}/'))['acciones_disponibles']
+    det_admin = cuerpo(administradora.get(f'{BASE}/solicitudes/{sid}/'))['acciones_disponibles']
+    assert det_analista == ['reenviar_constancia']
+    assert set(det_admin) == {'reenviar_constancia', 'regenerar_constancia'}
+    r = administradora.post(f'{BASE}/solicitudes/{sid}/regenerar-constancia/', {}, format='json')
+    assert r.status_code == 200 and cuerpo(r)['numero'] == constancia.numero
+    assert analista.post(f'{BASE}/solicitudes/{sid}/regenerar-constancia/', {}, format='json').status_code == 403
+
+
 def test_verificacion_publica_valida_sin_sesion_y_sin_datos_sensibles(
     pasivo, administradora, django_capture_on_commit_callbacks,
 ):

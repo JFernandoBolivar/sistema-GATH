@@ -28,9 +28,9 @@ def ahora() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def validar_entrada(serializer_cls, data):
+def validar_entrada(serializer_cls, data, context: dict | None = None):
     """Valida y devuelve `validated_data`; los errores por campo se conservan en `data.errores`."""
-    serializer = serializer_cls(data=data)
+    serializer = serializer_cls(data=data, context=context or {})
     serializer.is_valid(raise_exception=True)
     return serializer.validated_data
 

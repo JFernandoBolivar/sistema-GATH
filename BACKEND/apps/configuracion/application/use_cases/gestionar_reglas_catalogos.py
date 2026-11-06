@@ -11,10 +11,19 @@ from apps.configuracion.domain.reglas_catalogos import (
     ReglaMotivo,
     ReglaNomina,
     ReglaParentesco,
+    preparar_nueva_nomina,
     preparar_nuevo_motivo,
+    preparar_nuevo_parentesco,
     validar_cambio_categoria_motivo,
     validar_edicion_motivo,
+    validar_edicion_nomina,
+    validar_edicion_parentesco,
     validar_eliminacion_motivo,
+    validar_eliminacion_nomina,
+    validar_eliminacion_parentesco,
+    normalizar_nombre_catalogo,
+    LARGO_MAXIMO_NOMINA,
+    LARGO_MAXIMO_PARENTESCO,
 )
 
 
@@ -112,6 +121,90 @@ def crear_nuevo_motivo(
     # Verificar que la categoría exista
     repo.obtener_categoria_motivo(cat_id)
     return repo.crear_motivo(nombre_limpio, cat_id)
+
+
+def crear_parentesco(
+    repo: RepoReglasCatalogos,
+    descripcion: str,
+    aplica_familiar: bool = True,
+) -> ReglaParentesco:
+    """Alta de parentesco (O36): nombre único sin distinguir mayúsculas."""
+    nombre, aplica = preparar_nuevo_parentesco(descripcion, aplica_familiar)
+    return repo.crear_parentesco(nombre, aplica)
+
+
+def editar_parentesco(
+    repo: RepoReglasCatalogos,
+    parentesco_id: int,
+    descripcion: str | None,
+    aplica_familiar: bool | None,
+) -> tuple[ReglaParentesco, ReglaParentesco]:
+    """Edición de nombre/marca del parentesco, protegiendo el reservado."""
+    anterior = repo.obtener_parentesco(parentesco_id)
+    nombre = None
+    if descripcion is not None:
+        nombre = normalizar_nombre_catalogo(
+            descripcion, campo='descripcion', maximo=LARGO_MAXIMO_PARENTESCO,
+        )
+        validar_edicion_parentesco(anterior, nombre)
+    actualizado = repo.actualizar_parentesco(
+        parentesco_id,
+        anterior.aplica_familiar if aplica_familiar is None else aplica_familiar,
+        descripcion=nombre,
+    )
+    return anterior, actualizado
+
+
+def eliminar_parentesco(
+    repo: RepoReglasCatalogos,
+    parentesco_id: int,
+) -> ReglaParentesco:
+    """Baja física solo si no tiene referencias y no es reservado."""
+    actual = repo.obtener_parentesco(parentesco_id)
+    tiene_referencias = repo.parentesco_tiene_referencias(parentesco_id)
+    validar_eliminacion_parentesco(actual, tiene_referencias)
+    return repo.eliminar_parentesco(parentesco_id)
+
+
+def crear_nomina(
+    repo: RepoReglasCatalogos,
+    nomina: str,
+    es_activo: bool,
+    requiere_codig: bool,
+) -> ReglaNomina:
+    """Alta de tipo de nómina (O36) con su clasificación y requiere_codig."""
+    nombre, activo, codig = preparar_nueva_nomina(nomina, es_activo, requiere_codig)
+    return repo.crear_nomina(nombre, activo, codig)
+
+
+def editar_nomina(
+    repo: RepoReglasCatalogos,
+    nomina_id: int,
+    nomina: str | None,
+    es_activo: bool | None,
+    requiere_codig: bool | None,
+) -> tuple[ReglaNomina, ReglaNomina]:
+    """Edición de nómina, protegiendo las nóminas reservadas del sistema."""
+    anterior = repo.obtener_nomina(nomina_id)
+    nombre = None
+    if nomina is not None:
+        nombre = normalizar_nombre_catalogo(nomina, campo='nomina', maximo=LARGO_MAXIMO_NOMINA)
+        validar_edicion_nomina(anterior, nombre)
+    actualizado = repo.actualizar_nomina(
+        nomina_id, es_activo, requiere_codig, nomina=nombre,
+    )
+    return anterior, actualizado
+
+
+def eliminar_nomina(
+    repo: RepoReglasCatalogos,
+    nomina_id: int,
+) -> ReglaNomina:
+    """Baja física solo si no tiene referencias y no es reservada."""
+    actual = repo.obtener_nomina(nomina_id)
+    tiene_referencias = repo.nomina_tiene_referencias(nomina_id)
+    validar_eliminacion_nomina(actual, tiene_referencias)
+    return repo.eliminar_nomina(nomina_id)
 
 
 def actualizar_nomina(

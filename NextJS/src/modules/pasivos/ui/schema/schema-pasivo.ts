@@ -39,6 +39,7 @@ export const filtrosPasivosSchema = z.object({
   tipoNominaId: z.number().int().positive().optional(),
   fechaDesde: z.string().trim().optional(),
   fechaHasta: z.string().trim().optional(),
+  sinCuenta: z.boolean().optional(),
   limit: z.number().int().min(1).max(50).default(10),
   offset: z.number().int().min(0).default(0),
 });

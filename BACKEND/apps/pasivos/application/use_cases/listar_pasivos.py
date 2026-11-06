@@ -65,6 +65,7 @@ def listar_pasivos_paginados(
     tipo_nomina_id: int | None = None,
     fecha_desde=None,
     fecha_hasta=None,
+    sin_cuenta: bool | None = None,
     limite: int = 10,
     desplazamiento: int = 0,
 ):
@@ -76,6 +77,7 @@ def listar_pasivos_paginados(
         tipo_nomina_id=tipo_nomina_id,
         fecha_desde=fecha_desde,
         fecha_hasta=fecha_hasta,
+        sin_cuenta=sin_cuenta,
         limite=limite,
         desplazamiento=desplazamiento,
     )

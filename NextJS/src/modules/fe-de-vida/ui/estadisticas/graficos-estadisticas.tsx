@@ -22,6 +22,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/shared/ui/components/chart";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 
 import type { BarraEstado, BarraTipo, DonutCobertura } from "./datos-graficos";
 import { COLORES_COBERTURA, PALETA_GRAFICOS, SERIES_GRAFICOS } from "./paleta-graficos";
@@ -44,8 +45,136 @@ interface PropsGrafico {
   contenedorRef?: Ref<HTMLDivElement>;
 }
 
+const CARACTERES_POR_LINEA = 14;
+const ALTO_MINIMO_MOVIL = 280;
+const ALTO_POR_CATEGORIA = 46;
+
+/** Parte una etiqueta larga en líneas completas (sin cortar palabras ni truncar). */
+export function envolverTexto(texto: string, maximo: number = CARACTERES_POR_LINEA): string[] {
+  const palabras = texto.split(/\s+/).filter(Boolean);
+  const lineas: string[] = [];
+  for (const palabra of palabras) {
+    const ultima = lineas[lineas.length - 1];
+    if (ultima && `${ultima} ${palabra}`.length <= maximo) {
+      lineas[lineas.length - 1] = `${ultima} ${palabra}`;
+    } else {
+      lineas.push(palabra);
+    }
+  }
+  return lineas.length > 0 ? lineas : [""];
+}
+
+/** Altura del gráfico horizontal: crece con el número de categorías. */
+export function alturaGraficoTipos(categorias: number): number {
+  return Math.max(ALTO_MINIMO_MOVIL, categorias * ALTO_POR_CATEGORIA + 72);
+}
+
+/** No pinta etiquetas para los valores 0 (se encimaban con la barra). */
+export function etiquetaValor(valor: unknown): string {
+  const numero = Number(valor);
+  return Number.isFinite(numero) && numero > 0 ? String(numero) : "";
+}
+
+function TickEnvuelto({
+  x,
+  y,
+  payload,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string | number };
+}) {
+  const lineas = envolverTexto(String(payload?.value ?? ""));
+  const alto = lineas.length * 12;
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor="end"
+      fill={PALETA_GRAFICOS.grisTexto}
+      fontSize={11}
+      fontFamily={TIPOGRAFIA.fontFamily}
+    >
+      {lineas.map((linea, indice) => (
+        <tspan key={`${linea}-${indice}`} x={x} dy={indice === 0 ? 3 - alto / 2 : 12}>
+          {linea}
+        </tspan>
+      ))}
+    </text>
+  );
+}
+
 export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: BarraTipo[] }) {
+  const esMovil = useIsMobile();
   if (datos.length === 0) return null;
+
+  if (esMovil) {
+    const datosConTotal = datos.map((fila) => ({
+      ...fila,
+      total: fila.respondieron + fila.faltan,
+    }));
+    return (
+      <ChartContainer
+        ref={contenedorRef}
+        config={CONFIG_TIPOS}
+        className="aspect-auto w-full font-sans"
+        style={{ height: alturaGraficoTipos(datos.length) }}
+      >
+        <BarChart
+          data={datosConTotal}
+          layout="vertical"
+          margin={{ top: 8, right: 28, left: 16, bottom: 4 }}
+        >
+          <CartesianGrid horizontal={false} stroke={PALETA_GRAFICOS.grisBorde} strokeDasharray="3 3" />
+          <XAxis
+            type="number"
+            allowDecimals={false}
+            tickLine={false}
+            axisLine={false}
+            tick={TIPOGRAFIA}
+          />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={104}
+            interval={0}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            tick={<TickEnvuelto />}
+          />
+          <ChartTooltip content={<ChartTooltipContent />} />
+          <Legend verticalAlign="bottom" align="center" height={28} wrapperStyle={TIPOGRAFIA} />
+          <Bar
+            dataKey="respondieron"
+            name="Respondieron"
+            stackId="cobertura"
+            fill="var(--color-respondieron)"
+            barSize={18}
+            minPointSize={2}
+          />
+          <Bar
+            dataKey="faltan"
+            name="Faltan"
+            stackId="cobertura"
+            fill="var(--color-faltan)"
+            barSize={18}
+            minPointSize={2}
+          >
+            <LabelList
+              dataKey="total"
+              position="right"
+              fill={PALETA_GRAFICOS.grisTexto}
+              fontSize={11}
+              fontWeight={600}
+              formatter={etiquetaValor}
+            />
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+    );
+  }
+
   return (
     <ChartContainer ref={contenedorRef} config={CONFIG_TIPOS} className="max-h-72 w-full font-sans">
       <BarChart data={datos} margin={{ top: 24, right: 12, left: 0, bottom: 8 }}>

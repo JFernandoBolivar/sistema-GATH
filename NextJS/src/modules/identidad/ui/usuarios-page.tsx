@@ -325,7 +325,25 @@ export default function UsuariosPage() {
                         {usuario.condicion ?? "—"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{usuario.correo ?? "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs">{usuario.correo ?? "—"}</span>
+                          {usuario.correo && (
+                            <Badge variant="outline" className="px-1 py-0 text-[10px] font-normal leading-tight">
+                              Acceso
+                            </Badge>
+                          )}
+                        </div>
+                        {usuario.correoAlternativo &&
+                          usuario.correoAlternativo.trim().toLowerCase() !==
+                            (usuario.correo ?? "").trim().toLowerCase() && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Alt: {usuario.correoAlternativo}
+                            </span>
+                          )}
+                      </div>
+                    </TableCell>
                     <TableCell>{usuario.rolNombre ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={usuario.isActive ? "secondary" : "outline"}>

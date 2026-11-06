@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { familiarSchema } from "@/modules/familiares/ui/schema/schema-familiar";
 import { NAME, NAME_EDICION } from "@/shared/domain/validation";
-import { actualizarPasivoSchema, registrarPasivoSchema } from "./schema-pasivo";
+import { actualizarPasivoSchema, filtrosPasivosSchema, registrarPasivoSchema } from "./schema-pasivo";
 
 const base = {
   cedula: "12345678",
@@ -78,5 +78,11 @@ describe("validación de nombres y números (crítica 2026-11-03)", () => {
     expect(r.success).toBe(false);
     const campos = r.success ? [] : r.error.issues.map((i) => i.path[0]);
     expect(campos).toEqual(expect.arrayContaining(["parentescoId", "cedulaFamiliar"]));
+  });
+
+  it("FIX-QA11: filtrosPasivosSchema acepta sinCuenta booleano o indefinido", () => {
+    expect(filtrosPasivosSchema.safeParse({ sinCuenta: true }).success).toBe(true);
+    expect(filtrosPasivosSchema.safeParse({ sinCuenta: false }).success).toBe(true);
+    expect(filtrosPasivosSchema.safeParse({}).success).toBe(true);
   });
 });

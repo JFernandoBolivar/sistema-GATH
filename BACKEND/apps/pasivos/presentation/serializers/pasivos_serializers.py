@@ -197,6 +197,7 @@ class PasivoListaInputSerializer(serializers.Serializer):
     tipo_nomina_id = serializers.IntegerField(required=False, allow_null=True)
     fecha_desde = serializers.DateField(required=False, allow_null=True)
     fecha_hasta = serializers.DateField(required=False, allow_null=True)
+    sin_cuenta = serializers.BooleanField(required=False, allow_null=True)
     limit = serializers.IntegerField(required=False, min_value=1, max_value=50, default=10)
     offset = serializers.IntegerField(required=False, min_value=0, default=0)
 
@@ -215,6 +216,15 @@ class PasivoActualizarInputSerializer(serializers.Serializer):
     fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
     estado_civil_id = serializers.IntegerField(required=False, allow_null=True)
     nacionalidad_id = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        correo = (attrs.get('correo') or '').strip().lower()
+        alternativo = (attrs.get('correo_alternativo') or '').strip().lower()
+        if correo and alternativo and correo == alternativo:
+            raise serializers.ValidationError({
+                'correo_alternativo': 'El correo alternativo debe ser distinto del institucional.',
+            })
+        return attrs
 
     def validate_nombres(self, value):
         value = _validar(validar_nombre, value, edicion=True, etiqueta='Los nombres')

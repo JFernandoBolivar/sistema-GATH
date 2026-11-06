@@ -100,6 +100,20 @@ describe("AccionesRevision: solo se pintan las acciones que declara el servidor"
     expect(screen.getByRole("button", { name: /reenviar constancia/i })).toBeInTheDocument();
   });
 
+  it("proceso cerrado: con solo acciones de constancia el panel se titula Constancia y no dice «No hay acciones»", () => {
+    render(
+      <AccionesRevision
+        solicitud={solicitudFake({ estado: "VALIDADA" })}
+        acciones={["reenviar_constancia", "regenerar_constancia"]}
+        onHecho={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "Constancia" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reenviar constancia/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /regenerar constancia/i })).toBeInTheDocument();
+    expect(screen.queryByText(/no hay acciones/i)).toBeNull();
+  });
+
   it("sin acciones: aviso y ningún botón", () => {
     render(<AccionesRevision solicitud={solicitudFake()} acciones={[]} onHecho={vi.fn()} />);
     expect(screen.queryByRole("button")).toBeNull();

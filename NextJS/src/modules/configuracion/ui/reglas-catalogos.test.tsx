@@ -55,7 +55,7 @@ describe("Módulo Configuración - Reglas de Catálogos (A5)", () => {
       data: { id: 1, descripcion: "HIJO(A)", aplica_familiar: false },
     });
 
-    const res = await reglasCatalogosApi.actualizarParentesco(1, false);
+    const res = await reglasCatalogosApi.actualizarParentesco(1, { aplica_familiar: false });
     expect(patch).toHaveBeenCalledWith(
       "/api/v1/configuracion/reglas-catalogos/parentescos/1/",
       { aplica_familiar: false },
@@ -165,5 +165,64 @@ describe("Módulo Configuración - Reglas de Catálogos (A5)", () => {
       "/api/v1/configuracion/reglas-catalogos/motivos/15/",
     );
     expect(res.data.id).toBe(15);
+  });
+
+  it("API client crea un parentesco (O36)", async () => {
+    post.mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: { id: 9, descripcion: "PRIMO HERMANO", aplica_familiar: true },
+    });
+
+    const res = await reglasCatalogosApi.crearParentesco("PRIMO HERMANO", true);
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/configuracion/reglas-catalogos/parentescos/",
+      { descripcion: "PRIMO HERMANO", aplica_familiar: true },
+    );
+    expect(res.data.id).toBe(9);
+  });
+
+  it("API client edita y elimina un parentesco (O36)", async () => {
+    patch.mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: { id: 9, descripcion: "PRIMO", aplica_familiar: false },
+    });
+    del.mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: { id: 9, descripcion: "PRIMO", aplica_familiar: false },
+    });
+
+    await reglasCatalogosApi.actualizarParentesco(9, { descripcion: "PRIMO", aplica_familiar: false });
+    await reglasCatalogosApi.eliminarParentesco(9);
+
+    expect(patch).toHaveBeenCalledWith(
+      "/api/v1/configuracion/reglas-catalogos/parentescos/9/",
+      { descripcion: "PRIMO", aplica_familiar: false },
+    );
+    expect(del).toHaveBeenCalledWith("/api/v1/configuracion/reglas-catalogos/parentescos/9/");
+  });
+
+  it("API client crea y elimina un tipo de nómina (O36)", async () => {
+    post.mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: { id: 8, nomina: "CONTRATO NUEVO", requiere_codig: true, es_activo: false },
+    });
+    del.mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: { id: 8, nomina: "CONTRATO NUEVO", requiere_codig: true, es_activo: false },
+    });
+
+    await reglasCatalogosApi.crearNomina("CONTRATO NUEVO", false, true);
+    await reglasCatalogosApi.eliminarNomina(8);
+
+    expect(post).toHaveBeenCalledWith(
+      "/api/v1/configuracion/reglas-catalogos/nominas/",
+      { nomina: "CONTRATO NUEVO", es_activo: false, requiere_codig: true },
+    );
+    expect(del).toHaveBeenCalledWith("/api/v1/configuracion/reglas-catalogos/nominas/8/");
   });
 });

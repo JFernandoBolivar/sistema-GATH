@@ -32,6 +32,10 @@ describe("mapper fe de vida", () => {
     expect(s).toMatchObject({ procesoId: "p1", estado: "DEVUELTA", origenEvidencia: "CAMARA", requiereNuevaFoto: true });
     expect(s.decisiones[0]).toMatchObject({ tipo: "DEVOLUCION", actorCedula: "9", motivo: "Foto" });
   });
+  it("mapea la marca de que quien registró también aprobó (falsa si el servidor no la envía)", () => {
+    expect(mapperSolicitud(api).registradorTambienAprobo).toBe(false);
+    expect(mapperSolicitud({ ...api, registrador_tambien_aprobo: true }).registradorTambienAprobo).toBe(true);
+  });
   it("tolera el nombre previo REPETICION_SOLICITADA y estados desconocidos", () => {
     expect(mapperEstadoSolicitud("REPETICION_SOLICITADA")).toBe("DEVUELTA");
     expect(mapperEstadoSolicitud("XYZ")).toBe("BORRADOR");

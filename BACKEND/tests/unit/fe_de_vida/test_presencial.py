@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from apps.fe_de_vida.application.use_cases import revision
 from apps.fe_de_vida.domain.entities.solicitud import (
+    ActorRevision,
     Canal,
     DecisionFeDeVida,
     PermisosRevision,
@@ -14,9 +15,11 @@ from apps.fe_de_vida.domain.entities.solicitud import (
 from apps.fe_de_vida.domain.value_objects.estados import (
     EstadoSolicitud,
     OrigenEvidencia,
+    RolRevision,
     TipoDecision,
+    ViaAprobacion,
 )
-from core.domain.exceptions import ConflictError
+from core.domain.exceptions import ConflictError, ValidationError
 from tests.unit.fe_de_vida.memoria import (
     ADMINISTRADORA,
     AHORA,
@@ -113,42 +116,145 @@ def test_registrador_intenta_decidir_con_parametro_apagado_lanza_conflict():
         revision.aprobar_directo(
             m.solicitudes, m.aplicador, m.publicador,
             solicitud_id=s_pres.id, actor=ADMINISTRADORA, justificacion='Pasivo sin movilidad', ahora=AHORA,
-            registrador_puede_checar=False,
+            registrador_puede_aprobar_directo=False,
         )
 
 
-def test_registrador_puede_decidir_si_parametro_esta_encendido():
-    sol = _solicitud_presencial_enviada(registrador_cedula=ADMINISTRADORA.cedula)
-    permisos = PermisosRevision(revisar=True, check=True, aprobar_directo=True)
-
-    acciones = sol.acciones_disponibles(
-        ADMINISTRADORA, permisos, registrador_puede_checar=True,
+def _presencial_registrada_por(registrador, m=None):
+    m = m or Mundo()
+    base = m.solicitud_enviada()
+    sol = replace(
+        base, canal=Canal.PRESENCIAL.value, registrada_por='REGISTRADOR', registrada_por_cedula=registrador.cedula,
     )
-    assert {'dar_check', 'aprobar_directo', 'devolver', 'rechazar'} <= set(acciones)
+    m.solicitudes.filas[sol.id] = sol
+    return m, sol
 
-    m = Mundo()
-    s = m.solicitud_enviada()
-    s_pres = replace(
-        s,
-        canal=Canal.PRESENCIAL.value,
-        registrada_por='ADMINISTRADORA REGISTRADORA',
-        registrada_por_cedula=ADMINISTRADORA.cedula,
-    )
-    m.solicitudes.filas[s_pres.id] = s_pres
 
+def test_registrador_analista_decide_si_parametro_esta_encendido():
+    sol = _solicitud_presencial_enviada(registrador_cedula=ANALISTA.cedula)
+    permisos = PermisosRevision(revisar=True, check=True)
+
+    acciones = sol.acciones_disponibles(ANALISTA, permisos, registrador_puede_checar=True)
+    assert {'dar_check', 'devolver', 'rechazar'} <= set(acciones)
+
+    m, s_pres = _presencial_registrada_por(ANALISTA)
     res = revision.dar_check(
         m.solicitudes, m.aplicador, m.publicador,
-        solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
-        registrador_puede_checar=True,
+        solicitud_id=s_pres.id, actor=ANALISTA, ahora=AHORA, registrador_puede_checar=True,
     )
     assert res.estado == EstadoSolicitud.PENDIENTE_SEGUNDO_CHECK
+    assert res.registrador_tambien_aprobo is True
 
 
-def test_administradora_registradora_no_decide_si_parametro_esta_apagado():
+def test_registrador_analista_ignora_el_interruptor_de_la_administradora():
+    sol = _solicitud_presencial_enviada(registrador_cedula=ANALISTA.cedula)
+    permisos = PermisosRevision(revisar=True, check=True)
+    assert sol.acciones_disponibles(
+        ANALISTA, permisos, registrador_puede_checar=False, registrador_puede_aprobar_directo=True,
+    ) == ()
+
+
+@pytest.mark.parametrize('puede_checar', [False, True])
+def test_administradora_registradora_apagado_no_decide(puede_checar):
     sol = _solicitud_presencial_enviada(registrador_cedula=ADMINISTRADORA.cedula)
     permisos = PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+    assert sol.acciones_disponibles(
+        ADMINISTRADORA, permisos, registrador_puede_checar=puede_checar, registrador_puede_aprobar_directo=False,
+    ) == ()
 
-    acciones = sol.acciones_disponibles(
-        ADMINISTRADORA, permisos, registrador_puede_checar=False,
+
+@pytest.mark.parametrize('puede_checar', [False, True])
+def test_administradora_registradora_encendido_solo_aprueba_directo(puede_checar):
+    """El interruptor de analistas no la habilita: con el suyo encendido solo queda la aprobación directa."""
+    sol = _solicitud_presencial_enviada(registrador_cedula=ADMINISTRADORA.cedula)
+    permisos = PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+    assert sol.acciones_disponibles(
+        ADMINISTRADORA, permisos, registrador_puede_checar=puede_checar, registrador_puede_aprobar_directo=True,
+    ) == ('aprobar_directo',)
+    sin_permiso = PermisosRevision(revisar=True, check=True, aprobar_directo=False)
+    assert sol.acciones_disponibles(
+        ADMINISTRADORA, sin_permiso, registrador_puede_checar=puede_checar, registrador_puede_aprobar_directo=True,
+    ) == ()
+
+
+@pytest.mark.parametrize('puede_checar', [False, True])
+def test_administradora_registradora_no_da_check_devuelve_rechaza_ni_retira(puede_checar):
+    m, s_pres = _presencial_registrada_por(ADMINISTRADORA)
+    llamadas = (
+        lambda: revision.dar_check(
+            m.solicitudes, m.aplicador, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
+            registrador_puede_checar=puede_checar,
+        ),
+        lambda: revision.devolver(
+            m.solicitudes, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
+            motivo='Corrija el teléfono', registrador_puede_checar=puede_checar,
+        ),
+        lambda: revision.rechazar(
+            m.solicitudes, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
+            motivo='Documentación ilegible', registrador_puede_checar=puede_checar,
+        ),
+        lambda: revision.retirar_check(
+            m.solicitudes, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
+            motivo='Di el check por error', registrador_puede_checar=puede_checar,
+        ),
     )
-    assert acciones == ()
+    for llamada in llamadas:
+        with pytest.raises(ConflictError, match='registró esta fe de vida'):
+            llamada()
+
+
+def test_administradora_registradora_aprueba_directo_con_interruptor_y_queda_marcado():
+    m, s_pres = _presencial_registrada_por(ADMINISTRADORA)
+    res = revision.aprobar_directo(
+        m.solicitudes, m.aplicador, m.publicador,
+        solicitud_id=s_pres.id, actor=ADMINISTRADORA, justificacion='Pasivo sin movilidad', ahora=AHORA,
+        registrador_puede_aprobar_directo=True,
+    )
+    assert res.estado == EstadoSolicitud.VALIDADA
+    assert res.via_aprobacion == ViaAprobacion.DIRECTA_ADMINISTRADORA
+    assert res.registrador_tambien_aprobo is True
+    assert res.decisiones[-1].tipo is TipoDecision.APROBACION_DIRECTA
+    assert res.decisiones[-1].motivo == 'Pasivo sin movilidad'
+    finales = [e for e in m.publicador.eventos if e.tipo.value in ('fe_de_vida.aprobacion_directa', 'fe_de_vida.validada')]
+    assert len(finales) == 2
+    assert all(e.detalle.get('registrador_tambien_aprobo') is True for e in finales)
+
+
+def test_administradora_registradora_aprobacion_directa_exige_justificacion():
+    m, s_pres = _presencial_registrada_por(ADMINISTRADORA)
+    with pytest.raises(ValidationError):
+        revision.aprobar_directo(
+            m.solicitudes, m.aplicador, m.publicador,
+            solicitud_id=s_pres.id, actor=ADMINISTRADORA, justificacion='   ', ahora=AHORA,
+            registrador_puede_aprobar_directo=True,
+        )
+
+
+def test_aprobacion_directa_de_otra_administradora_no_marca_registrador():
+    m, s_pres = _presencial_registrada_por(ANALISTA)
+    res = revision.aprobar_directo(
+        m.solicitudes, m.aplicador, m.publicador,
+        solicitud_id=s_pres.id, actor=ADMINISTRADORA, justificacion='Pasivo sin movilidad', ahora=AHORA,
+    )
+    assert res.estado == EstadoSolicitud.VALIDADA
+    assert res.registrador_tambien_aprobo is False
+
+
+def test_el_pasivo_nunca_aprueba_su_propia_fe_de_vida_aunque_los_interruptores_esten_encendidos():
+    sol = _solicitud_presencial_enviada(registrador_cedula=ADMINISTRADORA.cedula)
+    propio = ActorRevision('5111111', RolRevision.ADMINISTRADORA)
+    permisos = PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+    assert sol.acciones_disponibles(
+        propio, permisos, registrador_puede_checar=True, registrador_puede_aprobar_directo=True,
+    ) == ()
+    with pytest.raises(ConflictError, match='propia fe de vida'):
+        sol.aprobar_directo(propio, 'Justificación', AHORA, registrador_puede_aprobar_directo=True)
+
+
+def test_proceso_cerrado_no_cambia_con_los_interruptores():
+    sol = _solicitud_presencial_enviada(registrador_cedula=ADMINISTRADORA.cedula)
+    permisos = PermisosRevision(revisar=True, check=True, aprobar_directo=True)
+    assert sol.acciones_disponibles(
+        ADMINISTRADORA, permisos, registrador_puede_checar=True, registrador_puede_aprobar_directo=True,
+        proceso_cerrado=True,
+    ) == ()

@@ -220,7 +220,7 @@ class RepoReportesORM:
 
         return ResultadoReporte(
             titulo="Reporte de Personal Activo",
-            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn', 'apn_aviso'],
+            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn'],
             filas=filas,
             total_registros=len(filas),
             metadatos=metadatos,

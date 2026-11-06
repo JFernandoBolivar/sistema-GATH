@@ -68,6 +68,7 @@ import { BotonSolicitarActualizacion } from "./solicitudes/boton-solicitar-actua
 import { ModalReportarErrorLaboral } from "./components/modal-reportar-error-laboral";
 import { formatearTelefono } from "@/shared/domain/validation/telefono";
 import { formatearTiempoServicio } from "../domain/formatear-tiempo-servicio";
+import { tieneFechaIngresoApn } from "../domain/tiene-fecha-ingreso";
 import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
 import { useGuia, BotonVerGuia } from "@/shared/ui/guias";
 import { GUIA_AUTOGESTION_INICIO, GUIA_MI_FICHA } from "./guias/definiciones-guias";
@@ -200,6 +201,11 @@ export default function MiExpedienteView() {
   const salud = empleado.perfil_salud;
   const fisico = empleado.perfil_fisico;
   const contratoActual = empleado.contrato_actual;
+  // FIX-AUD7: sin fecha de ingreso el APN no es calculable; se muestra «—».
+  const conFechaIngresoApn = tieneFechaIngresoApn(
+    contratoActual?.fecha_ingreso,
+    empleado.antecedentes,
+  );
   const contratos = (empleado.contratos || []) as ContratoItem[];
   const formacion = (empleado.formacion_academica || []) as FormacionAcademicaItem[];
   const complementaria = (empleado.formacion_complementaria || []) as FormacionComplementariaItem[];
@@ -330,6 +336,14 @@ export default function MiExpedienteView() {
         <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 h-1.5 w-48 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 rounded-bl-full opacity-80" />
 
+          {/* TLF6: En teléfono, acción «Ver guía» discreta en la esquina superior derecha */}
+          <div className="absolute top-3 right-3 sm:hidden z-20">
+            <BotonVerGuia
+              onClick={iniciarGuia}
+              className="h-10 w-10 p-0 rounded-full bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white [&>span]:hidden"
+            />
+          </div>
+
           <div className="relative z-10 flex min-w-0 flex-col items-stretch justify-between gap-5 sm:gap-6 lg:flex-row lg:items-center">
             <div className="flex min-w-0 flex-col items-center sm:items-start gap-4 sm:flex-row sm:gap-6 text-center sm:text-left">
               <div className="relative shrink-0 mx-auto sm:mx-0">
@@ -356,8 +370,14 @@ export default function MiExpedienteView() {
                 )}
               </div>
 
-              <div className="min-w-0 space-y-2.5 w-full">
-                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+              <div className="min-w-0 space-y-2.5 w-full flex flex-col items-center sm:items-start text-center sm:text-left">
+                {/* TLF6: En teléfono el nombre se agrupa como bloque principal junto a la foto */}
+                <h1 className="order-1 sm:order-2 break-words text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm text-center sm:text-left">
+                  {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
+                </h1>
+
+                {/* TLF6: Chips de CONATEL y C.I. juntos sin interferencia del botón Ver guía */}
+                <div className="order-2 sm:order-1 flex items-center justify-center sm:justify-start gap-2 flex-wrap">
                   <span className="text-[11px] sm:text-xs font-bold tracking-wider text-amber-300 uppercase px-2.5 py-1 rounded-md bg-amber-400/15 border border-amber-400/30">
                     CONATEL • GATH
                   </span>
@@ -382,22 +402,23 @@ export default function MiExpedienteView() {
                     ))}
                   <BotonVerGuia
                     onClick={iniciarGuia}
-                    className="bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
+                    className="hidden sm:inline-flex bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
                   />
                 </div>
 
-                <h1 className="break-words text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm text-center sm:text-left">
-                  {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
-                </h1>
+                {/* TLF6: Cargo y oficina en filas limpias: maletín nunca huérfano y sin punto sobrante en móvil */}
+                <div className="order-3 flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-1 sm:gap-2 text-xs sm:text-base font-medium text-blue-100">
+                  <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
+                    <Briefcase className="w-4 h-4 text-amber-300 shrink-0" aria-hidden />
+                    <span className="font-semibold text-white">{cargoPrincipal}</span>
+                  </div>
+                  <span className="hidden sm:inline text-blue-300/70" aria-hidden>•</span>
+                  <div className="text-blue-200 text-center sm:text-left sm:text-blue-100">
+                    <span>{oficinaPrincipal}</span>
+                  </div>
+                </div>
 
-                <p className="text-blue-100 text-xs sm:text-base font-medium flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 flex-wrap">
-                  <Briefcase className="w-4 h-4 text-amber-300 shrink-0" />
-                  <span className="font-semibold text-white">{cargoPrincipal}</span>
-                  <span className="text-blue-300/70">•</span>
-                  <span className="text-blue-200">{oficinaPrincipal}</span>
-                </p>
-
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 sm:gap-x-5 text-xs sm:text-sm text-blue-100 pt-1">
+                <div className="order-4 flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 sm:gap-x-5 text-xs sm:text-sm text-blue-100 pt-1">
                   {empleado.correo && (
                     <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
                       <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-amber-300" />{" "}
@@ -410,12 +431,12 @@ export default function MiExpedienteView() {
                       {formatearTelefono(empleado.telefono_movil)}
                     </span>
                   )}
-                  {empleado.total_anos_apn !== undefined && (
-                    <span className="flex items-center gap-1.5 sm:gap-2 font-semibold text-amber-200">
-                      <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
-                      {formatearTiempoServicio(empleado.total_anos_apn)}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5 sm:gap-2 font-semibold text-amber-200">
+                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
+                    {conFechaIngresoApn && empleado.total_anos_apn !== undefined
+                      ? formatearTiempoServicio(empleado.total_anos_apn)
+                      : "—"}
+                  </span>
                 </div>
               </div>
             </div>
@@ -751,9 +772,9 @@ export default function MiExpedienteView() {
                 <InfoRow
                   label="Tiempo de Servicio APN"
                   value={
-                    empleado.total_anos_apn !== undefined
-                      ? `${empleado.total_anos_apn} años continuos`
-                      : null
+                    conFechaIngresoApn && empleado.total_anos_apn !== undefined
+                      ? formatearTiempoServicio(empleado.total_anos_apn)
+                      : "—"
                   }
                 />
               </CardContent>

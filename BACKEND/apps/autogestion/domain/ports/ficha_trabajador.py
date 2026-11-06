@@ -43,6 +43,10 @@ class LectorFicha(Protocol):
         """
         ...
 
+    def validar_correo_alternativo(self, cedula: str, correo_alternativo: str) -> None:
+        """Valida que el correo alternativo propuesto sea único y distinto del propio institucional."""
+        ...
+
 
 class AplicadorCambios(Protocol):
     def aplicar(self, cedula: str, cambios: list[CambioPropuesto], soportes: list[SoporteDocumental], actor_cedula: str) -> None:

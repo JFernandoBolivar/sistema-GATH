@@ -53,6 +53,9 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
     ...(solicitud.canal === "PRESENCIAL" && solicitud.registradaPor
       ? [["Registrada por", solicitud.registradaPor] as [string, string]]
       : []),
+    ...(solicitud.registradorTambienAprobo
+      ? [["Aprobación", "Quien registró el acta también aprobó"] as [string, string]]
+      : []),
     ["Fecha de envío", formatearFechaHora(solicitud.fechaEnvio)],
   ];
   return (

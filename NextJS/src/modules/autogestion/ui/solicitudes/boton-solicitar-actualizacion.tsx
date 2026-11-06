@@ -16,9 +16,15 @@ export function BotonSolicitarActualizacion() {
     politica?.habilitado === true;
   if (!permitido) return null;
   return (
-    <Button asChild size="lg" className="w-full sm:w-fit" data-guia-id="inicio-boton-solicitar">
-      <Link href="/autogestion/solicitudes/nueva">
-        <FilePenLine aria-hidden /> Solicitar actualización de mis datos
+    <Button
+      asChild
+      size="lg"
+      className="w-full sm:w-fit h-auto min-h-11 py-2.5 px-4 text-xs sm:text-sm whitespace-normal text-center leading-snug shadow-sm"
+      data-guia-id="inicio-boton-solicitar"
+    >
+      <Link href="/autogestion/solicitudes/nueva" className="inline-flex items-center justify-center gap-2">
+        <FilePenLine className="h-4 w-4 shrink-0" aria-hidden />
+        <span>Solicitar actualización de mis datos</span>
       </Link>
     </Button>
   );

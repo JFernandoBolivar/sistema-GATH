@@ -28,6 +28,7 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { CatalogoPasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
 import { DetallePasivo } from "./detalle-pasivo";
+import { filtroCuentaASinCuenta, sinCuentaAFiltroCuenta, type FiltroCuenta } from "./filtro-cuenta";
 import { construirColumnasPasivos } from "./pasivos-columns";
 import {
   descargarPasivoPdfAction,
@@ -40,6 +41,7 @@ const FILTROS_VACIOS: FiltrosPasivosFormType = {
   cedula: "",
   codigo: "",
   tipoNominaId: undefined,
+  sinCuenta: undefined,
   limit: 10,
   offset: 0,
 };
@@ -131,12 +133,13 @@ export default function PasivosPage() {
             borrador.cedula?.trim(),
             borrador.codigo?.trim(),
             borrador.tipoNominaId,
+            borrador.sinCuenta !== undefined ? "sinCuenta" : null,
           ].filter(Boolean).length;
 
           return (
             <FiltrosColapsables conteoActivos={conteoFiltros} titulo="Filtros de búsqueda">
               <form onSubmit={aplicar} className="flex flex-col gap-3" noValidate>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="flex flex-col gap-1.5 min-w-0">
                     <Label htmlFor="filtro-cedula">Buscar Cédula</Label>
                     <Input
@@ -176,6 +179,27 @@ export default function PasivosPage() {
                             {t.nombre}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <Label htmlFor="filtro-cuenta">Cuenta de acceso</Label>
+                    <Select
+                      value={sinCuentaAFiltroCuenta(borrador.sinCuenta)}
+                      onValueChange={(v) =>
+                        setBorrador((p) => ({
+                          ...p,
+                          sinCuenta: filtroCuentaASinCuenta(v as FiltroCuenta),
+                        }))
+                      }
+                    >
+                      <SelectTrigger id="filtro-cuenta" className="w-full">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="con_cuenta">Con cuenta</SelectItem>
+                        <SelectItem value="sin_cuenta">Sin cuenta</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

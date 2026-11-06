@@ -35,6 +35,12 @@ from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_
     RepoPoliticaCorreoAccesoORM,
 )
 from apps.identidad.application.dtos.cuenta_dto import RegistrarCuentaDTO
+from apps.identidad.domain.services.colisiones_correo import (
+    CedulasPorCorreo,
+    cedulas_en_conflicto,
+    detectar_colisiones,
+)
+from apps.identidad.infrastructure.repositories.repo_correo_acceso_orm import RepoCorreoAccesoORM
 from apps.identidad.domain.events import EventoIdentidad, TipoEventoIdentidad
 from apps.identidad.infrastructure.signals import publicar_evento_identidad
 from apps.identidad.application.use_cases.reactivar_cuenta_por_reingreso import (
@@ -89,6 +95,11 @@ class Command(BaseCommand):
             metavar='RUTA',
             help='Escribe el detalle en un JSON (opcional).',
         )
+        parser.add_argument(
+            '--duplicados',
+            action='store_true',
+            help='Lista para RRHH los correos duplicados/repetidos que impiden crear cuentas.',
+        )
 
     def handle(self, *args, **opciones):
         aplicar = bool(opciones['aplicar']) and not opciones['dry_run']
@@ -101,6 +112,7 @@ class Command(BaseCommand):
             'omitidas': 0,
             'revision_manual': 0,
             'correos_invalidos': 0,
+            'correos_duplicados': 0,
             'sin_correo': 0,
         }
         detalle = {
@@ -109,6 +121,7 @@ class Command(BaseCommand):
             'desactivadas': [],
             'revision_manual': [],
             'correos_invalidos': [],
+            'correos_duplicados': [],
             'sin_correo': [],
         }
 
@@ -130,7 +143,19 @@ class Command(BaseCommand):
             )
         }
 
+        # Conteo para detección de correos duplicados (FIX-QA11: datos existentes no se
+        # modifican, pero los duplicados no reciben cuenta nueva y se listan para RRHH).
+        inst_por_correo, alt_por_correo = RepoCorreoAccesoORM().cedulas_por_correo()
+
+        if opciones.get('duplicados'):
+            self._mostrar_listado_duplicados(inst_por_correo, alt_por_correo)
+            return
+
+        # Solo se procesa a quien tiene `Employee.correo`: el alternativo no da acceso (decisión
+        # del usuario, FIX-AUD8); un pasivo sin correo principal queda en `sin_correo` hasta que RRHH lo cargue.
         con_correo = EmployeeModel.objects.exclude(correo__isnull=True).exclude(correo='')
+        rol_auto_id = self._rol_autogestion_id()
+
         for cedula, nombres, apellidos, correo in con_correo.values_list(
             'cedulaidentidad', 'nombres', 'apellidos', 'correo'
         ).iterator():
@@ -160,6 +185,24 @@ class Command(BaseCommand):
                         'motivo': 'pasivos sin correo personal' if condicion == 'PASIVO' else 'sin correo institucional',
                     })
                     continue
+
+                # Verificación de unicidad de correo (FIX-QA11):
+                duplicado_con = cedulas_en_conflicto(correo_resuelto, cedula, inst_por_correo, alt_por_correo)
+                if duplicado_con:
+                    resumen['correos_duplicados'] += 1
+                    detalle['correos_duplicados'].append({
+                        'cedula': cedula,
+                        'nombre': f'{nombres} {apellidos}'.strip(),
+                        'condicion': condicion,
+                        'correo': correo_resuelto,
+                        'duplicado_con': list(duplicado_con),
+                        'motivo': f'correo repetido con cédula(s) {", ".join(duplicado_con)}',
+                    })
+                    cuenta = cuentas.get(cedula)
+                    if cuenta and not cuenta.is_active and cuenta.rol_id == rol_auto_id and condicion is not None:
+                        self._reactivar_si_corresponde(cuenta, aplicar, resumen, detalle)
+                    continue
+
                 if correo_resuelto != correo:
                     if aplicar:
                         EmployeeModel.objects.filter(cedulaidentidad=cedula).update(correo=correo_resuelto)
@@ -183,7 +226,7 @@ class Command(BaseCommand):
                 self._crear_cuenta(cedula, aplicar, ahora, dias, resumen, detalle)
                 continue
 
-            if cuenta.rol_id != ROL_AUTOGESTION_ID:
+            if cuenta.rol_id != rol_auto_id:
                 resumen['omitidas'] += 1
                 continue
 
@@ -206,6 +249,7 @@ class Command(BaseCommand):
                 f'desactivadas={resumen["desactivadas"]}, omitidas={resumen["omitidas"]}, '
                 f'revisión manual={resumen["revision_manual"]}, '
                 f'correos inválidos={resumen["correos_invalidos"]}, '
+                f'correos duplicados={resumen["correos_duplicados"]}, '
                 f'sin correo={resumen["sin_correo"]}.'
             )
         )
@@ -233,6 +277,11 @@ class Command(BaseCommand):
             return 'ACTIVO'
         return None
 
+    def _rol_autogestion_id(self) -> int:
+        from apps.identidad.infrastructure.models.cuenta_models import RolModel
+        rol = RolModel.objects.filter(nombre_rol__iexact='AUTOGESTION').first()
+        return rol.pk if rol else ROL_AUTOGESTION_ID
+
     def _crear_cuenta(self, cedula, aplicar, ahora, dias, resumen, detalle) -> None:
         if not aplicar:
             resumen['creadas'] += 1
@@ -243,7 +292,7 @@ class Command(BaseCommand):
                 cuenta = registrar_usuario(
                     RepoCuentasORM(),
                     RegistrarCuentaDTO(
-                        cedula=cedula, password=cedula, rol_id=ROL_AUTOGESTION_ID
+                        cedula=cedula, password=cedula, rol_id=self._rol_autogestion_id()
                     ),
                 )
                 RepoPasswordInicialORM().emitir(
@@ -284,7 +333,7 @@ class Command(BaseCommand):
     def _desactivar_si_corresponde(self, cuenta, cedula, aplicar, resumen, detalle) -> None:
         if (
             cuenta is None
-            or cuenta.rol_id != ROL_AUTOGESTION_ID
+            or cuenta.rol_id != self._rol_autogestion_id()
             or not cuenta.is_active
         ):
             resumen['omitidas'] += 1
@@ -318,8 +367,25 @@ class Command(BaseCommand):
                         'cedula': cedula,
                         'nombre': f'{nombres} {apellidos}'.strip(),
                         'condicion': condicion,
+                        'motivo': 'pasivo sin correo principal' if condicion == 'PASIVO' else 'sin correo institucional',
                     }
                 )
+
+    def _mostrar_listado_duplicados(self, inst_por_correo: CedulasPorCorreo, alt_por_correo: CedulasPorCorreo) -> None:
+        self.stdout.write(self.style.WARNING('=== Listado de Correos Duplicados para RRHH (FIX-QA11) ===\n'))
+        colisiones = detectar_colisiones(inst_por_correo, alt_por_correo)
+        afectadas: set[str] = set()
+        for colision in colisiones:
+            afectadas |= colision.cedulas
+            self.stdout.write(f'Correo en colisión: {colision.correo}')
+            if colision.cedulas_institucional:
+                self.stdout.write(f'  - Usado como institucional por: {", ".join(sorted(colision.cedulas_institucional))}')
+            if colision.cedulas_alternativo:
+                self.stdout.write(f'  - Usado como alternativo por: {", ".join(sorted(colision.cedulas_alternativo))}')
+
+        self.stdout.write(self.style.SUCCESS(
+            f'\nTotal de correos en colisión: {len(colisiones)}. Trabajadores afectados que quedan sin cuenta: {len(afectadas)}.'
+        ))
 
     @staticmethod
     def _dias_vigencia() -> int:

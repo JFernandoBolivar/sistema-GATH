@@ -13,6 +13,7 @@ export function mapperUsuario(raw: UsuarioApiItem): UsuarioEntity {
     nombres: raw.nombres ?? "",
     apellidos: raw.apellidos ?? "",
     correo: raw.correo ?? null,
+    correoAlternativo: raw.correo_alternativo ?? null,
     telefono: raw.telefono ?? null,
     rolId: raw.rol_id ?? null,
     rolNombre: raw.rol_nombre ?? null,

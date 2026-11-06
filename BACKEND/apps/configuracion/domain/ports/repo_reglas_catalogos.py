@@ -20,7 +20,18 @@ class RepoReglasCatalogos(Protocol):
     def obtener_parentesco(self, parentesco_id: int) -> ReglaParentesco:
         ...
 
-    def actualizar_parentesco(self, parentesco_id: int, aplica_familiar: bool) -> ReglaParentesco:
+    def actualizar_parentesco(
+        self, parentesco_id: int, aplica_familiar: bool, descripcion: str | None = None,
+    ) -> ReglaParentesco:
+        ...
+
+    def crear_parentesco(self, descripcion: str, aplica_familiar: bool) -> ReglaParentesco:
+        ...
+
+    def eliminar_parentesco(self, parentesco_id: int) -> ReglaParentesco:
+        ...
+
+    def parentesco_tiene_referencias(self, parentesco_id: int) -> bool:
         ...
 
     def listar_categorias_motivo(self) -> Sequence[CategoriaMotivoItem]:
@@ -69,6 +80,21 @@ class RepoReglasCatalogos(Protocol):
         ...
 
     def actualizar_nomina(
-        self, nomina_id: int, es_activo: bool | None, requiere_codig: bool | None
+        self,
+        nomina_id: int,
+        es_activo: bool | None,
+        requiere_codig: bool | None,
+        nomina: str | None = None,
     ) -> ReglaNomina:
+        ...
+
+    def crear_nomina(
+        self, nomina: str, es_activo: bool, requiere_codig: bool,
+    ) -> ReglaNomina:
+        ...
+
+    def eliminar_nomina(self, nomina_id: int) -> ReglaNomina:
+        ...
+
+    def nomina_tiene_referencias(self, nomina_id: int) -> bool:
         ...

@@ -21,9 +21,13 @@ def _al_validar(
         aplicados = aplicador.aplicar(guardada.id, guardada.cedula, actor.cedula, ahora)
         publicador.publicar(evento(
             tipo, guardada, actor.cedula, via=guardada.via_aprobacion.value, cambios_aplicados=aplicados,
+            registrador_tambien_aprobo=guardada.registrador_tambien_aprobo,
         ))
         if tipo is TipoEvento.APROBACION_DIRECTA:
-            publicador.publicar(evento(TipoEvento.VALIDADA, guardada, actor.cedula, via=guardada.via_aprobacion.value))
+            publicador.publicar(evento(
+                TipoEvento.VALIDADA, guardada, actor.cedula, via=guardada.via_aprobacion.value,
+                registrador_tambien_aprobo=guardada.registrador_tambien_aprobo,
+            ))
     else:
         publicador.publicar(evento(
             tipo, guardada, actor.cedula, rol=actor.rol.value, envio=guardada.envios, secuencia=len(guardada.decisiones),
@@ -46,13 +50,16 @@ def dar_check(
 def aprobar_directo(
     repo: RepoSolicitudesFeDeVida, aplicador: AplicadorCambiosActa, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, justificacion: str, ahora: datetime,
-    registrador_puede_checar: bool = False,
+    registrador_puede_aprobar_directo: bool = False,
 ) -> SolicitudFeDeVida:
-    """Excepción de la Administradora (fe_de_vida.aprobar_directo): justificación obligatoria y auditada."""
+    """
+    Excepción de la Administradora (fe_de_vida.aprobar_directo): justificación obligatoria y auditada. Si ella
+    registró el acta presencial, solo procede con `registrador_puede_aprobar_directo` (parámetro del sistema).
+    """
     publicador = publicador or PublicadorNulo()
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
     nueva = solicitud.aprobar_directo(
-        actor, justificacion, ahora, registrador_puede_checar=registrador_puede_checar,
+        actor, justificacion, ahora, registrador_puede_aprobar_directo=registrador_puede_aprobar_directo,
     )
     return _al_validar(repo, aplicador, publicador, solicitud, nueva, actor, ahora, TipoEvento.APROBACION_DIRECTA)
 

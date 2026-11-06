@@ -173,6 +173,8 @@ export function construirDetalleExpediente(
   const anosApn = empleado.totalAnosApn ?? 0;
   const anos = Math.floor(anosApn);
   const meses = Math.round((anosApn % 1) * 12);
+  // FIX-AUD7: sin fecha de ingreso el APN queda incompleto; no se muestra «0 días».
+  const sinFechaIngresoApn = Boolean(empleado.apnIncompleto);
   const formatearDesglose = (valor?: { years: number; months: number; days: number } | null) =>
     valor ? `${valor.years} años, ${valor.months} meses, ${valor.days} días` : "Sin datos";
 
@@ -202,7 +204,7 @@ export function construirDetalleExpediente(
     estadoCivil: empleado.estadoCivilNombre ?? SIN_DATO,
     carnetPatria: empleado.carnetPatria ?? SIN_DATO,
     carnetPatriaSerial: empleado.carnetPatriaSerial ?? SIN_DATO,
-    totalAnosApn: `${anos} años, ${meses} meses, 0 días`,
+    totalAnosApn: sinFechaIngresoApn ? "—" : `${anos} años, ${meses} meses, 0 días`,
     apnAntecedentes: formatearDesglose(empleado.apnAntecedentes),
     apnEnCurso: empleado.apnEnCurso ? formatearDesglose(empleado.apnEnCurso) : null,
     apnTotal: formatearDesglose(empleado.apnTotal),

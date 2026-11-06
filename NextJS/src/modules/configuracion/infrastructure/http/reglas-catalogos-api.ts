@@ -16,10 +16,21 @@ export const reglasCatalogosApi = {
       "/api/v1/configuracion/reglas-catalogos/",
     ),
 
-  actualizarParentesco: (id: number, aplica_familiar: boolean) =>
+  actualizarParentesco: (id: number, datos: { aplica_familiar?: boolean; descripcion?: string }) =>
     apiClient.patch<ApiResponse<ReglaParentescoDTO>>(
       `/api/v1/configuracion/reglas-catalogos/parentescos/${id}/`,
-      { aplica_familiar },
+      datos,
+    ),
+
+  crearParentesco: (descripcion: string, aplica_familiar: boolean) =>
+    apiClient.post<ApiResponse<ReglaParentescoDTO>>(
+      "/api/v1/configuracion/reglas-catalogos/parentescos/",
+      { descripcion, aplica_familiar },
+    ),
+
+  eliminarParentesco: (id: number) =>
+    apiClient.delete<ApiResponse<ReglaParentescoDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/parentescos/${id}/`,
     ),
 
   cambiarCategoriaMotivo: (id: number, categoria_id: number) =>
@@ -50,10 +61,21 @@ export const reglasCatalogosApi = {
 
   actualizarNomina: (
     id: number,
-    datos: { es_activo?: boolean; requiere_codig?: boolean },
+    datos: { nomina?: string; es_activo?: boolean; requiere_codig?: boolean },
   ) =>
     apiClient.patch<ApiResponse<ReglaNominaDTO>>(
       `/api/v1/configuracion/reglas-catalogos/nominas/${id}/`,
       datos,
+    ),
+
+  crearNomina: (nomina: string, es_activo: boolean, requiere_codig: boolean) =>
+    apiClient.post<ApiResponse<ReglaNominaDTO>>(
+      "/api/v1/configuracion/reglas-catalogos/nominas/",
+      { nomina, es_activo, requiere_codig },
+    ),
+
+  eliminarNomina: (id: number) =>
+    apiClient.delete<ApiResponse<ReglaNominaDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/nominas/${id}/`,
     ),
 };

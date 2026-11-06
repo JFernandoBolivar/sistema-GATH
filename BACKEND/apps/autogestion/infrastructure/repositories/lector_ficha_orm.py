@@ -222,3 +222,29 @@ class LectorFichaORM:
             raise ValidationError(str(exc), campo=campo) from None
         if not (valores.get('cedula_familiar') or '').strip():
             valores['cedula_generada'] = resuelta
+
+    def validar_correo_alternativo(self, cedula: str, correo_alternativo: str) -> None:
+        if not correo_alternativo or not str(correo_alternativo).strip():
+            return
+        alt = str(correo_alternativo).strip().lower()
+        propio = EmployeeModel.objects.filter(
+            cedulaidentidad=str(cedula).strip()
+        ).values_list('correo', flat=True).first()
+        if propio and propio.strip().lower() == alt:
+            raise ValidationError(
+                'El correo alternativo debe ser distinto del institucional.',
+                campo='correo_alternativo',
+            )
+        if EmployeeModel.objects.filter(correo__iexact=alt).exists():
+            raise ValidationError(
+                'El correo alternativo ya está en uso como correo institucional.',
+                campo='correo_alternativo',
+            )
+        qs_alt = DatosComplementariosTrabajadorModel.objects.filter(correo_alternativo__iexact=alt)
+        if cedula:
+            qs_alt = qs_alt.exclude(cedula=str(cedula).strip())
+        if qs_alt.exists():
+            raise ValidationError(
+                'El correo alternativo ya está en uso por otro trabajador.',
+                campo='correo_alternativo',
+            )

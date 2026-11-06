@@ -26,6 +26,7 @@ export const repoPasivosApi: RepoPasivos = {
       tipo_nomina_id: filtros.tipoNominaId,
       fecha_desde: filtros.fechaDesde,
       fecha_hasta: filtros.fechaHasta,
+      sin_cuenta: filtros.sinCuenta,
       limit: filtros.limit,
       offset: filtros.offset,
     });

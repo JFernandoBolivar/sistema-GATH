@@ -130,6 +130,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         tipo_nomina_id: int | None = None,
         fecha_desde=None,
         fecha_hasta=None,
+        sin_cuenta: bool | None = None,
         limite: int = 10,
         desplazamiento: int = 0,
     ) -> tuple[list[Pasivo], int]:
@@ -146,6 +147,10 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         # por última actualización (lo más reciente primero, QA 2026-11-03).
         por_cedula: dict[str, tuple[str, str, object]] = {}
         cesados = self._cedulas_pasivas_egresadas()
+        cuentas_cedulas: set[str] | None = None
+        if sin_cuenta is not None:
+            from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+            cuentas_cedulas = set(CuentaModel.objects.values_list('cedula_id', flat=True))
 
         qs_egresados = (
             EmployeeEgresadoModel.objects.select_related('employee', 'employee__sexoid', 'motivo_egreso')
@@ -166,9 +171,15 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             # pasiva, solo cuentan las asignaciones.
             qs_egresados = qs_egresados.none()
         for fila in qs_egresados:
-            if str(fila.employee_id) in cesados:
+            emp_id = str(fila.employee_id)
+            if emp_id in cesados:
                 continue
-            por_cedula[str(fila.employee_id)] = (
+            if cuentas_cedulas is not None:
+                if sin_cuenta and emp_id in cuentas_cedulas:
+                    continue
+                if not sin_cuenta and emp_id not in cuentas_cedulas:
+                    continue
+            por_cedula[emp_id] = (
                 str(fila.fecha_egreso), _actualizado(fila.employee), lambda fila=fila: pasivo_a_entidad(fila)
             )
 
@@ -190,7 +201,13 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         if tipo_nomina_id:
             qs_asignaciones = qs_asignaciones.filter(tiponominaid_id=tipo_nomina_id)
         for asig in qs_asignaciones:
-            por_cedula[str(asig.employee_id)] = (
+            asig_emp_id = str(asig.employee_id)
+            if cuentas_cedulas is not None:
+                if sin_cuenta and asig_emp_id in cuentas_cedulas:
+                    continue
+                if not sin_cuenta and asig_emp_id not in cuentas_cedulas:
+                    continue
+            por_cedula[asig_emp_id] = (
                 str(asig.fecha_actualizacion), _actualizado(asig.employee),
                 lambda asig=asig: pasivo_desde_asignacion(asig),
             )

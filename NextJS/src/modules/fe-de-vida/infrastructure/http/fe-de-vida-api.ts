@@ -32,6 +32,7 @@ export interface SolicitudApi {
   canal?: string;
   registrada_por?: string;
   registrada_por_cedula?: string;
+  registrador_tambien_aprobo?: boolean;
   fecha_envio: string | null;
   fecha_validacion: string | null;
   decisiones: DecisionApi[];

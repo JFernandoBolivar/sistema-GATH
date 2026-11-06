@@ -76,6 +76,8 @@ interface EmpleadoDetalleSheetProps {
   /** RECEPCIONISTA sólo consulta: se ocultan los accesos a edición y exportación */
   puedeExportarPdf: boolean;
   puedeEditar: boolean;
+  /** Cambia con cada carga del expediente; reinicia diálogos con valores frescos. */
+  revision?: number;
 }
 
 export default function EmpleadoDetalleSheet({
@@ -89,6 +91,7 @@ export default function EmpleadoDetalleSheet({
   exportandoPdf,
   puedeExportarPdf,
   puedeEditar,
+  revision = 0,
 }: EmpleadoDetalleSheetProps) {
   const [versionFoto, setVersionFoto] = useState(0);
   if (!detalle || !empleado) {
@@ -116,12 +119,13 @@ export default function EmpleadoDetalleSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl overflow-hidden p-0">
-        <ScrollArea className="h-full p-3.5 sm:p-6">
-          <SheetHeader className="mb-4 pr-6 sm:pr-8 p-0">
+        {/* La clave liga estado y diálogos a la persona (y carga) vigente: jamás se reutilizan los de otra. */}
+        <ScrollArea key={`${empleado.cedula}:${revision}`} className="h-full p-3.5 sm:p-6">
+          <SheetHeader className="mb-4 px-0 pb-0 pt-2 pr-12 sm:pt-0 sm:pr-16">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <SheetTitle className="text-base sm:text-lg">Información Detallada Del Trabajador</SheetTitle>
               {puedeExportarPdf && (
-                <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf} className="w-full sm:w-auto">
+                <Button size="sm" variant="outline" onClick={onExportarPdf} disabled={exportandoPdf} className="mt-1 w-full sm:mt-0 sm:w-auto">
                   {exportandoPdf ? <Loader2 className="size-4 animate-spin mr-1" /> : <FileDown className="size-4 mr-1" />}
                   Exportar PDF
                 </Button>
@@ -157,7 +161,7 @@ export default function EmpleadoDetalleSheet({
                     onGuardado();
                   }}
                   triggerLabel="Actualizar Información Básica"
-                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2 px-3 text-center leading-snug"
                 />
               )}
             </div>
@@ -294,7 +298,7 @@ export default function EmpleadoDetalleSheet({
                         catalogos={catalogos}
                         onGuardado={onGuardado}
                         triggerLabel="Agregar Antecedentes"
-                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2 px-3 text-center leading-snug"
                       />
                     )}
                   </CardTitle>
@@ -352,7 +356,7 @@ export default function EmpleadoDetalleSheet({
                   catalogos={catalogos}
                   onGuardado={onGuardado}
                   triggerLabel="Agregar Antecedentes Y Ingreso Al Organismo (Opcion Solo Valida Para Este Caso)"
-                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2.5 px-3 text-center leading-snug"
                 />
               )
             )}
@@ -369,7 +373,7 @@ export default function EmpleadoDetalleSheet({
                         catalogos={catalogos}
                         onGuardado={onGuardado}
                         triggerLabel="Agregar Contratos"
-                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                        triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2 px-3 text-center leading-snug"
                       />
                     )}
                   </CardTitle>
@@ -417,7 +421,7 @@ export default function EmpleadoDetalleSheet({
                   catalogos={catalogos}
                   onGuardado={onGuardado}
                   triggerLabel="Agregar Contratos"
-                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2 px-3 text-center leading-snug"
                 />
               )
             )}
@@ -565,7 +569,7 @@ export default function EmpleadoDetalleSheet({
                   catalogos={catalogos}
                   onGuardado={onGuardado}
                   triggerLabel="Agregar Formación Complementaria (Opción Solo Válida Para Este Caso)"
-                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
+                  triggerClassName="w-full cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm whitespace-normal h-auto py-2.5 px-3 text-center leading-snug"
                 />
               )
             )}

@@ -349,8 +349,8 @@ export function ConfiguracionCorreoAccesoPage() {
                 </p>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border p-3">
-                <div className="space-y-0.5">
+              <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-lg border p-3">
+                <div className="min-w-0 flex-1 space-y-0.5">
                   <Label htmlFor="switch-avisar" className="text-sm font-medium">
                     Avisar por correo al aplicar masivo
                   </Label>
@@ -360,6 +360,7 @@ export function ConfiguracionCorreoAccesoPage() {
                 </div>
                 <Switch
                   id="switch-avisar"
+                  className="shrink-0"
                   checked={politica.avisar_al_aplicar_masivo}
                   onCheckedChange={(checked) =>
                     setPolitica((prev) => ({ ...prev, avisar_al_aplicar_masivo: checked }))
@@ -498,13 +499,14 @@ export function ConfiguracionCorreoAccesoPage() {
 
               {/* Opciones y descarga */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-y py-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2.5">
                   <Switch
                     id="switch-excepciones"
+                    className="shrink-0"
                     checked={incluirExcepciones}
                     onCheckedChange={handleToggleIncluirExcepciones}
                   />
-                  <Label htmlFor="switch-excepciones" className="text-xs cursor-pointer">
+                  <Label htmlFor="switch-excepciones" className="text-xs cursor-pointer leading-snug">
                     Incluir excepciones manuales (sobrescribir tarjetas individuales)
                   </Label>
                 </div>

@@ -304,7 +304,7 @@ class DatosComplementariosRRHHView(APIView):
         request=DatosComplementariosEscrituraSerializer, responses={200: DatosComplementariosSerializer, **ERRORES},
     )
     def put(self, request, cedula):
-        datos = validar_entrada(DatosComplementariosEscrituraSerializer, request.data)
+        datos = validar_entrada(DatosComplementariosEscrituraSerializer, request.data, context={'cedula': cedula})
         guardados = guardar_datos_complementarios(
             RepoDatosComplementariosORM(), cedula=cedula, campos=dict(datos), actor_cedula=cedula_de_sesion(request),
         )

@@ -93,6 +93,7 @@ export function mapperSolicitud(s: SolicitudApi): SolicitudEntity {
     canal: s.canal ?? "EN_LINEA",
     registradaPor: s.registrada_por,
     registradaPorCedula: s.registrada_por_cedula,
+    registradorTambienAprobo: s.registrador_tambien_aprobo ?? false,
     fechaEnvio: s.fecha_envio ?? null,
     fechaValidacion: s.fecha_validacion ?? null,
     decisiones: (s.decisiones ?? []).map(mapperDecision),

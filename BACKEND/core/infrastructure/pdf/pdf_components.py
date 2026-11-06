@@ -121,6 +121,7 @@ HEADER_LABELS = {
     'ultimo_cargo': 'Último Cargo',
     'dependencia': 'Dependencia',
     'direccion_general': 'Dirección General',
+    'total_anos_apn': 'Total años APN',
 }
 
 

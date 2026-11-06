@@ -47,19 +47,70 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             aplica_familiar=bool(getattr(p, 'aplica_familiar', True)),
         )
 
-    def actualizar_parentesco(self, parentesco_id: int, aplica_familiar: bool) -> ReglaParentesco:
+    def actualizar_parentesco(
+        self, parentesco_id: int, aplica_familiar: bool, descripcion: str | None = None,
+    ) -> ReglaParentesco:
         try:
             p = ParentescoModel.objects.get(id=parentesco_id)
         except ParentescoModel.DoesNotExist:
             raise NotFoundError(f'Parentesco con id {parentesco_id} no encontrado.')
+        fields = ['aplica_familiar']
         p.aplica_familiar = bool(aplica_familiar)
-        p.save(update_fields=['aplica_familiar'])
+        if descripcion is not None and descripcion != p.descripcion_parentesco:
+            if ParentescoModel.objects.filter(
+                descripcion_parentesco__iexact=descripcion,
+            ).exclude(id=parentesco_id).exists():
+                raise ValidationError(
+                    f'Ya existe un parentesco «{descripcion}».', campo='descripcion',
+                )
+            p.descripcion_parentesco = descripcion
+            fields.append('descripcion_parentesco')
+        p.save(update_fields=fields)
         invalidar_catalogos()
         return ReglaParentesco(
             id=p.id,
             descripcion=p.descripcion_parentesco,
             aplica_familiar=p.aplica_familiar,
         )
+
+    def crear_parentesco(self, descripcion: str, aplica_familiar: bool) -> ReglaParentesco:
+        if ParentescoModel.objects.filter(descripcion_parentesco__iexact=descripcion).exists():
+            raise ValidationError(f'Ya existe un parentesco «{descripcion}».', campo='descripcion')
+        p = ParentescoModel.objects.create(
+            descripcion_parentesco=descripcion,
+            aplica_familiar=bool(aplica_familiar),
+        )
+        invalidar_catalogos()
+        return ReglaParentesco(
+            id=p.id,
+            descripcion=p.descripcion_parentesco,
+            aplica_familiar=bool(p.aplica_familiar),
+        )
+
+    def parentesco_tiene_referencias(self, parentesco_id: int) -> bool:
+        from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+
+        return EmployeefamilyModel.objects.filter(parentesco_id=parentesco_id).exists()
+
+    def eliminar_parentesco(self, parentesco_id: int) -> ReglaParentesco:
+        try:
+            p = ParentescoModel.objects.get(id=parentesco_id)
+        except ParentescoModel.DoesNotExist:
+            raise NotFoundError(f'Parentesco con id {parentesco_id} no encontrado.')
+        resultado = ReglaParentesco(
+            id=p.id,
+            descripcion=p.descripcion_parentesco,
+            aplica_familiar=bool(getattr(p, 'aplica_familiar', True)),
+        )
+        try:
+            p.delete()
+        except Exception:
+            raise ValidationError(
+                'No es posible eliminar el parentesco porque está asignado a familiares registrados.',
+                campo='descripcion',
+            )
+        invalidar_catalogos()
+        return resultado
 
     def listar_categorias_motivo(self) -> Sequence[CategoriaMotivoItem]:
         qs = CategoriaMovimientoModel.objects.all().order_by('categoria')
@@ -292,7 +343,11 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         )
 
     def actualizar_nomina(
-        self, nomina_id: int, es_activo: bool | None, requiere_codig: bool | None
+        self,
+        nomina_id: int,
+        es_activo: bool | None,
+        requiere_codig: bool | None,
+        nomina: str | None = None,
     ) -> ReglaNomina:
         try:
             n = TipoNominaModel.objects.get(id=nomina_id)
@@ -300,6 +355,11 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             raise NotFoundError(f'Tipo de nómina con id {nomina_id} no encontrado.')
 
         fields_to_update = []
+        if nomina is not None and nomina != n.nomina:
+            if TipoNominaModel.objects.filter(nomina__iexact=nomina).exclude(id=nomina_id).exists():
+                raise ValidationError(f'Ya existe una nómina «{nomina}».', campo='nomina')
+            n.nomina = nomina
+            fields_to_update.append('nomina')
         if es_activo is not None:
             n.es_activo = bool(es_activo)
             fields_to_update.append('es_activo')
@@ -317,3 +377,48 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             requiere_codig=bool(n.requiere_codig),
             es_activo=bool(n.es_activo),
         )
+
+    def crear_nomina(self, nomina: str, es_activo: bool, requiere_codig: bool) -> ReglaNomina:
+        if TipoNominaModel.objects.filter(nomina__iexact=nomina).exists():
+            raise ValidationError(f'Ya existe una nómina «{nomina}».', campo='nomina')
+        n = TipoNominaModel.objects.create(
+            nomina=nomina,
+            es_activo=bool(es_activo),
+            requiere_codig=bool(requiere_codig),
+        )
+        invalidar_catalogos()
+        return ReglaNomina(
+            id=n.id,
+            nomina=n.nomina,
+            requiere_codig=bool(n.requiere_codig),
+            es_activo=bool(n.es_activo),
+        )
+
+    def nomina_tiene_referencias(self, nomina_id: int) -> bool:
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+        from apps.fe_de_vida.infrastructure.models.solicitud_models import ProcesoFeDeVidaModel
+
+        if AsigTrabajoModel.objects.filter(tiponominaid_id=nomina_id).exists():
+            return True
+        return ProcesoFeDeVidaModel.objects.filter(tipos_nomina__contains=[nomina_id]).exists()
+
+    def eliminar_nomina(self, nomina_id: int) -> ReglaNomina:
+        try:
+            n = TipoNominaModel.objects.get(id=nomina_id)
+        except TipoNominaModel.DoesNotExist:
+            raise NotFoundError(f'Tipo de nómina con id {nomina_id} no encontrado.')
+        resultado = ReglaNomina(
+            id=n.id,
+            nomina=n.nomina,
+            requiere_codig=bool(n.requiere_codig),
+            es_activo=bool(n.es_activo),
+        )
+        try:
+            n.delete()
+        except Exception:
+            raise ValidationError(
+                'No es posible eliminar la nómina porque está asignada a cargos o procesos.',
+                campo='nomina',
+            )
+        invalidar_catalogos()
+        return resultado

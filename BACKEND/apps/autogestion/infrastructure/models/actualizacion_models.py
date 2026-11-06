@@ -150,10 +150,14 @@ class DatosComplementariosTrabajadorModel(BaseModel):
     """B13: correo alternativo y «¿tiene hijos?». `Employee` (legada) no tiene dónde guardarlos."""
 
     cedula = models.CharField(max_length=15, unique=True)
-    correo_alternativo = models.EmailField(null=True, blank=True)  # puede repetirse (p. ej. correo familiar)
+    correo_alternativo = models.EmailField(null=True, blank=True)  # único por regla de negocio (FIX-QA11, sin constraint BD por compatibilidad)
     tiene_hijos = models.BooleanField(null=True, blank=True)  # nulo = sin declarar
     actualizado_en = models.DateTimeField(auto_now=True)
     actualizado_por = models.CharField(max_length=15, blank=True, default='')
 
     class Meta:
         db_table = 'datos_complementarios_trabajador'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._correo_alternativo_inicial = getattr(self, 'correo_alternativo', None)

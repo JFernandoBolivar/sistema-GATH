@@ -20,6 +20,7 @@ class CuentaLecturaSerializer(serializers.Serializer):
     nombres = serializers.CharField()
     apellidos = serializers.CharField()
     correo = serializers.EmailField(allow_null=True)
+    correo_alternativo = serializers.CharField(allow_null=True, required=False)
     telefono = serializers.CharField(allow_null=True)
     rol_id = serializers.IntegerField(allow_null=True)
     rol_nombre = serializers.CharField(allow_null=True)

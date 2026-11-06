@@ -12,7 +12,7 @@
  *   5. Información De Salud (Heart) + Botón Editar
  *   6. Documentos Del Familiar (FileText) con visor/descarga y subidor de documentos.
  */
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   FileDown,
   FileText,
@@ -122,28 +122,45 @@ export function DetalleFamiliar({
       .catch(() => setCatalogos(CATALOGOS_FAMILIAR_VACIOS));
   }, [open]);
 
+  // Solo la última petición, y solo para el familiar vigente, puede pintar documentos.
+  const peticionDocsRef = useRef(0);
+
   const cargarDocumentos = () => {
+    const peticion = ++peticionDocsRef.current;
+    const familiarId = familiar.id;
+    const vigente = () => peticion === peticionDocsRef.current;
     setCargandoDocs(true);
     setErrorDocs(null);
-    getDocumentosFamiliarAction(familiar.id)
+    getDocumentosFamiliarAction(familiarId)
       .then((resultado) => {
+        if (!vigente()) return;
         if (resultado && typeof resultado === "object" && "error" in resultado) {
           setErrorDocs((resultado as { error: string }).error);
           return;
         }
-        setDocumentos((resultado as DocumentoFamiliarDTO[]) ?? []);
+        const lista = (resultado as DocumentoFamiliarDTO[]) ?? [];
+        // Defensa extra: ningún documento ajeno al familiar pedido llega a pantalla.
+        setDocumentos(lista.filter((d) => d.familiarId === undefined || d.familiarId === familiarId));
       })
-      .catch(() => setErrorDocs("No fue posible cargar los documentos."))
-      .finally(() => setCargandoDocs(false));
+      .catch(() => {
+        if (vigente()) setErrorDocs("No fue posible cargar los documentos.");
+      })
+      .finally(() => {
+        if (vigente()) setCargandoDocs(false);
+      });
   };
 
   useEffect(() => {
     if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al abrir el diálogo
+      // Al cambiar de familiar no se conservan los documentos del anterior.
+      setDocumentos(null);
       cargarDocumentos();
     } else {
+      peticionDocsRef.current += 1;
       setDocumentos(null);
+      setCargandoDocs(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, familiar.id]);
 
   const fa = familiar.formacionAcademica;

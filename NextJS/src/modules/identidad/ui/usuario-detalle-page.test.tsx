@@ -73,7 +73,15 @@ vi.mock("../infrastructure/actions/usuario-actions", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-import UsuarioDetallePage from "./usuario-detalle-page";
+import UsuarioDetallePage, { inicialesDe } from "./usuario-detalle-page";
+
+describe("inicialesDe (O38)", () => {
+  it("usa la inicial del nombre y del apellido", () => {
+    expect(inicialesDe("Carlos", "Gómez")).toBe("CG");
+    expect(inicialesDe("ana", "pérez")).toBe("AP");
+    expect(inicialesDe("", "")).toBe("?");
+  });
+});
 
 describe("UsuarioDetallePage (O18)", () => {
   beforeEach(() => {

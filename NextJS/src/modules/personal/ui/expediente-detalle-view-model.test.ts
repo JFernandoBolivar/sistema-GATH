@@ -159,6 +159,16 @@ describe("construirDetalleExpediente", () => {
     expect(vm.totalAnosApn).toBe("4 años, 6 meses, 0 días");
   });
 
+  it("sin fecha de ingreso el total APN muestra «—», no «0 días»", () => {
+    const empleado: EmpleadoDTO = {
+      ...empleadoBase(),
+      totalAnosApn: 0,
+      apnIncompleto: true,
+    };
+    const vm = construirDetalleExpediente(empleado, catalogosVacios());
+    expect(vm.totalAnosApn).toBe("—");
+  });
+
   it("mapea cargos asignados y calcula fecha de ingreso de organismo", () => {
     const empleado: EmpleadoDTO = {
       ...empleadoBase(),

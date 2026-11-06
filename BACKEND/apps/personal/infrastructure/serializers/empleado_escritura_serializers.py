@@ -25,6 +25,7 @@ from core.presentation.validadores_personas import (
     validar_telefono,
 )
 from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, SexoModel, NacionalidadModel
+from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
     DiscapacidadModel,
@@ -264,10 +265,67 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
     def validate(self, attrs):
         correo = (attrs.get('correo') or '').strip().lower()
         alternativo = (attrs.get('correo_alternativo') or '').strip().lower()
-        if correo and alternativo and correo == alternativo:
-            raise serializers.ValidationError({
-                'correo_alternativo': 'El correo alternativo debe ser distinto del institucional.',
-            })
+        cedula = (
+            attrs.get('cedula')
+            or (self.context.get('view').kwargs.get('cedula') if self.context.get('view') and hasattr(self.context['view'], 'kwargs') else None)
+            or (self.context.get('cedula'))
+        )
+        propio_correo = ''
+        propio_alternativo = ''
+        if cedula:
+            propio_emp = EmployeeModel.objects.filter(
+                cedulaidentidad=str(cedula).strip()
+            ).first()
+            if propio_emp:
+                propio_correo = (propio_emp.correo or '').strip().lower()
+            from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+            propio_alt = DatosComplementariosTrabajadorModel.objects.filter(
+                cedula=str(cedula).strip()
+            ).values_list('correo_alternativo', flat=True).first()
+            if propio_alt:
+                propio_alternativo = (propio_alt or '').strip().lower()
+
+        if not correo and propio_correo:
+            correo = propio_correo
+
+        if alternativo:
+            if correo and correo == alternativo:
+                raise serializers.ValidationError({
+                    'correo_alternativo': 'El correo alternativo debe ser distinto del institucional.',
+                })
+            # Validar unicidad solo si el alternativo cambió (FIX-AUD6 / FIX-QA11)
+            if not propio_alternativo or alternativo != propio_alternativo:
+                if EmployeeModel.objects.filter(correo__iexact=alternativo).exists():
+                    raise serializers.ValidationError({
+                        'correo_alternativo': 'El correo alternativo ya está en uso como correo institucional.',
+                    })
+                from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+                qs_alt = DatosComplementariosTrabajadorModel.objects.filter(correo_alternativo__iexact=alternativo)
+                if cedula:
+                    qs_alt = qs_alt.exclude(cedula=str(cedula).strip())
+                if qs_alt.exists():
+                    raise serializers.ValidationError({
+                        'correo_alternativo': 'El correo alternativo ya está en uso por otro trabajador.',
+                    })
+
+        if correo and attrs.get('correo'):
+            # Validar institucional solo si cambió
+            if not propio_correo or correo != propio_correo:
+                qs_emp = EmployeeModel.objects.filter(correo__iexact=correo)
+                if cedula:
+                    qs_emp = qs_emp.exclude(cedulaidentidad=str(cedula).strip())
+                if qs_emp.exists():
+                    raise serializers.ValidationError({
+                        'correo': 'Ya existe un trabajador con ese correo electrónico.',
+                    })
+                from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+                qs_alt = DatosComplementariosTrabajadorModel.objects.filter(correo_alternativo__iexact=correo)
+                if cedula:
+                    qs_alt = qs_alt.exclude(cedula=str(cedula).strip())
+                if qs_alt.exists():
+                    raise serializers.ValidationError({
+                        'correo': 'El correo institucional no puede coincidir con un correo alternativo registrado.',
+                    })
         return attrs
 
     def to_internal_value(self, data):

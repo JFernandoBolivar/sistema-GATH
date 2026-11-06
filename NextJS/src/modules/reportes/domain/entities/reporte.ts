@@ -9,6 +9,8 @@ export interface ReporteItemPersonal {
   tipoPersonal: string;
   fechaIngreso: string;
   totalAnosApn: number;
+  /** `true` cuando el trabajador no tiene fecha de ingreso: el APN se muestra «—». */
+  sinFechaApn: boolean;
 }
 
 export interface ReporteItemPasivo {

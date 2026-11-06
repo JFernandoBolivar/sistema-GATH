@@ -179,6 +179,7 @@ export async function getPasivosPaginadosAction(filtros: {
   tipoNominaId?: number;
   fechaDesde?: string;
   fechaHasta?: string;
+  sinCuenta?: boolean;
   limit?: number;
   offset?: number;
 }) {

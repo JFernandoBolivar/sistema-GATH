@@ -25,6 +25,7 @@ export async function generarReportePersonal(
     tipoPersonal: e.tipoPersonal,
     fechaIngreso: e.fechaIngreso,
     totalAnosApn: e.totalAnosApn,
+    sinFechaApn: e.sinFechaApn,
   }));
 }
 

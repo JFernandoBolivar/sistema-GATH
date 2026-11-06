@@ -16,6 +16,7 @@ from core.domain.configuracion import (
     CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
     CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
+    CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
     CLAVE_GENERAR_PUNTOS_CUENTA,
@@ -238,8 +239,22 @@ DEFINICIONES = (
         etiqueta='Permitir que quien registra una fe de vida presencial dé uno de los checks',
         descripcion=(
             'Permite que el funcionario de Bienestar que registró la fe de vida presencial '
-            'pueda también dar uno de los dos checks de revisión. Apagado por defecto: '
-            'quien registró no puede dar check (sí la aprobación directa si es Administradora).'
+            'pueda también dar uno de los dos checks de revisión, devolverla, rechazarla o retirar su check. '
+            'Aplica a Analistas y demás roles; no aplica a la Administradora (véase el parámetro siguiente). '
+            'Apagado por defecto: quien registró no decide sobre su propio registro.'
+        ),
+        grupo=GRUPO_FE_DE_VIDA,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
+        etiqueta='Permitir que la Administradora que registró una fe de vida presencial la apruebe de forma directa',
+        descripcion=(
+            'Si está activo, la Administradora que registró la fe de vida presencial puede aprobarla de forma '
+            'directa, con justificación obligatoria y sin check previo de una Analista; queda marcado que quien '
+            'registró también aprobó. No le permite dar check, devolver, rechazar ni retirar check de su propio '
+            'registro. Apagado por defecto.'
         ),
         grupo=GRUPO_FE_DE_VIDA,
         tipo=TIPO_BOOLEANO,

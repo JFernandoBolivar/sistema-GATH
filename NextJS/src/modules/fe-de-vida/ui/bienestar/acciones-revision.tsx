@@ -60,6 +60,8 @@ export function AccionesRevision({ solicitud, acciones, onHecho, esRegistrador =
   const [erroresServidor, setErroresServidor] = useState<Record<string, string[]> | undefined>(undefined);
   const [pendiente, iniciar] = useTransition();
   const tiene = (a: AccionRevision) => acciones.includes(a);
+  const soloConstancia =
+    acciones.length > 0 && acciones.every((a) => a === "reenviar_constancia" || a === "regenerar_constancia");
   const mensaje = mensajeEstadoCheck(solicitud, acciones);
   const revisable = solicitud.estado === "PENDIENTE_REVISION" || solicitud.estado === "PENDIENTE_SEGUNDO_CHECK";
   const avisoRegistrador = esRegistrador && revisable && acciones.length === 0;
@@ -122,7 +124,7 @@ export function AccionesRevision({ solicitud, acciones, onHecho, esRegistrador =
   return (
     <section aria-labelledby="fv-acciones" className="flex flex-col gap-3 rounded-lg border bg-card p-4">
       <h2 id="fv-acciones" className="text-lg font-semibold">
-        Decisión
+        {soloConstancia ? "Constancia" : "Decisión"}
       </h2>
       {mensaje ? (
         <p role="status" className="text-base">

@@ -59,6 +59,7 @@ export interface FiltrosPasivosApi {
   tipo_nomina_id?: number;
   fecha_desde?: string;
   fecha_hasta?: string;
+  sin_cuenta?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -150,6 +151,7 @@ export const pasivosApi = {
         tipo_nomina_id: filtros.tipo_nomina_id,
         fecha_desde: filtros.fecha_desde,
         fecha_hasta: filtros.fecha_hasta,
+        sin_cuenta: filtros.sin_cuenta,
         limit: filtros.limit,
         offset: filtros.offset,
       },

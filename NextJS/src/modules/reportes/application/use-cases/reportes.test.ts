@@ -22,6 +22,7 @@ class RepoReportesMemoria implements RepoReportes {
         tipoPersonal: "EMPLEADO FIJO",
         fechaIngreso: "2020-01-01",
         totalAnosApn: 4,
+        sinFechaApn: false,
       },
     ];
   }

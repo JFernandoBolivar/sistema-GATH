@@ -113,6 +113,8 @@ class ValidadorCambiosActaORM:
             raise ValidationError('La cédula del familiar es obligatoria.', campo='cedula_familiar')
         if cambio.entidad_destino == 'employee' and cambio.campo == 'telefono_movil' and not valor:
             raise ValidationError('El teléfono celular es obligatorio.', campo='telefono_movil')
+        if cambio.campo == 'correo_alternativo' and valor:
+            self._lector.validar_correo_alternativo(cedula, valor)
         self._lector.validar_referencias({cambio.campo: valor})
         anterior = self._lector.valor_actual(cedula, cambio.entidad_destino, entidad_id, cambio.campo)
         if valor == anterior:

@@ -69,6 +69,7 @@ def test_correo_y_correo_alternativo_limitan_a_254():
         assert EmpleadoCrearSerializer().fields[campo].max_length == 254
 
 
+@pytest.mark.django_db
 def test_correo_alternativo_valida_formato():
     ser = EmpleadoActualizarSerializer(data={"correo_alternativo": "no-es-correo"}, partial=True)
     assert not ser.is_valid()
@@ -79,6 +80,7 @@ def test_correo_alternativo_valida_formato():
     assert vacio.is_valid(), vacio.errors
 
 
+@pytest.mark.django_db
 def test_los_dos_correos_no_pueden_ser_iguales():
     iguales = EmpleadoActualizarSerializer(
         data={"correo": "ana@conatel.gob.ve", "correo_alternativo": "ANA@conatel.gob.ve"},

@@ -237,11 +237,67 @@ class RepoPersonalORM:
         """El correo institucional es único: se avisa sobre el campo en vez de fallar con un 500."""
         if not correo:
             return
-        qs = EmployeeModel.objects.filter(correo__iexact=correo)
+        c_limpio = correo.strip().lower()
+        qs = EmployeeModel.objects.filter(correo__iexact=c_limpio)
         if excluir_cedula:
             qs = qs.exclude(cedulaidentidad=excluir_cedula)
         if qs.exists():
             raise ValidationError('Ya existe un trabajador con ese correo electrónico.', campo='correo')
+
+        from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+        qs_alt = DatosComplementariosTrabajadorModel.objects.filter(correo_alternativo__iexact=c_limpio)
+        if excluir_cedula:
+            qs_alt = qs_alt.exclude(cedula=str(excluir_cedula).strip())
+        if qs_alt.exists():
+            raise ValidationError(
+                'El correo institucional no puede coincidir con un correo alternativo registrado.',
+                campo='correo',
+            )
+
+    @staticmethod
+    def _validar_correo_alternativo_unico(
+        correo_alternativo: str | None,
+        cedula: str | None = None,
+        correo_institucional: str | None = None,
+    ) -> None:
+        """El correo alternativo es ÚNICO (FIX-QA11): distinto de cualquier institucional o alternativo ajeno o propio."""
+        if not correo_alternativo or not correo_alternativo.strip():
+            return
+        alt = correo_alternativo.strip().lower()
+
+        # 1. Distinto del propio institucional
+        if correo_institucional and correo_institucional.strip().lower() == alt:
+            raise ValidationError(
+                'El correo alternativo debe ser distinto del correo institucional.',
+                campo='correo_alternativo',
+            )
+        if not correo_institucional and cedula:
+            propio = EmployeeModel.objects.filter(
+                cedulaidentidad=str(cedula).strip()
+            ).values_list('correo', flat=True).first()
+            if propio and propio.strip().lower() == alt:
+                raise ValidationError(
+                    'El correo alternativo debe ser distinto del correo institucional.',
+                    campo='correo_alternativo',
+                )
+
+        # 2. Distinto de cualquier correo institucional en el sistema
+        if EmployeeModel.objects.filter(correo__iexact=alt).exists():
+            raise ValidationError(
+                'El correo alternativo ya está en uso como correo institucional.',
+                campo='correo_alternativo',
+            )
+
+        # 3. Distinto de cualquier alternativo de otra persona
+        from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+        qs_alt = DatosComplementariosTrabajadorModel.objects.filter(correo_alternativo__iexact=alt)
+        if cedula:
+            qs_alt = qs_alt.exclude(cedula=str(cedula).strip())
+        if qs_alt.exists():
+            raise ValidationError(
+                'El correo alternativo ya está en uso por otro trabajador.',
+                campo='correo_alternativo',
+            )
 
     @staticmethod
     def _correo_alternativo_de(cedula: str) -> str | None:
@@ -298,6 +354,7 @@ class RepoPersonalORM:
         if EmployeeModel.objects.filter(cedulaidentidad=datos['cedula']).exists():
             raise ValidationError('Ya existe un trabajador con esa cédula de identidad.', campo='cedula')
         self._validar_correo_libre(datos.get('correo'))
+        self._validar_correo_alternativo_unico(correo_alternativo, cedula=datos['cedula'], correo_institucional=datos.get('correo'))
         with transaction.atomic():
             obj = EmployeeModel.objects.create(
                 cedulaidentidad=datos['cedula'],
@@ -338,8 +395,10 @@ class RepoPersonalORM:
             obj = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
             if not obj:
                 raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
-            if datos.get('correo'):
+            if datos.get('correo') and datos['correo'].strip().lower() != (obj.correo or '').strip().lower():
                 self._validar_correo_libre(datos['correo'], excluir_cedula=obj.cedulaidentidad)
+            if escribe_alternativo and (correo_alternativo or '').strip().lower() != (self._correo_alternativo_de(obj.cedulaidentidad) or '').strip().lower():
+                self._validar_correo_alternativo_unico(correo_alternativo, cedula=obj.cedulaidentidad, correo_institucional=datos.get('correo') or obj.correo)
             if 'nacionalidad_id' in datos and datos['nacionalidad_id']:
                 obj.nacionalidad_id = datos['nacionalidad_id']
             for k, v in datos.items():

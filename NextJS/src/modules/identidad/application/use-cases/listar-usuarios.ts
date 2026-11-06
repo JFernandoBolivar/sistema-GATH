@@ -18,6 +18,7 @@ export function aUsuarioDto(u: UsuarioEntity) {
     nombres: u.nombres,
     apellidos: u.apellidos,
     correo: u.correo,
+    correoAlternativo: u.correoAlternativo,
     telefono: u.telefono,
     rolId: u.rolId,
     rolNombre: u.rolNombre,

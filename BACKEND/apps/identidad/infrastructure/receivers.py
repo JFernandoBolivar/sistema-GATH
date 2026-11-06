@@ -83,6 +83,10 @@ def aprovisionar_por_cedula(cedula: str, permitir_pasivo: bool = False):
 
         repo_corr = RepoCorreoAccesoORM()
         correo_ficha = repo_corr.correo_de(cedula)
+        # El alternativo no es login: sin correo principal no hay cuenta y nunca se escribe
+        # `Employee.correo` a partir del alternativo (FIX-AUD8).
+        if not correo_ficha:
+            return None
         correo_alt = repo_corr.correo_alternativo_de(cedula)
         dom_inst = getattr(settings, 'DOMINIO_CORREO_INSTITUCIONAL', '@conatel.gob.ve')
         correo_inst = correo_ficha if dom_inst in correo_ficha.lower() else ''
@@ -106,9 +110,6 @@ def aprovisionar_por_cedula(cedula: str, permitir_pasivo: bool = False):
         if not correo_resuelto:
             return None
 
-        if not datos.es_excepcion_manual and correo_resuelto != correo_ficha:
-            if not repo_corr.correo_en_uso_por_otro(cedula, correo_resuelto):
-                repo_corr.establecer_correo(cedula, correo_resuelto)
     except Exception:
         logger.exception('no se pudo evaluar la política de correo de acceso para %s', cedula)
 

@@ -29,11 +29,27 @@ RECURSO_REGLAS_MOTIVO = 'regla_motivo_movimiento'
 RECURSO_REGLAS_NOMINA = 'regla_tipo_nomina'
 
 ACCION_PARENTESCO_ACTUALIZADO = 'PARENTESCO_ACTUALIZADO'
+ACCION_PARENTESCO_CREADO = 'PARENTESCO_CREADO'
+ACCION_PARENTESCO_ELIMINADO = 'PARENTESCO_ELIMINADO'
 ACCION_MOTIVO_CATEGORIA_CAMBIADA = 'MOTIVO_CATEGORIA_CAMBIADA'
 ACCION_MOTIVO_CREADO = 'MOTIVO_MOVIMIENTO_CREADO'
 ACCION_MOTIVO_ACTUALIZADO = 'MOTIVO_MOVIMIENTO_ACTUALIZADO'
 ACCION_MOTIVO_ELIMINADO = 'MOTIVO_MOVIMIENTO_ELIMINADO'
 ACCION_NOMINA_ACTUALIZADA = 'TIPO_NOMINA_ACTUALIZADA'
+ACCION_NOMINA_CREADA = 'TIPO_NOMINA_CREADA'
+ACCION_NOMINA_ELIMINADA = 'TIPO_NOMINA_ELIMINADA'
+
+# Catálogos protegidos (O36): su nombre lo usa el sistema y no se renombra.
+PARENTESCO_RESERVADO = 'HIJO (A)'
+NOMINAS_SISTEMA_RESERVADAS: frozenset[str] = frozenset({
+    'JUBILADO',
+    'PENSIONADO',
+    'PENSIONADO SOBREVIVIENTE',
+})
+
+LARGO_MAXIMO_PARENTESCO = 100
+LARGO_MAXIMO_NOMINA = 50
+LARGO_MINIMO_NOMBRE = 2
 
 # Motivos del sistema que no se pueden mover ni renombrar
 MOTIVOS_SISTEMA_RESERVADOS: frozenset[str] = frozenset({
@@ -185,4 +201,90 @@ def validar_eliminacion_motivo(
             'No es posible eliminar el motivo porque tiene movimientos asociados en el historial. '
             'Puede desactivarlo en su lugar.',
             campo='motivo',
+        )
+
+
+def normalizar_nombre_catalogo(valor: str, *, campo: str, maximo: int) -> str:
+    """Normaliza espacios y valida largo de parentescos y nóminas (O36)."""
+    nombre = ' '.join((valor or '').split())
+    if not nombre:
+        raise ValidationError('El nombre es obligatorio.', campo=campo)
+    if len(nombre) < LARGO_MINIMO_NOMBRE:
+        raise ValidationError(
+            f'El nombre debe tener al menos {LARGO_MINIMO_NOMBRE} caracteres.', campo=campo,
+        )
+    if len(nombre) > maximo:
+        raise ValidationError(
+            f'El nombre no puede superar {maximo} caracteres.', campo=campo,
+        )
+    return nombre
+
+
+def _mismo_nombre(a: str, b: str) -> bool:
+    return ' '.join((a or '').split()).upper() == ' '.join((b or '').split()).upper()
+
+
+def preparar_nuevo_parentesco(descripcion: str, aplica_familiar: bool) -> tuple[str, bool]:
+    nombre = normalizar_nombre_catalogo(
+        descripcion, campo='descripcion', maximo=LARGO_MAXIMO_PARENTESCO,
+    )
+    return nombre, bool(aplica_familiar)
+
+
+def validar_edicion_parentesco(actual: ReglaParentesco, nueva_descripcion: str | None) -> None:
+    """El parentesco reservado HIJO (A) gobierna la cédula del hijo: no se renombra."""
+    if nueva_descripcion is None:
+        return
+    if _mismo_nombre(actual.descripcion, PARENTESCO_RESERVADO) and not _mismo_nombre(
+        actual.descripcion, nueva_descripcion,
+    ):
+        raise ValidationError(
+            f'El parentesco «{actual.descripcion}» es reservado del sistema y no puede renombrarse.',
+            campo='descripcion',
+        )
+
+
+def validar_eliminacion_parentesco(actual: ReglaParentesco, tiene_referencias: bool) -> None:
+    if _mismo_nombre(actual.descripcion, PARENTESCO_RESERVADO):
+        raise ValidationError(
+            f'El parentesco «{actual.descripcion}» es reservado del sistema y no puede eliminarse.',
+            campo='descripcion',
+        )
+    if tiene_referencias:
+        raise ValidationError(
+            'No es posible eliminar el parentesco porque está asignado a familiares registrados.',
+            campo='descripcion',
+        )
+
+
+def preparar_nueva_nomina(
+    nomina: str, es_activo: bool, requiere_codig: bool,
+) -> tuple[str, bool, bool]:
+    nombre = normalizar_nombre_catalogo(nomina, campo='nomina', maximo=LARGO_MAXIMO_NOMINA)
+    return nombre, bool(es_activo), bool(requiere_codig)
+
+
+def validar_edicion_nomina(actual: ReglaNomina, nueva_nomina: str | None) -> None:
+    """Las nóminas JUBILADO/PENSIONADO/PENSIONADO SOBREVIVIENTE no se renombran."""
+    if nueva_nomina is None:
+        return
+    if actual.nomina.strip().upper() in NOMINAS_SISTEMA_RESERVADAS and not _mismo_nombre(
+        actual.nomina, nueva_nomina,
+    ):
+        raise ValidationError(
+            f'La nómina «{actual.nomina}» es reservada del sistema y no puede renombrarse.',
+            campo='nomina',
+        )
+
+
+def validar_eliminacion_nomina(actual: ReglaNomina, tiene_referencias: bool) -> None:
+    if actual.nomina.strip().upper() in NOMINAS_SISTEMA_RESERVADAS:
+        raise ValidationError(
+            f'La nómina «{actual.nomina}» es reservada del sistema y no puede eliminarse.',
+            campo='nomina',
+        )
+    if tiene_referencias:
+        raise ValidationError(
+            'No es posible eliminar la nómina porque está asignada a cargos o procesos.',
+            campo='nomina',
         )

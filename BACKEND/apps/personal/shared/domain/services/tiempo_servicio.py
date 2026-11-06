@@ -167,3 +167,44 @@ def anios_fraccionarios(*, years: int, months: int, days: int) -> float:
     anotación SQL debe reproducir (probada con tolerancia 1e-4).
     """
     return round(years + months / 12.0 + days / 365.0, 4)
+
+
+def formatear_tiempo_servicio(anos) -> str:
+    """Años fraccionarios → texto legible, sin decimales largos (FIX-QA14).
+
+    Réplica de `formatearTiempoServicio` del frontend (Autogestión), para que
+    pantalla, PDF y Excel muestren exactamente el mismo texto:
+    «3 días de servicio en APN», «4 años y 6 meses de servicio en APN»…
+    """
+    try:
+        valor = float(anos)
+    except (TypeError, ValueError):
+        valor = 0.0
+    if valor <= 0:
+        return '0 días de servicio en APN'
+
+    if valor < 1:
+        total_dias = round(valor * 365)
+        if total_dias < 30:
+            dias = max(1, total_dias)
+            return f'{dias} {"día" if dias == 1 else "días"} de servicio en APN'
+        meses = int(total_dias // 30.4375)
+        dias_restantes = round(total_dias % 30.4375)
+        if dias_restantes == 0 or meses >= 12:
+            m = min(11, max(1, meses))
+            return f'{m} {"mes" if m == 1 else "meses"} de servicio en APN'
+        return (
+            f'{meses} {"mes" if meses == 1 else "meses"} y '
+            f'{dias_restantes} {"día" if dias_restantes == 1 else "días"} de servicio en APN'
+        )
+
+    anios_enteros = int(valor)
+    meses = round((valor - anios_enteros) * 12)
+    if meses == 0:
+        return f'{anios_enteros} {"año" if anios_enteros == 1 else "años"} de servicio en APN'
+    if meses >= 12:
+        return f'{anios_enteros + 1} años de servicio en APN'
+    return (
+        f'{anios_enteros} {"año" if anios_enteros == 1 else "años"} y '
+        f'{meses} {"mes" if meses == 1 else "meses"} de servicio en APN'
+    )

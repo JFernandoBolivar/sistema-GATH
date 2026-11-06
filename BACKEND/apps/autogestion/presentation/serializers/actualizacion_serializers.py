@@ -119,7 +119,7 @@ class ConfigurarSeccionSerializer(serializers.Serializer):
 
 
 class DatosComplementariosEscrituraSerializer(serializers.Serializer):
-    correo_alternativo = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=254)
+    correo_alternativo = serializers.EmailField(required=False, allow_null=True, allow_blank=True, max_length=254)
     tiene_hijos = serializers.BooleanField(required=False, allow_null=True)
 
 

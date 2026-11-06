@@ -348,6 +348,25 @@ def test_detalle_revision_proceso_cerrado_sin_acciones_de_revision(m):
     assert det_cerrado.acciones == ()
 
 
+def test_detalle_proceso_cerrado_validada_conserva_reenviar_y_regenerar_segun_permisos(m):
+    s = m.solicitud_enviada()
+    revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ANALISTA, ahora=AHORA)
+    revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ADMINISTRADORA, ahora=AHORA)
+    procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
+
+    def acciones(permisos):
+        return consultas.detalle_para_revision(
+            m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id,
+            actor=ADMINISTRADORA, permisos=permisos, repo_procesos=m.procesos,
+        ).acciones
+
+    assert acciones(consultas.PermisosRevision(revisar=True, regenerar=True, check=True, aprobar_directo=True)) == (
+        'reenviar_constancia', 'regenerar_constancia',
+    )
+    assert acciones(consultas.PermisosRevision(revisar=True)) == ('reenviar_constancia',)
+    assert acciones(consultas.PermisosRevision()) == ()
+
+
 def test_guia_vista_por_cuenta_y_proceso(m):
     vigente = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=PASIVO, ahora=AHORA)
     assert vigente is not None

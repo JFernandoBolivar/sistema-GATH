@@ -13,6 +13,7 @@ export interface UsuarioEntity {
   readonly nombres: string;
   readonly apellidos: string;
   readonly correo: string | null;
+  readonly correoAlternativo?: string | null;
   readonly telefono: string | null;
   readonly rolId: number | null;
   readonly rolNombre: string | null;

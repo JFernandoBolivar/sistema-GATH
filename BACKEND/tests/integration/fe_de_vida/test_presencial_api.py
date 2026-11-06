@@ -28,6 +28,11 @@ from apps.fe_de_vida.infrastructure.models.solicitud_models import (
     SolicitudFeDeVidaModel,
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.domain.configuracion import (
+    CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
+    CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
+)
+from core.infrastructure.models.auditoria import AuditoriaLog
 
 BASE = '/api/v1/fe-de-vida'
 PASIVO = '5111111'
@@ -254,34 +259,148 @@ def test_registrador_presencial_no_puede_decidir_y_otro_analista_si(datos, monke
     assert otro.post(f'{BASE}/solicitudes/{sol.id}/check/').status_code == 200
 
 
-def test_administradora_registradora_no_puede_aprobar_directo(datos, monkeypatch):
-    monkeypatch.setattr(
-        'apps.fe_de_vida.presentation.views.revision_views._registrador_puede_checar', lambda: False,
-    )
+RUTA_VISTAS = 'apps.fe_de_vida.presentation.views.revision_views'
+PERMISOS_ADMIN = {'fe_de_vida.revisar', 'fe_de_vida.check_administradora', 'fe_de_vida.aprobar_directo'}
+
+
+def _interruptores(monkeypatch, *, analistas: bool, administradora: bool):
+    monkeypatch.setattr(f'{RUTA_VISTAS}._registrador_puede_checar', lambda: analistas)
+    monkeypatch.setattr(f'{RUTA_VISTAS}._admin_registradora_puede_aprobar', lambda: administradora)
+
+
+@pytest.mark.parametrize('analistas', [False, True])
+def test_administradora_registradora_con_su_interruptor_apagado_no_decide(datos, monkeypatch, analistas):
+    _interruptores(monkeypatch, analistas=analistas, administradora=False)
     sol = _proceso_abierto_y_solicitud_presencial(registrada_por=ADMINISTRADORA)
-    registradora = _cliente(ADMINISTRADORA, {
-        'fe_de_vida.revisar', 'fe_de_vida.check_administradora', 'fe_de_vida.aprobar_directo',
-    })
+    registradora = _cliente(ADMINISTRADORA, PERMISOS_ADMIN)
     detalle = _cuerpo(registradora.get(f'{BASE}/solicitudes/{sol.id}/'))
     assert detalle['acciones_disponibles'] == []
+    rutas = [
+        (f'{BASE}/solicitudes/{sol.id}/aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}),
+        (f'{BASE}/solicitudes/{sol.id}/check/', None),
+        (f'{BASE}/solicitudes/{sol.id}/devolver/', {'motivo': 'Corrija el teléfono'}),
+        (f'{BASE}/solicitudes/{sol.id}/rechazar/', {'motivo': 'Documentación ilegible'}),
+    ]
+    for ruta, cuerpo in rutas:
+        r = registradora.post(ruta, cuerpo, format='json')
+        assert r.status_code == 409 and 'registró esta fe de vida' in r.json()['message'], (ruta, r.content)
+
+
+@pytest.mark.parametrize('analistas', [False, True])
+def test_administradora_registradora_con_su_interruptor_encendido_solo_aprueba_directo(
+    datos, monkeypatch, analistas,
+):
+    _interruptores(monkeypatch, analistas=analistas, administradora=True)
+    sol = _proceso_abierto_y_solicitud_presencial(registrada_por=ADMINISTRADORA)
+    registradora = _cliente(ADMINISTRADORA, PERMISOS_ADMIN)
+    detalle = _cuerpo(registradora.get(f'{BASE}/solicitudes/{sol.id}/'))
+    assert detalle['acciones_disponibles'] == ['aprobar_directo']
+
+    for ruta, cuerpo in [
+        (f'{BASE}/solicitudes/{sol.id}/check/', None),
+        (f'{BASE}/solicitudes/{sol.id}/devolver/', {'motivo': 'Corrija el teléfono'}),
+        (f'{BASE}/solicitudes/{sol.id}/rechazar/', {'motivo': 'Documentación ilegible'}),
+    ]:
+        r = registradora.post(ruta, cuerpo, format='json')
+        assert r.status_code == 409, (ruta, r.content)
+
+    sin_justificar = registradora.post(
+        f'{BASE}/solicitudes/{sol.id}/aprobar-directo/', {'justificacion': ' '}, format='json',
+    )
+    assert sin_justificar.status_code == 400
+
     r = registradora.post(
-        f'{BASE}/solicitudes/{sol.id}/aprobar-directo/',
-        {'justificacion': 'Pasivo sin movilidad'}, format='json',
+        f'{BASE}/solicitudes/{sol.id}/aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}, format='json',
     )
-    assert r.status_code == 409 and 'registró esta fe de vida' in r.json()['message']
+    assert r.status_code == 200, r.content
+    datos_resp = _cuerpo(r)
+    assert datos_resp['estado'] == 'VALIDADA'
+    assert datos_resp['via_aprobacion'] == 'DIRECTA_ADMINISTRADORA'
+    assert datos_resp['registrador_tambien_aprobo'] is True
+    registro = AuditoriaLog.objects.get(accion='APROBACION_DIRECTA_ADMINISTRADORA', recurso_id=str(sol.id))
+    assert registro.estado_nuevo['registrador_tambien_aprobo'] is True
+    assert registro.estado_nuevo['justificacion'] == 'Pasivo sin movilidad'
 
 
-def test_registrador_presencial_decide_si_el_parametro_esta_encendido(datos, monkeypatch):
-    monkeypatch.setattr(
-        'apps.fe_de_vida.presentation.views.revision_views._registrador_puede_checar', lambda: True,
-    )
+def test_interruptor_de_analistas_no_habilita_a_la_administradora_y_el_de_ella_no_habilita_a_analistas(
+    datos, monkeypatch,
+):
+    _interruptores(monkeypatch, analistas=False, administradora=True)
+    sol = _proceso_abierto_y_solicitud_presencial(registrada_por=ANALISTA)
+    registrador = _cliente(ANALISTA, {'fe_de_vida.revisar', 'fe_de_vida.check_analista'})
+    assert _cuerpo(registrador.get(f'{BASE}/solicitudes/{sol.id}/'))['acciones_disponibles'] == []
+    assert registrador.post(f'{BASE}/solicitudes/{sol.id}/check/').status_code == 409
+
+
+def test_registrador_analista_con_su_interruptor_encendido_decide_y_queda_marcado(datos, monkeypatch):
+    _interruptores(monkeypatch, analistas=True, administradora=False)
     sol = _proceso_abierto_y_solicitud_presencial()
-    registrador = _cliente(ANALISTA, {
-        'fe_de_vida.revisar', 'fe_de_vida.check_analista',
-    })
+    registrador = _cliente(ANALISTA, {'fe_de_vida.revisar', 'fe_de_vida.check_analista'})
     detalle = _cuerpo(registrador.get(f'{BASE}/solicitudes/{sol.id}/'))
     assert {'dar_check', 'devolver', 'rechazar'} <= set(detalle['acciones_disponibles'])
-    assert registrador.post(f'{BASE}/solicitudes/{sol.id}/check/').status_code == 200
+    r = registrador.post(f'{BASE}/solicitudes/{sol.id}/check/')
+    assert r.status_code == 200
+    assert _cuerpo(r)['registrador_tambien_aprobo'] is True
+    registro = AuditoriaLog.objects.get(accion='CHECK_DADO', recurso_id=str(sol.id))
+    assert registro.estado_nuevo['registrador_tambien_aprobo'] is True
+
+
+def test_otra_administradora_aprueba_directo_sin_marcar_al_registrador(datos, monkeypatch):
+    _interruptores(monkeypatch, analistas=False, administradora=False)
+    sol = _proceso_abierto_y_solicitud_presencial(registrada_por=ANALISTA)
+    administradora = _cliente(ADMINISTRADORA, PERMISOS_ADMIN)
+    r = administradora.post(
+        f'{BASE}/solicitudes/{sol.id}/aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}, format='json',
+    )
+    assert r.status_code == 200, r.content
+    assert _cuerpo(r)['registrador_tambien_aprobo'] is False
+
+
+def _fijar_parametro(clave, valor, pk=77):
+    """Cambia el interruptor por la API real de Parámetros del sistema (auditado y con historial)."""
+    editor = _cliente('20000099', {'configuracion.editar'}, pk=pk)
+    r = editor.put(f'/api/v1/configuracion/parametros/{clave}/', {'valor': valor}, format='json')
+    assert r.status_code == 200, r.content
+    return editor
+
+
+def test_interruptores_por_parametros_del_sistema_apagados_por_defecto_visibles_y_con_historial(datos):
+    editor = _cliente('20000099', {'configuracion.editar'}, pk=77)
+    listado = {p['clave']: p for p in _cuerpo(editor.get('/api/v1/configuracion/parametros/'))}
+    for clave in (CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR, CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR):
+        assert listado[clave]['valor'] == 'false' and listado[clave]['defecto'] == 'false'
+        assert listado[clave]['tipo'] == 'booleano'
+    assert listado[CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR]['grupo'] ==         listado[CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR]['grupo']
+
+    _fijar_parametro(CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR, 'true')
+    auditoria = AuditoriaLog.objects.get(recurso_id=CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR)
+    assert auditoria.estado_previo == {'valor': 'false'} and auditoria.estado_nuevo == {'valor': 'true'}
+    historial = _cuerpo(editor.get(
+        f'/api/v1/configuracion/parametros/{CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR}/historial/'
+    ))
+    assert historial['total'] == 1 and historial['resultados'][0]['valor_nuevo'] == 'true'
+
+
+def test_administradora_registradora_extremo_a_extremo_con_los_dos_interruptores_reales(datos):
+    sol = _proceso_abierto_y_solicitud_presencial(registrada_por=ADMINISTRADORA)
+    registradora = _cliente(ADMINISTRADORA, PERMISOS_ADMIN)
+    ruta = f'{BASE}/solicitudes/{sol.id}/'
+
+    # Ambos apagados (valor por defecto).
+    assert _cuerpo(registradora.get(ruta))['acciones_disponibles'] == []
+
+    # Solo el de analistas encendido: no cambia nada para la Administradora.
+    _fijar_parametro(CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR, 'true')
+    assert _cuerpo(registradora.get(ruta))['acciones_disponibles'] == []
+
+    # El suyo encendido: solo aprobación directa.
+    _fijar_parametro(CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR, 'true')
+    assert _cuerpo(registradora.get(ruta))['acciones_disponibles'] == ['aprobar_directo']
+
+    # Apagarlo de nuevo la bloquea otra vez, también en la acción real.
+    _fijar_parametro(CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR, 'false')
+    r = registradora.post(f'{ruta}aprobar-directo/', {'justificacion': 'Pasivo sin movilidad'}, format='json')
+    assert r.status_code == 409
 
 
 def test_constancia_bienestar_imprimir_endpoint(datos):

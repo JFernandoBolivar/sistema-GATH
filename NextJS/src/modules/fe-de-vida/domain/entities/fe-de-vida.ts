@@ -32,6 +32,8 @@ export interface SolicitudEntity {
   readonly canal?: string;
   readonly registradaPor?: string;
   readonly registradaPorCedula?: string;
+  /** Quien registró el acta presencial también dio un check o la aprobación directa. */
+  readonly registradorTambienAprobo?: boolean;
   readonly fechaEnvio: string | null;
   readonly fechaValidacion: string | null;
   readonly decisiones: readonly DecisionEntity[];

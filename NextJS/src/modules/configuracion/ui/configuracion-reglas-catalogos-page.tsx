@@ -77,12 +77,23 @@ import {
   actualizarParentescoAction,
   cambiarCategoriaMotivoAction,
   crearMotivoAction,
+  crearNominaAction,
+  crearParentescoAction,
+  editarParentescoAction,
   eliminarMotivoAction,
+  eliminarNominaAction,
+  eliminarParentescoAction,
   obtenerReglasCatalogosAction,
 } from "../infrastructure/actions/reglas-catalogos-actions";
 import { PERMISO_CONFIGURACION } from "../domain/value-objects/permisos-configuracion";
 
 const PERMISO_VER = "configuracion.ver";
+const PERMISO_CATALOGOS_VER = "catalogos.ver";
+const PERMISO_CATALOGOS_EDITAR = "catalogos.editar";
+const PERMISO_CATALOGOS_CREAR = "catalogos.crear";
+
+/** Nóminas cuyo nombre usa el sistema (el backend también las protege). */
+const NOMINAS_RESERVADAS = ["JUBILADO", "PENSIONADO", "PENSIONADO SOBREVIVIENTE"];
 
 function esError(resultado: unknown): resultado is { error: string; errores?: Record<string, string[]> } {
   return typeof resultado === "object" && resultado !== null && "error" in resultado;
@@ -91,8 +102,15 @@ function esError(resultado: unknown): resultado is { error: string; errores?: Re
 export function ConfiguracionReglasCatalogosPage() {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
-  const puedeVer = tienePermiso(permisos, PERMISO_VER) || tienePermiso(permisos, PERMISO_CONFIGURACION.editar);
-  const puedeEditar = tienePermiso(permisos, PERMISO_CONFIGURACION.editar);
+  const puedeVer =
+    tienePermiso(permisos, PERMISO_VER) ||
+    tienePermiso(permisos, PERMISO_CONFIGURACION.editar) ||
+    tienePermiso(permisos, PERMISO_CATALOGOS_VER) ||
+    tienePermiso(permisos, PERMISO_CATALOGOS_EDITAR);
+  const puedeEditar =
+    tienePermiso(permisos, PERMISO_CONFIGURACION.editar) ||
+    tienePermiso(permisos, PERMISO_CATALOGOS_EDITAR) ||
+    tienePermiso(permisos, PERMISO_CATALOGOS_CREAR);
 
   const [isPending, startTransition] = useTransition();
 
@@ -129,6 +147,26 @@ export function ConfiguracionReglasCatalogosPage() {
   } | null>(null);
   const [errorEditarMotivo, setErrorEditarMotivo] = useState<string | null>(null);
   const [eliminarMotivo, setEliminarMotivo] = useState<ReglaMotivoDTO | null>(null);
+
+  // O36: alta/edición/baja de parentescos y tipos de nómina
+  const [dialogoParentesco, setDialogoParentesco] = useState<{
+    modo: "crear" | "editar";
+    parentesco: ReglaParentescoDTO | null;
+    descripcion: string;
+    aplicaFamiliar: boolean;
+  } | null>(null);
+  const [errorDialogoParentesco, setErrorDialogoParentesco] = useState<string | null>(null);
+  const [eliminarParentesco, setEliminarParentesco] = useState<ReglaParentescoDTO | null>(null);
+
+  const [dialogoNomina, setDialogoNomina] = useState<{
+    modo: "crear" | "editar";
+    nomina: ReglaNominaDTO | null;
+    nombre: string;
+    esActivo: boolean;
+    requiereCodig: boolean;
+  } | null>(null);
+  const [errorDialogoNomina, setErrorDialogoNomina] = useState<string | null>(null);
+  const [eliminarNomina, setEliminarNomina] = useState<ReglaNominaDTO | null>(null);
 
   const { data, isLoading, mutate } = useSWR(
     puedeVer ? "configuracion-reglas-catalogos" : null,
@@ -275,6 +313,91 @@ export function ConfiguracionReglasCatalogosPage() {
     });
   };
 
+  const handleGuardarDialogoParentesco = () => {
+    if (!dialogoParentesco) return;
+    const nombre = dialogoParentesco.descripcion.trim();
+    if (nombre.length < 2) {
+      setErrorDialogoParentesco("El nombre del parentesco debe tener al menos 2 caracteres.");
+      return;
+    }
+    setErrorDialogoParentesco(null);
+    const { modo, parentesco, aplicaFamiliar } = dialogoParentesco;
+    startTransition(async () => {
+      const res =
+        modo === "crear"
+          ? await crearParentescoAction(nombre, aplicaFamiliar)
+          : await editarParentescoAction(parentesco?.id ?? 0, {
+              descripcion: nombre,
+              aplica_familiar: aplicaFamiliar,
+            });
+      if (esError(res)) {
+        setErrorDialogoParentesco(res.error);
+        return;
+      }
+      toast.success(modo === "crear" ? "Parentesco creado." : "Parentesco actualizado.");
+      setDialogoParentesco(null);
+      mutate();
+    });
+  };
+
+  const handleEliminarParentesco = () => {
+    if (!eliminarParentesco) return;
+    const parentesco = eliminarParentesco;
+    setEliminarParentesco(null);
+    startTransition(async () => {
+      const res = await eliminarParentescoAction(parentesco.id);
+      if (esError(res)) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`Parentesco «${parentesco.descripcion}» eliminado.`);
+      mutate();
+    });
+  };
+
+  const handleGuardarDialogoNomina = () => {
+    if (!dialogoNomina) return;
+    const nombre = dialogoNomina.nombre.trim();
+    if (nombre.length < 2) {
+      setErrorDialogoNomina("El nombre de la nómina debe tener al menos 2 caracteres.");
+      return;
+    }
+    setErrorDialogoNomina(null);
+    const { modo, nomina, esActivo, requiereCodig } = dialogoNomina;
+    startTransition(async () => {
+      const res =
+        modo === "crear"
+          ? await crearNominaAction(nombre, esActivo, requiereCodig)
+          : await actualizarNominaAction(nomina?.id ?? 0, {
+              nomina: nombre,
+              es_activo: esActivo,
+              requiere_codig: requiereCodig,
+            });
+      if (esError(res)) {
+        setErrorDialogoNomina(res.error);
+        return;
+      }
+      toast.success(modo === "crear" ? "Tipo de nómina creado." : "Tipo de nómina actualizado.");
+      setDialogoNomina(null);
+      mutate();
+    });
+  };
+
+  const handleEliminarNomina = () => {
+    if (!eliminarNomina) return;
+    const nomina = eliminarNomina;
+    setEliminarNomina(null);
+    startTransition(async () => {
+      const res = await eliminarNominaAction(nomina.id);
+      if (esError(res)) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`Nómina «${nomina.nomina}» eliminada.`);
+      mutate();
+    });
+  };
+
   if (!puedeVer) {
     return (
       <PageLayout title="Reglas de catálogos">
@@ -320,12 +443,30 @@ export function ConfiguracionReglasCatalogosPage() {
         {/* ------------------------------------------------------------- */}
         <TabsContent value="parentescos" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Parentescos y Reglas de Vinculación</CardTitle>
-              <CardDescription>
-                Habilite o deshabilite si un parentesco está permitido exclusivamente para
-                familiares en RRHH o si puede usarse en contactos de emergencia.
-              </CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">Parentescos y Reglas de Vinculación</CardTitle>
+                <CardDescription>
+                  Habilite o deshabilite si un parentesco está permitido exclusivamente para
+                  familiares en RRHH o si puede usarse en contactos de emergencia.
+                </CardDescription>
+              </div>
+              {puedeEditar && (
+                <Button
+                  className="shrink-0"
+                  onClick={() => {
+                    setErrorDialogoParentesco(null);
+                    setDialogoParentesco({
+                      modo: "crear",
+                      parentesco: null,
+                      descripcion: "",
+                      aplicaFamiliar: true,
+                    });
+                  }}
+                >
+                  <Plus className="mr-2 size-4" /> Nuevo parentesco
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -336,7 +477,7 @@ export function ConfiguracionReglasCatalogosPage() {
                 </div>
               ) : (
                 <div className="rounded-md border overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[560px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[100px]">ID</TableHead>
@@ -344,32 +485,77 @@ export function ConfiguracionReglasCatalogosPage() {
                         <TableHead className="text-center w-[220px]">
                           Permitido para Familiares
                         </TableHead>
+                        <TableHead className="text-right w-[120px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data?.parentescos.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-mono text-xs">{p.id}</TableCell>
-                          <TableCell className="font-medium">{p.descripcion}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <Switch
-                                checked={p.aplica_familiar}
-                                disabled={!puedeEditar || isPending}
-                                onCheckedChange={(val) => {
-                                  setConfirmParentesco({
-                                    parentesco: p,
-                                    nuevoValor: val,
-                                  });
-                                }}
-                              />
-                              <span className="text-xs text-muted-foreground w-12 text-left">
-                                {p.aplica_familiar ? "Sí" : "No"}
+                      {data?.parentescos.map((p) => {
+                        const reservado = p.descripcion.trim().toUpperCase() === "HIJO (A)";
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono text-xs">{p.id}</TableCell>
+                            <TableCell className="font-medium">
+                              <span className="inline-flex items-center gap-2">
+                                {p.descripcion}
+                                {reservado && (
+                                  <span title="Parentesco reservado del sistema">
+                                    <Lock className="size-3.5 text-amber-500" aria-hidden="true" />
+                                  </span>
+                                )}
                               </span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <Switch
+                                  checked={p.aplica_familiar}
+                                  disabled={!puedeEditar || isPending}
+                                  onCheckedChange={(val) => {
+                                    setConfirmParentesco({
+                                      parentesco: p,
+                                      nuevoValor: val,
+                                    });
+                                  }}
+                                />
+                                <span className="text-xs text-muted-foreground w-12 text-left">
+                                  {p.aplica_familiar ? "Sí" : "No"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Editar ${p.descripcion}`}
+                                  disabled={!puedeEditar || isPending || reservado}
+                                  onClick={() => {
+                                    setErrorDialogoParentesco(null);
+                                    setDialogoParentesco({
+                                      modo: "editar",
+                                      parentesco: p,
+                                      descripcion: p.descripcion,
+                                      aplicaFamiliar: p.aplica_familiar,
+                                    });
+                                  }}
+                                >
+                                  <Pencil className="size-4" aria-hidden="true" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Eliminar ${p.descripcion}`}
+                                  disabled={!puedeEditar || isPending || reservado}
+                                  onClick={() => setEliminarParentesco(p)}
+                                >
+                                  <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -572,12 +758,31 @@ export function ConfiguracionReglasCatalogosPage() {
         {/* ------------------------------------------------------------- */}
         <TabsContent value="nominas" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Reglas y Marcas de Tipos de Nómina</CardTitle>
-              <CardDescription>
-                Gobernanza sobre qué nóminas se consideran personal activo y cuáles exigen
-                código de cargo asignado para sus trabajadores.
-              </CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">Reglas y Marcas de Tipos de Nómina</CardTitle>
+                <CardDescription>
+                  Gobernanza sobre qué nóminas se consideran personal activo y cuáles exigen
+                  código de cargo asignado para sus trabajadores.
+                </CardDescription>
+              </div>
+              {puedeEditar && (
+                <Button
+                  className="shrink-0"
+                  onClick={() => {
+                    setErrorDialogoNomina(null);
+                    setDialogoNomina({
+                      modo: "crear",
+                      nomina: null,
+                      nombre: "",
+                      esActivo: true,
+                      requiereCodig: false,
+                    });
+                  }}
+                >
+                  <Plus className="mr-2 size-4" /> Nueva nómina
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -588,58 +793,104 @@ export function ConfiguracionReglasCatalogosPage() {
                 </div>
               ) : (
                 <div className="rounded-md border overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[720px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[80px]">ID</TableHead>
                         <TableHead>Nombre de Nómina</TableHead>
                         <TableHead className="text-center w-[180px]">Nómina Activa</TableHead>
                         <TableHead className="text-center w-[180px]">Requiere Código</TableHead>
+                        <TableHead className="text-right w-[120px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {data?.nominas.map((n) => (
-                        <TableRow key={n.id}>
-                          <TableCell className="font-mono text-xs">{n.id}</TableCell>
-                          <TableCell className="font-medium">{n.nomina}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <Switch
-                                checked={n.es_activo}
-                                disabled={!puedeEditar || isPending}
-                                onCheckedChange={(val) => {
-                                  setConfirmNomina({
-                                    nomina: n,
-                                    campo: "es_activo",
-                                    nuevoValor: val,
-                                  });
-                                }}
-                              />
-                              <span className="text-xs text-muted-foreground w-8 text-left">
-                                {n.es_activo ? "Sí" : "No"}
+                      {data?.nominas.map((n) => {
+                        const reservada = NOMINAS_RESERVADAS.includes(n.nomina.trim().toUpperCase());
+                        return (
+                          <TableRow key={n.id}>
+                            <TableCell className="font-mono text-xs">{n.id}</TableCell>
+                            <TableCell className="font-medium">
+                              <span className="inline-flex items-center gap-2">
+                                {n.nomina}
+                                {reservada && (
+                                  <span title="Nómina reservada del sistema">
+                                    <Lock className="size-3.5 text-amber-500" aria-hidden="true" />
+                                  </span>
+                                )}
                               </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <Switch
-                                checked={n.requiere_codig}
-                                disabled={!puedeEditar || isPending}
-                                onCheckedChange={(val) => {
-                                  setConfirmNomina({
-                                    nomina: n,
-                                    campo: "requiere_codig",
-                                    nuevoValor: val,
-                                  });
-                                }}
-                              />
-                              <span className="text-xs text-muted-foreground w-8 text-left">
-                                {n.requiere_codig ? "Sí" : "No"}
-                              </span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <Switch
+                                  checked={n.es_activo}
+                                  disabled={!puedeEditar || isPending}
+                                  onCheckedChange={(val) => {
+                                    setConfirmNomina({
+                                      nomina: n,
+                                      campo: "es_activo",
+                                      nuevoValor: val,
+                                    });
+                                  }}
+                                />
+                                <span className="text-xs text-muted-foreground w-8 text-left">
+                                  {n.es_activo ? "Sí" : "No"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-2">
+                                <Switch
+                                  checked={n.requiere_codig}
+                                  disabled={!puedeEditar || isPending}
+                                  onCheckedChange={(val) => {
+                                    setConfirmNomina({
+                                      nomina: n,
+                                      campo: "requiere_codig",
+                                      nuevoValor: val,
+                                    });
+                                  }}
+                                />
+                                <span className="text-xs text-muted-foreground w-8 text-left">
+                                  {n.requiere_codig ? "Sí" : "No"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Editar ${n.nomina}`}
+                                  disabled={!puedeEditar || isPending}
+                                  onClick={() => {
+                                    setErrorDialogoNomina(null);
+                                    setDialogoNomina({
+                                      modo: "editar",
+                                      nomina: n,
+                                      nombre: n.nomina,
+                                      esActivo: n.es_activo,
+                                      requiereCodig: n.requiere_codig,
+                                    });
+                                  }}
+                                >
+                                  <Pencil className="size-4" aria-hidden="true" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Eliminar ${n.nomina}`}
+                                  disabled={!puedeEditar || isPending || reservada}
+                                  onClick={() => setEliminarNomina(n)}
+                                >
+                                  <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -652,6 +903,172 @@ export function ConfiguracionReglasCatalogosPage() {
       {/* ------------------------------------------------------------- */}
       {/* DIÁLOGOS DE CONFIRMACIÓN */}
       {/* ------------------------------------------------------------- */}
+
+      {/* O36: alta/edición de parentesco */}
+      <Dialog
+        open={dialogoParentesco !== null}
+        onOpenChange={(open) => !open && setDialogoParentesco(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogoParentesco?.modo === "crear" ? "Nuevo parentesco" : "Editar parentesco"}
+            </DialogTitle>
+            <DialogDescription>
+              El nombre no distingue mayúsculas al validar duplicados y admite hasta 100
+              caracteres. El parentesco «HIJO (A)» está reservado por la regla de cédula.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="parentesco-nombre">Nombre del parentesco</Label>
+              <Input
+                id="parentesco-nombre"
+                value={dialogoParentesco?.descripcion ?? ""}
+                maxLength={100}
+                onChange={(e) =>
+                  setDialogoParentesco((previo) =>
+                    previo ? { ...previo, descripcion: e.target.value } : previo,
+                  )
+                }
+                aria-invalid={!!errorDialogoParentesco}
+              />
+              {errorDialogoParentesco && (
+                <p role="alert" className="text-sm text-destructive">{errorDialogoParentesco}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="parentesco-aplica"
+                checked={dialogoParentesco?.aplicaFamiliar ?? true}
+                onCheckedChange={(valor) =>
+                  setDialogoParentesco((previo) =>
+                    previo ? { ...previo, aplicaFamiliar: valor } : previo,
+                  )
+                }
+              />
+              <Label htmlFor="parentesco-aplica">Permitido para familiares</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDialogoParentesco(null)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleGuardarDialogoParentesco} disabled={isPending}>
+              {dialogoParentesco?.modo === "crear" ? "Crear" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* O36: alta/edición de tipo de nómina */}
+      <Dialog
+        open={dialogoNomina !== null}
+        onOpenChange={(open) => !open && setDialogoNomina(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogoNomina?.modo === "crear" ? "Nuevo tipo de nómina" : "Editar tipo de nómina"}
+            </DialogTitle>
+            <DialogDescription>
+              Hasta 50 caracteres. La clasificación activo/pasivo y «requiere código» se
+              eligen aquí; JUBILADO, PENSIONADO y PENSIONADO SOBREVIVIENTE están reservadas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="nomina-nombre">Nombre de la nómina</Label>
+              <Input
+                id="nomina-nombre"
+                value={dialogoNomina?.nombre ?? ""}
+                maxLength={50}
+                onChange={(e) =>
+                  setDialogoNomina((previo) =>
+                    previo ? { ...previo, nombre: e.target.value } : previo,
+                  )
+                }
+                aria-invalid={!!errorDialogoNomina}
+              />
+              {errorDialogoNomina && (
+                <p role="alert" className="text-sm text-destructive">{errorDialogoNomina}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="nomina-activa"
+                checked={dialogoNomina?.esActivo ?? true}
+                onCheckedChange={(valor) =>
+                  setDialogoNomina((previo) =>
+                    previo ? { ...previo, esActivo: valor } : previo,
+                  )
+                }
+              />
+              <Label htmlFor="nomina-activa">Nómina activa</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="nomina-codig"
+                checked={dialogoNomina?.requiereCodig ?? false}
+                onCheckedChange={(valor) =>
+                  setDialogoNomina((previo) =>
+                    previo ? { ...previo, requiereCodig: valor } : previo,
+                  )
+                }
+              />
+              <Label htmlFor="nomina-codig">Requiere código de cargo</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDialogoNomina(null)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleGuardarDialogoNomina} disabled={isPending}>
+              {dialogoNomina?.modo === "crear" ? "Crear" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* O36: baja de parentesco */}
+      <AlertDialog
+        open={eliminarParentesco !== null}
+        onOpenChange={(open) => !open && setEliminarParentesco(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar parentesco</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar el parentesco <strong>{eliminarParentesco?.descripcion}</strong>? Solo
+              se permite si ningún familiar lo usa; si tiene registros, el sistema lo bloqueará.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEliminarParentesco}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* O36: baja de tipo de nómina */}
+      <AlertDialog
+        open={eliminarNomina !== null}
+        onOpenChange={(open) => !open && setEliminarNomina(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar tipo de nómina</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar la nómina <strong>{eliminarNomina?.nomina}</strong>? Solo se permite si
+              no está asignada a cargos ni a procesos; si está en uso, el sistema lo bloqueará.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEliminarNomina}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmación Parentesco */}
       <AlertDialog

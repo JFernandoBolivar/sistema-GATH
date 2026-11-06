@@ -92,6 +92,7 @@ class PasivosListView(APIView):
             tipo_nomina_id=filtros.get('tipo_nomina_id') or None,
             fecha_desde=filtros.get('fecha_desde'),
             fecha_hasta=filtros.get('fecha_hasta'),
+            sin_cuenta=filtros.get('sin_cuenta'),
             limite=filtros.get('limit', 10),
             desplazamiento=filtros.get('offset', 0),
         )
@@ -152,7 +153,9 @@ class PasivoDetailView(APIView):
         request=PasivoActualizarInputSerializer, responses={200: PasivoSerializer},
     )
     def patch(self, request, cedula: str):
-        entrada = PasivoActualizarInputSerializer(data=request.data, partial=True)
+        entrada = PasivoActualizarInputSerializer(
+            data=request.data, partial=True, context={'request': request, 'view': self, 'cedula': cedula}
+        )
         entrada.is_valid(raise_exception=True)
         with transaction.atomic():
             dto = actualizar_pasivo(RepoPasivosORM(), cedula, dict(entrada.validated_data))

@@ -116,7 +116,6 @@ export default function FeDeVidaPasivoPage() {
               <Button type="button" className="min-h-11 w-fit" onClick={empezar} disabled={iniciando}>
                 {iniciando ? "Iniciando…" : "Comenzar mi fe de vida"}
               </Button>
-              <BotonVerGuia onClick={() => setGuiaManual(true)} className="min-h-11" />
             </div>
           ) : (
             <p role="status" className="text-base">El plazo de este proceso ya terminó.</p>

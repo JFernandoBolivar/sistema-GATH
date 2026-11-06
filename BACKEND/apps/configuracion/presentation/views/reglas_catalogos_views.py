@@ -9,11 +9,15 @@ from rest_framework.views import APIView
 
 from apps.configuracion.application.use_cases.gestionar_reglas_catalogos import (
     actualizar_motivo,
-    actualizar_nomina,
-    actualizar_parentesco,
     cambiar_categoria_motivo,
+    crear_nomina,
     crear_nuevo_motivo,
+    crear_parentesco,
+    editar_nomina,
+    editar_parentesco,
     eliminar_motivo,
+    eliminar_nomina,
+    eliminar_parentesco,
     obtener_todas_las_reglas,
 )
 from apps.configuracion.domain.reglas_catalogos import (
@@ -22,7 +26,11 @@ from apps.configuracion.domain.reglas_catalogos import (
     ACCION_MOTIVO_CREADO,
     ACCION_MOTIVO_ELIMINADO,
     ACCION_NOMINA_ACTUALIZADA,
+    ACCION_NOMINA_CREADA,
+    ACCION_NOMINA_ELIMINADA,
     ACCION_PARENTESCO_ACTUALIZADO,
+    ACCION_PARENTESCO_CREADO,
+    ACCION_PARENTESCO_ELIMINADO,
     MODULO_AUDITORIA_CONFIGURACION,
     RECURSO_REGLAS_MOTIVO,
     RECURSO_REGLAS_NOMINA,
@@ -37,6 +45,8 @@ from apps.configuracion.infrastructure.serializers.reglas_catalogos_serializers 
     ActualizarParentescoSerializer,
     CambiarCategoriaMotivoSerializer,
     CrearMotivoSerializer,
+    CrearNominaSerializer,
+    CrearParentescoSerializer,
     ReglaMotivoSerializer,
     ReglaNominaSerializer,
     ReglaParentescoSerializer,
@@ -44,7 +54,7 @@ from apps.configuracion.infrastructure.serializers.reglas_catalogos_serializers 
 )
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import ok
-from core.presentation.permissions import HasAnyPermission, HasPermission
+from core.presentation.permissions import HasAnyPermission
 from core.presentation.schema import MensajeRespuestaSerializer
 
 PERMISO_VER = 'configuracion.ver'
@@ -82,11 +92,11 @@ class ReglasCatalogosListView(APIView):
 
 
 class ReglaParentescoUpdateView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_EDITAR)]
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_EDITAR)]
 
     @extend_schema(
         tags=['Configuración'],
-        summary='Actualizar si un parentesco aplica para familiares',
+        summary='Actualizar nombre y/o si un parentesco aplica para familiares',
         request=ActualizarParentescoSerializer,
         responses={200: ReglaParentescoSerializer, 400: MensajeRespuestaSerializer},
     )
@@ -96,8 +106,11 @@ class ReglaParentescoUpdateView(APIView):
 
         repo = RepoReglasCatalogosORM()
         with transaction.atomic():
-            anterior, actualizado = actualizar_parentesco(
-                repo, id, serializer.validated_data['aplica_familiar']
+            anterior, actualizado = editar_parentesco(
+                repo,
+                id,
+                serializer.validated_data.get('descripcion'),
+                serializer.validated_data.get('aplica_familiar'),
             )
             registrar_auditoria(
                 trace_id=_trace(request),
@@ -114,6 +127,77 @@ class ReglaParentescoUpdateView(APIView):
         return ok(
             ReglaParentescoSerializer(actualizado).data,
             'Regla de parentesco actualizada correctamente.',
+        )
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Eliminar un parentesco sin referencias (los reservados no se borran)',
+        responses={200: ReglaParentescoSerializer, 400: MensajeRespuestaSerializer},
+    )
+    def delete(self, request, id: int):
+        repo = RepoReglasCatalogosORM()
+        with transaction.atomic():
+            eliminado = eliminar_parentesco(repo, id)
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_PARENTESCO_ELIMINADO,
+                modulo=MODULO_AUDITORIA_CONFIGURACION,
+                recurso_tipo=RECURSO_REGLAS_PARENTESCO,
+                recurso_id=str(id),
+                estado_previo={
+                    'descripcion': eliminado.descripcion,
+                    'aplica_familiar': eliminado.aplica_familiar,
+                },
+                estado_nuevo=None,
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
+
+        return ok(
+            ReglaParentescoSerializer(eliminado).data,
+            'Parentesco eliminado correctamente.',
+        )
+
+
+class ReglaParentescoCrearView(APIView):
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_CREAR)]
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Crear un parentesco',
+        request=CrearParentescoSerializer,
+        responses={201: ReglaParentescoSerializer, 400: MensajeRespuestaSerializer},
+    )
+    def post(self, request):
+        serializer = CrearParentescoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        repo = RepoReglasCatalogosORM()
+        with transaction.atomic():
+            creado = crear_parentesco(
+                repo,
+                serializer.validated_data['descripcion'],
+                serializer.validated_data.get('aplica_familiar', True),
+            )
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_PARENTESCO_CREADO,
+                modulo=MODULO_AUDITORIA_CONFIGURACION,
+                recurso_tipo=RECURSO_REGLAS_PARENTESCO,
+                recurso_id=str(creado.id),
+                estado_previo=None,
+                estado_nuevo={
+                    'descripcion': creado.descripcion,
+                    'aplica_familiar': creado.aplica_familiar,
+                },
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
+
+        return ok(
+            ReglaParentescoSerializer(creado).data,
+            'Parentesco creado correctamente.',
+            status=201,
         )
 
 
@@ -284,30 +368,32 @@ class ReglaMotivoCrearView(APIView):
         return ok(
             ReglaMotivoSerializer(creado).data,
             'Motivo creado correctamente en la categoría indicada.',
-            codigo=201,
+            status=201,
         )
 
 
 class ReglaNominaUpdateView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_EDITAR)]
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_EDITAR)]
 
     @extend_schema(
         tags=['Configuración'],
-        summary='Actualizar marcas de un tipo de nómina (nómina activa y requiere código)',
+        summary='Actualizar nombre y marcas de un tipo de nómina',
         request=ActualizarNominaSerializer,
         responses={200: ReglaNominaSerializer, 400: MensajeRespuestaSerializer},
     )
     def patch(self, request, id: int):
         serializer = ActualizarNominaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
 
         repo = RepoReglasCatalogosORM()
         with transaction.atomic():
-            anterior, actualizado = actualizar_nomina(
+            anterior, actualizado = editar_nomina(
                 repo,
                 id,
-                serializer.validated_data.get('es_activo'),
-                serializer.validated_data.get('requiere_codig'),
+                datos.get('nomina'),
+                datos.get('es_activo'),
+                datos.get('requiere_codig'),
             )
             registrar_auditoria(
                 trace_id=_trace(request),
@@ -332,4 +418,79 @@ class ReglaNominaUpdateView(APIView):
         return ok(
             ReglaNominaSerializer(actualizado).data,
             'Reglas de la nómina actualizadas correctamente.',
+        )
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Eliminar un tipo de nómina sin referencias (los reservados no se borran)',
+        responses={200: ReglaNominaSerializer, 400: MensajeRespuestaSerializer},
+    )
+    def delete(self, request, id: int):
+        repo = RepoReglasCatalogosORM()
+        with transaction.atomic():
+            eliminada = eliminar_nomina(repo, id)
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_NOMINA_ELIMINADA,
+                modulo=MODULO_AUDITORIA_CONFIGURACION,
+                recurso_tipo=RECURSO_REGLAS_NOMINA,
+                recurso_id=str(id),
+                estado_previo={
+                    'nomina': eliminada.nomina,
+                    'es_activo': eliminada.es_activo,
+                    'requiere_codig': eliminada.requiere_codig,
+                },
+                estado_nuevo=None,
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
+
+        return ok(
+            ReglaNominaSerializer(eliminada).data,
+            'Tipo de nómina eliminado correctamente.',
+        )
+
+
+class ReglaNominaCrearView(APIView):
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_CREAR)]
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Crear un tipo de nómina con su clasificación y requiere_codig',
+        request=CrearNominaSerializer,
+        responses={201: ReglaNominaSerializer, 400: MensajeRespuestaSerializer},
+    )
+    def post(self, request):
+        serializer = CrearNominaSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+
+        repo = RepoReglasCatalogosORM()
+        with transaction.atomic():
+            creada = crear_nomina(
+                repo,
+                datos['nomina'],
+                datos.get('es_activo', True),
+                datos.get('requiere_codig', False),
+            )
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_NOMINA_CREADA,
+                modulo=MODULO_AUDITORIA_CONFIGURACION,
+                recurso_tipo=RECURSO_REGLAS_NOMINA,
+                recurso_id=str(creada.id),
+                estado_previo=None,
+                estado_nuevo={
+                    'nomina': creada.nomina,
+                    'es_activo': creada.es_activo,
+                    'requiere_codig': creada.requiere_codig,
+                },
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
+
+        return ok(
+            ReglaNominaSerializer(creada).data,
+            'Tipo de nómina creado correctamente.',
+            status=201,
         )

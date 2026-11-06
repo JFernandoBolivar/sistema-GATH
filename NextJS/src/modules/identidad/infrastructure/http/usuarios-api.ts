@@ -17,6 +17,7 @@ export interface UsuarioApiItem {
   nombres: string;
   apellidos: string;
   correo: string | null;
+  correo_alternativo?: string | null;
   telefono: string | null;
   rol_id: number | null;
   rol_nombre: string | null;

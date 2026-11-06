@@ -29,6 +29,15 @@ MENSAJE_REGISTRADOR_NO_DECIDE = (
     "Usted registró esta fe de vida de forma presencial: la revisión debe hacerla otra persona de Bienestar Social."
 )
 
+MENSAJE_ADMIN_REGISTRADORA_SOLO_APROBACION = (
+    "Usted registró esta fe de vida de forma presencial: como Administradora solo puede aprobarla de forma "
+    "directa, con justificación, si el parámetro del sistema lo habilita; no puede dar check, devolver ni rechazar."
+)
+MENSAJE_REGISTRADOR_APROBACION_DESHABILITADA = (
+    "Usted registró esta fe de vida de forma presencial: el parámetro del sistema no le permite aprobarla "
+    "de forma directa; la revisión debe hacerla otra persona de Bienestar Social."
+)
+
 ACCION_CHECK = 'dar_check'
 ACCION_APROBAR_DIRECTO = 'aprobar_directo'
 ACCION_DEVOLVER = 'devolver'
@@ -126,18 +135,50 @@ class SolicitudFeDeVida:
             and self.registrada_por_cedula == cedula
         )
 
+    @property
+    def registrador_tambien_aprobo(self) -> bool:
+        """
+        Marca de auditoría: quien registró el acta presencial también aprobó (dio un check vigente del envío
+        en curso o la aprobación directa). Se deriva de las decisiones: no requiere dato persistido aparte.
+        """
+        if not (self.canal == Canal.PRESENCIAL.value and self.registrada_por_cedula):
+            return False
+        if self.dio_check(self.registrada_por_cedula):
+            return True
+        return any(
+            d.tipo is TipoDecision.APROBACION_DIRECTA and d.envio == self.envios
+            and d.actor_cedula == self.registrada_por_cedula
+            for d in self.decisiones
+        )
+
     def _exigir_no_registrador(self, actor: ActorRevision, registrador_puede_decidir: bool) -> None:
-        if self.es_registrador(actor.cedula) and not registrador_puede_decidir:
+        """
+        Check, devolver, rechazar y retirar check. `registrador_puede_decidir` (fe_de_vida.registrador_puede_checar)
+        solo habilita a los demás roles: la Administradora que registró nunca lo hace por esta vía; su única
+        excepción es la aprobación directa (`registrador_puede_aprobar_directo`).
+        """
+        if not self.es_registrador(actor.cedula):
+            return
+        if actor.rol is RolRevision.ADMINISTRADORA:
+            raise ConflictError(MENSAJE_ADMIN_REGISTRADORA_SOLO_APROBACION)
+        if not registrador_puede_decidir:
             raise ConflictError(MENSAJE_REGISTRADOR_NO_DECIDE)
+
+    def _exigir_registrador_puede_aprobar(self, actor: ActorRevision, habilitado: bool) -> None:
+        if self.es_registrador(actor.cedula) and not habilitado:
+            raise ConflictError(MENSAJE_REGISTRADOR_APROBACION_DESHABILITADA)
 
     def acciones_disponibles(
         self, actor: ActorRevision, permisos: PermisosRevision, *, registrador_puede_checar: bool = False,
+        registrador_puede_aprobar_directo: bool = False, proceso_cerrado: bool = False,
     ) -> tuple[str, ...]:
         """
         Acciones que `actor` puede ejecutar hoy sobre la solicitud (la regla vive aquí; la interfaz solo las pinta).
         Quien ya dio su check no puede dar otro, devolver ni rechazar: solo retirarlo o, si es la Administradora,
-        aprobar de forma directa. Nadie revisa su propia fe de vida. Si es presencial y el registrador no puede
-        checar, quien la registró no puede dar check.
+        aprobar de forma directa. Nadie revisa su propia fe de vida. Con el proceso cerrado no hay decisiones,
+        pero una VALIDADA conserva reenviar y regenerar la constancia (según permisos).
+        Quien registró una fe de vida presencial: la Administradora solo puede aprobar de forma directa, y únicamente
+        con `registrador_puede_aprobar_directo`; los demás roles deciden solo con `registrador_puede_checar`.
         """
         if self.estado is EstadoSolicitud.VALIDADA:
             acciones_constancia = []
@@ -146,13 +187,17 @@ class SolicitudFeDeVida:
             if permisos.regenerar:
                 acciones_constancia.append(ACCION_REGENERAR_CONSTANCIA)
             return tuple(acciones_constancia)
-        if not self.revisable or actor.cedula == self.cedula:
+        if proceso_cerrado or not self.revisable or actor.cedula == self.cedula:
             return ()
-        # Quien registró la fe de vida presencial no decide sobre ella (check, devolver,
-        # rechazar, aprobación directa ni retirar check), salvo que el parámetro habilite
-        # explícitamente al registrador para decidir.
-        if self.es_registrador(actor.cedula) and not registrador_puede_checar:
-            return ()
+        # Quien registró la fe de vida presencial no decide sobre ella, salvo lo que habiliten los parámetros:
+        # la Administradora, solo aprobación directa; los demás roles, el flujo normal si pueden checar.
+        if self.es_registrador(actor.cedula):
+            if actor.rol is RolRevision.ADMINISTRADORA:
+                if permisos.aprobar_directo and registrador_puede_aprobar_directo:
+                    return (ACCION_APROBAR_DIRECTO,)
+                return ()
+            if not registrador_puede_checar:
+                return ()
         if self.dio_check(actor.cedula):
             acciones = [ACCION_RETIRAR_CHECK]
             if permisos.aprobar_directo and actor.rol is RolRevision.ADMINISTRADORA:
@@ -227,11 +272,14 @@ class SolicitudFeDeVida:
 
     def aprobar_directo(
         self, actor: ActorRevision, justificacion: str, ahora: datetime, *,
-        registrador_puede_checar: bool = False,
+        registrador_puede_aprobar_directo: bool = False,
     ) -> 'SolicitudFeDeVida':
-        """Excepción: solo la Administradora, con justificación obligatoria (auditada)."""
+        """
+        Excepción: solo la Administradora, con justificación obligatoria (auditada). Si ella misma registró el
+        acta presencial, solo puede si `registrador_puede_aprobar_directo`; no exige check previo de analista.
+        """
         self._exigir_revisable(actor)
-        self._exigir_no_registrador(actor, registrador_puede_checar)
+        self._exigir_registrador_puede_aprobar(actor, registrador_puede_aprobar_directo)
         if actor.rol is not RolRevision.ADMINISTRADORA:
             raise ConflictError("Solo la Administradora de Bienestar puede aprobar de forma directa.")
         if not justificacion or not justificacion.strip():

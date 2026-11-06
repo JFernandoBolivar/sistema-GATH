@@ -44,7 +44,31 @@ export async function obtenerReglasCatalogosAction() {
 
 export async function actualizarParentescoAction(id: number, aplica_familiar: boolean) {
   return conAuditoria("actualizarParentescoAction", async () => {
-    const res = await reglasCatalogosApi.actualizarParentesco(id, aplica_familiar);
+    const res = await reglasCatalogosApi.actualizarParentesco(id, { aplica_familiar });
+    return res.data;
+  });
+}
+
+export async function crearParentescoAction(descripcion: string, aplica_familiar: boolean) {
+  return conAuditoria("crearParentescoAction", async () => {
+    const res = await reglasCatalogosApi.crearParentesco(descripcion, aplica_familiar);
+    return res.data;
+  });
+}
+
+export async function editarParentescoAction(
+  id: number,
+  datos: { descripcion?: string; aplica_familiar?: boolean },
+) {
+  return conAuditoria("editarParentescoAction", async () => {
+    const res = await reglasCatalogosApi.actualizarParentesco(id, datos);
+    return res.data;
+  });
+}
+
+export async function eliminarParentescoAction(id: number) {
+  return conAuditoria("eliminarParentescoAction", async () => {
+    const res = await reglasCatalogosApi.eliminarParentesco(id);
     return res.data;
   });
 }
@@ -82,10 +106,28 @@ export async function crearMotivoAction(movimiento: string, categoria_id: number
 
 export async function actualizarNominaAction(
   id: number,
-  datos: { es_activo?: boolean; requiere_codig?: boolean },
+  datos: { nomina?: string; es_activo?: boolean; requiere_codig?: boolean },
 ) {
   return conAuditoria("actualizarNominaAction", async () => {
     const res = await reglasCatalogosApi.actualizarNomina(id, datos);
+    return res.data;
+  });
+}
+
+export async function crearNominaAction(
+  nomina: string,
+  es_activo: boolean,
+  requiere_codig: boolean,
+) {
+  return conAuditoria("crearNominaAction", async () => {
+    const res = await reglasCatalogosApi.crearNomina(nomina, es_activo, requiere_codig);
+    return res.data;
+  });
+}
+
+export async function eliminarNominaAction(id: number) {
+  return conAuditoria("eliminarNominaAction", async () => {
+    const res = await reglasCatalogosApi.eliminarNomina(id);
     return res.data;
   });
 }

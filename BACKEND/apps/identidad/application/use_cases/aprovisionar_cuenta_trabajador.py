@@ -56,8 +56,16 @@ def aprovisionar_cuenta_trabajador(
     if condicion not in (CondicionTrabajador.ACTIVO, CondicionTrabajador.PASIVO) or '@' not in correo:
         return None
 
+    rol_resolver = getattr(repo_cuentas, 'resolver_rol_autogestion_id', None)
+    if callable(rol_resolver):
+        rol_id = rol_resolver()
+    else:
+        rol_id = ROL_AUTOGESTION_ID
+    if rol_id is None:
+        return None
+
     cuenta = registrar_usuario(
-        repo_cuentas, RegistrarCuentaDTO(cedula=cedula, password=cedula, rol_id=ROL_AUTOGESTION_ID)
+        repo_cuentas, RegistrarCuentaDTO(cedula=cedula, password=cedula, rol_id=rol_id)
     )
     repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora, dias_vigencia))
     publicar(EventoIdentidad(

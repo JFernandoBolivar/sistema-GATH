@@ -487,6 +487,7 @@ def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None, nombres_ac
         'tiene_evidencia': bool(s.evidencia_clave), 'via_aprobacion': s.via_aprobacion.value if s.via_aprobacion else None,
         'fecha_envio': s.fecha_envio, 'fecha_validacion': s.fecha_validacion,
         'requiere_nueva_foto': s.requiere_nueva_foto,
+        'registrador_tambien_aprobo': s.registrador_tambien_aprobo,
         'decisiones': [
             {'tipo': d.tipo.value, 'rol': d.rol.value, 'actor_cedula': d.actor_cedula, 'envio': d.envio,
              'motivo': d.motivo, 'fecha': d.fecha,

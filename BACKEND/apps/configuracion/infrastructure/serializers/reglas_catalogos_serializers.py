@@ -11,7 +11,18 @@ class ReglaParentescoSerializer(serializers.Serializer):
 
 
 class ActualizarParentescoSerializer(serializers.Serializer):
-    aplica_familiar = serializers.BooleanField(required=True)
+    descripcion = serializers.CharField(min_length=2, max_length=100, required=False)
+    aplica_familiar = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        if not any(k in attrs for k in ('descripcion', 'aplica_familiar')):
+            raise serializers.ValidationError('Debe indicar al menos un campo a actualizar.')
+        return attrs
+
+
+class CrearParentescoSerializer(serializers.Serializer):
+    descripcion = serializers.CharField(min_length=2, max_length=100, required=True)
+    aplica_familiar = serializers.BooleanField(required=False, default=True)
 
 
 class CategoriaMotivoItemSerializer(serializers.Serializer):
@@ -56,13 +67,26 @@ class ReglaNominaSerializer(serializers.Serializer):
 
 
 class ActualizarNominaSerializer(serializers.Serializer):
+    nomina = serializers.CharField(min_length=2, max_length=50, required=False)
     es_activo = serializers.BooleanField(required=False, default=None)
     requiere_codig = serializers.BooleanField(required=False, default=None)
 
     def validate(self, attrs):
-        if attrs.get('es_activo') is None and attrs.get('requiere_codig') is None:
-            raise serializers.ValidationError('Debe indicar al menos un campo a actualizar (es_activo o requiere_codig).')
+        if (
+            attrs.get('nomina') is None
+            and attrs.get('es_activo') is None
+            and attrs.get('requiere_codig') is None
+        ):
+            raise serializers.ValidationError(
+                'Debe indicar al menos un campo a actualizar (nomina, es_activo o requiere_codig).'
+            )
         return attrs
+
+
+class CrearNominaSerializer(serializers.Serializer):
+    nomina = serializers.CharField(min_length=2, max_length=50, required=True)
+    es_activo = serializers.BooleanField(required=False, default=True)
+    requiere_codig = serializers.BooleanField(required=False, default=False)
 
 
 class ReglasCatalogosCompletoSerializer(serializers.Serializer):

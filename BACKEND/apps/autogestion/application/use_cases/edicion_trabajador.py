@@ -131,6 +131,10 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         if item.entidad == 'datos_vivienda' and not lector.existe_registro_unico(solicitud.cedula, item.entidad):
             raise ValidationError("No hay vivienda registrada: proponga el registro completo con acción CREAR.")
         valor = validar_valor(item.campo, item.valor)
+        if item.campo == 'correo_alternativo' and valor:
+            validador_alt = getattr(lector, 'validar_correo_alternativo', None)
+            if callable(validador_alt):
+                validador_alt(solicitud.cedula, valor)
         if item.entidad == 'familiar' and item.campo == 'cedula_familiar' and not valor:
             raise ValidationError('La cédula del familiar es obligatoria.', campo='cedula_familiar')
         lector.validar_referencias({item.campo: valor})
@@ -279,6 +283,10 @@ def enviar_solicitud(
         politica.exigir_secciones({c.seccion for c in cambios})
     for c in cambios:
         _exigir_accion_habilitada(solicitud, c.entidad_destino, Accion(c.accion))
+        if c.campo == 'correo_alternativo' and c.valor_propuesto:
+            validador_alt = getattr(lector, 'validar_correo_alternativo', None)
+            if callable(validador_alt):
+                validador_alt(cedula, str(c.valor_propuesto))
     soportes = repo_soportes.listar(ORIGEN_ACTUALIZACION, solicitud.id)
     con_soporte = {s.seccion for s in soportes}
     exigen = {s.codigo for s in repo_secciones.listar(solo_activas=False) if s.requiere_soporte}

@@ -18,6 +18,15 @@ from core.infrastructure.excel.estilo_reporte import (
     escribir_tabla,
 )
 
+# Etiquetas con tilde/siglas que la capitalización automática no resuelve.
+ETIQUETAS_COLUMNA = {
+    'total_anos_apn': 'Total años APN',
+}
+
+
+def _encabezado(columna: str) -> str:
+    return ETIQUETAS_COLUMNA.get(columna, columna.replace('_', ' ').capitalize())
+
 
 def generar_reporte_excel(
     titulo: str, columnas: list[str], filas: list[dict],
@@ -28,7 +37,7 @@ def generar_reporte_excel(
     hoja.title = (titulo[:31] or 'Reporte').strip()
 
     generado_en = datetime.now()
-    encabezados = [columna.replace('_', ' ').capitalize() for columna in columnas]
+    encabezados = [_encabezado(columna) for columna in columnas]
     datos = [[fila.get(columna) for columna in columnas] for fila in filas]
 
     fila = escribir_encabezado_institucional(

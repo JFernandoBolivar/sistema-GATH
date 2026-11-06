@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
@@ -44,12 +45,16 @@ export default function HistorialFeDeVidaPage() {
         titulo="Historial de fe de vida"
         descripcion="Sus solicitudes en cada proceso."
         migas={
-          <Link
-            href="/autogestion/fe-de-vida"
-            className="inline-flex min-h-11 items-center gap-1 text-primary hover:underline"
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="min-h-10 gap-2 rounded-full px-4 shadow-xs"
           >
-            <ArrowLeft className="size-4" aria-hidden /> Volver a fe de vida
-          </Link>
+            <Link href="/autogestion/fe-de-vida">
+              <ArrowLeft className="size-4" aria-hidden /> Volver a fe de vida
+            </Link>
+          </Button>
         }
       />
       <div className="flex max-w-sm flex-col gap-1.5">

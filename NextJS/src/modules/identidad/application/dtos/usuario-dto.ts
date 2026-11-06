@@ -12,6 +12,7 @@ export interface UsuarioDTO {
   nombres: string;
   apellidos: string;
   correo: string | null;
+  correoAlternativo?: string | null;
   telefono: string | null;
   rolId: number | null;
   rolNombre: string | null;

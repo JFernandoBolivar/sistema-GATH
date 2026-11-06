@@ -20,6 +20,7 @@ CLAVE_GENERAR_PUNTOS_CUENTA = 'puntocuenta.generar'
 
 CLAVE_FE_DE_VIDA_RECORDATORIOS = 'fe_de_vida.dias_recordatorio'
 CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR = 'fe_de_vida.registrador_puede_checar'
+CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR = 'fe_de_vida.admin_registradora_puede_aprobar'
 
 # O12: solicitudes de actualización por condición del trabajador.
 CLAVE_AUTOGESTION_ACTIVOS_HABILITADO = 'autogestion.activos_habilitado'

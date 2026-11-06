@@ -153,6 +153,7 @@ export interface FiltrosPasivos {
   tipoNominaId?: number;
   fechaDesde?: string;
   fechaHasta?: string;
+  sinCuenta?: boolean;
   limit?: number;
   offset?: number;
 }
