@@ -157,10 +157,26 @@ def escribir_tabla(
     ultima = fila + len(filas)
     if auto_filtro and filas:
         ws.auto_filter.ref = f'A{fila}:{get_column_letter(len(columnas))}{ultima}'
-    if congelar:
+    tablas = _registrar_tabla(ws)
+    if tablas > 1:
+        # Una hoja con varias tablas no puede inmovilizar un único encabezado:
+        # al abrir el archivo la vista queda anclada en la última tabla y la
+        # parte superior (el resumen) parece no estar.
+        ws.freeze_panes = None
+        # `print_title_rows = None` no limpia el valor en openpyxl: el setter
+        # ignora los None. El atributo interno sí.
+        ws._print_rows = None
+    elif congelar:
         ws.freeze_panes = ws.cell(row=fila + 1, column=1)
         ws.print_title_rows = f'{fila}:{fila}'
     return ultima
+
+
+def _registrar_tabla(ws) -> int:
+    """Cuenta las tablas escritas en la hoja (para decidir el panel inmovilizado)."""
+    total = getattr(ws, '_gath_tablas', 0) + 1
+    ws._gath_tablas = total
+    return total
 
 
 def ajustar_anchos(ws, columnas: list[str], filas: list[list]) -> None:

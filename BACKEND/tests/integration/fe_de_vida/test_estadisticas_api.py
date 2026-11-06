@@ -231,7 +231,9 @@ def test_exportaciones_se_encolan_y_generan_pdf_y_excel(datos):
     resumen = libro['Resumen e indicadores']
     assert resumen['A1'].value == 'Estadísticas de fe de vida'
     assert resumen['A1'].font.bold is True
-    assert resumen.freeze_panes and int(resumen.freeze_panes[1:]) > 5  # panel inmovilizado bajo el encabezado de la matriz
+    # Hoja con varias tablas: sin panel inmovilizado (FIX-QA13).
+    assert resumen.freeze_panes is None
+    assert resumen.print_title_rows is None
     assert any(
         str(celda.value).startswith('Total de pasivos')
         for fila in resumen.iter_rows() for celda in fila

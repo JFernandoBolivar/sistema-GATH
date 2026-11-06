@@ -198,33 +198,43 @@ export const apiClient = {
 
   post: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
     request<T>(
-      path,
+      construirRuta(path, options?.params),
       { method: "POST", body: body != null ? JSON.stringify(body) : undefined },
       options,
     ),
 
   put: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
     request<T>(
-      path,
+      construirRuta(path, options?.params),
       { method: "PUT", body: body != null ? JSON.stringify(body) : undefined },
       options,
     ),
 
   patch: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
     request<T>(
-      path,
+      construirRuta(path, options?.params),
       { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined },
       options,
     ),
 
   delete: <T>(path: string, options?: RequestOptions): Promise<T> =>
-    request<T>(path, { method: "DELETE" }, options),
+    request<T>(construirRuta(path, options?.params), { method: "DELETE" }, options),
 
   postForm: <T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> =>
-    request<T>(path, { method: "POST", body: formData }, options, true),
+    request<T>(
+      construirRuta(path, options?.params),
+      { method: "POST", body: formData },
+      options,
+      true,
+    ),
 
   patchForm: <T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> =>
-    request<T>(path, { method: "PATCH", body: formData }, options, true),
+    request<T>(
+      construirRuta(path, options?.params),
+      { method: "PATCH", body: formData },
+      options,
+      true,
+    ),
 
   getBlob: (path: string, options?: RequestOptions): Promise<Blob> =>
     requestBlob(construirRuta(path, options?.params), { method: "GET" }, options),
@@ -238,7 +248,7 @@ export const apiClient = {
 
   postBlob: (path: string, body?: JsonBody, options?: RequestOptions): Promise<Blob> =>
     requestBlob(
-      path,
+      construirRuta(path, options?.params),
       { method: "POST", body: body != null ? JSON.stringify(body) : undefined },
       options,
     ),
