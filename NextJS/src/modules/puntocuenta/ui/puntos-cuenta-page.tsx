@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Download, FileText, Filter, Loader2, RefreshCw, Search } from "lucide-react";
+import { Download, FileText, Loader2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/shared/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Card, CardContent } from "@/shared/ui/components/card";
+import { Field, FieldLabel } from "@/shared/ui/components/field";
+import { FiltrosColapsables, FiltroFechasPar } from "@/shared/ui/components/filtros-movil-colapsable";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -123,86 +125,89 @@ export function PuntosCuentaPage() {
     >
       <div className="space-y-4">
         {/* Filtros */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Filter className="size-4" aria-hidden /> Filtros de búsqueda
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleFiltrar} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-end">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  Cédula
-                </label>
-                <div className="relative">
-                  <Search className="size-4 absolute left-2.5 top-2.5 text-muted-foreground" aria-hidden />
-                  <Input
-                    placeholder="Ej. 12345678"
-                    value={cedula}
-                    onChange={(e) => setCedula(e.target.value)}
-                    className="pl-8"
-                  />
+        {(() => {
+          const conteoFiltros = [
+            cedula.trim(),
+            oficinaId && oficinaId !== "todos" ? oficinaId : undefined,
+            fechaDesde,
+            fechaHasta,
+          ].filter(Boolean).length;
+
+          return (
+            <FiltrosColapsables conteoActivos={conteoFiltros} titulo="Filtros de búsqueda">
+              <form onSubmit={handleFiltrar} className="space-y-4">
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                  <Field className="min-w-0">
+                    <FieldLabel htmlFor="filtro-cedula">Cédula</FieldLabel>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                      <Input
+                        id="filtro-cedula"
+                        placeholder="Ej. 12345678"
+                        value={cedula}
+                        onChange={(e) => setCedula(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field className="min-w-0">
+                    <FieldLabel htmlFor="filtro-oficina">Oficina / Gerencia</FieldLabel>
+                    <Select value={oficinaId} onValueChange={setOficinaId}>
+                      <SelectTrigger id="filtro-oficina" className="w-full min-w-0">
+                        <SelectValue placeholder="Todas las oficinas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas las oficinas</SelectItem>
+                        {oficinas.map((ofi) => (
+                          <SelectItem key={ofi.id} value={String(ofi.id)}>
+                            {ofi.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <FiltroFechasPar>
+                    <Field className="min-w-0">
+                      <FieldLabel htmlFor="filtro-desde">Fecha desde</FieldLabel>
+                      <Input
+                        id="filtro-desde"
+                        type="date"
+                        value={fechaDesde}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                      />
+                    </Field>
+
+                    <Field className="min-w-0">
+                      <FieldLabel htmlFor="filtro-hasta">Fecha hasta</FieldLabel>
+                      <Input
+                        id="filtro-hasta"
+                        type="date"
+                        value={fechaHasta}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                      />
+                    </Field>
+                  </FiltroFechasPar>
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  Oficina / Gerencia
-                </label>
-                <Select value={oficinaId} onValueChange={setOficinaId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todas las oficinas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todas las oficinas</SelectItem>
-                    {oficinas.map((ofi) => (
-                      <SelectItem key={ofi.id} value={String(ofi.id)}>
-                        {ofi.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  Fecha desde
-                </label>
-                <Input
-                  type="date"
-                  value={fechaDesde}
-                  onChange={(e) => setFechaDesde(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  Fecha hasta
-                </label>
-                <Input
-                  type="date"
-                  value={fechaHasta}
-                  onChange={(e) => setFechaHasta(e.target.value)}
-                />
-              </div>
-
-              <div className="sm:col-span-2 lg:col-span-4 flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={handleLimpiar}>
-                  <RefreshCw className="size-3.5 mr-1" /> Limpiar
-                </Button>
-                <Button type="submit" size="sm" disabled={isPending}>
-                  {isPending ? (
-                    <Loader2 className="size-3.5 mr-1 animate-spin" />
-                  ) : (
-                    <Search className="size-3.5 mr-1" />
-                  )}
-                  Buscar
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={handleLimpiar}>
+                    <RefreshCw className="size-3.5 mr-1" /> Limpiar
+                  </Button>
+                  <Button type="submit" size="sm" className="w-full sm:w-auto" disabled={isPending}>
+                    {isPending ? (
+                      <Loader2 className="size-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Search className="size-3.5 mr-1" />
+                    )}
+                    Buscar
+                  </Button>
+                </div>
+              </form>
+            </FiltrosColapsables>
+          );
+        })()}
 
         {/* Tabla de Puntos de Cuenta */}
         <Card>

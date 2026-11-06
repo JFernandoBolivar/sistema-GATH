@@ -32,5 +32,16 @@ class PuntoCuentaDTO:
     secuencia: int | None = None
     cargo_codigo: str | None = None
     cargo_nombre: str | None = None
+    cargo_destino: str | None = None
+    nivel: str | None = None
+    tipo_personal: str | None = None
+    fecha_efectiva: str | None = None
+    fecha_ingreso: str | None = None
+    anios_servicio: str | int | None = None
+    presentado_a: str | None = None
+    cargo_presentado_a: str | None = None
+    presentado_por: str | None = None
+    cargo_presentado_por: str | None = None
+    unidad: str | None = None
     configuracion_version: int | None = None
     snapshot_formato: dict | None = None
