@@ -53,3 +53,18 @@ class RepoRolesORM:
 
     def contar_cuentas_con_rol(self, id: int) -> int:
         return CuentaModel.objects.filter(rol_id=id).count()
+
+    def contar_permisos_con_rol(self, id: int) -> int:
+        from apps.identidad.infrastructure.models.permiso_model import RolPermisoModel
+
+        return RolPermisoModel.objects.filter(rol_id=id).count()
+
+    def conteos_por_rol(self) -> tuple[dict[int, int], dict[int, int]]:
+        """Usuarios y permisos por rol en dos consultas agregadas (sin N+1)."""
+        from django.db.models import Count
+
+        from apps.identidad.infrastructure.models.permiso_model import RolPermisoModel
+
+        usuarios = dict(CuentaModel.objects.values_list('rol_id').annotate(total=Count('id')))
+        permisos = dict(RolPermisoModel.objects.values_list('rol_id').annotate(total=Count('id')))
+        return usuarios, permisos

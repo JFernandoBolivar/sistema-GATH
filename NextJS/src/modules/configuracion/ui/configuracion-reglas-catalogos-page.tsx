@@ -13,7 +13,7 @@ import { useMemo, useState, useTransition } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { AlertTriangle, Lock, Plus, RefreshCw, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Badge } from "@/components/ui/badge";
@@ -72,10 +72,12 @@ import type {
   ReglasCatalogosCompletoDTO,
 } from "../application/dtos/reglas-catalogos-dto";
 import {
+  actualizarMotivoAction,
   actualizarNominaAction,
   actualizarParentescoAction,
   cambiarCategoriaMotivoAction,
   crearMotivoAction,
+  eliminarMotivoAction,
   obtenerReglasCatalogosAction,
 } from "../infrastructure/actions/reglas-catalogos-actions";
 import { PERMISO_CONFIGURACION } from "../domain/value-objects/permisos-configuracion";
@@ -117,6 +119,16 @@ export function ConfiguracionReglasCatalogosPage() {
   const [nuevoMovimiento, setNuevoMovimiento] = useState("");
   const [categoriaNuevoMotivo, setCategoriaNuevoMotivo] = useState<number | null>(null);
   const [errorNuevoMotivo, setErrorNuevoMotivo] = useState<string | null>(null);
+
+  // Estados para editar y eliminar motivo
+  const [editarMotivo, setEditarMotivo] = useState<{
+    motivo: ReglaMotivoDTO;
+    nombre: string;
+    categoriaId: number;
+    activo: boolean;
+  } | null>(null);
+  const [errorEditarMotivo, setErrorEditarMotivo] = useState<string | null>(null);
+  const [eliminarMotivo, setEliminarMotivo] = useState<ReglaMotivoDTO | null>(null);
 
   const { data, isLoading, mutate } = useSWR(
     puedeVer ? "configuracion-reglas-catalogos" : null,
@@ -188,6 +200,59 @@ export function ConfiguracionReglasCatalogosPage() {
         setModalNuevoMotivo(false);
         setNuevoMovimiento("");
         setCategoriaNuevoMotivo(null);
+        mutate();
+      }
+    });
+  };
+
+  const handleGuardarEdicionMotivo = () => {
+    if (!editarMotivo) return;
+    if (!editarMotivo.nombre.trim()) {
+      setErrorEditarMotivo("El nombre del motivo no puede estar vacío.");
+      return;
+    }
+    setErrorEditarMotivo(null);
+
+    startTransition(async () => {
+      const res = await actualizarMotivoAction(editarMotivo.motivo.id, {
+        movimiento: editarMotivo.nombre,
+        categoria_id: editarMotivo.categoriaId,
+        activo: editarMotivo.activo,
+      });
+      if (esError(res)) {
+        setErrorEditarMotivo(res.error);
+        toast.error(res.error);
+      } else {
+        toast.success(`Motivo «${editarMotivo.nombre}» actualizado correctamente.`);
+        setEditarMotivo(null);
+        mutate();
+      }
+    });
+  };
+
+  const handleConfirmarEliminarMotivo = () => {
+    if (!eliminarMotivo) return;
+    const motivo = eliminarMotivo;
+    setEliminarMotivo(null);
+
+    startTransition(async () => {
+      const res = await eliminarMotivoAction(motivo.id);
+      if (esError(res)) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Motivo «${motivo.movimiento}» eliminado correctamente.`);
+        mutate();
+      }
+    });
+  };
+
+  const handleToggleActivoMotivo = (motivo: ReglaMotivoDTO, nuevoActivo: boolean) => {
+    startTransition(async () => {
+      const res = await actualizarMotivoAction(motivo.id, { activo: nuevoActivo });
+      if (esError(res)) {
+        toast.error(res.error);
+      } else {
+        toast.success(`Motivo «${motivo.movimiento}» ${nuevoActivo ? "activado" : "desactivado"}.`);
         mutate();
       }
     });
@@ -349,25 +414,27 @@ export function ConfiguracionReglasCatalogosPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[80px]">ID</TableHead>
+                            <TableHead className="w-[70px]">ID</TableHead>
                             <TableHead>Nombre del Motivo</TableHead>
-                            <TableHead className="w-[200px]">Tipo / Restricción</TableHead>
-                            <TableHead className="w-[260px] text-right">Categoría Asignada</TableHead>
+                            <TableHead className="w-[180px]">Tipo / Restricción</TableHead>
+                            <TableHead className="w-[200px]">Categoría Asignada</TableHead>
+                            <TableHead className="text-center w-[120px]">Estado</TableHead>
+                            <TableHead className="text-right w-[140px]">Acciones</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {grupo.motivos.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-4">
+                              <TableCell colSpan={6} className="text-center text-xs text-muted-foreground py-4">
                                 Sin motivos asignados a esta categoría.
                               </TableCell>
                             </TableRow>
                           ) : (
                             grupo.motivos.map((m) => (
-                              <TableRow key={m.id}>
+                              <TableRow key={m.id} className={m.activo === false ? "opacity-60 bg-muted/10" : undefined}>
                                 <TableCell className="font-mono text-xs">{m.id}</TableCell>
                                 <TableCell className="font-medium flex items-center gap-2">
-                                  {m.movimiento}
+                                  <span>{m.movimiento}</span>
                                   {m.es_reservado && (
                                     <span title="Motivo reservado del sistema" className="inline-flex items-center">
                                       <Lock className="size-3.5 text-amber-500" aria-hidden="true" />
@@ -385,39 +452,90 @@ export function ConfiguracionReglasCatalogosPage() {
                                     </Badge>
                                   )}
                                 </TableCell>
+                                <TableCell>
+                                  {m.es_reservado ? (
+                                    <span className="text-xs text-muted-foreground font-mono">
+                                      {m.categoria_nombre}
+                                    </span>
+                                  ) : (
+                                    <Select
+                                      disabled={!puedeEditar || isPending}
+                                      value={String(m.categoria_id)}
+                                      onValueChange={(val) => {
+                                        const catId = Number.parseInt(val);
+                                        const catObj = data?.categorias_motivo.find((c) => c.id === catId);
+                                        if (catObj && catId !== m.categoria_id) {
+                                          setConfirmMotivo({
+                                            motivo: m,
+                                            nuevaCategoriaId: catId,
+                                            nuevaCategoriaNombre: catObj.categoria,
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-[180px] h-8 text-xs">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {data?.categorias_motivo.map((cat) => (
+                                          <SelectItem key={cat.id} value={String(cat.id)}>
+                                            {cat.categoria}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Switch
+                                      checked={m.activo !== false}
+                                      disabled={!puedeEditar || isPending || m.es_reservado}
+                                      onCheckedChange={(val) => handleToggleActivoMotivo(m, val)}
+                                      aria-label={`Estado de motivo ${m.movimiento}`}
+                                    />
+                                    <span className="text-xs text-muted-foreground w-12 text-left">
+                                      {m.activo !== false ? "Activo" : "Inactivo"}
+                                    </span>
+                                  </div>
+                                </TableCell>
                                 <TableCell className="text-right">
                                   {m.es_reservado ? (
                                     <span className="text-xs text-muted-foreground italic">
-                                      Bloqueado por sistema
+                                      Protegido
                                     </span>
                                   ) : (
-                                    <div className="flex justify-end">
-                                      <Select
-                                        disabled={!puedeEditar || isPending}
-                                        value={String(m.categoria_id)}
-                                        onValueChange={(val) => {
-                                          const catId = Number.parseInt(val);
-                                          const catObj = data?.categorias_motivo.find((c) => c.id === catId);
-                                          if (catObj && catId !== m.categoria_id) {
-                                            setConfirmMotivo({
-                                              motivo: m,
-                                              nuevaCategoriaId: catId,
-                                              nuevaCategoriaNombre: catObj.categoria,
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[210px] h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {data?.categorias_motivo.map((cat) => (
-                                            <SelectItem key={cat.id} value={String(cat.id)}>
-                                              {cat.categoria}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
+                                    <div className="flex justify-end items-center gap-1">
+                                      {puedeEditar && (
+                                        <>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 px-2 text-xs"
+                                            onClick={() => {
+                                              setErrorEditarMotivo(null);
+                                              setEditarMotivo({
+                                                motivo: m,
+                                                nombre: m.movimiento,
+                                                categoriaId: m.categoria_id,
+                                                activo: m.activo !== false,
+                                              });
+                                            }}
+                                            title="Editar motivo"
+                                          >
+                                            <Pencil className="size-3.5 mr-1" /> Editar
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 px-2 text-xs text-destructive hover:text-destructive"
+                                            onClick={() => setEliminarMotivo(m)}
+                                            title="Eliminar motivo"
+                                          >
+                                            <Trash2 className="size-3.5 mr-1" /> Eliminar
+                                          </Button>
+                                        </>
+                                      )}
                                     </div>
                                   )}
                                 </TableCell>
@@ -665,6 +783,129 @@ export function ConfiguracionReglasCatalogosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Editar Motivo */}
+      <Dialog open={editarMotivo !== null} onOpenChange={(open) => !open && setEditarMotivo(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Motivo de Movimiento</DialogTitle>
+            <DialogDescription>
+              Modifique el nombre, categoría o estado de activación del motivo.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editarMotivo && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="editar-movimiento">Nombre del Motivo</Label>
+                <Input
+                  id="editar-movimiento"
+                  maxLength={100}
+                  value={editarMotivo.nombre}
+                  onChange={(e) =>
+                    setEditarMotivo({
+                      ...editarMotivo,
+                      nombre: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="cat-editar-motivo">Categoría</Label>
+                <Select
+                  value={String(editarMotivo.categoriaId)}
+                  onValueChange={(val) =>
+                    setEditarMotivo({
+                      ...editarMotivo,
+                      categoriaId: Number.parseInt(val),
+                    })
+                  }
+                >
+                  <SelectTrigger id="cat-editar-motivo">
+                    <SelectValue placeholder="Seleccione una categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {data?.categorias_motivo.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.categoria}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="activo-editar-motivo">Estado Activo</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Los motivos inactivos no se muestran en los formularios de movimiento.
+                  </p>
+                </div>
+                <Switch
+                  id="activo-editar-motivo"
+                  checked={editarMotivo.activo}
+                  onCheckedChange={(checked) =>
+                    setEditarMotivo({
+                      ...editarMotivo,
+                      activo: checked,
+                    })
+                  }
+                />
+              </div>
+
+              {errorEditarMotivo && (
+                <p role="alert" className="text-xs text-destructive">
+                  {errorEditarMotivo}
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditarMotivo(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleGuardarEdicionMotivo} disabled={isPending}>
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación Eliminar Motivo */}
+      <AlertDialog
+        open={eliminarMotivo !== null}
+        onOpenChange={(open) => !open && setEliminarMotivo(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-destructive" /> ¿Eliminar motivo de movimiento?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                ¿Está seguro de que desea eliminar el motivo{" "}
+                <strong>«{eliminarMotivo?.movimiento}»</strong>?
+              </p>
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed">
+                <strong>Aviso:</strong> Solo se puede eliminar un motivo si nunca ha sido utilizado
+                en ningún movimiento del historial. Si ya tiene movimientos registrados, no se
+                podrá eliminar; en ese caso se debe desactivar.
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmarEliminarMotivo}
+            >
+              Eliminar Definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 }

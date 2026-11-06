@@ -8,15 +8,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.configuracion.application.use_cases.gestionar_reglas_catalogos import (
+    actualizar_motivo,
     actualizar_nomina,
     actualizar_parentesco,
     cambiar_categoria_motivo,
     crear_nuevo_motivo,
+    eliminar_motivo,
     obtener_todas_las_reglas,
 )
 from apps.configuracion.domain.reglas_catalogos import (
+    ACCION_MOTIVO_ACTUALIZADO,
     ACCION_MOTIVO_CATEGORIA_CAMBIADA,
     ACCION_MOTIVO_CREADO,
+    ACCION_MOTIVO_ELIMINADO,
     ACCION_NOMINA_ACTUALIZADA,
     ACCION_PARENTESCO_ACTUALIZADO,
     MODULO_AUDITORIA_CONFIGURACION,
@@ -28,6 +32,7 @@ from apps.configuracion.infrastructure.repositories.repo_reglas_catalogos_orm im
     RepoReglasCatalogosORM,
 )
 from apps.configuracion.infrastructure.serializers.reglas_catalogos_serializers import (
+    ActualizarMotivoSerializer,
     ActualizarNominaSerializer,
     ActualizarParentescoSerializer,
     CambiarCategoriaMotivoSerializer,
@@ -39,11 +44,14 @@ from apps.configuracion.infrastructure.serializers.reglas_catalogos_serializers 
 )
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import ok
-from core.presentation.permissions import HasPermission
+from core.presentation.permissions import HasAnyPermission, HasPermission
 from core.presentation.schema import MensajeRespuestaSerializer
 
 PERMISO_VER = 'configuracion.ver'
 PERMISO_EDITAR = 'configuracion.editar'
+PERMISO_CATALOGOS_VER = 'catalogos.ver'
+PERMISO_CATALOGOS_EDITAR = 'catalogos.editar'
+PERMISO_CATALOGOS_CREAR = 'catalogos.crear'
 
 
 def _actor(request) -> dict:
@@ -60,7 +68,7 @@ def _trace(request) -> str:
 
 
 class ReglasCatalogosListView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_VER, PERMISO_CATALOGOS_VER)]
 
     @extend_schema(
         tags=['Configuración'],
@@ -110,7 +118,7 @@ class ReglaParentescoUpdateView(APIView):
 
 
 class ReglaMotivoCategoriaView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_EDITAR)]
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_EDITAR)]
 
     @extend_schema(
         tags=['Configuración'],
@@ -137,11 +145,13 @@ class ReglaMotivoCategoriaView(APIView):
                     'movimiento': anterior.movimiento,
                     'categoria_id': anterior.categoria_id,
                     'categoria_nombre': anterior.categoria_nombre,
+                    'activo': anterior.activo,
                 },
                 estado_nuevo={
                     'movimiento': actualizado.movimiento,
                     'categoria_id': actualizado.categoria_id,
                     'categoria_nombre': actualizado.categoria_nombre,
+                    'activo': actualizado.activo,
                 },
                 **_actor(request),
                 **origen_de_peticion(request),
@@ -153,8 +163,90 @@ class ReglaMotivoCategoriaView(APIView):
         )
 
 
+class ReglaMotivoDetailView(APIView):
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_EDITAR)]
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Actualizar nombre, categoría y/o estado de un motivo de movimiento',
+        request=ActualizarMotivoSerializer,
+        responses={200: ReglaMotivoSerializer, 400: MensajeRespuestaSerializer},
+    )
+    def patch(self, request, id: int):
+        serializer = ActualizarMotivoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+
+        repo = RepoReglasCatalogosORM()
+        with transaction.atomic():
+            anterior, actualizado = actualizar_motivo(
+                repo,
+                id,
+                movimiento=datos.get('movimiento'),
+                categoria_id=datos.get('categoria_id'),
+                activo=datos.get('activo'),
+            )
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_MOTIVO_ACTUALIZADO,
+                modulo=MODULO_AUDITORIA_CONFIGURACION,
+                recurso_tipo=RECURSO_REGLAS_MOTIVO,
+                recurso_id=str(id),
+                estado_previo={
+                    'movimiento': anterior.movimiento,
+                    'categoria_id': anterior.categoria_id,
+                    'categoria_nombre': anterior.categoria_nombre,
+                    'activo': anterior.activo,
+                },
+                estado_nuevo={
+                    'movimiento': actualizado.movimiento,
+                    'categoria_id': actualizado.categoria_id,
+                    'categoria_nombre': actualizado.categoria_nombre,
+                    'activo': actualizado.activo,
+                },
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
+
+        return ok(
+            ReglaMotivoSerializer(actualizado).data,
+            'Motivo de movimiento actualizado correctamente.',
+        )
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Eliminar físicamente un motivo de movimiento si no tiene referencias',
+        responses={200: ReglaMotivoSerializer, 400: MensajeRespuestaSerializer},
+    )
+    def delete(self, request, id: int):
+        repo = RepoReglasCatalogosORM()
+        with transaction.atomic():
+            eliminado = eliminar_motivo(repo, id)
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_MOTIVO_ELIMINADO,
+                modulo=MODULO_AUDITORIA_CONFIGURACION,
+                recurso_tipo=RECURSO_REGLAS_MOTIVO,
+                recurso_id=str(id),
+                estado_previo={
+                    'movimiento': eliminado.movimiento,
+                    'categoria_id': eliminado.categoria_id,
+                    'categoria_nombre': eliminado.categoria_nombre,
+                    'activo': eliminado.activo,
+                },
+                estado_nuevo=None,
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
+
+        return ok(
+            ReglaMotivoSerializer(eliminado).data,
+            'Motivo de movimiento eliminado correctamente.',
+        )
+
+
 class ReglaMotivoCrearView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission(PERMISO_EDITAR)]
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_CREAR)]
 
     @extend_schema(
         tags=['Configuración'],

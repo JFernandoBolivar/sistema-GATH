@@ -35,6 +35,7 @@ import {
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Checkbox } from "@/shared/ui/components/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Field } from "@/shared/ui/components/field";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
@@ -88,7 +89,7 @@ function nombreRol(nombre: string): string {
     .join(" ");
 }
 
-export default function MatrizPermisosPage() {
+export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number } = {}) {
   const { data: session } = useSession();
   const permisos = session?.user?.permisos;
   const puedeVer = tienePermiso(permisos, "identidad.ver_roles");
@@ -103,6 +104,9 @@ export default function MatrizPermisosPage() {
   const [errorMotivo, setErrorMotivo] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [cerrados, setCerrados] = useState<Set<string>>(new Set());
+  const [rolFiltro, setRolFiltro] = useState<string>(rolInicial ? String(rolInicial) : "todos");
+  const [rolSeleccionado, setRolSeleccionado] = useState<number | null>(rolInicial ?? null);
+  const [modoComparar, setModoComparar] = useState(false);
 
   const cargar = () => {
     startTransition(async () => {
@@ -115,6 +119,7 @@ export default function MatrizPermisosPage() {
       const m = datos as MatrizPermisosDTO;
       setMatriz(m);
       setBorrador(Object.fromEntries(m.roles.map((r) => [r.rolId, [...r.codigos]])));
+      setRolSeleccionado((actual) => actual ?? m.roles[0]?.rolId ?? null);
     });
   };
 
@@ -143,6 +148,11 @@ export default function MatrizPermisosPage() {
       nombreModulo(a).localeCompare(nombreModulo(b), "es"),
     );
   }, [filasFiltradas]);
+
+  const rolesVisibles = useMemo(() => {
+    const roles = matriz?.roles ?? [];
+    return rolFiltro === "todos" ? roles : roles.filter((r) => String(r.rolId) === rolFiltro);
+  }, [matriz, rolFiltro]);
 
   const alternar = (rolId: number, codigo: string) => {
     if (!puedeEditar) return;
@@ -202,6 +212,23 @@ export default function MatrizPermisosPage() {
     });
   };
 
+  const marcarModulo = (rolId: number, modulo: string, activar: boolean) => {
+    if (!puedeEditar) return;
+    const codigos = (matriz?.filas ?? []).filter((f) => f.modulo === modulo).map((f) => f.codigo);
+    setBorrador((previo) => {
+      const actuales = new Set(previo[rolId] ?? []);
+      codigos.forEach((codigo) => (activar ? actuales.add(codigo) : actuales.delete(codigo)));
+      return { ...previo, [rolId]: [...actuales] };
+    });
+  };
+
+  const descartar = (rolId: number) => {
+    const original = matriz?.roles.find((r) => r.rolId === rolId);
+    if (original) {
+      setBorrador((previo) => ({ ...previo, [rolId]: [...original.codigos] }));
+    }
+  };
+
   if (!puedeVer) {
     return (
       <section className="px-6 py-4">
@@ -213,23 +240,33 @@ export default function MatrizPermisosPage() {
   }
 
   const buscando = busqueda.trim().length > 0;
+  const rolActual = matriz?.roles.find((rol) => rol.rolId === rolSeleccionado) ?? matriz?.roles[0] ?? null;
+  const cambiosActuales = rolActual ? cambiosPorRol(rolActual.rolId, rolActual.codigos) : 0;
 
   return (
-    <section className="flex w-full min-w-0 max-w-full flex-col gap-4 overflow-x-hidden px-4 py-4 lg:px-6">
+    <section className="flex w-full min-w-0 max-w-full flex-col gap-4 px-4 py-4 lg:px-6">
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/usuarios">
+            <Link href="/usuarios/roles">
               <ArrowLeft className="size-4" aria-hidden="true" /> Volver
             </Link>
           </Button>
           <ShieldCheck className="size-5 text-muted-foreground" aria-hidden="true" />
           <h1 className="text-xl font-semibold tracking-tight">Matriz de permisos</h1>
           {!puedeEditar && <Badge variant="outline">Solo lectura</Badge>}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => setModoComparar((valor) => !valor)}
+          >
+            {modoComparar ? "Vista por rol" : "Comparar roles"}
+          </Button>
         </div>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Defina qué puede hacer cada rol. Marque o desmarque un permiso y guarde los cambios del
-          rol; cada guardado pide un motivo y queda registrado en la bitácora.
+          Elija un rol y active los permisos que necesita. Cada guardado pide un motivo y queda en la bitácora.
         </p>
       </header>
 
@@ -239,178 +276,235 @@ export default function MatrizPermisosPage() {
         </p>
       )}
 
-      {!puedeEditar && (
-        <p className="text-sm text-muted-foreground">
-          Puede consultar la matriz, pero solo quien tiene
-          <code className="mx-1">identidad.asignar_permisos</code> puede modificarla.
-        </p>
-      )}
-
       {cargando && !matriz ? (
         <div className="flex justify-center py-10">
           <Loader2 className="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
         </div>
-      ) : matriz ? (
+      ) : !matriz ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">No se pudo cargar la matriz.</p>
+      ) : modoComparar ? (
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative w-full min-w-0 sm:max-w-sm">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden="true"
-              />
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <Input
                 type="search"
                 value={busqueda}
                 onChange={(evento) => setBusqueda(evento.target.value)}
-                placeholder="Buscar permiso por código o nombre…"
+                placeholder="Buscar permiso por nombre…"
                 aria-label="Buscar permiso"
                 className="pl-9"
               />
             </div>
             <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-              <span>
-                {filasFiltradas.length} de {matriz.filas.length} permisos · {matriz.roles.length} roles
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setCerrados(
-                    cerrados.size > 0
-                      ? new Set()
-                      : new Set(filasPorModulo.map(([modulo]) => modulo)),
-                  )
-                }
+              <label htmlFor="matriz-rol" className="font-medium text-foreground">Ver solo un rol</label>
+              <select
+                id="matriz-rol"
+                className="min-h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={rolFiltro}
+                onChange={(evento) => setRolFiltro(evento.target.value)}
               >
-                {cerrados.size > 0 ? "Expandir todo" : "Contraer todo"}
-              </Button>
+                <option value="todos">Todos los roles</option>
+                {matriz.roles.map((rol) => (
+                  <option key={rol.rolId} value={String(rol.rolId)}>{rol.nombre}</option>
+                ))}
+              </select>
+              <span>{filasFiltradas.length} de {matriz.filas.length} permisos · {rolesVisibles.length} roles</span>
             </div>
           </div>
 
-          <div className="max-h-[calc(100dvh-21rem)] w-full max-w-full min-w-0 overflow-auto rounded-xl border bg-card shadow-sm">
-            <Table className="min-w-max" containerClassName="overflow-visible">
+          <div className="max-h-[calc(100dvh-18rem)] w-full max-w-full min-w-0 overflow-auto rounded-xl border bg-card shadow-sm">
+            <Table className="min-w-max" containerClassName="overflow-auto">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead className="sticky left-0 top-0 z-30 min-w-72 bg-card">
-                    Permiso
-                  </TableHead>
-                  {matriz.roles.map((rol) => {
-                    const cambios = cambiosPorRol(rol.rolId, rol.codigos);
-                    return (
-                      <TableHead
-                        key={rol.rolId}
-                        className="sticky top-0 z-20 min-w-40 bg-card text-center align-top"
-                      >
-                        <div className="flex flex-col items-center gap-1 py-1">
-                          <span
-                            className="text-sm font-semibold text-foreground"
-                            title={rol.nombre}
-                          >
-                            {nombreRol(rol.nombre)}
-                          </span>
-                          <span className="text-[11px] font-normal text-muted-foreground">
-                            {totalPorRol(rol.rolId)} permisos
-                          </span>
-                          {puedeEditar && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={cambios > 0 ? "default" : "outline"}
-                              disabled={cambios === 0}
-                              className="h-7 gap-1 px-2 text-xs"
-                              onClick={() => {
-                                setMotivo("");
-                                setErrorMotivo(null);
-                                setRolGuardando(rol.rolId);
-                              }}
-                            >
-                              <Save className="size-3" aria-hidden="true" />
-                              {cambios > 0 ? `Guardar (${cambios})` : "Sin cambios"}
-                            </Button>
-                          )}
-                        </div>
-                      </TableHead>
-                    );
-                  })}
+                  <TableHead className="sticky left-0 top-0 z-30 min-w-72 bg-card">Permiso</TableHead>
+                  {rolesVisibles.map((rol) => (
+                    <TableHead key={rol.rolId} className="sticky top-0 z-20 min-w-40 bg-card text-center">
+                      <span className="text-sm font-semibold">{nombreRol(rol.nombre)}</span>
+                      <span className="block text-[11px] font-normal text-muted-foreground">{totalPorRol(rol.rolId)} permisos</span>
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filasPorModulo.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={matriz.roles.length + 1}
-                      className="py-10 text-center text-sm text-muted-foreground"
-                    >
-                      No hay permisos que coincidan con «{busqueda.trim()}».
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filasPorModulo.map(([modulo, filas]) => {
-                    const abierto = buscando || !cerrados.has(modulo);
-                    return (
-                      <Fragment key={`modulo-${modulo}`}>
-                        <TableRow className="bg-muted/60 hover:bg-muted/60">
-                          <TableCell
-                            colSpan={matriz.roles.length + 1}
-                            className="sticky left-0 z-10 bg-muted/60 p-0"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => alternarModulo(modulo)}
-                              aria-expanded={abierto}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-semibold text-foreground"
-                            >
-                              <ChevronDown
-                                className={`size-4 transition-transform ${abierto ? "" : "-rotate-90"}`}
-                                aria-hidden="true"
-                              />
-                              {nombreModulo(modulo)}
-                              <span className="ml-auto text-xs font-normal text-muted-foreground">
-                                {filas.length} permisos
-                              </span>
-                            </button>
+                {filasPorModulo.map(([modulo, filas]) => (
+                  <Fragment key={modulo}>
+                    <TableRow className="bg-muted/60 hover:bg-muted/60">
+                      <TableCell colSpan={rolesVisibles.length + 1} className="sticky left-0 z-10 bg-muted/60 px-3 py-2 text-sm font-semibold">
+                        {nombreModulo(modulo)}
+                      </TableCell>
+                    </TableRow>
+                    {filas.map((fila) => (
+                      <TableRow key={fila.codigo}>
+                        <TableCell className="sticky left-0 z-10 bg-card">
+                          <span className="block text-sm font-medium">{fila.nombre}</span>
+                          <span className="block font-mono text-[11px] text-muted-foreground">{fila.codigo}</span>
+                        </TableCell>
+                        {rolesVisibles.map((rol) => (
+                          <TableCell key={`${rol.rolId}-${fila.codigo}`} className="text-center">
+                            <Checkbox
+                              checked={(borrador[rol.rolId] ?? []).includes(fila.codigo)}
+                              disabled={!puedeEditar || cargando}
+                              onCheckedChange={() => alternar(rol.rolId, fila.codigo)}
+                              aria-label={`${fila.codigo} para ${rol.nombre}`}
+                            />
                           </TableCell>
-                        </TableRow>
-                        {abierto &&
-                          filas.map((fila) => (
-                            <TableRow key={fila.codigo} className="group">
-                              <TableCell className="sticky left-0 z-10 bg-card group-hover:bg-muted/50">
-                                <span className="block font-mono text-[11px] font-medium text-primary">
-                                  {fila.codigo}
-                                </span>
-                                <span className="block text-xs text-muted-foreground">
-                                  {fila.nombre}
-                                </span>
-                              </TableCell>
-                              {matriz.roles.map((rol) => {
-                                const marcado = (borrador[rol.rolId] ?? []).includes(fila.codigo);
-                                return (
-                                  <TableCell
-                                    key={`${rol.rolId}-${fila.codigo}`}
-                                    className="text-center"
-                                  >
-                                    <Checkbox
-                                      checked={marcado}
-                                      disabled={!puedeEditar || cargando}
-                                      onCheckedChange={() => alternar(rol.rolId, fila.codigo)}
-                                      aria-label={`${fila.codigo} para ${rol.nombre}`}
-                                    />
-                                  </TableCell>
-                                );
-                              })}
-                            </TableRow>
-                          ))}
-                      </Fragment>
-                    );
-                  })
-                )}
+                        ))}
+                      </TableRow>
+                    ))}
+                  </Fragment>
+                ))}
               </TableBody>
             </Table>
           </div>
         </>
       ) : (
-        <p className="py-8 text-center text-sm text-muted-foreground">No se pudo cargar la matriz.</p>
+        <div className="flex flex-col gap-4">
+          <div className="lg:hidden">
+            <Label htmlFor="rol-movil" className="mb-1 block text-sm font-medium">
+              Rol
+            </Label>
+            <select
+              id="rol-movil"
+              className="h-11 w-full rounded-md border border-input bg-background px-3 text-base"
+              value={rolActual ? String(rolActual.rolId) : ""}
+              onChange={(evento) => setRolSeleccionado(Number(evento.target.value))}
+            >
+              {matriz.roles.map((rol) => {
+                const cambios = cambiosPorRol(rol.rolId, rol.codigos);
+                return (
+                  <option key={rol.rolId} value={String(rol.rolId)}>
+                    {nombreRol(rol.nombre)} ({totalPorRol(rol.rolId)} activos)
+                    {cambios > 0 ? ` · ${cambios} cambio(s)` : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
+          <aside aria-label="Roles" className="hidden flex-col gap-2 lg:flex">
+            {matriz.roles.map((rol) => {
+              const activo = rolActual?.rolId === rol.rolId;
+              const cambios = cambiosPorRol(rol.rolId, rol.codigos);
+              return (
+                <button
+                  key={rol.rolId}
+                  type="button"
+                  onClick={() => setRolSeleccionado(rol.rolId)}
+                  className={`flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors ${
+                    activo ? "border-primary bg-primary/5 shadow-sm" : "bg-card hover:bg-muted/40"
+                  }`}
+                  aria-current={activo ? "true" : undefined}
+                >
+                  <span className="font-semibold">{nombreRol(rol.nombre)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {rol.codigos.length} permisos · {totalPorRol(rol.rolId)} activos
+                  </span>
+                  {cambios > 0 ? <Badge className="w-fit" variant="outline">{cambios} cambio(s)</Badge> : null}
+                </button>
+              );
+            })}
+          </aside>
+
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <Input
+                type="search"
+                value={busqueda}
+                onChange={(evento) => setBusqueda(evento.target.value)}
+                placeholder="Buscar permiso por nombre o código…"
+                aria-label="Buscar permiso"
+                className="pl-9"
+              />
+            </div>
+
+            {rolActual ? (
+              <div className="flex flex-col gap-3 pb-20">
+                {filasPorModulo.map(([modulo, filas]) => {
+                  const abierto = buscando || !cerrados.has(modulo);
+                  const activosModulo = filas.filter((f) => (borrador[rolActual.rolId] ?? []).includes(f.codigo)).length;
+                  return (
+                    <section key={modulo} className="rounded-xl border bg-card">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => alternarModulo(modulo)}
+                          aria-expanded={abierto}
+                          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-semibold"
+                        >
+                          <ChevronDown className={`size-4 shrink-0 transition-transform ${abierto ? "" : "-rotate-90"}`} aria-hidden="true" />
+                          <span className="truncate">{nombreModulo(modulo)}</span>
+                          <span className="shrink-0 text-xs font-normal text-muted-foreground">
+                            {activosModulo}/{filas.length}
+                          </span>
+                        </button>
+                        {puedeEditar ? (
+                          <div className="flex shrink-0 gap-1 text-xs">
+                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => marcarModulo(rolActual.rolId, modulo, true)}>Activar todos</Button>
+                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => marcarModulo(rolActual.rolId, modulo, false)}>Quitar todos</Button>
+                          </div>
+                        ) : null}
+                      </div>
+                      {abierto ? (
+                        <ul className="divide-y">
+                          {filas.map((fila) => {
+                            const marcado = (borrador[rolActual.rolId] ?? []).includes(fila.codigo);
+                            return (
+                              <li key={fila.codigo} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium">{fila.nombre}</p>
+                                  <p className="font-mono text-[11px] text-muted-foreground">{fila.codigo}</p>
+                                </div>
+                                <Switch
+                                  checked={marcado}
+                                  disabled={!puedeEditar || cargando}
+                                  onCheckedChange={() => alternar(rolActual.rolId, fila.codigo)}
+                                  aria-label={`${fila.nombre} para ${rolActual.nombre}`}
+                                />
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </section>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No hay roles para configurar.</p>
+            )}
+          </div>
+
+          {rolActual ? (
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 p-3 shadow-lg backdrop-blur lg:left-auto lg:right-0 lg:w-[calc(100%-18rem-3rem)]">
+              <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm font-medium">
+                  {cambiosActuales > 0 ? `${cambiosActuales} cambio(s) pendiente(s)` : "Sin cambios pendientes"}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={cambiosActuales === 0} onClick={() => descartar(rolActual.rolId)}>
+                    Descartar
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={cambiosActuales === 0 || !puedeEditar}
+                    onClick={() => {
+                      setMotivo("");
+                      setErrorMotivo(null);
+                      setRolGuardando(rolActual.rolId);
+                    }}
+                  >
+                    <Save className="size-4" aria-hidden="true" /> Guardar cambios ({cambiosActuales})
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          </div>
+        </div>
       )}
 
       <AlertDialog

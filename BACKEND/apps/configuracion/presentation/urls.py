@@ -21,6 +21,7 @@ from apps.configuracion.presentation.views.parametros_views import (
 from apps.configuracion.presentation.views.reglas_catalogos_views import (
     ReglaMotivoCategoriaView,
     ReglaMotivoCrearView,
+    ReglaMotivoDetailView,
     ReglaNominaUpdateView,
     ReglaParentescoUpdateView,
     ReglasCatalogosListView,
@@ -45,6 +46,7 @@ urlpatterns = [
     path('reglas-catalogos/', ReglasCatalogosListView.as_view(), name='reglas_catalogos_list'),
     path('reglas-catalogos/parentescos/<int:id>/', ReglaParentescoUpdateView.as_view(), name='regla_parentesco_update'),
     path('reglas-catalogos/motivos/<int:id>/categoria/', ReglaMotivoCategoriaView.as_view(), name='regla_motivo_categoria'),
+    path('reglas-catalogos/motivos/<int:id>/', ReglaMotivoDetailView.as_view(), name='regla_motivo_detail'),
     path('reglas-catalogos/motivos/', ReglaMotivoCrearView.as_view(), name='regla_motivo_crear'),
     path('reglas-catalogos/nominas/<int:id>/', ReglaNominaUpdateView.as_view(), name='regla_nomina_update'),
     # Correo de acceso configurable y masivo (A7)

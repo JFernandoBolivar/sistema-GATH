@@ -79,6 +79,21 @@ def HasPermission(codigo: str):
     return _HasPermission
 
 
+def HasAnyPermission(*codigos: str):
+    """Clase DRF que autoriza si el usuario tiene AL MENOS UNO de los códigos."""
+    if not codigos:
+        raise ValueError('HasAnyPermission requiere al menos un código.')
+
+    class _HasAnyPermission(BasePermission):
+        message = f"No posee ninguno de los permisos requeridos: {', '.join(codigos)}."
+
+        def has_permission(self, request, view) -> bool:
+            return any(_usuario_tiene_permiso(request.user, codigo) for codigo in codigos)
+
+    _HasAnyPermission.__name__ = 'HasAnyPermission_' + '_o_'.join(c.replace('.', '_') for c in codigos)
+    return _HasAnyPermission
+
+
 def RequiereCondicion(condicion: str):
     """
     Guard por CONDICION del trabajador (`'PASIVO'`, `'ACTIVO'`), calculada en servidor desde

@@ -15,6 +15,7 @@ export interface ReglaMotivoDTO {
   categoria_id: number;
   categoria_nombre: string;
   es_reservado: boolean;
+  activo?: boolean;
 }
 
 export interface ReglaNominaDTO {

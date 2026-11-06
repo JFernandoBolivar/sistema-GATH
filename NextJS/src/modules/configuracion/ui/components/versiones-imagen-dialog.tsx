@@ -95,7 +95,7 @@ export function VersionesImagenDialog({
           Versiones anteriores
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-hidden sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Versiones anteriores</DialogTitle>
           <DialogDescription>
@@ -112,7 +112,7 @@ export function VersionesImagenDialog({
         ) : versiones.length === 0 ? (
           <p className="text-sm text-muted-foreground">Todavía no hay versiones guardadas de esta imagen.</p>
         ) : (
-          <ul className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
+          <ul className="flex max-h-[60vh] flex-col gap-3 overflow-hidden">
             {versiones.map((v) => (
               <li
                 key={v.id}

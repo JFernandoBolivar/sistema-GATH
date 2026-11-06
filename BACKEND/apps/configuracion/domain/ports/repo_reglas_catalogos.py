@@ -38,7 +38,25 @@ class RepoReglasCatalogos(Protocol):
     def contar_motivos_en_categoria(self, categoria_id: int) -> int:
         ...
 
+    def contar_motivos_activos_en_categoria(self, categoria_id: int) -> int:
+        ...
+
     def cambiar_categoria_motivo(self, motivo_id: int, nueva_categoria_id: int) -> ReglaMotivo:
+        ...
+
+    def actualizar_motivo(
+        self,
+        motivo_id: int,
+        movimiento: str | None = None,
+        categoria_id: int | None = None,
+        activo: bool | None = None,
+    ) -> ReglaMotivo:
+        ...
+
+    def eliminar_motivo(self, motivo_id: int) -> ReglaMotivo:
+        ...
+
+    def motivo_tiene_referencias(self, motivo_id: int) -> bool:
         ...
 
     def crear_motivo(self, movimiento: str, categoria_id: int) -> ReglaMotivo:

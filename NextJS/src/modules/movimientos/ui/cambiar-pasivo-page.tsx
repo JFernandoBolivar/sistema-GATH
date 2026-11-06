@@ -246,6 +246,7 @@ export function CambiarPasivoPage() {
                           <Select
                             onValueChange={(values) => {
                               field.onChange(Number.parseInt(values));
+                              form.setValue("motivo", 0);
                             }}
                             value={field.value && field.value > 0 ? `${field.value}` : ""}
                           >
@@ -331,7 +332,7 @@ export function CambiarPasivoPage() {
                           <FormLabel>Motivo De Egreso/Pasivo</FormLabel>
                           <FormControl>
                             <MotivoSelect
-                              operacion="pase_a_pasivo"
+                              operacion={validatePeace ? "pase_a_pasivo" : "egreso_activo"}
                               value={field.value}
                               onChange={field.onChange}
                               aria-invalid={Boolean(form.formState.errors.motivo)}

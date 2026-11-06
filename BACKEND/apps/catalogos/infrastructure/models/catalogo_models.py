@@ -158,6 +158,7 @@ class TipoMovimientoModel(models.Model):
         blank=True,
         related_name='+',
     )
+    activo = models.BooleanField(default=True, db_column='activo')
 
     class Meta:
         managed = False

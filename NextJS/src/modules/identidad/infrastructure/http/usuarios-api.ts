@@ -69,6 +69,8 @@ export interface RolApiItem {
   id: number;
   nombre_rol: string;
   descripcion_rol: string;
+  n_usuarios?: number;
+  n_permisos?: number;
 }
 
 export interface PermisoApiItem {

@@ -133,6 +133,7 @@ PERMISOS_CATALOGO = [
     ("auditoria.ver_seguridad", "Consultar incidentes y bloqueos de seguridad"),
 
     # ─── 13. CONFIGURACIÓN VISUAL (HU 0009 — Cintillo Editable) ───
+    ("configuracion.ver", "Consultar la configuración del sistema (parámetros, correo de acceso y catálogos)"),
     ("configuracion.editar", "Editar la configuración visual del cintillo institucional (PDFs)"),
 
     # ─── 14. PUNTO DE CUENTA ───

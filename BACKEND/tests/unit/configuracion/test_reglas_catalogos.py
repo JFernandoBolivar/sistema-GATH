@@ -10,10 +10,12 @@ Verifica:
 import pytest
 
 from apps.configuracion.application.use_cases.gestionar_reglas_catalogos import (
+    actualizar_motivo,
     actualizar_nomina,
     actualizar_parentesco,
     cambiar_categoria_motivo,
     crear_nuevo_motivo,
+    eliminar_motivo,
     obtener_todas_las_reglas,
 )
 from apps.configuracion.domain.ports.repo_reglas_catalogos import RepoReglasCatalogos
@@ -76,6 +78,7 @@ class RepoReglasCatalogosMemoria(RepoReglasCatalogos):
             1: ReglaNomina(id=1, nomina='EMPLEADOS FIJOS', requiere_codig=True, es_activo=True),
             2: ReglaNomina(id=2, nomina='JUBILADOS', requiere_codig=False, es_activo=False),
         }
+        self.referencias_motivos: set[int] = {12}  # Motivo 12 tiene movimientos asociados
 
     def listar_parentescos(self):
         return list(self.parentescos.values())
@@ -110,18 +113,48 @@ class RepoReglasCatalogosMemoria(RepoReglasCatalogos):
     def contar_motivos_en_categoria(self, categoria_id: int):
         return sum(1 for m in self.motivos.values() if m.categoria_id == categoria_id)
 
+    def contar_motivos_activos_en_categoria(self, categoria_id: int):
+        return sum(1 for m in self.motivos.values() if m.categoria_id == categoria_id and m.activo)
+
     def cambiar_categoria_motivo(self, motivo_id: int, nueva_categoria_id: int):
+        return self.actualizar_motivo(motivo_id, categoria_id=nueva_categoria_id)
+
+    def actualizar_motivo(
+        self,
+        motivo_id: int,
+        movimiento: str | None = None,
+        categoria_id: int | None = None,
+        activo: bool | None = None,
+    ):
         actual = self.obtener_motivo(motivo_id)
-        cat = self.obtener_categoria_motivo(nueva_categoria_id)
+        cat_id = categoria_id if categoria_id is not None else actual.categoria_id
+        cat = self.obtener_categoria_motivo(cat_id)
+        nom = movimiento.strip().upper() if movimiento is not None else actual.movimiento
+        act = activo if activo is not None else actual.activo
+
+        # Unicidad en memoria
+        for mid, m in self.motivos.items():
+            if mid != motivo_id and m.categoria_id == cat_id and m.movimiento == nom:
+                raise ValidationError(f'Ya existe un motivo «{nom}» en la categoría «{cat.categoria}».', campo='movimiento')
+
         nuevo = ReglaMotivo(
             id=actual.id,
-            movimiento=actual.movimiento,
+            movimiento=nom,
             categoria_id=cat.id,
             categoria_nombre=cat.categoria,
-            es_reservado=es_motivo_reservado(actual.movimiento, cat.categoria),
+            es_reservado=es_motivo_reservado(nom, cat.categoria),
+            activo=act,
         )
         self.motivos[motivo_id] = nuevo
         return nuevo
+
+    def motivo_tiene_referencias(self, motivo_id: int) -> bool:
+        return motivo_id in self.referencias_motivos
+
+    def eliminar_motivo(self, motivo_id: int) -> ReglaMotivo:
+        actual = self.obtener_motivo(motivo_id)
+        del self.motivos[motivo_id]
+        return actual
 
     def crear_motivo(self, movimiento: str, categoria_id: int):
         cat = self.obtener_categoria_motivo(categoria_id)
@@ -233,3 +266,64 @@ def test_actualizar_marcas_nomina():
     assert anterior.requiere_codig is True
     assert actualizado.es_activo is False
     assert actualizado.requiere_codig is False
+
+
+# -------------------------------------------------------------
+# O29: Pruebas de CRUD de Motivos (Edición, Desactivación y Eliminación)
+# -------------------------------------------------------------
+def test_actualizar_motivo_renombrar_y_desactivar():
+    repo = RepoReglasCatalogosMemoria()
+    anterior, actualizado = actualizar_motivo(repo, 13, movimiento='DESTITUCION DISCIPLINARIA', activo=False)
+    assert anterior.movimiento == 'DESTITUCION'
+    assert anterior.activo is True
+    assert actualizado.movimiento == 'DESTITUCION DISCIPLINARIA'
+    assert actualizado.activo is False
+
+
+def test_actualizar_motivo_reservado_no_permite_renombrar_ni_desactivar():
+    repo = RepoReglasCatalogosMemoria()
+    with pytest.raises(ValidationError) as exc1:
+        actualizar_motivo(repo, 11, movimiento='NUEVO NOMBRE')
+    assert 'motivo reservado' in str(exc1.value)
+    assert exc1.value.campo == 'movimiento'
+
+    with pytest.raises(ValidationError) as exc2:
+        actualizar_motivo(repo, 11, activo=False)
+    assert 'motivo reservado' in str(exc2.value)
+    assert exc2.value.campo == 'activo'
+
+
+def test_actualizar_motivo_no_permite_desactivar_ultimo_activo_en_categoria_sistema():
+    repo = RepoReglasCatalogosMemoria()
+    # INGRESO solo tiene el motivo 10
+    with pytest.raises(ValidationError) as exc:
+        actualizar_motivo(repo, 10, activo=False)
+    assert 'quedaría sin ningún motivo activo' in str(exc.value)
+    assert exc.value.campo == 'activo'
+
+
+def test_eliminar_motivo_sin_referencias_exitoso():
+    repo = RepoReglasCatalogosMemoria()
+    # Motivo 13 no tiene referencias
+    eliminado = eliminar_motivo(repo, 13)
+    assert eliminado.id == 13
+    assert 13 not in repo.motivos
+
+
+def test_eliminar_motivo_con_referencias_rechaza_con_mensaje_claro():
+    repo = RepoReglasCatalogosMemoria()
+    # Motivo 12 tiene referencias
+    with pytest.raises(ValidationError) as exc:
+        eliminar_motivo(repo, 12)
+    assert 'tiene movimientos asociados en el historial' in str(exc.value)
+    assert 'Puede desactivarlo en su lugar' in str(exc.value)
+    assert exc.value.campo == 'motivo'
+
+
+def test_eliminar_motivo_reservado_rechaza():
+    repo = RepoReglasCatalogosMemoria()
+    # Motivo 11 es reservado
+    with pytest.raises(ValidationError) as exc:
+        eliminar_motivo(repo, 11)
+    assert 'motivo reservado' in str(exc.value)
+    assert exc.value.campo == 'motivo'

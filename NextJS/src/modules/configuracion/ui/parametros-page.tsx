@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -347,7 +348,7 @@ function HistorialDialog({
 
   return (
     <Dialog open={parametro !== null} onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-hidden">
         <DialogHeader>
           <DialogTitle>Historial de «{parametro?.etiqueta}»</DialogTitle>
           <DialogDescription>Últimos cambios registrados en la bitácora, del más reciente al más antiguo.</DialogDescription>
@@ -360,7 +361,7 @@ function HistorialDialog({
           <p className="text-sm text-muted-foreground">Todavía no hay cambios registrados.</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <TablaDesplegable etiqueta="Historial de cambios del parámetro">
             <table className="w-full min-w-[32rem] text-sm">
               <caption className="sr-only">Historial de cambios del parámetro</caption>
               <thead>
@@ -382,7 +383,7 @@ function HistorialDialog({
                 ))}
               </tbody>
             </table>
-            </div>
+            </TablaDesplegable>
             <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
               <Badge variant="outline">
                 Página {paginaDatos.pagina} de {paginaDatos.totalPaginas}

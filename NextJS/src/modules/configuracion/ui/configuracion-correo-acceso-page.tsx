@@ -519,7 +519,7 @@ export function ConfiguracionCorreoAccesoPage() {
               </div>
 
               {/* Tabla de detalle */}
-              <div className="max-h-60 overflow-y-auto rounded-md border">
+              <div className="max-h-60 overflow-hidden rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>

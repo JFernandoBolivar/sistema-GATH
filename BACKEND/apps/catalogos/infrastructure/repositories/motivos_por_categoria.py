@@ -28,12 +28,24 @@ def obtener_o_crear_categoria(categoria: CategoriaMotivo) -> CategoriaMovimiento
     return CategoriaMovimientoModel.objects.create(categoria=categoria.value)
 
 
-def listar_motivos_de_categoria(categoria: CategoriaMotivo) -> list[TipoMovimientoModel]:
-    return list(
+def listar_motivos_de_categoria(
+    categoria: CategoriaMotivo, solo_activos: bool = True
+) -> list[TipoMovimientoModel]:
+    qs = (
         TipoMovimientoModel.objects.select_related('categoria')
         .filter(categoria__categoria__iexact=categoria.value)
-        .order_by('movimiento')
     )
+    if solo_activos:
+        qs = qs.filter(activo=True)
+    # Deduplicación por nombre normalizado (conserva el primer id en orden de PK)
+    vistos: set[str] = set()
+    resultado: list[TipoMovimientoModel] = []
+    for m in qs.order_by('movimiento', 'pk'):
+        norm = (m.movimiento or '').strip().upper()
+        if norm not in vistos:
+            vistos.add(norm)
+            resultado.append(m)
+    return resultado
 
 
 def listar_motivos_de_operacion(operacion) -> list[dict]:

@@ -13,6 +13,8 @@ from apps.configuracion.domain.reglas_catalogos import (
     ReglaParentesco,
     preparar_nuevo_motivo,
     validar_cambio_categoria_motivo,
+    validar_edicion_motivo,
+    validar_eliminacion_motivo,
 )
 
 
@@ -58,6 +60,46 @@ def cambiar_categoria_motivo(
 
     actualizado = repo.cambiar_categoria_motivo(motivo_id, nueva_categoria_id)
     return motivo_actual, actualizado
+
+
+def actualizar_motivo(
+    repo: RepoReglasCatalogos,
+    motivo_id: int,
+    movimiento: str | None = None,
+    categoria_id: int | None = None,
+    activo: bool | None = None,
+) -> tuple[ReglaMotivo, ReglaMotivo]:
+    """
+    Actualiza nombre, categoría y/o estado activo de un motivo de movimiento.
+    Valida motivos reservados, unicidad y no dejar vacías categorías del sistema.
+    """
+    motivo_actual = repo.obtener_motivo(motivo_id)
+    nueva_categoria = repo.obtener_categoria_motivo(categoria_id) if categoria_id is not None else None
+    conteo_activos = repo.contar_motivos_activos_en_categoria(motivo_actual.categoria_id)
+
+    validar_edicion_motivo(motivo_actual, movimiento, nueva_categoria, activo, conteo_activos)
+
+    actualizado = repo.actualizar_motivo(
+        motivo_id,
+        movimiento=movimiento,
+        categoria_id=categoria_id,
+        activo=activo,
+    )
+    return motivo_actual, actualizado
+
+
+def eliminar_motivo(
+    repo: RepoReglasCatalogos,
+    motivo_id: int,
+) -> ReglaMotivo:
+    """
+    Elimina físicamente un motivo si no es reservado y no tiene movimientos asociados.
+    Si tiene movimientos, se rechaza y se instruye desactivarlo.
+    """
+    motivo_actual = repo.obtener_motivo(motivo_id)
+    tiene_referencias = repo.motivo_tiene_referencias(motivo_id)
+    validar_eliminacion_motivo(motivo_actual, tiene_referencias)
+    return repo.eliminar_motivo(motivo_id)
 
 
 def crear_nuevo_motivo(

@@ -25,10 +25,22 @@ class ReglaMotivoSerializer(serializers.Serializer):
     categoria_id = serializers.IntegerField(read_only=True)
     categoria_nombre = serializers.CharField(read_only=True)
     es_reservado = serializers.BooleanField(read_only=True)
+    activo = serializers.BooleanField(read_only=True)
 
 
 class CambiarCategoriaMotivoSerializer(serializers.Serializer):
     categoria_id = serializers.IntegerField(required=True)
+
+
+class ActualizarMotivoSerializer(serializers.Serializer):
+    movimiento = serializers.CharField(min_length=3, max_length=100, required=False)
+    categoria_id = serializers.IntegerField(required=False)
+    activo = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        if not any(k in attrs for k in ('movimiento', 'categoria_id', 'activo')):
+            raise serializers.ValidationError('Debe indicar al menos un campo a actualizar.')
+        return attrs
 
 
 class CrearMotivoSerializer(serializers.Serializer):

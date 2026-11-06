@@ -114,6 +114,8 @@ export interface RolDTO {
   id: number;
   nombreRol: string;
   descripcionRol: string;
+  nUsuarios?: number;
+  nPermisos?: number;
 }
 
 export interface GuardarRolInputDTO {

@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get, patch, post } = vi.hoisted(() => ({
+const { get, patch, post, del } = vi.hoisted(() => ({
   get: vi.fn(),
   patch: vi.fn(),
   post: vi.fn(),
+  del: vi.fn(),
 }));
 
 vi.mock("@/shared/infrastructure/http/fetcher-api", () => ({
-  apiClient: { get, patch, post },
+  apiClient: { get, patch, post, delete: del },
 }));
 
 import { reglasCatalogosApi } from "../infrastructure/http/reglas-catalogos-api";
@@ -16,6 +17,7 @@ beforeEach(() => {
   get.mockReset();
   patch.mockReset();
   post.mockReset();
+  del.mockReset();
 });
 
 describe("Módulo Configuración - Reglas de Catálogos (A5)", () => {
@@ -116,5 +118,52 @@ describe("Módulo Configuración - Reglas de Catálogos (A5)", () => {
       { requiere_codig: false },
     );
     expect(res.data.requiere_codig).toBe(false);
+  });
+
+  it("API client actualiza motivo completo (nombre, categoría y estado activo)", async () => {
+    patch.mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: {
+        id: 15,
+        movimiento: "DESTITUCION DISCIPLINARIA",
+        categoria_id: 3,
+        categoria_nombre: "EGRESO",
+        es_reservado: false,
+        activo: false,
+      },
+    });
+
+    const res = await reglasCatalogosApi.actualizarMotivo(15, {
+      movimiento: "DESTITUCION DISCIPLINARIA",
+      activo: false,
+    });
+    expect(patch).toHaveBeenCalledWith(
+      "/api/v1/configuracion/reglas-catalogos/motivos/15/",
+      { movimiento: "DESTITUCION DISCIPLINARIA", activo: false },
+    );
+    expect(res.data.movimiento).toBe("DESTITUCION DISCIPLINARIA");
+    expect(res.data.activo).toBe(false);
+  });
+
+  it("API client elimina motivo de movimiento", async () => {
+    del.mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: {
+        id: 15,
+        movimiento: "MOTIVO OBSOLETO",
+        categoria_id: 1,
+        categoria_nombre: "INGRESO",
+        es_reservado: false,
+        activo: true,
+      },
+    });
+
+    const res = await reglasCatalogosApi.eliminarMotivo(15);
+    expect(del).toHaveBeenCalledWith(
+      "/api/v1/configuracion/reglas-catalogos/motivos/15/",
+    );
+    expect(res.data.id).toBe(15);
   });
 });

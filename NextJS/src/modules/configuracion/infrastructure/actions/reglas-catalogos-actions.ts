@@ -56,6 +56,23 @@ export async function cambiarCategoriaMotivoAction(id: number, categoria_id: num
   });
 }
 
+export async function actualizarMotivoAction(
+  id: number,
+  datos: { movimiento?: string; categoria_id?: number; activo?: boolean },
+) {
+  return conAuditoria("actualizarMotivoAction", async () => {
+    const res = await reglasCatalogosApi.actualizarMotivo(id, datos);
+    return res.data;
+  });
+}
+
+export async function eliminarMotivoAction(id: number) {
+  return conAuditoria("eliminarMotivoAction", async () => {
+    const res = await reglasCatalogosApi.eliminarMotivo(id);
+    return res.data;
+  });
+}
+
 export async function crearMotivoAction(movimiento: string, categoria_id: number) {
   return conAuditoria("crearMotivoAction", async () => {
     const res = await reglasCatalogosApi.crearMotivo(movimiento, categoria_id);

@@ -54,8 +54,15 @@ class RolListCrearView(views.APIView):
         responses={200: RolCatalogoLecturaSerializer(many=True), 403: MensajeRespuestaSerializer},
     )
     def get(self, request):
-        roles = listar_roles(RepoRolesORM())
-        datos = RolCatalogoLecturaSerializer(roles, many=True).data
+        repo = RepoRolesORM()
+        roles = listar_roles(repo)
+        usuarios, permisos = repo.conteos_por_rol()
+        datos = []
+        for rol in roles:
+            fila = RolCatalogoLecturaSerializer(rol).data
+            fila['n_usuarios'] = usuarios.get(rol.identificador, 0)
+            fila['n_permisos'] = permisos.get(rol.identificador, 0)
+            datos.append(fila)
         return ok(datos, f'{len(datos)} rol(es) encontrado(s).')
 
     @extend_schema(

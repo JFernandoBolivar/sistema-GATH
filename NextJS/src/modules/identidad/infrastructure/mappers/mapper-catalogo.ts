@@ -10,6 +10,8 @@ export function mapperRol(raw: RolApiItem): RolEntity {
     id: raw.id,
     nombreRol: raw.nombre_rol,
     descripcionRol: raw.descripcion_rol,
+    nUsuarios: raw.n_usuarios ?? 0,
+    nPermisos: raw.n_permisos ?? 0,
   });
 }
 

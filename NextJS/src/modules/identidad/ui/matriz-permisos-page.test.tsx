@@ -49,14 +49,13 @@ describe("MatrizPermisosPage", () => {
     const usuario = userEvent.setup();
     render(<MatrizPermisosPage />);
 
-    const [guardarAdmin] = await screen.findAllByRole("button", { name: /sin cambios/i });
-    expect(guardarAdmin).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /guardar cambios \(0\)/i })).toBeDisabled();
 
-    const checkbox = screen.getByLabelText("personal.crear para ADMIN_BIENESTAR");
-    await waitFor(() => expect(checkbox).toBeEnabled());
-    await usuario.click(checkbox);
+    const interruptor = screen.getByLabelText("Registrar personal para ADMIN_BIENESTAR");
+    await waitFor(() => expect(interruptor).toBeEnabled());
+    await usuario.click(interruptor);
 
-    expect(await screen.findByRole("button", { name: /guardar \(1\)/i })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: /guardar cambios \(1\)/i })).toBeEnabled();
   });
 
   it("filtra permisos por código", async () => {
@@ -68,5 +67,22 @@ describe("MatrizPermisosPage", () => {
 
     expect(screen.getByText("personal.crear")).toBeInTheDocument();
     expect(screen.queryByText("personal.ver")).not.toBeInTheDocument();
+  });
+
+  it("filtra la matriz para ver solo un rol", async () => {
+    const usuario = userEvent.setup();
+    render(<MatrizPermisosPage />);
+    await usuario.click(await screen.findByRole("button", { name: /comparar roles/i }));
+    await screen.findByText(/2 roles/);
+    await usuario.selectOptions(screen.getByLabelText(/ver solo un rol/i), "2");
+    expect(await screen.findByText(/1 roles/)).toBeInTheDocument();
+  });
+
+  it("en vista móvil ofrece selector de rol accesible arriba y lista de permisos debajo (TLF-F)", async () => {
+    render(<MatrizPermisosPage />);
+    const selectMovil = await screen.findByLabelText(/^rol$/i);
+    expect(selectMovil).toBeInTheDocument();
+    expect(selectMovil.tagName.toLowerCase()).toBe("select");
+    expect(screen.getByText("Personal activo")).toBeInTheDocument();
   });
 });

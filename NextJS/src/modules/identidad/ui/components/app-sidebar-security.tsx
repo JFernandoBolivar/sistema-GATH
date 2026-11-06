@@ -1,19 +1,18 @@
 "use client";
 import {
   Bell,
-  BadgePlus,
   BookCheck,
   ChevronDown,
+  ClipboardList,
   FileText,
   ChevronRight,
   Home,
-  IdCard,
   List,
-  ListCheck,
   LucideIcon,
-  PersonStanding,
+  Mail,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   User,
 } from "lucide-react";
 
@@ -37,8 +36,11 @@ import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
 import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 import {
   RUTA_AUDITORIA,
+  RUTA_AUTOGESTION_CONFIG,
+  RUTA_CORREO_ACCESO,
   RUTA_PARAMETROS,
   RUTA_PUNTO_CUENTA,
+  RUTA_REGLAS_CATALOGOS,
   RUTA_USUARIOS,
   RUTA_VISUAL,
   SECCION_CONFIGURACION,
@@ -80,34 +82,16 @@ const items: MenuItem[] = [
     icon: User,
     subMenu: [
       {
-        title: "Consultar usuarios",
+        title: "Usuarios",
         url: RUTA_USUARIOS,
         icon: List,
         permiso: "identidad.ver_usuarios",
       },
       {
-        title: "Registrar usuario",
-        url: "/usuarios/registrar",
-        icon: PersonStanding,
-        permiso: "identidad.crear_usuarios",
-      },
-      {
-        title: "Modificar usuario",
-        url: "/usuarios/modificar",
-        icon: ListCheck,
-        permiso: "identidad.editar_usuarios",
-      },
-      {
-        title: "Registrar rol",
-        url: "/usuarios/roles/registrar",
-        icon: BadgePlus,
-        permiso: "identidad.crear_roles",
-      },
-      {
-        title: "Consultar roles",
+        title: "Roles y permisos",
         url: "/usuarios/roles",
-        icon: IdCard,
-        permiso: "identidad.editar_roles",
+        icon: ShieldCheck,
+        permiso: "identidad.ver_roles",
       },
     ],
   },
@@ -132,6 +116,24 @@ const items: MenuItem[] = [
         title: "Punto de cuenta",
         url: RUTA_PUNTO_CUENTA,
         icon: FileText,
+        permiso: "configuracion.editar",
+      },
+      {
+        title: "Correo de acceso",
+        url: RUTA_CORREO_ACCESO,
+        icon: Mail,
+        permiso: "configuracion.editar",
+      },
+      {
+        title: "Solicitudes de autogestión",
+        url: RUTA_AUTOGESTION_CONFIG,
+        icon: ClipboardList,
+        permiso: "configuracion.editar",
+      },
+      {
+        title: "Reglas de catálogos y motivos de movimiento",
+        url: RUTA_REGLAS_CATALOGOS,
+        icon: SlidersHorizontal,
         permiso: "configuracion.editar",
       },
     ],

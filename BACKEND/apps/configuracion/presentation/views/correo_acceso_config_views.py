@@ -61,13 +61,17 @@ def _trace(request) -> str:
 class PoliticaCorreoAccesoView(APIView):
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.request.method == 'PUT':
+            return [IsAuthenticated(), HasPermission(PERMISO_EDITAR)()]
+        return [IsAuthenticated(), HasPermission(PERMISO_VER)()]
+
     @extend_schema(
         tags=['Configuración'],
         summary='Consultar la política vigente de correo de acceso',
         responses={200: PoliticaCorreoAccesoSerializer},
     )
     def get(self, request):
-        HasPermission(PERMISO_VER).has_permission(request, self)
         repo = RepoPoliticaCorreoAccesoORM()
         politica = obtener_politica_correo_acceso(repo)
         return ok(
@@ -86,7 +90,6 @@ class PoliticaCorreoAccesoView(APIView):
         responses={200: PoliticaCorreoAccesoSerializer, 400: MensajeRespuestaSerializer},
     )
     def put(self, request):
-        HasPermission(PERMISO_EDITAR).has_permission(request, self)
         serializer = PoliticaCorreoAccesoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

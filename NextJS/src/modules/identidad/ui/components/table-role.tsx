@@ -124,8 +124,8 @@ function RoleActionsCell({
               Eliminar el rol {role.nombreRol}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. No se podrá eliminar si tiene
-              cuentas asociadas.
+              Esta acción no se puede deshacer. El rol tiene {role.nUsuarios ?? 0} usuario(s)
+              asociado(s); si tiene cuentas, el sistema no permitirá eliminarlo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -155,6 +155,25 @@ export function buildRoleColumns(onRefresh: () => void): ColumnDef<RolDTO>[] {
     {
       accessorKey: "nombreRol",
       header: "Nombre Del Rol",
+    },
+    {
+      accessorKey: "nUsuarios",
+      header: "Usuarios",
+      cell: ({ row }) => row.original.nUsuarios ?? 0,
+    },
+    {
+      accessorKey: "nPermisos",
+      header: "Permisos",
+      cell: ({ row }) => row.original.nPermisos ?? 0,
+    },
+    {
+      id: "acciones-rol",
+      header: "Permisos del rol",
+      cell: ({ row }) => (
+        <Button asChild variant="outline" size="sm">
+          <a href={`/usuarios/roles?tab=matriz&rol=${row.original.id}`}>Ver permisos</a>
+        </Button>
+      ),
     },
     {
       id: "actions",

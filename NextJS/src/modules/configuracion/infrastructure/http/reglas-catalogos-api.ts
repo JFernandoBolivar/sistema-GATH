@@ -28,6 +28,20 @@ export const reglasCatalogosApi = {
       { categoria_id },
     ),
 
+  actualizarMotivo: (
+    id: number,
+    datos: { movimiento?: string; categoria_id?: number; activo?: boolean },
+  ) =>
+    apiClient.patch<ApiResponse<ReglaMotivoDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/motivos/${id}/`,
+      datos,
+    ),
+
+  eliminarMotivo: (id: number) =>
+    apiClient.delete<ApiResponse<ReglaMotivoDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/motivos/${id}/`,
+    ),
+
   crearMotivo: (movimiento: string, categoria_id: number) =>
     apiClient.post<ApiResponse<ReglaMotivoDTO>>(
       "/api/v1/configuracion/reglas-catalogos/motivos/",

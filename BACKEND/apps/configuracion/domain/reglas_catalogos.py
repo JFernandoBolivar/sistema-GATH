@@ -31,6 +31,8 @@ RECURSO_REGLAS_NOMINA = 'regla_tipo_nomina'
 ACCION_PARENTESCO_ACTUALIZADO = 'PARENTESCO_ACTUALIZADO'
 ACCION_MOTIVO_CATEGORIA_CAMBIADA = 'MOTIVO_CATEGORIA_CAMBIADA'
 ACCION_MOTIVO_CREADO = 'MOTIVO_MOVIMIENTO_CREADO'
+ACCION_MOTIVO_ACTUALIZADO = 'MOTIVO_MOVIMIENTO_ACTUALIZADO'
+ACCION_MOTIVO_ELIMINADO = 'MOTIVO_MOVIMIENTO_ELIMINADO'
 ACCION_NOMINA_ACTUALIZADA = 'TIPO_NOMINA_ACTUALIZADA'
 
 # Motivos del sistema que no se pueden mover ni renombrar
@@ -61,6 +63,7 @@ class ReglaMotivo:
     categoria_id: int
     categoria_nombre: str
     es_reservado: bool
+    activo: bool = True
 
 
 @dataclass(frozen=True)
@@ -119,3 +122,67 @@ def preparar_nuevo_motivo(movimiento: str, categoria_id: int) -> tuple[str, int]
         raise ValidationError('Debe indicar la categoría a la que pertenecerá el motivo.', campo='categoria_id')
     nombre_limpio = normalizar_nombre_motivo(movimiento, campo='movimiento')
     return nombre_limpio, categoria_id
+
+
+def validar_edicion_motivo(
+    motivo_actual: ReglaMotivo,
+    nuevo_movimiento: str | None,
+    nueva_categoria: CategoriaMotivoItem | None,
+    nuevo_activo: bool | None,
+    conteo_activos_origen: int,
+) -> None:
+    """Reglas de validación para edición de nombre, categoría y/o estado de un motivo."""
+    # 1. Protección de motivos reservados del sistema
+    if motivo_actual.es_reservado:
+        if nuevo_movimiento is not None and nuevo_movimiento.strip().upper() != motivo_actual.movimiento.strip().upper():
+            raise ValidationError(
+                f'El motivo «{motivo_actual.movimiento}» es un motivo reservado del sistema y no puede ser renombrado.',
+                campo='movimiento',
+            )
+        if nueva_categoria is not None and nueva_categoria.id != motivo_actual.categoria_id:
+            raise ValidationError(
+                f'El motivo «{motivo_actual.movimiento}» es un motivo reservado del sistema para pase a pasivo '
+                'y no puede ser reasignado a otra categoría.',
+                campo='categoria_id',
+            )
+        if nuevo_activo is False:
+            raise ValidationError(
+                f'El motivo «{motivo_actual.movimiento}» es un motivo reservado del sistema y no puede ser desactivado.',
+                campo='activo',
+            )
+
+    # 2. Si se desactiva, validar que la categoría requerida no quede sin motivos activos
+    nombres_categorias_sistema = {c.value for c in CategoriaMotivo}
+    if (
+        nuevo_activo is False
+        and motivo_actual.activo is True
+        and motivo_actual.categoria_nombre.upper() in nombres_categorias_sistema
+        and conteo_activos_origen <= 1
+    ):
+        raise ValidationError(
+            f'No es posible desactivar este motivo porque la categoría «{motivo_actual.categoria_nombre}» '
+            'es requerida por el sistema y quedaría sin ningún motivo activo disponible.',
+            campo='activo',
+        )
+
+    # 3. Si se cambia de categoría
+    if nueva_categoria is not None and nueva_categoria.id != motivo_actual.categoria_id:
+        validar_cambio_categoria_motivo(motivo_actual, nueva_categoria, conteo_activos_origen)
+
+
+def validar_eliminacion_motivo(
+    motivo_actual: ReglaMotivo,
+    tiene_movimientos_asociados: bool,
+) -> None:
+    """Reglas de validación para eliminación física de un motivo."""
+    if motivo_actual.es_reservado:
+        raise ValidationError(
+            f'El motivo «{motivo_actual.movimiento}» es un motivo reservado del sistema y no puede ser eliminado.',
+            campo='motivo',
+        )
+    if tiene_movimientos_asociados:
+        raise ValidationError(
+            'No es posible eliminar el motivo porque tiene movimientos asociados en el historial. '
+            'Puede desactivarlo en su lugar.',
+            campo='motivo',
+        )

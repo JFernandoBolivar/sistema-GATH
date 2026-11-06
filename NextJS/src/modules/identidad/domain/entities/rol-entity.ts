@@ -6,6 +6,8 @@ export interface RolEntity {
   readonly id: number;
   readonly nombreRol: string;
   readonly descripcionRol: string;
+  readonly nUsuarios: number;
+  readonly nPermisos: number;
 }
 
 export function createRolEntity(entity: RolEntity): RolEntity {

@@ -15,6 +15,8 @@ class RolCatalogoLecturaSerializer(serializers.Serializer):
     id = serializers.IntegerField(source='identificador')
     nombre_rol = serializers.CharField(source='nombre')
     descripcion_rol = serializers.CharField(source='descripcion', allow_blank=True)
+    n_usuarios = serializers.IntegerField(required=False, default=0)
+    n_permisos = serializers.IntegerField(required=False, default=0)
 
 
 class RolCatalogoEscrituraSerializer(serializers.Serializer):

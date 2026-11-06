@@ -14,6 +14,7 @@ export const RUTA_PARAMETROS = "/configuracion/parametros";
 export const RUTA_VISUAL = "/configuracion/visual";
 export const RUTA_PUNTO_CUENTA = "/configuracion/punto-cuenta";
 export const RUTA_REGLAS_CATALOGOS = "/configuracion/reglas-catalogos";
+export const RUTA_AUTOGESTION_CONFIG = "/configuracion/autogestion";
 export const RUTA_CORREO_ACCESO = "/configuracion/correo-acceso";
 export const RUTA_AUDITORIA = "/auditoria";
 

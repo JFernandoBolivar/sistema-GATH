@@ -73,7 +73,7 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>{rolEditando ? "Editar rol" : "Nuevo rol"}</DialogTitle>
           <DialogDescription>
