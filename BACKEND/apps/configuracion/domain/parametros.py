@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 from apps.autogestion.domain.value_objects.secciones import CODIGOS_SECCIONES
 from core.domain.configuracion import (
+    ALCANCES_CARNET,
+    ALCANCE_CARNET_NADIE,
     CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
     CLAVE_AUTOGESTION_ACTIVOS_SECCIONES,
     CLAVE_AUTOGESTION_AVISO_DIAS,
@@ -16,6 +18,10 @@ from core.domain.configuracion import (
     CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
     CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
+    CLAVE_CARGA_MASIVA_APROBACION,
+    CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+    CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+    CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
     CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
@@ -41,14 +47,24 @@ GRUPO_FE_DE_VIDA = 'fe_de_vida'
 GRUPO_RETENCION = 'retencion'
 GRUPO_PUNTOS_CUENTA = 'puntocuenta'
 GRUPO_AUTOGESTION = 'autogestion'
+GRUPO_CARNETIZACION = 'carnetizacion'
 
 GRUPOS = (
     (GRUPO_NOTIFICACIONES, 'Notificaciones'),
     (GRUPO_PLAZOS, 'Plazos'),
     (GRUPO_FE_DE_VIDA, 'Fe de vida'),
+    (GRUPO_CARNETIZACION, 'Carnetización'),
     (GRUPO_AUTOGESTION, 'Autogestión'),
     (GRUPO_RETENCION, 'Retención de datos'),
     (GRUPO_PUNTOS_CUENTA, 'Puntos de cuenta'),
+)
+
+OPCIONES_MI_CARNET_ALCANCE: tuple[tuple[str, str], ...] = (
+    ('nadie', 'Nadie (apagado)'),
+    ('todos', 'Todos los trabajadores'),
+    ('activos', 'Solo personal activo'),
+    ('pasivos', 'Solo personal pasivo'),
+    ('usuarios_especificos', 'Usuarios específicos (por cédula)'),
 )
 
 # Secciones que se pueden habilitar por condición. El orden y los códigos salen del
@@ -261,6 +277,17 @@ DEFINICIONES = (
         defecto='false',
     ),
     ParametroDefinicion(
+        clave=CLAVE_CARGA_MASIVA_APROBACION,
+        etiqueta='Carga masiva requiere segunda aprobación',
+        descripcion=(
+            'Si está activo, quien carga el archivo no puede aplicar los cambios: otra persona con el permiso '
+            'de aprobación debe revisarlos y aprobarlos o rechazarlos con un motivo.'
+        ),
+        grupo='personal',
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
+    ParametroDefinicion(
         clave=CLAVE_RETENCION_EVIDENCIAS_DIAS,
         etiqueta='Retención de evidencias de fe de vida',
         descripcion=(
@@ -309,6 +336,43 @@ DEFINICIONES = (
         tipo=TIPO_ENTERO,
         defecto='90',
         opciones=OPCIONES_RETENCION,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+        etiqueta='Alcance de «Mi carnet» en Autogestión',
+        descripcion=(
+            'Determina quiénes pueden ver, solicitar y descargar su carnet digital institucional '
+            'desde Autogestión. «Nadie» lo apaga para todos; «Usuarios específicos» permite probar '
+            'con una lista de cédulas.'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_TEXTO,
+        defecto='nadie',
+        opciones=OPCIONES_MI_CARNET_ALCANCE,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+        etiqueta='Cédulas autorizadas para «Mi carnet» (usuarios específicos)',
+        descripcion=(
+            'Cédulas autorizadas cuando el alcance de «Mi carnet» es «Usuarios específicos». '
+            'Sepárelas con coma (por ejemplo: 12345678, 87654321).'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_TEXTO,
+        defecto='',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
+        etiqueta='Vigencia del carnet (meses)',
+        descripcion=(
+            'Meses de vigencia del carnet emitido antes de expirar. '
+            '0 = sin fecha de vencimiento (vigente mientras continúe activo en la institución).'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_ENTERO,
+        defecto='0',
+        minimo=0,
+        maximo=120,
     ),
 )
 
@@ -384,6 +448,18 @@ def validar_valor(
         if len(dias) > MAX_RECORDATORIOS:
             raise ValidationError(f'No se pueden configurar más de {MAX_RECORDATORIOS} días.')
         return ','.join(str(dia) for dia in dias)
+    if definicion.clave == CLAVE_CARNETIZACION_MI_CARNET_USUARIOS:
+        if len(texto) > 255:
+            raise ValidationError(f'«{definicion.etiqueta}» no puede superar 255 caracteres.')
+        return texto
+    if definicion.opciones:
+        permitidos = {str(valor) for valor, _ in definicion.opciones}
+        if texto not in permitidos and texto != (valor_actual or '').strip():
+            etiquetas = ', '.join(etiqueta for _, etiqueta in definicion.opciones)
+            raise ValidationError(
+                f'«{definicion.etiqueta}» debe ser una de estas opciones: {etiquetas}.'
+            )
+        return texto
     if not texto:
         raise ValidationError(f'«{definicion.etiqueta}» no puede quedar vacío.')
     if len(texto) > 255:

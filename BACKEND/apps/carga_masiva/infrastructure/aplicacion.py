@@ -1,0 +1,693 @@
+"""Aplicación y reversión de una carga masiva (O28-F4, FIX-CARGA1).
+
+Ningún cambio de condición se escribe con un `update` directo: se registra por
+los flujos existentes de Movimientos/Cargos y Pasivos, que emiten
+`cargo_movimiento_ejecutado` (historial, avisos, ciclo de vida de cuentas y
+carnetización por egreso).
+"""
+from datetime import date, datetime, time
+
+from django.db import transaction
+from django.utils import timezone
+
+from apps.carga_masiva.domain.condicion import puede_aplicarse, puede_confirmarse
+from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel
+from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
+from apps.catalogos.infrastructure.models.catalogo_models import (
+    EstadoCivilModel,
+    NacionalidadModel,
+    ParentescoModel,
+    SexoModel,
+)
+from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel
+from apps.familiares.application.use_cases.validaciones_familiar import (
+    es_parentesco_hijo,
+    resolver_cedula_familiar,
+)
+from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+from apps.pasivos.infrastructure.models.pasivo_models import (
+    CargoEgresadoModel,
+    EmployeeEgresadoModel,
+)
+from apps.pasivos.infrastructure.repositories.repo_pasivos_orm import RepoPasivosORM
+from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    AlergiaModel,
+    DiscapacidadModel,
+    PatologiaCronicaModel,
+    TallaModel,
+    TipoPrendaModel,
+)
+from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
+    ContactoEmergenciaModel,
+    DatosViviendaModel,
+    FormacionAcademicaModel,
+    FormacionComplementariaModel,
+    PerfilFisicoModel,
+    PerfilSaludAlergias,
+    PerfilSaludDiscapacidad,
+    PerfilSaludModel,
+    PerfilSaludPatologia,
+)
+from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from core.domain.configuracion import CLAVE_CARGA_MASIVA_APROBACION
+from core.domain.exceptions import ConflictError, ValidationError
+from core.domain.notificaciones import SolicitudNotificacion
+from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
+from core.presentation.audit import registrar_auditoria
+
+from apps.carga_masiva.domain.constantes import (
+    PERMISO_APROBAR,
+    TIPO_NOTIFICACION_PENDIENTE,
+)
+
+
+def _id(modelo, nombre):
+    if not nombre:
+        return None
+    campo = 'sexo' if modelo is SexoModel else 'nombre' if modelo is NacionalidadModel else 'estadoCivil'
+    return modelo.objects.filter(**{f'{campo}__iexact': nombre}).values_list('id', flat=True).first()
+
+
+def _aplicar_datos_personales(fila: CargaMasivaFilaModel):
+    datos = fila.datos
+    empleado = EmployeeModel.objects.filter(cedulaidentidad=datos['cedula']).first()
+    creado = empleado is None
+    sexo_id = _id(SexoModel, datos.get('sexo_id'))
+    nacionalidad_id = _id(NacionalidadModel, datos.get('nacionalidad_id'))
+    if creado:
+        if not sexo_id or not nacionalidad_id:
+            raise ValidationError('El sexo y la nacionalidad son obligatorios para crear el trabajador.')
+        empleado = EmployeeModel(
+            cedulaidentidad=datos['cedula'], nacionalidad_id=nacionalidad_id, sexoid_id=sexo_id,
+        )
+    empleado.nombres = datos.get('nombres') or empleado.nombres
+    empleado.apellidos = datos.get('apellidos') or empleado.apellidos
+    if sexo_id:
+        empleado.sexoid_id = sexo_id
+    if nacionalidad_id:
+        empleado.nacionalidad_id = nacionalidad_id
+    estado_civil_id = _id(EstadoCivilModel, datos.get('estado_civil_id'))
+    if estado_civil_id:
+        empleado.estadoCivil_id = estado_civil_id
+    if datos.get('fecha_nacimiento'):
+        empleado.fecha_nacimiento = datos['fecha_nacimiento']
+    for campo in ('correo', 'telefono_movil', 'telefono_habitacion'):
+        if datos.get(campo):
+            setattr(empleado, campo, datos[campo])
+    empleado.save()
+    return {'creado': creado}
+
+
+def _aplicar_familiar(fila: CargaMasivaFilaModel):
+    datos = fila.datos
+    titular = EmployeeModel.objects.filter(cedulaidentidad=datos['cedula_titular']).first()
+    if titular is None:
+        raise ValidationError('El titular no existe.', campo='cedula_titular')
+    parentesco = ParentescoModel.objects.filter(
+        descripcion_parentesco__iexact=datos.get('parentesco_id', ''),
+    ).first()
+    if parentesco is None:
+        raise ValidationError('El parentesco no existe.', campo='parentesco_id')
+    sexo = SexoModel.objects.filter(sexo__iexact=datos.get('sexo_id', '')).first()
+    if sexo is None:
+        raise ValidationError('El sexo del familiar no existe.', campo='sexo_id')
+    familiar = EmployeefamilyModel.objects.filter(
+        employeecedula_id=titular.cedulaidentidad,
+        cedulaFamiliar=datos.get('cedula_familiar') or None,
+    ).first()
+    creado = familiar is None
+    if creado:
+        familiar = EmployeefamilyModel(employeecedula_id=titular.cedulaidentidad)
+    fecha_nacimiento = datos.get('fecha_nacimiento')
+    if isinstance(fecha_nacimiento, str):
+        fecha_nacimiento = date.fromisoformat(fecha_nacimiento)
+    cedula = (datos.get('cedula_familiar') or '').strip() or None
+    if creado:
+        existentes = {
+            str(c) for c in EmployeefamilyModel.objects.filter(
+                employeecedula_id=titular.cedulaidentidad,
+            ).values_list('cedulaFamiliar', flat=True) if c
+        }
+        cedula = resolver_cedula_familiar(
+            cedula_familiar=cedula,
+            cedula_empleado=str(titular.cedulaidentidad),
+            es_hijo=es_parentesco_hijo(parentesco.descripcion_parentesco),
+            fecha_nacimiento=fecha_nacimiento,
+            orden_hijo=datos.get('orden_hijo'),
+            cedulas_existentes=existentes,
+        )
+    familiar.cedulaFamiliar = cedula or familiar.cedulaFamiliar
+    familiar.primer_nombre = datos.get('nombres') or familiar.primer_nombre
+    familiar.primer_apellido = datos.get('apellidos') or familiar.primer_apellido
+    familiar.parentesco = parentesco
+    familiar.sexo = sexo
+    familiar.fechanacimiento = fecha_nacimiento
+    familiar.orden_hijo = datos.get('orden_hijo') or familiar.orden_hijo
+    familiar.save()
+    return {'creado': creado, 'id': familiar.pk}
+
+
+def _aplicar_cargo(fila: CargaMasivaFilaModel, usuario_id: int | None):
+    datos = fila.datos
+    empleado = EmployeeModel.objects.filter(cedulaidentidad=datos.get('cedula', '')).first()
+    if empleado is None:
+        raise ValidationError('El trabajador no existe.', campo='cedula')
+    asignacion = AsigTrabajoModel.objects.filter(codigo=datos.get('codigo_cargo', '')).first()
+    if asignacion is None:
+        raise ValidationError('El código de cargo no existe.', campo='codigo_cargo')
+    ya_asignado = asignacion.employee_id == empleado.cedulaidentidad
+    if not ya_asignado:
+        RepoCargosORM().asignar_cargo_a_empleado(
+            asignacion.pk, empleado.cedulaidentidad,
+            motivo_id=fila.movimiento.get('motivo_id') if fila.movimiento else None,
+            usuario_id=usuario_id,
+        )
+    fecha_ingreso = datos.get('fecha_ingreso')
+    if fecha_ingreso:
+        AntecedenteServicioModel.objects.get_or_create(
+            empleado_id=empleado.pk,
+            fecha_ingreso=fecha_ingreso,
+            defaults={'fecha_egreso': None},
+        )
+    return {'cargo_id': asignacion.pk, 'cargo_codigo': asignacion.codigo}
+
+
+def _aplicar_salud_tallas(fila: CargaMasivaFilaModel):
+    datos = fila.datos
+    empleado = EmployeeModel.objects.filter(cedulaidentidad=datos.get('cedula', '')).first()
+    if empleado is None:
+        raise ValidationError('El trabajador no existe.', campo='cedula')
+
+    perfil = PerfilSaludModel.objects.filter(empleado_id=empleado.pk).first()
+    if perfil is None:
+        perfil = PerfilSaludModel.objects.create(empleado_id=empleado.pk)
+
+    discapacidad = DiscapacidadModel.objects.filter(
+        discapacidad__iexact=datos.get('discapacidad_id', ''),
+    ).first()
+    if datos.get('discapacidad_id') and discapacidad is None:
+        raise ValidationError('La discapacidad no existe.', campo='discapacidad_id')
+    if discapacidad:
+        PerfilSaludDiscapacidad.objects.get_or_create(
+            perfil_salud=perfil, discapacidades=discapacidad,
+        )
+
+    alergia = AlergiaModel.objects.filter(alergia__iexact=datos.get('alergia_id', '')).first()
+    if datos.get('alergia_id') and alergia is None:
+        raise ValidationError('La alergia no existe.', campo='alergia_id')
+    if alergia:
+        PerfilSaludAlergias.objects.get_or_create(perfil_salud=perfil, alergias=alergia)
+
+    patologia = PatologiaCronicaModel.objects.filter(
+        patologia__iexact=datos.get('patologia_id', ''),
+    ).first()
+    if datos.get('patologia_id') and patologia is None:
+        raise ValidationError('La patología no existe.', campo='patologia_id')
+    if patologia:
+        PerfilSaludPatologia.objects.get_or_create(
+            perfil_salud=perfil, patologias_cronicas=patologia,
+        )
+
+    fisico = PerfilFisicoModel.objects.filter(empleado_id=empleado.pk).first()
+    if fisico is None:
+        fisico = PerfilFisicoModel(empleado_id=empleado.pk)
+    campos_talla = {
+        'talla_camisa': ('tallaCamisa', 'camisa'),
+        'talla_pantalon': ('tallaPantalon', 'pantalon'),
+        'talla_zapato': ('tallaZapatos', 'zapato'),
+    }
+    for clave, (campo, prenda) in campos_talla.items():
+        valor = datos.get(clave)
+        if not valor:
+            continue
+        talla = TallaModel.objects.filter(
+            valor__iexact=valor, tipo_prenda__categoria__icontains=prenda,
+        ).first()
+        if talla is None:
+            raise ValidationError(f'La talla de {prenda} no existe.', campo=clave)
+        setattr(fisico, campo, talla)
+    fisico.save()
+    return {'perfil_salud_id': perfil.pk, 'perfil_fisico_id': fisico.pk}
+
+
+def _aplicar_otras(fila: CargaMasivaFilaModel, usuario_id: int | None = None):
+    datos = fila.datos
+    empleado = EmployeeModel.objects.filter(cedulaidentidad=datos.get('cedula', '')).first()
+    if empleado is None and fila.tipo != 'antecedentes_laborales':
+        raise ValidationError('El trabajador no existe.', campo='cedula')
+    if fila.tipo == 'contactos_emergencia':
+        relacion = ParentescoModel.objects.filter(
+            descripcion_parentesco__iexact=datos.get('parentesco_id', ''),
+        ).first()
+        contacto = ContactoEmergenciaModel.objects.filter(
+            empleado_id=empleado.pk, nombres__iexact=datos.get('nombres', ''),
+            apellidos__iexact=datos.get('apellidos', ''),
+        ).first() or ContactoEmergenciaModel(empleado_id=empleado.pk)
+        creado = contacto.pk is None
+        contacto.nombres = datos.get('nombres') or contacto.nombres
+        contacto.apellidos = datos.get('apellidos') or contacto.apellidos
+        contacto.telefono = datos.get('telefono') or contacto.telefono
+        contacto.relacion = relacion or contacto.relacion
+        contacto.save()
+        return {'id': contacto.pk, 'creado': creado}
+    if fila.tipo == 'vivienda':
+        estado = EstadoModel.objects.filter(estado__iexact=datos.get('estado_id', '')).first()
+        municipio = MunicipioModel.objects.filter(municipio__iexact=datos.get('municipio_id', '')).first()
+        if estado is None:
+            raise ValidationError('El estado no existe.', campo='estado_id')
+        vivienda = DatosViviendaModel.objects.filter(empleado_id=empleado.pk).first()
+        creado = vivienda is None
+        vivienda = vivienda or DatosViviendaModel(empleado_id=empleado.pk)
+        vivienda.estado = estado
+        vivienda.municipio = municipio or vivienda.municipio or MunicipioModel.objects.first()
+        vivienda.parroquia = vivienda.parroquia or None
+        vivienda.direccion_exacta = datos.get('direccion_exacta') or vivienda.direccion_exacta
+        vivienda.condicion_vivienda_id = vivienda.condicion_vivienda_id or None
+        vivienda.save()
+        return {'id': vivienda.pk, 'creado': creado}
+    if fila.tipo == 'formacion_academica':
+        titulo = datos.get('titulo', '')
+        formacion = FormacionAcademicaModel.objects.filter(empleado_id=empleado.pk).first()
+        creado = formacion is None
+        formacion = formacion or FormacionAcademicaModel(empleado_id=empleado.pk)
+        formacion.carrera_id = formacion.carrera_id or None
+        formacion.nivel_academico_id = formacion.nivel_academico_id or None
+        formacion.save()
+        return {'id': formacion.pk, 'creado': creado, 'titulo': titulo}
+    if fila.tipo == 'formacion_complementaria':
+        curso = datos.get('curso', '')
+        formacion = FormacionComplementariaModel.objects.filter(
+            empleado_id=empleado.pk, capacitacion__nombre__iexact=curso,
+        ).first()
+        if formacion is None:
+            from apps.personal.infrastructure.models.catalogos_soporte_models import CapacitacionModel
+
+            capacitacion, _ = CapacitacionModel.objects.get_or_create(nombre=curso[:160])
+            formacion = FormacionComplementariaModel(
+                empleado_id=empleado.pk, capacitacion=capacitacion,
+                procedencia_id=formacion.procedencia_id if formacion else None,
+            )
+        formacion.fechaInicio = datos.get('fecha_inicio') or formacion.fechaInicio
+        formacion.fechaFin = datos.get('fecha_fin') or formacion.fechaFin
+        formacion.horas_completadas = datos.get('horas') or formacion.horas_completadas
+        formacion.save()
+        return {'id': formacion.pk}
+    if fila.tipo == 'antecedentes_laborales':
+        antecedente = AntecedenteServicioModel.objects.filter(
+            empleado_id=empleado.pk, fecha_ingreso=datos.get('fecha_ingreso'),
+        ).first() or AntecedenteServicioModel(empleado_id=empleado.pk)
+        antecedente.fecha_ingreso = datos.get('fecha_ingreso')
+        antecedente.fecha_egreso = datos.get('fecha_egreso') or None
+        antecedente.save()
+        return {'id': antecedente.pk}
+    raise ValidationError(f'Tipo aún no aplicable: {fila.tipo}.')
+
+
+def _fecha(valor) -> date | None:
+    if isinstance(valor, date):
+        return valor
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(str(valor)[:10])
+    except ValueError:
+        return None
+
+
+def _es_origen_movimiento(fila: CargaMasivaFilaModel) -> bool:
+    movimiento = fila.movimiento or {}
+    origen = movimiento.get('origen') or {}
+    return (
+        origen.get('tipo') == fila.tipo
+        and int(origen.get('numero_fila') or 0) == int(fila.numero_fila)
+    )
+
+
+def _cedula_de(fila: CargaMasivaFilaModel) -> str:
+    return str(fila.datos.get('cedula') or fila.datos.get('cedula_titular') or '')
+
+
+def _mover_a_pasivo(fila: CargaMasivaFilaModel, movimiento: dict, actor_id: int | None) -> None:
+    """Activo → pasivo por el flujo existente; guarda el rastro para revertir."""
+    cedula = _cedula_de(fila)
+    empleado = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+    if empleado is None:
+        raise ValidationError('El trabajador no existe.', campo='cedula')
+    motivo_id = movimiento.get('motivo_id')
+    tipo_nomina_id = movimiento.get('tipo_nomina_id')
+    if not motivo_id or not tipo_nomina_id:
+        raise ValidationError(
+            'El movimiento a pasivo requiere motivo y tipo de nómina de pasivo.',
+            campo='movimiento',
+        )
+    cargos_activos = list(
+        AsigTrabajoModel.objects.filter(employee=empleado)
+        .exclude(Tipo_personal__tipo_personal__iexact='PASIVO')
+        .values_list('pk', flat=True)
+    )
+    egresos_previos = set(
+        EmployeeEgresadoModel.objects.filter(employee=empleado).values_list('pk', flat=True)
+    )
+    fecha = _fecha(movimiento.get('fecha'))
+    fecha_egreso = (
+        timezone.make_aware(datetime.combine(fecha, time.min)) if fecha else None
+    )
+    RepoPasivosORM().procesar_egreso_a_pasivo(
+        cedula=cedula,
+        motivo_movimiento_id=int(motivo_id),
+        tipo_nomina_id=int(tipo_nomina_id),
+        liberar_activos=True,
+        usuario_id=actor_id,
+        fecha_egreso=fecha_egreso,
+    )
+    pasivo = (
+        AsigTrabajoModel.objects.filter(
+            employee=empleado, Tipo_personal__tipo_personal__iexact='PASIVO',
+        )
+        .order_by('-fecha_actualizacion')
+        .first()
+    )
+    egreso = (
+        EmployeeEgresadoModel.objects.filter(employee=empleado)
+        .exclude(pk__in=egresos_previos)
+        .order_by('-pk')
+        .first()
+    )
+    movimiento.update({
+        'aplicado': True,
+        'pasivo_cargo_id': pasivo.pk if pasivo else None,
+        'cargos_activos_liberados': cargos_activos,
+        'egreso_id': egreso.pk if egreso else None,
+    })
+    fila.movimiento = movimiento
+
+
+def _mover_a_activo(fila: CargaMasivaFilaModel, movimiento: dict, actor_id: int | None) -> None:
+    """Pasivo → activo: libera el puesto pasivo y deja que Cargos asigne el activo.
+
+    El cargo activo lo asigna `_aplicar_cargo` con
+    `RepoCargosORM.asignar_cargo_a_empleado`, que emite INGRESO. Aquí solo se
+    cierra la asignación pasiva con el flujo existente `desasignar_cargo` y se
+    retiran los snapshots de egreso que impedían que la condición derivada
+    volviera a ACTIVO.
+    """
+    cedula = _cedula_de(fila)
+    pasivo = (
+        AsigTrabajoModel.objects.filter(
+            employee_id=cedula, Tipo_personal__tipo_personal__iexact='PASIVO',
+        )
+        .order_by('-fecha_actualizacion')
+        .first()
+    )
+    if pasivo is None:
+        raise ValidationError('La cédula no tiene una asignación pasiva vigente.', campo='cedula')
+    mov = dict(movimiento)
+    mov.update({
+        'aplicado': True,
+        'pasivo_cargo_id': pasivo.pk,
+        'tipo_nomina_pasivo_id': pasivo.tiponominaid_id,
+        'cargo_activo_id': mov.get('cargo_id'),
+        'egresos_eliminados': list(
+            EmployeeEgresadoModel.objects.filter(employee_id=cedula).values_list('pk', flat=True)
+        ),
+    })
+    RepoCargosORM().desasignar_cargo(pasivo.pk, usuario_id=actor_id)
+    for egreso in EmployeeEgresadoModel.objects.filter(employee_id=cedula):
+        CargoEgresadoModel.objects.filter(egreso=egreso).delete()
+        egreso.delete()
+    fila.movimiento = mov
+
+
+def _aplicar_cambio_condicion(
+    fila: CargaMasivaFilaModel, movimientos_hechos: set[str], actor_id: int | None,
+) -> None:
+    movimiento = dict(fila.movimiento or {})
+    if not movimiento:
+        raise ValidationError('La fila requiere confirmación pero no tiene movimiento.')
+    completo, mensaje = puede_confirmarse(fila.estado, movimiento)
+    if not completo:
+        raise ValidationError(mensaje, campo='movimiento')
+    cedula = _cedula_de(fila)
+    if _es_origen_movimiento(fila):
+        if cedula in movimientos_hechos:
+            return
+        if movimiento.get('tipo') == 'ACTIVO_A_PASIVO':
+            _mover_a_pasivo(fila, movimiento, actor_id)
+        elif movimiento.get('tipo') == 'PASIVO_A_ACTIVO':
+            _mover_a_activo(fila, movimiento, actor_id)
+        else:
+            raise ValidationError('El tipo de movimiento de condición no es válido.', campo='movimiento')
+        movimientos_hechos.add(cedula)
+        return
+    if cedula not in movimientos_hechos:
+        raise ValidationError(
+            'Primero confirme y aplique la fila que registra el cambio de condición de esta cédula.',
+            campo='movimiento',
+        )
+
+
+def _requiere_aprobacion() -> bool:
+    lector = obtener_lector_configuracion()
+    if lector is None:
+        return False
+    return bool(lector.obtener_booleano(CLAVE_CARGA_MASIVA_APROBACION))
+
+
+def aplicar_carga(
+    carga: CargaMasivaModel, actor_cedula: str, actor_id: int | None = None,
+) -> CargaMasivaModel:
+    if carga.estado == CargaMasivaModel.Estado.PENDIENTE_APROBACION:
+        if carga.solicitada_por_cedula == actor_cedula:
+            raise ConflictError('Otra persona debe aprobar esta carga.')
+    elif carga.estado != CargaMasivaModel.Estado.ANALIZADA:
+        raise ConflictError('La carga no está lista para aplicarse.')
+    if _requiere_aprobacion() and carga.aprobada_por_cedula == '':
+        carga.estado = CargaMasivaModel.Estado.PENDIENTE_APROBACION
+        carga.save(update_fields=['estado'])
+        _notificar_aprobacion(carga)
+        raise ConflictError('La carga requiere la aprobación de otra persona.')
+    aplicadas = 0
+    with transaction.atomic():
+        filas = list(carga.filas.select_for_update())
+        # Los movimientos de condición se resuelven primero para que las demás
+        # filas de la misma cédula encuentren el movimiento ya ejecutado.
+        filas.sort(key=lambda f: (0 if _es_origen_movimiento(f) else 1, f.numero_fila))
+        movimientos_hechos: set[str] = set()
+        for fila in filas:
+            if not puede_aplicarse(fila.estado, fila.confirmada):
+                continue
+            cedula = _cedula_de(fila)
+            try:
+                # Savepoint por fila: un error de BD no invalida el lote completo.
+                with transaction.atomic():
+                    if fila.estado == CargaMasivaFilaModel.Estado.REQUIERE_CONFIRMACION:
+                        _aplicar_cambio_condicion(fila, movimientos_hechos, actor_id)
+                    if fila.tipo == 'datos_personales':
+                        anteriores = _aplicar_datos_personales(fila)
+                    elif fila.tipo == 'familiares':
+                        anteriores = _aplicar_familiar(fila)
+                    elif fila.tipo == 'cargo_asignacion':
+                        anteriores = _aplicar_cargo(fila, actor_id)
+                        if fila.movimiento.get('tipo') == 'PASIVO_A_ACTIVO':
+                            fila.movimiento['cargo_activo_id'] = anteriores.get('cargo_id')
+                    elif fila.tipo == 'salud_tallas':
+                        anteriores = _aplicar_salud_tallas(fila)
+                    else:
+                        anteriores = _aplicar_otras(fila, actor_id)
+                    fila.anteriores = {**fila.anteriores, **anteriores}
+                    fila.aplicada = True
+                    fila.error_aplicacion = ''
+                _auditar_fila(carga, fila, actor_id, actor_cedula)
+                aplicadas += 1
+            except Exception as exc:  # noqa: BLE001
+                movimientos_hechos.discard(cedula)
+                fila.error_aplicacion = str(exc)[:300]
+            fila.save(update_fields=['aplicada', 'anteriores', 'error_aplicacion', 'movimiento'])
+        carga.filas_confirmadas = carga.filas.filter(confirmada=True).count()
+        carga.estado = CargaMasivaModel.Estado.APLICADA
+        carga.aplicada_en = timezone.now()
+        carga.save(update_fields=['estado', 'aplicada_en', 'filas_confirmadas'])
+    return carga
+
+
+def confirmar_filas(
+    carga: CargaMasivaModel,
+    fila_ids: list[str],
+    actor_cedula: str,
+    actor_id: int | None = None,
+) -> CargaMasivaModel:
+    """Confirma el movimiento de una o varias filas de cambio de condición.
+
+    Sin esta confirmación explícita la fila no se aplica. La confirmación es
+    idempotente y puede hacerse mientras la carga espera aprobación.
+    """
+    if carga.estado not in (
+        CargaMasivaModel.Estado.ANALIZADA,
+        CargaMasivaModel.Estado.PENDIENTE_APROBACION,
+    ):
+        raise ConflictError('Solo se confirman filas de una carga analizada o pendiente de aprobación.')
+    if not fila_ids:
+        raise ValidationError('Seleccione al menos una fila para confirmar.', campo='filas')
+    with transaction.atomic():
+        filas = list(carga.filas.select_for_update().filter(pk__in=fila_ids))
+        if len(filas) != len(set(fila_ids)):
+            raise ValidationError('Alguna de las filas indicadas no existe en esta carga.', campo='filas')
+        for fila in filas:
+            completo, mensaje = puede_confirmarse(fila.estado, fila.movimiento)
+            if not completo:
+                raise ValidationError(
+                    f'Fila {fila.numero_fila}: {mensaje}', campo='filas',
+                )
+        ahora = timezone.now()
+        for fila in filas:
+            fila.confirmada = True
+            fila.confirmada_por_cedula = actor_cedula or ''
+            fila.confirmada_en = ahora
+            fila.save(update_fields=['confirmada', 'confirmada_por_cedula', 'confirmada_en'])
+        carga.filas_confirmadas = carga.filas.filter(confirmada=True).count()
+        carga.save(update_fields=['filas_confirmadas'])
+    return carga
+
+
+def _auditar_fila(
+    carga: CargaMasivaModel, fila: CargaMasivaFilaModel,
+    actor_id: int | None, actor_cedula: str,
+) -> None:
+    recurso = (
+        fila.datos.get('cedula')
+        or fila.datos.get('cedula_titular')
+        or str(fila.pk)
+    )
+    estado_nuevo = {'carga_id': str(carga.id), 'fila': fila.numero_fila}
+    if fila.movimiento:
+        estado_nuevo['movimiento'] = fila.movimiento.get('tipo')
+        estado_nuevo['condicion'] = (
+            f"{fila.movimiento.get('condicion_actual')} -> "
+            f"{fila.movimiento.get('condicion_nueva')}"
+        )
+    registrar_auditoria(
+        trace_id=str(carga.id), actor_id=actor_id, actor_cedula=actor_cedula,
+        actor_rol='', accion='CARGA_MASIVA_REGISTRO_APLICADO', modulo=carga.modulo,
+        recurso_tipo=fila.tipo, recurso_id=str(recurso),
+        estado_nuevo=estado_nuevo,
+    )
+
+
+def _notificar_aprobacion(carga: CargaMasivaModel) -> None:
+    notificador = obtener_notificador()
+    if notificador is None:
+        return
+    notificador.notificar(SolicitudNotificacion(
+        tipo=TIPO_NOTIFICACION_PENDIENTE,
+        titulo='Carga masiva pendiente de aprobación',
+        mensaje=(
+            f'La carga «{carga.archivo_nombre}» ({carga.poblacion.lower()}) tiene '
+            f'{carga.filas_validas} registro(s) listos. Revísela y apruébela o '
+            'rechácela con un motivo.'
+        ),
+        permiso_destino=PERMISO_APROBAR,
+        excluir_cedulas=(carga.solicitada_por_cedula,),
+        ref_tipo='carga_masiva',
+        ref_id=str(carga.id),
+        clave='pendiente-aprobacion',
+        modulo=carga.modulo,
+    ))
+
+
+def aprobar_carga(
+    carga: CargaMasivaModel, actor_cedula: str, actor_id: int | None = None,
+) -> CargaMasivaModel:
+    if carga.estado != CargaMasivaModel.Estado.PENDIENTE_APROBACION:
+        raise ConflictError('La carga no está pendiente de aprobación.')
+    if carga.solicitada_por_cedula == actor_cedula:
+        raise ConflictError('Quien cargó el archivo no puede aprobarlo.')
+    carga.aprobada_por_cedula = actor_cedula
+    carga.save(update_fields=['aprobada_por_cedula'])
+    return aplicar_carga(carga, actor_cedula, actor_id)
+
+
+def rechazar_carga(carga: CargaMasivaModel, actor_cedula: str, motivo: str) -> CargaMasivaModel:
+    if carga.estado != CargaMasivaModel.Estado.PENDIENTE_APROBACION:
+        raise ConflictError('La carga no está pendiente de aprobación.')
+    if carga.solicitada_por_cedula == actor_cedula:
+        raise ConflictError('Quien cargó el archivo no puede rechazarlo.')
+    if not motivo or not motivo.strip():
+        raise ValidationError('Indique el motivo del rechazo.', campo='motivo')
+    carga.estado = CargaMasivaModel.Estado.RECHAZADA
+    carga.motivo_rechazo = motivo.strip()
+    carga.save(update_fields=['estado', 'motivo_rechazo'])
+    return carga
+
+
+def _revertir_movimiento(
+    fila: CargaMasivaFilaModel, movimiento: dict, actor_id: int | None = None,
+) -> None:
+    """Compensa el movimiento de condición con los mismos flujos existentes."""
+    if not movimiento.get('aplicado'):
+        return
+    cedula = _cedula_de(fila)
+    if movimiento.get('tipo') == 'ACTIVO_A_PASIVO':
+        pasivo_id = movimiento.get('pasivo_cargo_id')
+        if pasivo_id:
+            RepoCargosORM().desasignar_cargo(int(pasivo_id), usuario_id=actor_id)
+        for cargo_id in movimiento.get('cargos_activos_liberados') or []:
+            if AsigTrabajoModel.objects.filter(pk=cargo_id, employee__isnull=True).exists():
+                RepoCargosORM().asignar_cargo_a_empleado(
+                    int(cargo_id), cedula, usuario_id=actor_id,
+                )
+        egreso_id = movimiento.get('egreso_id')
+        if egreso_id:
+            egreso = EmployeeEgresadoModel.objects.filter(pk=egreso_id).first()
+            if egreso is not None:
+                CargoEgresadoModel.objects.filter(egreso=egreso).delete()
+                egreso.delete()
+    elif movimiento.get('tipo') == 'PASIVO_A_ACTIVO':
+        cargo_activo_id = movimiento.get('cargo_activo_id')
+        if cargo_activo_id:
+            RepoCargosORM().desasignar_cargo(int(cargo_activo_id), usuario_id=actor_id)
+        pasivo_id = movimiento.get('pasivo_cargo_id')
+        if pasivo_id and AsigTrabajoModel.objects.filter(
+            pk=pasivo_id, employee__isnull=True,
+        ).exists():
+            RepoCargosORM().asignar_cargo_a_empleado(
+                int(pasivo_id), cedula, usuario_id=actor_id,
+            )
+
+
+def revertir_carga(carga: CargaMasivaModel, actor_id: int | None = None) -> CargaMasivaModel:
+    if carga.estado != CargaMasivaModel.Estado.APLICADA:
+        raise ConflictError('Solo se puede revertir una carga aplicada.')
+    with transaction.atomic():
+        filas = list(carga.filas.filter(aplicada=True).order_by('numero_fila'))
+        movimientos_revertidos: set[str] = set()
+        for fila in filas:
+            movimiento = dict(fila.movimiento or {})
+            cedula = _cedula_de(fila)
+            if movimiento.get('aplicado') and cedula not in movimientos_revertidos:
+                _revertir_movimiento(fila, movimiento, actor_id)
+                movimientos_revertidos.add(cedula)
+                movimiento['aplicado'] = False
+                movimiento['revertido'] = True
+                fila.movimiento = movimiento
+        for fila in filas:
+            if fila.tipo == 'datos_personales':
+                empleado = EmployeeModel.objects.filter(cedulaidentidad=fila.datos.get('cedula')).first()
+                if empleado and fila.anteriores.get('creado'):
+                    empleado.delete()
+                elif empleado:
+                    for campo in ('nombres', 'apellidos', 'correo', 'telefono_movil', 'telefono_habitacion'):
+                        setattr(empleado, campo, fila.anteriores.get(campo) or None)
+                    empleado.save()
+            elif fila.tipo == 'familiares' and fila.anteriores.get('id'):
+                familiar = EmployeefamilyModel.objects.filter(pk=fila.anteriores['id']).first()
+                if familiar:
+                    if fila.anteriores.get('creado'):
+                        familiar.delete()
+            fila.aplicada = False
+            fila.save(update_fields=['aplicada', 'movimiento'])
+        carga.estado = CargaMasivaModel.Estado.REVERTIDA
+        carga.revertida_en = timezone.now()
+        carga.save(update_fields=['estado', 'revertida_en'])
+    return carga

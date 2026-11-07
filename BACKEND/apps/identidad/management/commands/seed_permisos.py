@@ -7,7 +7,7 @@ Ejecutar:
 import uuid
 
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import connection, transaction
 
 from apps.identidad.infrastructure.models.permiso_model import (
     PermisoModel,
@@ -19,6 +19,11 @@ from apps.identidad.infrastructure.repositories.repo_permisos_version_orm import
     RepoPermisosVersionORM,
 )
 from apps.identidad.infrastructure.repositories.repo_roles_orm import RepoRolesORM
+from apps.identidad.infrastructure.schema.nombres_visibles_roles import (
+    NOMBRES_VISIBLES_ROLES,
+    aplicar_nombres_visibles,
+    normalizar_codigo_legado,
+)
 from core.presentation.audit import registrar_auditoria
 
 # Catálogo taxonómico de permisos del Sistema GATH: [modulo].[accion]
@@ -39,7 +44,7 @@ PERMISOS_CATALOGO = [
     ("identidad.desbloquear_cuentas", "Desbloquear cuentas tras incidentes de seguridad"),
     ("identidad.listar_permisos", "Consultar el catálogo completo de permisos"),
     ("identidad.consultar_permisos", "Consultar el permiso efectivo de una cuenta"),
-    ("identidad.gestionar_permisos_individuales", "Gestionar los permisos individuales (overrides allow/deny) de una cuenta"),
+    ("identidad.gestionar_permisos_individuales", "Gestionar los permisos individuales (concesiones y restricciones) de una cuenta"),
 
     # ─── 2. ORGANIZACIÓN ───
     ("organizacion.ver", "Consultar dependencias, direcciones y coordinaciones"),
@@ -63,13 +68,17 @@ PERMISOS_CATALOGO = [
     ("personal.editar_laborales", "Actualizar datos de contratación y nómina"),
     ("personal.editar_educacion", "Actualizar nivel de instrucción y títulos"),
     ("personal.editar_vivienda", "Actualizar información habitacional"),
-    ("personal.ver_salud", "Consultar información médica y salud (PII protegido)"),
+    ("personal.ver_salud", "Consultar información médica y salud (dato sensible)"),
     ("personal.editar_salud", "Actualizar información médica y antecedentes de salud"),
     ("personal.egresar", "Procesar egreso de personal activo"),
     ("personal.reincorporar", "Reincorporar trabajador egresado"),
     ("personal.carga_masiva", "Ejecutar importación masiva de personal vía Excel"),
     ("personal.exportar_pdf", "Exportar el expediente de un trabajador activo en PDF"),
     ("personal.reportes_error_ver", "Consultar y gestionar reportes de error en datos laborales"),
+    ("personal.carga_masiva_aplicar", "Aplicar una carga masiva analizada"),
+    ("personal.carga_masiva_aprobar", "Aprobar o rechazar una carga masiva pendiente"),
+    ("personal.carga_masiva_revertir", "Revertir una carga masiva aplicada"),
+    ("personal.aprobar_antecedentes", "Aprobar antecedentes de servicio en solicitudes de actualización"),
 
     # ─── 5. PERSONAL PASIVO ───
     ("pasivos.ver", "Consultar listado y ficha básica de personal pasivo"),
@@ -78,6 +87,7 @@ PERMISOS_CATALOGO = [
     ("pasivos.editar", "Modificar datos de personal pasivo"),
     ("pasivos.exportar_pdf", "Exportar el expediente de un trabajador pasivo en PDF"),
     ("pasivos.cambiar_condicion", "Actualizar condición pasiva (jubilado, sobreviviente)"),
+    ("pasivos.carga_masiva", "Ejecutar importación masiva de personal pasivo vía Excel"),
 
     # ─── 6. CARGOS Y UBICACIONES ───
     ("cargos.ver", "Consultar catálogo de cargos y vacantes"),
@@ -159,7 +169,7 @@ PERMISOS_CATALOGO = [
     ("fe_de_vida.check_analista", "Dar el check de la Analista en una fe de vida"),
     ("fe_de_vida.check_administradora", "Dar el check de la Administradora en una fe de vida"),
     ("fe_de_vida.aprobar_directo", "Validar una fe de vida por aprobación directa de la Administradora"),
-    ("fe_de_vida.ver_evidencia", "Ver la foto de evidencia de una fe de vida (URL prefirmada corta)"),
+    ("fe_de_vida.ver_evidencia", "Ver la foto de evidencia de una fe de vida"),
     ("fe_de_vida.verificar_constancia", "Verificar internamente una constancia de fe de vida"),
     ("fe_de_vida.ver_panel", "Consultar el panel de fe de vida de Bienestar"),
     ("fe_de_vida.configurar_plantilla", "Editar la plantilla de la constancia de fe de vida"),
@@ -210,15 +220,19 @@ ROL_ASIGNACIONES = {
         "personal.editar_vivienda",
         "personal.egresar",
         "personal.reincorporar",
-        "personal.carga_masiva",
         "personal.exportar_pdf",
         "personal.reportes_error_ver",
+        "personal.carga_masiva",
+        "personal.carga_masiva_aplicar",
+        "personal.carga_masiva_aprobar",
+        "personal.carga_masiva_revertir",
         "pasivos.ver",
         "pasivos.ver_detalle",
         "pasivos.crear",
         "pasivos.editar",
         "pasivos.cambiar_condicion",
         "pasivos.exportar_pdf",
+        "pasivos.carga_masiva",
         "cargos.ver",
         "cargos.crear",
         "cargos.editar",
@@ -448,9 +462,14 @@ ROLES_NUEVOS = {
             "personal.ver",
             "personal.ver_detalle",
             "personal.exportar_pdf",
+            "personal.carga_masiva",
+            "personal.carga_masiva_aprobar",
+            "personal.carga_masiva_revertir",
+            "personal.aprobar_antecedentes",
             "pasivos.ver",
             "pasivos.ver_detalle",
             "pasivos.exportar_pdf",
+            "pasivos.carga_masiva",
             "catalogos.ver",
             "movimientos.ver",
             "reportes.ver",
@@ -517,12 +536,21 @@ class Command(BaseCommand):
             )
 
             # 2a. Roles nuevos: se crean una sola vez, con su conjunto inicial.
+            # O43: `identidad.0010` corre este seed ANTES de `0011`; la columna se garantiza
+            # aquí (idempotente) para que crear roles funcione con la base sin migrar.
+            aplicar_nombres_visibles(connection)
             repo_roles = RepoRolesORM()
             roles_creados: set[int] = set()
             for nombre, (descripcion, _codigos) in ROLES_NUEVOS.items():
                 if not repo_roles.existe_nombre(nombre):
-                    rol = repo_roles.crear(nombre, descripcion)
+                    rol = repo_roles.crear(
+                        nombre,
+                        NOMBRES_VISIBLES_ROLES.get(normalizar_codigo_legado(nombre), ''),
+                        descripcion,
+                    )
                     roles_creados.add(rol.identificador)
+            # O43: completa el nombre visible de los roles que aún no lo tienen.
+            aplicar_nombres_visibles(connection)
             self.stdout.write(f"Roles nuevos creados: {len(roles_creados)} de {len(ROLES_NUEVOS)}.")
 
             roles_retirados = self._retirar_permisos()

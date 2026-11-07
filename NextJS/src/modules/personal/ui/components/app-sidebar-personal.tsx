@@ -107,6 +107,12 @@ const items: MenuItem[] = [
         permiso: "personal.ver",
       },
       {
+        title: "Carga Masiva",
+        url: "/personal/carga-masiva",
+        icon: FileSpreadsheet,
+        permiso: "personal.carga_masiva",
+      },
+      {
         title: "Agregar Familiar",
         url: "/familiares/registrar",
         icon: ContactRound,
@@ -482,7 +488,7 @@ export function AppSidebarPersonal() {
               </div>
               <div className="flex flex-col">
                 <h2 className="font-semibold">
-                  Rol: {session.user.role.nombre_rol}
+                  Rol: {session.user.role.nombre_visible || session.user.role.nombre_rol}
                 </h2>
 
               </div>

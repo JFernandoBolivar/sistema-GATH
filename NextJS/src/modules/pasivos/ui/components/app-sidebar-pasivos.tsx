@@ -19,6 +19,7 @@ import {
   BookUser,
   CalendarClock,
   ContactRound,
+  FileSpreadsheet,
   HeartPulse,
   Home,
   ListCheck,
@@ -95,6 +96,12 @@ const items: MenuItem[] = [
         url: "/pasivos/familiares/consultar?pasivo=1",
         icon: BookUser,
         permiso: "familiares.ver",
+      },
+      {
+        title: "Carga Masiva",
+        url: "/pasivos/carga-masiva",
+        icon: FileSpreadsheet,
+        permiso: "pasivos.carga_masiva",
       },
     ],
   },
@@ -299,7 +306,7 @@ export function AppSidebarPasivos() {
                 </h2>
               </div>
               <div className="flex flex-col">
-                <h2 className="font-semibold">Rol: {session.user.role?.nombre_rol || "Sin Rol"}</h2>
+                <h2 className="font-semibold">Rol: {session.user.role?.nombre_visible || session.user.role?.nombre_rol || "Sin Rol"}</h2>
               </div>
             </div>
           )}

@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'apps.puntocuenta',
     'apps.auditoria',
     'apps.exportaciones',
+    'apps.carga_masiva',
 ]
 
 AUTH_USER_MODEL = 'identidad.CuentaModel'

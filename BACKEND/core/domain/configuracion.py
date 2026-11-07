@@ -21,6 +21,7 @@ CLAVE_GENERAR_PUNTOS_CUENTA = 'puntocuenta.generar'
 CLAVE_FE_DE_VIDA_RECORDATORIOS = 'fe_de_vida.dias_recordatorio'
 CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR = 'fe_de_vida.registrador_puede_checar'
 CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR = 'fe_de_vida.admin_registradora_puede_aprobar'
+CLAVE_CARGA_MASIVA_APROBACION = 'carga_masiva.requiere_aprobacion'
 
 # O12: solicitudes de actualización por condición del trabajador.
 CLAVE_AUTOGESTION_ACTIVOS_HABILITADO = 'autogestion.activos_habilitado'
@@ -33,6 +34,24 @@ CLAVE_RETENCION_EVIDENCIAS_DIAS = 'retencion.evidencias_dias'
 CLAVE_RETENCION_SOPORTES_DIAS = 'retencion.soportes_dias'
 CLAVE_RETENCION_NOTIFICACIONES_DIAS = 'retencion.notificaciones_dias'
 CLAVE_RETENCION_OUTBOX_DIAS = 'retencion.outbox_dias'
+
+# O44 (E1, E9): alcance y vencimiento del carnet digital.
+CLAVE_CARNETIZACION_MI_CARNET_ALCANCE = 'carnetizacion.mi_carnet_alcance'
+CLAVE_CARNETIZACION_MI_CARNET_USUARIOS = 'carnetizacion.mi_carnet_usuarios'
+CLAVE_CARNETIZACION_VENCIMIENTO_MESES = 'carnetizacion.vencimiento_meses'
+
+ALCANCE_CARNET_NADIE = 'nadie'
+ALCANCE_CARNET_TODOS = 'todos'
+ALCANCE_CARNET_ACTIVOS = 'activos'
+ALCANCE_CARNET_PASIVOS = 'pasivos'
+ALCANCE_CARNET_ESPECIFICOS = 'usuarios_especificos'
+ALCANCES_CARNET = (
+    ALCANCE_CARNET_NADIE,
+    ALCANCE_CARNET_TODOS,
+    ALCANCE_CARNET_ACTIVOS,
+    ALCANCE_CARNET_PASIVOS,
+    ALCANCE_CARNET_ESPECIFICOS,
+)
 
 VERDADEROS = frozenset({'1', 'true', 'si', 'sí', 'yes', 'on'})
 
