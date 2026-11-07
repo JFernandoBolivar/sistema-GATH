@@ -10,6 +10,10 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { Loader2, Save } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
@@ -129,7 +133,7 @@ export function EditarPasivoDialog({
               )}
             </Field>
             <Field data-invalid={!!form.formState.errors.correo}>
-              <Label htmlFor="edit-correo">Correo institucional</Label>
+              <Label htmlFor="edit-correo">Correo principal</Label>
               <Input id="edit-correo" type="email" {...form.register("correo")} />
               {form.formState.errors.correo && (
                 <p role="alert" className="text-sm text-destructive">
@@ -151,11 +155,11 @@ export function EditarPasivoDialog({
               )}
             </Field>
             <Field>
-              <Label htmlFor="edit-carnet">Carnet de la patria</Label>
+              <Label htmlFor="edit-carnet">{ETIQUETA_CODIGO_CARNET_PATRIA}</Label>
               <Input id="edit-carnet" {...form.register("carnetPatria")} />
             </Field>
             <Field data-invalid={!!form.formState.errors.carnetPatriaSerial}>
-              <Label htmlFor="edit-carnet-serial">Serial del Carnet de la Patria</Label>
+              <Label htmlFor="edit-carnet-serial">{ETIQUETA_SERIAL_CARNET_PATRIA}</Label>
               <Input
                 id="edit-carnet-serial"
                 placeholder="Serial"

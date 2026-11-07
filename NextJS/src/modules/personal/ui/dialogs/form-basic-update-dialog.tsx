@@ -2,6 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -345,7 +349,7 @@ export default function FormBasicUpdateDialog({
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                       <CampoDialogo
                         id="carnetPatria"
-                        label="Código del Carnet de la Patria"
+                        label={ETIQUETA_CODIGO_CARNET_PATRIA}
                         error={mensajeDe(errores.carnetPatria)}
                       >
                         <Input
@@ -360,7 +364,7 @@ export default function FormBasicUpdateDialog({
                       </CampoDialogo>
                       <CampoDialogo
                         id="carnetPatriaSerial"
-                        label="Serial del Carnet de la Patria"
+                        label={ETIQUETA_SERIAL_CARNET_PATRIA}
                         error={mensajeDe(errores.carnetPatriaSerial)}
                       >
                         <Input

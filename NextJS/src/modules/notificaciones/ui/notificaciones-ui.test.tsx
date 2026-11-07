@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { configure, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 import type { NotificacionDTO } from "../application/dtos/notificacion-dto";
 
 // La suite completa corre en paralelo y a veces lenta: margen amplio para esperas asíncronas.
@@ -16,6 +16,38 @@ const acciones = vi.hoisted(() => ({
   marcarTodasLeidasAction: vi.fn(),
 }));
 vi.mock("../infrastructure/actions/notificaciones-actions", () => acciones);
+
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  refresh: vi.fn(),
+  replace: vi.fn(),
+  back: vi.fn(),
+  prefetch: vi.fn(),
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    onClick,
+    children,
+  }: {
+    href: string;
+    onClick?: MouseEventHandler<HTMLAnchorElement>;
+    children: ReactNode;
+  }) => (
+    <a href={String(href)} onClick={onClick}>
+      {children}
+    </a>
+  ),
+}));
+
+const toasts = vi.hoisted(() => ({
+  info: vi.fn(),
+  error: vi.fn(),
+  success: vi.fn(),
+  warning: vi.fn(),
+}));
+vi.mock("sonner", () => ({ toast: toasts }));
 
 const sesion = vi.hoisted(() => ({ permisos: ["notificaciones.ver_propias"] as string[] }));
 vi.mock("next-auth/react", () => ({
@@ -63,6 +95,7 @@ function Envoltorio({ children }: { children: ReactNode }) {
 beforeEach(() => {
   vi.clearAllMocks();
   sesion.permisos = ["notificaciones.ver_propias"];
+  window.history.replaceState({}, "", "/");
   acciones.contarNoLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 2 });
   acciones.listarNotificacionesAction.mockResolvedValue(pagina([n()]));
   acciones.marcarLeidaAction.mockResolvedValue({ ok: true, mensaje: "", datos: undefined });
@@ -172,6 +205,58 @@ describe("CampanaNotificaciones", () => {
     render(campana(), { wrapper: Envoltorio });
     await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
     expect(await screen.findByRole("link", { name: /Ver detalle/ })).toBeDefined();
+  });
+
+  it("«Ver detalle» navega a la ruta notificada y marca leída", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([n({ enlace: "/personal/consultar" })]),
+    );
+    window.history.replaceState({}, "", "/personal/notificaciones");
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await user.click(await screen.findByRole("link", { name: /Ver detalle/ }));
+
+    expect(router.push).toHaveBeenCalledWith("/personal/consultar");
+    expect(router.refresh).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(acciones.marcarLeidaAction).toHaveBeenCalledWith(ID(1)),
+    );
+  });
+
+  it("si ya está en la ruta, recarga y avisa en vez de quedarse en silencio", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([n({ enlace: "/personal/consultar" })]),
+    );
+    window.history.replaceState({}, "", "/personal/consultar");
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await user.click(await screen.findByRole("link", { name: /Ver detalle/ }));
+
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalled();
+    expect(toasts.info).toHaveBeenCalled();
+  });
+
+  it("con un enlace inválido avisa y no navega", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([n({ enlace: "javascript:alert(1)" })]),
+    );
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await user.click(await screen.findByRole("link", { name: /Ver detalle/ }));
+
+    expect(toasts.error).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
   });
 });
 

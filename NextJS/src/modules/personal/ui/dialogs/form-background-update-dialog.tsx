@@ -212,7 +212,7 @@ export default function FormBackgroundUpdateDialog({
                 </div>
               </div>
 
-              <div className="max-h-[55vh] overflow-hidden rounded-md w-full border p-3">
+              <div className="rounded-md w-full border p-3">
                 <h1 className="text-gray-600 text-sm mb-3">Opcional si no posee antecedentes</h1>
                 <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (

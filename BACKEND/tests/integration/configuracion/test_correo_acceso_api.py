@@ -38,7 +38,7 @@ def test_sin_configuracion_ver_responde_403():
 @pytest.mark.django_db
 def test_actualizar_exige_configuracion_editar():
     cuerpo = {
-        'politica_pasivos': 'alternativo',
+        'politica_pasivos': 'institucional',
         'politica_activos': 'institucional',
         'si_falta_elegido': 'dejar_sin_cuenta',
         'avisar_al_aplicar_masivo': False,

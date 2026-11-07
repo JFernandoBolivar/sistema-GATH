@@ -36,7 +36,6 @@ class RepoReportesMemoria implements RepoReportes {
       fechaEgreso: "2025-12-31",
       motivoEgreso: "Jubilación",
       contacto: "0412-1234567 / rosa@example.com",
-      estadoFeDeVida: "VALIDADA",
     };
     if (filtros?.fechaEgresoDesde === "2026-01-01") {
       return [];

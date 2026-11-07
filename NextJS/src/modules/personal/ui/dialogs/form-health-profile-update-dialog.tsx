@@ -15,7 +15,6 @@ import { avisoDeFallo, mensajeDe } from "./campo-dialogo";
 
 /** Ruta del API -> campo del formulario. */
 const MAPA_ERRORES = { "perfil_salud.grupo_sanguineo": "grupoSanguineoId" }
-import { ScrollArea } from "@/shared/ui/components/scroll-area";
 import {
   Select,
   SelectContent,
@@ -206,7 +205,7 @@ export default function FormHealthProfileUpdateDialog({
                 )}
               </div>
 
-              <div className="max-h-[55vh] overflow-hidden w-full border rounded-md p-4">
+              <div className="w-full border rounded-md p-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Patologías */}
                   <div className="flex-1">

@@ -305,7 +305,7 @@ describe("identidad (D19)", () => {
     );
   });
 
-  it("el Carnet de la Patria debe tener 10 dígitos (acepta el formato legado)", () => {
+  it("el código del Carnet de la Patria debe tener 10 dígitos (acepta el formato legado)", () => {
     expect(identidadSchema.safeParse({ ...valido, carnet_patria: "123" }).success).toBe(false);
     expect(identidadSchema.safeParse({ ...valido, carnet_patria: "000-0000000-0" }).success).toBe(
       true,

@@ -112,7 +112,7 @@ export function VersionesImagenDialog({
         ) : versiones.length === 0 ? (
           <p className="text-sm text-muted-foreground">Todavía no hay versiones guardadas de esta imagen.</p>
         ) : (
-          <ul className="flex max-h-[60vh] flex-col gap-3 overflow-hidden">
+          <ul className="flex flex-col gap-3">
             {versiones.map((v) => (
               <li
                 key={v.id}

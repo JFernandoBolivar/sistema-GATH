@@ -6,9 +6,8 @@ from rest_framework import serializers
 
 
 class PoliticaCorreoAccesoSerializer(serializers.Serializer):
-    politica_pasivos = serializers.ChoiceField(
-        choices=['alternativo', 'institucional', 'correo_ficha']
-    )
+    # O39: el alternativo no es login de un pasivo; solo principal o ficha.
+    politica_pasivos = serializers.ChoiceField(choices=['institucional', 'correo_ficha'])
     politica_activos = serializers.ChoiceField(
         choices=['alternativo', 'institucional', 'correo_ficha']
     )

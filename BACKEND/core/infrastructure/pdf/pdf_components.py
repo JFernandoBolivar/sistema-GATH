@@ -111,7 +111,6 @@ HEADER_LABELS = {
     'tipo_nomina': 'Tipo de Nómina',
     'tipo_pasivo': 'Tipo de Pasivo',
     'contacto': 'Contacto',
-    'estado_fe_de_vida': 'Fe de Vida',
     'cargo': 'Cargo',
     'cargo_especifico': 'Cargo Esp.',
     'grado': 'Grado',

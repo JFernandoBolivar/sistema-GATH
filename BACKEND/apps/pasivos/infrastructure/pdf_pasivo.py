@@ -101,7 +101,7 @@ def construir_pdf_expediente_pasivo(dto: PasivoDTO) -> bytes:
     story.append(Spacer(1, 6))
     story.append(_seccion('HISTORIAL DE CARGOS (AL MOMENTO DEL EGRESO)', styles))
     if dto.cargos_historial:
-        columnas = ['#', 'Código', 'Cargo específico', 'Nómina', 'Dependencia']
+        columnas = ['#', 'Código', 'Cargo específico', 'Nómina', 'Oficina/Gerencia']
         filas = []
         for idx, c in enumerate(dto.cargos_historial):
             dependencia = (
@@ -115,7 +115,7 @@ def construir_pdf_expediente_pasivo(dto: PasivoDTO) -> bytes:
                 'Código': _val(c.get('codigo')),
                 'Cargo específico': _val(c.get('denominacioncargoespecifico_nombre')),
                 'Nómina': _val(c.get('tipo_nomina_nombre')),
-                'Dependencia': _val(dependencia),
+                'Oficina/Gerencia': _val(dependencia),
             })
         story.append(create_data_table(columnas, filas))
     else:

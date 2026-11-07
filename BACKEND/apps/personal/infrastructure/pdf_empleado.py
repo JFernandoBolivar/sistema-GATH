@@ -93,13 +93,32 @@ def _fecha_ingreso_organismo(dto: EmpleadoDTO) -> str:
     return _fecha(con_fecha[0]['fecha_ingreso'])
 
 
+def _dato_o_none(valor) -> str | None:
+    """El mapper rellena con 'N/A' lo que falta; esa cadena es truthy y no debe ganar un `or`."""
+    return valor if valor and valor != SIN_DATO else None
+
+
 def _direccion_resumida(asig: dict) -> str:
     return (
-        asig.get('coordinacion')
-        or asig.get('direccion_linea')
-        or asig.get('direccion_general')
+        _dato_o_none(asig.get('coordinacion'))
+        or _dato_o_none(asig.get('direccion_linea'))
+        or _dato_o_none(asig.get('direccion_general'))
         or "No especificado"
     )
+
+
+def _lineas_tarjeta(dto: EmpleadoDTO, cedula_mostrada: str) -> list[str]:
+    """Cédula, cargo y Oficina/Gerencia (dirección general, no el nivel «dependencia») actuales."""
+    lineas = [f"Cédula {cedula_mostrada}"]
+    if dto.asignaciones:
+        asig = dto.asignaciones[0]
+        cargo = _dato_o_none(asig.get('denominacion_cargo_especifico'))
+        direccion = _dato_o_none(asig.get('direccion_general'))
+        if cargo:
+            lineas.append(f"Cargo: {cargo}")
+        if direccion:
+            lineas.append(f"Oficina/Gerencia: {direccion}")
+    return lineas
 
 
 def _titular_encargaduria(enc: dict) -> str:
@@ -153,15 +172,7 @@ def construir_pdf_expediente_empleado(
     fisico = dto.perfil_fisico or {}
 
     # Tarjeta de identificación (cédula, cargo y dependencia actuales).
-    lineas = [f"Cédula {cedula_mostrada}"]
-    if dto.asignaciones:
-        asig = dto.asignaciones[0]
-        cargo = asig.get('denominacion_cargo_especifico')
-        dependencia = asig.get('dependencia') or asig.get('direccion_general')
-        if cargo and cargo != SIN_DATO:
-            lineas.append(f"Cargo: {cargo}")
-        if dependencia and dependencia != SIN_DATO:
-            lineas.append(f"Oficina/Gerencia: {dependencia}")
+    lineas = _lineas_tarjeta(dto, cedula_mostrada)
 
     story = [
         tarjeta_identificacion(dto.nombre_completo, lineas, ancho, _foto_flowable(foto_bytes)),
@@ -176,7 +187,7 @@ def construir_pdf_expediente_empleado(
             ('Correo', _val(dto.correo)),
             ('Teléfono móvil', _val(formatear_telefono(dto.telefono_movil))),
             ('Teléfono habitación', _val(formatear_telefono(dto.telefono_habitacion))),
-            ('Carnet de la Patria (código)', _val(dto.carnet_patria)),
+            ('Código del Carnet de la Patria', _val(dto.carnet_patria)),
             ('Serial del Carnet de la Patria', _val(dto.carnet_patria_serial)),
         ], ancho), ancho),
     ]

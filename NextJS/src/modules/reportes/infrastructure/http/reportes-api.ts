@@ -60,7 +60,6 @@ export interface ReportePasivoApiItem {
   fecha_egreso?: string;
   motivo_egreso?: string;
   contacto?: string;
-  estado_fe_de_vida?: string;
 }
 
 export interface ReporteVacanteApiItem {

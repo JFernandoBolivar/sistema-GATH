@@ -23,7 +23,6 @@ export interface ReporteItemPasivoDTO {
   fechaEgreso: string;
   motivoEgreso?: string;
   contacto: string;
-  estadoFeDeVida: string;
 }
 
 export interface ReporteItemVacanteDTO {

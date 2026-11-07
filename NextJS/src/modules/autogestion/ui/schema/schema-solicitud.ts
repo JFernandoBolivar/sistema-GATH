@@ -208,7 +208,7 @@ export const identidadSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => normalizarCarnetPatria(v ?? ""))
-    .refine((v) => v === "" || /^\d{10}$/.test(v), "El Carnet de la Patria debe tener 10 dígitos"),
+    .refine((v) => v === "" || /^\d{10}$/.test(v), "El código del Carnet de la Patria debe tener 10 dígitos"),
   carnet_patria_serial: z
     .string()
     .trim()

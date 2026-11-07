@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { cn } from "@/lib/utils";
 import type { NotificacionDTO } from "../application/dtos/notificacion-dto";
+import { destinoInterno, rutaActual } from "./enlace-notificacion";
 import { formatearFechaNotificacion } from "./formato-notificacion";
 
 interface Props {
@@ -31,6 +34,42 @@ export function NotificacionItem({
   compacta,
   puedeAbrirEnlace,
 }: Props) {
+  const router = useRouter();
+
+  const manejarEnlace = (evento: React.MouseEvent<HTMLAnchorElement>) => {
+    // Los clics con modificador o con otro botón conservan el comportamiento
+    // nativo del enlace (abrir en otra pestaña, etc.).
+    if (
+      evento.metaKey ||
+      evento.ctrlKey ||
+      evento.shiftKey ||
+      evento.altKey ||
+      evento.button !== 0
+    ) {
+      return;
+    }
+
+    if (!n.leida) onMarcarLeida(n.id);
+    onNavegar?.();
+
+    const destino = destinoInterno(n.enlace);
+    evento.preventDefault();
+    if (!destino) {
+      toast.error("Esta notificación no tiene un destino válido. Revise la bandeja.");
+      return;
+    }
+
+    // Misma pantalla: el enlace no produciría un cambio visible. Se recargan
+    // los datos y se avisa, en vez de cerrar el panel en silencio.
+    if (destino === rutaActual(window.location)) {
+      router.refresh();
+      toast.info("Ya está en esa pantalla. Se actualizaron los datos.");
+      return;
+    }
+
+    router.push(destino);
+  };
+
   return (
     <li
       className={cn(
@@ -55,10 +94,7 @@ export function NotificacionItem({
           <Button asChild variant="outline" size="sm" className="min-h-11">
             <Link
               href={n.enlace}
-              onClick={() => {
-                if (!n.leida) onMarcarLeida(n.id);
-                onNavegar?.();
-              }}
+              onClick={manejarEnlace}
             >
               <ExternalLink aria-hidden /> Ver detalle
             </Link>

@@ -17,6 +17,7 @@ from apps.fe_de_vida.domain.entities.estadisticas import EstadisticasFeDeVida, P
 from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
 from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
+from apps.fe_de_vida.domain.constantes import MAX_JUSTIFICACION_SIN_CORREO
 from apps.fe_de_vida.domain.value_objects.estados import (
     CANALES_SOLICITUD,
     EstadoProceso,
@@ -140,6 +141,11 @@ class CambioActaEntradaSerializer(serializers.Serializer):
 
 class GuardarBorradorSerializer(serializers.Serializer):
     cambios = CambioActaEntradaSerializer(many=True, max_length=MAX_CAMBIOS_BORRADOR, allow_empty=True)
+    # O39: excepción presencial «No tiene correo» (solo aplica al canal presencial).
+    sin_correo_alternativo = serializers.BooleanField(required=False, default=False)
+    justificacion_sin_correo = serializers.CharField(
+        required=False, allow_blank=True, default='', max_length=MAX_JUSTIFICACION_SIN_CORREO,
+    )
 
 
 class SubirEvidenciaSerializer(serializers.Serializer):
@@ -487,6 +493,8 @@ def a_dict_solicitud(s: SolicitudFeDeVida, nombre: str | None = None, nombres_ac
         'tiene_evidencia': bool(s.evidencia_clave), 'via_aprobacion': s.via_aprobacion.value if s.via_aprobacion else None,
         'fecha_envio': s.fecha_envio, 'fecha_validacion': s.fecha_validacion,
         'requiere_nueva_foto': s.requiere_nueva_foto,
+        'sin_correo_alternativo': s.sin_correo_alternativo,
+        'justificacion_sin_correo': s.justificacion_sin_correo,
         'registrador_tambien_aprobo': s.registrador_tambien_aprobo,
         'decisiones': [
             {'tipo': d.tipo.value, 'rol': d.rol.value, 'actor_cedula': d.actor_cedula, 'envio': d.envio,

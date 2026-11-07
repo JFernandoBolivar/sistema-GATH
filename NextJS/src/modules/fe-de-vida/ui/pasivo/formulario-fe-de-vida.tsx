@@ -206,10 +206,15 @@ export function FormularioFeDeVida({
         (i.accion === "CREAR" || i.accion === "MODIFICAR"),
     );
 
-  function guardarYAvanzar(nuevos: ItemBorrador[], siguiente: number) {
+  function guardarYAvanzar(
+    nuevos: ItemBorrador[],
+    siguiente: number,
+    opciones?: { sinCorreoAlternativo: boolean; justificacionSinCorreo: string },
+  ) {
     iniciarGuardado(async () => {
-      const accionBorrador = esPresencial ? guardarBorradorPresencialAction : guardarBorradorAction;
-      const res = await accionBorrador(solicitud.id, aEntrada(nuevos));
+      const res = esPresencial
+        ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(nuevos), opciones)
+        : await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
       if (!res.ok) {
         toast.error(res.mensaje);
         if (res.errores) {
@@ -230,9 +235,12 @@ export function FormularioFeDeVida({
     });
   }
 
-  function continuarContacto(valores: DatosContactoValores) {
+  function continuarContacto(
+    valores: DatosContactoValores,
+    opciones?: { sinCorreoAlternativo: boolean; justificacionSinCorreo: string },
+  ) {
     if (!ficha) return;
-    guardarYAvanzar(fusionarContacto(items, valores, ficha), 1);
+    guardarYAvanzar(fusionarContacto(items, valores, ficha), 1, opciones);
   }
 
   function subirFotoYContinuar() {
@@ -400,6 +408,9 @@ export function FormularioFeDeVida({
           ficha={ficha}
           valoresIniciales={inicialesContacto}
           guardando={guardando}
+          permiteSinCorreo={esPresencial}
+          sinCorreoInicial={solicitud.sinCorreoAlternativo ?? false}
+          justificacionInicial={solicitud.justificacionSinCorreo ?? ""}
           onContinuar={continuarContacto}
           erroresServidor={erroresContacto}
         />

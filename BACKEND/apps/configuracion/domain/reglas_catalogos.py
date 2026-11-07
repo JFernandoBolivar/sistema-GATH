@@ -89,6 +89,14 @@ class ReglaNomina:
     requiere_codig: bool
     es_activo: bool
 
+    @property
+    def es_reservada(self) -> bool:
+        return es_nomina_reservada(self.nomina)
+
+
+def es_nomina_reservada(nombre: str) -> bool:
+    return nombre.strip().upper() in NOMINAS_SISTEMA_RESERVADAS
+
 
 def es_motivo_reservado(nombre_movimiento: str, categoria_nombre: str) -> bool:
     """Un motivo es reservado si tiene el nombre exacto de un motivo del sistema en PASE A PASIVO."""
@@ -277,8 +285,23 @@ def validar_edicion_nomina(actual: ReglaNomina, nueva_nomina: str | None) -> Non
         )
 
 
+def validar_activacion_nomina(actual: ReglaNomina, es_activo: bool | None) -> None:
+    """Las nóminas reservadas (pasivos) no se activan: no deben aparecer en selectores de activos.
+
+    Solo se bloquea la transición de inactiva a activa. Si una reservada ya está
+    activa, se permite desactivarla y editar `requiere_codig` (FIX-AUD10).
+    """
+    if es_activo is None or actual.es_activo:
+        return
+    if es_activo and es_nomina_reservada(actual.nomina):
+        raise ValidationError(
+            f'La nómina «{actual.nomina}» es reservada del sistema y no puede activarse.',
+            campo='es_activo',
+        )
+
+
 def validar_eliminacion_nomina(actual: ReglaNomina, tiene_referencias: bool) -> None:
-    if actual.nomina.strip().upper() in NOMINAS_SISTEMA_RESERVADAS:
+    if es_nomina_reservada(actual.nomina):
         raise ValidationError(
             f'La nómina «{actual.nomina}» es reservada del sistema y no puede eliminarse.',
             campo='nomina',

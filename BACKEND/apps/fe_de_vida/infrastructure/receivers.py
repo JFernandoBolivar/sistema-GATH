@@ -59,59 +59,8 @@ def emitir_constancia_al_validar(sender, evento, **kwargs):
             repo_proc = RepoProcesosORM()
             lector = LectorPasivosORM()
 
-            # A7: Si la política de pasivos es ALTERNATIVO, actualizar el correo de acceso al VALIDAR la fe de vida
-            try:
-                from apps.configuracion.domain.correo_acceso import PoliticaFuenteCorreo
-                from apps.configuracion.infrastructure.repositories.repo_politica_correo_acceso_orm import (
-                    RepoPoliticaCorreoAccesoORM,
-                )
-                from apps.identidad.infrastructure.repositories.repo_correo_acceso_orm import (
-                    RepoCorreoAccesoORM,
-                )
-                from core.presentation.audit import registrar_auditoria
-                import uuid
-
-                politica = RepoPoliticaCorreoAccesoORM().obtener_politica()
-                if politica.politica_pasivos == PoliticaFuenteCorreo.ALTERNATIVO:
-                    from apps.fe_de_vida.infrastructure.adaptadores_autogestion import RepoCambiosActaORM
-                    cambios_acta = RepoCambiosActaORM().listar(evento.solicitud_id)
-                    propuesta_alternativo = next(
-                        (c for c in cambios_acta if c.campo == 'correo_alternativo' and c.valor_propuesto),
-                        None,
-                    )
-                    if propuesta_alternativo:
-                        nuevo_alternativo = str(propuesta_alternativo.valor_propuesto).strip()
-                        pasivo_datos = lector.datos(evento.cedula)
-                        if (
-                            nuevo_alternativo
-                            and nuevo_alternativo != pasivo_datos.correo
-                        ):
-                            repo_correo = RepoCorreoAccesoORM()
-                            if not repo_correo.correo_en_uso_por_otro(
-                                evento.cedula, nuevo_alternativo
-                            ):
-                                correo_previo = pasivo_datos.correo
-                                repo_correo.establecer_correo(
-                                    evento.cedula, nuevo_alternativo
-                                )
-                                registrar_auditoria(
-                                    trace_id=uuid.uuid4().hex,
-                                    accion='FE_DE_VIDA_CORREO_ACCESO_ACTUALIZADO',
-                                    modulo='fe_de_vida',
-                                    recurso_tipo='trabajador',
-                                    recurso_id=str(evento.cedula),
-                                    estado_previo={'correo': correo_previo},
-                                    estado_nuevo={
-                                        'correo': nuevo_alternativo,
-                                        'origen': 'fe_de_vida_validada',
-                                    },
-                                    actor_cedula=str(evento.actor_cedula or ''),
-                                )
-            except Exception:
-                logger.exception(
-                    'no se pudo sincronizar el correo de acceso al validar fe de vida de %s',
-                    evento.cedula,
-                )
+            # O39: validar la fe de vida NO cambia el correo de acceso. El login
+            # es el correo principal y solo se modifica desde Gestión del sistema.
 
             constancia = emitir_constancia(
                 repo_proc, RepoSolicitudesFeDeVidaORM(), RepoConstanciasORM(), lector, GeneradorConstanciaPDF(),

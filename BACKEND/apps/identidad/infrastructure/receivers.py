@@ -89,6 +89,9 @@ def aprovisionar_por_cedula(cedula: str, permitir_pasivo: bool = False):
             return None
         correo_alt = repo_corr.correo_alternativo_de(cedula)
         dom_inst = getattr(settings, 'DOMINIO_CORREO_INSTITUCIONAL', '@conatel.gob.ve')
+        # Para activos el correo institucional exige el dominio de la casa; para
+        # pasivos el principal es el de la ficha con cualquier dominio y lo
+        # resuelve el dominio de acceso (FIX-AUD8.7).
         correo_inst = correo_ficha if dom_inst in correo_ficha.lower() else ''
 
         politica_repo = RepoPoliticaCorreoAccesoORM()

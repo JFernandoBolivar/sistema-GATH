@@ -43,7 +43,27 @@ const TIPOGRAFIA = {
 
 interface PropsGrafico {
   contenedorRef?: Ref<HTMLDivElement>;
+  /**
+   * Copia para el PDF: se dibuja con ancho lógico pequeño (`ANCHO_EXPORTACION`)
+   * para que Recharts recalcule ejes y etiquetas, sin animación y sin leyenda
+   * HTML (la leyenda la agrega la captura dentro del PNG).
+   */
+  exportacion?: boolean;
 }
+
+/**
+ * Ancho lógico (px) de cada copia para el PDF, escogido según el espacio que ocupa
+ * en la hoja horizontal (el PDF la escala a ese hueco): así 1 px queda cerca de
+ * 0,75 pt y el texto de 13 px se imprime a ~10 pt. Si cambia el hueco en `estadisticas_pdf.py`,
+ * se ajusta aquí.
+ */
+export const ANCHOS_EXPORTACION = { cobertura: 340, tipos: 640, estados: 960 } as const;
+const ALTO_POR_CATEGORIA_EXPORTACION = 38;
+const FUENTE_PANTALLA = 11;
+const FUENTE_EXPORTACION = 13;
+const ANCHO_EJE_Y_PANTALLA = 104;
+const ANCHO_EJE_Y_EXPORTACION = 128;
+const ALTO_DONA_EXPORTACION = 240;
 
 const CARACTERES_POR_LINEA = 14;
 const ALTO_MINIMO_MOVIL = 280;
@@ -65,7 +85,8 @@ export function envolverTexto(texto: string, maximo: number = CARACTERES_POR_LIN
 }
 
 /** Altura del gráfico horizontal: crece con el número de categorías. */
-export function alturaGraficoTipos(categorias: number): number {
+export function alturaGraficoTipos(categorias: number, exportacion = false): number {
+  if (exportacion) return categorias * ALTO_POR_CATEGORIA_EXPORTACION + 72;
   return Math.max(ALTO_MINIMO_MOVIL, categorias * ALTO_POR_CATEGORIA + 72);
 }
 
@@ -79,24 +100,27 @@ function TickEnvuelto({
   x,
   y,
   payload,
+  tamano = FUENTE_PANTALLA,
 }: {
   x?: number;
   y?: number;
   payload?: { value?: string | number };
+  tamano?: number;
 }) {
   const lineas = envolverTexto(String(payload?.value ?? ""));
-  const alto = lineas.length * 12;
+  const interlineado = tamano + 1;
+  const alto = lineas.length * interlineado;
   return (
     <text
       x={x}
       y={y}
       textAnchor="end"
       fill={PALETA_GRAFICOS.grisTexto}
-      fontSize={11}
+      fontSize={tamano}
       fontFamily={TIPOGRAFIA.fontFamily}
     >
       {lineas.map((linea, indice) => (
-        <tspan key={`${linea}-${indice}`} x={x} dy={indice === 0 ? 3 - alto / 2 : 12}>
+        <tspan key={`${linea}-${indice}`} x={x} dy={indice === 0 ? 3 - alto / 2 : interlineado}>
           {linea}
         </tspan>
       ))}
@@ -104,11 +128,17 @@ function TickEnvuelto({
   );
 }
 
-export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: BarraTipo[] }) {
+export function GraficoTipos({
+  datos,
+  contenedorRef,
+  exportacion = false,
+}: PropsGrafico & { datos: BarraTipo[] }) {
   const esMovil = useIsMobile();
   if (datos.length === 0) return null;
 
-  if (esMovil) {
+  if (esMovil || exportacion) {
+    const fuente = exportacion ? FUENTE_EXPORTACION : FUENTE_PANTALLA;
+    const tipografia = { ...TIPOGRAFIA, fontSize: exportacion ? FUENTE_EXPORTACION : TIPOGRAFIA.fontSize };
     const datosConTotal = datos.map((fila) => ({
       ...fila,
       total: fila.respondieron + fila.faltan,
@@ -118,7 +148,7 @@ export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: B
         ref={contenedorRef}
         config={CONFIG_TIPOS}
         className="aspect-auto w-full font-sans"
-        style={{ height: alturaGraficoTipos(datos.length) }}
+        style={{ height: alturaGraficoTipos(datos.length, exportacion) }}
       >
         <BarChart
           data={datosConTotal}
@@ -131,20 +161,22 @@ export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: B
             allowDecimals={false}
             tickLine={false}
             axisLine={false}
-            tick={TIPOGRAFIA}
+            tick={tipografia}
           />
           <YAxis
             type="category"
             dataKey="name"
-            width={104}
+            width={exportacion ? ANCHO_EJE_Y_EXPORTACION : ANCHO_EJE_Y_PANTALLA}
             interval={0}
             tickLine={false}
             axisLine={false}
             tickMargin={8}
-            tick={<TickEnvuelto />}
+            tick={<TickEnvuelto tamano={fuente} />}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
-          <Legend verticalAlign="bottom" align="center" height={28} wrapperStyle={TIPOGRAFIA} />
+          {!exportacion && (
+            <Legend verticalAlign="bottom" align="center" height={28} wrapperStyle={TIPOGRAFIA} />
+          )}
           <Bar
             dataKey="respondieron"
             name="Respondieron"
@@ -152,6 +184,7 @@ export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: B
             fill="var(--color-respondieron)"
             barSize={18}
             minPointSize={2}
+            isAnimationActive={!exportacion}
           />
           <Bar
             dataKey="faltan"
@@ -160,12 +193,13 @@ export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: B
             fill="var(--color-faltan)"
             barSize={18}
             minPointSize={2}
+            isAnimationActive={!exportacion}
           >
             <LabelList
               dataKey="total"
               position="right"
               fill={PALETA_GRAFICOS.grisTexto}
-              fontSize={11}
+              fontSize={fuente}
               fontWeight={600}
               formatter={etiquetaValor}
             />
@@ -204,8 +238,41 @@ export function GraficoTipos({ datos, contenedorRef }: PropsGrafico & { datos: B
   );
 }
 
-export function GraficoEstados({ datos, contenedorRef }: PropsGrafico & { datos: BarraEstado[] }) {
+export function GraficoEstados({
+  datos,
+  contenedorRef,
+  exportacion = false,
+}: PropsGrafico & { datos: BarraEstado[] }) {
   if (datos.length === 0) return null;
+  if (exportacion) {
+    const tipografia = { ...TIPOGRAFIA, fontSize: FUENTE_EXPORTACION };
+    return (
+      <ChartContainer
+        ref={contenedorRef}
+        config={CONFIG_ESTADOS}
+        className="aspect-auto w-full font-sans"
+        style={{ height: alturaGraficoTipos(datos.length, exportacion) }}
+      >
+        <BarChart data={datos} layout="vertical" margin={{ top: 8, right: 40, left: 8, bottom: 8 }}>
+          <CartesianGrid horizontal={false} stroke={PALETA_GRAFICOS.grisBorde} strokeDasharray="3 3" />
+          <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={tipografia} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={ANCHO_EJE_Y_EXPORTACION}
+            interval={0}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            tick={<TickEnvuelto tamano={FUENTE_EXPORTACION} />}
+          />
+          <Bar dataKey="total" fill="var(--color-total)" radius={[0, 6, 6, 0]} barSize={18} isAnimationActive={false}>
+            <LabelList dataKey="total" position="right" fill={PALETA_GRAFICOS.grisTexto} fontSize={FUENTE_EXPORTACION} fontWeight={600} />
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+    );
+  }
   return (
     <ChartContainer ref={contenedorRef} config={CONFIG_ESTADOS} className="max-h-72 w-full font-sans">
       <BarChart data={datos} layout="vertical" margin={{ top: 8, right: 48, left: 8, bottom: 8 }}>
@@ -225,15 +292,31 @@ export function GraficoDonut({
   datos,
   total,
   contenedorRef,
+  exportacion = false,
 }: PropsGrafico & { datos: DonutCobertura[]; total: number }) {
   return (
-    <ChartContainer ref={contenedorRef} config={CONFIG_DONUT} className="mx-auto aspect-square max-h-64 font-sans">
+    <ChartContainer
+      ref={contenedorRef}
+      config={CONFIG_DONUT}
+      className={
+        exportacion ? "aspect-auto w-full font-sans" : "mx-auto aspect-square max-h-64 font-sans"
+      }
+      style={exportacion ? { height: ALTO_DONA_EXPORTACION } : undefined}
+    >
       <PieChart>
         <ChartTooltip
           content={<ChartTooltipContent hideLabel nameKey="name" formatter={(valor, nombre) => [`${valor}`, nombre]} />}
         />
-        <Legend wrapperStyle={TIPOGRAFIA} />
-        <Pie data={datos} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} strokeWidth={4}>
+        {!exportacion && <Legend wrapperStyle={TIPOGRAFIA} />}
+        <Pie
+          data={datos}
+          dataKey="value"
+          nameKey="name"
+          innerRadius={58}
+          outerRadius={88}
+          strokeWidth={4}
+          isAnimationActive={!exportacion}
+        >
           {datos.map((entrada, indice) => (
             <Cell key={entrada.name} fill={COLORES_COBERTURA[indice % COLORES_COBERTURA.length]} />
           ))}

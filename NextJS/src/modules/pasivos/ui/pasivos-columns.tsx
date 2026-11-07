@@ -1,21 +1,19 @@
 "use client";
 
 /**
- * Columnas del listado de pasivos. Acciones: copiar cédula, ver detalle y
- * descargar el PDF del expediente (si tiene `pasivos.exportar_pdf`).
+ * Columnas del listado de pasivos. El menú de acciones comparte estructura y
+ * diseño con el de personal (`AccionesListadoMenu`): secciones «Acciones» y
+ * «Extras», separador y botón principal, conservando solo las acciones propias
+ * de pasivos (copiar cédula, ver detalle y descargar el PDF del expediente).
  */
+import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Eye, FileDown, MoreHorizontal } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
-import { Button } from "@/shared/ui/components/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/shared/ui/components/dropdown-menu";
+  AccionesListadoMenu,
+  type ItemAccionListado,
+} from "@/shared/ui/components/acciones-listado-menu";
 import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
 import { formatearFecha } from "@/shared/lib/formato-fecha";
 
@@ -28,29 +26,42 @@ export interface AccionesPasivo {
 }
 
 function AccionesCell({ pasivo, acciones }: { pasivo: PasivoDTO; acciones: AccionesPasivo }) {
+  const [generandoPdf, setGenerandoPdf] = useState(false);
+
+  const handleDescargarPdf = async () => {
+    if (generandoPdf) return;
+    setGenerandoPdf(true);
+    try {
+      await acciones.onDescargarPdf(pasivo);
+    } finally {
+      setGenerandoPdf(false);
+    }
+  };
+
+  const extras: ItemAccionListado[] = acciones.puedeExportarPdf
+    ? [
+        {
+          etiqueta: generandoPdf ? "Generando archivo…" : "Descargar PDF",
+          deshabilitado: generandoPdf,
+          onSelect: handleDescargarPdf,
+        },
+      ]
+    : [];
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="size-8 p-0">
-          <span className="sr-only">Abrir menú</span>
-          <MoreHorizontal className="size-4" aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(pasivo.cedula)}>
-          <Copy className="size-4" aria-hidden="true" /> Copiar cédula
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => acciones.onVerDetalle(pasivo)}>
-          <Eye className="size-4" aria-hidden="true" /> Ver detalle
-        </DropdownMenuItem>
-        {acciones.puedeExportarPdf && (
-          <DropdownMenuItem onClick={() => acciones.onDescargarPdf(pasivo)}>
-            <FileDown className="size-4" aria-hidden="true" /> Descargar PDF
-          </DropdownMenuItem>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AccionesListadoMenu
+      acciones={[
+        {
+          etiqueta: "Copiar cédula",
+          onSelect: () => navigator.clipboard.writeText(pasivo.cedula),
+        },
+      ]}
+      extras={extras}
+      accionPrincipal={{
+        etiqueta: "Ver detalle",
+        onSelect: () => acciones.onVerDetalle(pasivo),
+      }}
+    />
   );
 }
 

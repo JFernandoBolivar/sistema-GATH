@@ -272,7 +272,6 @@ class RepoReportesORM:
 
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
         from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
-        from apps.reportes.infrastructure.repositories.lector_fe_de_vida_orm import LectorFeDeVidaORM
 
         cedulas = [e.cedulaidentidad for e in pagina]
         asigs = _asignaciones_por_cedula(AsigTrabajoModel, cedulas)
@@ -285,8 +284,6 @@ class RepoReportesORM:
         ):
             if egr.employee_id not in egresos:
                 egresos[egr.employee_id] = egr
-
-        solicitudes_fv = LectorFeDeVidaORM().estado_por_cedula(cedulas)
 
         filas = []
         for idx, e in enumerate(pagina, start=1):
@@ -314,8 +311,6 @@ class RepoReportesORM:
                 contactos.append(e.correo)
             contacto = ' / '.join(contactos)
 
-            estado_fv = solicitudes_fv.get(str(e.cedulaidentidad)) or ''
-
             filas.append({
                 '#': str(idx),
                 'cedula': str(e.cedulaidentidad),
@@ -325,14 +320,13 @@ class RepoReportesORM:
                 'tipo_pasivo': tipo_pasivo,
                 'fecha_egreso': f_egr,
                 'contacto': contacto,
-                'estado_fe_de_vida': str(estado_fv),
             })
 
         return ResultadoReporte(
             titulo='Reporte de Personal Pasivo',
             columnas=[
                 '#', 'cedula', 'nombres', 'apellidos', 'tipo_pasivo',
-                'fecha_egreso', 'contacto', 'estado_fe_de_vida',
+                'fecha_egreso', 'contacto',
             ],
             filas=filas,
             total_registros=len(filas),

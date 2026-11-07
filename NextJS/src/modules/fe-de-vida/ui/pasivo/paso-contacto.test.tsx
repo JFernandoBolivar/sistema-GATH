@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { MiExpedienteDTO } from "@/modules/autogestion/application/dtos/mi-expediente-dto";
 import { PasoContacto } from "./paso-contacto";
@@ -8,13 +8,21 @@ const ficha = {
   empleado: { cedula: "3333333", nombre_completo: "Ana Pérez", asignaciones: [] },
 } as unknown as MiExpedienteDTO;
 
-function montar(telefonoMovil = "") {
+function montar(
+  telefonoMovil = "",
+  opciones: { correoAlternativo?: string; permiteSinCorreo?: boolean } = {},
+) {
   const onContinuar = vi.fn();
   render(
     <PasoContacto
       ficha={ficha}
-      valoresIniciales={{ telefonoMovil, tieneHijos: "no" }}
+      valoresIniciales={{
+        telefonoMovil,
+        correoAlternativo: opciones.correoAlternativo ?? "ana@correo.test",
+        tieneHijos: "no",
+      }}
       guardando={false}
+      permiteSinCorreo={opciones.permiteSinCorreo}
       onContinuar={onContinuar}
     />,
   );
@@ -70,5 +78,31 @@ describe("PasoContacto: teléfono celular", () => {
     await usuario.click(screen.getByRole("button", { name: /continuar/i }));
     await waitFor(() => expect(onContinuar).toHaveBeenCalledTimes(1));
     expect(onContinuar.mock.calls[0][0].telefonoMovil).toBe("+584147574312");
+  }, 30000);
+
+  it("sin correo alternativo no continúa (O39)", async () => {
+    const { onContinuar, usuario } = montar("+584147574312", { correoAlternativo: "" });
+    await usuario.click(screen.getByRole("button", { name: /continuar/i }));
+    expect(
+      await screen.findByText("El correo alternativo es obligatorio para la fe de vida."),
+    ).toBeInTheDocument();
+    expect(onContinuar).not.toHaveBeenCalled();
+  });
+
+  it("en presencial permite «No tiene correo» con justificación (O39)", async () => {
+    const { onContinuar, usuario } = montar("+584147574312", {
+      correoAlternativo: "",
+      permiteSinCorreo: true,
+    });
+    fireEvent.click(screen.getByLabelText("No tiene correo"));
+    fireEvent.change(screen.getByLabelText(/Justificación/), {
+      target: { value: "El pasivo no posee correo electrónico ni familiar de contacto." },
+    });
+    await usuario.click(screen.getByRole("button", { name: /continuar/i }));
+    await waitFor(() => expect(onContinuar).toHaveBeenCalledTimes(1));
+    expect(onContinuar.mock.calls[0][1]).toEqual({
+      sinCorreoAlternativo: true,
+      justificacionSinCorreo: "El pasivo no posee correo electrónico ni familiar de contacto.",
+    });
   }, 30000);
 });

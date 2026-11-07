@@ -16,6 +16,7 @@ from apps.configuracion.domain.reglas_catalogos import (
     preparar_nuevo_parentesco,
     validar_cambio_categoria_motivo,
     validar_edicion_motivo,
+    validar_activacion_nomina,
     validar_edicion_nomina,
     validar_edicion_parentesco,
     validar_eliminacion_motivo,
@@ -186,6 +187,7 @@ def editar_nomina(
 ) -> tuple[ReglaNomina, ReglaNomina]:
     """Edición de nómina, protegiendo las nóminas reservadas del sistema."""
     anterior = repo.obtener_nomina(nomina_id)
+    validar_activacion_nomina(anterior, es_activo)
     nombre = None
     if nomina is not None:
         nombre = normalizar_nombre_catalogo(nomina, campo='nomina', maximo=LARGO_MAXIMO_NOMINA)
@@ -215,5 +217,6 @@ def actualizar_nomina(
 ) -> tuple[ReglaNomina, ReglaNomina]:
     """Actualiza marcas es_activo y/o requiere_codig de un tipo de nómina. Devuelve (anterior, actualizado)."""
     anterior = repo.obtener_nomina(nomina_id)
+    validar_activacion_nomina(anterior, es_activo)
     actualizado = repo.actualizar_nomina(nomina_id, es_activo, requiere_codig)
     return anterior, actualizado

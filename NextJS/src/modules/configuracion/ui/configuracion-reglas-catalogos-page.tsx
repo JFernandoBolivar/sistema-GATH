@@ -92,9 +92,6 @@ const PERMISO_CATALOGOS_VER = "catalogos.ver";
 const PERMISO_CATALOGOS_EDITAR = "catalogos.editar";
 const PERMISO_CATALOGOS_CREAR = "catalogos.crear";
 
-/** Nóminas cuyo nombre usa el sistema (el backend también las protege). */
-const NOMINAS_RESERVADAS = ["JUBILADO", "PENSIONADO", "PENSIONADO SOBREVIVIENTE"];
-
 function esError(resultado: unknown): resultado is { error: string; errores?: Record<string, string[]> } {
   return typeof resultado === "object" && resultado !== null && "error" in resultado;
 }
@@ -805,7 +802,7 @@ export function ConfiguracionReglasCatalogosPage() {
                     </TableHeader>
                     <TableBody>
                       {data?.nominas.map((n) => {
-                        const reservada = NOMINAS_RESERVADAS.includes(n.nomina.trim().toUpperCase());
+                        const reservada = n.es_reservada;
                         return (
                           <TableRow key={n.id}>
                             <TableCell className="font-mono text-xs">{n.id}</TableCell>
@@ -823,7 +820,7 @@ export function ConfiguracionReglasCatalogosPage() {
                               <div className="flex items-center justify-center gap-2">
                                 <Switch
                                   checked={n.es_activo}
-                                  disabled={!puedeEditar || isPending}
+                                  disabled={!puedeEditar || isPending || (reservada && !n.es_activo)}
                                   onCheckedChange={(val) => {
                                     setConfirmNomina({
                                       nomina: n,
@@ -983,6 +980,7 @@ export function ConfiguracionReglasCatalogosPage() {
                 id="nomina-nombre"
                 value={dialogoNomina?.nombre ?? ""}
                 maxLength={50}
+                disabled={dialogoNomina?.nomina?.es_reservada === true}
                 onChange={(e) =>
                   setDialogoNomina((previo) =>
                     previo ? { ...previo, nombre: e.target.value } : previo,
@@ -998,6 +996,10 @@ export function ConfiguracionReglasCatalogosPage() {
               <Switch
                 id="nomina-activa"
                 checked={dialogoNomina?.esActivo ?? true}
+                disabled={
+                  dialogoNomina?.nomina?.es_reservada === true &&
+                  !(dialogoNomina?.esActivo ?? false)
+                }
                 onCheckedChange={(valor) =>
                   setDialogoNomina((previo) =>
                     previo ? { ...previo, esActivo: valor } : previo,

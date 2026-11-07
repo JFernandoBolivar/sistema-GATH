@@ -30,7 +30,13 @@ import {
 import { PaginacionNav } from "../comun/paginacion-nav";
 import { useSesionFeDeVida } from "../comun/use-sesion-fe-de-vida";
 import { DialogoExportarEstadisticas } from "./dialogo-exportar-estadisticas";
-import { capturarGraficoPng, descargarPng } from "./capturar-grafico";
+import {
+  capturarGraficoPng,
+  descargarPng,
+  ESCALA_EXPORTACION,
+  esperarGraficoListo,
+} from "./capturar-grafico";
+import { datosGraficosExportacion, GraficosExportacion, leyendasExportacion } from "./graficos-exportacion";
 import {
   ETIQUETAS_ESTADO_MATRIZ,
   ETIQUETA_CANAL,
@@ -82,6 +88,12 @@ export default function EstadisticasPage() {
   const refCobertura = useRef<HTMLDivElement>(null);
   const refTipos = useRef<HTMLDivElement>(null);
   const refEstados = useRef<HTMLDivElement>(null);
+  const refsExportacion = {
+    cobertura: useRef<HTMLDivElement>(null),
+    tipos: useRef<HTMLDivElement>(null),
+    estados: useRef<HTMLDivElement>(null),
+  };
+  const [copiasExportacion, setCopiasExportacion] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
     ["fe-de-vida-estadisticas", filtros],
@@ -215,13 +227,25 @@ export default function EstadisticasPage() {
 
       const imagenes: Array<{ nombre: string; data: string }> = [];
       if (opciones.formato === "pdf" && opciones.incluirGraficos) {
-        for (const [nombre, ref] of [
-          ["cobertura", refCobertura],
-          ["tipos", refTipos],
-          ["estados", refEstados],
-        ] as const) {
-          if (!ref.current) continue;
-          imagenes.push({ nombre, data: await capturar(nombre, ref) });
+        const datosExportacion = data ? datosGraficosExportacion(data) : null;
+        if (datosExportacion) {
+          // Copias fuera de pantalla con ancho lógico menor: Recharts recalcula la disposición.
+          const leyendas = leyendasExportacion(datosExportacion);
+          setCopiasExportacion(true);
+          try {
+            for (const nombre of ["cobertura", "tipos", "estados"] as const) {
+              const ref = refsExportacion[nombre];
+              if (nombre === "estados" && datosExportacion.estados.length === 0) continue;
+              if (nombre === "tipos" && datosExportacion.tipos.length === 0) continue;
+              const contenedor = await esperarGraficoListo(() => ref.current);
+              imagenes.push({
+                nombre,
+                data: await capturarGraficoPng(contenedor, ESCALA_EXPORTACION, { leyenda: leyendas[nombre] }),
+              });
+            }
+          } finally {
+            setCopiasExportacion(false);
+          }
         }
       }
 
@@ -646,6 +670,10 @@ export default function EstadisticasPage() {
           </>
         ) : null}
       </div>
+
+      {copiasExportacion && data ? (
+        <GraficosExportacion datos={datosGraficosExportacion(data)} refs={refsExportacion} />
+      ) : null}
 
       <DialogoExportarEstadisticas
         abierto={dialogoExportarAbierto}

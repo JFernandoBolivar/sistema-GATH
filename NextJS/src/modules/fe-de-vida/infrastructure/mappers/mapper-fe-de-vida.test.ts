@@ -32,6 +32,16 @@ describe("mapper fe de vida", () => {
     expect(s).toMatchObject({ procesoId: "p1", estado: "DEVUELTA", origenEvidencia: "CAMARA", requiereNuevaFoto: true });
     expect(s.decisiones[0]).toMatchObject({ tipo: "DEVOLUCION", actorCedula: "9", motivo: "Foto" });
   });
+
+  it("mapea la excepción presencial «No tiene correo» (O39)", () => {
+    const s = mapperSolicitud({
+      ...api,
+      sin_correo_alternativo: true,
+      justificacion_sin_correo: "El pasivo no posee correo electrónico.",
+    });
+    expect(s.sinCorreoAlternativo).toBe(true);
+    expect(s.justificacionSinCorreo).toBe("El pasivo no posee correo electrónico.");
+  });
   it("mapea la marca de que quien registró también aprobó (falsa si el servidor no la envía)", () => {
     expect(mapperSolicitud(api).registradorTambienAprobo).toBe(false);
     expect(mapperSolicitud({ ...api, registrador_tambien_aprobo: true }).registradorTambienAprobo).toBe(true);

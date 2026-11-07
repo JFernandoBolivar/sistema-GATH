@@ -25,7 +25,7 @@ class PoliticaCorreoAccesoModel(BaseModel):
     politica_pasivos = models.CharField(
         max_length=20,
         choices=CHOICES_FUENTE,
-        default='alternativo',
+        default='institucional',
         help_text='Fuente primaria de correo para pasivos y sobrevivientes.',
     )
     politica_activos = models.CharField(

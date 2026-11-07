@@ -39,6 +39,16 @@ from core.infrastructure.pdf.pdf_styles import PAGE_CONFIG, get_paragraph_styles
 
 TITULO = 'Estadísticas de fe de vida'
 
+# Tamaños (pt) de los gráficos de respaldo dibujados con reportlab: legibles impresos.
+TAM_EJES = 8
+TAM_VALORES = 8.5
+TAM_LEYENDA = 8.5
+
+# Fracciones de ancho de la fila de gráficos (cobertura | tipos) y tope de alto de cada imagen.
+FRACCION_COBERTURA = 0.34
+FRACCION_TIPOS = 1 - FRACCION_COBERTURA
+ALTO_MAXIMO_GRAFICO = 130 * mm
+
 
 def _texto_filtros(estadisticas: EstadisticasFeDeVida, tipos: dict[int, str]) -> list[tuple[str, str]]:
     filtro = estadisticas.filtro
@@ -74,19 +84,23 @@ def _grafico_tipos(estadisticas: EstadisticasFeDeVida, ancho: float) -> Drawing:
     ]
     grafico.categoryAxis.categoryNames = [(f.tipo_nomina or 'Sin tipo')[:28] for f in filas]
     grafico.categoryAxis.labels.fontName = FUENTE
-    grafico.categoryAxis.labels.fontSize = 6.5
+    grafico.categoryAxis.labels.fontSize = TAM_EJES
     grafico.valueAxis.labels.fontName = FUENTE
-    grafico.valueAxis.labels.fontSize = 6.5
+    grafico.valueAxis.labels.fontSize = TAM_EJES
     grafico.valueAxis.valueMin = 0
     max_val = max([f.total for f in filas] or [1])
     grafico.valueAxis.valueStep = max(1, (max_val // 5) or 1)
+    grafico.barLabelFormat = '%d'
+    grafico.barLabels.fontName = FUENTE_NEGRITA
+    grafico.barLabels.fontSize = TAM_VALORES
+    grafico.barLabels.nudge = 7
     grafico.bars[0].fillColor = COLOR_RESPONDIDOS
     grafico.bars[1].fillColor = COLOR_FALTANTES
     grafico.groupSpacing = 6
     dibujo.add(grafico)
 
-    dibujo.add(String(36 * mm, 45 * mm, '■ Respondieron', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_RESPONDIDOS))
-    dibujo.add(String(72 * mm, 45 * mm, '■ Faltan', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=GRIS_TEXTO))
+    dibujo.add(String(36 * mm, 45 * mm, '■ Respondieron', fontName=FUENTE_NEGRITA, fontSize=TAM_LEYENDA, fillColor=COLOR_RESPONDIDOS))
+    dibujo.add(String(72 * mm, 45 * mm, '■ Faltan', fontName=FUENTE_NEGRITA, fontSize=TAM_LEYENDA, fillColor=GRIS_TEXTO))
     return dibujo
 
 
@@ -104,17 +118,27 @@ def _grafico_estados(estadisticas: EstadisticasFeDeVida, ancho: float) -> Drawin
     grafico.data = [[f.total for f in filas]]
     grafico.categoryAxis.categoryNames = [ETIQUETAS_ESTADO.get(f.estado, f.estado) for f in filas]
     grafico.categoryAxis.labels.fontName = FUENTE
-    grafico.categoryAxis.labels.fontSize = 7
+    grafico.categoryAxis.labels.fontSize = TAM_EJES
     grafico.valueAxis.labels.fontName = FUENTE
-    grafico.valueAxis.labels.fontSize = 7
+    grafico.valueAxis.labels.fontSize = TAM_EJES
     grafico.valueAxis.valueMin = 0
+    grafico.barLabelFormat = '%d'
+    grafico.barLabels.fontName = FUENTE_NEGRITA
+    grafico.barLabels.fontSize = TAM_VALORES
+    grafico.barLabels.nudge = 7
     grafico.bars[0].fillColor = COLOR_BARRAS_ESTADO
     dibujo.add(grafico)
     return dibujo
 
 
-def _imagen_grafico(datos: bytes, ancho: float, alto_maximo: float = 68 * mm) -> ImagenPDF:
-    """PNG que envió la pantalla (2x), escalado al ancho de la página sin deformar."""
+def _imagen_grafico(datos: bytes, ancho: float, alto_maximo: float = ALTO_MAXIMO_GRAFICO) -> ImagenPDF:
+    """PNG de la copia de exportación (ancho lógico a medida del hueco), sin deformar.
+
+    El frontend dibuja cada gráfico con un ancho lógico pensado para su hueco
+    (`ANCHOS_EXPORTACION` en graficos-estadisticas.tsx), de modo que el escalado
+    sea cercano a 0,75 pt/px y el texto de 13 px salga a ~10 pt (página horizontal). Si se cambian las
+    fracciones de ancho de abajo, hay que ajustar esos anchos.
+    """
     lector = ImageReader(BytesIO(datos))
     ancho_px, alto_px = lector.getSize()
     alto = ancho * (alto_px / ancho_px) if ancho_px else alto_maximo
@@ -141,9 +165,9 @@ def _grafico_cobertura(estadisticas: EstadisticasFeDeVida, ancho: float) -> Draw
     pastel.sideLabels = False
     pastel.simpleLabels = 0
     dibujo.add(pastel)
-    dibujo.add(String(36 * mm, 44 * mm, f'■ Respondieron: {conteos.respondieron}', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=COLOR_RESPONDIDOS))
-    dibujo.add(String(36 * mm, 39 * mm, f'■ Faltan: {conteos.faltan}', fontName=FUENTE_NEGRITA, fontSize=7.5, fillColor=GRIS_TEXTO))
-    dibujo.add(String(36 * mm, 30 * mm, f'Total: {conteos.total}', fontName=FUENTE, fontSize=8, fillColor=GRIS_TEXTO))
+    dibujo.add(String(36 * mm, 44 * mm, f'■ Respondieron: {conteos.respondieron}', fontName=FUENTE_NEGRITA, fontSize=TAM_LEYENDA, fillColor=COLOR_RESPONDIDOS))
+    dibujo.add(String(36 * mm, 39 * mm, f'■ Faltan: {conteos.faltan}', fontName=FUENTE_NEGRITA, fontSize=TAM_LEYENDA, fillColor=GRIS_TEXTO))
+    dibujo.add(String(36 * mm, 30 * mm, f'Total: {conteos.total}', fontName=FUENTE, fontSize=TAM_LEYENDA, fillColor=GRIS_TEXTO))
     return dibujo
 
 
@@ -258,8 +282,8 @@ def generar_estadisticas_pdf(
     # ── Sección 2: Gráficos estadísticos ──
     if incluir_graficos:
         conteos = estadisticas.conteos
-        ancho_cobertura = ancho * 0.28
-        ancho_tipos = ancho * 0.68
+        ancho_cobertura = ancho * FRACCION_COBERTURA
+        ancho_tipos = ancho * FRACCION_TIPOS
         cobertura = (
             _imagen_grafico(imagenes['cobertura'], ancho_cobertura)
             if imagenes.get('cobertura') else _grafico_cobertura(estadisticas, ancho_cobertura)
@@ -271,7 +295,7 @@ def generar_estadisticas_pdf(
         fila_graficos = Table([[
             [Paragraph('<b>Cobertura de la fe de vida</b>', estilos['TableCell']), cobertura],
             [Paragraph('<b>Respondieron por tipo de pasivo</b>', estilos['TableCell']), tipos],
-        ]], colWidths=[ancho * 0.30, ancho * 0.70])
+        ]], colWidths=[ancho * FRACCION_COBERTURA, ancho * FRACCION_TIPOS])
         fila_graficos.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
             ('LEFTPADDING', (0, 0), (-1, -1), 0),

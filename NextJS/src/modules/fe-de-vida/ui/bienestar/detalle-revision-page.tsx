@@ -68,6 +68,15 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
           </div>
         ))}
       </dl>
+      {solicitud.sinCorreoAlternativo ? (
+        <p
+          role="note"
+          className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          <strong>El pasivo no tiene correo.</strong>{" "}
+          {solicitud.justificacionSinCorreo?.trim() || "No se registró justificación."}
+        </p>
+      ) : null}
     </section>
   );
 }

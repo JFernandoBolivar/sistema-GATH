@@ -3,6 +3,8 @@ Vistas de FE DE VIDA PRESENCIAL (Bienestar Social):
 Permite al personal de Bienestar registrar la fe de vida de un pasivo que acude en persona,
 incluso si carece de cuenta o correo, reutilizando el mismo flujo y validaciones del asistente.
 """
+from dataclasses import replace
+
 from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -13,11 +15,17 @@ from apps.fe_de_vida.application.use_cases._comun import evento, obtener_solicit
 from apps.fe_de_vida.application.use_cases.consultas import buscar_pasivos_presencial, obtener_proceso_vigente
 from apps.fe_de_vida.application.use_cases.solicitudes_pasivo import (
     exigir_celular,
+    exigir_correo_alternativo,
     guardar_borrador,
     iniciar_solicitud_vigente,
     subir_evidencia,
 )
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
+from apps.fe_de_vida.domain.constantes import (
+    MAX_JUSTIFICACION_SIN_CORREO,
+    MENSAJE_JUSTIFICACION_SIN_CORREO,
+    MIN_JUSTIFICACION_SIN_CORREO,
+)
 from apps.fe_de_vida.domain.events import PublicadorNulo, TipoEvento
 from apps.fe_de_vida.domain.services.reglas_proceso import exigir_puede_enviar
 from apps.fe_de_vida.domain.value_objects.estados import CONDICION_PASIVO, EstadoSolicitud, validar_transicion_solicitud
@@ -227,12 +235,36 @@ class BorradorPresencialView(APIView):
             )
             # Después de guardar: vale el celular que trae este mismo borrador (si falla, la transacción se revierte).
             exigir_celular(repo_cambios, LectorFichaPasivoORM(), solicitud_id=solicitud.id, cedula=solicitud.cedula)
+
+            # O39: excepción presencial «No tiene correo», con justificación obligatoria.
+            sin_correo = bool(datos.get('sin_correo_alternativo'))
+            justificacion = str(datos.get('justificacion_sin_correo') or '').strip()
+            if sin_correo and len(justificacion) < MIN_JUSTIFICACION_SIN_CORREO:
+                raise ValidationError(
+                    MENSAJE_JUSTIFICACION_SIN_CORREO, campo='justificacion_sin_correo',
+                )
+            if len(justificacion) > MAX_JUSTIFICACION_SIN_CORREO:
+                raise ValidationError(
+                    f'La justificación no puede superar {MAX_JUSTIFICACION_SIN_CORREO} caracteres.',
+                    campo='justificacion_sin_correo',
+                )
+            solicitud_guardada = repo_sol.guardar(
+                replace(
+                    solicitud,
+                    sin_correo_alternativo=sin_correo,
+                    justificacion_sin_correo=justificacion if sin_correo else '',
+                ),
+                solicitud.version,
+            )
             auditar(
                 request, 'BORRADOR_PRESENCIAL_GUARDADO', solicitud.id, None,
                 {'cambios_guardados': len(guardados)},
             )
 
-        return ok({'solicitud': a_dict_solicitud(solicitud), 'cambios': [a_dict_cambio(c) for c in guardados]})
+        return ok({
+            'solicitud': a_dict_solicitud(solicitud_guardada),
+            'cambios': [a_dict_cambio(c) for c in guardados],
+        })
 
 
 class EvidenciaPresencialView(APIView):
@@ -311,6 +343,11 @@ class EnviarPresencialView(APIView):
                 repo_proc.listar_prorrogas(solicitud.proceso_id),
                 solicitud.cedula,
                 momento,
+            )
+
+            # O39: alternativo obligatorio salvo la excepción presencial justificada.
+            exigir_correo_alternativo(
+                RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud=solicitud, presencial=True,
             )
 
             funcionario_nombre = _nombre_funcionario(request.user)

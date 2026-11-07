@@ -23,6 +23,8 @@ export interface ReglaNominaDTO {
   nomina: string;
   requiere_codig: boolean;
   es_activo: boolean;
+  /** Calculada por el backend: su nombre y estado activo no se editan. */
+  es_reservada: boolean;
 }
 
 export interface ReglasCatalogosCompletoDTO {

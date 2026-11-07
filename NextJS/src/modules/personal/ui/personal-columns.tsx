@@ -17,18 +17,12 @@
  */
 import { useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
-import { Button } from "@/shared/ui/components/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/shared/ui/components/dropdown-menu";
+  AccionesListadoMenu,
+  type ItemAccionListado,
+} from "@/shared/ui/components/acciones-listado-menu";
 import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
 
 import type { EmpleadoDTO } from "../application/dtos/empleado-dto";
@@ -56,44 +50,31 @@ function AccionesCell({
     }
   };
 
+  const extras: ItemAccionListado[] = puedeExportarPdf
+    ? [
+        {
+          etiqueta: generandoPdf ? "Generando archivo…" : "Descargar PDF",
+          deshabilitado: generandoPdf,
+          onSelect: handleDescargarPdf,
+        },
+      ]
+    : [];
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="size-8 p-0">
-          <span className="sr-only">Abrir Menu</span>
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onClick={() => navigator.clipboard.writeText(empleado.cedula)}
-        >
-          Copiar Cédula De Identidad
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Extras</DropdownMenuLabel>
-        {puedeExportarPdf && (
-          <DropdownMenuItem
-            className="cursor-pointer"
-            disabled={generandoPdf}
-            onClick={handleDescargarPdf}
-          >
-            {generandoPdf ? "Generando archivo…" : "Descargar PDF"}
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem asChild>
-          <Button
-            type="button"
-            className="w-full bg-blue-900 hover:bg-blue-800 p-2 rounded-sm text-white font-medium cursor-pointer"
-            onClick={() => onVerDetalle(empleado.cedula)}
-          >
-            Ver Detalles
-          </Button>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AccionesListadoMenu
+      etiquetaMenu="Abrir Menu"
+      acciones={[
+        {
+          etiqueta: "Copiar Cédula De Identidad",
+          onSelect: () => navigator.clipboard.writeText(empleado.cedula),
+        },
+      ]}
+      extras={extras}
+      accionPrincipal={{
+        etiqueta: "Ver Detalles",
+        onSelect: () => onVerDetalle(empleado.cedula),
+      }}
+    />
   );
 }
 

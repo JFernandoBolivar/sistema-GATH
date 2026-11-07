@@ -34,6 +34,9 @@ export interface SolicitudEntity {
   readonly registradaPorCedula?: string;
   /** Quien registró el acta presencial también dio un check o la aprobación directa. */
   readonly registradorTambienAprobo?: boolean;
+  /** O39: excepción presencial «No tiene correo» y su justificación. */
+  readonly sinCorreoAlternativo?: boolean;
+  readonly justificacionSinCorreo?: string;
   readonly fechaEnvio: string | null;
   readonly fechaValidacion: string | null;
   readonly decisiones: readonly DecisionEntity[];

@@ -190,3 +190,32 @@ def test_tabla_partida_lleva_titulo_de_continuacion(_mock_config):
         pdf = construir_pdf_expediente_empleado(_dto_base(antecedentes=antecedentes))
     assert pdf.startswith(b"%PDF")
     assert "ANTECEDENTES LABORALES (CONTINUACIÓN)" in textos
+
+
+def _asig(**sobre):
+    base = {"denominacion_cargo_especifico": "Analista", "dependencia": "NIVEL DE APOYO",
+            "direccion_general": "OFICINA DE SISTEMAS Y TECNOLOGIA DE LA INFORMACION",
+            "direccion_linea": "N/A", "coordinacion": "N/A"}
+    base.update(sobre)
+    return base
+
+
+def test_tarjeta_muestra_direccion_general_y_no_la_dependencia_nivel():
+    from apps.personal.infrastructure.pdf_empleado import _lineas_tarjeta
+    lineas = _lineas_tarjeta(_dto_base(asignaciones=[_asig()]), "V-1")
+    assert "Oficina/Gerencia: OFICINA DE SISTEMAS Y TECNOLOGIA DE LA INFORMACION" in lineas
+    assert not any("NIVEL DE APOYO" in linea for linea in lineas)
+
+
+def test_tarjeta_omite_oficina_si_la_direccion_general_es_sin_dato():
+    from apps.personal.infrastructure.pdf_empleado import _lineas_tarjeta
+    lineas = _lineas_tarjeta(_dto_base(asignaciones=[_asig(direccion_general="N/A")]), "V-1")
+    assert not any(linea.startswith("Oficina/Gerencia") for linea in lineas)
+    assert not any("NIVEL DE APOYO" in linea for linea in lineas)
+
+
+def test_direccion_resumida_ignora_n_a_de_coordinacion_y_linea():
+    from apps.personal.infrastructure.pdf_empleado import _direccion_resumida
+    assert _direccion_resumida(_asig()) == "OFICINA DE SISTEMAS Y TECNOLOGIA DE LA INFORMACION"
+    assert _direccion_resumida(_asig(coordinacion="COORD X")) == "COORD X"
+    assert _direccion_resumida(_asig(direccion_general="N/A")) == "No especificado"

@@ -396,12 +396,13 @@ export async function iniciarSolicitudPresencialAction(
 export async function guardarBorradorPresencialAction(
   id: string,
   cambios: CambioEntrada[],
+  opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
 ): Promise<ResultadoAccion<DetalleSolicitudDTO>> {
   return ejecutar(
     "feDeVida.borradorPresencial",
     "Borrador presencial guardado.",
     "No se pudo guardar el borrador.",
-    () => guardarBorradorPresencial(repo, idValido(id), cambios),
+    () => guardarBorradorPresencial(repo, idValido(id), cambios, opciones),
   );
 }
 

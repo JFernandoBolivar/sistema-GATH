@@ -35,13 +35,13 @@ export default function FormDate<T extends FieldValues>({
           <Popover>
             <PopoverTrigger asChild>
               <FormControl>
-                <Button variant={"outline"} className="font-light">
+                <Button variant={"outline"} className="w-full min-h-11 justify-between font-light">
                   {field.value ? (
                     formatInTimeZone(field.value, "UTC", "dd/MM/yyy")
                   ) : (
                     <span>Selecciona una fecha</span>
                   )}
-                  <CalendarIcon className="ml-auto size-4 opacity-50" />
+                  <CalendarIcon className="size-4 opacity-50" aria-hidden />
                 </Button>
               </FormControl>
             </PopoverTrigger>

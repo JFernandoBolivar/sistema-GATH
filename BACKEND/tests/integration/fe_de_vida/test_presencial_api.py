@@ -185,10 +185,16 @@ def test_flujo_completo_fe_de_vida_presencial(datos):
     # 2. Guardar borrador
     r_borr = cli_bienestar.put(
         f'{BASE}/presencial/solicitudes/{sid}/borrador/',
-        {'cambios': [{
-            'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR',
-            'campo': 'telefono_movil', 'valor': '04121234567',
-        }]},
+        {'cambios': [
+            {
+                'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR',
+                'campo': 'telefono_movil', 'valor': '04121234567',
+            },
+            {
+                'seccion': 'contacto', 'entidad': 'datos_complementarios', 'accion': 'MODIFICAR',
+                'campo': 'correo_alternativo', 'valor': 'maria.alterna@correo.test',
+            },
+        ]},
         format='json',
     )
     assert r_borr.status_code == 200
@@ -217,6 +223,69 @@ def test_flujo_completo_fe_de_vida_presencial(datos):
     m = SolicitudFeDeVidaModel.objects.get(pk=sid)
     assert m.canal == 'PRESENCIAL'
     assert m.registrada_por_cedula == ANALISTA
+
+
+def test_flujo_presencial_sin_correo_con_justificacion(datos):
+    cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})
+    r_proc = cli_admin.post(f'{BASE}/procesos/', {
+        'nombre': 'JUBILADOS 2026 - sin correo',
+        'fecha_apertura': '2026-01-01T00:00:00Z',
+        'fecha_cierre': '2026-12-31T23:59:59Z',
+    }, format='json')
+    pid = _cuerpo(r_proc)['id']
+    cli_admin.post(f'{BASE}/procesos/{pid}/abrir/')
+
+    cli_bienestar = _cliente(ANALISTA, {'fe_de_vida.registrar_presencial'})
+    r_ini = cli_bienestar.post(f'{BASE}/presencial/solicitudes/', {'cedula': PASIVO}, format='json')
+    sid = _cuerpo(r_ini)['solicitud']['id']
+    telefono = {
+        'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR',
+        'campo': 'telefono_movil', 'valor': '04121234567',
+    }
+
+    # Justificación demasiado corta: no se guarda.
+    r_corta = cli_bienestar.put(
+        f'{BASE}/presencial/solicitudes/{sid}/borrador/',
+        {'cambios': [telefono], 'sin_correo_alternativo': True,
+         'justificacion_sin_correo': 'corto'},
+        format='json',
+    )
+    assert r_corta.status_code == 400
+
+    # Excepción válida: se guarda y se devuelve la solicitud ya actualizada.
+    justificacion = 'El pasivo no posee correo electrónico ni familiar de contacto.'
+    r_borr = cli_bienestar.put(
+        f'{BASE}/presencial/solicitudes/{sid}/borrador/',
+        {'cambios': [telefono], 'sin_correo_alternativo': True,
+         'justificacion_sin_correo': justificacion},
+        format='json',
+    )
+    assert r_borr.status_code == 200, r_borr.content
+    sol_guardada = _cuerpo(r_borr)['solicitud']
+    assert sol_guardada['sin_correo_alternativo'] is True
+    assert sol_guardada['justificacion_sin_correo'] == justificacion
+
+    r_foto = cli_bienestar.post(
+        f'{BASE}/presencial/solicitudes/{sid}/evidencia/',
+        {'file': _foto_jpeg(), 'origen': 'CAMARA'},
+        format='multipart',
+    )
+    assert r_foto.status_code == 200
+
+    r_env = cli_bienestar.post(
+        f'{BASE}/presencial/solicitudes/{sid}/enviar/',
+        {'declaracion_presencial': True},
+        format='json',
+    )
+    assert r_env.status_code == 200, r_env.content
+    enviada = _cuerpo(r_env)
+    assert enviada['estado'] == 'PENDIENTE_REVISION'
+    assert enviada['sin_correo_alternativo'] is True
+    assert enviada['justificacion_sin_correo'] == justificacion
+
+    m = SolicitudFeDeVidaModel.objects.get(pk=sid)
+    assert m.sin_correo_alternativo is True
+    assert m.justificacion_sin_correo == justificacion
 
 
 def _proceso_abierto_y_solicitud_presencial(registrada_por=ANALISTA):

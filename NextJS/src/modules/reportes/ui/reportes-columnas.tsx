@@ -116,11 +116,6 @@ export function construirColumnasReportePasivos(): ColumnDef<ReporteItemPasivoDT
       cell: ({ row }) => <span>{row.original.contacto || "—"}</span>,
     },
     {
-      accessorKey: "estadoFeDeVida",
-      header: "Fe de vida",
-      cell: ({ row }) => <span>{row.original.estadoFeDeVida || "—"}</span>,
-    },
-    {
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => <CopiarCell valor={row.original.cedula} label="Copiar cédula" />,

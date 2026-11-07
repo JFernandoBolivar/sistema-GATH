@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { Camera, RefreshCw, RotateCcw, SwitchCamera, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ZonaSubida } from "@/shared/components/zona-subida/zona-subida";
 import {
   MAX_BYTES_FOTO,
   detectarCamara,
@@ -59,11 +60,9 @@ export function CapturaFoto({
     valorInicial ? URL.createObjectURL(valorInicial) : null,
   );
   const [tactil, setTactil] = useState(false);
-  const [arrastrando, setArrastrando] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const flujoRef = useRef<MediaStream | null>(null);
-  const archivoRef = useRef<HTMLInputElement>(null);
   const tactilRef = useRef<HTMLInputElement>(null);
 
   const detener = useCallback(() => {
@@ -177,7 +176,6 @@ export function CapturaFoto({
     setVistaPrevia(null);
     setError(null);
     onChange(null, null);
-    if (archivoRef.current) archivoRef.current.value = "";
     if (modo === "camara") void abrirCamara(frontal);
   }
 
@@ -287,56 +285,16 @@ export function CapturaFoto({
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <div
-                role="button"
-                tabIndex={disabled ? -1 : 0}
-                aria-label="Seleccionar una foto para subir"
-                aria-disabled={disabled}
-                onClick={() => {
-                  if (!disabled) archivoRef.current?.click();
-                }}
-                onKeyDown={(e) => {
-                  if (disabled) return;
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    archivoRef.current?.click();
-                  }
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (!disabled) setArrastrando(true);
-                }}
-                onDragLeave={() => setArrastrando(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setArrastrando(false);
-                  if (disabled) return;
-                  const archivo = e.dataTransfer.files?.[0];
-                  if (archivo) alElegirArchivo("ARCHIVO", archivo);
-                }}
-                className={cn(
-                  "mx-auto flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-input bg-muted/20 px-6 py-10 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
-                  arrastrando && "border-primary bg-primary/5",
-                  disabled && "cursor-not-allowed opacity-60",
-                )}
-              >
-                <Upload className="size-10 text-muted-foreground" aria-hidden />
-                <p className="text-base font-semibold">Haz clic aquí para seleccionar foto</p>
-                <p className="text-xs text-muted-foreground">
-                  PNG, JPG hasta {Math.round(maxBytes / (1024 * 1024))}MB
-                </p>
-                <p className="text-sm text-muted-foreground">o arrastra y suelta la imagen</p>
-                <input
-                  ref={archivoRef}
-                  id={`${idBase}-archivo`}
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  disabled={disabled}
-                  aria-label={`Archivo JPG o PNG, hasta ${Math.round(maxBytes / (1024 * 1024))} MB`}
-                  onChange={(e) => alElegirArchivo("ARCHIVO", e.target.files?.[0])}
-                  className="sr-only"
-                />
-              </div>
+              <ZonaSubida
+                etiquetaZona="Seleccionar una foto para subir"
+                etiquetaInput={`Archivo JPG o PNG, hasta ${Math.round(maxBytes / (1024 * 1024))} MB`}
+                accept="image/jpeg,image/png"
+                titulo="Haz clic aquí para seleccionar foto"
+                detalle={`PNG, JPG hasta ${Math.round(maxBytes / (1024 * 1024))}MB`}
+                ayuda="o arrastra y suelta la imagen"
+                disabled={disabled}
+                onArchivo={(archivo) => alElegirArchivo("ARCHIVO", archivo)}
+              />
               {tactil ? (
                 <>
                   <input

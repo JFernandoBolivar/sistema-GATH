@@ -3,6 +3,8 @@
  * (`apps/autogestion/domain/value_objects/secciones.py`): el servidor sigue siendo la fuente de verdad
  * y revalida; aquí solo se describe qué formulario mostrar y cómo rotular cada campo.
  */
+import { ETIQUETA_CODIGO_CARNET_PATRIA, ETIQUETA_SERIAL_CARNET_PATRIA } from "@/shared/domain/etiquetas-carnet-patria";
+
 import type { AccionCambio, SeccionCodigo } from "../entities/solicitud-actualizacion";
 
 export type TipoCampo =
@@ -66,7 +68,7 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
     codigo: "identidad",
     nombre: "Identidad",
     descripcion:
-      "Nombres, apellidos, fecha de nacimiento y cédula. La copia de la cédula es obligatoria. El estado civil y el Carnet de la Patria no requieren documento.",
+      "Nombres, apellidos, fecha de nacimiento y cédula. La copia de la cédula es obligatoria. El estado civil, el código del Carnet de la Patria y su serial no requieren documento.",
     entidades: [
       {
         entidad: "employee",
@@ -84,10 +86,10 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             tipo: "catalogo",
             catalogo: "estadosCiviles",
           },
-          { campo: "carnet_patria", etiqueta: "Carnet de la Patria", tipo: "texto" },
+          { campo: "carnet_patria", etiqueta: ETIQUETA_CODIGO_CARNET_PATRIA, tipo: "texto" },
           {
             campo: "carnet_patria_serial",
-            etiqueta: "Serial del Carnet de la Patria",
+            etiqueta: ETIQUETA_SERIAL_CARNET_PATRIA,
             tipo: "texto",
           },
         ],

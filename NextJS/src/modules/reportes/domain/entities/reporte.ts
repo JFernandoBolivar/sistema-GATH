@@ -23,7 +23,6 @@ export interface ReporteItemPasivo {
   fechaEgreso: string;
   motivoEgreso?: string;
   contacto: string;
-  estadoFeDeVida: string;
 }
 
 export interface ReporteItemVacante {

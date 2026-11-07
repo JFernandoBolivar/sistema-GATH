@@ -6,6 +6,10 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formatInTimeZone } from "date-fns-tz";
@@ -275,7 +279,7 @@ export function PasoBasicInfo({
                   <InputForm
                     className="w-full"
                     form={form}
-                    label={`Correo institucional${correoObligatorio === "institucional" ? " *" : ""}`}
+                    label={`${correoObligatorio === "alternativo" ? "Correo principal" : "Correo institucional"}${correoObligatorio === "institucional" ? " *" : ""}`}
                     nameInput="correo"
                     placeholder="usuario@conatel.gob.ve"
                     type="email"
@@ -331,11 +335,13 @@ export function PasoBasicInfo({
               </section>
 
               <section className="flex flex-col gap-4">
-                <h3 className="text-sm font-semibold text-muted-foreground">Carnet de la Patria</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  Código y serial del Carnet de la Patria
+                </h3>
                 <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                   <InputForm
                     form={form}
-                    label="Código del Carnet de la Patria"
+                    label={ETIQUETA_CODIGO_CARNET_PATRIA}
                     nameInput="carnet_patria"
                     placeholder="0000000000"
                     type="text"
@@ -344,7 +350,7 @@ export function PasoBasicInfo({
                   />
                   <InputForm
                     form={form}
-                    label="Serial del Carnet de la Patria"
+                    label={ETIQUETA_SERIAL_CARNET_PATRIA}
                     nameInput="carnet_patria_serial"
                     placeholder="Serial"
                     type="text"

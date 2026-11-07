@@ -270,24 +270,49 @@ button,
   }
 }
 
-/* Fecha vacía: sin caja blanca y con el ícono de calendario separado. */
-input[type="date"] {
+/* FIX-TLF10: un solo estilo para todas las fechas nativas (date y datetime-local):
+   el ícono de calendario queda visible, con el mismo tamaño relativo y una
+   zona táctil cómoda en teléfono. No se oculta el selector nativo. */
+input[type="date"],
+input[type="datetime-local"] {
   display: inline-flex;
   align-items: center;
   line-height: 1.25;
   padding-right: 0.5rem;
 }
-input[type="date"]::-webkit-datetime-edit {
+input[type="date"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit {
   padding: 0;
 }
-input[type="date"]::-webkit-calendar-picker-indicator {
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  width: 1.25rem;
+  height: 1.25rem;
   margin-inline-start: 0.5rem;
   padding: 0;
+  /* FIX-AUD8: la flecha nativa de Android se sustituye por el mismo glifo de
+     calendario en todos los navegadores; currentColor respeta tema claro/oscuro
+     y el selector nativo sigue abriendo el calendario. */
+  background-color: currentColor;
+  -webkit-mask: url("/icons/calendario.svg") center / contain no-repeat;
+  mask: url("/icons/calendario.svg") center / contain no-repeat;
+  -webkit-mask-origin: content-box;
+  mask-origin: content-box;
+  background-clip: content-box;
   opacity: 0.7;
   cursor: pointer;
 }
-input[type="date"]:not(:focus):invalid::-webkit-datetime-edit {
+input[type="date"]:not(:focus):invalid::-webkit-datetime-edit,
+input[type="datetime-local"]:not(:focus):invalid::-webkit-datetime-edit {
   color: var(--muted-foreground);
+}
+@media (max-width: 1023px) {
+  /* Área táctil de 44 px para el selector nativo (sin ocultarlo). */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    padding: 0.75rem;
+    margin-inline-end: -0.5rem;
+  }
 }
 @supports (padding: env(safe-area-inset-bottom)) {
   body {

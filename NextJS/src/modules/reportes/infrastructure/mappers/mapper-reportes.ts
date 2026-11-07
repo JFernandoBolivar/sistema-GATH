@@ -47,7 +47,6 @@ export function reportePasivoApiAEntidad(raw: ReportePasivoApiItem): ReporteItem
     fechaEgreso: raw.fecha_egreso || "N/A",
     motivoEgreso: raw.motivo_egreso || "",
     contacto: raw.contacto || "S/D",
-    estadoFeDeVida: raw.estado_fe_de_vida || "S/D",
   };
 }
 

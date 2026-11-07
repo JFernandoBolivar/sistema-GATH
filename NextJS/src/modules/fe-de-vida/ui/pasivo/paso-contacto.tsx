@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -19,11 +19,14 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/shared/ui/components/textarea";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import type { MiExpedienteDTO } from "@/modules/autogestion/application/dtos/mi-expediente-dto";
 import { oficinaDeAdscripcion } from "../../domain/services/reglas";
+import { resolverOpcionesContacto, MAX_JUSTIFICACION_SIN_CORREO } from "./decision-contacto";
 import { datosContactoSchema, type DatosContactoValores } from "../schema/schema-fe-de-vida";
 
 interface Props {
@@ -33,7 +36,14 @@ interface Props {
   };
   erroresServidor?: Record<string, string[]>;
   guardando: boolean;
-  onContinuar: (valores: DatosContactoValores) => void;
+  /** O39: en presencial se permite «No tiene correo» con justificación. */
+  permiteSinCorreo?: boolean;
+  sinCorreoInicial?: boolean;
+  justificacionInicial?: string;
+  onContinuar: (
+    valores: DatosContactoValores,
+    opciones?: { sinCorreoAlternativo: boolean; justificacionSinCorreo: string },
+  ) => void;
 }
 
 function DatoSoloLectura({
@@ -57,9 +67,21 @@ function DatoSoloLectura({
 }
 
 /** Paso 1: datos personales (solo lectura), contacto editable, correo alternativo y «¿tiene hijos?». */
-export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardando, onContinuar }: Props) {
+export function PasoContacto({
+  ficha,
+  valoresIniciales,
+  erroresServidor,
+  guardando,
+  permiteSinCorreo = false,
+  sinCorreoInicial = false,
+  justificacionInicial = "",
+  onContinuar,
+}: Props) {
   const e = ficha.empleado;
   const asignacion = e.asignaciones?.[0];
+  const [sinCorreo, setSinCorreo] = useState(sinCorreoInicial);
+  const [justificacion, setJustificacion] = useState(justificacionInicial);
+  const [errorLocal, setErrorLocal] = useState<string | null>(null);
 
   const form = useForm<DatosContactoValores>({
     resolver: zodResolver(datosContactoSchema),
@@ -73,7 +95,6 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
   const {
     register,
     control,
-    handleSubmit,
     formState: { errors },
   } = form;
 
@@ -88,8 +109,28 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
     }
   }, [erroresServidor, form]);
 
+  const enviar = form.handleSubmit((valores) => {
+    const resultado = resolverOpcionesContacto({
+      correoAlternativo: valores.correoAlternativo ?? "",
+      permiteSinCorreo,
+      sinCorreo,
+      justificacion,
+    });
+    if ("error" in resultado) {
+      setErrorLocal(resultado.error);
+      return;
+    }
+    setErrorLocal(null);
+    onContinuar(
+      resultado.opciones.sinCorreoAlternativo
+        ? { ...valores, correoAlternativo: "" }
+        : valores,
+      resultado.opciones,
+    );
+  });
+
   return (
-    <form onSubmit={handleSubmit(onContinuar)} noValidate className="flex flex-col gap-6">
+    <form onSubmit={enviar} noValidate className="flex flex-col gap-6">
       <section aria-labelledby="datos-fijos" className="flex flex-col gap-3">
         <h2 id="datos-fijos" className="text-xl font-semibold flex items-center gap-2">
           <User className="size-5 text-primary" aria-hidden />
@@ -181,29 +222,70 @@ export function PasoContacto({ ficha, valoresIniciales, erroresServidor, guardan
             ) : null}
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="fv-correo-alt" className="text-base font-medium flex items-center gap-1.5">
-            <Mail className="size-4 text-primary" aria-hidden />
-            <span>Correo alternativo (personal o de emergencia)</span>
+        {permiteSinCorreo ? (
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border bg-card px-4 text-base">
+            <Checkbox
+              checked={sinCorreo}
+              onCheckedChange={(valor) => {
+                setSinCorreo(valor === true);
+                setErrorLocal(null);
+                if (valor === true) form.setValue("correoAlternativo", "");
+              }}
+            />
+            No tiene correo
           </label>
-          <Input
-            id="fv-correo-alt"
-            type="email"
-            autoComplete="email"
-            placeholder="ejemplo@correo.com"
-            aria-invalid={errors.correoAlternativo ? true : undefined}
-            aria-describedby={errors.correoAlternativo ? "fv-correo-error" : "fv-correo-ayuda"}
-            {...register("correoAlternativo")}
-          />
-          <p id="fv-correo-ayuda" className="text-xs text-muted-foreground">
-            Ejemplo: minombre@gmail.com. Recibirá en este correo un duplicado de su constancia.
-          </p>
-          {errors.correoAlternativo ? (
-            <p id="fv-correo-error" role="alert" className="text-sm font-medium text-danger">
-              {errors.correoAlternativo.message}
+        ) : null}
+        {sinCorreo && permiteSinCorreo ? (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="fv-justificacion-correo" className="text-base font-medium">
+              Justificación (obligatoria) <span aria-hidden>*</span>
+            </label>
+            <Textarea
+              id="fv-justificacion-correo"
+              value={justificacion}
+              onChange={(evento) => {
+                setJustificacion(evento.target.value);
+                setErrorLocal(null);
+              }}
+              maxLength={MAX_JUSTIFICACION_SIN_CORREO}
+              rows={3}
+              placeholder="Explique por qué el pasivo no tiene correo (mínimo 10 caracteres)."
+              aria-invalid={errorLocal ? true : undefined}
+            />
+            <p className="text-xs text-muted-foreground">
+              Solo se permite en el registro presencial y queda en el acta para la revisión.
             </p>
-          ) : null}
-        </div>
+            {errorLocal ? (
+              <p role="alert" className="text-sm font-medium text-danger">{errorLocal}</p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="fv-correo-alt" className="text-base font-medium flex items-center gap-1.5">
+              <Mail className="size-4 text-primary" aria-hidden />
+              <span>Correo alternativo <span aria-hidden>*</span></span>
+            </label>
+            <Input
+              id="fv-correo-alt"
+              type="email"
+              autoComplete="email"
+              placeholder="ejemplo@correo.com"
+              aria-invalid={errors.correoAlternativo || errorLocal ? true : undefined}
+              aria-describedby={errors.correoAlternativo ? "fv-correo-error" : "fv-correo-ayuda"}
+              {...register("correoAlternativo")}
+            />
+            <p id="fv-correo-ayuda" className="text-xs text-muted-foreground">
+              Ejemplo: minombre@gmail.com. Recibirá en este correo un duplicado de su constancia.
+            </p>
+            {errors.correoAlternativo ? (
+              <p id="fv-correo-error" role="alert" className="text-sm font-medium text-danger">
+                {errors.correoAlternativo.message}
+              </p>
+            ) : errorLocal ? (
+              <p role="alert" className="text-sm font-medium text-danger">{errorLocal}</p>
+            ) : null}
+          </div>
+        )}
       </section>
 
       <fieldset

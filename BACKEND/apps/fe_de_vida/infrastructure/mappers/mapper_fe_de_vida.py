@@ -48,6 +48,8 @@ def solicitud_a_entidad(m) -> SolicitudFeDeVida:
         via_aprobacion=ViaAprobacion(m.via_aprobacion) if m.via_aprobacion else None,
         decisiones=tuple(decision_a_entidad(d) for d in m.decisiones.all().order_by('fecha', 'created_at')),
         fecha_envio=m.fecha_envio, fecha_validacion=m.fecha_validacion, requiere_nueva_foto=m.requiere_nueva_foto,
+        sin_correo_alternativo=bool(getattr(m, 'sin_correo_alternativo', False)),
+        justificacion_sin_correo=getattr(m, 'justificacion_sin_correo', '') or '',
     )
 
 
@@ -64,4 +66,6 @@ def campos_solicitud(s: SolicitudFeDeVida) -> dict:
         'via_aprobacion': s.via_aprobacion.value if s.via_aprobacion else '',
         'fecha_envio': s.fecha_envio, 'fecha_validacion': s.fecha_validacion,
         'requiere_nueva_foto': s.requiere_nueva_foto,
+        'sin_correo_alternativo': s.sin_correo_alternativo,
+        'justificacion_sin_correo': s.justificacion_sin_correo,
     }

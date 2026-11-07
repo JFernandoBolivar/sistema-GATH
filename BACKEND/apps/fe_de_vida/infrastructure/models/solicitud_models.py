@@ -51,6 +51,9 @@ class SolicitudFeDeVidaModel(BaseModel):
     fecha_envio = models.DateTimeField(null=True, blank=True)
     fecha_validacion = models.DateTimeField(null=True, blank=True)
     requiere_nueva_foto = models.BooleanField(default=False)
+    # O39: excepción presencial «No tiene correo» (solo con justificación).
+    sin_correo_alternativo = models.BooleanField(default=False)
+    justificacion_sin_correo = models.TextField(blank=True, default='')
 
     class Meta:
         db_table = 'fe_de_vida_solicitud'

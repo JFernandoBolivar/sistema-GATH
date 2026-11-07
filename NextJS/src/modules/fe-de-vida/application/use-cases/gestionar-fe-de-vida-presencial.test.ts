@@ -68,7 +68,14 @@ describe("gestionar-fe-de-vida-presencial", () => {
     const repo = repoFake();
     const cambios = [{ seccion: "contacto", entidad: "employee", accion: "MODIFICAR", campo: "correo", valor: "a@b.com" }];
     await guardarBorradorPresencial(repo, "sol-1", cambios);
-    expect(repo.guardarBorradorPresencial).toHaveBeenCalledWith("sol-1", cambios);
+    expect(repo.guardarBorradorPresencial).toHaveBeenCalledWith("sol-1", cambios, undefined);
+
+    const opciones = {
+      sinCorreoAlternativo: true,
+      justificacionSinCorreo: "El pasivo no posee correo electrónico.",
+    };
+    await guardarBorradorPresencial(repo, "sol-1", cambios, opciones);
+    expect(repo.guardarBorradorPresencial).toHaveBeenLastCalledWith("sol-1", cambios, opciones);
 
     await enviarPresencial(repo, "sol-1");
     expect(repo.enviarPresencial).toHaveBeenCalledWith("sol-1");

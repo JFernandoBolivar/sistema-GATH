@@ -465,3 +465,68 @@ def test_editar_y_eliminar_nomina_no_reservada():
     eliminada = eliminar_nomina(repo, 1)
     assert eliminada.nomina == 'EMPLEADOS DE PLANTA'
     assert 1 not in repo.nominas
+
+
+# -------------------------------------------------------------
+# FIX-AUD9: las nóminas reservadas no se activan
+# -------------------------------------------------------------
+def test_actualizar_nomina_reservada_no_se_puede_activar():
+    repo = RepoReglasCatalogosMemoria()
+    with pytest.raises(ValidationError) as exc:
+        actualizar_nomina(repo, 2, es_activo=True, requiere_codig=None)
+    assert exc.value.campo == 'es_activo'
+    assert repo.nominas[2].es_activo is False
+
+
+def test_editar_nomina_reservada_no_se_puede_activar_ni_con_mismo_nombre():
+    repo = RepoReglasCatalogosMemoria()
+    with pytest.raises(ValidationError):
+        editar_nomina(repo, 2, 'JUBILADO', True, None)
+    assert repo.nominas[2].es_activo is False
+
+
+def test_nomina_reservada_admite_desactivar_y_cambiar_requiere_codigo():
+    repo = RepoReglasCatalogosMemoria()
+    _, actualizado = actualizar_nomina(repo, 2, es_activo=False, requiere_codig=True)
+    assert actualizado.es_activo is False and actualizado.requiere_codig is True
+
+
+def test_nomina_reservada_ya_activa_se_puede_desactivar_y_editar_requiere_codigo():
+    """FIX-AUD10: solo se bloquea la transición inactiva → activa."""
+    repo = RepoReglasCatalogosMemoria()
+    repo.nominas[2] = ReglaNomina(
+        id=2, nomina='JUBILADO', requiere_codig=False, es_activo=True,
+    )
+
+    _, actualizado = actualizar_nomina(repo, 2, es_activo=False, requiere_codig=True)
+
+    assert actualizado.es_activo is False
+    assert actualizado.requiere_codig is True
+
+
+def test_nomina_reservada_ya_activa_puede_mantenerse_activa_sin_error():
+    """FIX-AUD10: `es_activo=True` sobre una reservada ya activa no es una transición."""
+    repo = RepoReglasCatalogosMemoria()
+    repo.nominas[2] = ReglaNomina(
+        id=2, nomina='JUBILADO', requiere_codig=False, es_activo=True,
+    )
+
+    _, actualizado = actualizar_nomina(repo, 2, es_activo=True, requiere_codig=True)
+
+    assert actualizado.es_activo is True
+    assert actualizado.requiere_codig is True
+
+
+def test_nomina_no_reservada_sigue_activandose():
+    repo = RepoReglasCatalogosMemoria()
+    _, off = actualizar_nomina(repo, 1, es_activo=False, requiere_codig=None)
+    _, on = actualizar_nomina(repo, 1, es_activo=True, requiere_codig=None)
+    assert off.es_activo is False and on.es_activo is True
+
+
+def test_regla_nomina_expone_es_reservada_para_el_frontend():
+    from apps.configuracion.infrastructure.serializers.reglas_catalogos_serializers import ReglaNominaSerializer
+    repo = RepoReglasCatalogosMemoria()
+    datos = {n.id: ReglaNominaSerializer(n).data for n in repo.listar_nominas()}
+    assert datos[2]['es_reservada'] is True
+    assert datos[1]['es_reservada'] is False

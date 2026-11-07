@@ -185,7 +185,7 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
   carnetPatria: z
     .string()
     .trim()
-    .regex(/^\d{10}$/, { message: "Debe Ingresar 10 Digitos" })
+    .regex(/^\d{10}$/, { message: "El código del Carnet de la Patria debe tener 10 dígitos" })
     .optional()
     .nullable(),
   carnetPatriaSerial: serialCarnetPatriaZod(),

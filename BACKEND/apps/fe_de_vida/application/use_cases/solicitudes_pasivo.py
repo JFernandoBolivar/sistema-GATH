@@ -10,6 +10,11 @@ from apps.fe_de_vida.application.use_cases._comun import evento, obtener_proceso
 from apps.fe_de_vida.application.use_cases.consultas import obtener_proceso_vigente
 from apps.fe_de_vida.domain.entities.cambio_acta import CambioActa
 from apps.fe_de_vida.domain.entities.solicitud import SolicitudFeDeVida
+from apps.fe_de_vida.domain.constantes import (
+    MENSAJE_CORREO_ALTERNATIVO,
+    MENSAJE_JUSTIFICACION_SIN_CORREO,
+    MIN_JUSTIFICACION_SIN_CORREO,
+)
 from apps.fe_de_vida.domain.events import PublicadorEventos, PublicadorNulo, TipoEvento
 from apps.fe_de_vida.domain.ports.repos import (
     RepoCambiosActa,
@@ -104,6 +109,44 @@ def subir_evidencia(
 
 
 MENSAJE_CELULAR_OBLIGATORIO = "El teléfono celular es obligatorio."
+
+
+def exigir_correo_alternativo(
+    repo_cambios: RepoCambiosActa,
+    lector_ficha: LectorFichaPasivo,
+    *,
+    solicitud: SolicitudFeDeVida,
+    presencial: bool,
+) -> None:
+    """O39: correo alternativo obligatorio; «sin correo» solo en presencial y justificado."""
+    alternativo = ""
+    for cambio in repo_cambios.listar(solicitud.id):
+        if (
+            cambio.entidad_destino == "datos_complementarios"
+            and cambio.campo == "correo_alternativo"
+            and cambio.accion == "MODIFICAR"
+        ):
+            alternativo = str(cambio.valor_propuesto or "").strip()
+            break
+    if not alternativo:
+        ficha = lector_ficha.ficha(solicitud.cedula)
+        alternativo = str(
+            (ficha.get("datos_complementarios") or {}).get("correo_alternativo") or ""
+        ).strip()
+
+    if alternativo:
+        if "@" not in alternativo:
+            raise ValidationError("El correo alternativo no es válido.", campo="correo_alternativo")
+        return
+
+    if presencial and solicitud.sin_correo_alternativo:
+        if len(solicitud.justificacion_sin_correo.strip()) < MIN_JUSTIFICACION_SIN_CORREO:
+            raise ValidationError(
+                MENSAJE_JUSTIFICACION_SIN_CORREO, campo="justificacion_sin_correo",
+            )
+        return
+
+    raise ValidationError(MENSAJE_CORREO_ALTERNATIVO, campo="correo_alternativo")
 
 
 def exigir_celular(repo_cambios: RepoCambiosActa, lector_ficha: LectorFichaPasivo, *, solicitud_id: str, cedula: str) -> None:

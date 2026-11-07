@@ -142,7 +142,11 @@ export interface RepoFeDeVida {
   // Presencial
   buscarPasivosPresencial(f: { texto?: string } & PaginaPedida): Promise<PaginaEntity<PasivoPresencialEntity>>;
   iniciarSolicitudPresencial(cedula: string): Promise<InicioPresencialEntity>;
-  guardarBorradorPresencial(id: string, cambios: CambioEntrada[]): Promise<DetalleSolicitudEntity>;
+  guardarBorradorPresencial(
+    id: string,
+    cambios: CambioEntrada[],
+    opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
+  ): Promise<DetalleSolicitudEntity>;
   subirEvidenciaPresencial(id: string, evidencia: EvidenciaNueva): Promise<SolicitudEntity>;
   enviarPresencial(id: string): Promise<SolicitudEntity>;
   descargarConstanciaBienestar(id: string): Promise<Blob>;

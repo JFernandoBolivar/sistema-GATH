@@ -102,6 +102,9 @@ class SolicitudFeDeVida:
     fecha_envio: datetime | None = None
     fecha_validacion: datetime | None = None
     requiere_nueva_foto: bool = False  # la devolución exige una foto nueva (la vigente pasó al historial)
+    # O39: excepción presencial «No tiene correo» (solo con justificación).
+    sin_correo_alternativo: bool = False
+    justificacion_sin_correo: str = ''
 
     # ── Consultas ──
     @property

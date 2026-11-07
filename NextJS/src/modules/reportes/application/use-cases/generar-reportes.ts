@@ -42,7 +42,6 @@ export async function generarReportePasivos(
     tipoPasivo: e.tipoPasivo,
     fechaEgreso: e.fechaEgreso,
     contacto: e.contacto,
-    estadoFeDeVida: e.estadoFeDeVida,
     tipoPersonal: e.tipoPersonal,
     motivoEgreso: e.motivoEgreso,
   }));

@@ -55,7 +55,7 @@ def generar_excel_censo(filtros: dict | None = None) -> io.BytesIO:
 
     headers = [
         "Cédula", "Nombres", "Apellidos", "Fecha Nacimiento",
-        "Carnet Patria", "Serial carnet patria", "APN",
+        "Código del Carnet de la Patria", "Serial del Carnet de la Patria", "APN",
         "F. Ingreso Organismo", "Dirección General", "Tipo de Nómina",
         "Cargo", "Cargo Específico",
         "Dirección Vivienda", "Código Postal",

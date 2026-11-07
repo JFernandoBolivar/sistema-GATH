@@ -64,6 +64,7 @@ class ReglaNominaSerializer(serializers.Serializer):
     nomina = serializers.CharField(read_only=True)
     requiere_codig = serializers.BooleanField()
     es_activo = serializers.BooleanField()
+    es_reservada = serializers.BooleanField(read_only=True)
 
 
 class ActualizarNominaSerializer(serializers.Serializer):

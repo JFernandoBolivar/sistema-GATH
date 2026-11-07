@@ -1,6 +1,10 @@
 "use client";
 
 import { ContadorCaracteres } from "@/components/contador-caracteres";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import React, { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -553,12 +557,12 @@ export default function MiExpedienteView() {
                 />
                 <InfoRow label="Estado Civil" value={empleado.estado_civil_nombre} />
                 <InfoRow
-                  label="Carnet de la Patria"
+                  label={ETIQUETA_CODIGO_CARNET_PATRIA}
                   value={empleado.carnet_patria}
                   emptyText="No reportado"
                 />
                 <InfoRow
-                  label="Serial del Carnet de la Patria"
+                  label={ETIQUETA_SERIAL_CARNET_PATRIA}
                   value={empleado.carnet_patria_serial}
                   emptyText="No reportado"
                 />

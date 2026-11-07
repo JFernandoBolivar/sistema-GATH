@@ -1,6 +1,10 @@
 "use client";
 
 import { ContadorCaracteres } from "@/components/contador-caracteres";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { useMemo, useState, useTransition } from "react";
 import { type FieldPath, type FieldValues, useForm } from "react-hook-form";
@@ -214,12 +218,12 @@ export default function AutogestionPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
                     <Badge className="size-4 text-gray-500 shrink-0" />
-                    <span className="font-medium">Carnet Patria:</span>
+                    <span className="font-medium">{ETIQUETA_CODIGO_CARNET_PATRIA}:</span>
                     <span className="break-all">{miCenso.carnet_patria || "No registrado"}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
                     <Badge className="size-4 text-gray-500 shrink-0" />
-                    <span className="font-medium">Serial del Carnet de la Patria:</span>
+                    <span className="font-medium">{ETIQUETA_SERIAL_CARNET_PATRIA}:</span>
                     <span className="break-all">{miCenso.carnet_patria_serial || "No registrado"}</span>
                   </div>
                 </div>

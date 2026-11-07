@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
@@ -91,11 +95,11 @@ function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
             <span className="ml-2 text-gray-900 font-medium">{empleado.cedula}</span>
           </div>
           <div>
-            <span className="font-semibold text-gray-700">Carnet Patria:</span>
+            <span className="font-semibold text-gray-700">{ETIQUETA_CODIGO_CARNET_PATRIA}:</span>
             <span className="ml-2 text-gray-900 font-medium">{empleado.carnet_patria || "N/A"}</span>
           </div>
           <div>
-            <span className="font-semibold text-gray-700">Serial del Carnet de la Patria:</span>
+            <span className="font-semibold text-gray-700">{ETIQUETA_SERIAL_CARNET_PATRIA}:</span>
             <span className="ml-2 text-gray-900 font-medium">{empleado.carnet_patria_serial || "N/A"}</span>
           </div>
           <div>
@@ -625,7 +629,7 @@ export default function ConsultarCensoPage() {
                   <TableHead className="w-[100px]">Cedula</TableHead>
                   <TableHead>Nombres</TableHead>
                   <TableHead>Apellidos</TableHead>
-                  <TableHead>Carnet Patria</TableHead>
+                  <TableHead>{ETIQUETA_CODIGO_CARNET_PATRIA}</TableHead>
                   <TableHead className="w-[80px]">APN</TableHead>
                   <TableHead className="w-[80px]">Acciones</TableHead>
                 </TableRow>

@@ -214,7 +214,7 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
     const res = (await feDeVidaApi.iniciarPresencial(cedula)).data;
     return mapperInicioPresencial(res);
   },
-  async guardarBorradorPresencial(id, cambios) {
+  async guardarBorradorPresencial(id, cambios, opciones) {
     const cuerpo = cambios.map((c) => ({
       seccion: c.seccion,
       entidad: c.entidad,
@@ -223,7 +223,7 @@ export const repoFeDeVidaApi: RepoFeDeVida = {
       valor: c.valor,
       entidad_id: c.entidadId ?? null,
     }));
-    return mapperDetalle((await feDeVidaApi.borradorPresencial(id, cuerpo)).data);
+    return mapperDetalle((await feDeVidaApi.borradorPresencial(id, cuerpo, opciones)).data);
   },
   async subirEvidenciaPresencial(id, evidencia) {
     const form = new FormData();

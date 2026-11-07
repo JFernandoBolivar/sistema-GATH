@@ -106,7 +106,11 @@ export function ConfiguracionCorreoAccesoPage() {
         setErrorGlobal(res.error);
         return;
       }
-      setPolitica(res);
+      setPolitica({
+        ...res,
+        politica_pasivos:
+          res.politica_pasivos === "alternativo" ? "institucional" : res.politica_pasivos,
+      });
     });
   }, [puedeVer]);
 
@@ -116,11 +120,20 @@ export function ConfiguracionCorreoAccesoPage() {
     setErrorGlobal(null);
     setMensajeExito(null);
     try {
-      const res = await actualizarPoliticaCorreoAccesoAction(politica);
+      const payload = {
+        ...politica,
+        politica_pasivos:
+          politica.politica_pasivos === "alternativo" ? "institucional" : politica.politica_pasivos,
+      };
+      const res = await actualizarPoliticaCorreoAccesoAction(payload);
       if ("error" in res) {
         setErrorGlobal(res.error);
       } else {
-        setPolitica(res);
+        setPolitica({
+          ...res,
+          politica_pasivos:
+            res.politica_pasivos === "alternativo" ? "institucional" : res.politica_pasivos,
+        });
         setMensajeExito("Política de correo de acceso guardada correctamente.");
       }
     } catch {
@@ -283,7 +296,7 @@ export function ConfiguracionCorreoAccesoPage() {
               <div className="space-y-2">
                 <Label htmlFor="fuente-pasivos">Correo de acceso de PASIVOS</Label>
                 <Select
-                  value={politica.politica_pasivos}
+                  value={politica.politica_pasivos === "alternativo" ? "institucional" : politica.politica_pasivos}
                   onValueChange={(v) =>
                     setPolitica((prev) => ({ ...prev, politica_pasivos: v as PoliticaFuente }))
                   }
@@ -293,15 +306,14 @@ export function ConfiguracionCorreoAccesoPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="alternativo">Alternativo (Por defecto)</SelectItem>
-                    <SelectItem value="institucional">Institucional</SelectItem>
+                    <SelectItem value="institucional">Correo principal (Por defecto)</SelectItem>
                     <SelectItem value="correo_ficha">Correo de la ficha</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  El correo alternativo que el pasivo ya tiene registrado se usa de inmediato. Si lo
-                  cambia o agrega en la fe de vida, el nuevo pasa a ser de acceso cuando Bienestar la
-                  valida; si se rechaza o devuelve, sigue entrando con el anterior.
+                  El correo principal de la ficha es el que inicia sesión y solo cambia desde Gestión
+                  del sistema. El alternativo se usa para contacto y para la copia de la constancia;
+                  validar la fe de vida ya no cambia el acceso.
                 </p>
               </div>
 
