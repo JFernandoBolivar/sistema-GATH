@@ -19,12 +19,18 @@ class Rol:
     nombre: str
     descripcion: str = ''
     permisos: tuple[Permiso, ...] = field(default=())
+    nombre_visible: str = ''
 
     def __post_init__(self):
         if not self.nombre or not self.nombre.strip():
             from core.domain.exceptions import ValidationError
 
             raise ValidationError('El nombre del rol es obligatorio.')
+
+    @property
+    def etiqueta(self) -> str:
+        """Nombre que ve el usuario; si aún no se llenó, cae al código."""
+        return (self.nombre_visible or '').strip() or self.nombre
 
     def contiene(self, codigo: str) -> bool:
         """¿Este rol concede el código `[modulo].[accion]` indicado?"""

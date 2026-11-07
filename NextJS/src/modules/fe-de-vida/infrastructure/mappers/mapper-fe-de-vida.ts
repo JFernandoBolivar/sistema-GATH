@@ -138,6 +138,14 @@ export function mapperFicha(f: FichaApi): FichaPasivoEntity {
   const e = f.empleado ?? {};
   const asig = e.asignaciones?.[0];
   const v = e.datos_vivienda;
+  const pais = v?.pais ?? (v?.pais_nombre
+    ? {
+        id: v.pais_id ?? 0,
+        nombre: v.pais_nombre,
+        codigo: v.pais_codigo ?? "",
+        es_venezuela: v.pais_es_venezuela ?? true,
+      }
+    : null);
   const antecedente = e.antecedentes?.[0];
   return {
     cedula: e.cedula ?? "",
@@ -163,6 +171,11 @@ export function mapperFicha(f: FichaApi): FichaPasivoEntity {
     fechaEgreso: texto(antecedente?.fecha_egreso),
     vivienda: v
       ? {
+          paisId: pais?.id ?? null,
+          pais: texto(pais?.nombre),
+          paisCodigo: texto(pais?.codigo),
+          esVenezuela: pais?.es_venezuela ?? true,
+          ciudadRegion: texto(v.ciudad_region),
           estadoId: v.estado_id ?? null,
           municipioId: v.municipio_id ?? null,
           estado: texto(v.estado_nombre),

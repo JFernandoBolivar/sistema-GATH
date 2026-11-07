@@ -8,6 +8,7 @@ from apps.auditoria.domain.entities.registro import (
     RegistroAuditoria,
 )
 from apps.auditoria.domain.value_objects.filtros_auditoria import FiltrosAuditoria
+from apps.identidad.infrastructure.models.cuenta_models import RolModel
 from apps.identidad.infrastructure.models.intento_fallido_model import IntentoFallidoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.infrastructure.models.auditoria import AuditoriaLog
@@ -22,6 +23,20 @@ def _nombres(cedulas: list[str]) -> dict[str, str]:
     return {
         fila['cedulaidentidad']: f"{fila['nombres']} {fila['apellidos']}".strip()
         for fila in filas
+    }
+
+
+def _roles_visibles(codigos: list[str]) -> dict[str, str]:
+    """Código del rol -> nombre visible. La bitácora conserva el código tal cual."""
+    codigos_validos = {c for c in codigos if c}
+    if not codigos_validos:
+        return {}
+    return {
+        fila['nombre_rol']: fila['nombre_visible']
+        for fila in RolModel.objects.filter(nombre_rol__in=codigos_validos).values(
+            'nombre_rol', 'nombre_visible'
+        )
+        if fila['nombre_visible']
     }
 
 
@@ -61,17 +76,22 @@ class RepoAuditoriaORM:
         total = qs.count()
         filas = list(qs[offset:offset + limite] if limite > 0 else qs[offset:])
         nombres = _nombres([f.actor_cedula for f in filas if f.actor_cedula])
-        return [self._a_entidad(fila, nombres.get(fila.actor_cedula, '')) for fila in filas], total
+        roles = _roles_visibles([f.actor_rol for f in filas])
+        return [
+            self._a_entidad(fila, nombres.get(fila.actor_cedula, ''), roles.get(fila.actor_rol, ''))
+            for fila in filas
+        ], total
 
     def obtener(self, id: str) -> RegistroAuditoria | None:
         fila = AuditoriaLog.objects.filter(pk=id).first()
         if fila is None:
             return None
         nombre = _nombres([fila.actor_cedula]).get(fila.actor_cedula, '')
-        return self._a_entidad(fila, nombre)
+        rol = _roles_visibles([fila.actor_rol]).get(fila.actor_rol, '')
+        return self._a_entidad(fila, nombre, rol)
 
     @staticmethod
-    def _a_entidad(fila: AuditoriaLog, nombre: str) -> RegistroAuditoria:
+    def _a_entidad(fila: AuditoriaLog, nombre: str, rol_visible: str = '') -> RegistroAuditoria:
         return RegistroAuditoria(
             id=str(fila.pk),
             fecha_hora=timezone.localtime(fila.fecha_hora).isoformat(),
@@ -87,6 +107,7 @@ class RepoAuditoriaORM:
             resultado=fila.resultado,
             estado_previo=fila.estado_previo,
             estado_nuevo=fila.estado_nuevo,
+            actor_rol_visible=rol_visible,
         )
 
     def opciones(self) -> OpcionesAuditoria:

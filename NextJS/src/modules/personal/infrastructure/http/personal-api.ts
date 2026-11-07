@@ -64,6 +64,7 @@ export interface CatalogoEmpleadoApiItem {
   region_codigo?: string | null;
   region_descripcion?: string | null;
   region?: { id: number; codigo?: string; descripcion?: string } | null;
+  es_venezuela?: boolean | null;
 }
 
 async function list<T>(getter: Promise<ApiResponse<T[]>>): Promise<T[]> {
@@ -129,6 +130,8 @@ export const personalApi = {
   // --- Catálogos de soporte del expediente (apps/personal/catalogos) ---
   getPoliticas: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/politicas/")),
+  getPaises: () =>
+    list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/paises/")),
   getCondicionesVivienda: () =>
     list<CatalogoEmpleadoApiItem>(apiClient.get<ApiResponse<CatalogoEmpleadoApiItem[]>>("/api/v1/personal/catalogos/condiciones-vivienda/")),
   getCodigosPostales: (estadoId?: number) =>

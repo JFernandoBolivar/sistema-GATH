@@ -80,6 +80,7 @@ class Command(BaseCommand):
             self._password_larga,
             self._historial_migraciones,
             self._roles,
+            self._nombres_visibles_roles,
             self._cuentas_sin_rol,
             self._superadmin,
             self._bootstrap,
@@ -240,6 +241,39 @@ class Command(BaseCommand):
                 }
             ]
         return [{"estado": OK, "nombre": "Roles esperados", "detalle": f"{len(ROLES_ESPERADOS)} presentes"}]
+
+    def _nombres_visibles_roles(self):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'USER_rol' AND column_name = 'nombre_visible'
+                """
+            )
+            if cursor.fetchone() is None:
+                return [
+                    {
+                        "estado": AVISO,
+                        "nombre": "USER_rol.nombre_visible",
+                        "detalle": "no existe (identidad.0011 la agrega al migrar)",
+                    }
+                ]
+            cursor.execute(
+                """SELECT count(*) FROM "USER_rol"
+                    WHERE nombre_visible IS NULL OR btrim(nombre_visible) = ''"""
+            )
+            vacios = cursor.fetchone()[0]
+        return [
+            {
+                "estado": OK if not vacios else AVISO,
+                "nombre": "USER_rol.nombre_visible",
+                "detalle": (
+                    "todos los roles tienen nombre visible"
+                    if not vacios
+                    else f"{vacios} rol(es) sin nombre visible (se muestra el código hasta editarlos)"
+                ),
+            }
+        ]
 
     def _cuentas_sin_rol(self):
         with connection.cursor() as cursor:

@@ -77,7 +77,7 @@ function DialogContent({
           </DialogPrimitive.Close>
         )}
         <ScrollArea className="max-h-[80vh] w-full">
-          <div className="flex flex-col gap-4">{children}</div>
+          <div className="flex min-w-0 flex-col gap-4 pe-2.5 [&>*]:min-w-0">{children}</div>
         </ScrollArea>
       </DialogPrimitive.Content>
     </DialogPortal>

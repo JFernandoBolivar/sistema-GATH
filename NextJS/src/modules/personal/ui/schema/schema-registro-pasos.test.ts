@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { pasoBasicInfoSchema, pasoDwellingSchema } from "./schema-registro-pasos";
+import {
+  crearPasoDwellingSchema,
+  pasoBasicInfoSchema,
+  pasoDwellingSchema,
+} from "./schema-registro-pasos";
 import { empleadoBasicoFormSchema } from "./schema-empleado";
 import { cedulaZod, nombreZod } from "./reglas-personas";
 
@@ -93,6 +97,23 @@ describe("Reglas compartidas", () => {
     ).toBe(false);
     expect(
       pasoDwellingSchema.safeParse({ datos_vivienda: { ...vivienda, direccion_exacta: "x".repeat(9) } }).success,
+    ).toBe(false);
+  });
+
+  it("O40: Venezuela exige ubicación y otro país exige ciudad o región", () => {
+    const base = {
+      pais_id: 2,
+      direccion_exacta: "Av. Providencia 1234, departamento 5",
+      condicion_vivienda_id: 1,
+      ciudad_region: "Santiago",
+    };
+    const exterior = crearPasoDwellingSchema(false);
+    expect(exterior.safeParse({ datos_vivienda: base }).success).toBe(true);
+    expect(
+      exterior.safeParse({ datos_vivienda: { ...base, ciudad_region: "" } }).success,
+    ).toBe(false);
+    expect(
+      pasoDwellingSchema.safeParse({ datos_vivienda: { ...base, pais_id: 1 } }).success,
     ).toBe(false);
   });
 });

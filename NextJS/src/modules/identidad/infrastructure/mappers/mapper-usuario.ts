@@ -17,6 +17,7 @@ export function mapperUsuario(raw: UsuarioApiItem): UsuarioEntity {
     telefono: raw.telefono ?? null,
     rolId: raw.rol_id ?? null,
     rolNombre: raw.rol_nombre ?? null,
+    rolNombreVisible: raw.rol_nombre_visible ?? raw.rol_nombre ?? null,
     isActive: raw.is_active ?? false,
     ultimoAcceso: raw.ultimo_acceso ?? null,
     condicion: raw.condicion ?? null,

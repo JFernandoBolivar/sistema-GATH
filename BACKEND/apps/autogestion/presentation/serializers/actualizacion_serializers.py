@@ -56,7 +56,7 @@ class ProrrogarVentanaSerializer(serializers.Serializer):
 
 class ItemCambioSerializer(serializers.Serializer):
     seccion = serializers.CharField(max_length=30)
-    entidad = serializers.CharField(max_length=40, help_text='employee | datos_complementarios | datos_vivienda | formacion_academica | formacion_complementaria | contacto_emergencia | familiar')
+    entidad = serializers.CharField(max_length=40, help_text='employee | datos_complementarios | datos_vivienda | formacion_academica | formacion_complementaria | contacto_emergencia | familiar | antecedente_servicio')
     accion = serializers.ChoiceField(choices=ACCIONES)
     campo = serializers.CharField(max_length=60, help_text="Campo a modificar; '*' al CREAR o QUITAR un registro.")
     valor = serializers.JSONField(allow_null=True, help_text='Valor propuesto; al CREAR, un objeto con los campos del registro; al QUITAR, {"motivo": "..."}.')

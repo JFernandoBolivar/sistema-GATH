@@ -9,6 +9,7 @@ export function mapperRol(raw: RolApiItem): RolEntity {
   return createRolEntity({
     id: raw.id,
     nombreRol: raw.nombre_rol,
+    nombreVisible: raw.nombre_visible || raw.nombre_rol,
     descripcionRol: raw.descripcion_rol,
     nUsuarios: raw.n_usuarios ?? 0,
     nPermisos: raw.n_permisos ?? 0,

@@ -8,6 +8,7 @@ class RegistroAuditoriaSerializer(serializers.Serializer):
     actor_cedula = serializers.CharField()
     actor_nombre = serializers.CharField()
     actor_rol = serializers.CharField()
+    actor_rol_visible = serializers.CharField(required=False)
     modulo = serializers.CharField()
     accion = serializers.CharField()
     recurso_tipo = serializers.CharField()

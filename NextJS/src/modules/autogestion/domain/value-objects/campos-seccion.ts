@@ -11,6 +11,7 @@ export type TipoCampo =
   "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple" | "entero";
 
 export type ClaveCatalogo =
+  | "paises"
   | "estados"
   | "municipios"
   | "parroquias"
@@ -33,7 +34,8 @@ export type ClaveCatalogo =
   | "tallasCamisa"
   | "tallasPantalon"
   | "tallasZapatos"
-  | "tallasChaqueta";
+  | "tallasChaqueta"
+  | "organismos";
 
 export interface CampoDef {
   campo: string;
@@ -150,25 +152,34 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
         creable: true,
         campos: [
           {
+            campo: "pais_id",
+            etiqueta: "País",
+            tipo: "catalogo",
+            catalogo: "paises",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "ciudad_region",
+            etiqueta: "Ciudad o región",
+            tipo: "texto",
+          },
+          {
             campo: "estado_id",
             etiqueta: "Estado",
             tipo: "catalogo",
             catalogo: "estados",
-            requeridoAlCrear: true,
           },
           {
             campo: "municipio_id",
             etiqueta: "Municipio",
             tipo: "catalogo",
             catalogo: "municipios",
-            requeridoAlCrear: true,
           },
           {
             campo: "parroquia_id",
             etiqueta: "Parroquia",
             tipo: "catalogo",
             catalogo: "parroquias",
-            requeridoAlCrear: true,
           },
           {
             campo: "direccion_exacta",
@@ -188,7 +199,6 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             etiqueta: "Código postal",
             tipo: "catalogo",
             catalogo: "codigosPostales",
-            requeridoAlCrear: true,
           },
         ],
       },
@@ -407,6 +417,40 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
       },
     ],
   },
+  antecedentes: {
+    codigo: "antecedentes",
+    nombre: "Antecedentes de servicio",
+    descripcion:
+      "Experiencia laboral previa en la administración pública. Debe adjuntar constancia de trabajo.",
+    entidades: [
+      {
+        entidad: "antecedente_servicio",
+        etiqueta: "Antecedente de servicio",
+        unica: false,
+        creable: true,
+        campos: [
+          {
+            campo: "organismo_id",
+            etiqueta: "Organismo o institución",
+            tipo: "catalogo",
+            catalogo: "organismos",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "fecha_ingreso",
+            etiqueta: "Fecha de ingreso",
+            tipo: "fecha",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "fecha_egreso",
+            etiqueta: "Fecha de egreso",
+            tipo: "fecha",
+          },
+        ],
+      },
+    ],
+  },
 };
 
 /** Identificador de un campo solicitable: `entidad.campo` (igual que el servidor). */
@@ -429,6 +473,10 @@ export const ENTIDADES_DE_LISTA: Record<string, { grupo: string; objeto: string 
   formacion_complementaria: {
     grupo: "Formación complementaria",
     objeto: "una formación complementaria",
+  },
+  antecedente_servicio: {
+    grupo: "Antecedentes de servicio",
+    objeto: "un antecedente de servicio",
   },
 };
 
@@ -542,33 +590,8 @@ export const CAMPO_PADRE: Record<string, string> = {
   mencion_id: "carrera_id",
 };
 
-/** Tipos de soporte admitidos por sección (espejo de `TIPOS_SOPORTE_POR_SECCION` del backend). */
-export const TIPOS_SOPORTE_POR_SECCION: Record<SeccionCodigo, { valor: string; texto: string }[]> =
-  {
-    identidad: [{ valor: "CEDULA", texto: "Copia de la cédula" }],
-    contacto: [
-      { valor: "CONSTANCIA", texto: "Constancia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    vivienda: [
-      { valor: "CONSTANCIA", texto: "Constancia de residencia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    formacion: [
-      { valor: "TITULO", texto: "Título" },
-      { valor: "CONSTANCIA", texto: "Constancia de estudios" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    complementaria: [
-      { valor: "CONSTANCIA", texto: "Certificado o constancia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    familiar: [
-      { valor: "CEDULA", texto: "Copia de la cédula" },
-      { valor: "ACTA_NACIMIENTO", texto: "Partida de nacimiento" },
-      { valor: "CONSTANCIA", texto: "Constancia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    salud: [],
-    foto: [{ valor: "FOTO", texto: "Foto" }],
-  };
+/*
+ * Los tipos de soporte permitidos por sección ya no se replican aquí: son
+ * configurables en Reglas de Catálogos y se obtienen del backend (O41).
+ * Ver `domain/value-objects/tipos-soporte.ts`.
+ */

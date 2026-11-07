@@ -131,3 +131,123 @@ export const GUIA_NUEVA_SOLICITUD: DefinicionGuia = {
     },
   ],
 };
+
+export const GUIA_MIS_SOLICITUDES: DefinicionGuia = {
+  id: "autogestion_mis_solicitudes",
+  version: 1,
+  titulo: "Guía de Mis solicitudes",
+  pasos: [
+    {
+      id: "mis-solicitudes-cabecera",
+      selector: "[data-guia-id='mis-solicitudes-cabecera']",
+      titulo: "Histórico de sus solicitudes",
+      descripcion:
+        "Aquí puede consultar todas las solicitudes de actualización que haya enviado y el estado en que se encuentra cada una.",
+      posicion: "bottom",
+    },
+    {
+      id: "mis-solicitudes-filtros",
+      selector: "[data-guia-id='mis-solicitudes-filtros']",
+      titulo: "Filtros de búsqueda",
+      descripcion:
+        "Filtre por estado o por fecha para encontrar rápidamente una solicitud concreta.",
+      posicion: "bottom",
+    },
+    {
+      id: "mis-solicitudes-lista",
+      selector: "[data-guia-id='mis-solicitudes-lista']",
+      titulo: "Avance de cada solicitud",
+      descripcion:
+        "Cada tarjeta muestra los datos solicitados, el estado actual y la línea de tiempo del trámite.",
+      posicion: "top",
+    },
+    {
+      id: "mis-solicitudes-paginacion",
+      selector: "[data-guia-id='mis-solicitudes-paginacion']",
+      titulo: "Navegación entre páginas",
+      descripcion:
+        "Si tiene muchas solicitudes, use «Anterior» y «Siguiente» para recorrer el listado completo.",
+      posicion: "top",
+    },
+  ],
+};
+
+export const GUIA_CENSO_VIVIENDA: DefinicionGuia = {
+  id: "autogestion_censo_vivienda",
+  version: 1,
+  titulo: "Guía del censo de vivienda",
+  pasos: [
+    {
+      id: "censo-cabecera",
+      selector: "[data-guia-id='censo-cabecera']",
+      titulo: "Autogestión de personal",
+      descripcion:
+        "Complete el formulario con sus datos actuales. Los campos marcados con asterisco son obligatorios.",
+      posicion: "bottom",
+    },
+    {
+      id: "censo-preguntas",
+      selector: "[data-guia-id='censo-preguntas']",
+      titulo: "Preguntas del censo",
+      descripcion:
+        "Responda cada pregunta según su situación actual. Sus respuestas se guardan al enviar el formulario.",
+      posicion: "top",
+    },
+    {
+      id: "censo-vivienda",
+      selector: "[data-guia-id='censo-vivienda']",
+      titulo: "Datos de vivienda",
+      descripcion:
+        "Indique estado, municipio, parroquia, condición de la vivienda, dirección exacta y código postal.",
+      posicion: "top",
+    },
+    {
+      id: "censo-enviar",
+      selector: "[data-guia-id='censo-enviar']",
+      titulo: "Enviar el censo",
+      descripcion:
+        "Al terminar, presione «Enviar autogestión». Recibirá una confirmación y no necesitará repetirlo.",
+      posicion: "top",
+    },
+  ],
+};
+
+export const GUIA_NOTIFICACIONES: DefinicionGuia = {
+  id: "autogestion_notificaciones",
+  version: 1,
+  titulo: "Guía de Notificaciones",
+  pasos: [
+    {
+      id: "notificaciones-cabecera",
+      selector: "[data-guia-id='notificaciones-cabecera']",
+      titulo: "Todos sus avisos en un solo lugar",
+      descripcion:
+        "Aquí llegan las notificaciones de Autogestión y de los demás módulos, sin importar dónde se generaron.",
+      posicion: "bottom",
+    },
+    {
+      id: "notificaciones-filtros",
+      selector: "[data-guia-id='notificaciones-filtros']",
+      titulo: "Buscar y filtrar",
+      descripcion:
+        "Busque por título o mensaje y filtre por tipo, estado de lectura o rango de fechas.",
+      posicion: "bottom",
+    },
+    {
+      id: "notificaciones-lista",
+      selector: "[data-guia-id='notificaciones-lista']",
+      titulo: "Lista de notificaciones",
+      descripcion:
+        "Pulse una notificación para ver su detalle y, si corresponde, abrir el trámite relacionado. También puede marcarla como leída.",
+      posicion: "top",
+    },
+    {
+      id: "notificaciones-paginacion",
+      selector: "[data-guia-id='notificaciones-paginacion']",
+      titulo: "Paginación",
+      descripcion:
+        "Use «Anterior» y «Siguiente» para recorrer sus notificaciones cuando haya más de una página.",
+      posicion: "top",
+    },
+  ],
+};

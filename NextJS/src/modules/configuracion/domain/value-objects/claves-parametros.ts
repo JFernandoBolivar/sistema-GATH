@@ -1,6 +1,8 @@
 /** Claves de parámetros que la UI necesita reconocer (D9). */
 export const CLAVE_FE_DE_VIDA_RECORDATORIOS = "fe_de_vida.dias_recordatorio";
 export const CLAVE_GENERAR_PUNTOS_CUENTA = "puntocuenta.generar";
+export const CLAVE_CARNETIZACION_MI_CARNET_ALCANCE = "carnetizacion.mi_carnet_alcance";
+export const CLAVE_CARNETIZACION_MI_CARNET_USUARIOS = "carnetizacion.mi_carnet_usuarios";
 
 /** O12: solicitudes de actualización por condición. */
 export const CLAVES_AUTOGESTION = {

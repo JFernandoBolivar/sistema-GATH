@@ -23,7 +23,7 @@ import {
 export const CEDULA_FAMILIAR = /^(?:[A-Za-z]?-?\d{5,9}|\d{5,9}-\d+)$/;
 export const CEDULA_FAMILIAR_MSG = "Cédula inválida. Ejemplo: V-12345678";
 
-const textoRequerido = (nombre: string, max = 150) =>
+const _textoRequerido = (nombre: string, max = 150) =>
   z
     .string({ required_error: `${nombre} es obligatorio` })
     .trim()
@@ -117,12 +117,14 @@ export const contactoEmergenciaSchema = z.object({
 export type ContactoEmergenciaValores = z.infer<typeof contactoEmergenciaSchema>;
 
 export const viviendaSchema = z.object({
-  estado_id: idCatalogo("el estado"),
-  municipio_id: idCatalogo("el municipio"),
-  parroquia_id: idCatalogo("la parroquia"),
+  pais_id: idCatalogoOpcional,
+  ciudad_region: textoOpcional(120),
+  estado_id: idCatalogoOpcional,
+  municipio_id: idCatalogoOpcional,
+  parroquia_id: idCatalogoOpcional,
   direccion_exacta: textoLibreRequerido("La dirección", LIMITES_TEXTO.direccion),
   condicion_vivienda_id: idCatalogo("la condición de la vivienda"),
-  codigo_postal_id: idCatalogo("el código postal"),
+  codigo_postal_id: idCatalogoOpcional,
 });
 export type ViviendaValores = z.infer<typeof viviendaSchema>;
 
@@ -144,6 +146,13 @@ export const complementariaSchema = z.object({
   grupo_id: idCatalogoOpcional,
 });
 export type ComplementariaValores = z.infer<typeof complementariaSchema>;
+
+export const antecedenteSchema = z.object({
+  organismo_id: idCatalogo("el organismo o institución"),
+  fecha_ingreso: z.string().regex(DATE_ISO, DATE_ISO_MSG),
+  fecha_egreso: z.string().regex(DATE_ISO, DATE_ISO_MSG).optional().or(z.literal("")),
+});
+export type AntecedenteValores = z.infer<typeof antecedenteSchema>;
 
 export const familiarSchema = z.object({
   primer_nombre: nombreRequerido("El primer nombre"),
@@ -302,10 +311,12 @@ export const ESQUEMAS_ENTIDAD = {
   "contacto:contacto_emergencia": contactoEmergenciaSchema,
   "vivienda:datos_vivienda": viviendaSchema,
   "formacion:formacion_academica": formacionSchema,
+  "complementaria:formacion_complementaria": complementariaSchema,
   "familiar:datos_complementarios": tieneHijosSchema,
   "familiar:familiar": familiarSchema,
   "salud:perfil_salud": perfilSaludSchema,
   "salud:perfil_fisico": perfilFisicoSchema,
+  "antecedentes:antecedente_servicio": antecedenteSchema,
 } as const;
 
 export type ClaveEsquemaEntidad = keyof typeof ESQUEMAS_ENTIDAD;

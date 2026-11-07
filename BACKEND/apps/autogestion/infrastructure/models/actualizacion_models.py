@@ -116,7 +116,7 @@ class SoporteDocumentalModel(BaseModel):
     origen_tipo = models.CharField(max_length=20)
     origen_id = models.UUIDField()
     seccion = models.CharField(max_length=30)
-    tipo = models.CharField(max_length=20)  # TITULO|ACTA_NACIMIENTO|CEDULA|CONSTANCIA|FOTO|OTRO
+    tipo = models.CharField(max_length=40)  # código del catálogo configurable (O41)
     clave_s3 = models.CharField(max_length=255)
     mime_real = models.CharField(max_length=60)
     tamano_bytes = models.PositiveBigIntegerField()

@@ -33,6 +33,7 @@ class RepoReportesMemoria implements RepoReportes {
       nombreCompleto: "Rosa Gómez",
       tipoPersonal: "JUBILADO",
       tipoPasivo: "JUBILADO",
+      pais: "Venezuela",
       fechaEgreso: "2025-12-31",
       motivoEgreso: "Jubilación",
       contacto: "0412-1234567 / rosa@example.com",

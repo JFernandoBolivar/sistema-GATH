@@ -19,6 +19,7 @@ class Seccion(str, Enum):
     FAMILIAR = 'familiar'
     SALUD = 'salud'
     FOTO = 'foto'
+    ANTECEDENTES = 'antecedentes'
 
 
 # Catálogo de secciones en el orden del dominio: lo consume la configuración de
@@ -69,7 +70,7 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
     },
     'vivienda': {
         'datos_vivienda': frozenset({
-            'estado_id', 'municipio_id', 'parroquia_id', 'direccion_exacta',
+            'pais_id', 'ciudad_region', 'estado_id', 'municipio_id', 'parroquia_id', 'direccion_exacta',
             'condicion_vivienda_id', 'codigo_postal_id',
         }),
     },
@@ -99,6 +100,9 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
         }),
     },
     'foto': {'employee': frozenset({'profile'})},
+    'antecedentes': {
+        'antecedente_servicio': frozenset({'organismo_id', 'fecha_ingreso', 'fecha_egreso'}),
+    },
 }
 
 
@@ -106,6 +110,7 @@ CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
 # (agregar, corregir, quitar) y no por campos sueltos.
 ENTIDADES_DE_LISTA = frozenset({
     'familiar', 'formacion_academica', 'formacion_complementaria', 'contacto_emergencia',
+    'antecedente_servicio',
 })
 
 
@@ -180,15 +185,22 @@ def secciones_de_campos(campos) -> tuple[str, ...]:
     return tuple(s.value for s in Seccion if s.value in usadas)
 
 
-# Campos obligatorios al CREAR un registro nuevo.
+# Campos de la ubicación venezolana y de la dirección en el exterior (O40).
+CAMPOS_LOCALIZACION_VENEZUELA = frozenset({
+    'estado_id', 'municipio_id', 'parroquia_id', 'codigo_postal_id',
+})
+REQUERIDOS_VIVIENDA_BASE = frozenset({'direccion_exacta', 'condicion_vivienda_id'})
+REQUERIDOS_VIVIENDA_EXTERIOR = REQUERIDOS_VIVIENDA_BASE | frozenset({'ciudad_region'})
+
+# Campos obligatorios al CREAR un registro nuevo. La vivienda completa su
+# obligatoriedad según el país en `validar_registro_nuevo` (O40).
 REQUERIDOS_AL_CREAR: dict[str, frozenset[str]] = {
-    'datos_vivienda': frozenset({
-        'estado_id', 'municipio_id', 'parroquia_id', 'direccion_exacta', 'condicion_vivienda_id', 'codigo_postal_id',
-    }),
+    'datos_vivienda': REQUERIDOS_VIVIENDA_BASE,
     'formacion_academica': frozenset({'nivel_academico_id'}),
     'formacion_complementaria': frozenset({'capacitacion_id'}),
     'contacto_emergencia': frozenset({'nombres', 'apellidos', 'telefono', 'relacion_id'}),
     'familiar': frozenset({'primer_nombre', 'primer_apellido', 'parentesco_id', 'fecha_nacimiento', 'sexo_id'}),
+    'antecedente_servicio': frozenset({'organismo_id', 'fecha_ingreso'}),
 }
 
 # Entidades que se pueden QUITAR desde la autogestión (con motivo obligatorio).
@@ -243,20 +255,13 @@ SECCIONES_CATALOGO_INICIAL = (
     ('familiar', 'Grupo familiar', True),
     ('salud', 'Salud y tallas', False),
     ('foto', 'Foto', False),
+    ('antecedentes', 'Antecedentes de servicio', True),
 )
 
-TIPOS_SOPORTE_POR_SECCION: dict[str, frozenset[TipoSoporte]] = {
-    'identidad': frozenset({TipoSoporte.CEDULA}),
-    'contacto': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
-    'vivienda': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
-    'formacion': frozenset({TipoSoporte.TITULO, TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
-    'complementaria': frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
-    'familiar': frozenset({
-        TipoSoporte.CEDULA, TipoSoporte.ACTA_NACIMIENTO, TipoSoporte.CONSTANCIA, TipoSoporte.OTRO,
-    }),
-    'salud': frozenset(),
-    'foto': frozenset({TipoSoporte.FOTO}),
-}
+# Los tipos de soporte permitidos por sección ya no viven aquí: son configurables
+# en Reglas de Catálogos y se leen de la base (`TipoSoporteDocumento` +
+# `ChecklistSoporteSeccion`, O41). `TipoSoporte` queda como catálogo de códigos
+# del sistema que usan las reglas de negocio.
 
 # Documentos exigidos por acción sobre una entidad (se validan al enviar).
 # La clave es (entidad, accion); el valor son los tipos aceptados (al menos uno).
@@ -265,4 +270,6 @@ DOCUMENTOS_EXIGIDOS: dict[tuple[str, str], frozenset[TipoSoporte]] = {
     ('formacion_academica', 'MODIFICAR'): frozenset({TipoSoporte.TITULO, TipoSoporte.CONSTANCIA}),
     ('formacion_complementaria', 'CREAR'): frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
     ('formacion_complementaria', 'MODIFICAR'): frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
+    ('antecedente_servicio', 'CREAR'): frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
+    ('antecedente_servicio', 'MODIFICAR'): frozenset({TipoSoporte.CONSTANCIA, TipoSoporte.OTRO}),
 }

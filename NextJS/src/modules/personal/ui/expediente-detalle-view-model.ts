@@ -20,6 +20,8 @@ import type {
 const SIN_DATO = "N/A";
 
 export interface DetalleViviendaVM {
+  pais: string;
+  ciudadRegion: string;
   estado: string;
   municipio: string;
   parroquia: string;
@@ -230,6 +232,12 @@ export function construirDetalleExpediente(
     })),
     vivienda: empleado.datosVivienda
       ? {
+          pais: nombre(
+            empleado.datosVivienda.paisNombre,
+            catalogos?.paises,
+            empleado.datosVivienda.paisId,
+          ),
+          ciudadRegion: empleado.datosVivienda.ciudadRegion || SIN_DATO,
           estado: nombre(
             empleado.datosVivienda.estadoNombre,
             catalogos?.estados,

@@ -74,6 +74,11 @@ export interface AsignacionFicha {
 
 export interface ViviendaFicha {
   /** Ids vigentes: sirven de padre para resolver los nombres de municipio y parroquia declarados. */
+  readonly paisId: number | null;
+  readonly pais: string | null;
+  readonly paisCodigo: string | null;
+  readonly esVenezuela: boolean;
+  readonly ciudadRegion: string | null;
   readonly estadoId: number | null;
   readonly municipioId: number | null;
   readonly estado: string | null;

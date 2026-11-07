@@ -21,6 +21,7 @@ from apps.personal.application.use_cases.listar_catalogos_soporte import (
     listar_instituciones,
     listar_menciones,
     listar_niveles_academicos,
+    listar_paises,
     listar_patologias,
     listar_politicas,
     listar_regiones_talla,
@@ -77,6 +78,7 @@ from apps.personal.presentation.serializers.catalogos_soporte_serializers import
     MencionDetalleSerializer,
     MencionWriteSerializer,
     CodigoPostalSerializer,
+    PaisSerializer,
     DiscapacidadDetalleSerializer,
     DiscapacidadWriteSerializer,
     PatologiaDetalleSerializer,
@@ -115,6 +117,20 @@ class PoliticasListView(APIView):
             'personal:politicas',
             lambda: CatalogoItemSerializer(
                 listar_politicas(RepoPersonalORM().listar_politicas()), many=True
+            ).data,
+        )
+
+
+class PaisesListView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
+
+    @extend_schema(tags=['Personal'], summary='Listar países', responses={200: PaisSerializer(many=True)})
+    def get(self, request):
+        return ok_catalogo(
+            request,
+            'personal:paises',
+            lambda: PaisSerializer(
+                listar_paises(RepoPersonalORM().listar_paises()), many=True
             ).data,
         )
 

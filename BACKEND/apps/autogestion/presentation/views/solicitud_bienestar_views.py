@@ -32,6 +32,7 @@ from apps.autogestion.application.use_cases.solicitud_ciclo import (
     prorrogar_ventana,
 )
 from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
+from apps.autogestion.domain.value_objects.secciones import ORIGEN_ACTUALIZACION, Seccion
 from apps.autogestion.infrastructure.repositories.aplicador_cambios_orm import AplicadorCambiosORM
 from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.autogestion.infrastructure.repositories.repo_cambios_soportes_orm import (
@@ -73,7 +74,7 @@ from apps.autogestion.presentation.views._comun import (
 )
 from core.domain.exceptions import PermissionDeniedError
 from core.presentation.envelope import ok
-from core.presentation.permissions import HasPermission, usuario_tiene_permiso
+from core.presentation.permissions import HasAnyPermission, HasPermission, usuario_tiene_permiso
 from core.presentation.schema import MensajeRespuestaSerializer
 
 TAG = ['Bienestar · Actualización de datos']
@@ -89,7 +90,7 @@ def _entero(valor, defecto: int) -> int:
 
 
 class BandejaView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('bienestar.ver_solicitudes')]
+    permission_classes = [IsAuthenticated, HasAnyPermission('bienestar.ver_solicitudes', 'personal.aprobar_antecedentes')]
 
     @extend_schema(
         tags=TAG, summary='Bandeja de solicitudes de actualización',
@@ -121,7 +122,7 @@ class BandejaView(APIView):
 
 
 class DetalleBienestarView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('bienestar.ver_solicitudes')]
+    permission_classes = [IsAuthenticated, HasAnyPermission('bienestar.ver_solicitudes', 'personal.aprobar_antecedentes')]
 
     @extend_schema(tags=TAG, summary='Detalle de una solicitud (cambios, soportes y prórrogas)',
                    responses={200: DetalleSolicitudSerializer, 404: MensajeRespuestaSerializer})
@@ -132,7 +133,7 @@ class DetalleBienestarView(APIView):
 
 
 class ComparativoView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('bienestar.revisar_actualizacion')]
+    permission_classes = [IsAuthenticated, HasAnyPermission('bienestar.revisar_actualizacion', 'personal.aprobar_antecedentes')]
 
     @extend_schema(
         tags=TAG, summary='Comparativo valor actual / propuesto',
@@ -194,7 +195,7 @@ class ProrrogarVentanaView(APIView):
 
 
 class DecidirView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('bienestar.aprobar')]
+    permission_classes = [IsAuthenticated, HasAnyPermission('bienestar.aprobar', 'personal.aprobar_antecedentes')]
 
     @extend_schema(
         tags=TAG, summary='Decidir campo por campo (aprobación total, parcial o rechazo) — una sola persona',
@@ -208,10 +209,25 @@ class DecidirView(APIView):
     )
     def post(self, request, solicitud_id):
         datos = validar_entrada(DecidirCambiosSerializer, request.data)
+        repo_cambios = RepoCambiosPropuestosORM()
+        cambios_solicitud = repo_cambios.listar(ORIGEN_ACTUALIZACION, str(solicitud_id))
+        tiene_antecedentes = any(
+            c.seccion == Seccion.ANTECEDENTES.value or c.entidad_destino == 'antecedente_servicio'
+            for c in cambios_solicitud
+        )
+        tiene_otras = any(
+            c.seccion != Seccion.ANTECEDENTES.value and c.entidad_destino != 'antecedente_servicio'
+            for c in cambios_solicitud
+        )
+        if tiene_antecedentes and not usuario_tiene_permiso(request.user, 'personal.aprobar_antecedentes'):
+            raise PermissionDeniedError("Decidir cambios sobre antecedentes de servicio requiere el permiso 'personal.aprobar_antecedentes'.")
+        if tiene_otras and not usuario_tiene_permiso(request.user, 'bienestar.aprobar'):
+            raise PermissionDeniedError("Decidir cambios sobre la solicitud requiere el permiso 'bienestar.aprobar'.")
+
         decisiones = [DecisionCampoDTO(str(d['cambio_id']), d['aprobado'], d.get('motivo', '')) for d in datos['decisiones']]
         with transaction.atomic():
             dto = decidir_cambios(
-                RepoSolicitudesORM(), RepoCambiosPropuestosORM(), RepoSoportesORM(), LectorFichaORM(),
+                RepoSolicitudesORM(), repo_cambios, RepoSoportesORM(), LectorFichaORM(),
                 AplicadorCambiosORM(), PublicadorSenales(),
                 solicitud_id=str(solicitud_id), decisiones=decisiones, version=datos['version'],
                 actor=cedula_de_sesion(request), motivo_general=datos.get('motivo_general', ''), ahora=ahora(),
@@ -226,11 +242,11 @@ class DecidirView(APIView):
 
 
 class RechazarView(APIView):
-    permission_classes = [IsAuthenticated, HasPermission('bienestar.revisar_actualizacion')]
+    permission_classes = [IsAuthenticated, HasAnyPermission('bienestar.revisar_actualizacion', 'personal.aprobar_antecedentes')]
 
     @extend_schema(
         tags=TAG, summary='Rechazar la solicitud completa con motivo',
-        description='De una SOLICITADA (sin habilitar) o de una ENVIADA (sin aplicar nada). Rechazar una ENVIADA exige `bienestar.aprobar`.',
+        description='De una SOLICITADA (sin habilitar) o de una ENVIADA (sin aplicar nada). Rechazar una ENVIADA exige `bienestar.aprobar` o `personal.aprobar_antecedentes`.',
         request=RechazarSolicitudSerializer, responses={200: SolicitudSerializer, **ERRORES},
     )
     def post(self, request, solicitud_id):
@@ -238,8 +254,11 @@ class RechazarView(APIView):
         repo = RepoSolicitudesORM()
         with transaction.atomic():
             actual = obtener_solicitud(repo, str(solicitud_id))
-            if actual.estado is EstadoSolicitud.ENVIADA and not usuario_tiene_permiso(request.user, 'bienestar.aprobar'):
-                raise PermissionDeniedError("Rechazar una solicitud enviada requiere el permiso 'bienestar.aprobar'.")
+            if actual.estado is EstadoSolicitud.ENVIADA and not (
+                usuario_tiene_permiso(request.user, 'bienestar.aprobar')
+                or usuario_tiene_permiso(request.user, 'personal.aprobar_antecedentes')
+            ):
+                raise PermissionDeniedError("Rechazar una solicitud enviada requiere el permiso 'bienestar.aprobar' o 'personal.aprobar_antecedentes'.")
             solicitud = rechazar_solicitud(
                 repo, RepoCambiosPropuestosORM(), PublicadorSenales(), solicitud_id=str(solicitud_id),
                 motivo=datos['motivo'], version=datos.get('version'), actor=cedula_de_sesion(request), ahora=ahora(),

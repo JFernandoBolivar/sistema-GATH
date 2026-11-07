@@ -77,11 +77,17 @@ export function registrosFicha(
     }
     case "datos_vivienda": {
       const v = e.datos_vivienda;
-      if (!v || !v.estado_id) return [];
+      const paisId = v?.pais?.id ?? v?.pais_id ?? null;
+      const paisNombre = v?.pais?.nombre ?? v?.pais_nombre ?? null;
+      // O40: una vivienda del exterior no tiene estado_id; no debe confundirse
+      // con «sin registro» ni proponerse como un alta nueva.
+      if (!v || (!v.estado_id && !paisId && !v.direccion_exacta)) return [];
       return [
         {
           id: null,
           valores: {
+            pais_id: paisId,
+            ciudad_region: v.ciudad_region ?? null,
             estado_id: v.estado_id,
             municipio_id: v.municipio_id,
             parroquia_id: v.parroquia_id,
@@ -90,6 +96,8 @@ export function registrosFicha(
             codigo_postal_id: v.codigo_postal_id,
           },
           resumen: unir(
+            paisNombre,
+            v.ciudad_region,
             v.estado_nombre,
             v.municipio_nombre,
             v.parroquia_nombre,
@@ -198,6 +206,20 @@ export function registrosFicha(
         },
       ];
     }
+    case "antecedente_servicio":
+      return (e.antecedentes ?? []).map((a) => ({
+        id: String(a.id),
+        valores: {
+          organismo_id: a.organismo_id,
+          fecha_ingreso: a.fecha_ingreso?.slice(0, 10),
+          fecha_egreso: a.fecha_egreso?.slice(0, 10) ?? null,
+        },
+        resumen: unir(
+          a.organismo_nombre,
+          a.fecha_ingreso ? `Ingreso: ${a.fecha_ingreso.slice(0, 10)}` : null,
+          a.fecha_egreso ? `Egreso: ${a.fecha_egreso.slice(0, 10)}` : "En curso",
+        ),
+      }));
     default:
       return [];
   }

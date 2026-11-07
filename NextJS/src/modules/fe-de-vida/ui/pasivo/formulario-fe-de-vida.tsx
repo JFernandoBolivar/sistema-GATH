@@ -45,7 +45,8 @@ import {
   type DatosContactoValores,
 } from "../schema/schema-fe-de-vida";
 import { aEntrada, cambiosAItems, fusionarContacto, valoresIniciales } from "./borrador-items";
-import { BotonVerGuia, PanelGuiaFeDeVida } from "./panel-guia-fe-de-vida";
+import { PanelGuiaFeDeVida } from "./panel-guia-fe-de-vida";
+import { useRegistrarGuia } from "@/modules/autogestion/ui/guias/contexto-guia";
 import { PasoContacto } from "./paso-contacto";
 import { PasoFoto } from "./paso-foto";
 import { ejecutarConReintento } from "./subida-con-reintento";
@@ -120,6 +121,7 @@ export function FormularioFeDeVida({
   const [fotoRecuperadaLocal, setFotoRecuperadaLocal] = useState(false);
   const [mensajeSubida, setMensajeSubida] = useState<string | undefined>(undefined);
   const [guiaAbierta, setGuiaAbierta] = useState(false);
+  useRegistrarGuia(() => setGuiaAbierta(true));
   const [erroresContacto, setErroresContacto] = useState<Record<string, string[]> | undefined>(undefined);
   const [guardando, iniciarGuardado] = useTransition();
   const [subiendo, iniciarSubida] = useTransition();
@@ -397,7 +399,6 @@ export function FormularioFeDeVida({
             ))}
           </ol>
         </nav>
-        <BotonVerGuia onClick={() => setGuiaAbierta(true)} />
       </div>
       <p role="status" aria-live="polite" className="sr-only">
         Paso {indice + 1} de {pasos.length}: {TITULOS[paso]}

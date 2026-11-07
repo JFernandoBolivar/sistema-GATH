@@ -50,43 +50,12 @@ import {
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 
 import type { MatrizPermisosDTO } from "../application/dtos/usuario-dto";
+import { nombreModulo } from "./modulos-permisos";
 import { guardarMatrizAction, obtenerMatrizAction } from "../infrastructure/actions/usuario-actions";
 
-const MODULOS: Record<string, string> = {
-  identidad: "Identidad y seguridad",
-  organizacion: "Organización",
-  catalogos: "Catálogos",
-  personal: "Personal activo",
-  pasivos: "Personal pasivo",
-  cargos: "Cargos y ubicaciones",
-  familiares: "Familiares y cargas",
-  movimientos: "Movimientos e historial",
-  reportes: "Reportes y constancias",
-  carnetizacion: "Carnetización",
-  autogestion: "Autogestión",
-  bienestar: "Bienestar Social",
-  fe_de_vida: "Fe de vida",
-  notificaciones: "Notificaciones",
-  auditoria: "Auditoría",
-  configuracion: "Configuración",
-  puntocuenta: "Punto de cuenta",
-};
-
-function nombreModulo(modulo: string): string {
-  return MODULOS[modulo] ?? modulo;
-}
-
-/** «ADMIN_BIENESTAR» → «Admin Bienestar»; conserva siglas como RRHH. */
-function nombreRol(nombre: string): string {
-  const siglas = new Set(["RRHH", "TI", "GATH", "APN"]);
-  return nombre
-    .split(/[_\s]+/)
-    .filter(Boolean)
-    .map((palabra) => {
-      if (siglas.has(palabra)) return palabra;
-      return palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase();
-    })
-    .join(" ");
+/** Etiqueta del rol: el nombre visible que entrega el servidor (el código es solo respaldo). */
+function etiquetaRol(rol: { nombre: string; nombreVisible?: string }): string {
+  return rol.nombreVisible || rol.nombre;
 }
 
 export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number } = {}) {
@@ -306,7 +275,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
               >
                 <option value="todos">Todos los roles</option>
                 {matriz.roles.map((rol) => (
-                  <option key={rol.rolId} value={String(rol.rolId)}>{rol.nombre}</option>
+                  <option key={rol.rolId} value={String(rol.rolId)}>{etiquetaRol(rol)}</option>
                 ))}
               </select>
               <span>{filasFiltradas.length} de {matriz.filas.length} permisos · {rolesVisibles.length} roles</span>
@@ -320,7 +289,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
                   <TableHead className="sticky left-0 top-0 z-30 min-w-72 bg-card">Permiso</TableHead>
                   {rolesVisibles.map((rol) => (
                     <TableHead key={rol.rolId} className="sticky top-0 z-20 min-w-40 bg-card text-center">
-                      <span className="text-sm font-semibold">{nombreRol(rol.nombre)}</span>
+                      <span className="text-sm font-semibold">{etiquetaRol(rol)}</span>
                       <span className="block text-[11px] font-normal text-muted-foreground">{totalPorRol(rol.rolId)} permisos</span>
                     </TableHead>
                   ))}
@@ -346,7 +315,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
                               checked={(borrador[rol.rolId] ?? []).includes(fila.codigo)}
                               disabled={!puedeEditar || cargando}
                               onCheckedChange={() => alternar(rol.rolId, fila.codigo)}
-                              aria-label={`${fila.codigo} para ${rol.nombre}`}
+                              aria-label={`${fila.nombre} para ${etiquetaRol(rol)}`}
                             />
                           </TableCell>
                         ))}
@@ -374,7 +343,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
                 const cambios = cambiosPorRol(rol.rolId, rol.codigos);
                 return (
                   <option key={rol.rolId} value={String(rol.rolId)}>
-                    {nombreRol(rol.nombre)} ({totalPorRol(rol.rolId)} activos)
+                    {etiquetaRol(rol)} ({totalPorRol(rol.rolId)} activos)
                     {cambios > 0 ? ` · ${cambios} cambio(s)` : ""}
                   </option>
                 );
@@ -397,7 +366,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
                   }`}
                   aria-current={activo ? "true" : undefined}
                 >
-                  <span className="font-semibold">{nombreRol(rol.nombre)}</span>
+                  <span className="font-semibold">{etiquetaRol(rol)}</span>
                   <span className="text-xs text-muted-foreground">
                     {rol.codigos.length} permisos · {totalPorRol(rol.rolId)} activos
                   </span>
@@ -461,7 +430,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
                                   checked={marcado}
                                   disabled={!puedeEditar || cargando}
                                   onCheckedChange={() => alternar(rolActual.rolId, fila.codigo)}
-                                  aria-label={`${fila.nombre} para ${rolActual.nombre}`}
+                                  aria-label={`${fila.nombre} para ${etiquetaRol(rolActual)}`}
                                 />
                               </li>
                             );
@@ -523,7 +492,7 @@ export default function MatrizPermisosPage({ rolInicial }: { rolInicial?: number
               Confirmar cambio de la matriz de{" "}
               {(() => {
                 const rol = matriz?.roles.find((r) => r.rolId === rolGuardando);
-                return rol ? nombreRol(rol.nombre) : "rol";
+                return rol ? etiquetaRol(rol) : "rol";
               })()}
             </AlertDialogTitle>
           </AlertDialogHeader>

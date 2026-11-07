@@ -59,7 +59,7 @@ const mockObtenerDetalleUsuarioAction = vi.fn();
 
 vi.mock("../infrastructure/actions/usuario-actions", () => ({
   obtenerDetalleUsuarioAction: (id: number) => mockObtenerDetalleUsuarioAction(id),
-  getRolesAction: vi.fn().mockResolvedValue([{ id: 2, nombreRol: "ANALISTA" }]),
+  getRolesAction: vi.fn().mockResolvedValue([{ id: 2, nombreRol: "ANALISTA", nombreVisible: "Analista" }]),
   getPermisosAction: vi.fn().mockResolvedValue([
     { codigo: "cargos.ver_cargos", nombre: "Ver cargos", modulo: "cargos" },
     { codigo: "personal.ver_empleados", nombre: "Ver empleados", modulo: "personal" },
@@ -125,15 +125,54 @@ describe("UsuarioDetallePage (O18)", () => {
     expect(screen.queryByText(/Sin permisos individuales: usa solo los de su rol\./i)).toBeNull();
 
     // 3. Excepción concedida (allow)
-    expect(screen.getAllByText("cargos.ver_cargos").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Concedido (allow)")).toBeInTheDocument();
+    expect(screen.getAllByText("Ver cargos").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Concedido")).toBeInTheDocument();
 
     // 4. Excepción denegada (deny)
-    expect(screen.getAllByText("personal.ver_empleados").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Denegado (deny)")).toBeInTheDocument();
+    expect(screen.getAllByText("Ver empleados").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Denegado")).toBeInTheDocument();
 
     // 5. Detalles de la excepción
     expect(screen.getAllByText("Aprobación de auditoría especial").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("admin_ti").length).toBeGreaterThanOrEqual(1);
+  });
+  it("O43: muestra el nombre visible del rol y de los permisos, sin mostrar nunca el código", async () => {
+    mockObtenerDetalleUsuarioAction.mockResolvedValueOnce({
+      ...mockUsuarioConExcepciones,
+      rolNombre: "ANALISTA_BIENESTAR",
+      rolNombreVisible: "Analista de Bienestar",
+      permisos: {
+        ...mockUsuarioConExcepciones.permisos,
+        rolNombre: "ANALISTA_BIENESTAR",
+        rolNombreVisible: "Analista de Bienestar",
+      },
+    });
+
+    render(<UsuarioDetallePage id={11} />);
+    expect(await screen.findByText("Carlos Gómez")).toBeInTheDocument();
+
+    expect(screen.getAllByText("Analista de Bienestar").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("ANALISTA_BIENESTAR")).toBeNull();
+    // Permisos individuales: el nombre del catálogo encabeza la fila y el código queda debajo.
+    expect((await screen.findAllByText("Ver cargos")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("Ver empleados").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("cargos.ver_cargos")).toBeNull();
+    expect(screen.queryByText("personal.ver_empleados")).toBeNull();
+  });
+  it("O43: un permiso fuera del catálogo se muestra con un respaldo legible y los avisos están en español", async () => {
+    mockObtenerDetalleUsuarioAction.mockResolvedValueOnce({
+      ...mockUsuarioConExcepciones,
+      permisos: { ...mockUsuarioConExcepciones.permisos, allow: ["cargos.asignar_titular"], deny: [] },
+    });
+
+    render(<UsuarioDetallePage id={11} />);
+    expect(await screen.findByText("Carlos Gómez")).toBeInTheDocument();
+
+    expect((await screen.findAllByText("Asignar titular")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("cargos.asignar_titular")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Quitar Asignar titular de los permisos concedidos" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\((allow|deny)\)/)).toBeNull();
   });
 });

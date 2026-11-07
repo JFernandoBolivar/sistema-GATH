@@ -25,6 +25,7 @@ import {
   pedidaPorAcciones,
   type EntidadDef,
 } from "../../domain/value-objects/campos-seccion";
+import type { TipoSoporteConfigurado } from "../../domain/value-objects/tipos-soporte";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
 import { esquemaDeEntidad } from "../schema/schema-solicitud";
 import { formatearValor, type NombresCatalogo } from "../formato-solicitud";
@@ -44,6 +45,8 @@ interface Props {
   onItems: (items: ItemBorrador[]) => void;
   solicitudId?: string;
   soportes?: SoporteEntity[];
+  /** Tipos de documento configurados para la sección (O41). */
+  tiposSoporte?: readonly TipoSoporteConfigurado[];
   onCambioSoportes?: () => void;
 }
 
@@ -54,7 +57,12 @@ type Abierto =
   | null;
 
 /** Entidades cuyos cambios exigen un documento por registro. */
-const CON_DOCUMENTO = new Set(["familiar", "formacion_academica", "formacion_complementaria"]);
+const CON_DOCUMENTO = new Set([
+  "familiar",
+  "formacion_academica",
+  "formacion_complementaria",
+  "antecedente_servicio",
+]);
 const MOTIVO_QUITAR_MIN = 10;
 const MOTIVO_QUITAR_MAX = 300;
 
@@ -78,6 +86,7 @@ export function EditorEntidad({
   onItems,
   solicitudId,
   soportes = [],
+  tiposSoporte = [],
   onCambioSoportes,
 }: Props) {
   // Pedida por acciones (Agregar/Corregir/Quitar): todos sus campos son editables; si no, solo los habilitados.
@@ -298,6 +307,7 @@ export function EditorEntidad({
             seccion={seccion}
             entidadId={id}
             soportes={soportes}
+            tipos={tiposSoporte}
             onCambio={onCambioSoportes ?? (() => {})}
           />
         ) : null}
@@ -373,6 +383,7 @@ export function EditorEntidad({
                   seccion={seccion}
                   referencia={n.referencia}
                   soportes={soportes}
+                  tipos={tiposSoporte}
                   onCambio={onCambioSoportes ?? (() => {})}
                 />
               ) : null}

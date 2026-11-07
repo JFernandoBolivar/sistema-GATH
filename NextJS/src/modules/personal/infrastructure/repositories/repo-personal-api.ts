@@ -22,6 +22,8 @@ import { empleadoApiAEntidad } from "../mappers/mapper-personal";
 function viviendaAPI(v: DatosVivienda | null | undefined): Record<string, unknown> | null {
   if (!v) return null;
   const out: Record<string, unknown> = {};
+  if (v.paisId !== undefined) out.pais = v.paisId;
+  if (v.ciudadRegion !== undefined) out.ciudad_region = v.ciudadRegion;
   if (v.estadoId !== undefined) out.estado = v.estadoId;
   if (v.municipioId !== undefined) out.municipio = v.municipioId;
   if (v.parroquiaId !== undefined) out.parroquia = v.parroquiaId;
@@ -225,6 +227,7 @@ export const repoPersonalApi: RepoPersonal = {
     // usuario elige el padre (Fase 2). Así el payload inicial baja de ~690 KB
     // a menos de 100 KB.
     const [
+      paises,
       estados,
       condicionesVivienda,
       gruposSanguineos,
@@ -244,6 +247,7 @@ export const repoPersonalApi: RepoPersonal = {
       nacionalidades,
       parentescos,
     ] = await Promise.all([
+      personalApi.getPaises(),
       personalApi.getEstados(),
       personalApi.getCondicionesVivienda(),
       personalApi.getGruposSanguineos(),
@@ -275,8 +279,10 @@ export const repoPersonalApi: RepoPersonal = {
         regionId: x.region_id ?? (x.region?.id ?? null),
         regionCodigo: x.region_codigo ?? (x.region?.codigo ?? null),
         regionDescripcion: x.region_descripcion ?? (x.region?.descripcion ?? null),
+        esVenezuela: x.es_venezuela ?? null,
       }));
     return {
+      paises: aCat(paises),
       estados: aCat(estados),
       // Se piden por padre en los formularios (useCatalogoDependiente).
       municipios: [],

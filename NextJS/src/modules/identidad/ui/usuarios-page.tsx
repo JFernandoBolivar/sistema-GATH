@@ -208,7 +208,7 @@ export default function UsuariosPage() {
                   <SelectItem value="todos">Todos</SelectItem>
                   {roles.map((r) => (
                     <SelectItem key={r.id} value={String(r.id)}>
-                      {r.nombreRol}
+                      {r.nombreVisible}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -344,7 +344,7 @@ export default function UsuariosPage() {
                           )}
                       </div>
                     </TableCell>
-                    <TableCell>{usuario.rolNombre ?? "—"}</TableCell>
+                    <TableCell>{usuario.rolNombreVisible ?? usuario.rolNombre ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={usuario.isActive ? "secondary" : "outline"}>
                         {usuario.isActive ? "Activo" : "Inactivo"}

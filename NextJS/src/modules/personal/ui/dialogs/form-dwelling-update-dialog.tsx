@@ -28,6 +28,8 @@ import { CampoDialogo, avisoDeFallo, mensajeDe } from "./campo-dialogo";
 
 /** Ruta del API -> campo del formulario. */
 const MAPA_ERRORES = {
+  "datos_vivienda.pais": "paisId",
+  "datos_vivienda.ciudad_region": "ciudadRegion",
   "datos_vivienda.estado": "estadoId",
   "datos_vivienda.municipio": "municipioId",
   "datos_vivienda.parroquia": "parroquiaId",
@@ -42,6 +44,8 @@ interface FormDwellingUpdateDialogProps {
   onGuardado: () => void;
   triggerClassName?: string;
   triggerLabel?: string;
+  /** O40: muestra el país en el alta de pasivos sin cambiar el formulario de activos. */
+  permitirPais?: boolean;
 }
 
 export default function FormDwellingUpdateDialog({
@@ -50,6 +54,7 @@ export default function FormDwellingUpdateDialog({
   onGuardado,
   triggerClassName = "cursor-pointer bg-blue-700 hover:bg-blue-900 text-white",
   triggerLabel = "Actualizar",
+  permitirPais = false,
 }: FormDwellingUpdateDialogProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -57,6 +62,8 @@ export default function FormDwellingUpdateDialog({
 
   const form = useForm({
     defaultValues: {
+      paisId: empleado.datosVivienda?.paisId ?? 0,
+      ciudadRegion: empleado.datosVivienda?.ciudadRegion ?? "",
       estadoId: empleado.datosVivienda?.estadoId ?? 0,
       municipioId: empleado.datosVivienda?.municipioId ?? 0,
       parroquiaId: empleado.datosVivienda?.parroquiaId ?? 0,
@@ -68,10 +75,14 @@ export default function FormDwellingUpdateDialog({
   const { register, handleSubmit, setValue, watch } = form;
   const errores = form.formState.errors;
 
+  const paisId = watch("paisId");
   const estadoId = watch("estadoId");
   const municipioId = watch("municipioId");
   const parroquiaId = watch("parroquiaId");
   const codigoPostalId = watch("codigoPostalId");
+  const paisElegido = catalogos?.paises.find((p) => p.id === paisId);
+  const esVenezuela = paisId ? (paisElegido?.esVenezuela ?? true) : true;
+  const mostrarPais = permitirPais || (!esVenezuela && Boolean(paisId));
 
   // Cascada Estado -> Municipio -> Parroquia y Estado -> Código Postal.
   const { opciones: municipios } = useCatalogoDependiente("municipios", estadoId, {
@@ -88,11 +99,35 @@ export default function FormDwellingUpdateDialog({
   });
 
   const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
+    if (esVenezuela) {
+      const obligatorios: Array<[keyof typeof data, string]> = [
+        ["estadoId", "Seleccione un estado."],
+        ["municipioId", "Seleccione un municipio."],
+        ["parroquiaId", "Seleccione una parroquia."],
+        ["codigoPostalId", "Seleccione un código postal."],
+      ];
+      let invalido = false;
+      for (const [campo, mensaje] of obligatorios) {
+        if (!data[campo]) {
+          form.setError(campo, { type: "required", message: mensaje });
+          invalido = true;
+        }
+      }
+      if (invalido) return;
+    } else if (!data.ciudadRegion?.trim()) {
+      form.setError("ciudadRegion", {
+        type: "required",
+        message: "Indique la ciudad o región.",
+      });
+      return;
+    }
     startTransition(async () => {
       setError(null);
       try {
         const payload = {
           datosVivienda: {
+            ...(mostrarPais && data.paisId ? { paisId: Number(data.paisId) } : {}),
+            ...(!esVenezuela ? { ciudadRegion: data.ciudadRegion?.trim() || "" } : {}),
             estadoId: data.estadoId ? Number(data.estadoId) : null,
             municipioId: data.municipioId ? Number(data.municipioId) : null,
             parroquiaId: data.parroquiaId ? Number(data.parroquiaId) : null,
@@ -146,6 +181,62 @@ export default function FormDwellingUpdateDialog({
             )}
 
             <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {mostrarPais ? (
+                <CampoDialogo
+                  id="paisId"
+                  label="País *"
+                  error={mensajeDe(errores.paisId)}
+                  className="sm:col-span-2"
+                >
+                  <Select
+                    value={paisId ? String(paisId) : undefined}
+                    onValueChange={(v) => {
+                      const id = Number.parseInt(v);
+                      setValue("paisId", id);
+                      const elegido = catalogos?.paises.find((p) => p.id === id);
+                      if (elegido?.esVenezuela) {
+                        setValue("ciudadRegion", "");
+                      } else {
+                        setValue("estadoId", 0);
+                        setValue("municipioId", 0);
+                        setValue("parroquiaId", 0);
+                        setValue("codigoPostalId", 0);
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="paisId" className="w-full truncate">
+                      <SelectValue placeholder="Seleccione un País" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(catalogos?.paises ?? []).map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CampoDialogo>
+              ) : null}
+
+              {!esVenezuela ? (
+                <CampoDialogo
+                  id="ciudadRegion"
+                  label="Ciudad o Región *"
+                  error={mensajeDe(errores.ciudadRegion)}
+                  className="sm:col-span-2"
+                >
+                  <Input
+                    id="ciudadRegion"
+                    maxLength={120}
+                    aria-invalid={!!errores.ciudadRegion || undefined}
+                    {...register("ciudadRegion")}
+                    placeholder="Ciudad, estado o región del país de residencia"
+                  />
+                </CampoDialogo>
+              ) : null}
+
+              {esVenezuela ? (
+                <>
               <CampoDialogo id="estadoId" label="Estado *" error={mensajeDe(errores.estadoId)}>
                 <Combobox
                   id="estadoId"
@@ -197,6 +288,8 @@ export default function FormDwellingUpdateDialog({
                 />
                 <span className="text-xs text-muted-foreground">Esta Información Sera Publica</span>
               </CampoDialogo>
+                </>
+              ) : null}
 
               <CampoDialogo
                 id="condicionViviendaId"
@@ -243,20 +336,22 @@ export default function FormDwellingUpdateDialog({
                 <ContadorCampo control={form.control} name="direccionExacta" max={DIRECCION_MAX} />
               </CampoDialogo>
 
-              <CampoDialogo id="codigoPostalId" label="Código Postal *" error={mensajeDe(errores.codigoPostalId)}>
-                <Combobox
-                  id="codigoPostalId"
-                  invalido={!!errores.codigoPostalId}
-                  value={codigoPostalId ? String(codigoPostalId) : ""}
-                  onChange={(v) => {
-                    setValue("codigoPostalId", Number(v));
-                  }}
-                  options={codigosPostales.map((o) => ({ value: String(o.id), label: o.nombre }))}
-                  placeholder="Seleccione un Código Postal"
-                  searchPlaceholder="Buscar código postal…"
-                  emptyText="No hay coincidencias."
-                />
-              </CampoDialogo>
+              {esVenezuela ? (
+                <CampoDialogo id="codigoPostalId" label="Código Postal *" error={mensajeDe(errores.codigoPostalId)}>
+                  <Combobox
+                    id="codigoPostalId"
+                    invalido={!!errores.codigoPostalId}
+                    value={codigoPostalId ? String(codigoPostalId) : ""}
+                    onChange={(v) => {
+                      setValue("codigoPostalId", Number(v));
+                    }}
+                    options={codigosPostales.map((o) => ({ value: String(o.id), label: o.nombre }))}
+                    placeholder="Seleccione un Código Postal"
+                    searchPlaceholder="Buscar código postal…"
+                    emptyText="No hay coincidencias."
+                  />
+                </CampoDialogo>
+              ) : null}
 
               <Button className="w-full sm:col-span-2 mt-2" disabled={isPending}>
                 {isPending && <Loader2 className="size-4 animate-spin mr-1" />}

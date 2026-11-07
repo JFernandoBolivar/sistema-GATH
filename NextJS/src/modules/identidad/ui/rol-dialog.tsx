@@ -48,7 +48,7 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
   useEffect(() => {
     if (open) {
       form.reset({
-        nombreRol: rolEditando?.nombreRol ?? "",
+        nombreVisible: rolEditando?.nombreVisible ?? "",
         descripcionRol: rolEditando?.descripcionRol ?? "",
       });
     }
@@ -57,11 +57,11 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
   const onSubmit = (data: RolFormType) => {
     startTransition(async () => {
       const resultado = rolEditando
-        ? await actualizarRolAction(rolEditando.id, { nombreRol: data.nombreRol, descripcionRol: data.descripcionRol ?? "" })
-        : await crearRolAction({ nombreRol: data.nombreRol, descripcionRol: data.descripcionRol ?? "" });
+        ? await actualizarRolAction(rolEditando.id, { nombreVisible: data.nombreVisible, descripcionRol: data.descripcionRol ?? "" })
+        : await crearRolAction({ nombreVisible: data.nombreVisible, descripcionRol: data.descripcionRol ?? "" });
       if (resultado && typeof resultado === "object" && "error" in resultado) {
         const err = resultado as { error: string; errores?: Record<string, string[]> };
-        const sinUbicar = aplicarErroresServidor(form, err.errores, { nombre: "nombreRol", nombre_rol: "nombreRol", descripcion: "descripcionRol", descripcion_rol: "descripcionRol" });
+        const sinUbicar = aplicarErroresServidor(form, err.errores, { nombre: "nombreVisible", nombre_visible: "nombreVisible", nombre_rol: "nombreVisible", descripcion: "descripcionRol", descripcion_rol: "descripcionRol" });
         toast.error(sinUbicar.length > 0 || !err.errores ? err.error : "Revise los campos marcados en rojo.");
         return;
       }
@@ -78,24 +78,24 @@ export default function RolDialog({ open, onOpenChange, rolEditando, onGuardado 
           <DialogTitle>{rolEditando ? "Editar rol" : "Nuevo rol"}</DialogTitle>
           <DialogDescription>
             {rolEditando
-              ? "Si cambia el nombre, el rol deja de coincidir con los permisos configurados en el sistema."
-              : "El nombre se guarda en mayúsculas y no puede repetirse."}
+              ? "Cambiar el nombre no afecta los permisos ni el acceso: el código interno del rol no cambia."
+              : "Escriba el nombre que verán los usuarios. El sistema genera el código interno una sola vez."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
-          <Field data-invalid={!!form.formState.errors.nombreRol}>
-            <Label htmlFor="nombreRol">Nombre</Label>
+          <Field data-invalid={!!form.formState.errors.nombreVisible}>
+            <Label htmlFor="nombreVisible">Nombre</Label>
             <Input
-              id="nombreRol"
-              placeholder="Ej. RECEPCIONISTA"
+              id="nombreVisible"
+              placeholder="Ej. Jefe de Recepción"
               minLength={2}
-              maxLength={50}
-              {...form.register("nombreRol")}
-              aria-invalid={!!form.formState.errors.nombreRol}
+              maxLength={100}
+              {...form.register("nombreVisible")}
+              aria-invalid={!!form.formState.errors.nombreVisible}
             />
-            {form.formState.errors.nombreRol && (
+            {form.formState.errors.nombreVisible && (
               <p role="alert" className="text-sm text-destructive">
-                {form.formState.errors.nombreRol.message}
+                {form.formState.errors.nombreVisible.message}
               </p>
             )}
           </Field>

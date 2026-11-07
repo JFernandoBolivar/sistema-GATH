@@ -9,8 +9,8 @@ const { matriz } = vi.hoisted(() => ({
       { modulo: "personal", codigo: "personal.crear", nombre: "Registrar personal" },
     ],
     roles: [
-      { rolId: 1, nombre: "ADMIN_BIENESTAR", codigos: ["personal.ver"] },
-      { rolId: 2, nombre: "JEFE_RRHH", codigos: [] },
+      { rolId: 1, nombre: "ADMIN_BIENESTAR", nombreVisible: "Administrador de Bienestar", codigos: ["personal.ver"] },
+      { rolId: 2, nombre: "JEFE_RRHH", nombreVisible: "Jefe de RRHH", codigos: [] },
     ],
   },
 }));
@@ -35,11 +35,13 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import MatrizPermisosPage from "./matriz-permisos-page";
 
 describe("MatrizPermisosPage", () => {
-  it("muestra nombres de rol legibles, buscador y permisos por módulo", async () => {
+  it("muestra el nombre visible del rol (no el código), buscador y permisos por módulo", async () => {
     render(<MatrizPermisosPage />);
 
-    expect(await screen.findByText("Admin Bienestar")).toBeInTheDocument();
-    expect(screen.getByText("Jefe RRHH")).toBeInTheDocument();
+    expect(await screen.findAllByText("Administrador de Bienestar")).not.toHaveLength(0);
+    expect(screen.getAllByText("Jefe de RRHH").length).toBeGreaterThan(0);
+    expect(screen.queryByText("ADMIN_BIENESTAR")).not.toBeInTheDocument();
+    expect(screen.queryByText("Admin Bienestar")).not.toBeInTheDocument();
     expect(screen.getByLabelText(/buscar permiso/i)).toBeInTheDocument();
     expect(screen.getByText("Personal activo")).toBeInTheDocument();
     expect(screen.getByText("personal.ver")).toBeInTheDocument();
@@ -51,7 +53,7 @@ describe("MatrizPermisosPage", () => {
 
     expect(await screen.findByRole("button", { name: /guardar cambios \(0\)/i })).toBeDisabled();
 
-    const interruptor = screen.getByLabelText("Registrar personal para ADMIN_BIENESTAR");
+    const interruptor = screen.getByLabelText("Registrar personal para Administrador de Bienestar");
     await waitFor(() => expect(interruptor).toBeEnabled());
     await usuario.click(interruptor);
 

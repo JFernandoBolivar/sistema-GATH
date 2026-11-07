@@ -57,6 +57,7 @@ export interface ReportePasivoApiItem {
   nombre_completo?: string;
   tipo_pasivo?: string;
   tipo_personal?: string;
+  pais?: string;
   fecha_egreso?: string;
   motivo_egreso?: string;
   contacto?: string;

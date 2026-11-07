@@ -7,13 +7,37 @@ from typing import Protocol, Sequence
 
 from apps.configuracion.domain.reglas_catalogos import (
     CategoriaMotivoItem,
+    ReglaChecklistSoporte,
     ReglaMotivo,
     ReglaNomina,
+    ReglaPais,
     ReglaParentesco,
+    ReglaTipoSoporte,
 )
+from core.domain.tipos_soporte import ItemChecklistSoporte, SeccionSoporte
 
 
 class RepoReglasCatalogos(Protocol):
+    def listar_paises(self) -> Sequence[ReglaPais]:
+        ...
+
+    def obtener_pais(self, pais_id: int) -> ReglaPais:
+        ...
+
+    def crear_pais(self, nombre: str, codigo: str) -> ReglaPais:
+        ...
+
+    def actualizar_pais(
+        self, pais_id: int, nombre: str | None, codigo: str | None,
+    ) -> ReglaPais:
+        ...
+
+    def eliminar_pais(self, pais_id: int) -> ReglaPais:
+        ...
+
+    def pais_tiene_referencias(self, pais_id: int) -> bool:
+        ...
+
     def listar_parentescos(self) -> Sequence[ReglaParentesco]:
         ...
 
@@ -97,4 +121,42 @@ class RepoReglasCatalogos(Protocol):
         ...
 
     def nomina_tiene_referencias(self, nomina_id: int) -> bool:
+        ...
+
+    # ---- Tipos de soporte documental y checklist por sección (O41) ----
+    def listar_tipos_soporte(self) -> Sequence[ReglaTipoSoporte]:
+        ...
+
+    def obtener_tipo_soporte(self, tipo_id: int) -> ReglaTipoSoporte:
+        ...
+
+    def crear_tipo_soporte(self, codigo: str, nombre: str, orden: int) -> ReglaTipoSoporte:
+        ...
+
+    def actualizar_tipo_soporte(
+        self,
+        tipo_id: int,
+        codigo: str | None,
+        nombre: str | None,
+        orden: int | None,
+    ) -> ReglaTipoSoporte:
+        ...
+
+    def eliminar_tipo_soporte(self, tipo_id: int) -> ReglaTipoSoporte:
+        ...
+
+    def tipo_soporte_tiene_secciones(self, tipo_id: int) -> bool:
+        ...
+
+    def listar_checklist_soporte(
+        self, seccion: str | None = None,
+    ) -> Sequence[ReglaChecklistSoporte]:
+        ...
+
+    def reemplazar_checklist_soporte(
+        self, seccion: str, items: Sequence[ItemChecklistSoporte],
+    ) -> Sequence[ReglaChecklistSoporte]:
+        ...
+
+    def listar_secciones_soporte(self) -> Sequence[SeccionSoporte]:
         ...

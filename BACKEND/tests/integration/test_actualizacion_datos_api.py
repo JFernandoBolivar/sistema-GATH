@@ -18,6 +18,10 @@ from apps.autogestion.infrastructure.models.actualizacion_models import (
     SolicitudActualizacionModel,
 )
 from apps.autogestion.infrastructure.tasks.expirar_ventanas_tasks import expirar_ventanas_vencidas
+from apps.autogestion.infrastructure.models.soporte_config_models import (
+    ChecklistSoporteSeccionModel,
+    TipoSoporteDocumentoModel,
+)
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstadoCivilModel,
     NacionalidadModel,
@@ -118,7 +122,43 @@ def datos(db):
                                     ('familiar', 'Grupo familiar', True), ('salud', 'Salud y tallas', False),
                                     ('foto', 'Foto', False)):
         SeccionAutogestionableModel.objects.get_or_create(codigo=codigo, defaults={'nombre': nombre, 'requiere_soporte': soporte})
+    sembrar_tipos_soporte()
     return sexo
+
+
+def sembrar_tipos_soporte():
+    """Semilla de O41 equivalente a la migración core/0018 (las pruebas crean las tablas)."""
+    tipos = {
+        'TITULO': 'Título',
+        'ACTA_NACIMIENTO': 'Partida de nacimiento',
+        'CEDULA': 'Copia de la cédula',
+        'CONSTANCIA': 'Constancia',
+        'FOTO': 'Foto',
+        'OTRO': 'Otro documento',
+    }
+    modelos = {}
+    for orden, (codigo, nombre) in enumerate(tipos.items(), start=1):
+        modelos[codigo], _ = TipoSoporteDocumentoModel.objects.get_or_create(
+            codigo=codigo,
+            defaults={'nombre': nombre, 'es_reservado': True, 'es_protegido': True, 'orden': orden * 10},
+        )
+    checklist = {
+        'identidad': ('CEDULA',),
+        'contacto': ('CONSTANCIA', 'OTRO'),
+        'vivienda': ('CONSTANCIA', 'OTRO'),
+        'formacion': ('TITULO', 'CONSTANCIA', 'OTRO'),
+        'complementaria': ('CONSTANCIA', 'OTRO'),
+        'familiar': ('CEDULA', 'ACTA_NACIMIENTO', 'CONSTANCIA', 'OTRO'),
+        'foto': ('FOTO',),
+        'antecedentes': ('CONSTANCIA', 'OTRO'),
+    }
+    for seccion, codigos in checklist.items():
+        for orden, codigo in enumerate(codigos, start=1):
+            ChecklistSoporteSeccionModel.objects.get_or_create(
+                seccion=seccion,
+                tipo_soporte=modelos[codigo],
+                defaults={'etiqueta': tipos[codigo], 'permitido': True, 'requerido': True, 'orden': orden},
+            )
 
 
 def cliente(cedula, permisos, pk=1):
@@ -231,6 +271,39 @@ def test_flujo_completo_solicita_habilita_carga_envia_y_aprueba_parcial(trabajad
     # Una segunda decisión ya no cabe (no hay doble aprobación ni reapertura).
     otra = cliente(ADMINISTRADORA, PERMISOS_BIENESTAR, 3)
     assert otra.post(f'{BASE}/bienestar/solicitudes/{sid}/decidir/', {'version': 99, 'decisiones': decisiones}, format='json').status_code == 409
+
+
+def test_catalogo_de_tipos_soporte_solo_devuelve_permitidos(trabajador, datos):
+    respuesta = trabajador.get(f'{BASE}/catalogos/tipos-soporte/')
+    assert respuesta.status_code == 200, respuesta.content
+    filas = data(respuesta)
+    secciones = {f['seccion'] for f in filas}
+    assert 'formacion' in secciones and 'salud' not in secciones
+    formacion = {f['codigo']: f for f in filas if f['seccion'] == 'formacion'}
+    assert {'TITULO', 'CONSTANCIA', 'OTRO'} <= set(formacion)
+    assert formacion['TITULO']['nombre'] == 'Título'
+
+
+def test_tipo_de_soporte_no_permitido_y_seccion_sin_checklist(trabajador, analista, datos):
+    sid = solicitar(trabajador, ('formacion', 'salud'))
+    habilitar(analista, sid)
+
+    no_permitido = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'formacion', 'tipo': 'CEDULA', 'file': SimpleUploadedFile('cedula.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert no_permitido.status_code == 400
+    assert 'no permitido' in no_permitido.json()['message']
+
+    permitido = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'formacion', 'tipo': 'TITULO', 'file': SimpleUploadedFile('titulo.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert permitido.status_code == 201, permitido.content
+
+    sin_checklist = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'salud', 'tipo': 'CONSTANCIA', 'file': SimpleUploadedFile('salud.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert sin_checklist.status_code == 400
+    assert 'no admite soportes' in sin_checklist.json()['message']
 
 
 def test_soportes_se_sirven_solo_al_dueno_y_a_bienestar(trabajador, analista, datos):

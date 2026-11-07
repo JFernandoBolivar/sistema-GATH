@@ -44,6 +44,7 @@ export function reportePasivoApiAEntidad(raw: ReportePasivoApiItem): ReporteItem
     apellidos: raw.apellidos,
     tipoPersonal: tipoPasivo,
     tipoPasivo,
+    pais: raw.pais || "S/D",
     fechaEgreso: raw.fecha_egreso || "N/A",
     motivoEgreso: raw.motivo_egreso || "",
     contacto: raw.contacto || "S/D",

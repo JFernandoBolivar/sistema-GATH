@@ -22,11 +22,14 @@ from core.domain.categorias_motivo import (
     normalizar_nombre_motivo,
 )
 from core.domain.exceptions import ValidationError
+from core.domain.tipos_soporte import ItemChecklistSoporte
 
 MODULO_AUDITORIA_CONFIGURACION = 'configuracion'
 RECURSO_REGLAS_PARENTESCO = 'regla_parentesco'
 RECURSO_REGLAS_MOTIVO = 'regla_motivo_movimiento'
 RECURSO_REGLAS_NOMINA = 'regla_tipo_nomina'
+RECURSO_REGLAS_PAIS = 'regla_pais'
+RECURSO_REGLAS_TIPO_SOPORTE = 'regla_tipo_soporte'
 
 ACCION_PARENTESCO_ACTUALIZADO = 'PARENTESCO_ACTUALIZADO'
 ACCION_PARENTESCO_CREADO = 'PARENTESCO_CREADO'
@@ -38,6 +41,13 @@ ACCION_MOTIVO_ELIMINADO = 'MOTIVO_MOVIMIENTO_ELIMINADO'
 ACCION_NOMINA_ACTUALIZADA = 'TIPO_NOMINA_ACTUALIZADA'
 ACCION_NOMINA_CREADA = 'TIPO_NOMINA_CREADA'
 ACCION_NOMINA_ELIMINADA = 'TIPO_NOMINA_ELIMINADA'
+ACCION_PAIS_CREADO = 'PAIS_CREADO'
+ACCION_PAIS_ACTUALIZADO = 'PAIS_ACTUALIZADO'
+ACCION_PAIS_ELIMINADO = 'PAIS_ELIMINADO'
+ACCION_TIPO_SOPORTE_CREADO = 'TIPO_SOPORTE_CREADO'
+ACCION_TIPO_SOPORTE_ACTUALIZADO = 'TIPO_SOPORTE_ACTUALIZADO'
+ACCION_TIPO_SOPORTE_ELIMINADO = 'TIPO_SOPORTE_ELIMINADO'
+ACCION_CHECKLIST_SOPORTE_ACTUALIZADO = 'CHECKLIST_SOPORTE_ACTUALIZADO'
 
 # Catálogos protegidos (O36): su nombre lo usa el sistema y no se renombra.
 PARENTESCO_RESERVADO = 'HIJO (A)'
@@ -49,6 +59,9 @@ NOMINAS_SISTEMA_RESERVADAS: frozenset[str] = frozenset({
 
 LARGO_MAXIMO_PARENTESCO = 100
 LARGO_MAXIMO_NOMINA = 50
+LARGO_MAXIMO_PAIS = 100
+LARGO_MAXIMO_CODIGO_PAIS = 3
+LARGO_MINIMO_CODIGO_PAIS = 2
 LARGO_MINIMO_NOMBRE = 2
 
 # Motivos del sistema que no se pueden mover ni renombrar
@@ -80,6 +93,37 @@ class ReglaMotivo:
     categoria_nombre: str
     es_reservado: bool
     activo: bool = True
+
+
+@dataclass(frozen=True)
+class ReglaPais:
+    id: int
+    nombre: str
+    codigo: str
+    es_venezuela: bool
+
+
+@dataclass(frozen=True)
+class ReglaTipoSoporte:
+    id: int
+    codigo: str
+    nombre: str
+    es_reservado: bool
+    es_protegido: bool
+    orden: int
+
+
+@dataclass(frozen=True)
+class ReglaChecklistSoporte:
+    id: int
+    seccion: str
+    tipo_soporte_id: int
+    codigo: str
+    nombre: str
+    etiqueta: str
+    permitido: bool
+    requerido: bool
+    orden: int
 
 
 @dataclass(frozen=True)
@@ -311,3 +355,161 @@ def validar_eliminacion_nomina(actual: ReglaNomina, tiene_referencias: bool) -> 
             'No es posible eliminar la nómina porque está asignada a cargos o procesos.',
             campo='nomina',
         )
+
+
+# ----------------------------------------------------------------------
+# Países (O40)
+# ----------------------------------------------------------------------
+def normalizar_codigo_pais(valor: str) -> str:
+    """Código ISO del país: 2 a 3 letras ASCII, en mayúsculas."""
+    codigo = ' '.join((valor or '').split()).upper()
+    if not codigo:
+        raise ValidationError('El código del país es obligatorio.', campo='codigo')
+    if not codigo.isascii() or not codigo.isalpha():
+        raise ValidationError('El código del país solo admite letras.', campo='codigo')
+    if not LARGO_MINIMO_CODIGO_PAIS <= len(codigo) <= LARGO_MAXIMO_CODIGO_PAIS:
+        raise ValidationError(
+            f'El código del país debe tener entre {LARGO_MINIMO_CODIGO_PAIS} y '
+            f'{LARGO_MAXIMO_CODIGO_PAIS} letras.',
+            campo='codigo',
+        )
+    return codigo
+
+
+def preparar_nuevo_pais(nombre: str, codigo: str) -> tuple[str, str]:
+    nombre_limpio = normalizar_nombre_catalogo(
+        nombre, campo='nombre', maximo=LARGO_MAXIMO_PAIS,
+    )
+    return nombre_limpio, normalizar_codigo_pais(codigo)
+
+
+def validar_edicion_pais(
+    actual: ReglaPais, nombre: str | None, codigo: str | None,
+) -> None:
+    """El país marcado como Venezuela no pierde esa marca al editar sus datos."""
+    if nombre is not None and not ' '.join(nombre.split()):
+        raise ValidationError('El nombre del país es obligatorio.', campo='nombre')
+    if codigo is not None and not ' '.join(codigo.split()):
+        raise ValidationError('El código del país es obligatorio.', campo='codigo')
+    if actual.es_venezuela and codigo is not None and codigo.strip().upper() != actual.codigo.upper():
+        raise ValidationError(
+            'El código del país por defecto no puede cambiarse.', campo='codigo',
+        )
+
+
+def validar_eliminacion_pais(actual: ReglaPais, tiene_referencias: bool) -> None:
+    if actual.es_venezuela:
+        raise ValidationError(
+            'El país por defecto (Venezuela) no puede eliminarse.', campo='nombre',
+        )
+    if tiene_referencias:
+        raise ValidationError(
+            'No es posible eliminar el país porque hay viviendas registradas en él.',
+            campo='nombre',
+        )
+
+
+# ----------------------------------------------------------------------
+# Tipos de soporte documental y checklist por sección (O41)
+# ----------------------------------------------------------------------
+LARGO_MAXIMO_CODIGO_SOPORTE = 40
+LARGO_MINIMO_CODIGO_SOPORTE = 2
+LARGO_MAXIMO_NOMBRE_SOPORTE = 100
+
+
+def normalizar_codigo_tipo_soporte(valor: str) -> str:
+    """Código estable del tipo de documento: letras/números/guion bajo, en mayúsculas."""
+    codigo = (valor or '').strip().upper()
+    if not codigo:
+        raise ValidationError('El código del tipo de soporte es obligatorio.', campo='codigo')
+    if not all(c.isascii() and (c.isalnum() or c == '_') for c in codigo):
+        raise ValidationError(
+            'El código del tipo de soporte solo admite letras, números y guion bajo.',
+            campo='codigo',
+        )
+    if not LARGO_MINIMO_CODIGO_SOPORTE <= len(codigo) <= LARGO_MAXIMO_CODIGO_SOPORTE:
+        raise ValidationError(
+            f'El código del tipo de soporte debe tener entre {LARGO_MINIMO_CODIGO_SOPORTE} y '
+            f'{LARGO_MAXIMO_CODIGO_SOPORTE} caracteres.',
+            campo='codigo',
+        )
+    return codigo
+
+
+def preparar_nuevo_tipo_soporte(codigo: str, nombre: str, orden: int) -> tuple[str, str, int]:
+    codigo_limpio = normalizar_codigo_tipo_soporte(codigo)
+    nombre_limpio = normalizar_nombre_catalogo(
+        nombre, campo='nombre', maximo=LARGO_MAXIMO_NOMBRE_SOPORTE,
+    )
+    return codigo_limpio, nombre_limpio, int(orden or 0)
+
+
+def validar_edicion_tipo_soporte(
+    actual: ReglaTipoSoporte,
+    codigo: str | None,
+    nombre: str | None,
+) -> None:
+    """Los tipos reservados/protegidos no cambian de código (las reglas los referencian)."""
+    if codigo is None:
+        return
+    if (actual.es_reservado or actual.es_protegido) and not _mismo_nombre(actual.codigo, codigo):
+        raise ValidationError(
+            f'El tipo de soporte «{actual.codigo}» es reservado del sistema y no puede '
+            'cambiar de código.',
+            campo='codigo',
+        )
+    if nombre is not None and not ' '.join(nombre.split()):
+        raise ValidationError('El nombre del tipo de soporte es obligatorio.', campo='nombre')
+
+
+def validar_eliminacion_tipo_soporte(actual: ReglaTipoSoporte, tiene_secciones: bool) -> None:
+    if actual.es_reservado or actual.es_protegido:
+        raise ValidationError(
+            f'El tipo de soporte «{actual.codigo}» es reservado del sistema y no puede eliminarse.',
+            campo='codigo',
+        )
+    if tiene_secciones:
+        raise ValidationError(
+            'No es posible eliminar el tipo de soporte porque está asignado al checklist de una '
+            'sección. Quítelo primero de todas las secciones.',
+            campo='codigo',
+        )
+
+
+def validar_checklist_soporte(
+    actuales: Sequence[ReglaChecklistSoporte],
+    propuestos: Sequence[ItemChecklistSoporte],
+    tipos: dict[int, ReglaTipoSoporte],
+) -> None:
+    """Protege las filas exigidas por una regla del sistema y valida los tipos propuestos."""
+    propuestos_por_tipo = {item.tipo_soporte_id: item for item in propuestos}
+    for item in propuestos:
+        if item.tipo_soporte_id not in tipos:
+            raise ValidationError(
+                f'El tipo de soporte {item.tipo_soporte_id} no existe.', campo='tipos',
+            )
+        if item.requerido and not item.permitido:
+            raise ValidationError(
+                'Un tipo de soporte exigido debe estar también permitido en la sección.',
+                campo='tipos',
+            )
+
+    for actual in actuales:
+        if not actual.requerido:
+            continue
+        tipo = tipos.get(actual.tipo_soporte_id)
+        if tipo is None or not (tipo.es_reservado or tipo.es_protegido):
+            continue  # exigido por el administrador: puede volver a marcarse
+        propuesto = propuestos_por_tipo.get(actual.tipo_soporte_id)
+        if propuesto is None:
+            raise ValidationError(
+                f'El tipo de soporte «{actual.codigo}» está exigido por una regla del sistema '
+                f'en la sección «{actual.seccion}» y no puede quitarse del checklist.',
+                campo='tipos',
+            )
+        if not propuesto.permitido or not propuesto.requerido:
+            raise ValidationError(
+                f'El tipo de soporte «{actual.codigo}» está exigido por una regla del sistema '
+                f'en la sección «{actual.seccion}» y debe seguir permitido y exigido.',
+                campo='tipos',
+            )

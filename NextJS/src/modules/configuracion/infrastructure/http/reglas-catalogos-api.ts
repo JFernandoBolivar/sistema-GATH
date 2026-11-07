@@ -4,9 +4,12 @@
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
 import type {
+  ReglaChecklistSoporteDTO,
   ReglaMotivoDTO,
   ReglaNominaDTO,
+  ReglaPaisDTO,
   ReglaParentescoDTO,
+  ReglaTipoSoporteDTO,
   ReglasCatalogosCompletoDTO,
 } from "../../application/dtos/reglas-catalogos-dto";
 
@@ -77,5 +80,51 @@ export const reglasCatalogosApi = {
   eliminarNomina: (id: number) =>
     apiClient.delete<ApiResponse<ReglaNominaDTO>>(
       `/api/v1/configuracion/reglas-catalogos/nominas/${id}/`,
+    ),
+
+  crearPais: (nombre: string, codigo: string) =>
+    apiClient.post<ApiResponse<ReglaPaisDTO>>(
+      "/api/v1/configuracion/reglas-catalogos/paises/",
+      { nombre, codigo },
+    ),
+
+  actualizarPais: (id: number, datos: { nombre?: string; codigo?: string }) =>
+    apiClient.patch<ApiResponse<ReglaPaisDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/paises/${id}/`,
+      datos,
+    ),
+
+  eliminarPais: (id: number) =>
+    apiClient.delete<ApiResponse<ReglaPaisDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/paises/${id}/`,
+    ),
+
+  crearTipoSoporte: (datos: { codigo: string; nombre: string; orden: number }) =>
+    apiClient.post<ApiResponse<ReglaTipoSoporteDTO>>(
+      "/api/v1/configuracion/reglas-catalogos/tipos-soporte/",
+      datos,
+    ),
+
+  actualizarTipoSoporte: (
+    id: number,
+    datos: { codigo?: string; nombre?: string; orden?: number },
+  ) =>
+    apiClient.patch<ApiResponse<ReglaTipoSoporteDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/tipos-soporte/${id}/`,
+      datos,
+    ),
+
+  eliminarTipoSoporte: (id: number) =>
+    apiClient.delete<ApiResponse<ReglaTipoSoporteDTO>>(
+      `/api/v1/configuracion/reglas-catalogos/tipos-soporte/${id}/`,
+    ),
+
+  actualizarChecklistSoporte: (
+    seccion: string,
+    tipos: { tipo_soporte_id: number; permitido: boolean; requerido: boolean }[],
+  ) =>
+    apiClient.put<ApiResponse<ReglaChecklistSoporteDTO[]>>(
+      `/api/v1/configuracion/reglas-catalogos/tipos-soporte/checklist/${seccion}/`,
+      { tipos },
     ),
 };

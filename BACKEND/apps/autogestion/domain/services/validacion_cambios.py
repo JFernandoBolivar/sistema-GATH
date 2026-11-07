@@ -9,6 +9,7 @@ from datetime import date
 from apps.autogestion.domain.value_objects.secciones import (
     CAMPO_ELIMINAR,
     CAMPO_REGISTRO_NUEVO,
+    CAMPOS_LOCALIZACION_VENEZUELA,
     CAMPOS_POR_SECCION,
     CAMPOS_PROHIBIDOS,
     ENTIDADES_ELIMINABLES,
@@ -16,6 +17,8 @@ from apps.autogestion.domain.value_objects.secciones import (
     MOTIVO_QUITAR_MAX,
     MOTIVO_QUITAR_MIN,
     REQUERIDOS_AL_CREAR,
+    REQUERIDOS_VIVIENDA_BASE,
+    REQUERIDOS_VIVIENDA_EXTERIOR,
     Accion,
 )
 from core.domain.exceptions import ValidationError
@@ -23,7 +26,10 @@ from core.domain.validacion_personas import validar_nombre, validar_serial_carne
 
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 _CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,9}$')
-_LARGOS = {'direccion_exacta': DIRECCION_MAX, 'observaciones': OBSERVACION_MAX}
+_LARGOS = {
+    'direccion_exacta': DIRECCION_MAX, 'observaciones': OBSERVACION_MAX,
+    'ciudad_region': 120,
+}
 _MINIMOS = {'direccion_exacta': DIRECCION_MIN, 'observaciones': OBSERVACION_MIN}
 _LARGO_TEXTO = 150
 _CAMPOS_BOOL = {'tiene_hijos'}
@@ -42,7 +48,8 @@ _OPCIONALES_NULOS = {
     'telefono_movil', 'relacion_id', 'fecha_inicio', 'fecha_fin', 'dias_completados',
     'horas_completadas', 'grupo_id', 'estadoCivil_id', 'carnet_patria', 'carnet_patria_serial',
     'grupo_sanguineo_id', 'talla_camisa_id', 'talla_pantalon_id', 'talla_zapatos_id',
-    'talla_chaqueta_id', 'orden_hijo',
+    'talla_chaqueta_id', 'orden_hijo', 'ciudad_region', 'estado_id', 'municipio_id',
+    'parroquia_id', 'codigo_postal_id',
 }
 _CEDULA_EMPLEADO = re.compile(r'^\d{5,9}$')
 
@@ -192,7 +199,27 @@ def validar_motivo_eliminar(valor) -> str:
     return motivo
 
 
-def validar_registro_nuevo(seccion: str, entidad: str, valores: dict) -> dict:
+def _requeridos_de_vivienda(es_venezuela: bool) -> frozenset[str]:
+    if es_venezuela:
+        return REQUERIDOS_VIVIENDA_BASE | CAMPOS_LOCALIZACION_VENEZUELA
+    return REQUERIDOS_VIVIENDA_EXTERIOR
+
+
+def validar_vivienda_condicional(valores: dict, es_venezuela: bool) -> None:
+    """O40: Venezuela exige la ubicación completa; el exterior, ciudad/región."""
+    faltan = sorted(
+        campo for campo in _requeridos_de_vivienda(es_venezuela)
+        if valores.get(campo) in (None, '')
+    )
+    if faltan:
+        raise ValidationError(
+            "Faltan campos obligatorios de la vivienda: " + ', '.join(faltan) + '.'
+        )
+
+
+def validar_registro_nuevo(
+    seccion: str, entidad: str, valores: dict, es_venezuela: bool = True,
+) -> dict:
     """Valida el dict de un CREAR: solo campos de la lista blanca y todos los requeridos."""
     if not isinstance(valores, dict) or not valores:
         raise ValidationError("El registro nuevo debe indicar sus campos.")
@@ -201,9 +228,12 @@ def validar_registro_nuevo(seccion: str, entidad: str, valores: dict) -> dict:
     if ajenos:
         raise ValidationError(f"Campos no autogestionables en '{entidad}': {', '.join(ajenos)}.")
     limpios = {k: validar_valor(k, v) for k, v in valores.items()}
-    faltan = sorted(c for c in REQUERIDOS_AL_CREAR.get(entidad, frozenset()) if limpios.get(c) is None)
-    if faltan:
-        raise ValidationError(f"Faltan campos obligatorios de '{entidad}': {', '.join(faltan)}.")
+    if entidad == 'datos_vivienda':
+        validar_vivienda_condicional(limpios, es_venezuela)
+    else:
+        faltan = sorted(c for c in REQUERIDOS_AL_CREAR.get(entidad, frozenset()) if limpios.get(c) is None)
+        if faltan:
+            raise ValidationError(f"Faltan campos obligatorios de '{entidad}': {', '.join(faltan)}.")
     if entidad == 'formacion_complementaria':
         inicio, fin = limpios.get('fecha_inicio'), limpios.get('fecha_fin')
         if inicio and fin and fin < inicio:

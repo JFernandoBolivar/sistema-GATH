@@ -47,6 +47,10 @@ class LectorFicha(Protocol):
         """Valida que el correo alternativo propuesto sea único y distinto del propio institucional."""
         ...
 
+    def es_pais_venezuela(self, pais_id: int | None) -> bool:
+        """Si el país indicado es Venezuela (o no se indicó, que equivale al país por defecto)."""
+        ...
+
 
 class AplicadorCambios(Protocol):
     def aplicar(self, cedula: str, cambios: list[CambioPropuesto], soportes: list[SoporteDocumental], actor_cedula: str) -> None:

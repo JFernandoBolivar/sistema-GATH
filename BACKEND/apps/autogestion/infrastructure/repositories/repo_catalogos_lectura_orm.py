@@ -7,7 +7,7 @@ trabajador NO debe tener porque expone datos de otras personas).
 import unicodedata
 
 from apps.autogestion.domain.value_objects.secciones import CATALOGOS_TALLA
-from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel
+from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, PaisModel
 from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
 
 
@@ -27,6 +27,11 @@ class RepoCatalogosLecturaORM:
 
     def listar(self, clave: str, padre_id: int | None) -> list[dict]:
         r = self._r
+        if clave == 'paises':
+            return [
+                _item(p.pk, p.nombre, codigo=p.codigo, es_venezuela=bool(p.es_venezuela))
+                for p in PaisModel.objects.all().order_by('nombre')
+            ]
         if clave == 'condiciones-vivienda':
             return [_item(i.pk, i.condicion) for i in r.listar_condiciones_vivienda()]
         if clave == 'codigos-postales':
@@ -37,6 +42,12 @@ class RepoCatalogosLecturaORM:
             return [_item(i.pk, i.nombre_carrera) for i in r.listar_carreras(nivel_academico_id=padre_id)]
         if clave == 'menciones':
             return [_item(i.pk, i.nombre_mencion) for i in r.listar_menciones(carrera_id=padre_id)]
+        if clave == 'organismos':
+            from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
+            return [
+                _item(o.pk, o.Organismoadscrito)
+                for o in OrganismoAdscritoModel.objects.all().order_by('Organismoadscrito')
+            ]
         if clave == 'capacitaciones':
             return [_item(i.pk, i.nombre_capacitacion) for i in r.listar_capacitaciones()]
         if clave == 'grupos-capacitacion':

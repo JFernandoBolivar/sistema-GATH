@@ -9,6 +9,7 @@ function aDto(e: RolEntity): RolDTO {
   return {
     id: e.id,
     nombreRol: e.nombreRol,
+    nombreVisible: e.nombreVisible,
     descripcionRol: e.descripcionRol,
     nUsuarios: e.nUsuarios,
     nPermisos: e.nPermisos,
@@ -21,7 +22,7 @@ export async function listarRoles(repo: RepoRoles): Promise<RolDTO[]> {
 }
 
 export async function crearRol(repo: RepoRoles, input: GuardarRolInputDTO): Promise<RolDTO> {
-  return aDto(await repo.crear({ nombreRol: input.nombreRol, descripcionRol: input.descripcionRol ?? "" }));
+  return aDto(await repo.crear({ nombreVisible: input.nombreVisible, descripcionRol: input.descripcionRol ?? "" }));
 }
 
 export async function actualizarRol(
@@ -29,8 +30,8 @@ export async function actualizarRol(
   id: number,
   input: Partial<GuardarRolInputDTO>,
 ): Promise<RolDTO> {
-  const data: Partial<{ nombreRol: string; descripcionRol: string }> = {};
-  if (input.nombreRol !== undefined) data.nombreRol = input.nombreRol;
+  const data: Partial<{ nombreVisible: string; descripcionRol: string }> = {};
+  if (input.nombreVisible !== undefined) data.nombreVisible = input.nombreVisible;
   if (input.descripcionRol !== undefined) data.descripcionRol = input.descripcionRol ?? "";
   return aDto(await repo.actualizar(id, data));
 }

@@ -110,6 +110,7 @@ HEADER_LABELS = {
     'parentesco': 'Parentesco',
     'tipo_nomina': 'Tipo de Nómina',
     'tipo_pasivo': 'Tipo de Pasivo',
+    'pais': 'País',
     'contacto': 'Contacto',
     'cargo': 'Cargo',
     'cargo_especifico': 'Cargo Esp.',

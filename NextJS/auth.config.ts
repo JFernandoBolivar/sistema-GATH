@@ -56,6 +56,7 @@ interface LoginData {
 interface RolItem {
   id: number;
   nombre_rol: string;
+  nombre_visible?: string;
 }
 
 interface MeData {
@@ -70,6 +71,7 @@ interface MeData {
   debe_cambiar_password: boolean;
   permisos: string[];
   rol_nombre?: string | null;
+  rol_nombre_visible?: string | null;
   condicion_trabajador?: string | null;
 }
 
@@ -145,11 +147,12 @@ export default {
         const condicionTrabajador = me?.condicion_trabajador || "SIN_ASIGNACION";
         const rol = roles.find((r) => r.id === usuario.rol_id);
         const nombreRol = rol?.nombre_rol || me?.rol_nombre || "";
+        const nombreVisible = me?.rol_nombre_visible || rol?.nombre_visible || nombreRol;
 
         return {
           id: String(usuario.id),
           name: `${usuario.nombres} ${usuario.apellidos}`.trim(),
-          role: { id: usuario.rol_id, nombre_rol: nombreRol },
+          role: { id: usuario.rol_id, nombre_rol: nombreRol, nombre_visible: nombreVisible },
           cedula: usuario.cedula,
           phone: usuario.telefono || "",
           email: usuario.correo || "",

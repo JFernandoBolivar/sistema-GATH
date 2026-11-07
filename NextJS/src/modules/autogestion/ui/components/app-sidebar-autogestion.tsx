@@ -109,7 +109,7 @@ export function AppSidebarAutogestion() {
               </div>
               <div className="flex flex-col">
                 <h2 className="font-semibold">
-                  Rol: {session.user.role?.nombre_rol || "Sin Rol"}
+                  Rol: {session.user.role?.nombre_visible || session.user.role?.nombre_rol || "Sin Rol"}
                 </h2>
               </div>
               <div className="mt-2" data-guia-id="inicio-tamano-texto">

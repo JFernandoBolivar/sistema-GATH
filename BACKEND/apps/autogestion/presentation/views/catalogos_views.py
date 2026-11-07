@@ -5,7 +5,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.autogestion.application.use_cases.listar_catalogos_autogestion import listar_catalogo_autogestion
+from apps.autogestion.application.use_cases.listar_tipos_soporte import listar_tipos_soporte_permitidos
 from apps.autogestion.infrastructure.repositories.repo_catalogos_lectura_orm import RepoCatalogosLecturaORM
+from apps.autogestion.infrastructure.repositories.repo_soporte_configuracion_orm import (
+    RepoSoporteConfiguracionORM,
+)
 from core.presentation.envelope import ok
 from core.presentation.permissions import HasPermission
 
@@ -13,6 +17,10 @@ from core.presentation.permissions import HasPermission
 class ItemCatalogoSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     nombre = serializers.CharField()
+    codigo = serializers.CharField(required=False, allow_null=True, help_text='Solo en países')
+    es_venezuela = serializers.BooleanField(
+        required=False, allow_null=True, help_text='Solo en países',
+    )
     estado_id = serializers.IntegerField(required=False, help_text='Solo en códigos postales')
 
 
@@ -31,3 +39,27 @@ class CatalogoAutogestionView(APIView):
         bruto = q.get('estado_id') or q.get('nivel_academico_id') or q.get('carrera_id')
         padre = int(bruto) if bruto and str(bruto).isdigit() else None
         return ok(listar_catalogo_autogestion(RepoCatalogosLecturaORM(), clave, padre))
+
+
+class TipoSoporteSeccionSerializer(serializers.Serializer):
+    seccion = serializers.CharField()
+    codigo = serializers.CharField()
+    nombre = serializers.CharField()
+    requerido = serializers.BooleanField()
+    orden = serializers.IntegerField()
+
+
+class TiposSoporteAutogestionView(APIView):
+    """Tipos de documento que el trabajador puede subir, según la configuración vigente (O41)."""
+
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.ver_propio')]
+
+    @extend_schema(
+        tags=['Autogestión · Catálogos'],
+        summary='Tipos de soporte permitidos por sección (configurables)',
+        responses={200: TipoSoporteSeccionSerializer(many=True)},
+    )
+    def get(self, request):
+        return ok(TipoSoporteSeccionSerializer(
+            listar_tipos_soporte_permitidos(RepoSoporteConfiguracionORM()), many=True,
+        ).data)

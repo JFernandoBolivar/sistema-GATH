@@ -5,7 +5,7 @@
 import type { RolEntity } from "../entities/rol-entity";
 
 export interface RolCrearInput {
-  readonly nombreRol: string;
+  readonly nombreVisible: string;
   readonly descripcionRol?: string | null;
 }
 

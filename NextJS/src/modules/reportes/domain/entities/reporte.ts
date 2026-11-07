@@ -20,6 +20,7 @@ export interface ReporteItemPasivo {
   apellidos?: string;
   tipoPersonal: string;
   tipoPasivo: string;
+  pais: string;
   fechaEgreso: string;
   motivoEgreso?: string;
   contacto: string;

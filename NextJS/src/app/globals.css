@@ -336,6 +336,16 @@ input[type="datetime-local"]:not(:focus):invalid::-webkit-datetime-edit {
 
 main { min-width: 0; }
 
+/* FIX-TLF14: Radix envuelve el contenido del ScrollArea en un `div` con
+   `display: table`; dentro de un diálogo eso permite que el texto y los
+   campos crezcan más allá del ancho visible y se recorten contra la barra
+   vertical. Con `block` y `min-width: 0` el contenido se ajusta al ancho del
+   diálogo en cualquier tamaño de pantalla (no solo en móvil). */
+[data-slot="dialog-content"] [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  min-width: 0 !important;
+}
+
 
 @media (max-width: 1023px) { [data-sidebar="trigger"] { min-width: 44px; min-height: 44px; } }
 

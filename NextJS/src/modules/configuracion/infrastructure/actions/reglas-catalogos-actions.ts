@@ -131,3 +131,65 @@ export async function eliminarNominaAction(id: number) {
     return res.data;
   });
 }
+
+export async function crearPaisAction(nombre: string, codigo: string) {
+  return conAuditoria("crearPaisAction", async () => {
+    const res = await reglasCatalogosApi.crearPais(nombre, codigo);
+    return res.data;
+  });
+}
+
+export async function actualizarPaisAction(
+  id: number,
+  datos: { nombre?: string; codigo?: string },
+) {
+  return conAuditoria("actualizarPaisAction", async () => {
+    const res = await reglasCatalogosApi.actualizarPais(id, datos);
+    return res.data;
+  });
+}
+
+export async function eliminarPaisAction(id: number) {
+  return conAuditoria("eliminarPaisAction", async () => {
+    const res = await reglasCatalogosApi.eliminarPais(id);
+    return res.data;
+  });
+}
+
+export async function crearTipoSoporteAction(
+  codigo: string,
+  nombre: string,
+  orden: number,
+) {
+  return conAuditoria("crearTipoSoporteAction", async () => {
+    const res = await reglasCatalogosApi.crearTipoSoporte({ codigo, nombre, orden });
+    return res.data;
+  });
+}
+
+export async function actualizarTipoSoporteAction(
+  id: number,
+  datos: { codigo?: string; nombre?: string; orden?: number },
+) {
+  return conAuditoria("actualizarTipoSoporteAction", async () => {
+    const res = await reglasCatalogosApi.actualizarTipoSoporte(id, datos);
+    return res.data;
+  });
+}
+
+export async function eliminarTipoSoporteAction(id: number) {
+  return conAuditoria("eliminarTipoSoporteAction", async () => {
+    const res = await reglasCatalogosApi.eliminarTipoSoporte(id);
+    return res.data;
+  });
+}
+
+export async function actualizarChecklistSoporteAction(
+  seccion: string,
+  tipos: { tipo_soporte_id: number; permitido: boolean; requerido: boolean }[],
+) {
+  return conAuditoria("actualizarChecklistSoporteAction", async () => {
+    const res = await reglasCatalogosApi.actualizarChecklistSoporte(seccion, tipos);
+    return res.data;
+  });
+}

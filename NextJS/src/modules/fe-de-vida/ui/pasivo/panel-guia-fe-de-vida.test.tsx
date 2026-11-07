@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
-  BotonVerGuia,
   PanelGuiaFeDeVida,
   PASOS_GUIA,
 } from "./panel-guia-fe-de-vida";
@@ -86,18 +85,5 @@ describe("PanelGuiaFeDeVida", () => {
     const botonCerrar = screen.getByRole("button", { name: /entendido/i });
     await user.click(botonCerrar);
     expect(handleOpenChange).toHaveBeenCalledWith(false);
-  });
-});
-
-describe("BotonVerGuia", () => {
-  it("renderiza con icono y texto accesible y reacciona al clic", async () => {
-    const user = userEvent.setup();
-    const handleClick = vi.fn();
-    render(<BotonVerGuia onClick={handleClick} />);
-
-    const boton = screen.getByRole("button", { name: /ver guía/i });
-    expect(boton).toBeInTheDocument();
-    await user.click(boton);
-    expect(handleClick).toHaveBeenCalledTimes(1);
   });
 });

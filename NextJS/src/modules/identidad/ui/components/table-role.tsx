@@ -78,7 +78,7 @@ function RoleActionsCell({
           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
           <DropdownMenuItem
             onClick={() => {
-              navigator.clipboard.writeText(role.nombreRol);
+              navigator.clipboard.writeText(role.nombreVisible);
               toast.success("Nombre del rol copiado");
             }}
           >
@@ -103,8 +103,8 @@ function RoleActionsCell({
           <DialogHeader>
             <DialogTitle>Editar Rol</DialogTitle>
             <DialogDescription>
-              Si cambia el nombre, el rol deja de coincidir con los permisos
-              configurados en el sistema.
+              Cambiar el nombre no afecta los permisos ni el acceso: el código
+              interno del rol no cambia.
             </DialogDescription>
           </DialogHeader>
           <EditRole
@@ -121,7 +121,7 @@ function RoleActionsCell({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Eliminar el rol {role.nombreRol}
+              Eliminar el rol {role.nombreVisible}
             </AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. El rol tiene {role.nUsuarios ?? 0} usuario(s)
@@ -153,8 +153,15 @@ export function buildRoleColumns(onRefresh: () => void): ColumnDef<RolDTO>[] {
       header: "ID",
     },
     {
-      accessorKey: "nombreRol",
+      accessorKey: "nombreVisible",
       header: "Nombre Del Rol",
+    },
+    {
+      accessorKey: "nombreRol",
+      header: "Código",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">{row.original.nombreRol}</span>
+      ),
     },
     {
       accessorKey: "nUsuarios",

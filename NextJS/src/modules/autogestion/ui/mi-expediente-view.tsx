@@ -74,8 +74,9 @@ import { formatearTelefono } from "@/shared/domain/validation/telefono";
 import { formatearTiempoServicio } from "../domain/formatear-tiempo-servicio";
 import { tieneFechaIngresoApn } from "../domain/tiene-fecha-ingreso";
 import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
-import { useGuia, BotonVerGuia } from "@/shared/ui/guias";
+import { useGuia } from "@/shared/ui/guias";
 import { GUIA_AUTOGESTION_INICIO, GUIA_MI_FICHA } from "./guias/definiciones-guias";
+import { useRegistrarGuia } from "./guias/contexto-guia";
 
 import {
   getMiExpedienteAction,
@@ -88,13 +89,6 @@ import type {
   ContactoEmergenciaItem,
   ContratoItem,
 } from "../application/dtos/mi-expediente-dto";
-
-/**
- * El carnet digital aún no entra en producción: mientras siga apagado, la
- * cabecera, la pestaña y el diálogo de solicitud no se renderizan. Para
- * habilitarlo basta con volver a `true` (el backend ya está listo).
- */
-const MOSTRAR_CARNET = false;
 
 /**
  * Valor de una asignación o catálogo: el «N/A» que devuelve el backend es una
@@ -161,6 +155,7 @@ export default function MiExpedienteView() {
     guia: guiaActual,
     autoIniciar: true,
   });
+  useRegistrarGuia(iniciarGuia);
 
   if (isLoading) {
     return (
@@ -201,6 +196,7 @@ export default function MiExpedienteView() {
   }
 
   const { empleado, familiares, carnet_activo, carnets = [], motivos_carnet = [] } = data;
+  const mostrarCarnet = Boolean(data.puede_ver_carnet);
   const vivienda = empleado.datos_vivienda;
   const salud = empleado.perfil_salud;
   const fisico = empleado.perfil_fisico;
@@ -340,14 +336,6 @@ export default function MiExpedienteView() {
         <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 h-1.5 w-48 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 rounded-bl-full opacity-80" />
 
-          {/* TLF6: En teléfono, acción «Ver guía» discreta en la esquina superior derecha */}
-          <div className="absolute top-3 right-3 sm:hidden z-20">
-            <BotonVerGuia
-              onClick={iniciarGuia}
-              className="h-10 w-10 p-0 rounded-full bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white [&>span]:hidden"
-            />
-          </div>
-
           <div className="relative z-10 flex min-w-0 flex-col items-stretch justify-between gap-5 sm:gap-6 lg:flex-row lg:items-center">
             <div className="flex min-w-0 flex-col items-center sm:items-start gap-4 sm:flex-row sm:gap-6 text-center sm:text-left">
               <div className="relative shrink-0 mx-auto sm:mx-0">
@@ -364,7 +352,7 @@ export default function MiExpedienteView() {
                     <User className="w-12 h-12 sm:w-14 sm:h-14 text-amber-300" />
                   )}
                 </div>
-                {MOSTRAR_CARNET && carnet_activo?.activo && (
+                {mostrarCarnet && carnet_activo?.activo && (
                   <span
                     title="Carnet Digital Activo"
                     className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 shadow-md border-2 border-[#001737]"
@@ -391,7 +379,7 @@ export default function MiExpedienteView() {
                   >
                     C.I. {empleado.cedula}
                   </Badge>
-                  {MOSTRAR_CARNET &&
+                  {mostrarCarnet &&
                     (carnet_activo ? (
                       <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-xs sm:text-sm gap-1.5 py-0.5 px-2.5">
                         <FileCheck className="w-3.5 h-3.5" /> Carnet Vigente
@@ -404,10 +392,6 @@ export default function MiExpedienteView() {
                         Sin carnet emitido
                       </Badge>
                     ))}
-                  <BotonVerGuia
-                    onClick={iniciarGuia}
-                    className="hidden sm:inline-flex bg-white/10 text-white border-white/20 hover:bg-white/20 hover:text-white"
-                  />
                 </div>
 
                 {/* TLF6: Cargo y oficina en filas limpias: maletín nunca huérfano y sin punto sobrante en móvil */}
@@ -445,7 +429,7 @@ export default function MiExpedienteView() {
               </div>
             </div>
 
-            {MOSTRAR_CARNET && (
+            {mostrarCarnet && (
               <div className="flex w-full shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:w-auto lg:flex-col lg:items-end">
                 <Button
                   data-guia-id="ficha-carnet"
@@ -495,7 +479,7 @@ export default function MiExpedienteView() {
               <GraduationCap className="w-4 h-4 text-emerald-500" /> Formación & Cursos (
               {formacion.length + complementaria.length})
             </TabsTrigger>
-            {MOSTRAR_CARNET && (
+            {mostrarCarnet && (
               <TabsTrigger
                 value="carnet"
                 className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
@@ -611,6 +595,12 @@ export default function MiExpedienteView() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="divide-y divide-border/40 pt-2">
+                {vivienda?.pais && (!vivienda.pais.es_venezuela || vivienda.ciudad_region) ? (
+                  <>
+                    <InfoRow label="País" value={vivienda.pais.nombre} />
+                    <InfoRow label="Ciudad o Región" value={vivienda.ciudad_region || null} />
+                  </>
+                ) : null}
                 <InfoRow
                   label="Estado"
                   value={
@@ -1079,8 +1069,8 @@ export default function MiExpedienteView() {
           </Card>
         </TabsContent>
 
-        {/* TAB 4: MI CARNET INSTITUCIONAL (oculto hasta su pase a producción) */}
-        {MOSTRAR_CARNET && (
+        {/* TAB 4: MI CARNET INSTITUCIONAL (controlado por el alcance configurado) */}
+        {mostrarCarnet && (
           <TabsContent value="carnet" className="space-y-6 focus-visible:outline-none">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-4 bg-muted/20 p-6 rounded-2xl border border-border/60 shadow-sm">
@@ -1644,8 +1634,8 @@ export default function MiExpedienteView() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal Dialog: Solicitar / Renovar Carnet (oculto hasta su pase a producción) */}
-      {MOSTRAR_CARNET && (
+      {/* Modal Dialog: Solicitar / Renovar Carnet (controlado por el alcance configurado) */}
+      {mostrarCarnet && (
         <Dialog open={modalCarnetAbierto} onOpenChange={setModalCarnetAbierto}>
           <DialogContent className="sm:max-w-lg">
             <form onSubmit={handleSolicitarCarnet}>

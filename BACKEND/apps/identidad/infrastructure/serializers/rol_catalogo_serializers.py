@@ -14,6 +14,7 @@ class RolCatalogoLecturaSerializer(serializers.Serializer):
 
     id = serializers.IntegerField(source='identificador')
     nombre_rol = serializers.CharField(source='nombre')
+    nombre_visible = serializers.CharField(source='etiqueta')
     descripcion_rol = serializers.CharField(source='descripcion', allow_blank=True)
     n_usuarios = serializers.IntegerField(required=False, default=0)
     n_permisos = serializers.IntegerField(required=False, default=0)
@@ -22,8 +23,13 @@ class RolCatalogoLecturaSerializer(serializers.Serializer):
 class RolCatalogoEscrituraSerializer(serializers.Serializer):
     """Alta/edición de un rol. La normalización y unicidad viven en el caso de uso."""
 
+    # O43: el usuario escribe solo el nombre visible; `nombre_rol` (código) lo genera el
+    # sistema al crear y se acepta únicamente para rechazar un intento de cambiarlo.
+    nombre_visible = serializers.CharField(
+        min_length=2, max_length=100, required=False, allow_blank=True, trim_whitespace=True
+    )
     nombre_rol = serializers.CharField(
-        min_length=2, max_length=50, required=False, allow_blank=True, trim_whitespace=True
+        max_length=50, required=False, allow_blank=True, trim_whitespace=True
     )
     descripcion_rol = serializers.CharField(
         required=False, allow_blank=True, allow_null=True, min_length=OBSERVACION_MIN, max_length=OBSERVACION_MAX,

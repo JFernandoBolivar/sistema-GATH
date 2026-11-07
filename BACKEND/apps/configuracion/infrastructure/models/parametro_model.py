@@ -31,6 +31,7 @@ class ParametroSistemaModel(BaseModel):
         (GRUPO_NOTIFICACIONES, 'Notificaciones'),
         (GRUPO_PLAZOS, 'Plazos'),
         (GRUPO_FE_DE_VIDA, 'Fe de vida'),
+        ('carnetizacion', 'Carnetización'),
     ]
 
     clave = models.CharField(max_length=100, unique=True)

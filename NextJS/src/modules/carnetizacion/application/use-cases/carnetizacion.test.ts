@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
-import type { Carnet, EstadisticasCarnet, PlantillaCarnet } from "../../domain/entities/carnet";
+import type { CrearPlantillaBorradorInput, RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
+import type {
+  CampoCredencial,
+  Carnet,
+  CategoriaBiblioteca,
+  ElementoBiblioteca,
+  EstadisticasCarnet,
+  FichaQr,
+  PlantillaCarnet,
+  PlantillaMotor,
+  PreferenciasPrivacidadCarnet,
+  TipoCredencial,
+} from "../../domain/entities/carnet";
 import { emitirCarnet, listarCarnets } from "./emitir-carnet";
 import { obtenerEstadisticas } from "./obtener-estadisticas";
 import { validarCarnetPorHash } from "./validar-qr";
@@ -99,6 +110,248 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
       cargo: "Especialista",
       departamento: "Tecnología",
     };
+  }
+
+  async listarTiposCredencial(): Promise<TipoCredencial[]> {
+    return [
+      {
+        codigo: "trabajador",
+        nombre: "Trabajador",
+        descripcion: "Credencial de empleado",
+        ancho_mm: 54,
+        alto_mm: 85.6,
+        orientacion: "vertical",
+        activo: true,
+        orden: 1,
+      },
+    ];
+  }
+
+  async listarPlantillasMotor(): Promise<PlantillaMotor[]> {
+    return [];
+  }
+
+  async obtenerPlantillaMotor(id: string): Promise<PlantillaMotor> {
+    return {
+      id,
+      nombre: "Plantilla Base",
+      codigo_tipo: "trabajador",
+      ancho_mm: 54,
+      alto_mm: 85.6,
+      orientacion: "vertical",
+      regla_criterio: "todos",
+      regla_valor: "*",
+      estado: "publicada",
+      activa: true,
+      version: 1,
+      definicion: {},
+      creado: "2026-01-01",
+      actualizado: "2026-01-01",
+    };
+  }
+
+  async crearPlantillaBorrador(input: CrearPlantillaBorradorInput): Promise<PlantillaMotor> {
+    return {
+      id: "nueva-id",
+      nombre: input.nombre,
+      codigo_tipo: input.codigo_tipo ?? "trabajador",
+      ancho_mm: input.ancho_mm ?? 54,
+      alto_mm: input.alto_mm ?? 85.6,
+      orientacion: input.orientacion ?? "vertical",
+      regla_criterio: input.regla_criterio ?? "todos",
+      regla_valor: input.regla_valor ?? "*",
+      estado: "borrador",
+      activa: false,
+      version: 1,
+      definicion: input.definicion ?? {},
+      creado: "2026-01-01",
+      actualizado: "2026-01-01",
+    };
+  }
+
+  async actualizarPlantillaBorrador(id: string, input: Partial<CrearPlantillaBorradorInput>): Promise<PlantillaMotor> {
+    return {
+      id,
+      nombre: input.nombre ?? "Actualizada",
+      codigo_tipo: input.codigo_tipo ?? "trabajador",
+      ancho_mm: input.ancho_mm ?? 54,
+      alto_mm: input.alto_mm ?? 85.6,
+      orientacion: input.orientacion ?? "vertical",
+      regla_criterio: input.regla_criterio ?? "todos",
+      regla_valor: input.regla_valor ?? "*",
+      estado: "borrador",
+      activa: false,
+      version: 1,
+      definicion: input.definicion ?? {},
+      creado: "2026-01-01",
+      actualizado: "2026-01-01",
+    };
+  }
+
+  async publicarPlantilla(id: string): Promise<PlantillaMotor> {
+    return {
+      id,
+      nombre: "Publicada",
+      codigo_tipo: "trabajador",
+      ancho_mm: 54,
+      alto_mm: 85.6,
+      orientacion: "vertical",
+      regla_criterio: "todos",
+      regla_valor: "*",
+      estado: "publicada",
+      activa: true,
+      version: 2,
+      definicion: {},
+      creado: "2026-01-01",
+      actualizado: "2026-01-01",
+    };
+  }
+
+  async activarPlantillaMotor(id: string): Promise<PlantillaMotor> {
+    return {
+      id,
+      nombre: "Activa",
+      codigo_tipo: "trabajador",
+      ancho_mm: 54,
+      alto_mm: 85.6,
+      orientacion: "vertical",
+      regla_criterio: "todos",
+      regla_valor: "*",
+      estado: "publicada",
+      activa: true,
+      version: 1,
+      definicion: {},
+      creado: "2026-01-01",
+      actualizado: "2026-01-01",
+    };
+  }
+
+  async listarVersionesPlantilla(): Promise<PlantillaMotor[]> {
+    return [];
+  }
+
+  async obtenerPlantillaActiva(): Promise<PlantillaMotor> {
+    return {
+      id: "activa-id",
+      nombre: "Activa Oficial",
+      codigo_tipo: "trabajador",
+      ancho_mm: 54,
+      alto_mm: 85.6,
+      orientacion: "vertical",
+      regla_criterio: "todos",
+      regla_valor: "*",
+      estado: "publicada",
+      activa: true,
+      version: 1,
+      definicion: {},
+      creado: "2026-01-01",
+      actualizado: "2026-01-01",
+    };
+  }
+
+  biblioteca: ElementoBiblioteca[] = [];
+
+  async listarBiblioteca(categoria?: CategoriaBiblioteca): Promise<ElementoBiblioteca[]> {
+    return categoria ? this.biblioteca.filter((b) => b.categoria === categoria) : this.biblioteca;
+  }
+
+  async subirElementoBiblioteca(
+    nombre: string,
+    categoria: CategoriaBiblioteca,
+    _archivo: File,
+    descripcion?: string
+  ): Promise<ElementoBiblioteca> {
+    const item: ElementoBiblioteca = {
+      id: "elem-test-1",
+      nombre,
+      categoria,
+      archivo_url: "/api/v1/carnetizacion/biblioteca/elem-test-1/archivo/",
+      tamano_bytes: 1024,
+      mime_type: "image/png",
+      ancho_px: 200,
+      alto_px: 100,
+      descripcion: descripcion ?? null,
+      creado: "2026-01-01",
+    };
+    this.biblioteca.push(item);
+    return item;
+  }
+
+  async eliminarElementoBiblioteca(id: string): Promise<boolean> {
+    this.biblioteca = this.biblioteca.filter((b) => b.id !== id);
+    return true;
+  }
+
+  campos: CampoCredencial[] = [];
+
+  async listarCampos(): Promise<CampoCredencial[]> {
+    return this.campos;
+  }
+
+  async crearCampoPersonalizado(campo: {
+    codigo: string;
+    etiqueta: string;
+    grupo?: string;
+    tipo_credencial?: string;
+    sensible?: boolean;
+    descripcion?: string;
+    valor_ejemplo?: string;
+  }): Promise<CampoCredencial> {
+    const c: CampoCredencial = {
+      codigo: campo.codigo,
+      etiqueta: campo.etiqueta,
+      grupo: (campo.grupo || "personalizado") as CampoCredencial["grupo"],
+      tipo_credencial: campo.tipo_credencial || "todos",
+      sensible: Boolean(campo.sensible),
+      es_personalizado: true,
+      descripcion: campo.descripcion || "",
+      valor_ejemplo: campo.valor_ejemplo || "",
+    };
+    this.campos.push(c);
+    return c;
+  }
+
+  async eliminarCampoPersonalizado(codigo: string): Promise<boolean> {
+    this.campos = this.campos.filter((c) => c.codigo !== codigo);
+    return true;
+  }
+
+  async consultarFichaQr(securityHash: string): Promise<FichaQr> {
+    const c = this.carnets.find((item) => item.securityHash === securityHash);
+    return {
+      esValido: Boolean(c?.activo),
+      estado: c?.activo ? "VIGENTE" : "ANULADO",
+      mensaje: c?.activo ? "Carnet vigente" : "Carnet anulado",
+      securityHash,
+      nivelAcceso: "PUBLICO",
+      datos: c
+        ? {
+            nombre: `${c.empleadoNombres} ${c.empleadoApellidos}`,
+            cargo: "Analista",
+            ubicacion: "Gestión Humana",
+            contactos_emergencia: [],
+          }
+        : null,
+      saludDisponible: true,
+      fechaEmision: c?.fechaEmision ?? null,
+      fechaVencimiento: null,
+    };
+  }
+
+  async consultarSaludEmergencia(securityHash: string): Promise<FichaQr> {
+    const ficha = await this.consultarFichaQr(securityHash);
+    if (ficha.datos) {
+      ficha.datos.salud = { alergias: ["ninguna"], patologias: [], discapacidades: [] };
+    }
+    return ficha;
+  }
+
+  async obtenerPreferenciasPrivacidad(): Promise<PreferenciasPrivacidadCarnet> {
+    return {};
+  }
+
+  async guardarPreferenciasPrivacidad(preferencias: PreferenciasPrivacidadCarnet): Promise<PreferenciasPrivacidadCarnet> {
+    return preferencias;
   }
 }
 

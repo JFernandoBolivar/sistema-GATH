@@ -3,7 +3,6 @@ from rest_framework import serializers
 
 
 class OpcionParametroSerializer(serializers.Serializer):
-    valor = serializers.IntegerField()
     etiqueta = serializers.CharField()
 
     def to_representation(self, instance):

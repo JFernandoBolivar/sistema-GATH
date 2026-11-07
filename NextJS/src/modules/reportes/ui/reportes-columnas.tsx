@@ -106,6 +106,11 @@ export function construirColumnasReportePasivos(): ColumnDef<ReporteItemPasivoDT
       cell: ({ row }) => <span>{row.original.tipoPasivo || row.original.tipoPersonal || "—"}</span>,
     },
     {
+      accessorKey: "pais",
+      header: "País",
+      cell: ({ row }) => <span>{row.original.pais || "—"}</span>,
+    },
+    {
       accessorKey: "fechaEgreso",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Pase a pasivo" />,
       cell: ({ row }) => <span>{row.original.fechaEgreso || "—"}</span>,

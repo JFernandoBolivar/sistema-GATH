@@ -25,7 +25,9 @@ import { Label } from "@/shared/ui/components/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/components/select";
@@ -38,6 +40,8 @@ import {
   TableRow,
 } from "@/shared/ui/components/table";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+
+import { nombreModulo } from "./modulos-permisos";
 
 import type { PermisoDTO, RolDTO, UsuarioDetalleDTO } from "../application/dtos/usuario-dto";
 import {
@@ -74,6 +78,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const puedeRestablecer = tienePermiso(permisos, "identidad.restablecer_acceso");
   const puedeCorreo = tienePermiso(permisos, "identidad.cambiar_correo_acceso");
   const puedeOverrides = tienePermiso(permisos, "identidad.gestionar_permisos_individuales");
+  const puedeCatalogo = puedeOverrides || tienePermiso(permisos, "identidad.listar_permisos");
 
   const [detalle, setDetalle] = useState<UsuarioDetalleDTO | null>(null);
   const [roles, setRoles] = useState<RolDTO[]>([]);
@@ -93,6 +98,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   const [motivoOverrides, setMotivoOverrides] = useState("");
   const [nuevoAllow, setNuevoAllow] = useState("__none");
   const [nuevoDeny, setNuevoDeny] = useState("__none");
+  const [busquedaPermiso, setBusquedaPermiso] = useState("");
   const [erroresCampo, setErroresCampo] = useState<Record<string, string>>({});
 
   const mensajeDe = (
@@ -148,8 +154,8 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
   useEffect(() => {
     if (!puedeVer) return;
     cargar();
-    const catalogos: Promise<[RolDTO[], PermisoDTO[]]> = puedeOverrides
-      ? Promise.all([getRolesAction(), getPermisosAction()])
+    const catalogos: Promise<[RolDTO[], PermisoDTO[]]> = puedeCatalogo
+      ? Promise.all([getRolesAction(), getPermisosAction().catch(() => [] as PermisoDTO[])])
       : getRolesAction().then((r) => [r, [] as PermisoDTO[]] as [RolDTO[], PermisoDTO[]]);
     catalogos
       .then(([r, p]) => {
@@ -158,7 +164,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
       })
       .catch(() => setError("No fue posible cargar los catálogos."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeVer, puedeOverrides, id]);
+  }, [puedeVer, puedeCatalogo, id]);
 
   if (!puedeVer) {
     return (
@@ -282,8 +288,45 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
     });
   };
 
+  // Respaldo legible sin mostrar el código: «ver_cargos» -> «Ver cargos».
+  const nombrePermiso = (codigo: string): string => {
+    const delCatalogo = catalogo.find((p) => p.codigo === codigo)?.nombre;
+    if (delCatalogo) return delCatalogo;
+    const accion = (codigo.split(".")[1] ?? codigo).replace(/_/g, " ").trim();
+    return accion.charAt(0).toUpperCase() + accion.slice(1);
+  };
+
+  const textoBusqueda = busquedaPermiso.trim().toLowerCase();
   const opcionesDisponibles = catalogo.filter(
-    (p) => !allow.includes(p.codigo) && !deny.includes(p.codigo),
+    (p) =>
+      !allow.includes(p.codigo) &&
+      !deny.includes(p.codigo) &&
+      (textoBusqueda === "" ||
+        p.nombre.toLowerCase().includes(textoBusqueda) ||
+        nombreModulo(p.codigo.split(".")[0]).toLowerCase().includes(textoBusqueda)),
+  );
+  const opcionesPorModulo = Object.entries(
+    opcionesDisponibles.reduce<Record<string, PermisoDTO[]>>((grupos, p) => {
+      const modulo = p.codigo.split(".")[0];
+      (grupos[modulo] ??= []).push(p);
+      return grupos;
+    }, {}),
+  ).sort(([a], [b]) => nombreModulo(a).localeCompare(nombreModulo(b), "es"));
+
+  const opcionesPermiso = (
+    <>
+      <SelectItem value="__none">Seleccione</SelectItem>
+      {opcionesPorModulo.map(([modulo, items]) => (
+        <SelectGroup key={modulo}>
+          <SelectLabel>{nombreModulo(modulo)}</SelectLabel>
+          {items.map((p) => (
+            <SelectItem key={p.codigo} value={p.codigo}>
+              {p.nombre}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      ))}
+    </>
   );
 
   return (
@@ -324,7 +367,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                   </h2>
                   <p className="text-sm text-muted-foreground">Cédula {detalle.cedula}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">{detalle.permisos.rolNombre ?? detalle.rolNombre ?? "Sin rol"}</Badge>
+                    <Badge variant="secondary">{detalle.permisos.rolNombreVisible ?? detalle.permisos.rolNombre ?? detalle.rolNombreVisible ?? detalle.rolNombre ?? "Sin rol"}</Badge>
                     <Badge
                       variant={detalle.isActive ? "default" : "outline"}
                       className={cn(detalle.isActive && "bg-emerald-600 text-white hover:bg-emerald-600")}
@@ -377,7 +420,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           <SelectItem value="__none">— Sin rol —</SelectItem>
                           {roles.map((r) => (
                             <SelectItem key={r.id} value={String(r.id)}>
-                              {r.nombreRol}
+                              {r.nombreVisible}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -629,7 +672,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-muted-foreground">Rol:</span>
                   <strong className="font-semibold text-foreground">
-                    {detalle.permisos.rolNombre ?? detalle.rolNombre ?? "Sin rol"}
+                    {detalle.permisos.rolNombreVisible ?? detalle.permisos.rolNombre ?? detalle.rolNombreVisible ?? detalle.rolNombre ?? "Sin rol"}
                   </strong>
                   <span className="text-muted-foreground">—</span>
                   <Link
@@ -671,12 +714,12 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                       <TableBody>
                         {detalle.permisos.allow.map((codigo) => (
                           <TableRow key={`allow-${codigo}`}>
-                            <TableCell className="font-mono text-xs font-medium">
-                              {codigo}
+                            <TableCell className="text-xs font-medium">
+                              {nombrePermiso(codigo)}
                             </TableCell>
                             <TableCell>
                               <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                Concedido (allow)
+                                Concedido
                               </Badge>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
@@ -692,12 +735,12 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                         ))}
                         {detalle.permisos.deny.map((codigo) => (
                           <TableRow key={`deny-${codigo}`}>
-                            <TableCell className="font-mono text-xs font-medium">
-                              {codigo}
+                            <TableCell className="text-xs font-medium">
+                              {nombrePermiso(codigo)}
                             </TableCell>
                             <TableCell>
                               <Badge variant="destructive" className="text-xs">
-                                Denegado (deny)
+                                Denegado
                               </Badge>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
@@ -723,9 +766,19 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                   <p className="text-sm font-semibold tracking-tight text-foreground">
                     Modificar permisos individuales
                   </p>
+                  <Field>
+                    <Label htmlFor="buscar-permiso">Buscar permiso</Label>
+                    <Input
+                      id="buscar-permiso"
+                      type="search"
+                      placeholder="Nombre del permiso o del módulo"
+                      value={busquedaPermiso}
+                      onChange={(e) => setBusquedaPermiso(e.target.value)}
+                    />
+                  </Field>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                      <p className="mb-2 text-sm font-medium">Conceder (allow)</p>
+                      <p className="mb-2 text-sm font-medium">Conceder</p>
                       {allow.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Sin concesiones individuales.</p>
                       ) : (
@@ -733,10 +786,10 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           {allow.map((codigo) => (
                             <li key={codigo}>
                               <Badge variant="secondary" className="gap-1">
-                                {codigo}
+                                {nombrePermiso(codigo)}
                                 <button
                                   type="button"
-                                  aria-label={`Quitar ${codigo} de allow`}
+                                  aria-label={`Quitar ${nombrePermiso(codigo)} de los permisos concedidos`}
                                   onClick={() => setAllow(allow.filter((c) => c !== codigo))}
                                 >
                                   ×
@@ -751,14 +804,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           <SelectTrigger aria-label="Permiso a conceder" className="w-full">
                             <SelectValue placeholder="Permiso" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none">Seleccione</SelectItem>
-                            {opcionesDisponibles.map((p) => (
-                              <SelectItem key={p.codigo} value={p.codigo}>
-                                {p.codigo}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
+                          <SelectContent>{opcionesPermiso}</SelectContent>
                         </Select>
                         <Button
                           type="button"
@@ -775,7 +821,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                       </div>
                     </div>
                     <div>
-                      <p className="mb-2 text-sm font-medium">Denegar (deny)</p>
+                      <p className="mb-2 text-sm font-medium">Denegar</p>
                       {deny.length === 0 ? (
                         <p className="text-sm text-muted-foreground">Sin denegaciones individuales.</p>
                       ) : (
@@ -783,10 +829,10 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           {deny.map((codigo) => (
                             <li key={codigo}>
                               <Badge variant="destructive" className="gap-1">
-                                {codigo}
+                                {nombrePermiso(codigo)}
                                 <button
                                   type="button"
-                                  aria-label={`Quitar ${codigo} de deny`}
+                                  aria-label={`Quitar ${nombrePermiso(codigo)} de los permisos denegados`}
                                   onClick={() => setDeny(deny.filter((c) => c !== codigo))}
                                 >
                                   ×
@@ -801,14 +847,7 @@ export default function UsuarioDetallePage({ id }: { id: number }) {
                           <SelectTrigger aria-label="Permiso a denegar" className="w-full">
                             <SelectValue placeholder="Permiso" />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none">Seleccione</SelectItem>
-                            {opcionesDisponibles.map((p) => (
-                              <SelectItem key={p.codigo} value={p.codigo}>
-                                {p.codigo}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
+                          <SelectContent>{opcionesPermiso}</SelectContent>
                         </Select>
                         <Button
                           type="button"

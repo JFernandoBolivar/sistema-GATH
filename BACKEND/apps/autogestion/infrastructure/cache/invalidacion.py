@@ -52,6 +52,12 @@ def _cedula_de(instance) -> str | None:
 
 def _invalidar(instance) -> None:
     try:
+        from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
+        if isinstance(instance, ParametroSistemaModel):
+            if instance.clave.startswith('carnetizacion.mi_carnet'):
+                from django.core.cache import cache
+                cache.clear()
+                return
         invalidar_mi_expediente(_cedula_de(instance))
     except Exception:  # noqa: BLE001 - una caché no debe tumbar la escritura
         logger.exception('no se pudo invalidar Mi expediente para %r', instance)

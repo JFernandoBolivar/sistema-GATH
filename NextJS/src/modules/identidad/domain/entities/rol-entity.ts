@@ -4,7 +4,10 @@
  */
 export interface RolEntity {
   readonly id: number;
+  /** Código interno fijo (dato secundario; nunca la etiqueta principal). */
   readonly nombreRol: string;
+  /** Nombre que ve el usuario. */
+  readonly nombreVisible: string;
   readonly descripcionRol: string;
   readonly nUsuarios: number;
   readonly nPermisos: number;

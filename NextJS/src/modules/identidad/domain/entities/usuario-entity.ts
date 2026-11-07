@@ -17,6 +17,7 @@ export interface UsuarioEntity {
   readonly telefono: string | null;
   readonly rolId: number | null;
   readonly rolNombre: string | null;
+  readonly rolNombreVisible?: string | null;
   readonly isActive: boolean;
   readonly ultimoAcceso: string | null;
   readonly condicion: string | null;

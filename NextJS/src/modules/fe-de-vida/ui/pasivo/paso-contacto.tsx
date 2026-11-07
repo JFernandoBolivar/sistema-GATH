@@ -23,6 +23,7 @@ import { Checkbox } from "@/shared/ui/components/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/shared/ui/components/textarea";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
+import { paisesTelefono } from "@/shared/domain/validation/telefono";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import type { MiExpedienteDTO } from "@/modules/autogestion/application/dtos/mi-expediente-dto";
 import { oficinaDeAdscripcion } from "../../domain/services/reglas";
@@ -79,6 +80,21 @@ export function PasoContacto({
 }: Props) {
   const e = ficha.empleado;
   const asignacion = e.asignaciones?.[0];
+  const vivienda = e.datos_vivienda;
+  const paisResidencia = vivienda?.pais ?? (vivienda?.pais_nombre
+    ? {
+        nombre: vivienda.pais_nombre,
+        codigo: vivienda.pais_codigo ?? "",
+        es_venezuela: vivienda.pais_es_venezuela ?? true,
+      }
+    : undefined);
+  const esVenezuela = paisResidencia?.es_venezuela !== false;
+  const paisTelefono = paisesTelefono().find(
+    (p) => p.codigo === paisResidencia?.codigo,
+  )?.codigo;
+  const ayudaTelefono = esVenezuela
+    ? "Ejemplo: 0412-1234567, 0414-9876543 o 0416-5551234 (11 dígitos)."
+    : `Escriba el número de ${paisResidencia?.nombre ?? "su país"} con su código de área local; el prefijo internacional se toma del país.`;
   const [sinCorreo, setSinCorreo] = useState(sinCorreoInicial);
   const [justificacion, setJustificacion] = useState(justificacionInicial);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
@@ -179,13 +195,14 @@ export function PasoContacto({
                   value={field.value}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
+                  paisInicial={paisTelefono}
                   invalido={Boolean(errors.telefonoMovil)}
                   aria-describedby={errors.telefonoMovil ? "fv-movil-error" : "fv-movil-ayuda"}
                 />
               )}
             />
             <p id="fv-movil-ayuda" className="text-xs text-muted-foreground">
-              Ejemplo: 0412-1234567, 0414-9876543 o 0416-5551234 (11 dígitos).
+              {ayudaTelefono}
             </p>
             {errors.telefonoMovil ? (
               <p id="fv-movil-error" role="alert" className="text-sm font-medium text-danger">
@@ -207,13 +224,16 @@ export function PasoContacto({
                   value={field.value}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
+                  paisInicial={paisTelefono}
                   invalido={Boolean(errors.telefonoHabitacion)}
                   aria-describedby={errors.telefonoHabitacion ? "fv-habitacion-error" : "fv-habitacion-ayuda"}
                 />
               )}
             />
             <p id="fv-habitacion-ayuda" className="text-xs text-muted-foreground">
-              Ejemplo: 0212-5551234 o 0241-8765432 (con código de área).
+              {esVenezuela
+                ? "Ejemplo: 0212-5551234 o 0241-8765432 (con código de área)."
+                : "Incluya el código de área local del país de residencia."}
             </p>
             {errors.telefonoHabitacion ? (
               <p id="fv-habitacion-error" role="alert" className="text-sm font-medium text-danger">

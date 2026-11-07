@@ -18,6 +18,7 @@ class RegistroAuditoria:
     resultado: str = 'SUCCESS'
     estado_previo: dict | None = None
     estado_nuevo: dict | None = None
+    actor_rol_visible: str = ''
 
 
 @dataclass(frozen=True)

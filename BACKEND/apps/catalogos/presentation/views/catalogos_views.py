@@ -30,6 +30,7 @@ from apps.catalogos.application.use_cases.listar_tablas_maestras import (
     listar_tipos_personal,
     listar_tipos_procedencia,
     listar_nacionalidades,
+    listar_paises,
 )
 from apps.catalogos.application.use_cases.crear_parentesco import crear_parentesco
 from apps.catalogos.infrastructure.repositories.repo_catalogos_orm import RepoCatalogosORM
@@ -97,6 +98,20 @@ class ParroquiasListView(APIView):
             f'catalogos:parroquias:{mun_id or "todas"}',
             lambda: ParroquiaSerializer(
                 listar_parroquias(RepoCatalogosORM(), municipio_id=mun_id), many=True
+            ).data,
+        )
+
+
+class PaisesListView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('catalogos.ver')]
+
+    @extend_schema(tags=['Catálogos'], summary='Listar países', responses={200: CatalogoItemSerializer(many=True)})
+    def get(self, request):
+        return ok_catalogo(
+            request,
+            'catalogos:paises',
+            lambda: CatalogoItemSerializer(
+                listar_paises(RepoCatalogosORM()), many=True
             ).data,
         )
 

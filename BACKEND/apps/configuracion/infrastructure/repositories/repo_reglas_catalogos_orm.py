@@ -7,24 +7,102 @@ from typing import Sequence
 
 from apps.catalogos.infrastructure.models.catalogo_models import (
     CategoriaMovimientoModel,
+    PaisModel,
     ParentescoModel,
     TipoMovimientoModel,
     TipoNominaModel,
 )
+from apps.autogestion.domain.value_objects.secciones import SECCIONES_CATALOGO_INICIAL
+from apps.autogestion.infrastructure.models.soporte_config_models import (
+    ChecklistSoporteSeccionModel,
+    TipoSoporteDocumentoModel,
+)
 from apps.configuracion.domain.ports.repo_reglas_catalogos import RepoReglasCatalogos
 from apps.configuracion.domain.reglas_catalogos import (
     CategoriaMotivoItem,
+    ReglaChecklistSoporte,
     ReglaMotivo,
     ReglaNomina,
+    ReglaPais,
     ReglaParentesco,
+    ReglaTipoSoporte,
     es_motivo_reservado,
 )
 from core.domain.categorias_motivo import normalizar_nombre_motivo
 from core.domain.exceptions import NotFoundError, ValidationError
+from core.domain.tipos_soporte import ItemChecklistSoporte, SeccionSoporte
 from core.presentation.cache_catalogos import invalidar_catalogos
 
 
 class RepoReglasCatalogosORM(RepoReglasCatalogos):
+    @staticmethod
+    def _pais_a_entidad(p: PaisModel) -> ReglaPais:
+        return ReglaPais(
+            id=p.pk, nombre=p.nombre, codigo=p.codigo, es_venezuela=bool(p.es_venezuela),
+        )
+
+    def listar_paises(self) -> Sequence[ReglaPais]:
+        return [self._pais_a_entidad(p) for p in PaisModel.objects.all().order_by('nombre')]
+
+    def obtener_pais(self, pais_id: int) -> ReglaPais:
+        try:
+            return self._pais_a_entidad(PaisModel.objects.get(pk=pais_id))
+        except PaisModel.DoesNotExist:
+            raise NotFoundError(f'País con id {pais_id} no encontrado.')
+
+    def crear_pais(self, nombre: str, codigo: str) -> ReglaPais:
+        if PaisModel.objects.filter(nombre__iexact=nombre).exists():
+            raise ValidationError(f'Ya existe un país «{nombre}».', campo='nombre')
+        if PaisModel.objects.filter(codigo__iexact=codigo).exists():
+            raise ValidationError(f'Ya existe un país con el código «{codigo}».', campo='codigo')
+        pais = PaisModel.objects.create(nombre=nombre, codigo=codigo, es_venezuela=False)
+        invalidar_catalogos()
+        return self._pais_a_entidad(pais)
+
+    def actualizar_pais(
+        self, pais_id: int, nombre: str | None, codigo: str | None,
+    ) -> ReglaPais:
+        try:
+            pais = PaisModel.objects.get(pk=pais_id)
+        except PaisModel.DoesNotExist:
+            raise NotFoundError(f'País con id {pais_id} no encontrado.')
+        campos = []
+        if nombre is not None and nombre != pais.nombre:
+            if PaisModel.objects.filter(nombre__iexact=nombre).exclude(pk=pais_id).exists():
+                raise ValidationError(f'Ya existe un país «{nombre}».', campo='nombre')
+            pais.nombre = nombre
+            campos.append('nombre')
+        if codigo is not None and codigo.upper() != pais.codigo.upper():
+            if PaisModel.objects.filter(codigo__iexact=codigo).exclude(pk=pais_id).exists():
+                raise ValidationError(f'Ya existe un país con el código «{codigo}».', campo='codigo')
+            pais.codigo = codigo.upper()
+            campos.append('codigo')
+        if campos:
+            pais.save(update_fields=campos)
+            invalidar_catalogos()
+        return self._pais_a_entidad(pais)
+
+    def pais_tiene_referencias(self, pais_id: int) -> bool:
+        from apps.personal.infrastructure.models.expediente_models import DatosViviendaModel
+
+        return DatosViviendaModel.objects.filter(pais_id=pais_id).exists()
+
+    def eliminar_pais(self, pais_id: int) -> ReglaPais:
+        try:
+            pais = PaisModel.objects.get(pk=pais_id)
+        except PaisModel.DoesNotExist:
+            raise NotFoundError(f'País con id {pais_id} no encontrado.')
+        resultado = self._pais_a_entidad(pais)
+        try:
+            pais.delete()
+        except Exception:
+            raise ValidationError(
+                'No es posible eliminar el país porque hay viviendas registradas en él.',
+                campo='nombre',
+            )
+        invalidar_catalogos()
+        return resultado
+
     def listar_parentescos(self) -> Sequence[ReglaParentesco]:
         qs = ParentescoModel.objects.all().order_by('descripcion_parentesco')
         return [
@@ -422,3 +500,152 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             )
         invalidar_catalogos()
         return resultado
+
+    # ------------------------------------------------------------------
+    # Tipos de soporte documental y checklist por sección (O41)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _tipo_soporte_a_entidad(t: TipoSoporteDocumentoModel) -> ReglaTipoSoporte:
+        return ReglaTipoSoporte(
+            id=t.pk,
+            codigo=t.codigo,
+            nombre=t.nombre,
+            es_reservado=bool(t.es_reservado),
+            es_protegido=bool(t.es_protegido),
+            orden=t.orden,
+        )
+
+    @staticmethod
+    def _checklist_a_entidad(c: ChecklistSoporteSeccionModel) -> ReglaChecklistSoporte:
+        tipo = c.tipo_soporte
+        return ReglaChecklistSoporte(
+            id=c.pk,
+            seccion=c.seccion,
+            tipo_soporte_id=tipo.pk,
+            codigo=tipo.codigo,
+            nombre=tipo.nombre,
+            etiqueta=c.etiqueta or tipo.nombre,
+            permitido=bool(c.permitido),
+            requerido=bool(c.requerido),
+            orden=c.orden,
+        )
+
+    def listar_tipos_soporte(self) -> Sequence[ReglaTipoSoporte]:
+        qs = TipoSoporteDocumentoModel.objects.all().order_by('orden', 'nombre')
+        return [self._tipo_soporte_a_entidad(t) for t in qs]
+
+    def obtener_tipo_soporte(self, tipo_id: int) -> ReglaTipoSoporte:
+        try:
+            t = TipoSoporteDocumentoModel.objects.get(pk=tipo_id)
+        except TipoSoporteDocumentoModel.DoesNotExist:
+            raise NotFoundError(f'Tipo de soporte con id {tipo_id} no encontrado.')
+        return self._tipo_soporte_a_entidad(t)
+
+    def crear_tipo_soporte(self, codigo: str, nombre: str, orden: int) -> ReglaTipoSoporte:
+        if TipoSoporteDocumentoModel.objects.filter(codigo__iexact=codigo).exists():
+            raise ValidationError(f'Ya existe un tipo de soporte con el código «{codigo}».', campo='codigo')
+        t = TipoSoporteDocumentoModel.objects.create(
+            codigo=codigo, nombre=nombre, es_reservado=False, es_protegido=False, orden=orden,
+        )
+        invalidar_catalogos()
+        return self._tipo_soporte_a_entidad(t)
+
+    def actualizar_tipo_soporte(
+        self,
+        tipo_id: int,
+        codigo: str | None,
+        nombre: str | None,
+        orden: int | None,
+    ) -> ReglaTipoSoporte:
+        try:
+            t = TipoSoporteDocumentoModel.objects.get(pk=tipo_id)
+        except TipoSoporteDocumentoModel.DoesNotExist:
+            raise NotFoundError(f'Tipo de soporte con id {tipo_id} no encontrado.')
+        campos: list[str] = []
+        if codigo is not None and codigo.upper() != t.codigo.upper():
+            if TipoSoporteDocumentoModel.objects.filter(codigo__iexact=codigo).exclude(pk=tipo_id).exists():
+                raise ValidationError(
+                    f'Ya existe un tipo de soporte con el código «{codigo}».', campo='codigo',
+                )
+            t.codigo = codigo
+            campos.append('codigo')
+        if nombre is not None and nombre != t.nombre:
+            t.nombre = nombre
+            campos.append('nombre')
+        if orden is not None and orden != t.orden:
+            t.orden = orden
+            campos.append('orden')
+        if campos:
+            t.save(update_fields=campos)
+            invalidar_catalogos()
+        return self._tipo_soporte_a_entidad(t)
+
+    def tipo_soporte_tiene_secciones(self, tipo_id: int) -> bool:
+        return ChecklistSoporteSeccionModel.objects.filter(tipo_soporte_id=tipo_id).exists()
+
+    def eliminar_tipo_soporte(self, tipo_id: int) -> ReglaTipoSoporte:
+        try:
+            t = TipoSoporteDocumentoModel.objects.get(pk=tipo_id)
+        except TipoSoporteDocumentoModel.DoesNotExist:
+            raise NotFoundError(f'Tipo de soporte con id {tipo_id} no encontrado.')
+        resultado = self._tipo_soporte_a_entidad(t)
+        try:
+            t.delete()
+        except Exception:
+            raise ValidationError(
+                'No es posible eliminar el tipo de soporte porque está asignado a una sección.',
+                campo='codigo',
+            )
+        invalidar_catalogos()
+        return resultado
+
+    def listar_checklist_soporte(
+        self, seccion: str | None = None,
+    ) -> Sequence[ReglaChecklistSoporte]:
+        qs = ChecklistSoporteSeccionModel.objects.select_related('tipo_soporte').all()
+        if seccion is not None:
+            qs = qs.filter(seccion=seccion)
+        qs = qs.order_by('seccion', 'orden', 'tipo_soporte__nombre')
+        return [self._checklist_a_entidad(c) for c in qs]
+
+    def reemplazar_checklist_soporte(
+        self, seccion: str, items: Sequence[ItemChecklistSoporte],
+    ) -> Sequence[ReglaChecklistSoporte]:
+        existentes = {
+            c.tipo_soporte_id: c
+            for c in ChecklistSoporteSeccionModel.objects.filter(seccion=seccion)
+        }
+        ids_conservados: set[int] = set()
+        for item in items:
+            fila = existentes.get(item.tipo_soporte_id)
+            if fila is None:
+                try:
+                    tipo = TipoSoporteDocumentoModel.objects.get(pk=item.tipo_soporte_id)
+                except TipoSoporteDocumentoModel.DoesNotExist:
+                    raise NotFoundError(
+                        f'Tipo de soporte con id {item.tipo_soporte_id} no encontrado.',
+                    )
+                ChecklistSoporteSeccionModel.objects.create(
+                    seccion=seccion,
+                    tipo_soporte=tipo,
+                    etiqueta=tipo.nombre,
+                    permitido=item.permitido,
+                    requerido=item.requerido,
+                    orden=tipo.orden,
+                )
+            else:
+                fila.permitido = item.permitido
+                fila.requerido = item.requerido
+                fila.save(update_fields=['permitido', 'requerido'])
+            ids_conservados.add(item.tipo_soporte_id)
+        ChecklistSoporteSeccionModel.objects.filter(seccion=seccion).exclude(
+            tipo_soporte_id__in=ids_conservados,
+        ).delete()
+        invalidar_catalogos()
+        return self.listar_checklist_soporte(seccion)
+
+    def listar_secciones_soporte(self) -> Sequence[SeccionSoporte]:
+        return tuple(
+            SeccionSoporte(codigo=codigo, nombre=nombre)
+            for codigo, nombre, _requiere in SECCIONES_CATALOGO_INICIAL
+        )

@@ -70,6 +70,8 @@ export function registroPasosADTO(data: RegistroPasosType): GuardarEmpleadoInput
       tallaChaquetaId: id(data.perfil_fisico.tallaChaqueta),
     },
     datosVivienda: {
+      paisId: id(data.datos_vivienda.pais_id),
+      ciudadRegion: texto(data.datos_vivienda.ciudad_region),
       estadoId: id(data.datos_vivienda.estado_id),
       municipioId: id(data.datos_vivienda.municipio_id),
       parroquiaId: id(data.datos_vivienda.parroquia),

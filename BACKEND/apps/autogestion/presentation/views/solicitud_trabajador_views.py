@@ -41,6 +41,9 @@ from apps.autogestion.infrastructure.repositories.repo_secciones_complementarios
     RepoSeccionesORM,
 )
 from apps.autogestion.infrastructure.repositories.repo_solicitudes_orm import RepoSolicitudesORM
+from apps.autogestion.infrastructure.repositories.repo_soporte_configuracion_orm import (
+    RepoSoporteConfiguracionORM,
+)
 from apps.autogestion.infrastructure.signals import PublicadorSenales
 from apps.autogestion.presentation.serializers.actualizacion_serializers import (
     DatosComplementariosSerializer,
@@ -198,6 +201,7 @@ class SoportesView(APIView):
         with transaction.atomic():
             soporte = adjuntar_soporte(
                 RepoSolicitudesORM(), RepoSoportesORM(), RepoCambiosPropuestosORM(), LectorFichaORM(), SeaweedFSStorage(),
+                RepoSoporteConfiguracionORM(),
                 solicitud_id=str(solicitud_id), cedula=cedula, seccion=datos['seccion'], tipo=datos['tipo'],
                 contenido=contenido, mime=tipo.mime, extension=ext, nombre_original=archivo.name, ahora=ahora(),
                 entidad_id=datos.get('entidad_id') or None, referencia=datos.get('referencia') or None,

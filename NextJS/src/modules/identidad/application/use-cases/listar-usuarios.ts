@@ -22,6 +22,7 @@ export function aUsuarioDto(u: UsuarioEntity) {
     telefono: u.telefono,
     rolId: u.rolId,
     rolNombre: u.rolNombre,
+    rolNombreVisible: u.rolNombreVisible,
     isActive: u.isActive,
     ultimoAcceso: u.ultimoAcceso,
     condicion: u.condicion,
@@ -62,6 +63,7 @@ export async function obtenerDetalleUsuario(
     permisos: {
       rolId: detalle.permisos.rolId,
       rolNombre: detalle.permisos.rolNombre,
+      rolNombreVisible: detalle.permisos.rolNombreVisible,
       delRol: detalle.permisos.delRol,
       allow: detalle.permisos.allow,
       deny: detalle.permisos.deny,

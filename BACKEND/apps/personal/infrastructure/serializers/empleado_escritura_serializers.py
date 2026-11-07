@@ -24,7 +24,12 @@ from core.presentation.validadores_personas import (
     validar_serial_carnet_patria,
     validar_telefono,
 )
-from apps.catalogos.infrastructure.models.catalogo_models import EstadoCivilModel, SexoModel, NacionalidadModel
+from apps.catalogos.infrastructure.models.catalogo_models import (
+    EstadoCivilModel,
+    NacionalidadModel,
+    PaisModel,
+    SexoModel,
+)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
@@ -84,6 +89,12 @@ def _validar_codigo_carnet(value):
 
 
 class DatosViviendaEscrituraSerializer(serializers.ModelSerializer):
+    pais = serializers.PrimaryKeyRelatedField(
+        queryset=PaisModel.objects.all(), required=False, allow_null=True,
+    )
+    ciudad_region = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=120,
+    )
     direccion_exacta = serializers.CharField(
         min_length=DIRECCION_MIN, max_length=DIRECCION_MAX,
         error_messages=mensajes_texto('La dirección', DIRECCION_MIN, DIRECCION_MAX),
@@ -91,7 +102,47 @@ class DatosViviendaEscrituraSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DatosViviendaModel
-        fields = ['estado', 'municipio', 'parroquia', 'direccion_exacta', 'condicion_vivienda', 'codigo_postal']
+        fields = [
+            'pais', 'ciudad_region', 'estado', 'municipio', 'parroquia',
+            'direccion_exacta', 'condicion_vivienda', 'codigo_postal',
+        ]
+
+    def validate(self, attrs):
+        instance = self.instance
+        pais = attrs.get('pais', getattr(instance, 'pais', None))
+        if pais is None:
+            pais = PaisModel.objects.filter(es_venezuela=True).first() or PaisModel.objects.filter(
+                codigo='VE',
+            ).first()
+        # Entornos sin el seed (por ejemplo pruebas con --nomigrations): se
+        # conserva el comportamiento actual de Venezuela.
+        es_venezuela = True if pais is None else bool(pais.es_venezuela)
+        if es_venezuela:
+            for campo in ('estado', 'municipio', 'parroquia', 'codigo_postal'):
+                if not attrs.get(campo, getattr(instance, campo, None)):
+                    raise serializers.ValidationError({
+                        campo: 'Este campo es obligatorio para Venezuela.',
+                    })
+            attrs['ciudad_region'] = ''
+        else:
+            ciudad = ' '.join(
+                (attrs.get('ciudad_region') or getattr(
+                    instance, 'ciudad_region', '',
+                ) or '').split()
+            )
+            if not ciudad:
+                raise serializers.ValidationError({
+                    'ciudad_region': 'Indique la ciudad o región.',
+                })
+            if len(ciudad) > 120:
+                raise serializers.ValidationError({
+                    'ciudad_region': 'La ciudad o región no puede superar 120 caracteres.',
+                })
+            attrs['ciudad_region'] = ciudad
+            for campo in ('estado', 'municipio', 'parroquia', 'codigo_postal'):
+                attrs[campo] = None
+        attrs['pais'] = pais
+        return attrs
 
 
 class PerfilSaludEscrituraSerializer(serializers.ModelSerializer):

@@ -27,6 +27,7 @@ from apps.familiares.application.use_cases.validaciones_familiar import (
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.familiares.infrastructure.repositories.repo_familiares_orm import RepoFamiliaresORM
 from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
     ContactoEmergenciaModel,
     FormacionAcademicaModel,
     FormacionComplementariaModel,
@@ -40,6 +41,7 @@ _MODELOS_LEGADOS = {
     'formacion_academica': FormacionAcademicaModel,
     'formacion_complementaria': FormacionComplementariaModel,
     'contacto_emergencia': ContactoEmergenciaModel,
+    'antecedente_servicio': AntecedenteServicioModel,
 }
 # El modelo legado de formación complementaria usa otros nombres de atributo.
 _CAMPOS_COMPLEMENTARIA = {
@@ -166,16 +168,26 @@ class AplicadorCambiosORM:
 
     @staticmethod
     def _fechas(entidad: str, valores: dict) -> dict:
-        if entidad != 'formacion_complementaria':
-            return valores
-        datos = dict(valores)
-        for campo in ('fechaInicio', 'fechaFin'):
-            valor = datos.get(campo)
-            if isinstance(valor, str) and valor:
-                datos[campo] = date.fromisoformat(valor)
-            elif valor == '':
-                datos[campo] = None
-        return datos
+        if entidad == 'formacion_complementaria':
+            datos = dict(valores)
+            for campo in ('fechaInicio', 'fechaFin'):
+                valor = datos.get(campo)
+                if isinstance(valor, str) and valor:
+                    datos[campo] = date.fromisoformat(valor)
+                elif valor == '':
+                    datos[campo] = None
+            return datos
+        if entidad == 'antecedente_servicio':
+            datos = dict(valores)
+            for campo in ('fecha_ingreso', 'fecha_egreso'):
+                if campo in datos:
+                    valor = datos[campo]
+                    if isinstance(valor, str) and valor:
+                        datos[campo] = date.fromisoformat(valor)
+                    elif valor == '' or valor is None:
+                        datos[campo] = None
+            return datos
+        return valores
 
     @staticmethod
     def _empleado_pk(cedula: str) -> int:

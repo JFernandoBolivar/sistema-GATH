@@ -44,7 +44,7 @@ function AccionesCell({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(rol.nombreRol)}>
+        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(rol.nombreVisible)}>
           <Copy className="size-4" aria-hidden="true" /> Copiar nombre
         </DropdownMenuItem>
         {(puedeEditar || puedeEliminar) && <DropdownMenuSeparator />}
@@ -75,7 +75,14 @@ export function construirColumnasRoles(
       header: "ID",
       cell: ({ getValue }) => <span className="font-medium">{getValue() as number}</span>,
     },
-    { accessorKey: "nombreRol", header: "Nombre" },
+    { accessorKey: "nombreVisible", header: "Nombre" },
+    {
+      accessorKey: "nombreRol",
+      header: "Código",
+      cell: ({ getValue }) => (
+        <span className="font-mono text-xs text-muted-foreground">{getValue() as string}</span>
+      ),
+    },
     {
       accessorKey: "descripcionRol",
       header: "Descripción",

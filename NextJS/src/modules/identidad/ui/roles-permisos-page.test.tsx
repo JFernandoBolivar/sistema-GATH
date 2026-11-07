@@ -3,8 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const roles = vi.hoisted(() => [
-  { id: 1, nombreRol: "ADMIN", descripcionRol: "", nUsuarios: 2, nPermisos: 5 },
-  { id: 2, nombreRol: "ANALISTA", descripcionRol: "", nUsuarios: 4, nPermisos: 9 },
+  { id: 1, nombreRol: "ADMIN", nombreVisible: "Administrador", descripcionRol: "", nUsuarios: 2, nPermisos: 5 },
+  { id: 2, nombreRol: "ANALISTA", nombreVisible: "Analista", descripcionRol: "", nUsuarios: 4, nPermisos: 9 },
 ]);
 
 vi.mock("next-auth/react", () => ({

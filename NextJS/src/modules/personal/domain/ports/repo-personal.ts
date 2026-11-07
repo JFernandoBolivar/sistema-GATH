@@ -25,6 +25,7 @@ export interface FiltrosListadoEmpleado {
 }
 
 export interface CatalogosExpediente {
+  paises: CatalogoExpediente[];
   estados: CatalogoExpediente[];
   municipios: CatalogoExpediente[];
   parroquias: CatalogoExpediente[];

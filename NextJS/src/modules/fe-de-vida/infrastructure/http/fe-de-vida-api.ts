@@ -72,6 +72,17 @@ export interface FichaApi {
     telefono_movil?: string | null;
     telefono_habitacion?: string | null;
     datos_vivienda?: {
+      pais?: {
+        id: number;
+        nombre: string;
+        codigo?: string;
+        es_venezuela: boolean;
+      } | null;
+      pais_id?: number | null;
+      pais_nombre?: string | null;
+      pais_codigo?: string | null;
+      pais_es_venezuela?: boolean | null;
+      ciudad_region?: string | null;
       estado_id?: number | null;
       municipio_id?: number | null;
       estado_nombre?: string | null;

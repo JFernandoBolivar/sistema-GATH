@@ -78,6 +78,8 @@ interface EmpleadoDetalleSheetProps {
   puedeEditar: boolean;
   /** Cambia con cada carga del expediente; reinicia diálogos con valores frescos. */
   revision?: number;
+  /** O40: el alta/edición de vivienda de pasivos permite país distinto de Venezuela. */
+  permitirPais?: boolean;
 }
 
 export default function EmpleadoDetalleSheet({
@@ -92,6 +94,7 @@ export default function EmpleadoDetalleSheet({
   puedeExportarPdf,
   puedeEditar,
   revision = 0,
+  permitirPais = false,
 }: EmpleadoDetalleSheetProps) {
   const [versionFoto, setVersionFoto] = useState(0);
   if (!detalle || !empleado) {
@@ -438,6 +441,7 @@ export default function EmpleadoDetalleSheet({
                       empleado={empleado}
                       catalogos={catalogos}
                       onGuardado={onGuardado}
+                      permitirPais={permitirPais}
                       triggerLabel="Actualizar"
                       triggerClassName="w-full sm:w-auto cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-xs sm:text-sm"
                     />
@@ -446,6 +450,15 @@ export default function EmpleadoDetalleSheet({
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 place-content-center gap-y-2 text-sm">
+                  {permitirPais ||
+                  (detalle.vivienda?.pais && detalle.vivienda.pais !== "Venezuela") ? (
+                    <>
+                      <div className="font-medium text-muted-foreground">País:</div>
+                      <div>{detalle.vivienda?.pais ?? "N/A"}</div>
+                      <div className="font-medium text-muted-foreground">Ciudad o Región:</div>
+                      <div>{detalle.vivienda?.ciudadRegion ?? "N/A"}</div>
+                    </>
+                  ) : null}
                   <div className="font-medium text-muted-foreground">Estado:</div>
                   <div>{detalle.vivienda?.estado ?? "N/A"}</div>
                   <div className="font-medium text-muted-foreground">Municipio:</div>

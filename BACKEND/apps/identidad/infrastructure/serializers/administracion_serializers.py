@@ -72,6 +72,7 @@ class FilaMatrizSerializer(serializers.Serializer):
 class ColumnaRolSerializer(serializers.Serializer):
     rol_id = serializers.IntegerField()
     nombre = serializers.CharField()
+    nombre_visible = serializers.CharField()
     codigos = serializers.ListField(child=serializers.CharField())
 
 

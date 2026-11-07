@@ -330,7 +330,7 @@ export function AuditoriaPage() {
                           <span className="block text-xs text-muted-foreground">{registro.actorNombre}</span>
                         )}
                       </TableCell>
-                      <TableCell>{registro.actorRol || "—"}</TableCell>
+                      <TableCell>{registro.actorRolVisible || registro.actorRol || "—"}</TableCell>
                       <TableCell>{registro.accion}</TableCell>
                       <TableCell>{registro.modulo}</TableCell>
                       <TableCell>{`${registro.recursoTipo}#${registro.recursoId}`.replace(/^#|#$/g, "") || "—"}</TableCell>
@@ -467,7 +467,7 @@ function DetalleAuditoriaDialog({
             <dl className="grid gap-2 sm:grid-cols-2">
               <Dato etiqueta="Fecha y hora" valor={formatearFecha(detalle.fechaHora)} />
               <Dato etiqueta="Usuario" valor={`${detalle.actorCedula} ${detalle.actorNombre}`.trim()} />
-              <Dato etiqueta="Rol" valor={detalle.actorRol || "—"} />
+              <Dato etiqueta="Rol" valor={detalle.actorRolVisible || detalle.actorRol || "—"} />
               <Dato etiqueta="Acción" valor={detalle.accion} />
               <Dato etiqueta="Módulo" valor={detalle.modulo} />
               <Dato etiqueta="Recurso" valor={`${detalle.recursoTipo}#${detalle.recursoId}`.replace(/^#|#$/g, "") || "—"} />

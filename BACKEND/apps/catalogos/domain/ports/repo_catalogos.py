@@ -20,6 +20,9 @@ class RepoCatalogos(Protocol):
     def listar_parroquias(self, municipio_id: int | None = None) -> list[Parroquia]:
         ...
 
+    def listar_paises(self) -> list[CatalogoItem]:
+        ...
+
     def listar_sexos(self) -> list[CatalogoItem]:
         ...
 

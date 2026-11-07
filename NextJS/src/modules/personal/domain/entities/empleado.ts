@@ -11,6 +11,9 @@
  */
 
 export interface DatosVivienda {
+  paisId?: number | null;
+  paisNombre?: string | null;
+  ciudadRegion?: string | null;
   estadoId?: number | null;
   estadoNombre?: string | null;
   municipioId?: number | null;
@@ -94,6 +97,7 @@ export interface CatalogoExpediente {
   regionId?: number | null;
   regionCodigo?: string | null;
   regionDescripcion?: string | null;
+  esVenezuela?: boolean | null;
 }
 
 export interface Encargaduria {

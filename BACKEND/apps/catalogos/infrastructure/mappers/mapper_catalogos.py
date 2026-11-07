@@ -15,6 +15,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoProcedenciaModel,
     EstadoCivilModel,
     NacionalidadModel,
+    PaisModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import (
     EstadoModel,
@@ -38,6 +39,15 @@ def municipio_a_entidad(modelo: MunicipioModel) -> Municipio:
 
 def parroquia_a_entidad(modelo: ParroquiaModel) -> Parroquia:
     return Parroquia(id=modelo.pk, nombre=modelo.parroquia, municipio_id=modelo.municipioid_id)
+
+
+def pais_a_entidad(modelo: PaisModel) -> CatalogoItem:
+    return CatalogoItem(
+        id=modelo.pk,
+        nombre=modelo.nombre,
+        codigo=modelo.codigo,
+        extra={'es_venezuela': bool(modelo.es_venezuela)},
+    )
 
 
 def sexo_a_entidad(modelo: SexoModel) -> CatalogoItem:

@@ -5,6 +5,7 @@ import { construirDetalleExpediente } from "./expediente-detalle-view-model";
 
 function catalogosVacios(): CatalogosExpedienteDTO {
   return {
+    paises: [],
     estados: [],
     municipios: [],
     parroquias: [],

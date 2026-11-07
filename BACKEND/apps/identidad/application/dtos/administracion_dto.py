@@ -12,6 +12,7 @@ class PermisosUsuarioVista:
 
     rol_id: int | None
     rol_nombre: str | None
+    rol_nombre_visible: str | None
     del_rol: tuple[str, ...]
     allow: tuple[str, ...]
     deny: tuple[str, ...]
@@ -62,6 +63,7 @@ class FilaMatriz:
 class ColumnaRol:
     rol_id: int
     nombre: str
+    nombre_visible: str
     codigos: tuple[str, ...]
 
 

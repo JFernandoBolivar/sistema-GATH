@@ -238,6 +238,7 @@ class RepoReportesORM:
 
         qs = _anotar_ingreso_apn(anotar_apn_oficial(
             EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad')
+            .prefetch_related('datos_vivienda__pais')
             .filter(filtro_por_condicion(CONDICION_PASIVO, 'cedulaidentidad')),
             fecha_corte=consulta.fecha_corte,
         ))
@@ -311,6 +312,10 @@ class RepoReportesORM:
                 contactos.append(e.correo)
             contacto = ' / '.join(contactos)
 
+            viviendas = list(e.datos_vivienda.all())
+            vivienda = viviendas[0] if viviendas else None
+            pais = vivienda.pais.nombre if vivienda is not None and vivienda.pais else ''
+
             filas.append({
                 '#': str(idx),
                 'cedula': str(e.cedulaidentidad),
@@ -318,6 +323,7 @@ class RepoReportesORM:
                 'apellidos': e.apellidos or '',
                 'nombre_completo': f"{e.nombres or ''} {e.apellidos or ''}".strip(),
                 'tipo_pasivo': tipo_pasivo,
+                'pais': pais,
                 'fecha_egreso': f_egr,
                 'contacto': contacto,
             })
@@ -325,7 +331,7 @@ class RepoReportesORM:
         return ResultadoReporte(
             titulo='Reporte de Personal Pasivo',
             columnas=[
-                '#', 'cedula', 'nombres', 'apellidos', 'tipo_pasivo',
+                '#', 'cedula', 'nombres', 'apellidos', 'tipo_pasivo', 'pais',
                 'fecha_egreso', 'contacto',
             ],
             filas=filas,

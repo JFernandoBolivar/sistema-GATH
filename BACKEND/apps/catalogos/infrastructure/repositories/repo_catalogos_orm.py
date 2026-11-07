@@ -18,6 +18,7 @@ from apps.catalogos.infrastructure.mappers.mapper_catalogos import (
     tipo_personal_a_entidad,
     tipo_procedencia_a_entidad,
     nacionalidad_a_entidad,
+    pais_a_entidad,
 )
 from apps.catalogos.infrastructure.models.catalogo_models import (
     CategoriaMovimientoModel,
@@ -31,6 +32,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     TipoProcedenciaModel,
     EstadoCivilModel,
     NacionalidadModel,
+    PaisModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import (
     EstadoModel,
@@ -61,6 +63,9 @@ class RepoCatalogosORM:
         if municipio_id is not None:
             qs = qs.filter(municipioid_id=municipio_id)
         return [parroquia_a_entidad(p) for p in qs]
+
+    def listar_paises(self) -> list[CatalogoItem]:
+        return [pais_a_entidad(p) for p in PaisModel.objects.all().order_by('nombre')]
 
     def listar_sexos(self) -> list[CatalogoItem]:
         return [sexo_a_entidad(s) for s in SexoModel.objects.all().order_by('sexo')]

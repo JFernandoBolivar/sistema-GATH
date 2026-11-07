@@ -1,5 +1,5 @@
 /**
- * Implementación del repositorio de Carnetización usando la API REST.
+ * Implementación del repositorio de Carnetización usando la API REST (O44 - E3).
  */
 import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
 import { carnetizacionApi } from "../http/carnetizacion-api";
@@ -8,6 +8,11 @@ import {
   empleadoApiADatosCarnet,
   estadisticasCarnetApiAEntidad,
   plantillaCarnetApiAEntidad,
+  plantillaMotorApiAEntidad,
+  tipoCredencialApiAEntidad,
+  elementoBibliotecaApiAEntidad,
+  campoCredencialApiAEntidad,
+  fichaQrApiAEntidad,
 } from "../mappers/mapper-carnetizacion";
 
 export const repoCarnetizacionApi: RepoCarnetizacion = {
@@ -16,8 +21,8 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return raw.map(carnetApiAEntidad);
   },
 
-  async emitirCarnet(empleadoCedula, motivoId, observaciones) {
-    const raw = await carnetizacionApi.emitir(empleadoCedula, motivoId, observaciones);
+  async emitirCarnet(empleadoCedula, motivoId, observaciones, plantillaId) {
+    const raw = await carnetizacionApi.emitir(empleadoCedula, motivoId, observaciones, plantillaId);
     return carnetApiAEntidad(raw);
   },
 
@@ -69,5 +74,107 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
   async obtenerDatosEmpleado(cedula) {
     const raw = await carnetizacionApi.getEmpleado(cedula);
     return raw ? empleadoApiADatosCarnet(raw) : null;
+  },
+
+  // --- Motor de Plantillas y Catálogo (O44 - E3) ---
+  async listarTiposCredencial() {
+    const raw = await carnetizacionApi.getTiposCredencial();
+    return raw.map(tipoCredencialApiAEntidad);
+  },
+
+  async listarPlantillasMotor(tipo, estado, activas) {
+    const raw = await carnetizacionApi.getPlantillasMotor(tipo, estado, activas);
+    return raw.map(plantillaMotorApiAEntidad);
+  },
+
+  async obtenerPlantillaMotor(id) {
+    const raw = await carnetizacionApi.getPlantillaMotor(id);
+    return plantillaMotorApiAEntidad(raw);
+  },
+
+  async crearPlantillaBorrador(input) {
+    const raw = await carnetizacionApi.crearPlantillaBorrador(input as unknown as Record<string, unknown>);
+    return plantillaMotorApiAEntidad(raw);
+  },
+
+  async actualizarPlantillaBorrador(id, input) {
+    const raw = await carnetizacionApi.actualizarPlantillaBorrador(id, input as unknown as Record<string, unknown>);
+    return plantillaMotorApiAEntidad(raw);
+  },
+
+  async publicarPlantilla(id, activar = true) {
+    const raw = await carnetizacionApi.publicarPlantillaMotor(id, activar);
+    return plantillaMotorApiAEntidad(raw);
+  },
+
+  async activarPlantillaMotor(id) {
+    const raw = await carnetizacionApi.activarPlantillaMotor(id);
+    return plantillaMotorApiAEntidad(raw);
+  },
+
+  async listarVersionesPlantilla(raizId) {
+    const raw = await carnetizacionApi.getVersionesPlantilla(raizId);
+    return raw.map(plantillaMotorApiAEntidad);
+  },
+
+  async obtenerPlantillaActiva(tipo = "trabajador", criterio = "todos", valor = "*") {
+    const raw = await carnetizacionApi.getPlantillaActiva(tipo, criterio, valor);
+    return plantillaMotorApiAEntidad(raw);
+  },
+
+  // --- Biblioteca de Medios (O44 - E4) ---
+  async listarBiblioteca(categoria) {
+    const raw = await carnetizacionApi.getBiblioteca(categoria);
+    return raw.map(elementoBibliotecaApiAEntidad);
+  },
+
+  async subirElementoBiblioteca(nombre, categoria, archivo, descripcion) {
+    const formData = new FormData();
+    formData.append("nombre", nombre);
+    formData.append("categoria", categoria);
+    formData.append("archivo", archivo);
+    if (descripcion) {
+      formData.append("descripcion", descripcion);
+    }
+    const raw = await carnetizacionApi.subirElementoBiblioteca(formData);
+    return elementoBibliotecaApiAEntidad(raw);
+  },
+
+  async eliminarElementoBiblioteca(id) {
+    return carnetizacionApi.eliminarElementoBiblioteca(id);
+  },
+
+  // --- Registro de Campos Autorizados y Personalizados (O44 - E5) ---
+  async listarCampos(tipo = "trabajador") {
+    const raw = await carnetizacionApi.getCampos(tipo);
+    return raw.map(campoCredencialApiAEntidad);
+  },
+
+  async crearCampoPersonalizado(campo) {
+    const raw = await carnetizacionApi.crearCampoPersonalizado(campo as unknown as Record<string, unknown>);
+    return campoCredencialApiAEntidad(raw);
+  },
+
+  async eliminarCampoPersonalizado(codigo) {
+    return carnetizacionApi.eliminarCampoPersonalizado(codigo);
+  },
+
+  // --- QR y Privacidad por Dato (O44 - E9) ---
+  async consultarFichaQr(securityHash) {
+    const raw = await carnetizacionApi.consultarFichaQr(securityHash);
+    return fichaQrApiAEntidad(raw);
+  },
+
+  async consultarSaludEmergencia(securityHash) {
+    const raw = await carnetizacionApi.consultarSaludEmergencia(securityHash);
+    return fichaQrApiAEntidad(raw);
+  },
+
+  async obtenerPreferenciasPrivacidad() {
+    return carnetizacionApi.getPreferenciasPrivacidad();
+  },
+
+  async guardarPreferenciasPrivacidad(preferencias) {
+    return carnetizacionApi.guardarPreferenciasPrivacidad(preferencias);
   },
 };

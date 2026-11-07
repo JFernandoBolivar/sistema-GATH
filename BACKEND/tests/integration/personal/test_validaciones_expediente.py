@@ -95,6 +95,83 @@ def test_los_dos_correos_no_pueden_ser_iguales():
     assert distintos.is_valid(), distintos.errors
 
 
+@pytest.mark.django_db
+def test_vivienda_condicional_por_pais():
+    """O40: Venezuela exige ubicación; otro país exige ciudad/región."""
+    from apps.catalogos.infrastructure.models.catalogo_models import PaisModel
+    from apps.catalogos.infrastructure.models.geografia_models import (
+        EstadoModel,
+        MunicipioModel,
+        ParroquiaModel,
+    )
+    from apps.personal.infrastructure.models.catalogos_soporte_models import (
+        CodigoPostalModel,
+        CondicionViviendaModel,
+    )
+    from apps.personal.infrastructure.serializers.empleado_escritura_serializers import (
+        DatosViviendaEscrituraSerializer,
+    )
+
+    venezuela, _ = PaisModel.objects.get_or_create(
+        codigo='VE', defaults={'nombre': 'Venezuela', 'es_venezuela': True},
+    )
+    extranjero = PaisModel.objects.create(nombre='Chile', codigo='CL', es_venezuela=False)
+    estado = EstadoModel.objects.create(estado='MIRANDA')
+    municipio = MunicipioModel.objects.create(municipio='LANDER', estadoid=estado)
+    parroquia = ParroquiaModel.objects.create(parroquia='LA DEMOCRACIA', municipioid=municipio)
+    codigo_postal = CodigoPostalModel.objects.create(codigo='1201', estado_id=estado)
+    condicion = CondicionViviendaModel.objects.create(condicion='ALQUILADA')
+
+    base = {
+        'direccion_exacta': 'Calle 5, casa 3, sector centro',
+        'condicion_vivienda': condicion.pk,
+    }
+    venezolana = DatosViviendaEscrituraSerializer(data={
+        **base,
+        'pais': venezuela.pk,
+        'estado': estado.pk,
+        'municipio': municipio.pk,
+        'parroquia': parroquia.pk,
+        'codigo_postal': codigo_postal.pk,
+    })
+    assert venezolana.is_valid(), venezolana.errors
+
+    venezolana_sin_ubicacion = DatosViviendaEscrituraSerializer(data={
+        **base, 'pais': venezuela.pk, 'ciudad_region': 'Caracas',
+    })
+    assert not venezolana_sin_ubicacion.is_valid()
+    assert 'estado' in venezolana_sin_ubicacion.errors
+
+    exterior = DatosViviendaEscrituraSerializer(data={
+        **base,
+        'pais': extranjero.pk,
+        'ciudad_region': 'Santiago de Chile',
+        'estado': estado.pk,
+        'municipio': municipio.pk,
+        'parroquia': parroquia.pk,
+        'codigo_postal': codigo_postal.pk,
+    })
+    assert exterior.is_valid(), exterior.errors
+    assert exterior.validated_data['estado'] is None
+    assert exterior.validated_data['ciudad_region'] == 'Santiago de Chile'
+
+    exterior_sin_ciudad = DatosViviendaEscrituraSerializer(data={
+        **base, 'pais': extranjero.pk,
+    })
+    assert not exterior_sin_ciudad.is_valid()
+    assert 'ciudad_region' in exterior_sin_ciudad.errors
+
+    sin_pais = DatosViviendaEscrituraSerializer(data={
+        **base,
+        'estado': estado.pk,
+        'municipio': municipio.pk,
+        'parroquia': parroquia.pk,
+        'codigo_postal': codigo_postal.pk,
+    })
+    assert sin_pais.is_valid(), sin_pais.errors
+    assert sin_pais.validated_data['pais'].pk == venezuela.pk
+
+
 def test_direccion_exacta_limita_longitud():
     from apps.personal.infrastructure.serializers.empleado_escritura_serializers import DatosViviendaEscrituraSerializer
 

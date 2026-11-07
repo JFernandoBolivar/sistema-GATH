@@ -115,22 +115,25 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
-      <PageHeader
-        titulo="Notificaciones"
-        descripcion="Aquí encuentra todos sus avisos, sin importar el módulo en que se generaron."
-        accion={
-          <Button
-            type="button"
-            size="lg"
-            disabled={pendiente || !hayNoLeidas}
-            onClick={marcarTodas}
-          >
-            <CheckCheck aria-hidden /> Marcar todas como leídas
-          </Button>
-        }
-      />
+      <div data-guia-id="notificaciones-cabecera">
+        <PageHeader
+          titulo="Notificaciones"
+          descripcion="Aquí encuentra todos sus avisos, sin importar el módulo en que se generaron."
+          accion={
+            <Button
+              type="button"
+              size="lg"
+              disabled={pendiente || !hayNoLeidas}
+              onClick={marcarTodas}
+            >
+              <CheckCheck aria-hidden /> Marcar todas como leídas
+            </Button>
+          }
+        />
+      </div>
 
       <form
+        data-guia-id="notificaciones-filtros"
         role="search"
         aria-label="Filtros de notificaciones"
         className="grid gap-4 rounded-xl border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
@@ -246,7 +249,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
         />
       ) : (
         <>
-          <ul className="flex flex-col gap-3" aria-label="Lista de notificaciones">
+          <ul data-guia-id="notificaciones-lista" className="flex flex-col gap-3" aria-label="Lista de notificaciones">
             {data.resultados.map((n) => (
               <NotificacionItem
                 key={n.id}
@@ -258,6 +261,7 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
             ))}
           </ul>
           <nav
+            data-guia-id="notificaciones-paginacion"
             aria-label="Paginación de notificaciones"
             className="flex flex-wrap items-center justify-between gap-3"
           >

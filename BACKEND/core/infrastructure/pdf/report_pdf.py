@@ -82,6 +82,8 @@ def generar_reporte_pdf(
         col_widths = [10 * mm, 17 * mm, 22 * mm, 30 * mm, 30 * mm, 22 * mm, 15 * mm, 30 * mm, 40 * mm, 45 * mm]
     elif columnas == ['#', 'cedula_empleado', 'nombre_empleado', 'cedula_familiar', 'nombre_familiar', 'parentesco', 'fecha_nacimiento', 'sexo']:
         col_widths = [10 * mm, 24 * mm, 48 * mm, 24 * mm, 48 * mm, 25 * mm, 25 * mm, 15 * mm]
+    elif columnas == ['#', 'cedula', 'nombres', 'apellidos', 'tipo_pasivo', 'pais', 'fecha_egreso', 'contacto']:
+        col_widths = [10 * mm, 22 * mm, 36 * mm, 36 * mm, 32 * mm, 24 * mm, 24 * mm, 50 * mm]
     elif columnas == ['#', 'cedula', 'nombres', 'apellidos', 'tipo_pasivo', 'fecha_egreso', 'contacto']:
         col_widths = [10 * mm, 24 * mm, 42 * mm, 42 * mm, 38 * mm, 26 * mm, 55 * mm]
     elif columnas == ['#', 'cedula', 'nombre_completo', 'fecha_ingreso', 'fecha_egreso', 'motivo_egreso', 'ultimo_cargo']:

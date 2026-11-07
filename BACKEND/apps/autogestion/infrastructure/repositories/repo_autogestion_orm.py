@@ -145,7 +145,7 @@ class RepoAutogestionORM:
     @staticmethod
     def _qs_vivienda_censo():
         return DatosViviendaModel.objects.select_related(
-            'estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal'
+            'pais', 'estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal'
         )
 
     @staticmethod
@@ -209,6 +209,13 @@ class RepoAutogestionORM:
         if vivienda:
             datos_vivienda = {
                 'id': vivienda.id,
+                'pais': {
+                    'id': vivienda.pais_id,
+                    'nombre': vivienda.pais.nombre if vivienda.pais else '',
+                    'codigo': vivienda.pais.codigo if vivienda.pais else '',
+                    'es_venezuela': bool(vivienda.pais.es_venezuela) if vivienda.pais else False,
+                } if vivienda.pais else None,
+                'ciudad_region': vivienda.ciudad_region,
                 'direccion_exacta': vivienda.direccion_exacta,
                 'estado': {
                     'id': vivienda.estado_id,
@@ -308,16 +315,22 @@ class RepoAutogestionORM:
             vivienda_defaults = {
                 'direccion_exacta': datos_vivienda.get('direccion_exacta', ''),
             }
-            if datos_vivienda.get('estado_id'):
-                vivienda_defaults['estado_id'] = datos_vivienda['estado_id']
-            if datos_vivienda.get('municipio_id'):
-                vivienda_defaults['municipio_id'] = datos_vivienda['municipio_id']
-            if datos_vivienda.get('parroquia'):
-                vivienda_defaults['parroquia_id'] = datos_vivienda['parroquia']
+            if 'pais_id' in datos_vivienda:
+                vivienda_defaults['pais_id'] = datos_vivienda.get('pais_id')
+            if 'ciudad_region' in datos_vivienda:
+                vivienda_defaults['ciudad_region'] = datos_vivienda.get('ciudad_region') or ''
+            if 'estado_id' in datos_vivienda:
+                vivienda_defaults['estado_id'] = datos_vivienda.get('estado_id')
+            if 'municipio_id' in datos_vivienda:
+                vivienda_defaults['municipio_id'] = datos_vivienda.get('municipio_id')
+            if 'parroquia' in datos_vivienda:
+                vivienda_defaults['parroquia_id'] = datos_vivienda.get('parroquia')
+            if 'parroquia_id' in datos_vivienda:
+                vivienda_defaults['parroquia_id'] = datos_vivienda.get('parroquia_id')
             if datos_vivienda.get('condicion_vivienda_id'):
                 vivienda_defaults['condicion_vivienda_id'] = datos_vivienda['condicion_vivienda_id']
-            if datos_vivienda.get('codigo_postal_id'):
-                vivienda_defaults['codigo_postal_id'] = datos_vivienda['codigo_postal_id']
+            if 'codigo_postal_id' in datos_vivienda:
+                vivienda_defaults['codigo_postal_id'] = datos_vivienda.get('codigo_postal_id')
 
             DatosViviendaModel.objects.update_or_create(
                 empleado_id=emp.id,

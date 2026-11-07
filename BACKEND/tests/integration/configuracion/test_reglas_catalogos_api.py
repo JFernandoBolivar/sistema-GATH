@@ -2,7 +2,12 @@
 import pytest
 from rest_framework.test import APIClient
 
+from apps.autogestion.infrastructure.models.soporte_config_models import (
+    ChecklistSoporteSeccionModel,
+    TipoSoporteDocumentoModel,
+)
 from apps.catalogos.infrastructure.models.catalogo_models import (
+    PaisModel,
     ParentescoModel,
     TipoNominaModel,
 )
@@ -13,6 +18,8 @@ BASE = '/api/v1/configuracion/reglas-catalogos'
 LISTA = f'{BASE}/'
 PARENTESCOS = f'{BASE}/parentescos/'
 NOMINAS = f'{BASE}/nominas/'
+PAISES = f'{BASE}/paises/'
+TIPOS_SOPORTE = f'{BASE}/tipos-soporte/'
 PERMISOS = ('configuracion.ver', 'configuracion.editar')
 
 
@@ -65,6 +72,47 @@ def test_crear_editar_y_eliminar_parentesco_sin_referencias():
     listado = api.get(LISTA)
     assert listado.status_code == 200
     assert all(p['descripcion'] != 'PRIMO' for p in data(listado)['parentescos'])
+
+
+def test_crear_editar_y_eliminar_pais():
+    api = cliente(*PERMISOS)
+
+    creado = api.post(PAISES, {'nombre': '  Chile ', 'codigo': 'cl'}, format='json')
+    assert creado.status_code == 201, creado.content
+    pais = data(creado)
+    assert pais['nombre'] == 'Chile'
+    assert pais['codigo'] == 'CL'
+    assert pais['es_venezuela'] is False
+
+    repetido = api.post(PAISES, {'nombre': 'chile', 'codigo': 'CHL'}, format='json')
+    assert repetido.status_code == 400
+    assert 'Ya existe' in repetido.json()['message']
+
+    editado = api.patch(
+        f"{PAISES}{pais['id']}/", {'nombre': 'República de Chile'}, format='json',
+    )
+    assert editado.status_code == 200, editado.content
+    assert data(editado)['nombre'] == 'República de Chile'
+
+    listado = api.get(LISTA)
+    assert listado.status_code == 200
+    assert any(p['codigo'] == 'CL' for p in data(listado)['paises'])
+
+    eliminado = api.delete(f"{PAISES}{pais['id']}/")
+    assert eliminado.status_code == 200, eliminado.content
+    assert not PaisModel.objects.filter(pk=pais['id']).exists()
+
+
+def test_el_pais_por_defecto_no_se_elimina():
+    venezuela = PaisModel.objects.create(
+        nombre='Venezuela', codigo='VE', es_venezuela=True,
+    )
+    api = cliente(*PERMISOS)
+
+    respuesta = api.delete(f'{PAISES}{venezuela.pk}/')
+    assert respuesta.status_code == 400
+    assert 'no puede eliminarse' in respuesta.json()['message']
+    assert PaisModel.objects.filter(pk=venezuela.pk).exists()
 
 
 def test_parentesco_reservado_no_se_renombra_ni_se_elimina():
@@ -137,3 +185,82 @@ def test_sin_permiso_de_crear_no_puede_dar_de_alta():
 
     assert api.post(PARENTESCOS, {'descripcion': 'PRIMO'}, format='json').status_code == 403
     assert api.post(NOMINAS, {'nomina': 'NUEVA'}, format='json').status_code == 403
+
+
+def test_tipos_de_soporte_crud_y_checklist_protegido():
+    api = cliente(*PERMISOS)
+    reservado = TipoSoporteDocumentoModel.objects.create(
+        codigo='CEDULA', nombre='Copia de la cédula', es_reservado=True, es_protegido=True, orden=10,
+    )
+    ChecklistSoporteSeccionModel.objects.create(
+        seccion='identidad', tipo_soporte=reservado, etiqueta='Copia de la cédula',
+        permitido=True, requerido=True, orden=10,
+    )
+
+    creado = api.post(
+        TIPOS_SOPORTE, {'codigo': 'certificado_medico', 'nombre': 'Certificado médico', 'orden': 70},
+        format='json',
+    )
+    assert creado.status_code == 201, creado.content
+    nuevo = data(creado)
+    assert nuevo['codigo'] == 'CERTIFICADO_MEDICO'
+    assert nuevo['es_reservado'] is False and nuevo['es_protegido'] is False
+
+    repetido = api.post(TIPOS_SOPORTE, {'codigo': 'CEDULA', 'nombre': 'Otra'}, format='json')
+    assert repetido.status_code == 400
+    assert 'Ya existe' in repetido.json()['message']
+
+    # El tipo exigido por la regla no puede quitarse del checklist.
+    quitar = api.put(
+        f'{TIPOS_SOPORTE}checklist/identidad/',
+        {'tipos': [{'tipo_soporte_id': nuevo['id'], 'permitido': True, 'requerido': False}]},
+        format='json',
+    )
+    assert quitar.status_code == 400
+    assert 'exigido por una regla' in quitar.json()['message']
+
+    # Sí puede agregarse un tipo nuevo junto al exigido.
+    guardado = api.put(
+        f'{TIPOS_SOPORTE}checklist/identidad/',
+        {'tipos': [
+            {'tipo_soporte_id': reservado.id, 'permitido': True, 'requerido': True},
+            {'tipo_soporte_id': nuevo['id'], 'permitido': True, 'requerido': False},
+        ]},
+        format='json',
+    )
+    assert guardado.status_code == 200, guardado.content
+    filas = {f['codigo']: f for f in data(guardado)}
+    assert filas['CEDULA']['permitido'] is True and filas['CERTIFICADO_MEDICO']['permitido'] is True
+
+    # No se puede eliminar mientras esté en el checklist.
+    en_uso = api.delete(f"{TIPOS_SOPORTE}{nuevo['id']}/")
+    assert en_uso.status_code == 400
+    assert 'checklist' in en_uso.json()['message']
+
+    # El reservado tampoco se elimina.
+    reservado_delete = api.delete(f'{TIPOS_SOPORTE}{reservado.id}/')
+    assert reservado_delete.status_code == 400
+    assert 'reservado' in reservado_delete.json()['message']
+
+    api.put(
+        f'{TIPOS_SOPORTE}checklist/identidad/',
+        {'tipos': [{'tipo_soporte_id': reservado.id, 'permitido': True, 'requerido': True}]},
+        format='json',
+    )
+    eliminado = api.delete(f"{TIPOS_SOPORTE}{nuevo['id']}/")
+    assert eliminado.status_code == 200, eliminado.content
+    assert not TipoSoporteDocumentoModel.objects.filter(pk=nuevo['id']).exists()
+
+    listado = data(api.get(LISTA))
+    assert any(t['codigo'] == 'CEDULA' for t in listado['tipos_soporte'])
+    assert any(f['seccion'] == 'identidad' for f in listado['checklist_soporte'])
+    assert any(s['codigo'] == 'identidad' for s in listado['secciones_soporte'])
+
+
+def test_checklist_de_seccion_inexistente_es_rechazado():
+    api = cliente(*PERMISOS)
+    respuesta = api.put(
+        f'{TIPOS_SOPORTE}checklist/no-existe/', {'tipos': []}, format='json',
+    )
+    assert respuesta.status_code == 400
+    assert 'no admite checklist' in respuesta.json()['message']

@@ -129,7 +129,7 @@ def test_reemplazar_la_foto_borra_la_anterior_del_almacen():
     sol = habilitar(m, solicitar(m, ('foto',)))
     for _ in range(2):
         adjuntar_soporte(
-            m.solicitudes, m.soportes, m.cambios, m.ficha, m.almacen, solicitud_id=sol.id, cedula=TRABAJADOR,
+            m.solicitudes, m.soportes, m.cambios, m.ficha, m.almacen, m.soporte_config, solicitud_id=sol.id, cedula=TRABAJADOR,
             seccion='foto', tipo='FOTO', contenido=b'\xff\xd8\xff data', mime='image/jpeg', extension='.jpg',
             nombre_original='yo.jpg', ahora=AHORA,
         )

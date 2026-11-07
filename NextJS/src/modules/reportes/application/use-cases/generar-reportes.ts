@@ -40,6 +40,7 @@ export async function generarReportePasivos(
     apellidos: e.apellidos,
     nombreCompleto: e.nombreCompleto,
     tipoPasivo: e.tipoPasivo,
+    pais: e.pais,
     fechaEgreso: e.fechaEgreso,
     contacto: e.contacto,
     tipoPersonal: e.tipoPersonal,

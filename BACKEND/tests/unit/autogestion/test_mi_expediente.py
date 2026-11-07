@@ -14,13 +14,17 @@ from apps.autogestion.application.use_cases.obtener_mi_expediente import (
 class RepoPortalMemoria:
     """Doble en memoria del puerto `RepoPortalTrabajador`."""
 
-    def __init__(self, empleados=None, familiares=None, carnets=None, previo=False, pdf=None):
+    def __init__(self, empleados=None, familiares=None, carnets=None, previo=False, pdf=None, puede_ver=True):
         self.empleados = empleados or {}
         self.familiares = familiares or {}
         self.carnets = carnets or {}
         self.previo = previo
         self.pdf = pdf
+        self.puede_ver = puede_ver
         self.emitidos = []
+
+    def puede_ver_carnet(self, cedula):
+        return self.puede_ver
 
     def obtener_empleado(self, cedula):
         return self.empleados.get(cedula)
@@ -188,3 +192,66 @@ def test_obtener_mi_carnet_pdf_sin_carnet_activo_lanza_not_found():
     with pytest.raises(NotFoundError):
         obtener_mi_carnet_pdf(RepoPortalMemoria(pdf=None), "V-1")
     assert obtener_mi_carnet_pdf(RepoPortalMemoria(pdf=b"%PDF"), "V-1") == b"%PDF"
+
+
+def test_mi_expediente_bloqueado_oculta_carnets_y_motivos():
+    mock_emp = MagicMock()
+    mock_emp.cedula = "V-12345678"
+    mock_carnet = MagicMock(activo=True)
+
+    repo = RepoPortalMemoria(
+        empleados={"V-12345678": mock_emp},
+        carnets={"V-12345678": [mock_carnet]},
+        puede_ver=False,
+    )
+    res = obtener_mi_expediente(repo, "V-12345678")
+    assert res.puede_ver_carnet is False
+    assert res.carnets == []
+    assert res.carnet_activo is None
+    assert res.motivos_carnet == []
+
+
+def test_solicitar_y_descargar_carnet_bloqueado_lanza_permission_denied():
+    from core.domain.exceptions import PermissionDeniedError
+    from apps.autogestion.application.use_cases.obtener_mi_expediente import (
+        solicitar_mi_carnet,
+        obtener_mi_carnet_pdf,
+    )
+
+    repo = RepoPortalMemoria(puede_ver=False, pdf=b"%PDF")
+    with pytest.raises(PermissionDeniedError):
+        solicitar_mi_carnet(repo, "V-1")
+
+    with pytest.raises(PermissionDeniedError):
+        obtener_mi_carnet_pdf(repo, "V-1")
+
+
+def test_politica_mi_carnet_evaluacion_reglas():
+    from apps.autogestion.domain.services.politica_mi_carnet import (
+        puede_acceder_mi_carnet,
+        parsear_usuarios_especificos,
+    )
+
+    # Nadie
+    assert puede_acceder_mi_carnet('nadie', 'ACTIVO', '12345678') is False
+    assert puede_acceder_mi_carnet('nadie', 'PASIVO', '12345678') is False
+
+    # Todos
+    assert puede_acceder_mi_carnet('todos', 'ACTIVO', '12345678') is True
+    assert puede_acceder_mi_carnet('todos', 'PASIVO', '12345678') is True
+
+    # Solo activos
+    assert puede_acceder_mi_carnet('activos', 'ACTIVO', '12345678') is True
+    assert puede_acceder_mi_carnet('activos', 'PASIVO', '12345678') is False
+
+    # Solo pasivos
+    assert puede_acceder_mi_carnet('pasivos', 'PASIVO', '12345678') is True
+    assert puede_acceder_mi_carnet('pasivos', 'ACTIVO', '12345678') is False
+
+    # Usuarios específicos
+    usuarios = parsear_usuarios_especificos('12345678, 87654321; 99999999')
+    assert puede_acceder_mi_carnet('usuarios_especificos', 'ACTIVO', '12345678', usuarios) is True
+    assert puede_acceder_mi_carnet('usuarios_especificos', 'ACTIVO', 'V-12345678', usuarios) is True
+    assert puede_acceder_mi_carnet('usuarios_especificos', 'PASIVO', '87654321', usuarios) is True
+    assert puede_acceder_mi_carnet('usuarios_especificos', 'ACTIVO', '11111111', usuarios) is False
+

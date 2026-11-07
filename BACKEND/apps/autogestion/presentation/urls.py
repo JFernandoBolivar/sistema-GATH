@@ -12,7 +12,10 @@ from apps.autogestion.presentation.views.autogestion_views import (
     SolicitarCarnetView,
 )
 
-from apps.autogestion.presentation.views.catalogos_views import CatalogoAutogestionView
+from apps.autogestion.presentation.views.catalogos_views import (
+    CatalogoAutogestionView,
+    TiposSoporteAutogestionView,
+)
 from apps.autogestion.presentation.views.guia_vista_views import GuiasVistasView
 from apps.autogestion.presentation.views.solicitud_bienestar_views import (
     BandejaView,
@@ -50,6 +53,7 @@ urlpatterns = [
     path('solicitudes/<uuid:solicitud_id>/soportes/<uuid:soporte_id>/', SoporteBorrarView.as_view(), name='solicitud-soporte-borrar'),
     path('solicitudes/<uuid:solicitud_id>/enviar/', EnviarSolicitudView.as_view(), name='solicitud-enviar'),
     path('soportes/<uuid:soporte_id>/archivo/', SoporteArchivoView.as_view(), name='soporte-archivo'),
+    path('catalogos/tipos-soporte/', TiposSoporteAutogestionView.as_view(), name='catalogo-tipos-soporte'),
     path('catalogos/<str:clave>/', CatalogoAutogestionView.as_view(), name='catalogo'),
     path('secciones/', SeccionesView.as_view(), name='secciones'),
     path('mi-politica/', MiPoliticaAutogestionView.as_view(), name='mi-politica'),

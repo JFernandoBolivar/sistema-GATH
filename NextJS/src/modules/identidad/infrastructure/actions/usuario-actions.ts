@@ -337,7 +337,7 @@ export async function getRolesAction() {
   }
 }
 
-export async function crearRolAction(input: { nombreRol: string; descripcionRol?: string | null }) {
+export async function crearRolAction(input: { nombreVisible: string; descripcionRol?: string | null }) {
   const validation = rolSchema.safeParse(input);
   if (!validation.success) {
     return {
@@ -359,7 +359,7 @@ export async function crearRolAction(input: { nombreRol: string; descripcionRol?
   }
 }
 
-export async function actualizarRolAction(id: number, input: { nombreRol: string; descripcionRol?: string | null }) {
+export async function actualizarRolAction(id: number, input: { nombreVisible: string; descripcionRol?: string | null }) {
   const idValido = rolIdSchema.safeParse({ rolId: id });
   const dataValida = rolSchema.safeParse(input);
   if (!idValido.success || !dataValida.success) {

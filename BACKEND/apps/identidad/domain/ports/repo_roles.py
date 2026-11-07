@@ -24,15 +24,21 @@ class RepoRoles(Protocol):
         ...
 
     def existe_nombre(self, nombre: str, excluir_id: int | None = None) -> bool:
-        """¿Ya existe un rol con ese nombre (comparación insensible a mayúsculas)?"""
+        """¿Ya existe un rol con ese código (comparación insensible a mayúsculas)?"""
         ...
 
-    def crear(self, nombre: str, descripcion: str) -> Rol:
-        """Da de alta un rol nuevo en el catálogo."""
+    def existe_nombre_visible(self, nombre_visible: str, excluir_id: int | None = None) -> bool:
+        """¿Ya existe un rol con ese nombre visible (insensible a mayúsculas)?"""
         ...
 
-    def actualizar(self, id: int, nombre: str | None, descripcion: str | None) -> Rol:
-        """Actualiza nombre y/o descripción de un rol existente."""
+    def crear(self, codigo: str, nombre_visible: str, descripcion: str) -> Rol:
+        """Da de alta un rol nuevo con su código interno ya generado."""
+        ...
+
+    def actualizar(
+        self, id: int, nombre_visible: str | None, descripcion: str | None
+    ) -> Rol:
+        """Actualiza nombre visible y/o descripción; el código nunca cambia."""
         ...
 
     def eliminar(self, id: int) -> None:

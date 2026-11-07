@@ -10,6 +10,11 @@ from rest_framework import serializers
 
 
 class DatosViviendaLecturaSerializer(serializers.Serializer):
+    pais_id = serializers.IntegerField(allow_null=True)
+    pais_nombre = serializers.CharField(allow_null=True, required=False)
+    pais_codigo = serializers.CharField(allow_null=True, required=False)
+    pais_es_venezuela = serializers.BooleanField(allow_null=True, required=False)
+    ciudad_region = serializers.CharField(allow_null=True, required=False)
     estado_id = serializers.IntegerField(allow_null=True)
     estado_nombre = serializers.CharField(allow_null=True, required=False)
     municipio_id = serializers.IntegerField(allow_null=True)

@@ -12,6 +12,7 @@ describe("acciones de las secciones de lista", () => {
     expect(seccionDeCampo(claveAccion("familiar", "CREAR"))).toBe("familiar");
     expect(seccionDeCampo(claveAccion("contacto_emergencia", "ELIMINAR"))).toBe("contacto");
     expect(seccionDeCampo(claveAccion("formacion_academica", "MODIFICAR"))).toBe("formacion");
+    expect(seccionDeCampo(claveAccion("antecedente_servicio", "CREAR"))).toBe("antecedentes");
     expect(seccionDeCampo("familiar.@BORRAR")).toBeUndefined();
     expect(seccionDeCampo("employee.@CREAR")).toBeUndefined();
   });
@@ -21,6 +22,9 @@ describe("acciones de las secciones de lista", () => {
     expect(etiquetaClaveCampo("familiar.@MODIFICAR")).toBe("Quiere corregir datos de un familiar");
     expect(etiquetaClaveCampo("contacto_emergencia.@ELIMINAR")).toBe(
       "Quiere quitar un contacto de emergencia",
+    );
+    expect(etiquetaClaveCampo("antecedente_servicio.@CREAR")).toBe(
+      "Quiere agregar un antecedente de servicio",
     );
   });
 

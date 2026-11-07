@@ -452,7 +452,7 @@ class RepoPersonalORM:
             empleado=empleado,
             defaults=self._normalizar_fks(
                 data,
-                ('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal'),
+                ('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal', 'pais'),
             ),
         )
 
@@ -633,6 +633,11 @@ class RepoPersonalORM:
     # ------------------------------------------------------------------
     def listar_politicas(self) -> list:
         return list(PoliticaModel.objects.all().order_by('tipo_politica'))
+
+    def listar_paises(self) -> list:
+        from apps.catalogos.infrastructure.models.catalogo_models import PaisModel
+
+        return list(PaisModel.objects.all().order_by('nombre'))
 
     def listar_condiciones_vivienda(self) -> list:
         return list(CondicionViviendaModel.objects.all().order_by('condicion'))

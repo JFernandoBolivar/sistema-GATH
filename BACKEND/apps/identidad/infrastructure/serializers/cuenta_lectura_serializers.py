@@ -24,6 +24,7 @@ class CuentaLecturaSerializer(serializers.Serializer):
     telefono = serializers.CharField(allow_null=True)
     rol_id = serializers.IntegerField(allow_null=True)
     rol_nombre = serializers.CharField(allow_null=True)
+    rol_nombre_visible = serializers.CharField(allow_null=True, required=False)
     is_active = serializers.BooleanField()
     ultimo_acceso = serializers.DateTimeField(allow_null=True)
     condicion = serializers.CharField(allow_null=True)
@@ -55,6 +56,7 @@ class PermisosDeUsuarioSerializer(serializers.Serializer):
 
     rol_id = serializers.IntegerField(allow_null=True)
     rol_nombre = serializers.CharField(allow_null=True)
+    rol_nombre_visible = serializers.CharField(allow_null=True, required=False)
     del_rol = serializers.ListField(child=serializers.CharField())
     allow = serializers.ListField(child=serializers.CharField())
     deny = serializers.ListField(child=serializers.CharField())

@@ -22,6 +22,7 @@ export function formatearFechaHora(iso: string | null | undefined): string {
 export type NombresCatalogo = Record<string, Record<number, string>>;
 
 const CATALOGO_POR_CAMPO: Record<string, string> = {
+  pais_id: "paises",
   estado_id: "estados",
   municipio_id: "municipios",
   parroquia_id: "parroquias",
@@ -45,6 +46,7 @@ const CATALOGO_POR_CAMPO: Record<string, string> = {
   talla_pantalon_id: "tallasPantalon",
   talla_zapatos_id: "tallasZapatos",
   talla_chaqueta_id: "tallasChaqueta",
+  organismo_id: "organismos",
 };
 
 /** Campos que guardan teléfonos (E.164): se muestran con código de país. */
@@ -74,8 +76,9 @@ export function formatearValor(
   }
   if (typeof valor === "string" && CAMPOS_TELEFONO.has(campo)) return formatearTelefono(valor);
   const clave = catalogoDeCampo(campo);
-  if (clave && typeof valor === "number") {
-    return nombres[clave]?.[valor] ?? `Código ${valor}`;
+  if (clave && (typeof valor === "number" || /^\d+$/.test(String(valor)))) {
+    const id = Number(valor);
+    return nombres[clave]?.[id] ?? `Código ${valor}`;
   }
   return String(valor);
 }

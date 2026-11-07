@@ -104,6 +104,10 @@ describe("authorize", () => {
     const usuario = await pendiente;
     expect(usuario?.permisos).toEqual(["autogestion.ver_propio"]);
     expect(usuario?.condicionTrabajador).toBe("ACTIVO");
-    expect(usuario?.role).toEqual({ id: 3, nombre_rol: "AUTOGESTION" });
+    expect(usuario?.role).toEqual({
+      id: 3,
+      nombre_rol: "AUTOGESTION",
+      nombre_visible: "AUTOGESTION",
+    });
   });
 });

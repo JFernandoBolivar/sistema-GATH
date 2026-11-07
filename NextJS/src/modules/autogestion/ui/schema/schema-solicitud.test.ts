@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  antecedenteSchema,
   contactoSchema,
   contactoEmergenciaSchema,
   complementariaSchema,
@@ -166,7 +167,12 @@ describe("viviendaSchema / formacionSchema", () => {
       codigo_postal_id: "5",
     });
     expect(ok.estado_id).toBe(1);
-    expect(viviendaSchema.safeParse({ ...ok, estado_id: "" }).success).toBe(false);
+    expect(viviendaSchema.safeParse({ ...ok, direccion_exacta: "" }).success).toBe(false);
+    // O40: la ubicación venezolana es opcional en el esquema; el formulario la
+    // exige según el país y el servidor la revalida.
+    expect(
+      viviendaSchema.safeParse({ ...ok, estado_id: "", ciudad_region: "Santiago" }).success,
+    ).toBe(true);
     expect(
       formacionSchema.parse({ nivel_academico_id: "2", carrera_id: "" }).carrera_id,
     ).toBeNull();
@@ -332,5 +338,31 @@ describe("salud y tallas (D21)", () => {
 
   it("las tallas son opcionales en el borrador", () => {
     expect(perfilFisicoSchema.safeParse({}).success).toBe(true);
+  });
+});
+
+describe("antecedentes de servicio (O37)", () => {
+  it("valida el esquema de antecedentes y su mapeo en ESQUEMAS_ENTIDAD", () => {
+    expect(
+      antecedenteSchema.safeParse({
+        organismo_id: 1,
+        fecha_ingreso: "2020-01-15",
+        fecha_egreso: "2022-06-30",
+      }).success,
+    ).toBe(true);
+    expect(
+      antecedenteSchema.safeParse({
+        organismo_id: 1,
+        fecha_ingreso: "2020-01-15",
+        fecha_egreso: "",
+      }).success,
+    ).toBe(true);
+    expect(
+      antecedenteSchema.safeParse({
+        organismo_id: "",
+        fecha_ingreso: "2020-01-15",
+      }).success,
+    ).toBe(false);
+    expect(esquemaDeEntidad("antecedentes", "antecedente_servicio")).not.toBeNull();
   });
 });

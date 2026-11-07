@@ -24,6 +24,7 @@ def _resumen(registro: RegistroAuditoria) -> RegistroAuditoriaDTO:
         actor_cedula=registro.actor_cedula,
         actor_nombre=registro.actor_nombre,
         actor_rol=registro.actor_rol,
+        actor_rol_visible=registro.actor_rol_visible or registro.actor_rol,
         modulo=registro.modulo,
         accion=registro.accion,
         recurso_tipo=registro.recurso_tipo,

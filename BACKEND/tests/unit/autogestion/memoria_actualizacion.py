@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from apps.autogestion.domain.entities.solicitud_actualizacion import SeccionAutogestionable
 from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES, EstadoSolicitud
 from core.domain.exceptions import ConflictError
+from core.domain.tipos_soporte import ChecklistSoporteConfigurado, TipoSoporteConfigurado
 
 AHORA = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
 TRABAJADOR = '20111234'
@@ -126,6 +127,7 @@ class RepoSeccionesMem:
             'familiar': SeccionAutogestionable('familiar', 'Familiares', True),
             'salud': SeccionAutogestionable('salud', 'Salud y tallas', False),
             'foto': SeccionAutogestionable('foto', 'Foto', False),
+            'antecedentes': SeccionAutogestionable('antecedentes', 'Antecedentes de servicio', True),
         }
 
     def listar(self, solo_activas=True):
@@ -137,6 +139,53 @@ class RepoSeccionesMem:
     def guardar(self, seccion):
         self.filas[seccion.codigo] = seccion
         return seccion
+
+
+class RepoSoporteConfiguracionMem:
+    """Doble del catálogo configurable con la misma semilla histórica (O41)."""
+
+    _TIPOS = (
+        ('TITULO', 'Título', 10), ('ACTA_NACIMIENTO', 'Partida de nacimiento', 20),
+        ('CEDULA', 'Copia de la cédula', 30), ('CONSTANCIA', 'Constancia', 40),
+        ('FOTO', 'Foto', 50), ('OTRO', 'Otro documento', 60),
+    )
+    _CHECKLIST = {
+        'identidad': ('CEDULA',),
+        'contacto': ('CONSTANCIA', 'OTRO'),
+        'vivienda': ('CONSTANCIA', 'OTRO'),
+        'formacion': ('TITULO', 'CONSTANCIA', 'OTRO'),
+        'complementaria': ('CONSTANCIA', 'OTRO'),
+        'familiar': ('CEDULA', 'ACTA_NACIMIENTO', 'CONSTANCIA', 'OTRO'),
+        'foto': ('FOTO',),
+        'antecedentes': ('CONSTANCIA', 'OTRO'),
+    }
+
+    def __init__(self):
+        self.tipos = [
+            TipoSoporteConfigurado(
+                id=i, codigo=codigo, nombre=nombre, es_reservado=True,
+                es_protegido=True, orden=orden,
+            )
+            for i, (codigo, nombre, orden) in enumerate(self._TIPOS, start=1)
+        ]
+        self.filas = []
+        for seccion, codigos in self._CHECKLIST.items():
+            for orden, codigo in enumerate(codigos, start=1):
+                tipo = next(t for t in self.tipos if t.codigo == codigo)
+                self.filas.append(ChecklistSoporteConfigurado(
+                    id=len(self.filas) + 1, seccion=seccion, tipo_soporte_id=tipo.id,
+                    codigo=tipo.codigo, nombre=tipo.nombre, etiqueta=tipo.nombre,
+                    permitido=True, requerido=True, orden=orden,
+                ))
+
+    def listar_tipos(self):
+        return list(self.tipos)
+
+    def listar_checklist(self):
+        return list(self.filas)
+
+    def checklist_de_seccion(self, seccion):
+        return [f for f in self.filas if f.seccion == seccion]
 
 
 class FichaMem:
@@ -215,3 +264,4 @@ class Mundo:
     def __init__(self):
         self.solicitudes, self.cambios, self.soportes = RepoSolicitudesMem(), RepoCambiosMem(), RepoSoportesMem()
         self.secciones, self.ficha, self.almacen, self.publicador = RepoSeccionesMem(), FichaMem(), AlmacenMem(), PublicadorMem()
+        self.soporte_config = RepoSoporteConfiguracionMem()

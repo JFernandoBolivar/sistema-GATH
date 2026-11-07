@@ -19,13 +19,18 @@ from apps.configuracion.presentation.views.parametros_views import (
     RecordatoriosFeDeVidaView,
 )
 from apps.configuracion.presentation.views.reglas_catalogos_views import (
+    ReglaChecklistSoporteView,
     ReglaMotivoCategoriaView,
     ReglaMotivoCrearView,
     ReglaMotivoDetailView,
     ReglaNominaCrearView,
     ReglaNominaUpdateView,
+    ReglaPaisCrearView,
+    ReglaPaisDetailView,
     ReglaParentescoCrearView,
     ReglaParentescoUpdateView,
+    ReglaTipoSoporteCrearView,
+    ReglaTipoSoporteDetailView,
     ReglasCatalogosListView,
 )
 
@@ -53,6 +58,12 @@ urlpatterns = [
     path('reglas-catalogos/motivos/', ReglaMotivoCrearView.as_view(), name='regla_motivo_crear'),
     path('reglas-catalogos/nominas/', ReglaNominaCrearView.as_view(), name='regla_nomina_crear'),
     path('reglas-catalogos/nominas/<int:id>/', ReglaNominaUpdateView.as_view(), name='regla_nomina_update'),
+    path('reglas-catalogos/paises/', ReglaPaisCrearView.as_view(), name='regla_pais_crear'),
+    path('reglas-catalogos/paises/<int:id>/', ReglaPaisDetailView.as_view(), name='regla_pais_detail'),
+    # Tipos de soporte documental y checklist por sección (O41)
+    path('reglas-catalogos/tipos-soporte/', ReglaTipoSoporteCrearView.as_view(), name='regla_tipo_soporte_crear'),
+    path('reglas-catalogos/tipos-soporte/<int:id>/', ReglaTipoSoporteDetailView.as_view(), name='regla_tipo_soporte_detail'),
+    path('reglas-catalogos/tipos-soporte/checklist/<str:seccion>/', ReglaChecklistSoporteView.as_view(), name='regla_checklist_soporte'),
     # Correo de acceso configurable y masivo (A7)
     path('correo-acceso/politica/', PoliticaCorreoAccesoView.as_view(), name='correo_acceso_politica'),
     path('correo-acceso/vista-previa/', VistaPreviaCorreoAccesoView.as_view(), name='correo_acceso_vista_previa'),

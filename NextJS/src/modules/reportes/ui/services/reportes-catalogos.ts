@@ -24,6 +24,7 @@ import {
   getMencionesAction,
   getMunicipiosAction,
   getNivelesAcademicosAction,
+  getPaisesAction,
   getParentescosAction,
   getParroquiasAction,
   getPatologiasAction,
@@ -53,6 +54,11 @@ const wrap = <T>(data: T): ApiResponse<T> => ({
   message: "OK",
   data,
 });
+
+export const getPaises = async () => {
+  const items = await getPaisesAction();
+  return wrap(items.map((p) => ({ id: p.id, nombre: p.nombre, codigo: p.codigo ?? null })));
+};
 
 export const getDependency = async () => {
   const items = await getDependenciasAction();

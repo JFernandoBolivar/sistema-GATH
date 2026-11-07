@@ -5,7 +5,10 @@
 import { z } from "zod";
 
 import type { ParametroDTO } from "../../application/dtos/parametro-dto";
-import { CLAVE_FE_DE_VIDA_RECORDATORIOS } from "../../domain/value-objects/claves-parametros";
+import {
+  CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+  CLAVE_FE_DE_VIDA_RECORDATORIOS,
+} from "../../domain/value-objects/claves-parametros";
 
 const MAX_DIAS_RECORDATORIO = 365;
 const MAX_RECORDATORIOS = 10;
@@ -22,6 +25,10 @@ export type ValorParametroForm = z.infer<typeof valorParametroSchema>;
 
 /** Devuelve el mensaje de error o `null` si el valor es válido para el parámetro. */
 export function validarValorParametro(parametro: ParametroDTO, valor: string): string | null {
+  if (parametro.clave === CLAVE_CARNETIZACION_MI_CARNET_USUARIOS) {
+    const limpio = (valor ?? "").trim();
+    return limpio.length > 255 ? "El valor no puede superar 255 caracteres." : null;
+  }
   const base = valorParametroSchema.safeParse({ valor });
   if (!base.success) {
     return base.error.issues[0]?.message ?? "Valor inválido.";

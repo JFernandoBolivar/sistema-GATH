@@ -151,6 +151,7 @@ def obtener_matriz(repo_permisos, repo_roles) -> MatrizPermisos:
         ColumnaRol(
             rol_id=rol.identificador,
             nombre=rol.nombre,
+            nombre_visible=rol.etiqueta,
             codigos=tuple(sorted(matriz.get(rol.identificador, frozenset()))),
         )
         for rol in repo_roles.listar()
@@ -201,6 +202,7 @@ def _permisos_de(repo_permisos, cuenta: Cuenta) -> PermisosUsuarioVista:
         return PermisosUsuarioVista(
             rol_id=cuenta.rol_id,
             rol_nombre=cuenta.rol_nombre,
+            rol_nombre_visible=cuenta.rol_nombre_visible or cuenta.rol_nombre,
             del_rol=(),
             allow=(),
             deny=(),
@@ -210,6 +212,7 @@ def _permisos_de(repo_permisos, cuenta: Cuenta) -> PermisosUsuarioVista:
     return PermisosUsuarioVista(
         rol_id=usuario.rol_id,
         rol_nombre=usuario.nombre_rol,
+        rol_nombre_visible=usuario.nombre_rol_visible or usuario.nombre_rol,
         del_rol=tuple(
             sorted(p.codigo.valor for p in repo_permisos.permisos_del_rol(usuario.rol_id))
         ) if usuario.rol_id is not None else (),

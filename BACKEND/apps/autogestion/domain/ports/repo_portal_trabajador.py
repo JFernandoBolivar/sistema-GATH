@@ -35,3 +35,7 @@ class RepoPortalTrabajador(Protocol):
     def generar_pdf_carnet_activo(self, cedula: str) -> bytes | None:
         """PDF del carnet activo del trabajador, o None si no tiene carnet activo."""
         ...
+
+    def puede_ver_carnet(self, cedula: str) -> bool:
+        """Determina si el trabajador tiene acceso a Mi carnet según la política del sistema."""
+        ...

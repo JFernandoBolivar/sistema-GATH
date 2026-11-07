@@ -20,8 +20,10 @@ export async function listarCatalogosExpediente(
       regionId: x.regionId ?? null,
       regionCodigo: x.regionCodigo ?? null,
       regionDescripcion: x.regionDescripcion ?? null,
+      esVenezuela: x.esVenezuela ?? null,
     }));
   return {
+    paises: mapCat(c.paises),
     estados: mapCat(c.estados),
     municipios: mapCat(c.municipios),
     parroquias: mapCat(c.parroquias),

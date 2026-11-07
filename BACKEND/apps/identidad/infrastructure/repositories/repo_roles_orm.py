@@ -6,8 +6,12 @@ Implementa el puerto `domain/ports/repo_roles.py` sobre `RolModel`
 escritura de `apps.identidad`, distinto del `RolEspejo` solo-lectura que usa
 la resolución de permisos.
 """
+from django.db import IntegrityError, transaction
+from django.db.models import Q
+
 from apps.identidad.domain.entities.rol import Rol
 from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
+from core.domain.exceptions import ConflictError
 
 
 def _rol_a_entidad(fila: RolModel) -> Rol:
@@ -16,6 +20,7 @@ def _rol_a_entidad(fila: RolModel) -> Rol:
         nombre=fila.nombre_rol,
         descripcion=fila.descripcion_rol or '',
         permisos=(),
+        nombre_visible=(fila.nombre_visible or '').strip(),
     )
 
 
@@ -35,17 +40,39 @@ class RepoRolesORM:
             qs = qs.exclude(pk=excluir_id)
         return qs.exists()
 
-    def crear(self, nombre: str, descripcion: str) -> Rol:
-        fila = RolModel.objects.create(nombre_rol=nombre, descripcion_rol=descripcion)
+    def existe_nombre_visible(self, nombre_visible: str, excluir_id: int | None = None) -> bool:
+        # Un rol sin nombre visible se muestra con su código: ese respaldo también cuenta.
+        sin_etiqueta = Q(nombre_visible__isnull=True) | Q(nombre_visible='')
+        qs = RolModel.objects.filter(
+            Q(nombre_visible__iexact=nombre_visible)
+            | (sin_etiqueta & Q(nombre_rol__iexact=nombre_visible))
+        )
+        if excluir_id is not None:
+            qs = qs.exclude(pk=excluir_id)
+        return qs.exists()
+
+    def crear(self, codigo: str, nombre_visible: str, descripcion: str) -> Rol:
+        try:
+            with transaction.atomic():
+                fila = RolModel.objects.create(
+                    nombre_rol=codigo, nombre_visible=nombre_visible, descripcion_rol=descripcion
+                )
+        except IntegrityError as exc:
+            raise ConflictError(
+                'Otro usuario creó un rol con ese nombre al mismo tiempo. Intente de nuevo.'
+            ) from exc
         return _rol_a_entidad(fila)
 
-    def actualizar(self, id: int, nombre: str | None, descripcion: str | None) -> Rol:
+    def actualizar(
+        self, id: int, nombre_visible: str | None, descripcion: str | None
+    ) -> Rol:
+        """Edita solo la etiqueta y la descripción; `nombre_rol` (código) no se toca."""
         fila = RolModel.objects.get(pk=id)
-        if nombre is not None:
-            fila.nombre_rol = nombre
+        if nombre_visible is not None:
+            fila.nombre_visible = nombre_visible
         if descripcion is not None:
             fila.descripcion_rol = descripcion
-        fila.save()
+        fila.save(update_fields=['nombre_visible', 'descripcion_rol'])
         return _rol_a_entidad(fila)
 
     def eliminar(self, id: int) -> None:

@@ -34,7 +34,7 @@ def filas_de(registros) -> list[dict]:
             '#': indice + 1,
             'fecha': _fecha_legible(r.fecha_hora),
             'usuario': f'{r.actor_cedula} {r.actor_nombre}'.strip() or '—',
-            'rol': r.actor_rol or '—',
+            'rol': r.actor_rol_visible or r.actor_rol or '—',
             'accion': r.accion,
             'modulo': r.modulo,
             'recurso': f'{r.recurso_tipo}#{r.recurso_id}'.strip('#') or '—',

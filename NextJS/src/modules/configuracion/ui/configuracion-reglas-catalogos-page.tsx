@@ -68,23 +68,33 @@ import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import type {
   ReglaMotivoDTO,
   ReglaNominaDTO,
+  ReglaPaisDTO,
   ReglaParentescoDTO,
+  ReglaTipoSoporteDTO,
   ReglasCatalogosCompletoDTO,
 } from "../application/dtos/reglas-catalogos-dto";
 import {
+  actualizarChecklistSoporteAction,
   actualizarMotivoAction,
   actualizarNominaAction,
+  actualizarPaisAction,
   actualizarParentescoAction,
+  actualizarTipoSoporteAction,
   cambiarCategoriaMotivoAction,
   crearMotivoAction,
   crearNominaAction,
+  crearPaisAction,
   crearParentescoAction,
+  crearTipoSoporteAction,
   editarParentescoAction,
   eliminarMotivoAction,
   eliminarNominaAction,
+  eliminarPaisAction,
   eliminarParentescoAction,
+  eliminarTipoSoporteAction,
   obtenerReglasCatalogosAction,
 } from "../infrastructure/actions/reglas-catalogos-actions";
+import { ChecklistSoporteSeccion } from "./checklist-soporte-seccion";
 import { PERMISO_CONFIGURACION } from "../domain/value-objects/permisos-configuracion";
 
 const PERMISO_VER = "configuracion.ver";
@@ -155,6 +165,15 @@ export function ConfiguracionReglasCatalogosPage() {
   const [errorDialogoParentesco, setErrorDialogoParentesco] = useState<string | null>(null);
   const [eliminarParentesco, setEliminarParentesco] = useState<ReglaParentescoDTO | null>(null);
 
+  const [dialogoPais, setDialogoPais] = useState<{
+    modo: "crear" | "editar";
+    pais: ReglaPaisDTO | null;
+    nombre: string;
+    codigo: string;
+  } | null>(null);
+  const [errorDialogoPais, setErrorDialogoPais] = useState<string | null>(null);
+  const [eliminarPais, setEliminarPais] = useState<ReglaPaisDTO | null>(null);
+
   const [dialogoNomina, setDialogoNomina] = useState<{
     modo: "crear" | "editar";
     nomina: ReglaNominaDTO | null;
@@ -164,6 +183,17 @@ export function ConfiguracionReglasCatalogosPage() {
   } | null>(null);
   const [errorDialogoNomina, setErrorDialogoNomina] = useState<string | null>(null);
   const [eliminarNomina, setEliminarNomina] = useState<ReglaNominaDTO | null>(null);
+
+  // O41: tipos de soporte documental
+  const [dialogoTipoSoporte, setDialogoTipoSoporte] = useState<{
+    modo: "crear" | "editar";
+    tipo: ReglaTipoSoporteDTO | null;
+    codigo: string;
+    nombre: string;
+    orden: string;
+  } | null>(null);
+  const [errorDialogoTipoSoporte, setErrorDialogoTipoSoporte] = useState<string | null>(null);
+  const [eliminarTipoSoporte, setEliminarTipoSoporte] = useState<ReglaTipoSoporteDTO | null>(null);
 
   const { data, isLoading, mutate } = useSWR(
     puedeVer ? "configuracion-reglas-catalogos" : null,
@@ -380,6 +410,50 @@ export function ConfiguracionReglasCatalogosPage() {
     });
   };
 
+  const handleGuardarDialogoPais = () => {
+    if (!dialogoPais) return;
+    const nombre = dialogoPais.nombre.trim();
+    const codigo = dialogoPais.codigo.trim().toUpperCase();
+    if (nombre.length < 2) {
+      setErrorDialogoPais("El nombre del país debe tener al menos 2 caracteres.");
+      return;
+    }
+    if (!/^[A-Za-z]{2,3}$/.test(codigo)) {
+      setErrorDialogoPais("El código del país debe tener 2 o 3 letras.");
+      return;
+    }
+    setErrorDialogoPais(null);
+    const { modo, pais } = dialogoPais;
+    startTransition(async () => {
+      const res =
+        modo === "crear"
+          ? await crearPaisAction(nombre, codigo)
+          : await actualizarPaisAction(pais?.id ?? 0, { nombre, codigo });
+      if (esError(res)) {
+        setErrorDialogoPais(res.error);
+        return;
+      }
+      toast.success(modo === "crear" ? "País creado." : "País actualizado.");
+      setDialogoPais(null);
+      mutate();
+    });
+  };
+
+  const handleEliminarPais = () => {
+    if (!eliminarPais) return;
+    const pais = eliminarPais;
+    setEliminarPais(null);
+    startTransition(async () => {
+      const res = await eliminarPaisAction(pais.id);
+      if (esError(res)) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`País «${pais.nombre}» eliminado.`);
+      mutate();
+    });
+  };
+
   const handleEliminarNomina = () => {
     if (!eliminarNomina) return;
     const nomina = eliminarNomina;
@@ -391,6 +465,74 @@ export function ConfiguracionReglasCatalogosPage() {
         return;
       }
       toast.success(`Nómina «${nomina.nomina}» eliminada.`);
+      mutate();
+    });
+  };
+
+  const handleGuardarDialogoTipoSoporte = () => {
+    if (!dialogoTipoSoporte) return;
+    const codigo = dialogoTipoSoporte.codigo.trim().toUpperCase();
+    const nombre = dialogoTipoSoporte.nombre.trim();
+    const orden = Number.parseInt(dialogoTipoSoporte.orden || "0", 10) || 0;
+    if (!/^[A-Z0-9_]{2,40}$/.test(codigo)) {
+      setErrorDialogoTipoSoporte(
+        "El código debe tener entre 2 y 40 letras, números o guion bajo.",
+      );
+      return;
+    }
+    if (nombre.length < 2) {
+      setErrorDialogoTipoSoporte("El nombre debe tener al menos 2 caracteres.");
+      return;
+    }
+    setErrorDialogoTipoSoporte(null);
+    const { modo, tipo } = dialogoTipoSoporte;
+    startTransition(async () => {
+      const res =
+        modo === "crear"
+          ? await crearTipoSoporteAction(codigo, nombre, orden)
+          : await actualizarTipoSoporteAction(tipo?.id ?? 0, {
+              ...(tipo && !tipo.es_reservado && !tipo.es_protegido ? { codigo } : {}),
+              nombre,
+              orden,
+            });
+      if (esError(res)) {
+        setErrorDialogoTipoSoporte(res.error);
+        return;
+      }
+      toast.success(
+        modo === "crear" ? "Tipo de soporte creado." : "Tipo de soporte actualizado.",
+      );
+      setDialogoTipoSoporte(null);
+      mutate();
+    });
+  };
+
+  const handleEliminarTipoSoporte = () => {
+    if (!eliminarTipoSoporte) return;
+    const tipo = eliminarTipoSoporte;
+    setEliminarTipoSoporte(null);
+    startTransition(async () => {
+      const res = await eliminarTipoSoporteAction(tipo.id);
+      if (esError(res)) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`Tipo de soporte «${tipo.nombre}» eliminado.`);
+      mutate();
+    });
+  };
+
+  const handleGuardarChecklistSoporte = (
+    seccion: string,
+    entradas: { tipo_soporte_id: number; permitido: boolean; requerido: boolean }[],
+  ) => {
+    startTransition(async () => {
+      const res = await actualizarChecklistSoporteAction(seccion, entradas);
+      if (esError(res)) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Checklist de la sección actualizado.");
       mutate();
     });
   };
@@ -414,7 +556,7 @@ export function ConfiguracionReglasCatalogosPage() {
       description="Control y configuración de marcas de tablas maestras que gobiernan reglas operativas del sistema."
     >
       <Tabs defaultValue="parentescos" className="w-full space-y-6">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 max-w-xl !h-auto sm:!h-9 group-data-[orientation=horizontal]/tabs:!h-auto sm:group-data-[orientation=horizontal]/tabs:!h-9 p-1 gap-1 sm:gap-0">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-5 max-w-3xl !h-auto sm:!h-9 group-data-[orientation=horizontal]/tabs:!h-auto sm:group-data-[orientation=horizontal]/tabs:!h-9 p-1 gap-1 sm:gap-0">
           <TabsTrigger
             value="parentescos"
             className="!h-auto sm:!h-full py-2 sm:py-0 px-3 text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center min-h-[40px] sm:min-h-0"
@@ -432,6 +574,18 @@ export function ConfiguracionReglasCatalogosPage() {
             className="!h-auto sm:!h-full py-2 sm:py-0 px-3 text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center min-h-[40px] sm:min-h-0"
           >
             Tipos de Nómina
+          </TabsTrigger>
+          <TabsTrigger
+            value="paises"
+            className="!h-auto sm:!h-full py-2 sm:py-0 px-3 text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center min-h-[40px] sm:min-h-0"
+          >
+            Países
+          </TabsTrigger>
+          <TabsTrigger
+            value="soportes"
+            className="!h-auto sm:!h-full py-2 sm:py-0 px-3 text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center min-h-[40px] sm:min-h-0"
+          >
+            Tipos de soporte
           </TabsTrigger>
         </TabsList>
 
@@ -895,6 +1049,280 @@ export function ConfiguracionReglasCatalogosPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* PESTAÑA 4: PAÍSES (O40) */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="paises" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">Países de residencia</CardTitle>
+                <CardDescription>
+                  Catálogo de países para la vivienda de los pasivos. Venezuela es el país por
+                  defecto y no puede eliminarse; un país con viviendas registradas tampoco.
+                </CardDescription>
+              </div>
+              {puedeEditar && (
+                <Button
+                  className="shrink-0"
+                  onClick={() => {
+                    setErrorDialogoPais(null);
+                    setDialogoPais({
+                      modo: "crear",
+                      pais: null,
+                      nombre: "",
+                      codigo: "",
+                    });
+                  }}
+                >
+                  <Plus className="mr-2 size-4" /> Nuevo país
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table className="min-w-[560px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">ID</TableHead>
+                        <TableHead>País</TableHead>
+                        <TableHead className="w-[120px]">Código</TableHead>
+                        <TableHead className="w-[160px]">Condición</TableHead>
+                        <TableHead className="text-right w-[120px]">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(data?.paises ?? []).map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-mono text-xs">{p.id}</TableCell>
+                          <TableCell className="font-medium">
+                            <span className="inline-flex items-center gap-2">
+                              {p.nombre}
+                              {p.es_venezuela && (
+                                <span title="País por defecto del sistema">
+                                  <Lock className="size-3.5 text-amber-500" aria-hidden="true" />
+                                </span>
+                              )}
+                            </span>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{p.codigo}</TableCell>
+                          <TableCell>
+                            {p.es_venezuela ? (
+                              <Badge variant="secondary" className="text-xs">
+                                Por defecto
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                Otro país
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Editar ${p.nombre}`}
+                                disabled={!puedeEditar || isPending}
+                                onClick={() => {
+                                  setErrorDialogoPais(null);
+                                  setDialogoPais({
+                                    modo: "editar",
+                                    pais: p,
+                                    nombre: p.nombre,
+                                    codigo: p.codigo,
+                                  });
+                                }}
+                              >
+                                <Pencil className="size-4" aria-hidden="true" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Eliminar ${p.nombre}`}
+                                disabled={!puedeEditar || isPending || p.es_venezuela}
+                                onClick={() => setEliminarPais(p)}
+                              >
+                                <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ------------------------------------------------------------- */}
+        {/* PESTAÑA 5: TIPOS DE SOPORTE (O41) */}
+        {/* ------------------------------------------------------------- */}
+        <TabsContent value="soportes" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle className="text-lg">Tipos de documento y checklist por sección</CardTitle>
+                <CardDescription>
+                  Catálogo de documentos que el trabajador puede adjuntar. Los tipos reservados
+                  los usan las reglas del sistema y no se eliminan; los exigidos por una regla
+                  tampoco se quitan del checklist de su sección.
+                </CardDescription>
+              </div>
+              {puedeEditar && (
+                <Button
+                  className="shrink-0"
+                  onClick={() => {
+                    setErrorDialogoTipoSoporte(null);
+                    setDialogoTipoSoporte({
+                      modo: "crear",
+                      tipo: null,
+                      codigo: "",
+                      nombre: "",
+                      orden: "0",
+                    });
+                  }}
+                >
+                  <Plus className="mr-2 size-4" /> Nuevo tipo
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : (
+                <div className="rounded-md border overflow-x-auto">
+                  <Table className="min-w-[720px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[70px]">ID</TableHead>
+                        <TableHead className="w-[190px]">Código</TableHead>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead className="w-[170px]">Protección</TableHead>
+                        <TableHead className="w-[90px]">Orden</TableHead>
+                        <TableHead className="text-right w-[120px]">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(data?.tipos_soporte ?? []).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="py-4 text-center text-xs text-muted-foreground">
+                            No hay tipos de documento configurados.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        data?.tipos_soporte.map((tipo) => {
+                          const protegido = tipo.es_reservado || tipo.es_protegido;
+                          return (
+                            <TableRow key={tipo.id}>
+                              <TableCell className="font-mono text-xs">{tipo.id}</TableCell>
+                              <TableCell className="font-mono text-xs">{tipo.codigo}</TableCell>
+                              <TableCell className="font-medium">{tipo.nombre}</TableCell>
+                              <TableCell>
+                                {protegido ? (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Lock className="mr-1 size-3" aria-hidden /> Reservado
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                                    Configurable
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{tipo.orden}</TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Editar ${tipo.nombre}`}
+                                    disabled={!puedeEditar || isPending}
+                                    onClick={() => {
+                                      setErrorDialogoTipoSoporte(null);
+                                      setDialogoTipoSoporte({
+                                        modo: "editar",
+                                        tipo,
+                                        codigo: tipo.codigo,
+                                        nombre: tipo.nombre,
+                                        orden: String(tipo.orden),
+                                      });
+                                    }}
+                                  >
+                                    <Pencil className="size-4" aria-hidden="true" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Eliminar ${tipo.nombre}`}
+                                    disabled={!puedeEditar || isPending || protegido}
+                                    onClick={() => setEliminarTipoSoporte(tipo)}
+                                  >
+                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Checklist por sección</CardTitle>
+              <CardDescription>
+                Qué documentos acepta cada sección de la solicitud y cuáles exige una regla.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              ) : (
+                (data?.secciones_soporte ?? []).map((seccion) => (
+                  <ChecklistSoporteSeccion
+                    key={`${seccion.codigo}-${JSON.stringify(
+                      (data?.checklist_soporte ?? []).filter((f) => f.seccion === seccion.codigo),
+                    )}`}
+                    seccion={seccion}
+                    tipos={data?.tipos_soporte ?? []}
+                    filas={(data?.checklist_soporte ?? []).filter(
+                      (f) => f.seccion === seccion.codigo,
+                    )}
+                    puedeEditar={puedeEditar}
+                    pendiente={isPending}
+                    onGuardar={handleGuardarChecklistSoporte}
+                  />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* ------------------------------------------------------------- */}
@@ -1031,6 +1459,183 @@ export function ConfiguracionReglasCatalogosPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* O40: alta/edición de país */}
+      <Dialog
+        open={dialogoPais !== null}
+        onOpenChange={(open) => !open && setDialogoPais(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogoPais?.modo === "crear" ? "Nuevo país" : "Editar país"}
+            </DialogTitle>
+            <DialogDescription>
+              El código ISO tiene 2 o 3 letras y no se repite. Venezuela es el país por defecto
+              y no puede eliminarse.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="pais-nombre">Nombre del país</Label>
+              <Input
+                id="pais-nombre"
+                value={dialogoPais?.nombre ?? ""}
+                maxLength={100}
+                onChange={(e) =>
+                  setDialogoPais((previo) =>
+                    previo ? { ...previo, nombre: e.target.value } : previo,
+                  )
+                }
+                aria-invalid={!!errorDialogoPais}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="pais-codigo">Código ISO</Label>
+              <Input
+                id="pais-codigo"
+                value={dialogoPais?.codigo ?? ""}
+                maxLength={3}
+                onChange={(e) =>
+                  setDialogoPais((previo) =>
+                    previo ? { ...previo, codigo: e.target.value.toUpperCase() } : previo,
+                  )
+                }
+                aria-invalid={!!errorDialogoPais}
+              />
+            </div>
+            {errorDialogoPais && (
+              <p role="alert" className="text-sm text-destructive">{errorDialogoPais}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDialogoPais(null)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleGuardarDialogoPais} disabled={isPending}>
+              {dialogoPais?.modo === "crear" ? "Crear" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* O40: baja de país */}
+      <AlertDialog
+        open={eliminarPais !== null}
+        onOpenChange={(open) => !open && setEliminarPais(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar país</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar el país <strong>{eliminarPais?.nombre}</strong>? Solo se permite si
+              ninguna vivienda lo usa; si tiene registros, el sistema lo bloqueará.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEliminarPais}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* O41: alta/edición de tipo de soporte */}
+      <Dialog
+        open={dialogoTipoSoporte !== null}
+        onOpenChange={(open) => !open && setDialogoTipoSoporte(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {dialogoTipoSoporte?.modo === "crear" ? "Nuevo tipo de soporte" : "Editar tipo de soporte"}
+            </DialogTitle>
+            <DialogDescription>
+              El código es estable y único (letras, números o guion bajo). Los tipos reservados
+              del sistema no cambian de código ni se eliminan.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="tipo-soporte-codigo">Código</Label>
+              <Input
+                id="tipo-soporte-codigo"
+                value={dialogoTipoSoporte?.codigo ?? ""}
+                maxLength={40}
+                disabled={
+                  dialogoTipoSoporte?.modo === "editar" &&
+                  (dialogoTipoSoporte?.tipo?.es_reservado === true ||
+                    dialogoTipoSoporte?.tipo?.es_protegido === true)
+                }
+                onChange={(e) =>
+                  setDialogoTipoSoporte((previo) =>
+                    previo ? { ...previo, codigo: e.target.value.toUpperCase() } : previo,
+                  )
+                }
+                aria-invalid={!!errorDialogoTipoSoporte}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="tipo-soporte-nombre">Nombre visible</Label>
+              <Input
+                id="tipo-soporte-nombre"
+                value={dialogoTipoSoporte?.nombre ?? ""}
+                maxLength={100}
+                onChange={(e) =>
+                  setDialogoTipoSoporte((previo) =>
+                    previo ? { ...previo, nombre: e.target.value } : previo,
+                  )
+                }
+                aria-invalid={!!errorDialogoTipoSoporte}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="tipo-soporte-orden">Orden</Label>
+              <Input
+                id="tipo-soporte-orden"
+                type="number"
+                min={0}
+                value={dialogoTipoSoporte?.orden ?? "0"}
+                onChange={(e) =>
+                  setDialogoTipoSoporte((previo) =>
+                    previo ? { ...previo, orden: e.target.value } : previo,
+                  )
+                }
+              />
+            </div>
+            {errorDialogoTipoSoporte && (
+              <p role="alert" className="text-sm text-destructive">{errorDialogoTipoSoporte}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDialogoTipoSoporte(null)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleGuardarDialogoTipoSoporte} disabled={isPending}>
+              {dialogoTipoSoporte?.modo === "crear" ? "Crear" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* O41: baja de tipo de soporte */}
+      <AlertDialog
+        open={eliminarTipoSoporte !== null}
+        onOpenChange={(open) => !open && setEliminarTipoSoporte(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar tipo de soporte</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Eliminar el tipo <strong>{eliminarTipoSoporte?.nombre}</strong>? Solo se permite
+              si no está en el checklist de ninguna sección; si lo está, el sistema lo bloqueará.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleEliminarTipoSoporte}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* O36: baja de parentesco */}
       <AlertDialog

@@ -59,3 +59,22 @@ class RepoPortalTrabajadorORM:
         if carnet is None:
             return None
         return RepoCarnetizacionORM().generar_pdf(carnet.pk)
+
+    def puede_ver_carnet(self, cedula: str) -> bool:
+        from apps.autogestion.domain.services.politica_mi_carnet import (
+            parsear_usuarios_especificos,
+            puede_acceder_mi_carnet,
+        )
+        from apps.autogestion.infrastructure.politica_autogestion import condicion_de
+        from core.domain.configuracion import (
+            CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+            CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+        )
+        from core.infrastructure.providers import obtener_lector_configuracion
+
+        lector = obtener_lector_configuracion()
+        alcance = lector.obtener_texto(CLAVE_CARNETIZACION_MI_CARNET_ALCANCE) if lector else 'nadie'
+        usuarios_raw = lector.obtener_texto(CLAVE_CARNETIZACION_MI_CARNET_USUARIOS) if lector else ''
+        usuarios = parsear_usuarios_especificos(usuarios_raw)
+        condicion = condicion_de(cedula)
+        return puede_acceder_mi_carnet(alcance, condicion, cedula, usuarios)

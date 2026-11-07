@@ -21,6 +21,7 @@ export interface UsuarioApiItem {
   telefono: string | null;
   rol_id: number | null;
   rol_nombre: string | null;
+  rol_nombre_visible?: string | null;
   is_active: boolean;
   ultimo_acceso: string | null;
   condicion: string | null;
@@ -30,6 +31,7 @@ export interface UsuarioApiItem {
 export interface PermisosUsuarioApiItem {
   rol_id: number | null;
   rol_nombre: string | null;
+  rol_nombre_visible?: string | null;
   del_rol: string[];
   allow: string[];
   deny: string[];
@@ -58,6 +60,7 @@ export interface FilaMatrizApiItem {
 export interface ColumnaRolMatrizApiItem {
   rol_id: number;
   nombre: string;
+  nombre_visible?: string;
   codigos: string[];
 }
 
@@ -69,6 +72,7 @@ export interface MatrizPermisosApi {
 export interface RolApiItem {
   id: number;
   nombre_rol: string;
+  nombre_visible?: string;
   descripcion_rol: string;
   n_usuarios?: number;
   n_permisos?: number;
@@ -90,8 +94,9 @@ export type EditarUsuarioBody = {
   motivo?: string;
 };
 
+/** El código (`nombre_rol`) lo genera el servidor y no se envía nunca. */
 export type RolBody = {
-  nombre_rol: string;
+  nombre_visible?: string;
   descripcion_rol?: string | null;
 };
 

@@ -186,4 +186,19 @@ class NacionalidadModel(models.Model):
         return f"{self.codigo} - {self.nombre}"
 
 
+class PaisModel(models.Model):
+    """Catálogo de países (O40). Venezuela se siembra como país por defecto."""
 
+    nombre = models.CharField(max_length=100, unique=True)
+    codigo = models.CharField(max_length=3, unique=True)
+    es_venezuela = models.BooleanField(default=False)
+
+    class Meta:
+        managed = False
+        db_table = 'Pais'
+        ordering = ['nombre']
+        verbose_name = 'país'
+        verbose_name_plural = 'países'
+
+    def __str__(self) -> str:
+        return self.nombre

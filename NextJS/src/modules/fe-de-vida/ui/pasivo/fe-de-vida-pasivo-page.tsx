@@ -18,7 +18,8 @@ import {
 import { AvisoConectividad } from "../comun/aviso-conectividad";
 import { formatearFechaHora } from "../comun/formato";
 import { FormularioFeDeVida } from "./formulario-fe-de-vida";
-import { BotonVerGuia, PanelGuiaFeDeVida } from "./panel-guia-fe-de-vida";
+import { PanelGuiaFeDeVida } from "./panel-guia-fe-de-vida";
+import { useRegistrarGuia } from "@/modules/autogestion/ui/guias/contexto-guia";
 import { SeguimientoSolicitud } from "./seguimiento-solicitud";
 
 /** Fe de vida del pasivo: proceso vigente, formulario por pasos o seguimiento de su solicitud. */
@@ -27,6 +28,7 @@ export default function FeDeVidaPasivoPage() {
   const [guiaManual, setGuiaManual] = useState(false);
   const [autoCerrada, setAutoCerrada] = useState(false);
   const [iniciando, iniciar] = useTransition();
+  useRegistrarGuia(() => setGuiaManual(true));
 
   const vigente = useSWR("fe-de-vida-vigente", async () => {
     const res = await obtenerVigenteAction();
@@ -63,7 +65,6 @@ export default function FeDeVidaPasivoPage() {
 
   const accionesCabecera = (
     <div className="flex flex-wrap items-center gap-2">
-      <BotonVerGuia onClick={() => setGuiaManual(true)} className="min-h-11" />
       {historial}
     </div>
   );

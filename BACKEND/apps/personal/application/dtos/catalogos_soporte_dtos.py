@@ -16,6 +16,7 @@ class CatalogoItemDTO:
     region_id: int | None = None
     region_codigo: str | None = None
     region_descripcion: str | None = None
+    es_venezuela: bool | None = None
     extra: dict = field(default_factory=dict)
 
 

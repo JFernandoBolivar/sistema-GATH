@@ -45,6 +45,9 @@ import {
   getCodigosPostalesAction,
 } from "@/modules/autogestion/infrastructure/actions/autogestion-actions";
 import { buildSchema } from "@/modules/autogestion/ui/schema/schema-autogestion";
+import { GUIA_CENSO_VIVIENDA } from "@/modules/autogestion/ui/guias/definiciones-guias";
+import { useRegistrarGuia } from "@/modules/autogestion/ui/guias/contexto-guia";
+import { useGuia } from "@/shared/ui/guias";
 import InputForm from "@/components/input-form";
 import RadioGroupForm from "@/components/form-radio-group";
 import CheckboxForm from "@/components/form-checkbox";
@@ -128,6 +131,10 @@ export default function AutogestionPage() {
     censoData.data[0]?.preguntas?.length > 0;
   const miCenso = Array.isArray(censoData?.data) ? censoData.data[0] : null;
   const isLoading = isLoadingCedula || isLoadingCenso || isLoadingPreguntas;
+
+  const { iniciarGuia } = useGuia({ guia: GUIA_CENSO_VIVIENDA, autoIniciar: true });
+  // La guía acompaña al formulario; en el resumen de «ya respondió» no aplica.
+  useRegistrarGuia(!isLoading && (!yaRespondio || isDev) ? iniciarGuia : null);
 
   const onSubmit = (values: DynamicFormValues) => {
     startTransition(async () => {
@@ -317,7 +324,7 @@ export default function AutogestionPage() {
               </div>
             )}
 
-            <div className="mb-8 text-center">
+            <div data-guia-id="censo-cabecera" className="mb-8 text-center">
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
                 AUTOGESTIÓN DE PERSONAL
               </h1>
@@ -326,7 +333,7 @@ export default function AutogestionPage() {
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
+              <form data-guia-id="censo-preguntas" onSubmit={form.handleSubmit(onSubmit)} className="grid gap-6">
                 {preguntasPrincipales.map((pregunta) => {
                   const tipo =
                     typeof pregunta.tipo === "string" ? pregunta.tipo : pregunta.tipo?.nombre;
@@ -407,7 +414,7 @@ export default function AutogestionPage() {
 
                 <h2 className="text-lg font-bold">Datos de Vivienda *</h2>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div data-guia-id="censo-vivienda" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name={"datos_vivienda.estado_id" as FieldPath<DynamicFormValues>}
@@ -638,6 +645,7 @@ export default function AutogestionPage() {
                 </p>
 
                 <Button
+                  data-guia-id="censo-enviar"
                   type="submit"
                   disabled={isPending}
                   className="w-full py-6 text-base font-semibold cursor-pointer"

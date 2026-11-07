@@ -8,24 +8,40 @@ from typing import Sequence
 from apps.configuracion.domain.ports.repo_reglas_catalogos import RepoReglasCatalogos
 from apps.configuracion.domain.reglas_catalogos import (
     CategoriaMotivoItem,
+    ReglaChecklistSoporte,
     ReglaMotivo,
     ReglaNomina,
+    ReglaPais,
     ReglaParentesco,
+    ReglaTipoSoporte,
     preparar_nueva_nomina,
     preparar_nuevo_motivo,
+    preparar_nuevo_pais,
     preparar_nuevo_parentesco,
+    preparar_nuevo_tipo_soporte,
     validar_cambio_categoria_motivo,
+    validar_checklist_soporte,
     validar_edicion_motivo,
     validar_activacion_nomina,
     validar_edicion_nomina,
+    validar_edicion_pais,
     validar_edicion_parentesco,
+    validar_edicion_tipo_soporte,
     validar_eliminacion_motivo,
     validar_eliminacion_nomina,
+    validar_eliminacion_pais,
     validar_eliminacion_parentesco,
+    validar_eliminacion_tipo_soporte,
+    normalizar_codigo_pais,
+    normalizar_codigo_tipo_soporte,
     normalizar_nombre_catalogo,
+    LARGO_MAXIMO_NOMBRE_SOPORTE,
     LARGO_MAXIMO_NOMINA,
+    LARGO_MAXIMO_PAIS,
     LARGO_MAXIMO_PARENTESCO,
 )
+from core.domain.exceptions import ValidationError
+from core.domain.tipos_soporte import ItemChecklistSoporte
 
 
 def obtener_todas_las_reglas(
@@ -37,6 +53,10 @@ def obtener_todas_las_reglas(
         'categorias_motivo': repo.listar_categorias_motivo(),
         'motivos': repo.listar_motivos(),
         'nominas': repo.listar_nominas(),
+        'paises': repo.listar_paises(),
+        'tipos_soporte': repo.listar_tipos_soporte(),
+        'checklist_soporte': repo.listar_checklist_soporte(),
+        'secciones_soporte': repo.listar_secciones_soporte(),
     }
 
 
@@ -167,6 +187,46 @@ def eliminar_parentesco(
     return repo.eliminar_parentesco(parentesco_id)
 
 
+def crear_pais(
+    repo: RepoReglasCatalogos,
+    nombre: str,
+    codigo: str,
+) -> ReglaPais:
+    """Alta de país (O40): nombre y código ISO únicos."""
+    nombre_limpio, codigo_limpio = preparar_nuevo_pais(nombre, codigo)
+    return repo.crear_pais(nombre_limpio, codigo_limpio)
+
+
+def editar_pais(
+    repo: RepoReglasCatalogos,
+    pais_id: int,
+    nombre: str | None,
+    codigo: str | None,
+) -> tuple[ReglaPais, ReglaPais]:
+    """Edición del nombre y del código del país, sin tocar la marca de país por defecto."""
+    anterior = repo.obtener_pais(pais_id)
+    if nombre is not None:
+        nombre = normalizar_nombre_catalogo(
+            nombre, campo='nombre', maximo=LARGO_MAXIMO_PAIS,
+        )
+    if codigo is not None:
+        codigo = normalizar_codigo_pais(codigo)
+    validar_edicion_pais(anterior, nombre, codigo)
+    actualizado = repo.actualizar_pais(pais_id, nombre, codigo)
+    return anterior, actualizado
+
+
+def eliminar_pais(
+    repo: RepoReglasCatalogos,
+    pais_id: int,
+) -> ReglaPais:
+    """Baja física solo si no es el país por defecto ni tiene viviendas asociadas."""
+    actual = repo.obtener_pais(pais_id)
+    tiene_referencias = repo.pais_tiene_referencias(pais_id)
+    validar_eliminacion_pais(actual, tiene_referencias)
+    return repo.eliminar_pais(pais_id)
+
+
 def crear_nomina(
     repo: RepoReglasCatalogos,
     nomina: str,
@@ -220,3 +280,68 @@ def actualizar_nomina(
     validar_activacion_nomina(anterior, es_activo)
     actualizado = repo.actualizar_nomina(nomina_id, es_activo, requiere_codig)
     return anterior, actualizado
+
+
+# ----------------------------------------------------------------------
+# Tipos de soporte documental y checklist por sección (O41)
+# ----------------------------------------------------------------------
+def crear_tipo_soporte(
+    repo: RepoReglasCatalogos,
+    codigo: str,
+    nombre: str,
+    orden: int = 0,
+) -> ReglaTipoSoporte:
+    """Alta de un tipo de documento; los nuevos no son reservados del sistema."""
+    codigo_limpio, nombre_limpio, orden_limpio = preparar_nuevo_tipo_soporte(codigo, nombre, orden)
+    return repo.crear_tipo_soporte(codigo_limpio, nombre_limpio, orden_limpio)
+
+
+def editar_tipo_soporte(
+    repo: RepoReglasCatalogos,
+    tipo_id: int,
+    codigo: str | None,
+    nombre: str | None,
+    orden: int | None,
+) -> tuple[ReglaTipoSoporte, ReglaTipoSoporte]:
+    """Edición de un tipo de documento, protegiendo el código de los reservados."""
+    anterior = repo.obtener_tipo_soporte(tipo_id)
+    codigo_limpio = None
+    if codigo is not None:
+        codigo_limpio = normalizar_codigo_tipo_soporte(codigo)
+    nombre_limpio = None
+    if nombre is not None:
+        nombre_limpio = normalizar_nombre_catalogo(
+            nombre, campo='nombre', maximo=LARGO_MAXIMO_NOMBRE_SOPORTE,
+        )
+    validar_edicion_tipo_soporte(anterior, codigo_limpio, nombre_limpio)
+    actualizado = repo.actualizar_tipo_soporte(
+        tipo_id, codigo_limpio, nombre_limpio, orden,
+    )
+    return anterior, actualizado
+
+
+def eliminar_tipo_soporte(
+    repo: RepoReglasCatalogos,
+    tipo_id: int,
+) -> ReglaTipoSoporte:
+    """Baja solo de tipos no reservados/protegidos y sin checklist asignado."""
+    actual = repo.obtener_tipo_soporte(tipo_id)
+    tiene_secciones = repo.tipo_soporte_tiene_secciones(tipo_id)
+    validar_eliminacion_tipo_soporte(actual, tiene_secciones)
+    return repo.eliminar_tipo_soporte(tipo_id)
+
+
+def actualizar_checklist_soporte(
+    repo: RepoReglasCatalogos,
+    seccion: str,
+    items: Sequence[ItemChecklistSoporte],
+) -> tuple[Sequence[ReglaChecklistSoporte], Sequence[ReglaChecklistSoporte]]:
+    """Reemplaza el checklist de una sección conservando las filas exigidas por reglas."""
+    secciones = {s.codigo for s in repo.listar_secciones_soporte()}
+    if seccion not in secciones:
+        raise ValidationError(f'La sección «{seccion}» no admite checklist de soportes.', campo='seccion')
+    actuales = repo.listar_checklist_soporte(seccion)
+    tipos = {t.id: t for t in repo.listar_tipos_soporte()}
+    validar_checklist_soporte(actuales, items, tipos)
+    actualizado = repo.reemplazar_checklist_soporte(seccion, items)
+    return actuales, actualizado

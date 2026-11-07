@@ -6,7 +6,6 @@ import {
   Camera,
   CheckCircle2,
   FileCheck2,
-  HelpCircle,
   LogIn,
   Send,
   XCircle,
@@ -250,34 +249,5 @@ export function PanelGuiaFeDeVida({
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-export interface BotonVerGuiaProps {
-  onClick: () => void;
-  className?: string;
-  variante?: "outline" | "ghost" | "default" | "secondary";
-  size?: "default" | "sm" | "lg" | "icon";
-}
-
-/** Botón accesible para abrir la guía de 5 pasos en cualquier momento. */
-export function BotonVerGuia({
-  onClick,
-  className,
-  variante = "outline",
-  size = "sm",
-}: BotonVerGuiaProps) {
-  return (
-    <Button
-      type="button"
-      variant={variante}
-      size={size}
-      onClick={onClick}
-      className={cn("gap-1.5 font-medium", className)}
-      aria-label="Ver guía de 5 pasos de la fe de vida"
-    >
-      <HelpCircle className="h-4 w-4" aria-hidden />
-      <span>Ver guía</span>
-    </Button>
   );
 }

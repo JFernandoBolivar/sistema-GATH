@@ -11,6 +11,7 @@ from apps.autogestion.domain.value_objects.secciones import TIPO_PRENDA_POR_CAMP
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstadoCivilModel,
+    PaisModel,
     ParentescoModel,
     SexoModel,
     TipoProcedenciaModel,
@@ -36,7 +37,9 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     PatologiaCronicaModel,
     TallaModel,
 )
+from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
 from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
     ContactoEmergenciaModel,
     DatosViviendaModel,
     FormacionAcademicaModel,
@@ -61,7 +64,8 @@ _CATALOGOS = {
     'institucion_id': InstitucionModel, 'parentesco_id': ParentescoModel, 'sexo_id': SexoModel,
     'relacion_id': ParentescoModel, 'capacitacion_id': CapacitacionModel,
     'grupo_id': GrupoCapacitacionModel, 'procedencia_id': TipoProcedenciaModel,
-    'estadoCivil_id': EstadoCivilModel, 'grupo_sanguineo_id': GrupoSanguineoModel,
+    'estadoCivil_id': EstadoCivilModel, 'pais_id': PaisModel, 'grupo_sanguineo_id': GrupoSanguineoModel,
+    'organismo_id': OrganismoAdscritoModel,
     'talla_camisa_id': TallaModel, 'talla_pantalon_id': TallaModel,
     'talla_zapatos_id': TallaModel, 'talla_chaqueta_id': TallaModel,
 }
@@ -108,6 +112,8 @@ class LectorFichaORM:
             return ContactoEmergenciaModel.objects.filter(pk=pk, empleado__cedulaidentidad=cedula).first()
         if entidad == 'familiar':
             return EmployeefamilyModel.objects.filter(pk=pk, employeecedula_id=cedula).first()
+        if entidad == 'antecedente_servicio':
+            return AntecedenteServicioModel.objects.filter(pk=pk, empleado__cedulaidentidad=cedula).first()
         return None
 
     def valor_actual(self, cedula, entidad, entidad_id, campo):
@@ -141,6 +147,8 @@ class LectorFichaORM:
             return FormacionComplementariaModel.objects.filter(empleado__cedulaidentidad=cedula).count()
         if entidad == 'familiar':
             return EmployeefamilyModel.objects.filter(employeecedula_id=cedula).count()
+        if entidad == 'antecedente_servicio':
+            return AntecedenteServicioModel.objects.filter(empleado__cedulaidentidad=cedula).count()
         return 0
 
     def datos_registro(self, cedula: str, entidad: str, entidad_id: str | None) -> dict:
@@ -150,7 +158,8 @@ class LectorFichaORM:
             return {}
         resultado = {}
         for campo in ('nombres', 'apellidos', 'primer_nombre', 'primer_apellido', 'cedulaFamiliar',
-                      'fechaInicio', 'fechaFin', 'nivel_academico_id', 'capacitacion_id'):
+                      'fechaInicio', 'fechaFin', 'nivel_academico_id', 'capacitacion_id',
+                      'organismo_id', 'fecha_ingreso', 'fecha_egreso'):
             valor = getattr(fila, campo, None)
             if valor is not None:
                 resultado[campo] = valor.isoformat() if isinstance(valor, date) else valor
@@ -178,6 +187,14 @@ class LectorFichaORM:
                     raise ValidationError(
                         f"La talla elegida para '{campo}' no corresponde al tipo de prenda esperado."
                     )
+
+    def es_pais_venezuela(self, pais_id: int | None) -> bool:
+        """Sin país se asume Venezuela: es el valor por defecto del sistema."""
+        if pais_id is None:
+            return True
+        return bool(
+            PaisModel.objects.filter(pk=pais_id, es_venezuela=True).exists()
+        )
 
     def es_parentesco_hijo(self, parentesco_id) -> bool:
         if parentesco_id is None:

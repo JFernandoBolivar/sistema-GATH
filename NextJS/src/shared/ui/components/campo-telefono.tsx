@@ -44,6 +44,8 @@ interface CampoTelefonoProps {
   tipo?: TipoTelefono;
   placeholder?: string;
   className?: string;
+  /** País que se propone cuando el campo está vacío (residencia del pasivo). */
+  paisInicial?: CountryCode;
   "aria-describedby"?: string;
 }
 
@@ -61,7 +63,11 @@ const CLASE_BOTON = cn(
   "disabled:cursor-not-allowed disabled:opacity-50",
 );
 
-function estadoDesde(valor: string | null | undefined): Estado {
+function estadoDesde(
+  valor: string | null | undefined,
+  paisInicial: CountryCode = "VE",
+): Estado {
+  if (!(valor ?? "").trim()) return { pais: paisInicial, prefijo: "", numero: "" };
   const { pais, nacional } = separarTelefono(valor);
   if (pais === "VE") return { pais, ...separarPrefijoVE(nacional) };
   return { pais, prefijo: "", numero: nacional };
@@ -82,6 +88,7 @@ export function CampoTelefono({
   tipo = "cualquiera",
   placeholder,
   className,
+  paisInicial = "VE",
   "aria-describedby": describedBy,
 }: CampoTelefonoProps) {
   const paises = useMemo(() => paisesTelefono(), []);
@@ -89,11 +96,11 @@ export function CampoTelefono({
   const [prefijoAbierto, setPrefijoAbierto] = useState(false);
   // Lo escrito se guarda tal cual; al formulario se le entrega E.164. Solo se vuelve a leer
   // `value` si cambia desde fuera (reset o carga de datos).
-  const [estado, setEstado] = useState<Estado>(() => estadoDesde(value));
+  const [estado, setEstado] = useState<Estado>(() => estadoDesde(value, paisInicial));
   const [emitido, setEmitido] = useState(value ?? "");
   if ((value ?? "") !== emitido) {
     setEmitido(value ?? "");
-    setEstado(estadoDesde(value));
+    setEstado(estadoDesde(value, paisInicial));
   }
   const actual = paises.find((p) => p.codigo === estado.pais);
   const esVE = estado.pais === "VE";

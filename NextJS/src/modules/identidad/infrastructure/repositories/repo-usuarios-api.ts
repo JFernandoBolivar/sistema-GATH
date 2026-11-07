@@ -21,6 +21,7 @@ function mapperDetalle(raw: UsuarioDetalleApiItem): UsuarioDetalleEntity {
     permisos: {
       rolId: raw.permisos.rol_id,
       rolNombre: raw.permisos.rol_nombre,
+      rolNombreVisible: raw.permisos.rol_nombre_visible ?? raw.permisos.rol_nombre,
       delRol: raw.permisos.del_rol ?? [],
       allow: raw.permisos.allow ?? [],
       deny: raw.permisos.deny ?? [],
@@ -33,7 +34,12 @@ function mapperDetalle(raw: UsuarioDetalleApiItem): UsuarioDetalleEntity {
 function mapperMatriz(raw: MatrizPermisosApi): MatrizPermisosEntity {
   return {
     filas: raw.filas.map((f) => ({ codigo: f.codigo, nombre: f.nombre, modulo: f.modulo })),
-    roles: raw.roles.map((r) => ({ rolId: r.rol_id, nombre: r.nombre, codigos: r.codigos })),
+    roles: raw.roles.map((r) => ({
+      rolId: r.rol_id,
+      nombre: r.nombre,
+      nombreVisible: r.nombre_visible || r.nombre,
+      codigos: r.codigos,
+    })),
   };
 }
 

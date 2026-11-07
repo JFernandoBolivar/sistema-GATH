@@ -26,14 +26,18 @@ import { cambiosAItems } from "../../domain/services/borrador";
 import { seccionesSinSoporte } from "../../domain/services/reglas-solicitud";
 import {
   SECCIONES_DEF,
-  TIPOS_SOPORTE_POR_SECCION,
   esSeccionConocida,
   nombreSeccion,
 } from "../../domain/value-objects/campos-seccion";
+import {
+  agruparTiposSoporte,
+  tiposDeSeccion,
+} from "../../domain/value-objects/tipos-soporte";
 import { getMiExpedienteAction } from "../../infrastructure/actions/autogestion-actions";
 import {
   enviarSolicitudAction,
   guardarBorradorAction,
+  listarTiposSoporteAction,
 } from "../../infrastructure/actions/solicitudes-actions";
 import { EditorEntidad } from "./editor-entidad";
 import { FotoSeccion, SoportesSeccion } from "./soportes-seccion";
@@ -54,6 +58,11 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
     isLoading,
     mutate,
   } = useSWR("mi-expediente-trabajador", () => getMiExpedienteAction());
+  const { data: tiposSoporte } = useSWR("tipos-soporte-autogestion", async () => {
+    const res = await listarTiposSoporteAction();
+    if (!res.ok) throw new Error(res.mensaje);
+    return agruparTiposSoporte(res.datos);
+  });
   const inicial = useMemo(() => cambiosAItems(detalle.cambios), [detalle.cambios]);
   const [items, setItems] = useState<ItemBorrador[]>(inicial);
   const [guardado, setGuardado] = useState<string>(JSON.stringify(inicial));
@@ -145,6 +154,7 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
     <div className="flex flex-col gap-8 pb-28 sm:pb-8">
       {habilitadas.map((codigo: SeccionCodigo) => {
         const def = SECCIONES_DEF[codigo];
+        const tipos = tiposDeSeccion(tiposSoporte, codigo);
         const requiereSoporte =
           secciones.find((s) => s.codigo === codigo)?.requiereSoporte ?? false;
         return (
@@ -179,15 +189,17 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
                     onItems={setItems}
                     solicitudId={detalle.id}
                     soportes={detalle.soportes}
+                    tiposSoporte={tipos}
                     onCambioSoportes={onActualizar}
                   />
                 ))}
-                {TIPOS_SOPORTE_POR_SECCION[codigo].length > 0 ? (
+                {tipos.length > 0 ? (
                   <SoportesSeccion
                     solicitudId={detalle.id}
                     seccion={codigo}
                     soportes={detalle.soportes}
                     obligatorio={requiereSoporte}
+                    tipos={tipos}
                     onCambio={onActualizar}
                   />
                 ) : null}

@@ -18,6 +18,13 @@ def listar_politicas(items) -> list[CatalogoItemDTO]:
     return [CatalogoItemDTO(id=i.pk, nombre=i.tipo_politica) for i in items]
 
 
+def listar_paises(items) -> list[CatalogoItemDTO]:
+    return [
+        CatalogoItemDTO(id=i.pk, nombre=i.nombre, codigo=i.codigo, es_venezuela=bool(i.es_venezuela))
+        for i in items
+    ]
+
+
 def listar_condiciones_vivienda(items) -> list[CatalogoItemDTO]:
     return [CatalogoItemDTO(id=i.pk, nombre=i.condicion) for i in items]
 

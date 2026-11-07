@@ -27,9 +27,47 @@ export interface ReglaNominaDTO {
   es_reservada: boolean;
 }
 
+export interface ReglaPaisDTO {
+  id: number;
+  nombre: string;
+  codigo: string;
+  /** País por defecto del sistema: no se elimina. */
+  es_venezuela: boolean;
+}
+
+export interface ReglaTipoSoporteDTO {
+  id: number;
+  codigo: string;
+  nombre: string;
+  es_reservado: boolean;
+  es_protegido: boolean;
+  orden: number;
+}
+
+export interface ReglaChecklistSoporteDTO {
+  id: number;
+  seccion: string;
+  tipo_soporte_id: number;
+  codigo: string;
+  nombre: string;
+  etiqueta: string;
+  permitido: boolean;
+  requerido: boolean;
+  orden: number;
+}
+
+export interface SeccionSoporteDTO {
+  codigo: string;
+  nombre: string;
+}
+
 export interface ReglasCatalogosCompletoDTO {
   parentescos: ReglaParentescoDTO[];
   categorias_motivo: CategoriaMotivoItemDTO[];
   motivos: ReglaMotivoDTO[];
   nominas: ReglaNominaDTO[];
+  paises: ReglaPaisDTO[];
+  tipos_soporte: ReglaTipoSoporteDTO[];
+  checklist_soporte: ReglaChecklistSoporteDTO[];
+  secciones_soporte: SeccionSoporteDTO[];
 }

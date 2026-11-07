@@ -100,6 +100,7 @@ export function DetallePasivo({ cedula, open, onOpenChange, onGuardado }: Detall
       puedeExportarPdf={puedeExportarPdf}
       puedeEditar={puedeEditar}
       revision={revision}
+      permitirPais
     />
   );
 }

@@ -19,7 +19,7 @@ import {
   validarArchivoSoporte,
   formatearTamano,
 } from "../../domain/services/validar-soporte";
-import { TIPOS_SOPORTE_POR_SECCION } from "../../domain/value-objects/campos-seccion";
+import type { TipoSoporteConfigurado } from "../../domain/value-objects/tipos-soporte";
 import {
   eliminarSoporteAction,
   subirSoporteAction,
@@ -30,6 +30,8 @@ interface Props {
   seccion: SeccionCodigo;
   soportes: SoporteEntity[];
   obligatorio: boolean;
+  /** Tipos configurados para la sección (backend, O41). */
+  tipos: readonly TipoSoporteConfigurado[];
   /** Se llama tras subir o quitar para recargar el detalle. */
   onCambio: () => void;
 }
@@ -55,7 +57,7 @@ const TEXTO_FORMATOS = `PDF, JPG o PNG, hasta ${MAX_BYTES_SOPORTE / (1024 * 1024
 interface SelectorTipoProps {
   id: string;
   etiqueta: string;
-  tipos: ReadonlyArray<{ valor: string; texto: string }>;
+  tipos: readonly TipoSoporteConfigurado[];
   valor: string;
   onCambio: (valor: string) => void;
   disabled?: boolean;
@@ -83,8 +85,8 @@ function SelectorTipo({
         </SelectTrigger>
         <SelectContent>
           {tipos.map((t) => (
-            <SelectItem key={t.valor} value={t.valor}>
-              {t.texto}
+            <SelectItem key={t.codigo} value={t.codigo}>
+              {t.nombre}
             </SelectItem>
           ))}
         </SelectContent>
@@ -132,14 +134,14 @@ function CargaArchivo({
 }
 
 /** Soportes documentales de una sección: PDF/JPG/PNG hasta 10 MB, validados en el cliente y en el servidor. */
-export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, onCambio }: Props) {
+export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, tipos, onCambio }: Props) {
   const idBase = useId();
-  const tipos = TIPOS_SOPORTE_POR_SECCION[seccion];
-  const [tipo, setTipo] = useState(tipos[0]?.valor ?? "");
+  const [tipo, setTipo] = useState(tipos[0]?.codigo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const [archivo, setArchivo] = useState<File | null>(null);
   const propios = soportes.filter((s) => s.seccion === seccion);
+  const tipoSeleccionado = tipos.some((t) => t.codigo === tipo) ? tipo : (tipos[0]?.codigo ?? "");
 
   if (tipos.length === 0) return null;
 
@@ -155,7 +157,7 @@ export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, o
       const datos = new FormData();
       datos.set("solicitudId", solicitudId);
       datos.set("seccion", seccion);
-      datos.set("tipo", tipo);
+      datos.set("tipo", tipoSeleccionado);
       datos.set("file", elegido);
       const res = await subirSoporteAction(datos);
       if (res.ok) {
@@ -217,7 +219,7 @@ export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, o
             id={`${idBase}-tipo`}
             etiqueta="Tipo de documento"
             tipos={tipos}
-            valor={tipo}
+            valor={tipoSeleccionado}
             onCambio={setTipo}
             disabled={pendiente}
           />
@@ -257,6 +259,7 @@ export function SoporteRegistro({
   entidadId,
   referencia,
   soportes,
+  tipos,
   onCambio,
 }: {
   solicitudId: string;
@@ -264,11 +267,11 @@ export function SoporteRegistro({
   entidadId?: string | null;
   referencia?: string | null;
   soportes: SoporteEntity[];
+  tipos: readonly TipoSoporteConfigurado[];
   onCambio: () => void;
 }) {
   const idBase = useId();
-  const tipos = TIPOS_SOPORTE_POR_SECCION[seccion];
-  const [tipo, setTipo] = useState(tipos[0]?.valor ?? "");
+  const [tipo, setTipo] = useState(tipos[0]?.codigo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -277,6 +280,7 @@ export function SoporteRegistro({
       s.seccion === seccion &&
       ((entidadId && s.entidadId === entidadId) || (referencia && s.referencia === referencia)),
   );
+  const tipoSeleccionado = tipos.some((t) => t.codigo === tipo) ? tipo : (tipos[0]?.codigo ?? "");
 
   if (tipos.length === 0) return null;
 
@@ -292,7 +296,7 @@ export function SoporteRegistro({
       const datos = new FormData();
       datos.set("solicitudId", solicitudId);
       datos.set("seccion", seccion);
-      datos.set("tipo", tipo);
+      datos.set("tipo", tipoSeleccionado);
       if (entidadId) datos.set("entidadId", entidadId);
       if (referencia) datos.set("referencia", referencia);
       datos.set("file", elegido);
@@ -327,7 +331,7 @@ export function SoporteRegistro({
           etiqueta="Tipo"
           claseEtiqueta="text-sm"
           tipos={tipos}
-          valor={tipo}
+          valor={tipoSeleccionado}
           onCambio={setTipo}
           disabled={pendiente}
         />

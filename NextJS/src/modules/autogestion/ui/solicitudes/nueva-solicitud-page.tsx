@@ -23,8 +23,9 @@ import {
 import { SelectorCamposSolicitud } from "./selector-campos-solicitud";
 import { usePoliticaAutogestion } from "./use-politica-autogestion";
 import { solicitudNuevaSchema, type SolicitudNuevaValores } from "../schema/schema-solicitud";
-import { useGuia, BotonVerGuia } from "@/shared/ui/guias";
+import { useGuia } from "@/shared/ui/guias";
 import { GUIA_NUEVA_SOLICITUD } from "../guias/definiciones-guias";
+import { useRegistrarGuia } from "../guias/contexto-guia";
 
 /** «Solicitar actualización»: elegir los campos concretos a actualizar y explicar el motivo. */
 export default function NuevaSolicitudPage() {
@@ -52,6 +53,7 @@ export default function NuevaSolicitudPage() {
     guia: GUIA_NUEVA_SOLICITUD,
     autoIniciar: true,
   });
+  useRegistrarGuia(iniciarGuia);
 
   async function enviar(valores: SolicitudNuevaValores) {
     const res = await solicitarActualizacionAction(valores);
@@ -91,7 +93,6 @@ export default function NuevaSolicitudPage() {
       <PageHeader
         titulo="Solicitar actualización de datos"
         descripcion="Elija qué datos necesita actualizar y cuéntenos el motivo. Bienestar Social le habilitará un plazo para cargar los cambios y sus soportes."
-        accion={<BotonVerGuia onClick={iniciarGuia} />}
       />
       {isLoading || cargandoPolitica ? (
         <VistaCargando mensaje="Cargando los campos disponibles…" onReintentar={() => mutate()} />

@@ -20,6 +20,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     EstatusModel,
     GradoModel,
     NacionalidadModel,
+    PaisModel,
     ParentescoModel,
     SexoModel,
     TipoMovimientoModel,
@@ -35,7 +36,13 @@ from apps.pasivos.infrastructure.models.pasivo_models import (
     CargoEgresadoModel,
     EmployeeEgresadoModel,
 )
-from apps.personal.infrastructure.models.expediente_models import AntecedenteServicioModel
+from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    CondicionViviendaModel,
+)
+from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
+    DatosViviendaModel,
+)
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.reportes.application.use_cases.generar_reportes import (
     generar_reporte_codigos,
@@ -207,6 +214,15 @@ def test_reporte_pasivos_actuales_incluye_asignaciones_y_filtra_por_nomina(escen
         gradoid=GradoModel.objects.first(),
     )
 
+    chile = PaisModel.objects.create(nombre='Chile', codigo='CL', es_venezuela=False)
+    DatosViviendaModel.objects.create(
+        empleado=empleado,
+        pais=chile,
+        condicion_vivienda=CondicionViviendaModel.objects.create(condicion='ALQUILADA'),
+        direccion_exacta='Av. Providencia 1234, Santiago',
+        ciudad_region='Santiago',
+    )
+
     dto = generar_reporte_pasivos_actuales(
         RepoReportesORM(),
         filtros={'nomina_id': nomina_pasivo.pk},
@@ -217,7 +233,18 @@ def test_reporte_pasivos_actuales_incluye_asignaciones_y_filtra_por_nomina(escen
 
     assert dto.total_registros == 1
     assert dto.filas[0]['cedula'] == 'V300'
+    assert dto.filas[0]['pais'] == 'Chile'
+    assert 'pais' in dto.columnas
     assert dto.titulo == 'Reporte de Personal Pasivo'
+
+    con_pais = generar_reporte_pasivos_actuales(
+        RepoReportesORM(),
+        filtros={'pais_id': chile.pk},
+        registro=ReportFieldRegistryORM(),
+        puede_filtrar_estructura=True,
+        limite=100,
+    )
+    assert [f['cedula'] for f in con_pais.filas] == ['V300']
 
 
 def test_codigos_truncado_con_datos_completos(escenario):

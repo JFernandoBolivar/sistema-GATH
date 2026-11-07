@@ -20,6 +20,7 @@ export function HeaderLayout({
   subtitle,
   moduloNotificaciones,
   rutaNotificaciones,
+  acciones,
 }: Readonly<{
   children: React.ReactNode;
   title: string;
@@ -28,6 +29,8 @@ export function HeaderLayout({
   moduloNotificaciones: ModuloNotificaciones;
   /** Página de notificaciones del módulo actual («Ver todas»). */
   rutaNotificaciones: string;
+  /** Acciones propias del módulo (por ejemplo, el botón único de guía). */
+  acciones?: React.ReactNode;
 }>) {
   const pathName = usePathname().split("/");
   const seccionAdministracion = SECCION_POR_RUTA[pathName[1] ?? ""];
@@ -61,6 +64,7 @@ export function HeaderLayout({
       </div>
 
       <div className="flex shrink-0 items-center justify-end gap-0.5 sm:gap-2">
+        {acciones}
         <BotonInstalarApp variante="oscura" />
         <CampanaNotificaciones
           variante="oscura"

@@ -8,6 +8,18 @@
  */
 import type { ZodError } from "zod";
 
+import {
+  listarBiblioteca,
+  subirElementoBiblioteca,
+  eliminarElementoBiblioteca,
+} from "../../application/use-cases/gestionar-biblioteca";
+import {
+  listarCamposCredencial,
+  crearCampoPersonalizado,
+  eliminarCampoPersonalizado,
+} from "../../application/use-cases/gestionar-campos";
+import type { CategoriaBiblioteca } from "../../domain/entities/carnet";
+
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
@@ -329,4 +341,260 @@ export async function generarCarnetPdfAction(cedula: string, motivoId: number, n
     return { success: false as const, message: "Error al generar el carnet", data: null };
   }
 }
+
+export async function getTiposCredencialAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.listarTiposCredencial();
+    await logAudit({ traceId, action: "getTiposCredencialAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getTiposCredencialAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return [];
+  }
+}
+
+export async function getPlantillasMotorAction(tipo?: string, estado?: string, activas?: boolean) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.listarPlantillasMotor(tipo, estado, activas);
+    await logAudit({ traceId, action: "getPlantillasMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getPlantillasMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return [];
+  }
+}
+
+export async function activarPlantillaMotorAction(plantillaId: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.activarPlantillaMotor(plantillaId);
+    await logAudit({ traceId, action: "activarPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "activarPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible activar la plantilla." };
+  }
+}
+
+export async function publicarPlantillaMotorAction(plantillaId: string, activar: boolean = true) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.publicarPlantilla(plantillaId, activar);
+    await logAudit({ traceId, action: "publicarPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "publicarPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible publicar la versión de la plantilla." };
+  }
+}
+
+export async function crearPlantillaBorradorAction(data: {
+  nombre: string;
+  codigo_tipo?: string;
+  ancho_mm?: number;
+  alto_mm?: number;
+  orientacion?: "vertical" | "horizontal";
+  regla_criterio?: string;
+  regla_valor?: string;
+}) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.crearPlantillaBorrador({
+      nombre: data.nombre,
+      codigo_tipo: data.codigo_tipo ?? "trabajador",
+      ancho_mm: data.ancho_mm ?? 54.0,
+      alto_mm: data.alto_mm ?? 85.6,
+      orientacion: data.orientacion ?? "vertical",
+      regla_criterio: data.regla_criterio ?? "todos",
+      regla_valor: data.regla_valor ?? "*",
+    });
+    await logAudit({ traceId, action: "crearPlantillaBorradorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearPlantillaBorradorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible crear el borrador de plantilla." };
+  }
+}
+
+export async function getVersionesPlantillaAction(raizId: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.listarVersionesPlantilla(raizId);
+    await logAudit({ traceId, action: "getVersionesPlantillaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getVersionesPlantillaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return [];
+  }
+}
+
+export async function getPlantillaMotorAction(id: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.obtenerPlantillaMotor(id);
+    await logAudit({ traceId, action: "getPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "getPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No se encontró la plantilla." };
+  }
+}
+
+export async function actualizarPlantillaBorradorAction(
+  id: string,
+  data: {
+    nombre?: string;
+    definicion?: Record<string, unknown>;
+    ancho_mm?: number;
+    alto_mm?: number;
+    orientacion?: "vertical" | "horizontal";
+    regla_criterio?: string;
+    regla_valor?: string;
+    descripcion?: string;
+  }
+) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await repoCarnetizacionApi.actualizarPlantillaBorrador(id, data);
+    await logAudit({ traceId, action: "actualizarPlantillaBorradorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarPlantillaBorradorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const mensaje = error instanceof Error ? error.message : "No fue posible actualizar el borrador.";
+    return { success: false as const, error: mensaje };
+  }
+}
+
+// --- Biblioteca de Medios (O44 - E4) ---
+export async function getBibliotecaAction(categoria?: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarBiblioteca(
+      repoCarnetizacionApi,
+      categoria as CategoriaBiblioteca | undefined
+    );
+    await logAudit({ traceId, action: "getBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "getBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible listar la biblioteca de medios." };
+  }
+}
+
+export async function subirElementoBibliotecaAction(formData: FormData) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const nombre = formData.get("nombre") as string;
+    const categoria = formData.get("categoria") as CategoriaBiblioteca;
+    const archivo = formData.get("archivo") as File;
+    const descripcion = (formData.get("descripcion") as string) || undefined;
+
+    if (!nombre || !categoria || !archivo) {
+      return { success: false as const, error: "Nombre, categoría y archivo son obligatorios." };
+    }
+
+    const result = await subirElementoBiblioteca(
+      repoCarnetizacionApi,
+      nombre,
+      categoria,
+      archivo,
+      descripcion
+    );
+    await logAudit({ traceId, action: "subirElementoBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "subirElementoBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const mensaje = error instanceof Error ? error.message : "No fue posible subir el archivo.";
+    return { success: false as const, error: mensaje };
+  }
+}
+
+export async function eliminarElementoBibliotecaAction(id: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarElementoBiblioteca(repoCarnetizacionApi, id);
+    await logAudit({ traceId, action: "eliminarElementoBibliotecaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarElementoBibliotecaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible eliminar el elemento de la biblioteca." };
+  }
+}
+
+// --- Registro de Campos (O44 - E5) ---
+export async function getCamposAction(tipo: string = "trabajador") {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await listarCamposCredencial(repoCarnetizacionApi, tipo);
+    await logAudit({ traceId, action: "getCamposAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "getCamposAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible obtener los campos." };
+  }
+}
+
+export async function crearCampoPersonalizadoAction(data: {
+  codigo: string;
+  etiqueta: string;
+  grupo?: string;
+  tipo_credencial?: string;
+  sensible?: boolean;
+  descripcion?: string;
+  valor_ejemplo?: string;
+}) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await crearCampoPersonalizado(repoCarnetizacionApi, data);
+    await logAudit({ traceId, action: "crearCampoPersonalizadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const, data: result };
+  } catch (error) {
+    await logAudit({ traceId, action: "crearCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    const mensaje = error instanceof Error ? error.message : "No fue posible registrar el campo.";
+    return { success: false as const, error: mensaje };
+  }
+}
+
+export async function eliminarCampoPersonalizadoAction(codigo: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await eliminarCampoPersonalizado(repoCarnetizacionApi, codigo);
+    await logAudit({ traceId, action: "eliminarCampoPersonalizadoAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return { success: false as const, error: "No fue posible eliminar el campo personalizado." };
+  }
+}
+
 

@@ -16,6 +16,7 @@ export interface UsuarioDTO {
   telefono: string | null;
   rolId: number | null;
   rolNombre: string | null;
+  rolNombreVisible?: string | null;
   isActive: boolean;
   ultimoAcceso: string | null;
   condicion: string | null;
@@ -25,6 +26,7 @@ export interface UsuarioDTO {
 export interface PermisosUsuarioDTO {
   rolId: number | null;
   rolNombre: string | null;
+  rolNombreVisible?: string | null;
   delRol: string[];
   allow: string[];
   deny: string[];
@@ -103,6 +105,7 @@ export interface FilaMatrizDTO {
 export interface ColumnaRolMatrizDTO {
   rolId: number;
   nombre: string;
+  nombreVisible?: string;
   codigos: string[];
 }
 
@@ -114,13 +117,14 @@ export interface MatrizPermisosDTO {
 export interface RolDTO {
   id: number;
   nombreRol: string;
+  nombreVisible: string;
   descripcionRol: string;
   nUsuarios?: number;
   nPermisos?: number;
 }
 
 export interface GuardarRolInputDTO {
-  nombreRol: string;
+  nombreVisible: string;
   descripcionRol?: string | null;
 }
 

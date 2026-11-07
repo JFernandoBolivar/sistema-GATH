@@ -22,6 +22,7 @@ def cuenta_a_entidad(fila: CuentaModel) -> Cuenta:
         telefono=getattr(empleado, 'telefono_movil', None),
         rol_id=fila.rol_id,
         rol_nombre=getattr(rol, 'nombre_rol', None),
+        rol_nombre_visible=(getattr(rol, 'nombre_visible', None) or getattr(rol, 'nombre_rol', None)),
         is_active=fila.is_active,
         ultimo_acceso=fila.last_login,
         condicion=getattr(fila, 'condicion_calculada', None),

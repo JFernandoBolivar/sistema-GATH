@@ -109,14 +109,38 @@ export function FormularioRegistro({
     parentescoNombre,
     typeof fechaNacimientoValor === "string" ? fechaNacimientoValor : null,
   );
+  // O40: el país decide qué ubicación se pide (Venezuela o ciudad/región).
+  const esVivienda = definicion.entidad === "datos_vivienda";
+  const { data: paises } = useSWR(
+    esVivienda ? ["catalogo-autogestion", "paises", 0] : null,
+    () => opcionesCatalogo("paises"),
+    { revalidateOnFocus: false },
+  );
+  const paisId = Number(watch("pais_id")) || 0;
+  const paisElegido = paises?.find((p) => p.id === paisId);
+  const esVenezuela = !paisId || (paisElegido?.esVenezuela ?? true);
+  const tienePais = campos.some((c) => c.campo === "pais_id");
+  const camposDeUbicacionVenezuela = new Set([
+    "estado_id",
+    "municipio_id",
+    "parroquia_id",
+    "codigo_postal_id",
+  ]);
   // La cédula no se muestra en el caso del hijo(a) menor; el resto de campos sigue igual.
-  const camposVisibles = esFamiliar
+  let camposVisibles = esFamiliar
     ? campos.filter(
         (c) =>
           (c.campo !== "cedula_familiar" || !hijoMenor) &&
           (c.campo !== "orden_hijo" || hijoMenor),
       )
     : campos;
+  if (esVivienda) {
+    camposVisibles = camposVisibles.filter((c) =>
+      esVenezuela
+        ? c.campo !== "ciudad_region"
+        : !camposDeUbicacionVenezuela.has(c.campo),
+    );
+  }
 
   // Cascadas: al cambiar un padre se limpia el hijo (estado → municipio → parroquia, etc.).
   useEffect(() => {
@@ -132,6 +156,40 @@ export function FormularioRegistro({
 
   function enviar(valores: FieldValues) {
     const limpios = { ...valores } as Record<string, unknown>;
+    if (esVivienda) {
+      if (tienePais && !limpios.pais_id) {
+        form.setError("pais_id", { type: "required", message: "Seleccione el país." });
+        return;
+      }
+      if (esVenezuela) {
+        const faltantes: Array<[string, string]> = [
+          ["estado_id", "Seleccione el estado."],
+          ["municipio_id", "Seleccione el municipio."],
+          ["parroquia_id", "Seleccione la parroquia."],
+          ["codigo_postal_id", "Seleccione el código postal."],
+        ];
+        let invalido = false;
+        for (const [campo, mensaje] of faltantes) {
+          if (camposVisibles.some((c) => c.campo === campo) && !limpios[campo]) {
+            form.setError(campo, { type: "required", message: mensaje });
+            invalido = true;
+          }
+        }
+        if (invalido) return;
+        limpios.ciudad_region = "";
+      } else {
+        if (!String(limpios.ciudad_region ?? "").trim()) {
+          form.setError("ciudad_region", {
+            type: "required",
+            message: "Indique la ciudad o región.",
+          });
+          return;
+        }
+        for (const campo of camposDeUbicacionVenezuela) {
+          if (campo in limpios) limpios[campo] = "";
+        }
+      }
+    }
     if (esFamiliar) {
       if (hijoMenor) {
         // No se envía cédula: el servidor genera la del titular con el orden elegido.
@@ -180,9 +238,18 @@ export function FormularioRegistro({
         c.campo === "sexo_id" ||
         (c.campo === "cedula_familiar" && !hijoMenor) ||
         (c.campo === "orden_hijo" && hijoMenor));
+    const requeridoVivienda =
+      esVivienda &&
+      (c.campo === "direccion_exacta" ||
+        c.campo === "condicion_vivienda_id" ||
+        (tienePais && c.campo === "pais_id") ||
+        (esVenezuela
+          ? camposDeUbicacionVenezuela.has(c.campo)
+          : c.campo === "ciudad_region"));
     const requerido =
       (modo === "CREAR" && c.requeridoAlCrear) ||
-      Boolean(esCampoFamiliarRequerido);
+      Boolean(esCampoFamiliarRequerido) ||
+      requeridoVivienda;
     const etiqueta = (
       <label htmlFor={id} className="text-base font-medium">
         {c.etiqueta}

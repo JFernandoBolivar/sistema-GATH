@@ -1,15 +1,21 @@
 import { describe, it, expect } from "vitest";
 import {
   GUIA_AUTOGESTION_INICIO,
+  GUIA_CENSO_VIVIENDA,
   GUIA_MI_FICHA,
+  GUIA_MIS_SOLICITUDES,
+  GUIA_NOTIFICACIONES,
   GUIA_NUEVA_SOLICITUD,
 } from "./definiciones-guias";
 
-describe("Invariantes de Guías Interactivas (O35)", () => {
+describe("Invariantes de Guías Interactivas (O35 / O42)", () => {
   const GUIAS = [
     GUIA_AUTOGESTION_INICIO,
     GUIA_MI_FICHA,
     GUIA_NUEVA_SOLICITUD,
+    GUIA_MIS_SOLICITUDES,
+    GUIA_CENSO_VIVIENDA,
+    GUIA_NOTIFICACIONES,
   ];
 
   it("todas las guías tienen identificador, versión válida y título no vacío", () => {
@@ -79,6 +85,40 @@ describe("Invariantes de Guías Interactivas (O35)", () => {
     const selectores = GUIA_NUEVA_SOLICITUD.pasos.map((p) => p.selector);
     for (const id of idsEsperados) {
       expect(selectores).toContain(`[data-guia-id='${id}']`);
+    }
+  });
+
+  it("verifica los selectores de Mis solicitudes, Censo y Notificaciones", () => {
+    const casos = [
+      {
+        guia: GUIA_MIS_SOLICITUDES,
+        ids: [
+          "mis-solicitudes-cabecera",
+          "mis-solicitudes-filtros",
+          "mis-solicitudes-lista",
+          "mis-solicitudes-paginacion",
+        ],
+      },
+      {
+        guia: GUIA_CENSO_VIVIENDA,
+        ids: ["censo-cabecera", "censo-preguntas", "censo-vivienda", "censo-enviar"],
+      },
+      {
+        guia: GUIA_NOTIFICACIONES,
+        ids: [
+          "notificaciones-cabecera",
+          "notificaciones-filtros",
+          "notificaciones-lista",
+          "notificaciones-paginacion",
+        ],
+      },
+    ];
+
+    for (const { guia, ids } of casos) {
+      const selectores = guia.pasos.map((p) => p.selector);
+      for (const id of ids) {
+        expect(selectores).toContain(`[data-guia-id='${id}']`);
+      }
     }
   });
 });

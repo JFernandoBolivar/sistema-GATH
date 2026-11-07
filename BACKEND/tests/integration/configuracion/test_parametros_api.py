@@ -188,7 +188,31 @@ def test_el_listado_expone_las_opciones_de_retencion():
     for p in retencion:
         assert p['opciones'][0] == {'valor': 30, 'etiqueta': '1 mes'}
         assert p['opciones'][-1] == {'valor': 0, 'etiqueta': 'Nunca'}
-    assert all(p['opciones'] == [] for p in parametros if p['grupo'] != 'retencion')
+    assert all(p['opciones'] == [] for p in parametros if p['grupo'] not in ('retencion', 'carnetizacion'))
+
+    # O44 (E1): opciones de alcance de carnetizacion
+    carnet_alcance = next(p for p in parametros if p['clave'] == 'carnetizacion.mi_carnet_alcance')
+    assert len(carnet_alcance['opciones']) == 5
+    assert carnet_alcance['opciones'][0] == {'valor': 'nadie', 'etiqueta': 'Nadie (apagado)'}
+
+
+def test_parametro_mi_carnet_alcance_y_usuarios():
+    api = cliente(PERMISO)
+    url_alcance = f'{BASE}carnetizacion.mi_carnet_alcance/'
+    url_usuarios = f'{BASE}carnetizacion.mi_carnet_usuarios/'
+
+    # Valor inválido en alcance
+    assert api.put(url_alcance, {'valor': 'invalido'}, format='json').status_code == 400
+
+    # Cambiar alcance a usuarios_especificos
+    resp = api.put(url_alcance, {'valor': 'usuarios_especificos'}, format='json')
+    assert resp.status_code == 200
+    assert data(resp)['valor'] == 'usuarios_especificos'
+
+    # Guardar lista de usuarios específicos
+    resp_u = api.put(url_usuarios, {'valor': '12345678, 87654321'}, format='json')
+    assert resp_u.status_code == 200
+    assert data(resp_u)['valor'] == '12345678, 87654321'
 
 
 def test_retencion_rechaza_un_valor_fuera_de_la_lista_y_acepta_nunca():

@@ -21,6 +21,7 @@ from core.infrastructure.excel.estilo_reporte import (
 # Etiquetas con tilde/siglas que la capitalización automática no resuelve.
 ETIQUETAS_COLUMNA = {
     'total_anos_apn': 'Total años APN',
+    'pais': 'País',
 }
 
 

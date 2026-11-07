@@ -90,8 +90,87 @@ class CrearNominaSerializer(serializers.Serializer):
     requiere_codig = serializers.BooleanField(required=False, default=False)
 
 
+class ReglaPaisSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+    codigo = serializers.CharField(read_only=True)
+    es_venezuela = serializers.BooleanField(read_only=True)
+
+
+class CrearPaisSerializer(serializers.Serializer):
+    nombre = serializers.CharField(min_length=2, max_length=100, required=True)
+    codigo = serializers.CharField(min_length=2, max_length=3, required=True)
+
+
+class ActualizarPaisSerializer(serializers.Serializer):
+    nombre = serializers.CharField(min_length=2, max_length=100, required=False)
+    codigo = serializers.CharField(min_length=2, max_length=3, required=False)
+
+    def validate(self, attrs):
+        if not any(k in attrs for k in ('nombre', 'codigo')):
+            raise serializers.ValidationError('Debe indicar al menos un campo a actualizar.')
+        return attrs
+
+
+class ReglaTipoSoporteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    codigo = serializers.CharField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+    es_reservado = serializers.BooleanField(read_only=True)
+    es_protegido = serializers.BooleanField(read_only=True)
+    orden = serializers.IntegerField(read_only=True)
+
+
+class ReglaChecklistSoporteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    seccion = serializers.CharField(read_only=True)
+    tipo_soporte_id = serializers.IntegerField(read_only=True)
+    codigo = serializers.CharField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+    etiqueta = serializers.CharField(read_only=True)
+    permitido = serializers.BooleanField(read_only=True)
+    requerido = serializers.BooleanField(read_only=True)
+    orden = serializers.IntegerField(read_only=True)
+
+
+class SeccionSoporteSerializer(serializers.Serializer):
+    codigo = serializers.CharField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+
+
+class CrearTipoSoporteSerializer(serializers.Serializer):
+    codigo = serializers.CharField(min_length=2, max_length=40, required=True)
+    nombre = serializers.CharField(min_length=2, max_length=100, required=True)
+    orden = serializers.IntegerField(required=False, default=0)
+
+
+class ActualizarTipoSoporteSerializer(serializers.Serializer):
+    codigo = serializers.CharField(min_length=2, max_length=40, required=False)
+    nombre = serializers.CharField(min_length=2, max_length=100, required=False)
+    orden = serializers.IntegerField(required=False)
+
+    def validate(self, attrs):
+        if not any(k in attrs for k in ('codigo', 'nombre', 'orden')):
+            raise serializers.ValidationError('Debe indicar al menos un campo a actualizar.')
+        return attrs
+
+
+class ItemChecklistSoporteSerializer(serializers.Serializer):
+    tipo_soporte_id = serializers.IntegerField(required=True)
+    permitido = serializers.BooleanField(required=False, default=True)
+    requerido = serializers.BooleanField(required=False, default=False)
+
+
+class ActualizarChecklistSoporteSerializer(serializers.Serializer):
+    tipos = ItemChecklistSoporteSerializer(many=True, required=True)
+
+
 class ReglasCatalogosCompletoSerializer(serializers.Serializer):
     parentescos = ReglaParentescoSerializer(many=True)
     categorias_motivo = CategoriaMotivoItemSerializer(many=True)
     motivos = ReglaMotivoSerializer(many=True)
     nominas = ReglaNominaSerializer(many=True)
+    paises = ReglaPaisSerializer(many=True)
+    tipos_soporte = ReglaTipoSoporteSerializer(many=True)
+    checklist_soporte = ReglaChecklistSoporteSerializer(many=True)
+    secciones_soporte = SeccionSoporteSerializer(many=True)

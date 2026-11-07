@@ -41,6 +41,7 @@ import {
   getNominaGeneral,
   getOrganismosAds,
   getOrganismosAdsFather,
+  getPaises,
   getParish,
   getPatologys,
   getRegion,
@@ -184,6 +185,10 @@ export default function ReportEmployee({
     "conditionDwelling",
     async () => await getConditionDwelling(),
   );
+  const { data: paises, isLoading: isLoadingPaises } = useSWR(
+    categoria === "pasivos" ? "paises-reporte" : null,
+    async () => await getPaises(),
+  );
 
   const form = useForm<SchemaReportEmployeeType>({
     resolver: zodResolver(schemaReportEmployee),
@@ -222,6 +227,7 @@ export default function ReportEmployee({
         municipio_id: undefined,
         parroquia_id: undefined,
         condicion_vivienda_id: undefined,
+        pais_id: undefined,
       },
     },
   });
@@ -1288,6 +1294,40 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
+                        {categoria === "pasivos" ? (
+                          <FormField
+                            control={form.control}
+                            name="filtros.pais_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>País</FormLabel>
+                                <Select
+                                  value={field.value ? String(field.value) : undefined}
+                                  onValueChange={(value) => field.onChange(Number.parseInt(value))}
+                                  disabled={isLoadingPaises}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full truncate">
+                                      <SelectValue
+                                        placeholder={
+                                          isLoadingPaises ? "Cargando Países" : "Seleccione un País"
+                                        }
+                                      />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {(paises?.data ?? []).map((p) => (
+                                      <SelectItem key={p.id} value={`${p.id}`}>
+                                        {p.nombre}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        ) : null}
                         <FormField
                           control={form.control}
                           name="filtros.condicion_vivienda_id"

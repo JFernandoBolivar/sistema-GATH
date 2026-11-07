@@ -234,6 +234,16 @@ class RepoReglasCatalogosMemoria(RepoReglasCatalogos):
         del self.nominas[nomina_id]
         return actual
 
+    # O41: el caso de uso del listado consulta también el catálogo de soportes.
+    def listar_tipos_soporte(self):
+        return []
+
+    def listar_checklist_soporte(self, seccion=None):
+        return []
+
+    def listar_secciones_soporte(self):
+        return []
+
 
 # -------------------------------------------------------------
 # Pruebas de Parentescos

@@ -58,6 +58,8 @@ const valoresIniciales = {
   perfil_salud: { grupoSanguineo: 0, discapacidad: [], patologiaCronica: [], alergias: [] },
   perfil_fisico: { tallaCamisa: 0, tallaPantalon: 0, tallaZapatos: 0, tallaChaqueta: 0 },
   datos_vivienda: {
+    pais_id: undefined,
+    ciudad_region: "",
     direccion_exacta: "",
     estado_id: 0,
     municipio_id: 0,
@@ -255,7 +257,14 @@ export default function RegistrarPasivoDirectoPage() {
       return <PasoPhysicalProfile key="p6" defaultValues={valores} onSubmit={siguiente} catalogos={catalogos} />;
     default:
       return (
-        <PasoDwelling key="p7" defaultValues={valores} onSubmit={finalizar} isPending={isPending} {...comunes} />
+        <PasoDwelling
+          key="p7"
+          defaultValues={valores}
+          onSubmit={finalizar}
+          isPending={isPending}
+          permitirPais
+          {...comunes}
+        />
       );
   }
 }
