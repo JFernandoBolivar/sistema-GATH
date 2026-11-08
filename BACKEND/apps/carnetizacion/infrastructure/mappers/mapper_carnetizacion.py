@@ -3,6 +3,7 @@ Mappers de Carnetización (Regla B26, O44 - E3).
 """
 from apps.carnetizacion.domain.entities.campo_credencial import CampoCredencial
 from apps.carnetizacion.domain.entities.carnet import Carnet
+from apps.carnetizacion.domain.entities.credencial_externa import CredencialExterna
 from apps.carnetizacion.domain.entities.elemento_biblioteca import ElementoBiblioteca
 from apps.carnetizacion.domain.entities.plantilla import PlantillaCarnet
 from apps.carnetizacion.domain.entities.tipo_credencial import TipoCredencial
@@ -14,6 +15,9 @@ from apps.carnetizacion.infrastructure.models.carnetizacion_models import (
     TipoCredencialModel,
     CampoPersonalizadoModel,
 )
+from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
+    CredencialExternaModel,
+)
 
 
 def tipo_credencial_a_entidad(modelo: TipoCredencialModel) -> TipoCredencial:
@@ -24,6 +28,7 @@ def tipo_credencial_a_entidad(modelo: TipoCredencialModel) -> TipoCredencial:
         ancho_mm=float(modelo.ancho_mm),
         alto_mm=float(modelo.alto_mm),
         orientacion=modelo.orientacion,
+        grupo=modelo.grupo,
         activo=modelo.activo,
         orden=modelo.orden,
     )
@@ -49,6 +54,31 @@ def plantilla_motor_a_entidad(modelo: PlantillaCarnetModel) -> PlantillaCarnet:
         creado_por=str(modelo.creado_por_id) if modelo.creado_por_id else None,
         descripcion=modelo.descripcion,
         imagen_url="",
+    )
+
+
+def credencial_externa_a_entidad(modelo: CredencialExternaModel) -> CredencialExterna:
+    return CredencialExterna(
+        id=str(modelo.pk),
+        tipo_credencial=modelo.tipo_credencial_id,
+        nombre=modelo.nombre,
+        documento=modelo.documento,
+        correo=modelo.correo,
+        empresa=modelo.empresa,
+        contrato=modelo.contrato,
+        persona_visitada=modelo.persona_visitada,
+        motivo=modelo.motivo,
+        vigencia_desde=modelo.vigencia_desde.isoformat() if modelo.vigencia_desde else '',
+        vigencia_hasta=modelo.vigencia_hasta.isoformat() if modelo.vigencia_hasta else '',
+        estado=modelo.estado,
+        security_hash=modelo.security_hash,
+        empleado_cedula=modelo.empleado_id,
+        observaciones=modelo.observaciones,
+        devuelta_en=modelo.devuelta_en.isoformat() if modelo.devuelta_en else None,
+        anulada_en=modelo.anulada_en.isoformat() if modelo.anulada_en else None,
+        datos=modelo.datos or {},
+        plantilla_id=modelo.plantilla_id or None,
+        plantilla_version=modelo.plantilla_version,
     )
 
 

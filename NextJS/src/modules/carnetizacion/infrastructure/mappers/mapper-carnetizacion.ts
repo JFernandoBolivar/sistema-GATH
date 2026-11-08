@@ -48,6 +48,7 @@ export function tipoCredencialApiAEntidad(raw: TipoCredencialApiItem): TipoCrede
     ancho_mm: raw.ancho_mm,
     alto_mm: raw.alto_mm,
     orientacion: raw.orientacion,
+    grupo: raw.grupo,
     activo: raw.activo,
     orden: raw.orden,
   };

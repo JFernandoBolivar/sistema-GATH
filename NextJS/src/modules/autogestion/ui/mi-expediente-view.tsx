@@ -130,12 +130,16 @@ function formatearLista(items: unknown[] | undefined): string {
     .join(", ");
 }
 
-export default function MiExpedienteView() {
+interface MiExpedienteViewProps {
+  initialTab?: string;
+}
+
+export default function MiExpedienteView({ initialTab = "personal" }: MiExpedienteViewProps) {
   const { data, error, isLoading, mutate } = useSWR("mi-expediente-trabajador", () =>
     getMiExpedienteAction(),
   );
 
-  const [activeTab, setActiveTab] = useState<string>("personal");
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [modalCarnetAbierto, setModalCarnetAbierto] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<number>(2);
   const [observacionesSolicitud, setObservacionesSolicitud] = useState("");
@@ -1171,6 +1175,27 @@ export default function MiExpedienteView() {
                             <span className="font-mono text-xs break-all text-blue-600 dark:text-blue-400 select-all block">
                               {carnet_activo.security_hash}
                             </span>
+                          </div>
+                        )}
+
+                        {carnet_activo.security_hash && (
+                          <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-muted/30 p-4 sm:flex-row">
+                            {/* QR servido por el backend; el titular ya está autorizado por el parámetro Mi carnet. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/v1/carnetizacion/public/qr/${carnet_activo.security_hash}/imagen/`}
+                              alt="Código QR de verificación del carnet"
+                              className="size-36 shrink-0 rounded-lg border bg-white p-2 shadow-sm"
+                            />
+                            <div className="space-y-1 text-center sm:text-left">
+                              <p className="text-sm font-semibold text-foreground">
+                                Tu carnet en el teléfono
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Muestra este QR desde tu teléfono para verificar tu credencial.
+                                La información visible depende del parámetro de privacidad de Mi carnet.
+                              </p>
+                            </div>
                           </div>
                         )}
 

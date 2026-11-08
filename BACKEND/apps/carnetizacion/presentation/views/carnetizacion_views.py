@@ -163,7 +163,8 @@ class TiposCredencialListView(APIView):
     @extend_schema(tags=['Carnetización'], summary='Listar tipos de credencial (catálogo)', responses={200: TipoCredencialSerializer(many=True)})
     def get(self, request):
         repo = RepoCarnetizacionORM()
-        tipos = listar_tipos_credencial(repo, solo_activos=True)
+        grupo = (request.query_params.get('grupo') or '').strip() or None
+        tipos = listar_tipos_credencial(repo, solo_activos=True, grupo=grupo)
         return ok(TipoCredencialSerializer(tipos, many=True).data)
 
 
@@ -216,7 +217,17 @@ class PlantillaMotorDetalleView(APIView):
     @extend_schema(tags=['Carnetización'], summary='Obtener detalle de plantilla por capas', responses={200: PlantillaMotorDetalleSerializer})
     def get(self, request, plantilla_id: str):
         repo = RepoCarnetizacionORM()
-        plantilla = obtener_plantilla_detalle(repo, plantilla_id=plantilla_id)
+        if str(plantilla_id).lower() == 'default':
+            # El diseñador abre sin ?plantilla= y usa "default": devuelve la
+            # plantilla activa del tipo indicado en lugar de intentar un UUID.
+            plantilla = obtener_plantilla_activa(
+                repo,
+                codigo_tipo=request.query_params.get('tipo', 'trabajador'),
+                regla_criterio=request.query_params.get('criterio', 'todos'),
+                regla_valor=request.query_params.get('valor', '*'),
+            )
+        else:
+            plantilla = obtener_plantilla_detalle(repo, plantilla_id=plantilla_id)
         return ok(PlantillaMotorDetalleSerializer(plantilla).data)
 
     @extend_schema(tags=['Carnetización'], summary='Actualizar borrador de plantilla', request=ActualizarPlantillaBorradorInputSerializer, responses={200: PlantillaMotorDetalleSerializer})
@@ -307,8 +318,8 @@ class ElementoBibliotecaListView(APIView):
     """
     def get_permissions(self):
         if self.request.method == 'GET':
-            return [IsAuthenticated(), HasPermission('carnetizacion.ver')]
-        return [IsAuthenticated(), HasPermission('carnetizacion.disenar')]
+            return [IsAuthenticated(), HasPermission('carnetizacion.ver')()]
+        return [IsAuthenticated(), HasPermission('carnetizacion.disenar')()]
 
     @extend_schema(tags=['Carnetización'], summary='Listar recursos de la biblioteca')
     def get(self, request):

@@ -13,5 +13,6 @@ class TipoCredencial:
     ancho_mm: float
     alto_mm: float
     orientacion: str  # 'vertical' | 'horizontal'
+    grupo: str = 'trabajador'
     activo: bool = True
     orden: int = 1

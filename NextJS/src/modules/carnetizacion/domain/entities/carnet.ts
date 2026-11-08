@@ -88,6 +88,7 @@ export interface TipoCredencial {
   ancho_mm: number;
   alto_mm: number;
   orientacion: "vertical" | "horizontal";
+  grupo: string;
   activo: boolean;
   orden: number;
 }

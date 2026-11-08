@@ -13,8 +13,10 @@ from apps.carnetizacion.domain.entities.tipo_credencial import TipoCredencial
 
 class RepoCarnetizacion(Protocol):
     # --- Tipos de Credencial (Catálogo) ---
-    def listar_tipos_credencial(self, solo_activos: bool = True) -> list[TipoCredencial]:
-        """Lista los tipos de credencial registrados."""
+    def listar_tipos_credencial(
+        self, solo_activos: bool = True, grupo: str | None = None
+    ) -> list[TipoCredencial]:
+        """Lista los tipos de credencial registrados, opcionalmente por grupo."""
         ...
 
     def obtener_tipo_credencial(self, codigo: str) -> TipoCredencial | None:

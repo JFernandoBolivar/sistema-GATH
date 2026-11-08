@@ -1,5 +1,6 @@
 import {
   Bell,
+  CreditCard,
   FilePenLine,
   HeartPulse,
   Home,
@@ -37,6 +38,13 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
     etiqueta: "Mi ficha",
     href: "/autogestion/ficha",
     icono: UserRound,
+    permiso: "autogestion.ver_propio",
+  },
+  {
+    id: "mi-carnet",
+    etiqueta: "Mi carnet",
+    href: "/autogestion/mi-carnet",
+    icono: CreditCard,
     permiso: "autogestion.ver_propio",
   },
   {

@@ -8,6 +8,11 @@ import {
   Search,
   BarChart3,
   Palette,
+  UserCheck,
+  Clock3,
+  Printer,
+  CalendarDays,
+  QrCode,
   LucideIcon,
 } from "lucide-react";
 
@@ -72,6 +77,36 @@ const items: MenuItem[] = [
         permiso: "carnetizacion.ver",
       },
     ],
+  },
+  {
+    permiso: "carnetizacion.visitantes",
+    title: "Visitantes",
+    url: "/carnetizacion/visitantes",
+    icon: UserCheck,
+  },
+  {
+    permiso: "carnetizacion.temporal",
+    title: "Credencial temporal",
+    url: "/carnetizacion/temporal",
+    icon: Clock3,
+  },
+  {
+    permiso: "carnetizacion.lote",
+    title: "Impresión por lote",
+    url: "/carnetizacion/lote",
+    icon: Printer,
+  },
+  {
+    permiso: "carnetizacion.eventos",
+    title: "Eventos",
+    url: "/carnetizacion/eventos",
+    icon: CalendarDays,
+  },
+  {
+    permiso: "carnetizacion.control_eventos",
+    title: "Control de Entrada QR",
+    url: "/carnetizacion/control-eventos",
+    icon: QrCode,
   },
   {
     permiso: "carnetizacion.ver",

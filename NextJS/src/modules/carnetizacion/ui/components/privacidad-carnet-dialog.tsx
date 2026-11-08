@@ -20,11 +20,10 @@ import {
 } from "@/shared/ui/components/select";
 import type { NivelPrivacidadDato, PreferenciasPrivacidadCarnet } from "../../domain/entities/carnet";
 import { PRIVACIDAD_DEFECTO } from "../../domain/entities/carnet";
-import { repoCarnetizacionApi } from "../../infrastructure/repositories/repo-carnetizacion-api";
 import {
-  guardarPreferenciasPrivacidadUC,
-  obtenerPreferenciasPrivacidadUC,
-} from "../../application/use-cases/consultar-qr-ficha";
+  guardarPreferenciasPrivacidadAction,
+  obtenerPreferenciasPrivacidadAction,
+} from "../../infrastructure/actions/carnetizacion-actions";
 
 interface PrivacidadCarnetDialogProps {
   open: boolean;
@@ -115,7 +114,7 @@ export function PrivacidadCarnetDialog({
         setCargando(true);
         setError(null);
         setExito(false);
-        const data = await obtenerPreferenciasPrivacidadUC(repoCarnetizacionApi);
+        const data = await obtenerPreferenciasPrivacidadAction();
         if (montado) {
           setPrefs({ ...PRIVACIDAD_DEFECTO, ...data });
         }
@@ -146,7 +145,7 @@ export function PrivacidadCarnetDialog({
     try {
       setGuardando(true);
       setError(null);
-      await guardarPreferenciasPrivacidadUC(repoCarnetizacionApi, prefs);
+      await guardarPreferenciasPrivacidadAction(prefs);
       setExito(true);
       onGuardado?.();
       setTimeout(() => {

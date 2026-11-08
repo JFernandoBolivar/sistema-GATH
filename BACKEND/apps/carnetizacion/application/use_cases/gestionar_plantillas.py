@@ -56,14 +56,22 @@ def _tipo_a_dto(t: TipoCredencial) -> TipoCredencialDTO:
         ancho_mm=t.ancho_mm,
         alto_mm=t.alto_mm,
         orientacion=t.orientacion,
+        grupo=t.grupo,
         activo=t.activo,
         orden=t.orden,
     )
 
 
-def listar_tipos_credencial(repo: RepoCarnetizacion, solo_activos: bool = True) -> list[TipoCredencialDTO]:
-    """Lista los tipos de credencial (trabajadores, pasivos, etc.)."""
-    tipos = repo.listar_tipos_credencial(solo_activos=solo_activos)
+def listar_tipos_credencial(
+    repo: RepoCarnetizacion,
+    solo_activos: bool = True,
+    grupo: str | None = None,
+) -> list[TipoCredencialDTO]:
+    """Lista los tipos de credencial, opcionalmente filtrados por grupo."""
+    opciones: dict[str, object] = {'solo_activos': solo_activos}
+    if grupo is not None:
+        opciones['grupo'] = grupo
+    tipos = repo.listar_tipos_credencial(**opciones)
     return [_tipo_a_dto(t) for t in tipos]
 
 

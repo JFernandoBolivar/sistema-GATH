@@ -41,7 +41,7 @@ export interface RepoCarnetizacion {
   obtenerDatosEmpleado(cedula: string): Promise<DatosCarnetEmpleado | null>;
 
   // Motor de Plantillas y Catálogo (O44 - E3)
-  listarTiposCredencial(): Promise<TipoCredencial[]>;
+  listarTiposCredencial(grupo?: string): Promise<TipoCredencial[]>;
   listarPlantillasMotor(tipo?: string, estado?: string, activas?: boolean): Promise<PlantillaMotor[]>;
   obtenerPlantillaMotor(id: string): Promise<PlantillaMotor>;
   crearPlantillaBorrador(input: CrearPlantillaBorradorInput): Promise<PlantillaMotor>;

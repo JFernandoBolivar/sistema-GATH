@@ -117,3 +117,56 @@ def plantilla_defecto_pasivo() -> dict[str, Any]:
             {'id': 'rev-cargo-firmante', 'tipo': 'text', 'nombre': 'Cargo autorizante', 'texto': 'Director General', 'x': 7, 'y': 76, 'w': 40, 'h': 3.5, 'fontSize': 6, 'bold': True, 'align': 'center', 'color': p},
         ],
     }
+
+
+def plantilla_defecto_evento() -> dict[str, Any]:
+    """Plantilla de gafete institucional para eventos e invitados (90 x 130 mm, dos caras)."""
+    p = 'rule:primario'
+    a = 'rule:acento'
+    t = 'rule:texto'
+    return {
+        'orientacion': 'vertical',
+        'dimensiones': {'ancho_mm': 90.0, 'alto_mm': 130.0},
+        'ancho_mm': 90.0,
+        'alto_mm': 130.0,
+        'bg': {'anverso': '#ffffff', 'reverso': '#ffffff'},
+        'reglas': {
+            'criterio': 'categoria',
+            'primario': '#0B4A9E',
+            'acento': '#F59E0B',
+            'texto': '#ffffff',
+            'respaldo': {
+                'primario': '#0B4A9E',
+                'acento': '#F59E0B',
+                'texto': '#ffffff',
+            },
+            'valores': {
+                'Invitado especial': {'primario': '#0B4A9E', 'acento': '#F59E0B', 'texto': '#ffffff'},
+                'Autoridad': {'primario': '#1E3A8A', 'acento': '#D97706', 'texto': '#ffffff'},
+                'Prensa': {'primario': '#047857', 'acento': '#10B981', 'texto': '#ffffff'},
+                'Staff': {'primario': '#374151', 'acento': '#6B7280', 'texto': '#ffffff'},
+                'Asistente': {'primario': '#0284C7', 'acento': '#38BDF8', 'texto': '#ffffff'},
+            },
+        },
+        'anverso': [
+            {'id': 'ev-sup', 'tipo': 'rect', 'nombre': 'Fondo superior', 'x': 0, 'y': 0, 'w': 90, 'h': 34, 'props': {'fill': p}},
+            {'id': 'ev-logo', 'tipo': 'image', 'nombre': 'Logo institucional', 'x': 8, 'y': 5, 'w': 30, 'h': 10, 'props': {'label': 'LOGO', 'fill': t}},
+            {'id': 'ev-nombre', 'tipo': 'field', 'campo': 'nombre_evento', 'nombre': 'Nombre del evento', 'x': 8, 'y': 17, 'w': 74, 'h': 14, 'fontSize': 14, 'bold': True, 'color': t},
+            {'id': 'asist-nombre', 'tipo': 'field', 'campo': 'nombre_completo', 'nombre': 'Nombre del asistente', 'x': 8, 'y': 38, 'w': 74, 'h': 16, 'fontSize': 14, 'bold': True, 'align': 'center'},
+            {'id': 'asist-org', 'tipo': 'field', 'campo': 'organizacion', 'nombre': 'Organización', 'x': 8, 'y': 56, 'w': 74, 'h': 8, 'fontSize': 9, 'bold': False, 'align': 'center', 'color': '#4B5563'},
+            {'id': 'ev-banda-cat', 'tipo': 'rect', 'nombre': 'Banda de categoría', 'x': 0, 'y': 68, 'w': 90, 'h': 14, 'props': {'fill': a}},
+            {'id': 'asist-cat', 'tipo': 'field', 'campo': 'categoria', 'nombre': 'Categoría', 'x': 8, 'y': 70, 'w': 74, 'h': 10, 'fontSize': 12, 'bold': True, 'align': 'center', 'color': t},
+            {'id': 'ev-qr', 'tipo': 'qr', 'nombre': 'Código QR', 'x': 8, 'y': 88, 'w': 28, 'h': 28, 'props': {'fill': '#111827'}},
+            {'id': 'ev-fecha', 'tipo': 'field', 'campo': 'fecha_evento', 'nombre': 'Fecha del evento', 'x': 40, 'y': 90, 'w': 44, 'h': 6, 'fontSize': 8, 'bold': True},
+            {'id': 'ev-zona', 'tipo': 'field', 'campo': 'zona', 'nombre': 'Zona de acceso', 'x': 40, 'y': 98, 'w': 44, 'h': 6, 'fontSize': 8, 'bold': False},
+            {'id': 'ev-mesa', 'tipo': 'field', 'campo': 'mesa', 'nombre': 'Mesa o asiento', 'x': 40, 'y': 106, 'w': 44, 'h': 6, 'fontSize': 8, 'bold': False},
+            {'id': 'ev-codigo', 'tipo': 'field', 'campo': 'codigo_credencial', 'nombre': 'Código de credencial', 'x': 40, 'y': 114, 'w': 44, 'h': 5, 'fontSize': 7, 'bold': False, 'color': '#6B7280'},
+        ],
+        'reverso': [
+            {'id': 'rev-ev-sup', 'tipo': 'rect', 'nombre': 'Fondo superior reverso', 'x': 0, 'y': 0, 'w': 90, 'h': 14, 'props': {'fill': p}},
+            {'id': 'rev-ev-normas', 'tipo': 'text', 'nombre': 'Indicaciones de acceso', 'texto': '•  Presente esta credencial obligatoriamente al ingresar.\n•  Es personal e intransferible.\n•  Consérvela en lugar visible durante todo el desarrollo del evento.\n•  El código QR es único y valida su autorización de acceso.', 'x': 8, 'y': 22, 'w': 74, 'h': 35, 'fontSize': 8},
+            {'id': 'rev-ev-qr', 'tipo': 'qr', 'nombre': 'Código QR reverso', 'x': 30, 'y': 70, 'w': 30, 'h': 30, 'props': {'fill': '#111827'}},
+            {'id': 'rev-ev-pie', 'tipo': 'text', 'nombre': 'Pie institucional', 'texto': 'Comisión Nacional de Telecomunicaciones — CONATEL', 'x': 8, 'y': 112, 'w': 74, 'h': 6, 'fontSize': 7, 'bold': True, 'align': 'center', 'color': '#4B5563'},
+        ],
+    }
+

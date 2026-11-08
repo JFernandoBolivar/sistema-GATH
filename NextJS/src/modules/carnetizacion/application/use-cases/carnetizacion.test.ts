@@ -121,6 +121,7 @@ class RepoCarnetizacionMemoria implements RepoCarnetizacion {
         ancho_mm: 54,
         alto_mm: 85.6,
         orientacion: "vertical",
+        grupo: "trabajador",
         activo: true,
         orden: 1,
       },

@@ -48,6 +48,7 @@ class TipoCredencialSerializer(serializers.Serializer):
     ancho_mm = serializers.FloatField(read_only=True)
     alto_mm = serializers.FloatField(read_only=True)
     orientacion = serializers.CharField(read_only=True)
+    grupo = serializers.CharField(read_only=True)
     activo = serializers.BooleanField(read_only=True)
     orden = serializers.IntegerField(read_only=True)
 

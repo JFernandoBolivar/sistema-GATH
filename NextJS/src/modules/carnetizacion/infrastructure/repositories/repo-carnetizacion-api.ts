@@ -77,8 +77,8 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
   },
 
   // --- Motor de Plantillas y Catálogo (O44 - E3) ---
-  async listarTiposCredencial() {
-    const raw = await carnetizacionApi.getTiposCredencial();
+  async listarTiposCredencial(grupo) {
+    const raw = await carnetizacionApi.getTiposCredencial(grupo);
     return raw.map(tipoCredencialApiAEntidad);
   },
 

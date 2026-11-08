@@ -17,6 +17,8 @@ const RUTAS_PERMITIDAS: readonly RegExp[] = [
   /^familiares\/[^/]+\/documentos\/[^/]+\/archivo\/?$/,
   /^carnetizacion\/plantillas\/\d+\/imagen\/?$/,
   /^carnetizacion\/biblioteca\/[^/]+\/archivo\/?$/,
+  // QR de la credencial para la vista móvil de Mi carnet (O45-A).
+  /^carnetizacion\/public\/qr\/[^/]+\/imagen\/?$/,
   /^puntocuenta\/[^/]+\/documento\/archivo\/?$/,
   // Soportes de las solicitudes de actualización de datos (Django valida dueño o Bienestar).
   /^autogestion\/soportes\/[0-9a-f-]{36}\/archivo\/?$/,

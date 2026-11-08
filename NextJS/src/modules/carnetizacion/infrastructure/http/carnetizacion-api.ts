@@ -37,6 +37,7 @@ export interface TipoCredencialApiItem {
   ancho_mm: number;
   alto_mm: number;
   orientacion: "vertical" | "horizontal";
+  grupo: string;
   activo: boolean;
   orden: number;
 }
@@ -177,8 +178,11 @@ export const carnetizacionApi = {
   },
 
   // --- Catálogo y Motor de Plantillas (O44 - E3) ---
-  getTiposCredencial: async () => {
-    const envelope = await apiClient.get<ApiResponse<TipoCredencialApiItem[]>>("/api/v1/carnetizacion/tipos-credencial/");
+  getTiposCredencial: async (grupo?: string) => {
+    const envelope = await apiClient.get<ApiResponse<TipoCredencialApiItem[]>>(
+      "/api/v1/carnetizacion/tipos-credencial/",
+      { params: { grupo } },
+    );
     return envelope.data ?? [];
   },
 

@@ -6,8 +6,10 @@ import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import type { FichaQr } from "../../domain/entities/carnet";
-import { repoCarnetizacionApi } from "../../infrastructure/repositories/repo-carnetizacion-api";
-import { consultarFichaQrUC, consultarSaludEmergenciaUC } from "../../application/use-cases/consultar-qr-ficha";
+import {
+  consultarFichaQrAction,
+  consultarSaludEmergenciaAction,
+} from "../../infrastructure/actions/carnetizacion-actions";
 
 interface VerificarCarnetQrViewProps {
   securityHash: string;
@@ -26,7 +28,7 @@ export function VerificarCarnetQrView({ securityHash }: VerificarCarnetQrViewPro
       try {
         setCargando(true);
         setError(null);
-        const data = await consultarFichaQrUC(repoCarnetizacionApi, securityHash);
+        const data = await consultarFichaQrAction(securityHash);
         if (montado) {
           setFicha(data);
           if (data.datos?.salud) setSaludVisible(true);
@@ -46,7 +48,7 @@ export function VerificarCarnetQrView({ securityHash }: VerificarCarnetQrViewPro
   const handleConsultarSalud = async () => {
     try {
       setCargandoSalud(true);
-      const data = await consultarSaludEmergenciaUC(repoCarnetizacionApi, securityHash);
+      const data = await consultarSaludEmergenciaAction(securityHash);
       setFicha(data);
       setSaludVisible(true);
     } catch (err) {

@@ -1,5 +1,30 @@
 from django.urls import path
 
+from apps.carnetizacion.presentation.views.credenciales_externas_views import (
+    CarnetQrImagenView,
+    CredencialExternaAnularView,
+    CredencialExternaDetailView,
+    CredencialExternaDevolverView,
+    CredencialExternaEnviarView,
+    CredencialExternaPdfView,
+    CredencialesExternasListView,
+    CredencialesLotePdfView,
+    CredencialesTemporalesListView,
+)
+from apps.carnetizacion.presentation.views.evento_views import (
+    EventoCategoriasView,
+    EventoControlEntradaCheckInView,
+    EventoCredencialPdfView,
+    EventoDetalleView,
+    EventoEmitirLoteView,
+    EventoEnviarCorreoView,
+    EventoInvitadoDetalleView,
+    EventoInvitadosImportarView,
+    EventoInvitadosListView,
+    EventoPanelView,
+    EventosListView,
+    EventoZonasView,
+)
 from apps.carnetizacion.presentation.views.carnetizacion_views import (
     ActivarPlantillaView,
     AutogestionPrivacidadCarnetView,
@@ -73,6 +98,31 @@ urlpatterns = [
     path('public/qr/<str:security_hash>/', FichaQrPublicaView.as_view(), name='carnet-qr-publico'),
     path('public/qr/<str:security_hash>/medica/', FichaQrMedicaView.as_view(), name='carnet-qr-medica'),
     path('autogestion/privacidad/', AutogestionPrivacidadCarnetView.as_view(), name='carnet-autogestion-privacidad'),
+
+    # Credenciales externas y temporales (O45-A)
+    path('credenciales-externas/', CredencialesExternasListView.as_view(), name='credenciales-externas-list'),
+    path('credenciales-externas/lote/pdf/', CredencialesLotePdfView.as_view(), name='credenciales-externas-lote-pdf'),
+    path('credenciales-externas/<str:credencial_id>/', CredencialExternaDetailView.as_view(), name='credencial-externa-detail'),
+    path('credenciales-externas/<str:credencial_id>/pdf/', CredencialExternaPdfView.as_view(), name='credencial-externa-pdf'),
+    path('credenciales-externas/<str:credencial_id>/devolver/', CredencialExternaDevolverView.as_view(), name='credencial-externa-devolver'),
+    path('credenciales-externas/<str:credencial_id>/anular/', CredencialExternaAnularView.as_view(), name='credencial-externa-anular'),
+    path('credenciales-externas/<str:credencial_id>/enviar/', CredencialExternaEnviarView.as_view(), name='credencial-externa-enviar'),
+    path('credenciales-temporales/', CredencialesTemporalesListView.as_view(), name='credenciales-temporales-list'),
+    path('public/qr/<str:security_hash>/imagen/', CarnetQrImagenView.as_view(), name='carnet-qr-imagen'),
+
+    # Eventos, Invitados y Control de Entrada con QR (O45-B)
+    path('eventos/', EventosListView.as_view(), name='eventos-list'),
+    path('eventos/<str:pk>/', EventoDetalleView.as_view(), name='evento-detalle'),
+    path('eventos/<str:evento_id>/categorias/', EventoCategoriasView.as_view(), name='evento-categorias'),
+    path('eventos/<str:evento_id>/zonas/', EventoZonasView.as_view(), name='evento-zonas'),
+    path('eventos/<str:evento_id>/invitados/', EventoInvitadosListView.as_view(), name='evento-invitados-list'),
+    path('eventos/<str:evento_id>/invitados/importar/', EventoInvitadosImportarView.as_view(), name='evento-invitados-importar'),
+    path('eventos/<str:evento_id>/emitir-lote/', EventoEmitirLoteView.as_view(), name='evento-emitir-lote'),
+    path('eventos/<str:evento_id>/enviar-correo/', EventoEnviarCorreoView.as_view(), name='evento-enviar-correo'),
+    path('eventos/<str:evento_id>/pdf/', EventoCredencialPdfView.as_view(), name='evento-pdf'),
+    path('eventos/<str:evento_id>/panel/', EventoPanelView.as_view(), name='evento-panel'),
+    path('eventos/invitados/<str:pk>/', EventoInvitadoDetalleView.as_view(), name='evento-invitado-detalle'),
+    path('control-eventos/check-in/', EventoControlEntradaCheckInView.as_view(), name='evento-checkin'),
 
     # Plantillas Legacy
     path('plantillas/', PlantillasListView.as_view(), name='plantillas-list'),

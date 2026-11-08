@@ -102,11 +102,15 @@ class RepoCarnetizacionORM:
                 ),
             ])
 
-    def listar_tipos_credencial(self, solo_activos: bool = True) -> list[TipoCredencial]:
+    def listar_tipos_credencial(
+        self, solo_activos: bool = True, grupo: str | None = None
+    ) -> list[TipoCredencial]:
         self._asegurar_catalogos_semilla()
         qs = TipoCredencialModel.objects.all().order_by('orden', 'nombre')
         if solo_activos:
             qs = qs.filter(activo=True)
+        if grupo:
+            qs = qs.filter(grupo=grupo)
         return [tipo_credencial_a_entidad(t) for t in qs]
 
     def obtener_tipo_credencial(self, codigo: str) -> TipoCredencial | None:
@@ -474,12 +478,12 @@ class RepoCarnetizacionORM:
             Q(cedulaidentidad__icontains=query) |
             Q(nombres__icontains=query) |
             Q(apellidos__icontains=query)
-        ).select_related('tipo_trabajador')[:20]
+        ).select_related('sexoid', 'nacionalidad')[:20]
         return [
             {
                 'cedula': str(e.cedulaidentidad),
                 'nombre_completo': f"{e.nombres} {e.apellidos}".strip(),
-                'tipo_personal': str(e.tipo_trabajador) if e.tipo_trabajador else 'Activo',
+                'tipo_personal': str(getattr(e, 'tipo_trabajador', '') or 'Activo'),
                 'tiene_carnet_activo': CarnetEmitidoModel.objects.filter(employee=e, activo=True).exists(),
             }
             for e in qs
@@ -758,6 +762,71 @@ class RepoCarnetizacionORM:
         return True
 
     # --- QR y Privacidad por Dato (O44 - E9) ---
+    def _ficha_credencial_externa(
+        self,
+        externa: Any,
+        security_hash: str,
+        usuario_sesion: Any | None,
+        ip: str,
+        user_agent: str,
+        accion: str,
+    ) -> FichaQr:
+        from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
+            CredencialExternaModel,
+        )
+
+        ahora = timezone.now()
+        estado = externa.estado
+        if estado == CredencialExternaModel.Estado.ACTIVA and externa.vigencia_hasta < ahora:
+            externa.estado = CredencialExternaModel.Estado.VENCIDA
+            externa.save(update_fields=['estado', 'updated_at'])
+            estado = CredencialExternaModel.Estado.VENCIDA
+
+        if estado != CredencialExternaModel.Estado.ACTIVA:
+            BitacoraAccesoQrModel.objects.create(
+                security_hash=security_hash,
+                accion='ESCANEO_NO_VALIDO',
+                ip=ip,
+                user_agent=user_agent,
+            )
+            estado_ui = (
+                'VENCIDO'
+                if estado == CredencialExternaModel.Estado.VENCIDA
+                else 'ANULADO'
+            )
+            return FichaQr(
+                es_valido=False,
+                estado=estado_ui,
+                mensaje='Esta credencial ya no está vigente.',
+                security_hash=security_hash,
+                fecha_vencimiento=externa.vigencia_hasta.strftime('%d/%m/%Y %H:%M'),
+            )
+
+        BitacoraAccesoQrModel.objects.create(
+            security_hash=security_hash,
+            accion=accion,
+            ip=ip,
+            user_agent=user_agent,
+        )
+        datos = {
+            'nombre': externa.nombre,
+            'cargo': externa.empresa or externa.contrato or externa.tipo_credencial.nombre,
+            'ubicacion': externa.persona_visitada or externa.motivo,
+            'tipo_credencial': externa.tipo_credencial.nombre,
+            'empresa': externa.empresa,
+            'motivo': externa.motivo,
+            'vigencia_hasta': externa.vigencia_hasta.strftime('%d/%m/%Y %H:%M'),
+        }
+        return FichaQr(
+            es_valido=True,
+            estado='VIGENTE',
+            mensaje='Credencial auténtica y vigente.',
+            security_hash=security_hash,
+            datos=datos,
+            nivel_acceso='PUBLICO',
+            fecha_vencimiento=externa.vigencia_hasta.strftime('%d/%m/%Y %H:%M'),
+        )
+
     def consultar_ficha_qr(
         self,
         security_hash: str,
@@ -772,6 +841,19 @@ class RepoCarnetizacionORM:
             .first()
         )
         if not carnet:
+            from apps.carnetizacion.infrastructure.models.credencial_externa_model import (
+                CredencialExternaModel,
+            )
+
+            externa = (
+                CredencialExternaModel.objects.select_related('tipo_credencial')
+                .filter(security_hash=security_hash)
+                .first()
+            )
+            if externa:
+                return self._ficha_credencial_externa(
+                    externa, security_hash, usuario_sesion, ip, user_agent, accion
+                )
             return FichaQr(
                 es_valido=False,
                 estado='NO_REGISTRADO',

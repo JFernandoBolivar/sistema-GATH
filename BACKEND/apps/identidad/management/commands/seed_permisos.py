@@ -129,6 +129,12 @@ PERMISOS_CATALOGO = [
     ("carnetizacion.emitir", "Emitir y generar carnets con QR criptográfico"),
     ("carnetizacion.revocar", "Revocar o invalidar carnet emitido"),
     ("carnetizacion.reimprimir", "Solicitar reimpresión de carnet"),
+    ("carnetizacion.visitantes", "Registrar y gestionar credenciales de visitantes y contratistas"),
+    ("carnetizacion.temporal", "Emitir credenciales temporales por olvido o extravío"),
+    ("carnetizacion.lote", "Imprimir credenciales por lote"),
+    ("carnetizacion.enviar", "Enviar credenciales por correo"),
+    ("carnetizacion.eventos", "Gestionar eventos, categorías, zonas e invitados"),
+    ("carnetizacion.control_eventos", "Control de entrada y acceso con QR a eventos"),
 
     # ─── 11. AUTOGESTIÓN ───
     ("autogestion.ver_propio", "Consultar expediente personal propio"),
@@ -260,6 +266,8 @@ ROL_ASIGNACIONES = {
         "carnetizacion.ver",
         "carnetizacion.emitir",
         "carnetizacion.reimprimir",
+        "carnetizacion.eventos",
+        "carnetizacion.control_eventos",
         "autogestion.censo_ver_todos",
         "autogestion.censo_exportar",
     ],
@@ -317,6 +325,12 @@ ROL_ASIGNACIONES = {
         "personal.ver_detalle",
         "pasivos.ver",
         "familiares.ver",
+        "carnetizacion.ver",
+        "carnetizacion.visitantes",
+        "carnetizacion.temporal",
+        "carnetizacion.lote",
+        "carnetizacion.enviar",
+        "carnetizacion.control_eventos",
     ],
 }
 

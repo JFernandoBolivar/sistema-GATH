@@ -41,6 +41,7 @@ class TipoCredencialDTO:
     orientacion: str
     activo: bool
     orden: int
+    grupo: str = 'trabajador'
 
 
 @dataclass(frozen=True)

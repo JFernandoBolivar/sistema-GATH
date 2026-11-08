@@ -18,7 +18,13 @@ import {
   crearCampoPersonalizado,
   eliminarCampoPersonalizado,
 } from "../../application/use-cases/gestionar-campos";
-import type { CategoriaBiblioteca } from "../../domain/entities/carnet";
+import {
+  consultarFichaQrUC,
+  consultarSaludEmergenciaUC,
+  obtenerPreferenciasPrivacidadUC,
+  guardarPreferenciasPrivacidadUC,
+} from "../../application/use-cases/consultar-qr-ficha";
+import type { CategoriaBiblioteca, PreferenciasPrivacidadCarnet } from "../../domain/entities/carnet";
 
 import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
@@ -342,11 +348,11 @@ export async function generarCarnetPdfAction(cedula: string, motivoId: number, n
   }
 }
 
-export async function getTiposCredencialAction() {
+export async function getTiposCredencialAction(grupo?: string) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
-    const result = await repoCarnetizacionApi.listarTiposCredencial();
+    const result = await repoCarnetizacionApi.listarTiposCredencial(grupo);
     await logAudit({ traceId, action: "getTiposCredencialAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
@@ -594,6 +600,63 @@ export async function eliminarCampoPersonalizadoAction(codigo: string) {
     await logAudit({ traceId, action: "eliminarCampoPersonalizadoAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
     return { success: false as const, error: "No fue posible eliminar el campo personalizado." };
+  }
+}
+
+// --- Ficha QR y Privacidad por Dato (O44 - E9) ---
+export async function consultarFichaQrAction(securityHash: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await consultarFichaQrUC(repoCarnetizacionApi, securityHash);
+    await logAudit({ traceId, action: "consultarFichaQrAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "consultarFichaQrAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function consultarSaludEmergenciaAction(securityHash: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await consultarSaludEmergenciaUC(repoCarnetizacionApi, securityHash);
+    await logAudit({ traceId, action: "consultarSaludEmergenciaAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "consultarSaludEmergenciaAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function obtenerPreferenciasPrivacidadAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerPreferenciasPrivacidadUC(repoCarnetizacionApi);
+    await logAudit({ traceId, action: "obtenerPreferenciasPrivacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "obtenerPreferenciasPrivacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function guardarPreferenciasPrivacidadAction(preferencias: PreferenciasPrivacidadCarnet) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await guardarPreferenciasPrivacidadUC(repoCarnetizacionApi, preferencias);
+    await logAudit({ traceId, action: "guardarPreferenciasPrivacidadAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "guardarPreferenciasPrivacidadAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
   }
 }
 
