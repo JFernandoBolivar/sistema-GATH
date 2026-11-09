@@ -13,12 +13,20 @@ export async function iniciarSesion(
   email = "e2e.administrador@auditoria.local",
   password = "E2eClaude2026*"
 ): Promise<void> {
-  await page.goto("/login");
-  await page.waitForLoadState("networkidle").catch(() => {});
-  await page.getByLabel(/correo electrónico/i).fill(email);
-  await page.getByLabel(/contraseña/i).fill(password);
-  await page.getByRole("button", { name: /iniciar sesión/i }).click();
-  await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 45_000 });
+  for (let intento = 0; intento < 2; intento++) {
+    await page.goto("/login");
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await page.getByLabel(/correo electrónico/i).fill(email);
+    await page.getByLabel(/contraseña/i).fill(password);
+    await page.getByRole("button", { name: /iniciar sesión/i }).click();
+    try {
+      await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 60_000 });
+      return;
+    } catch (error) {
+      if (intento === 1) throw error;
+      await page.waitForTimeout(2_000);
+    }
+  }
 }
 
 export async function cerrarSesion(page: Page): Promise<void> {

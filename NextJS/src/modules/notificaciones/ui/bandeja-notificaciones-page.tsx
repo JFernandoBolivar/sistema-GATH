@@ -218,73 +218,72 @@ export default function BandejaNotificacionesPage({ modulo }: Props) {
           chipsActivos={chipsActivos}
           tituloFiltrosMovil="Filtros de notificaciones"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${id}-tipo`} className="text-xs font-medium text-muted-foreground">
-                Tipo
-              </Label>
-              <ComboboxTipoNotificacion
-                id={`${id}-tipo`}
-                valor={tipo}
-                onCambiar={(v) => {
-                  setTipo(v);
-                  setPagina(0);
-                }}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${id}-leida`} className="text-xs font-medium text-muted-foreground">
-                Estado
-              </Label>
-              <Select
-                value={estado}
-                onValueChange={(v) => {
-                  setEstado(v as EstadoLectura);
-                  setPagina(0);
-                }}
-              >
-                <SelectTrigger id={`${id}-leida`} className="h-10 w-full text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas</SelectItem>
-                  <SelectItem value="no">No leídas</SelectItem>
-                  <SelectItem value="si">Leídas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${id}-desde`} className="text-xs font-medium text-muted-foreground">
-                Desde
-              </Label>
-              <Input
-                id={`${id}-desde`}
-                type="date"
-                value={desde}
-                max={hasta || undefined}
-                className="h-10 text-sm"
-                onChange={(e) => {
-                  setDesde(e.target.value);
-                  setPagina(0);
-                }}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={`${id}-hasta`} className="text-xs font-medium text-muted-foreground">
-                Hasta
-              </Label>
-              <Input
-                id={`${id}-hasta`}
-                type="date"
-                value={hasta}
-                min={desde || undefined}
-                className="h-10 text-sm"
-                onChange={(e) => {
-                  setHasta(e.target.value);
-                  setPagina(0);
-                }}
-              />
-            </div>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label htmlFor={`${id}-tipo`} className="text-sm font-medium text-foreground">
+              Tipo
+            </Label>
+            <ComboboxTipoNotificacion
+              id={`${id}-tipo`}
+              valor={tipo}
+              className="h-11"
+              onCambiar={(v) => {
+                setTipo(v);
+                setPagina(0);
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label htmlFor={`${id}-leida`} className="text-sm font-medium text-foreground">
+              Estado
+            </Label>
+            <Select
+              value={estado}
+              onValueChange={(v) => {
+                setEstado(v as EstadoLectura);
+                setPagina(0);
+              }}
+            >
+              <SelectTrigger id={`${id}-leida`} className="h-11 w-full min-w-0 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+                <SelectItem value="no">No leídas</SelectItem>
+                <SelectItem value="si">Leídas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label htmlFor={`${id}-desde`} className="text-sm font-medium text-foreground">
+              Desde
+            </Label>
+            <Input
+              id={`${id}-desde`}
+              type="date"
+              value={desde}
+              max={hasta || undefined}
+              className="h-11 w-full min-w-0 text-sm [&::-webkit-calendar-picker-indicator]:size-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+              onChange={(e) => {
+                setDesde(e.target.value);
+                setPagina(0);
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label htmlFor={`${id}-hasta`} className="text-sm font-medium text-foreground">
+              Hasta
+            </Label>
+            <Input
+              id={`${id}-hasta`}
+              type="date"
+              value={hasta}
+              min={desde || undefined}
+              className="h-11 w-full min-w-0 text-sm [&::-webkit-calendar-picker-indicator]:size-5 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+              onChange={(e) => {
+                setHasta(e.target.value);
+                setPagina(0);
+              }}
+            />
           </div>
         </BarraFiltros>
       </div>

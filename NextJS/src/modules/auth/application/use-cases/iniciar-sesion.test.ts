@@ -52,11 +52,22 @@ describe("iniciarSesion", () => {
     expect(repo.iniciarSesion).not.toHaveBeenCalled();
   });
 
-  it("rechaza una contraseña corta sin invocar al repositorio", async () => {
+  it("acepta la cédula como contraseña inicial aunque tenga menos de 8 dígitos", async () => {
+    const repo = fakeRepo();
+
+    await iniciarSesion(repo, { usuario: "ana@conatel.gob.ve", password: "47185" });
+
+    expect(repo.iniciarSesion).toHaveBeenCalledWith({
+      usuario: "ana@conatel.gob.ve",
+      password: "47185",
+    });
+  });
+
+  it("rechaza una contraseña vacía sin invocar al repositorio", async () => {
     const repo = fakeRepo();
 
     await expect(
-      iniciarSesion(repo, { usuario: "ana@conatel.gob.ve", password: "corta" }),
+      iniciarSesion(repo, { usuario: "ana@conatel.gob.ve", password: "" }),
     ).rejects.toThrow();
     expect(repo.iniciarSesion).not.toHaveBeenCalled();
   });

@@ -3,6 +3,7 @@ import path from "path";
 
 export default defineConfig({
   testDir: ".",
+  globalSetup: "./global-setup.ts",
   timeout: 120_000,
   expect: { timeout: 20_000 },
   fullyParallel: false,

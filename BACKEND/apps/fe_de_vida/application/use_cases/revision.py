@@ -38,11 +38,15 @@ def _al_validar(
 def dar_check(
     repo: RepoSolicitudesFeDeVida, aplicador: AplicadorCambiosActa, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, ahora: datetime, registrador_puede_checar: bool = False,
+    admin_registradora_puede_decidir: bool = False,
 ) -> SolicitudFeDeVida:
     """Primer check -> PENDIENTE_SEGUNDO_CHECK; segundo (otro rol y otra persona) -> VALIDADA."""
     publicador = publicador or PublicadorNulo()
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
-    nueva = solicitud.dar_check(actor, ahora, registrador_puede_checar=registrador_puede_checar)
+    nueva = solicitud.dar_check(
+        actor, ahora, registrador_puede_checar=registrador_puede_checar,
+        admin_registradora_puede_decidir=admin_registradora_puede_decidir,
+    )
     tipo = TipoEvento.VALIDADA if nueva.estado is EstadoSolicitud.VALIDADA else TipoEvento.PRIMER_CHECK
     return _al_validar(repo, aplicador, publicador, solicitud, nueva, actor, ahora, tipo)
 
@@ -68,10 +72,14 @@ def rechazar(
     repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, motivo: str, ahora: datetime,
     registrador_puede_checar: bool = False,
+    admin_registradora_puede_decidir: bool = False,
 ) -> SolicitudFeDeVida:
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
     guardada = repo.guardar(
-        solicitud.rechazar(actor, motivo, ahora, registrador_puede_checar=registrador_puede_checar),
+        solicitud.rechazar(
+            actor, motivo, ahora, registrador_puede_checar=registrador_puede_checar,
+            admin_registradora_puede_decidir=admin_registradora_puede_decidir,
+        ),
         solicitud.version,
     )
     (publicador or PublicadorNulo()).publicar(evento(TipoEvento.RECHAZADA, guardada, actor.cedula, motivo=motivo.strip(), envio=guardada.envios))
@@ -82,6 +90,7 @@ def devolver(
     repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, motivo: str, requiere_nueva_foto: bool = False, ahora: datetime,
     registrador_puede_checar: bool = False,
+    admin_registradora_puede_decidir: bool = False,
 ) -> SolicitudFeDeVida:
     """Devuelve el acta para corrección (motivo obligatorio); la foto nueva solo se exige si el revisor lo pide."""
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
@@ -89,6 +98,7 @@ def devolver(
         solicitud.devolver(
             actor, motivo, ahora, requiere_nueva_foto,
             registrador_puede_checar=registrador_puede_checar,
+            admin_registradora_puede_decidir=admin_registradora_puede_decidir,
         ),
         solicitud.version,
     )
@@ -103,11 +113,15 @@ def retirar_check(
     repo: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
     *, solicitud_id: str, actor: ActorRevision, motivo: str, ahora: datetime,
     registrador_puede_checar: bool = False,
+    admin_registradora_puede_decidir: bool = False,
 ) -> SolicitudFeDeVida:
     """Retira el check propio (aún sin validación completa); justificación obligatoria. Avisa a Bienestar (sin correo)."""
     solicitud = obtener_solicitud(repo, solicitud_id, bloquear=True)
     guardada = repo.guardar(
-        solicitud.retirar_check(actor, motivo, ahora, registrador_puede_checar=registrador_puede_checar),
+        solicitud.retirar_check(
+            actor, motivo, ahora, registrador_puede_checar=registrador_puede_checar,
+            admin_registradora_puede_decidir=admin_registradora_puede_decidir,
+        ),
         solicitud.version,
     )
     (publicador or PublicadorNulo()).publicar(evento(

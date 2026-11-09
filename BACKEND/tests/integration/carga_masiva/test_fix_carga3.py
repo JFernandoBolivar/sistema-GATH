@@ -16,6 +16,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     NacionalidadModel,
     PaisModel,
     SexoModel,
+    TipoProcedenciaModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import (
     EstadoModel,
@@ -55,6 +56,8 @@ def catalogos():
 
     InstitucionModel.objects.create(nombre_institucion='UNIVERSIDAD CENTRAL DE VENEZUELA')
     OrganismoAdscritoModel.objects.create(Organismoadscrito='CONATEL')
+    TipoProcedenciaModel.objects.create(tipo_procedencia='INTERNA')
+    TipoProcedenciaModel.objects.create(tipo_procedencia='EXTERNA')
 
     region = RegionTallaModel.objects.create(codigo='REG1', descripcion='NACIONAL')
     for prenda, valor in (('CAMISA', 'M'), ('PANTALON', '34'), ('ZAPATO', '42')):
@@ -129,9 +132,38 @@ def test_tallas_obligatorias_solo_para_activos(catalogos):
     assert pasivo != CargaMasivaFilaModel.Estado.ERROR
 
 
-def test_institucion_obligatoria_en_formacion_complementaria(catalogos):
+def test_institucion_depende_de_la_procedencia_en_formacion_complementaria(catalogos):
     tipo = TIPOS_POR_CLAVE['formacion_complementaria']
+    EmployeeModel.objects.create(
+        cedulaidentidad='81000001', nombres='ANA', apellidos='PEREZ',
+        fecha_nacimiento=datetime.date(1990, 1, 1),
+        sexoid=SexoModel.objects.get(sexo='FEMENINO'),
+        nacionalidad=catalogos['nacionalidad'],
+    )
 
+    # EXTERNA: la institución es obligatoria.
+    estado, detalle, _ = _analizar_fila(
+        tipo,
+        {'cedula': '81000001', 'curso': 'REDES', 'procedencia': 'EXTERNA'},
+        5,
+        POBLACION_ACTIVOS,
+    )
+
+    assert estado == CargaMasivaFilaModel.Estado.ERROR
+    assert 'institución' in detalle.lower()
+
+    # INTERNA: no se exige institución (formación dentro de CONATEL).
+    estado, detalle, _ = _analizar_fila(
+        tipo,
+        {'cedula': '81000001', 'curso': 'REDES', 'procedencia': 'INTERNA'},
+        5,
+        POBLACION_ACTIVOS,
+    )
+
+    assert estado != CargaMasivaFilaModel.Estado.ERROR
+    assert 'institución' not in detalle.lower()
+
+    # La procedencia es obligatoria.
     estado, detalle, _ = _analizar_fila(
         tipo,
         {'cedula': '81000001', 'curso': 'REDES'},
@@ -140,7 +172,7 @@ def test_institucion_obligatoria_en_formacion_complementaria(catalogos):
     )
 
     assert estado == CargaMasivaFilaModel.Estado.ERROR
-    assert 'institución: obligatorio' in detalle.lower()
+    assert 'procedencia: obligatorio' in detalle.lower()
 
 
 def test_fecha_egreso_obligatoria_en_antecedentes(catalogos):

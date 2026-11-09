@@ -16,6 +16,8 @@ function fijarAlcance(alcance: Alcance): void {
     "from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel",
     "d = definicion_de('carnetizacion.mi_carnet_alcance')",
     `ParametroSistemaModel.objects.update_or_create(clave='carnetizacion.mi_carnet_alcance', defaults={'valor': '${alcance}', 'etiqueta': d.etiqueta, 'descripcion': d.descripcion, 'grupo': d.grupo, 'tipo': d.tipo})`,
+    "from django.core.cache import cache",
+    "cache.clear()",
     "print(1)",
   ].join("; ");
   const salida = execFileSync(
@@ -52,7 +54,7 @@ test.describe("F · Mi carnet en Autogestión", () => {
       const enlaceMenu = page.getByRole("link", { name: /Mi carnet/i });
       const menuVisible = (await enlaceMenu.count()) > 0;
       const vacioVisible = await page
-        .getByText(/Tu carnet digital aún no está habilitado/i)
+        .getByText(/no está habilitada|aún no está habilitado/i)
         .first()
         .isVisible()
         .catch(() => false);
@@ -70,7 +72,7 @@ test.describe("F · Mi carnet en Autogestión", () => {
       fijarAlcance("todos");
       await entrar(page, TRAB_EMAIL, TRAB_PASSWORD);
       await ir(page, "/autogestion/mi-carnet");
-      await expect(page.getByText(/Credencial Digital Oficial/i)).toBeVisible({
+      await expect(page.getByText(/Mi Credencial Digital/i)).toBeVisible({
         timeout: 30_000,
       });
       let menuConAcceso = await page

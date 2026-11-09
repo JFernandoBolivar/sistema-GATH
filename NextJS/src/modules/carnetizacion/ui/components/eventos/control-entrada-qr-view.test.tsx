@@ -42,11 +42,44 @@ describe("ControlEntradaQrView", () => {
   it("renderiza y abre el selector de zonas sin value vacío", async () => {
     render(<ControlEntradaQrView />);
 
-    expect(await screen.findByText(/Control de Entrada/)).toBeInTheDocument();
+    expect(await screen.findByText(/Punto de Control/)).toBeInTheDocument();
     await waitFor(() => expect(acciones.getEventosAction).toHaveBeenCalled());
 
     const combos = screen.getAllByRole("combobox");
     fireEvent.click(combos[1]);
-    expect(await screen.findByText("Todas las zonas")).toBeInTheDocument();
+    expect(await screen.findByText(/Todas las puertas/)).toBeInTheDocument();
+  });
+
+  it("permite simular acceso permitido y muestra badge verde sin emojis", async () => {
+    render(<ControlEntradaQrView />);
+
+    const botonSimular = await screen.findByRole("button", { name: /Simular Acceso Permitido/i });
+    fireEvent.click(botonSimular);
+
+    expect(await screen.findByText("ACCESO PERMITIDO")).toBeInTheDocument();
+    const personas = await screen.findAllByText("BOLÍVAR HERNÁNDEZ, JOSÉ FERNANDO");
+    expect(personas.length).toBeGreaterThan(0);
+  });
+
+  it("permite desplegar entrada manual e ingresar código de credencial", async () => {
+    render(<ControlEntradaQrView />);
+
+    const triggerManual = await screen.findByText(/Entrada manual de código o lector USB/i);
+    fireEvent.click(triggerManual);
+
+    const inputCodigo = screen.getByPlaceholderText(/Ingrese código de credencial o hash/i);
+    expect(inputCodigo).toBeInTheDocument();
+
+    fireEvent.change(inputCodigo, { target: { value: "INV-TEST-001" } });
+    const botonValidar = screen.getByRole("button", { name: /Validar/i });
+    fireEvent.click(botonValidar);
+
+    await waitFor(() => {
+      expect(acciones.checkInAccesoAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          codigo_o_hash: "INV-TEST-001",
+        }),
+      );
+    });
   });
 });

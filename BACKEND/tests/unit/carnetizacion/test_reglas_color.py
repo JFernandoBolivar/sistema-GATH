@@ -17,13 +17,14 @@ def test_plantilla_defecto_trabajador_reglas_y_textos():
     tpl = plantilla_defecto_trabajador()
     reglas = tpl['reglas']
 
-    # Criterio y respaldo inicial Funcionario azul marino (#1f3a5f)
+    # Criterio y respaldo inicial; Funcionario usa el azul/rojo aprobado del prototipo.
     assert reglas['criterio'] == 'nomina'
     assert reglas['respaldo']['primario'] == '#1f3a5f'
     assert reglas['respaldo']['acento'] == '#1273bd'
     assert reglas['respaldo']['texto'] == '#ffffff'
     assert 'FUNCIONARIO' in reglas['valores']
-    assert reglas['valores']['FUNCIONARIO']['primario'] == '#1f3a5f'
+    assert reglas['valores']['FUNCIONARIO']['primario'] == '#16264a'
+    assert reglas['valores']['FUNCIONARIO']['acento'] == '#d9121f'
 
     # Verificación de textos canónicos en anverso y reverso
     # Adscrito
@@ -49,12 +50,12 @@ def test_plantilla_defecto_pasivo_textos_y_reglas():
 
 
 def test_resolver_color_funcionario_azul_marino():
-    """Verifica que el titular con tipo Funcionario resuelva a azul marino #1f3a5f."""
+    """Verifica que el titular con tipo Funcionario resuelva al azul/rojo aprobado."""
     tpl = plantilla_defecto_trabajador()
     persona = {'nomina': 'Funcionario'}
     res = resolver_color_carnet(tpl, persona)
-    assert res['primario'] == '#1f3a5f'
-    assert res['acento'] == '#1273bd'
+    assert res['primario'] == '#16264a'
+    assert res['acento'] == '#d9121f'
     assert res['texto'] == '#ffffff'
 
 

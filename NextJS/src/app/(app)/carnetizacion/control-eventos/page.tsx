@@ -1,3 +1,4 @@
+import PageLayout from "@/components/layout/page-layout";
 import { ControlEntradaQrView } from "@/modules/carnetizacion/ui/components/eventos/control-entrada-qr-view";
 
 export const metadata = {
@@ -11,5 +12,12 @@ interface ControlEventosPageProps {
 
 export default async function ControlEventosPage({ searchParams }: ControlEventosPageProps) {
   const params = await searchParams;
-  return <ControlEntradaQrView initialEventoId={params.evento_id} />;
+  return (
+    <PageLayout
+      title="Control de Entrada QR"
+      description="Validación continua de credenciales y control de acceso en vivo para garitas y eventos."
+    >
+      <ControlEntradaQrView initialEventoId={params.evento_id} />
+    </PageLayout>
+  );
 }

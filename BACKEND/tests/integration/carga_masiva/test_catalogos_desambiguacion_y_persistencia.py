@@ -52,6 +52,7 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     CondicionViviendaModel,
     DiscapacidadModel,
     InstitucionModel,
+    MencionModel,
     NivelAcademicoModel,
     PatologiaCronicaModel,
     RegionTallaModel,
@@ -94,8 +95,12 @@ def datos_base():
     # Formación
     nivel_univ, _ = NivelAcademicoModel.objects.get_or_create(nivelacademico='UNIVERSITARIO')
     carrera_ing, _ = CarreraModel.objects.get_or_create(nombre_carrera='INGENIERÍA TELECOMUNICACIONES', defaults={'nivel_academico_id': nivel_univ})
+    mencion_ing, _ = MencionModel.objects.get_or_create(
+        carrera_id=carrera_ing, nombre_mencion='REDES Y COMUNICACIONES',
+    )
     inst_ucv, _ = InstitucionModel.objects.get_or_create(nombre_institucion='UNIVERSIDAD CENTRAL DE VENEZUELA')
     proc, _ = TipoProcedenciaModel.objects.get_or_create(tipo_procedencia='INTERNA')
+    proc_ext, _ = TipoProcedenciaModel.objects.get_or_create(tipo_procedencia='EXTERNA')
 
     # Paises
     pais_ve, _ = PaisModel.objects.get_or_create(codigo='VE', defaults={'nombre': 'VENEZUELA', 'es_venezuela': True})
@@ -134,9 +139,11 @@ def datos_base():
         'condicion_vivienda': cond_viv,
         'codigo_postal_falcon': cp_fal,
         'carrera': carrera_ing,
+        'mencion': mencion_ing,
         'institucion': inst_ucv,
         'nivel_academico': nivel_univ,
         'procedencia': proc,
+        'procedencia_externa': proc_ext,
         'pais_venezuela': pais_ve,
         'pais_espana': pais_es,
     }
@@ -348,11 +355,13 @@ def test_vivienda_persistencia_completa_parroquia_y_condicion(datos_base):
 
 
 def test_formacion_academica_y_complementaria_persistencia(datos_base):
-    """Verifica la persistencia de carrera, institución y nivel en formación académica y complementaria."""
+    """Verifica la persistencia de carrera, mención, institución, nivel y procedencia."""
     emp = datos_base['empleado']
     carrera = datos_base['carrera']
+    mencion = datos_base['mencion']
     inst = datos_base['institucion']
     nivel = datos_base['nivel_academico']
+    proc_ext = datos_base['procedencia_externa']
 
     carga = CargaMasivaModel.objects.create(
         archivo_nombre='form.xlsx',
@@ -370,6 +379,7 @@ def test_formacion_academica_y_complementaria_persistencia(datos_base):
         datos={
             'cedula': emp.cedulaidentidad,
             'titulo': carrera.nombre_carrera,
+            'mencion_id': mencion.nombre_mencion,
             'institucion': inst.nombre_institucion,
             'nivel_academico_id': nivel.nivelacademico,
         },
@@ -384,6 +394,7 @@ def test_formacion_academica_y_complementaria_persistencia(datos_base):
         datos={
             'cedula': emp.cedulaidentidad,
             'curso': 'REDES FIBRA OPTICA',
+            'procedencia': proc_ext.tipo_procedencia,
             'institucion': inst.nombre_institucion,
             'fecha_inicio': '2024-01-10',
             'fecha_fin': '2024-02-10',
@@ -397,6 +408,7 @@ def test_formacion_academica_y_complementaria_persistencia(datos_base):
     # Académica
     fa = FormacionAcademicaModel.objects.get(empleado_id=emp.pk)
     assert fa.carrera_id == carrera.pk
+    assert fa.mencion_id == mencion.pk
     assert fa.institucion_id == inst.pk
     assert fa.nivel_academico_id == nivel.pk
 
@@ -404,7 +416,7 @@ def test_formacion_academica_y_complementaria_persistencia(datos_base):
     fc = FormacionComplementariaModel.objects.get(empleado_id=emp.pk)
     assert fc.capacitacion.nombre_capacitacion == 'REDES FIBRA OPTICA'
     assert fc.institucion_id == inst.pk
-    assert fc.procedencia is not None
+    assert fc.procedencia_id == proc_ext.pk
     assert fc.horas_completadas == '40'
 
 
@@ -663,16 +675,70 @@ def test_formacion_academica_obligatoriedad_nivel_y_dependencia_titulo_instituci
     assert st in (CargaMasivaFilaModel.Estado.ACTUALIZAR, CargaMasivaFilaModel.Estado.NUEVO)
 
 
+def test_formacion_academica_mencion_depende_de_la_carrera(datos_base):
+    """La mención es opcional, pero si se indica debe pertenecer a la carrera."""
+    emp = datos_base['empleado']
+    carrera = datos_base['carrera']
+    mencion = datos_base['mencion']
+    inst = datos_base['institucion']
+    nivel = datos_base['nivel_academico']
+    tipo_fa = TIPOS_POR_CLAVE['formacion_academica']
+
+    base = {
+        'cedula': emp.cedulaidentidad,
+        'nivel_academico_id': nivel.nivelacademico,
+        'titulo': carrera.nombre_carrera,
+        'institucion': inst.nombre_institucion,
+    }
+
+    # Mención sin carrera: no se puede validar la dependencia.
+    st, det, _ = _analizar_fila(
+        tipo_fa,
+        {**base, 'titulo': '', 'mencion_id': mencion.nombre_mencion},
+        5,
+        POBLACION_ACTIVOS,
+    )
+    assert st == CargaMasivaFilaModel.Estado.ERROR
+    assert 'carrera' in det.lower()
+
+    otra, _ = CarreraModel.objects.get_or_create(
+        nombre_carrera='DERECHO', defaults={'nivel_academico_id': nivel},
+    )
+    mencion_otra, _ = MencionModel.objects.get_or_create(
+        carrera_id=otra, nombre_mencion='PENAL',
+    )
+
+    # Mención de otra carrera: se rechaza.
+    st, det, _ = _analizar_fila(
+        tipo_fa,
+        {**base, 'mencion_id': mencion_otra.nombre_mencion},
+        5,
+        POBLACION_ACTIVOS,
+    )
+    assert st == CargaMasivaFilaModel.Estado.ERROR
+    assert 'no corresponde' in det.lower()
+
+    # Mención de la carrera indicada: se acepta.
+    st, det, _ = _analizar_fila(
+        tipo_fa,
+        {**base, 'mencion_id': mencion.nombre_mencion},
+        5,
+        POBLACION_ACTIVOS,
+    )
+    assert st in (CargaMasivaFilaModel.Estado.ACTUALIZAR, CargaMasivaFilaModel.Estado.NUEVO)
+
+
 def test_formacion_complementaria_fechas_dependientes(datos_base):
     """En formación complementaria: si se indica una fecha se exige la otra; fecha_fin >= fecha_inicio."""
     emp = datos_base['empleado']
     inst = datos_base['institucion']
+    proc_ext = datos_base['procedencia_externa']
     tipo_fc = TIPOS_POR_CLAVE['formacion_complementaria']
 
     # Falla si solo hay fecha inicio
     st, det, _ = _analizar_fila(
         tipo_fc,
-        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'institucion': inst.nombre_institucion, 'fecha_inicio': '2024-01-15'},
+        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'procedencia': proc_ext.tipo_procedencia, 'institucion': inst.nombre_institucion, 'fecha_inicio': '2024-01-15'},
         5,
         POBLACION_ACTIVOS,
     )
@@ -682,7 +748,7 @@ def test_formacion_complementaria_fechas_dependientes(datos_base):
     # Falla si solo hay fecha fin
     st, det, _ = _analizar_fila(
         tipo_fc,
-        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'institucion': inst.nombre_institucion, 'fecha_fin': '2024-02-15'},
+        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'procedencia': proc_ext.tipo_procedencia, 'institucion': inst.nombre_institucion, 'fecha_fin': '2024-02-15'},
         5,
         POBLACION_ACTIVOS,
     )
@@ -692,7 +758,7 @@ def test_formacion_complementaria_fechas_dependientes(datos_base):
     # Falla si fecha_fin < fecha_inicio
     st, det, _ = _analizar_fila(
         tipo_fc,
-        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'institucion': inst.nombre_institucion, 'fecha_inicio': '2024-02-15', 'fecha_fin': '2024-01-15'},
+        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'procedencia': proc_ext.tipo_procedencia, 'institucion': inst.nombre_institucion, 'fecha_inicio': '2024-02-15', 'fecha_fin': '2024-01-15'},
         5,
         POBLACION_ACTIVOS,
     )
@@ -702,7 +768,7 @@ def test_formacion_complementaria_fechas_dependientes(datos_base):
     # Pasa con ambas fechas ordenadas
     st, det, _ = _analizar_fila(
         tipo_fc,
-        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'institucion': inst.nombre_institucion, 'fecha_inicio': '2024-01-15', 'fecha_fin': '2024-02-15'},
+        {'cedula': emp.cedulaidentidad, 'curso': 'SEGURIDAD VIAL', 'procedencia': proc_ext.tipo_procedencia, 'institucion': inst.nombre_institucion, 'fecha_inicio': '2024-01-15', 'fecha_fin': '2024-02-15'},
         5,
         POBLACION_ACTIVOS,
     )

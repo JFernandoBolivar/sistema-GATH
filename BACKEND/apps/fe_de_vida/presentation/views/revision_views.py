@@ -100,6 +100,12 @@ def _admin_registradora_puede_aprobar() -> bool:
     return _parametro_booleano(CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR)
 
 
+def _admin_registradora_puede_decidir() -> bool:
+    """Con el parámetro encendido la Administradora revisa su propio registro (check, devolver, rechazar y
+    retirar), además de la aprobación directa."""
+    return _admin_registradora_puede_aprobar()
+
+
 class BandejaView(APIView):
     permission_classes = permisos.permisos_bienestar(permisos.REVISAR, permisos.VER_PANEL)
 
@@ -199,6 +205,7 @@ class CheckView(APIView):
             solicitud = dar_check(
                 repo, AplicadorCambiosActaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id), actor=actor, ahora=ahora(),
                 registrador_puede_checar=_registrador_puede_checar(),
+                admin_registradora_puede_decidir=_admin_registradora_puede_decidir(),
             )
             auditar(request, 'CHECK_DADO', solicitud.id, previa,
                     {**resumen(solicitud), 'rol': actor.rol.value,
@@ -226,6 +233,7 @@ class RetirarCheckView(APIView):
             solicitud = retirar_check(
                 repo, PublicadorSenales(), solicitud_id=str(solicitud_id), actor=actor, motivo=datos['motivo'], ahora=ahora(),
                 registrador_puede_checar=_registrador_puede_checar(),
+                admin_registradora_puede_decidir=_admin_registradora_puede_decidir(),
             )
             auditar(request, 'CHECK_RETIRADO', solicitud.id, previa,
                     {**resumen(solicitud), 'rol': actor.rol.value, 'motivo': solicitud.decisiones[-1].motivo})
@@ -268,6 +276,7 @@ class RechazarView(APIView):
                 RepoSolicitudesFeDeVidaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id),
                 actor=actor_revision(request), motivo=datos['motivo'], ahora=ahora(),
                 registrador_puede_checar=_registrador_puede_checar(),
+                admin_registradora_puede_decidir=_admin_registradora_puede_decidir(),
             )
             auditar(request, 'RECHAZADA', solicitud.id, None, {**resumen(solicitud), 'motivo': datos['motivo']})
         return ok(a_dict_solicitud(solicitud), 'Fe de vida rechazada.')
@@ -289,6 +298,7 @@ class DevolverView(APIView):
                 actor=actor_revision(request), motivo=datos['motivo'],
                 requiere_nueva_foto=datos['requiere_nueva_foto'], ahora=ahora(),
                 registrador_puede_checar=_registrador_puede_checar(),
+                admin_registradora_puede_decidir=_admin_registradora_puede_decidir(),
             )
             auditar(request, 'SOLICITUD_DEVUELTA', solicitud.id, None,
                     {**resumen(solicitud), 'motivo': datos['motivo'], 'requiere_nueva_foto': datos['requiere_nueva_foto']})
