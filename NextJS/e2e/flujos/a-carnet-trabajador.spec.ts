@@ -36,15 +36,18 @@ test.describe("A · Carnet de trabajador", () => {
     await entrar(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     anotar(await paso(page, info, vigilante, "A", "01-sesion-iniciada"));
 
-    await ir(page, "/carnetizacion/buscar");
-    await page.getByPlaceholder(/cédula o nombre/i).fill(TRAB_CEDULA);
-    await page.getByRole("button", { name: /^buscar$/i }).click();
-    await expect(page.getByText(/Generar Carnet/i).first()).toBeVisible({ timeout: 20_000 });
-    anotar(await paso(page, info, vigilante, "A", "02-trabajador-encontrado"));
-
-    await page.getByRole("button", { name: /Generar Carnet/i }).first().click();
-    await page.waitForURL(/\/carnetizacion\/generar\?cedula=/, { timeout: 20_000 });
+    await ir(page, "/carnetizacion/emision");
+    const buscador = page.getByPlaceholder(/Buscar por cédula, nombre o código de cargo/i);
+    await expect(buscador).toBeVisible({ timeout: 20_000 });
+    await buscador.fill(TRAB_CEDULA);
+    const resultado = page
+      .getByRole("button")
+      .filter({ hasText: new RegExp(`C\\.I\\. V-${TRAB_CEDULA}`) })
+      .first();
+    await expect(resultado).toBeVisible({ timeout: 20_000 });
+    await resultado.click();
     await expect(page.getByText(/Emitir y descargar PDF/i)).toBeVisible({ timeout: 20_000 });
+    anotar(await paso(page, info, vigilante, "A", "02-trabajador-encontrado"));
     anotar(await paso(page, info, vigilante, "A", "03-formulario-emision"));
 
     const descargaPdf = page.waitForEvent("download", { timeout: 20_000 }).catch(() => null);
