@@ -562,7 +562,11 @@ class CarnetSubirFotoView(APIView):
 class CarnetGenerarView(APIView):
     permission_classes = [IsAuthenticated, HasPermission('carnetizacion.emitir')]
 
-    @extend_schema(tags=['Carnetización'], summary='Emitir carnet y descargar PDF generado')
+    @extend_schema(
+        tags=['Carnetización'],
+        summary='Emitir carnet y descargar PDF generado',
+        responses={(200, 'application/pdf'): OpenApiTypes.BINARY},
+    )
     def post(self, request, cedula: str):
         motivo_id = request.data.get('motivo_id')
         observaciones = request.data.get('observaciones', '')
@@ -578,9 +582,10 @@ class CarnetGenerarView(APIView):
             plantilla_id=plantilla_id,
         )
         pdf_bytes = repo.generar_pdf(carnet_id=carnet.id, nombre_override=nombre_override)
-        import base64
-        pdf_b64 = base64.b64encode(pdf_bytes).decode('utf-8')
-        return ok(pdf_b64, 'Carnet emitido exitosamente.')
+        # O46-A: el endpoint debe devolver el PDF binario, no un sobre JSON en base64.
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="carnet_{cedula}.pdf"'
+        return response
 
 
 # ==============================================================================

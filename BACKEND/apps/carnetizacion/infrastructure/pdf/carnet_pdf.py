@@ -15,6 +15,7 @@ import qrcode
 import qrcode.constants
 from PIL import Image
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
+from core.infrastructure.pdf.pdf_components import ruta_asset
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import cm
 from reportlab.lib.utils import ImageReader
@@ -308,13 +309,26 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 _dibujar_qr(c, datos_dict, x_pt, y_pt, tamano=min(w_pt, h_pt))
 
             elif tipo == 'image':
-                # Logo o firma vectorial/raster
+                # Logo o firma: si el elemento trae un asset institucional, se
+                # dibuja la imagen; si no, se conserva el marcador de texto.
                 label = props.get('label') or el.get('name') or 'LOGO'
-                c.setStrokeColor(fill_color)
-                c.setLineWidth(0.6)
-                c.roundRect(x_pt, y_pt, w_pt, h_pt, 1, fill=0, stroke=1)
-                c.setFont(FUENTE_NEGRITA, min(h_pt * 0.45, 7))
-                c.drawCentredString(x_pt + w_pt / 2, y_pt + (h_pt - 5) / 2, label)
+                ruta = ruta_asset(props.get('asset')) if props.get('asset') else None
+                dibujado = False
+                if ruta:
+                    try:
+                        c.drawImage(
+                            ImageReader(ruta), x_pt, y_pt, w_pt, h_pt,
+                            preserveAspectRatio=True, anchor='c', mask='auto',
+                        )
+                        dibujado = True
+                    except Exception:
+                        logger.warning("No se pudo dibujar el asset '%s' del carnet.", props.get('asset'))
+                if not dibujado:
+                    c.setStrokeColor(fill_color)
+                    c.setLineWidth(0.6)
+                    c.roundRect(x_pt, y_pt, w_pt, h_pt, 1, fill=0, stroke=1)
+                    c.setFont(FUENTE_NEGRITA, min(h_pt * 0.45, 7))
+                    c.drawCentredString(x_pt + w_pt / 2, y_pt + (h_pt - 5) / 2, label)
 
             elif tipo in ('text', 'field'):
                 # Resolución de cadena de texto

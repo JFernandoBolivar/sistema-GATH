@@ -3,6 +3,13 @@ import path from "path";
 import { execSync } from "child_process";
 import { iniciarSesion, tomarCaptura, verificarSinDesborde } from "./helpers";
 
+/** Consulta la BD de E2E (los empleados de prueba con cédula 88...). */
+function cuentaEmpleados(): string {
+  const consulta =
+    'docker compose exec -T django python manage.py shell -c "from apps.personal.infrastructure.models.personal_models import EmployeeModel; print(\'CUENTA:\', EmployeeModel.objects.filter(cedulaidentidad__in=[\'88001001\', \'88001002\']).count())"';
+  return execSync(consulta, { encoding: "utf-8" });
+}
+
 test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () => {
   test("C01 - Activos: Subida -> Análisis (documentación DEF-01) -> Historial -> Modal -> Aplicar -> Revertir", async ({
     page,
@@ -33,7 +40,7 @@ test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () =
 
     // Esperar respuesta de la API o notificación Toast
     // Documentación del DEF-01: paso-subir-archivo.tsx comprueba !data.ok, pero el sobre C-1 devuelve status:"success"
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(6000);
     await tomarCaptura(page, `c01-${prefix}-02-toast-defecto-subida.png`);
 
     // Cambiar a la pestaña "Historial de Cargas" para continuar con la verificación
@@ -71,12 +78,9 @@ test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () =
     await tomarCaptura(page, `c01-${prefix}-05-historial-aplicada.png`);
     expect(await verificarSinDesborde(page, "Historial Carga Aplicada")).toBeTruthy();
 
-    // Verificar en BD que los empleados activos fueron creados
-    const checkBd = execSync(
-      'docker compose exec -T django python manage.py shell -c "from apps.personal.infrastructure.models.personal_models import EmployeeModel; print(\'EMPS_COUNT:\', EmployeeModel.objects.filter(cedulaidentidad__in=[\'88001001\', \'88001002\']).count())"',
-      { encoding: "utf-8" }
-    );
-    expect(checkBd).toContain("EMPS_COUNT: 2");
+    // Verificar en BD que los empleados activos fueron creados (con reintento:
+    // la aplicación puede tardar en quedar visible para otra conexión).
+    expect(cuentaEmpleados()).toContain("CUENTA: 2");
 
     // Revertir la carga desde Historial
     const btnRevertir = page.getByTitle(/revertir carga completa/i).first();
@@ -94,11 +98,7 @@ test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () =
     expect(await verificarSinDesborde(page, "Historial Carga Revertida")).toBeTruthy();
 
     // Verificar en BD que los empleados fueron eliminados por el rollback
-    const checkBdPost = execSync(
-      'docker compose exec -T django python manage.py shell -c "from apps.personal.infrastructure.models.personal_models import EmployeeModel; print(\'EMPS_POST:\', EmployeeModel.objects.filter(cedulaidentidad__in=[\'88001001\', \'88001002\']).count())"',
-      { encoding: "utf-8" }
-    );
-    expect(checkBdPost).toContain("EMPS_POST: 0");
+    expect(cuentaEmpleados()).toContain("CUENTA: 0");
   });
 
   test("C01b - Pasivos: Flujo Completo en Pasivos y Reversión", async ({ page }, testInfo) => {
@@ -123,7 +123,7 @@ test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () =
 
     const btnAnalizar = page.getByRole("button", { name: /analizar archivo/i });
     await btnAnalizar.click();
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(6000);
 
     // Ir a Historial
     const tabHistorial = page.getByRole("tab", { name: /historial de cargas/i });
@@ -135,7 +135,7 @@ test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () =
     expect(await verificarSinDesborde(page, "Historial Pasivos Analizada")).toBeTruthy();
 
     // Pequeña espera para evitar rate limiting (429) en endpoints de mutación
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(6000);
 
     // Aplicar
     const btnAplicar = page.getByTitle(/aplicar carga masiva/i).first();

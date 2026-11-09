@@ -9,6 +9,7 @@ from typing import Any
 
 from reportlab.lib.colors import HexColor
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 from apps.carnetizacion.domain.services.resolver_color import resolver_color_carnet
@@ -20,6 +21,7 @@ from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
     _hex_seguro,
 )
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
+from core.infrastructure.pdf.pdf_components import ruta_asset
 
 A4_ANCHO = 210 * MM_A_PT
 A4_ALTO = 297 * MM_A_PT
@@ -134,11 +136,23 @@ def _dibujar_cara(
             _dibujar_qr(c, datos, x_pt, y_pt, tamano=min(w_pt, h_pt))
         elif tipo == 'image':
             label = props.get('label') or el.get('name') or 'LOGO'
-            c.setStrokeColor(relleno)
-            c.setLineWidth(0.6)
-            c.roundRect(x_pt, y_pt, w_pt, h_pt, 1, fill=0, stroke=1)
-            c.setFont(FUENTE_NEGRITA, min(h_pt * 0.45, 7))
-            c.drawCentredString(x_pt + w_pt / 2, y_pt + (h_pt - 5) / 2, label)
+            ruta = ruta_asset(props.get('asset')) if props.get('asset') else None
+            dibujado = False
+            if ruta:
+                try:
+                    c.drawImage(
+                        ImageReader(ruta), x_pt, y_pt, w_pt, h_pt,
+                        preserveAspectRatio=True, anchor='c', mask='auto',
+                    )
+                    dibujado = True
+                except Exception:
+                    pass
+            if not dibujado:
+                c.setStrokeColor(relleno)
+                c.setLineWidth(0.6)
+                c.roundRect(x_pt, y_pt, w_pt, h_pt, 1, fill=0, stroke=1)
+                c.setFont(FUENTE_NEGRITA, min(h_pt * 0.45, 7))
+                c.drawCentredString(x_pt + w_pt / 2, y_pt + (h_pt - 5) / 2, label)
         elif tipo in ('text', 'field'):
             if tipo == 'field':
                 texto = _extraer_valor_campo(

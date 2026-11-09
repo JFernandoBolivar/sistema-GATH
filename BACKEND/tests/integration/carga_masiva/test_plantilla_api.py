@@ -14,6 +14,12 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     ParentescoModel,
     SexoModel,
     TipoNominaModel,
+    TipoProcedenciaModel,
+)
+from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    CarreraModel,
+    MencionModel,
+    NivelAcademicoModel,
 )
 from core.domain.exceptions import ValidationError
 
@@ -101,8 +107,10 @@ def test_plantilla_completa_y_validaciones_de_entrada(catalogos):
         generar_plantilla(None, 'otro')
     contenido = generar_plantilla(None, 'completo')
     libro = load_workbook(io.BytesIO(contenido))
-    # Instrucciones + Catalogos + 2 hojas ocultas de código postal + 9 tipos
-    assert len(libro.sheetnames) == 13
+    # Instrucciones + Catalogos + hojas ocultas (código postal + jerarquía de
+    # cargo) + 9 tipos de carga. La hoja de carreras→menciones solo aparece si
+    # el catálogo tiene menciones.
+    assert len(libro.sheetnames) == 16
 
 
 def test_endpoint_descarga_la_plantilla_y_exige_permiso(catalogos):
@@ -135,3 +143,40 @@ def test_plantilla_depende_de_la_poblacion(catalogos):
         activos['Datos personales'].cell(row=3, column=col).value
         for col in range(1, activos['Datos personales'].max_column + 1)
     ]
+
+def test_plantilla_cargo_trae_columnas_nuevas_y_listas_dependientes(catalogos):
+    """FIX-CARGA4: se crea el cargo; no se pide un código existente."""
+    libro = load_workbook(io.BytesIO(
+        generar_plantilla(['cargo_asignacion'], 'obligatorios', 'ACTIVOS'),
+    ))
+    hoja = libro['Cargo y asignaci\u00f3n']
+    encabezados = [str(c.value) for c in hoja[3] if c.value]
+    assert any('Denominaci\u00f3n del cargo' in e for e in encabezados)
+    assert any('Nivel / Dependencia' in e for e in encabezados)
+    assert any('Direcci\u00f3n / Gerencia / Oficina' in e for e in encabezados)
+    assert not any('C\u00f3digo de cargo' in e for e in encabezados)
+    assert {'NivelesDirecciones', 'DireccionesLineas', 'LineasCoordinaciones'} <= set(libro.sheetnames)
+
+def test_plantilla_formacion_trae_mencion_dependiente_y_procedencia(catalogos):
+    """La mención depende de la carrera y la procedencia define la institución."""
+    nivel = NivelAcademicoModel.objects.create(nivelacademico='UNIVERSITARIO')
+    carrera = CarreraModel.objects.create(nombre_carrera='INGENIERIA', nivel_academico_id=nivel)
+    MencionModel.objects.create(carrera_id=carrera, nombre_mencion='REDES')
+    TipoProcedenciaModel.objects.create(tipo_procedencia='INTERNA')
+    TipoProcedenciaModel.objects.create(tipo_procedencia='EXTERNA')
+
+    libro = load_workbook(io.BytesIO(
+        generar_plantilla(
+            ['formacion_academica', 'formacion_complementaria'], 'obligatorios',
+        ),
+    ))
+
+    fa = libro['Formaci\u00f3n acad\u00e9mica']
+    encabezados_fa = [str(c.value) for c in fa[3] if c.value]
+    assert 'Menci\u00f3n' in encabezados_fa
+    assert 'CarrerasMenciones' in libro.sheetnames
+
+    fc = libro['Formaci\u00f3n complementaria']
+    encabezados_fc = [str(c.value) for c in fc[3] if c.value]
+    assert 'Procedencia *' in encabezados_fc
+    assert any(e.startswith('Instituci\u00f3n') for e in encabezados_fc)

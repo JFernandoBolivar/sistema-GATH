@@ -98,7 +98,39 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
     ), ('cedula',)),
     TipoCarga('cargo_asignacion', 'Cargo y asignación', 'Cargo y asignación', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
-        Campo('codigo_cargo', 'Código de cargo', obligatorio=True, max_length=40),
+        Campo(
+            'denominacion_id', 'Denominación del cargo', tipo='catalogo',
+            catalogo='denominacion_cargo', obligatorio=True,
+        ),
+        Campo(
+            'especifica_id', 'Denominación específica', tipo='catalogo',
+            catalogo='denominacion_cargo_especifica', obligatorio=True,
+        ),
+        Campo(
+            'dependencia_id', 'Nivel / Dependencia', tipo='catalogo',
+            catalogo='dependencia', obligatorio=True,
+            ayuda='Primer nivel de la ubicación; filtra las direcciones generales.',
+        ),
+        Campo(
+            'direccion_general_id', 'Dirección / Gerencia / Oficina', tipo='catalogo',
+            catalogo='direccion_general', obligatorio=True,
+            ayuda='Debe pertenecer al nivel seleccionado.',
+        ),
+        Campo(
+            'direccion_linea_id', 'Dirección de línea / División', tipo='catalogo',
+            catalogo='direccion_linea',
+            ayuda='Opcional; debe pertenecer a la dirección general.',
+        ),
+        Campo(
+            'coordinacion_id', 'Coordinación', tipo='catalogo',
+            catalogo='coordinacion',
+            ayuda='Opcional; debe pertenecer a la dirección de línea.',
+        ),
+        Campo('grado_id', 'Grado', tipo='catalogo', catalogo='grado'),
+        Campo(
+            'organismo_id', 'Organismo adscrito', tipo='catalogo',
+            catalogo='organismo',
+        ),
         Campo('tipo_nomina_id', 'Tipo de nómina', tipo='catalogo', catalogo='tipo_nomina_activo', obligatorio=True),
         Campo('fecha_ingreso', 'Fecha de ingreso o reingreso', tipo='fecha', obligatorio=True, formato='AAAA-MM-DD'),
         Campo(
@@ -106,7 +138,7 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
             catalogo='motivo_ingreso',
             ayuda='Obligatorio si el trabajador está PASIVO y la carga es de ACTIVOS.',
         ),
-    ), ('cedula', 'codigo_cargo'), poblaciones=(POBLACION_ACTIVOS,)),
+    ), ('cedula', 'denominacion_id', 'dependencia_id', 'fecha_ingreso'), poblaciones=(POBLACION_ACTIVOS,)),
     TipoCarga('familiares', 'Familiares', 'Familiares', (
         Campo('cedula_titular', 'Cédula del titular', obligatorio=True, max_length=15),
         Campo('cedula_familiar', 'Cédula del familiar', max_length=15, ayuda='Obligatoria salvo hijo(a) menor de 9 años.'),
@@ -127,17 +159,29 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
     TipoCarga('formacion_academica', 'Formación académica', 'Formación académica', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         Campo('nivel_academico_id', 'Nivel académico', tipo='catalogo', catalogo='nivel_academico', obligatorio=True),
-        Campo('titulo', 'Título / Carrera', tipo='catalogo', catalogo='carrera', max_length=200, ayuda='Opcional; si se indica, exige institución.'),
+        Campo('titulo', 'Título / Carrera', tipo='catalogo', catalogo='carrera', max_length=200, ayuda='Opcional; si se indica, exige institución y habilita la mención.'),
+        Campo(
+            'mencion_id', 'Mención', tipo='catalogo', catalogo='mencion', max_length=200,
+            ayuda='Opcional; la lista depende de la carrera seleccionada.',
+        ),
         Campo('institucion', 'Institución', tipo='catalogo', catalogo='institucion', max_length=200, ayuda='Exigida si se indica título/carrera.'),
-    ), ('cedula', 'nivel_academico_id')),
+    ), ('cedula', 'nivel_academico_id', 'titulo', 'mencion_id')),
     TipoCarga('formacion_complementaria', 'Formación complementaria', 'Formación complementaria', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         Campo('curso', 'Curso', obligatorio=True, max_length=160),
-        Campo('institucion', 'Institución', tipo='catalogo', catalogo='institucion', obligatorio=True, max_length=200),
+        Campo(
+            'procedencia', 'Procedencia', tipo='catalogo', catalogo='tipo_procedencia',
+            obligatorio=True, max_length=20,
+            ayuda='INTERNA (dentro de CONATEL) o EXTERNA.',
+        ),
+        Campo(
+            'institucion', 'Institución', tipo='catalogo', catalogo='institucion',
+            max_length=200, ayuda='Obligatoria solo si la procedencia es EXTERNA.',
+        ),
         Campo('fecha_inicio', 'Fecha de inicio', tipo='fecha', formato='AAAA-MM-DD'),
         Campo('fecha_fin', 'Fecha de fin', tipo='fecha', formato='AAAA-MM-DD'),
         Campo('horas', 'Horas', tipo='entero'),
-    ), ('cedula', 'curso', 'institucion')),
+    ), ('cedula', 'curso', 'procedencia')),
     TipoCarga('vivienda', 'Vivienda', 'Vivienda', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         # ACTIVOS: el país está fijo en Venezuela; la ubicación completa es obligatoria

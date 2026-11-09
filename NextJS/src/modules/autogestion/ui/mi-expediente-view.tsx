@@ -415,9 +415,9 @@ export default function MiExpedienteView({ initialTab = "personal" }: MiExpedien
                 <Button
                   data-guia-id="ficha-carnet"
                   onClick={() => setActiveTab("carnet")}
-                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold shadow-lg text-sm h-11 px-5 gap-2 sm:flex-1 lg:w-auto lg:flex-none"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-lg text-sm h-11 px-5 gap-2 sm:flex-1 lg:w-auto lg:flex-none"
                 >
-                  <CreditCard className="w-4 h-4 text-slate-950" /> Mi Carnet Digital
+                  <CreditCard className="w-4 h-4" /> Mi Carnet Digital
                 </Button>
               </div>
             )}

@@ -7,6 +7,7 @@ import pytest
 from apps.carga_masiva.infrastructure.aplicacion import (
     _notificar_aprobacion,
     aplicar_carga,
+    revertir_carga,
 )
 from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel
 from apps.cargos.infrastructure.models.cargo_models import (
@@ -52,6 +53,7 @@ def datos():
     NacionalidadModel.objects.get_or_create(pk=1, defaults={'codigo': 'V', 'nombre': 'Venezolana'})
     sexo = SexoModel.objects.create(sexo='M')
     activo = EstatusModel.objects.create(estatus='ACTIVO')
+    EstatusModel.objects.create(estatus='VACANTE')
     nomina = TipoNominaModel.objects.create(nomina='CONTRATADO', es_activo=True)
     tipo_personal = TipoPersonalModel.objects.create(tipo_personal='ACTIVO')
     cargo = DenominacionCargoModel.objects.create(cargo='ANALISTA')
@@ -108,15 +110,45 @@ def test_aplica_cargo_via_movimientos_y_crea_antecedente(datos):
     carga = _carga([{
         'tipo': 'cargo_asignacion',
         'datos': {
-            'cedula': '99000400', 'codigo_cargo': 'C-200',
+            'cedula': '99000400',
+            'denominacion_id': 'ANALISTA',
+            'especifica_id': 'ANALISTA I',
+            'dependencia_id': 'CONATEL',
+            'direccion_general_id': 'GESTION HUMANA',
+            'tipo_nomina_id': 'CONTRATADO',
             'fecha_ingreso': '2026-01-02',
         },
     }])
     aplicar_carga(carga, '1')
-    asignacion = AsigTrabajoModel.objects.get(pk=datos['vacante'].pk)
-    assert asignacion.employee_id == '99000400'
-    assert asignacion.estatusid.estatus == 'ACTIVO'
+    fila = carga.filas.first()
+    assert fila.aplicada, fila.error_aplicacion
+    creada = AsigTrabajoModel.objects.get(employee_id='99000400')
+    assert creada.codigo != datos['vacante'].codigo
+    assert creada.denominacioncargoid.cargo == 'ANALISTA'
+    assert creada.estatusid.estatus == 'ACTIVO'
+    assert AsigTrabajoModel.objects.get(pk=datos['vacante'].pk).employee_id is None
     assert datos['empleado'].antecedentes_servicio.filter(fecha_ingreso='2026-01-02').exists()
+
+
+def test_revertir_carga_elimina_el_cargo_creado(datos):
+    carga = _carga([{
+        'tipo': 'cargo_asignacion',
+        'datos': {
+            'cedula': '99000400',
+            'denominacion_id': 'ANALISTA',
+            'especifica_id': 'ANALISTA I',
+            'dependencia_id': 'CONATEL',
+            'direccion_general_id': 'GESTION HUMANA',
+            'tipo_nomina_id': 'CONTRATADO',
+            'fecha_ingreso': '2026-01-02',
+        },
+    }])
+    aplicar_carga(carga, '1')
+    creada = AsigTrabajoModel.objects.get(employee_id='99000400')
+    codigo = creada.codigo
+    revertir_carga(carga)
+    assert not AsigTrabajoModel.objects.filter(codigo=codigo).exists()
+    assert not datos['empleado'].antecedentes_servicio.filter(fecha_ingreso='2026-01-02').exists()
 
 
 def test_aplica_salud_y_tallas(datos):

@@ -45,6 +45,11 @@ def _ruta_asset(nombre: str) -> str | None:
     return ruta if os.path.exists(ruta) else None
 
 
+def ruta_asset(nombre: str) -> str | None:
+    """Ruta pública de un asset PDF institucional (None si no existe)."""
+    return _ruta_asset(nombre)
+
+
 @lru_cache(maxsize=32)
 def reducir_imagen_para_pdf(datos: bytes, max_px: int) -> bytes:
     """

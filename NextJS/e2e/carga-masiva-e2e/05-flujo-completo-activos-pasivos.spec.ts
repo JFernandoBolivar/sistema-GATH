@@ -32,7 +32,7 @@ test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () =
     await btnListo.click();
 
     // Paso 2: Subir archivo
-    const rutaArchivo = path.resolve(__dirname, "fixtures/c01_activos_valido.xlsx");
+    const rutaArchivo = path.resolve(__dirname, "fixtures/c01_activos_valido_alt.xlsx");
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(rutaArchivo);
     await tomarCaptura(page, `c01-${prefix}-paso2-subida.png`);
@@ -129,7 +129,7 @@ test.describe("Caso 1: Flujo Completo de Carga Masiva (Activos y Pasivos)", () =
     await btnListo.click();
 
     // Paso 2: Subir archivo de pasivo
-    const rutaArchivo = path.resolve(__dirname, "fixtures/c01_pasivos_valido.xlsx");
+    const rutaArchivo = path.resolve(__dirname, "fixtures/c01_pasivos_valido_alt.xlsx");
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(rutaArchivo);
     await tomarCaptura(page, `c01b-${prefix}-paso2-subida.png`);
