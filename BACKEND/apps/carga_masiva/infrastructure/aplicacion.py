@@ -53,6 +53,7 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     CondicionViviendaModel,
     DiscapacidadModel,
     InstitucionModel,
+    MencionModel,
     NivelAcademicoModel,
     PatologiaCronicaModel,
     TallaModel,
@@ -410,6 +411,23 @@ def _aplicar_otras(fila: CargaMasivaFilaModel, usuario_id: int | None = None):
         if carrera is None and titulo_nombre:
             carrera, _ = CarreraModel.objects.get_or_create(nombre_carrera=titulo_nombre[:200])
 
+        mencion_nombre = (datos.get('mencion_id') or datos.get('mencion') or '').strip()
+        mencion = None
+        if mencion_nombre:
+            if carrera is None:
+                raise ValidationError(
+                    'Debe indicar la carrera para registrar la mención.',
+                    campo='mencion_id',
+                )
+            mencion = MencionModel.objects.filter(
+                carrera_id=carrera, nombre_mencion__iexact=mencion_nombre,
+            ).first()
+            if mencion is None:
+                raise ValidationError(
+                    f'La mención «{mencion_nombre}» no corresponde a la carrera «{carrera.nombre_carrera}».',
+                    campo='mencion_id',
+                )
+
         inst_nombre = (datos.get('institucion') or '').strip()
         if titulo_nombre and not inst_nombre:
             raise ValidationError('Debe indicar la institución correspondiente al título/carrera.', campo='institucion')
@@ -423,6 +441,7 @@ def _aplicar_otras(fila: CargaMasivaFilaModel, usuario_id: int | None = None):
         creado = formacion.pk is None
         formacion.nivel_academico = nivel
         formacion.carrera = carrera
+        formacion.mencion = mencion
         formacion.institucion = institucion
         formacion.save()
         return {'id': formacion.pk, 'creado': creado, 'titulo': carrera.nombre_carrera if carrera else ''}
@@ -430,7 +449,21 @@ def _aplicar_otras(fila: CargaMasivaFilaModel, usuario_id: int | None = None):
         curso = (datos.get('curso') or '').strip()
         capacitacion, _ = CapacitacionModel.objects.get_or_create(nombre_capacitacion=curso[:200])
 
-        inst_nombre = (datos.get('institucion') or '').strip()
+        procedencia_nombre = (datos.get('procedencia') or '').strip().upper()
+        procedencia = (
+            TipoProcedenciaModel.objects.filter(
+                tipo_procedencia__iexact=procedencia_nombre,
+            ).first()
+            if procedencia_nombre else None
+        )
+        if procedencia is None:
+            procedencia = TipoProcedenciaModel.objects.first()
+        es_interna = (
+            procedencia is not None
+            and (procedencia.tipo_procedencia or '').strip().upper() == 'INTERNA'
+        )
+
+        inst_nombre = '' if es_interna else (datos.get('institucion') or '').strip()
         institucion = InstitucionModel.objects.filter(nombre_institucion__iexact=inst_nombre).first() if inst_nombre else None
         if institucion is None and inst_nombre:
             institucion, _ = InstitucionModel.objects.get_or_create(nombre_institucion=inst_nombre[:200])
@@ -444,14 +477,13 @@ def _aplicar_otras(fila: CargaMasivaFilaModel, usuario_id: int | None = None):
             empleado_id=empleado.pk, capacitacion=capacitacion,
         ).first()
         if formacion is None:
-            procedencia_default = TipoProcedenciaModel.objects.first()
             formacion = FormacionComplementariaModel(
                 empleado_id=empleado.pk,
                 capacitacion=capacitacion,
-                procedencia=procedencia_default,
+                procedencia=procedencia,
             )
-        if institucion:
-            formacion.institucion = institucion
+        formacion.procedencia = procedencia
+        formacion.institucion = institucion
         formacion.fechaInicio = f_ini or formacion.fechaInicio
         formacion.fechaFin = f_fin or formacion.fechaFin
         formacion.horas_completadas = str(datos.get('horas') or formacion.horas_completadas or '')

@@ -31,6 +31,7 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     ParentescoModel,
     SexoModel,
     TipoNominaModel,
+    TipoProcedenciaModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
 from apps.catalogos.infrastructure.repositories.motivos_por_categoria import (
@@ -50,6 +51,7 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     CondicionViviendaModel,
     DiscapacidadModel,
     InstitucionModel,
+    MencionModel,
     NivelAcademicoModel,
     PatologiaCronicaModel,
     TallaModel,
@@ -192,6 +194,10 @@ def _catalogo(nombre: str) -> tuple[str, ...]:
         return tuple(dict.fromkeys(
             g.strip() for g in GradoModel.objects.values_list('grado', flat=True) if g
         ))
+    if nombre == 'tipo_procedencia':
+        return tuple(dict.fromkeys(
+            p.strip() for p in TipoProcedenciaModel.objects.values_list('tipo_procedencia', flat=True) if p
+        ))
     return ()
 
 
@@ -249,7 +255,8 @@ def _hoja_catalogos(libro: Workbook, tipos: list[TipoCarga], poblacion: str) -> 
         c.catalogo for t in tipos for c in t.campos_para(poblacion)
         # FIX-CARGA3: el código postal se sirve como lista dependiente del
         # estado en su propia hoja oculta, no en el catálogo plano.
-        if c.catalogo and c.catalogo != 'codigo_postal'
+        # La mención depende de la carrera y también usa su propia hoja.
+        if c.catalogo and c.catalogo not in ('codigo_postal', 'mencion')
     })
     hoja = libro.create_sheet(HOJA_CATALOGOS)
     hoja.sheet_state = 'hidden'
@@ -384,9 +391,45 @@ def _hoja_dependencias(libro: Workbook, tipos: list[TipoCarga], poblacion: str) 
     }
 
 
+HOJA_CARRERAS_MENCIONES = 'CarrerasMenciones'
+
+
+def _hoja_menciones(libro: Workbook, tipos: list[TipoCarga], poblacion: str) -> dict | None:
+    """Hoja oculta carrera → mención para la lista dependiente de la mención.
+
+    Devuelve el número de filas del listado (o None si la plantilla no incluye
+    formación académica). Se usa una sola hoja de dos columnas ordenada por
+    carrera: la validación recorta el bloque con OFFSET/COUNTIF, así no se crea
+    un rango nombrado por cada una de las carreras del catálogo.
+    """
+    if not any(t.clave == 'formacion_academica' and t.aplica_a(poblacion) for t in tipos):
+        return None
+
+    filas = list(
+        MencionModel.objects.order_by(
+            'carrera_id__nombre_carrera', 'nombre_mencion',
+        ).values_list('carrera_id__nombre_carrera', 'nombre_mencion')
+    )
+    filas = [(c.strip(), m.strip()) for c, m in filas if c and m]
+    if not filas:
+        return None
+
+    hoja = libro.create_sheet(HOJA_CARRERAS_MENCIONES)
+    hoja.sheet_state = 'hidden'
+    hoja.cell(row=1, column=1, value='Carrera').font = Font(bold=True)
+    hoja.cell(row=1, column=2, value='Mención').font = Font(bold=True)
+    for indice, (carrera, mencion) in enumerate(filas, start=2):
+        hoja.cell(row=indice, column=1, value=carrera)
+        hoja.cell(row=indice, column=2, value=mencion)
+    hoja.column_dimensions['A'].width = 42
+    hoja.column_dimensions['B'].width = 42
+    return {'filas': len(filas)}
+
+
 def _validaciones(
     hoja, campos: tuple[Campo, ...], fila_datos: int, rangos: dict[str, str],
     poblacion: str, estados_cp: int, dependencias: dict | None = None,
+    menciones: dict | None = None,
 ):
     ultima = fila_datos + 4999
     for indice, campo in enumerate(campos, start=1):
@@ -428,6 +471,35 @@ def _validaciones(
                 validacion.promptTitle = campo.etiqueta
                 hoja.add_data_validation(validacion)
                 validacion.add(f'{letra}{fila_datos}:{letra}{ultima}')
+            continue
+        if campo.catalogo == 'mencion' and menciones:
+            # La mención depende de la carrera de la misma fila. La hoja está
+            # ordenada por carrera, así que basta recortar el bloque contiguo.
+            letra = get_column_letter(indice)
+            indice_carrera = next(
+                (i for i, c in enumerate(campos, start=1) if c.clave == 'titulo'),
+                None,
+            )
+            if indice_carrera is None:
+                continue
+            letra_carrera = get_column_letter(indice_carrera)
+            filas = menciones['filas'] + 1
+            formula = (
+                f"=OFFSET('{HOJA_CARRERAS_MENCIONES}'!$B$2,"
+                f"MATCH(${letra_carrera}{fila_datos},'{HOJA_CARRERAS_MENCIONES}'!$A$2:$A${filas},0)-1,"
+                f"0,COUNTIF('{HOJA_CARRERAS_MENCIONES}'!$A$2:$A${filas},"
+                f"${letra_carrera}{fila_datos}),1)"
+            )
+            validacion = DataValidation(
+                type='list', formula1=formula,
+                allow_blank=not campo.es_obligatorio(poblacion),
+            )
+            validacion.error = 'Elija una mención de la carrera seleccionada.'
+            validacion.errorTitle = f'{campo.etiqueta} no válido'
+            validacion.prompt = 'Seleccione primero la carrera y luego la mención.'
+            validacion.promptTitle = campo.etiqueta
+            hoja.add_data_validation(validacion)
+            validacion.add(f'{letra}{fila_datos}:{letra}{ultima}')
             continue
         if campo.catalogo == 'codigo_postal' and estados_cp:
             # La lista depende del estado de la misma fila: `INDIRECT` al rango
@@ -542,6 +614,7 @@ def generar_plantilla(
     rangos = _hoja_catalogos(libro, tipos, poblacion)
     estados_cp = _hoja_codigos_postales(libro, tipos, poblacion)
     dependencias = _hoja_dependencias(libro, tipos, poblacion)
+    menciones = _hoja_menciones(libro, tipos, poblacion)
     _instrucciones(libro, tipos, modo, poblacion)
     for tipo in tipos:
         campos = tipo.campos_para(poblacion)
@@ -552,6 +625,7 @@ def generar_plantilla(
         _validaciones(
             hoja, campos, fila_datos=4, rangos=rangos,
             poblacion=poblacion, estados_cp=estados_cp, dependencias=dependencias,
+            menciones=menciones,
         )
         _anchos(hoja, campos)
         for indice in range(1, len(campos) + 1):

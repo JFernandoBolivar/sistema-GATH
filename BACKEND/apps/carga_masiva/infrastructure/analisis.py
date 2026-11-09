@@ -88,6 +88,12 @@ def _validar_catalogo(campo, valor: str) -> bool:
     if campo.catalogo == 'institucion':
         from apps.personal.infrastructure.models.catalogos_soporte_models import InstitucionModel
         return InstitucionModel.objects.filter(nombre_institucion__iexact=val_limpio).exists()
+    if campo.catalogo == 'mencion':
+        from apps.personal.infrastructure.models.catalogos_soporte_models import MencionModel
+        return MencionModel.objects.filter(nombre_mencion__iexact=val_limpio).exists()
+    if campo.catalogo == 'tipo_procedencia':
+        from apps.catalogos.infrastructure.models.catalogo_models import TipoProcedenciaModel
+        return TipoProcedenciaModel.objects.filter(tipo_procedencia__iexact=val_limpio).exists()
     if campo.catalogo == 'codigo_postal':
         from apps.personal.infrastructure.models.catalogos_soporte_models import CodigoPostalModel
         return CodigoPostalModel.objects.filter(codigo__iexact=val_limpio).exists()
@@ -350,8 +356,46 @@ def _analizar_fila(
             return CargaMasivaFilaModel.Estado.ERROR, 'El nivel académico es obligatorio.', {}
         if datos.get('titulo') and not datos.get('institucion'):
             return CargaMasivaFilaModel.Estado.ERROR, 'Debe indicar la institución correspondiente al título/carrera.', {}
+        mencion_nombre = (datos.get('mencion_id') or '').strip()
+        if mencion_nombre:
+            from apps.personal.infrastructure.models.catalogos_soporte_models import (
+                CarreraModel,
+                MencionModel,
+            )
+            carrera_nombre = (datos.get('titulo') or '').strip()
+            if not carrera_nombre:
+                return (
+                    CargaMasivaFilaModel.Estado.ERROR,
+                    'Debe indicar la carrera para poder elegir la mención.',
+                    {},
+                )
+            carrera = CarreraModel.objects.filter(nombre_carrera__iexact=carrera_nombre).first()
+            mencion = (
+                MencionModel.objects.filter(
+                    carrera_id=carrera, nombre_mencion__iexact=mencion_nombre,
+                ).first()
+                if carrera is not None else None
+            )
+            if mencion is None:
+                return (
+                    CargaMasivaFilaModel.Estado.ERROR,
+                    f'La mención «{mencion_nombre}» no corresponde a la carrera «{carrera_nombre}».',
+                    {},
+                )
+            datos['mencion_id'] = mencion.nombre_mencion
 
     if tipo.clave == 'formacion_complementaria':
+        procedencia = (datos.get('procedencia') or '').strip().upper()
+        datos['procedencia'] = procedencia
+        if procedencia == 'EXTERNA' and not (datos.get('institucion') or '').strip():
+            return (
+                CargaMasivaFilaModel.Estado.ERROR,
+                'Debe indicar la institución porque la procedencia es EXTERNA.',
+                {},
+            )
+        if procedencia == 'INTERNA':
+            # Formación interna (dentro de CONATEL): no se pide institución.
+            datos['institucion'] = ''
         f_ini = _fecha(datos.get('fecha_inicio', ''))
         f_fin = _fecha(datos.get('fecha_fin', ''))
         if f_ini and not f_fin:

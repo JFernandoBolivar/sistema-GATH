@@ -159,17 +159,29 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
     TipoCarga('formacion_academica', 'Formación académica', 'Formación académica', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         Campo('nivel_academico_id', 'Nivel académico', tipo='catalogo', catalogo='nivel_academico', obligatorio=True),
-        Campo('titulo', 'Título / Carrera', tipo='catalogo', catalogo='carrera', max_length=200, ayuda='Opcional; si se indica, exige institución.'),
+        Campo('titulo', 'Título / Carrera', tipo='catalogo', catalogo='carrera', max_length=200, ayuda='Opcional; si se indica, exige institución y habilita la mención.'),
+        Campo(
+            'mencion_id', 'Mención', tipo='catalogo', catalogo='mencion', max_length=200,
+            ayuda='Opcional; la lista depende de la carrera seleccionada.',
+        ),
         Campo('institucion', 'Institución', tipo='catalogo', catalogo='institucion', max_length=200, ayuda='Exigida si se indica título/carrera.'),
-    ), ('cedula', 'nivel_academico_id')),
+    ), ('cedula', 'nivel_academico_id', 'titulo', 'mencion_id')),
     TipoCarga('formacion_complementaria', 'Formación complementaria', 'Formación complementaria', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         Campo('curso', 'Curso', obligatorio=True, max_length=160),
-        Campo('institucion', 'Institución', tipo='catalogo', catalogo='institucion', obligatorio=True, max_length=200),
+        Campo(
+            'procedencia', 'Procedencia', tipo='catalogo', catalogo='tipo_procedencia',
+            obligatorio=True, max_length=20,
+            ayuda='INTERNA (dentro de CONATEL) o EXTERNA.',
+        ),
+        Campo(
+            'institucion', 'Institución', tipo='catalogo', catalogo='institucion',
+            max_length=200, ayuda='Obligatoria solo si la procedencia es EXTERNA.',
+        ),
         Campo('fecha_inicio', 'Fecha de inicio', tipo='fecha', formato='AAAA-MM-DD'),
         Campo('fecha_fin', 'Fecha de fin', tipo='fecha', formato='AAAA-MM-DD'),
         Campo('horas', 'Horas', tipo='entero'),
-    ), ('cedula', 'curso', 'institucion')),
+    ), ('cedula', 'curso', 'procedencia')),
     TipoCarga('vivienda', 'Vivienda', 'Vivienda', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         # ACTIVOS: el país está fijo en Venezuela; la ubicación completa es obligatoria
