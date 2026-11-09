@@ -301,7 +301,7 @@ export function ConsolaEmisionView() {
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value.slice(0, 60))}
                 placeholder="Buscar por cédula, nombre o código de cargo (ej. 18456789 o Bolívar)..."
-                className="h-11 pl-11 pr-10 text-sm bg-background border-input"
+                className="h-11 pl-11 pr-10 text-sm bg-background border-input [&::-webkit-search-cancel-button]:hidden [&::-ms-clear]:hidden"
                 aria-label="Buscar personal para emisión de carnet"
               />
               {busqueda.length > 0 && (
