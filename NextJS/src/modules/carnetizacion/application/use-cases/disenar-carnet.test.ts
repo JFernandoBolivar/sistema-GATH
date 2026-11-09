@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
-import type { Carnet, DatosCarnetEmpleado, EstadisticasCarnet, PlantillaCarnet } from "../../domain/entities/carnet";
+import type { CrearPlantillaBorradorInput, RepoCarnetizacion } from "../../domain/ports/repo-carnetizacion";
+import type {
+  CampoCredencial,
+  Carnet,
+  DatosCarnetEmpleado,
+  ElementoBiblioteca,
+  EstadisticasCarnet,
+  FichaQr,
+  PlantillaCarnet,
+  PlantillaMotor,
+  PreferenciasPrivacidadCarnet,
+  TipoCredencial,
+} from "../../domain/entities/carnet";
 import {
   construirVistaPreviaCarnet,
   escapeHtml,
@@ -23,6 +34,21 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
   async obtenerEstadisticas(): Promise<EstadisticasCarnet> {
     return { total: 0, activos: 0, revocados: 0, emitidosHoy: 0, emitidosMes: 0, porMotivo: [] };
   }
+  async listarTiposCredencial(): Promise<TipoCredencial[]> { return []; }
+  async listarPlantillasMotor(): Promise<PlantillaMotor[]> { return []; }
+  async obtenerPlantillaMotor(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
+  async crearPlantillaBorrador(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
+  async actualizarPlantillaBorrador(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
+  async publicarPlantilla(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
+  async activarPlantillaMotor(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
+  async listarVersionesPlantilla(): Promise<PlantillaMotor[]> { return []; }
+  async obtenerPlantillaActiva(): Promise<PlantillaMotor> { throw new Error("not implemented"); }
+  async listarBiblioteca() { return []; }
+  async subirElementoBiblioteca(): Promise<ElementoBiblioteca> { throw new Error("not implemented"); }
+  async eliminarElementoBiblioteca(): Promise<boolean> { return true; }
+  async listarCampos() { return []; }
+  async crearCampoPersonalizado(): Promise<CampoCredencial> { throw new Error("not implemented"); }
+  async eliminarCampoPersonalizado(): Promise<boolean> { return true; }
   async obtenerDatosEmpleado(cedula: string): Promise<DatosCarnetEmpleado | null> {
     if (cedula === "12345678") {
       return {
@@ -38,6 +64,10 @@ class RepoCarnetizacionMock implements RepoCarnetizacion {
     }
     return null;
   }
+  async consultarFichaQr(): Promise<FichaQr> { throw new Error("not implemented"); }
+  async consultarSaludEmergencia(): Promise<FichaQr> { throw new Error("not implemented"); }
+  async obtenerPreferenciasPrivacidad(): Promise<PreferenciasPrivacidadCarnet> { return {}; }
+  async guardarPreferenciasPrivacidad(p: PreferenciasPrivacidadCarnet): Promise<PreferenciasPrivacidadCarnet> { return p; }
 }
 
 describe("Diseñador de carnet — Use cases", () => {

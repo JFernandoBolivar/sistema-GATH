@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { familiarSchema } from "@/modules/familiares/ui/schema/schema-familiar";
 import { NAME, NAME_EDICION } from "@/shared/domain/validation";
-import { actualizarPasivoSchema, registrarPasivoSchema } from "./schema-pasivo";
+import { actualizarPasivoSchema, filtrosPasivosSchema, registrarPasivoSchema } from "./schema-pasivo";
 
 const base = {
   cedula: "12345678",
@@ -10,6 +10,8 @@ const base = {
   sexoId: 1,
   fechaNacimiento: "1950-01-01",
   tipoNominaId: 1,
+  motivoId: 1,
+  fechaVigencia: "2020-01-01",
 };
 
 describe("validación de nombres y números (crítica 2026-11-03)", () => {
@@ -36,6 +38,35 @@ describe("validación de nombres y números (crítica 2026-11-03)", () => {
     expect(actualizarPasivoSchema.safeParse({ apellidos: "PEREZ 3" }).success).toBe(false);
   });
 
+  it("FIX-QA8: los dos correos se validan y no pueden ser iguales", () => {
+    const alta = registrarPasivoSchema.safeParse({
+      ...base,
+      correo: "institucional@conatel.gob.ve",
+      correoAlternativo: "personal@gmail.com",
+    });
+    expect(alta.success).toBe(true);
+    expect(
+      registrarPasivoSchema.safeParse({
+        ...base,
+        correo: "institucional@conatel.gob.ve",
+        correoAlternativo: "INSTITUCIONAL@conatel.gob.ve",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      actualizarPasivoSchema.safeParse({
+        correo: "institucional@conatel.gob.ve",
+        correoAlternativo: "personal@gmail.com",
+      }).success,
+    ).toBe(true);
+    expect(
+      actualizarPasivoSchema.safeParse({
+        correo: "institucional@conatel.gob.ve",
+        correoAlternativo: "institucional@conatel.gob.ve",
+      }).success,
+    ).toBe(false);
+  });
+
   it("familiar: parentesco obligatorio y cédula solo con dígitos", () => {
     const familiar = {
       empleadoCedula: "12345678",
@@ -49,5 +80,11 @@ describe("validación de nombres y números (crítica 2026-11-03)", () => {
     expect(r.success).toBe(false);
     const campos = r.success ? [] : r.error.issues.map((i) => i.path[0]);
     expect(campos).toEqual(expect.arrayContaining(["parentescoId", "cedulaFamiliar"]));
+  });
+
+  it("FIX-QA11: filtrosPasivosSchema acepta sinCuenta booleano o indefinido", () => {
+    expect(filtrosPasivosSchema.safeParse({ sinCuenta: true }).success).toBe(true);
+    expect(filtrosPasivosSchema.safeParse({ sinCuenta: false }).success).toBe(true);
+    expect(filtrosPasivosSchema.safeParse({}).success).toBe(true);
   });
 });

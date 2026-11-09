@@ -149,4 +149,5 @@ def test_registrar_familiar_rechaza_parentesco_con_aplica_familiar_false(parente
     }
     serializer = RegistrarFamiliarInputSerializer(data=datos)
     assert not serializer.is_valid()
-    assert 'parentesco' in serializer.errors
+    # El error viaja con el nombre real del campo para que el formulario lo ubique.
+    assert 'parentesco_id' in serializer.errors

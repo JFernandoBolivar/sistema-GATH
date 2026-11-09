@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Checkbox } from "@/shared/ui/components/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/ui/components/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 
@@ -157,7 +158,7 @@ export function PasoHealth({
                   </FormItem>
                 )}
               />
-              <div className="max-h-96 overflow-y-auto rounded-md border p-3">
+              <ScrollArea className="max-h-96 rounded-md border p-3">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <ListaChequeo
                     titulo="Patologias (Opcional)"
@@ -178,7 +179,7 @@ export function PasoHealth({
                     control={form.control}
                   />
                 </div>
-              </div>
+              </ScrollArea>
               <Button className="w-full">Siguiente</Button>
             </form>
           </Form>

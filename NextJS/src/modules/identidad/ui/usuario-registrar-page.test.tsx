@@ -41,8 +41,8 @@ describe("UsuarioRegistrarPage (O17 y FIX-QA7)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetRolesAction.mockResolvedValue([
-      { id: 1, nombreRol: "ANALISTA", descripcionRol: "Rol de analista" },
-      { id: 2, nombreRol: "ADMINISTRADOR", descripcionRol: "Rol administrador" },
+      { id: 1, nombreRol: "ANALISTA", nombreVisible: "Analista", descripcionRol: "Rol de analista" },
+      { id: 2, nombreRol: "ADMINISTRADOR", nombreVisible: "Administrador", descripcionRol: "Rol administrador" },
     ]);
     mockRegistrarUsuarioAction.mockResolvedValue({
       id: 42,

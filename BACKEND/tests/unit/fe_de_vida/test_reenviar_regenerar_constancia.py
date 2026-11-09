@@ -201,3 +201,18 @@ def test_acciones_disponibles_en_solicitud_validada():
     assert 'regenerar_constancia' in acciones
     # sin el permiso de administradora solo puede reenviar
     assert s_val.acciones_disponibles(actor_revisor, PermisosRevision(revisar=True)) == ('reenviar_constancia',)
+
+
+def test_proceso_cerrado_bloquea_decisiones_pero_no_las_acciones_de_constancia():
+    m = Mundo()
+    s = m.solicitud_enviada()
+    actor = ActorRevision('30000001', RolRevision.ADMINISTRADORA)
+    permisos = PermisosRevision(revisar=True, check=True, aprobar_directo=True, regenerar=True)
+    # pendiente: con proceso cerrado no hay ninguna acción
+    assert s.acciones_disponibles(actor, permisos, proceso_cerrado=True) == ()
+    assert s.acciones_disponibles(actor, permisos) != ()
+    revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ANALISTA, ahora=AHORA)
+    s_val = revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ADMINISTRADORA, ahora=AHORA)
+    assert s_val.acciones_disponibles(actor, permisos, proceso_cerrado=True) == (
+        'reenviar_constancia', 'regenerar_constancia',
+    )

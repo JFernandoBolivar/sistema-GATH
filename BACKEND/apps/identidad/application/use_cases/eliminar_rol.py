@@ -19,7 +19,7 @@ def eliminar_rol(repo: RepoRoles, id: int) -> None:
     en_uso = repo.contar_cuentas_con_rol(id)
     if en_uso:
         raise ConflictError(
-            f"No se puede eliminar: el rol '{rol.nombre}' está asignado a "
+            f"No se puede eliminar: el rol '{rol.etiqueta}' está asignado a "
             f"{en_uso} cuenta(s). Reasígnelas primero."
         )
 

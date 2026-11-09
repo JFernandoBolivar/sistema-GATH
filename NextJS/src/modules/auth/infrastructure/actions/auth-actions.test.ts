@@ -19,6 +19,7 @@ const mockCookieStore = {
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockImplementation(async () => mockCookieStore),
+  headers: vi.fn().mockImplementation(async () => new Headers({ host: "localhost:3001" })),
 }));
 
 vi.mock("next-auth", () => ({
@@ -53,12 +54,20 @@ vi.mock("../../application/use-cases/cerrar-sesion", () => ({
   cerrarSesion: vi.fn().mockResolvedValue(undefined),
 }));
 
+const mockSolicitarRecuperacion = vi.fn().mockResolvedValue("Instrucciones enviadas.");
+vi.mock("../../application/use-cases/solicitar-recuperacion", () => ({
+  solicitarRecuperacion: (...args: unknown[]) => mockSolicitarRecuperacion(...args),
+}));
+
+import { headers } from "next/headers";
+
 import {
   extenderSesionAction,
   cerrarSesionAction,
   limpiarCookiesAuthAction,
   cambiarPasswordAction,
   loginAction,
+  solicitarRecuperacionAction,
 } from "./auth-actions";
 
 describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () => {
@@ -115,6 +124,25 @@ describe("auth-actions (Ciclo de vida de sesión y extensión de tokens)", () =>
       "dj_access",
       "",
       expect.objectContaining({ maxAge: 0 }),
+    );
+  });
+
+  it("solicitarRecuperacionAction usa el origen real de la petición", async () => {
+    vi.mocked(headers).mockResolvedValueOnce(
+      new Headers({
+        host: "localhost:3001",
+        "x-forwarded-host": "gath.ejemplo.gob.ve",
+        "x-forwarded-proto": "https",
+      }),
+    );
+
+    const res = await solicitarRecuperacionAction({ identificador: "V-12345678" });
+
+    expect(res.success).toBe(true);
+    expect(mockSolicitarRecuperacion).toHaveBeenCalledWith(
+      expect.anything(),
+      "V-12345678",
+      "https://gath.ejemplo.gob.ve",
     );
   });
 

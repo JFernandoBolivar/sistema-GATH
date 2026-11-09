@@ -348,6 +348,25 @@ def test_detalle_revision_proceso_cerrado_sin_acciones_de_revision(m):
     assert det_cerrado.acciones == ()
 
 
+def test_detalle_proceso_cerrado_validada_conserva_reenviar_y_regenerar_segun_permisos(m):
+    s = m.solicitud_enviada()
+    revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ANALISTA, ahora=AHORA)
+    revision.dar_check(m.solicitudes, m.aplicador, m.publicador, solicitud_id=s.id, actor=ADMINISTRADORA, ahora=AHORA)
+    procesos.cerrar_proceso(m.procesos, m.solicitudes, proceso_id=m.proceso.id, actor='1', ahora=AHORA)
+
+    def acciones(permisos):
+        return consultas.detalle_para_revision(
+            m.solicitudes, m.cambios, m.validador, LectorPasivosMem(), solicitud_id=s.id,
+            actor=ADMINISTRADORA, permisos=permisos, repo_procesos=m.procesos,
+        ).acciones
+
+    assert acciones(consultas.PermisosRevision(revisar=True, regenerar=True, check=True, aprobar_directo=True)) == (
+        'reenviar_constancia', 'regenerar_constancia',
+    )
+    assert acciones(consultas.PermisosRevision(revisar=True)) == ('reenviar_constancia',)
+    assert acciones(consultas.PermisosRevision()) == ()
+
+
 def test_guia_vista_por_cuenta_y_proceso(m):
     vigente = consultas.obtener_proceso_vigente(m.procesos, m.solicitudes, m.alcance, cedula=PASIVO, ahora=AHORA)
     assert vigente is not None
@@ -360,11 +379,67 @@ def test_guia_vista_por_cuenta_y_proceso(m):
 
 
 class _FichaMem:
-    def __init__(self, movil):
+    def __init__(self, movil, correo_alternativo=None):
         self.movil = movil
+        self.correo_alternativo = correo_alternativo
 
     def ficha(self, cedula):
-        return {'empleado': {'telefono_movil': self.movil}}
+        return {
+            'empleado': {'telefono_movil': self.movil},
+            'datos_complementarios': {'correo_alternativo': self.correo_alternativo},
+        }
+
+
+def test_correo_alternativo_obligatorio_en_linea(m):
+    from dataclasses import replace
+
+    s = iniciar(m)
+    with pytest.raises(ValidationError) as e:
+        sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=s, presencial=False)
+    assert e.value.campo == 'correo_alternativo'
+
+    # Ya consta en la ficha.
+    sp.exigir_correo_alternativo(
+        m.cambios, _FichaMem('04140000000', 'alt@correo.test'), solicitud=s, presencial=False,
+    )
+    # Propuesto en el acta.
+    m.cambios.reemplazar(s.id, [CambioActa(
+        'contacto', 'MODIFICAR', 'datos_complementarios', 'correo_alternativo', 'nuevo@correo.test',
+    )])
+    sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=s, presencial=False)
+
+    # En línea no se permite la excepción presencial.
+    m.cambios.reemplazar(s.id, [])
+    excepcion = replace(
+        s, sin_correo_alternativo=True, justificacion_sin_correo='No posee correo electrónico',
+    )
+    with pytest.raises(ValidationError):
+        sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=excepcion, presencial=False)
+
+
+def test_excepcion_sin_correo_solo_en_presencial_y_con_justificacion(m):
+    from dataclasses import replace
+
+    s = iniciar(m)
+    valida = replace(
+        s, sin_correo_alternativo=True,
+        justificacion_sin_correo='El pasivo no posee correo electrónico ni familiar de contacto.',
+    )
+    sp.exigir_correo_alternativo(m.cambios, _FichaMem(None), solicitud=valida, presencial=True)
+
+    with pytest.raises(ValidationError) as e:
+        sp.exigir_correo_alternativo(
+            m.cambios, _FichaMem(None),
+            solicitud=replace(valida, justificacion_sin_correo='corto'), presencial=True,
+        )
+    assert e.value.campo == 'justificacion_sin_correo'
+
+    with pytest.raises(ValidationError) as e:
+        sp.exigir_correo_alternativo(
+            m.cambios, _FichaMem(None),
+            solicitud=replace(valida, sin_correo_alternativo=False), presencial=True,
+        )
+    assert e.value.campo == 'correo_alternativo'
 
 
 def test_celular_obligatorio_para_enviar_acta(m):

@@ -25,6 +25,7 @@ import {
   pedidaPorAcciones,
   type EntidadDef,
 } from "../../domain/value-objects/campos-seccion";
+import type { TipoSoporteConfigurado } from "../../domain/value-objects/tipos-soporte";
 import type { MiExpedienteDTO } from "../../application/dtos/mi-expediente-dto";
 import { esquemaDeEntidad } from "../schema/schema-solicitud";
 import { formatearValor, type NombresCatalogo } from "../formato-solicitud";
@@ -44,17 +45,25 @@ interface Props {
   onItems: (items: ItemBorrador[]) => void;
   solicitudId?: string;
   soportes?: SoporteEntity[];
+  /** Tipos de documento configurados para la sección (O41). */
+  tiposSoporte?: readonly TipoSoporteConfigurado[];
   onCambioSoportes?: () => void;
 }
 
 type Abierto =
   | { tipo: "modificar"; id: string | null }
-  | { tipo: "nuevo" }
+  // `indice` reabre un registro nuevo del borrador para editarlo (FIX-AG1).
+  | { tipo: "nuevo"; indice?: number }
   | { tipo: "quitar"; id: string }
   | null;
 
 /** Entidades cuyos cambios exigen un documento por registro. */
-const CON_DOCUMENTO = new Set(["familiar", "formacion_academica", "formacion_complementaria"]);
+const CON_DOCUMENTO = new Set([
+  "familiar",
+  "formacion_academica",
+  "formacion_complementaria",
+  "antecedente_servicio",
+]);
 const MOTIVO_QUITAR_MIN = 10;
 const MOTIVO_QUITAR_MAX = 300;
 
@@ -78,6 +87,7 @@ export function EditorEntidad({
   onItems,
   solicitudId,
   soportes = [],
+  tiposSoporte = [],
   onCambioSoportes,
 }: Props) {
   // Pedida por acciones (Agregar/Corregir/Quitar): todos sus campos son editables; si no, solo los habilitados.
@@ -298,6 +308,7 @@ export function EditorEntidad({
             seccion={seccion}
             entidadId={id}
             soportes={soportes}
+            tipos={tiposSoporte}
             onCambio={onCambioSoportes ?? (() => {})}
           />
         ) : null}
@@ -363,9 +374,19 @@ export function EditorEntidad({
                   <span className="font-semibold">Registro nuevo:</span>{" "}
                   {resumenCambios(n.valores, nombres)}
                 </p>
-                <Button type="button" variant="outline" size="sm" onClick={() => quitarNuevo(i)}>
-                  <Undo2 aria-hidden /> Quitar
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAbierto({ tipo: "nuevo", indice: i })}
+                  >
+                    <Pencil aria-hidden /> Editar
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => quitarNuevo(i)}>
+                    <Undo2 aria-hidden /> Quitar
+                  </Button>
+                </div>
               </div>
               {CON_DOCUMENTO.has(definicion.entidad) && solicitudId ? (
                 <SoporteRegistro
@@ -373,6 +394,7 @@ export function EditorEntidad({
                   seccion={seccion}
                   referencia={n.referencia}
                   soportes={soportes}
+                  tipos={tiposSoporte}
                   onCambio={onCambioSoportes ?? (() => {})}
                 />
               ) : null}
@@ -387,11 +409,21 @@ export function EditorEntidad({
           definicion={definicion}
           esquema={esquema}
           modo="CREAR"
-          inicial={unicaSinRegistro ? (nuevos[0]?.valores ?? {}) : {}}
-          textoGuardar="Agregar al borrador"
-          onGuardar={(valores) =>
-            unicaSinRegistro ? guardarNuevoUnico(valores) : guardarNuevo(valores)
+          inicial={
+            unicaSinRegistro
+              ? (nuevos[0]?.valores ?? {})
+              : abierto.indice !== undefined
+                ? (nuevos[abierto.indice]?.valores ?? {})
+                : {}
           }
+          textoGuardar={
+            abierto.indice !== undefined ? "Guardar registro" : "Agregar al borrador"
+          }
+          onGuardar={(valores) => {
+            if (unicaSinRegistro) guardarNuevoUnico(valores);
+            else if (abierto.indice !== undefined) editarNuevo(abierto.indice, valores);
+            else guardarNuevo(valores);
+          }}
           onCancelar={() => setAbierto(null)}
         />
       ) : null}
@@ -419,6 +451,18 @@ export function EditorEntidad({
         valores: limpiarNulos(valores),
         referencia: nuevaReferencia(),
       },
+    ]);
+  }
+
+  /** Reabre un registro nuevo y reemplaza sus valores sin perder la referencia. */
+  function editarNuevo(indice: number, valores: Record<string, unknown>) {
+    const item = nuevos[indice];
+    if (!item) return;
+    const actualizado = { ...item, valores: limpiarNulos(valores) };
+    guardar([
+      ...modificaciones,
+      ...eliminados,
+      ...nuevos.map((nuevo, i) => (i === indice ? actualizado : nuevo)),
     ]);
   }
 }

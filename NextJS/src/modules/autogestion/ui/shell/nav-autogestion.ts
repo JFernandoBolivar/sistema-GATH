@@ -1,5 +1,6 @@
 import {
   Bell,
+  CreditCard,
   FilePenLine,
   HeartPulse,
   Home,
@@ -37,6 +38,13 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
     etiqueta: "Mi ficha",
     href: "/autogestion/ficha",
     icono: UserRound,
+    permiso: "autogestion.ver_propio",
+  },
+  {
+    id: "mi-carnet",
+    etiqueta: "Mi carnet",
+    href: "/autogestion/mi-carnet",
+    icono: CreditCard,
     permiso: "autogestion.ver_propio",
   },
   {
@@ -87,12 +95,16 @@ export const ITEMS_NAV_AUTOGESTION: ItemNavAutogestion[] = [
 export function itemsVisibles(
   permisos: string[] | null | undefined,
   condicionTrabajador: string | null | undefined,
-  opciones: { autogestionHabilitada?: boolean } = {},
+  opciones: { autogestionHabilitada?: boolean; miCarnetHabilitado?: boolean } = {},
   items: ItemNavAutogestion[] = ITEMS_NAV_AUTOGESTION,
 ): ItemNavAutogestion[] {
-  const visibles = filtrarMenuPorPermisos(items, permisos, condicionTrabajador);
+  let visibles = filtrarMenuPorPermisos(items, permisos, condicionTrabajador);
   if (opciones.autogestionHabilitada === false) {
-    return visibles.filter((item) => !item.requiereAutogestionHabilitada);
+    visibles = visibles.filter((item) => !item.requiereAutogestionHabilitada);
+  }
+  // Mi Carnet depende del alcance configurable en el backend, no solo del permiso.
+  if (opciones.miCarnetHabilitado === false) {
+    visibles = visibles.filter((item) => item.id !== "mi-carnet");
   }
   return visibles;
 }

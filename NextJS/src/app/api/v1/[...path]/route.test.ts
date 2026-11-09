@@ -51,6 +51,19 @@ describe("proxy /api/v1 (archivos autenticados)", () => {
     expect((await pedir("carnetizacion/plantillas/x/imagen/", "tok")).status).toBe(404);
   });
 
+  it("permite la imagen QR de Mi carnet (O45-A)", async () => {
+    fetchMock.mockResolvedValue(new Response("png", { status: 200 }));
+    const res = await pedir("carnetizacion/public/qr/abc123/imagen/", "tok");
+    expect(res.status).toBe(200);
+    expect((await pedir("carnetizacion/public/qr/abc123/otra/", "tok")).status).toBe(404);
+  });
+
+  it("permite el archivo de elementos de la biblioteca de medios", async () => {
+    fetchMock.mockResolvedValue(new Response("img", { status: 200 }));
+    const res = await pedir("carnetizacion/biblioteca/elem-123/archivo/", "tok");
+    expect(res.status).toBe(200);
+  });
+
   it("responde 401 sin cookie y no llama al backend", async () => {
     const res = await pedir("personal/123/foto/");
     expect(res.status).toBe(401);

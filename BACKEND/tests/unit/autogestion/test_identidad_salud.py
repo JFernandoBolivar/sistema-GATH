@@ -9,8 +9,9 @@ from .memoria_actualizacion import Mundo
 from .test_actualizacion_flujo import borrador, decidir, enviar, habilitar, solicitar, soporte
 
 
-def test_identidad_ya_es_autogestionable_y_no_esta_prohibida():
-    assert 'employee.cedulaidentidad' in SECCION_DE_CAMPO
+def test_identidad_es_autogestionable_salvo_la_cedula():
+    # O49-BLOQUEO: la cédula no se ofrece como campo editable; el resto sí.
+    assert 'employee.cedulaidentidad' not in SECCION_DE_CAMPO
     assert 'employee.nombres' in SECCION_DE_CAMPO
     assert 'cedulaidentidad' not in CAMPOS_PROHIBIDOS
 
@@ -27,18 +28,25 @@ def test_cambiar_nombres_exige_copia_de_cedula():
     assert enviar(m, sol).estado.value == 'ENVIADA'
 
 
-def test_cambiar_cedula_y_fecha_de_nacimiento_se_propone_y_aplica():
+def test_cambiar_cedula_se_rechaza_y_la_fecha_de_nacimiento_se_aplica():
     m = Mundo()
     sol = habilitar(m, solicitar(m, ('identidad',)))
+    empleado_antes = dict(m.ficha.datos[('employee', None)])
+
+    # O49-BLOQUEO: la cédula no es un campo autogestionable.
+    with pytest.raises(ValidationError, match='no es autogestionable'):
+        borrador(m, sol, [
+            ItemCambioDTO('identidad', 'employee', 'MODIFICAR', 'cedulaidentidad', '20999999'),
+        ])
+
     borrador(m, sol, [
-        ItemCambioDTO('identidad', 'employee', 'MODIFICAR', 'cedulaidentidad', '20999999'),
         ItemCambioDTO('identidad', 'employee', 'MODIFICAR', 'fecha_nacimiento', '1990-05-04'),
     ])
     soporte(m, sol, 'identidad', 'CEDULA')
     sol = enviar(m, sol)
     decidir(m, sol, [DecisionCampoDTO(c.id, True) for c in m.cambios.listar('ACTUALIZACION', sol.id)])
     empleado = m.ficha.datos[('employee', None)]
-    assert empleado['cedulaidentidad'] == '20999999'
+    assert empleado.get('cedulaidentidad') == empleado_antes.get('cedulaidentidad')
     assert empleado['fecha_nacimiento'] == '1990-05-04'
 
 
@@ -72,9 +80,10 @@ def test_salud_y_tallas_entran_sin_documento():
 def test_cedula_carnet_y_campos_de_salud_invalidos_se_rechazan():
     m = Mundo()
     sol = habilitar(m, solicitar(m, ('identidad', 'salud')))
-    with pytest.raises(ValidationError, match='5 y 9'):
+    # O49-BLOQUEO: aunque el valor tenga formato válido, el campo no se ofrece.
+    with pytest.raises(ValidationError, match='no es autogestionable'):
         borrador(m, sol, [
-            ItemCambioDTO('identidad', 'employee', 'MODIFICAR', 'cedulaidentidad', '1234'),
+            ItemCambioDTO('identidad', 'employee', 'MODIFICAR', 'cedulaidentidad', '20999999'),
         ])
     with pytest.raises(ValidationError, match='10 dígitos'):
         borrador(m, sol, [

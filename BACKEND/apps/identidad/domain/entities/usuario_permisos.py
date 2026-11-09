@@ -18,6 +18,7 @@ class UsuarioPermisos:
     cedula: str
     rol_id: int | None = None
     nombre_rol: str | None = None
+    nombre_rol_visible: str | None = None
     permisos_custom: PoliticaAcceso = field(default_factory=PoliticaAcceso)
     politica_efectiva: PoliticaAcceso = field(default_factory=PoliticaAcceso)
     version: int = 1

@@ -212,18 +212,33 @@ class RepoRolesMemoria:
             if rid != excluir_id
         )
 
-    def crear(self, nombre, descripcion):
-        rol = RolEntidad(identificador=self._siguiente_id, nombre=nombre, descripcion=descripcion)
+    def existe_nombre_visible(self, nombre_visible, excluir_id=None):
+        return any(
+            r.etiqueta.upper() == nombre_visible.upper()
+            for rid, r in self._roles.items()
+            if rid != excluir_id
+        )
+
+    def crear(self, codigo, nombre_visible, descripcion):
+        rol = RolEntidad(
+            identificador=self._siguiente_id,
+            nombre=codigo,
+            descripcion=descripcion,
+            nombre_visible=nombre_visible,
+        )
         self._roles[rol.identificador] = rol
         self._siguiente_id += 1
         return rol
 
-    def actualizar(self, id, nombre, descripcion):
+    def actualizar(self, id, nombre_visible, descripcion):
         actual = self._roles[id]
         self._roles[id] = RolEntidad(
             identificador=id,
-            nombre=nombre if nombre is not None else actual.nombre,
+            nombre=actual.nombre,
             descripcion=descripcion if descripcion is not None else actual.descripcion,
+            nombre_visible=(
+                nombre_visible if nombre_visible is not None else actual.nombre_visible
+            ),
         )
         return self._roles[id]
 

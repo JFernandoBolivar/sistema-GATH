@@ -79,7 +79,8 @@ class RepoPoliticaCorreoAccesoMemoria:
 
 def test_politica_default_values():
     pol = PoliticaCorreoAcceso()
-    assert pol.politica_pasivos == PoliticaFuenteCorreo.ALTERNATIVO
+    # O39: el pasivo entra con su correo principal (institucional de la ficha).
+    assert pol.politica_pasivos == PoliticaFuenteCorreo.INSTITUCIONAL
     assert pol.politica_activos == PoliticaFuenteCorreo.INSTITUCIONAL
     assert pol.si_falta_elegido == PoliticaFaltaCorreo.DEJAR_SIN_CUENTA
     assert pol.avisar_al_aplicar_masivo is False
@@ -101,10 +102,30 @@ def test_resolver_correo_pasivo_con_alternativo():
         tiene_cuenta=True,
     )
     res = resolver_correo_para_trabajador(datos, pol)
-    assert res == 'personal@gmail.com'
+    # O39: el alternativo no es login; el pasivo entra con su correo principal.
+    assert res == 'pasivo@conatel.gob.ve'
 
 
-def test_resolver_correo_pasivo_sin_alternativo_dejar_sin_cuenta():
+def test_politica_alternativa_en_pasivo_sin_principal_no_crea_cuenta():
+    pol = PoliticaCorreoAcceso(
+        politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO,
+        si_falta_elegido=PoliticaFaltaCorreo.DEJAR_SIN_CUENTA,
+    )
+    datos = DatosCorreoTrabajador(
+        cedula='V-33333333',
+        nombre_completo='Pasivo Solo Alternativo',
+        condicion='PASIVO',
+        correo_actual_acceso='',
+        correo_institucional='',
+        correo_alternativo='personal@gmail.com',
+        correo_ficha='',
+        tiene_cuenta=False,
+    )
+    assert resolver_correo_para_trabajador(datos, pol) is None
+
+
+def test_resolver_correo_pasivo_sin_principal_dejar_sin_cuenta():
+    """Sin principal en la ficha (y el alternativo no es login) queda sin cuenta."""
     pol = PoliticaCorreoAcceso(
         politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO,
         si_falta_elegido=PoliticaFaltaCorreo.DEJAR_SIN_CUENTA,
@@ -116,7 +137,7 @@ def test_resolver_correo_pasivo_sin_alternativo_dejar_sin_cuenta():
         correo_actual_acceso='',
         correo_institucional='',
         correo_alternativo='',
-        correo_ficha='ficha@ejemplo.com',
+        correo_ficha='',
         tiene_cuenta=False,
     )
     res = resolver_correo_para_trabajador(datos, pol)
@@ -161,13 +182,51 @@ def test_resolver_correo_activo_institucional():
     assert res == 'activo@conatel.gob.ve'
 
 
+def test_resolver_correo_pasivo_con_principal_externo_gmail():
+    """FIX-AUD8.7: el principal de un pasivo es el de la ficha, aunque sea externo."""
+    pol = PoliticaCorreoAcceso(
+        politica_pasivos=PoliticaFuenteCorreo.INSTITUCIONAL,
+        si_falta_elegido=PoliticaFaltaCorreo.DEJAR_SIN_CUENTA,
+    )
+    datos = DatosCorreoTrabajador(
+        cedula='V-4588543',
+        nombre_completo='Pasivo Con Gmail',
+        condicion='PASIVO',
+        correo_actual_acceso='',
+        correo_institucional='',
+        correo_alternativo='',
+        correo_ficha='pasivo@gmail.com',
+        tiene_cuenta=False,
+    )
+    assert resolver_correo_para_trabajador(datos, pol) == 'pasivo@gmail.com'
+
+
+def test_resolver_correo_activo_con_correo_externo_sigue_sin_cuenta():
+    """FIX-AUD8.7: los activos no cambian; un correo externo no es institucional."""
+    pol = PoliticaCorreoAcceso(
+        politica_activos=PoliticaFuenteCorreo.INSTITUCIONAL,
+        si_falta_elegido=PoliticaFaltaCorreo.DEJAR_SIN_CUENTA,
+    )
+    datos = DatosCorreoTrabajador(
+        cedula='V-4488543',
+        nombre_completo='Activo Con Gmail',
+        condicion='ACTIVO',
+        correo_actual_acceso='',
+        correo_institucional='',
+        correo_alternativo='',
+        correo_ficha='activo@gmail.com',
+        tiene_cuenta=False,
+    )
+    assert resolver_correo_para_trabajador(datos, pol) is None
+
+
 # ==============================================================================
 # Tests de Vista Previa y Excepciones Manuales
 # ==============================================================================
 
 def test_vista_previa_respeta_excepciones_manuales():
     pol = PoliticaCorreoAcceso(
-        politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO,
+        politica_pasivos=PoliticaFuenteCorreo.INSTITUCIONAL,
         si_falta_elegido=PoliticaFaltaCorreo.DEJAR_SIN_CUENTA,
     )
     t1 = DatosCorreoTrabajador(
@@ -175,7 +234,7 @@ def test_vista_previa_respeta_excepciones_manuales():
         nombre_completo='Normal Cambia',
         condicion='PASIVO',
         correo_actual_acceso='viejo@ejemplo.com',
-        correo_institucional='',
+        correo_institucional='nuevo@conatel.gob.ve',
         correo_alternativo='nuevo@gmail.com',
         correo_ficha='viejo@ejemplo.com',
         tiene_cuenta=True,
@@ -186,7 +245,7 @@ def test_vista_previa_respeta_excepciones_manuales():
         nombre_completo='Excepcion Individual',
         condicion='PASIVO',
         correo_actual_acceso='ajustado_a_mano@ejemplo.com',
-        correo_institucional='',
+        correo_institucional='otro_nuevo@conatel.gob.ve',
         correo_alternativo='otro@gmail.com',
         correo_ficha='ajustado_a_mano@ejemplo.com',
         tiene_cuenta=True,
@@ -211,7 +270,7 @@ def test_vista_previa_respeta_excepciones_manuales():
     assert resumen_con.excepciones_manuales_ignoradas == 0
     item_ex2 = next(it for it in resumen_con.items if it.cedula == 'V-222')
     assert item_ex2.cambiara is True
-    assert item_ex2.correo_propuesto == 'otro@gmail.com'
+    assert item_ex2.correo_propuesto == 'otro_nuevo@conatel.gob.ve'
 
 
 # ==============================================================================
@@ -227,7 +286,7 @@ def test_aplicar_politica_masiva_valida_motivo_obligatorio():
 
 def test_aplicar_politica_masiva_ejecuta_y_audita():
     pol = PoliticaCorreoAcceso(
-        politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO,
+        politica_pasivos=PoliticaFuenteCorreo.INSTITUCIONAL,
     )
     repo = RepoPoliticaCorreoAccesoMemoria(politica=pol)
     repo.trabajadores['V-111'] = DatosCorreoTrabajador(
@@ -235,7 +294,7 @@ def test_aplicar_politica_masiva_ejecuta_y_audita():
         nombre_completo='Pasivo 1',
         condicion='PASIVO',
         correo_actual_acceso='viejo@ejemplo.com',
-        correo_institucional='',
+        correo_institucional='nuevo@conatel.gob.ve',
         correo_alternativo='nuevo@gmail.com',
         correo_ficha='viejo@ejemplo.com',
         tiene_cuenta=True,
@@ -254,19 +313,19 @@ def test_aplicar_politica_masiva_ejecuta_y_audita():
         auditar_cuenta=fake_audit,
     )
     assert resultado['actualizados'] == 1
-    assert repo.empleados_guardados['V-111'] == 'nuevo@gmail.com'
+    assert repo.empleados_guardados['V-111'] == 'nuevo@conatel.gob.ve'
     assert len(auditados) == 1
-    assert auditados[0] == ('V-111', 'viejo@ejemplo.com', 'nuevo@gmail.com', 'Migración masiva aprobada por RRHH')
+    assert auditados[0] == ('V-111', 'viejo@ejemplo.com', 'nuevo@conatel.gob.ve', 'Migración masiva aprobada por RRHH')
 
 
 def test_aplicar_politica_masiva_reporta_conflictos_sin_romper_el_lote():
-    pol = PoliticaCorreoAcceso(politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO)
+    pol = PoliticaCorreoAcceso(politica_pasivos=PoliticaFuenteCorreo.INSTITUCIONAL)
     repo = RepoPoliticaCorreoAccesoMemoria(politica=pol)
-    for cedula, alternativo in (('V-111', 'compartido@gmail.com'), ('V-222', 'libre@gmail.com')):
+    for cedula, institucional in (('V-111', 'compartido@gmail.com'), ('V-222', 'libre@gmail.com')):
         repo.trabajadores[cedula] = DatosCorreoTrabajador(
             cedula=cedula, nombre_completo=cedula, condicion='PASIVO',
-            correo_actual_acceso='viejo@ejemplo.com', correo_institucional='',
-            correo_alternativo=alternativo, correo_ficha='viejo@ejemplo.com', tiene_cuenta=True,
+            correo_actual_acceso='viejo@ejemplo.com', correo_institucional=institucional,
+            correo_alternativo='', correo_ficha='viejo@ejemplo.com', tiene_cuenta=True,
         )
     repo.correos_ocupados.add('compartido@gmail.com')
 
@@ -279,13 +338,13 @@ def test_aplicar_politica_masiva_reporta_conflictos_sin_romper_el_lote():
 
 def test_aplicar_politica_masiva_notifica_al_nuevo_correo_si_esta_encendido():
     pol = PoliticaCorreoAcceso(
-        politica_pasivos=PoliticaFuenteCorreo.ALTERNATIVO, avisar_al_aplicar_masivo=True,
+        politica_pasivos=PoliticaFuenteCorreo.INSTITUCIONAL, avisar_al_aplicar_masivo=True,
     )
     repo = RepoPoliticaCorreoAccesoMemoria(politica=pol)
     repo.trabajadores['V-111'] = DatosCorreoTrabajador(
         cedula='V-111', nombre_completo='Pasivo 1', condicion='PASIVO',
-        correo_actual_acceso='viejo@ejemplo.com', correo_institucional='',
-        correo_alternativo='nuevo@gmail.com', correo_ficha='viejo@ejemplo.com', tiene_cuenta=True,
+        correo_actual_acceso='viejo@ejemplo.com', correo_institucional='nuevo@gmail.com',
+        correo_alternativo='', correo_ficha='viejo@ejemplo.com', tiene_cuenta=True,
     )
     notificados = []
     aplicar_politica_masiva(

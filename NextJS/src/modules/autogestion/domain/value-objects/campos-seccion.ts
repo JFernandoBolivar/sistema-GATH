@@ -3,12 +3,15 @@
  * (`apps/autogestion/domain/value_objects/secciones.py`): el servidor sigue siendo la fuente de verdad
  * y revalida; aquí solo se describe qué formulario mostrar y cómo rotular cada campo.
  */
+import { ETIQUETA_CODIGO_CARNET_PATRIA, ETIQUETA_SERIAL_CARNET_PATRIA } from "@/shared/domain/etiquetas-carnet-patria";
+
 import type { AccionCambio, SeccionCodigo } from "../entities/solicitud-actualizacion";
 
 export type TipoCampo =
-  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple";
+  "texto" | "textarea" | "telefono" | "correo" | "booleano" | "fecha" | "catalogo" | "multiple" | "entero";
 
 export type ClaveCatalogo =
+  | "paises"
   | "estados"
   | "municipios"
   | "parroquias"
@@ -31,7 +34,8 @@ export type ClaveCatalogo =
   | "tallasCamisa"
   | "tallasPantalon"
   | "tallasZapatos"
-  | "tallasChaqueta";
+  | "tallasChaqueta"
+  | "organismos";
 
 export interface CampoDef {
   campo: string;
@@ -61,12 +65,24 @@ export interface SeccionDef {
 
 export const CAMPO_REGISTRO_NUEVO = "*";
 
+export const CODIGOS_SECCION_ORDENADOS = [
+  "identidad",
+  "foto",
+  "contacto",
+  "vivienda",
+  "formacion",
+  "complementaria",
+  "familiar",
+  "salud",
+  "antecedentes",
+] as const;
+
 export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
   identidad: {
     codigo: "identidad",
     nombre: "Identidad",
     descripcion:
-      "Nombres, apellidos, fecha de nacimiento y cédula. La copia de la cédula es obligatoria. El estado civil y el Carnet de la Patria no requieren documento.",
+      "Nombres, apellidos y fecha de nacimiento. La cédula no se modifica aquí: si tiene un error, use «Reportar error». La copia de la cédula es obligatoria. El estado civil, el código del Carnet de la Patria y su serial no requieren documento.",
     entidades: [
       {
         entidad: "employee",
@@ -77,20 +93,33 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
           { campo: "nombres", etiqueta: "Nombres", tipo: "texto" },
           { campo: "apellidos", etiqueta: "Apellidos", tipo: "texto" },
           { campo: "fecha_nacimiento", etiqueta: "Fecha de nacimiento", tipo: "fecha" },
-          { campo: "cedulaidentidad", etiqueta: "Cédula de identidad", tipo: "texto" },
           {
             campo: "estadoCivil_id",
             etiqueta: "Estado civil",
             tipo: "catalogo",
             catalogo: "estadosCiviles",
           },
-          { campo: "carnet_patria", etiqueta: "Carnet de la Patria", tipo: "texto" },
+          { campo: "carnet_patria", etiqueta: ETIQUETA_CODIGO_CARNET_PATRIA, tipo: "texto" },
           {
             campo: "carnet_patria_serial",
-            etiqueta: "Serial del Carnet de la Patria",
+            etiqueta: ETIQUETA_SERIAL_CARNET_PATRIA,
             tipo: "texto",
           },
         ],
+      },
+    ],
+  },
+  foto: {
+    codigo: "foto",
+    nombre: "Foto",
+    descripcion: "Foto de perfil para el carnet (JPG o PNG, hasta 5 MB).",
+    entidades: [
+      {
+        entidad: "employee",
+        etiqueta: "Foto",
+        unica: true,
+        creable: false,
+        campos: [{ campo: "profile", etiqueta: "Foto de perfil", tipo: "texto" }],
       },
     ],
   },
@@ -148,25 +177,34 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
         creable: true,
         campos: [
           {
+            campo: "pais_id",
+            etiqueta: "País",
+            tipo: "catalogo",
+            catalogo: "paises",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "ciudad_region",
+            etiqueta: "Ciudad o región",
+            tipo: "texto",
+          },
+          {
             campo: "estado_id",
             etiqueta: "Estado",
             tipo: "catalogo",
             catalogo: "estados",
-            requeridoAlCrear: true,
           },
           {
             campo: "municipio_id",
             etiqueta: "Municipio",
             tipo: "catalogo",
             catalogo: "municipios",
-            requeridoAlCrear: true,
           },
           {
             campo: "parroquia_id",
             etiqueta: "Parroquia",
             tipo: "catalogo",
             catalogo: "parroquias",
-            requeridoAlCrear: true,
           },
           {
             campo: "direccion_exacta",
@@ -186,7 +224,6 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             etiqueta: "Código postal",
             tipo: "catalogo",
             catalogo: "codigosPostales",
-            requeridoAlCrear: true,
           },
         ],
       },
@@ -308,6 +345,11 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             requeridoAlCrear: true,
           },
           {
+            campo: "orden_hijo",
+            etiqueta: "Orden de nacimiento",
+            tipo: "entero",
+          },
+          {
             campo: "sexo_id",
             etiqueta: "Sexo",
             tipo: "catalogo",
@@ -386,17 +428,37 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
       },
     ],
   },
-  foto: {
-    codigo: "foto",
-    nombre: "Foto",
-    descripcion: "Foto de perfil para el carnet (JPG o PNG, hasta 5 MB).",
+  antecedentes: {
+    codigo: "antecedentes",
+    nombre: "Antecedentes de servicio",
+    descripcion:
+      "Experiencia laboral previa en la administración pública. Debe adjuntar constancia de trabajo.",
     entidades: [
       {
-        entidad: "employee",
-        etiqueta: "Foto",
-        unica: true,
-        creable: false,
-        campos: [{ campo: "profile", etiqueta: "Foto de perfil", tipo: "texto" }],
+        entidad: "antecedente_servicio",
+        etiqueta: "Antecedente de servicio",
+        unica: false,
+        creable: true,
+        campos: [
+          {
+            campo: "organismo_id",
+            etiqueta: "Organismo o institución",
+            tipo: "catalogo",
+            catalogo: "organismos",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "fecha_ingreso",
+            etiqueta: "Fecha de ingreso",
+            tipo: "fecha",
+            requeridoAlCrear: true,
+          },
+          {
+            campo: "fecha_egreso",
+            etiqueta: "Fecha de egreso",
+            tipo: "fecha",
+          },
+        ],
       },
     ],
   },
@@ -422,6 +484,10 @@ export const ENTIDADES_DE_LISTA: Record<string, { grupo: string; objeto: string 
   formacion_complementaria: {
     grupo: "Formación complementaria",
     objeto: "una formación complementaria",
+  },
+  antecedente_servicio: {
+    grupo: "Antecedentes de servicio",
+    objeto: "un antecedente de servicio",
   },
 };
 
@@ -535,33 +601,8 @@ export const CAMPO_PADRE: Record<string, string> = {
   mencion_id: "carrera_id",
 };
 
-/** Tipos de soporte admitidos por sección (espejo de `TIPOS_SOPORTE_POR_SECCION` del backend). */
-export const TIPOS_SOPORTE_POR_SECCION: Record<SeccionCodigo, { valor: string; texto: string }[]> =
-  {
-    identidad: [{ valor: "CEDULA", texto: "Copia de la cédula" }],
-    contacto: [
-      { valor: "CONSTANCIA", texto: "Constancia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    vivienda: [
-      { valor: "CONSTANCIA", texto: "Constancia de residencia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    formacion: [
-      { valor: "TITULO", texto: "Título" },
-      { valor: "CONSTANCIA", texto: "Constancia de estudios" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    complementaria: [
-      { valor: "CONSTANCIA", texto: "Certificado o constancia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    familiar: [
-      { valor: "CEDULA", texto: "Copia de la cédula" },
-      { valor: "ACTA_NACIMIENTO", texto: "Partida de nacimiento" },
-      { valor: "CONSTANCIA", texto: "Constancia" },
-      { valor: "OTRO", texto: "Otro documento" },
-    ],
-    salud: [],
-    foto: [{ valor: "FOTO", texto: "Foto" }],
-  };
+/*
+ * Los tipos de soporte permitidos por sección ya no se replican aquí: son
+ * configurables en Reglas de Catálogos y se obtienen del backend (O41).
+ * Ver `domain/value-objects/tipos-soporte.ts`.
+ */

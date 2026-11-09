@@ -29,6 +29,12 @@ def actualizar_politica_correo_acceso(
     datos: dict,
     actor_id: int | None = None,
 ) -> tuple[PoliticaCorreoAcceso, PoliticaCorreoAcceso]:
+    # O39: el alternativo no es login de un pasivo.
+    if datos.get('politica_pasivos') == 'alternativo':
+        raise ValidationError(
+            'El correo de acceso de los pasivos no puede ser el alternativo: use el correo principal.',
+            campo='politica_pasivos',
+        )
     return repo.actualizar_politica(datos, actor_id=actor_id)
 
 

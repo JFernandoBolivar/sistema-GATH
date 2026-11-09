@@ -72,6 +72,7 @@ export type EstadoValidacionTrabajador =
 interface CuentaExistenteInfo {
   id: number;
   rolNombre: string | null;
+  rolNombreVisible?: string | null;
   isActive: boolean;
 }
 
@@ -146,6 +147,7 @@ export default function UsuarioRegistrarPage() {
           setCuentaExistente({
             id: cuenta.id,
             rolNombre: cuenta.rolNombre,
+            rolNombreVisible: cuenta.rolNombreVisible,
             isActive: cuenta.isActive,
           });
           setEstadoValidacion("ya-tiene-cuenta");
@@ -368,7 +370,7 @@ export default function UsuarioRegistrarPage() {
                         <div>
                           <span className="text-muted-foreground block text-[11px] font-sans">Rol actual:</span>
                           <span className="font-semibold text-foreground">
-                            {cuentaExistente.rolNombre || "Sin rol asignado"}
+                            {cuentaExistente.rolNombreVisible || cuentaExistente.rolNombre || "Sin rol asignado"}
                           </span>
                         </div>
                         <div>
@@ -413,7 +415,7 @@ export default function UsuarioRegistrarPage() {
                         <SelectContent>
                           {roles.map((r) => (
                             <SelectItem key={r.id} value={String(r.id)}>
-                              {r.nombreRol}
+                              {r.nombreVisible}
                             </SelectItem>
                           ))}
                         </SelectContent>

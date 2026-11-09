@@ -164,6 +164,7 @@ export interface ReglaRuta {
 export const REGLAS_RUTA: ReglaRuta[] = [
   { prefijo: 'personal/censo', permisos: ['autogestion.censo_ver_todos'] },
   { prefijo: 'pasivos/consultar', permisos: ['pasivos.ver'] },
+  { prefijo: 'pasivos/carga-masiva', permisos: ['pasivos.carga_masiva'] },
   { prefijo: 'pasivos/reportes', permisos: ['reportes.ver'] },
   { prefijo: 'pasivos/registrar', permisos: ['pasivos.crear'] },
   { prefijo: 'pasivos/familiares/registrar', permisos: ['familiares.crear'] },
@@ -185,7 +186,11 @@ export const REGLAS_RUTA: ReglaRuta[] = [
   { prefijo: 'usuarios/registrar', permisos: ['identidad.crear_usuarios'] },
   { prefijo: 'usuarios/modificar', permisos: ['identidad.editar_usuarios'] },
   { prefijo: 'usuarios/matriz', permisos: ['identidad.ver_roles'] },
+  { prefijo: 'carnetizacion/visitantes', permisos: ['carnetizacion.visitantes'] },
+  { prefijo: 'carnetizacion/temporal', permisos: ['carnetizacion.temporal'] },
+  { prefijo: 'carnetizacion/lote', permisos: ['carnetizacion.lote'] },
   { prefijo: 'personal/registrar', permisos: ['personal.crear'] },
+  { prefijo: 'personal/carga-masiva', permisos: ['personal.carga_masiva'] },
   { prefijo: 'familiares/registrar', permisos: ['familiares.crear'] },
   { prefijo: 'cargos/crear-codigo', permisos: ['cargos.crear'] },
   {

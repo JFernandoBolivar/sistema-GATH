@@ -126,3 +126,8 @@ export const schemaPlantilla = z.object({
     .refine((file) => file.size <= 5 * 1024 * 1024, "La imagen no debe superar los 5MB"),
 });
 
+export type SearchFormType = z.infer<typeof schemaSearch>;
+export type GenerarFormType = z.infer<typeof schemaGenerar>;
+export type PlantillaFormType = z.infer<typeof schemaPlantilla>;
+
+

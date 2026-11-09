@@ -22,7 +22,10 @@ class DepartamentoModel(models.Model):
 
 class RolModel(models.Model):
     id = models.AutoField(primary_key=True)
+    # Código interno fijo (token, matriz, seed). Nunca se muestra como etiqueta.
     nombre_rol = models.CharField(max_length=50, unique=True)
+    # O43: etiqueta editable que ve el usuario. Nula solo en bases aún sin llenar.
+    nombre_visible = models.CharField(max_length=100, null=True, blank=True)
     descripcion_rol = models.TextField(null=True, blank=True)
 
     class Meta:

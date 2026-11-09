@@ -229,15 +229,36 @@ button,
   user-select: none;
 }
 @media (max-width: 1023px) {
-  button,
-  [role="button"] {
+  /* Zona táctil de 44px solo para controles de acción. Se excluyen las piezas
+     geométricas (checkbox, radio, switch) y los botones compactos de Sonner,
+     que quedaban ovalados o deformados. */
+  button:not([role="checkbox"]):not([role="radio"]):not([role="switch"]):not([data-close-button]):not([data-button]):not([data-cancel]),
+  [role="button"]:not([role="checkbox"]):not([role="radio"]):not([role="switch"]):not([data-close-button]) {
     min-height: 44px;
   }
-  input,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   select,
   textarea {
     font-size: 16px;
     min-height: 44px;
+  }
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"] {
+    min-height: 0;
+  }
+  /* El control sigue siendo pequeño, pero conserva el área táctil. */
+  button[role="checkbox"],
+  button[role="radio"],
+  button[role="switch"] {
+    position: relative;
+  }
+  button[role="checkbox"]::after,
+  button[role="radio"]::after,
+  button[role="switch"]::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
   }
   form .grid-cols-2,
   form .grid-cols-3,
@@ -246,6 +267,51 @@ button,
   }
   .overflow-x-auto {
     overscroll-behavior-x: contain;
+  }
+}
+
+/* FIX-TLF10: un solo estilo para todas las fechas nativas (date y datetime-local):
+   el ícono de calendario queda visible, con el mismo tamaño relativo y una
+   zona táctil cómoda en teléfono. No se oculta el selector nativo. */
+input[type="date"],
+input[type="datetime-local"] {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.25;
+  padding-right: 0.5rem;
+}
+input[type="date"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit {
+  padding: 0;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-inline-start: 0.5rem;
+  padding: 0;
+  /* FIX-AUD8: la flecha nativa de Android se sustituye por el mismo glifo de
+     calendario en todos los navegadores; currentColor respeta tema claro/oscuro
+     y el selector nativo sigue abriendo el calendario. */
+  background-color: currentColor;
+  -webkit-mask: url("/icons/calendario.svg") center / contain no-repeat;
+  mask: url("/icons/calendario.svg") center / contain no-repeat;
+  -webkit-mask-origin: content-box;
+  mask-origin: content-box;
+  background-clip: content-box;
+  opacity: 0.7;
+  cursor: pointer;
+}
+input[type="date"]:not(:focus):invalid::-webkit-datetime-edit,
+input[type="datetime-local"]:not(:focus):invalid::-webkit-datetime-edit {
+  color: var(--muted-foreground);
+}
+@media (max-width: 1023px) {
+  /* Área táctil de 44 px para el selector nativo (sin ocultarlo). */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    padding: 0.75rem;
+    margin-inline-end: -0.5rem;
   }
 }
 @supports (padding: env(safe-area-inset-bottom)) {
@@ -270,6 +336,16 @@ button,
 
 main { min-width: 0; }
 
+/* FIX-TLF14: Radix envuelve el contenido del ScrollArea en un `div` con
+   `display: table`; dentro de un diálogo eso permite que el texto y los
+   campos crezcan más allá del ancho visible y se recorten contra la barra
+   vertical. Con `block` y `min-width: 0` el contenido se ajusta al ancho del
+   diálogo en cualquier tamaño de pantalla (no solo en móvil). */
+[data-slot="dialog-content"] [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  min-width: 0 !important;
+}
+
 
 @media (max-width: 1023px) { [data-sidebar="trigger"] { min-width: 44px; min-height: 44px; } }
 
@@ -277,18 +353,38 @@ main { min-width: 0; }
 [data-slot="sidebar-inset"], [data-slot="sidebar-wrapper"] { min-width: 0; }
 
 
-@media (max-width: 1023px) { [data-slot="table-container"], .overflow-x-auto { max-width: 100vw; } }
-
-
-@media (max-width: 1023px) { main { width: 100%; max-width: 100vw; overflow-x: hidden; } [data-slot="table-container"] { width: 100% !important; min-width: 0 !important; max-width: calc(100vw - 3rem) !important; } }
-
-
-@media (max-width: 1023px) { [data-slot="card"] { max-width: calc(100vw - 3rem); } }
-
-
-/* El ScrollArea raíz (.scroll-app) queda fuera: si se acota, todo el shell
-   pierde 3rem a la derecha en tablet y las pestañas largas se cortan. */
-@media (max-width: 1023px) { [data-slot="scroll-area"]:not(.scroll-app), [data-radix-scroll-area-viewport]:not(.scroll-app > *) { max-width: calc(100vw - 3rem) !important; } }
+/* Móvil: el ancho lo manda el viewport. Antes se recortaba todo a
+   `calc(100vw - 3rem)` y eso dejaba una franja blanca a la derecha y pantallas
+   cortadas (fichas, sheets, filtros, Reglas de Catálogos, Identidad visual,
+   vista previa de correo). Cada tabla conserva su propio scroll. */
+@media (max-width: 1023px) {
+  main {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  [data-slot="table-container"],
+  .overflow-x-auto {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Radix envuelve el contenido del ScrollArea en un `div` con
+     `display: table` EN LÍNEA; por eso hace falta `!important`, igual que en
+     la regla de `.scroll-app` (línea 19). Sin él, el wrapper crece con el
+     contenido (447–927 px con viewport de 360) y `main` lo recorta en
+     silencio. Con `block` el ancho queda acotado y cada tabla conserva su
+     propio scroll. */
+  [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"] > div {
+    display: block !important;
+    min-width: 0 !important;
+  }
+  /* Un hijo de grid no debe imponer su ancho mínimo (correos y rutas largas)
+     al ancho de la pantalla. */
+  main .grid > * {
+    min-width: 0;
+  }
+}
 
 
 @media (max-width: 1023px) {

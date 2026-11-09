@@ -22,10 +22,16 @@ export function formatearFechaHora(iso: string | null | undefined): string {
 export type NombresCatalogo = Record<string, Record<number, string>>;
 
 const CATALOGO_POR_CAMPO: Record<string, string> = {
+  pais_id: "paises",
+  pais: "paises",
   estado_id: "estados",
+  estado: "estados",
   municipio_id: "municipios",
+  municipio: "municipios",
   parroquia_id: "parroquias",
+  parroquia: "parroquias",
   condicion_vivienda_id: "condicionesVivienda",
+  condicion_vivienda: "condicionesVivienda",
   codigo_postal_id: "codigosPostales",
   nivel_academico_id: "nivelesAcademicos",
   carrera_id: "carreras",
@@ -34,9 +40,13 @@ const CATALOGO_POR_CAMPO: Record<string, string> = {
   capacitacion_id: "capacitaciones",
   grupo_id: "gruposCapacitacion",
   parentesco_id: "parentescosFamilia",
+  parentesco: "parentescosFamilia",
   relacion_id: "parentescos",
   sexo_id: "sexos",
+  sexo: "sexos",
   estadoCivil_id: "estadosCiviles",
+  estado_civil_id: "estadosCiviles",
+  estadoCivil: "estadosCiviles",
   grupo_sanguineo_id: "gruposSanguineos",
   alergias: "alergias",
   patologias_cronicas: "patologias",
@@ -45,6 +55,7 @@ const CATALOGO_POR_CAMPO: Record<string, string> = {
   talla_pantalon_id: "tallasPantalon",
   talla_zapatos_id: "tallasZapatos",
   talla_chaqueta_id: "tallasChaqueta",
+  organismo_id: "organismos",
 };
 
 /** Campos que guardan teléfonos (E.164): se muestran con código de país. */
@@ -74,8 +85,21 @@ export function formatearValor(
   }
   if (typeof valor === "string" && CAMPOS_TELEFONO.has(campo)) return formatearTelefono(valor);
   const clave = catalogoDeCampo(campo);
-  if (clave && typeof valor === "number") {
-    return nombres[clave]?.[valor] ?? `Código ${valor}`;
+  if (clave && (typeof valor === "number" || /^\d+$/.test(String(valor)))) {
+    const id = Number(valor);
+    const cat = nombres[clave];
+    if (cat && cat[id]) {
+      return cat[id];
+    }
+    // Si el catálogo aún no ha cargado o está en proceso, mostrar «Cargando…» en vez del número
+    if (!cat || Object.keys(cat).length === 0) {
+      return "Cargando…";
+    }
+    // Si ya cargó y el id no existe, mostrar guion
+    return "—";
+  }
+  if (campo.endsWith("_id") && (typeof valor === "number" || /^\d+$/.test(String(valor)))) {
+    return "Cargando…";
   }
   return String(valor);
 }

@@ -41,6 +41,7 @@ import {
   getNominaGeneral,
   getOrganismosAds,
   getOrganismosAdsFather,
+  getPaises,
   getParish,
   getPatologys,
   getRegion,
@@ -184,6 +185,10 @@ export default function ReportEmployee({
     "conditionDwelling",
     async () => await getConditionDwelling(),
   );
+  const { data: paises, isLoading: isLoadingPaises } = useSWR(
+    categoria === "pasivos" ? "paises-reporte" : null,
+    async () => await getPaises(),
+  );
 
   const form = useForm<SchemaReportEmployeeType>({
     resolver: zodResolver(schemaReportEmployee),
@@ -222,6 +227,7 @@ export default function ReportEmployee({
         municipio_id: undefined,
         parroquia_id: undefined,
         condicion_vivienda_id: undefined,
+        pais_id: undefined,
       },
     },
   });
@@ -447,7 +453,48 @@ export default function ReportEmployee({
                     )}
 
                     <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2">
-                      <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
+                      {categoria === "pasivos" ? (
+                        <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-blue-800">
+                          <legend className="text-blue-900 font-semibold px-1">
+                            Información de Pasivo
+                          </legend>
+                          <FormField
+                            control={form.control}
+                            name="filtros.nomina_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Tipo de Pasivo / Pensión</FormLabel>
+                                <Select
+                                  onValueChange={(values) => {
+                                    field.onChange(Number.parseInt(values));
+                                  }}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full truncate">
+                                      <SelectValue
+                                        placeholder={`${
+                                          isLoadingNomina
+                                            ? "Cargando Tipos de Pasivo"
+                                            : "Seleccione un Tipo de Pasivo"
+                                        }`}
+                                      />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {nomina?.data.map((nom, i) => (
+                                      <SelectItem key={i} value={`${nom.id}`}>
+                                        {nom.nomina || nom.nombre}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </fieldset>
+                      ) : (
+                        <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-red-800">
                         <legend className="text-red-900 font-semibold px-1">
                           Información De Cargo
                         </legend>
@@ -601,6 +648,7 @@ export default function ReportEmployee({
                           )}
                         />
                       </fieldset>
+                      )}
 
                       <fieldset className="flex flex-col gap-3 border-2 p-3 rounded-sm border-violet-800">
                         <legend className="text-violet-900 font-semibold px-1">
@@ -1246,6 +1294,40 @@ export default function ReportEmployee({
                             </FormItem>
                           )}
                         />
+                        {categoria === "pasivos" ? (
+                          <FormField
+                            control={form.control}
+                            name="filtros.pais_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>País</FormLabel>
+                                <Select
+                                  value={field.value ? String(field.value) : undefined}
+                                  onValueChange={(value) => field.onChange(Number.parseInt(value))}
+                                  disabled={isLoadingPaises}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="w-full truncate">
+                                      <SelectValue
+                                        placeholder={
+                                          isLoadingPaises ? "Cargando Países" : "Seleccione un País"
+                                        }
+                                      />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {(paises?.data ?? []).map((p) => (
+                                      <SelectItem key={p.id} value={`${p.id}`}>
+                                        {p.nombre}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        ) : null}
                         <FormField
                           control={form.control}
                           name="filtros.condicion_vivienda_id"

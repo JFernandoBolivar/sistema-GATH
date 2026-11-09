@@ -101,7 +101,7 @@ class EmpleadosListView(APIView):
         responses={200: EmpleadoSerializer},
     )
     def post(self, request):
-        serializer = EmpleadoCrearSerializer(data=request.data)
+        serializer = EmpleadoCrearSerializer(data=request.data, context={'request': request, 'view': self})
         serializer.is_valid(raise_exception=True)
 
         repo = RepoPersonalORM()
@@ -130,7 +130,9 @@ class EmpleadoDetailView(APIView):
         responses={200: EmpleadoSerializer},
     )
     def put(self, request, cedula: str):
-        serializer = EmpleadoActualizarSerializer(data=request.data, partial=True)
+        serializer = EmpleadoActualizarSerializer(
+            data=request.data, partial=True, context={'request': request, 'view': self, 'cedula': cedula}
+        )
         serializer.is_valid(raise_exception=True)
 
         repo = RepoPersonalORM()

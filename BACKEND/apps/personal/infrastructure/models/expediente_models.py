@@ -85,12 +85,15 @@ class DatosViviendaModel(models.Model):
     )
     estado = models.ForeignKey(
         'catalogos.EstadoModel', models.PROTECT, db_column='estadoId', related_name='+',
+        null=True, blank=True,
     )
     municipio = models.ForeignKey(
         'catalogos.MunicipioModel', models.PROTECT, db_column='municipioId', related_name='+',
+        null=True, blank=True,
     )
     parroquia = models.ForeignKey(
         'catalogos.ParroquiaModel', models.PROTECT, db_column='parroquiaId', related_name='+',
+        null=True, blank=True,
     )
     direccion_exacta = models.TextField(db_column='direccionExacta')
     condicion_vivienda = models.ForeignKey(
@@ -98,6 +101,14 @@ class DatosViviendaModel(models.Model):
     )
     codigo_postal = models.ForeignKey(
         'personal.CodigoPostalModel', models.PROTECT, db_column='codigo_postal_id', related_name='+',
+        null=True, blank=True,
+    )
+    pais = models.ForeignKey(
+        'catalogos.PaisModel', models.PROTECT, db_column='pais_id', related_name='+',
+        null=True, blank=True,
+    )
+    ciudad_region = models.CharField(
+        max_length=120, db_column='ciudad_region', null=True, blank=True,
     )
 
     class Meta:

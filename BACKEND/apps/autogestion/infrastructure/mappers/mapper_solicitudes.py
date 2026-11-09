@@ -65,7 +65,13 @@ def soporte_a_entidad(m) -> SoporteDocumental:
 
 
 def seccion_a_entidad(m) -> SeccionAutogestionable:
-    return SeccionAutogestionable(codigo=m.codigo, nombre=m.nombre, requiere_soporte=m.requiere_soporte, activa=m.activa)
+    return SeccionAutogestionable(
+        codigo=m.codigo,
+        nombre=m.nombre,
+        requiere_soporte=m.requiere_soporte,
+        activa=m.activa,
+        orden=getattr(m, 'orden', 0),
+    )
 
 
 def complementarios_a_entidad(m) -> DatosComplementarios:

@@ -139,7 +139,7 @@ def test_excel_bandeja_tiene_las_columnas_y_el_numero_de_acta(datos):
     assert cabecera == [
         'Cédula', 'Nombres', 'Apellidos', 'Correo', 'Teléfono', 'Estatus', 'Fecha de envío', 'Número de acta',
     ]
-    assert hoja.cell(row=fila_cabecera, column=1).fill.start_color.rgb.endswith('1A237E')
+    assert hoja.cell(row=fila_cabecera, column=1).fill.start_color.rgb.endswith('0B4A9E')
     assert hoja.cell(row=fila_cabecera, column=1).font.color.rgb.endswith('FFFFFF')
     assert 'numero_solicitud' not in [str(c).lower() for c in cabecera]
     filas = {

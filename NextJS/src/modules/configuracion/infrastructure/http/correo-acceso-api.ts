@@ -32,4 +32,9 @@ export const correoAccesoApi = {
       "/api/v1/configuracion/correo-acceso/aplicar/",
       datos as unknown as Record<string, unknown>,
     ),
+
+  descargarExcelVistaPrevia: (grupo: "activos" | "pasivos", incluirExcepciones: boolean = false) =>
+    apiClient.getBlob(
+      `/api/v1/configuracion/correo-acceso/vista-previa/exportar-excel/?grupo=${grupo}&incluir_excepciones=${incluirExcepciones}`,
+    ),
 };

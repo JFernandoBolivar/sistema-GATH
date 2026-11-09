@@ -17,6 +17,10 @@ def _convertir(items) -> list[CatalogoItemDTO]:
     ]
 
 
+def listar_paises(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
+    return _convertir(repo.listar_paises())
+
+
 def listar_sexos(repo: RepoCatalogos) -> list[CatalogoItemDTO]:
     return _convertir(repo.listar_sexos())
 

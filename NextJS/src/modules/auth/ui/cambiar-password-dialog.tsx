@@ -92,7 +92,7 @@ export default function CambiarPasswordDialog({
       }}
     >
       <DialogContent
-        className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto sm:max-w-md"
+        className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-hidden sm:max-w-md"
         showCloseButton={!obligatorio}
         onPointerDownOutside={(e) => obligatorio && e.preventDefault()}
         onEscapeKeyDown={(e) => obligatorio && e.preventDefault()}

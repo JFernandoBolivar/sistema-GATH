@@ -22,6 +22,7 @@ from apps.reportes.domain.value_objects.condicion_trabajador import (
     CONDICION_PASIVO,
 )
 from apps.reportes.infrastructure.repositories.repo_reportes_orm import RepoReportesORM
+from apps.personal.shared.domain.services.tiempo_servicio import formatear_tiempo_servicio
 from core.domain.exceptions import ValidationError
 from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.infrastructure.pdf.report_pdf import generar_reporte_pdf
@@ -40,6 +41,31 @@ CONDICION_DE_FAMILIARES = {
 TIPOS_DE_REPORTE = (
     TIPO_PERSONAL_ACTIVO, TIPO_PASIVOS, TIPO_FAMILIARES_ACTIVOS, TIPO_FAMILIARES_PASIVOS,
 )
+
+
+SIN_FECHA_INGRESO = '—'
+
+
+def preparar_filas_reporte(filas) -> list[dict]:
+    """Filas listas para PDF/Excel (FIX-QA14).
+
+    - Quita `apn_aviso`, que es un dato interno y ya no es una columna.
+    - `total_anos_apn` pasa de decimal crudo (0.0082) a texto legible
+      («3 días de servicio en APN»).
+    - Sin fecha de ingreso se muestra «—», no «0 días».
+    """
+    preparadas = []
+    for fila in filas:
+        copia = dict(fila)
+        aviso = copia.pop('apn_aviso', '')
+        if 'total_anos_apn' in copia:
+            copia['total_anos_apn'] = (
+                SIN_FECHA_INGRESO
+                if aviso
+                else formatear_tiempo_servicio(copia['total_anos_apn'])
+            )
+        preparadas.append(copia)
+    return preparadas
 
 
 def validar_parametros(tipo: str, parametros: dict) -> None:
@@ -86,8 +112,9 @@ def generar_archivo_reporte(
         raise ValidationError(f'Tipo de reporte no exportable: «{tipo}».')
 
     progreso(60)
+    filas = preparar_filas_reporte(dto.filas)
     if para_pdf:
-        contenido = generar_reporte_pdf(dto.titulo, dto.columnas, dto.filas, config=construir_config_pdf())
+        contenido = generar_reporte_pdf(dto.titulo, dto.columnas, filas, config=construir_config_pdf())
     else:
-        contenido = generar_reporte_excel(dto.titulo, dto.columnas, dto.filas)
+        contenido = generar_reporte_excel(dto.titulo, dto.columnas, filas)
     return contenido, dto.metadatos or {}

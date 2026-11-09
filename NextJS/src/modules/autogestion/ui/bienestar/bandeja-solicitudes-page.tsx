@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import { etiquetaClaveCampo } from "../../domain/value-objects/campos-seccion";
 import { LIMITE_BANDEJA } from "../../application/use-cases/gestionar-solicitud-bienestar";
@@ -146,7 +147,7 @@ export default function BandejaSolicitudesPage() {
 
       {data && data.results.length > 0 ? (
         <>
-          <div role="region" aria-label="Solicitudes de actualización de datos" tabIndex={0} className="overflow-x-auto rounded-xl border bg-card">
+          <TablaDesplegable etiqueta="Solicitudes de actualización de datos" className="rounded-xl border bg-card">
             <table className="w-full min-w-[640px] text-left text-base">
               <caption className="sr-only">Solicitudes de actualización de datos</caption>
               <thead className="border-b bg-muted text-sm">
@@ -196,7 +197,7 @@ export default function BandejaSolicitudesPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TablaDesplegable>
           <nav
             aria-label="Paginación de la bandeja"
             className="flex flex-wrap items-center justify-between gap-3"

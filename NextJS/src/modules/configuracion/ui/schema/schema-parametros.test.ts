@@ -80,4 +80,16 @@ describe("validarValorParametro", () => {
   it("rechaza un texto vacío", () => {
     expect(validarValorParametro(parametro({ tipo: "texto" }), "   ")).not.toBeNull();
   });
+
+  it("valida y acepta lista de cédulas para mi_carnet_usuarios", () => {
+    const p = parametro({
+      clave: "carnetizacion.mi_carnet_usuarios",
+      tipo: "texto",
+      minimo: null,
+      maximo: null,
+    });
+    expect(validarValorParametro(p, "")).toBeNull();
+    expect(validarValorParametro(p, "12345678, 87654321")).toBeNull();
+    expect(validarValorParametro(p, "12345678, abc")).toContain("no es una cédula válida");
+  });
 });

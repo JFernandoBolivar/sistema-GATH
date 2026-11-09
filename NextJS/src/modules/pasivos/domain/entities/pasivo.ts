@@ -110,6 +110,8 @@ export interface Pasivo {
   tipoPasivo: string;
   tipoNominaId: number | null;
   fechaEgreso: string | null;
+  motivoEgresoId?: number | null;
+  motivoEgreso?: string | null;
   apnAntecedentes?: { years: number; months: number; days: number } | null;
   apnEnCurso?: { years: number; months: number; days: number } | null;
   apnTotal?: { years: number; months: number; days: number } | null;
@@ -118,6 +120,7 @@ export interface Pasivo {
   resolucion: string | null;
   observaciones: string | null;
   correo: string | null;
+  correoAlternativo: string | null;
   telefonoMovil: string | null;
   telefonoHabitacion: string | null;
   carnetPatria: string | null;
@@ -150,8 +153,10 @@ export interface FiltrosPasivos {
   nombre?: string;
   codigo?: string;
   tipoNominaId?: number;
+  motivoId?: number;
   fechaDesde?: string;
   fechaHasta?: string;
+  sinCuenta?: boolean;
   limit?: number;
   offset?: number;
 }
@@ -163,9 +168,12 @@ export interface RegistrarPasivoInput {
   sexoId: number;
   fechaNacimiento: string;
   tipoNominaId: number;
+  motivoId: number;
+  fechaVigencia: string;
   estadoCivilId?: number | null;
   nacionalidadId?: number | null;
   correo?: string | null;
+  correoAlternativo?: string | null;
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   carnetPatria?: string | null;
@@ -214,6 +222,7 @@ export interface ActualizarPasivoInput {
   nombres?: string;
   apellidos?: string;
   correo?: string | null;
+  correoAlternativo?: string | null;
   telefonoMovil?: string | null;
   telefonoHabitacion?: string | null;
   carnetPatria?: string | null;

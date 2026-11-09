@@ -9,8 +9,25 @@ from apps.puntocuenta.domain.services.variables_plantilla import (
 )
 
 
+CAMPOS_CON_VARIABLES = (
+    'titulo',
+    'encabezado',
+    'cuerpo',
+    'asunto',
+    'exposicion',
+    'propuesta',
+    'base_legal',
+    'presentado_a',
+    'cargo_presentado_a',
+    'presentado_por',
+    'cargo_presentado_por',
+    'unidad',
+    'observaciones_texto',
+)
+
+
 def _validar_variables_de_campos(datos: dict) -> None:
-    for campo in ('titulo', 'encabezado', 'cuerpo'):
+    for campo in CAMPOS_CON_VARIABLES:
         valor = datos.get(campo)
         if isinstance(valor, str) and valor:
             desconocidas = validar_variables_texto(valor)
@@ -27,6 +44,26 @@ class PlantillaProcesoSerializer(serializers.Serializer):
     titulo = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
     encabezado = serializers.CharField(allow_blank=True, required=False, default='')
     cuerpo = serializers.CharField(allow_blank=True, required=False, default='')
+    presentado_a = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    cargo_presentado_a = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    presentado_por = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    cargo_presentado_por = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    unidad = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    asunto = serializers.CharField(allow_blank=True, required=False, default='')
+    exposicion = serializers.CharField(allow_blank=True, required=False, default='')
+    propuesta = serializers.CharField(allow_blank=True, required=False, default='')
+    base_legal = serializers.CharField(allow_blank=True, required=False, default='')
+    observaciones_texto = serializers.CharField(allow_blank=True, required=False, default='')
+    incluir_presentado_a = serializers.BooleanField(required=False, default=True)
+    incluir_presentado_por = serializers.BooleanField(required=False, default=True)
+    incluir_asunto = serializers.BooleanField(required=False, default=True)
+    incluir_exposicion = serializers.BooleanField(required=False, default=True)
+    incluir_propuesta = serializers.BooleanField(required=False, default=True)
+    incluir_base_legal = serializers.BooleanField(required=False, default=True)
+    incluir_decision = serializers.BooleanField(required=False, default=True)
+    incluir_observaciones = serializers.BooleanField(required=False, default=True)
+    incluir_tabla_resumen = serializers.BooleanField(required=False, default=False)
+    incluir_firmas = serializers.BooleanField(required=False, default=True)
 
     def validate(self, attrs):
         _validar_variables_de_campos(attrs)
@@ -75,6 +112,26 @@ class ConfiguracionPuntoCuentaSerializer(serializers.Serializer):
     titulo = serializers.CharField(max_length=200)
     encabezado = serializers.CharField(allow_blank=True)
     cuerpo = serializers.CharField(allow_blank=True)
+    presentado_a = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    cargo_presentado_a = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    presentado_por = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    cargo_presentado_por = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    unidad = serializers.CharField(max_length=200, allow_blank=True, required=False, default='')
+    asunto = serializers.CharField(allow_blank=True, required=False, default='')
+    exposicion = serializers.CharField(allow_blank=True, required=False, default='')
+    propuesta = serializers.CharField(allow_blank=True, required=False, default='')
+    base_legal = serializers.CharField(allow_blank=True, required=False, default='')
+    observaciones_texto = serializers.CharField(allow_blank=True, required=False, default='')
+    incluir_presentado_a = serializers.BooleanField(required=False, default=True)
+    incluir_presentado_por = serializers.BooleanField(required=False, default=True)
+    incluir_asunto = serializers.BooleanField(required=False, default=True)
+    incluir_exposicion = serializers.BooleanField(required=False, default=True)
+    incluir_propuesta = serializers.BooleanField(required=False, default=True)
+    incluir_base_legal = serializers.BooleanField(required=False, default=True)
+    incluir_decision = serializers.BooleanField(required=False, default=True)
+    incluir_observaciones = serializers.BooleanField(required=False, default=True)
+    incluir_tabla_resumen = serializers.BooleanField(required=False, default=False)
+    incluir_firmas = serializers.BooleanField(required=False, default=True)
     firmas = FirmaItemSerializer(many=True)
     mostrar_nivel = serializers.BooleanField()
     plantillas_procesos = serializers.DictField(child=PlantillaProcesoSerializer(), required=False)
@@ -90,6 +147,26 @@ class ActualizarConfiguracionPuntoCuentaSerializer(serializers.Serializer):
     titulo = serializers.CharField(max_length=200, required=False)
     encabezado = serializers.CharField(allow_blank=True, required=False)
     cuerpo = serializers.CharField(allow_blank=True, required=False)
+    presentado_a = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    cargo_presentado_a = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    presentado_por = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    cargo_presentado_por = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    unidad = serializers.CharField(max_length=200, allow_blank=True, required=False)
+    asunto = serializers.CharField(allow_blank=True, required=False)
+    exposicion = serializers.CharField(allow_blank=True, required=False)
+    propuesta = serializers.CharField(allow_blank=True, required=False)
+    base_legal = serializers.CharField(allow_blank=True, required=False)
+    observaciones_texto = serializers.CharField(allow_blank=True, required=False)
+    incluir_presentado_a = serializers.BooleanField(required=False)
+    incluir_presentado_por = serializers.BooleanField(required=False)
+    incluir_asunto = serializers.BooleanField(required=False)
+    incluir_exposicion = serializers.BooleanField(required=False)
+    incluir_propuesta = serializers.BooleanField(required=False)
+    incluir_base_legal = serializers.BooleanField(required=False)
+    incluir_decision = serializers.BooleanField(required=False)
+    incluir_observaciones = serializers.BooleanField(required=False)
+    incluir_tabla_resumen = serializers.BooleanField(required=False)
+    incluir_firmas = serializers.BooleanField(required=False)
     firmas = FirmaItemSerializer(many=True, required=False)
     mostrar_nivel = serializers.BooleanField(required=False)
     plantillas_procesos = serializers.DictField(child=PlantillaProcesoSerializer(), required=False)

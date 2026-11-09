@@ -36,8 +36,8 @@ export const repoAutenticacionApi: RepoAutenticacion = {
     return postCambiarPassword(input);
   },
 
-  async solicitarRecuperacion(identificador: string): Promise<string> {
-    return postSolicitarRecuperacion(identificador);
+  async solicitarRecuperacion(identificador: string, frontendUrl: string): Promise<string> {
+    return postSolicitarRecuperacion(identificador, frontendUrl);
   },
 
   async restablecerPassword(input: RestablecerPasswordInput): Promise<string> {

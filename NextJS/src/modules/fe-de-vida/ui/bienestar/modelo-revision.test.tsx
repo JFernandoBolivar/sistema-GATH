@@ -26,6 +26,11 @@ const FICHA: FichaPasivoEntity = {
   fechaIngreso: "1990-01-15",
   fechaEgreso: "2015-06-30",
   vivienda: {
+    paisId: 1,
+    pais: "Venezuela",
+    paisCodigo: "VE",
+    esVenezuela: true,
+    ciudadRegion: null,
     estadoId: 16,
     municipioId: 188,
     estado: "MIRANDA",
@@ -100,6 +105,7 @@ describe("construirSecciones", () => {
     ]);
     const viv = datos(secs, "vivienda");
     expect(viv.map((d) => [d.etiqueta, d.valor])).toEqual([
+      ["País", "Venezuela"],
       ["Estado", "MIRANDA"],
       ["Municipio", "LANDER"],
       ["Parroquia", "LA DEMOCRACIA"],
@@ -108,6 +114,35 @@ describe("construirSecciones", () => {
       ["Condición de la vivienda", "ALQUILADA"],
     ]);
     expect(JSON.stringify(secs)).not.toContain("·");
+  });
+
+  it("O40: muestra País y Ciudad/Región cuando la vivienda es del exterior", () => {
+    const fichaExterior = {
+      ...FICHA,
+      vivienda: {
+        ...FICHA.vivienda!,
+        paisId: 2,
+        pais: "Chile",
+        paisCodigo: "CL",
+        esVenezuela: false,
+        ciudadRegion: "Santiago",
+        estadoId: null,
+        municipioId: null,
+        estado: null,
+        municipio: null,
+        parroquia: null,
+        codigoPostal: null,
+      },
+    };
+    const secs = construirSecciones({
+      ficha: fichaExterior,
+      cambios: [],
+      formatear,
+      hoy: HOY,
+    });
+    const viv = datos(secs, "vivienda");
+    expect(dato(viv, "datos_vivienda.pais_id").valor).toBe("Chile");
+    expect(dato(viv, "datos_vivienda.ciudad_region").valor).toBe("Santiago");
   });
 
   it("calcula edad, oficina de adscripción (nivel más específico) y fechas civiles sin correr el día", () => {

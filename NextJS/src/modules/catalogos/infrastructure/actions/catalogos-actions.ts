@@ -318,6 +318,20 @@ export async function getPoliticasAction() {
   }
 }
 
+export async function getPaisesAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await catalogosApi.getPaises();
+    await logAudit({ traceId, action: "getPaisesAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getPaisesAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
 export async function getCondicionesViviendaAction() {
   const traceId = generateTraceId();
   const startedAt = Date.now();

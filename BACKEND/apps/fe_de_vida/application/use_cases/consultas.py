@@ -177,7 +177,7 @@ def detalle_para_revision(
     repo_sol: RepoSolicitudesFeDeVida, repo_cambios: RepoCambiosActa, lector_valor: LectorValorActual,
     lector_pasivos: LectorPasivos, *, solicitud_id: str, lector_ficha: LectorFichaPasivo | None = None,
     actor: ActorRevision | None = None, permisos: PermisosRevision | None = None, repo_procesos: RepoProcesos | None = None,
-    registrador_puede_checar: bool = False,
+    registrador_puede_checar: bool = False, registrador_puede_aprobar_directo: bool = False,
 ) -> DetalleRevision:
     """
     Solicitud con cada respuesta frente al dato real de hoy (comparativo), la ficha completa del pasivo (si se
@@ -190,8 +190,12 @@ def detalle_para_revision(
         cambios.append(CambioComparado(c, actual, c.accion == 'MODIFICAR' and actual != c.valor_anterior))
     proceso = repo_procesos.obtener(solicitud.proceso_id) if repo_procesos else None
     acciones = (
-        solicitud.acciones_disponibles(actor, permisos or PermisosRevision(), registrador_puede_checar=registrador_puede_checar)
-        if actor and (proceso is None or proceso.estado is not EstadoProceso.CERRADO) else ()
+        solicitud.acciones_disponibles(
+            actor, permisos or PermisosRevision(), registrador_puede_checar=registrador_puede_checar,
+            registrador_puede_aprobar_directo=registrador_puede_aprobar_directo,
+            proceso_cerrado=proceso is not None and proceso.estado is EstadoProceso.CERRADO,
+        )
+        if actor else ()
     )
     actores = {d.actor_cedula for d in solicitud.decisiones}
     return DetalleRevision(

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { Camera, RefreshCw, RotateCcw, SwitchCamera, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ZonaSubida } from "@/shared/components/zona-subida/zona-subida";
 import {
   MAX_BYTES_FOTO,
   detectarCamara,
@@ -53,17 +54,15 @@ export function CapturaFoto({
   const [enVivo, setEnVivo] = useState(false);
   const [frontal, setFrontal] = useState(true);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [errorCamara, setErrorCamara] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [vistaPrevia, setVistaPrevia] = useState<string | null>(() =>
     valorInicial ? URL.createObjectURL(valorInicial) : null,
   );
-  const tieneVistaInicial = useRef(valorInicial !== null);
   const [tactil, setTactil] = useState(false);
-  const [arrastrando, setArrastrando] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const flujoRef = useRef<MediaStream | null>(null);
-  const archivoRef = useRef<HTMLInputElement>(null);
   const tactilRef = useRef<HTMLInputElement>(null);
 
   const detener = useCallback(() => {
@@ -81,6 +80,7 @@ export function CapturaFoto({
   const abrirCamara = useCallback(
     async (usarFrontal: boolean) => {
       setError(null);
+      setErrorCamara(null);
       detener();
       try {
         const flujo = await navigator.mediaDevices.getUserMedia({
@@ -91,8 +91,11 @@ export function CapturaFoto({
         setEnVivo(true);
         setAviso(null);
       } catch (e) {
-        setModo("subir");
-        setAviso(mensajeErrorCamara(e));
+        // El motivo real se muestra en su lugar: negar el permiso, no tener
+        // cámara y tenerla ocupada son problemas distintos. No se cambia a
+        // «Subir foto» como si fuera un permiso denegado; ese botón sigue
+        // disponible como respaldo.
+        setErrorCamara(mensajeErrorCamara(e));
       }
     },
     [detener],
@@ -103,10 +106,7 @@ export function CapturaFoto({
     void detectarCamara().then((estado) => {
       if (!activo) return;
       setCamara(estado);
-      if (estado.estado === "disponible") {
-        setModo("camara");
-        if (!tieneVistaInicial.current) void abrirCamara(true);
-      } else if (estado.estado === "no-disponible") setAviso(estado.motivo);
+      if (estado.estado === "no-disponible") setAviso(estado.motivo);
     });
     // eslint-disable-next-line react-hooks/set-state-in-effect -- detección de dispositivo táctil, solo disponible en el cliente
     setTactil(
@@ -116,7 +116,7 @@ export function CapturaFoto({
       activo = false;
       detener();
     };
-  }, [detener, abrirCamara]);
+  }, [detener]);
 
   // Conecta el flujo al <video> una vez que el elemento existe.
   useEffect(() => {
@@ -129,6 +129,7 @@ export function CapturaFoto({
   function elegirModo(nuevo: Modo) {
     setModo(nuevo);
     setError(null);
+    setErrorCamara(null);
     if (nuevo === "camara") {
       if (!vistaPrevia) void abrirCamara(frontal);
     } else {
@@ -175,7 +176,6 @@ export function CapturaFoto({
     setVistaPrevia(null);
     setError(null);
     onChange(null, null);
-    if (archivoRef.current) archivoRef.current.value = "";
     if (modo === "camara") void abrirCamara(frontal);
   }
 
@@ -241,6 +241,23 @@ export function CapturaFoto({
                   />
                   {guia ? <div className="pointer-events-none absolute inset-0">{guia}</div> : null}
                 </div>
+              ) : errorCamara ? (
+                <div className="flex flex-col items-start gap-2">
+                  <p
+                    role="alert"
+                    className="rounded-md bg-danger-soft p-3 text-sm font-medium text-danger"
+                  >
+                    {errorCamara}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={disabled}
+                    onClick={() => void abrirCamara(frontal)}
+                  >
+                    <RefreshCw aria-hidden /> Reintentar cámara
+                  </Button>
+                </div>
               ) : (
                 <p role="status" className="text-sm text-muted-foreground">
                   Abriendo la cámara…
@@ -268,56 +285,16 @@ export function CapturaFoto({
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <div
-                role="button"
-                tabIndex={disabled ? -1 : 0}
-                aria-label="Seleccionar una foto para subir"
-                aria-disabled={disabled}
-                onClick={() => {
-                  if (!disabled) archivoRef.current?.click();
-                }}
-                onKeyDown={(e) => {
-                  if (disabled) return;
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    archivoRef.current?.click();
-                  }
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (!disabled) setArrastrando(true);
-                }}
-                onDragLeave={() => setArrastrando(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setArrastrando(false);
-                  if (disabled) return;
-                  const archivo = e.dataTransfer.files?.[0];
-                  if (archivo) alElegirArchivo("ARCHIVO", archivo);
-                }}
-                className={cn(
-                  "mx-auto flex w-full max-w-xl cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-input bg-muted/20 px-6 py-10 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none",
-                  arrastrando && "border-primary bg-primary/5",
-                  disabled && "cursor-not-allowed opacity-60",
-                )}
-              >
-                <Upload className="size-10 text-muted-foreground" aria-hidden />
-                <p className="text-base font-semibold">Haz clic aquí para seleccionar foto</p>
-                <p className="text-xs text-muted-foreground">
-                  PNG, JPG hasta {Math.round(maxBytes / (1024 * 1024))}MB
-                </p>
-                <p className="text-sm text-muted-foreground">o arrastra y suelta la imagen</p>
-                <input
-                  ref={archivoRef}
-                  id={`${idBase}-archivo`}
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  disabled={disabled}
-                  aria-label={`Archivo JPG o PNG, hasta ${Math.round(maxBytes / (1024 * 1024))} MB`}
-                  onChange={(e) => alElegirArchivo("ARCHIVO", e.target.files?.[0])}
-                  className="sr-only"
-                />
-              </div>
+              <ZonaSubida
+                etiquetaZona="Seleccionar una foto para subir"
+                etiquetaInput={`Archivo JPG o PNG, hasta ${Math.round(maxBytes / (1024 * 1024))} MB`}
+                accept="image/jpeg,image/png"
+                titulo="Haz clic aquí para seleccionar foto"
+                detalle={`PNG, JPG hasta ${Math.round(maxBytes / (1024 * 1024))}MB`}
+                ayuda="o arrastra y suelta la imagen"
+                disabled={disabled}
+                onArchivo={(archivo) => alElegirArchivo("ARCHIVO", archivo)}
+              />
               {tactil ? (
                 <>
                   <input

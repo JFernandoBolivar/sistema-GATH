@@ -2,6 +2,7 @@
 Modelos ORM de Pasivos (Regla B26).
 """
 from django.db import models
+from django.utils import timezone
 
 
 class EmployeeEgresadoModel(models.Model):
@@ -14,7 +15,7 @@ class EmployeeEgresadoModel(models.Model):
     )
     n_contrato = models.TextField(blank=True, null=True)
     fechaingresoorganismo = models.DateField(db_column='fechaIngresoOrganismo')
-    fecha_egreso = models.DateTimeField(auto_now_add=True)
+    fecha_egreso = models.DateTimeField(default=timezone.now)
     motivo_egreso = models.ForeignKey(
         'catalogos.TipoMovimientoModel',
         models.PROTECT,

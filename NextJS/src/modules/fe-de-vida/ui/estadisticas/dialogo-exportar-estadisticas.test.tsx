@@ -125,3 +125,22 @@ describe("DialogoExportarEstadisticas", () => {
     expect(screen.getByRole("button", { name: /Generar reporte/i })).toBeDisabled();
   });
 });
+
+describe("DialogoExportarEstadisticas en teléfono", () => {
+  it("apila las tarjetas de formato en una columna y las pasa a dos desde sm", () => {
+    render(
+      <DialogoExportarEstadisticas
+        abierto={true}
+        alCerrar={vi.fn()}
+        alConfirmar={vi.fn()}
+        estadisticas={DATOS_MOCK}
+        filtrosActivos={{}}
+      />,
+    );
+    const grupo = screen.getAllByRole("radiogroup")[0];
+    expect(grupo.className).toContain("grid-cols-1");
+    expect(grupo.className).toContain("sm:grid-cols-2");
+    expect(grupo.className).toContain("min-w-0");
+    expect(grupo.className).not.toMatch(/(^|\s)grid-cols-2/);
+  });
+});

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { getEmpleados, catalogos } = vi.hoisted(() => ({
   getEmpleados: vi.fn(),
   catalogos: {
+    getPaises: vi.fn(),
     getEstados: vi.fn(),
     getCondicionesVivienda: vi.fn(),
     getGruposSanguineos: vi.fn(),

@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from apps.personal.shared.domain.services.tiempo_servicio import (
     calcular_tiempo_comercial,
     calcular_total_apn,
+    formatear_tiempo_servicio,
 )
 
 
@@ -111,3 +112,19 @@ def test_periodos_contiguos_no_duplican_la_fecha_frontera():
     ]
     # Se fusionan en 01/01/2018-31/12/2018: 11*30 + 29 + 0 = 359.
     assert calcular_total_apn(antecedentes) == {"years": 0, "months": 11, "days": 29}
+
+
+def test_formatear_tiempo_servicio_dias_y_meses_sin_decimales():
+    # 0.0082 años ≈ 3 días (el caso reportado en pantalla).
+    assert formatear_tiempo_servicio(0.0082) == '3 días de servicio en APN'
+    assert formatear_tiempo_servicio(0.0028) == '1 día de servicio en APN'
+    assert formatear_tiempo_servicio(0.25) == '2 meses y 30 días de servicio en APN'
+    assert '0.' not in formatear_tiempo_servicio(0.25)
+
+
+def test_formatear_tiempo_servicio_anios_y_meses():
+    assert formatear_tiempo_servicio(1.0) == '1 año de servicio en APN'
+    assert formatear_tiempo_servicio(15.0) == '15 años de servicio en APN'
+    assert formatear_tiempo_servicio(1.5) == '1 año y 6 meses de servicio en APN'
+    assert formatear_tiempo_servicio(5.25) == '5 años y 3 meses de servicio en APN'
+    assert formatear_tiempo_servicio(None) == '0 días de servicio en APN'

@@ -32,6 +32,7 @@ from apps.configuracion.infrastructure.serializers.parametros_serializers import
     CambioParametroSerializer,
     ParametroActualizarSerializer,
     ParametroSerializer,
+    TrabajadorSelectorSerializer,
 )
 from core.domain.configuracion import (
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
@@ -144,3 +145,24 @@ class RecordatoriosFeDeVidaView(APIView):
         else:
             texto = DEFINICIONES_POR_CLAVE[CLAVE_FE_DE_VIDA_RECORDATORIOS].defecto
         return ok({'dias': list(como_dias(texto))})
+
+
+class BuscarTrabajadoresParametroView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission(PERMISO_CONFIGURACION)]
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Buscar o consultar trabajadores con su estado de cuenta para parámetros',
+        responses={200: TrabajadorSelectorSerializer(many=True)},
+    )
+    def get(self, request):
+        query = (request.query_params.get('q', '') or '').strip()[:50]
+        cedulas_param = (request.query_params.get('cedulas', '') or '').strip()
+        cedulas = (
+            [c.strip() for c in cedulas_param.split(',') if c.strip()]
+            if cedulas_param
+            else None
+        )
+        repo = RepoParametrosORM()
+        resultados = repo.buscar_trabajadores(query, cedulas=cedulas)
+        return ok(TrabajadorSelectorSerializer(resultados, many=True).data)

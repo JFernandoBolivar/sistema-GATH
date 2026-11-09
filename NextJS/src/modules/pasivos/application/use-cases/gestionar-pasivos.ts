@@ -24,6 +24,7 @@ function aDto(e: PasivoEntity): PasivoDTO {
     resolucion: e.resolucion,
     observaciones: e.observaciones,
     correo: e.correo,
+    correoAlternativo: e.correoAlternativo,
     telefonoMovil: e.telefonoMovil,
     telefonoHabitacion: e.telefonoHabitacion,
     carnetPatria: e.carnetPatria,

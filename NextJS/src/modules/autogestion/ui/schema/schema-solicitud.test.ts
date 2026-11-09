@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  antecedenteSchema,
   contactoSchema,
   contactoEmergenciaSchema,
   complementariaSchema,
@@ -166,7 +167,12 @@ describe("viviendaSchema / formacionSchema", () => {
       codigo_postal_id: "5",
     });
     expect(ok.estado_id).toBe(1);
-    expect(viviendaSchema.safeParse({ ...ok, estado_id: "" }).success).toBe(false);
+    expect(viviendaSchema.safeParse({ ...ok, direccion_exacta: "" }).success).toBe(false);
+    // O40: la ubicación venezolana es opcional en el esquema; el formulario la
+    // exige según el país y el servidor la revalida.
+    expect(
+      viviendaSchema.safeParse({ ...ok, estado_id: "", ciudad_region: "Santiago" }).success,
+    ).toBe(true);
     expect(
       formacionSchema.parse({ nivel_academico_id: "2", carrera_id: "" }).carrera_id,
     ).toBeNull();
@@ -214,6 +220,14 @@ describe("familiarSchema", () => {
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_nombre: "Ana2" }).success).toBe(false);
     expect(familiarSchema.safeParse({ ...base, primer_apellido: "Perez1" }).success).toBe(false);
+  });
+  it("TLF-1: acepta y valida el orden de nacimiento", () => {
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "2" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: 2 }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "" }).success).toBe(true);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "0" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "100" }).success).toBe(false);
+    expect(familiarSchema.safeParse({ ...base, orden_hijo: "abc" }).success).toBe(false);
   });
 });
 
@@ -287,17 +301,20 @@ describe("identidad (D19)", () => {
     expect(esquemaDeEntidad("identidad", "employee")).not.toBeNull();
   });
 
-  it("exige cédula de 5 a 9 dígitos y fecha no futura", () => {
-    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234" }).success).toBe(false);
-    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234567890" }).success).toBe(
-      false,
-    );
+  it("no exige la cédula (O49-BLOQUEO) y mantiene la fecha no futura", () => {
+    // La cédula ya no es un campo editable de Autogestión: Zod la ignora.
+    expect(identidadSchema.safeParse(valido).success).toBe(true);
+    const resultado = identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234" });
+    expect(resultado.success).toBe(true);
+    if (resultado.success) {
+      expect("cedulaidentidad" in resultado.data).toBe(false);
+    }
     expect(identidadSchema.safeParse({ ...valido, fecha_nacimiento: "2999-01-01" }).success).toBe(
       false,
     );
   });
 
-  it("el Carnet de la Patria debe tener 10 dígitos (acepta el formato legado)", () => {
+  it("el código del Carnet de la Patria debe tener 10 dígitos (acepta el formato legado)", () => {
     expect(identidadSchema.safeParse({ ...valido, carnet_patria: "123" }).success).toBe(false);
     expect(identidadSchema.safeParse({ ...valido, carnet_patria: "000-0000000-0" }).success).toBe(
       true,
@@ -324,5 +341,31 @@ describe("salud y tallas (D21)", () => {
 
   it("las tallas son opcionales en el borrador", () => {
     expect(perfilFisicoSchema.safeParse({}).success).toBe(true);
+  });
+});
+
+describe("antecedentes de servicio (O37)", () => {
+  it("valida el esquema de antecedentes y su mapeo en ESQUEMAS_ENTIDAD", () => {
+    expect(
+      antecedenteSchema.safeParse({
+        organismo_id: 1,
+        fecha_ingreso: "2020-01-15",
+        fecha_egreso: "2022-06-30",
+      }).success,
+    ).toBe(true);
+    expect(
+      antecedenteSchema.safeParse({
+        organismo_id: 1,
+        fecha_ingreso: "2020-01-15",
+        fecha_egreso: "",
+      }).success,
+    ).toBe(true);
+    expect(
+      antecedenteSchema.safeParse({
+        organismo_id: "",
+        fecha_ingreso: "2020-01-15",
+      }).success,
+    ).toBe(false);
+    expect(esquemaDeEntidad("antecedentes", "antecedente_servicio")).not.toBeNull();
   });
 });

@@ -9,6 +9,7 @@ declare module "next-auth" {
       role: {
         id: number;
         nombre_rol: string;
+        nombre_visible?: string;
       };
       cedula: string;
       phone: string;
@@ -38,6 +39,7 @@ declare module "next-auth" {
     role: {
       id: number;
       nombre_rol: string;
+      nombre_visible?: string;
     };
     cedula: string;
     phone: string;
@@ -70,6 +72,7 @@ declare module "next-auth/jwt" {
     role: {
       id: number;
       nombre_rol: string;
+      nombre_visible?: string;
     };
     cedula: string;
     phone: string;

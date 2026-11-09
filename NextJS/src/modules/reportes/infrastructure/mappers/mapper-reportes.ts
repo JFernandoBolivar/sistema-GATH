@@ -29,16 +29,25 @@ export function reportePersonalApiAEntidad(raw: ReportePersonalApiItem): Reporte
     tipoPersonal: raw.tipo_personal,
     fechaIngreso: raw.fecha_ingreso,
     totalAnosApn: raw.total_anos_apn,
+    sinFechaApn: Boolean(raw.apn_aviso),
   };
 }
 
 export function reportePasivoApiAEntidad(raw: ReportePasivoApiItem): ReporteItemPasivo {
+  const nombreCompleto =
+    raw.nombre_completo || [raw.nombres, raw.apellidos].filter(Boolean).join(" ");
+  const tipoPasivo = raw.tipo_pasivo || raw.tipo_personal || "Pasivo";
   return {
     cedula: raw.cedula,
-    nombreCompleto: raw.nombre_completo,
-    tipoPersonal: raw.tipo_personal,
-    fechaEgreso: raw.fecha_egreso,
-    motivoEgreso: raw.motivo_egreso,
+    nombreCompleto,
+    nombres: raw.nombres,
+    apellidos: raw.apellidos,
+    tipoPersonal: tipoPasivo,
+    tipoPasivo,
+    pais: raw.pais || "S/D",
+    fechaEgreso: raw.fecha_egreso || "N/A",
+    motivoEgreso: raw.motivo_egreso || "",
+    contacto: raw.contacto || "S/D",
   };
 }
 

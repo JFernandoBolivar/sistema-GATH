@@ -1,15 +1,22 @@
 """
 Serializers de Presentación de Familiares.
 """
+from datetime import date
+
 from core.domain.limites_texto import OBSERVACION_MIN, OBSERVACION_MAX, mensajes_texto
 from rest_framework import serializers
 
 from core.presentation.validadores_personas import validar_cedula, validar_drf, validar_nombre
 
 from apps.familiares.application.use_cases.validaciones_familiar import (
+    ORDEN_HIJO_MAX,
+    ORDEN_HIJO_MIN,
+    ReglaParentescoFamiliar,
+    regla_por_defecto,
     resolver_cedula_familiar,
     validar_cedula_no_duplicada,
     validar_heredero_unico,
+    validar_reglas_familiar,
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.familiares.infrastructure.modelos_externos import (
@@ -23,8 +30,33 @@ from apps.familiares.infrastructure.modelos_externos import (
     NivelAcademicoModel,
     ParentescoModel,
     PatologiaCronicaModel,
+    ReglaParentescoModel,
+    SexoModel,
     TallaModel,
 )
+
+
+def _regla_de(parentesco) -> ReglaParentescoFamiliar:
+    """Carga la regla configurada o el respaldo para un parentesco legado."""
+    if parentesco is None:
+        return ReglaParentescoFamiliar()
+    guardada = ReglaParentescoModel.objects.filter(
+        parentesco_id=parentesco.pk,
+    ).first()
+    if guardada is None:
+        return regla_por_defecto(parentesco.descripcion_parentesco)
+    return ReglaParentescoFamiliar(
+        descripcion=parentesco.descripcion_parentesco,
+        es_hijo=guardada.es_hijo,
+        menor_a_cargo=guardada.menor_a_cargo,
+        sin_cedula_hasta_edad=guardada.sin_cedula_hasta_edad,
+        edad_minima=guardada.edad_minima,
+        diferencia_minima=guardada.diferencia_minima,
+        diferencia_tipo=guardada.diferencia_tipo,
+        sexo_permitido=guardada.sexo_permitido,
+        soporte_sugerido=guardada.soporte_sugerido,
+        activo=guardada.activo,
+    )
 
 
 # Longitudes (mismas que `schema-familiar.ts` en NextJS).
@@ -145,6 +177,7 @@ class FamiliarSerializer(serializers.Serializer):
     primer_apellido = serializers.CharField(read_only=True)
     segundo_apellido = serializers.CharField(read_only=True, allow_null=True)
     cedula_familiar = serializers.CharField(read_only=True, allow_null=True)
+    orden_hijo = serializers.IntegerField(read_only=True, allow_null=True)
     parentesco_id = serializers.IntegerField(read_only=True)
     parentesco_nombre = serializers.CharField(read_only=True)
     fecha_nacimiento = serializers.CharField(read_only=True)
@@ -172,6 +205,11 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
     primer_apellido = serializers.CharField(required=True, max_length=NOMBRE_MAX)
     segundo_apellido = serializers.CharField(required=False, allow_blank=True, max_length=NOMBRE_MAX)
     cedula_familiar = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)  # sintética '<cédula>-<n>' en edición
+    orden_hijo = serializers.IntegerField(
+        required=False, allow_null=True,
+        min_value=ORDEN_HIJO_MIN, max_value=ORDEN_HIJO_MAX,
+        error_messages={'min_value': 'El orden de nacimiento debe ser mayor que cero.'},
+    )
     parentesco_id = serializers.IntegerField(required=True)
     fecha_nacimiento = serializers.DateField(required=True)
     sexo_id = serializers.IntegerField(required=True)
@@ -208,6 +246,11 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
             )
         return limpia
 
+    def validate_fecha_nacimiento(self, value):
+        if value and value > date.today():
+            raise serializers.ValidationError('La fecha de nacimiento no puede ser futura.')
+        return value
+
     def validate(self, attrs):
         empleado_cedula = attrs.get('empleado_cedula') or self.context.get('empleado_cedula')
         empleado = EmployeeModel.objects.filter(cedulaidentidad=empleado_cedula).first()
@@ -217,38 +260,72 @@ class RegistrarFamiliarInputSerializer(serializers.Serializer):
 
         excluir_id = self.instance.pk if self.instance else None
         cedula_familiar = (attrs.get('cedula_familiar') or '').strip() or None
-        toca_identidad = not self.partial or {'cedula_familiar', 'parentesco_id', 'fecha_nacimiento'} & set(attrs.keys())
+        toca_identidad = not self.partial or {
+            'cedula_familiar', 'parentesco_id', 'fecha_nacimiento', 'sexo_id',
+        } & set(attrs.keys())
 
         parentesco_id = attrs.get('parentesco_id')
-        if parentesco_id is not None:
-            parentesco = ParentescoModel.objects.filter(pk=parentesco_id).first()
-            if parentesco and not getattr(parentesco, 'aplica_familiar', True):
-                raise serializers.ValidationError(
-                    {'parentesco': 'El parentesco seleccionado no está permitido para familiares.'}
-                )
+        if parentesco_id is None and self.instance is not None:
+            parentesco_id = self.instance.parentesco_id
+        parentesco = (
+            ParentescoModel.objects.filter(pk=parentesco_id).first()
+            if parentesco_id is not None else None
+        )
+        if parentesco and not getattr(parentesco, 'aplica_familiar', True):
+            raise serializers.ValidationError(
+                {'parentesco_id': 'El parentesco seleccionado no está permitido para familiares.'}
+            )
+        regla = _regla_de(parentesco)
+        if not regla.activo:
+            raise serializers.ValidationError(
+                {'parentesco_id': 'El parentesco seleccionado está desactivado en el catálogo.'}
+            )
 
-        if cedula_familiar or toca_identidad:
-            parentesco_id = attrs.get('parentesco_id')
-            es_hijo = ParentescoModel.objects.filter(
-                pk=parentesco_id, descripcion_parentesco__iexact='HIJO (A)',
-            ).exists()
-            siguiente_orden = EmployeefamilyModel.objects.filter(
-                employeecedula=empleado, cedulaFamiliar__startswith=f"{cedula_empleado.strip()}-",
-            ).count() + 1
+        fecha_nacimiento = attrs.get('fecha_nacimiento')
+        if fecha_nacimiento is None and self.instance is not None:
+            fecha_nacimiento = self.instance.fechanacimiento
+        sexo_id = attrs.get('sexo_id')
+        if sexo_id is None and self.instance is not None:
+            sexo_id = self.instance.sexo_id
+        if toca_identidad:
+            sexo_nombre = None
+            if sexo_id is not None:
+                sexo_nombre = SexoModel.objects.filter(pk=sexo_id).values_list(
+                    'sexo', flat=True,
+                ).first()
+            try:
+                validar_reglas_familiar(
+                    regla=regla,
+                    fecha_nacimiento=fecha_nacimiento,
+                    fecha_nacimiento_titular=empleado.fecha_nacimiento,
+                    sexo=sexo_nombre,
+                )
+            except ValueError as e:
+                campo = 'sexo_id' if 'sexo' in str(e).lower() else 'fecha_nacimiento'
+                raise serializers.ValidationError({campo: str(e)})
+
+        if self.instance is not None and getattr(self.instance, 'cedulaFamiliar', None):
+            # Editar un familiar existente NO cambia su cédula (aunque se ajuste
+            # el orden de nacimiento): las sintéticas ya generadas se respetan.
+            attrs['cedula_familiar'] = self.instance.cedulaFamiliar
+        elif cedula_familiar or toca_identidad:
+            cedulas_qs = EmployeefamilyModel.objects.filter(employeecedula=empleado).exclude(pk=excluir_id)
+            existentes = {
+                str(c) for c in cedulas_qs.values_list('cedulaFamiliar', flat=True) if c
+            }
             try:
                 cedula_resuelta = resolver_cedula_familiar(
                     cedula_familiar=cedula_familiar,
                     cedula_empleado=cedula_empleado,
-                    es_hijo=es_hijo,
-                    fecha_nacimiento=attrs.get('fecha_nacimiento'),
-                    siguiente_orden_hijo=siguiente_orden,
+                    fecha_nacimiento=fecha_nacimiento,
+                    orden_hijo=attrs.get('orden_hijo'),
+                    cedulas_existentes=existentes,
+                    regla=regla,
                 )
-                cedulas_qs = EmployeefamilyModel.objects.filter(employeecedula=empleado).exclude(pk=excluir_id)
-                validar_cedula_no_duplicada(
-                    cedula_resuelta, set(cedulas_qs.values_list('cedulaFamiliar', flat=True)),
-                )
+                validar_cedula_no_duplicada(cedula_resuelta, existentes)
             except ValueError as e:
-                raise serializers.ValidationError({'cedula_familiar': str(e)})
+                campo = 'orden_hijo' if 'orden' in str(e).lower() else 'cedula_familiar'
+                raise serializers.ValidationError({campo: str(e)})
             attrs['cedula_familiar'] = cedula_resuelta
 
         if attrs.get('heredero'):

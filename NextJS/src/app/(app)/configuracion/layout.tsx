@@ -34,7 +34,7 @@ export default function ConfiguracionLayout({
           <SidebarTrigger className="text-black-600 scale-110" />
         </HeaderLayout>
         <AvisoOutboxFallido />
-        <main id="contenido-principal" tabIndex={-1} className="w-full h-full overflow-auto">{children}</main>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

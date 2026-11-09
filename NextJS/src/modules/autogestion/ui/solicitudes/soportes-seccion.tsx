@@ -1,24 +1,37 @@
 "use client";
 
-import { useId, useRef, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { FileText, Paperclip, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
+import { ArchivoElegido, ZonaSubida } from "@/shared/components/zona-subida/zona-subida";
 import type { SeccionCodigo, SoporteEntity } from "../../domain/entities/solicitud-actualizacion";
-import { validarArchivoSoporte, formatearTamano } from "../../domain/services/validar-soporte";
-import { TIPOS_SOPORTE_POR_SECCION } from "../../domain/value-objects/campos-seccion";
+import {
+  MAX_BYTES_SOPORTE,
+  validarArchivoSoporte,
+  formatearTamano,
+} from "../../domain/services/validar-soporte";
+import type { TipoSoporteConfigurado } from "../../domain/value-objects/tipos-soporte";
 import {
   eliminarSoporteAction,
   subirSoporteAction,
 } from "../../infrastructure/actions/solicitudes-actions";
-import { CLASE_CONTROL } from "./selector-catalogo";
 
 interface Props {
   solicitudId: string;
   seccion: SeccionCodigo;
   soportes: SoporteEntity[];
   obligatorio: boolean;
+  /** Tipos configurados para la sección (backend, O41). */
+  tipos: readonly TipoSoporteConfigurado[];
   /** Se llama tras subir o quitar para recargar el detalle. */
   onCambio: () => void;
 }
@@ -37,35 +50,119 @@ function EnlaceSoporte({ s }: { s: SoporteEntity }) {
   );
 }
 
+/** Formatos admitidos por el input (espejo de EXTENSIONES_SOPORTE y sus tipos MIME). */
+const ACCEPT_SOPORTE = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
+const TEXTO_FORMATOS = `PDF, JPG o PNG, hasta ${MAX_BYTES_SOPORTE / (1024 * 1024)} MB`;
+
+interface SelectorTipoProps {
+  id: string;
+  etiqueta: string;
+  tipos: readonly TipoSoporteConfigurado[];
+  valor: string;
+  onCambio: (valor: string) => void;
+  disabled?: boolean;
+  claseEtiqueta?: string;
+}
+
+/** Lista desplegable del sistema para el tipo de documento. */
+function SelectorTipo({
+  id,
+  etiqueta,
+  tipos,
+  valor,
+  onCambio,
+  disabled,
+  claseEtiqueta = "text-base font-medium",
+}: SelectorTipoProps) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className={claseEtiqueta}>
+        {etiqueta}
+      </label>
+      <Select value={valor} onValueChange={onCambio} disabled={disabled}>
+        <SelectTrigger id={id} className="min-h-11 w-full text-base">
+          <SelectValue placeholder="Seleccione un tipo" />
+        </SelectTrigger>
+        <SelectContent>
+          {tipos.map((t) => (
+            <SelectItem key={t.codigo} value={t.codigo}>
+              {t.nombre}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+/** Zona de carga o, si ya hay un archivo en curso, su nombre con opción de quitarlo. */
+function CargaArchivo({
+  archivo,
+  etiqueta,
+  pendiente,
+  onArchivo,
+  onQuitar,
+}: {
+  archivo: File | null;
+  etiqueta: string;
+  pendiente: boolean;
+  onArchivo: (archivo: File) => void;
+  onQuitar: () => void;
+}) {
+  if (archivo) {
+    return (
+      <ArchivoElegido
+        nombre={archivo.name}
+        detalle={formatearTamano(archivo.size)}
+        disabled={pendiente}
+        onQuitar={onQuitar}
+      />
+    );
+  }
+  return (
+    <ZonaSubida
+      etiquetaZona={etiqueta}
+      etiquetaInput={etiqueta}
+      accept={ACCEPT_SOPORTE}
+      titulo="Haz clic aquí para seleccionar"
+      detalle={TEXTO_FORMATOS}
+      ayuda="o arrastra y suelta el archivo"
+      disabled={pendiente}
+      onArchivo={onArchivo}
+    />
+  );
+}
+
 /** Soportes documentales de una sección: PDF/JPG/PNG hasta 10 MB, validados en el cliente y en el servidor. */
-export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, onCambio }: Props) {
+export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, tipos, onCambio }: Props) {
   const idBase = useId();
-  const tipos = TIPOS_SOPORTE_POR_SECCION[seccion];
-  const [tipo, setTipo] = useState(tipos[0]?.valor ?? "");
+  const [tipo, setTipo] = useState(tipos[0]?.codigo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
-  const entrada = useRef<HTMLInputElement>(null);
+  const [archivo, setArchivo] = useState<File | null>(null);
   const propios = soportes.filter((s) => s.seccion === seccion);
+  const tipoSeleccionado = tipos.some((t) => t.codigo === tipo) ? tipo : (tipos[0]?.codigo ?? "");
 
   if (tipos.length === 0) return null;
 
-  function subir(archivo: File) {
-    const problema = validarArchivoSoporte(archivo, false);
+  function subir(elegido: File) {
+    const problema = validarArchivoSoporte(elegido, false);
     if (problema) {
       setError(problema);
       return;
     }
     setError(null);
+    setArchivo(elegido);
     iniciar(async () => {
       const datos = new FormData();
       datos.set("solicitudId", solicitudId);
       datos.set("seccion", seccion);
-      datos.set("tipo", tipo);
-      datos.set("file", archivo);
+      datos.set("tipo", tipoSeleccionado);
+      datos.set("file", elegido);
       const res = await subirSoporteAction(datos);
       if (res.ok) {
         toast.success(res.mensaje);
-        if (entrada.current) entrada.current.value = "";
+        setArchivo(null);
         onCambio();
       } else {
         setError(res.mensaje);
@@ -116,39 +213,28 @@ export function SoportesSeccion({ solicitudId, seccion, soportes, obligatorio, o
         </ul>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${idBase}-tipo`} className="text-base font-medium">
-            Tipo de documento
-          </label>
-          <select
+      <div className="flex flex-col gap-3">
+        <div className="sm:max-w-sm">
+          <SelectorTipo
             id={`${idBase}-tipo`}
-            className={CLASE_CONTROL}
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-          >
-            {tipos.map((t) => (
-              <option key={t.valor} value={t.valor}>
-                {t.texto}
-              </option>
-            ))}
-          </select>
+            etiqueta="Tipo de documento"
+            tipos={tipos}
+            valor={tipoSeleccionado}
+            onCambio={setTipo}
+            disabled={pendiente}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${idBase}-archivo`} className="text-base font-medium">
-            Archivo (PDF, JPG o PNG, hasta 10 MB)
-          </label>
-          <input
-            ref={entrada}
-            id={`${idBase}-archivo`}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-            disabled={pendiente}
-            onChange={(e) => {
-              const archivo = e.target.files?.[0];
-              if (archivo) subir(archivo);
+          <p className="text-base font-medium">Archivo ({TEXTO_FORMATOS})</p>
+          <CargaArchivo
+            archivo={archivo}
+            etiqueta={`Archivo (${TEXTO_FORMATOS})`}
+            pendiente={pendiente}
+            onArchivo={subir}
+            onQuitar={() => {
+              setArchivo(null);
+              setError(null);
             }}
-            className="min-h-11 rounded-md border border-input bg-card p-2 text-base file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:font-semibold file:text-primary-foreground"
           />
         </div>
       </div>
@@ -173,6 +259,7 @@ export function SoporteRegistro({
   entidadId,
   referencia,
   soportes,
+  tipos,
   onCambio,
 }: {
   solicitudId: string;
@@ -180,41 +267,43 @@ export function SoporteRegistro({
   entidadId?: string | null;
   referencia?: string | null;
   soportes: SoporteEntity[];
+  tipos: readonly TipoSoporteConfigurado[];
   onCambio: () => void;
 }) {
   const idBase = useId();
-  const tipos = TIPOS_SOPORTE_POR_SECCION[seccion];
-  const [tipo, setTipo] = useState(tipos[0]?.valor ?? "");
+  const [tipo, setTipo] = useState(tipos[0]?.codigo ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
-  const entrada = useRef<HTMLInputElement>(null);
+  const [archivo, setArchivo] = useState<File | null>(null);
   const propios = soportes.filter(
     (s) =>
       s.seccion === seccion &&
       ((entidadId && s.entidadId === entidadId) || (referencia && s.referencia === referencia)),
   );
+  const tipoSeleccionado = tipos.some((t) => t.codigo === tipo) ? tipo : (tipos[0]?.codigo ?? "");
 
   if (tipos.length === 0) return null;
 
-  function subir(archivo: File) {
-    const problema = validarArchivoSoporte(archivo, false);
+  function subir(elegido: File) {
+    const problema = validarArchivoSoporte(elegido, false);
     if (problema) {
       setError(problema);
       return;
     }
     setError(null);
+    setArchivo(elegido);
     iniciar(async () => {
       const datos = new FormData();
       datos.set("solicitudId", solicitudId);
       datos.set("seccion", seccion);
-      datos.set("tipo", tipo);
+      datos.set("tipo", tipoSeleccionado);
       if (entidadId) datos.set("entidadId", entidadId);
       if (referencia) datos.set("referencia", referencia);
-      datos.set("file", archivo);
+      datos.set("file", elegido);
       const res = await subirSoporteAction(datos);
       if (res.ok) {
         toast.success(res.mensaje);
-        if (entrada.current) entrada.current.value = "";
+        setArchivo(null);
         onCambio();
       } else {
         setError(res.mensaje);
@@ -236,35 +325,25 @@ export function SoporteRegistro({
       ) : (
         <p className="text-sm text-muted-foreground">Aún no ha cargado el documento.</p>
       )}
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`${idBase}-tipo`} className="text-sm">
-            Tipo
-          </label>
-          <select
-            id={`${idBase}-tipo`}
-            className={CLASE_CONTROL}
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-          >
-            {tipos.map((t) => (
-              <option key={t.valor} value={t.valor}>
-                {t.texto}
-              </option>
-            ))}
-          </select>
-        </div>
-        <input
-          ref={entrada}
-          type="file"
-          aria-label="Archivo del registro (PDF, JPG o PNG, hasta 10 MB)"
-          accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+      <div className="flex flex-col gap-2">
+        <SelectorTipo
+          id={`${idBase}-tipo`}
+          etiqueta="Tipo"
+          claseEtiqueta="text-sm"
+          tipos={tipos}
+          valor={tipoSeleccionado}
+          onCambio={setTipo}
           disabled={pendiente}
-          onChange={(e) => {
-            const archivo = e.target.files?.[0];
-            if (archivo) subir(archivo);
+        />
+        <CargaArchivo
+          archivo={archivo}
+          etiqueta={`Archivo del registro (${TEXTO_FORMATOS})`}
+          pendiente={pendiente}
+          onArchivo={subir}
+          onQuitar={() => {
+            setArchivo(null);
+            setError(null);
           }}
-          className="min-h-11 max-w-full rounded-md border border-input bg-card p-2 text-sm file:mr-2 file:rounded-md file:border-0 file:bg-primary file:px-2 file:py-1 file:font-semibold file:text-primary-foreground"
         />
       </div>
       {pendiente ? (

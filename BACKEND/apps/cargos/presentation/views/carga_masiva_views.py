@@ -1,12 +1,14 @@
 """
 Vista de carga masiva de cargos especiales vía Excel (gap #4).
 """
+from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
 from core.domain.exceptions import ValidationError
+from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasPermission
 from apps.cargos.infrastructure.importadores.carga_masiva_cargos_especiales import importar_cargos_especiales
@@ -38,3 +40,53 @@ class ImportarCargosEspecialesView(APIView):
             return fail(message=str(exc), status=400, data={'detalles': getattr(exc, 'detalles', [])})
 
         return ok({'creados': resultado['creados']}, f"Se crearon {resultado['creados']} registros con éxito.", status=201)
+
+
+class PlantillaCargosEspecialesExcelView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission('personal.carga_masiva')]
+
+    @extend_schema(
+        tags=['Cargos'],
+        summary='Descargar plantilla Excel para carga masiva de cargos especiales',
+    )
+    def get(self, request):
+        columnas = [
+            'cedula',
+            'cargo',
+            'cargo_especifico',
+            'nomina',
+            'organismo',
+            'direccion_general',
+            'direccion_linea',
+            'coordinacion',
+            'estatus',
+            'grado',
+            'observacion',
+        ]
+        filas = [
+            {
+                'cedula': '12345678',
+                'cargo': 'ESPECIALISTA',
+                'cargo_especifico': 'ASESOR TÉCNICO',
+                'nomina': 'COMISION DE SERVICIO',
+                'organismo': 'CONATEL',
+                'direccion_general': 'OFICINA DE TECNOLOGÍA',
+                'direccion_linea': '',
+                'coordinacion': '',
+                'estatus': 'ACTIVO',
+                'grado': '01',
+                'observacion': 'Asignación especial',
+            }
+        ]
+        contenido = generar_reporte_excel(
+            titulo='Plantilla Cargos Especiales',
+            columnas=columnas,
+            filas=filas,
+            filtros=[('Uso', 'Carga masiva de cargos especiales en nómina')],
+        )
+        resp = HttpResponse(
+            contenido,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = 'attachment; filename="plantilla-cargos-especiales.xlsx"'
+        return resp

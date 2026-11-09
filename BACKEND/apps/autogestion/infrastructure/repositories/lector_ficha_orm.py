@@ -5,18 +5,29 @@ Es la única capa de autogestión autorizada a leer los modelos de `personal`/`f
 (B16: solo `infrastructure` cruza módulos). Solo lectura.
 """
 from datetime import date
+import re
 import unicodedata
 
 from apps.autogestion.domain.value_objects.secciones import TIPO_PRENDA_POR_CAMPO_TALLA
 from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstadoCivilModel,
+    PaisModel,
     ParentescoModel,
     SexoModel,
     TipoProcedenciaModel,
 )
 from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
-from apps.familiares.application.use_cases.validaciones_familiar import resolver_cedula_familiar
+from apps.configuracion.infrastructure.models.regla_parentesco_model import (
+    ReglaParentescoModel,
+)
+from apps.familiares.application.use_cases.validaciones_familiar import (
+    ReglaParentescoFamiliar,
+    es_menor_de_edad,
+    regla_por_defecto,
+    resolver_cedula_familiar,
+    validar_reglas_familiar,
+)
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
@@ -33,7 +44,9 @@ from apps.personal.infrastructure.models.catalogos_soporte_models import (
     PatologiaCronicaModel,
     TallaModel,
 )
+from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
 from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
     ContactoEmergenciaModel,
     DatosViviendaModel,
     FormacionAcademicaModel,
@@ -58,7 +71,8 @@ _CATALOGOS = {
     'institucion_id': InstitucionModel, 'parentesco_id': ParentescoModel, 'sexo_id': SexoModel,
     'relacion_id': ParentescoModel, 'capacitacion_id': CapacitacionModel,
     'grupo_id': GrupoCapacitacionModel, 'procedencia_id': TipoProcedenciaModel,
-    'estadoCivil_id': EstadoCivilModel, 'grupo_sanguineo_id': GrupoSanguineoModel,
+    'estadoCivil_id': EstadoCivilModel, 'pais_id': PaisModel, 'grupo_sanguineo_id': GrupoSanguineoModel,
+    'organismo_id': OrganismoAdscritoModel,
     'talla_camisa_id': TallaModel, 'talla_pantalon_id': TallaModel,
     'talla_zapatos_id': TallaModel, 'talla_chaqueta_id': TallaModel,
 }
@@ -105,6 +119,8 @@ class LectorFichaORM:
             return ContactoEmergenciaModel.objects.filter(pk=pk, empleado__cedulaidentidad=cedula).first()
         if entidad == 'familiar':
             return EmployeefamilyModel.objects.filter(pk=pk, employeecedula_id=cedula).first()
+        if entidad == 'antecedente_servicio':
+            return AntecedenteServicioModel.objects.filter(pk=pk, empleado__cedulaidentidad=cedula).first()
         return None
 
     def valor_actual(self, cedula, entidad, entidad_id, campo):
@@ -138,6 +154,8 @@ class LectorFichaORM:
             return FormacionComplementariaModel.objects.filter(empleado__cedulaidentidad=cedula).count()
         if entidad == 'familiar':
             return EmployeefamilyModel.objects.filter(employeecedula_id=cedula).count()
+        if entidad == 'antecedente_servicio':
+            return AntecedenteServicioModel.objects.filter(empleado__cedulaidentidad=cedula).count()
         return 0
 
     def datos_registro(self, cedula: str, entidad: str, entidad_id: str | None) -> dict:
@@ -147,7 +165,8 @@ class LectorFichaORM:
             return {}
         resultado = {}
         for campo in ('nombres', 'apellidos', 'primer_nombre', 'primer_apellido', 'cedulaFamiliar',
-                      'fechaInicio', 'fechaFin', 'nivel_academico_id', 'capacitacion_id'):
+                      'fechaInicio', 'fechaFin', 'nivel_academico_id', 'capacitacion_id',
+                      'organismo_id', 'fecha_ingreso', 'fecha_egreso'):
             valor = getattr(fila, campo, None)
             if valor is not None:
                 resultado[campo] = valor.isoformat() if isinstance(valor, date) else valor
@@ -176,34 +195,195 @@ class LectorFichaORM:
                         f"La talla elegida para '{campo}' no corresponde al tipo de prenda esperado."
                     )
 
-    def es_parentesco_hijo(self, parentesco_id) -> bool:
+    def es_pais_venezuela(self, pais_id: int | None) -> bool:
+        """Sin país se asume Venezuela: es el valor por defecto del sistema."""
+        if pais_id is None:
+            return True
+        return bool(
+            PaisModel.objects.filter(pk=pais_id, es_venezuela=True).exists()
+        )
+
+    def _regla_familiar(self, parentesco_id) -> ReglaParentescoFamiliar:
         if parentesco_id is None:
-            return False
-        nombre = ParentescoModel.objects.filter(pk=parentesco_id).values_list(
-            'descripcion_parentesco', flat=True,
-        ).first() or ''
-        return nombre.upper().startswith('HIJO')
+            return ReglaParentescoFamiliar()
+        parentesco = ParentescoModel.objects.filter(pk=parentesco_id).first()
+        if parentesco is None:
+            return ReglaParentescoFamiliar()
+        guardada = ReglaParentescoModel.objects.filter(
+            parentesco_id=parentesco_id,
+        ).first()
+        if guardada is None:
+            return regla_por_defecto(parentesco.descripcion_parentesco)
+        return ReglaParentescoFamiliar(
+            descripcion=parentesco.descripcion_parentesco,
+            es_hijo=guardada.es_hijo,
+            menor_a_cargo=guardada.menor_a_cargo,
+            sin_cedula_hasta_edad=guardada.sin_cedula_hasta_edad,
+            edad_minima=guardada.edad_minima,
+            diferencia_minima=guardada.diferencia_minima,
+            diferencia_tipo=guardada.diferencia_tipo,
+            sexo_permitido=guardada.sexo_permitido,
+            soporte_sugerido=guardada.soporte_sugerido,
+            activo=guardada.activo,
+        )
+
+    def es_parentesco_hijo(self, parentesco_id) -> bool:
+        return self._regla_familiar(parentesco_id).es_hijo
 
     def validar_familiar_alta(self, cedula: str, valores: dict) -> None:
         """Alta de familiar: reutiliza `resolver_cedula_familiar` del módulo de familiares.
 
         La cédula es obligatoria salvo para un(a) hijo(a) menor de 9 años, a quien se le
-        genera `<cédula del titular>-<siguiente orden>` al aplicarse el cambio. Aquí solo se
-        valida (el valor sintético se descarta); el orden real lo calcula el aplicador.
+        genera `<cédula del titular>-<orden elegido>`. El orden es obligatorio y aquí se
+        valida también el duplicado; la cédula resultante se expone en
+        `cedula_generada` para que la revisión la muestre antes de aplicar.
         """
+        from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+
         fecha = valores.get('fecha_nacimiento')
         if isinstance(fecha, str):
             try:
                 fecha = date.fromisoformat(fecha)
             except ValueError:
                 fecha = None
+        existentes = {
+            str(c) for c in EmployeefamilyModel.objects.filter(
+                employeecedula_id=cedula,
+            ).values_list('cedulaFamiliar', flat=True) if c
+        }
+        regla = self._regla_familiar(valores.get('parentesco_id'))
+        if not regla.activo:
+            raise ValidationError(
+                'El parentesco seleccionado está desactivado en el catálogo.',
+                campo='parentesco_id',
+            )
+        titular = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        sexo_id = valores.get('sexo_id')
+        sexo_nombre = (
+            SexoModel.objects.filter(pk=sexo_id).values_list('sexo', flat=True).first()
+            if sexo_id is not None else None
+        )
         try:
-            resolver_cedula_familiar(
-                cedula_familiar=valores.get('cedula_familiar'),
-                cedula_empleado=cedula,
-                es_hijo=self.es_parentesco_hijo(valores.get('parentesco_id')),
+            validar_reglas_familiar(
+                regla=regla,
                 fecha_nacimiento=fecha,
-                siguiente_orden_hijo=1,
+                fecha_nacimiento_titular=titular.fecha_nacimiento if titular else None,
+                sexo=sexo_nombre,
             )
         except ValueError as exc:
-            raise ValidationError(str(exc), campo='cedula_familiar') from None
+            campo = 'sexo_id' if 'sexo' in str(exc).lower() else 'fecha_nacimiento'
+            raise ValidationError(str(exc), campo=campo) from None
+        try:
+            resuelta = resolver_cedula_familiar(
+                cedula_familiar=valores.get('cedula_familiar'),
+                cedula_empleado=cedula,
+                fecha_nacimiento=fecha,
+                orden_hijo=valores.get('orden_hijo'),
+                cedulas_existentes=existentes,
+                regla=regla,
+            )
+        except ValueError as exc:
+            campo = 'orden_hijo' if 'orden' in str(exc).lower() else 'cedula_familiar'
+            raise ValidationError(str(exc), campo=campo) from None
+        if not (valores.get('cedula_familiar') or '').strip():
+            valores['cedula_generada'] = resuelta
+
+    def validar_familiar_cambio(self, cedula: str, entidad_id: str, valores: dict) -> None:
+        """FIX-FAM2: valida el estado final del familiar al editar campos sensibles."""
+        familiar = EmployeefamilyModel.objects.filter(
+            pk=entidad_id, employeecedula_id=cedula,
+        ).first()
+        if familiar is None:
+            return
+        parentesco_id = valores.get('parentesco_id', familiar.parentesco_id)
+        regla = self._regla_familiar(parentesco_id)
+        if not regla.activo:
+            raise ValidationError(
+                'El parentesco seleccionado está desactivado en el catálogo.',
+                campo='parentesco_id',
+            )
+        fecha = valores.get('fecha_nacimiento', familiar.fechanacimiento)
+        if isinstance(fecha, str):
+            try:
+                fecha = date.fromisoformat(fecha)
+            except ValueError:
+                fecha = None
+        sexo_id = valores.get('sexo_id', familiar.sexo_id)
+        sexo_nombre = (
+            SexoModel.objects.filter(pk=sexo_id).values_list('sexo', flat=True).first()
+            if sexo_id is not None else None
+        )
+        titular = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        try:
+            validar_reglas_familiar(
+                regla=regla,
+                fecha_nacimiento=fecha,
+                fecha_nacimiento_titular=titular.fecha_nacimiento if titular else None,
+                sexo=sexo_nombre,
+            )
+        except ValueError as exc:
+            campo = 'sexo_id' if 'sexo' in str(exc).lower() else 'fecha_nacimiento'
+            raise ValidationError(str(exc), campo=campo) from None
+
+        cedula_final = str(
+            valores.get('cedula_familiar', familiar.cedulaFamiliar) or ''
+        ).strip()
+        if not cedula_final:
+            raise ValidationError(
+                'La cédula del familiar es obligatoria.', campo='cedula_familiar',
+            )
+        es_correlativa = bool(
+            re.fullmatch(rf'{re.escape(cedula.strip())}-\d+', cedula_final)
+        )
+        if es_correlativa:
+            if (
+                'cedula_familiar' in valores
+                and cedula_final != (familiar.cedulaFamiliar or '')
+            ):
+                raise ValidationError(
+                    'No escriba la cédula correlativa a mano: deje la cédula vacía '
+                    'y seleccione el orden de nacimiento.',
+                    campo='cedula_familiar',
+                )
+            if not regla.permite_cedula_sintetica:
+                raise ValidationError(
+                    f'El parentesco «{regla.descripcion}» no permite la cédula '
+                    'correlativa; registre la cédula propia del familiar.',
+                    campo='cedula_familiar',
+                )
+            if (
+                regla.sin_cedula_hasta_edad is None
+                or fecha is None
+                or not es_menor_de_edad(fecha, regla.sin_cedula_hasta_edad)
+            ):
+                raise ValidationError(
+                    'El familiar ya no cumple la edad para la cédula correlativa; '
+                    'registre su cédula propia.',
+                    campo='cedula_familiar',
+                )
+
+    def validar_correo_alternativo(self, cedula: str, correo_alternativo: str) -> None:
+        if not correo_alternativo or not str(correo_alternativo).strip():
+            return
+        alt = str(correo_alternativo).strip().lower()
+        propio = EmployeeModel.objects.filter(
+            cedulaidentidad=str(cedula).strip()
+        ).values_list('correo', flat=True).first()
+        if propio and propio.strip().lower() == alt:
+            raise ValidationError(
+                'El correo alternativo debe ser distinto del institucional.',
+                campo='correo_alternativo',
+            )
+        if EmployeeModel.objects.filter(correo__iexact=alt).exists():
+            raise ValidationError(
+                'El correo alternativo ya está en uso como correo institucional.',
+                campo='correo_alternativo',
+            )
+        qs_alt = DatosComplementariosTrabajadorModel.objects.filter(correo_alternativo__iexact=alt)
+        if cedula:
+            qs_alt = qs_alt.exclude(cedula=str(cedula).strip())
+        if qs_alt.exists():
+            raise ValidationError(
+                'El correo alternativo ya está en uso por otro trabajador.',
+                campo='correo_alternativo',
+            )

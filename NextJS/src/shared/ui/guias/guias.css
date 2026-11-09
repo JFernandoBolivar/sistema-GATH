@@ -1,0 +1,243 @@
+/* Estilos de las guías interactivas con tokens institucionales de GATH / CONATEL (O35) */
+
+.driver-popover.gath-guia-popover {
+  background-color: var(--card, #ffffff);
+  color: var(--card-foreground, #0f172a);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  padding: 1.25rem;
+  min-width: 280px;
+  max-width: 360px;
+  font-family: inherit;
+  z-index: 10000000;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Modo oscuro */
+.dark .driver-popover.gath-guia-popover {
+  background-color: var(--card, #0f172a);
+  color: var(--card-foreground, #f8fafc);
+  border-color: var(--border, #334155);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+/* Título */
+.driver-popover .driver-popover-title,
+.driver-popover.gath-guia-popover .driver-popover-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--foreground, #001737);
+  letter-spacing: -0.01em;
+  padding-right: 3rem !important;
+  margin-bottom: 0.5rem;
+  line-height: 1.35;
+}
+
+.dark .driver-popover.gath-guia-popover .driver-popover-title {
+  color: var(--foreground, #f8fafc);
+}
+
+/* Descripción / Contenido */
+.driver-popover.gath-guia-popover .driver-popover-description {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--muted-foreground, #475569);
+  margin-bottom: 1rem;
+}
+
+.dark .driver-popover.gath-guia-popover .driver-popover-description {
+  color: var(--muted-foreground, #94a3b8);
+}
+
+/* Botón de cerrar */
+.driver-popover.gath-guia-popover .driver-popover-close-btn {
+  top: 0.875rem;
+  right: 0.875rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  color: var(--muted-foreground, #64748b);
+  transition: all 0.15s ease;
+  font-size: 1.25rem;
+}
+
+.driver-popover.gath-guia-popover .driver-popover-close-btn:hover,
+.driver-popover.gath-guia-popover .driver-popover-close-btn:focus {
+  background-color: var(--muted, #f1f5f9);
+  color: var(--foreground, #0f172a);
+}
+
+.dark .driver-popover.gath-guia-popover .driver-popover-close-btn:hover,
+.dark .driver-popover.gath-guia-popover .driver-popover-close-btn:focus {
+  background-color: var(--muted, #1e293b);
+  color: var(--foreground, #f8fafc);
+}
+
+/* Pie del popover */
+.driver-popover.gath-guia-popover .driver-popover-footer {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #f1f5f9);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* Indicador de paso (progreso) */
+.driver-popover.gath-guia-popover .driver-popover-progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary, #002b5c);
+  background-color: var(--primary-50, rgba(0, 43, 92, 0.08));
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  line-height: 1;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+.dark .driver-popover.gath-guia-popover .driver-popover-progress-text {
+  color: #93c5fd;
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+/* Botones de navegación */
+.driver-popover.gath-guia-popover .driver-popover-navigation-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+}
+
+.driver-popover.gath-guia-popover .driver-popover-footer button {
+  text-shadow: none !important;
+  -webkit-font-smoothing: antialiased;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.25;
+  touch-action: manipulation;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+}
+
+/* Botón Anterior */
+.driver-popover.gath-guia-popover .driver-popover-prev-btn {
+  text-shadow: none !important;
+  background-color: var(--secondary, #f1f5f9) !important;
+  color: var(--secondary-foreground, #0f172a) !important;
+  border: 1px solid var(--border, #cbd5e1) !important;
+}
+
+.driver-popover.gath-guia-popover .driver-popover-prev-btn:hover {
+  background-color: var(--muted, #e2e8f0) !important;
+}
+
+.dark .driver-popover.gath-guia-popover .driver-popover-prev-btn {
+  text-shadow: none !important;
+  background-color: var(--secondary, #1e293b) !important;
+  color: var(--secondary-foreground, #f8fafc) !important;
+  border-color: var(--border, #334155) !important;
+}
+
+/* Botón Siguiente / Entendido */
+.driver-popover.gath-guia-popover .driver-popover-next-btn {
+  text-shadow: none !important;
+  background-color: var(--primary, #002b5c) !important;
+  color: #ffffff !important;
+  border: 1px solid transparent !important;
+}
+
+.driver-popover.gath-guia-popover .driver-popover-next-btn:hover {
+  opacity: 0.92;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Flecha del popover */
+.driver-popover.gath-guia-popover .driver-popover-arrow {
+  border-color: var(--card, #ffffff);
+}
+
+.dark .driver-popover.gath-guia-popover .driver-popover-arrow {
+  border-color: var(--card, #0f172a);
+}
+
+/* Regla 5: Adaptación móvil en panel inferior (bottom sheet) para no tapar el contenido */
+@media (max-width: 640px) {
+  .driver-popover.gath-guia-popover {
+    position: fixed !important;
+    bottom: 1rem !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    top: auto !important;
+    max-width: calc(100vw - 2rem) !important;
+    min-width: 0 !important;
+    width: auto !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 1rem 1rem !important;
+    border-radius: 1.25rem !important;
+    box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-title,
+  .driver-popover .driver-popover-title {
+    padding-right: 3rem !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-close-btn,
+  .driver-popover .driver-popover-close-btn {
+    top: 0.75rem !important;
+    right: 0.75rem !important;
+  }
+
+  /* Ocultar la flecha en móvil para evitar que apunte erróneamente fuera del panel inferior */
+  .driver-popover.gath-guia-popover .driver-popover-arrow {
+    display: none !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    gap: 0.35rem !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-navigation-btns {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 0.35rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-navigation-btns button + button {
+    margin-left: 0 !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-progress-text {
+    font-size: 0.75rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 0.2rem 0.45rem !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-footer button {
+    min-height: 38px !important;
+    padding: 0.375rem 0.65rem !important;
+    font-size: 0.8125rem !important;
+    text-shadow: none !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+}

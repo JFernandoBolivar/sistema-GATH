@@ -19,6 +19,7 @@ def _familiar_a_dto(f: Familiar) -> FamiliarDTO:
         primer_apellido=f.primer_apellido,
         segundo_apellido=f.segundo_apellido,
         cedula_familiar=f.cedula_familiar,
+        orden_hijo=f.orden_hijo,
         parentesco_id=f.parentesco_id,
         parentesco_nombre=f.parentesco_nombre,
         fecha_nacimiento=f.fecha_nacimiento,

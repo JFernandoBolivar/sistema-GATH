@@ -127,6 +127,10 @@ export const catalogosApi = {
     list<CatalogoApiItem>(
       apiClient.get<ApiResponse<CatalogoApiItem[]> | CatalogoApiItem[]>("/api/v1/personal/catalogos/politicas/"),
     ),
+  getPaises: () =>
+    list<CatalogoApiItem>(
+      apiClient.get<ApiResponse<CatalogoApiItem[]> | CatalogoApiItem[]>("/api/v1/catalogos/paises/"),
+    ),
   getCondicionesVivienda: () =>
     list<CatalogoApiItem>(
       apiClient.get<ApiResponse<CatalogoApiItem[]> | CatalogoApiItem[]>("/api/v1/personal/catalogos/condiciones-vivienda/"),

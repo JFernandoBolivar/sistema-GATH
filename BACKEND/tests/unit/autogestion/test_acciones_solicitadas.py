@@ -94,8 +94,41 @@ def test_sin_claves_de_la_entidad_no_hay_acciones():
     assert acciones_solicitadas('familiar', ['employee.telefono_movil']) == frozenset()
 
 
-def test_las_cuatro_secciones_de_lista_aceptan_acciones():
+def test_las_cinco_secciones_de_lista_aceptan_acciones():
     m = Mundo()
     claves = [clave_accion(e, Accion.CREAR) for e in sorted(ENTIDADES_DE_LISTA)]
     sol = pedir(m, claves)
-    assert set(sol.secciones_solicitadas) == {'familiar', 'contacto', 'formacion', 'complementaria'}
+    assert set(sol.secciones_solicitadas) == {'familiar', 'contacto', 'formacion', 'complementaria', 'antecedentes'}
+
+
+def test_antecedentes_servicio_acciones_y_exigencia_soporte():
+    m = Mundo()
+    sol = pedir(m, [clave_accion('antecedente_servicio', Accion.CREAR)])
+    assert sol.secciones_solicitadas == ('antecedentes',)
+    sol = habilitar(m, sol)
+
+    item = ItemCambioDTO(
+        'antecedentes', 'antecedente_servicio', 'CREAR', '*',
+        {'organismo_id': 1, 'fecha_ingreso': '2020-01-15', 'fecha_egreso': '2023-05-30'},
+        referencia='ant-1',
+    )
+    sol = borrador(m, sol, [item])
+
+    # Enviar sin soporte debe fallar
+    with pytest.raises(ValidationError) as exc:
+        enviar(m, sol)
+    assert 'soporte' in str(exc.value).lower()
+
+    # Subir soporte tipo CONSTANCIA permite enviar
+    from apps.autogestion.domain.value_objects.secciones import TipoSoporte
+    from apps.autogestion.domain.entities.solicitud_actualizacion import SoporteDocumental
+    soporte = SoporteDocumental(
+        id='sop-1', origen_tipo='ACTUALIZACION', origen_id=sol.id,
+        seccion='antecedentes', tipo=TipoSoporte.CONSTANCIA.value,
+        clave_s3='soportes/ant.pdf', sha256='a'*64, tamano_bytes=1024,
+        nombre_original='constancia.pdf', mime_real='application/pdf',
+        subido_por=TRABAJADOR, referencia='ant-1',
+    )
+    m.soportes.filas[soporte.id] = soporte
+    enviada = enviar(m, sol)
+    assert enviada.estado.value == 'ENVIADA'

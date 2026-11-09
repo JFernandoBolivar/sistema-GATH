@@ -20,8 +20,8 @@ export function hitosSolicitud(s: SolicitudDTO): HitoLineaTiempo[] {
   const hitos: HitoLineaTiempo[] = [
     {
       id: "enviada",
-      titulo: "Fe de vida enviada",
-      fecha: formatearFechaHora(s.fechaEnvio),
+      titulo: s.estado === "BORRADOR" ? "Aún no enviada (borrador)" : "Fe de vida enviada",
+      fecha: s.estado === "BORRADOR" ? undefined : formatearFechaHora(s.fechaEnvio),
       estado: enviada ? "hecho" : "actual",
     },
     {

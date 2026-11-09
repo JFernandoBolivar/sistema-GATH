@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 function Table({
   className,
@@ -15,13 +16,16 @@ function Table({
       role="region"
       aria-label="Tabla de datos"
       tabIndex={0}
-      className={cn("relative w-full overflow-x-auto", containerClassName)}
+      className={cn("relative w-full max-w-full", containerClassName)}
     >
-      <table
-        data-slot="table"
-        className={cn("w-full caption-bottom text-sm", className)}
-        {...props}
-      />
+      <ScrollArea className="w-full">
+        <table
+          data-slot="table"
+          className={cn("w-full caption-bottom text-sm", className)}
+          {...props}
+        />
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
     </div>
   );
 }

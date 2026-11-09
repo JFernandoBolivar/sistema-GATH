@@ -96,7 +96,7 @@ export function FormularioProceso({ proceso, pendiente, erroresServidor, onCerra
 
   return (
     <Dialog open onOpenChange={(o) => !o && onCerrar()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-hidden">
         <form noValidate onSubmit={handleSubmit((v) => onGuardar(valoresADatosProceso(v)))} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>{proceso ? "Editar proceso" : "Nuevo proceso de fe de vida"}</DialogTitle>

@@ -1,6 +1,9 @@
 from django.urls import path
 
-from apps.cargos.presentation.views.carga_masiva_views import ImportarCargosEspecialesView
+from apps.cargos.presentation.views.carga_masiva_views import (
+    ImportarCargosEspecialesView,
+    PlantillaCargosEspecialesExcelView,
+)
 from apps.cargos.presentation.views.cargos_views import (
     ActualizarCargoView,
     AsignarCargoEspecialView,
@@ -38,6 +41,7 @@ urlpatterns = [
     path('vacantes/', CargosVacantesListView.as_view(), name='cargos-vacantes-list'),
     path('crear/', CrearCargoView.as_view(), name='cargo-crear'),
     path('especiales/asignar/', AsignarCargoEspecialView.as_view(), name='cargo-especial-asignar'),
+    path('carga-masiva/especiales/plantilla-excel/', PlantillaCargosEspecialesExcelView.as_view(), name='cargo-carga-masiva-especiales-plantilla'),
     path('carga-masiva/especiales/', ImportarCargosEspecialesView.as_view(), name='cargo-carga-masiva-especiales'),
     path('prestamos/', PrestamoCargoListCreateView.as_view(), name='cargo-prestamos-list-create'),
     path('prestamos/<int:prestamo_id>/finalizar/', PrestamoCargoFinalizarView.as_view(), name='cargo-prestamo-finalizar'),

@@ -15,8 +15,10 @@ from apps.autogestion.domain.entities.solicitud_actualizacion import (
 
 
 class RepoSolicitudes(Protocol):
-    def crear(self, solicitud: SolicitudActualizacion) -> SolicitudActualizacion:
-        """Persiste y reserva sus secciones; `ConflictError` si ya hay una abierta en alguna de ellas."""
+    def crear(
+        self, solicitud: SolicitudActualizacion, reservar: bool = True,
+    ) -> SolicitudActualizacion:
+        """Persiste; si `reservar`, bloquea sus secciones. `ConflictError` si ya hay una abierta."""
         ...
 
     def obtener(self, solicitud_id: str, bloquear: bool = False) -> SolicitudActualizacion | None:

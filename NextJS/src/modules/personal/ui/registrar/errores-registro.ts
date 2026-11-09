@@ -29,6 +29,7 @@ const PASO_1: Record<string, string> = {
   estado_civil_id: "estadoCivil",
   nacionalidad_id: "nacionalidad_id",
   correo: "correo",
+  correo_alternativo: "correoAlternativo",
   telefono_movil: "telefono_movil",
   telefono_habitacion: "telefono_habitacion",
   carnet_patria: "carnet_patria",

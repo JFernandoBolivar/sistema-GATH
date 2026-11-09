@@ -26,14 +26,18 @@ import { cambiosAItems } from "../../domain/services/borrador";
 import { seccionesSinSoporte } from "../../domain/services/reglas-solicitud";
 import {
   SECCIONES_DEF,
-  TIPOS_SOPORTE_POR_SECCION,
   esSeccionConocida,
   nombreSeccion,
 } from "../../domain/value-objects/campos-seccion";
+import {
+  agruparTiposSoporte,
+  tiposDeSeccion,
+} from "../../domain/value-objects/tipos-soporte";
 import { getMiExpedienteAction } from "../../infrastructure/actions/autogestion-actions";
 import {
   enviarSolicitudAction,
   guardarBorradorAction,
+  listarTiposSoporteAction,
 } from "../../infrastructure/actions/solicitudes-actions";
 import { EditorEntidad } from "./editor-entidad";
 import { FotoSeccion, SoportesSeccion } from "./soportes-seccion";
@@ -54,6 +58,11 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
     isLoading,
     mutate,
   } = useSWR("mi-expediente-trabajador", () => getMiExpedienteAction());
+  const { data: tiposSoporte } = useSWR("tipos-soporte-autogestion", async () => {
+    const res = await listarTiposSoporteAction();
+    if (!res.ok) throw new Error(res.mensaje);
+    return agruparTiposSoporte(res.datos);
+  });
   const inicial = useMemo(() => cambiosAItems(detalle.cambios), [detalle.cambios]);
   const [items, setItems] = useState<ItemBorrador[]>(inicial);
   const [guardado, setGuardado] = useState<string>(JSON.stringify(inicial));
@@ -74,7 +83,15 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
   }
 
   const sucio = JSON.stringify(items) !== guardado;
-  const habilitadas = detalle.seccionesHabilitadas.filter(esSeccionConocida);
+  const ordenMap = useMemo(() => {
+    return new Map<string, number>(secciones.map((s, i) => [s.codigo, (s as { orden?: number }).orden ?? i]));
+  }, [secciones]);
+
+  const habilitadas = useMemo(() => {
+    return [...detalle.seccionesHabilitadas]
+      .filter(esSeccionConocida)
+      .sort((a, b) => (ordenMap.get(a) ?? 99) - (ordenMap.get(b) ?? 99));
+  }, [detalle.seccionesHabilitadas, ordenMap]);
 
   function guardar(): Promise<boolean> {
     return new Promise((resolver) => {
@@ -142,9 +159,10 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 pb-28 sm:pb-8">
       {habilitadas.map((codigo: SeccionCodigo) => {
         const def = SECCIONES_DEF[codigo];
+        const tipos = tiposDeSeccion(tiposSoporte, codigo);
         const requiereSoporte =
           secciones.find((s) => s.codigo === codigo)?.requiereSoporte ?? false;
         return (
@@ -179,15 +197,17 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
                     onItems={setItems}
                     solicitudId={detalle.id}
                     soportes={detalle.soportes}
+                    tiposSoporte={tipos}
                     onCambioSoportes={onActualizar}
                   />
                 ))}
-                {TIPOS_SOPORTE_POR_SECCION[codigo].length > 0 ? (
+                {tipos.length > 0 ? (
                   <SoportesSeccion
                     solicitudId={detalle.id}
                     seccion={codigo}
                     soportes={detalle.soportes}
                     obligatorio={requiereSoporte}
+                    tipos={tipos}
                     onCambio={onActualizar}
                   />
                 ) : null}
@@ -211,22 +231,38 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
         </div>
       ) : null}
 
-      <div className="sticky bottom-20 z-30 flex flex-wrap gap-3 rounded-lg border bg-card p-3 shadow-md lg:bottom-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={() => void guardar()}
-          disabled={guardando || enviando || !sucio}
-        >
-          <Save aria-hidden />{" "}
-          {guardando ? "Guardando…" : sucio ? "Guardar borrador" : "Borrador guardado"}
-        </Button>
-        <Button type="button" size="lg" onClick={intentarEnviar} disabled={guardando || enviando}>
-          <Send aria-hidden /> {enviando ? "Enviando…" : "Enviar a Bienestar Social"}
-        </Button>
+      <div className="sticky bottom-2 z-30 flex flex-col gap-2 rounded-lg border bg-card/95 backdrop-blur-xs p-2.5 shadow-md sm:bottom-4 sm:flex-row sm:items-center sm:gap-3 sm:p-3">
+        <div className="flex w-full min-w-0 flex-row items-stretch gap-2 sm:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            size="default"
+            className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal py-2 sm:flex-initial"
+            onClick={() => void guardar()}
+            disabled={guardando || enviando || !sucio}
+          >
+            <Save aria-hidden className="size-4 shrink-0" />{" "}
+            <span className="min-w-0 leading-tight">
+              {guardando ? "Guardando…" : sucio ? "Guardar borrador" : "Borrador guardado"}
+            </span>
+          </Button>
+          <Button
+            type="button"
+            size="default"
+            className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal py-2 sm:flex-initial"
+            onClick={intentarEnviar}
+            disabled={guardando || enviando}
+          >
+            <Send aria-hidden className="size-4 shrink-0" />{" "}
+            <span className="min-w-0 leading-tight">
+              {enviando ? "Enviando…" : "Enviar a Bienestar Social"}
+            </span>
+          </Button>
+        </div>
         {sucio ? (
-          <p className="self-center text-sm text-warning">Tiene cambios sin guardar.</p>
+          <p className="text-center text-xs text-warning sm:text-left sm:text-sm">
+            Tiene cambios sin guardar.
+          </p>
         ) : null}
       </div>
 

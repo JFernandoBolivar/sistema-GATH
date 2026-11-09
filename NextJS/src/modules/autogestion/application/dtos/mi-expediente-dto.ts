@@ -109,6 +109,17 @@ export interface AntecedenteItem {
 }
 
 export interface DatosViviendaDTO {
+  pais?: {
+    id: number;
+    nombre: string;
+    codigo: string;
+    es_venezuela: boolean;
+  } | null;
+  pais_id?: number | null;
+  pais_nombre?: string | null;
+  pais_codigo?: string | null;
+  pais_es_venezuela?: boolean | null;
+  ciudad_region?: string | null;
   estado_id?: number | null;
   estado_nombre?: string | null;
   municipio_id?: number | null;
@@ -205,6 +216,7 @@ export interface MiExpedienteDTO {
   carnet_activo?: CarnetItem | null;
   carnets?: CarnetItem[];
   motivos_carnet?: MotivoCarnetItem[];
+  puede_ver_carnet?: boolean;
   /** Correo alternativo y «¿tiene hijos?» (tabla complementaria, B13); nulos si no se han declarado. */
   datos_complementarios?: {
     correo_alternativo: string | null;

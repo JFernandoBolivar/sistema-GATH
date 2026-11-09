@@ -23,6 +23,7 @@ export function registroApiADTO(item: RegistroAuditoriaApiItem): RegistroAuditor
     actorCedula: item.actor_cedula,
     actorNombre: item.actor_nombre,
     actorRol: item.actor_rol,
+    actorRolVisible: item.actor_rol_visible || item.actor_rol,
     modulo: item.modulo,
     accion: item.accion,
     recursoTipo: item.recurso_tipo,

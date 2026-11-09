@@ -90,8 +90,10 @@ class PasivosListView(APIView):
             nombre=filtros.get('nombre') or None,
             codigo=filtros.get('codigo') or None,
             tipo_nomina_id=filtros.get('tipo_nomina_id') or None,
+            motivo_id=filtros.get('motivo_id') or None,
             fecha_desde=filtros.get('fecha_desde'),
             fecha_hasta=filtros.get('fecha_hasta'),
+            sin_cuenta=filtros.get('sin_cuenta'),
             limite=filtros.get('limit', 10),
             desplazamiento=filtros.get('offset', 0),
         )
@@ -111,12 +113,16 @@ class PasivosListView(APIView):
         entrada.is_valid(raise_exception=True)
         datos = dict(entrada.validated_data)
         tipo_nomina_id = datos.pop('tipo_nomina_id')
+        motivo_id = datos.pop('motivo_id')
+        fecha_vigencia = datos.pop('fecha_vigencia')
         with transaction.atomic():
             dto = registrar_pasivo_directo(
                 RepoPasivosORM(),
                 RegistrarPasivoDirectoDTO(
                     datos=datos,
                     tipo_nomina_id=tipo_nomina_id,
+                    motivo_id=motivo_id,
+                    fecha_vigencia=fecha_vigencia,
                     usuario_id=getattr(request.user, 'pk', None),
                 ),
             )
@@ -127,7 +133,7 @@ class PasivosListView(APIView):
                 actor_rol=getattr(getattr(request.user, 'rol', None), 'nombre_rol', '') or '',
                 accion='pasivos.pasivo_creado', modulo='pasivos',
                 recurso_tipo='Employee', recurso_id=dto.cedula,
-                estado_nuevo={'cedula': dto.cedula, 'tipo_nomina_id': tipo_nomina_id},
+                estado_nuevo={'cedula': dto.cedula, 'tipo_nomina_id': tipo_nomina_id, 'motivo_id': motivo_id, 'fecha_vigencia': str(fecha_vigencia)},
                 **origen_de_peticion(request),
             )
         return ok(PasivoSerializer(dto).data, 'Pasivo registrado correctamente.', status=201)
@@ -152,7 +158,9 @@ class PasivoDetailView(APIView):
         request=PasivoActualizarInputSerializer, responses={200: PasivoSerializer},
     )
     def patch(self, request, cedula: str):
-        entrada = PasivoActualizarInputSerializer(data=request.data, partial=True)
+        entrada = PasivoActualizarInputSerializer(
+            data=request.data, partial=True, context={'request': request, 'view': self, 'cedula': cedula}
+        )
         entrada.is_valid(raise_exception=True)
         with transaction.atomic():
             dto = actualizar_pasivo(RepoPasivosORM(), cedula, dict(entrada.validated_data))

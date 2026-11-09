@@ -182,6 +182,7 @@ class SeccionAutogestionable:
     nombre: str
     requiere_soporte: bool
     activa: bool = True
+    orden: int = 0
 
 
 @dataclass(frozen=True)

@@ -56,6 +56,7 @@ function CampoTalla({
   label,
   tallas,
   isLoading,
+  requerido = false,
   className,
 }: {
   control: ReturnType<typeof useForm<PasoPhysicalProfileType>>["control"];
@@ -63,6 +64,7 @@ function CampoTalla({
   label: string;
   tallas: CatalogosExpedienteDTO["tallas"];
   isLoading: boolean;
+  requerido?: boolean;
   className?: string;
 }) {
   const grouped = groupByRegion(tallas);
@@ -72,7 +74,10 @@ function CampoTalla({
       name={name}
       render={({ field }) => (
         <FormItem className={`min-w-0 ${className ?? ""}`}>
-          <FormLabel>{label}</FormLabel>
+          <FormLabel>
+            {label}
+            {requerido ? " *" : ""}
+          </FormLabel>
           <Select onValueChange={(v) => field.onChange(Number(v))} value={field.value ? field.value.toString() : ""}>
             <FormControl>
               <SelectTrigger className="w-full truncate">
@@ -129,12 +134,13 @@ export function PasoPhysicalProfile({
         <CardAction className="text-gray-600">Paso 5: Datos De Vestimenta</CardAction>
         <Form {...form}>
           <form className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>
-            <CampoTalla control={form.control} name="perfil_fisico.tallaCamisa" label="Talla De Camisa" {...camisas} />
-            <CampoTalla control={form.control} name="perfil_fisico.tallaPantalon" label="Talla De Pantalón" {...pantalones} />
+            <CampoTalla control={form.control} name="perfil_fisico.tallaCamisa" label="Talla De Camisa" requerido {...camisas} />
+            <CampoTalla control={form.control} name="perfil_fisico.tallaPantalon" label="Talla De Pantalón" requerido {...pantalones} />
             <CampoTalla
               control={form.control}
               name="perfil_fisico.tallaZapatos"
               label="Talla De Zapatos"
+              requerido
               {...zapatos}
             />
             <CampoTalla control={form.control} name="perfil_fisico.tallaChaqueta" label="Talla De Chaqueta" {...chaquetas} />

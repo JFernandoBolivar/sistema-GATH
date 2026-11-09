@@ -27,10 +27,32 @@ export type ItemBorradorDTO = ItemBorrador;
 export type DecisionCampoDTO = DecisionCampo;
 
 /** Configuración vigente de solicitudes para la condición del trabajador (O12). */
+export interface BloqueoSolicitudDTO {
+  clave: string;
+  seccion: string;
+  solicitud_id: string;
+  fecha: string;
+  mensaje: string;
+  alcance?: "registro" | "seccion" | "desactivado";
+}
+
+export interface EsperaSolicitudDTO {
+  seccion: string;
+  hasta: string;
+  dias: number;
+  acciones: string[];
+  mensaje: string;
+}
+
 export interface PoliticaAutogestionDTO {
   condicion: string;
   habilitado: boolean;
   secciones: string[];
+  /** O48: alcance del bloqueo por solicitud pendiente. */
+  bloqueo_alcance?: "registro" | "seccion" | "desactivado";
+  bloqueos?: BloqueoSolicitudDTO[];
+  esperas?: EsperaSolicitudDTO[];
+  espera_acciones?: string[];
 }
 
 /** Resultado uniforme de las Server Actions de escritura. */

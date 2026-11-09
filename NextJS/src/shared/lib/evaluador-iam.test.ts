@@ -138,6 +138,12 @@ describe('Acceso por ruta (A8)', () => {
     expect(puedeVerRuta(['fe_de_vida.ver_panel'], '/fe-de-vida')).toBe(true);
     expect(puedeVerRuta(['fe_de_vida.solicitar'], '/bienestar')).toBe(false);
     expect(puedeVerRuta(['notificaciones.ver_propias'], '/notificaciones')).toBe(true);
+
+    // FIX-CARGA1: la carga masiva tiene permiso propio por población.
+    expect(puedeVerRuta(['personal.carga_masiva'], '/personal/carga-masiva')).toBe(true);
+    expect(puedeVerRuta(['personal.ver'], '/personal/carga-masiva')).toBe(false);
+    expect(puedeVerRuta(['pasivos.carga_masiva'], '/pasivos/carga-masiva')).toBe(true);
+    expect(puedeVerRuta(['pasivos.ver'], '/pasivos/carga-masiva')).toBe(false);
   });
 
   it('deriva el módulo de un código y los módulos accesibles', () => {

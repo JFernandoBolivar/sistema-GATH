@@ -185,7 +185,7 @@ export default function OrganizacionPage() {
 
           <div className="grid grid-cols-1 gap-5 mt-6 lg:grid-cols-2">
             {dirLinea.length > 0 && (
-              <div className="overflow-auto border rounded-2xl border-blue-700">
+              <div className="border rounded-2xl border-blue-700">
                 <Table>
                   <TableCaption>División</TableCaption>
                   <TableHeader className="bg-primary">
@@ -216,7 +216,7 @@ export default function OrganizacionPage() {
 
             <div className="rounded-2xl">
               {coordinaciones.length > 0 && (
-                <div className="overflow-auto border rounded-2xl border-blue-700">
+                <div className="border rounded-2xl border-blue-700">
                   <Table>
                     <TableCaption>Coordinación</TableCaption>
                     <TableHeader className="bg-primary">

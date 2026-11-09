@@ -32,6 +32,11 @@ export interface SolicitudEntity {
   readonly canal?: string;
   readonly registradaPor?: string;
   readonly registradaPorCedula?: string;
+  /** Quien registró el acta presencial también dio un check o la aprobación directa. */
+  readonly registradorTambienAprobo?: boolean;
+  /** O39: excepción presencial «No tiene correo» y su justificación. */
+  readonly sinCorreoAlternativo?: boolean;
+  readonly justificacionSinCorreo?: string;
   readonly fechaEnvio: string | null;
   readonly fechaValidacion: string | null;
   readonly decisiones: readonly DecisionEntity[];
@@ -69,6 +74,11 @@ export interface AsignacionFicha {
 
 export interface ViviendaFicha {
   /** Ids vigentes: sirven de padre para resolver los nombres de municipio y parroquia declarados. */
+  readonly paisId: number | null;
+  readonly pais: string | null;
+  readonly paisCodigo: string | null;
+  readonly esVenezuela: boolean;
+  readonly ciudadRegion: string | null;
   readonly estadoId: number | null;
   readonly municipioId: number | null;
   readonly estado: string | null;

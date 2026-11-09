@@ -63,7 +63,10 @@ from apps.fe_de_vida.presentation.views._comun import (
     resumen,
     validar_entrada,
 )
-from core.domain.configuracion import CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR
+from core.domain.configuracion import (
+    CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
+    CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
+)
 from core.domain.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from core.infrastructure.providers import obtener_lector_configuracion, obtener_notificador
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
@@ -78,14 +81,23 @@ ERRORES = {400: MensajeRespuestaSerializer, 403: MensajeRespuestaSerializer, 404
 NOMBRE_CONSTANCIA = 'constancia-fe-de-vida.pdf'
 
 
-def _registrador_puede_checar() -> bool:
+def _parametro_booleano(clave: str) -> bool:
+    """Lee un interruptor de Parámetros del sistema; ante cualquier falla queda apagado (lo más restrictivo)."""
     try:
         lector = obtener_lector_configuracion()
         if lector:
-            return lector.obtener_booleano(CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR)
+            return lector.obtener_booleano(clave)
     except Exception:
         pass
     return False
+
+
+def _registrador_puede_checar() -> bool:
+    return _parametro_booleano(CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR)
+
+
+def _admin_registradora_puede_aprobar() -> bool:
+    return _parametro_booleano(CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR)
 
 
 class BandejaView(APIView):
@@ -141,6 +153,7 @@ class DetalleRevisionView(APIView):
             solicitud_id=str(solicitud_id), lector_ficha=LectorFichaPasivoORM() if permisos_revisor.revisar else None,
             actor=actor_revision(request), permisos=permisos_revisor, repo_procesos=RepoProcesosORM(),
             registrador_puede_checar=_registrador_puede_checar(),
+            registrador_puede_aprobar_directo=_admin_registradora_puede_aprobar(),
         )
         return ok(a_dict_revision(detalle))
 
@@ -187,7 +200,9 @@ class CheckView(APIView):
                 repo, AplicadorCambiosActaORM(), PublicadorSenales(), solicitud_id=str(solicitud_id), actor=actor, ahora=ahora(),
                 registrador_puede_checar=_registrador_puede_checar(),
             )
-            auditar(request, 'CHECK_DADO', solicitud.id, previa, {**resumen(solicitud), 'rol': actor.rol.value})
+            auditar(request, 'CHECK_DADO', solicitud.id, previa,
+                    {**resumen(solicitud), 'rol': actor.rol.value,
+                     'registrador_tambien_aprobo': solicitud.registrador_tambien_aprobo})
         return ok(a_dict_solicitud(solicitud), 'Check registrado.')
 
 
@@ -233,10 +248,11 @@ class AprobarDirectoView(APIView):
             solicitud = aprobar_directo(
                 RepoSolicitudesFeDeVidaORM(), AplicadorCambiosActaORM(), PublicadorSenales(),
                 solicitud_id=str(solicitud_id), actor=actor, justificacion=datos['justificacion'], ahora=ahora(),
-                registrador_puede_checar=_registrador_puede_checar(),
+                registrador_puede_aprobar_directo=_admin_registradora_puede_aprobar(),
             )
             auditar(request, 'APROBACION_DIRECTA_ADMINISTRADORA', solicitud.id, None,
-                    {**resumen(solicitud), 'justificacion': datos['justificacion']})
+                    {**resumen(solicitud), 'justificacion': datos['justificacion'],
+                     'registrador_tambien_aprobo': solicitud.registrador_tambien_aprobo})
         return ok(a_dict_solicitud(solicitud), 'Fe de vida validada por aprobación directa.')
 
 

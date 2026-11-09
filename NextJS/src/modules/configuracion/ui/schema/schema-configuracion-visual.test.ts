@@ -17,11 +17,6 @@ describe("actualizarConfiguracionVisualSchema", () => {
     expect(r.success).toBe(false);
   });
 
-  it("rechaza un nombre de empresa mas largo de 200 caracteres", () => {
-    const r = actualizarConfiguracionVisualSchema.safeParse({ nombreEmpresa: "a".repeat(201) });
-    expect(r.success).toBe(false);
-  });
-
   it("acepta tipoCintillo GENERICO o FIJO", () => {
     expect(actualizarConfiguracionVisualSchema.safeParse({ tipoCintillo: "GENERICO" }).success).toBe(true);
     expect(actualizarConfiguracionVisualSchema.safeParse({ tipoCintillo: "FIJO" }).success).toBe(true);

@@ -9,10 +9,13 @@ import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
+import { useGuia } from "@/shared/ui/guias";
 import type { PaginaSolicitudesDTO } from "../../application/dtos/solicitud-dto";
 import { LIMITE_BANDEJA } from "../../application/use-cases/gestionar-solicitud-bienestar";
 import { etiquetaClaveCampo } from "../../domain/value-objects/campos-seccion";
 import { listarMisSolicitudesAction } from "../../infrastructure/actions/solicitudes-actions";
+import { GUIA_MIS_SOLICITUDES } from "../guias/definiciones-guias";
+import { useRegistrarGuia } from "../guias/contexto-guia";
 import { OPCIONES_FILTRO_ESTADO, PRESENTACION_ESTADO } from "../estado-solicitud-ui";
 import { formatearFechaHora } from "../formato-solicitud";
 import { hitosSolicitud } from "./hitos-solicitud";
@@ -49,20 +52,28 @@ export default function MisSolicitudesPage() {
       setOffset(0);
     };
 
+  const { iniciarGuia } = useGuia({ guia: GUIA_MIS_SOLICITUDES, autoIniciar: true });
+  useRegistrarGuia(iniciarGuia);
+
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        titulo="Mis solicitudes"
-        descripcion="Aquí ve el avance de cada solicitud de actualización de sus datos."
-        accion={
-          <Button asChild size="lg">
-            <Link href="/autogestion/solicitudes/nueva">
-              <FilePenLine aria-hidden /> Solicitar actualización
-            </Link>
-          </Button>
-        }
-      />
-      <div className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3">
+      <div data-guia-id="mis-solicitudes-cabecera">
+        <PageHeader
+          titulo="Mis solicitudes"
+          descripcion="Aquí ve el avance de cada solicitud de actualización de sus datos."
+          accion={
+            <Button asChild size="lg">
+              <Link href="/autogestion/solicitudes/nueva">
+                <FilePenLine aria-hidden /> Solicitar actualización
+              </Link>
+            </Button>
+          }
+        />
+      </div>
+      <div
+        data-guia-id="mis-solicitudes-filtros"
+        className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-3"
+      >
         <div className="flex flex-col gap-1.5">
           <label htmlFor="mis-filtro-estado" className="text-base font-medium">
             Estado
@@ -112,14 +123,16 @@ export default function MisSolicitudesPage() {
           </p>
         ) : null}
       </div>
-      <ListaSolicitudes
-        datos={error ? undefined : data}
-        cargando={isLoading}
-        recargar={() => mutate()}
-        offset={offset}
-        onCambiarPagina={setOffset}
-        hayFiltros={Boolean(estado || fechaDesde || fechaHasta)}
-      />
+      <div data-guia-id="mis-solicitudes-lista">
+        <ListaSolicitudes
+          datos={error ? undefined : data}
+          cargando={isLoading}
+          recargar={() => mutate()}
+          offset={offset}
+          onCambiarPagina={setOffset}
+          hayFiltros={Boolean(estado || fechaDesde || fechaHasta)}
+        />
+      </div>
     </div>
   );
 }
@@ -204,6 +217,7 @@ function ListaSolicitudes({
         })}
       </ul>
       <nav
+        data-guia-id="mis-solicitudes-paginacion"
         aria-label="Paginación de mis solicitudes"
         className="flex flex-wrap items-center justify-between gap-3"
       >

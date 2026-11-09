@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SWRConfig } from "swr";
 import FeDeVidaPasivoPage from "./fe-de-vida-pasivo-page";
+import { ProveedorGuiaAutogestion } from "@/modules/autogestion/ui/guias/contexto-guia";
+import { BotonGuiaAutogestion } from "@/modules/autogestion/ui/guias/boton-guia-autogestion";
 import type { VigenteDTO } from "../../application/dtos/fe-de-vida-dto";
 
 const mockObtenerVigenteAction = vi.fn();
@@ -46,7 +48,10 @@ describe("FeDeVidaPasivoPage (Guía de 5 pasos O22)", () => {
   const renderPage = () =>
     render(
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <FeDeVidaPasivoPage />
+        <ProveedorGuiaAutogestion>
+          <BotonGuiaAutogestion />
+          <FeDeVidaPasivoPage />
+        </ProveedorGuiaAutogestion>
       </SWRConfig>,
     );
 
@@ -98,11 +103,11 @@ describe("FeDeVidaPasivoPage (Guía de 5 pasos O22)", () => {
     renderPage();
 
     await screen.findByText(/Jornada Fe de Vida 2026/i);
-    const botonesGuia = screen.getAllByRole("button", { name: /ver guía/i });
-    expect(botonesGuia.length).toBeGreaterThan(0);
+    const botonGuia = screen.getByRole("button", { name: /ver guía/i });
+    expect(botonGuia).toBeInTheDocument();
 
-    // Al presionar el botón de la cabecera
-    await user.click(botonesGuia[0]);
+    // El botón único de la cabecera abre el panel de la guía
+    await user.click(botonGuia);
 
     // El panel de la guía se abre
     expect(await screen.findByRole("dialog")).toBeInTheDocument();

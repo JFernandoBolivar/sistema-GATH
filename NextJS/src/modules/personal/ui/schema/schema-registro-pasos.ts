@@ -20,8 +20,25 @@ import { CORREO_MAX, DIRECCION_MAX, DIRECCION_MIN, cedulaZod, nombreZod } from "
 
 const opcionalVacio = (v: unknown) => (v === "" ? undefined : v);
 
+const correoOpcional = (mensaje: string) =>
+  z.preprocess(
+    opcionalVacio,
+    z
+      .string()
+      .max(CORREO_MAX, { message: `El correo admite máximo ${CORREO_MAX} caracteres` })
+      .regex(REGEX.EMAIL, { message: mensaje })
+      .optional(),
+  );
+
+/** Los dos correos deben ser distintos cuando ambos están informados. */
+const correosDistintos = <T extends { correo?: string; correoAlternativo?: string }>(d: T) => {
+  const institucional = d.correo?.trim().toLowerCase();
+  const alternativo = d.correoAlternativo?.trim().toLowerCase();
+  return !institucional || !alternativo || institucional !== alternativo;
+};
+
 // --- Paso 1: Información básica -------------------------------------------
-export const pasoBasicInfoSchema = z.object({
+export const pasoBasicInfoBaseSchema = z.object({
   nacionalidad_id: z
     .number({ message: "Debe Seleccionar Una Nacionalidad" })
     .refine((val) => val !== 0, { message: "Debe Seleccionar Una Nacionalidad" }),
@@ -51,23 +68,17 @@ export const pasoBasicInfoSchema = z.object({
   estadoCivil: z
     .number({ message: "Debe Ingresar Un Estado Civil Valido" })
     .refine((val) => val !== 0, { message: "Debe Seleccionar Un Esttado Civil" }),
-  correo: z.preprocess(
-    opcionalVacio,
-    z
-      .string()
-      .max(CORREO_MAX, { message: `El correo admite máximo ${CORREO_MAX} caracteres` })
-      .regex(REGEX.EMAIL, { message: "Solo Se Permiten Correos" })
-      .optional(),
-  ),
+  correo: correoOpcional("Solo Se Permiten Correos"),
+  correoAlternativo: correoOpcional("El correo alternativo no es válido"),
   telefono_habitacion: telefonoZod({ tipo: "cualquiera" }),
   telefono_movil: telefonoZod({ tipo: "movil" }),
   carnet_patria: z.preprocess(
     opcionalVacio,
     z
       .string()
-      .regex(REGEX.DIGITS, { message: "Solo Se Permiten Números" })
-      .min(10, { message: "Debe Ingresar 10 Digitos" })
-      .max(10, { message: "Debe Maximo 10 Digitos" })
+      .regex(REGEX.DIGITS, { message: "El código del Carnet de la Patria solo admite números" })
+      .min(10, { message: "El código del Carnet de la Patria debe tener 10 dígitos" })
+      .max(10, { message: "El código del Carnet de la Patria debe tener 10 dígitos" })
       .optional(),
   ),
   carnet_patria_serial: z.preprocess(opcionalVacio, serialCarnetPatriaZod()),
@@ -75,6 +86,11 @@ export const pasoBasicInfoSchema = z.object({
     .array(contactoEmergenciaFormSchema)
     .max(5, { message: "Máximo 5 contactos de emergencia" })
     .optional(),
+});
+
+export const pasoBasicInfoSchema = pasoBasicInfoBaseSchema.refine(correosDistintos, {
+  message: "El correo alternativo debe ser distinto del institucional",
+  path: ["correoAlternativo"],
 });
 export type PasoBasicInfoType = z.infer<typeof pasoBasicInfoSchema>;
 
@@ -255,43 +271,65 @@ export const pasoPhysicalProfileSchema = z.object({
 export type PasoPhysicalProfileType = z.infer<typeof pasoPhysicalProfileSchema>;
 
 // --- Paso 7: Vivienda -----------------------------------------------------
-export const pasoDwellingSchema = z.object({
-  datos_vivienda: z.object({
-    direccion_exacta: z
-      .string({
-        message: "Debe Ingresar Información Valida",
-        required_error: "Este Campo Es Requerido",
-      })
-      .trim()
-      .min(DIRECCION_MIN, `La dirección debe tener al menos ${DIRECCION_MIN} caracteres`)
-      .max(DIRECCION_MAX, `La dirección admite máximo ${DIRECCION_MAX} caracteres`),
-    estado_id: z
-      .number({
-        message: "Debe Ingresar Información Valida",
-        required_error: "Este Campo Es Requerido",
-      })
-      .min(1, "Debe Seleccionar Un Estado"),
-    municipio_id: z
-      .number({
-        message: "Debe Ingresar Información Valida",
-        required_error: "Este Campo Es Requerido",
-      })
-      .min(1, "Debe Seleccionar Un Municipio"),
-    parroquia: z
-      .number({
-        message: "Debe Ingresar Información Valida",
-        required_error: "Este Campo Es Requerido",
-      })
-      .min(1, "Debe Seleccionar Una Parroquia"),
-    condicion_vivienda_id: z
-      .number({
-        message: "Debe Ingresar Información Valida",
-        required_error: "Este Campo Es Requerido",
-      })
-      .min(1, "Debe Seleccionar Una Condicion De Vivienda"),
-    codigo_postal_id: z.coerce.number().min(1, "Seleccione un código postal"),
-  }),
-});
+/** O40: Venezuela exige la ubicación completa; otro país exige ciudad o región. */
+export function crearPasoDwellingSchema(esVenezuela = true) {
+  return z
+    .object({
+      datos_vivienda: z.object({
+        pais_id: z.number().optional(),
+        ciudad_region: z
+          .string()
+          .trim()
+          .max(120, "La ciudad o región admite máximo 120 caracteres")
+          .optional(),
+        direccion_exacta: z
+          .string({
+            message: "Debe Ingresar Información Valida",
+            required_error: "Este Campo Es Requerido",
+          })
+          .trim()
+          .min(DIRECCION_MIN, `La dirección debe tener al menos ${DIRECCION_MIN} caracteres`)
+          .max(DIRECCION_MAX, `La dirección admite máximo ${DIRECCION_MAX} caracteres`),
+        estado_id: z.number().optional(),
+        municipio_id: z.number().optional(),
+        parroquia: z.number().optional(),
+        condicion_vivienda_id: z
+          .number({
+            message: "Debe Ingresar Información Valida",
+            required_error: "Este Campo Es Requerido",
+          })
+          .min(1, "Debe Seleccionar Una Condicion De Vivienda"),
+        codigo_postal_id: z.number().optional(),
+      }),
+    })
+    .superRefine(({ datos_vivienda: v }, ctx) => {
+      if (esVenezuela) {
+        for (const [campo, mensaje] of [
+          ["estado_id", "Debe Seleccionar Un Estado"],
+          ["municipio_id", "Debe Seleccionar Un Municipio"],
+          ["parroquia", "Debe Seleccionar Una Parroquia"],
+          ["codigo_postal_id", "Seleccione un código postal"],
+        ] as const) {
+          if (!v[campo]) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["datos_vivienda", campo],
+              message: mensaje,
+            });
+          }
+        }
+      } else if (!v.ciudad_region?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["datos_vivienda", "ciudad_region"],
+          message: "Indique la ciudad o región",
+        });
+      }
+    });
+}
+
+/** Esquema por defecto (Venezuela): conserva el formulario actual de activos. */
+export const pasoDwellingSchema = crearPasoDwellingSchema(true);
 export type PasoDwellingType = z.infer<typeof pasoDwellingSchema>;
 
 export type RegistroPasosType = PasoBasicInfoType &

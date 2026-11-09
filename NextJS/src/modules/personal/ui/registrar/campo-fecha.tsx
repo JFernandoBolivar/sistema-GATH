@@ -5,7 +5,7 @@
  * en los pasos de formación complementaria y antecedentes.
  */
 import { formatInTimeZone } from "date-fns-tz";
-import { ChevronDownIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 
 import { Button } from "@/shared/ui/components/button";
 import { Calendar } from "@/shared/ui/components/calendar";
@@ -27,7 +27,7 @@ export function CampoFecha({
         <FormControl>
           <Button type="button" variant="outline" className="w-full min-w-0 justify-between font-normal">
             {value ? formatInTimeZone(value, "UTC", "dd/MM/yyy") : <span>Selecciona una fecha</span>}
-            <ChevronDownIcon />
+            <CalendarIcon className="size-4 opacity-50" aria-hidden />
           </Button>
         </FormControl>
       </PopoverTrigger>

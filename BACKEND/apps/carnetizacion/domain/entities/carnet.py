@@ -1,7 +1,8 @@
 """
-Entidad de Dominio `Carnet` (Regla B1).
+Entidad de Dominio `Carnet` (Regla B1, O44 - E3).
 """
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -16,3 +17,6 @@ class Carnet:
     motivo_nombre: str
     activo: bool = True
     observaciones: str | None = None
+    plantilla_id: str | int | None = None
+    plantilla_version: int | None = None
+    plantilla_snapshot: dict[str, Any] | None = None
