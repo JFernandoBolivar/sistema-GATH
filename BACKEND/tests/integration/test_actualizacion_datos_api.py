@@ -18,6 +18,10 @@ from apps.autogestion.infrastructure.models.actualizacion_models import (
     SolicitudActualizacionModel,
 )
 from apps.autogestion.infrastructure.tasks.expirar_ventanas_tasks import expirar_ventanas_vencidas
+from apps.autogestion.infrastructure.models.soporte_config_models import (
+    ChecklistSoporteSeccionModel,
+    TipoSoporteDocumentoModel,
+)
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstadoCivilModel,
     NacionalidadModel,
@@ -118,7 +122,43 @@ def datos(db):
                                     ('familiar', 'Grupo familiar', True), ('salud', 'Salud y tallas', False),
                                     ('foto', 'Foto', False)):
         SeccionAutogestionableModel.objects.get_or_create(codigo=codigo, defaults={'nombre': nombre, 'requiere_soporte': soporte})
+    sembrar_tipos_soporte()
     return sexo
+
+
+def sembrar_tipos_soporte():
+    """Semilla de O41 equivalente a la migración core/0018 (las pruebas crean las tablas)."""
+    tipos = {
+        'TITULO': 'Título',
+        'ACTA_NACIMIENTO': 'Partida de nacimiento',
+        'CEDULA': 'Copia de la cédula',
+        'CONSTANCIA': 'Constancia',
+        'FOTO': 'Foto',
+        'OTRO': 'Otro documento',
+    }
+    modelos = {}
+    for orden, (codigo, nombre) in enumerate(tipos.items(), start=1):
+        modelos[codigo], _ = TipoSoporteDocumentoModel.objects.get_or_create(
+            codigo=codigo,
+            defaults={'nombre': nombre, 'es_reservado': True, 'es_protegido': True, 'orden': orden * 10},
+        )
+    checklist = {
+        'identidad': ('CEDULA',),
+        'contacto': ('CONSTANCIA', 'OTRO'),
+        'vivienda': ('CONSTANCIA', 'OTRO'),
+        'formacion': ('TITULO', 'CONSTANCIA', 'OTRO'),
+        'complementaria': ('CONSTANCIA', 'OTRO'),
+        'familiar': ('CEDULA', 'ACTA_NACIMIENTO', 'CONSTANCIA', 'OTRO'),
+        'foto': ('FOTO',),
+        'antecedentes': ('CONSTANCIA', 'OTRO'),
+    }
+    for seccion, codigos in checklist.items():
+        for orden, codigo in enumerate(codigos, start=1):
+            ChecklistSoporteSeccionModel.objects.get_or_create(
+                seccion=seccion,
+                tipo_soporte=modelos[codigo],
+                defaults={'etiqueta': tipos[codigo], 'permitido': True, 'requerido': True, 'orden': orden},
+            )
 
 
 def cliente(cedula, permisos, pk=1):
@@ -164,7 +204,7 @@ def test_flujo_completo_solicita_habilita_carga_envia_y_aprueba_parcial(trabajad
         {'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'telefono_habitacion', 'valor': '02129998877'},
         {'seccion': 'contacto', 'entidad': 'datos_complementarios', 'accion': 'MODIFICAR', 'campo': 'correo_alternativo', 'valor': 'maria@gmail.com'},
         {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
-            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 1,
             'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': 1}},
     ]
     r = trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json')
@@ -231,6 +271,39 @@ def test_flujo_completo_solicita_habilita_carga_envia_y_aprueba_parcial(trabajad
     # Una segunda decisión ya no cabe (no hay doble aprobación ni reapertura).
     otra = cliente(ADMINISTRADORA, PERMISOS_BIENESTAR, 3)
     assert otra.post(f'{BASE}/bienestar/solicitudes/{sid}/decidir/', {'version': 99, 'decisiones': decisiones}, format='json').status_code == 409
+
+
+def test_catalogo_de_tipos_soporte_solo_devuelve_permitidos(trabajador, datos):
+    respuesta = trabajador.get(f'{BASE}/catalogos/tipos-soporte/')
+    assert respuesta.status_code == 200, respuesta.content
+    filas = data(respuesta)
+    secciones = {f['seccion'] for f in filas}
+    assert 'formacion' in secciones and 'salud' not in secciones
+    formacion = {f['codigo']: f for f in filas if f['seccion'] == 'formacion'}
+    assert {'TITULO', 'CONSTANCIA', 'OTRO'} <= set(formacion)
+    assert formacion['TITULO']['nombre'] == 'Título'
+
+
+def test_tipo_de_soporte_no_permitido_y_seccion_sin_checklist(trabajador, analista, datos):
+    sid = solicitar(trabajador, ('formacion', 'salud'))
+    habilitar(analista, sid)
+
+    no_permitido = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'formacion', 'tipo': 'CEDULA', 'file': SimpleUploadedFile('cedula.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert no_permitido.status_code == 400
+    assert 'no permitido' in no_permitido.json()['message']
+
+    permitido = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'formacion', 'tipo': 'TITULO', 'file': SimpleUploadedFile('titulo.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert permitido.status_code == 201, permitido.content
+
+    sin_checklist = trabajador.post(f'{BASE}/solicitudes/{sid}/soportes/', {
+        'seccion': 'salud', 'tipo': 'CONSTANCIA', 'file': SimpleUploadedFile('salud.pdf', PDF, 'application/pdf'),
+    }, format='multipart')
+    assert sin_checklist.status_code == 400
+    assert 'no admite soportes' in sin_checklist.json()['message']
 
 
 def test_soportes_se_sirven_solo_al_dueno_y_a_bienestar(trabajador, analista, datos):
@@ -405,7 +478,7 @@ def test_quitar_y_corregir_con_documento_por_registro_copia_al_expediente(trabaj
     referencia = 'ref-nuevo-familiar'
     cambios = [
         {'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'referencia': referencia, 'valor': {
-            'primer_nombre': 'MATEO', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'primer_nombre': 'MATEO', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 2,
             'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 5)).isoformat(), 'sexo_id': 1}},
     ]
     assert trabajador.put(f'{BASE}/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json').status_code == 200
@@ -451,7 +524,7 @@ def test_quitar_contacto_aprobado_lo_elimina_de_la_ficha(trabajador, analista):
 
 
 def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analista):
-    """D19: la identidad exige copia de cédula y el cambio de cédula arrastra sus referencias.
+    """D19: la identidad exige copia de cédula; la cédula es inmutable (O49).
     D21: estado civil, carnet, salud y tallas entran sin documento."""
     estado = EstadoCivilModel.objects.get_or_create(estadoCivil='O10 PRUEBA')[0]
     categoria = CategoriaAlergiaModel.objects.get_or_create(nombre_categoria='O10 PRUEBA')[0]
@@ -460,13 +533,11 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
     region = RegionTallaModel.objects.get_or_create(codigo='O10', defaults={'descripcion': 'O10'})[0]
     prenda = TipoPrendaModel.objects.get_or_create(categoria='Camisa')[0]
     talla = TallaModel.objects.create(valor='O10', region=region, tipo_prenda=prenda)
-    nueva_cedula = '20999999'
 
     sid = solicitar(trabajador, ('identidad', 'salud'))
     habilitar(analista, sid)
     cambios = [
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'nombres', 'valor': 'MARIA ELENA'},
-        {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'cedulaidentidad', 'valor': nueva_cedula},
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'fecha_nacimiento', 'valor': '1990-05-04'},
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'estadoCivil_id', 'valor': estado.pk},
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'carnet_patria', 'valor': '123-4567890-1'},
@@ -491,8 +562,7 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
                       {'version': comparativo['version'], 'decisiones': decisiones}, format='json')
     assert r.status_code == 200, r.content
 
-    assert not EmployeeModel.objects.filter(cedulaidentidad=TRABAJADOR).exists()
-    empleado = EmployeeModel.objects.get(cedulaidentidad=nueva_cedula)
+    empleado = EmployeeModel.objects.get(cedulaidentidad=TRABAJADOR)
     assert empleado.nombres == 'MARIA ELENA'
     assert empleado.fecha_nacimiento.isoformat() == '1990-05-04'
     assert empleado.estadoCivil_id == estado.pk
@@ -500,8 +570,8 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
     salud = PerfilSaludModel.objects.get(empleado=empleado)
     assert list(salud.alergias.values_list('pk', flat=True)) == [alergia.pk]
     assert PerfilFisicoModel.objects.get(empleado=empleado).tallaCamisa_id == talla.pk
-    # La solicitud y sus reservas siguen a la nueva cédula.
-    assert SolicitudActualizacionModel.objects.get(pk=sid).cedula == nueva_cedula
+    # O49: la cédula no cambia; la solicitud conserva la cédula del trabajador.
+    assert SolicitudActualizacionModel.objects.get(pk=sid).cedula == TRABAJADOR
 
 
 def _parametro(clave, valor, tipo='texto'):
@@ -581,7 +651,7 @@ def test_hijo_menor_de_9_sin_cedula_se_acepta_y_con_cedula_del_titular_se_rechaz
     habilitar(analista, sid)
     base = {
         'seccion': 'familiar', 'entidad': 'familiar', 'accion': 'CREAR', 'campo': '*', 'valor': {
-            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1,
+            'primer_nombre': 'LUCIA', 'primer_apellido': 'PRUEBA', 'parentesco_id': 1, 'orden_hijo': 1,
             'fecha_nacimiento': (timezone.now().date() - timedelta(days=365 * 4)).isoformat(), 'sexo_id': 1,
         },
     }
@@ -589,6 +659,7 @@ def test_hijo_menor_de_9_sin_cedula_se_acepta_y_con_cedula_del_titular_se_rechaz
     assert sin_cedula.status_code == 200, sin_cedula.content
     guardado = CambioPropuestoModel.objects.get(origen_id=sid)
     assert 'cedula_familiar' not in guardado.valor_propuesto
+    assert guardado.valor_propuesto['cedula_generada'] == f'{TRABAJADOR}-1'
 
     # La cédula del familiar no puede repetir la del titular.
     con_cedula_titular = dict(base, valor=dict(base['valor'], cedula_familiar=TRABAJADOR))

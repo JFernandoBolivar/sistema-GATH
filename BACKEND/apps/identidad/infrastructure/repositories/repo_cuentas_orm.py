@@ -202,7 +202,14 @@ class RepoCuentasORM:
                 | Q(cedula__apellidos__icontains=nombre)
             )
         if correo:
-            qs = qs.filter(cedula__correo__icontains=correo)
+            c_busq = str(correo).strip()
+            from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+            cedulas_alt = list(
+                DatosComplementariosTrabajadorModel.objects.filter(
+                    correo_alternativo__icontains=c_busq
+                ).values_list('cedula', flat=True)
+            )
+            qs = qs.filter(Q(cedula__correo__icontains=c_busq) | Q(cedula_id__in=cedulas_alt))
         if cedulas_condicion is not None:
             qs = qs.filter(cedula_id__in=cedulas_condicion)
         return qs
@@ -222,8 +229,27 @@ class RepoCuentasORM:
             'cedula__apellidos', 'cedula__nombres', 'pk'
         )
         total = qs.count()
-        filas = qs[offset:offset + limite]
-        return [cuenta_a_entidad(fila) for fila in filas], total
+        filas = list(qs[offset:offset + limite])
+        cedulas_pagina = [str(f.cedula_id) for f in filas if f.cedula_id]
+        from apps.autogestion.infrastructure.models.actualizacion_models import DatosComplementariosTrabajadorModel
+        alt_map = {
+            c.cedula: (c.correo_alternativo or '').strip()
+            for c in DatosComplementariosTrabajadorModel.objects.filter(cedula__in=cedulas_pagina)
+        }
+        entidades = []
+        for fila in filas:
+            entidad = cuenta_a_entidad(fila)
+            alt = alt_map.get(entidad.cedula)
+            if alt:
+                from dataclasses import replace
+                entidad = replace(entidad, correo_alternativo=alt)
+            entidades.append(entidad)
+        return entidades, total
+
+    def resolver_rol_autogestion_id(self) -> int | None:
+        from apps.identidad.infrastructure.models.cuenta_models import RolModel
+        rol = RolModel.objects.filter(nombre_rol__iexact='AUTOGESTION').first()
+        return rol.pk if rol else None
 
     def crear(self, cedula: str, password: str, rol_id: int | None) -> Cuenta:
         if not EmployeeModel.objects.filter(cedulaidentidad=cedula).exists():

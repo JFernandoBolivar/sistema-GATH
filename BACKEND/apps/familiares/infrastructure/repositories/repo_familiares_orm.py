@@ -83,6 +83,7 @@ class RepoFamiliaresORM:
             primer_apellido=familiar_datos['primer_apellido'],
             segundo_apellido=familiar_datos.get('segundo_apellido'),
             cedulaFamiliar=familiar_datos.get('cedula_familiar'),
+            orden_hijo=familiar_datos.get('orden_hijo'),
             parentesco_id=familiar_datos['parentesco_id'],
             fechanacimiento=familiar_datos['fecha_nacimiento'],
             sexo_id=familiar_datos['sexo_id'],

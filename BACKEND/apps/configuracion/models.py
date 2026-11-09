@@ -6,6 +6,9 @@ from apps.configuracion.infrastructure.models.politica_correo_acceso_model impor
     ExcepcionCorreoAccesoModel,
     PoliticaCorreoAccesoModel,
 )
+from apps.configuracion.infrastructure.models.regla_parentesco_model import (
+    ReglaParentescoModel,
+)
 
 __all__ = [
     'ConfiguracionVisualModel',
@@ -13,4 +16,5 @@ __all__ = [
     'VersionImagenCintilloModel',
     'PoliticaCorreoAccesoModel',
     'ExcepcionCorreoAccesoModel',
+    'ReglaParentescoModel',
 ]

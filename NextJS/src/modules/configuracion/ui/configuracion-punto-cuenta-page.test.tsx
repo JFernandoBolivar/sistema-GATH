@@ -132,4 +132,27 @@ describe("ConfiguracionPuntoCuentaPage", () => {
       expect(mockGuardarConfig).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("muestra las 21 variables dinámicas y las secciones formales de la APN", async () => {
+    mockObtenerConfig.mockResolvedValueOnce({
+      success: true,
+      data: {
+        ...configInicial,
+        variables_disponibles: undefined,
+      },
+    });
+    render(<ConfiguracionPuntoCuentaPage />);
+
+    expect(await screen.findByText("Configuración de Punto de Cuenta")).toBeInTheDocument();
+    expect(screen.getByText("{fecha_larga}")).toBeInTheDocument();
+    expect(screen.getByText("{cargo_destino}")).toBeInTheDocument();
+    expect(screen.getByText("{presentado_a}")).toBeInTheDocument();
+    expect(screen.getByText("{unidad}")).toBeInTheDocument();
+
+    expect(screen.getByText(/Bloque de Remisión \(Presentado A \/ Presentado POR\)/i)).toBeInTheDocument();
+    expect(screen.getByText("ASUNTO")).toBeInTheDocument();
+    expect(screen.getByText("SÍNTESIS / EXPOSICIÓN DE MOTIVOS")).toBeInTheDocument();
+    expect(screen.getByText("PROPUESTA")).toBeInTheDocument();
+    expect(screen.getAllByText(/Casillas de Decisión/i).length).toBeGreaterThanOrEqual(1);
+  });
 });

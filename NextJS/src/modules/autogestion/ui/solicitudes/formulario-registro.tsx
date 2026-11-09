@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ZodObject, type ZodTypeAny } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { CampoTelefono } from "@/shared/ui/components/campo-telefono";
 import {
@@ -101,6 +102,11 @@ export function FormularioRegistro({
     () => opcionesCatalogo("parentescosFamilia"),
     { revalidateOnFocus: false },
   );
+  const { data: sexos } = useSWR(
+    esFamiliar ? ["catalogo-autogestion", "sexos", 0] : null,
+    () => opcionesCatalogo("sexos"),
+    { revalidateOnFocus: false },
+  );
   const parentescoId = Number(watch("parentesco_id")) || 0;
   const parentescoNombre = parentescos?.find((o) => o.id === parentescoId)?.nombre ?? null;
   const fechaNacimientoValor = watch("fecha_nacimiento");
@@ -108,10 +114,38 @@ export function FormularioRegistro({
     parentescoNombre,
     typeof fechaNacimientoValor === "string" ? fechaNacimientoValor : null,
   );
+  // O40: el país decide qué ubicación se pide (Venezuela o ciudad/región).
+  const esVivienda = definicion.entidad === "datos_vivienda";
+  const { data: paises } = useSWR(
+    esVivienda ? ["catalogo-autogestion", "paises", 0] : null,
+    () => opcionesCatalogo("paises"),
+    { revalidateOnFocus: false },
+  );
+  const paisId = Number(watch("pais_id")) || 0;
+  const paisElegido = paises?.find((p) => p.id === paisId);
+  const esVenezuela = !paisId || (paisElegido?.esVenezuela ?? true);
+  const tienePais = campos.some((c) => c.campo === "pais_id");
+  const camposDeUbicacionVenezuela = new Set([
+    "estado_id",
+    "municipio_id",
+    "parroquia_id",
+    "codigo_postal_id",
+  ]);
   // La cédula no se muestra en el caso del hijo(a) menor; el resto de campos sigue igual.
-  const camposVisibles = esFamiliar
-    ? campos.filter((c) => c.campo !== "cedula_familiar" || !hijoMenor)
+  let camposVisibles = esFamiliar
+    ? campos.filter(
+        (c) =>
+          (c.campo !== "cedula_familiar" || !hijoMenor) &&
+          (c.campo !== "orden_hijo" || hijoMenor),
+      )
     : campos;
+  if (esVivienda) {
+    camposVisibles = camposVisibles.filter((c) =>
+      esVenezuela
+        ? c.campo !== "ciudad_region"
+        : !camposDeUbicacionVenezuela.has(c.campo),
+    );
+  }
 
   // Cascadas: al cambiar un padre se limpia el hijo (estado → municipio → parroquia, etc.).
   useEffect(() => {
@@ -127,16 +161,140 @@ export function FormularioRegistro({
 
   function enviar(valores: FieldValues) {
     const limpios = { ...valores } as Record<string, unknown>;
+    if (esVivienda) {
+      if (tienePais && !limpios.pais_id) {
+        form.setError("pais_id", { type: "required", message: "Seleccione el país." });
+        toast.error("Revise los campos marcados en rojo.");
+        document.getElementById("pais_id")?.focus();
+        return;
+      }
+      if (esVenezuela) {
+        const faltantes: Array<[string, string]> = [
+          ["estado_id", "Seleccione el estado."],
+          ["municipio_id", "Seleccione el municipio."],
+          ["parroquia_id", "Seleccione la parroquia."],
+          ["codigo_postal_id", "Seleccione el código postal."],
+        ];
+        let invalido = false;
+        for (const [campo, mensaje] of faltantes) {
+          if (camposVisibles.some((c) => c.campo === campo) && !limpios[campo]) {
+            form.setError(campo, { type: "required", message: mensaje });
+            invalido = true;
+          }
+        }
+        if (invalido) {
+          toast.error("Revise los campos marcados en rojo.");
+          const primero = faltantes.find(([c]) => !limpios[c]);
+          if (primero) {
+            document.getElementById(primero[0])?.focus();
+          }
+          return;
+        }
+        limpios.ciudad_region = "";
+      } else {
+        const cr = String(limpios.ciudad_region ?? "").trim();
+        if (!cr) {
+          form.setError("ciudad_region", {
+            type: "required",
+            message: "Indique la ciudad o región.",
+          });
+          toast.error("Revise los campos marcados en rojo.");
+          document.getElementById("ciudad_region")?.focus();
+          return;
+        }
+        limpios.ciudad_region = cr.replace(/\s+/g, " ").toUpperCase().slice(0, 120);
+        for (const campo of camposDeUbicacionVenezuela) {
+          if (campo in limpios) limpios[campo] = "";
+        }
+      }
+    }
     if (esFamiliar) {
       if (hijoMenor) {
-        // No se envía cédula: el servidor genera la del titular con el orden correlativo.
+        // No se envía cédula: el servidor genera la del titular con el orden elegido.
         delete limpios.cedula_familiar;
-      } else if (!String(limpios.cedula_familiar ?? "").trim()) {
-        form.setError("cedula_familiar", {
-          type: "required",
-          message: "La cédula del familiar es obligatoria.",
-        });
-        return;
+        if (!String(limpios.orden_hijo ?? "").trim()) {
+          form.setError("orden_hijo", {
+            type: "required",
+            message: "El orden de nacimiento es obligatorio para un hijo menor de 9 años.",
+          });
+          return;
+        }
+      } else {
+        const cedulaStr = String(limpios.cedula_familiar ?? "").trim();
+        if (!cedulaStr) {
+          form.setError("cedula_familiar", {
+            type: "required",
+            message: "La cédula del familiar es obligatoria.",
+          });
+          return;
+        }
+        if (
+          /\d+-\d+/.test(cedulaStr) ||
+          (cedulaStr.includes("-") && !/^[VEPJvepj]-/.test(cedulaStr))
+        ) {
+          form.setError("cedula_familiar", {
+            type: "validate",
+            message:
+              "El formato de cédula correlativa (titular-orden) solo se genera automáticamente para hijos o tutelados menores sin cédula; no puede escribirse manualmente.",
+          });
+          return;
+        }
+      }
+
+      // Validar fecha de nacimiento no futura
+      if (limpios.fecha_nacimiento) {
+        const fn = new Date(String(limpios.fecha_nacimiento) + "T00:00:00");
+        const hoy = new Date();
+        hoy.setHours(23, 59, 59, 999);
+        if (fn > hoy) {
+          form.setError("fecha_nacimiento", {
+            type: "validate",
+            message: "La fecha de nacimiento no puede ser futura.",
+          });
+          return;
+        }
+
+        // Validar coherencia de edad con parentesco
+        let edad = hoy.getFullYear() - fn.getFullYear();
+        const m = hoy.getMonth() - fn.getMonth();
+        if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) {
+          edad--;
+        }
+        const pUpper = (parentescoNombre ?? "").trim().toUpperCase();
+        if ((pUpper === "MADRE" || pUpper === "PADRE") && edad < 12) {
+          form.setError("fecha_nacimiento", {
+            type: "validate",
+            message: `El familiar debe ser mayor de edad para el parentesco «${pUpper}».`,
+          });
+          return;
+        }
+        if ((pUpper === "CÓNYUGE" || pUpper === "CONYUGE") && edad < 18) {
+          form.setError("fecha_nacimiento", {
+            type: "validate",
+            message: "El parentesco «CÓNYUGE» exige al menos 18 años.",
+          });
+          return;
+        }
+      }
+
+      // Validar sexo contra parentesco
+      if (parentescoNombre && limpios.sexo_id && sexos) {
+        const sexoSel = sexos.find((s) => s.id === Number(limpios.sexo_id))?.nombre?.toUpperCase();
+        const pUpper = parentescoNombre.trim().toUpperCase();
+        if ((pUpper === "MADRE" || pUpper.startsWith("MADRE")) && sexoSel && !sexoSel.startsWith("F")) {
+          form.setError("sexo_id", {
+            type: "validate",
+            message: "El parentesco «MADRE» solo admite sexo femenino.",
+          });
+          return;
+        }
+        if ((pUpper === "PADRE" || pUpper.startsWith("PADRE")) && sexoSel && !sexoSel.startsWith("M")) {
+          form.setError("sexo_id", {
+            type: "validate",
+            message: "El parentesco «PADRE» solo admite sexo masculino.",
+          });
+          return;
+        }
       }
     }
     try {
@@ -159,9 +317,27 @@ export function FormularioRegistro({
   function renderCampo(c: CampoDef) {
     const id = `${idBase}-${c.campo}`;
     const error = formState.errors[c.campo]?.message as string | undefined;
+    const esCampoFamiliarRequerido =
+      esFamiliar &&
+      (c.campo === "primer_nombre" ||
+        c.campo === "primer_apellido" ||
+        c.campo === "parentesco_id" ||
+        c.campo === "fecha_nacimiento" ||
+        c.campo === "sexo_id" ||
+        (c.campo === "cedula_familiar" && !hijoMenor) ||
+        (c.campo === "orden_hijo" && hijoMenor));
+    const requeridoVivienda =
+      esVivienda &&
+      (c.campo === "direccion_exacta" ||
+        c.campo === "condicion_vivienda_id" ||
+        (tienePais && c.campo === "pais_id") ||
+        (esVenezuela
+          ? camposDeUbicacionVenezuela.has(c.campo)
+          : c.campo === "ciudad_region"));
     const requerido =
       (modo === "CREAR" && c.requeridoAlCrear) ||
-      (esFamiliar && c.campo === "cedula_familiar" && !hijoMenor);
+      Boolean(esCampoFamiliarRequerido) ||
+      requeridoVivienda;
     const etiqueta = (
       <label htmlFor={id} className="text-base font-medium">
         {c.etiqueta}
@@ -243,13 +419,40 @@ export function FormularioRegistro({
         </div>
       );
     }
+    if (c.tipo === "entero") {
+      return (
+        <div key={c.campo} className="flex flex-col gap-1.5">
+          {etiqueta}
+          <select className={CLASE_CONTROL} {...comunes} {...register(c.campo)}>
+            <option value="">Seleccione un orden</option>
+            {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+          {mensaje}
+        </div>
+      );
+    }
+    // Observaciones y dirección comparten componente, pero no el límite ni el
+    // contador: se muestra uno solo (el del campo), no el del Textarea.
+    const limiteTexto =
+      c.campo === "observaciones" ? LIMITES_TEXTO.observacion : LIMITES_TEXTO.direccion;
     return (
       <div key={c.campo} className="flex flex-col gap-1.5">
         {etiqueta}
         {c.tipo === "textarea" ? (
           <>
-            <Textarea rows={3} maxLength={LIMITES_TEXTO.direccion.max} className="resize-none" {...comunes} {...register(c.campo)} />
-            <ContadorCampo control={form.control} name={c.campo} max={LIMITES_TEXTO.direccion.max} />
+            <Textarea
+              rows={3}
+              maxLength={limiteTexto.max}
+              mostrarContador={false}
+              className="resize-none"
+              {...comunes}
+              {...register(c.campo)}
+            />
+            <ContadorCampo control={form.control} name={c.campo} max={limiteTexto.max} />
           </>
         ) : c.tipo === "telefono" ? (
           <Controller
@@ -271,7 +474,15 @@ export function FormularioRegistro({
           <Input
             type={c.tipo === "fecha" ? "date" : c.tipo === "correo" ? "email" : "text"}
             autoComplete="off"
-            maxLength={c.tipo === "correo" ? 254 : c.tipo === "fecha" ? 10 : 250}
+            maxLength={
+              c.tipo === "correo"
+                ? 254
+                : c.tipo === "fecha"
+                  ? 10
+                  : c.campo === "ciudad_region"
+                    ? 120
+                    : 250
+            }
             {...comunes}
             {...register(c.campo)}
           />
@@ -291,8 +502,8 @@ export function FormularioRegistro({
       <div className="grid gap-4 sm:grid-cols-2">{camposVisibles.map(renderCampo)}</div>
       {esFamiliar && hijoMenor ? (
         <p role="note" className="text-sm text-muted-foreground">
-          Por ser hijo(a) menor de 9 años no se pide cédula: se generará automáticamente a
-          partir de la cédula del trabajador.
+          Por ser hijo(a) menor de 9 años no se pide cédula: se generará automáticamente como
+          «cédula del titular - orden de nacimiento».
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -340,14 +551,14 @@ function SelectorMultiple({
   }
 
   return (
-    <div
+    <ScrollArea
       id={id}
       role="group"
       aria-label={etiqueta}
       aria-invalid={error ? true : undefined}
       aria-describedby={describedBy}
       className={cn(
-        "max-h-56 overflow-y-auto rounded-md border border-input bg-card p-2",
+        "max-h-56 rounded-md border border-input bg-card p-2",
         error && "border-danger",
       )}
     >
@@ -376,6 +587,6 @@ function SelectorMultiple({
           ))}
         </ul>
       )}
-    </div>
+    </ScrollArea>
   );
 }

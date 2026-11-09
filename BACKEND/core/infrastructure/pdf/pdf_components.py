@@ -109,6 +109,9 @@ HEADER_LABELS = {
     'sexo': 'Sexo',
     'parentesco': 'Parentesco',
     'tipo_nomina': 'Tipo de Nómina',
+    'tipo_pasivo': 'Tipo de Pasivo',
+    'pais': 'País',
+    'contacto': 'Contacto',
     'cargo': 'Cargo',
     'cargo_especifico': 'Cargo Esp.',
     'grado': 'Grado',
@@ -118,6 +121,7 @@ HEADER_LABELS = {
     'ultimo_cargo': 'Último Cargo',
     'dependencia': 'Dependencia',
     'direccion_general': 'Dirección General',
+    'total_anos_apn': 'Total años APN',
 }
 
 

@@ -44,6 +44,7 @@ function valoresIniciales(familiar: FamiliarDTO): FamiliarFormType {
     primerApellido: familiar.primerApellido,
     segundoApellido: familiar.segundoApellido,
     parentescoId: familiar.parentescoId,
+    ordenHijo: familiar.ordenHijo ?? null,
     fechaNacimiento: familiar.fechaNacimiento,
     sexoId: familiar.sexoId,
     mismoEnte: familiar.mismoEnte,
@@ -104,7 +105,7 @@ export function FamiliarFormDialog({ familiar, onGuardado }: FamiliarFormDialogP
           <Pencil className="size-4" aria-hidden="true" /> Editar
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Editar carga familiar</DialogTitle>
         </DialogHeader>

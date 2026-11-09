@@ -3,7 +3,7 @@ Dominio de Correo de Acceso (A7).
 
 Reglas de configuración y resolución del correo de acceso para cuentas de autogestión:
 1. Políticas por condición laboral:
-   - Pasivos: ALTERNATIVO (por defecto), INSTITUCIONAL, CORREO_FICHA.
+   - Pasivos: INSTITUCIONAL (por defecto; el correo principal es el login), ALTERNATIVO, CORREO_FICHA.
    - Activos: INSTITUCIONAL (por defecto), ALTERNATIVO, CORREO_FICHA.
 2. Si falta el correo elegido:
    - DEJAR_SIN_CUENTA (por defecto): no se crea/asigna cuenta hasta que se cargue.
@@ -46,7 +46,9 @@ class GrupoTrabajadores(str, Enum):
 
 @dataclass(frozen=True)
 class PoliticaCorreoAcceso:
-    politica_pasivos: PoliticaFuenteCorreo = PoliticaFuenteCorreo.ALTERNATIVO
+    # O39: el correo principal (institucional de la ficha) es el login por defecto
+    # de los pasivos. El alternativo ya no cambia el acceso.
+    politica_pasivos: PoliticaFuenteCorreo = PoliticaFuenteCorreo.INSTITUCIONAL
     politica_activos: PoliticaFuenteCorreo = PoliticaFuenteCorreo.INSTITUCIONAL
     si_falta_elegido: PoliticaFaltaCorreo = PoliticaFaltaCorreo.DEJAR_SIN_CUENTA
     avisar_al_aplicar_masivo: bool = False
@@ -103,11 +105,19 @@ def resolver_correo_para_trabajador(
     """
     es_pasivo = datos.condicion.strip().upper() == 'PASIVO'
     fuente_primaria = politica.politica_pasivos if es_pasivo else politica.politica_activos
+    # O39: el alternativo nunca es login de un pasivo (solo el principal o la ficha).
+    if es_pasivo and fuente_primaria == PoliticaFuenteCorreo.ALTERNATIVO:
+        fuente_primaria = PoliticaFuenteCorreo.INSTITUCIONAL
 
     def obtener_correo_por_fuente(fuente: PoliticaFuenteCorreo) -> str:
         if fuente == PoliticaFuenteCorreo.ALTERNATIVO:
             return (datos.correo_alternativo or '').strip()
         if fuente == PoliticaFuenteCorreo.INSTITUCIONAL:
+            # FIX-AUD8.7: para un pasivo el correo principal es el de la ficha,
+            # sea cual sea su dominio (se aceptan correos externos). Para un
+            # activo sigue siendo solo el institucional.
+            if es_pasivo:
+                return (datos.correo_institucional or datos.correo_ficha or '').strip()
             return (datos.correo_institucional or '').strip()
         if fuente == PoliticaFuenteCorreo.CORREO_FICHA:
             return (datos.correo_ficha or '').strip()

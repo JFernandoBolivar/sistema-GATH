@@ -122,11 +122,11 @@ export const usuarioIdSchema = z.object({
 
 /** Alta/edición de rol del catálogo (zero-trust R7). */
 export const rolSchema = z.object({
-  nombreRol: z
+  nombreVisible: z
     .string()
     .trim()
     .min(2, ERROR.MIN_LENGTH(2))
-    .max(50, ERROR.MAX_LENGTH(50)),
+    .max(100, ERROR.MAX_LENGTH(100)),
   descripcionRol: textoLibreOpcional("La descripción", LIMITES_TEXTO.observacion).optional().nullable(),
 });
 

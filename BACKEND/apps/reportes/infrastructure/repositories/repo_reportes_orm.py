@@ -220,7 +220,7 @@ class RepoReportesORM:
 
         return ResultadoReporte(
             titulo="Reporte de Personal Activo",
-            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn', 'apn_aviso'],
+            columnas=['#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso', 'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn'],
             filas=filas,
             total_registros=len(filas),
             metadatos=metadatos,
@@ -238,6 +238,7 @@ class RepoReportesORM:
 
         qs = _anotar_ingreso_apn(anotar_apn_oficial(
             EmployeeModel.objects.select_related('sexoid', 'estadoCivil', 'nacionalidad')
+            .prefetch_related('datos_vivienda__pais')
             .filter(filtro_por_condicion(CONDICION_PASIVO, 'cedulaidentidad')),
             fecha_corte=consulta.fecha_corte,
         ))
@@ -271,43 +272,67 @@ class RepoReportesORM:
         )
 
         from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-        from apps.personal.infrastructure.models.expediente_models import (
-            AntecedenteServicioModel,
-        )
+        from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
 
         cedulas = [e.cedulaidentidad for e in pagina]
-        pks = [e.pk for e in pagina]
         asigs = _asignaciones_por_cedula(AsigTrabajoModel, cedulas)
-        antecedentes = fechas_de_ingreso(AntecedenteServicioModel, pks)
+
+        egresos = {}
+        for egr in (
+            EmployeeEgresadoModel.objects.filter(employee_id__in=cedulas)
+            .select_related('motivo_egreso')
+            .order_by('employee_id', '-pk')
+        ):
+            if egr.employee_id not in egresos:
+                egresos[egr.employee_id] = egr
 
         filas = []
         for idx, e in enumerate(pagina, start=1):
             asig = asigs.get(e.cedulaidentidad)
-            f_ing = antecedentes.get(e.pk)
+            egr = egresos.get(e.cedulaidentidad)
+
+            if asig and asig.tiponominaid and asig.tiponominaid.nomina:
+                tipo_pasivo = asig.tiponominaid.nomina
+            elif egr and egr.motivo_egreso and egr.motivo_egreso.movimiento:
+                tipo_pasivo = egr.motivo_egreso.movimiento
+            else:
+                tipo_pasivo = ''
+
+            if egr and egr.fecha_egreso:
+                f_egr = egr.fecha_egreso.strftime('%d/%m/%Y')
+            else:
+                f_egr = ''
+
+            contactos = []
+            if e.telefono_movil:
+                contactos.append(e.telefono_movil)
+            elif e.telefono_habitacion:
+                contactos.append(e.telefono_habitacion)
+            if e.correo:
+                contactos.append(e.correo)
+            contacto = ' / '.join(contactos)
+
+            viviendas = list(e.datos_vivienda.all())
+            vivienda = viviendas[0] if viviendas else None
+            pais = vivienda.pais.nombre if vivienda is not None and vivienda.pais else ''
+
             filas.append({
                 '#': str(idx),
-                'codigo': asig.codigo if asig else 'S/D',
                 'cedula': str(e.cedulaidentidad),
                 'nombres': e.nombres or '',
                 'apellidos': e.apellidos or '',
-                'fecha_ingreso': f_ing.strftime('%d/%m/%Y') if f_ing else 'N/A',
-                'sexo': e.sexoid.sexo if e.sexoid else '',
-                'tipo_nomina': asig.tiponominaid.nomina if asig and asig.tiponominaid else 'S/D',
-                'cargo': asig.denominacioncargoid.cargo if asig and asig.denominacioncargoid else 'S/D',
-                'organismo_adscrito': (
-                    asig.OrganismoAdscritoid.Organismoadscrito
-                    if asig and asig.OrganismoAdscritoid else 'CONATEL'
-                ),
-                'total_anos_apn': round(float(e.apn_oficial or 0), 4),
-                'apn_aviso': '' if (e._tiene_ingreso_apn or e._tiene_contrato_apn) else 'Fecha de ingreso pendiente',
+                'nombre_completo': f"{e.nombres or ''} {e.apellidos or ''}".strip(),
+                'tipo_pasivo': tipo_pasivo,
+                'pais': pais,
+                'fecha_egreso': f_egr,
+                'contacto': contacto,
             })
 
         return ResultadoReporte(
             titulo='Reporte de Personal Pasivo',
             columnas=[
-                '#', 'codigo', 'cedula', 'nombres', 'apellidos', 'fecha_ingreso',
-                'sexo', 'tipo_nomina', 'cargo', 'organismo_adscrito', 'total_anos_apn',
-                'apn_aviso',
+                '#', 'cedula', 'nombres', 'apellidos', 'tipo_pasivo', 'pais',
+                'fecha_egreso', 'contacto',
             ],
             filas=filas,
             total_registros=len(filas),

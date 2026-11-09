@@ -15,6 +15,7 @@ from apps.autogestion.domain.entities.solicitud_actualizacion import (
 )
 from apps.autogestion.domain.events import EventoAutogestion, PublicadorEventos, TipoEvento
 from apps.autogestion.domain.ports.ficha_trabajador import LectorFicha
+from apps.autogestion.domain.ports.repo_soporte_configuracion import RepoSoporteConfiguracion
 from apps.autogestion.domain.ports.repo_solicitudes import (
     RepoCambiosPropuestos,
     RepoSecciones,
@@ -29,6 +30,7 @@ from apps.autogestion.domain.services.validacion_cambios import (
     validar_motivo_eliminar,
     validar_registro_nuevo,
     validar_valor,
+    validar_vivienda_condicional,
 )
 from apps.autogestion.domain.value_objects.estado_solicitud import EstadoSolicitud
 from apps.autogestion.domain.value_objects.secciones import (
@@ -39,7 +41,6 @@ from apps.autogestion.domain.value_objects.secciones import (
     MAX_CONTACTOS_EMERGENCIA,
     ORIGEN_ACTUALIZACION,
     ENTIDADES_DE_LISTA,
-    TIPOS_SOPORTE_POR_SECCION,
     VERBO_ACCION,
     Accion,
     Seccion,
@@ -113,7 +114,13 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         )
 
     if accion is Accion.CREAR:
-        valor = validar_registro_nuevo(item.seccion, item.entidad, item.valor)
+        pais_id = None
+        if item.entidad == 'datos_vivienda' and isinstance(item.valor, dict):
+            pais_id = item.valor.get('pais_id')
+        es_venezuela = getattr(lector, 'es_pais_venezuela', lambda _pais: True)(pais_id)
+        valor = validar_registro_nuevo(
+            item.seccion, item.entidad, item.valor, es_venezuela=es_venezuela,
+        )
         for campo in valor:
             _exigir_campo_habilitado(solicitud, item.entidad, campo)
         lector.validar_referencias(valor)
@@ -131,6 +138,10 @@ def _preparar_cambio(item: ItemCambioDTO, solicitud: SolicitudActualizacion, lec
         if item.entidad == 'datos_vivienda' and not lector.existe_registro_unico(solicitud.cedula, item.entidad):
             raise ValidationError("No hay vivienda registrada: proponga el registro completo con acción CREAR.")
         valor = validar_valor(item.campo, item.valor)
+        if item.campo == 'correo_alternativo' and valor:
+            validador_alt = getattr(lector, 'validar_correo_alternativo', None)
+            if callable(validador_alt):
+                validador_alt(solicitud.cedula, valor)
         if item.entidad == 'familiar' and item.campo == 'cedula_familiar' and not valor:
             raise ValidationError('La cédula del familiar es obligatoria.', campo='cedula_familiar')
         lector.validar_referencias({item.campo: valor})
@@ -177,9 +188,77 @@ def guardar_borrador(
         raise ValidationError(f"Máximo {MAX_CAMBIOS} cambios por solicitud.")
     vistos: set = set()
     cambios = [c for c in (_preparar_cambio(i, solicitud, lector, vistos) for i in items) if c is not None]
+    _validar_familiares_agrupados(solicitud.cedula, cambios, lector)
     _validar_limite_contactos(solicitud.cedula, cambios, lector)
+    _validar_vivienda_del_borrador(solicitud.cedula, cambios, lector)
     repo_cambios.reemplazar(ORIGEN_ACTUALIZACION, solicitud.id, cambios, conservar_secciones=(Seccion.FOTO.value,))
     return repo.guardar(solicitud, solicitud.version)  # sube la versión: el borrador cambió
+
+
+_CAMPOS_FAMILIAR_DEPENDIENTES = frozenset({
+    'parentesco_id', 'fecha_nacimiento', 'sexo_id', 'cedula_familiar',
+})
+
+
+def _validar_familiares_agrupados(
+    cedula: str, cambios: list[CambioPropuesto], lector: LectorFicha,
+) -> None:
+    """FIX-FAM2: valida el estado final de cada familiar con todos sus cambios juntos.
+
+    Validar cada campo aislado contra el dato guardado rechaza combinaciones válidas
+    (p. ej. cambiar a MADRE y corregir su fecha de nacimiento en el mismo guardado).
+    """
+    validador = getattr(lector, 'validar_familiar_cambio', None)
+    if not callable(validador):
+        return
+    grupos: dict[str, dict] = {}
+    for cambio in cambios:
+        if (
+            cambio.accion != Accion.MODIFICAR.value
+            or cambio.entidad_destino != 'familiar'
+            or cambio.entidad_id in (None, '')
+            or cambio.campo not in _CAMPOS_FAMILIAR_DEPENDIENTES
+        ):
+            continue
+        grupos.setdefault(str(cambio.entidad_id), {})[cambio.campo] = cambio.valor_propuesto
+    for entidad_id, valores in grupos.items():
+        validador(cedula, entidad_id, valores)
+
+
+_CAMPOS_VIVIENDA = (
+    'pais_id', 'ciudad_region', 'estado_id', 'municipio_id', 'parroquia_id',
+    'direccion_exacta', 'condicion_vivienda_id', 'codigo_postal_id',
+)
+
+
+def _validar_vivienda_del_borrador(
+    cedula: str, cambios: list[CambioPropuesto], lector: LectorFicha,
+) -> None:
+    """O40: valida el estado final de la vivienda, no cada campo por separado.
+
+    El trabajador puede cambiar el país y vaciar la ubicación venezolana en
+    cambios distintos del mismo borrador; la regla solo tiene sentido sobre el
+    registro resultante.
+    """
+    de_vivienda = [c for c in cambios if c.entidad_destino == 'datos_vivienda']
+    if not de_vivienda:
+        return
+    if lector.existe_registro_unico(cedula, 'datos_vivienda'):
+        valores = {
+            campo: lector.valor_actual(cedula, 'datos_vivienda', None, campo)
+            for campo in _CAMPOS_VIVIENDA
+        }
+    else:
+        valores = {}
+    for cambio in de_vivienda:
+        if cambio.accion in (Accion.CREAR.value, Accion.MODIFICAR.value):
+            if isinstance(cambio.valor_propuesto, dict):
+                valores.update(cambio.valor_propuesto)
+    limpios = {k: v for k, v in valores.items() if v not in (None, '')}
+    es_venezuela = getattr(lector, 'es_pais_venezuela', lambda _pais: True)(
+        limpios.get('pais_id'),
+    )
+    validar_vivienda_condicional(limpios, es_venezuela)
 
 
 def _validar_limite_contactos(cedula: str, cambios: list[CambioPropuesto], lector: LectorFicha) -> None:
@@ -201,7 +280,7 @@ def _validar_limite_contactos(cedula: str, cambios: list[CambioPropuesto], lecto
 
 def adjuntar_soporte(
     repo: RepoSolicitudes, repo_soportes: RepoSoportes, repo_cambios: RepoCambiosPropuestos,
-    lector: LectorFicha, almacen: FileStorage,
+    lector: LectorFicha, almacen: FileStorage, repo_soporte_config: RepoSoporteConfiguracion,
     *, solicitud_id: str, cedula: str, seccion: str, tipo: str, contenido: bytes, mime: str,
     extension: str, nombre_original: str, ahora: datetime,
     entidad_id: str | None = None, referencia: str | None = None,
@@ -211,13 +290,13 @@ def adjuntar_soporte(
     solicitud.exigir_ventana_vigente(ahora)
     if seccion not in solicitud.secciones_habilitadas:
         raise ValidationError(f"La sección '{seccion}' no está habilitada en esta ventana.")
-    try:
-        tipo_enum = TipoSoporte(tipo)
-    except ValueError:
-        raise ValidationError(f"Tipo de soporte inválido: '{tipo}'.") from None
-    if tipo_enum not in TIPOS_SOPORTE_POR_SECCION.get(seccion, frozenset()):
-        validos = ', '.join(sorted(t.value for t in TIPOS_SOPORTE_POR_SECCION.get(seccion, ())))
-        raise ValidationError(f"Tipo de soporte no permitido para '{seccion}'. Use: {validos}.")
+    permitidos = [fila for fila in repo_soporte_config.checklist_de_seccion(seccion) if fila.permitido]
+    tipo_permitido = next((fila for fila in permitidos if fila.codigo == tipo), None)
+    if tipo_permitido is None:
+        if permitidos:
+            validos = ', '.join(sorted(fila.codigo for fila in permitidos))
+            raise ValidationError(f"Tipo de soporte no permitido para '{seccion}'. Use: {validos}.")
+        raise ValidationError(f"La sección '{seccion}' no admite soportes documentales.")
     existentes = [s for s in repo_soportes.listar(ORIGEN_ACTUALIZACION, solicitud.id) if s.seccion == seccion]
     es_foto = seccion == Seccion.FOTO.value
     if es_foto:
@@ -231,7 +310,7 @@ def adjuntar_soporte(
     clave = f"autogestion/soportes/{cedula}/{solicitud.id}/{uuid.uuid4().hex}{extension}"
     almacen.subir(clave, contenido, mime)
     soporte = repo_soportes.agregar(SoporteDocumental(
-        id='', origen_tipo=ORIGEN_ACTUALIZACION, origen_id=solicitud.id, seccion=seccion, tipo=tipo_enum.value,
+        id='', origen_tipo=ORIGEN_ACTUALIZACION, origen_id=solicitud.id, seccion=seccion, tipo=tipo_permitido.codigo,
         clave_s3=clave, mime_real=mime, tamano_bytes=len(contenido), sha256=hashlib.sha256(contenido).hexdigest(),
         nombre_original=(nombre_original or '')[:200], subido_por=cedula,
         entidad_id=(entidad_id or None), referencia=(referencia or None),
@@ -279,6 +358,10 @@ def enviar_solicitud(
         politica.exigir_secciones({c.seccion for c in cambios})
     for c in cambios:
         _exigir_accion_habilitada(solicitud, c.entidad_destino, Accion(c.accion))
+        if c.campo == 'correo_alternativo' and c.valor_propuesto:
+            validador_alt = getattr(lector, 'validar_correo_alternativo', None)
+            if callable(validador_alt):
+                validador_alt(cedula, str(c.valor_propuesto))
     soportes = repo_soportes.listar(ORIGEN_ACTUALIZACION, solicitud.id)
     con_soporte = {s.seccion for s in soportes}
     exigen = {s.codigo for s in repo_secciones.listar(solo_activas=False) if s.requiere_soporte}

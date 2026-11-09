@@ -19,6 +19,7 @@ import {
   BookUser,
   CalendarClock,
   ContactRound,
+  FileSpreadsheet,
   HeartPulse,
   Home,
   ListCheck,
@@ -39,6 +40,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { SelectorGestionPersonal } from "@/components/layout/selector-gestion-personal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { filtrarMenuPorPermisos } from "@/shared/lib/permiso-menu";
 import { ContadorMenuNotificaciones, moduloDeRutaNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
@@ -48,6 +50,8 @@ type SubMenuItem = {
   url: string;
   icon: typeof Home;
   permiso?: string;
+  /** Subtítulo o separador visual previo a este ítem. */
+  subtituloPrevio?: string;
 };
 
 type MenuItem = {
@@ -94,6 +98,13 @@ const items: MenuItem[] = [
         url: "/pasivos/familiares/consultar?pasivo=1",
         icon: BookUser,
         permiso: "familiares.ver",
+      },
+      {
+        title: "Carga Masiva",
+        url: "/pasivos/carga-masiva",
+        icon: FileSpreadsheet,
+        permiso: "pasivos.carga_masiva",
+        subtituloPrevio: "Procesos masivos",
       },
     ],
   },
@@ -210,6 +221,7 @@ export function AppSidebarPasivos() {
               className="h-full w-full object-cover rounded-2xl"
             />
           </SidebarGroupLabel>
+          <SelectorGestionPersonal className="mt-3 px-2 lg:hidden" tono="claro" />
           <SidebarGroupContent>
             {!session ? (
               <>
@@ -244,17 +256,26 @@ export function AppSidebarPasivos() {
                         {openSubmenu === item.title && (
                           <div className="pl-8 py-1 gap-1 text-sm">
                             {item.subMenu.map((subItem) => (
-                              <SidebarMenuButton
-                                key={subItem.title}
-                                asChild
-                                isActive={pathname === subItem.url}
-                                className="mt-2 text-sm"
-                              >
-                                <Link href={subItem.url} className="text-sm">
-                                  <subItem.icon className="h-[32px]" />
-                                  {subItem.title}
-                                </Link>
-                              </SidebarMenuButton>
+                              <div key={subItem.title}>
+                                {subItem.subtituloPrevio ? (
+                                  <div className="mt-3 mb-1 pt-2 border-t border-sidebar-border/60">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
+                                      {subItem.subtituloPrevio}
+                                    </span>
+                                  </div>
+                                ) : null}
+                                <SidebarMenuButton
+                                  key={subItem.title}
+                                  asChild
+                                  isActive={pathname === subItem.url}
+                                  className="mt-2 text-sm"
+                                >
+                                  <Link href={subItem.url} className="text-sm">
+                                    <subItem.icon className="h-[32px]" />
+                                    {subItem.title}
+                                  </Link>
+                                </SidebarMenuButton>
+                              </div>
                             ))}
                           </div>
                         )}
@@ -297,7 +318,7 @@ export function AppSidebarPasivos() {
                 </h2>
               </div>
               <div className="flex flex-col">
-                <h2 className="font-semibold">Rol: {session.user.role?.nombre_rol || "Sin Rol"}</h2>
+                <h2 className="font-semibold">Rol: {session.user.role?.nombre_visible || session.user.role?.nombre_rol || "Sin Rol"}</h2>
               </div>
             </div>
           )}

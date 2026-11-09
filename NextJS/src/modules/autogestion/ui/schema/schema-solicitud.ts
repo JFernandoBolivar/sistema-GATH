@@ -18,12 +18,12 @@ import {
   PLAZO_MIN_DIAS,
 } from "../../application/use-cases/gestionar-solicitud-bienestar";
 
-// Acepta la cédula real y la sintética que el servidor genera para un hijo(a) menor de 9
-// años (`<cédula del titular>-<orden>`), que se conserva al editar ese familiar.
-export const CEDULA_FAMILIAR = /^(?:[A-Za-z]?-?\d{5,9}|\d{5,9}-\d+)$/;
+// Acepta la cédula real (V-12345678 o 12345678). La cédula sintética de hijos menores
+// (<titular>-<orden>) se genera exclusivamente en el servidor y no puede escribirse a mano.
+export const CEDULA_FAMILIAR = /^[A-Za-z]?-?\d{5,9}$/;
 export const CEDULA_FAMILIAR_MSG = "Cédula inválida. Ejemplo: V-12345678";
 
-const textoRequerido = (nombre: string, max = 150) =>
+const _textoRequerido = (nombre: string, max = 150) =>
   z
     .string({ required_error: `${nombre} es obligatorio` })
     .trim()
@@ -117,12 +117,14 @@ export const contactoEmergenciaSchema = z.object({
 export type ContactoEmergenciaValores = z.infer<typeof contactoEmergenciaSchema>;
 
 export const viviendaSchema = z.object({
-  estado_id: idCatalogo("el estado"),
-  municipio_id: idCatalogo("el municipio"),
-  parroquia_id: idCatalogo("la parroquia"),
+  pais_id: idCatalogoOpcional,
+  ciudad_region: textoOpcional(120),
+  estado_id: idCatalogoOpcional,
+  municipio_id: idCatalogoOpcional,
+  parroquia_id: idCatalogoOpcional,
   direccion_exacta: textoLibreRequerido("La dirección", LIMITES_TEXTO.direccion),
   condicion_vivienda_id: idCatalogo("la condición de la vivienda"),
-  codigo_postal_id: idCatalogo("el código postal"),
+  codigo_postal_id: idCatalogoOpcional,
 });
 export type ViviendaValores = z.infer<typeof viviendaSchema>;
 
@@ -145,6 +147,13 @@ export const complementariaSchema = z.object({
 });
 export type ComplementariaValores = z.infer<typeof complementariaSchema>;
 
+export const antecedenteSchema = z.object({
+  organismo_id: idCatalogo("el organismo o institución"),
+  fecha_ingreso: z.string().regex(DATE_ISO, DATE_ISO_MSG),
+  fecha_egreso: z.string().regex(DATE_ISO, DATE_ISO_MSG).optional().or(z.literal("")),
+});
+export type AntecedenteValores = z.infer<typeof antecedenteSchema>;
+
 export const familiarSchema = z.object({
   primer_nombre: nombreRequerido("El primer nombre"),
   segundo_nombre: nombreOpcional(),
@@ -157,6 +166,14 @@ export const familiarSchema = z.object({
     .optional()
     .or(z.literal("")),
   parentesco_id: idCatalogo("el parentesco"),
+  orden_hijo: z
+    .union([z.string(), z.number()])
+    .optional()
+    .nullable()
+    .refine(
+      (v) => v === undefined || v === null || v === "" || (Number(v) >= 1 && Number(v) <= 99),
+      "El orden de nacimiento debe estar entre 1 y 99",
+    ),
   fecha_nacimiento: z
     .string()
     .regex(DATE_ISO, DATE_ISO_MSG)
@@ -170,8 +187,6 @@ export const familiarSchema = z.object({
 export type FamiliarValores = z.infer<typeof familiarSchema>;
 
 // ── Identidad (D19/D21) ──
-export const CEDULA_EMPLEADO = /^\d{5,9}$/;
-export const CEDULA_EMPLEADO_MSG = "La cédula debe tener entre 5 y 9 dígitos";
 
 const fechaNacimientoSchema = z
   .string()
@@ -189,10 +204,7 @@ export const identidadSchema = z.object({
   nombres: nombreRequerido("Los nombres"),
   apellidos: nombreRequerido("Los apellidos"),
   fecha_nacimiento: fechaNacimientoSchema,
-  cedulaidentidad: z
-    .string({ required_error: "La cédula es obligatoria" })
-    .trim()
-    .regex(CEDULA_EMPLEADO, CEDULA_EMPLEADO_MSG),
+  // O49-BLOQUEO: la cédula del trabajador no es editable en Autogestión.
   estadoCivil_id: idCatalogoOpcional,
   carnet_patria: z
     .string()
@@ -200,7 +212,7 @@ export const identidadSchema = z.object({
     .optional()
     .or(z.literal(""))
     .transform((v) => normalizarCarnetPatria(v ?? ""))
-    .refine((v) => v === "" || /^\d{10}$/.test(v), "El Carnet de la Patria debe tener 10 dígitos"),
+    .refine((v) => v === "" || /^\d{10}$/.test(v), "El código del Carnet de la Patria debe tener 10 dígitos"),
   carnet_patria_serial: z
     .string()
     .trim()
@@ -294,10 +306,12 @@ export const ESQUEMAS_ENTIDAD = {
   "contacto:contacto_emergencia": contactoEmergenciaSchema,
   "vivienda:datos_vivienda": viviendaSchema,
   "formacion:formacion_academica": formacionSchema,
+  "complementaria:formacion_complementaria": complementariaSchema,
   "familiar:datos_complementarios": tieneHijosSchema,
   "familiar:familiar": familiarSchema,
   "salud:perfil_salud": perfilSaludSchema,
   "salud:perfil_fisico": perfilFisicoSchema,
+  "antecedentes:antecedente_servicio": antecedenteSchema,
 } as const;
 
 export type ClaveEsquemaEntidad = keyof typeof ESQUEMAS_ENTIDAD;

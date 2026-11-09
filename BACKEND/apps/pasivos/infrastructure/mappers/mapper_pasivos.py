@@ -128,6 +128,8 @@ def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = No
     tipo_nomina = cargos[0]['tipo_nomina_nombre'] if cargos else "PASIVO"
     tipo_nomina_id = cargos[0]['tipo_nomina_id'] if cargos else None
     apn = _apn_desde_expediente(expediente, modelo.fecha_egreso)
+    motivo_nombre = modelo.motivo_egreso.movimiento if modelo.motivo_egreso else None
+    fecha_egreso = str(modelo.fecha_egreso)[:10] if modelo.fecha_egreso else None
     return Pasivo(
         id=modelo.pk,
         cedula=str(modelo.employee_id),
@@ -135,7 +137,13 @@ def pasivo_a_entidad(modelo: EmployeeEgresadoModel, expediente: dict | None = No
         apellidos=apellidos,
         tipo_pasivo=str(tipo_nomina),
         tipo_nomina_id=tipo_nomina_id,
-        fecha_egreso=str(modelo.fecha_egreso),
+        fecha_egreso=fecha_egreso,
+        motivo_egreso_id=getattr(modelo, 'motivo_egreso_id', None) or (
+            getattr(modelo.motivo_egreso, 'pk', None) or getattr(modelo.motivo_egreso, 'id', None)
+            if getattr(modelo, 'motivo_egreso', None)
+            else None
+        ),
+        motivo_egreso=motivo_nombre,
         resolucion=modelo.n_contrato,
         correo=emp.correo if emp else None,
         telefono_movil=emp.telefono_movil if emp else None,
@@ -163,11 +171,26 @@ def pasivo_desde_asignacion(asignacion, expediente: dict | None = None) -> Pasiv
     """
     Mapea un `AsigTrabajoModel` con `Tipo_personal=PASIVO` (Fase 2.1 del
     plan de reparación) — el criterio real del legado para "es un pasivo con
-    nómina activa" (`list_employees_pasive`), distinto de un registro
-    `EmployeeEgresadoModel` (egreso definitivo, ver `pasivo_a_entidad`).
+    nómina activa" (`list_employees_pasive`), enriquecido con su fecha de vigencia
+    y motivo si existe un registro `EmployeeEgresadoModel`.
     """
     emp = asignacion.employee
     apn = _apn_desde_expediente(expediente, asignacion.fecha_actualizacion)
+    egreso = (
+        EmployeeEgresadoModel.objects.select_related('motivo_egreso')
+        .filter(employee_id=asignacion.employee_id)
+        .order_by('-fecha_egreso')
+        .first()
+    )
+    if egreso:
+        fecha_egreso = str(egreso.fecha_egreso)[:10] if egreso.fecha_egreso else None
+        motivo_egreso = egreso.motivo_egreso.movimiento if egreso.motivo_egreso else None
+        motivo_egreso_id = egreso.motivo_egreso_id
+    else:
+        fecha_egreso = str(asignacion.fecha_actualizacion)[:10] if asignacion.fecha_actualizacion else None
+        motivo_egreso = None
+        motivo_egreso_id = None
+
     return Pasivo(
         id=asignacion.pk,
         cedula=str(asignacion.employee_id),
@@ -175,7 +198,9 @@ def pasivo_desde_asignacion(asignacion, expediente: dict | None = None) -> Pasiv
         apellidos=emp.apellidos if emp else "",
         tipo_pasivo=asignacion.tiponominaid.nomina if asignacion.tiponominaid else "PASIVO",
         tipo_nomina_id=asignacion.tiponominaid_id,
-        fecha_egreso=str(asignacion.fecha_actualizacion),
+        fecha_egreso=fecha_egreso,
+        motivo_egreso_id=motivo_egreso_id,
+        motivo_egreso=motivo_egreso,
         resolucion=asignacion.codigo,
         observaciones=asignacion.observaciones,
         correo=emp.correo if emp else None,

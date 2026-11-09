@@ -4,7 +4,7 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import type { ClaveCatalogo } from "../../domain/value-objects/campos-seccion";
-import type { OpcionCatalogo } from "../../domain/ports/repo-catalogos-autogestion";
+import type { OpcionCatalogo, TipoSoporteSeccion } from "../../domain/ports/repo-catalogos-autogestion";
 import type { FiltrosBandeja, FiltrosMisSolicitudes } from "../../domain/ports/repo-solicitudes";
 import type {
   DatosComplementariosDTO,
@@ -199,6 +199,15 @@ export async function listarCatalogoAction(
     "",
     "No se pudieron cargar las opciones del catálogo.",
     () => repoCatalogosAutogestionApi.listar(clave, padreId),
+  );
+}
+
+export async function listarTiposSoporteAction(): Promise<ResultadoAccion<TipoSoporteSeccion[]>> {
+  return ejecutar(
+    "listarTiposSoporteAction",
+    "",
+    "No se pudieron cargar los tipos de documento.",
+    () => repoCatalogosAutogestionApi.listarTiposSoporte(),
   );
 }
 

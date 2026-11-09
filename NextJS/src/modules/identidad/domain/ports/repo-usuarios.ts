@@ -28,6 +28,7 @@ export interface PaginaUsuariosEntity {
 export interface PermisosUsuarioEntity {
   readonly rolId: number | null;
   readonly rolNombre: string | null;
+  readonly rolNombreVisible?: string | null;
   readonly delRol: string[];
   readonly allow: string[];
   readonly deny: string[];
@@ -66,6 +67,7 @@ export interface FilaMatrizEntity {
 export interface ColumnaRolMatrizEntity {
   readonly rolId: number;
   readonly nombre: string;
+  readonly nombreVisible?: string;
   readonly codigos: string[];
 }
 

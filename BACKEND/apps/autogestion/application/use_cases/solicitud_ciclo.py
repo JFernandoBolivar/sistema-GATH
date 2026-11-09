@@ -2,14 +2,18 @@
 Ciclo de vida de la solicitud de actualización (PLAN_PRIORIDAD §2.1, B3):
 solicitar -> habilitar ventana -> prorrogar -> expirar. Casos de uso puros: reciben puertos.
 """
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from apps.autogestion.domain.entities.solicitud_actualizacion import ProrrogaVentana, SolicitudActualizacion
 from apps.autogestion.domain.events import EventoAutogestion, PublicadorEventos, TipoEvento
 from apps.autogestion.domain.ports.repo_solicitudes import RepoSecciones, RepoSolicitudes
 from apps.autogestion.domain.services.politica_condicion import PoliticaAutogestion
 from apps.autogestion.domain.services.validacion_motivo import validar_motivo_solicitud
-from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES, EstadoSolicitud
+from apps.autogestion.domain.value_objects.estado_solicitud import (
+    ESTADOS_ABIERTOS,
+    ESTADOS_EDITABLES,
+    EstadoSolicitud,
+)
 from apps.autogestion.domain.value_objects.secciones import campos_de_secciones, secciones_de_campos, seccion_de_clave
 from core.domain.exceptions import ConflictError, NotFoundError, ValidationError
 
@@ -25,6 +29,14 @@ def _texto_obligatorio(valor: str, nombre: str) -> str:
     return valor
 
 
+def _accion_de_clave(clave: str) -> str:
+    if clave.endswith('@CREAR'):
+        return 'agregar'
+    if clave.endswith('@ELIMINAR'):
+        return 'quitar'
+    return 'corregir'
+
+
 def obtener_solicitud(repo: RepoSolicitudes, solicitud_id: str, bloquear: bool = False) -> SolicitudActualizacion:
     solicitud = repo.obtener(solicitud_id, bloquear=bloquear)
     if solicitud is None:
@@ -36,6 +48,10 @@ def solicitar_actualizacion(
     repo: RepoSolicitudes, secciones_repo: RepoSecciones, publicador: PublicadorEventos,
     *, cedula: str, motivo: str, campos: list[str] | None = None, secciones: list[str] | None = None,
     politica: PoliticaAutogestion | None = None,
+    bloqueo: str = 'registro',
+    esperas_hasta: dict[str, date] | None = None,
+    espera_acciones: frozenset[str] = frozenset({'corregir', 'quitar'}),
+    excepcion_motivo: str = '',
 ) -> SolicitudActualizacion:
     """
     El trabajador pide actualizar CAMPOS concretos (`entidad.campo`, decisión G); queda SOLICITADA hasta que
@@ -58,11 +74,53 @@ def solicitar_actualizacion(
     inactivas = sorted(set(secciones) - activas)
     if inactivas:
         raise ValidationError(f"Secciones no autogestionables: {', '.join(inactivas)}.")
+    # O48: bloqueo por solicitud pendiente (configurable) y espera tras aprobación.
+    if bloqueo in ('registro', 'seccion'):
+        abiertas, _ = repo.listar(None, cedula, 200, 0)
+        for pendiente in abiertas:
+            if pendiente.estado not in ESTADOS_ABIERTOS:
+                continue
+            if bloqueo == 'seccion':
+                choque = sorted(set(secciones) & set(pendiente.secciones_solicitadas))
+            else:
+                campos_pendientes = set(pendiente.campos_solicitados) or set(
+                    campos_de_secciones(pendiente.secciones_solicitadas)
+                )
+                choque = sorted(set(campos) & campos_pendientes)
+            if choque:
+                fecha = pendiente.fecha_envio or pendiente.fecha_solicitud
+                cuando = fecha.strftime('%d/%m/%Y') if fecha else 'una fecha reciente'
+                raise ConflictError(
+                    f"Ya tienes una solicitud pendiente sobre {', '.join(choque)} "
+                    f"(enviada el {cuando}). Espere su resolución o corríjala en esa solicitud.",
+                    campo='campos',
+                )
+
+    esperas = esperas_hasta or {}
+    if esperas:
+        for seccion in secciones:
+            hasta = esperas.get(seccion)
+            if not hasta or date.today() > hasta:
+                continue
+            acciones = {
+                _accion_de_clave(clave)
+                for clave in campos
+                if seccion_de_clave(clave) == seccion
+            }
+            if acciones & set(espera_acciones) and not excepcion_motivo:
+                raise ConflictError(
+                    f'Podrás volver a solicitar cambios en {seccion} a partir del '
+                    f'{hasta.strftime("%d/%m/%Y")}.',
+                    campo='campos',
+                )
+
     nueva = SolicitudActualizacion(
         id='', cedula=cedula, estado=EstadoSolicitud.SOLICITADA, secciones_solicitadas=secciones, motivo=motivo,
         campos_solicitados=campos,
     )
-    creada = repo.crear(nueva)  # ConflictError si hay una abierta en alguna de las secciones
+    # La reserva física por sección solo se usa en el alcance «sección»; en
+    # «registro»/«desactivado» la comprobación anterior es la que decide.
+    creada = repo.crear(nueva, reservar=(bloqueo == 'seccion'))
     publicador.publicar(EventoAutogestion(
         TipoEvento.SOLICITUD_CREADA, creada.id, cedula, cedula, {'secciones': list(secciones), 'campos': list(campos)},
     ))

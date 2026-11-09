@@ -92,7 +92,7 @@ export function DialogoExportarEstadisticas({
   return (
     <Dialog open={abierto} onOpenChange={(abrir) => !generando && !abrir && alCerrar()}>
       <DialogContent className="max-w-xl">
-        <DialogHeader>
+        <DialogHeader className="pr-8">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Download className="size-5 text-primary" aria-hidden />
             Generar reporte de estadísticas
@@ -109,40 +109,40 @@ export function DialogoExportarEstadisticas({
             <RadioGroup
               value={formato}
               onValueChange={(v) => setFormato(v as "pdf" | "excel")}
-              className="grid grid-cols-2 gap-3"
+              className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2"
             >
               <Label
                 htmlFor={`${idPrefix}-formato-pdf`}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                className={`flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
                   formato === "pdf"
                     ? "border-primary bg-primary/5 shadow-xs"
                     : "border-border hover:bg-muted/50"
                 }`}
               >
                 <RadioGroupItem value="pdf" id={`${idPrefix}-formato-pdf`} />
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <FileText className="size-5 text-primary" aria-hidden />
-                  <div className="flex flex-col">
-                    <span className="font-semibold leading-tight">Documento PDF</span>
-                    <span className="text-xs text-muted-foreground">Colores institucionales CONATEL</span>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="break-words font-semibold leading-tight">Documento PDF</span>
+                    <span className="break-words text-xs text-muted-foreground">Colores institucionales CONATEL</span>
                   </div>
                 </div>
               </Label>
 
               <Label
                 htmlFor={`${idPrefix}-formato-excel`}
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                className={`flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
                   formato === "excel"
                     ? "border-primary bg-primary/5 shadow-xs"
                     : "border-border hover:bg-muted/50"
                 }`}
               >
                 <RadioGroupItem value="excel" id={`${idPrefix}-formato-excel`} />
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <FileSpreadsheet className="size-5 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                  <div className="flex flex-col">
-                    <span className="font-semibold leading-tight">Libro Excel (.xlsx)</span>
-                    <span className="text-xs text-muted-foreground">Tablas con filtros y hojas separadas</span>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="break-words font-semibold leading-tight">Libro Excel (.xlsx)</span>
+                    <span className="break-words text-xs text-muted-foreground">Tablas con filtros y hojas separadas</span>
                   </div>
                 </div>
               </Label>

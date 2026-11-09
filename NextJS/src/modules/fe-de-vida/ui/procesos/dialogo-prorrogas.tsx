@@ -72,7 +72,7 @@ export function DialogoProrrogas({ proceso, onCerrar }: { proceso: ProcesoDTO; o
 
   return (
     <Dialog open onOpenChange={(o) => !o && onCerrar()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Prórrogas de «{proceso.nombre}»</DialogTitle>
           <DialogDescription>

@@ -179,6 +179,7 @@ export async function getPasivosPaginadosAction(filtros: {
   tipoNominaId?: number;
   fechaDesde?: string;
   fechaHasta?: string;
+  sinCuenta?: boolean;
   limit?: number;
   offset?: number;
 }) {
@@ -205,6 +206,7 @@ export async function actualizarPasivoAction(
     nombres?: string;
     apellidos?: string;
     correo?: string | null;
+    correoAlternativo?: string | null;
     telefonoMovil?: string | null;
     telefonoHabitacion?: string | null;
     carnetPatria?: string | null;
@@ -235,11 +237,19 @@ export async function actualizarPasivoAction(
 export async function registrarPasivoCompletoAction(
   dto: import("@/modules/personal/application/dtos/empleado-dto").GuardarEmpleadoInputDTO,
   tipoNominaId: number,
+  motivoId: number,
+  fechaVigencia: string,
 ) {
   if (!dto.cedula?.trim() || !dto.nombres?.trim() || !dto.apellidos?.trim() || !dto.sexoId || !dto.fechaNacimiento) {
     return { error: "Complete los datos básicos del pasivo." };
   }
   if (!tipoNominaId) return { error: "Seleccione un tipo de nómina de pasivo." };
+  if (!motivoId) return { error: "Seleccione el tipo de jubilación o pensión." };
+  if (!fechaVigencia?.trim()) return { error: "La fecha de vigencia es obligatoria." };
+  const hoyStr = new Date().toISOString().split("T")[0];
+  if (fechaVigencia.trim() > hoyStr) {
+    return { error: "La fecha de vigencia no puede ser futura." };
+  }
 
   const input = {
     cedula: dto.cedula.trim(),
@@ -248,9 +258,12 @@ export async function registrarPasivoCompletoAction(
     sexoId: dto.sexoId,
     fechaNacimiento: dto.fechaNacimiento,
     tipoNominaId,
+    motivoId,
+    fechaVigencia: fechaVigencia.trim(),
     estadoCivilId: dto.estadoCivilId ?? null,
     nacionalidadId: dto.nacionalidadId ?? null,
     correo: dto.correo ?? null,
+    correoAlternativo: dto.correoAlternativo ?? null,
     telefonoMovil: dto.telefonoMovil ?? null,
     telefonoHabitacion: dto.telefonoHabitacion ?? null,
     carnetPatria: dto.carnetPatria ?? null,

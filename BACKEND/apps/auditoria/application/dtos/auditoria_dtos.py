@@ -16,6 +16,7 @@ class RegistroAuditoriaDTO:
     ip: str
     user_agent: str
     resultado: str
+    actor_rol_visible: str = ''
 
 
 @dataclass(frozen=True)

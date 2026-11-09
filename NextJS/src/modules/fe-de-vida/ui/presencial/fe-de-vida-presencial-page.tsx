@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import type {
   InicioPresencialDTO,
@@ -220,12 +221,7 @@ export default function FeDeVidaPresencialPage() {
         ) : null}
 
         {data && data.results.length > 0 ? (
-          <div
-            role="region"
-            aria-label="Resultados de pasivos"
-            tabIndex={0}
-            className="overflow-x-auto rounded-xl border bg-card"
-          >
+          <TablaDesplegable etiqueta="Resultados de pasivos" className="rounded-xl border bg-card">
             <table className="w-full min-w-[760px] text-left text-base">
               <caption className="sr-only">Pasivos para atención presencial</caption>
               <thead className="border-b bg-muted text-sm">
@@ -334,7 +330,7 @@ export default function FeDeVidaPresencialPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TablaDesplegable>
         ) : null}
       </div>
 

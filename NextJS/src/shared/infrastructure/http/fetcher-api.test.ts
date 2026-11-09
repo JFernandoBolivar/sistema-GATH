@@ -124,6 +124,55 @@ describe("apiClient (fetcher-api)", () => {
     expect(url).not.toContain("?");
   });
 
+  it("respeta `options.params` en POST, PUT, PATCH y DELETE (FIX-QA13: el PDF de estadísticas bajaba Excel)", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        jsonResponse({ status: "success", message: "ok", data: null }, 200),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const params = { formato: "pdf", estado: "VALIDADA", vacio: undefined };
+
+    await apiClient.post("api/v1/fe-de-vida/estadisticas/exportar/", { imagenes: [] }, { params });
+    await apiClient.put("api/v1/x/1/", { a: 1 }, { params });
+    await apiClient.patch("api/v1/x/1/", { a: 2 }, { params });
+    await apiClient.delete("api/v1/x/1/", { params });
+
+    const llamadas = fetchMock.mock.calls;
+    expect(llamadas).toHaveLength(4);
+    for (const [url] of llamadas) {
+      expect(String(url)).toContain("formato=pdf");
+      expect(String(url)).toContain("estado=VALIDADA");
+      expect(String(url)).not.toContain("vacio");
+    }
+    expect(llamadas.map(([, init]) => (init as RequestInit).method)).toEqual([
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+    ]);
+    expect((llamadas[0][1] as RequestInit).body).toBe(JSON.stringify({ imagenes: [] }));
+  });
+
+  it("postBlob también respeta los params (descarga con filtros)", async () => {
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response("%PDF-1.7", { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const blob = await apiClient.postBlob(
+      "api/v1/fe-de-vida/estadisticas/exportar/",
+      { imagenes: [] },
+      { params: { formato: "pdf", incluir_resumen: true } },
+    );
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain("formato=pdf");
+    expect(url).toContain("incluir_resumen=true");
+    expect(await blob.text()).toBe("%PDF-1.7");
+  });
+
   it("permite peticiones públicas sin cabecera de Authorization cuando skipAuth es true", async () => {
     const fetchMock = vi.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>

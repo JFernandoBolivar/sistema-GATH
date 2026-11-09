@@ -9,13 +9,25 @@ from dataclasses import dataclass
 
 from apps.autogestion.domain.value_objects.secciones import CODIGOS_SECCIONES
 from core.domain.configuracion import (
+    ALCANCES_CARNET,
+    ALCANCE_CARNET_NADIE,
     CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
     CLAVE_AUTOGESTION_ACTIVOS_SECCIONES,
     CLAVE_AUTOGESTION_AVISO_DIAS,
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
     CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
     CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
+    CLAVE_AUTOGESTION_BLOQUEO_PENDIENTE,
+    CLAVE_AUTOGESTION_ESPERA_ACCIONES,
+    CLAVE_AUTOGESTION_ESPERA_CONTACTO,
+    CLAVE_AUTOGESTION_ESPERA_FORMACION,
+    CLAVE_AUTOGESTION_ESPERA_IDENTIDAD,
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
+    CLAVE_CARGA_MASIVA_APROBACION,
+    CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+    CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+    CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
+    CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
     CLAVE_FE_DE_VIDA_REGISTRADOR_PUEDE_CHECAR,
     CLAVE_GENERAR_PUNTOS_CUENTA,
@@ -40,14 +52,30 @@ GRUPO_FE_DE_VIDA = 'fe_de_vida'
 GRUPO_RETENCION = 'retencion'
 GRUPO_PUNTOS_CUENTA = 'puntocuenta'
 GRUPO_AUTOGESTION = 'autogestion'
+GRUPO_CARNETIZACION = 'carnetizacion'
 
 GRUPOS = (
     (GRUPO_NOTIFICACIONES, 'Notificaciones'),
     (GRUPO_PLAZOS, 'Plazos'),
     (GRUPO_FE_DE_VIDA, 'Fe de vida'),
+    (GRUPO_CARNETIZACION, 'Carnetización'),
     (GRUPO_AUTOGESTION, 'Autogestión'),
     (GRUPO_RETENCION, 'Retención de datos'),
     (GRUPO_PUNTOS_CUENTA, 'Puntos de cuenta'),
+)
+
+OPCIONES_BLOQUEO_PENDIENTE: tuple[tuple[str, str], ...] = (
+    ('registro', 'Por registro (campo concreto)'),
+    ('seccion', 'Por sección'),
+    ('desactivado', 'Desactivado'),
+)
+
+OPCIONES_MI_CARNET_ALCANCE: tuple[tuple[str, str], ...] = (
+    ('nadie', 'Nadie (apagado)'),
+    ('todos', 'Todos los trabajadores'),
+    ('activos', 'Solo personal activo'),
+    ('pasivos', 'Solo personal pasivo'),
+    ('usuarios_especificos', 'Usuarios específicos (por cédula)'),
 )
 
 # Secciones que se pueden habilitar por condición. El orden y los códigos salen del
@@ -86,6 +114,7 @@ class ParametroDefinicion:
     maximo: int | None = None
     # (valor, etiqueta); si no está vacío, solo se aceptan esos valores.
     opciones: tuple[tuple[int, str], ...] = ()
+    depende_de: tuple[str, str] | None = None
 
 
 DEFINICIONES = (
@@ -111,6 +140,7 @@ DEFINICIONES = (
         grupo=GRUPO_AUTOGESTION,
         tipo=TIPO_TEXTO,
         defecto=SECCIONES_AUTOGESTION_DEFECTO,
+        depende_de=(CLAVE_AUTOGESTION_ACTIVOS_HABILITADO, 'true'),
     ),
     ParametroDefinicion(
         clave=CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
@@ -134,6 +164,61 @@ DEFINICIONES = (
         grupo=GRUPO_AUTOGESTION,
         tipo=TIPO_TEXTO,
         defecto=SECCIONES_AUTOGESTION_DEFECTO,
+        depende_de=(CLAVE_AUTOGESTION_PASIVOS_HABILITADO, 'true'),
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_BLOQUEO_PENDIENTE,
+        etiqueta='Bloqueo por solicitud pendiente',
+        descripcion=(
+            'Qué impide crear una nueva solicitud mientras hay otra abierta: '
+            '«registro» solo el mismo campo/registro, «sección» toda la sección, '
+            '«desactivado» no bloquea.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_TEXTO,
+        defecto='registro',
+        opciones=OPCIONES_BLOQUEO_PENDIENTE,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_CONTACTO,
+        etiqueta='Espera tras aprobación: Contactos (días)',
+        descripcion='Días antes de volver a solicitar cambios de contacto. 0 = sin espera.',
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_ENTERO,
+        defecto='30',
+        minimo=0,
+        maximo=365,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_FORMACION,
+        etiqueta='Espera tras aprobación: Formación (días)',
+        descripcion='Días antes de volver a solicitar cambios de formación. 0 = sin espera.',
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_ENTERO,
+        defecto='90',
+        minimo=0,
+        maximo=365,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_IDENTIDAD,
+        etiqueta='Espera tras aprobación: Datos personales (días)',
+        descripcion='Días antes de volver a solicitar cambios de identidad. 0 = sin espera.',
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_ENTERO,
+        defecto='180',
+        minimo=0,
+        maximo=365,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_ACCIONES,
+        etiqueta='Acciones sujetas a la espera tras aprobación',
+        descripcion=(
+            'Acciones que respetan la espera: corregir, quitar y/o agregar. '
+            'Sepárelas con coma.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_TEXTO,
+        defecto='corregir,quitar',
     ),
     ParametroDefinicion(
         clave=CLAVE_GENERAR_PUNTOS_CUENTA,
@@ -238,10 +323,35 @@ DEFINICIONES = (
         etiqueta='Permitir que quien registra una fe de vida presencial dé uno de los checks',
         descripcion=(
             'Permite que el funcionario de Bienestar que registró la fe de vida presencial '
-            'pueda también dar uno de los dos checks de revisión. Apagado por defecto: '
-            'quien registró no puede dar check (sí la aprobación directa si es Administradora).'
+            'pueda también dar uno de los dos checks de revisión, devolverla, rechazarla o retirar su check. '
+            'Aplica a Analistas y demás roles; no aplica a la Administradora (véase el parámetro siguiente). '
+            'Apagado por defecto: quien registró no decide sobre su propio registro.'
         ),
         grupo=GRUPO_FE_DE_VIDA,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
+        etiqueta='Permitir que la Administradora que registró una fe de vida presencial la apruebe de forma directa',
+        descripcion=(
+            'Si está activo, la Administradora que registró la fe de vida presencial puede aprobarla de forma '
+            'directa, con justificación obligatoria y sin check previo de una Analista; queda marcado que quien '
+            'registró también aprobó. No le permite dar check, devolver, rechazar ni retirar check de su propio '
+            'registro. Apagado por defecto.'
+        ),
+        grupo=GRUPO_FE_DE_VIDA,
+        tipo=TIPO_BOOLEANO,
+        defecto='false',
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARGA_MASIVA_APROBACION,
+        etiqueta='Carga masiva requiere segunda aprobación',
+        descripcion=(
+            'Si está activo, quien carga el archivo no puede aplicar los cambios: otra persona con el permiso '
+            'de aprobación debe revisarlos y aprobarlos o rechazarlos con un motivo.'
+        ),
+        grupo='personal',
         tipo=TIPO_BOOLEANO,
         defecto='false',
     ),
@@ -294,6 +404,44 @@ DEFINICIONES = (
         tipo=TIPO_ENTERO,
         defecto='90',
         opciones=OPCIONES_RETENCION,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+        etiqueta='Alcance de «Mi carnet» en Autogestión',
+        descripcion=(
+            'Determina quiénes pueden ver, solicitar y descargar su carnet digital institucional '
+            'desde Autogestión. «Nadie» lo apaga para todos; «Usuarios específicos» permite probar '
+            'con una lista de cédulas.'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_TEXTO,
+        defecto='nadie',
+        opciones=OPCIONES_MI_CARNET_ALCANCE,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+        etiqueta='Cédulas autorizadas para «Mi carnet» (usuarios específicos)',
+        descripcion=(
+            'Cédulas autorizadas cuando el alcance de «Mi carnet» es «Usuarios específicos». '
+            'Sepárelas con coma (por ejemplo: 12345678, 87654321).'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_TEXTO,
+        defecto='',
+        depende_de=(CLAVE_CARNETIZACION_MI_CARNET_ALCANCE, 'usuarios_especificos'),
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
+        etiqueta='Vigencia del carnet (meses)',
+        descripcion=(
+            'Meses de vigencia del carnet emitido antes de expirar. '
+            '0 = sin fecha de vencimiento (vigente mientras continúe activo en la institución).'
+        ),
+        grupo=GRUPO_CARNETIZACION,
+        tipo=TIPO_ENTERO,
+        defecto='0',
+        minimo=0,
+        maximo=120,
     ),
 )
 
@@ -369,6 +517,22 @@ def validar_valor(
         if len(dias) > MAX_RECORDATORIOS:
             raise ValidationError(f'No se pueden configurar más de {MAX_RECORDATORIOS} días.')
         return ','.join(str(dia) for dia in dias)
+    if definicion.clave == CLAVE_CARNETIZACION_MI_CARNET_USUARIOS:
+        if not texto:
+            return ''
+        cedulas = [c.strip() for c in texto.replace(';', ',').split(',') if c.strip()]
+        for c in cedulas:
+            if not c.isdigit():
+                raise ValidationError(f'«{c}» no es una cédula válida.')
+        return ','.join(cedulas)
+    if definicion.opciones:
+        permitidos = {str(valor) for valor, _ in definicion.opciones}
+        if texto not in permitidos and texto != (valor_actual or '').strip():
+            etiquetas = ', '.join(etiqueta for _, etiqueta in definicion.opciones)
+            raise ValidationError(
+                f'«{definicion.etiqueta}» debe ser una de estas opciones: {etiquetas}.'
+            )
+        return texto
     if not texto:
         raise ValidationError(f'«{definicion.etiqueta}» no puede quedar vacío.')
     if len(texto) > 255:

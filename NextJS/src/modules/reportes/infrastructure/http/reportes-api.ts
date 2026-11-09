@@ -46,14 +46,21 @@ export interface ReportePersonalApiItem {
   tipo_personal: string;
   fecha_ingreso: string;
   total_anos_apn: number;
+  /** Aviso interno del backend cuando falta la fecha de ingreso (no se pinta como columna). */
+  apn_aviso?: string;
 }
 
 export interface ReportePasivoApiItem {
   cedula: string;
-  nombre_completo: string;
-  tipo_personal: string;
-  fecha_egreso: string;
-  motivo_egreso: string;
+  nombres?: string;
+  apellidos?: string;
+  nombre_completo?: string;
+  tipo_pasivo?: string;
+  tipo_personal?: string;
+  pais?: string;
+  fecha_egreso?: string;
+  motivo_egreso?: string;
+  contacto?: string;
 }
 
 export interface ReporteVacanteApiItem {

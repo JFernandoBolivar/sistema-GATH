@@ -10,6 +10,7 @@ from io import BytesIO
 from typing import Callable
 
 from openpyxl import Workbook
+from openpyxl.chart import BarChart, Reference
 from PIL import Image
 
 from apps.configuracion.infrastructure.pdf_config import construir_config_pdf
@@ -22,7 +23,9 @@ from apps.fe_de_vida.domain.entities.estadisticas import EstadisticasFeDeVida, P
 from apps.fe_de_vida.domain.value_objects.estados import EstadoSolicitud
 from apps.fe_de_vida.infrastructure.exportacion_comun import (
     ajustar_anchos,
+    configurar_impresion,
     escribir_encabezado_institucional,
+    escribir_pie,
     escribir_seccion,
     escribir_tabla,
 )
@@ -219,9 +222,14 @@ def _excel_estadisticas(
             ['Respondieron', conteos.respondieron],
             ['Faltan por responder', conteos.faltan],
             ['Validadas', conteos.validadas],
-            ['% de pasivos que respondieron', f'{estadisticas.porcentaje_respondieron:.1f}%'],
+            ['% de pasivos que respondieron', estadisticas.porcentaje_respondieron / 100],
         ]
+        inicio_kpis = fila
         fila = escribir_tabla(resumen, fila, ['Indicador', 'Valor'], kpis, congelar=False) + 2
+        for indice in range(len(kpis)):
+            celda = resumen.cell(row=inicio_kpis + 1 + indice, column=2)
+            if isinstance(celda.value, float):
+                celda.number_format = '0.0%'
         ajustar_anchos(resumen, ['Indicador', 'Valor'], kpis)
 
         fila = escribir_seccion(resumen, fila, 'Respondieron por tipo de pasivo', 10)
@@ -229,24 +237,48 @@ def _excel_estadisticas(
             [f.tipo_nomina, f.total, f.respondieron, f.faltan, f.validadas]
             for f in conteos.por_tipo
         ]
+        inicio_tipos = fila
         fila = escribir_tabla(
             resumen, fila, ['Tipo de pasivo', 'Total', 'Respondieron', 'Faltan', 'Validadas'], filas_tipo,
             congelar=False,
         ) + 2
         ajustar_anchos(resumen, ['Tipo de pasivo', 'Total', 'Respondieron', 'Faltan', 'Validadas'], filas_tipo)
+        if filas_tipo:
+            grafico = BarChart()
+            grafico.type = 'col'
+            grafico.style = 10
+            grafico.y_axis.title = None
+            grafico.x_axis.title = None
+            datos = Reference(
+                resumen, min_col=3, max_col=4,
+                min_row=inicio_tipos, max_row=inicio_tipos + len(filas_tipo),
+            )
+            categorias = Reference(
+                resumen, min_col=1, min_row=inicio_tipos + 1, max_row=inicio_tipos + len(filas_tipo),
+            )
+            grafico.add_data(datos, titles_from_data=True)
+            grafico.set_categories(categorias)
+            for serie, color in zip(grafico.series, ('0B4A9E', '8EC5FF')):
+                serie.graphicalProperties.solidFill = color
+                serie.graphicalProperties.line.solidFill = color
+            grafico.height = 7
+            grafico.width = 14
+            resumen.add_chart(grafico, f'G{inicio_tipos}')
 
         fila = escribir_seccion(resumen, fila, 'Matriz tipo de pasivo × estado', 10)
         celdas = {(f.tipo_nomina_id, f.estado): f.total for f in conteos.matriz}
+        etiquetas_estados = [ETIQUETAS_ESTADO.get(estado, estado) for estado in estados]
         filas_matriz = [
             [f.tipo_nomina, *[celdas.get((f.tipo_nomina_id, estado), 0) for estado in estados],
              sum(celdas.get((f.tipo_nomina_id, estado), 0) for estado in estados)]
             for f in conteos.por_tipo
         ]
         escribir_tabla(
-            resumen, fila, ['Tipo de pasivo', *estados, 'Total'], filas_matriz,
+            resumen, fila, ['Tipo de pasivo', *etiquetas_estados, 'Total'], filas_matriz,
         )
-        ajustar_anchos(resumen, ['Tipo de pasivo', *estados, 'Total'], filas_matriz)
-        resumen.freeze_panes = 'A5'
+        ajustar_anchos(resumen, ['Tipo de pasivo', *etiquetas_estados, 'Total'], filas_matriz)
+        escribir_pie(resumen, resumen.max_row + 2, 10, f'Generado el {generado_en:%d/%m/%Y %H:%M}')
+        configurar_impresion(resumen, 10, resumen.max_row)
 
     if incluir_listado:
         if incluir_resumen:
@@ -279,6 +311,8 @@ def _excel_estadisticas(
         )
         escribir_tabla(listado, fila, columnas, filas)
         ajustar_anchos(listado, columnas, filas)
+        escribir_pie(listado, listado.max_row + 2, len(columnas), f'Generado el {generado_en:%d/%m/%Y %H:%M}')
+        configurar_impresion(listado, len(columnas), listado.max_row)
 
     buffer = BytesIO()
     libro.save(buffer)

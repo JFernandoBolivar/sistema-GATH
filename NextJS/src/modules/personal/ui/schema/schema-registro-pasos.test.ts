@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { pasoBasicInfoSchema, pasoDwellingSchema } from "./schema-registro-pasos";
+import {
+  crearPasoDwellingSchema,
+  pasoBasicInfoSchema,
+  pasoDwellingSchema,
+} from "./schema-registro-pasos";
 import { empleadoBasicoFormSchema } from "./schema-empleado";
 import { cedulaZod, nombreZod } from "./reglas-personas";
 
@@ -43,6 +47,18 @@ describe("Reglas de longitud del paso 1 del registro", () => {
     expect(pasa({ correo: `${"a".repeat(250)}@x.co` })).toBe(false);
   });
 
+  it("correo alternativo: formato y distinto del institucional (FIX-QA8)", () => {
+    expect(pasa({ correoAlternativo: "personal@gmail.com" })).toBe(true);
+    expect(pasa({ correoAlternativo: "" })).toBe(true);
+    expect(pasa({ correoAlternativo: "sin-arroba" })).toBe(false);
+    expect(
+      pasa({ correo: "usuario@conatel.gob.ve", correoAlternativo: "USUARIO@conatel.gob.ve" }),
+    ).toBe(false);
+    expect(
+      pasa({ correo: "usuario@conatel.gob.ve", correoAlternativo: "personal@gmail.com" }),
+    ).toBe(true);
+  });
+
   it("carnet de la patria: código de 10 dígitos y serial alfanumérico", () => {
     expect(pasa({ carnet_patria: "1234567890" })).toBe(true);
     expect(pasa({ carnet_patria: "12345" })).toBe(false);
@@ -83,6 +99,23 @@ describe("Reglas compartidas", () => {
       pasoDwellingSchema.safeParse({ datos_vivienda: { ...vivienda, direccion_exacta: "x".repeat(9) } }).success,
     ).toBe(false);
   });
+
+  it("O40: Venezuela exige ubicación y otro país exige ciudad o región", () => {
+    const base = {
+      pais_id: 2,
+      direccion_exacta: "Av. Providencia 1234, departamento 5",
+      condicion_vivienda_id: 1,
+      ciudad_region: "Santiago",
+    };
+    const exterior = crearPasoDwellingSchema(false);
+    expect(exterior.safeParse({ datos_vivienda: base }).success).toBe(true);
+    expect(
+      exterior.safeParse({ datos_vivienda: { ...base, ciudad_region: "" } }).success,
+    ).toBe(false);
+    expect(
+      pasoDwellingSchema.safeParse({ datos_vivienda: { ...base, pais_id: 1 } }).success,
+    ).toBe(false);
+  });
 });
 
 describe("Formulario «Actualizar Información Básica»", () => {
@@ -92,6 +125,7 @@ describe("Formulario «Actualizar Información Básica»", () => {
     fechaNacimiento: "1990-01-01",
     sexoId: 1,
     nacionalidadId: 1,
+    estadoCivilId: 1,
     correo: "juan@conatel.gob.ve",
     correoAlternativo: "",
     telefonoMovil: "",
@@ -107,6 +141,24 @@ describe("Formulario «Actualizar Información Básica»", () => {
     const mal = schema.safeParse({ ...base, correoAlternativo: "otro" });
     expect(mal.success).toBe(false);
     expect(schema.safeParse({ ...base, correo: "x" }).success).toBe(false);
+  });
+
+  it("rechaza que los dos correos sean iguales (FIX-QA8)", () => {
+    const schema = empleadoBasicoFormSchema();
+    expect(
+      schema.safeParse({
+        ...base,
+        correo: "juan@conatel.gob.ve",
+        correoAlternativo: "JUAN@conatel.gob.ve",
+      }).success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({
+        ...base,
+        correo: "juan@conatel.gob.ve",
+        correoAlternativo: "juan@gmail.com",
+      }).success,
+    ).toBe(true);
   });
 
   it("el código del carnet solo se exige de 10 dígitos si cambió", () => {

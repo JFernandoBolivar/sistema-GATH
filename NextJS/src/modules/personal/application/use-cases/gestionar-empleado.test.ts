@@ -91,6 +91,7 @@ class RepoPersonalMemoria implements RepoPersonal {
   }
   async listarCatalogosExpediente() {
     return {
+      paises: [],
       estados: [],
       municipios: [],
       parroquias: [],

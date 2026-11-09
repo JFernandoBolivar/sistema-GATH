@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ERROR, REGEX } from "@/shared/domain/validation";
+import { REGEX } from "@/shared/domain/validation";
 import { serialCarnetPatriaZod } from "@/shared/domain/validation/serial-carnet-patria";
 import { telefonoZod } from "@/shared/domain/validation/telefono";
 import { CORREO_MAX, DIRECCION_MAX, DIRECCION_MIN, cedulaZod, nombreZod } from "./reglas-personas";
@@ -16,6 +16,17 @@ const aNull = (v: unknown) =>
 
 const numId = z.preprocess(aNull, z.number().int().positive().nullable());
 const texto = z.preprocess(aNull, z.string().nullable());
+
+/** FIX-CARGA3: identificador obligatorio (no admite vacío) en una sección editada. */
+const idObligatorio = (mensaje: string) =>
+  z.preprocess(aNull, z.number({ message: mensaje }).int().positive({ message: mensaje }));
+
+/** FIX-CARGA3: fecha obligatoria en formato ISO. */
+const fechaObligatoria = (mensaje: string) =>
+  z.preprocess(
+    aNull,
+    z.string({ message: mensaje }).regex(REGEX.FECHA_ISO, { message: mensaje }),
+  );
 
 function listaNumeros() {
   return z.preprocess(
@@ -185,7 +196,7 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
   carnetPatria: z
     .string()
     .trim()
-    .regex(/^\d{10}$/, { message: "Debe Ingresar 10 Digitos" })
+    .regex(/^\d{10}$/, { message: "El código del Carnet de la Patria debe tener 10 dígitos" })
     .optional()
     .nullable(),
   carnetPatriaSerial: serialCarnetPatriaZod(),
@@ -206,6 +217,22 @@ export const empleadoRegistroSchema = empleadoSchema.extend({
     tallaPantalonId: idRequerido("Debe seleccionar una talla de pantalón"),
     tallaZapatosId: idRequerido("Debe seleccionar una talla de zapatos"),
   }),
+  // FIX-CARGA3: el alta también exige institución en formación complementaria
+  // y fecha de egreso en antecedentes.
+  formacionComplementaria: z
+    .array(
+      formacionComplementariaItemSchema.extend({
+        institucionId: idObligatorio("Debe Seleccionar Una Institución"),
+      }),
+    )
+    .optional(),
+  antecedentes: z
+    .array(
+      antecedenteItemSchema.extend({
+        fechaEgreso: fechaObligatoria("Indique la fecha de egreso (AAAA-MM-DD)"),
+      }),
+    )
+    .optional(),
 });
 
 /** Filtro de listado de empleados (zero-trust R7). */
@@ -236,7 +263,8 @@ const correoFormulario = (mensaje: string) =>
  * (hay expedientes del legado con otro formato).
  */
 export function empleadoBasicoFormSchema(carnetPatriaOriginal = "") {
-  return z.object({
+  return z
+    .object({
     nombres: empleadoSchema.shape.nombres,
     apellidos: empleadoSchema.shape.apellidos,
     fechaNacimiento: z.string().min(1, { message: "La fecha de nacimiento es obligatoria" }),
@@ -244,7 +272,10 @@ export function empleadoBasicoFormSchema(carnetPatriaOriginal = "") {
     nacionalidadId: z.coerce
       .number({ message: "Seleccione la nacionalidad" })
       .positive({ message: "Seleccione la nacionalidad" }),
-    estadoCivilId: z.coerce.number().optional(),
+    // FIX-CARGA3: no se puede guardar el estado civil vacío al editar identidad.
+    estadoCivilId: z.coerce
+      .number({ message: "Seleccione el estado civil" })
+      .positive({ message: "Seleccione el estado civil" }),
     correo: correoFormulario("Correo institucional inválido"),
     correoAlternativo: correoFormulario("Correo alternativo inválido"),
     telefonoMovil: telefonoZod({ tipo: "movil" }),
@@ -257,6 +288,17 @@ export function empleadoBasicoFormSchema(carnetPatriaOriginal = "") {
         message: "El código del Carnet de la Patria debe tener 10 dígitos",
       }),
     carnetPatriaSerial: serialCarnetPatriaZod(),
-  });
+    })
+    .refine(
+      (d) => {
+        const institucional = d.correo?.trim().toLowerCase();
+        const alternativo = d.correoAlternativo?.trim().toLowerCase();
+        return !institucional || !alternativo || institucional !== alternativo;
+      },
+      {
+        message: "El correo alternativo debe ser distinto del institucional",
+        path: ["correoAlternativo"],
+      },
+    );
 }
 export type EmpleadoBasicoFormValues = z.input<ReturnType<typeof empleadoBasicoFormSchema>>;

@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { ArrowLeft, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { PageHeader } from "@/shared/ui/components/page-header";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
@@ -52,6 +53,9 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
     ...(solicitud.canal === "PRESENCIAL" && solicitud.registradaPor
       ? [["Registrada por", solicitud.registradaPor] as [string, string]]
       : []),
+    ...(solicitud.registradorTambienAprobo
+      ? [["Aprobación", "Quien registró el acta también aprobó"] as [string, string]]
+      : []),
     ["Fecha de envío", formatearFechaHora(solicitud.fechaEnvio)],
   ];
   return (
@@ -64,6 +68,15 @@ function Resumen({ detalle }: { detalle: DetalleRevisionDTO }) {
           </div>
         ))}
       </dl>
+      {solicitud.sinCorreoAlternativo ? (
+        <p
+          role="note"
+          className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          <strong>El pasivo no tiene correo.</strong>{" "}
+          {solicitud.justificacionSinCorreo?.trim() || "No se registró justificación."}
+        </p>
+      ) : null}
     </section>
   );
 }
@@ -173,7 +186,11 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
               No tiene permiso para ver la ficha completa del pasivo; se muestran solo los datos que propone.
             </p>
           ) : null}
-          {data.cambios.length === 0 ? (
+          {solicitud.estado === "BORRADOR" ? (
+            <p className="rounded-lg border bg-card p-4 text-base text-muted-foreground">
+              La solicitud está en borrador. El pasivo aún no ha enviado sus datos.
+            </p>
+          ) : data.cambios.length === 0 ? (
             <p className="rounded-lg border bg-card p-4 text-base text-muted-foreground">
               El pasivo confirmó sus datos sin proponer cambios.
             </p>
@@ -182,10 +199,16 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
         </div>
         <aside
           aria-label="Foto y decisión"
-          className="order-1 flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:order-2 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto"
+          className="order-1 flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:order-2 lg:max-h-[calc(100dvh-2rem)]"
         >
+          <ScrollArea className="h-full">
+            <div className="flex flex-col gap-4">
           {puede(PERMISOS_FE_DE_VIDA.verEvidencia) ? (
-            <VisorEvidencia solicitudId={solicitud.id} />
+            <VisorEvidencia
+              solicitudId={solicitud.id}
+              estadoSolicitud={solicitud.estado}
+              tieneEvidencia={solicitud.tieneEvidencia}
+            />
           ) : (
             <p className="rounded-lg border bg-card p-4 text-base">No tiene permiso para ver la foto.</p>
           )}
@@ -200,6 +223,8 @@ export default function DetalleRevisionPage({ id }: { id: string }) {
             }
           />
           <LineaTiempo hitos={hitosRevision(solicitud)} etiqueta="Avance de la solicitud" />
+            </div>
+          </ScrollArea>
         </aside>
       </div>
     </div>

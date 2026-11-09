@@ -78,3 +78,14 @@ export async function getDiasRecordatorioSugeridosAction() {
     diasRecordatorioFeDeVida(repoParametrosApi),
   );
 }
+
+export async function buscarTrabajadoresParametroAction(
+  query?: string,
+  cedulas?: string[],
+) {
+  return conAuditoria("buscarTrabajadoresParametroAction", async () => {
+    const { parametrosApi } = await import("../http/parametros-api");
+    const resp = await parametrosApi.buscarTrabajadores(query, cedulas);
+    return resp.data ?? [];
+  });
+}

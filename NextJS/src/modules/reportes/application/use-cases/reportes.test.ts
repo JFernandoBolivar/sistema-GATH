@@ -22,6 +22,7 @@ class RepoReportesMemoria implements RepoReportes {
         tipoPersonal: "EMPLEADO FIJO",
         fechaIngreso: "2020-01-01",
         totalAnosApn: 4,
+        sinFechaApn: false,
       },
     ];
   }
@@ -31,8 +32,11 @@ class RepoReportesMemoria implements RepoReportes {
       cedula: "87654321",
       nombreCompleto: "Rosa Gómez",
       tipoPersonal: "JUBILADO",
+      tipoPasivo: "JUBILADO",
+      pais: "Venezuela",
       fechaEgreso: "2025-12-31",
       motivoEgreso: "Jubilación",
+      contacto: "0412-1234567 / rosa@example.com",
     };
     if (filtros?.fechaEgresoDesde === "2026-01-01") {
       return [];

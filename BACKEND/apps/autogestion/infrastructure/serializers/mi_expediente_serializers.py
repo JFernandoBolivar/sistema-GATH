@@ -17,14 +17,16 @@ def _complementarios(datos) -> dict:
 
 
 def serializar_mi_expediente(dto) -> dict:
-    carnet_activo = dto.carnet_activo
+    puede_ver = getattr(dto, 'puede_ver_carnet', False)
+    carnet_activo = dto.carnet_activo if puede_ver else None
     return {
         'empleado': EmpleadoSerializer(dto.empleado).data,
         'familiares': FamiliarSerializer(dto.familiares, many=True).data,
         'carnet_activo': CarnetSerializer(carnet_activo).data if carnet_activo else None,
-        'carnets': CarnetSerializer(dto.carnets, many=True).data,
-        'motivos_carnet': dto.motivos_carnet,
+        'carnets': CarnetSerializer(dto.carnets, many=True).data if puede_ver else [],
+        'motivos_carnet': dto.motivos_carnet if puede_ver else [],
         'datos_complementarios': _complementarios(dto.datos_complementarios),
+        'puede_ver_carnet': puede_ver,
     }
 
 

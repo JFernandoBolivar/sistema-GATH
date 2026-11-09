@@ -9,6 +9,7 @@ export interface RegistroAuditoriaApiItem {
   actor_cedula: string;
   actor_nombre: string;
   actor_rol: string;
+  actor_rol_visible?: string;
   modulo: string;
   accion: string;
   recurso_tipo: string;

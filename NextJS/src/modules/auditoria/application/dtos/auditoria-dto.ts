@@ -17,6 +17,7 @@ export interface RegistroAuditoriaDTO {
   actorCedula: string;
   actorNombre: string;
   actorRol: string;
+  actorRolVisible?: string;
   modulo: string;
   accion: string;
   recursoTipo: string;

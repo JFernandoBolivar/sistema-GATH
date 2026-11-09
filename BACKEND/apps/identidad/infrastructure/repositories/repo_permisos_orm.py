@@ -19,6 +19,7 @@ from apps.identidad.infrastructure.mappers.mapper_permisos import (
     permiso_a_entidad,
     rol_a_entidad,
 )
+from apps.identidad.infrastructure.models.cuenta_models import RolModel
 from apps.identidad.infrastructure.models.permiso_model import (
     PermisoModel,
     RolPermisoModel,
@@ -204,6 +205,7 @@ class RepoPermisosORM:
 
         rol_id = fila_cuenta.rol_id
         nombre_rol = None
+        nombre_rol_visible = None
         politica_rol = PoliticaAcceso()
 
         if rol_id is not None:
@@ -212,6 +214,11 @@ class RepoPermisosORM:
                 .values_list('nombre_rol', flat=True)
                 .first()
             ) or f'ROL_{rol_id}'
+            nombre_rol_visible = (
+                RolModel.objects.filter(pk=rol_id)
+                .values_list('nombre_visible', flat=True)
+                .first()
+            ) or nombre_rol
             politica_rol = self.politica_del_rol(rol_id)
 
         override_row = UsuarioPermisoModel.objects.filter(cedula=cedula).first()
@@ -231,6 +238,7 @@ class RepoPermisosORM:
             cedula=cedula,
             rol_id=rol_id,
             nombre_rol=nombre_rol,
+            nombre_rol_visible=nombre_rol_visible,
             permisos_custom=custom_policy,
             politica_efectiva=politica_efectiva,
             version=version,
@@ -273,6 +281,7 @@ class RepoPermisosORM:
             cedula=cedula,
             rol_id=rol_id,
             nombre_rol=usuario_actual.nombre_rol if usuario_actual else None,
+            nombre_rol_visible=usuario_actual.nombre_rol_visible if usuario_actual else None,
             permisos_custom=custom_policy,
             politica_efectiva=politica_efectiva,
             version=nueva_version,

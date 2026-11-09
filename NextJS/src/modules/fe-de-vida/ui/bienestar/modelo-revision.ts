@@ -179,7 +179,9 @@ function tablaFamiliares(k: Constructor, e: EntradaModelo): TablaRevision {
           f("segundo_apellido"),
         ) ?? "",
         f("parentesco_id"),
-        f("cedula_familiar"),
+        v.cedula_generada
+          ? `${String(v.cedula_generada)} (se generará al aprobar)`
+          : f("cedula_familiar"),
         v.fecha_nacimiento ? formatearFechaCivil(String(v.fecha_nacimiento)) : "",
       ],
       marca: "nuevo",
@@ -331,6 +333,10 @@ export function construirSecciones(entrada: EntradaModelo): SeccionRevision[] {
     id: "vivienda",
     titulo: "Vivienda",
     datos: [
+      k.dato("datos_vivienda.pais_id", "País", limpio(v?.pais)),
+      ...(v?.esVenezuela === false
+        ? [k.dato("datos_vivienda.ciudad_region", "Ciudad o región", limpio(v?.ciudadRegion))]
+        : []),
       k.dato("datos_vivienda.estado_id", "Estado", limpio(v?.estado)),
       k.dato("datos_vivienda.municipio_id", "Municipio", limpio(v?.municipio)),
       k.dato("datos_vivienda.parroquia_id", "Parroquia", limpio(v?.parroquia)),

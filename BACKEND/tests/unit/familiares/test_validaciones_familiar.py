@@ -28,19 +28,19 @@ def test_resolver_cedula_familiar_usa_la_cedula_dada():
         cedula_empleado="12345678",
         es_hijo=False,
         fecha_nacimiento=None,
-        siguiente_orden_hijo=1,
+        orden_hijo=1,
     )
     assert cedula == "87654321"
 
 
 def test_resolver_cedula_familiar_rechaza_igual_al_empleado():
-    with pytest.raises(ValueError, match="no puede ser igual"):
+    with pytest.raises(ValueError, match="No se puede generar la cédula del hijo"):
         resolver_cedula_familiar(
             cedula_familiar="12345678",
             cedula_empleado="12345678",
             es_hijo=False,
             fecha_nacimiento=None,
-            siguiente_orden_hijo=1,
+            orden_hijo=1,
         )
 
 
@@ -50,9 +50,32 @@ def test_resolver_cedula_familiar_genera_sintetica_para_hijo_menor():
         cedula_empleado="12345678",
         es_hijo=True,
         fecha_nacimiento=date(2022, 1, 1),
-        siguiente_orden_hijo=3,
+        orden_hijo=3,
     )
     assert cedula == "12345678-3"
+
+
+def test_resolver_cedula_familiar_exige_orden_para_hijo_menor():
+    with pytest.raises(ValueError, match="orden de nacimiento es obligatorio"):
+        resolver_cedula_familiar(
+            cedula_familiar=None,
+            cedula_empleado="12345678",
+            es_hijo=True,
+            fecha_nacimiento=date(2022, 1, 1),
+            orden_hijo=None,
+        )
+
+
+def test_resolver_cedula_familiar_rechaza_orden_duplicado():
+    with pytest.raises(ValueError, match="ya tiene un hijo o menor a cargo con el orden"):
+        resolver_cedula_familiar(
+            cedula_familiar=None,
+            cedula_empleado="12345678",
+            es_hijo=True,
+            fecha_nacimiento=date(2022, 1, 1),
+            orden_hijo=2,
+            cedulas_existentes={"12345678-2"},
+        )
 
 
 def test_resolver_cedula_familiar_falla_sin_cedula_si_no_es_hijo():
@@ -62,7 +85,7 @@ def test_resolver_cedula_familiar_falla_sin_cedula_si_no_es_hijo():
             cedula_empleado="12345678",
             es_hijo=False,
             fecha_nacimiento=date(1990, 1, 1),
-            siguiente_orden_hijo=1,
+            orden_hijo=1,
         )
 
 
@@ -73,7 +96,7 @@ def test_resolver_cedula_familiar_falla_hijo_mayor_de_9_sin_cedula():
             cedula_empleado="12345678",
             es_hijo=True,
             fecha_nacimiento=date(2000, 1, 1),
-            siguiente_orden_hijo=1,
+            orden_hijo=1,
         )
 
 
@@ -97,3 +120,11 @@ def test_validar_heredero_unico_ok_sin_heredero_previo():
 def test_validar_heredero_unico_falla_si_ya_existe():
     with pytest.raises(ValueError, match="ya posee un familiar registrado como heredero"):
         validar_heredero_unico(True, True)
+
+def test_longitud_maxima_cedula_familiar_es_una_constante():
+    from apps.familiares.domain.entities.familiar import CEDULA_FAMILIAR_MAX
+    from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+
+    campo = EmployeefamilyModel._meta.get_field('cedulaFamiliar')
+    assert CEDULA_FAMILIAR_MAX == 10
+    assert campo.max_length == CEDULA_FAMILIAR_MAX

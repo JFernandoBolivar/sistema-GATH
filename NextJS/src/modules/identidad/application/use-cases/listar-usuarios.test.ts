@@ -25,6 +25,7 @@ const usuario = {
   nombres: "Ana",
   apellidos: "Pérez",
   correo: "ana.perez@conatel.gob.ve",
+  correoAlternativo: "ana.alt@gmail.com",
   telefono: null,
   rolId: 2,
   rolNombre: "ANALISTA",
@@ -59,6 +60,8 @@ describe("listarUsuarios", () => {
       pageSize: undefined,
     });
     expect(resultado).toEqual({ ...pagina, resultados: [usuario] });
+    // FIX-AUD7: el correo alternativo debe llegar a la UI («Alt:»).
+    expect(resultado.resultados[0].correoAlternativo).toBe("ana.alt@gmail.com");
   });
 
   it("propaga los filtros y la paginación al repositorio", async () => {

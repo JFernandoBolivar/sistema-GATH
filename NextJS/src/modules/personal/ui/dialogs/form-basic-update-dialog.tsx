@@ -2,6 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { CapturaFoto } from "@/shared/components/captura-foto/captura-foto";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -142,17 +146,24 @@ export default function FormBasicUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-2xl p-0">
         <DialogTitle className="sr-only">Actualizar Información Básica</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none">
-          <CardHeader>
-            <CardTitle>Actualizar Información Basica</CardTitle>
+          <CardHeader className="pb-3 border-b border-border/60">
+            <CardTitle className="text-xl">Actualizar Información Básica</CardTitle>
+            <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-2 mt-1">
+              <span className="font-semibold text-foreground">
+                {empleado.nombres} {empleado.apellidos}
+              </span>
+              <span className="text-muted-foreground/60" aria-hidden="true">·</span>
+              <span className="font-mono bg-muted text-foreground px-2 py-0.5 rounded text-xs">
+                Cédula {empleado.cedula}
+              </span>
+            </p>
           </CardHeader>
 
-          <CardContent>
-            <CardAction className="text-gray-500 mb-3">Información Basica</CardAction>
-
+          <CardContent className="pt-4">
             {error && (
               <p role="alert" className="text-sm text-destructive mb-3">
                 {error}
@@ -176,7 +187,7 @@ export default function FormBasicUpdateDialog({
                       Datos personales
                     </h3>
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
-                      <CampoDialogo id="nombres" label="Nombre *" error={mensajeDe(errores.nombres)}>
+                      <CampoDialogo id="nombres" label="Nombres *" error={mensajeDe(errores.nombres)}>
                         <Input
                           id="nombres"
                           placeholder="Juan Bernardo"
@@ -263,14 +274,16 @@ export default function FormBasicUpdateDialog({
                       </CampoDialogo>
                       <CampoDialogo
                         id="estadoCivilId"
-                        label="Estado Civil"
+                        label="Estado Civil *"
                         error={mensajeDe(errores.estadoCivilId)}
                       >
                         <Select
                           value={
                             watch("estadoCivilId") ? String(watch("estadoCivilId")) : undefined
                           }
-                          onValueChange={(v) => setValue("estadoCivilId", Number(v))}
+                          onValueChange={(v) =>
+                            setValue("estadoCivilId", Number(v), { shouldValidate: true })
+                          }
                         >
                           <SelectTrigger id="estadoCivilId" className="w-full truncate">
                             <SelectValue placeholder="Seleccione Un Estado Civil" />
@@ -345,7 +358,7 @@ export default function FormBasicUpdateDialog({
                     <div className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2">
                       <CampoDialogo
                         id="carnetPatria"
-                        label="Código del Carnet de la Patria"
+                        label={ETIQUETA_CODIGO_CARNET_PATRIA}
                         error={mensajeDe(errores.carnetPatria)}
                       >
                         <Input
@@ -360,7 +373,7 @@ export default function FormBasicUpdateDialog({
                       </CampoDialogo>
                       <CampoDialogo
                         id="carnetPatriaSerial"
-                        label="Serial del Carnet de la Patria"
+                        label={ETIQUETA_SERIAL_CARNET_PATRIA}
                         error={mensajeDe(errores.carnetPatriaSerial)}
                       >
                         <Input

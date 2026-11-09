@@ -14,16 +14,17 @@ from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle
 
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
+from core.infrastructure.pdf.paleta import AZUL_CLARO, AZUL_CONATEL, AZUL_INTERMEDIO
 
 COLORS = {
-    'primary': colors.HexColor('#1a237e'),
-    'secondary': colors.HexColor('#3949ab'),
+    'primary': AZUL_CONATEL,
+    'secondary': AZUL_INTERMEDIO,
     'text': colors.HexColor('#000000'),
     'muted': colors.HexColor('#666666'),
     'border': colors.HexColor('#e0e0e0'),
     'header_bg': colors.HexColor('#f5f5f5'),
     'row_alt': colors.HexColor('#fafafa'),
-    'stats_bg': colors.HexColor('#e8f4fd'),
+    'stats_bg': AZUL_CLARO,
     'white': colors.white,
     'black': colors.black,
 }

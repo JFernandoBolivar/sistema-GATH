@@ -139,6 +139,7 @@ export function SelectorCatalogo({
           className={cn("min-h-11 bg-card text-base", error && "border-danger")}
           options={opcionesCombobox}
           value={valor === null || valor === undefined ? "" : String(valor)}
+          disabled={esperaPadre || isLoading || Boolean(fallo)}
           onChange={(v) => {
             if (v === OPCION_OTROS) {
               setCreando(true);
@@ -149,7 +150,13 @@ export function SelectorCatalogo({
             if (creando) cancelarCreacion();
             onCambio(v);
           }}
-          placeholder="Seleccione…"
+          placeholder={
+            esperaPadre
+              ? "Elija primero la opción anterior"
+              : isLoading
+                ? "Cargando opciones…"
+                : "Seleccione…"
+          }
           searchPlaceholder={`Buscar ${etiqueta.toLowerCase()}…`}
           emptyText="No hay coincidencias."
           invalido={Boolean(error)}
@@ -163,8 +170,12 @@ export function SelectorCatalogo({
           aria-describedby={error ? `${id}-error` : undefined}
           disabled={esperaPadre || isLoading || Boolean(fallo)}
           {...registro}
+          {...(onCambio
+            ? { value: valor === null || valor === undefined ? "" : String(valor) }
+            : {})}
           onChange={(e) => {
-            if (e.target.value === OPCION_OTROS) {
+            const elegido = e.target.value;
+            if (elegido === OPCION_OTROS) {
               setCreando(true);
               setNuevoTexto("");
               setErrorNuevo(null);
@@ -172,6 +183,7 @@ export function SelectorCatalogo({
             }
             if (creando) cancelarCreacion();
             registro.onChange(e);
+            onCambio?.(elegido);
           }}
         >
           <option value="">

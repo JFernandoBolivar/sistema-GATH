@@ -1,6 +1,7 @@
 """Repositorio ORM de parámetros del sistema y su historial de auditoría."""
 from dataclasses import replace
 
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.configuracion.domain.entities.parametro import CambioParametro, ParametroSistema
@@ -12,6 +13,10 @@ from apps.configuracion.domain.parametros import (
 )
 from apps.configuracion.infrastructure.mappers.mapper_parametros import parametro_a_entidad
 from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
+from apps.identidad.infrastructure.models.cuenta_models import CuentaModel
+from apps.personal.infrastructure.models.empleado_model import EmployeeModel
+from core.domain.configuracion import CLAVE_CARNETIZACION_MI_CARNET_USUARIOS
+from core.domain.exceptions import ValidationError
 from core.infrastructure.models.auditoria import AuditoriaLog
 
 
@@ -73,14 +78,108 @@ class RepoParametrosORM:
         ).order_by('-fecha_hora', '-id')
         total = qs.count()
         filas = qs[offset:offset + limite] if limite > 0 else qs[offset:]
-        cambios = [
-            CambioParametro(
-                fecha=timezone.localtime(fila.fecha_hora).isoformat(),
-                actor_cedula=fila.actor_cedula,
-                valor_previo=str((fila.estado_previo or {}).get('valor', '')),
-                valor_nuevo=str((fila.estado_nuevo or {}).get('valor', '')),
-                resultado=fila.resultado,
+
+        nombres: dict[str, str] = {}
+        if clave == CLAVE_CARNETIZACION_MI_CARNET_USUARIOS:
+            todas_cedulas: set[str] = set()
+            for fila in filas:
+                prev = str((fila.estado_previo or {}).get('valor', ''))
+                post = str((fila.estado_nuevo or {}).get('valor', ''))
+                todas_cedulas.update(c.strip() for c in prev.split(',') if c.strip())
+                todas_cedulas.update(c.strip() for c in post.split(',') if c.strip())
+            if todas_cedulas:
+                nombres = self.obtener_nombres_por_cedulas(list(todas_cedulas))
+
+        cambios: list[CambioParametro] = []
+        for fila in filas:
+            previo = str((fila.estado_previo or {}).get('valor', ''))
+            nuevo = str((fila.estado_nuevo or {}).get('valor', ''))
+            agregados: tuple[str, ...] = ()
+            quitados: tuple[str, ...] = ()
+            resumen_cambio: str | None = None
+
+            if clave == CLAVE_CARNETIZACION_MI_CARNET_USUARIOS:
+                set_prev = {c.strip() for c in previo.split(',') if c.strip()}
+                set_nuevo = {c.strip() for c in nuevo.split(',') if c.strip()}
+                agregados = tuple(f'{nombres.get(c, c)} ({c})' for c in sorted(set_nuevo - set_prev))
+                quitados = tuple(f'{nombres.get(c, c)} ({c})' for c in sorted(set_prev - set_nuevo))
+                partes_resumen = []
+                if agregados:
+                    partes_resumen.append('Agregados: ' + ', '.join(agregados))
+                if quitados:
+                    partes_resumen.append('Quitados: ' + ', '.join(quitados))
+                resumen_cambio = '; '.join(partes_resumen) if partes_resumen else None
+
+            cambios.append(
+                CambioParametro(
+                    fecha=timezone.localtime(fila.fecha_hora).isoformat(),
+                    actor_cedula=fila.actor_cedula,
+                    valor_previo=previo,
+                    valor_nuevo=nuevo,
+                    resultado=fila.resultado,
+                    agregados=agregados,
+                    quitados=quitados,
+                    resumen_cambio=resumen_cambio,
+                )
             )
-            for fila in filas
-        ]
         return cambios, total
+
+    def validar_cuentas_activas(self, cedulas: list[str]) -> list[tuple[str, str]]:
+        if not cedulas:
+            return []
+        empleados = {
+            e.cedulaidentidad: f'{e.nombres} {e.apellidos}'.strip()
+            for e in EmployeeModel.objects.filter(cedulaidentidad__in=cedulas)
+        }
+        cuentas_activas = set(
+            CuentaModel.objects.filter(cedula_id__in=cedulas, is_active=True).values_list(
+                'cedula_id', flat=True
+            )
+        )
+        resultado: list[tuple[str, str]] = []
+        for c in cedulas:
+            if c not in empleados:
+                raise ValidationError(f'«{c}»: no está registrado como trabajador.')
+            if c not in cuentas_activas:
+                raise ValidationError(f'«{c}»: no tiene cuenta de usuario activa en GATH.')
+            resultado.append((c, empleados[c]))
+        return resultado
+
+    def obtener_nombres_por_cedulas(self, cedulas: list[str]) -> dict[str, str]:
+        if not cedulas:
+            return {}
+        return {
+            e.cedulaidentidad: f'{e.nombres} {e.apellidos}'.strip()
+            for e in EmployeeModel.objects.filter(cedulaidentidad__in=cedulas)
+        }
+
+    def buscar_trabajadores(self, query: str, cedulas: list[str] | None = None) -> list[dict]:
+        if cedulas:
+            qs = EmployeeModel.objects.filter(cedulaidentidad__in=cedulas)
+        elif query:
+            qs = EmployeeModel.objects.filter(
+                Q(cedulaidentidad__icontains=query)
+                | Q(nombres__icontains=query)
+                | Q(apellidos__icontains=query)
+            )[:20]
+        else:
+            return []
+
+        ceds = [e.cedulaidentidad for e in qs]
+        cuentas_activas = set(
+            CuentaModel.objects.filter(cedula_id__in=ceds, is_active=True).values_list(
+                'cedula_id', flat=True
+            )
+        )
+        cuentas_existentes = set(
+            CuentaModel.objects.filter(cedula_id__in=ceds).values_list('cedula_id', flat=True)
+        )
+        return [
+            {
+                'cedula': e.cedulaidentidad,
+                'nombre': f'{e.nombres} {e.apellidos}'.strip(),
+                'tiene_cuenta': e.cedulaidentidad in cuentas_existentes,
+                'cuenta_activa': e.cedulaidentidad in cuentas_activas,
+            }
+            for e in qs
+        ]

@@ -95,7 +95,7 @@ describe("formatearValor", () => {
     expect(formatearValor(true, "tiene_hijos")).toBe("Sí");
     expect(formatearValor(null, "telefono_movil")).toBe("Sin dato");
     expect(formatearValor(5, "estado_id", { estados: { 5: "Miranda" } })).toBe("Miranda");
-    expect(formatearValor(5, "estado_id")).toBe("Código 5");
+    expect(formatearValor(5, "estado_id")).toBe("Cargando…");
     expect(
       formatearValor({ primer_nombre: "Ana", parentesco_id: 2 }, "*", {
         parentescosFamilia: { 2: "Hija" },

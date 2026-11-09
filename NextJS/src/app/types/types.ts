@@ -338,6 +338,8 @@ export interface Depart {
 export interface Role {
   id: number;
   nombre_rol: string;
+  /** Etiqueta que ve el usuario; `nombre_rol` es el código interno. */
+  nombre_visible?: string;
   descripcion_rol?: string;
 }
 /**

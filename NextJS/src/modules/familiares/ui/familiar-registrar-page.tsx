@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
+import { CEDULA_FAMILIAR_MAX } from "../domain/value-objects/cedula-familiar-vo";
 import { Button } from "@/shared/ui/components/button";
 import { Calendar } from "@/shared/ui/components/calendar";
 import { Card, CardContent } from "@/shared/ui/components/card";
@@ -171,11 +172,34 @@ export default function FamiliarRegistrarPage() {
     return desc.includes("HIJO") || desc.includes("HIJA");
   }, [parentescoSeleccionado]);
 
+  // H2: la cédula sintética debe caber en varchar(10): <titular>-<orden>.
+  const maxOrden = useMemo(() => {
+    const cedula = employee?.cedulaidentidad ?? "";
+    if (!cedula) return 0;
+    return Math.max(0, Math.min(27, CEDULA_FAMILIAR_MAX - cedula.length - 1));
+  }, [employee]);
+
   // Fecha actual para el popover
   const fechaNac = form.watch("fechaNacimiento");
 
   const onGuardar = (data: FamiliarFormType) => {
     startTransition(async () => {
+      const nacimiento = data.fechaNacimiento ? new Date(data.fechaNacimiento) : null;
+      const edad = nacimiento && !Number.isNaN(nacimiento.getTime())
+        ? Math.floor((Date.now() - nacimiento.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        : null;
+      const requiereOrden = esHijo && edad !== null && edad < 9 && !data.cedulaFamiliar;
+      if (requiereOrden && (!data.ordenHijo || data.ordenHijo > maxOrden)) {
+        form.setError("ordenHijo", {
+          type: "required",
+          message:
+            maxOrden === 0
+              ? "La cédula del titular no permite generar una cédula de hijo menor."
+              : `El orden de nacimiento debe estar entre 1 y ${maxOrden}.`,
+        });
+        return;
+      }
+
       // 1. Resolver opciones "Otra" en Formación Académica
       const fa = data.formacionAcademica;
       const pendientes: PendienteOtraFamiliar[] = [];
@@ -324,7 +348,7 @@ export default function FamiliarRegistrarPage() {
                       {/* Cédula Familiar */}
                       <div className="md:col-span-2 flex flex-col gap-1.5">
                         <Label htmlFor="cedulaFamiliar" className="cursor-pointer">
-                          Cédula Familiar
+                          Cédula Familiar {!down && "*"}
                         </Label>
                         <Input
                           id="cedulaFamiliar"
@@ -525,8 +549,9 @@ export default function FamiliarRegistrarPage() {
 
                       {esHijo && (
                         <Field className="col-span-1">
-                          <Label className="cursor-pointer">Orden de nacimiento</Label>
+                          <Label className="cursor-pointer">Orden de nacimiento *</Label>
                           <Select
+                            disabled={maxOrden === 0}
                             value={form.watch("ordenHijo") ? String(form.watch("ordenHijo")) : ""}
                             onValueChange={(val) => form.setValue("ordenHijo", Number(val))}
                           >
@@ -534,7 +559,7 @@ export default function FamiliarRegistrarPage() {
                               <SelectValue placeholder="Seleccione Un Orden De Nacimiento" />
                             </SelectTrigger>
                             <SelectContent>
-                              {Array.from({ length: 27 }, (_, i) => i + 1).map((n) => (
+                              {Array.from({ length: maxOrden }, (_, i) => i + 1).map((n) => (
                                 <SelectItem key={n} value={String(n)}>
                                   {n}
                                 </SelectItem>
@@ -588,6 +613,7 @@ export default function FamiliarRegistrarPage() {
                         placeholder="Describa las observaciones del familiar..."
                         rows={4}
                         maxLength={LIMITES_TEXTO.observacion.max}
+                        mostrarContador={false}
                         className="mt-1 resize-none"
                         {...form.register("observaciones")}
                       />

@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import useSWR from "swr";
@@ -12,6 +16,7 @@ import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Form,
   FormControl,
@@ -90,11 +95,11 @@ function DetalleCenso({ empleado }: { empleado: CensoEmpleadoItem }) {
             <span className="ml-2 text-gray-900 font-medium">{empleado.cedula}</span>
           </div>
           <div>
-            <span className="font-semibold text-gray-700">Carnet Patria:</span>
+            <span className="font-semibold text-gray-700">{ETIQUETA_CODIGO_CARNET_PATRIA}:</span>
             <span className="ml-2 text-gray-900 font-medium">{empleado.carnet_patria || "N/A"}</span>
           </div>
           <div>
-            <span className="font-semibold text-gray-700">Serial del Carnet de la Patria:</span>
+            <span className="font-semibold text-gray-700">{ETIQUETA_SERIAL_CARNET_PATRIA}:</span>
             <span className="ml-2 text-gray-900 font-medium">{empleado.carnet_patria_serial || "N/A"}</span>
           </div>
           <div>
@@ -617,14 +622,14 @@ export default function ConsultarCensoPage() {
         {isLoading ? (
           <Loading promiseMessage="Cargando respuestas..." />
         ) : (
-          <div className="h-[60vh] w-full max-w-full overflow-auto rounded-md border bg-white">
+          <ScrollArea className="h-[60vh] w-full max-w-full rounded-md border bg-white">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[100px]">Cedula</TableHead>
                   <TableHead>Nombres</TableHead>
                   <TableHead>Apellidos</TableHead>
-                  <TableHead>Carnet Patria</TableHead>
+                  <TableHead>{ETIQUETA_CODIGO_CARNET_PATRIA}</TableHead>
                   <TableHead className="w-[80px]">APN</TableHead>
                   <TableHead className="w-[80px]">Acciones</TableHead>
                 </TableRow>
@@ -658,15 +663,15 @@ export default function ConsultarCensoPage() {
                               <Eye className="size-4 mr-1" /> Ver
                             </Button>
                           </SheetTriggerUI>
-                          <SheetContentUI className="w-[600px] sm:max-w-xl overflow-y-auto">
+                          <SheetContentUI className="flex w-[600px] flex-col overflow-hidden sm:max-w-xl">
                             <SheetHeaderUI>
                               <SheetTitleUI>
                                 Detalle del Censo: {emp.nombres} {emp.apellidos}
                               </SheetTitleUI>
                             </SheetHeaderUI>
-                            <div className="px-4 pb-4 mt-4">
+                            <ScrollArea className="flex-1 px-4 pb-4 mt-4">
                               <DetalleCenso empleado={emp} />
-                            </div>
+                            </ScrollArea>
                           </SheetContentUI>
                         </SheetUI>
                       </TableCell>
@@ -675,7 +680,7 @@ export default function ConsultarCensoPage() {
                 )}
               </TableBody>
             </Table>
-          </div>
+          </ScrollArea>
         )}
       </div>
     </PageLayout>

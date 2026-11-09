@@ -11,6 +11,13 @@ para que el frontend las consuma igual.
 from rest_framework import serializers
 
 
+class PaisSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    nombre = serializers.CharField(read_only=True)
+    codigo = serializers.CharField(read_only=True)
+    es_venezuela = serializers.BooleanField(read_only=True)
+
+
 class CatalogoItemSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     nombre = serializers.CharField(read_only=True)

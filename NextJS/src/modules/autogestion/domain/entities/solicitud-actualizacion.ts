@@ -24,6 +24,7 @@ export const SECCIONES = [
   "familiar",
   "salud",
   "foto",
+  "antecedentes",
 ] as const;
 export type SeccionCodigo = (typeof SECCIONES)[number];
 

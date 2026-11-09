@@ -5,7 +5,10 @@
 import { z } from "zod";
 
 import type { ParametroDTO } from "../../application/dtos/parametro-dto";
-import { CLAVE_FE_DE_VIDA_RECORDATORIOS } from "../../domain/value-objects/claves-parametros";
+import {
+  CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+  CLAVE_FE_DE_VIDA_RECORDATORIOS,
+} from "../../domain/value-objects/claves-parametros";
 
 const MAX_DIAS_RECORDATORIO = 365;
 const MAX_RECORDATORIOS = 10;
@@ -14,19 +17,32 @@ export const valorParametroSchema = z.object({
   valor: z
     .string()
     .trim()
-    .min(1, "El valor no puede quedar vacío.")
-    .max(255, "El valor no puede superar 255 caracteres."),
+    .max(2000, "El valor no puede superar 2000 caracteres."),
 });
 
 export type ValorParametroForm = z.infer<typeof valorParametroSchema>;
 
 /** Devuelve el mensaje de error o `null` si el valor es válido para el parámetro. */
 export function validarValorParametro(parametro: ParametroDTO, valor: string): string | null {
+  if (parametro.clave === CLAVE_CARNETIZACION_MI_CARNET_USUARIOS) {
+    const limpio = (valor ?? "").trim();
+    if (limpio.length > 2000) return "El valor no puede superar 2000 caracteres.";
+    const partes = limpio.split(",").map((p) => p.trim()).filter(Boolean);
+    for (const p of partes) {
+      if (!/^\d+$/.test(p)) {
+        return `«${p}» no es una cédula válida.`;
+      }
+    }
+    return null;
+  }
   const base = valorParametroSchema.safeParse({ valor });
   if (!base.success) {
     return base.error.issues[0]?.message ?? "Valor inválido.";
   }
   const texto = base.data.valor;
+  if (!texto && parametro.tipo !== "booleano") {
+    return "El valor no puede quedar vacío.";
+  }
 
   if (parametro.tipo === "booleano") {
     return texto === "true" || texto === "false"

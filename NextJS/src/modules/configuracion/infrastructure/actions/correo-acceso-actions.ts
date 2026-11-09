@@ -76,3 +76,17 @@ export async function aplicarPoliticaCorreoAccesoMasivoAction(
     return res.data;
   });
 }
+
+export async function descargarExcelVistaPreviaCorreoAccesoAction(
+  grupo: "activos" | "pasivos",
+  incluirExcepciones: boolean = false,
+) {
+  return conAuditoria("descargarExcelVistaPreviaCorreoAccesoAction", async () => {
+    const blob = await correoAccesoApi.descargarExcelVistaPrevia(grupo, incluirExcepciones);
+    const arrayBuffer = await blob.arrayBuffer();
+    return {
+      base64: Buffer.from(arrayBuffer).toString("base64"),
+      nombre: `vista_previa_correo_${grupo}.xlsx`,
+    };
+  });
+}

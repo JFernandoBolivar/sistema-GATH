@@ -1,9 +1,16 @@
 "use client";
 
 import { ContadorCaracteres } from "@/components/contador-caracteres";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
+import { toast } from "sonner";
 import {
   User,
   Building2,
@@ -44,7 +51,7 @@ import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
 import { ScrollArea, ScrollBar } from "@/shared/ui/components/scroll-area";
-import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
+import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
 import { InfoRow } from "@/shared/ui/components/info-row";
 import { formatearFecha, formatearFechaConEdad } from "@/shared/lib/formato-fecha";
 import {
@@ -66,7 +73,12 @@ import {
 import { BotonSolicitarActualizacion } from "./solicitudes/boton-solicitar-actualizacion";
 import { ModalReportarErrorLaboral } from "./components/modal-reportar-error-laboral";
 import { formatearTelefono } from "@/shared/domain/validation/telefono";
+import { formatearTiempoServicio } from "../domain/formatear-tiempo-servicio";
+import { tieneFechaIngresoApn } from "../domain/tiene-fecha-ingreso";
 import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
+import { useGuia } from "@/shared/ui/guias";
+import { GUIA_AUTOGESTION_INICIO, GUIA_MI_FICHA } from "./guias/definiciones-guias";
+import { useRegistrarGuia } from "./guias/contexto-guia";
 
 import {
   getMiExpedienteAction,
@@ -79,13 +91,6 @@ import type {
   ContactoEmergenciaItem,
   ContratoItem,
 } from "../application/dtos/mi-expediente-dto";
-
-/**
- * El carnet digital aún no entra en producción: mientras siga apagado, la
- * cabecera, la pestaña y el diálogo de solicitud no se renderizan. Para
- * habilitarlo basta con volver a `true` (el backend ya está listo).
- */
-const MOSTRAR_CARNET = false;
 
 /**
  * Valor de una asignación o catálogo: el «N/A» que devuelve el backend es una
@@ -114,6 +119,7 @@ function duracionServicio(ingreso?: string | null, egreso?: string | null): stri
   return partes.join(" y ");
 }
 
+
 function formatearLista(items: unknown[] | undefined): string {
   if (!items || items.length === 0) return "Ninguna reportada";
   return items
@@ -126,22 +132,32 @@ function formatearLista(items: unknown[] | undefined): string {
     .join(", ");
 }
 
-export default function MiExpedienteView() {
+interface MiExpedienteViewProps {
+  initialTab?: string;
+}
+
+export default function MiExpedienteView({ initialTab = "personal" }: MiExpedienteViewProps) {
   const { data, error, isLoading, mutate } = useSWR("mi-expediente-trabajador", () =>
     getMiExpedienteAction(),
   );
 
-  const [activeTab, setActiveTab] = useState<string>("personal");
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [modalCarnetAbierto, setModalCarnetAbierto] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<number>(2);
   const [observacionesSolicitud, setObservacionesSolicitud] = useState("");
   const [solicitandoCarnet, setSolicitandoCarnet] = useState(false);
   const [descargandoPdf, setDescargandoPdf] = useState(false);
   const [fotoError, setFotoError] = useState(false);
-  const [feedbackCarnet, setFeedbackCarnet] = useState<{
-    tipo: "success" | "error";
-    mensaje: string;
-  } | null>(null);
+
+  const pathname = usePathname() ?? "";
+  const esFicha = pathname.includes("/ficha");
+  const guiaActual = esFicha ? GUIA_MI_FICHA : GUIA_AUTOGESTION_INICIO;
+
+  const { iniciarGuia } = useGuia({
+    guia: guiaActual,
+    autoIniciar: true,
+  });
+  useRegistrarGuia(iniciarGuia);
 
   if (isLoading) {
     return (
@@ -181,11 +197,35 @@ export default function MiExpedienteView() {
     );
   }
 
+  // Entrada directa a /autogestion/mi-carnet sin acceso: estado vacío claro,
+  // nunca la ficha "sin pestaña" ni un error. La regla la decide el backend.
+  if (initialTab === "carnet" && !data.puede_ver_carnet) {
+    return (
+      <div className="p-4 md:p-6 max-w-4xl mx-auto mt-6">
+        <VistaVacia
+          titulo="Tu carnet digital aún no está habilitado"
+          descripcion="La consulta del carnet digital no está habilitada para tu usuario. Puedes seguir consultando tu ficha, tus solicitudes y tu fe de vida."
+          accion={
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href="/autogestion">Volver a mi ficha</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   const { empleado, familiares, carnet_activo, carnets = [], motivos_carnet = [] } = data;
+  const mostrarCarnet = Boolean(data.puede_ver_carnet);
   const vivienda = empleado.datos_vivienda;
   const salud = empleado.perfil_salud;
   const fisico = empleado.perfil_fisico;
   const contratoActual = empleado.contrato_actual;
+  // FIX-AUD7: sin fecha de ingreso el APN no es calculable; se muestra «—».
+  const conFechaIngresoApn = tieneFechaIngresoApn(
+    contratoActual?.fecha_ingreso,
+    empleado.antecedentes,
+  );
   const contratos = (empleado.contratos || []) as ContratoItem[];
   const formacion = (empleado.formacion_academica || []) as FormacionAcademicaItem[];
   const complementaria = (empleado.formacion_complementaria || []) as FormacionComplementariaItem[];
@@ -224,13 +264,12 @@ export default function MiExpedienteView() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Liberar después de que el navegador inicie la descarga (D7).
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch {
-      setFeedbackCarnet({
-        tipo: "error",
-        mensaje:
-          "No se pudo descargar el carnet en PDF. Verifique que posee un carnet activo emitido.",
-      });
+      toast.error(
+        "No se pudo descargar el carnet en PDF. Verifique que posee un carnet activo emitido.",
+      );
     } finally {
       setDescargandoPdf(false);
     }
@@ -246,7 +285,6 @@ export default function MiExpedienteView() {
     e.preventDefault();
     if (errorObservaciones) return;
     setSolicitandoCarnet(true);
-    setFeedbackCarnet(null);
     try {
       const res = await solicitarCarnetAction({
         motivo_id: motivoSeleccionado,
@@ -254,26 +292,15 @@ export default function MiExpedienteView() {
       });
 
       if (res.success) {
-        setFeedbackCarnet({
-          tipo: "success",
-          mensaje:
-            res.message ||
-            "¡Solicitud registrada exitosamente! Su trámite de carnet ha sido remitido a Gestión del Talento Humano. Una vez aprobada, podrá retirarlo impreso en la sede o descargarlo en PDF.",
-        });
+        toast.success("Solicitud de carnet enviada. Recursos Humanos la revisará.");
         setModalCarnetAbierto(false);
         setObservacionesSolicitud("");
         await mutate();
       } else {
-        setFeedbackCarnet({
-          tipo: "error",
-          mensaje: res.message || "Ocurrió un error al procesar la solicitud del carnet.",
-        });
+        toast.error(res.message || "Ocurrió un error al procesar la solicitud del carnet.");
       }
     } catch {
-      setFeedbackCarnet({
-        tipo: "error",
-        mensaje: "Error de comunicación al solicitar el carnet institucional.",
-      });
+      toast.error("Error de comunicación al solicitar el carnet institucional.");
     } finally {
       setSolicitandoCarnet(false);
     }
@@ -281,42 +308,19 @@ export default function MiExpedienteView() {
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
-      {feedbackCarnet && (
-        <div
-          className={`p-4 rounded-xl flex items-center justify-between text-sm shadow-md transition-all ${
-            feedbackCarnet.tipo === "success"
-              ? "bg-emerald-950/40 border border-emerald-500/40 text-emerald-200"
-              : "bg-rose-950/40 border border-rose-500/40 text-rose-200"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            {feedbackCarnet.tipo === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-            )}
-            <span>{feedbackCarnet.mensaje}</span>
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs hover:bg-white/10"
-            onClick={() => setFeedbackCarnet(null)}
-          >
-            Cerrar
-          </Button>
-        </div>
-      )}
 
       {/* Cabecera Institucional CONATEL */}
-      <Card className="min-w-0 overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0">
-        <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-6 md:p-8 text-white relative overflow-hidden">
+      <Card
+        data-guia-id="inicio-cabecera"
+        className="min-w-0 overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0"
+      >
+        <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 h-1.5 w-48 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 rounded-bl-full opacity-80" />
 
-          <div className="relative z-10 flex min-w-0 flex-col items-start justify-between gap-6 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 flex-col items-start gap-5 sm:flex-row sm:items-center">
-              <div className="relative shrink-0">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-blue-600/40 to-slate-900/60 border-2 border-amber-400/40 flex items-center justify-center shadow-xl backdrop-blur-sm overflow-hidden">
+          <div className="relative z-10 flex min-w-0 flex-col items-stretch justify-between gap-5 sm:gap-6 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 flex-col items-center sm:items-start gap-4 sm:flex-row sm:gap-6 text-center sm:text-left">
+              <div className="relative shrink-0 mx-auto sm:mx-0">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-blue-600/40 to-slate-900/60 border-2 border-amber-400/40 flex items-center justify-center shadow-xl backdrop-blur-sm overflow-hidden">
                   {empleado.foto_url && !fotoError ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -326,10 +330,10 @@ export default function MiExpedienteView() {
                       onError={() => setFotoError(true)}
                     />
                   ) : (
-                    <User className="w-10 h-10 sm:w-12 sm:h-12 text-amber-300" />
+                    <User className="w-12 h-12 sm:w-14 sm:h-14 text-amber-300" />
                   )}
                 </div>
-                {MOSTRAR_CARNET && carnet_activo?.activo && (
+                {mostrarCarnet && carnet_activo?.activo && (
                   <span
                     title="Carnet Digital Activo"
                     className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 shadow-md border-2 border-[#001737]"
@@ -339,69 +343,77 @@ export default function MiExpedienteView() {
                 )}
               </div>
 
-              <div className="min-w-0 space-y-2">
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <span className="text-xs font-bold tracking-wider text-amber-300 uppercase px-3 py-1 rounded-md bg-amber-400/15 border border-amber-400/30">
+              <div className="min-w-0 space-y-2.5 w-full flex flex-col items-center sm:items-start text-center sm:text-left">
+                {/* TLF6: En teléfono el nombre se agrupa como bloque principal junto a la foto */}
+                <h1 className="order-1 sm:order-2 break-words text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm text-center sm:text-left">
+                  {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
+                </h1>
+
+                {/* TLF6: Chips de CONATEL y C.I. juntos sin interferencia del botón Ver guía */}
+                <div className="order-2 sm:order-1 flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                  <span className="text-[11px] sm:text-xs font-bold tracking-wider text-amber-300 uppercase px-2.5 py-1 rounded-md bg-amber-400/15 border border-amber-400/30">
                     CONATEL • GATH
                   </span>
                   <Badge
                     variant="secondary"
-                    className="bg-white/15 text-white hover:bg-white/25 text-sm font-mono px-3 py-0.5"
+                    className="bg-white/15 text-white hover:bg-white/25 text-xs sm:text-sm font-mono px-2.5 py-0.5"
                   >
                     C.I. {empleado.cedula}
                   </Badge>
-                  {MOSTRAR_CARNET &&
+                  {mostrarCarnet &&
                     (carnet_activo ? (
-                      <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-sm gap-1.5 py-0.5 px-3">
+                      <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-xs sm:text-sm gap-1.5 py-0.5 px-2.5">
                         <FileCheck className="w-3.5 h-3.5" /> Carnet Vigente
                       </Badge>
                     ) : (
                       <Badge
                         variant="outline"
-                        className="border-amber-400/50 text-amber-300 text-sm py-0.5 px-3"
+                        className="border-amber-400/50 text-amber-300 text-xs sm:text-sm py-0.5 px-2.5"
                       >
                         Sin carnet emitido
                       </Badge>
                     ))}
                 </div>
 
-                <h1 className="break-words text-2xl font-extrabold tracking-tight text-white drop-shadow-sm sm:text-3xl lg:text-4xl">
-                  {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
-                </h1>
+                {/* TLF6: Cargo y oficina en filas limpias: maletín nunca huérfano y sin punto sobrante en móvil */}
+                <div className="order-3 flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-1 sm:gap-2 text-xs sm:text-base font-medium text-blue-100">
+                  <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
+                    <Briefcase className="w-4 h-4 text-amber-300 shrink-0" aria-hidden />
+                    <span className="font-semibold text-white">{cargoPrincipal}</span>
+                  </div>
+                  <span className="hidden sm:inline text-blue-300/70" aria-hidden>•</span>
+                  <div className="text-blue-200 text-center sm:text-left sm:text-blue-100">
+                    <span>{oficinaPrincipal}</span>
+                  </div>
+                </div>
 
-                <p className="text-blue-100 text-sm sm:text-base font-medium flex items-center gap-2 flex-wrap">
-                  <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-amber-300 shrink-0" />
-                  <span className="font-semibold text-white">{cargoPrincipal}</span>
-                  <span className="text-blue-300/70">•</span>
-                  <span className="text-blue-200">{oficinaPrincipal}</span>
-                </p>
-
-                <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-sm text-blue-100 pt-1">
+                <div className="order-4 flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 sm:gap-x-5 text-xs sm:text-sm text-blue-100 pt-1">
                   {empleado.correo && (
-                    <span className="flex min-w-0 items-center gap-2">
-                      <Mail className="w-4 h-4 shrink-0 text-amber-300" />{" "}
+                    <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                      <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-amber-300" />{" "}
                       <span className="break-all">{empleado.correo}</span>
                     </span>
                   )}
                   {empleado.telefono_movil && (
-                    <span className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-amber-300 shrink-0" />{" "}
+                    <span className="flex items-center gap-1.5 sm:gap-2">
+                      <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
                       {formatearTelefono(empleado.telefono_movil)}
                     </span>
                   )}
-                  {empleado.total_anos_apn !== undefined && (
-                    <span className="flex items-center gap-2 font-semibold text-amber-200">
-                      <Clock className="w-4 h-4 text-amber-300 shrink-0" />{" "}
-                      {empleado.total_anos_apn} años de servicio en APN
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5 sm:gap-2 font-semibold text-amber-200">
+                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
+                    {conFechaIngresoApn && empleado.total_anos_apn !== undefined
+                      ? formatearTiempoServicio(empleado.total_anos_apn)
+                      : "—"}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {MOSTRAR_CARNET && (
+            {mostrarCarnet && (
               <div className="flex w-full shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:w-auto lg:flex-col lg:items-end">
                 <Button
+                  data-guia-id="ficha-carnet"
                   onClick={() => setActiveTab("carnet")}
                   className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold shadow-lg text-sm h-11 px-5 gap-2 sm:flex-1 lg:w-auto lg:flex-none"
                 >
@@ -423,14 +435,19 @@ export default function MiExpedienteView() {
           tabIndex={0}
           className="w-full whitespace-nowrap pb-2"
         >
-          <TabsList className="inline-flex h-auto p-1.5 bg-muted/80 rounded-xl border border-border/50 min-w-full sm:min-w-0 justify-start sm:justify-center gap-1.5">
+          <TabsList
+            data-guia-id="inicio-pestanas"
+            className="inline-flex h-auto p-1.5 bg-muted/80 rounded-xl border border-border/50 min-w-full sm:min-w-0 justify-start sm:justify-center gap-1.5"
+          >
             <TabsTrigger
+              data-guia-id="ficha-datos-personales"
               value="personal"
               className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
               <User className="w-4 h-4 text-blue-500" /> Datos Personales
             </TabsTrigger>
             <TabsTrigger
+              data-guia-id="ficha-datos-laborales"
               value="laboral"
               className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
@@ -443,7 +460,7 @@ export default function MiExpedienteView() {
               <GraduationCap className="w-4 h-4 text-emerald-500" /> Formación & Cursos (
               {formacion.length + complementaria.length})
             </TabsTrigger>
-            {MOSTRAR_CARNET && (
+            {mostrarCarnet && (
               <TabsTrigger
                 value="carnet"
                 className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
@@ -505,12 +522,12 @@ export default function MiExpedienteView() {
                 />
                 <InfoRow label="Estado Civil" value={empleado.estado_civil_nombre} />
                 <InfoRow
-                  label="Carnet de la Patria"
+                  label={ETIQUETA_CODIGO_CARNET_PATRIA}
                   value={empleado.carnet_patria}
                   emptyText="No reportado"
                 />
                 <InfoRow
-                  label="Serial del Carnet de la Patria"
+                  label={ETIQUETA_SERIAL_CARNET_PATRIA}
                   value={empleado.carnet_patria_serial}
                   emptyText="No reportado"
                 />
@@ -559,6 +576,12 @@ export default function MiExpedienteView() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="divide-y divide-border/40 pt-2">
+                {vivienda?.pais && (!vivienda.pais.es_venezuela || vivienda.ciudad_region) ? (
+                  <>
+                    <InfoRow label="País" value={vivienda.pais.nombre} />
+                    <InfoRow label="Ciudad o Región" value={vivienda.ciudad_region || null} />
+                  </>
+                ) : null}
                 <InfoRow
                   label="Estado"
                   value={
@@ -649,7 +672,7 @@ export default function MiExpedienteView() {
 
         {/* TAB 2: TRAYECTORIA LABORAL & CARGO */}
         <TabsContent value="laboral" className="space-y-6 focus-visible:outline-none">
-          <div className="flex justify-end">
+          <div className="flex justify-end" data-guia-id="ficha-reportar-error">
             <ModalReportarErrorLaboral />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -724,9 +747,9 @@ export default function MiExpedienteView() {
                 <InfoRow
                   label="Tiempo de Servicio APN"
                   value={
-                    empleado.total_anos_apn !== undefined
-                      ? `${empleado.total_anos_apn} años continuos`
-                      : null
+                    conFechaIngresoApn && empleado.total_anos_apn !== undefined
+                      ? formatearTiempoServicio(empleado.total_anos_apn)
+                      : "—"
                   }
                 />
               </CardContent>
@@ -810,7 +833,7 @@ export default function MiExpedienteView() {
                   No se registran contratos anteriores en el expediente.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="w-full overflow-x-auto">
                   <Table className="min-w-[560px]">
                     <TableHeader>
                       <TableRow className="text-sm">
@@ -1027,8 +1050,8 @@ export default function MiExpedienteView() {
           </Card>
         </TabsContent>
 
-        {/* TAB 4: MI CARNET INSTITUCIONAL (oculto hasta su pase a producción) */}
-        {MOSTRAR_CARNET && (
+        {/* TAB 4: MI CARNET INSTITUCIONAL (controlado por el alcance configurado) */}
+        {mostrarCarnet && (
           <TabsContent value="carnet" className="space-y-6 focus-visible:outline-none">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-4 bg-muted/20 p-6 rounded-2xl border border-border/60 shadow-sm">
@@ -1121,14 +1144,25 @@ export default function MiExpedienteView() {
                           </div>
                         </div>
 
+
                         {carnet_activo.security_hash && (
-                          <div className="p-3.5 bg-muted/30 border border-border/50 rounded-xl space-y-1.5 text-sm">
-                            <span className="text-muted-foreground block text-xs font-semibold">
-                              Hash Criptográfico de Verificación SHA-256:
-                            </span>
-                            <span className="font-mono text-xs break-all text-blue-600 dark:text-blue-400 select-all block">
-                              {carnet_activo.security_hash}
-                            </span>
+                          <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-muted/30 p-4 sm:flex-row">
+                            {/* QR servido por el backend; el titular ya está autorizado por el parámetro Mi carnet. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/v1/carnetizacion/public/qr/${carnet_activo.security_hash}/imagen/`}
+                              alt="Código QR de verificación del carnet"
+                              className="size-36 shrink-0 rounded-lg border bg-white p-2 shadow-sm"
+                            />
+                            <div className="space-y-1 text-center sm:text-left">
+                              <p className="text-sm font-semibold text-foreground">
+                                Tu carnet en el teléfono
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Muestra este QR desde tu teléfono para verificar tu credencial.
+                                La información visible depende del parámetro de privacidad de Mi carnet.
+                              </p>
+                            </div>
                           </div>
                         )}
 
@@ -1141,7 +1175,7 @@ export default function MiExpedienteView() {
                         {/* Información de entrega física vs descarga digital */}
                         <div className="p-4 bg-muted/40 border border-border/60 rounded-xl space-y-2.5 text-sm">
                           <div className="font-semibold text-foreground flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-amber-500" /> Modalidades de Entrega
+                            <Building2 className="w-4 h-4 text-primary" /> Modalidades de Entrega
                             y Emisión:
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
@@ -1163,11 +1197,11 @@ export default function MiExpedienteView() {
                         </div>
                       </div>
                     ) : (
-                      <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-sm space-y-2 text-amber-200">
-                        <p className="font-bold text-amber-400 text-base">
+                      <div className="p-4 bg-muted/40 border border-border rounded-xl text-sm space-y-2 text-foreground">
+                        <p className="font-bold text-foreground text-base">
                           Aún no posee una credencial física o digital activa registrada.
                         </p>
-                        <p className="leading-relaxed">
+                        <p className="text-muted-foreground leading-relaxed">
                           Presione el botón a continuación para solicitar la emisión formal de su
                           carnet institucional avalado por la Gerencia de Gestión del Talento Humano
                           de CONATEL. Deberá esperar la aprobación institucional para retirarlo
@@ -1181,12 +1215,12 @@ export default function MiExpedienteView() {
                         <Button
                           onClick={handleDescargarCarnetPdf}
                           disabled={descargandoPdf}
-                          className="w-full sm:w-auto bg-[#002b5c] hover:bg-[#001737] text-white gap-2 font-semibold text-sm h-11 px-6 shadow"
+                          className="w-full sm:w-auto text-white gap-2 font-semibold text-sm h-11 px-6 shadow"
                         >
                           {descargandoPdf ? (
                             <RefreshCw className="w-4 h-4 animate-spin" />
                           ) : (
-                            <Download className="w-4 h-4 text-amber-400" />
+                            <Download className="w-4 h-4" />
                           )}
                           Descargar Carnet PDF (Imprimible)
                         </Button>
@@ -1195,11 +1229,7 @@ export default function MiExpedienteView() {
                       <Button
                         onClick={() => setModalCarnetAbierto(true)}
                         variant={carnet_activo ? "outline" : "default"}
-                        className={`w-full sm:w-auto gap-2 font-bold text-sm h-11 px-6 ${
-                          !carnet_activo
-                            ? "bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-md"
-                            : ""
-                        }`}
+                        className="w-full sm:w-auto gap-2 font-bold text-sm h-11 px-6 shadow-md"
                       >
                         <PlusCircle className="w-4 h-4" />
                         {carnet_activo ? "Solicitar Renovación de Carnet" : "Solicitar Mi Carnet"}
@@ -1375,7 +1405,7 @@ export default function MiExpedienteView() {
                   No posee cargas familiares registradas en su expediente.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="w-full overflow-x-auto">
                   <Table className="min-w-[720px]">
                     <TableHeader>
                       <TableRow className="text-sm">
@@ -1592,8 +1622,8 @@ export default function MiExpedienteView() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal Dialog: Solicitar / Renovar Carnet (oculto hasta su pase a producción) */}
-      {MOSTRAR_CARNET && (
+      {/* Modal Dialog: Solicitar / Renovar Carnet (controlado por el alcance configurado) */}
+      {mostrarCarnet && (
         <Dialog open={modalCarnetAbierto} onOpenChange={setModalCarnetAbierto}>
           <DialogContent className="sm:max-w-lg">
             <form onSubmit={handleSolicitarCarnet}>
@@ -1632,21 +1662,27 @@ export default function MiExpedienteView() {
                     id="motivo_id"
                     value={motivoSeleccionado}
                     onChange={(e) => setMotivoSeleccionado(Number(e.target.value))}
-                    className="w-full h-11 px-3 bg-background border border-border rounded-lg text-foreground text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    className="w-full h-11 px-3 bg-background border border-border rounded-lg text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                   >
                     {motivos_carnet.length > 0 ? (
-                      motivos_carnet.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.nombre} - {m.descripcion}
-                        </option>
-                      ))
+                      motivos_carnet.map((m) => {
+                        const esRepetido =
+                          !m.descripcion ||
+                          m.nombre.trim().toUpperCase() === m.descripcion.trim().toUpperCase();
+                        const texto = esRepetido ? m.nombre : `${m.nombre} — ${m.descripcion}`;
+                        return (
+                          <option key={m.id} value={m.id}>
+                            {texto}
+                          </option>
+                        );
+                      })
                     ) : (
                       <>
-                        <option value={1}>PRIMERA EMISIÓN - Nuevo ingreso a CONATEL</option>
-                        <option value={2}>RENOVACIÓN - Vencimiento de credencial</option>
-                        <option value={3}>PÉRDIDA - Extravío de credencial previa</option>
-                        <option value={4}>DAÑO - Deterioro del material físico</option>
-                        <option value={5}>ACTUALIZACIÓN - Cambio de cargo o adscripción</option>
+                        <option value={1}>PRIMERA EMISIÓN — Nuevo ingreso a CONATEL</option>
+                        <option value={2}>RENOVACIÓN — Vencimiento de credencial</option>
+                        <option value={3}>PÉRDIDA — Extravío de credencial previa</option>
+                        <option value={4}>DAÑO — Deterioro del material físico</option>
+                        <option value={5}>ACTUALIZACIÓN — Cambio de cargo o adscripción</option>
                       </>
                     )}
                   </select>

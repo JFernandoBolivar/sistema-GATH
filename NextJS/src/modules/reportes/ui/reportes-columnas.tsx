@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/components/dropdown-menu";
 import { DataTableColumnHeader } from "@/shared/ui/components/data-table-column-header";
+import { formatearTiempoServicio } from "@/shared/domain/formatear-tiempo-servicio";
 
 import type {
   ReporteItemCodigoDTO,
@@ -54,6 +55,11 @@ function CopiarCell({ valor, label }: { valor: string; label: string }) {
   );
 }
 
+/** Texto de la columna «Total años APN»: legible y «—» cuando falta la fecha de ingreso. */
+export function textoTotalApn(totalAnosApn: number, sinFechaApn: boolean): string {
+  return sinFechaApn ? "—" : formatearTiempoServicio(totalAnosApn);
+}
+
 export function construirColumnasReportePersonal(): ColumnDef<ReporteItemPersonalDTO>[] {
   return [
     {
@@ -69,7 +75,15 @@ export function construirColumnasReportePersonal(): ColumnDef<ReporteItemPersona
       accessorKey: "fechaIngreso",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Ingreso" />,
     },
-    { accessorKey: "totalAnosApn", header: "APN (años)" },
+    {
+      accessorKey: "totalAnosApn",
+      header: "Total años APN",
+      cell: ({ row }) => (
+        <span>
+          {textoTotalApn(row.original.totalAnosApn, row.original.sinFechaApn)}
+        </span>
+      ),
+    },
     {
       id: "actions",
       header: "Acciones",
@@ -86,12 +100,26 @@ export function construirColumnasReportePasivos(): ColumnDef<ReporteItemPasivoDT
       cell: ({ row }) => <span className="font-medium">{row.original.cedula}</span>,
     },
     { accessorKey: "nombreCompleto", header: "Nombre" },
-    { accessorKey: "tipoPersonal", header: "Tipo" },
+    {
+      accessorKey: "tipoPasivo",
+      header: "Tipo de pasivo",
+      cell: ({ row }) => <span>{row.original.tipoPasivo || row.original.tipoPersonal || "—"}</span>,
+    },
+    {
+      accessorKey: "pais",
+      header: "País",
+      cell: ({ row }) => <span>{row.original.pais || "—"}</span>,
+    },
     {
       accessorKey: "fechaEgreso",
-      header: ({ column }) => <DataTableColumnHeader column={column} title="Egreso" />,
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Pase a pasivo" />,
+      cell: ({ row }) => <span>{row.original.fechaEgreso || "—"}</span>,
     },
-    { accessorKey: "motivoEgreso", header: "Motivo" },
+    {
+      accessorKey: "contacto",
+      header: "Contacto",
+      cell: ({ row }) => <span>{row.original.contacto || "—"}</span>,
+    },
     {
       id: "actions",
       header: "Acciones",

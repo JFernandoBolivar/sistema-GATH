@@ -63,6 +63,7 @@ MAPA_REPORTES = {
             "estado": "datos_vivienda__estado__estado",
             "municipio": "datos_vivienda__municipio__municipio",
             "condicion_vivienda": "datos_vivienda__condicion_vivienda__condicion",
+            "pais": "datos_vivienda__pais__nombre",
         },
         "filtros_permitidos": {
             "dependencia_id": "assignments__Dependencia",
@@ -98,6 +99,7 @@ MAPA_REPORTES = {
             "municipio_id": "datos_vivienda__municipio",
             "parroquia_id": "datos_vivienda__parroquia",
             "condicion_vivienda_id": "datos_vivienda__condicion_vivienda",
+            "pais_id": "datos_vivienda__pais",
             "capacitacion_id": "formacion_complementaria__capacitacion",
             "procedencia_id": "formacion_complementaria__procedencia",
             "grupo_id": "formacion_complementaria__grupo",

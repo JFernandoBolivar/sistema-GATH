@@ -7,6 +7,10 @@
  * duplicar el JSX de cada campo.
  */
 import { ContadorCampo } from "@/components/contador-caracteres";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
 import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
 import { Controller, useFieldArray, type UseFormReturn } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
@@ -158,11 +162,11 @@ export function ExpedienteCampos({
             />
           </Field>
           <Field>
-            <Label htmlFor="carnetPatria">Carnet de la patria</Label>
+            <Label htmlFor="carnetPatria">{ETIQUETA_CODIGO_CARNET_PATRIA}</Label>
             <Input id="carnetPatria" {...form.register("carnetPatria")} />
           </Field>
           <Field>
-            <Label htmlFor="carnetPatriaSerial">Serial del Carnet de la Patria</Label>
+            <Label htmlFor="carnetPatriaSerial">{ETIQUETA_SERIAL_CARNET_PATRIA}</Label>
             <Input
               id="carnetPatriaSerial"
               placeholder="Serial"

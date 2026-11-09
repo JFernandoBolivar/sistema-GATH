@@ -19,6 +19,7 @@ from apps.fe_de_vida.application.use_cases.consultas import (
 from apps.fe_de_vida.application.use_cases.solicitudes_pasivo import (
     enviar_solicitud,
     exigir_celular,
+    exigir_correo_alternativo,
     guardar_borrador,
     iniciar_solicitud_vigente,
     subir_evidencia,
@@ -60,7 +61,7 @@ from apps.fe_de_vida.presentation.views._comun import (
     resumen,
     validar_entrada,
 )
-from core.domain.exceptions import ValidationError
+from core.domain.exceptions import NotFoundError, ValidationError
 from core.infrastructure.models.auditoria import AuditoriaLog
 from core.infrastructure.storage.seaweedfs_storage import SeaweedFSStorage
 from core.infrastructure.storage.validacion_archivo import MAX_BYTES_FOTO, TIPOS_FOTO, validar_archivo
@@ -222,9 +223,16 @@ class EnviarView(APIView):
     def post(self, request, solicitud_id):
         cedula = cedula_de_sesion(request)
         with transaction.atomic():
+            repo_sol = RepoSolicitudesFeDeVidaORM()
+            actual = repo_sol.obtener(str(solicitud_id))
+            if actual is None:
+                raise NotFoundError("La solicitud de fe de vida no existe.")
+            exigir_correo_alternativo(
+                RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud=actual, presencial=False,
+            )
             exigir_celular(RepoCambiosActaORM(), LectorFichaPasivoORM(), solicitud_id=str(solicitud_id), cedula=cedula)
             solicitud = enviar_solicitud(
-                RepoProcesosORM(), RepoSolicitudesFeDeVidaORM(), PublicadorSenales(),
+                RepoProcesosORM(), repo_sol, PublicadorSenales(),
                 solicitud_id=str(solicitud_id), cedula=cedula, ahora=ahora(),
             )
             auditar(request, 'SOLICITUD_ENVIADA', solicitud.id, None, resumen(solicitud))

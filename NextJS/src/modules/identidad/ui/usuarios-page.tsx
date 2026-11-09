@@ -13,7 +13,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { Loader2, Search, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Loader2, Search, UserPlus, Users } from "lucide-react";
 
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
@@ -61,7 +61,6 @@ export default function UsuariosPage() {
   const permisos = session?.user?.permisos;
   const puedeVer = tienePermiso(permisos, "identidad.ver_usuarios");
   const puedeCrear = tienePermiso(permisos, "identidad.crear_usuarios");
-  const puedeVerMatriz = tienePermiso(permisos, "identidad.ver_roles");
   const puedeCorreo = tienePermiso(permisos, "identidad.cambiar_correo_acceso");
 
   const [filtros, setFiltros] = useState<UsuariosFiltrosDTO>(FILTROS_INICIALES);
@@ -135,16 +134,9 @@ export default function UsuariosPage() {
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Users className="size-5 text-muted-foreground" aria-hidden="true" />
-          <h1 className="text-xl font-semibold tracking-tight">Usuarios y roles</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Usuarios</h1>
         </div>
         <div className="flex items-center gap-2">
-          {puedeVerMatriz && (
-            <Button asChild variant="outline">
-              <Link href="/usuarios/matriz">
-                <ShieldCheck className="size-4" aria-hidden="true" /> Matriz de permisos
-              </Link>
-            </Button>
-          )}
           {puedeCrear && (
             <Button asChild>
               <Link href="/usuarios/registrar">
@@ -216,7 +208,7 @@ export default function UsuariosPage() {
                   <SelectItem value="todos">Todos</SelectItem>
                   {roles.map((r) => (
                     <SelectItem key={r.id} value={String(r.id)}>
-                      {r.nombreRol}
+                      {r.nombreVisible}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -333,8 +325,26 @@ export default function UsuariosPage() {
                         {usuario.condicion ?? "—"}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{usuario.correo ?? "—"}</TableCell>
-                    <TableCell>{usuario.rolNombre ?? "—"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-xs">{usuario.correo ?? "—"}</span>
+                          {usuario.correo && (
+                            <Badge variant="outline" className="px-1 py-0 text-[10px] font-normal leading-tight">
+                              Acceso
+                            </Badge>
+                          )}
+                        </div>
+                        {usuario.correoAlternativo &&
+                          usuario.correoAlternativo.trim().toLowerCase() !==
+                            (usuario.correo ?? "").trim().toLowerCase() && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Alt: {usuario.correoAlternativo}
+                            </span>
+                          )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{usuario.rolNombreVisible ?? usuario.rolNombre ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={usuario.isActive ? "secondary" : "outline"}>
                         {usuario.isActive ? "Activo" : "Inactivo"}

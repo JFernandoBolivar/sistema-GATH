@@ -43,6 +43,22 @@ class LectorFicha(Protocol):
         """
         ...
 
+    def validar_familiar_cambio(self, cedula: str, entidad_id: str, valores: dict) -> None:
+        """Valida las reglas del parentesco sobre el estado final de un familiar editado.
+
+        Recibe solo los campos que cambian y completa el resto con el registro actual.
+        Lanza `ValidationError` con el campo legible correspondiente.
+        """
+        ...
+
+    def validar_correo_alternativo(self, cedula: str, correo_alternativo: str) -> None:
+        """Valida que el correo alternativo propuesto sea único y distinto del propio institucional."""
+        ...
+
+    def es_pais_venezuela(self, pais_id: int | None) -> bool:
+        """Si el país indicado es Venezuela (o no se indicó, que equivale al país por defecto)."""
+        ...
+
 
 class AplicadorCambios(Protocol):
     def aplicar(self, cedula: str, cambios: list[CambioPropuesto], soportes: list[SoporteDocumental], actor_cedula: str) -> None:

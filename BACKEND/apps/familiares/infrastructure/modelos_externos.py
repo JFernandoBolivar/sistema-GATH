@@ -8,7 +8,10 @@ Solo `infrastructure/` puede cruzar módulos (regla B16, ver cabecera de
 `apps.familiares`; `presentation/` importa de aquí, nunca directo de
 `apps.catalogos`/`apps.personal`.
 """
-from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel
+from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel, SexoModel
+from apps.configuracion.infrastructure.models.regla_parentesco_model import (
+    ReglaParentescoModel,
+)
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
     CarreraModel,
@@ -32,6 +35,8 @@ __all__ = [
     'MencionModel',
     'NivelAcademicoModel',
     'ParentescoModel',
+    'ReglaParentescoModel',
+    'SexoModel',
     'PatologiaCronicaModel',
     'TallaModel',
 ]

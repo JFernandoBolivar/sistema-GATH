@@ -56,7 +56,7 @@ class ProrrogarVentanaSerializer(serializers.Serializer):
 
 class ItemCambioSerializer(serializers.Serializer):
     seccion = serializers.CharField(max_length=30)
-    entidad = serializers.CharField(max_length=40, help_text='employee | datos_complementarios | datos_vivienda | formacion_academica | formacion_complementaria | contacto_emergencia | familiar')
+    entidad = serializers.CharField(max_length=40, help_text='employee | datos_complementarios | datos_vivienda | formacion_academica | formacion_complementaria | contacto_emergencia | familiar | antecedente_servicio')
     accion = serializers.ChoiceField(choices=ACCIONES)
     campo = serializers.CharField(max_length=60, help_text="Campo a modificar; '*' al CREAR o QUITAR un registro.")
     valor = serializers.JSONField(allow_null=True, help_text='Valor propuesto; al CREAR, un objeto con los campos del registro; al QUITAR, {"motivo": "..."}.')
@@ -119,7 +119,7 @@ class ConfigurarSeccionSerializer(serializers.Serializer):
 
 
 class DatosComplementariosEscrituraSerializer(serializers.Serializer):
-    correo_alternativo = serializers.CharField(required=False, allow_null=True, allow_blank=True, max_length=254)
+    correo_alternativo = serializers.EmailField(required=False, allow_null=True, allow_blank=True, max_length=254)
     tiene_hijos = serializers.BooleanField(required=False, allow_null=True)
 
 
@@ -206,6 +206,7 @@ class SeccionAutogestionableSerializer(serializers.Serializer):
     nombre = serializers.CharField()
     requiere_soporte = serializers.BooleanField()
     activa = serializers.BooleanField()
+    orden = serializers.IntegerField(default=0)
 
 
 class DatosComplementariosSerializer(serializers.Serializer):

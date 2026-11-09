@@ -63,9 +63,11 @@ export interface CatalogoEmpleadoDTO {
   regionId?: number | null;
   regionCodigo?: string | null;
   regionDescripcion?: string | null;
+  esVenezuela?: boolean | null;
 }
 
 export interface CatalogosExpedienteDTO {
+  paises: CatalogoEmpleadoDTO[];
   estados: CatalogoEmpleadoDTO[];
   municipios: CatalogoEmpleadoDTO[];
   parroquias: CatalogoEmpleadoDTO[];

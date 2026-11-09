@@ -47,7 +47,8 @@ def borrador(m, sol, items, cedula=TRABAJADOR, ahora=AHORA):
 
 def soporte(m, sol, seccion='formacion', tipo='TITULO', cedula=TRABAJADOR, entidad_id=None, referencia=None):
     return adjuntar_soporte(
-        m.solicitudes, m.soportes, m.cambios, m.ficha, m.almacen, solicitud_id=sol.id, cedula=cedula, seccion=seccion,
+        m.solicitudes, m.soportes, m.cambios, m.ficha, m.almacen, m.soporte_config,
+        solicitud_id=sol.id, cedula=cedula, seccion=seccion,
         tipo=tipo, contenido=b'%PDF-1.4 x', mime='application/pdf', extension='.pdf', nombre_original='titulo.pdf', ahora=AHORA,
         entidad_id=entidad_id, referencia=referencia,
     )
@@ -347,7 +348,7 @@ def test_foto_crea_el_cambio_profile_y_el_aplicador_recibe_el_soporte():
     m = Mundo()
     sol = habilitar(m, solicitar(m, ('foto',)))
     foto = adjuntar_soporte(
-        m.solicitudes, m.soportes, m.cambios, m.ficha, m.almacen, solicitud_id=sol.id, cedula=TRABAJADOR,
+        m.solicitudes, m.soportes, m.cambios, m.ficha, m.almacen, m.soporte_config, solicitud_id=sol.id, cedula=TRABAJADOR,
         seccion='foto', tipo='FOTO', contenido=b'\xff\xd8\xff data', mime='image/jpeg', extension='.jpg', nombre_original='yo.jpg', ahora=AHORA,
     )
     cambio = m.cambios.listar('ACTUALIZACION', sol.id)[0]
@@ -372,3 +373,28 @@ def test_rechazar_solicitud_sin_habilitar_o_enviada_con_motivo():
     rechazar_solicitud(m.solicitudes, m.cambios, m.publicador, solicitud_id=sol.id, motivo='Falso', version=None, actor=BIENESTAR, ahora=AHORA)
     assert m.ficha.aplicaciones == []
     assert m.cambios.listar('ACTUALIZACION', sol.id)[0].decision.value == 'RECHAZADO'
+
+
+def test_tipo_de_soporte_se_valida_contra_la_configuracion_de_la_seccion():
+    m = Mundo()
+    sol = habilitar(m, solicitar(m, ('formacion', 'salud')))
+    permitido = soporte(m, sol, seccion='formacion', tipo='TITULO')
+    assert permitido.tipo == 'TITULO'
+    with pytest.raises(ValidationError) as no_permitido:
+        soporte(m, sol, seccion='formacion', tipo='CEDULA')
+    assert 'no permitido' in str(no_permitido.value)
+    with pytest.raises(ValidationError) as sin_checklist:
+        soporte(m, sol, seccion='salud', tipo='CONSTANCIA')
+    assert 'no admite soportes' in str(sin_checklist.value)
+
+
+def test_el_checklist_configurado_manda_sobre_los_codigos_historicos():
+    m = Mundo()
+    sol = habilitar(m, solicitar(m, ('formacion',)))
+    # La configuración vigente deja de permitir TITULO en formación.
+    m.soporte_config.filas = [
+        f for f in m.soporte_config.filas
+        if not (f.seccion == 'formacion' and f.codigo == 'TITULO')
+    ]
+    with pytest.raises(ValidationError):
+        soporte(m, sol, seccion='formacion', tipo='TITULO')

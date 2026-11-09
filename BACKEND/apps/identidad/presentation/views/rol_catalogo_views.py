@@ -54,8 +54,15 @@ class RolListCrearView(views.APIView):
         responses={200: RolCatalogoLecturaSerializer(many=True), 403: MensajeRespuestaSerializer},
     )
     def get(self, request):
-        roles = listar_roles(RepoRolesORM())
-        datos = RolCatalogoLecturaSerializer(roles, many=True).data
+        repo = RepoRolesORM()
+        roles = listar_roles(repo)
+        usuarios, permisos = repo.conteos_por_rol()
+        datos = []
+        for rol in roles:
+            fila = RolCatalogoLecturaSerializer(rol).data
+            fila['n_usuarios'] = usuarios.get(rol.identificador, 0)
+            fila['n_permisos'] = permisos.get(rol.identificador, 0)
+            datos.append(fila)
         return ok(datos, f'{len(datos)} rol(es) encontrado(s).')
 
     @extend_schema(
@@ -77,7 +84,7 @@ class RolListCrearView(views.APIView):
         rol = crear_rol(
             RepoRolesORM(),
             CrearRolDTO(
-                nombre=datos.get('nombre_rol', ''),
+                nombre_visible=datos.get('nombre_visible', ''),
                 descripcion=datos.get('descripcion_rol', ''),
             ),
         )
@@ -114,7 +121,10 @@ class RolActualizarView(views.APIView):
             RepoRolesORM(),
             ActualizarRolDTO(
                 id=id,
-                nombre=datos.get('nombre_rol') if 'nombre_rol' in request.data else None,
+                nombre_visible=(
+                    datos.get('nombre_visible') if 'nombre_visible' in request.data else None
+                ),
+                codigo=datos.get('nombre_rol') if 'nombre_rol' in request.data else None,
                 descripcion=(
                     datos.get('descripcion_rol') if 'descripcion_rol' in request.data else None
                 ),

@@ -142,6 +142,13 @@ def vivienda_a_dict(v) -> dict | None:
     if not v:
         return None
     return {
+        'pais_id': v.pais_id,
+        'pais_nombre': v.pais.nombre if getattr(v, 'pais', None) else None,
+        'pais_codigo': v.pais.codigo if getattr(v, 'pais', None) else None,
+        'pais_es_venezuela': (
+            bool(v.pais.es_venezuela) if getattr(v, 'pais', None) else None
+        ),
+        'ciudad_region': v.ciudad_region,
         'estado_id': v.estado_id,
         'estado_nombre': v.estado.estado if getattr(v, 'estado', None) else None,
         'municipio_id': v.municipio_id,
@@ -393,7 +400,7 @@ def construir_expediente(empleado: EmployeeModel, antecedentes=None) -> dict:
     return {
         'datos_vivienda': vivienda_a_dict(
             DatosViviendaModel.objects.filter(empleado=empleado)
-            .select_related('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal')
+            .select_related('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal', 'pais')
             .first()
         ),
         'perfil_salud': salud_a_dict(

@@ -23,9 +23,11 @@ class Cuenta:
     nombres: str = ''
     apellidos: str = ''
     correo: str | None = None
+    correo_alternativo: str | None = None
     telefono: str | None = None
     rol_id: int | None = None
     rol_nombre: str | None = None
+    rol_nombre_visible: str | None = None
     is_active: bool = True
     ultimo_acceso: datetime | None = None
     condicion: str | None = None

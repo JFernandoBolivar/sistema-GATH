@@ -32,8 +32,11 @@ export interface SolicitudApi {
   canal?: string;
   registrada_por?: string;
   registrada_por_cedula?: string;
+  registrador_tambien_aprobo?: boolean;
   fecha_envio: string | null;
   fecha_validacion: string | null;
+  sin_correo_alternativo?: boolean;
+  justificacion_sin_correo?: string;
   decisiones: DecisionApi[];
 }
 
@@ -69,6 +72,17 @@ export interface FichaApi {
     telefono_movil?: string | null;
     telefono_habitacion?: string | null;
     datos_vivienda?: {
+      pais?: {
+        id: number;
+        nombre: string;
+        codigo?: string;
+        es_venezuela: boolean;
+      } | null;
+      pais_id?: number | null;
+      pais_nombre?: string | null;
+      pais_codigo?: string | null;
+      pais_es_venezuela?: boolean | null;
+      ciudad_region?: string | null;
       estado_id?: number | null;
       municipio_id?: number | null;
       estado_nombre?: string | null;
@@ -400,8 +414,16 @@ export const feDeVidaApi = {
       `${BASE}/presencial/solicitudes/`,
       { cedula },
     ),
-  borradorPresencial: (id: string, cambios: unknown[]) =>
-    apiClient.put<ApiResponse<DetalleApi>>(`${BASE}/presencial/solicitudes/${id}/borrador/`, { cambios }),
+  borradorPresencial: (
+    id: string,
+    cambios: unknown[],
+    opciones: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string } = {},
+  ) =>
+    apiClient.put<ApiResponse<DetalleApi>>(`${BASE}/presencial/solicitudes/${id}/borrador/`, {
+      cambios,
+      sin_correo_alternativo: opciones.sinCorreoAlternativo ?? false,
+      justificacion_sin_correo: opciones.justificacionSinCorreo ?? "",
+    }),
   evidenciaPresencial: (id: string, form: FormData) =>
     apiClient.postForm<ApiResponse<SolicitudApi>>(`${BASE}/presencial/solicitudes/${id}/evidencia/`, form),
   enviarPresencial: (id: string, declaracionPresencial = true) =>

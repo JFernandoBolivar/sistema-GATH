@@ -3,6 +3,7 @@ import type { ApiResponse } from "@/shared/types/api-response";
 import type {
   OpcionCatalogo,
   RepoCatalogosAutogestion,
+  TipoSoporteSeccion,
 } from "../../domain/ports/repo-catalogos-autogestion";
 import type { ClaveCatalogo } from "../../domain/value-objects/campos-seccion";
 
@@ -10,6 +11,15 @@ interface ItemCatalogoApi {
   id: number;
   nombre?: string;
   codigo?: string | null;
+  es_venezuela?: boolean | null;
+}
+
+interface TipoSoporteApi {
+  seccion: string;
+  codigo: string;
+  nombre: string;
+  requerido: boolean;
+  orden: number;
 }
 
 interface RutaCatalogo {
@@ -19,6 +29,7 @@ interface RutaCatalogo {
 }
 
 const RUTAS: Record<ClaveCatalogo, RutaCatalogo> = {
+  paises: { ruta: "/api/v1/autogestion/catalogos/paises/" },
   estados: { ruta: "/api/v1/catalogos/estados/" },
   municipios: { ruta: "/api/v1/catalogos/municipios/", filtroPadre: "estado_id" },
   parroquias: { ruta: "/api/v1/catalogos/parroquias/", filtroPadre: "municipio_id" },
@@ -45,6 +56,7 @@ const RUTAS: Record<ClaveCatalogo, RutaCatalogo> = {
   tallasPantalon: { ruta: "/api/v1/autogestion/catalogos/tallas-pantalon/" },
   tallasZapatos: { ruta: "/api/v1/autogestion/catalogos/tallas-zapatos/" },
   tallasChaqueta: { ruta: "/api/v1/autogestion/catalogos/tallas-chaqueta/" },
+  organismos: { ruta: "/api/v1/autogestion/catalogos/organismos/" },
 };
 
 export const repoCatalogosAutogestionApi: RepoCatalogosAutogestion = {
@@ -56,6 +68,20 @@ export const repoCatalogosAutogestionApi: RepoCatalogosAutogestion = {
     return res.data.map<OpcionCatalogo>((i) => ({
       id: i.id,
       nombre: i.nombre ?? i.codigo ?? `#${i.id}`,
+      esVenezuela: i.es_venezuela ?? null,
+    }));
+  },
+
+  async listarTiposSoporte() {
+    const res = await apiClient.get<ApiResponse<TipoSoporteApi[]>>(
+      "/api/v1/autogestion/catalogos/tipos-soporte/",
+    );
+    return res.data.map<TipoSoporteSeccion>((i) => ({
+      seccion: i.seccion,
+      codigo: i.codigo,
+      nombre: i.nombre,
+      requerido: i.requerido,
+      orden: i.orden,
     }));
   },
 };

@@ -2,7 +2,7 @@ import BandejaFeDeVidaPage from "@/modules/fe-de-vida/ui/bienestar/bandeja-fe-de
 
 export default function Page() {
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full">
       <BandejaFeDeVidaPage />
     </div>
   );

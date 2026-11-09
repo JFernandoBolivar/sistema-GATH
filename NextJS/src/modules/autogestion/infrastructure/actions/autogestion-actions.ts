@@ -327,6 +327,35 @@ export const getMiExpedienteAction = async (): Promise<MiExpedienteDTO | null> =
   }
 };
 
+/**
+ * Acceso a Mi Carnet: la regla (alcance configurable + usuarios específicos)
+ * la evalúa el backend. Devuelve `null` si no se pudo consultar, para que la UI
+ * no muestre el menú por error.
+ */
+export const getMiCarnetAccesoAction = async (): Promise<boolean | null> => {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const res = await autogestionApi.getMiCarnetAcceso();
+    await logAudit({
+      traceId,
+      action: "getMiCarnetAccesoAction",
+      status: "SUCCESS",
+      durationMs: Date.now() - startedAt,
+    });
+    return Boolean(res.data?.puede_ver_carnet);
+  } catch (error) {
+    await logAudit({
+      traceId,
+      action: "getMiCarnetAccesoAction",
+      status: "FAILED",
+      durationMs: Date.now() - startedAt,
+    });
+    handleSessionExpired(error);
+    return null;
+  }
+};
+
 export const solicitarCarnetAction = async (payload: {
   motivo_id?: number;
   observaciones?: string;

@@ -2,7 +2,7 @@
 from typing import Any
 from django.db.models import Q
 
-from apps.puntocuenta.infrastructure.mappers.mapper_punto_cuenta import a_entidad
+from apps.puntocuenta.infrastructure.mappers.mapper_punto_cuenta import a_entidad, a_entidades
 from apps.puntocuenta.infrastructure.models.punto_cuenta_model import PuntoCuentaModel
 
 
@@ -53,30 +53,28 @@ class RepoPuntoCuentaORM:
 
     def listar(self, filtros: dict | None = None):
         qs = PuntoCuentaModel.objects.all().order_by('-fecha')
-        if not filtros:
-            return [a_entidad(f) for f in qs]
+        if filtros:
+            cedula = (filtros.get('cedula') or '').strip()
+            if cedula:
+                qs = qs.filter(empleado_cedula__icontains=cedula)
 
-        cedula = (filtros.get('cedula') or '').strip()
-        if cedula:
-            qs = qs.filter(empleado_cedula__icontains=cedula)
+            oficina_id = filtros.get('oficina_id')
+            if oficina_id:
+                try:
+                    oficina_int = int(oficina_id)
+                    qs = qs.filter(Q(oficina_origen_id=oficina_int) | Q(oficina_destino_id=oficina_int))
+                except (ValueError, TypeError):
+                    pass
 
-        oficina_id = filtros.get('oficina_id')
-        if oficina_id:
-            try:
-                oficina_int = int(oficina_id)
-                qs = qs.filter(Q(oficina_origen_id=oficina_int) | Q(oficina_destino_id=oficina_int))
-            except (ValueError, TypeError):
-                pass
+            fecha_desde = filtros.get('fecha_desde')
+            if fecha_desde:
+                qs = qs.filter(fecha__date__gte=fecha_desde)
 
-        fecha_desde = filtros.get('fecha_desde')
-        if fecha_desde:
-            qs = qs.filter(fecha__date__gte=fecha_desde)
+            fecha_hasta = filtros.get('fecha_hasta')
+            if fecha_hasta:
+                qs = qs.filter(fecha__date__lte=fecha_hasta)
 
-        fecha_hasta = filtros.get('fecha_hasta')
-        if fecha_hasta:
-            qs = qs.filter(fecha__date__lte=fecha_hasta)
-
-        return [a_entidad(f) for f in qs]
+        return a_entidades(qs)
 
     def obtener_por_id(self, id: Any):
         fila = PuntoCuentaModel.objects.filter(pk=id).first()

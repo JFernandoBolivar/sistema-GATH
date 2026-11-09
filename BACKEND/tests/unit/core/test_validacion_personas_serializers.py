@@ -48,7 +48,8 @@ def test_edicion_de_pasivo_tolera_inicial_y_rechaza_numeros():
 
 def test_pasivo_normaliza_telefonos_a_e164_y_exige_movil():
     base = {'nombres': 'JUAN', 'apellidos': 'PEREZ', 'cedula': '12345678', 'sexo_id': 1,
-            'fecha_nacimiento': '1950-01-01', 'tipo_nomina_id': 1}
+            'fecha_nacimiento': '1950-01-01', 'tipo_nomina_id': 1, 'motivo_id': 1,
+            'fecha_vigencia': '1950-01-01'}
     ok = PasivoCrearInputSerializer(data={**base, 'telefono_movil': '0412-1234567', 'telefono_habitacion': '0212 1234567'})
     assert ok.is_valid(), ok.errors
     assert ok.validated_data['telefono_movil'] == '+584121234567'

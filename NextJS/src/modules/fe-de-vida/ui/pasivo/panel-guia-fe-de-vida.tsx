@@ -6,12 +6,12 @@ import {
   Camera,
   CheckCircle2,
   FileCheck2,
-  HelpCircle,
   LogIn,
   Send,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetClose,
@@ -141,7 +141,8 @@ export function PanelGuiaFeDeVida({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-5">
+        <ScrollArea className="flex-1">
+          <div className="space-y-6 p-5">
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 text-xs text-foreground md:text-sm">
             <p className="font-semibold text-primary">Importante para el pasivo</p>
             <p className="mt-1 text-muted-foreground">
@@ -237,6 +238,7 @@ export function PanelGuiaFeDeVida({
             })}
           </ol>
         </div>
+        </ScrollArea>
 
         <div className="sticky bottom-0 border-t bg-card p-4">
           <SheetClose asChild>
@@ -247,34 +249,5 @@ export function PanelGuiaFeDeVida({
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-export interface BotonVerGuiaProps {
-  onClick: () => void;
-  className?: string;
-  variante?: "outline" | "ghost" | "default" | "secondary";
-  size?: "default" | "sm" | "lg" | "icon";
-}
-
-/** Botón accesible para abrir la guía de 5 pasos en cualquier momento. */
-export function BotonVerGuia({
-  onClick,
-  className,
-  variante = "outline",
-  size = "sm",
-}: BotonVerGuiaProps) {
-  return (
-    <Button
-      type="button"
-      variant={variante}
-      size={size}
-      onClick={onClick}
-      className={cn("gap-1.5 font-medium", className)}
-      aria-label="Ver guía de 5 pasos de la fe de vida"
-    >
-      <HelpCircle className="h-4 w-4" aria-hidden />
-      <span>Ver guía</span>
-    </Button>
   );
 }

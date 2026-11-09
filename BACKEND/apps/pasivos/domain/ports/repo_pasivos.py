@@ -19,7 +19,12 @@ class RepoPasivos(Protocol):
         ...
 
     def registrar_pasivo_directo(
-        self, datos: dict, tipo_nomina_id: int, usuario_id: int | None = None,
+        self,
+        datos: dict,
+        tipo_nomina_id: int,
+        motivo_id: int | None = None,
+        fecha_vigencia=None,
+        usuario_id: int | None = None,
     ) -> Pasivo:
         """Alta directa de jubilado/pensionado sin cargo activo previo."""
         ...

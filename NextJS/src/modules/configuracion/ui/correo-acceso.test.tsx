@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { get, put, post } = vi.hoisted(() => ({
+const { get, put, post, getBlob } = vi.hoisted(() => ({
   get: vi.fn(),
   put: vi.fn(),
   post: vi.fn(),
+  getBlob: vi.fn(),
 }));
 
 vi.mock("@/shared/infrastructure/http/fetcher-api", () => ({
-  apiClient: { get, put, post },
+  apiClient: { get, put, post, getBlob },
 }));
 
 import { correoAccesoApi } from "../infrastructure/http/correo-acceso-api";
@@ -16,6 +17,7 @@ beforeEach(() => {
   get.mockReset();
   put.mockReset();
   post.mockReset();
+  getBlob.mockReset();
 });
 
 describe("Módulo Configuración - Correo de Acceso (A7)", () => {
@@ -105,5 +107,18 @@ describe("Módulo Configuración - Correo de Acceso (A7)", () => {
       payload,
     );
     expect(res.data.actualizados).toBe(3);
+  });
+
+  it("API client descarga el archivo Excel oficial de vista previa", async () => {
+    const fakeBlob = new Blob(["fake-excel-data"], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    getBlob.mockResolvedValue(fakeBlob);
+
+    const res = await correoAccesoApi.descargarExcelVistaPrevia("pasivos", true);
+    expect(getBlob).toHaveBeenCalledWith(
+      "/api/v1/configuracion/correo-acceso/vista-previa/exportar-excel/?grupo=pasivos&incluir_excepciones=true",
+    );
+    expect(res).toBe(fakeBlob);
   });
 });

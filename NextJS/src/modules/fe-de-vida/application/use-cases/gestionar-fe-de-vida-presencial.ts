@@ -35,8 +35,9 @@ export function guardarBorradorPresencial(
   repo: RepoFeDeVida,
   id: string,
   cambios: CambioEntrada[],
+  opciones?: { sinCorreoAlternativo?: boolean; justificacionSinCorreo?: string },
 ): Promise<DetalleSolicitudDTO> {
-  return repo.guardarBorradorPresencial(id, cambios);
+  return repo.guardarBorradorPresencial(id, cambios, opciones);
 }
 
 export async function subirEvidenciaPresencial(

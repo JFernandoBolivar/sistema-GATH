@@ -10,6 +10,7 @@ export function familiarApiAEntidad(raw: FamiliarApiItem): Familiar {
     id: raw.id,
     empleadoCedula: raw.empleado_cedula,
     cedulaFamiliar: raw.cedula_familiar,
+    ordenHijo: raw.orden_hijo ?? null,
     primerNombre: raw.primer_nombre,
     segundoNombre: raw.segundo_nombre,
     primerApellido: raw.primer_apellido,

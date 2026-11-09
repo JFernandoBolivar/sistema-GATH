@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { itemActivo, itemsVisibles } from "../shell/nav-autogestion";
 import { ControlTamanoTexto } from "../shell/control-tamano-texto";
 import { usePoliticaAutogestion } from "../solicitudes/use-politica-autogestion";
+import { useAccesoMiCarnet } from "../shell/use-acceso-mi-carnet";
 import { ContadorMenuNotificaciones } from "@/modules/notificaciones/ui/contador-menu-notificaciones";
 
 /**
@@ -33,10 +34,13 @@ export function AppSidebarAutogestion() {
   const permisos = session?.user?.permisos;
   const condicion = session?.user?.condicionTrabajador;
   const { politica } = usePoliticaAutogestion();
+  const { puedeVerCarnet } = useAccesoMiCarnet();
   const visibles = itemsVisibles(permisos, condicion, {
     // Mientras carga se mantiene el comportamiento anterior (visible) para no ocultar
     // el menú por un instante; el backend vuelve a validar todo.
     autogestionHabilitada: politica?.habilitado ?? true,
+    // Mi Carnet solo se muestra con la respuesta afirmativa del backend.
+    miCarnetHabilitado: puedeVerCarnet,
   }).filter((item) => item.id !== "inicio");
   const inicio = "/dashboard";
 
@@ -61,7 +65,7 @@ export function AppSidebarAutogestion() {
                 ))}
               </div>
             ) : (
-              <SidebarMenu>
+              <SidebarMenu data-guia-id="inicio-menu-lateral">
                 <SidebarMenuItem className="mt-2">
                   <SidebarMenuButton asChild isActive={pathname === inicio}>
                     <Link href={inicio} className="flex min-h-11 items-center text-base">
@@ -109,10 +113,10 @@ export function AppSidebarAutogestion() {
               </div>
               <div className="flex flex-col">
                 <h2 className="font-semibold">
-                  Rol: {session.user.role?.nombre_rol || "Sin Rol"}
+                  Rol: {session.user.role?.nombre_visible || session.user.role?.nombre_rol || "Sin Rol"}
                 </h2>
               </div>
-              <div className="mt-2">
+              <div className="mt-2" data-guia-id="inicio-tamano-texto">
                 <ControlTamanoTexto condicionTrabajador={condicion} />
               </div>
             </div>

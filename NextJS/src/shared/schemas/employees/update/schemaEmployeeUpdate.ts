@@ -59,9 +59,9 @@ export const schemaBasicUpdateInfo = z.object({
   correo: z.string().optional(),
   carnet_patria: z
     .string().regex(REGEX_NUMBERS, {
-          message: "Solo Se Permiten Números",
-        }).min(10, { message: "Debe Ingresar 10 Digitos" })
-        .max(10, { message: "Debe Maximo 10 Digitos" }).optional(),
+          message: "El código del Carnet de la Patria solo admite números",
+        }).min(10, { message: "El código del Carnet de la Patria debe tener 10 dígitos" })
+        .max(10, { message: "El código del Carnet de la Patria debe tener 10 dígitos" }).optional(),
   carnet_patria_serial: serialCarnetPatriaZod(),
         
   telefono_habitacion: z

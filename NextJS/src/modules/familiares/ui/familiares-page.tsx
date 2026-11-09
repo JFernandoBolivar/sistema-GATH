@@ -186,6 +186,7 @@ export default function FamiliaresPage() {
 
         {viendoDetalle && (
           <DetalleFamiliar
+            key={viendoDetalle.id}
             familiar={viendoDetalle}
             open={detalleAbierto}
             onOpenChange={setDetalleAbierto}

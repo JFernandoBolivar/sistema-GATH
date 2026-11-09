@@ -116,7 +116,7 @@ class SoporteDocumentalModel(BaseModel):
     origen_tipo = models.CharField(max_length=20)
     origen_id = models.UUIDField()
     seccion = models.CharField(max_length=30)
-    tipo = models.CharField(max_length=20)  # TITULO|ACTA_NACIMIENTO|CEDULA|CONSTANCIA|FOTO|OTRO
+    tipo = models.CharField(max_length=40)  # código del catálogo configurable (O41)
     clave_s3 = models.CharField(max_length=255)
     mime_real = models.CharField(max_length=60)
     tamano_bytes = models.PositiveBigIntegerField()
@@ -140,20 +140,25 @@ class SeccionAutogestionableModel(BaseModel):
     nombre = models.CharField(max_length=120)
     requiere_soporte = models.BooleanField(default=False)
     activa = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = 'autogestion_seccion_autogestionable'
-        ordering = ['created_at', 'codigo']
+        ordering = ['orden', 'created_at', 'codigo']
 
 
 class DatosComplementariosTrabajadorModel(BaseModel):
     """B13: correo alternativo y «¿tiene hijos?». `Employee` (legada) no tiene dónde guardarlos."""
 
     cedula = models.CharField(max_length=15, unique=True)
-    correo_alternativo = models.EmailField(null=True, blank=True)  # puede repetirse (p. ej. correo familiar)
+    correo_alternativo = models.EmailField(null=True, blank=True)  # único por regla de negocio (FIX-QA11, sin constraint BD por compatibilidad)
     tiene_hijos = models.BooleanField(null=True, blank=True)  # nulo = sin declarar
     actualizado_en = models.DateTimeField(auto_now=True)
     actualizado_por = models.CharField(max_length=15, blank=True, default='')
 
     class Meta:
         db_table = 'datos_complementarios_trabajador'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._correo_alternativo_inicial = getattr(self, 'correo_alternativo', None)

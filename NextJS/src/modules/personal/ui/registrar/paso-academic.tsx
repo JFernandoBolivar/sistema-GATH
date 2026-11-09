@@ -82,7 +82,7 @@ function AcademicRow({
           name={`formacion_academica.${index}.nivel_Academico_id`}
           render={({ field }) => (
             <FormItem className="min-w-0">
-              <FormLabel>Nivel Academico</FormLabel>
+              <FormLabel>Nivel Académico *</FormLabel>
               <Select
                 onValueChange={(v) => {
                   field.onChange(Number.parseInt(v));

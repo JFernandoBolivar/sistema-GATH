@@ -189,4 +189,20 @@ describe("empleadoRegistroSchema (revalidación del alta en el servidor)", () =>
     expect(pasa({ perfilFisico: { ...dto.perfilFisico, tallaZapatosId: null } })).toBe(false);
     expect(pasa({ perfilFisico: { ...dto.perfilFisico, tallaChaquetaId: null } })).toBe(true);
   });
+
+  it("FIX-CARGA3: exige institución en formación complementaria y fecha de egreso en antecedentes", () => {
+    expect(
+      pasa({ formacionComplementaria: [{ capacitacionId: 1, fechaInicio: "2020-01-10" }] }),
+    ).toBe(false);
+    expect(
+      pasa({ antecedentes: [{ organismoId: 1, fechaIngreso: "2020-01-15" }] }),
+    ).toBe(false);
+    expect(
+      pasa({
+        antecedentes: [
+          { organismoId: 1, fechaIngreso: "2020-01-15", fechaEgreso: "2023-05-30" },
+        ],
+      }),
+    ).toBe(true);
+  });
 });

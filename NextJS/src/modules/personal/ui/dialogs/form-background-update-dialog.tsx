@@ -92,13 +92,15 @@ export default function FormBackgroundUpdateDialog({
       setError(null);
 
       const rawItems = data.antecedentes || [];
+      // FIX-CARGA3: la fecha de egreso también es obligatoria.
       const hasPartial = rawItems.some(
         (a) =>
-          (a.organismoId || a.fechaIngreso || a.fechaEgreso) && (!a.organismoId || !a.fechaIngreso),
+          (a.organismoId || a.fechaIngreso || a.fechaEgreso) &&
+          (!a.organismoId || !a.fechaIngreso || !a.fechaEgreso),
       );
       if (hasPartial) {
         const msg =
-          "Por favor complete el Organismo y la Fecha de Inicio en los antecedentes agregados.";
+          "Por favor complete el Organismo, la Fecha de Inicio y la Fecha de Culminación en los antecedentes agregados.";
         setError(msg);
         toast.error(msg);
         return;
@@ -107,7 +109,7 @@ export default function FormBackgroundUpdateDialog({
       try {
         const payload = {
           antecedentes: rawItems
-            .filter((a) => a.organismoId && a.fechaIngreso)
+            .filter((a) => a.organismoId && a.fechaIngreso && a.fechaEgreso)
             .map((a) => ({
               id: a.id,
               organismoId: Number(a.organismoId),
@@ -143,7 +145,7 @@ export default function FormBackgroundUpdateDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl p-0">
+      <DialogContent className="max-h-[90vh] overflow-hidden sm:max-w-4xl p-0">
         <DialogTitle className="sr-only">Antecedentes En La Administracion Publica</DialogTitle>
 
         <Card className="w-full h-full border-0 shadow-none flex flex-col gap-3">
@@ -212,7 +214,7 @@ export default function FormBackgroundUpdateDialog({
                 </div>
               </div>
 
-              <div className="max-h-[55vh] overflow-y-auto rounded-md w-full border p-3">
+              <div className="rounded-md w-full border p-3">
                 <h1 className="text-gray-600 text-sm mb-3">Opcional si no posee antecedentes</h1>
                 <div className="flex flex-col gap-3">
                   {fields.map((field, index) => (
@@ -237,7 +239,7 @@ export default function FormBackgroundUpdateDialog({
 
                         <div className="min-w-0">
                           <Label className="flex items-center gap-1 text-xs">
-                            {index + 1}. Fecha Culminacion <ArrowBigUpDash className="size-4" />
+                            {index + 1}. Fecha Culminación * <ArrowBigUpDash className="size-4" />
                           </Label>
                           <Input
                             type="date"

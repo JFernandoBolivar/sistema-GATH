@@ -2,7 +2,7 @@ import EstadisticasPage from "@/modules/fe-de-vida/ui/estadisticas/estadisticas-
 
 export default function PasivosFeDeVidaEstadisticasPage() {
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full">
       <EstadisticasPage />
     </div>
   );

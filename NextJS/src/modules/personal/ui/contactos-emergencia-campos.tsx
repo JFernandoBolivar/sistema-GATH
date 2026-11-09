@@ -223,7 +223,7 @@ export function ContactosEmergenciaCampos({
 
                   {creandoEnIndex === index && (
                     <div className="flex flex-col gap-2 rounded-md border p-3 mt-2 bg-muted/20">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <Input
                           autoFocus
                           value={nuevoTexto}
@@ -232,6 +232,7 @@ export function ContactosEmergenciaCampos({
                           aria-label="Nuevo parentesco"
                           aria-invalid={errorNuevo ? true : undefined}
                           disabled={guardandoNuevo}
+                          className="min-w-0 flex-1"
                           onChange={(e) => {
                             setNuevoTexto(e.target.value);
                             setErrorNuevo(null);
@@ -244,23 +245,25 @@ export function ContactosEmergenciaCampos({
                             if (e.key === "Escape") cancelarCreacion();
                           }}
                         />
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={guardandoNuevo}
-                          onClick={() => void crearParentesco(index, field.onChange)}
-                        >
-                          {guardandoNuevo ? <Loader2 className="size-4 animate-spin" /> : "Guardar"}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          disabled={guardandoNuevo}
-                          onClick={cancelarCreacion}
-                        >
-                          Cancelar
-                        </Button>
+                        <div className="flex items-center justify-end gap-2 shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={guardandoNuevo}
+                            onClick={() => void crearParentesco(index, field.onChange)}
+                          >
+                            {guardandoNuevo ? <Loader2 className="size-4 animate-spin" /> : "Guardar"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={guardandoNuevo}
+                            onClick={cancelarCreacion}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
                       </div>
                       {errorNuevo && (
                         <p className="text-xs font-medium text-destructive">{errorNuevo}</p>
@@ -278,10 +281,10 @@ export function ContactosEmergenciaCampos({
           type="button"
           variant="outline"
           size="sm"
-          className="self-start cursor-pointer"
+          className="w-full sm:w-auto self-stretch sm:self-start truncate cursor-pointer"
           onClick={() => append(contactoEmergenciaVacio())}
         >
-          <Plus className="size-4" /> Agregar contacto de emergencia
+          <Plus className="size-4 shrink-0" /> <span className="truncate">Agregar contacto de emergencia</span>
         </Button>
       )}
     </div>

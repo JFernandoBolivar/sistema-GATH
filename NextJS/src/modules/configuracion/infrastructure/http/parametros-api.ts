@@ -3,6 +3,7 @@
  */
 import { apiClient } from "@/shared/infrastructure/http/fetcher-api";
 import type { ApiResponse } from "@/shared/types/api-response";
+import type { TrabajadorParametroDTO } from "../../application/dtos/parametro-dto";
 
 export interface ParametroApiItem {
   clave: string;
@@ -17,6 +18,7 @@ export interface ParametroApiItem {
   actualizado_por_id: number | null;
   actualizado_en: string | null;
   opciones?: { valor: number; etiqueta: string }[];
+  depende_de?: { clave: string; valor: string } | null;
 }
 
 export interface CambioParametroApiItem {
@@ -25,6 +27,9 @@ export interface CambioParametroApiItem {
   valor_previo: string;
   valor_nuevo: string;
   resultado: string;
+  agregados?: string[];
+  quitados?: string[];
+  resumen_cambio?: string | null;
 }
 
 export interface PaginaCambiosApi {
@@ -49,6 +54,17 @@ export const parametrosApi = {
     apiClient.get<ApiResponse<PaginaCambiosApi>>(
       `/api/v1/configuracion/parametros/${encodeURIComponent(clave)}/historial/`,
       { params: { pagina, page_size: tamano } },
+    ),
+
+  buscarTrabajadores: (query?: string, cedulas?: string[]) =>
+    apiClient.get<ApiResponse<TrabajadorParametroDTO[]>>(
+      "/api/v1/configuracion/parametros/buscar-trabajadores/",
+      {
+        params: {
+          ...(query ? { q: query } : {}),
+          ...(cedulas && cedulas.length > 0 ? { cedulas: cedulas.join(",") } : {}),
+        },
+      },
     ),
 
   diasRecordatorioFeDeVida: () =>

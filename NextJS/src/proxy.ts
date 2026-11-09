@@ -1,6 +1,16 @@
 import { auth as proxy } from "../auth";
 import { NextResponse } from "next/server";
 import { puedeVerRuta } from "@/shared/lib/evaluador-iam";
+import { urlDePeticion } from "@/shared/lib/origen-peticion";
+
+/**
+ * Destino de una redirección con el origen REAL de la petición
+ * (`x-forwarded-host`/`x-forwarded-proto`), no el fijo de `NEXTAUTH_URL`:
+ * detrás de un túnel o de otro dominio, un redirect a localhost rompe la sesión.
+ */
+function destino(req: { headers: Headers; nextUrl: URL }, ruta: string): URL {
+  return urlDePeticion(req.headers, ruta) ?? new URL(ruta, req.nextUrl);
+}
 
 // Se usa `auth` de ../auth (con los callbacks jwt/session): con `NextAuth(authConfig)`
 // a secas la sesión del proxy no incluía `permisos` ni `role`, y el perfil de
@@ -41,31 +51,31 @@ export default proxy((req) => {
   }
 
   if (!publicRoutes.includes(nextUrl.pathname) && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", nextUrl));
+    return NextResponse.redirect(destino(req, "/login"));
   }
 
   // Enlaces y marcadores antiguos de /inicio (G7 corregido): el inicio es /dashboard.
   if (nextUrl.pathname === RUTA_LEGADA_INICIO) {
-    return NextResponse.redirect(new URL(RUTA_INICIO, nextUrl));
+    return NextResponse.redirect(destino(req, RUTA_INICIO));
   }
 
   // Enlaces y marcadores del censo legado fuera del portal (G12).
   if (nextUrl.pathname === RUTA_LEGADA_CENSO) {
-    return NextResponse.redirect(new URL(RUTA_CENSO_VIGENTE, nextUrl));
+    return NextResponse.redirect(destino(req, RUTA_CENSO_VIGENTE));
   }
 
   // G13: el censo de vivienda (respuestas y métricas) vive en Gestión de
   // Trabajadores; las rutas antiguas de autogestión redirigen a su nuevo lugar.
   if (nextUrl.pathname === '/autogestion/consultar') {
-    return NextResponse.redirect(new URL(`/personal/censo/respuestas${nextUrl.search}`, nextUrl));
+    return NextResponse.redirect(destino(req, `/personal/censo/respuestas${nextUrl.search}`));
   }
   if (nextUrl.pathname === '/autogestion/metricas') {
-    return NextResponse.redirect(new URL(`/personal/censo/metricas${nextUrl.search}`, nextUrl));
+    return NextResponse.redirect(destino(req, `/personal/censo/metricas${nextUrl.search}`));
   }
 
   if (publicRoutes.includes(nextUrl.pathname) && isLoggedIn) {
     // Todos los perfiles (también el trabajador) entran por el dashboard.
-    return NextResponse.redirect(new URL(RUTA_INICIO, nextUrl));
+    return NextResponse.redirect(destino(req, RUTA_INICIO));
   }
 
   // D1: una ruta sin permiso redirige al dashboard con aviso (nunca a una
@@ -75,7 +85,7 @@ export default proxy((req) => {
     isLoggedIn &&
     !puedeVerRuta(permisos, nextUrl.pathname, auth?.user?.condicionTrabajador)
   ) {
-    return NextResponse.redirect(new URL(`${RUTA_INICIO}?aviso=sin-permiso`, nextUrl));
+    return NextResponse.redirect(destino(req, `${RUTA_INICIO}?aviso=sin-permiso`));
   }
 
   return NextResponse.next();

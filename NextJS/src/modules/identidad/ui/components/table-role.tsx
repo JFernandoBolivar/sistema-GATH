@@ -78,7 +78,7 @@ function RoleActionsCell({
           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
           <DropdownMenuItem
             onClick={() => {
-              navigator.clipboard.writeText(role.nombreRol);
+              navigator.clipboard.writeText(role.nombreVisible);
               toast.success("Nombre del rol copiado");
             }}
           >
@@ -103,8 +103,8 @@ function RoleActionsCell({
           <DialogHeader>
             <DialogTitle>Editar Rol</DialogTitle>
             <DialogDescription>
-              Si cambia el nombre, el rol deja de coincidir con los permisos
-              configurados en el sistema.
+              Cambiar el nombre no afecta los permisos ni el acceso: el código
+              interno del rol no cambia.
             </DialogDescription>
           </DialogHeader>
           <EditRole
@@ -121,11 +121,11 @@ function RoleActionsCell({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Eliminar el rol {role.nombreRol}
+              Eliminar el rol {role.nombreVisible}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. No se podrá eliminar si tiene
-              cuentas asociadas.
+              Esta acción no se puede deshacer. El rol tiene {role.nUsuarios ?? 0} usuario(s)
+              asociado(s); si tiene cuentas, el sistema no permitirá eliminarlo.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -149,12 +149,34 @@ function RoleActionsCell({
 export function buildRoleColumns(onRefresh: () => void): ColumnDef<RolDTO>[] {
   return [
     {
-      accessorKey: "id",
-      header: "ID",
+      accessorKey: "nombreVisible",
+      header: "Nombre Del Rol",
     },
     {
       accessorKey: "nombreRol",
-      header: "Nombre Del Rol",
+      header: "Código",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs text-muted-foreground">{row.original.nombreRol}</span>
+      ),
+    },
+    {
+      accessorKey: "nUsuarios",
+      header: "Usuarios",
+      cell: ({ row }) => row.original.nUsuarios ?? 0,
+    },
+    {
+      accessorKey: "nPermisos",
+      header: "Permisos",
+      cell: ({ row }) => row.original.nPermisos ?? 0,
+    },
+    {
+      id: "acciones-rol",
+      header: "Permisos del rol",
+      cell: ({ row }) => (
+        <Button asChild variant="outline" size="sm">
+          <a href={`/usuarios/roles?tab=matriz&rol=${row.original.id}`}>Ver permisos</a>
+        </Button>
+      ),
     },
     {
       id: "actions",

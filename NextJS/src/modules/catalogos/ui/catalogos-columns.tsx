@@ -70,11 +70,6 @@ export function construirColumnasCatalogo(
   onEliminar: (item: CatalogoItemDTO) => void,
 ): ColumnDef<CatalogoItemDTO>[] {
   const columnas: ColumnDef<CatalogoItemDTO>[] = [
-    {
-      accessorKey: "id",
-      header: "ID",
-      cell: ({ getValue }) => <span className="font-medium">{getValue() as number}</span>,
-    },
     { accessorKey: "nombre", header: "Nombre" },
   ];
 

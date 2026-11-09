@@ -1159,6 +1159,79 @@ forbidden_modules =
     apps.notificaciones
 allow_indirect_imports = True
 
+[importlinter:contract:apps-carga_masiva-domain-puro]
+name = apps.carga_masiva.domain no depende de framework ni librerias de I/O (B1)
+type = forbidden
+source_modules =
+    apps.carga_masiva.domain
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-carga_masiva-application-puro]
+name = apps.carga_masiva.application no depende de framework (B4)
+type = forbidden
+source_modules =
+    apps.carga_masiva.application
+forbidden_modules =
+    django
+    rest_framework
+    celery
+    boto3
+    PIL
+    requests
+
+[importlinter:contract:apps-carga_masiva-capas]
+name = capas del modulo carga_masiva apuntan hacia adentro (B2/B3)
+type = layers
+layers =
+    apps.carga_masiva.presentation
+    apps.carga_masiva.infrastructure
+    apps.carga_masiva.application
+    apps.carga_masiva.domain
+
+[importlinter:contract:apps-carga_masiva-no-cruzado]
+name = apps.carga_masiva.domain/application no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.carga_masiva.domain
+    apps.carga_masiva.application
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+
+[importlinter:contract:apps-carga_masiva-presentacion-no-cruzado]
+name = apps.carga_masiva.presentation no importa de otras apps (B16)
+type = forbidden
+source_modules =
+    apps.carga_masiva.presentation
+forbidden_modules =
+    apps.identidad
+    apps.personal
+    apps.catalogos
+    apps.organizacion
+    apps.cargos
+    apps.movimientos
+    apps.pasivos
+    apps.familiares
+    apps.carnetizacion
+    apps.autogestion
+    apps.reportes
+allow_indirect_imports = True
+
 # ---- Exportaciones asincronas (PDF/Excel por Celery) ----
 # domain/application puros; `infrastructure` es la unica capa que reutiliza los
 # generadores de reportes, movimientos y auditoria (B16). Las vistas de esos

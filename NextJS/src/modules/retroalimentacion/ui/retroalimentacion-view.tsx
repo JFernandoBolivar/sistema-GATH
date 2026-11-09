@@ -3,15 +3,15 @@
 import InputForm from "@/components/input-form";
 import PageLayout from "@/components/layout/page-layout";
 import { SelectForm } from "@/components/select-form";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
 } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Combobox } from "@/shared/ui/components/combobox";
+import { TablaDesplegable } from "@/shared/ui/components/tabla-desplegable";
 import { aplicarErroresServidor } from "@/shared/ui/forms/aplicar-errores-servidor";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,11 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import useSWR from "swr";
-import { useState, useTransition } from "react";
-import { Sheet } from "lucide-react";
-import Link from "next/link";
-import { formatInTimeZone } from "date-fns-tz";
-import Loading from "@/shared/ui/components/loading";
+import { useTransition } from "react";
 
 import {
   AdsType,
@@ -45,7 +41,6 @@ import {
   disabilityCreateActions,
   disabilityGroup,
   getCategory,
-  getExcel,
   getOrganismosAds,
   getRegionTalla,
   getTipoPrenda,
@@ -72,7 +67,6 @@ function avisarError<T extends FieldValues>(
 
 export default function RetroalimentacionView() {
   const [isPending, startTransition] = useTransition();
-  const [link, setLink] = useState<string>("");
 
   const { data: organismoAds, isLoading: isLoadingAds, mutate: mutateAds } = useSWR(
     "retro-ads",
@@ -291,39 +285,21 @@ export default function RetroalimentacionView() {
     });
   };
 
-  const getExcelDownload = () => {
-    startTransition(async () => {
-      try {
-        const response = await getExcel();
-        if (response instanceof Blob) {
-          setLink(URL.createObjectURL(response));
-        } else if (response && typeof response === "object" && "error" in response) {
-          toast.error((response as { error: string }).error || "Error al generar el archivo Excel");
-        } else {
-          toast.error("Error al generar el archivo Excel");
-        }
-      } catch (err) {
-        toast.error("Error al generar el archivo Excel");
-      }
-    });
-  };
-
   return (
     <PageLayout
       title="Retroalimentación"
       description="Registre Nueva Información Para Mantener El Sistema"
     >
       <Tabs defaultValue="ads" className="m-auto w-full">
-        <TabsList className="gap-4 max-w-full justify-start overflow-x-auto">
-          <TabsTrigger value="ads">Organismo Adscrito</TabsTrigger>
-          <TabsTrigger value="dis">Discapacidades</TabsTrigger>
-          <TabsTrigger value="pat">Patologias</TabsTrigger>
-          <TabsTrigger value="aler">Alergias</TabsTrigger>
-          <TabsTrigger value="tallas">Tallas</TabsTrigger>
-          <TabsTrigger value="retro-beneficio">
-            Retroalimentar El Sistema De Beneficios
-          </TabsTrigger>
-        </TabsList>
+        <TablaDesplegable etiqueta="Secciones de retroalimentación">
+          <TabsList className="w-max gap-4 justify-start">
+            <TabsTrigger value="ads">Organismo Adscrito</TabsTrigger>
+            <TabsTrigger value="dis">Discapacidades</TabsTrigger>
+            <TabsTrigger value="pat">Patologias</TabsTrigger>
+            <TabsTrigger value="aler">Alergias</TabsTrigger>
+            <TabsTrigger value="tallas">Tallas</TabsTrigger>
+          </TabsList>
+        </TablaDesplegable>
 
         <TabsContent value="ads" className="mt-4">
           <div className="flex flex-col gap-4 lg:flex-row">
@@ -681,47 +657,6 @@ export default function RetroalimentacionView() {
                     </Button>
                   </form>
                 </Form>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="retro-beneficio" className="mt-4">
-          <div className="flex flex-col gap-4 lg:flex-row">
-            <Card className="min-w-0 grow bg-card lg:basis-0">
-              <CardContent className="flex flex-col justify-center gap-5">
-                <div className="flex gap-2">
-                  {isPending ? (
-                    <Loading promiseMessage="Generando Excel" />
-                  ) : (
-                    <>
-                      <Button
-                        type="button"
-                        className="bg-green-700 hover:bg-green-800 cursor-pointer m-auto"
-                        onClick={getExcelDownload}
-                      >
-                        <Sheet className="mr-2 h-4 w-4" />
-                        Generar Excel
-                      </Button>
-                      {link && (
-                        <Link
-                          download={`retroalimentacion_beneficios_${formatInTimeZone(new Date(), "UTC", "dd/MM/yyyy")}`}
-                          href={link}
-                          className={`${buttonVariants({ variant: "default" })} `}
-                          onClick={() => setLink("")}
-                        >
-                          Descargar excel
-                        </Link>
-                      )}
-                    </>
-                  )}
-                </div>
-                <CardDescription className="text-center">
-                  Este archivo generado tiene como proposito alimentar el
-                  sistema de beneficios que no pertenece a este sistema,
-                  motivado a preservar la agilidad de entrega de los recursos
-                  alimenticios
-                </CardDescription>
               </CardContent>
             </Card>
           </div>

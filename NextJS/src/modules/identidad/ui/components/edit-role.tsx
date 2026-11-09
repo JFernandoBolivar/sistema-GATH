@@ -14,11 +14,11 @@ import type { RolDTO } from "../../application/dtos/usuario-dto";
 import { actualizarRolAction } from "../../infrastructure/actions/usuario-actions";
 
 const schemaRole = z.object({
-  nombre_rol: z
+  nombre_visible: z
     .string()
     .trim()
     .min(2, { message: "El nombre del rol debe tener al menos 2 caracteres" })
-    .max(50, { message: "Máximo 50 caracteres" }),
+    .max(100, { message: "Máximo 100 caracteres" }),
 });
 
 type TypeSchemaRole = z.infer<typeof schemaRole>;
@@ -33,7 +33,7 @@ export default function EditRole({
   const [isPending, startTransition] = useTransition();
   const form = useForm<TypeSchemaRole>({
     defaultValues: {
-      nombre_rol: role.nombreRol,
+      nombre_visible: role.nombreVisible,
     },
     resolver: zodResolver(schemaRole),
   });
@@ -42,14 +42,15 @@ export default function EditRole({
     startTransition(async () => {
       try {
         const response = await actualizarRolAction(role.id, {
-          nombreRol: values.nombre_rol.toUpperCase(),
+          nombreVisible: values.nombre_visible,
         });
 
         if (response && typeof response === "object" && "error" in response) {
           const fallo = response as { error: string; errores?: Record<string, string[]> };
           const sinUbicar = aplicarErroresServidor(form, fallo.errores, {
-            nombre: "nombre_rol",
-            nombre_rol: "nombre_rol",
+            nombre: "nombre_visible",
+            nombre_visible: "nombre_visible",
+            nombre_rol: "nombre_visible",
           });
           if (sinUbicar.length > 0 || !fallo.errores) toast.error(fallo.error);
         } else {
@@ -68,7 +69,7 @@ export default function EditRole({
         <InputForm
           form={form}
           label="Nombre Del Rol"
-          nameInput="nombre_rol"
+          nameInput="nombre_visible"
           type="text"
         />
         <Button className="w-full mt-4" disabled={isPending}>

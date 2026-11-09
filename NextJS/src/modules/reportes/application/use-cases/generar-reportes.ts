@@ -25,6 +25,7 @@ export async function generarReportePersonal(
     tipoPersonal: e.tipoPersonal,
     fechaIngreso: e.fechaIngreso,
     totalAnosApn: e.totalAnosApn,
+    sinFechaApn: e.sinFechaApn,
   }));
 }
 
@@ -35,9 +36,14 @@ export async function generarReportePasivos(
   const entidades = await repo.generarReportePasivos(filtros);
   return entidades.map((e) => ({
     cedula: e.cedula,
+    nombres: e.nombres,
+    apellidos: e.apellidos,
     nombreCompleto: e.nombreCompleto,
-    tipoPersonal: e.tipoPersonal,
+    tipoPasivo: e.tipoPasivo,
+    pais: e.pais,
     fechaEgreso: e.fechaEgreso,
+    contacto: e.contacto,
+    tipoPersonal: e.tipoPersonal,
     motivoEgreso: e.motivoEgreso,
   }));
 }

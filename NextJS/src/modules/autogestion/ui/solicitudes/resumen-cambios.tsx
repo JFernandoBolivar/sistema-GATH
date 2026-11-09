@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
 import type { CambioEntity } from "../../domain/entities/solicitud-actualizacion";
-import { etiquetaCampo, nombreSeccion } from "../../domain/value-objects/campos-seccion";
+import { CODIGOS_SECCION_ORDENADOS, etiquetaCampo, nombreSeccion } from "../../domain/value-objects/campos-seccion";
 import { PRESENTACION_DECISION } from "../estado-solicitud-ui";
 import { formatearValor } from "../formato-solicitud";
 import { useNombresCatalogo } from "./use-nombres-catalogo";
@@ -16,12 +17,21 @@ export function ResumenCambios({
   mostrarDecision: boolean;
 }) {
   const nombres = useNombresCatalogo(cambios);
-  if (cambios.length === 0) {
+  const cambiosOrdenados = useMemo(() => {
+    const orden = CODIGOS_SECCION_ORDENADOS as readonly string[];
+    return [...cambios].sort((a, b) => {
+      const idxA = orden.indexOf(a.seccion);
+      const idxB = orden.indexOf(b.seccion);
+      return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
+    });
+  }, [cambios]);
+
+  if (cambiosOrdenados.length === 0) {
     return <p className="text-base text-muted-foreground">Todavía no hay cambios guardados.</p>;
   }
   return (
     <ul className="flex flex-col gap-3">
-      {cambios.map((c) => {
+      {cambiosOrdenados.map((c) => {
         const d = PRESENTACION_DECISION[c.decision];
         return (
           <li key={c.id} className="rounded-lg border bg-card p-4">

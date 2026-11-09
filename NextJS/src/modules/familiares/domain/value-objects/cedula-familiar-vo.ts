@@ -5,6 +5,9 @@
  */
 import { CEDULA, CEDULA_MSG, ERROR } from "@/shared/domain/validation";
 
+/** Longitud máxima de la cédula del familiar en la BD (incluye la sintética). */
+export const CEDULA_FAMILIAR_MAX = 10;
+
 export type CedulaFamiliarVO = {
   readonly value: string;
 };

@@ -88,7 +88,12 @@ export async function obtenerMatrizPermisos(repo: RepoUsuarios): Promise<MatrizP
   const matriz = await repo.matriz();
   return {
     filas: matriz.filas.map((f) => ({ codigo: f.codigo, nombre: f.nombre, modulo: f.modulo })),
-    roles: matriz.roles.map((r) => ({ rolId: r.rolId, nombre: r.nombre, codigos: r.codigos })),
+    roles: matriz.roles.map((r) => ({
+      rolId: r.rolId,
+      nombre: r.nombre,
+      nombreVisible: r.nombreVisible,
+      codigos: r.codigos,
+    })),
   };
 }
 
@@ -101,6 +106,11 @@ export async function guardarMatrizPermisos(
   const matriz = await repo.guardarMatriz(rolId, permisos, motivo);
   return {
     filas: matriz.filas.map((f) => ({ codigo: f.codigo, nombre: f.nombre, modulo: f.modulo })),
-    roles: matriz.roles.map((r) => ({ rolId: r.rolId, nombre: r.nombre, codigos: r.codigos })),
+    roles: matriz.roles.map((r) => ({
+      rolId: r.rolId,
+      nombre: r.nombre,
+      nombreVisible: r.nombreVisible,
+      codigos: r.codigos,
+    })),
   };
 }
