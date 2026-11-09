@@ -834,7 +834,7 @@ export function ConfiguracionPuntoCuentaPage() {
                     onFocus={() => setCampoEnfocado("asunto")}
                     onChange={(e) => handleUpdatePlantillaActual("asunto", e.target.value)}
                     rows={2}
-                    className="resize-y text-xs"
+                    className="text-xs"
                   />
                 </div>
 
@@ -858,7 +858,7 @@ export function ConfiguracionPuntoCuentaPage() {
                     onFocus={() => setCampoEnfocado("exposicion")}
                     onChange={(e) => handleUpdatePlantillaActual("exposicion", e.target.value)}
                     rows={4}
-                    className="resize-y text-xs"
+                    className="text-xs"
                   />
                 </div>
 
@@ -882,7 +882,7 @@ export function ConfiguracionPuntoCuentaPage() {
                     onFocus={() => setCampoEnfocado("propuesta")}
                     onChange={(e) => handleUpdatePlantillaActual("propuesta", e.target.value)}
                     rows={3}
-                    className="resize-y text-xs"
+                    className="text-xs"
                   />
                 </div>
 
@@ -906,7 +906,7 @@ export function ConfiguracionPuntoCuentaPage() {
                     onFocus={() => setCampoEnfocado("base_legal")}
                     onChange={(e) => handleUpdatePlantillaActual("base_legal", e.target.value)}
                     rows={2}
-                    className="resize-y text-xs"
+                    className="text-xs"
                   />
                 </div>
 
@@ -1023,7 +1023,7 @@ export function ConfiguracionPuntoCuentaPage() {
                             }}
                             placeholder={asunto}
                             rows={2}
-                            className="mt-1 resize-y"
+                            className="mt-1"
                           />
                         </div>
 
@@ -1041,7 +1041,7 @@ export function ConfiguracionPuntoCuentaPage() {
                             }}
                             placeholder={exposicion}
                             rows={4}
-                            className="mt-1 resize-y"
+                            className="mt-1"
                           />
                         </div>
 
@@ -1056,7 +1056,7 @@ export function ConfiguracionPuntoCuentaPage() {
                             onChange={(e) => handleUpdatePlantillaActual("propuesta", e.target.value)}
                             placeholder={propuesta}
                             rows={3}
-                            className="mt-1 resize-y"
+                            className="mt-1"
                           />
                         </div>
                       </div>

@@ -136,7 +136,11 @@ export function PasoRevisionAnalisis({
   }, [detalle, filtroEstado, busqueda]);
 
   const filasConfirmacion = useMemo(
-    () => detalle?.filas.filter((f) => f.estado === "REQUIERE_CONFIRMACION") ?? [],
+    () =>
+      detalle?.filas.filter(
+        (f) =>
+          f.estado === "REQUIERE_CONFIRMACION" || f.estado === "POSIBLE_DUPLICADO",
+      ) ?? [],
     [detalle],
   );
   const pendientesConfirmacion = filasConfirmacion.filter((f) => !f.confirmada);
@@ -300,6 +304,24 @@ export function PasoRevisionAnalisis({
             </div>
           </div>
 
+          {/* FIX-CARGA3: conteos de altas, actualizaciones y posibles duplicados */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border bg-muted/30 px-4 py-2 text-xs">
+            <span>
+              <strong className="text-foreground">{detalle?.filas_nuevo ?? resumen.filas_nuevo ?? 0}</strong>{" "}
+              registro(s) nuevo(s)
+            </span>
+            <span>
+              <strong className="text-foreground">{detalle?.filas_actualizar ?? resumen.filas_actualizar ?? 0}</strong>{" "}
+              actualización(es)
+            </span>
+            <span>
+              <strong className="text-orange-600 dark:text-orange-400">
+                {detalle?.filas_posible_duplicado ?? resumen.filas_posible_duplicado ?? 0}
+              </strong>{" "}
+              posible(s) duplicado(s)
+            </span>
+          </div>
+
           {/* Filtros y Buscador */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -307,7 +329,7 @@ export function PasoRevisionAnalisis({
                 <Filter className="size-3 mr-1" />
                 Estado:
               </span>
-              {["TODAS", "ERROR", "REQUIERE_CONFIRMACION", "NUEVO", "ACTUALIZAR", "SIN_CAMBIOS", "ADVERTENCIA"].map((est) => (
+              {["TODAS", "ERROR", "REQUIERE_CONFIRMACION", "POSIBLE_DUPLICADO", "NUEVO", "ACTUALIZAR", "SIN_CAMBIOS", "ADVERTENCIA"].map((est) => (
                 <Button
                   key={est}
                   variant={filtroEstado === est ? "default" : "outline"}
@@ -319,6 +341,8 @@ export function PasoRevisionAnalisis({
                     ? "Todas"
                     : est === "REQUIERE_CONFIRMACION"
                     ? "Requiere confirmación"
+                    : est === "POSIBLE_DUPLICADO"
+                    ? "Posible duplicado"
                     : est}
                 </Button>
               ))}
@@ -341,8 +365,9 @@ export function PasoRevisionAnalisis({
               <div className="flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
                 <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                 <p>
-                  <strong>{pendientesConfirmacion.length} fila(s)</strong> cambian la condición del
-                  trabajador. Selecciónelas y confirme el movimiento: sin confirmación no se aplican.
+                  <strong>{pendientesConfirmacion.length} fila(s)</strong> requieren confirmación
+                  explícita (cambio de condición o posible duplicado). Selecciónelas y confirme:
+                  sin confirmación no se aplican.
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -393,7 +418,9 @@ export function PasoRevisionAnalisis({
                   </TableHeader>
                   <TableBody>
                     {filasFiltradas.map((fila) => {
-                      const requiere = fila.estado === "REQUIERE_CONFIRMACION";
+                      const requiere =
+                        fila.estado === "REQUIERE_CONFIRMACION" ||
+                        fila.estado === "POSIBLE_DUPLICADO";
                       const claseFila = requiere
                         ? fila.confirmada
                           ? "bg-emerald-50/40 dark:bg-emerald-950/20 hover:bg-emerald-50/60"

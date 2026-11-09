@@ -25,6 +25,10 @@ class RepoPortalTrabajador(Protocol):
     def tiene_carnet_previo(self, cedula: str) -> bool:
         ...
 
+    def tiene_carnet_activo(self, cedula: str) -> bool:
+        """True si el trabajador ya posee un carnet institucional activo."""
+        ...
+
     def emitir_carnet(self, cedula: str, motivo_id: int, observaciones: str) -> Any:
         ...
 

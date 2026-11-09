@@ -23,12 +23,13 @@
 }
 
 /* Título */
+.driver-popover .driver-popover-title,
 .driver-popover.gath-guia-popover .driver-popover-title {
   font-size: 1rem;
   font-weight: 700;
   color: var(--foreground, #001737);
   letter-spacing: -0.01em;
-  padding-right: 2rem;
+  padding-right: 3rem !important;
   margin-bottom: 0.5rem;
   line-height: 1.35;
 }
@@ -186,6 +187,17 @@
     padding: 1rem 1rem !important;
     border-radius: 1.25rem !important;
     box-shadow: 0 -10px 25px -5px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-title,
+  .driver-popover .driver-popover-title {
+    padding-right: 3rem !important;
+  }
+
+  .driver-popover.gath-guia-popover .driver-popover-close-btn,
+  .driver-popover .driver-popover-close-btn {
+    top: 0.75rem !important;
+    right: 0.75rem !important;
   }
 
   /* Ocultar la flecha en móvil para evitar que apunte erróneamente fuera del panel inferior */

@@ -1,21 +1,24 @@
 /**
- * Teléfonos con código de país (D-13, aprobado 2026-11-03).
+ * Teléfonos con código de país (D-13, FIX-TLF15).
  *
  * Regla única para todos los formularios: el número se guarda en formato
  * internacional E.164 (`+584121234567`) y se valida con las reglas de cada país
- * (cantidad de dígitos y tipo) de libphonenumber. Para Venezuela acepta lo que la
- * gente escribe: `0412-1234567`, `4121234567`, `0212 1234567` o `+58 412…`.
+ * (cantidad de dígitos y tipo) de libphonenumber.
+ * Para Venezuela acepta lo que la gente escribe: `0412-1234567`, `4121234567`, `0212 1234567` o `+58 412…`.
+ * Para otros países: deriva dinámicamente ejemplo, longitud y validación de tipo (móvil vs fijo).
  * El backend aplica la misma regla (`core/domain/validacion_personas.py`).
  */
 import { z } from "zod";
 import {
   getCountries,
   getCountryCallingCode,
+  getExampleNumber,
   parsePhoneNumberFromString,
   type CountryCode,
 } from "libphonenumber-js/max";
+import examplesMobile from "libphonenumber-js/examples.mobile.json";
 
-export type TipoTelefono = "movil" | "cualquiera";
+export type TipoTelefono = "movil" | "fijo" | "cualquiera";
 
 /** Códigos de las operadoras móviles de Venezuela, con su operadora. */
 export const OPERADORAS_VE: Record<string, string> = {
@@ -26,6 +29,7 @@ export const OPERADORAS_VE: Record<string, string> = {
   "0424": "Movistar",
   "0426": "Movilnet",
 };
+
 /** Códigos de área de la telefonía fija de Venezuela, con su zona. */
 export const ZONAS_VE: Record<string, string> = {
   "0212": "Caracas (Distrito Capital)",
@@ -84,6 +88,7 @@ export const ZONAS_VE: Record<string, string> = {
   "0294": "Sucre",
   "0295": "Nueva Esparta",
 };
+
 export const PREFIJOS_MOVIL_VE = Object.keys(OPERADORAS_VE);
 export const PREFIJOS_FIJO_VE = Object.keys(ZONAS_VE);
 
@@ -97,6 +102,7 @@ export function separarPrefijoVE(nacional: string): { prefijo: string; numero: s
   }
   return { prefijo: "", numero: digitos };
 }
+
 export const PAIS_POR_DEFECTO: CountryCode = "VE";
 
 export type ResultadoTelefono = { ok: true; e164: string | null } | { ok: false; mensaje: string };
@@ -110,12 +116,65 @@ const MENSAJE_VE = "Número venezolano inválido. Ejemplos: móvil 0412-1234567,
 const MENSAJE_NO_MOVIL =
   "Debe ser un número móvil (en Venezuela: 0412, 0414, 0416, 0422, 0424 o 0426)";
 
-function nombrePais(codigo: CountryCode): string {
+export function nombrePais(codigo: CountryCode): string {
   try {
     return new Intl.DisplayNames(["es"], { type: "region" }).of(codigo) ?? codigo;
   } catch {
     return codigo;
   }
+}
+
+/**
+ * Obtiene los metadatos de ejemplo, longitud y prefijo inicial para un país (FIX-TLF15).
+ */
+export function obtenerEjemploTelefono(
+  pais: CountryCode,
+): { digitos: number; ejemplo: string; primerDigito: string } | null {
+  try {
+    const ex = getExampleNumber(pais, examplesMobile);
+    if (!ex) return null;
+    const digitos = ex.nationalNumber.length;
+    const primerDigito = ex.nationalNumber[0] || "";
+    const fmt = ex.formatNational();
+    // Limpiar 0 inicial en formatos como "067 212 3456" para dejar "67 212 3456"
+    const ejemplo = fmt.startsWith("0") && !fmt.startsWith("04") && !fmt.startsWith("02")
+      ? fmt.slice(1).trim()
+      : fmt;
+    return { digitos, ejemplo, primerDigito };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Genera el texto de ayuda según el país y tipo de teléfono seleccionado (FIX-TLF15).
+ */
+export function obtenerAyudaTelefono(
+  pais: CountryCode = PAIS_POR_DEFECTO,
+  tipo: TipoTelefono = "cualquiera",
+): string {
+  if (pais === "VE") {
+    if (tipo === "movil") {
+      return "Ejemplo: 0412-1234567, 0414-9876543 o 0416-5551234 (11 dígitos).";
+    }
+    if (tipo === "fijo") {
+      return "Ejemplo: 0212-5551234 o 0241-8765432 (con código de área).";
+    }
+    return "Ejemplo: móvil 0412-1234567, fijo 0212-5551234.";
+  }
+
+  const nombre = nombrePais(pais);
+  const prefijo = `+${getCountryCallingCode(pais)}`;
+  const ex = obtenerEjemploTelefono(pais);
+
+  if (!ex) {
+    return `Escriba el número de ${nombre} (${prefijo}) con su código de área local.`;
+  }
+
+  if (tipo === "movil") {
+    return `Ejemplo para celular de ${nombre} (${prefijo}): ${ex.ejemplo} (${ex.digitos} dígitos).`;
+  }
+  return `Ejemplo para ${nombre} (${prefijo}): ${ex.ejemplo} (${ex.digitos} dígitos).`;
 }
 
 /** Valida y normaliza a E.164. Vacío es válido (`e164: null`): la obligatoriedad la decide el formulario. */
@@ -131,21 +190,69 @@ export function normalizarTelefono(
   if (!/^\+?\d+$/.test(limpio)) return { ok: false, mensaje: MENSAJE_SOLO_NUMEROS };
 
   const numero = parsePhoneNumberFromString(limpio, pais);
+  const destino = numero?.country ?? pais;
+  const nombreDestino = nombrePais(destino);
+  const prefijoDestino = `+${getCountryCallingCode(destino)}`;
+
   if (!numero || !numero.isValid()) {
-    const destino = numero?.country ?? pais;
+    if (destino === "VE") {
+      return { ok: false, mensaje: MENSAJE_VE };
+    }
+    const ex = obtenerEjemploTelefono(destino);
+    if (ex) {
+      return {
+        ok: false,
+        mensaje: `Número inválido para ${nombreDestino} (${prefijoDestino}): se esperan ${ex.digitos} dígitos.`,
+      };
+    }
     return {
       ok: false,
-      mensaje:
-        destino === "VE"
-          ? MENSAJE_VE
-          : `Número inválido para ${nombrePais(destino)} (+${getCountryCallingCode(destino)}). Revise la cantidad de dígitos.`,
+      mensaje: `Número inválido para ${nombreDestino} (${prefijoDestino}). Revise la cantidad de dígitos.`,
     };
   }
+
+  const clase = numero.getType();
+
   if (tipo === "movil") {
-    const clase = numero.getType();
-    if (clase !== "MOBILE" && clase !== "FIXED_LINE_OR_MOBILE")
+    if (clase === "FIXED_LINE") {
+      if (destino === "VE") {
+        return {
+          ok: false,
+          mensaje:
+            "Este número parece un teléfono fijo. Para celular de Venezuela se esperan 11 dígitos que empiezan por 04 (ej.: 0412-1234567).",
+        };
+      }
+      const ex = obtenerEjemploTelefono(destino);
+      if (ex) {
+        return {
+          ok: false,
+          mensaje: `Este número parece un teléfono fijo. Para celular de ${nombreDestino} se esperan ${ex.digitos} dígitos que empiezan por ${ex.primerDigito} (ej.: ${ex.ejemplo}).`,
+        };
+      }
       return { ok: false, mensaje: MENSAJE_NO_MOVIL };
+    }
+
+    if (clase !== "MOBILE" && clase !== "FIXED_LINE_OR_MOBILE") {
+      return { ok: false, mensaje: MENSAJE_NO_MOVIL };
+    }
   }
+
+  if (tipo === "fijo") {
+    if (clase === "MOBILE") {
+      if (destino === "VE") {
+        return {
+          ok: false,
+          mensaje:
+            "Este número parece un teléfono celular. Para teléfono de habitación en Venezuela use un código de área (ej.: 0212-1234567).",
+        };
+      }
+      return {
+        ok: false,
+        mensaje: `Este número parece un teléfono celular. Para teléfono de habitación de ${nombreDestino} use un número fijo.`,
+      };
+    }
+  }
+
   return { ok: true, e164: numero.number };
 }
 

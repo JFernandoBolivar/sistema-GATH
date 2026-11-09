@@ -74,7 +74,8 @@ export default function LoteCredencialesView() {
       enlace.href = url;
       enlace.download = "lote_credenciales.pdf";
       enlace.click();
-      URL.revokeObjectURL(url);
+      // Liberar después de que el navegador inicie la descarga (D7).
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       toast.success("Lote generado.");
     });
   };

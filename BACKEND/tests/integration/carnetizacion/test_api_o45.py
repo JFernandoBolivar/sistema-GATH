@@ -300,3 +300,23 @@ def test_flujo_evento_invitado_y_control_entrada(datos_base):
     assert checkin.status_code == 200, checkin.content
     assert checkin.json()["data"]["resultado"] in ("ACCESO_PERMITIDO", "YA_INGRESO")
     assert api.get(f"{BASE}/eventos/{evento['id']}/panel/").status_code == 200
+
+
+def test_crear_plantilla_borrador_sin_definicion_explicita(datos_base):
+    """Punto 20: crear plantilla sin definición explícita debe responder 201 y aplicar defaults."""
+    api = datos_base["api"]
+    payload = {
+        "nombre": "Plantilla Prueba Alta API",
+        "codigo_tipo": "trabajador",
+        "ancho_mm": 54.0,
+        "alto_mm": 85.6,
+        "orientacion": "vertical",
+        "regla_criterio": "todos",
+        "regla_valor": "*",
+    }
+    resp = api.post(f"{BASE}/plantillas-motor/", payload, format="json")
+    assert resp.status_code == 201, resp.content
+    data = resp.json()["data"]
+    assert data["nombre"] == "Plantilla Prueba Alta API"
+    assert data["definicion"]["bg"] == {"anverso": "#ffffff", "reverso": "#ffffff"}
+

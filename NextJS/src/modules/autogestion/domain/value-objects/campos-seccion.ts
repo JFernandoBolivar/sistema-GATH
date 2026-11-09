@@ -65,12 +65,24 @@ export interface SeccionDef {
 
 export const CAMPO_REGISTRO_NUEVO = "*";
 
+export const CODIGOS_SECCION_ORDENADOS = [
+  "identidad",
+  "foto",
+  "contacto",
+  "vivienda",
+  "formacion",
+  "complementaria",
+  "familiar",
+  "salud",
+  "antecedentes",
+] as const;
+
 export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
   identidad: {
     codigo: "identidad",
     nombre: "Identidad",
     descripcion:
-      "Nombres, apellidos, fecha de nacimiento y cédula. La copia de la cédula es obligatoria. El estado civil, el código del Carnet de la Patria y su serial no requieren documento.",
+      "Nombres, apellidos y fecha de nacimiento. La cédula no se modifica aquí: si tiene un error, use «Reportar error». La copia de la cédula es obligatoria. El estado civil, el código del Carnet de la Patria y su serial no requieren documento.",
     entidades: [
       {
         entidad: "employee",
@@ -81,7 +93,6 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
           { campo: "nombres", etiqueta: "Nombres", tipo: "texto" },
           { campo: "apellidos", etiqueta: "Apellidos", tipo: "texto" },
           { campo: "fecha_nacimiento", etiqueta: "Fecha de nacimiento", tipo: "fecha" },
-          { campo: "cedulaidentidad", etiqueta: "Cédula de identidad", tipo: "texto" },
           {
             campo: "estadoCivil_id",
             etiqueta: "Estado civil",
@@ -95,6 +106,20 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             tipo: "texto",
           },
         ],
+      },
+    ],
+  },
+  foto: {
+    codigo: "foto",
+    nombre: "Foto",
+    descripcion: "Foto de perfil para el carnet (JPG o PNG, hasta 5 MB).",
+    entidades: [
+      {
+        entidad: "employee",
+        etiqueta: "Foto",
+        unica: true,
+        creable: false,
+        campos: [{ campo: "profile", etiqueta: "Foto de perfil", tipo: "texto" }],
       },
     ],
   },
@@ -400,20 +425,6 @@ export const SECCIONES_DEF: Record<SeccionCodigo, SeccionDef> = {
             catalogo: "tallasChaqueta",
           },
         ],
-      },
-    ],
-  },
-  foto: {
-    codigo: "foto",
-    nombre: "Foto",
-    descripcion: "Foto de perfil para el carnet (JPG o PNG, hasta 5 MB).",
-    entidades: [
-      {
-        entidad: "employee",
-        etiqueta: "Foto",
-        unica: true,
-        creable: false,
-        campos: [{ campo: "profile", etiqueta: "Foto de perfil", tipo: "texto" }],
       },
     ],
   },

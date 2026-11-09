@@ -407,6 +407,7 @@ export async function publicarPlantillaMotorAction(plantillaId: string, activar:
 export async function crearPlantillaBorradorAction(data: {
   nombre: string;
   codigo_tipo?: string;
+  definicion?: Record<string, unknown>;
   ancho_mm?: number;
   alto_mm?: number;
   orientacion?: "vertical" | "horizontal";
@@ -419,6 +420,7 @@ export async function crearPlantillaBorradorAction(data: {
     const result = await repoCarnetizacionApi.crearPlantillaBorrador({
       nombre: data.nombre,
       codigo_tipo: data.codigo_tipo ?? "trabajador",
+      definicion: data.definicion ?? { anverso: [], reverso: [], bg: { anverso: "#ffffff", reverso: "#ffffff" } },
       ancho_mm: data.ancho_mm ?? 54.0,
       alto_mm: data.alto_mm ?? 85.6,
       orientacion: data.orientacion ?? "vertical",
@@ -430,7 +432,8 @@ export async function crearPlantillaBorradorAction(data: {
   } catch (error) {
     await logAudit({ traceId, action: "crearPlantillaBorradorAction", status: "FAILED", durationMs: Date.now() - startedAt });
     handleSessionExpired(error);
-    return { success: false as const, error: "No fue posible crear el borrador de plantilla." };
+    const mensaje = error instanceof Error ? error.message : "No fue posible crear el borrador de plantilla.";
+    return { success: false as const, error: mensaje };
   }
 }
 

@@ -70,11 +70,6 @@ export function construirColumnasRoles(
   onEliminar: (rol: RolDTO) => void,
 ): ColumnDef<RolDTO>[] {
   return [
-    {
-      accessorKey: "id",
-      header: "ID",
-      cell: ({ getValue }) => <span className="font-medium">{getValue() as number}</span>,
-    },
     { accessorKey: "nombreVisible", header: "Nombre" },
     {
       accessorKey: "nombreRol",

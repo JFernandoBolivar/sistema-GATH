@@ -276,9 +276,19 @@ class SolicitarCarnetView(APIView):
         if not cedula:
             return fail("El usuario autenticado no tiene un expediente de trabajador asociado.", status=404)
 
+        from apps.autogestion.infrastructure.repositories.repo_portal_trabajador_orm import (
+            RepoPortalTrabajadorORM,
+        )
+        repo = RepoPortalTrabajadorORM()
+        if repo.tiene_carnet_activo(str(cedula)):
+            return fail(
+                "Ya posee un carnet institucional activo y vigente.",
+                status=status.HTTP_409_CONFLICT,
+            )
+
         datos = validar_entrada(SolicitarCarnetSerializer, request.data)
         carnet = solicitar_mi_carnet(
-            RepoPortalTrabajadorORM(),
+            repo,
             str(cedula),
             motivo_id=datos.get('motivo_id'),
             observaciones=datos.get('observaciones'),
@@ -288,6 +298,29 @@ class SolicitarCarnetView(APIView):
             message="Carnet institucional generado exitosamente",
             status=status.HTTP_201_CREATED,
         )
+
+
+class MiCarnetAccesoView(APIView):
+    """
+    GET /api/v1/autogestion/mi-carnet/acceso/
+    Indica si el trabajador autenticado puede ver su carnet digital. La regla
+    (alcance configurable + usuarios específicos) vive en el backend, en el
+    mismo repositorio que ya calcula `puede_ver_carnet` para Mi expediente.
+    Zero-IDOR: solo evalúa la cédula de la sesión.
+    """
+    permission_classes = [IsAuthenticated, HasPermission('autogestion.ver_propio')]
+
+    @extend_schema(tags=['Autogestión'], summary='Consultar si Mi Carnet está habilitado')
+    def get(self, request):
+        cedula = getattr(request.user, 'cedula_id', None)
+        if not cedula:
+            return fail(
+                "El usuario autenticado no tiene un expediente de trabajador asociado.",
+                status=404,
+            )
+        return ok({
+            'puede_ver_carnet': RepoPortalTrabajadorORM().puede_ver_carnet(str(cedula)),
+        })
 
 
 class MiCarnetPdfView(APIView):

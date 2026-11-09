@@ -3,6 +3,7 @@ Repositorio ORM de Eventos, Categorías, Zonas e Invitados (Regla B2/B3, O45-B).
 """
 import uuid
 from datetime import datetime
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 
 from apps.carnetizacion.domain.entities.evento import (
@@ -148,7 +149,25 @@ class RepoEventosORM(RepoEventosPort):
         return [a_entidad_zona(m) for m in qs]
 
     # ─── Invitados ───
-    def crear_invitado(self, invitado: EventoInvitado) -> EventoInvitado:
+    def siguiente_codigo_credencial(self) -> str:
+        """Siguiente INV-NNNN libre.
+
+        La columna `codigo_credencial` es única en toda la tabla, no por evento;
+        por eso el correlativo se calcula sobre todos los invitados existentes.
+        """
+        maximo = 0
+        codigos = EventoInvitadoModel.objects.filter(
+            codigo_credencial__startswith='INV-'
+        ).values_list('codigo_credencial', flat=True)
+        for codigo in codigos:
+            try:
+                numero = int(str(codigo).split('-', 1)[1])
+            except (IndexError, ValueError):
+                continue
+            maximo = max(maximo, numero)
+        return f'INV-{maximo + 1:04d}'
+
+    def _insertar_invitado(self, invitado: EventoInvitado) -> EventoInvitado:
         m = EventoInvitadoModel.objects.create(
             id=invitado.id,
             evento_id=invitado.evento_id,
@@ -171,6 +190,29 @@ class RepoEventosORM(RepoEventosPort):
             observaciones=invitado.observaciones,
         )
         return a_entidad_invitado(m)
+
+    def crear_invitado(self, invitado: EventoInvitado) -> EventoInvitado:
+        """Crea el invitado con un INV-NNNN único incluso bajo concurrencia.
+
+        `max+1` puede repetirse si dos altas simultáneas calculan el mismo
+        siguiente número. La unicidad real la impone la BD; si el INSERT choca
+        por `codigo_credencial`, se recalcula y se reintenta (savepoint por
+        intento para no romper una transacción externa).
+        """
+        codigo_original = invitado.codigo_credencial
+        for intento in range(6):
+            try:
+                with transaction.atomic():
+                    return self._insertar_invitado(invitado)
+            except IntegrityError as exc:
+                es_codigo = (
+                    'codigo_credencial' in str(exc)
+                    and codigo_original.startswith('INV-')
+                )
+                if not es_codigo or intento == 5:
+                    raise
+                invitado.codigo_credencial = self.siguiente_codigo_credencial()
+        raise RuntimeError('No se pudo asignar un código de credencial único.')
 
     def actualizar_invitado(self, invitado: EventoInvitado) -> EventoInvitado:
         EventoInvitadoModel.objects.filter(id=invitado.id).update(

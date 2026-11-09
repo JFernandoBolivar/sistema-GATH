@@ -19,16 +19,20 @@ export const reglasCatalogosApi = {
       "/api/v1/configuracion/reglas-catalogos/",
     ),
 
-  actualizarParentesco: (id: number, datos: { aplica_familiar?: boolean; descripcion?: string }) =>
+  actualizarParentesco: (id: number, datos: Partial<Omit<ReglaParentescoDTO, "id">>) =>
     apiClient.patch<ApiResponse<ReglaParentescoDTO>>(
       `/api/v1/configuracion/reglas-catalogos/parentescos/${id}/`,
       datos,
     ),
 
-  crearParentesco: (descripcion: string, aplica_familiar: boolean) =>
+  crearParentesco: (
+    descripcion: string,
+    aplica_familiar: boolean,
+    regla?: Partial<Omit<ReglaParentescoDTO, "id" | "descripcion" | "aplica_familiar">>,
+  ) =>
     apiClient.post<ApiResponse<ReglaParentescoDTO>>(
       "/api/v1/configuracion/reglas-catalogos/parentescos/",
-      { descripcion, aplica_familiar },
+      { descripcion, aplica_familiar, ...regla },
     ),
 
   eliminarParentesco: (id: number) =>
@@ -117,6 +121,12 @@ export const reglasCatalogosApi = {
   eliminarTipoSoporte: (id: number) =>
     apiClient.delete<ApiResponse<ReglaTipoSoporteDTO>>(
       `/api/v1/configuracion/reglas-catalogos/tipos-soporte/${id}/`,
+    ),
+
+  reordenarTiposSoporte: (ordenes: { id: number; orden: number }[]) =>
+    apiClient.put<ApiResponse<ReglaTipoSoporteDTO[]>>(
+      "/api/v1/configuracion/reglas-catalogos/tipos-soporte/reordenar/",
+      { ordenes },
     ),
 
   actualizarChecklistSoporte: (

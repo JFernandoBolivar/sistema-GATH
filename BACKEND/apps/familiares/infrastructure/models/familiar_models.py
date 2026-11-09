@@ -3,6 +3,8 @@ Modelos ORM de Cargas Familiares (Regla B26).
 """
 from django.db import models
 
+from apps.familiares.domain.entities.familiar import CEDULA_FAMILIAR_MAX
+
 
 class EmployeefamilyModel(models.Model):
     id = models.AutoField(primary_key=True)
@@ -15,7 +17,9 @@ class EmployeefamilyModel(models.Model):
         related_name='carga_familiar',
         to_field='cedulaidentidad',
     )
-    cedulaFamiliar = models.CharField(max_length=10, db_column='cedulaFamiliar', blank=True, null=True)
+    cedulaFamiliar = models.CharField(
+        max_length=CEDULA_FAMILIAR_MAX, db_column='cedulaFamiliar', blank=True, null=True,
+    )
     # Orden de nacimiento elegido para hijos menores sin cédula propia. Nullable:
     # las 578 cédulas sintéticas ya generadas quedan con NULL (sin backfill).
     orden_hijo = models.PositiveSmallIntegerField(

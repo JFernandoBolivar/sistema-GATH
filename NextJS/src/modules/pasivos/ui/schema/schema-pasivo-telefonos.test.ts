@@ -9,6 +9,8 @@ const base = {
   sexoId: 1,
   fechaNacimiento: "1950-01-01",
   tipoNominaId: 1,
+  motivoId: 1,
+  fechaVigencia: "2020-01-01",
 };
 
 describe("teléfonos del pasivo (D-13)", () => {

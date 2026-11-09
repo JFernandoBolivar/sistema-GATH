@@ -73,7 +73,7 @@ export default function NuevaSolicitudPage() {
 
   if (!cargandoPolitica && politica && !politica.habilitado) {
     return (
-      <div className="flex max-w-3xl flex-col gap-6">
+      <div className="flex w-full flex-col gap-6">
         <PageHeader titulo="Solicitar actualización de datos" />
         <VistaVacia
           titulo="Las solicitudes no están habilitadas para su condición"
@@ -89,7 +89,7 @@ export default function NuevaSolicitudPage() {
   );
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <PageHeader
         titulo="Solicitar actualización de datos"
         descripcion="Elija qué datos necesita actualizar y cuéntenos el motivo. Bienestar Social le habilitará un plazo para cargar los cambios y sus soportes."
@@ -104,10 +104,10 @@ export default function NuevaSolicitudPage() {
         />
       ) : null}
       {data ? (
-        <form onSubmit={handleSubmit(enviar)} noValidate className="flex flex-col gap-6">
+        <form onSubmit={handleSubmit(enviar)} noValidate className="flex w-full flex-col gap-6">
           <fieldset data-guia-id="solicitud-selector-campos" className="flex flex-col gap-3">
             <legend className="text-lg font-semibold">¿Qué datos desea actualizar?</legend>
-            <p className="text-sm text-muted-foreground">
+            <p className="max-w-3xl text-sm text-muted-foreground">
               Marque los campos que necesita cambiar. En grupo familiar, contactos de emergencia y formaciones, elija si desea agregar, corregir o quitar registros. Su
               correo institucional lo cambia Recursos Humanos, no puede solicitarlo aquí.
             </p>
@@ -115,7 +115,7 @@ export default function NuevaSolicitudPage() {
               control={control}
               name="campos"
               render={({ field }) => (
-                <ul className="flex flex-col gap-4">
+                <ul className="grid gap-4 lg:grid-cols-2">
                   {seccionesDisponibles.map((s) => {
                       const def = SECCIONES_DEF[s.codigo as keyof typeof SECCIONES_DEF];
                       return (
@@ -125,6 +125,9 @@ export default function NuevaSolicitudPage() {
                           requiereSoporte={s.requiereSoporte}
                           valor={field.value}
                           onCambio={field.onChange}
+                          bloqueos={politica?.bloqueos ?? []}
+                          esperas={politica?.esperas ?? []}
+                          alcance={politica?.bloqueo_alcance ?? "registro"}
                         />
                       );
                     })}
@@ -138,7 +141,7 @@ export default function NuevaSolicitudPage() {
             ) : null}
           </fieldset>
 
-          <div data-guia-id="solicitud-motivo" className="flex flex-col gap-1.5">
+          <div data-guia-id="solicitud-motivo" className="flex max-w-3xl flex-col gap-1.5">
             <label htmlFor="motivo" className="text-lg font-semibold">
               Motivo de la actualización
             </label>

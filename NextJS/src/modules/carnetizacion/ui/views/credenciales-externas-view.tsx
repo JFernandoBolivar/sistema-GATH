@@ -51,7 +51,8 @@ function descargarBlob(blob: Blob, nombre: string): void {
   enlace.href = url;
   enlace.download = nombre;
   enlace.click();
-  URL.revokeObjectURL(url);
+  // Liberar después de que el navegador inicie la descarga (D7).
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 const ESTADOS = ["ACTIVA", "DEVUELTA", "ANULADA", "VENCIDA"] as const;

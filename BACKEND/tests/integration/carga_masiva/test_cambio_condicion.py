@@ -26,6 +26,7 @@ from apps.cargos.infrastructure.models.cargo_models import (
 )
 from apps.catalogos.infrastructure.models.catalogo_models import (
     CategoriaMovimientoModel,
+    EstadoCivilModel,
     EstatusModel,
     NacionalidadModel,
     SexoModel,
@@ -55,6 +56,7 @@ pytestmark = pytest.mark.django_db
 def escenario():
     SexoModel.objects.create(sexo='MASCULINO')
     nacionalidad = NacionalidadModel.objects.create(codigo='V', nombre='VENEZOLANO')
+    EstadoCivilModel.objects.create(estadoCivil='SOLTERO')
     estatus_activo = EstatusModel.objects.create(estatus='ACTIVO')
     estatus_vacante = EstatusModel.objects.create(estatus='VACANTE')
     EstatusModel.objects.create(estatus='EGRESADO')
@@ -168,6 +170,7 @@ def test_activo_a_pasivo_requiere_confirmacion_y_revierte(escenario):
         'Sexo': 'MASCULINO',
         'Fecha de nacimiento': '1990-01-01',
         'Nacionalidad': 'VENEZOLANO',
+        'Estado civil': 'SOLTERO',
         'Fecha de egreso': '2026-06-30',
         'Motivo del pase a pasivo': 'JUBILACION DE DERECHO',
         'Tipo de nómina de pasivo': 'JUBILADO',
@@ -282,6 +285,7 @@ def test_confirmar_fila_sin_movimiento_completo_falla(escenario):
         'Sexo': 'MASCULINO',
         'Fecha de nacimiento': '1990-01-01',
         'Nacionalidad': 'VENEZOLANO',
+        'Estado civil': 'SOLTERO',
     })
     carga = _carga('PASIVOS', ['datos_personales'])
     analizar_archivo(carga, contenido, ['datos_personales'])

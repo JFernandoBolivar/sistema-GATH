@@ -4,23 +4,64 @@ Serializers para Reglas de Catálogos (A5).
 from rest_framework import serializers
 
 
+REGLAS_PARENTESCO = (
+    'es_hijo', 'menor_a_cargo', 'sin_cedula_hasta_edad', 'edad_minima',
+    'diferencia_minima', 'diferencia_tipo', 'sexo_permitido', 'soporte_sugerido',
+    'activo',
+)
+
+
 class ReglaParentescoSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     descripcion = serializers.CharField(read_only=True)
     aplica_familiar = serializers.BooleanField()
+    # FIX-FAM2: reglas configurables del parentesco.
+    es_hijo = serializers.BooleanField(read_only=True)
+    menor_a_cargo = serializers.BooleanField(read_only=True)
+    sin_cedula_hasta_edad = serializers.IntegerField(read_only=True, allow_null=True)
+    edad_minima = serializers.IntegerField(read_only=True, allow_null=True)
+    diferencia_minima = serializers.IntegerField(read_only=True, allow_null=True)
+    diferencia_tipo = serializers.CharField(read_only=True)
+    sexo_permitido = serializers.CharField(read_only=True)
+    soporte_sugerido = serializers.CharField(read_only=True)
+    activo = serializers.BooleanField(read_only=True)
 
 
-class ActualizarParentescoSerializer(serializers.Serializer):
+class ReglaParentescoCamposMixin(serializers.Serializer):
+    es_hijo = serializers.BooleanField(required=False)
+    menor_a_cargo = serializers.BooleanField(required=False)
+    sin_cedula_hasta_edad = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0, max_value=120,
+    )
+    edad_minima = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0, max_value=120,
+    )
+    diferencia_minima = serializers.IntegerField(
+        required=False, allow_null=True, min_value=0, max_value=120,
+    )
+    diferencia_tipo = serializers.ChoiceField(
+        choices=['NINGUNA', 'MENOR', 'MAYOR'], required=False,
+    )
+    sexo_permitido = serializers.ChoiceField(
+        choices=['', 'M', 'F'], required=False, allow_blank=True,
+    )
+    soporte_sugerido = serializers.CharField(
+        required=False, allow_blank=True, max_length=120,
+    )
+    activo = serializers.BooleanField(required=False)
+
+
+class ActualizarParentescoSerializer(ReglaParentescoCamposMixin):
     descripcion = serializers.CharField(min_length=2, max_length=100, required=False)
     aplica_familiar = serializers.BooleanField(required=False)
 
     def validate(self, attrs):
-        if not any(k in attrs for k in ('descripcion', 'aplica_familiar')):
+        if not any(k in attrs for k in ('descripcion', 'aplica_familiar', *REGLAS_PARENTESCO)):
             raise serializers.ValidationError('Debe indicar al menos un campo a actualizar.')
         return attrs
 
 
-class CrearParentescoSerializer(serializers.Serializer):
+class CrearParentescoSerializer(ReglaParentescoCamposMixin):
     descripcion = serializers.CharField(min_length=2, max_length=100, required=True)
     aplica_familiar = serializers.BooleanField(required=False, default=True)
 
@@ -159,6 +200,21 @@ class ItemChecklistSoporteSerializer(serializers.Serializer):
     tipo_soporte_id = serializers.IntegerField(required=True)
     permitido = serializers.BooleanField(required=False, default=True)
     requerido = serializers.BooleanField(required=False, default=False)
+
+
+class ItemReordenarTipoSoporteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=True, min_value=1)
+    orden = serializers.IntegerField(required=True, min_value=0)
+
+
+class ReordenarTiposSoporteSerializer(serializers.Serializer):
+    ordenes = ItemReordenarTipoSoporteSerializer(many=True, required=False)
+    ids = serializers.ListField(child=serializers.IntegerField(min_value=1), required=False)
+
+    def validate(self, attrs):
+        if not attrs.get('ordenes') and not attrs.get('ids'):
+            raise serializers.ValidationError('Debe indicar «ordenes» o «ids».')
+        return attrs
 
 
 class ActualizarChecklistSoporteSerializer(serializers.Serializer):

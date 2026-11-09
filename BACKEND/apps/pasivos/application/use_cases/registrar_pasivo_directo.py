@@ -12,6 +12,8 @@ def registrar_pasivo_directo(
         repo.registrar_pasivo_directo(
             datos=dto.datos,
             tipo_nomina_id=dto.tipo_nomina_id,
+            motivo_id=dto.motivo_id,
+            fecha_vigencia=dto.fecha_vigencia,
             usuario_id=dto.usuario_id,
         )
     )

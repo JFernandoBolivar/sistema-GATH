@@ -7,6 +7,7 @@ import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
 import { logAudit } from "@/shared/infrastructure/logging/logger-server";
 import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
 import { reglasCatalogosApi } from "../http/reglas-catalogos-api";
+import type { ReglaParentescoDTO } from "../../application/dtos/reglas-catalogos-dto";
 
 async function conAuditoria<T>(
   accion: string,
@@ -49,16 +50,20 @@ export async function actualizarParentescoAction(id: number, aplica_familiar: bo
   });
 }
 
-export async function crearParentescoAction(descripcion: string, aplica_familiar: boolean) {
+export async function crearParentescoAction(
+  descripcion: string,
+  aplica_familiar: boolean,
+  regla?: Partial<Omit<ReglaParentescoDTO, "id" | "descripcion" | "aplica_familiar">>,
+) {
   return conAuditoria("crearParentescoAction", async () => {
-    const res = await reglasCatalogosApi.crearParentesco(descripcion, aplica_familiar);
+    const res = await reglasCatalogosApi.crearParentesco(descripcion, aplica_familiar, regla);
     return res.data;
   });
 }
 
 export async function editarParentescoAction(
   id: number,
-  datos: { descripcion?: string; aplica_familiar?: boolean },
+  datos: Partial<Omit<ReglaParentescoDTO, "id">>,
 ) {
   return conAuditoria("editarParentescoAction", async () => {
     const res = await reglasCatalogosApi.actualizarParentesco(id, datos);
@@ -180,6 +185,13 @@ export async function actualizarTipoSoporteAction(
 export async function eliminarTipoSoporteAction(id: number) {
   return conAuditoria("eliminarTipoSoporteAction", async () => {
     const res = await reglasCatalogosApi.eliminarTipoSoporte(id);
+    return res.data;
+  });
+}
+
+export async function reordenarTiposSoporteAction(ordenes: { id: number; orden: number }[]) {
+  return conAuditoria("reordenarTiposSoporteAction", async () => {
+    const res = await reglasCatalogosApi.reordenarTiposSoporte(ordenes);
     return res.data;
   });
 }

@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/shared/ui/components/select";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 
 import type { CatalogoPasivoDTO, PasivoDTO } from "../application/dtos/pasivos-dto";
 import { DetallePasivo } from "./detalle-pasivo";
@@ -41,6 +42,7 @@ const FILTROS_VACIOS: FiltrosPasivosFormType = {
   cedula: "",
   codigo: "",
   tipoNominaId: undefined,
+  motivoId: undefined,
   sinCuenta: undefined,
   limit: 10,
   offset: 0,
@@ -181,6 +183,21 @@ export default function PasivosPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    <Label htmlFor="filtro-motivo">Tipo de Jubilación / Pensión</Label>
+                    <MotivoSelect
+                      operacion="pase_a_pasivo"
+                      value={borrador.motivoId || null}
+                      onChange={(id) =>
+                        setBorrador((p) => ({
+                          ...p,
+                          motivoId: id ? Number(id) : undefined,
+                        }))
+                      }
+                      id="filtro-motivo"
+                      placeholder="Todos los tipos"
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5 min-w-0">
                     <Label htmlFor="filtro-cuenta">Cuenta de acceso</Label>

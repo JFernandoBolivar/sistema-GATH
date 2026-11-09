@@ -11,6 +11,9 @@ from apps.catalogos.infrastructure.models.catalogo_models import (
     ParentescoModel,
     TipoNominaModel,
 )
+from apps.configuracion.infrastructure.models.regla_parentesco_model import (
+    ReglaParentescoModel,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -264,3 +267,105 @@ def test_checklist_de_seccion_inexistente_es_rechazado():
     )
     assert respuesta.status_code == 400
     assert 'no admite checklist' in respuesta.json()['message']
+
+
+def test_reordenar_tipos_soporte_en_bloque_transaccional():
+    api = cliente(*PERMISOS)
+
+    t1 = TipoSoporteDocumentoModel.objects.create(codigo='DOC_UNO', nombre='Doc 1', orden=10)
+    t2 = TipoSoporteDocumentoModel.objects.create(codigo='DOC_DOS', nombre='Doc 2', orden=20)
+    t3 = TipoSoporteDocumentoModel.objects.create(codigo='DOC_TRES', nombre='Doc 3', orden=30)
+
+    # Reordenar pasando lista de {id, orden}
+    resp = api.put(
+        f'{TIPOS_SOPORTE}reordenar/',
+        {'ordenes': [
+            {'id': t3.id, 'orden': 1},
+            {'id': t1.id, 'orden': 2},
+            {'id': t2.id, 'orden': 3},
+        ]},
+        format='json',
+    )
+    assert resp.status_code == 200, resp.content
+    tipos = {item['id']: item['orden'] for item in data(resp)}
+    assert tipos[t3.id] == 1
+    assert tipos[t1.id] == 2
+    assert tipos[t2.id] == 3
+
+    # Reordenar pasando lista de ids (posicional)
+    resp2 = api.put(
+        f'{TIPOS_SOPORTE}reordenar/',
+        {'ids': [t2.id, t3.id, t1.id]},
+        format='json',
+    )
+    assert resp2.status_code == 200, resp2.content
+    tipos2 = {item['id']: item['orden'] for item in data(resp2)}
+    assert tipos2[t2.id] == 1
+    assert tipos2[t3.id] == 2
+    assert tipos2[t1.id] == 3
+def test_crear_y_editar_reglas_de_parentesco():
+    api = cliente(*PERMISOS)
+    creado = api.post(PARENTESCOS, {
+        'descripcion': 'TUTELADO',
+        'es_hijo': False,
+        'menor_a_cargo': True,
+        'sin_cedula_hasta_edad': 9,
+        'diferencia_minima': 12,
+        'diferencia_tipo': 'MENOR',
+        'soporte_sugerido': 'SENTENCIA DE TUTELA',
+        'activo': True,
+    }, format='json')
+    assert creado.status_code == 201, creado.content
+    parentesco = data(creado)
+    assert parentesco['menor_a_cargo'] is True
+    assert parentesco['sin_cedula_hasta_edad'] == 9
+    assert parentesco['diferencia_tipo'] == 'MENOR'
+    regla = ReglaParentescoModel.objects.get(parentesco_id=parentesco['id'])
+    assert regla.menor_a_cargo is True and regla.sin_cedula_hasta_edad == 9
+
+    editado = api.patch(
+        f"{PARENTESCOS}{parentesco['id']}/",
+        {'edad_minima': 18, 'sexo_permitido': 'F', 'soporte_sugerido': 'OTRO'},
+        format='json',
+    )
+    assert editado.status_code == 200, editado.content
+    assert data(editado)['edad_minima'] == 18
+    assert data(editado)['sexo_permitido'] == 'F'
+    assert data(editado)['menor_a_cargo'] is True
+    regla.refresh_from_db()
+    assert regla.edad_minima == 18 and regla.sexo_permitido == 'F'
+    assert regla.menor_a_cargo is True and regla.sin_cedula_hasta_edad == 9
+
+
+def test_regla_parentesco_valida_rangos_y_marcas():
+    api = cliente(*PERMISOS)
+    p = ParentescoModel.objects.create(descripcion_parentesco='OTRO', aplica_familiar=True)
+
+    rango = api.patch(
+        f'{PARENTESCOS}{p.pk}/', {'edad_minima': 200}, format='json',
+    )
+    assert rango.status_code == 400
+
+    sin_marca = api.patch(
+        f'{PARENTESCOS}{p.pk}/', {'sin_cedula_hasta_edad': 9}, format='json',
+    )
+    assert sin_marca.status_code == 400
+    assert 'hijo o menor a cargo' in sin_marca.json()['message']
+
+
+def test_hijo_reservado_permite_editar_sus_reglas_sin_renombrarlo():
+    p = ParentescoModel.objects.create(descripcion_parentesco='HIJO (A)', aplica_familiar=True)
+    api = cliente(*PERMISOS)
+
+    reglas = api.patch(
+        f'{PARENTESCOS}{p.pk}/',
+        {'es_hijo': True, 'sin_cedula_hasta_edad': 9},
+        format='json',
+    )
+    assert reglas.status_code == 200, reglas.content
+
+    renombrar = api.patch(
+        f'{PARENTESCOS}{p.pk}/', {'descripcion': 'HIJO'}, format='json',
+    )
+    assert renombrar.status_code == 400
+    assert 'reservado' in renombrar.json()['message']

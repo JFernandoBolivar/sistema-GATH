@@ -520,6 +520,11 @@ class Command(BaseCommand):
             action="store_true",
             help="No sube permisos_version de las cuentas de los roles cuya matriz cambió.",
         )
+        parser.add_argument(
+            "--forzar-matriz",
+            action="store_true",
+            help="Sincroniza la matriz completa de roles predefinidos según el catálogo.",
+        )
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Iniciando seed de catálogo de permisos..."))
@@ -618,7 +623,7 @@ class Command(BaseCommand):
                     continue
 
                 nombre_rol = roles_existentes[rol_id]
-                if rol_id in roles_creados or aplicar_completo:
+                if rol_id in roles_creados or aplicar_completo or options.get("forzar_matriz"):
                     a_agregar = set(codigos)
                 else:
                     a_agregar = set(codigos) & permisos_creados

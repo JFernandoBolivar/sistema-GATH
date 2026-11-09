@@ -206,6 +206,7 @@ class SeccionAutogestionableSerializer(serializers.Serializer):
     nombre = serializers.CharField()
     requiere_soporte = serializers.BooleanField()
     activa = serializers.BooleanField()
+    orden = serializers.IntegerField(default=0)
 
 
 class DatosComplementariosSerializer(serializers.Serializer):

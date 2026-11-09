@@ -25,6 +25,29 @@ const PROPIEDADES = [
 /** Escala del PNG de exportación: el ancho lógico es pequeño, así que se rasteriza más fino. */
 export const ESCALA_EXPORTACION = 3;
 
+/** Mismo límite que `MAX_LADO_GRAFICO` en `exportacion_estadisticas.py`. */
+export const MAX_LADO_GRAFICO = 2400;
+
+/**
+ * Dimensiones finales del canvas, reduciendo la escala si el lado mayor supera
+ * el límite del backend (pantallas anchas / devicePixelRatio).
+ */
+export function dimensionesCanvas(
+  ancho: number,
+  alto: number,
+  escala: number,
+  maxLado = MAX_LADO_GRAFICO,
+): { ancho: number; alto: number } {
+  const anchoBase = Math.max(1, Math.round(ancho * escala));
+  const altoBase = Math.max(1, Math.round(alto * escala));
+  const mayor = Math.max(anchoBase, altoBase);
+  const factor = mayor > maxLado ? maxLado / mayor : 1;
+  return {
+    ancho: Math.min(maxLado, Math.max(1, Math.floor(anchoBase * factor))),
+    alto: Math.min(maxLado, Math.max(1, Math.floor(altoBase * factor))),
+  };
+}
+
 /** Entrada de la leyenda que se dibuja dentro del PNG (la de Recharts es HTML y no se captura). */
 export interface EntradaLeyenda {
   nombre: string;
@@ -168,8 +191,9 @@ export async function capturarGraficoPng(
   try {
     const imagen = await cargarImagen(url);
     const canvas = document.createElement("canvas");
-    canvas.width = ancho * escala;
-    canvas.height = alto * escala;
+    const dimensiones = dimensionesCanvas(ancho, alto, escala);
+    canvas.width = dimensiones.ancho;
+    canvas.height = dimensiones.alto;
     const contexto = canvas.getContext("2d");
     if (!contexto) throw new Error("El navegador no pudo preparar la imagen.");
     contexto.fillStyle = PALETA_GRAFICOS.blanco;

@@ -421,3 +421,98 @@ def test_generador_gafetes_pdf_anverso_y_reverso():
     assert isinstance(pdf_bytes, bytes)
     assert pdf_bytes.startswith(b"%PDF-1.")
     assert len(pdf_bytes) > 2000  # Contiene vectores, tipografía y códigos QR
+
+def test_codigo_credencial_unico_global_entre_eventos():
+    """D2/FIX-O46: INV-NNNN no se reutiliza al crear un segundo evento."""
+    repo = RepoEventosORM()
+    ahora = timezone.now()
+
+    def evento(nombre: str):
+        return CrearEventoUseCase(repo).ejecutar(
+            EventoCrearDTO(
+                nombre=nombre,
+                lugar="Sede D2",
+                fecha_inicio=ahora,
+                fecha_fin=ahora + timedelta(hours=2),
+            )
+        )
+
+    ev1 = evento("D2 Evento uno")
+    ev2 = evento("D2 Evento dos")
+
+    inv1 = CrearInvitadoUseCase(repo).ejecutar(
+        InvitadoCrearDTO(
+            evento_id=ev1.id,
+            nombre_completo="Invitado uno",
+            categoria_id=ev1.categorias[0].id,
+            zona_id=ev1.zonas[0].id,
+        )
+    )
+    inv2 = CrearInvitadoUseCase(repo).ejecutar(
+        InvitadoCrearDTO(
+            evento_id=ev2.id,
+            nombre_completo="Invitado dos",
+            categoria_id=ev2.categorias[0].id,
+            zona_id=ev2.zonas[0].id,
+        )
+    )
+
+    assert inv1.codigo_credencial == "INV-0001"
+    assert inv2.codigo_credencial == "INV-0002"
+
+    resumen = ImportarInvitadosUseCase(repo).ejecutar(
+        ev2.id,
+        [
+            {
+                "nombre": "Importado uno",
+                "categoria": ev2.categorias[0].nombre,
+                "zona": ev2.zonas[0].nombre,
+            },
+            {
+                "nombre": "Importado dos",
+                "categoria": ev2.categorias[0].nombre,
+                "zona": ev2.zonas[0].nombre,
+            },
+        ],
+        aplicar=True,
+    )
+    assert resumen.filas_validas == 2
+    codigos = [i.codigo_credencial for i in repo.listar_invitados(ev2.id)]
+    assert len(codigos) == len(set(codigos))
+    assert set(codigos) == {"INV-0002", "INV-0003", "INV-0004"}
+
+def test_reintenta_codigo_inv_si_dos_altas_calculan_el_mismo():
+    """La BD es la garantía final: un INV duplicado se recalcula y se reintenta."""
+    from dataclasses import replace
+
+    repo = RepoEventosORM()
+    ahora = timezone.now()
+    evento = CrearEventoUseCase(repo).ejecutar(
+        EventoCrearDTO(
+            nombre="D2 carrera de códigos",
+            lugar="Sede D2",
+            fecha_inicio=ahora,
+            fecha_fin=ahora + timedelta(hours=2),
+        )
+    )
+    primero = CrearInvitadoUseCase(repo).ejecutar(
+        InvitadoCrearDTO(
+            evento_id=evento.id,
+            nombre_completo="Primero",
+            categoria_id=evento.categorias[0].id,
+            zona_id=evento.zonas[0].id,
+        )
+    )
+    entidad = repo.obtener_invitado(primero.id)
+    # Simula la segunda alta simultánea: llegó con el mismo INV-0001.
+    carrera = replace(
+        entidad,
+        id=str(uuid.uuid4()),
+        codigo_credencial=primero.codigo_credencial,
+        security_hash=f"hash-{uuid.uuid4().hex}",
+    )
+
+    guardado = repo.crear_invitado(carrera)
+
+    assert guardado.codigo_credencial == "INV-0002"
+    assert guardado.id == carrera.id

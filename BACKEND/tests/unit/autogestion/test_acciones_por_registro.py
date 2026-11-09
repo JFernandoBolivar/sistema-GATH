@@ -131,7 +131,8 @@ def test_curso_con_fecha_fin_anterior_a_inicio_se_rechaza():
     with pytest.raises(ValidationError, match='anterior'):
         borrador(m, sol, [
             ItemCambioDTO('complementaria', 'formacion_complementaria', 'CREAR', '*', {
-                'capacitacion_id': 2, 'fecha_inicio': '2025-05-01', 'fecha_fin': '2025-04-01',
+                'capacitacion_id': 2, 'institucion_id': 3,
+                'fecha_inicio': '2025-05-01', 'fecha_fin': '2025-04-01',
             }, referencia='ref-curso-malo'),
         ])
 
@@ -141,7 +142,7 @@ def test_crear_curso_exige_certificado():
     sol = habilitar(m, solicitar(m, ('complementaria',)))
     borrador(m, sol, [
         ItemCambioDTO('complementaria', 'formacion_complementaria', 'CREAR', '*',
-                      {'capacitacion_id': 2}, referencia='ref-curso'),
+                      {'capacitacion_id': 2, 'institucion_id': 3}, referencia='ref-curso'),
     ])
     soporte(m, sol, 'complementaria', 'CONSTANCIA', entidad_id='otro')
     with pytest.raises(ValidationError, match='CONSTANCIA'):

@@ -2,6 +2,7 @@
 Vistas de configuración de Correo de Acceso y aplicación masiva (A7).
 """
 import uuid
+from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -29,6 +30,7 @@ from apps.configuracion.infrastructure.serializers.politica_correo_acceso_serial
 )
 from core.domain.exceptions import ColaTareasNoDisponible
 from core.domain.notificaciones import CorreoSolicitado, SolicitudNotificacion
+from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.infrastructure.providers import obtener_notificador
 from core.infrastructure.tasks.celery_queue import CeleryTaskQueue
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
@@ -171,6 +173,72 @@ class VistaPreviaCorreoAccesoView(APIView):
                 ],
             }
         )
+
+
+class ExportarVistaPreviaCorreoAccesoExcelView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission(PERMISO_VER)]
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Exportar a Excel institucional la vista previa de correo de acceso',
+    )
+    def get(self, request):
+        grupo = request.query_params.get('grupo', 'activos')
+        incluir_excepciones = (
+            request.query_params.get('incluir_excepciones', 'false').lower() == 'true'
+        )
+
+        repo = RepoPoliticaCorreoAccesoORM()
+        resumen = obtener_vista_previa_masiva(
+            repo, grupo=grupo, incluir_excepciones=incluir_excepciones
+        )
+
+        columnas = [
+            'cedula',
+            'nombre_completo',
+            'condicion',
+            'correo_actual',
+            'correo_propuesto',
+            'cambiara',
+            'quedara_sin_cuenta',
+            'es_excepcion_manual',
+        ]
+
+        filas = [
+            {
+                'cedula': it.cedula,
+                'nombre_completo': it.nombre_completo,
+                'condicion': it.condicion,
+                'correo_actual': it.correo_actual or '—',
+                'correo_propuesto': it.correo_propuesto or '—',
+                'cambiara': 'SÍ' if it.cambiara else 'NO',
+                'quedara_sin_cuenta': 'SÍ' if it.quedara_sin_cuenta else 'NO',
+                'es_excepcion_manual': 'SÍ' if it.es_excepcion_manual else 'NO',
+            }
+            for it in resumen.items
+        ]
+
+        titulo = f'Vista previa correo de acceso - {grupo.capitalize()}'
+        filtros = [
+            ('Población', grupo.capitalize()),
+            ('Total evaluados', str(resumen.total_evaluados)),
+            ('Cambiarán', str(resumen.cambian)),
+            ('Quedan igual', str(resumen.quedan_igual)),
+            ('Sin cuenta', str(resumen.quedan_sin_cuenta)),
+            ('Excepciones ignoradas', str(resumen.excepciones_manuales_ignoradas)),
+        ]
+
+        contenido = generar_reporte_excel(
+            titulo=titulo, columnas=columnas, filas=filas, filtros=filtros
+        )
+        respuesta = HttpResponse(
+            contenido,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        respuesta['Content-Disposition'] = (
+            f'attachment; filename="vista-previa-correo-acceso-{grupo}.xlsx"'
+        )
+        return respuesta
 
 
 class AplicarPoliticaCorreoAccesoView(APIView):

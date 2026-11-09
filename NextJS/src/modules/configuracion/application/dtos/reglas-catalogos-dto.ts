@@ -2,6 +2,16 @@ export interface ReglaParentescoDTO {
   id: number;
   descripcion: string;
   aplica_familiar: boolean;
+  // FIX-FAM2: reglas configurables del parentesco.
+  es_hijo: boolean;
+  menor_a_cargo: boolean;
+  sin_cedula_hasta_edad: number | null;
+  edad_minima: number | null;
+  diferencia_minima: number | null;
+  diferencia_tipo: "NINGUNA" | "MENOR" | "MAYOR";
+  sexo_permitido: "" | "M" | "F";
+  soporte_sugerido: string;
+  activo: boolean;
 }
 
 export interface CategoriaMotivoItemDTO {

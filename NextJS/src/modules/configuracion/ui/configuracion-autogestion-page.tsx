@@ -9,7 +9,8 @@ import { useMemo, useState, useTransition } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { CheckCheck, Save } from "lucide-react";
+import { CheckCheck, CreditCard, ExternalLink, Save } from "lucide-react";
+import Link from "next/link";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/components/select";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
+import { RUTA_PARAMETROS } from "@/shared/lib/administracion-sistema";
 import { SECCIONES_DEF } from "@/modules/autogestion/domain/value-objects/campos-seccion";
 
 import type { ParametroDTO } from "../application/dtos/parametro-dto";
@@ -25,8 +34,13 @@ import {
   actualizarParametroAction,
   listarParametrosAction,
 } from "../infrastructure/actions/parametros-actions";
-import { CLAVES_AUTOGESTION } from "../domain/value-objects/claves-parametros";
+import {
+  CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+  CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+  CLAVES_AUTOGESTION,
+} from "../domain/value-objects/claves-parametros";
 import { PERMISO_CONFIGURACION } from "../domain/value-objects/permisos-configuracion";
+import { SelectorTrabajadoresParametro } from "./components/selector-trabajadores-parametro";
 
 const SECCIONES = Object.values(SECCIONES_DEF).map((seccion) => ({
   codigo: seccion.codigo,
@@ -137,6 +151,7 @@ export function ConfiguracionAutogestionPage() {
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Skeleton className="h-80 w-full" />
           <Skeleton className="h-80 w-full" />
+          <Skeleton className="h-44 w-full lg:col-span-2" />
         </div>
       ) : (
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -151,9 +166,158 @@ export function ConfiguracionAutogestionPage() {
               onGuardar={guardar}
             />
           ))}
+
+          {/* Tarjeta de configuración de Mi carnet (Punto 16) */}
+          <BloqueMiCarnet
+            // Al recargar los parámetros se reinicia el borrador local.
+            key={`carnet-${parametros.map((p) => `${p.clave}=${p.valor}`).join("|")}`}
+            parametros={parametros}
+            puedeEditar={puedeEditar}
+            guardando={guardando}
+            onGuardado={async () => {
+              await mutate();
+            }}
+          />
         </div>
       )}
     </PageLayout>
+  );
+}
+
+function BloqueMiCarnet({
+  parametros,
+  puedeEditar,
+  guardando,
+  onGuardado,
+}: {
+  parametros: ParametroDTO[];
+  puedeEditar: boolean;
+  guardando: boolean;
+  onGuardado: () => Promise<void>;
+}) {
+  const paramAlcance = parametros.find((p) => p.clave === CLAVE_CARNETIZACION_MI_CARNET_ALCANCE);
+  const paramUsuarios = parametros.find((p) => p.clave === CLAVE_CARNETIZACION_MI_CARNET_USUARIOS);
+
+  const [alcance, setAlcance] = useState(paramAlcance?.valor ?? "nadie");
+  const [usuarios, setUsuarios] = useState(paramUsuarios?.valor ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [salvando, iniciarSalvado] = useTransition();
+
+  function guardarCarnet() {
+    setError(null);
+    if (alcance === "usuarios_especificos" && !usuarios.trim()) {
+      setError("Debe seleccionar al menos un trabajador para el alcance de usuarios específicos.");
+      toast.error("Seleccione al menos un trabajador.");
+      return;
+    }
+    iniciarSalvado(async () => {
+      const resAlcance = await actualizarParametroAction(
+        CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+        alcance,
+      );
+      if (resAlcance && typeof resAlcance === "object" && "error" in resAlcance) {
+        setError(resAlcance.error);
+        toast.error(resAlcance.error);
+        return;
+      }
+      if (alcance === "usuarios_especificos") {
+        const resUsuarios = await actualizarParametroAction(
+          CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+          usuarios,
+        );
+        if (resUsuarios && typeof resUsuarios === "object" && "error" in resUsuarios) {
+          setError(resUsuarios.error);
+          toast.error(resUsuarios.error);
+          return;
+        }
+      }
+      toast.success("Configuración de Credencial Digital (Mi carnet) guardada.");
+      await onGuardado();
+    });
+  }
+
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <CreditCard className="size-5 text-primary" aria-hidden="true" />
+              <span>Credencial Digital (Mi carnet)</span>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Configure qué trabajadores tienen acceso a ver y solicitar su credencial digital en el portal de Autogestión.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" asChild className="shrink-0 gap-1.5 h-9 text-xs">
+            <Link href={RUTA_PARAMETROS}>
+              <ExternalLink className="size-3.5" />
+              Ver en Parámetros del sistema
+            </Link>
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <Label htmlFor="selector-alcance-carnet" className="text-base font-medium min-w-44">
+            Alcance de visibilidad
+          </Label>
+          <div className="w-full sm:w-80">
+            <Select
+              value={alcance}
+              disabled={!puedeEditar || guardando || salvando}
+              onValueChange={(val) => {
+                setError(null);
+                setAlcance(val);
+              }}
+            >
+              <SelectTrigger id="selector-alcance-carnet" className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nadie">Nadie (desactivado)</SelectItem>
+                <SelectItem value="todos">Todos los trabajadores (activos y pasivos)</SelectItem>
+                <SelectItem value="activos">Solo trabajadores activos</SelectItem>
+                <SelectItem value="pasivos">Solo trabajadores pasivos</SelectItem>
+                <SelectItem value="usuarios_especificos">Usuarios específicos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {alcance === "usuarios_especificos" && (
+          <div className="pl-0 sm:pl-48 space-y-2">
+            <Label className="text-sm font-medium">Trabajadores autorizados</Label>
+            <div className="max-w-2xl">
+              <SelectorTrabajadoresParametro
+                valor={usuarios}
+                disabled={!puedeEditar || guardando || salvando}
+                onChange={(nuevo) => {
+                  setError(null);
+                  setUsuarios(nuevo);
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {error ? (
+          <p role="alert" className="text-sm font-medium text-danger">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex justify-end pt-2 border-t">
+          <Button
+            type="button"
+            disabled={!puedeEditar || guardando || salvando}
+            onClick={guardarCarnet}
+          >
+            <Save aria-hidden="true" /> {salvando ? "Guardando…" : "Guardar credencial digital"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

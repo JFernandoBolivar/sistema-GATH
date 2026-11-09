@@ -42,6 +42,11 @@ class RepoPortalTrabajadorORM:
     def tiene_carnet_previo(self, cedula: str) -> bool:
         return CarnetEmitidoModel.objects.filter(employee__cedulaidentidad=cedula).exists()
 
+    def tiene_carnet_activo(self, cedula: str) -> bool:
+        return CarnetEmitidoModel.objects.filter(
+            employee__cedulaidentidad=cedula, activo=True,
+        ).exists()
+
     def emitir_carnet(self, cedula: str, motivo_id: int, observaciones: str):
         return RepoCarnetizacionORM().emitir_carnet(
             empleado_cedula=cedula, motivo_id=motivo_id, observaciones=observaciones,

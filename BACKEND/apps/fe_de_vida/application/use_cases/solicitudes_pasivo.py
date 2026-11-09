@@ -74,6 +74,10 @@ def guardar_borrador(
         validado = validador.validar(cedula, c)
         if validado is not None:  # sin diferencia real con el dato actual: no se propone
             validados.append(validado)
+    validador_conjunto = getattr(validador, 'validar_conjunto', None)
+    if callable(validador_conjunto):
+        # Campos interdependientes de un mismo registro (parentesco + fecha del familiar).
+        validador_conjunto(cedula, validados)
     repo_cambios.reemplazar(solicitud.id, validados)
     return repo_cambios.listar(solicitud.id)
 

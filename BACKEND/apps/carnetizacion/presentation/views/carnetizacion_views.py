@@ -205,7 +205,11 @@ class PlantillaMotorListView(APIView):
             regla_criterio=serializer.validated_data.get('regla_criterio', 'todos'),
             regla_valor=serializer.validated_data.get('regla_valor', '*'),
             descripcion=serializer.validated_data.get('descripcion', ''),
-            creado_por=str(request.user.id) if request.user and request.user.is_authenticated else None,
+            creado_por=(
+                str(request.user.id)
+                if request.user and request.user.is_authenticated and getattr(request.user, 'id', None) is not None
+                else None
+            ),
         )
         return ok(PlantillaMotorDetalleSerializer(plantilla).data, 'Borrador de plantilla creado.', status=201)
 
@@ -346,7 +350,11 @@ class ElementoBibliotecaListView(APIView):
             categoria=serializer.validated_data['categoria'],
             contenido=contenido,
             nombre_archivo=archivo.name,
-            creado_por=str(request.user.id) if request.user and request.user.is_authenticated else None,
+            creado_por=(
+                str(request.user.id)
+                if request.user and request.user.is_authenticated and getattr(request.user, 'id', None) is not None
+                else None
+            ),
             descripcion=serializer.validated_data.get('descripcion', ''),
         )
         return ok(ElementoBibliotecaSerializer(guardado).data, 'Recurso guardado en la biblioteca institucional.', 201)

@@ -24,6 +24,7 @@ export function parametroApiADTO(item: ParametroApiItem): ParametroDTO {
     actualizadoPorId: item.actualizado_por_id,
     actualizadoEn: item.actualizado_en,
     opciones: (item.opciones ?? []).map((o) => ({ valor: String(o.valor), etiqueta: o.etiqueta })),
+    depende_de: item.depende_de ? { clave: item.depende_de.clave, valor: item.depende_de.valor } : null,
   };
 }
 
@@ -34,6 +35,9 @@ function cambioApiADTO(item: CambioParametroApiItem): CambioParametroDTO {
     valorPrevio: item.valor_previo,
     valorNuevo: item.valor_nuevo,
     resultado: item.resultado,
+    agregados: item.agregados ?? [],
+    quitados: item.quitados ?? [],
+    resumen_cambio: item.resumen_cambio ?? null,
   };
 }
 

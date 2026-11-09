@@ -30,7 +30,7 @@ import {
   TEXTO_RESULTADO,
   validarDecisiones,
 } from "../../domain/services/reglas-decision";
-import { etiquetaCampo, nombreSeccion } from "../../domain/value-objects/campos-seccion";
+import { CODIGOS_SECCION_ORDENADOS, etiquetaCampo, nombreSeccion } from "../../domain/value-objects/campos-seccion";
 import { decidirCambiosAction } from "../../infrastructure/actions/solicitudes-actions";
 import { PRESENTACION_DECISION } from "../estado-solicitud-ui";
 import { formatearValor, type NombresCatalogo } from "../formato-solicitud";
@@ -82,6 +82,14 @@ interface Props {
 export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecidido }: Props) {
   const nombres = useNombresCatalogo(detalle.cambios);
   const pendientes = useMemo(() => cambiosPendientes(detalle.cambios), [detalle.cambios]);
+  const cambiosOrdenados = useMemo(() => {
+    const orden = CODIGOS_SECCION_ORDENADOS as readonly string[];
+    return [...detalle.cambios].sort((a, b) => {
+      const idxA = orden.indexOf(a.seccion);
+      const idxB = orden.indexOf(b.seccion);
+      return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
+    });
+  }, [detalle.cambios]);
   const [elegidos, setElegidos] = useState<Record<string, Elegido>>({});
   const [motivoGeneral, setMotivoGeneral] = useState("");
   const [errores, setErrores] = useState<string[]>([]);
@@ -216,7 +224,7 @@ export function VisorComparativo({ detalle, puedeDecidir, motivoBloqueo, onDecid
           </p>
         ) : null}
 
-        {detalle.cambios.map((c, i) => {
+        {cambiosOrdenados.map((c, i) => {
           const d = PRESENTACION_DECISION[c.decision];
           const e = elegidos[c.id];
           const esPendiente = c.decision === "PENDIENTE";

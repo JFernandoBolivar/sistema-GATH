@@ -43,6 +43,11 @@ def _unir_listas() -> dict[str, dict[str, frozenset[str]]]:
 
 CAMPOS_ACTA = _unir_listas()
 
+# Campos del familiar que dependen entre sí para validar el estado final (FIX-FAM2).
+CAMPOS_FAMILIAR_VALIDADOS = frozenset({
+    'parentesco_id', 'fecha_nacimiento', 'sexo_id', 'cedula_familiar',
+})
+
 
 def _validar_estructura_acta(seccion: str, entidad: str, accion: Accion, campo: str, entidad_id) -> None:
     """Estructura contra la lista blanca de fe de vida. El CREAR sigue las reglas de autogestión (no crea identidad)."""
@@ -101,7 +106,13 @@ class ValidadorCambiosActaORM:
         entidad_id = str(cambio.entidad_id) if cambio.entidad_id not in (None, '') else None
         _validar_estructura_acta(cambio.seccion, cambio.entidad_destino, accion, cambio.campo, entidad_id)
         if accion is Accion.CREAR:
-            valor = validar_registro_nuevo(cambio.seccion, cambio.entidad_destino, cambio.valor_propuesto)
+            pais_id = None
+            if cambio.entidad_destino == 'datos_vivienda' and isinstance(cambio.valor_propuesto, dict):
+                pais_id = cambio.valor_propuesto.get('pais_id')
+            es_venezuela = getattr(self._lector, 'es_pais_venezuela', lambda _pais: True)(pais_id)
+            valor = validar_registro_nuevo(
+                cambio.seccion, cambio.entidad_destino, cambio.valor_propuesto, es_venezuela=es_venezuela
+            )
             self._lector.validar_referencias(valor)
             if cambio.entidad_destino == 'familiar':
                 self._lector.validar_familiar_alta(cedula, valor)
@@ -123,6 +134,26 @@ class ValidadorCambiosActaORM:
             cambio.seccion, accion.value, cambio.entidad_destino, cambio.campo, valor,
             entidad_id=entidad_id, valor_anterior=anterior,
         )
+
+    def validar_conjunto(self, cedula: str, cambios: list[CambioActa]) -> None:
+        """Valida el estado final de cada familiar con TODOS sus cambios juntos.
+
+        Un familiar puede cambiar parentesco, fecha de nacimiento y sexo en la misma
+        acta; validar cada campo aislado contra el dato guardado rechaza casos
+        válidos (una madre con la fecha corregida en el mismo guardado).
+        """
+        grupos: dict[str, dict] = {}
+        for cambio in cambios:
+            if (
+                cambio.accion != Accion.MODIFICAR.value
+                or cambio.entidad_destino != 'familiar'
+                or cambio.entidad_id in (None, '')
+                or cambio.campo not in CAMPOS_FAMILIAR_VALIDADOS
+            ):
+                continue
+            grupos.setdefault(str(cambio.entidad_id), {})[cambio.campo] = cambio.valor_propuesto
+        for entidad_id, valores in grupos.items():
+            self._lector.validar_familiar_cambio(cedula, entidad_id, valores)
 
 
 class AplicadorCambiosActaORM:

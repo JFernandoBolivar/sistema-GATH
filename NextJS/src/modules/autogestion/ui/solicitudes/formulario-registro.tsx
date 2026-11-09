@@ -102,6 +102,11 @@ export function FormularioRegistro({
     () => opcionesCatalogo("parentescosFamilia"),
     { revalidateOnFocus: false },
   );
+  const { data: sexos } = useSWR(
+    esFamiliar ? ["catalogo-autogestion", "sexos", 0] : null,
+    () => opcionesCatalogo("sexos"),
+    { revalidateOnFocus: false },
+  );
   const parentescoId = Number(watch("parentesco_id")) || 0;
   const parentescoNombre = parentescos?.find((o) => o.id === parentescoId)?.nombre ?? null;
   const fechaNacimientoValor = watch("fecha_nacimiento");
@@ -159,6 +164,8 @@ export function FormularioRegistro({
     if (esVivienda) {
       if (tienePais && !limpios.pais_id) {
         form.setError("pais_id", { type: "required", message: "Seleccione el país." });
+        toast.error("Revise los campos marcados en rojo.");
+        document.getElementById("pais_id")?.focus();
         return;
       }
       if (esVenezuela) {
@@ -175,16 +182,27 @@ export function FormularioRegistro({
             invalido = true;
           }
         }
-        if (invalido) return;
+        if (invalido) {
+          toast.error("Revise los campos marcados en rojo.");
+          const primero = faltantes.find(([c]) => !limpios[c]);
+          if (primero) {
+            document.getElementById(primero[0])?.focus();
+          }
+          return;
+        }
         limpios.ciudad_region = "";
       } else {
-        if (!String(limpios.ciudad_region ?? "").trim()) {
+        const cr = String(limpios.ciudad_region ?? "").trim();
+        if (!cr) {
           form.setError("ciudad_region", {
             type: "required",
             message: "Indique la ciudad o región.",
           });
+          toast.error("Revise los campos marcados en rojo.");
+          document.getElementById("ciudad_region")?.focus();
           return;
         }
+        limpios.ciudad_region = cr.replace(/\s+/g, " ").toUpperCase().slice(0, 120);
         for (const campo of camposDeUbicacionVenezuela) {
           if (campo in limpios) limpios[campo] = "";
         }
@@ -201,12 +219,82 @@ export function FormularioRegistro({
           });
           return;
         }
-      } else if (!String(limpios.cedula_familiar ?? "").trim()) {
-        form.setError("cedula_familiar", {
-          type: "required",
-          message: "La cédula del familiar es obligatoria.",
-        });
-        return;
+      } else {
+        const cedulaStr = String(limpios.cedula_familiar ?? "").trim();
+        if (!cedulaStr) {
+          form.setError("cedula_familiar", {
+            type: "required",
+            message: "La cédula del familiar es obligatoria.",
+          });
+          return;
+        }
+        if (
+          /\d+-\d+/.test(cedulaStr) ||
+          (cedulaStr.includes("-") && !/^[VEPJvepj]-/.test(cedulaStr))
+        ) {
+          form.setError("cedula_familiar", {
+            type: "validate",
+            message:
+              "El formato de cédula correlativa (titular-orden) solo se genera automáticamente para hijos o tutelados menores sin cédula; no puede escribirse manualmente.",
+          });
+          return;
+        }
+      }
+
+      // Validar fecha de nacimiento no futura
+      if (limpios.fecha_nacimiento) {
+        const fn = new Date(String(limpios.fecha_nacimiento) + "T00:00:00");
+        const hoy = new Date();
+        hoy.setHours(23, 59, 59, 999);
+        if (fn > hoy) {
+          form.setError("fecha_nacimiento", {
+            type: "validate",
+            message: "La fecha de nacimiento no puede ser futura.",
+          });
+          return;
+        }
+
+        // Validar coherencia de edad con parentesco
+        let edad = hoy.getFullYear() - fn.getFullYear();
+        const m = hoy.getMonth() - fn.getMonth();
+        if (m < 0 || (m === 0 && hoy.getDate() < fn.getDate())) {
+          edad--;
+        }
+        const pUpper = (parentescoNombre ?? "").trim().toUpperCase();
+        if ((pUpper === "MADRE" || pUpper === "PADRE") && edad < 12) {
+          form.setError("fecha_nacimiento", {
+            type: "validate",
+            message: `El familiar debe ser mayor de edad para el parentesco «${pUpper}».`,
+          });
+          return;
+        }
+        if ((pUpper === "CÓNYUGE" || pUpper === "CONYUGE") && edad < 18) {
+          form.setError("fecha_nacimiento", {
+            type: "validate",
+            message: "El parentesco «CÓNYUGE» exige al menos 18 años.",
+          });
+          return;
+        }
+      }
+
+      // Validar sexo contra parentesco
+      if (parentescoNombre && limpios.sexo_id && sexos) {
+        const sexoSel = sexos.find((s) => s.id === Number(limpios.sexo_id))?.nombre?.toUpperCase();
+        const pUpper = parentescoNombre.trim().toUpperCase();
+        if ((pUpper === "MADRE" || pUpper.startsWith("MADRE")) && sexoSel && !sexoSel.startsWith("F")) {
+          form.setError("sexo_id", {
+            type: "validate",
+            message: "El parentesco «MADRE» solo admite sexo femenino.",
+          });
+          return;
+        }
+        if ((pUpper === "PADRE" || pUpper.startsWith("PADRE")) && sexoSel && !sexoSel.startsWith("M")) {
+          form.setError("sexo_id", {
+            type: "validate",
+            message: "El parentesco «PADRE» solo admite sexo masculino.",
+          });
+          return;
+        }
       }
     }
     try {
@@ -347,13 +435,24 @@ export function FormularioRegistro({
         </div>
       );
     }
+    // Observaciones y dirección comparten componente, pero no el límite ni el
+    // contador: se muestra uno solo (el del campo), no el del Textarea.
+    const limiteTexto =
+      c.campo === "observaciones" ? LIMITES_TEXTO.observacion : LIMITES_TEXTO.direccion;
     return (
       <div key={c.campo} className="flex flex-col gap-1.5">
         {etiqueta}
         {c.tipo === "textarea" ? (
           <>
-            <Textarea rows={3} maxLength={LIMITES_TEXTO.direccion.max} className="resize-none" {...comunes} {...register(c.campo)} />
-            <ContadorCampo control={form.control} name={c.campo} max={LIMITES_TEXTO.direccion.max} />
+            <Textarea
+              rows={3}
+              maxLength={limiteTexto.max}
+              mostrarContador={false}
+              className="resize-none"
+              {...comunes}
+              {...register(c.campo)}
+            />
+            <ContadorCampo control={form.control} name={c.campo} max={limiteTexto.max} />
           </>
         ) : c.tipo === "telefono" ? (
           <Controller
@@ -375,7 +474,15 @@ export function FormularioRegistro({
           <Input
             type={c.tipo === "fecha" ? "date" : c.tipo === "correo" ? "email" : "text"}
             autoComplete="off"
-            maxLength={c.tipo === "correo" ? 254 : c.tipo === "fecha" ? 10 : 250}
+            maxLength={
+              c.tipo === "correo"
+                ? 254
+                : c.tipo === "fecha"
+                  ? 10
+                  : c.campo === "ciudad_region"
+                    ? 120
+                    : 250
+            }
             {...comunes}
             {...register(c.campo)}
           />

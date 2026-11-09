@@ -301,11 +301,14 @@ describe("identidad (D19)", () => {
     expect(esquemaDeEntidad("identidad", "employee")).not.toBeNull();
   });
 
-  it("exige cédula de 5 a 9 dígitos y fecha no futura", () => {
-    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234" }).success).toBe(false);
-    expect(identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234567890" }).success).toBe(
-      false,
-    );
+  it("no exige la cédula (O49-BLOQUEO) y mantiene la fecha no futura", () => {
+    // La cédula ya no es un campo editable de Autogestión: Zod la ignora.
+    expect(identidadSchema.safeParse(valido).success).toBe(true);
+    const resultado = identidadSchema.safeParse({ ...valido, cedulaidentidad: "1234" });
+    expect(resultado.success).toBe(true);
+    if (resultado.success) {
+      expect("cedulaidentidad" in resultado.data).toBe(false);
+    }
     expect(identidadSchema.safeParse({ ...valido, fecha_nacimiento: "2999-01-01" }).success).toBe(
       false,
     );

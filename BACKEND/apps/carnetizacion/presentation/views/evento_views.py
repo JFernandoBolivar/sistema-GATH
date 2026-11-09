@@ -11,6 +11,7 @@ from rest_framework.parsers import FormParser, MultiPartParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
+from core.infrastructure.pdf.report_excel import generar_reporte_excel
 from core.presentation.envelope import fail, ok
 from core.presentation.permissions import HasAnyPermission, HasPermission
 from apps.carnetizacion.application.dtos.evento_dtos import (
@@ -326,14 +327,35 @@ class EventoInvitadosImportarView(APIView):
 
         archivo = request.FILES.get("archivo")
         if archivo:
-            # Leer CSV
-            try:
-                contenido = archivo.read().decode("utf-8-sig")
-                lector = csv.DictReader(io.StringIO(contenido))
-                for row in lector:
-                    filas_crudas.append(row)
-            except Exception as e:
-                return fail(f"Error procesando archivo CSV: {str(e)}", status=400)
+            nombre = archivo.name.lower()
+            if nombre.endswith(".xlsx"):
+                try:
+                    import openpyxl
+                    wb = openpyxl.load_workbook(io.BytesIO(archivo.read()), read_only=True, data_only=True)
+                    ws = wb.active
+                    filas_iter = ws.iter_rows(values_only=True)
+                    encabezados = next(filas_iter, None)
+                    if not encabezados:
+                        return fail("El archivo Excel está vacío", status=400)
+                    claves = [str(col).strip().lower() if col is not None else "" for col in encabezados]
+                    for fila_val in filas_iter:
+                        if not any(fila_val):
+                            continue
+                        fila_dict = {}
+                        for idx_c, val in enumerate(fila_val):
+                            if idx_c < len(claves) and claves[idx_c]:
+                                fila_dict[claves[idx_c]] = str(val if val is not None else "").strip()
+                        filas_crudas.append(fila_dict)
+                except Exception as e:
+                    return fail(f"Error procesando archivo Excel: {str(e)}", status=400)
+            else:
+                try:
+                    contenido = archivo.read().decode("utf-8-sig")
+                    lector = csv.DictReader(io.StringIO(contenido))
+                    for row in lector:
+                        filas_crudas.append(row)
+                except Exception as e:
+                    return fail(f"Error procesando archivo CSV: {str(e)}", status=400)
         elif "filas" in request.data:
             filas_crudas = request.data.get("filas", [])
             if isinstance(filas_crudas, str):
@@ -348,6 +370,60 @@ class EventoInvitadosImportarView(APIView):
         use_case = ImportarInvitadosUseCase(repo)
         resumen = use_case.ejecutar(str(evento_id), filas_crudas, aplicar=bool(confirmar))
         return ok(ResumenImportacionSerializer(resumen).data)
+
+
+class EventoInvitadosPlantillaExcelView(APIView):
+    permission_classes = [IsAuthenticated, HasPermission("carnetizacion.eventos")]
+
+    @extend_schema(
+        tags=["Carnetización - Eventos"],
+        summary="Descargar plantilla Excel para importación de invitados",
+    )
+    def get(self, request):
+        columnas = [
+            'nombre',
+            'categoria',
+            'zona',
+            'documento',
+            'organizacion',
+            'correo',
+            'telefono',
+            'mesa',
+        ]
+        filas = [
+            {
+                'nombre': 'Carlos Rodríguez',
+                'categoria': 'General',
+                'zona': 'Zona A',
+                'documento': '12345678',
+                'organizacion': 'CONATEL',
+                'correo': 'carlos.rodriguez@conatel.gob.ve',
+                'telefono': '04121234567',
+                'mesa': 'Mesa 1',
+            },
+            {
+                'nombre': 'María Gómez',
+                'categoria': 'VIP',
+                'zona': 'Zona VIP',
+                'documento': '87654321',
+                'organizacion': 'Institución Invitada',
+                'correo': 'maria.gomez@ejemplo.com',
+                'telefono': '04141234567',
+                'mesa': 'Mesa 2',
+            },
+        ]
+        contenido = generar_reporte_excel(
+            titulo='Plantilla Importación Invitados',
+            columnas=columnas,
+            filas=filas,
+            filtros=[('Uso', 'Completar con los datos de los invitados a importar')],
+        )
+        resp = HttpResponse(
+            contenido,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        resp['Content-Disposition'] = 'attachment; filename="plantilla-invitados-eventos.xlsx"'
+        return resp
 
 
 class EventoEmitirLoteView(APIView):

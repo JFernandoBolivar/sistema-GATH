@@ -8,7 +8,7 @@ import { StatusBadge } from "@/shared/ui/components/status-badge";
 import { LineaTiempo } from "@/shared/ui/components/linea-tiempo";
 import { VistaCargando, VistaError } from "@/shared/ui/components/vista-estados";
 import { puedeEditarBorrador } from "../../domain/services/reglas-solicitud";
-import { etiquetaClaveCampo } from "../../domain/value-objects/campos-seccion";
+import { CODIGOS_SECCION_ORDENADOS, etiquetaClaveCampo, seccionDeCampo } from "../../domain/value-objects/campos-seccion";
 import {
   listarSeccionesAction,
   obtenerMiSolicitudAction,
@@ -57,12 +57,21 @@ export default function SolicitudDetallePage({ id }: { id: string }) {
   const p = PRESENTACION_ESTADO[data.estado];
   const editable = puedeEditarBorrador(data, ahora);
 
+  const orden = CODIGOS_SECCION_ORDENADOS as readonly string[];
+  const camposOrdenados = [...data.camposSolicitados].sort((a, b) => {
+    const secA = seccionDeCampo(a) ?? "";
+    const secB = seccionDeCampo(b) ?? "";
+    const idxA = orden.indexOf(secA);
+    const idxB = orden.indexOf(secB);
+    return (idxA >= 0 ? idxA : 99) - (idxB >= 0 ? idxB : 99);
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         migas={volver}
         titulo="Mi solicitud de actualización"
-        descripcion={`Campos solicitados: ${data.camposSolicitados.map(etiquetaClaveCampo).join(", ")}. Solicitada el ${formatearFechaHora(data.fechaSolicitud)}.`}
+        descripcion={`Campos solicitados: ${camposOrdenados.map(etiquetaClaveCampo).join(", ")}. Solicitada el ${formatearFechaHora(data.fechaSolicitud)}.`}
         accion={<StatusBadge texto={p.texto} tono={p.tono} icono={p.icono} className="text-base" />}
       />
 

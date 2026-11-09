@@ -225,4 +225,26 @@ describe("Módulo Configuración - Reglas de Catálogos (A5)", () => {
     );
     expect(del).toHaveBeenCalledWith("/api/v1/configuracion/reglas-catalogos/nominas/8/");
   });
+
+  it("API client reordena tipos de soporte en bloque (FIX-DIS2)", async () => {
+    const putMock = vi.fn().mockResolvedValue({
+      status: "success",
+      message: "ok",
+      data: [
+        { id: 2, codigo: "DOC2", nombre: "Doc 2", orden: 1 },
+        { id: 1, codigo: "DOC1", nombre: "Doc 1", orden: 2 },
+      ],
+    });
+    vi.spyOn(reglasCatalogosApi, "reordenarTiposSoporte").mockImplementation(putMock);
+
+    const res = await reglasCatalogosApi.reordenarTiposSoporte([
+      { id: 2, orden: 1 },
+      { id: 1, orden: 2 },
+    ]);
+    expect(putMock).toHaveBeenCalledWith([
+      { id: 2, orden: 1 },
+      { id: 1, orden: 2 },
+    ]);
+    expect(res.data).toHaveLength(2);
+  });
 });

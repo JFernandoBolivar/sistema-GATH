@@ -54,7 +54,8 @@ function downloadPdfBase64(base64: string, filename: string) {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  window.URL.revokeObjectURL(url);
+  // Revocar en el mismo tick puede cancelar la descarga (D7): se libera después.
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
   document.body.removeChild(a);
 }
 

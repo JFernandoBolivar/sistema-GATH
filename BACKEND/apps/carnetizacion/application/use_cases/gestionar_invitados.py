@@ -63,9 +63,8 @@ class CrearInvitadoUseCase:
         self.repo = repo
 
     def ejecutar(self, dto: InvitadoCrearDTO) -> EventoInvitadoDTO:
-        invitados_existentes = self.repo.listar_invitados(dto.evento_id)
-        correlativo = len(invitados_existentes) + 1
-        codigo = f"INV-{correlativo:04d}"
+        # Único global (la columna es unique): no un correlativo por evento.
+        codigo = self.repo.siguiente_codigo_credencial()
         sec_hash = _generar_hash_invitado(dto.evento_id, dto.nombre_completo)
 
         nuevo = EventoInvitado(
@@ -162,10 +161,6 @@ class ImportarInvitadosUseCase:
         primera_zona_id = next(iter(zonas.values())) if zonas else ""
 
         filas_procesadas: list[InvitadoImportarFilaDTO] = []
-        invitados_a_crear: list[EventoInvitado] = []
-        
-        invitados_previos = self.repo.listar_invitados(evento_id)
-        contador = len(invitados_previos)
 
         for idx, item in enumerate(filas_crudas, start=1):
             nombre = str(item.get("nombre") or item.get("nombre_completo") or "").strip()
@@ -213,8 +208,7 @@ class ImportarInvitadosUseCase:
             filas_procesadas.append(fila_dto)
 
             if valida and aplicar:
-                contador += 1
-                cod = f"INV-{contador:04d}"
+                cod = self.repo.siguiente_codigo_credencial()
                 shash = _generar_hash_invitado(evento_id, nombre)
                 nuevo = EventoInvitado(
                     id=str(uuid.uuid4()),

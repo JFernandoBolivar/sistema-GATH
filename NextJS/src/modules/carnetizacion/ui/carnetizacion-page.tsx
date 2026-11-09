@@ -232,7 +232,8 @@ export default function CarnetizacionPage() {
       a.href = url;
       a.download = `carnet-${carnetId}.pdf`;
       a.click();
-      window.URL.revokeObjectURL(url);
+      // Liberar después de que el navegador inicie la descarga (D7).
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     });
   };
 

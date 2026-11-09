@@ -43,6 +43,14 @@ class LectorFicha(Protocol):
         """
         ...
 
+    def validar_familiar_cambio(self, cedula: str, entidad_id: str, valores: dict) -> None:
+        """Valida las reglas del parentesco sobre el estado final de un familiar editado.
+
+        Recibe solo los campos que cambian y completa el resto con el registro actual.
+        Lanza `ValidationError` con el campo legible correspondiente.
+        """
+        ...
+
     def validar_correo_alternativo(self, cedula: str, correo_alternativo: str) -> None:
         """Valida que el correo alternativo propuesto sea único y distinto del propio institucional."""
         ...

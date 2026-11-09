@@ -20,6 +20,7 @@ vi.mock("@/modules/personal/ui/expediente-detalle-view-model", () => ({
 }));
 vi.mock("../infrastructure/actions/pasivos-actions", () => ({
   descargarPasivoPdfAction: vi.fn(),
+  getPasivoPorCedulaAction: vi.fn().mockResolvedValue(null),
 }));
 vi.mock("@/modules/personal/ui/empleado-detalle-sheet", () => ({
   default: ({ empleado }: { empleado: EmpleadoDTO | null }) => (

@@ -18,6 +18,10 @@ from apps.configuracion.domain.parametros import (
     DEFINICIONES_POR_CLAVE,
     validar_valor,
 )
+from core.domain.configuracion import (
+    CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+    CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+)
 from apps.configuracion.domain.value_objects.paginacion import Paginacion
 from core.domain.exceptions import NotFoundError, ValidationError
 
@@ -26,6 +30,7 @@ class RepoParametrosMemoria:
     def __init__(self):
         self.filas: dict[str, ParametroSistema] = {}
         self.cambios: list[CambioParametro] = []
+        self.usuarios_validos: dict[str, tuple[str, bool]] = {}  # cedula -> (nombre, activa)
 
     def listar(self):
         return list(self.filas.values())
@@ -39,6 +44,23 @@ class RepoParametrosMemoria:
 
     def historial(self, clave, limite, offset=0):
         return self.cambios[offset:offset + limite], len(self.cambios)
+
+    def validar_cuentas_activas(self, cedulas):
+        resultado = []
+        for c in cedulas:
+            if c not in self.usuarios_validos:
+                raise ValidationError(f'«{c}»: no está registrado como trabajador.')
+            nombre, activa = self.usuarios_validos[c]
+            if not activa:
+                raise ValidationError(f'«{c}»: no tiene cuenta de usuario activa en GATH.')
+            resultado.append((c, nombre))
+        return resultado
+
+    def obtener_nombres_por_cedulas(self, cedulas):
+        return {c: self.usuarios_validos[c][0] for c in cedulas if c in self.usuarios_validos}
+
+    def buscar_trabajadores(self, query, cedulas=None):
+        return []
 
 
 def test_listar_devuelve_todas_las_definiciones_con_su_defecto():
@@ -142,3 +164,55 @@ def test_listar_expone_las_opciones_de_retencion():
         assert parametros[clave].opciones[-1][1] == 'Nunca'
         assert int(parametros[clave].defecto) in {v for v, _ in parametros[clave].opciones}
     assert parametros[CLAVE_PASSWORD_INICIAL_DIAS].opciones == ()
+
+
+def test_parametros_dependientes_exponen_depende_de():
+    parametros = {p.clave: p for p in listar_parametros(RepoParametrosMemoria())}
+    assert parametros[CLAVE_CARNETIZACION_MI_CARNET_USUARIOS].depende_de == (
+        CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+        'usuarios_especificos',
+    )
+    assert parametros[CLAVE_AUTOGESTION_ACTIVOS_SECCIONES].depende_de == (
+        CLAVE_AUTOGESTION_ACTIVOS_HABILITADO,
+        'true',
+    )
+    assert parametros[CLAVE_AUTOGESTION_PASIVOS_SECCIONES].depende_de == (
+        CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
+        'true',
+    )
+
+
+def test_mi_carnet_usuarios_valida_cedulas_y_cuentas():
+    repo = RepoParametrosMemoria()
+    repo.usuarios_validos['12345678'] = ('Juan Pérez', True)
+    repo.usuarios_validos['87654321'] = ('María Gómez', False)  # inactiva
+
+    # Cédula no registrada
+    with pytest.raises(ValidationError, match='no está registrado como trabajador'):
+        actualizar_parametro(repo, CLAVE_CARNETIZACION_MI_CARNET_USUARIOS, '99999999', actor_id=1)
+
+    # Cédula sin cuenta activa
+    with pytest.raises(ValidationError, match='no tiene cuenta de usuario activa en GATH'):
+        actualizar_parametro(repo, CLAVE_CARNETIZACION_MI_CARNET_USUARIOS, '87654321', actor_id=1)
+
+    # Cédula válida con cuenta activa
+    _, param = actualizar_parametro(repo, CLAVE_CARNETIZACION_MI_CARNET_USUARIOS, '12345678', actor_id=1)
+    assert param.valor == '12345678'
+
+
+def test_mi_carnet_alcance_usuarios_especificos_requiere_usuarios():
+    repo = RepoParametrosMemoria()
+    repo.usuarios_validos['12345678'] = ('Juan Pérez', True)
+
+    # Sin usuarios configurados no puede activarse
+    with pytest.raises(ValidationError, match='No puede activar «Usuarios específicos» sin configurar'):
+        actualizar_parametro(repo, CLAVE_CARNETIZACION_MI_CARNET_ALCANCE, 'usuarios_especificos', actor_id=1)
+
+    # Con usuarios configurados sí se puede activar
+    actualizar_parametro(repo, CLAVE_CARNETIZACION_MI_CARNET_USUARIOS, '12345678', actor_id=1)
+    _, param_alcance = actualizar_parametro(repo, CLAVE_CARNETIZACION_MI_CARNET_ALCANCE, 'usuarios_especificos', actor_id=1)
+    assert param_alcance.valor == 'usuarios_especificos'
+
+    # Una vez activo usuarios_especificos, no se puede vaciar la lista de usuarios
+    with pytest.raises(ValidationError, match='Debe especificar al menos un trabajador'):
+        actualizar_parametro(repo, CLAVE_CARNETIZACION_MI_CARNET_USUARIOS, '', actor_id=1)

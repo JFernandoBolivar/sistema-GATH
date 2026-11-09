@@ -77,6 +77,16 @@ class ReglaParentesco:
     id: int
     descripcion: str
     aplica_familiar: bool
+    # FIX-FAM2: reglas configurables por parentesco.
+    es_hijo: bool = False
+    menor_a_cargo: bool = False
+    sin_cedula_hasta_edad: int | None = None
+    edad_minima: int | None = None
+    diferencia_minima: int | None = None
+    diferencia_tipo: str = 'NINGUNA'
+    sexo_permitido: str = ''
+    soporte_sugerido: str = ''
+    activo: bool = True
 
 
 @dataclass(frozen=True)
@@ -274,6 +284,130 @@ def normalizar_nombre_catalogo(valor: str, *, campo: str, maximo: int) -> str:
 
 def _mismo_nombre(a: str, b: str) -> bool:
     return ' '.join((a or '').split()).upper() == ' '.join((b or '').split()).upper()
+
+
+REGLAS_PARENTESCO_CAMPOS = (
+    'es_hijo', 'menor_a_cargo', 'sin_cedula_hasta_edad', 'edad_minima',
+    'diferencia_minima', 'diferencia_tipo', 'sexo_permitido', 'soporte_sugerido',
+    'activo',
+)
+DIFERENCIA_TIPOS = ('NINGUNA', 'MENOR', 'MAYOR')
+SEXOS_PERMITIDOS = ('', 'M', 'F')
+EDAD_MAXIMA_REGLA = 120
+LARGO_MAXIMO_SOPORTE_SUGERIDO = 120
+
+
+def regla_parentesco_por_defecto(descripcion: str) -> dict:
+    """Valores iniciales para un parentesco sin regla propia.
+
+    Se usa al sembrar el catálogo y como respaldo de filas legadas creadas
+    antes de FIX-FAM2. A partir de aquí la fuente de verdad es la regla guardada.
+    """
+    nombre = ' '.join((descripcion or '').split()).upper()
+    base = {
+        'es_hijo': False,
+        'menor_a_cargo': False,
+        'sin_cedula_hasta_edad': None,
+        'edad_minima': None,
+        'diferencia_minima': None,
+        'diferencia_tipo': 'NINGUNA',
+        'sexo_permitido': '',
+        'soporte_sugerido': '',
+        'activo': True,
+    }
+    if 'HIJO' in nombre or 'HIJA' in nombre:
+        base.update({
+            'es_hijo': True,
+            'sin_cedula_hasta_edad': 9,
+            'diferencia_minima': 12,
+            'diferencia_tipo': 'MENOR',
+            'soporte_sugerido': 'PARTIDA DE NACIMIENTO',
+        })
+    elif 'TUTELADO' in nombre or 'TUTELADA' in nombre:
+        base.update({
+            'menor_a_cargo': True,
+            'sin_cedula_hasta_edad': 9,
+            'diferencia_minima': 12,
+            'diferencia_tipo': 'MENOR',
+            'soporte_sugerido': 'SENTENCIA DE TUTELA',
+        })
+    elif 'CONYUGE' in nombre or 'CÓNYUGE' in nombre:
+        base.update({
+            'edad_minima': 18,
+            'soporte_sugerido': 'ACTA DE MATRIMONIO',
+        })
+    elif nombre == 'MADRE':
+        base.update({
+            'sexo_permitido': 'F',
+            'diferencia_minima': 12,
+            'diferencia_tipo': 'MAYOR',
+            'soporte_sugerido': 'PARTIDA DE NACIMIENTO',
+        })
+    elif nombre == 'PADRE':
+        base.update({
+            'sexo_permitido': 'M',
+            'diferencia_minima': 12,
+            'diferencia_tipo': 'MAYOR',
+            'soporte_sugerido': 'PARTIDA DE NACIMIENTO',
+        })
+    return base
+
+
+def normalizar_regla_parentesco(datos: dict) -> dict:
+    """Normaliza y valida los valores de una regla de parentesco."""
+    limpios = dict(regla_parentesco_por_defecto(''))
+    for campo in REGLAS_PARENTESCO_CAMPOS:
+        if campo in datos:
+            limpios[campo] = datos[campo]
+
+    for campo in ('es_hijo', 'menor_a_cargo', 'activo'):
+        limpios[campo] = bool(limpios.get(campo))
+    for campo in ('sin_cedula_hasta_edad', 'edad_minima', 'diferencia_minima'):
+        valor = limpios.get(campo)
+        if valor is None or valor == '':
+            limpios[campo] = None
+            continue
+        try:
+            numero = int(valor)
+        except (TypeError, ValueError):
+            raise ValidationError('La edad debe ser un número entero.', campo=campo) from None
+        if not 0 <= numero <= EDAD_MAXIMA_REGLA:
+            raise ValidationError(
+                f'La edad debe estar entre 0 y {EDAD_MAXIMA_REGLA}.', campo=campo,
+            )
+        limpios[campo] = numero
+
+    tipo = str(limpios.get('diferencia_tipo') or 'NINGUNA').strip().upper()
+    if tipo not in DIFERENCIA_TIPOS:
+        raise ValidationError('El tipo de diferencia no es válido.', campo='diferencia_tipo')
+    limpios['diferencia_tipo'] = tipo
+
+    sexo = str(limpios.get('sexo_permitido') or '').strip().upper()
+    if sexo not in SEXOS_PERMITIDOS:
+        raise ValidationError('El sexo permitido debe ser M, F o vacío.', campo='sexo_permitido')
+    limpios['sexo_permitido'] = sexo
+
+    soporte = ' '.join(str(limpios.get('soporte_sugerido') or '').split())
+    if len(soporte) > LARGO_MAXIMO_SOPORTE_SUGERIDO:
+        raise ValidationError(
+            f'El soporte sugerido no puede superar {LARGO_MAXIMO_SOPORTE_SUGERIDO} caracteres.',
+            campo='soporte_sugerido',
+        )
+    limpios['soporte_sugerido'] = soporte
+
+    if limpios['sin_cedula_hasta_edad'] is not None and not (
+        limpios['es_hijo'] or limpios['menor_a_cargo']
+    ):
+        raise ValidationError(
+            'Solo un parentesco marcado como hijo o menor a cargo puede generar cédula sintética.',
+            campo='sin_cedula_hasta_edad',
+        )
+    if limpios['diferencia_minima'] is not None and limpios['diferencia_tipo'] == 'NINGUNA':
+        raise ValidationError(
+            'Indique si la diferencia de edad es menor o mayor que el titular.',
+            campo='diferencia_tipo',
+        )
+    return limpios
 
 
 def preparar_nuevo_parentesco(descripcion: str, aplica_familiar: bool) -> tuple[str, bool]:

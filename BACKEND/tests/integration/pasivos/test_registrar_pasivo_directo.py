@@ -9,7 +9,9 @@ from apps.cargos.infrastructure.models.cargo_models import (
     DenominacionCargoEspecificoModel,
     DenominacionCargoModel,
 )
+from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
 from apps.catalogos.infrastructure.models.catalogo_models import (
+    CategoriaMovimientoModel,
     EstatusModel,
     NacionalidadModel,
     SexoModel,
@@ -69,7 +71,8 @@ def catalogos():
     DireccionGeneralModel.objects.create(
         Codigo='DG-GH', direccion_general='OFICINA DE GESTION HUMANA', dependenciaId=dep,
     )
-    TipoMovimientoModel.objects.create(movimiento='JUBILACION DE DERECHO')
+    cat_pase, _ = CategoriaMovimientoModel.objects.get_or_create(categoria='PASE A PASIVO')
+    motivo_pase = TipoMovimientoModel.objects.create(movimiento='JUBILACION DE DERECHO', categoria=cat_pase)
     rol = RolModel.objects.create(nombre_rol='RRHH')
     operador = EmployeeModel.objects.create(
         cedulaidentidad='V-9999', nombres='Operador', apellidos='RRHH', sexoid=sexo,
@@ -82,10 +85,12 @@ def catalogos():
         'cargo': cargo,
         'cargo_esp': cargo_esp,
         'tipo_personal': tipo_personal,
+        'cat_pase': cat_pase,
+        'motivo_pase': motivo_pase,
     }
 
 
-def _cuerpo(catalogos, cedula='997777', tipo_nomina=None):
+def _cuerpo(catalogos, cedula='997777', tipo_nomina=None, motivo=None, fecha_vigencia=None):
     return {
         'cedula': cedula,
         'nombres': 'Ana',
@@ -93,6 +98,8 @@ def _cuerpo(catalogos, cedula='997777', tipo_nomina=None):
         'sexo_id': catalogos['sexo'].pk,
         'fecha_nacimiento': '1960-01-15',
         'tipo_nomina_id': (tipo_nomina or catalogos['nomina_pasivo']).pk,
+        'motivo_id': (motivo or catalogos['motivo_pase']).pk,
+        'fecha_vigencia': fecha_vigencia or '2020-01-01',
     }
 
 
@@ -334,3 +341,67 @@ def test_listado_expone_sexo_ingreso_y_filtra_por_codigo(catalogos):
     assert fila['fecha_ingreso_organismo'] == '2001-03-04'
     assert fila['nombres'].upper() == 'ANA'
     assert fila['apellidos'].upper() == 'PÉREZ'
+
+
+def test_registrar_pasivo_directo_crea_egreso_con_motivo_y_fecha(catalogos):
+    """FIX-PAS1: Alta directa persiste EmployeeEgresadoModel con motivo y fecha vigencia."""
+    cuerpo = _cuerpo(
+        catalogos,
+        cedula='997788',
+        motivo=catalogos['motivo_pase'],
+        fecha_vigencia='2015-06-01',
+    )
+    respuesta = _cliente('pasivos.crear').post(
+        '/api/v1/pasivos/', cuerpo, format='json',
+    )
+    assert respuesta.status_code == 201, respuesta.content
+    datos = respuesta.json()['data']
+    assert datos['cedula'] == '997788'
+    assert datos['motivo_egreso_id'] == catalogos['motivo_pase'].pk
+    assert datos['motivo_egreso'] == 'JUBILACION DE DERECHO'
+
+    egreso = EmployeeEgresadoModel.objects.get(employee__cedulaidentidad='997788')
+    assert egreso.motivo_egreso == catalogos['motivo_pase']
+    assert egreso.fecha_egreso.date() == datetime.date(2015, 6, 1)
+
+
+def test_registrar_pasivo_directo_rechaza_fecha_vigencia_futura(catalogos):
+    """FIX-PAS1: La fecha de vigencia no puede ser mayor que hoy."""
+    futura = (datetime.date.today() + datetime.timedelta(days=10)).isoformat()
+    cuerpo = _cuerpo(
+        catalogos,
+        cedula='997789',
+        fecha_vigencia=futura,
+    )
+    respuesta = _cliente('pasivos.crear').post(
+        '/api/v1/pasivos/', cuerpo, format='json',
+    )
+    assert respuesta.status_code == 400
+    assert not EmployeeModel.objects.filter(cedulaidentidad='997789').exists()
+
+
+def test_listar_pasivos_filtra_por_motivo(catalogos):
+    """FIX-PAS1: El listado de pasivos permite filtrar por motivo_id."""
+    motivo2 = TipoMovimientoModel.objects.create(
+        movimiento='JUBILACION ESPECIAL',
+        categoria=catalogos['cat_pase'],
+    )
+    _cliente('pasivos.crear').post(
+        '/api/v1/pasivos/',
+        _cuerpo(catalogos, cedula='997790', motivo=catalogos['motivo_pase']),
+        format='json',
+    )
+    _cliente('pasivos.crear').post(
+        '/api/v1/pasivos/',
+        _cuerpo(catalogos, cedula='997791', motivo=motivo2),
+        format='json',
+    )
+
+    api = _cliente('pasivos.ver')
+    res = api.get('/api/v1/pasivos/', {'motivo_id': motivo2.pk})
+    assert res.status_code == 200, res.content
+    data = res.json()['data']
+    cedulas = [r['cedula'] for r in data['results']]
+    assert '997791' in cedulas
+    assert '997790' not in cedulas
+

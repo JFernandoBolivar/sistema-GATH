@@ -22,7 +22,38 @@ from apps.autogestion.domain.value_objects.secciones import (
     Accion,
 )
 from core.domain.exceptions import ValidationError
-from core.domain.validacion_personas import validar_nombre, validar_serial_carnet_patria, validar_telefono
+from core.domain.validacion_personas import (
+    normalizar_ciudad_region,
+    validar_nombre,
+    validar_serial_carnet_patria,
+    validar_telefono,
+)
+
+ETIQUETAS_CAMPOS = {
+    'codigo_postal_id': 'Código postal',
+    'estado_id': 'Estado',
+    'municipio_id': 'Municipio',
+    'parroquia_id': 'Parroquia',
+    'direccion_exacta': 'Dirección',
+    'condicion_vivienda_id': 'Condición de la vivienda',
+    'ciudad_region': 'Ciudad o región',
+    'pais_id': 'País',
+    'primer_nombre': 'Primer nombre',
+    'primer_apellido': 'Primer apellido',
+    'parentesco_id': 'Parentesco',
+    'fecha_nacimiento': 'Fecha de nacimiento',
+    'sexo_id': 'Sexo',
+    'nombres': 'Nombres',
+    'apellidos': 'Apellidos',
+    'telefono': 'Teléfono',
+    'relacion_id': 'Relación',
+    'capacitacion_id': 'Capacitación',
+    'institucion_id': 'Institución',
+    'nivel_academico_id': 'Nivel académico',
+    'organismo_id': 'Organismo',
+    'fecha_ingreso': 'Fecha de ingreso',
+    'fecha_egreso': 'Fecha de egreso',
+}
 
 _CORREO = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$')
 _CEDULA_FAMILIAR = re.compile(r'^[A-Za-z]?-?\d{5,9}$')
@@ -46,7 +77,7 @@ _OPCIONALES_NULOS = {
     'segundo_nombre', 'segundo_apellido', 'observaciones', 'cedula_familiar', 'telefono_habitacion',
     'telefono', 'correo_alternativo', 'tiene_hijos', 'mencion_id', 'carrera_id', 'institucion_id',
     'telefono_movil', 'relacion_id', 'fecha_inicio', 'fecha_fin', 'dias_completados',
-    'horas_completadas', 'grupo_id', 'estadoCivil_id', 'carnet_patria', 'carnet_patria_serial',
+    'horas_completadas', 'grupo_id', 'carnet_patria', 'carnet_patria_serial',
     'grupo_sanguineo_id', 'talla_camisa_id', 'talla_pantalon_id', 'talla_zapatos_id',
     'talla_chaqueta_id', 'orden_hijo', 'ciudad_region', 'estado_id', 'municipio_id',
     'parroquia_id', 'codigo_postal_id',
@@ -121,13 +152,21 @@ def validar_valor(campo: str, valor):
             valor = validar_serial_carnet_patria(valor) or ''
         except ValueError as exc:
             raise ValidationError(str(exc)) from None
+    if campo == 'ciudad_region':
+        valor = normalizar_ciudad_region(valor)
     if campo in _CAMPOS_NOMBRE:
         try:
             valor = validar_nombre(valor, edicion=True, etiqueta=f"El campo '{campo}'")
         except ValueError as exc:
             raise ValidationError(str(exc)) from None
-    if campo == 'cedula_familiar' and not _CEDULA_FAMILIAR.match(valor):
-        raise ValidationError("La cédula del familiar no tiene un formato válido.")
+    if campo == 'cedula_familiar':
+        if re.fullmatch(r'\d{5,9}-\d+', valor):
+            raise ValidationError(
+                'No escriba la cédula correlativa a mano: deje la cédula vacía y '
+                'seleccione el orden de nacimiento.'
+            )
+        if not _CEDULA_FAMILIAR.match(valor):
+            raise ValidationError("La cédula del familiar no tiene un formato válido.")
     if campo in _CAMPOS_FECHA:
         try:
             fecha = date.fromisoformat(valor)
@@ -212,8 +251,9 @@ def validar_vivienda_condicional(valores: dict, es_venezuela: bool) -> None:
         if valores.get(campo) in (None, '')
     )
     if faltan:
+        nombres = [ETIQUETAS_CAMPOS.get(c, c) for c in faltan]
         raise ValidationError(
-            "Faltan campos obligatorios de la vivienda: " + ', '.join(faltan) + '.'
+            "Faltan campos obligatorios de la vivienda: " + ', '.join(nombres) + '.'
         )
 
 
@@ -233,7 +273,8 @@ def validar_registro_nuevo(
     else:
         faltan = sorted(c for c in REQUERIDOS_AL_CREAR.get(entidad, frozenset()) if limpios.get(c) is None)
         if faltan:
-            raise ValidationError(f"Faltan campos obligatorios de '{entidad}': {', '.join(faltan)}.")
+            nombres = [ETIQUETAS_CAMPOS.get(c, c) for c in faltan]
+            raise ValidationError(f"Faltan campos obligatorios de '{entidad}': {', '.join(nombres)}.")
     if entidad == 'formacion_complementaria':
         inicio, fin = limpios.get('fecha_inicio'), limpios.get('fecha_fin')
         if inicio and fin and fin < inicio:

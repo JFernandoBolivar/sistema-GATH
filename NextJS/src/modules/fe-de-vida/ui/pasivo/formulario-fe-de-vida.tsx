@@ -61,6 +61,18 @@ const TITULOS: Record<Paso, string> = {
   revisar: "Revisar y enviar",
 };
 
+/** Campos cuyo error pertenece a cada paso: al guardar, el asistente lleva al paso que los corrige. */
+const CAMPOS_CONTACTO = ["telefono_movil", "telefono_habitacion", "correo_alternativo", "tiene_hijos"] as const;
+const CAMPOS_VIVIENDA = [
+  "pais_id", "ciudad_region", "estado_id", "municipio_id", "parroquia_id",
+  "codigo_postal_id", "direccion_exacta", "condicion_vivienda_id",
+] as const;
+const CAMPOS_FAMILIAR = [
+  "parentesco_id", "fecha_nacimiento", "sexo_id", "cedula_familiar",
+  "primer_nombre", "segundo_nombre", "primer_apellido", "segundo_apellido", "orden_hijo",
+] as const;
+const CAMPOS_FOTO = ["evidencia", "foto", "archivo"] as const;
+
 function pasoFormularioAGuia(p: Paso): number {
   if (p === "foto") return 3;
   if (p === "revisar") return 4;
@@ -123,6 +135,13 @@ export function FormularioFeDeVida({
   const [guiaAbierta, setGuiaAbierta] = useState(false);
   useRegistrarGuia(() => setGuiaAbierta(true));
   const [erroresContacto, setErroresContacto] = useState<Record<string, string[]> | undefined>(undefined);
+  const [opcionesPresencial, setOpcionesPresencial] = useState<{
+    sinCorreoAlternativo: boolean;
+    justificacionSinCorreo: string;
+  }>({
+    sinCorreoAlternativo: solicitud.sinCorreoAlternativo ?? false,
+    justificacionSinCorreo: solicitud.justificacionSinCorreo ?? "",
+  });
   const [guardando, iniciarGuardado] = useTransition();
   const [subiendo, iniciarSubida] = useTransition();
   const [enviando, iniciarEnvio] = useTransition();
@@ -208,27 +227,47 @@ export function FormularioFeDeVida({
         (i.accion === "CREAR" || i.accion === "MODIFICAR"),
     );
 
+  function irASeccionConError(errores: Record<string, string[]>): boolean {
+    const keys = Object.keys(errores);
+    const toca = (campos: readonly string[], prefijos: readonly string[] = []) =>
+      keys.some(
+        (k) =>
+          campos.some((c) => k === c || k.startsWith(`${c}.`)) ||
+          prefijos.some((p) => k.includes(p)),
+      );
+    const ir = (destino: Paso) => {
+      const idx = pasos.indexOf(destino);
+      if (idx === -1) return false;
+      setIndice(idx);
+      return true;
+    };
+    if (toca(CAMPOS_CONTACTO)) {
+      setErroresContacto(errores);
+      return ir("contacto");
+    }
+    if (toca(CAMPOS_VIVIENDA, ["vivienda", "direccion"])) return ir("emergencia");
+    if (toca(CAMPOS_FAMILIAR, ["familiar", "hijo"])) return ir("hijos");
+    if (toca(CAMPOS_FOTO, ["evidencia", "foto"])) return ir("foto");
+    return false;
+  }
+
   function guardarYAvanzar(
     nuevos: ItemBorrador[],
     siguiente: number,
     opciones?: { sinCorreoAlternativo: boolean; justificacionSinCorreo: string },
   ) {
+    const opts = opciones ?? (esPresencial ? opcionesPresencial : undefined);
     iniciarGuardado(async () => {
       const res = esPresencial
-        ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(nuevos), opciones)
+        ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(nuevos), opts)
         : await guardarBorradorAction(solicitud.id, aEntrada(nuevos));
       if (!res.ok) {
         toast.error(res.mensaje);
-        if (res.errores) {
-          const keys = Object.keys(res.errores);
-          if (keys.some((k) => ["telefono_movil", "telefono_habitacion", "correo_alternativo", "tiene_hijos"].includes(k))) {
-            setErroresContacto(res.errores);
-            const idx = pasos.indexOf("contacto");
-            if (idx !== -1 && indice !== idx) {
-              setIndice(idx);
-            }
-          }
-        }
+        // Conservar lo editado en este paso aunque el servidor rechace otro dato.
+        setItems(nuevos);
+        // Si el error es de otra sección (p. ej. la fecha del familiar), llevar al
+        // paso que lo corrige en vez de dejar al usuario atrapado en el actual.
+        if (res.errores) irASeccionConError(res.errores);
         return;
       }
       setErroresContacto(undefined);
@@ -242,6 +281,9 @@ export function FormularioFeDeVida({
     opciones?: { sinCorreoAlternativo: boolean; justificacionSinCorreo: string },
   ) {
     if (!ficha) return;
+    if (opciones) {
+      setOpcionesPresencial(opciones);
+    }
     guardarYAvanzar(fusionarContacto(items, valores, ficha), 1, opciones);
   }
 
@@ -313,29 +355,12 @@ export function FormularioFeDeVida({
       return;
     }
     iniciarEnvio(async () => {
-      const accionBorrador = esPresencial ? guardarBorradorPresencialAction : guardarBorradorAction;
-      const guardado = await accionBorrador(solicitud.id, aEntrada(items));
+      const guardado = esPresencial
+        ? await guardarBorradorPresencialAction(solicitud.id, aEntrada(items), opcionesPresencial)
+        : await guardarBorradorAction(solicitud.id, aEntrada(items));
       if (!guardado.ok) {
         toast.error(guardado.mensaje);
-        if (guardado.errores) {
-          const keys = Object.keys(guardado.errores);
-          if (keys.some((k) => ["telefono_movil", "telefono_habitacion", "correo_alternativo", "tiene_hijos"].includes(k))) {
-            setErroresContacto(guardado.errores);
-            const idx = pasos.indexOf("contacto");
-            if (idx !== -1) setIndice(idx);
-            return;
-          }
-          if (keys.some((k) => k.includes("emergencia") || k.includes("vivienda") || k.includes("direccion"))) {
-            const idx = pasos.indexOf("emergencia");
-            if (idx !== -1) setIndice(idx);
-            return;
-          }
-          if (keys.some((k) => k.includes("familiar") || k.includes("hijo"))) {
-            const idx = pasos.indexOf("hijos");
-            if (idx !== -1) setIndice(idx);
-            return;
-          }
-        }
+        if (guardado.errores) irASeccionConError(guardado.errores);
         return;
       }
       const accionEnviar = esPresencial ? enviarPresencialAction : enviarSolicitudAction;
@@ -343,21 +368,7 @@ export function FormularioFeDeVida({
       if (!res.ok) {
         if (res.errores) {
           aplicarErroresServidor(confirmacion, res.errores);
-          const keys = Object.keys(res.errores);
-          if (keys.some((k) => ["telefono_movil", "telefono_habitacion", "correo_alternativo", "tiene_hijos"].includes(k))) {
-            setErroresContacto(res.errores);
-            const idx = pasos.indexOf("contacto");
-            if (idx !== -1) setIndice(idx);
-          } else if (keys.some((k) => k.includes("emergencia") || k.includes("vivienda") || k.includes("direccion"))) {
-            const idx = pasos.indexOf("emergencia");
-            if (idx !== -1) setIndice(idx);
-          } else if (keys.some((k) => k.includes("familiar") || k.includes("hijo"))) {
-            const idx = pasos.indexOf("hijos");
-            if (idx !== -1) setIndice(idx);
-          } else if (keys.some((k) => k.includes("evidencia") || k.includes("foto"))) {
-            const idx = pasos.indexOf("foto");
-            if (idx !== -1) setIndice(idx);
-          }
+          irASeccionConError(res.errores);
         }
         toast.error(res.mensaje);
         return;
@@ -410,8 +421,8 @@ export function FormularioFeDeVida({
           valoresIniciales={inicialesContacto}
           guardando={guardando}
           permiteSinCorreo={esPresencial}
-          sinCorreoInicial={solicitud.sinCorreoAlternativo ?? false}
-          justificacionInicial={solicitud.justificacionSinCorreo ?? ""}
+          sinCorreoInicial={opcionesPresencial.sinCorreoAlternativo}
+          justificacionInicial={opcionesPresencial.justificacionSinCorreo}
           onContinuar={continuarContacto}
           erroresServidor={erroresContacto}
         />

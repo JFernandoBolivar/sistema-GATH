@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Download, FileSpreadsheet } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -91,7 +92,7 @@ export function InvitadosImportarDialog({
         <DialogHeader>
           <DialogTitle>Importar Asistentes e Invitados</DialogTitle>
           <DialogDescription>
-            Sube un archivo CSV con las columnas: <code>nombre, categoria, zona, documento, organizacion, correo, telefono, mesa</code>.
+            Sube un archivo Excel (<code>.xlsx</code>) o CSV con las columnas: <code>nombre, categoria, zona, documento, organizacion, correo, telefono, mesa</code>.
           </DialogDescription>
         </DialogHeader>
 
@@ -103,21 +104,31 @@ export function InvitadosImportarDialog({
           )}
 
           {!resumen && (
-            <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-3">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-4">
               <input
                 type="file"
                 id="csv-upload"
-                accept=".csv"
+                accept=".xlsx,.csv"
                 onChange={handleFileChange}
                 className="hidden"
                 disabled={loading}
               />
-              <label
-                htmlFor="csv-upload"
-                className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
-              >
-                {loading ? "Analizando archivo..." : "Seleccionar archivo CSV"}
-              </label>
+              <div className="flex flex-col items-center gap-2">
+                <label
+                  htmlFor="csv-upload"
+                  className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+                >
+                  {loading ? "Analizando archivo..." : "Seleccionar archivo Excel o CSV"}
+                </label>
+                <a
+                  href="/api/v1/carnetizacion/eventos/plantilla-invitados-excel/"
+                  download="plantilla-invitados-eventos.xlsx"
+                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium pt-1"
+                >
+                  <FileSpreadsheet className="size-3.5 text-emerald-600" />
+                  Descargar plantilla Excel oficial (.xlsx)
+                </a>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Se validará la coherencia de categorías y zonas antes de registrar los invitados.
               </p>

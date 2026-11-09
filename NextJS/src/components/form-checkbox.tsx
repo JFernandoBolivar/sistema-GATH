@@ -34,7 +34,7 @@ export default function CheckboxForm<T extends FieldValues>({
       render={({ field }) => (
         <FormItem
           className={cn(
-            "flex flex-row items-start gap-2",
+            "flex min-h-[44px] flex-row items-center gap-3 rounded-lg border border-border/60 px-3 py-2.5 transition-colors hover:bg-muted/50 has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer",
             className
           )}
         >
@@ -42,15 +42,15 @@ export default function CheckboxForm<T extends FieldValues>({
             <Checkbox
               checked={field.value}
               onCheckedChange={field.onChange}
-              className="mt-1"
+              className="size-5 shrink-0"
             />
           </FormControl>
-          <div className="grid gap-1.5 leading-none">
-            <FormLabel className="font-normal cursor-pointer">
+          <div className="flex-1 leading-none">
+            <FormLabel className="font-normal cursor-pointer text-sm text-foreground">
               {label}
             </FormLabel>
             {description !== undefined && (
-              <FormDescription>{description}</FormDescription>
+              <FormDescription className="mt-1">{description}</FormDescription>
             )}
             <FormMessage />
           </div>

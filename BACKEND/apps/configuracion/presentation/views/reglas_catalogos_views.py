@@ -3,7 +3,8 @@ Vistas de presentación para Reglas de Catálogos (A5).
 """
 import uuid
 from django.db import transaction
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from rest_framework import serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
@@ -26,6 +27,7 @@ from apps.configuracion.application.use_cases.gestionar_reglas_catalogos import 
     eliminar_parentesco,
     eliminar_tipo_soporte,
     obtener_todas_las_reglas,
+    reordenar_tipos_soporte,
 )
 from apps.configuracion.domain.reglas_catalogos import (
     ACCION_CHECKLIST_SOPORTE_ACTUALIZADO,
@@ -75,6 +77,7 @@ from apps.configuracion.infrastructure.serializers.reglas_catalogos_serializers 
     ReglaParentescoSerializer,
     ReglaTipoSoporteSerializer,
     ReglasCatalogosCompletoSerializer,
+    ReordenarTiposSoporteSerializer,
 )
 from core.presentation.audit import origen_de_peticion, registrar_auditoria
 from core.presentation.envelope import ok
@@ -100,6 +103,22 @@ def _actor(request) -> dict:
 
 def _trace(request) -> str:
     return getattr(request, 'trace_id', None) or uuid.uuid4().hex
+
+
+_REGLAS_PARENTESCO_VISTA = (
+    'es_hijo', 'menor_a_cargo', 'sin_cedula_hasta_edad', 'edad_minima',
+    'diferencia_minima', 'diferencia_tipo', 'sexo_permitido', 'soporte_sugerido',
+    'activo',
+)
+
+
+def _regla_parentesco_de(serializer) -> dict | None:
+    datos = {
+        campo: serializer.validated_data[campo]
+        for campo in _REGLAS_PARENTESCO_VISTA
+        if campo in serializer.validated_data
+    }
+    return datos or None
 
 
 class ReglasCatalogosListView(APIView):
@@ -136,6 +155,7 @@ class ReglaParentescoUpdateView(APIView):
                 id,
                 serializer.validated_data.get('descripcion'),
                 serializer.validated_data.get('aplica_familiar'),
+                regla=_regla_parentesco_de(serializer),
             )
             registrar_auditoria(
                 trace_id=_trace(request),
@@ -143,8 +163,16 @@ class ReglaParentescoUpdateView(APIView):
                 modulo=MODULO_AUDITORIA_CONFIGURACION,
                 recurso_tipo=RECURSO_REGLAS_PARENTESCO,
                 recurso_id=str(id),
-                estado_previo={'aplica_familiar': anterior.aplica_familiar, 'descripcion': anterior.descripcion},
-                estado_nuevo={'aplica_familiar': actualizado.aplica_familiar, 'descripcion': actualizado.descripcion},
+                estado_previo={
+                    'aplica_familiar': anterior.aplica_familiar,
+                    'descripcion': anterior.descripcion,
+                    **{c: getattr(anterior, c) for c in _REGLAS_PARENTESCO_VISTA},
+                },
+                estado_nuevo={
+                    'aplica_familiar': actualizado.aplica_familiar,
+                    'descripcion': actualizado.descripcion,
+                    **{c: getattr(actualizado, c) for c in _REGLAS_PARENTESCO_VISTA},
+                },
                 **_actor(request),
                 **origen_de_peticion(request),
             )
@@ -203,6 +231,7 @@ class ReglaParentescoCrearView(APIView):
                 repo,
                 serializer.validated_data['descripcion'],
                 serializer.validated_data.get('aplica_familiar', True),
+                regla=_regla_parentesco_de(serializer),
             )
             registrar_auditoria(
                 trace_id=_trace(request),
@@ -214,6 +243,7 @@ class ReglaParentescoCrearView(APIView):
                 estado_nuevo={
                     'descripcion': creado.descripcion,
                     'aplica_familiar': creado.aplica_familiar,
+                    **{c: getattr(creado, c) for c in _REGLAS_PARENTESCO_VISTA},
                 },
                 **_actor(request),
                 **origen_de_peticion(request),
@@ -227,7 +257,56 @@ class ReglaParentescoCrearView(APIView):
 
 
 class ReglaPaisCrearView(APIView):
-    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_CREAR)]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated(), HasAnyPermission(PERMISO_VER, PERMISO_CATALOGOS_VER)()]
+        return [IsAuthenticated(), HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_CREAR)()]
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Listar países del catálogo con paginación y búsqueda',
+        parameters=[
+            OpenApiParameter('q', str, description='Búsqueda por nombre o código'),
+            OpenApiParameter('page', int, description='Número de página (base 1)'),
+            OpenApiParameter('page_size', int, description='Tamaño de página (10, 25, 50)'),
+        ],
+        responses={200: inline_serializer('ListaPaisesPaginada', fields={
+            'items': ReglaPaisSerializer(many=True),
+            'total': serializers.IntegerField(),
+            'page': serializers.IntegerField(),
+            'page_size': serializers.IntegerField(),
+        })},
+    )
+    def get(self, request):
+        q = (request.query_params.get('q') or '').strip()
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            page_size = min(100, max(1, int(request.query_params.get('page_size', 10))))
+        except (TypeError, ValueError):
+            page_size = 10
+
+        from apps.personal.infrastructure.models.catalogos_soporte_models import PaisModel
+        from django.db.models import Q
+        qs = PaisModel.objects.all()
+        if q:
+            qs = qs.filter(Q(nombre__icontains=q) | Q(codigo__icontains=q))
+        qs = qs.order_by('-es_venezuela', 'nombre')
+        total = qs.count()
+        inicio = (page - 1) * page_size
+        items = qs[inicio:inicio + page_size]
+        serializer = ReglaPaisSerializer([
+            ReglaPais(id=p.pk, nombre=p.nombre, codigo=p.codigo, es_venezuela=p.es_venezuela)
+            for p in items
+        ], many=True)
+        return ok({
+            'items': serializer.data,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+        })
 
     @extend_schema(
         tags=['Configuración'],
@@ -735,6 +814,45 @@ class ReglaTipoSoporteDetailView(APIView):
         return ok(
             ReglaTipoSoporteSerializer(eliminado).data,
             'Tipo de soporte eliminado correctamente.',
+        )
+
+
+class ReglaTipoSoporteReordenarView(APIView):
+    permission_classes = [IsAuthenticated, HasAnyPermission(PERMISO_EDITAR, PERMISO_CATALOGOS_EDITAR)]
+
+    @extend_schema(
+        tags=['Configuración'],
+        summary='Guardar el nuevo orden de la lista de tipos de soporte (FIX-DIS2)',
+        request=ReordenarTiposSoporteSerializer,
+        responses={200: ReglaTipoSoporteSerializer(many=True), 400: MensajeRespuestaSerializer},
+    )
+    def put(self, request):
+        serializer = ReordenarTiposSoporteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
+        if datos.get('ordenes'):
+            pares = [(item['id'], item['orden']) for item in datos['ordenes']]
+        else:
+            pares = [(tipo_id, idx + 1) for idx, tipo_id in enumerate(datos['ids'])]
+
+        repo = RepoReglasCatalogosORM()
+        with transaction.atomic():
+            actualizados = reordenar_tipos_soporte(repo, pares)
+            registrar_auditoria(
+                trace_id=_trace(request),
+                accion=ACCION_TIPO_SOPORTE_ACTUALIZADO,
+                modulo=MODULO_AUDITORIA_CONFIGURACION,
+                recurso_tipo=RECURSO_REGLAS_TIPO_SOPORTE,
+                recurso_id='reordenar',
+                estado_previo=None,
+                estado_nuevo=[{'id': t.id, 'orden': t.orden} for t in actualizados],
+                **_actor(request),
+                **origen_de_peticion(request),
+            )
+
+        return ok(
+            ReglaTipoSoporteSerializer(actualizados, many=True).data,
+            'Orden de tipos de soporte actualizado correctamente.',
         )
 
 

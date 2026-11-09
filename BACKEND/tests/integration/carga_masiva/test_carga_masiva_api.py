@@ -53,13 +53,14 @@ def _archivo(cedula='8000001', nombres='ANA'):
     valores = {
         'cedula': cedula, 'nombres': nombres, 'apellidos': 'PRUEBA',
         'sexo_id': 'FEMENINO', 'nacionalidad_id': 'VENEZOLANO',
-        'fecha_nacimiento': '1990-01-01',
+        'estado_civil_id': 'SOLTERO', 'fecha_nacimiento': '1990-01-01',
     }
     for col in range(1, hoja.max_column + 1):
         etiqueta = str(hoja.cell(row=3, column=col).value or '').replace('*', '').strip()
         clave = {
             'Cédula': 'cedula', 'Nombres': 'nombres', 'Apellidos': 'apellidos',
             'Sexo': 'sexo_id', 'Nacionalidad': 'nacionalidad_id',
+            'Estado civil': 'estado_civil_id',
             'Fecha de nacimiento': 'fecha_nacimiento',
         }.get(etiqueta)
         if clave and clave in valores:

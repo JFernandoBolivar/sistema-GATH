@@ -20,9 +20,15 @@ from apps.autogestion.domain.value_objects.secciones import Accion
 from apps.autogestion.infrastructure.cache.mi_expediente_cache import invalidar_mi_expediente
 from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.autogestion.infrastructure.repositories.repo_secciones_complementarios_orm import RepoDatosComplementariosORM
+from apps.catalogos.infrastructure.models.catalogo_models import SexoModel
+from apps.configuracion.infrastructure.models.regla_parentesco_model import (
+    ReglaParentescoModel,
+)
 from apps.familiares.application.use_cases.validaciones_familiar import (
-    es_parentesco_hijo,
+    ReglaParentescoFamiliar,
+    regla_por_defecto,
     resolver_cedula_familiar,
+    validar_reglas_familiar,
 )
 from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
 from apps.familiares.infrastructure.repositories.repo_familiares_orm import RepoFamiliaresORM
@@ -123,9 +129,16 @@ class AplicadorCambiosORM:
             datos_empleado['perfil_salud'] = salud
         if fisico:
             datos_empleado['perfil_fisico'] = self._perfil_fisico_completo(empleado, fisico)
-        cedula_nueva = datos_empleado.pop('cedulaidentidad', None)
-        if cedula_nueva and str(cedula_nueva) != cedula:
-            cedula = self._renombrar_cedula(empleado, cedula, str(cedula_nueva))
+        # O49-BLOQUEO: la cédula es inmutable tras el registro. Un cambio solo
+        # puede tramitarse por el proceso de corrección de RRHH (O49-PLAN);
+        # desde Autogestión se rechaza incluso si llega en una solicitud forjada.
+        cedula_propuesta = datos_empleado.pop('cedulaidentidad', None)
+        if cedula_propuesta is not None and str(cedula_propuesta).strip() != str(cedula).strip():
+            raise ValidationError(
+                'La cédula de identidad no puede modificarse desde Autogestión. '
+                'Si detecta un error, use «Reportar error» para que RRHH la corrija.',
+                campo='cedulaidentidad',
+            )
         if datos_empleado:
             RepoPersonalORM().actualizar_empleado(cedula, datos_empleado)
         if foto:
@@ -243,14 +256,33 @@ class AplicadorCambiosORM:
     def _crear_familiar(self, cedula: str, v: dict) -> int:
         fecha = date.fromisoformat(v['fecha_nacimiento'])
         existentes = EmployeefamilyModel.objects.filter(employeecedula_id=cedula)
+        regla = self._regla_familiar(v['parentesco_id'])
+        if not regla.activo:
+            raise ConflictError(
+                'No se pudo agregar al familiar: el parentesco está desactivado en el catálogo.'
+            )
+        titular = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+        sexo_nombre = SexoModel.objects.filter(pk=v.get('sexo_id')).values_list(
+            'sexo', flat=True,
+        ).first() if v.get('sexo_id') is not None else None
+        try:
+            validar_reglas_familiar(
+                regla=regla,
+                fecha_nacimiento=fecha,
+                fecha_nacimiento_titular=titular.fecha_nacimiento if titular else None,
+                sexo=sexo_nombre,
+            )
+        except ValueError as exc:
+            raise ConflictError(f"No se pudo agregar al familiar: {exc} Rechace el campo o pida corregirlo.") from None
         try:
             cedula_familiar = resolver_cedula_familiar(
                 cedula_familiar=v.get('cedula_familiar'), cedula_empleado=cedula,
-                es_hijo=self._es_hijo(v['parentesco_id']), fecha_nacimiento=fecha,
+                fecha_nacimiento=fecha,
                 orden_hijo=v.get('orden_hijo'),
                 cedulas_existentes={
                     str(c) for c in existentes.values_list('cedulaFamiliar', flat=True) if c
                 },
+                regla=regla,
             )
         except ValueError as exc:
             raise ConflictError(f"No se pudo agregar al familiar: {exc} Rechace el campo o pida corregirlo.") from None
@@ -266,16 +298,41 @@ class AplicadorCambiosORM:
         return familiar.id
 
     @staticmethod
-    def _es_hijo(parentesco_id: int) -> bool:
+    def _regla_familiar(parentesco_id: int) -> ReglaParentescoFamiliar:
         from apps.catalogos.infrastructure.models.catalogo_models import ParentescoModel
-        nombre = ParentescoModel.objects.filter(pk=parentesco_id).values_list('descripcion_parentesco', flat=True).first() or ''
-        return es_parentesco_hijo(nombre)
+
+        parentesco = ParentescoModel.objects.filter(pk=parentesco_id).first()
+        if parentesco is None:
+            return ReglaParentescoFamiliar()
+        guardada = ReglaParentescoModel.objects.filter(
+            parentesco_id=parentesco_id,
+        ).first()
+        if guardada is None:
+            return regla_por_defecto(parentesco.descripcion_parentesco)
+        return ReglaParentescoFamiliar(
+            descripcion=parentesco.descripcion_parentesco,
+            es_hijo=guardada.es_hijo,
+            menor_a_cargo=guardada.menor_a_cargo,
+            sin_cedula_hasta_edad=guardada.sin_cedula_hasta_edad,
+            edad_minima=guardada.edad_minima,
+            diferencia_minima=guardada.diferencia_minima,
+            diferencia_tipo=guardada.diferencia_tipo,
+            sexo_permitido=guardada.sexo_permitido,
+            soporte_sugerido=guardada.soporte_sugerido,
+            activo=guardada.activo,
+        )
 
     # ── Ediciones de registros existentes ──
     def _editar(self, cedula: str, entidad: str, entidad_id: str, campos: dict) -> None:
         if not self._lector.pertenece_al_trabajador(cedula, entidad, entidad_id):
             raise ConflictError(f"El registro {entidad_id} de '{entidad}' ya no pertenece a la ficha.")
         if entidad == 'familiar':
+            # FIX-FAM2: revalida las reglas del parentesco solo cuando el cambio
+            # toca un dato sensible, no al editar observaciones de un legado.
+            if set(campos) & {
+                'parentesco_id', 'fecha_nacimiento', 'sexo_id', 'cedula_familiar',
+            }:
+                self._lector.validar_familiar_cambio(cedula, entidad_id, dict(campos))
             datos = dict(campos)
             if 'fecha_nacimiento' in datos:
                 datos['fecha_nacimiento'] = date.fromisoformat(datos['fecha_nacimiento'])

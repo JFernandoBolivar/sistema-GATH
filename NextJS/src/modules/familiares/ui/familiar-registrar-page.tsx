@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
+import { CEDULA_FAMILIAR_MAX } from "../domain/value-objects/cedula-familiar-vo";
 import { Button } from "@/shared/ui/components/button";
 import { Calendar } from "@/shared/ui/components/calendar";
 import { Card, CardContent } from "@/shared/ui/components/card";
@@ -175,7 +176,7 @@ export default function FamiliarRegistrarPage() {
   const maxOrden = useMemo(() => {
     const cedula = employee?.cedulaidentidad ?? "";
     if (!cedula) return 0;
-    return Math.max(0, Math.min(27, 10 - cedula.length - 1));
+    return Math.max(0, Math.min(27, CEDULA_FAMILIAR_MAX - cedula.length - 1));
   }, [employee]);
 
   // Fecha actual para el popover
@@ -612,6 +613,7 @@ export default function FamiliarRegistrarPage() {
                         placeholder="Describa las observaciones del familiar..."
                         rows={4}
                         maxLength={LIMITES_TEXTO.observacion.max}
+                        mostrarContador={false}
                         className="mt-1 resize-none"
                         {...form.register("observaciones")}
                       />

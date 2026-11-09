@@ -14,6 +14,8 @@ class Pasivo:
     tipo_pasivo: str
     tipo_nomina_id: int | None = None
     fecha_egreso: str | None = None
+    motivo_egreso_id: int | None = None
+    motivo_egreso: str | None = None
     resolucion: str | None = None
     observaciones: str | None = None
     correo: str | None = None

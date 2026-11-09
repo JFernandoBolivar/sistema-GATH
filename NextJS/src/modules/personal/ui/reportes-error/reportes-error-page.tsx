@@ -8,17 +8,15 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
-  Filter,
   Loader2,
   RefreshCw,
-  Search,
   UserCheck,
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/components/card";
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
-import { Input } from "@/shared/ui/components/input";
+import { BarraFiltros, type FiltroActivoChip } from "@/shared/ui/components/barra-filtros";
 import {
   Select,
   SelectContent,
@@ -88,6 +86,40 @@ export function ReportesErrorLaboralPageView() {
     );
   });
 
+  const chipsActivos: FiltroActivoChip[] = [];
+  if (busqueda.trim()) {
+    chipsActivos.push({
+      id: "busqueda",
+      label: "Búsqueda",
+      valorLegible: busqueda.trim(),
+      onRemover: () => setBusqueda(""),
+    });
+  }
+  if (filtroEstado !== "TODOS") {
+    chipsActivos.push({
+      id: "estado",
+      label: "Estado",
+      valorLegible: filtroEstado === "PENDIENTE" ? "Pendientes" : "Atendidos",
+      onRemover: () => setFiltroEstado("TODOS"),
+    });
+  }
+  if (filtroDato !== "TODOS") {
+    chipsActivos.push({
+      id: "dato",
+      label: "Dato",
+      valorLegible: ETIQUETAS_DATO[filtroDato] ?? filtroDato,
+      onRemover: () => setFiltroDato("TODOS"),
+    });
+  }
+
+  const hayFiltrosActivos = chipsActivos.length > 0;
+
+  const handleLimpiarFiltros = () => {
+    setBusqueda("");
+    setFiltroEstado("TODOS");
+    setFiltroDato("TODOS");
+  };
+
   const handleAbrirAtender = (reporte: ReporteErrorLaboralApiItem) => {
     setReporteAAtender(reporte);
     setObservacionesAtencion("");
@@ -133,62 +165,59 @@ export function ReportesErrorLaboralPageView() {
           size="sm"
           onClick={() => mutate()}
           disabled={isLoading}
-          className="gap-2"
+          className="gap-2 shrink-0"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
           Actualizar
         </Button>
       </div>
 
-      {/* Filtros */}
-      <Card className="border-border/60 shadow-sm">
-        <CardContent className="pt-4 pb-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Búsqueda rápida</Label>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Cédula, nombre o descripción…"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="pl-9 h-9"
-                />
-              </div>
-            </div>
+      {/* Barra de Filtros Compartida (FIX-DIS1) */}
+      <BarraFiltros
+        busqueda={busqueda}
+        onBusquedaChange={setBusqueda}
+        placeholderBusqueda="Buscar por cédula, nombre o descripción…"
+        totalResultados={items.length}
+        etiquetaResultados="reportes"
+        hayFiltrosActivos={hayFiltrosActivos}
+        onLimpiarFiltros={handleLimpiarFiltros}
+        chipsActivos={chipsActivos}
+        tituloFiltrosMovil="Filtros de reportes"
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="filtro-estado" className="text-sm font-medium text-foreground">
+            Estado
+          </Label>
+          <Select value={filtroEstado} onValueChange={setFiltroEstado}>
+            <SelectTrigger id="filtro-estado" className="h-10 w-full text-sm">
+              <SelectValue placeholder="Todos los estados" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos los estados</SelectItem>
+              <SelectItem value="PENDIENTE">Pendientes</SelectItem>
+              <SelectItem value="ATENDIDO">Atendidos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Estado</Label>
-              <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Estado..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TODOS">Todos los estados</SelectItem>
-                  <SelectItem value="PENDIENTE">Pendientes</SelectItem>
-                  <SelectItem value="ATENDIDO">Atendidos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Dato reportado</Label>
-              <Select value={filtroDato} onValueChange={setFiltroDato}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Campo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TODOS">Todos los campos</SelectItem>
-                  <SelectItem value="cargo">Cargo</SelectItem>
-                  <SelectItem value="oficina">Oficina / Gerencia</SelectItem>
-                  <SelectItem value="fecha_ingreso">Fecha de ingreso</SelectItem>
-                  <SelectItem value="otro">Otro dato laboral</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="space-y-1.5">
+          <Label htmlFor="filtro-dato" className="text-sm font-medium text-foreground">
+            Dato reportado
+          </Label>
+          <Select value={filtroDato} onValueChange={setFiltroDato}>
+            <SelectTrigger id="filtro-dato" className="h-10 w-full text-sm">
+              <SelectValue placeholder="Todos los campos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos los campos</SelectItem>
+              <SelectItem value="cargo">Cargo</SelectItem>
+              <SelectItem value="oficina">Oficina / Gerencia</SelectItem>
+              <SelectItem value="fecha_ingreso">Fecha de ingreso</SelectItem>
+              <SelectItem value="otro">Otro dato laboral</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </BarraFiltros>
 
       {/* Contenido / Listado */}
       <Card className="border-border/60 shadow-sm">

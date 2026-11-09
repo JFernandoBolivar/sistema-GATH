@@ -92,13 +92,15 @@ export default function FormBackgroundUpdateDialog({
       setError(null);
 
       const rawItems = data.antecedentes || [];
+      // FIX-CARGA3: la fecha de egreso también es obligatoria.
       const hasPartial = rawItems.some(
         (a) =>
-          (a.organismoId || a.fechaIngreso || a.fechaEgreso) && (!a.organismoId || !a.fechaIngreso),
+          (a.organismoId || a.fechaIngreso || a.fechaEgreso) &&
+          (!a.organismoId || !a.fechaIngreso || !a.fechaEgreso),
       );
       if (hasPartial) {
         const msg =
-          "Por favor complete el Organismo y la Fecha de Inicio en los antecedentes agregados.";
+          "Por favor complete el Organismo, la Fecha de Inicio y la Fecha de Culminación en los antecedentes agregados.";
         setError(msg);
         toast.error(msg);
         return;
@@ -107,7 +109,7 @@ export default function FormBackgroundUpdateDialog({
       try {
         const payload = {
           antecedentes: rawItems
-            .filter((a) => a.organismoId && a.fechaIngreso)
+            .filter((a) => a.organismoId && a.fechaIngreso && a.fechaEgreso)
             .map((a) => ({
               id: a.id,
               organismoId: Number(a.organismoId),
@@ -237,7 +239,7 @@ export default function FormBackgroundUpdateDialog({
 
                         <div className="min-w-0">
                           <Label className="flex items-center gap-1 text-xs">
-                            {index + 1}. Fecha Culminacion <ArrowBigUpDash className="size-4" />
+                            {index + 1}. Fecha Culminación * <ArrowBigUpDash className="size-4" />
                           </Label>
                           <Input
                             type="date"

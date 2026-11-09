@@ -46,10 +46,13 @@ class RepoReglasCatalogos(Protocol):
 
     def actualizar_parentesco(
         self, parentesco_id: int, aplica_familiar: bool, descripcion: str | None = None,
+        regla: dict | None = None,
     ) -> ReglaParentesco:
         ...
 
-    def crear_parentesco(self, descripcion: str, aplica_familiar: bool) -> ReglaParentesco:
+    def crear_parentesco(
+        self, descripcion: str, aplica_familiar: bool, regla: dict | None = None,
+    ) -> ReglaParentesco:
         ...
 
     def eliminar_parentesco(self, parentesco_id: int) -> ReglaParentesco:
@@ -143,6 +146,11 @@ class RepoReglasCatalogos(Protocol):
         ...
 
     def eliminar_tipo_soporte(self, tipo_id: int) -> ReglaTipoSoporte:
+        ...
+
+    def reordenar_tipos_soporte(
+        self, ordenes: Sequence[tuple[int, int]],
+    ) -> Sequence[ReglaTipoSoporte]:
         ...
 
     def tipo_soporte_tiene_secciones(self, tipo_id: int) -> bool:

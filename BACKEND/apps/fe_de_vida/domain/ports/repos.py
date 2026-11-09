@@ -97,6 +97,15 @@ class ValidadorCambiosActa(Protocol):
         """Valida contra la lista blanca y devuelve el cambio normalizado (con `valor_anterior`); None si no difiere del dato actual."""
         ...
 
+    def validar_conjunto(self, cedula: str, cambios: list[CambioActa]) -> None:
+        """Valida el estado final por registro agrupando los cambios de una misma entidad.
+
+        Necesario para campos que dependen entre sí (p. ej. parentesco + fecha de
+        nacimiento de un familiar): validar cada campo contra el dato guardado
+        produce falsos rechazos.
+        """
+        ...
+
 
 class AplicadorCambiosActa(Protocol):
     def aplicar(self, solicitud_id: str, cedula: str, actor_cedula: str, ahora: datetime) -> int:

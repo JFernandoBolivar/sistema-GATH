@@ -12,7 +12,7 @@ export function BotonGuiaAutogestion({ className }: { className?: string }) {
       onClick={abrir}
       className={
         className ??
-        "h-11 w-11 border-white/30 p-0 text-white hover:bg-white/10 hover:text-white [&>span]:hidden sm:h-8 sm:w-auto sm:px-3 sm:[&>span]:inline"
+        "h-11 w-11 border-white/30 bg-transparent p-0 text-white hover:bg-white/10 hover:text-white dark:bg-transparent [&>span]:hidden sm:h-8 sm:w-auto sm:px-3 sm:[&>span]:inline"
       }
     />
   );

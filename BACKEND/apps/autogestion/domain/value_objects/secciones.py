@@ -12,13 +12,13 @@ from enum import Enum
 
 class Seccion(str, Enum):
     IDENTIDAD = 'identidad'
+    FOTO = 'foto'
     CONTACTO = 'contacto'
     VIVIENDA = 'vivienda'
     FORMACION = 'formacion'
     COMPLEMENTARIA = 'complementaria'
     FAMILIAR = 'familiar'
     SALUD = 'salud'
-    FOTO = 'foto'
     ANTECEDENTES = 'antecedentes'
 
 
@@ -59,7 +59,8 @@ ENTIDADES_UNICAS = frozenset({'employee', 'datos_complementarios', 'datos_vivien
 CAMPOS_POR_SECCION: dict[str, dict[str, frozenset[str]]] = {
     'identidad': {
         'employee': frozenset({
-            'nombres', 'apellidos', 'fecha_nacimiento', 'cedulaidentidad',
+            # O49-BLOQUEO: la cédula no es editable por el trabajador.
+            'nombres', 'apellidos', 'fecha_nacimiento',
             'estadoCivil_id', 'carnet_patria', 'carnet_patria_serial',
         }),
     },
@@ -197,10 +198,10 @@ REQUERIDOS_VIVIENDA_EXTERIOR = REQUERIDOS_VIVIENDA_BASE | frozenset({'ciudad_reg
 REQUERIDOS_AL_CREAR: dict[str, frozenset[str]] = {
     'datos_vivienda': REQUERIDOS_VIVIENDA_BASE,
     'formacion_academica': frozenset({'nivel_academico_id'}),
-    'formacion_complementaria': frozenset({'capacitacion_id'}),
+    'formacion_complementaria': frozenset({'capacitacion_id', 'institucion_id'}),
     'contacto_emergencia': frozenset({'nombres', 'apellidos', 'telefono', 'relacion_id'}),
     'familiar': frozenset({'primer_nombre', 'primer_apellido', 'parentesco_id', 'fecha_nacimiento', 'sexo_id'}),
-    'antecedente_servicio': frozenset({'organismo_id', 'fecha_ingreso'}),
+    'antecedente_servicio': frozenset({'organismo_id', 'fecha_ingreso', 'fecha_egreso'}),
 }
 
 # Entidades que se pueden QUITAR desde la autogestión (con motivo obligatorio).
@@ -220,7 +221,9 @@ MOTIVO_QUITAR_MIN = 10
 MOTIVO_QUITAR_MAX = 300
 
 # Campos de identidad que exigen copia de la cédula al proponerse (D19).
-CAMPOS_IDENTIDAD_CON_CEDULA = frozenset({'nombres', 'apellidos', 'fecha_nacimiento', 'cedulaidentidad'})
+# Campos de identidad que exigen copia de la cédula como soporte.
+# O49-BLOQUEO: `cedulaidentidad` no se incluye porque ya no es editable.
+CAMPOS_IDENTIDAD_CON_CEDULA = frozenset({'nombres', 'apellidos', 'fecha_nacimiento'})
 
 # Tipo de prenda (categoría del catálogo `TipoPrenda`) que corresponde a cada talla.
 # La categoría real vive en la base de datos; aquí solo se indica cuál aplica a cada columna.
@@ -248,13 +251,13 @@ CAMPOS_PROHIBIDOS = frozenset({
 SECCIONES_CATALOGO_INICIAL = (
     # (codigo, nombre, requiere_soporte)
     ('identidad', 'Identidad (nombres, apellidos, fecha de nacimiento y cédula)', False),
+    ('foto', 'Foto', False),
     ('contacto', 'Contacto (teléfonos, correo alternativo y contacto de emergencia)', False),
     ('vivienda', 'Vivienda', False),
     ('formacion', 'Formación académica', True),
     ('complementaria', 'Formación complementaria (cursos y capacitaciones)', True),
     ('familiar', 'Grupo familiar', True),
     ('salud', 'Salud y tallas', False),
-    ('foto', 'Foto', False),
     ('antecedentes', 'Antecedentes de servicio', True),
 )
 

@@ -71,6 +71,11 @@ class RepoEventosPort(ABC):
 
     # ─── Invitados ───
     @abstractmethod
+    def siguiente_codigo_credencial(self) -> str:
+        """Siguiente código INV libre en TODA la tabla (la columna es única global)."""
+        raise NotImplementedError
+
+    @abstractmethod
     def crear_invitado(self, invitado: EventoInvitado) -> EventoInvitado:
         raise NotImplementedError
 

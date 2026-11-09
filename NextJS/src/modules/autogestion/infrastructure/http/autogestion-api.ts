@@ -172,6 +172,12 @@ export const autogestionApi = {
     return apiClient.get<ApiResponse<MiExpedienteDTO>>("/api/v1/autogestion/mi-expediente/");
   },
 
+  getMiCarnetAcceso: async (): Promise<ApiResponse<{ puede_ver_carnet: boolean }>> => {
+    return apiClient.get<ApiResponse<{ puede_ver_carnet: boolean }>>(
+      "/api/v1/autogestion/mi-carnet/acceso/",
+    );
+  },
+
   getPreguntas: async (): Promise<ApiResponse<Pregunta[]>> => {
     return apiClient.get<ApiResponse<Pregunta[]>>("/api/v1/autogestion/preguntas/");
   },

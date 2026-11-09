@@ -18,8 +18,13 @@ import type { CatalogosExpedienteDTO } from "@/modules/personal/application/dtos
 import EmpleadoDetalleSheet from "@/modules/personal/ui/empleado-detalle-sheet";
 import { construirDetalleExpediente } from "@/modules/personal/ui/expediente-detalle-view-model";
 import { useExpedienteVigente } from "@/modules/personal/ui/use-expediente-vigente";
+import { formatearFecha } from "@/shared/lib/formato-fecha";
 
-import { descargarPasivoPdfAction } from "../infrastructure/actions/pasivos-actions";
+import type { PasivoDTO } from "../application/dtos/pasivos-dto";
+import {
+  descargarPasivoPdfAction,
+  getPasivoPorCedulaAction,
+} from "../infrastructure/actions/pasivos-actions";
 
 interface DetallePasivoProps {
   cedula: string | null;
@@ -36,6 +41,7 @@ export function DetallePasivo({ cedula, open, onOpenChange, onGuardado }: Detall
   const puedeEditar = tienePermiso(permisos, "personal.editar_personales");
 
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
+  const [pasivo, setPasivo] = useState<PasivoDTO | null>(null);
   const [exportandoPdf, setExportandoPdf] = useState(false);
 
   // El expediente se deriva de la cédula vigente: al cambiar de pasivo se
@@ -47,18 +53,43 @@ export function DetallePasivo({ cedula, open, onOpenChange, onGuardado }: Detall
   });
 
   useEffect(() => {
-    if (!open || !cedula) return;
+    if (!open || !cedula) {
+      setPasivo(null);
+      return;
+    }
     // El expediente no espera catálogos: el backend ya manda los nombres.
     // Los catálogos se cargan en paralelo para los diálogos de edición.
     obtenerCatalogosExpediente()
       .then((cats) => setCatalogos(cats))
       .catch(() => undefined);
+
+    getPasivoPorCedulaAction(cedula)
+      .then((p) => {
+        if (p && typeof p === "object" && !("error" in p)) {
+          setPasivo(p as PasivoDTO);
+        }
+      })
+      .catch(() => undefined);
   }, [open, cedula]);
 
-  const detalle = useMemo(
-    () => (empleado ? construirDetalleExpediente(empleado, catalogos) : null),
-    [empleado, catalogos],
-  );
+  const detalle = useMemo(() => {
+    if (!empleado) return null;
+    const base = construirDetalleExpediente(empleado, catalogos);
+    if (pasivo && base) {
+      if (pasivo.motivoEgreso || pasivo.fechaEgreso) {
+        base.cargosAsignados = base.cargosAsignados.map((c) => ({
+          ...c,
+          tipoNomina: pasivo.motivoEgreso
+            ? `${c.tipoNomina} — ${pasivo.motivoEgreso}`
+            : c.tipoNomina,
+          estatus: pasivo.fechaEgreso
+            ? `${c.estatus} (Vigencia: ${formatearFecha(pasivo.fechaEgreso, "—")})`
+            : c.estatus,
+        }));
+      }
+    }
+    return base;
+  }, [empleado, catalogos, pasivo]);
 
   const exportarPdf = async () => {
     if (!cedula) return;

@@ -10,7 +10,7 @@ import { useMemo, useState, useTransition } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { History, Save } from "lucide-react";
+import { History, Save, Settings2 } from "lucide-react";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Badge } from "@/components/ui/badge";
@@ -47,8 +47,14 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { tienePermiso } from "@/shared/lib/evaluador-iam";
 import { RUTA_PUNTO_CUENTA } from "@/shared/lib/administracion-sistema";
-import { CLAVE_GENERAR_PUNTOS_CUENTA } from "../domain/value-objects/claves-parametros";
+import {
+  CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
+  CLAVE_CARNETIZACION_MI_CARNET_USUARIOS,
+  CLAVE_GENERAR_PUNTOS_CUENTA,
+  RUTA_AUTOGESTION_CONDICION,
+} from "../domain/value-objects/claves-parametros";
 import Link from "next/link";
+import { SelectorTrabajadoresParametro } from "./components/selector-trabajadores-parametro";
 
 import type { ParametroDTO, PaginaCambiosDTO } from "../application/dtos/parametro-dto";
 import {
@@ -82,6 +88,10 @@ export function ParametrosPage() {
   const parametros = useMemo<ParametroDTO[]>(
     () => (Array.isArray(data) ? data : []),
     [data],
+  );
+  const parametrosPorClave = useMemo(
+    () => new Map(parametros.map((p) => [p.clave, p])),
+    [parametros],
   );
   const [ediciones, setEdiciones] = useState<Record<string, string>>({});
   const [pendiente, setPendiente] = useState<{ parametro: ParametroDTO; valor: string } | null>(null);
@@ -171,6 +181,15 @@ export function ParametrosPage() {
                 </CardHeader>
                 <CardContent className="flex flex-col divide-y">
                   {delGrupo.map((parametro) => {
+                    if (parametro.depende_de) {
+                      const valorPadre =
+                        ediciones[parametro.depende_de.clave] ??
+                        parametrosPorClave.get(parametro.depende_de.clave)?.valor;
+                      if (valorPadre !== parametro.depende_de.valor) {
+                        return null;
+                      }
+                    }
+                    const esDependiente = Boolean(parametro.depende_de);
                     const valor = ediciones[parametro.clave] ?? parametro.valor;
                     const errorEste =
                       errorCampo?.clave === parametro.clave ? errorCampo.mensaje : null;
@@ -178,7 +197,11 @@ export function ParametrosPage() {
                       <div
                         key={parametro.clave}
                         data-parametro={parametro.clave}
-                        className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                        className={`flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between transition-all ${
+                          esDependiente
+                            ? "ml-3 sm:ml-6 border-l-2 border-primary/40 pl-3.5 bg-muted/15 rounded-r-md"
+                            : ""
+                        }`}
                       >
                         <div className="min-w-0 max-w-xl">
                           <Label htmlFor={`param-${parametro.clave}`} className="text-base font-medium">
@@ -208,43 +231,74 @@ export function ParametrosPage() {
                                 aria-invalid={!!errorEste}
                               />
                               {parametro.clave === CLAVE_GENERAR_PUNTOS_CUENTA && (
-                                <Link
-                                  href={RUTA_PUNTO_CUENTA}
-                                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  asChild
+                                  className="h-10 text-xs gap-1.5"
                                 >
-                                  Configurar movimientos y formato →
-                                </Link>
+                                  <Link href={RUTA_PUNTO_CUENTA}>
+                                    <Settings2 className="size-3.5" />
+                                    Configurar movimientos y formato
+                                  </Link>
+                                </Button>
                               )}
                             </div>
+                          ) : parametro.clave === CLAVE_CARNETIZACION_MI_CARNET_USUARIOS ? (
+                            <div className="w-full sm:w-[26rem] max-w-full">
+                              <SelectorTrabajadoresParametro
+                                valor={valor}
+                                disabled={!puedeEditar || isPending}
+                                onChange={(nuevo) => {
+                                  setErrorCampo(null);
+                                  setEdiciones((prev) => ({ ...prev, [parametro.clave]: nuevo }));
+                                }}
+                              />
+                            </div>
                           ) : parametro.opciones.length > 0 ? (
-                            <Select
-                              value={valor}
-                              disabled={!puedeEditar || isPending}
-                              onValueChange={(nuevo) =>
-                                setEdiciones((prev) => ({ ...prev, [parametro.clave]: nuevo }))
-                              }
-                            >
-                              <SelectTrigger
-                                id={`param-${parametro.clave}`}
-                                aria-label={parametro.etiqueta}
-                                aria-invalid={!!errorEste}
-                                className="w-full bg-white sm:w-52"
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                              <Select
+                                value={valor}
+                                disabled={!puedeEditar || isPending}
+                                onValueChange={(nuevo) =>
+                                  setEdiciones((prev) => ({ ...prev, [parametro.clave]: nuevo }))
+                                }
                               >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {!parametro.opciones.some((o) => o.valor === parametro.valor) && (
-                                  <SelectItem value={parametro.valor}>
-                                    {etiquetaValorParametro(parametro, parametro.valor)}
-                                  </SelectItem>
-                                )}
-                                {parametro.opciones.map((opcion) => (
-                                  <SelectItem key={opcion.valor} value={opcion.valor}>
-                                    {opcion.etiqueta}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                                <SelectTrigger
+                                  id={`param-${parametro.clave}`}
+                                  aria-label={parametro.etiqueta}
+                                  aria-invalid={!!errorEste}
+                                  className="w-full bg-white sm:w-52"
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {!parametro.opciones.some((o) => o.valor === parametro.valor) && (
+                                    <SelectItem value={parametro.valor}>
+                                      {etiquetaValorParametro(parametro, parametro.valor)}
+                                    </SelectItem>
+                                  )}
+                                  {parametro.opciones.map((opcion) => (
+                                    <SelectItem key={opcion.valor} value={opcion.valor}>
+                                      {opcion.etiqueta}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {parametro.clave === CLAVE_CARNETIZACION_MI_CARNET_ALCANCE && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  asChild
+                                  className="h-10 text-xs gap-1.5"
+                                >
+                                  <Link href={RUTA_AUTOGESTION_CONDICION}>
+                                    <Settings2 className="size-3.5" />
+                                    También en Autogestión
+                                  </Link>
+                                </Button>
+                              )}
+                            </div>
                           ) : (
                             <Input
                               id={`param-${parametro.clave}`}
@@ -357,7 +411,7 @@ function HistorialDialog({
           <Skeleton className="h-32 w-full" />
         ) : error ? (
           <p role="alert" className="text-sm text-destructive">{error}</p>
-        ) : !paginaDatos || paginaDatos.resultados.length === 0 ? (
+        ) : !paginaDatos || !Array.isArray(paginaDatos.resultados) || paginaDatos.resultados.length === 0 ? (
           <p className="text-sm text-muted-foreground">Todavía no hay cambios registrados.</p>
         ) : (
           <>
@@ -373,14 +427,58 @@ function HistorialDialog({
                 </tr>
               </thead>
               <tbody>
-                {paginaDatos.resultados.map((cambio, indice) => (
-                  <tr key={`${cambio.fecha}-${indice}`} className="border-b last:border-0">
-                    <td className="py-2">{formatearFecha(cambio.fecha)}</td>
-                    <td className="py-2">{cambio.actorCedula || "—"}</td>
-                    <td className="py-2">{parametro ? etiquetaValorParametro(parametro, cambio.valorPrevio) : cambio.valorPrevio}</td>
-                    <td className="py-2">{parametro ? etiquetaValorParametro(parametro, cambio.valorNuevo) : cambio.valorNuevo}</td>
-                  </tr>
-                ))}
+                {paginaDatos.resultados.map((cambio, indice) => {
+                  const tieneDetalleTrabajadores =
+                    (cambio.agregados && cambio.agregados.length > 0) ||
+                    (cambio.quitados && cambio.quitados.length > 0);
+                  return (
+                    <tr key={`${cambio.fecha}-${indice}`} className="border-b last:border-0 align-top">
+                      <td className="py-2.5 whitespace-nowrap">{formatearFecha(cambio.fecha)}</td>
+                      <td className="py-2.5 whitespace-nowrap">{cambio.actorCedula || "—"}</td>
+                      <td className="py-2.5 max-w-xs break-words">
+                        {parametro ? etiquetaValorParametro(parametro, cambio.valorPrevio) : cambio.valorPrevio}
+                      </td>
+                      <td className="py-2.5 max-w-sm break-words">
+                        {tieneDetalleTrabajadores ? (
+                          <div className="flex flex-col gap-1 text-xs">
+                            {cambio.agregados && cambio.agregados.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                <span className="font-semibold text-emerald-600">+ Agregados:</span>
+                                {cambio.agregados.map((a, i) => (
+                                  <Badge
+                                    key={i}
+                                    variant="outline"
+                                    className="text-[11px] border-emerald-500/40 text-emerald-700 bg-emerald-50/50"
+                                  >
+                                    {a}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                            {cambio.quitados && cambio.quitados.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                <span className="font-semibold text-destructive">- Quitados:</span>
+                                {cambio.quitados.map((q, i) => (
+                                  <Badge
+                                    key={i}
+                                    variant="outline"
+                                    className="text-[11px] border-destructive/40 text-destructive bg-destructive/10"
+                                  >
+                                    {q}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : parametro ? (
+                          etiquetaValorParametro(parametro, cambio.valorNuevo)
+                        ) : (
+                          cambio.valorNuevo
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             </TablaDesplegable>

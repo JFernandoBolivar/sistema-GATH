@@ -11,17 +11,18 @@ def test_contacto_completo_es_valido():
     assert validar_registro_nuevo('contacto', 'contacto_emergencia', dict(_BASE))['relacion_id'] == 3
 
 
-@pytest.mark.parametrize('campo', ['telefono', 'relacion_id'])
+@pytest.mark.parametrize('campo,etiqueta', [('telefono', 'Teléfono'), ('relacion_id', 'Relación')])
 @pytest.mark.parametrize('vacio', [None, ''])
-def test_falta_telefono_o_parentesco(campo, vacio):
+def test_falta_telefono_o_parentesco(campo, etiqueta, vacio):
     valores = {**_BASE, campo: vacio}
-    with pytest.raises(ValidationError, match=campo):
+    # El mensaje usa la etiqueta legible, no el nombre técnico del campo.
+    with pytest.raises(ValidationError, match=etiqueta):
         validar_registro_nuevo('contacto', 'contacto_emergencia', valores)
 
 
 def test_sin_el_campo_tambien_falla():
     valores = {k: v for k, v in _BASE.items() if k != 'telefono'}
-    with pytest.raises(ValidationError, match='telefono'):
+    with pytest.raises(ValidationError, match='Teléfono'):
         validar_registro_nuevo('contacto', 'contacto_emergencia', valores)
 
 

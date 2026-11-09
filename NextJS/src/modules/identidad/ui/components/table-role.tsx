@@ -149,10 +149,6 @@ function RoleActionsCell({
 export function buildRoleColumns(onRefresh: () => void): ColumnDef<RolDTO>[] {
   return [
     {
-      accessorKey: "id",
-      header: "ID",
-    },
-    {
       accessorKey: "nombreVisible",
       header: "Nombre Del Rol",
     },

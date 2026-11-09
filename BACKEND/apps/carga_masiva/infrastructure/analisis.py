@@ -2,6 +2,7 @@
 from datetime import date
 from io import BytesIO
 
+from core.domain.validacion_personas import normalizar_ciudad_region
 from openpyxl import load_workbook
 
 from apps.carga_masiva.domain.condicion import (
@@ -65,13 +66,62 @@ def _id_por_nombre(catalogo: str, valor: str):
 
 
 def _validar_catalogo(campo, valor: str) -> bool:
+    if not valor:
+        return True
+    val_limpio = valor.strip()
     if campo.catalogo in ('sexo', 'nacionalidad', 'estado_civil', 'parentesco', 'parentesco_familiar'):
-        return _id_por_nombre(campo.catalogo, valor) is not None
-    return valor in set(_catalogo(campo.catalogo))
+        return _id_por_nombre(campo.catalogo, val_limpio) is not None
+    if campo.catalogo == 'organismo':
+        from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
+        return OrganismoAdscritoModel.objects.filter(Organismoadscrito__iexact=val_limpio).exists()
+    if campo.catalogo == 'pais':
+        from apps.catalogos.infrastructure.models.catalogo_models import PaisModel
+        return PaisModel.objects.filter(nombre__iexact=val_limpio).exists()
+    if campo.catalogo == 'carrera':
+        from apps.personal.infrastructure.models.catalogos_soporte_models import CarreraModel
+        return CarreraModel.objects.filter(nombre_carrera__iexact=val_limpio).exists()
+    if campo.catalogo == 'institucion':
+        from apps.personal.infrastructure.models.catalogos_soporte_models import InstitucionModel
+        return InstitucionModel.objects.filter(nombre_institucion__iexact=val_limpio).exists()
+    if campo.catalogo == 'codigo_postal':
+        from apps.personal.infrastructure.models.catalogos_soporte_models import CodigoPostalModel
+        return CodigoPostalModel.objects.filter(codigo__iexact=val_limpio).exists()
+    if campo.catalogo == 'municipio':
+        base = val_limpio.split('(')[0].strip()
+        from apps.catalogos.infrastructure.models.geografia_models import MunicipioModel
+        return MunicipioModel.objects.filter(municipio__iexact=base).exists()
+    if campo.catalogo == 'parroquia':
+        base = val_limpio.split('(')[0].strip()
+        from apps.catalogos.infrastructure.models.geografia_models import ParroquiaModel
+        return ParroquiaModel.objects.filter(parroquia__iexact=base).exists()
+    valores = _catalogo(campo.catalogo)
+    if valor in set(valores):
+        return True
+    return any(v.strip().upper() == val_limpio.upper() for v in valores)
 
 
 def _empleado(cedula: str):
     return EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
+
+
+def _posible_duplicado(datos: dict, cedula: str):
+    """FIX-CARGA3: persona de otra cédula con los mismos nombres, apellidos y nacimiento.
+
+    La cédula es inmutable tras el registro, así que un error de tipeo en un
+    alta crearía un duplicado imposible de corregir. La fila no es un error:
+    queda como «Posible duplicado» y solo se aplica con confirmación explícita.
+    """
+    nombres = (datos.get('nombres') or '').strip()
+    apellidos = (datos.get('apellidos') or '').strip()
+    nacimiento = _fecha(datos.get('fecha_nacimiento') or '')
+    if not (nombres and apellidos and nacimiento):
+        return None
+    return (
+        EmployeeModel.objects
+        .filter(nombres__iexact=nombres, apellidos__iexact=apellidos, fecha_nacimiento=nacimiento)
+        .exclude(cedulaidentidad=cedula)
+        .first()
+    )
 
 
 def _motivo(nombre: str, operacion: Operacion) -> dict | None:
@@ -186,7 +236,7 @@ def _analizar_fila(
     detalle: list[str] = []
     for campo in tipo.campos_para(poblacion):
         valor = datos.get(campo.clave, '')
-        if campo.obligatorio and not valor:
+        if campo.es_obligatorio(poblacion) and not valor:
             detalle.append(f'{campo.etiqueta}: obligatorio')
             continue
         if not valor:
@@ -216,7 +266,22 @@ def _analizar_fila(
                 'El trabajador no existe en el sistema; el alta de pasivos se hace desde Pasivos → Agregar Pasivo.',
                 {},
             )
-        return CargaMasivaFilaModel.Estado.NUEVO, 'Trabajador nuevo.', {}
+        if tipo.clave == 'datos_personales':
+            duplicado = _posible_duplicado(datos, cedula)
+            if duplicado is not None:
+                return (
+                    CargaMasivaFilaModel.Estado.POSIBLE_DUPLICADO,
+                    (
+                        f'Posible duplicado (cédula {duplicado.cedulaidentidad}): coinciden '
+                        'nombres, apellidos y fecha de nacimiento. Confirme para registrar '
+                        'de todos modos o corrija la cédula.'
+                    ),
+                    {
+                        'duplicado_cedula': str(duplicado.cedulaidentidad),
+                        'duplicado_nombre': f'{duplicado.nombres} {duplicado.apellidos}'.strip(),
+                    },
+                )
+        return CargaMasivaFilaModel.Estado.NUEVO, 'Registro nuevo (alta de trabajador).', {}
     if tipo.clave == 'cargo_asignacion':
         asignacion = _cargo(datos.get('codigo_cargo', ''))
         if asignacion is None:
@@ -248,6 +313,111 @@ def _analizar_fila(
         if familiar is None:
             return CargaMasivaFilaModel.Estado.NUEVO, 'Familiar nuevo.', {}
         return CargaMasivaFilaModel.Estado.ACTUALIZAR, 'Familiar existente.', {'id': familiar.pk}
+
+    if tipo.clave == 'antecedentes_laborales':
+        f_ing = _fecha(datos.get('fecha_ingreso', ''))
+        f_egr = _fecha(datos.get('fecha_egreso', ''))
+        if f_ing and f_egr and f_egr < f_ing:
+            return CargaMasivaFilaModel.Estado.ERROR, 'Fecha de egreso debe ser mayor o igual a la fecha de ingreso.', {}
+
+    if tipo.clave == 'formacion_academica':
+        if not datos.get('nivel_academico_id'):
+            return CargaMasivaFilaModel.Estado.ERROR, 'El nivel académico es obligatorio.', {}
+        if datos.get('titulo') and not datos.get('institucion'):
+            return CargaMasivaFilaModel.Estado.ERROR, 'Debe indicar la institución correspondiente al título/carrera.', {}
+
+    if tipo.clave == 'formacion_complementaria':
+        f_ini = _fecha(datos.get('fecha_inicio', ''))
+        f_fin = _fecha(datos.get('fecha_fin', ''))
+        if f_ini and not f_fin:
+            return CargaMasivaFilaModel.Estado.ERROR, 'Debe indicar la fecha de fin si indica fecha de inicio.', {}
+        if f_fin and not f_ini:
+            return CargaMasivaFilaModel.Estado.ERROR, 'Debe indicar la fecha de inicio si indica fecha de fin.', {}
+        if f_ini and f_fin and f_fin < f_ini:
+            return CargaMasivaFilaModel.Estado.ERROR, 'Fecha de fin debe ser mayor o igual a la fecha de inicio.', {}
+
+    if tipo.clave == 'vivienda':
+        from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, MunicipioModel, ParroquiaModel
+        from apps.catalogos.infrastructure.models.catalogo_models import PaisModel
+        from apps.personal.infrastructure.models.catalogos_soporte_models import (
+            CodigoPostalModel,
+            CondicionViviendaModel,
+        )
+
+        es_venezuela = True
+        if poblacion == POBLACION_PASIVOS:
+            pais_raw = (datos.get('pais_id') or '').strip()
+            if not pais_raw:
+                return CargaMasivaFilaModel.Estado.ERROR, 'El país es obligatorio para pasivos.', {}
+            pais_obj = PaisModel.objects.filter(nombre__iexact=pais_raw).first()
+            if not pais_obj:
+                return CargaMasivaFilaModel.Estado.ERROR, f'El país «{pais_raw}» no existe en el catálogo.', {}
+            es_venezuela = bool(pais_obj.es_venezuela)
+
+        if es_venezuela:
+            edo_raw = (datos.get('estado_id') or '').strip()
+            mun_raw = (datos.get('municipio_id') or '').strip()
+            par_raw = (datos.get('parroquia_id') or '').strip()
+            if not edo_raw:
+                return CargaMasivaFilaModel.Estado.ERROR, 'El estado es obligatorio para residencia en Venezuela.', {}
+            if not mun_raw:
+                return CargaMasivaFilaModel.Estado.ERROR, 'El municipio es obligatorio para residencia en Venezuela.', {}
+            if not par_raw:
+                return CargaMasivaFilaModel.Estado.ERROR, 'La parroquia es obligatoria para residencia en Venezuela.', {}
+
+            edo_obj = EstadoModel.objects.filter(estado__iexact=edo_raw).first()
+            if not edo_obj:
+                return CargaMasivaFilaModel.Estado.ERROR, f'El estado «{edo_raw}» no existe en el catálogo.', {}
+
+            mun_base = mun_raw.split('(')[0].strip()
+            mun_obj = MunicipioModel.objects.filter(estadoid=edo_obj, municipio__iexact=mun_base).first()
+            if not mun_obj:
+                if MunicipioModel.objects.filter(municipio__iexact=mun_base).exists():
+                    return CargaMasivaFilaModel.Estado.ERROR, f'El municipio «{mun_raw}» no corresponde al estado «{edo_obj.estado}».', {}
+                return CargaMasivaFilaModel.Estado.ERROR, f'El municipio «{mun_raw}» no existe en el catálogo.', {}
+
+            par_base = par_raw.split('(')[0].strip()
+            par_obj = ParroquiaModel.objects.filter(municipioid=mun_obj, parroquia__iexact=par_base).first()
+            if not par_obj:
+                if ParroquiaModel.objects.filter(parroquia__iexact=par_base).exists():
+                    return CargaMasivaFilaModel.Estado.ERROR, f'La parroquia «{par_raw}» no corresponde al municipio «{mun_obj.municipio}».', {}
+                return CargaMasivaFilaModel.Estado.ERROR, f'La parroquia «{par_raw}» no existe en el catálogo.', {}
+
+            cp_raw = (datos.get('codigo_postal') or '').strip()
+            if not cp_raw:
+                return CargaMasivaFilaModel.Estado.ERROR, 'El código postal es obligatorio para residencia en Venezuela.', {}
+            cp_obj = CodigoPostalModel.objects.filter(codigo__iexact=cp_raw).first()
+            if cp_obj is None:
+                return CargaMasivaFilaModel.Estado.ERROR, f'El código postal «{cp_raw}» no existe en el catálogo.', {}
+            if cp_obj.estado_id_id != edo_obj.pk:
+                return CargaMasivaFilaModel.Estado.ERROR, f'El código postal «{cp_raw}» no corresponde al estado «{edo_obj.estado}».', {}
+
+            if datos.get('ciudad_region'):
+                datos['ciudad_region'] = ''
+        else:
+            raw_ciudad = (datos.get('ciudad_region') or '').strip()
+            ciudad = normalizar_ciudad_region(raw_ciudad)
+            datos['ciudad_region'] = ciudad
+            if not ciudad:
+                return CargaMasivaFilaModel.Estado.ERROR, 'Indique la ciudad o región para residencia en el exterior.', {}
+            if len(raw_ciudad) > 120:
+                return CargaMasivaFilaModel.Estado.ERROR, 'La ciudad o región no puede superar 120 caracteres.', {}
+            if datos.get('estado_id') or datos.get('municipio_id') or datos.get('parroquia_id'):
+                return CargaMasivaFilaModel.Estado.ERROR, 'Para residencia en el exterior, Estado, Municipio y Parroquia deben quedar vacíos.', {}
+            if (datos.get('codigo_postal') or '').strip():
+                return CargaMasivaFilaModel.Estado.ERROR, 'Para residencia en el exterior, el código postal debe quedar vacío.', {}
+
+        cond_raw = (datos.get('condicion_vivienda_id') or '').strip()
+        if not cond_raw:
+            return CargaMasivaFilaModel.Estado.ERROR, 'La condición de la vivienda es obligatoria.', {}
+        if not CondicionViviendaModel.objects.filter(condicion__iexact=cond_raw).exists():
+            return CargaMasivaFilaModel.Estado.ERROR, f'La condición «{cond_raw}» no existe en el catálogo.', {}
+
+        dir_raw = (datos.get('direccion_exacta') or '').strip()
+        if not dir_raw:
+            return CargaMasivaFilaModel.Estado.ERROR, 'La dirección exacta es obligatoria.', {}
+        if len(dir_raw) < 10:
+            return CargaMasivaFilaModel.Estado.ERROR, 'La dirección exacta debe tener al menos 10 caracteres.', {}
 
     return CargaMasivaFilaModel.Estado.ACTUALIZAR, 'Registro existente; se actualizará en la aplicación.', {}
 
@@ -302,7 +472,10 @@ def _marcar_cambios_condicion(carga: CargaMasivaModel) -> int:
             origen_por_cedula[cedula] = fila
 
     for fila in filas:
-        if fila.estado == CargaMasivaFilaModel.Estado.ERROR:
+        if fila.estado in (
+            CargaMasivaFilaModel.Estado.ERROR,
+            CargaMasivaFilaModel.Estado.POSIBLE_DUPLICADO,
+        ):
             continue
         cedula = _cedula_de(fila.datos)
         if not cedula or cedula not in condiciones:
@@ -327,7 +500,10 @@ def _marcar_cambios_condicion(carga: CargaMasivaModel) -> int:
 
     return sum(
         1 for fila in filas
-        if fila.estado == CargaMasivaFilaModel.Estado.REQUIERE_CONFIRMACION
+        if fila.estado in (
+            CargaMasivaFilaModel.Estado.REQUIERE_CONFIRMACION,
+            CargaMasivaFilaModel.Estado.POSIBLE_DUPLICADO,
+        )
     )
 
 

@@ -15,6 +15,8 @@ class PasivoDTO:
     tipo_pasivo: str
     tipo_nomina_id: int | None = None
     fecha_egreso: str | None = None
+    motivo_egreso_id: int | None = None
+    motivo_egreso: str | None = None
     resolucion: str | None = None
     observaciones: str | None = None
     correo: str | None = None
@@ -82,6 +84,8 @@ class EgresarPasivoDTO:
 class RegistrarPasivoDirectoDTO:
     datos: dict
     tipo_nomina_id: int
+    motivo_id: int = 0
+    fecha_vigencia: date | str | None = None
     usuario_id: int | None = None
 
 

@@ -128,6 +128,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         nombre: str | None = None,
         codigo: str | None = None,
         tipo_nomina_id: int | None = None,
+        motivo_id: int | None = None,
         fecha_desde=None,
         fecha_hasta=None,
         sin_cuenta: bool | None = None,
@@ -143,9 +144,9 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         resultado es idéntico.
         """
         # cédula -> (fecha_egreso como la expone el mapper, última actualización
-        # del trabajador, mapeo diferido). La fecha de egreso filtra; el orden es
-        # por última actualización (lo más reciente primero, QA 2026-11-03).
-        por_cedula: dict[str, tuple[str, str, object]] = {}
+        # del trabajador, motivo_id, mapeo diferido). La fecha de egreso filtra;
+        # el orden es por última actualización (lo más reciente primero, QA 2026-11-03).
+        por_cedula: dict[str, tuple[str, str, int | None, object]] = {}
         cesados = self._cedulas_pasivas_egresadas()
         cuentas_cedulas: set[str] | None = None
         if sin_cuenta is not None:
@@ -179,8 +180,12 @@ class RepoPasivosORM(RepoSobrevivientesORM):
                     continue
                 if not sin_cuenta and emp_id not in cuentas_cedulas:
                     continue
+            fecha_vig = str(fila.fecha_egreso)[:10] if fila.fecha_egreso else ''
             por_cedula[emp_id] = (
-                str(fila.fecha_egreso), _actualizado(fila.employee), lambda fila=fila: pasivo_a_entidad(fila)
+                fecha_vig,
+                _actualizado(fila.employee),
+                fila.motivo_egreso_id,
+                lambda fila=fila: pasivo_a_entidad(fila),
             )
 
         qs_asignaciones = (
@@ -200,6 +205,13 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             qs_asignaciones = qs_asignaciones.filter(codigo__icontains=codigo)
         if tipo_nomina_id:
             qs_asignaciones = qs_asignaciones.filter(tiponominaid_id=tipo_nomina_id)
+
+        cedulas_asig = list(qs_asignaciones.values_list('employee_id', flat=True))
+        egresos_dict = {
+            str(e.employee_id): (str(e.fecha_egreso)[:10] if e.fecha_egreso else '', e.motivo_egreso_id)
+            for e in EmployeeEgresadoModel.objects.filter(employee_id__in=cedulas_asig).order_by('-fecha_egreso')
+        }
+
         for asig in qs_asignaciones:
             asig_emp_id = str(asig.employee_id)
             if cuentas_cedulas is not None:
@@ -207,12 +219,19 @@ class RepoPasivosORM(RepoSobrevivientesORM):
                     continue
                 if not sin_cuenta and asig_emp_id not in cuentas_cedulas:
                     continue
+            egr_info = egresos_dict.get(asig_emp_id)
+            fecha_vig = egr_info[0] if egr_info else (str(asig.fecha_actualizacion)[:10] if asig.fecha_actualizacion else '')
+            m_id = egr_info[1] if egr_info else None
             por_cedula[asig_emp_id] = (
-                str(asig.fecha_actualizacion), _actualizado(asig.employee),
+                fecha_vig,
+                _actualizado(asig.employee),
+                m_id,
                 lambda asig=asig: pasivo_desde_asignacion(asig),
             )
 
         candidatos = list(por_cedula.values())
+        if motivo_id:
+            candidatos = [c for c in candidatos if c[2] == motivo_id]
         if fecha_desde:
             candidatos = [c for c in candidatos if (c[0] or '')[:10] >= str(fecha_desde)]
         if fecha_hasta:
@@ -220,7 +239,7 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         candidatos.sort(key=lambda c: (c[1], c[0] or ''), reverse=True)
         total = len(candidatos)
         pagina = candidatos[desplazamiento:desplazamiento + limite]
-        return [mapear() for _, _, mapear in pagina], total
+        return [mapear() for _, _, _, mapear in pagina], total
 
     def actualizar_datos_pasivo(self, cedula: str, datos: dict) -> Pasivo:
         """Datos básicos editables de un pasivo; reutiliza la actualización de Personal."""
@@ -338,9 +357,12 @@ class RepoPasivosORM(RepoSobrevivientesORM):
         self,
         datos: dict,
         tipo_nomina_id: int,
+        motivo_id: int | None = None,
+        fecha_vigencia=None,
         usuario_id: int | None = None,
     ) -> Pasivo:
         """Alta directa de jubilado/pensionado, sin cargo activo previo."""
+        from datetime import date
         from apps.personal.infrastructure.repositories.repo_personal_orm import RepoPersonalORM
 
         tipo_nomina = TipoNominaModel.objects.filter(
@@ -350,6 +372,21 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             raise ValidationError(
                 'Seleccione un tipo de nómina de pasivos (es_activo=False).'
             )
+
+        if not motivo_id:
+            raise ValidationError('El tipo de jubilación o pensión es obligatorio.', campo='motivo_id')
+        if not fecha_vigencia:
+            raise ValidationError('La fecha de vigencia es obligatoria.', campo='fecha_vigencia')
+
+        f_vig = fecha_vigencia if isinstance(fecha_vigencia, date) else date.fromisoformat(str(fecha_vigencia)[:10])
+        hoy = timezone.now().date()
+        if f_vig > hoy:
+            raise ValidationError('La fecha de vigencia no puede ser futura.', campo='fecha_vigencia')
+
+        motivo_pase = obtener_motivo_de_operacion(
+            motivo_id, Operacion.PASE_A_PASIVO, campo='motivo_id',
+        )
+
         cedula = str(datos.get('cedula') or '').strip()
         if not cedula:
             raise ValidationError('La cédula es obligatoria.')
@@ -395,22 +432,38 @@ class RepoPasivosORM(RepoSobrevivientesORM):
             Tipo_personal=tipo_pasivo,
             Dependencia=dependencia,
             DireccionGeneral=direccion,
-            observaciones='Alta directa de personal pasivo.',
+            observaciones=f'Alta directa de personal pasivo. {motivo_pase.movimiento}',
+        )
+
+        # FIX-PAS1: Persistir EmployeeEgresadoModel con su fecha de vigencia y motivo
+        egreso = EmployeeEgresadoModel.objects.create(
+            employee=empleado,
+            n_contrato=asignacion.codigo,
+            fechaingresoorganismo=f_vig,
+            fecha_egreso=f_vig,
+            motivo_egreso=motivo_pase,
+        )
+        if f_vig:
+            EmployeeEgresadoModel.objects.filter(pk=egreso.pk).update(fecha_egreso=f_vig)
+
+        CargoEgresadoModel.objects.create(
+            egreso=egreso,
+            codigo=asignacion.codigo,
+            denominacioncargoid=cargo,
+            denominacioncargoespecificoid=cargo_esp,
+            tipoNominaId=tipo_nomina,
+            tipoPersonalId=tipo_pasivo,
+            dependenciaId=dependencia,
+            direccionGeneralId=direccion,
         )
 
         if usuario_id is not None:
-            nombre_nomina = tipo_nomina.nomina.upper()
-            motivo = None
-            if 'JUBIL' in nombre_nomina:
-                motivo = obtener_motivo_de_sistema(MOTIVO_SISTEMA_JUBILACION)
-            elif 'PENSION' in nombre_nomina:
-                motivo = obtener_motivo_de_sistema(MOTIVO_SISTEMA_PENSION_INVALIDEZ)
             events.cargo_movimiento_ejecutado.send(
                 sender=RepoPasivosORM,
                 cargo_id=asignacion.pk,
                 cedula=cedula,
                 tipo_movimiento='INGRESO',
-                motivo_id=motivo.pk if motivo else None,
+                motivo_id=motivo_pase.pk,
                 usuario_id=usuario_id,
                 origen=events.ORIGEN_PASIVOS,
             )

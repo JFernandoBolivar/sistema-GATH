@@ -12,10 +12,22 @@ export async function POST(request: NextRequest) {
       "POST",
     );
 
-    return NextResponse.json(resultado, { status: 200 });
+    // Respetar contrato C-1 (status: "success") e incluir ok: true para clientes que lo evalúen
+    return NextResponse.json(
+      {
+        ok: true,
+        status: resultado.status ?? "success",
+        data: resultado.data ?? resultado,
+        message: resultado.message,
+      },
+      { status: 200 },
+    );
   } catch (error: unknown) {
     const mensaje =
       error instanceof Error ? error.message : "Error al procesar el archivo";
-    return NextResponse.json({ ok: false, message: mensaje }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, status: "error", message: mensaje, error: mensaje },
+      { status: 500 },
+    );
   }
 }

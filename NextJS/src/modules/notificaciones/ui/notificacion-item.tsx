@@ -73,30 +73,51 @@ export function NotificacionItem({
   return (
     <li
       className={cn(
-        "flex flex-col gap-2 rounded-lg border p-3",
+        "flex flex-col rounded-lg border",
+        compacta ? "gap-1.5 p-2.5" : "gap-2 p-3",
         n.leida ? "bg-card" : "border-info/40 bg-info-soft/40",
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <StatusBadge texto={n.leida ? "Leída" : "Nueva"} tono={n.leida ? "neutral" : "info"} />
-        <time dateTime={n.creadaEn} className="text-sm text-muted-foreground">
+        <time dateTime={n.creadaEn} className="text-xs text-muted-foreground sm:text-sm">
           {formatearFechaNotificacion(n.creadaEn)}
         </time>
       </div>
-      <p className={cn("text-base text-foreground", n.leida ? "font-medium" : "font-bold")}>
+      <p
+        className={cn(
+          "text-foreground",
+          compacta ? "text-sm leading-snug" : "text-base",
+          n.leida ? "font-medium" : "font-bold",
+        )}
+      >
         {n.titulo}
       </p>
       {n.mensaje && !compacta ? (
         <p className="text-base text-muted-foreground">{n.mensaje}</p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          "flex items-center gap-1.5",
+          compacta ? "flex-nowrap overflow-x-auto pt-0.5" : "flex-wrap gap-2 pt-1",
+        )}
+      >
         {n.enlace && (puedeAbrirEnlace?.(n.enlace) ?? true) ? (
-          <Button asChild variant="outline" size="sm" className="min-h-11">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className={cn(
+              compacta
+                ? "h-9 min-h-9 shrink-0 px-2.5 text-xs"
+                : "min-h-11",
+            )}
+          >
             <Link
               href={n.enlace}
               onClick={manejarEnlace}
             >
-              <ExternalLink aria-hidden /> Ver detalle
+              <ExternalLink aria-hidden className={compacta ? "size-3.5" : undefined} /> Ver detalle
             </Link>
           </Button>
         ) : null}
@@ -105,11 +126,15 @@ export function NotificacionItem({
             type="button"
             variant="ghost"
             size="sm"
-            className="min-h-11"
+            className={cn(
+              compacta
+                ? "h-9 min-h-9 shrink-0 px-2 text-xs"
+                : "min-h-11",
+            )}
             disabled={deshabilitado}
             onClick={() => onMarcarLeida(n.id)}
           >
-            <Check aria-hidden /> Marcar como leída
+            <Check aria-hidden className={compacta ? "size-3.5" : undefined} /> Marcar como leída
           </Button>
         ) : null}
       </div>

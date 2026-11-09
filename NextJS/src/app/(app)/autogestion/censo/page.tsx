@@ -48,6 +48,7 @@ import { buildSchema } from "@/modules/autogestion/ui/schema/schema-autogestion"
 import { GUIA_CENSO_VIVIENDA } from "@/modules/autogestion/ui/guias/definiciones-guias";
 import { useRegistrarGuia } from "@/modules/autogestion/ui/guias/contexto-guia";
 import { useGuia } from "@/shared/ui/guias";
+import { PageHeader } from "@/shared/ui/components/page-header";
 import InputForm from "@/components/input-form";
 import RadioGroupForm from "@/components/form-radio-group";
 import CheckboxForm from "@/components/form-checkbox";
@@ -195,15 +196,15 @@ export default function AutogestionPage() {
         </div>
       ) : yaRespondio && !isDev ? (
         <div className="max-w-3xl mx-auto flex flex-col gap-6">
-          <Card className="border-2 border-emerald-200 bg-emerald-50">
+          <Card className="border border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-950/20">
             <CardContent className="p-8 text-center gap-4">
               <div className="flex justify-center">
-                <div className="rounded-full bg-emerald-100 p-4">
-                  <ClipboardCheck className="size-12 text-emerald-600" />
+                <div className="rounded-full bg-emerald-500/20 p-4">
+                  <ClipboardCheck className="size-12 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-emerald-800">Autogestión Completada</h2>
-              <p className="text-emerald-700 max-w-md mx-auto">
+              <h2 className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">Autogestión Completada</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
                 Ya has completado el formulario de autogestión de personal. No es necesario que lo
                 realices nuevamente.
               </p>
@@ -211,25 +212,25 @@ export default function AutogestionPage() {
           </Card>
 
           {miCenso && (
-            <Card className="mt-6">
+            <Card className="mt-6 bg-card border-border">
               <CardContent className="p-6 gap-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <FileText className="size-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="size-5 text-muted-foreground" />
                   Resumen de su Autogestión
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mt-3">
-                  <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
-                    <IdCard className="size-4 text-gray-500 shrink-0" />
+                  <div className="flex flex-wrap items-center gap-1.5 text-foreground">
+                    <IdCard className="size-4 text-muted-foreground shrink-0" />
                     <span className="font-medium">Cédula:</span>
                     <span className="break-all">{miCenso.cedula}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
-                    <Badge className="size-4 text-gray-500 shrink-0" />
+                  <div className="flex flex-wrap items-center gap-1.5 text-foreground">
+                    <Badge className="size-4 text-muted-foreground shrink-0" />
                     <span className="font-medium">{ETIQUETA_CODIGO_CARNET_PATRIA}:</span>
                     <span className="break-all">{miCenso.carnet_patria || "No registrado"}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5 text-gray-800">
-                    <Badge className="size-4 text-gray-500 shrink-0" />
+                  <div className="flex flex-wrap items-center gap-1.5 text-foreground">
+                    <Badge className="size-4 text-muted-foreground shrink-0" />
                     <span className="font-medium">{ETIQUETA_SERIAL_CARNET_PATRIA}:</span>
                     <span className="break-all">{miCenso.carnet_patria_serial || "No registrado"}</span>
                   </div>
@@ -238,8 +239,8 @@ export default function AutogestionPage() {
                 <Separator className="my-4" />
 
                 <div>
-                  <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-                    <ClipboardCheck className="size-4 text-gray-600" />
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                    <ClipboardCheck className="size-4 text-muted-foreground" />
                     <span className="font-medium">
                       Respuestas registradas ({miCenso.preguntas?.length || 0})
                     </span>
@@ -248,12 +249,12 @@ export default function AutogestionPage() {
                     {miCenso.preguntas?.map((r, i) => (
                       <div
                         key={i}
-                        className="flex items-start gap-2 text-sm bg-gray-50 rounded p-2"
+                        className="flex items-start gap-2 text-sm bg-muted/40 border border-border/50 rounded-lg p-3"
                       >
-                        <span className="text-emerald-600 mt-0.5">•</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 mt-0.5">•</span>
                         <div>
-                          <p className="text-gray-900">{r.pregunta}</p>
-                          <p className="text-gray-600 text-xs">
+                          <p className="text-foreground font-medium">{r.pregunta}</p>
+                          <p className="text-muted-foreground text-xs mt-0.5">
                             {r.opcion ? r.opcion.opcion : r.respuesta || "—"}
                           </p>
                         </div>
@@ -266,40 +267,40 @@ export default function AutogestionPage() {
                   <>
                     <Separator className="my-4" />
                     <div>
-                      <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-                        <Building2 className="size-4 text-gray-600" />
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                        <Building2 className="size-4 text-muted-foreground" />
                         <span className="font-medium">
                           Ubicaciones Administrativas ({miCenso.cargos.length})
                         </span>
                       </div>
                       <div className="flex flex-col gap-2">
                         {miCenso.cargos.map((cargo, i) => (
-                          <div key={i} className="text-sm bg-gray-50 rounded p-3 gap-1">
+                          <div key={i} className="text-sm bg-muted/40 border border-border/50 rounded-lg p-3 gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono text-gray-600 bg-gray-200 rounded px-1.5 py-0.5">
+                              <span className="text-xs font-mono text-muted-foreground bg-muted rounded px-1.5 py-0.5">
                                 {cargo.codigo}
                               </span>
-                              <span className="text-gray-900 font-medium">
+                              <span className="text-foreground font-medium">
                                 {cargo.denominacioncargo?.cargo || "Cargo"}
                               </span>
                             </div>
-                            <div className="text-xs text-gray-600 mt-1.5 ml-1 flex flex-col gap-0.5">
+                            <div className="text-xs text-muted-foreground mt-1.5 ml-1 flex flex-col gap-0.5">
                               {cargo.Dependencia && <span>{cargo.Dependencia.dependencia}</span>}
                               {cargo.DireccionGeneral && (
                                 <span>
-                                  <span className="text-gray-500">{" > "}</span>
+                                  <span className="text-muted-foreground/70">{" > "}</span>
                                   {cargo.DireccionGeneral.direccion_general}
                                 </span>
                               )}
                               {cargo.DireccionLinea && (
                                 <span>
-                                  <span className="text-gray-500">{" > "}</span>
+                                  <span className="text-muted-foreground/70">{" > "}</span>
                                   {cargo.DireccionLinea.direccion_linea}
                                 </span>
                               )}
                               {cargo.Coordinacion && (
                                 <span>
-                                  <span className="text-gray-500">{" > "}</span>
+                                  <span className="text-muted-foreground/70">{" > "}</span>
                                   {cargo.Coordinacion.coordinacion}
                                 </span>
                               )}
@@ -316,20 +317,19 @@ export default function AutogestionPage() {
         </div>
       ) : (
         <div className="max-w-3xl mx-auto">
-          <Card className="p-4 sm:p-6 md:p-10 bg-white border border-gray-200 shadow-lg rounded-lg">
+          <Card className="p-4 sm:p-6 md:p-8 bg-card border border-border shadow-xs rounded-xl">
             {isDev && yaRespondio && (
-              <div className="border-2 border-yellow-400/45 bg-yellow-100/40 rounded-sm p-3 mb-6 text-sm text-yellow-700">
+              <div className="border border-warning/40 bg-warning-soft text-warning rounded-lg p-3 mb-6 text-sm font-medium">
                 [DEV] El usuario ya respondió este censo. El formulario se muestra solo por estar en
                 modo desarrollo.
               </div>
             )}
 
-            <div data-guia-id="censo-cabecera" className="mb-8 text-center">
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
-                AUTOGESTIÓN DE PERSONAL
-              </h1>
-              <p className="mt-2 text-sm text-gray-600">Oficina de Gestión Humana - CONATEL</p>
-              <p className="text-xs text-gray-500 mt-1">* Indica que la pregunta es obligatoria</p>
+            <div data-guia-id="censo-cabecera" className="mb-6">
+              <PageHeader
+                titulo="Censo de Autogestión de Personal"
+                descripcion="Oficina de Gestión Humana · CONATEL. Los campos marcados con asterisco (*) son obligatorios."
+              />
             </div>
 
             <Form {...form}>
@@ -340,7 +340,7 @@ export default function AutogestionPage() {
 
                   if (tipo === "cerrada" && pregunta.opciones?.length === 1) {
                     return (
-                      <div key={pregunta.id}>
+                      <div key={pregunta.id} className="rounded-xl border border-border/60 bg-muted/15 p-4 transition-colors">
                         <CheckboxForm
                           form={form}
                           nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
@@ -352,7 +352,7 @@ export default function AutogestionPage() {
 
                   if (tipo === "cerrada") {
                     return (
-                      <div key={pregunta.id}>
+                      <div key={pregunta.id} className="rounded-xl border border-border/60 bg-muted/15 p-4 transition-colors">
                         <RadioGroupForm
                           form={form}
                           nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
@@ -370,7 +370,7 @@ export default function AutogestionPage() {
 
                   if (pregunta.id === 1) {
                     return (
-                      <div key={pregunta.id}>
+                      <div key={pregunta.id} className="rounded-xl border border-border/60 bg-muted/15 p-4 transition-colors">
                         <InputForm
                           form={form}
                           nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
@@ -385,7 +385,7 @@ export default function AutogestionPage() {
 
                   if (tipo === "number" || tipo === "float") {
                     return (
-                      <div key={pregunta.id}>
+                      <div key={pregunta.id} className="rounded-xl border border-border/60 bg-muted/15 p-4 transition-colors">
                         <InputForm
                           form={form}
                           nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
@@ -398,7 +398,7 @@ export default function AutogestionPage() {
                   }
 
                   return (
-                    <div key={pregunta.id}>
+                    <div key={pregunta.id} className="rounded-xl border border-border/60 bg-muted/15 p-4 transition-colors">
                       <InputForm
                         form={form}
                         nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
@@ -410,11 +410,10 @@ export default function AutogestionPage() {
                   );
                 })}
 
-                <Separator />
+                <div className="rounded-xl border border-border/60 bg-muted/15 p-5 flex flex-col gap-4">
+                  <h2 className="text-lg font-bold text-foreground">Datos de Vivienda *</h2>
 
-                <h2 className="text-lg font-bold">Datos de Vivienda *</h2>
-
-                <div data-guia-id="censo-vivienda" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div data-guia-id="censo-vivienda" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
                     name={"datos_vivienda.estado_id" as FieldPath<DynamicFormValues>}
@@ -627,19 +626,19 @@ export default function AutogestionPage() {
                     )}
                   />
                 </div>
-
-                <Separator />
+              </div>
 
                 {preguntasDeclaracion.map((pregunta) => (
-                  <CheckboxForm
-                    key={pregunta.id}
-                    form={form}
-                    nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
-                    label={`${pregunta.enunciado} *`}
-                  />
+                  <div key={pregunta.id} className="rounded-xl border border-border/60 bg-muted/15 p-4 transition-colors">
+                    <CheckboxForm
+                      form={form}
+                      nameInput={String(pregunta.id) as FieldPath<DynamicFormValues>}
+                      label={`${pregunta.enunciado} *`}
+                    />
+                  </div>
                 ))}
 
-                <p className="text-xs text-gray-600 text-justify">
+                <p className="text-xs text-muted-foreground text-justify">
                   La información suministrada es estrictamente confidencial y de uso exclusivo
                   interno para los fines institucionales de la Oficina de Gestión Humana.
                 </p>
@@ -648,10 +647,10 @@ export default function AutogestionPage() {
                   data-guia-id="censo-enviar"
                   type="submit"
                   disabled={isPending}
-                  className="w-full py-6 text-base font-semibold cursor-pointer"
+                  className="w-full h-11 text-base font-semibold cursor-pointer"
                   size="lg"
                 >
-                  {isPending ? "Enviando..." : "ENVIAR AUTOGESTIÓN"}
+                  {isPending ? "Enviando…" : "Enviar autogestión"}
                 </Button>
               </form>
             </Form>

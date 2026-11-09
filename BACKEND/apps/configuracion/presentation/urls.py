@@ -9,10 +9,12 @@ from apps.configuracion.presentation.views.configuracion_visual_views import (
 )
 from apps.configuracion.presentation.views.correo_acceso_config_views import (
     AplicarPoliticaCorreoAccesoView,
+    ExportarVistaPreviaCorreoAccesoExcelView,
     PoliticaCorreoAccesoView,
     VistaPreviaCorreoAccesoView,
 )
 from apps.configuracion.presentation.views.parametros_views import (
+    BuscarTrabajadoresParametroView,
     ParametroHistorialView,
     ParametroView,
     ParametrosView,
@@ -31,6 +33,7 @@ from apps.configuracion.presentation.views.reglas_catalogos_views import (
     ReglaParentescoUpdateView,
     ReglaTipoSoporteCrearView,
     ReglaTipoSoporteDetailView,
+    ReglaTipoSoporteReordenarView,
     ReglasCatalogosListView,
 )
 
@@ -46,6 +49,7 @@ urlpatterns = [
     path('visual/logo/<slug:campo>/versiones/<uuid:version_id>/restaurar/',
          ConfiguracionVisualVersionRestaurarView.as_view(), name='configuracion_visual_version_restaurar'),
     path('parametros/', ParametrosView.as_view(), name='parametros'),
+    path('parametros/buscar-trabajadores/', BuscarTrabajadoresParametroView.as_view(), name='parametros_buscar_trabajadores'),
     path('parametros/recordatorios-fe-de-vida/', RecordatoriosFeDeVidaView.as_view(), name='recordatorios_fe_de_vida'),
     path('parametros/<str:clave>/historial/', ParametroHistorialView.as_view(), name='parametro_historial'),
     path('parametros/<str:clave>/', ParametroView.as_view(), name='parametro'),
@@ -60,12 +64,14 @@ urlpatterns = [
     path('reglas-catalogos/nominas/<int:id>/', ReglaNominaUpdateView.as_view(), name='regla_nomina_update'),
     path('reglas-catalogos/paises/', ReglaPaisCrearView.as_view(), name='regla_pais_crear'),
     path('reglas-catalogos/paises/<int:id>/', ReglaPaisDetailView.as_view(), name='regla_pais_detail'),
-    # Tipos de soporte documental y checklist por sección (O41)
+    # Tipos de soporte documental y checklist por sección (O41, FIX-DIS2)
+    path('reglas-catalogos/tipos-soporte/reordenar/', ReglaTipoSoporteReordenarView.as_view(), name='regla_tipo_soporte_reordenar'),
     path('reglas-catalogos/tipos-soporte/', ReglaTipoSoporteCrearView.as_view(), name='regla_tipo_soporte_crear'),
     path('reglas-catalogos/tipos-soporte/<int:id>/', ReglaTipoSoporteDetailView.as_view(), name='regla_tipo_soporte_detail'),
     path('reglas-catalogos/tipos-soporte/checklist/<str:seccion>/', ReglaChecklistSoporteView.as_view(), name='regla_checklist_soporte'),
     # Correo de acceso configurable y masivo (A7)
     path('correo-acceso/politica/', PoliticaCorreoAccesoView.as_view(), name='correo_acceso_politica'),
+    path('correo-acceso/vista-previa/exportar-excel/', ExportarVistaPreviaCorreoAccesoExcelView.as_view(), name='correo_acceso_vista_previa_exportar_excel'),
     path('correo-acceso/vista-previa/', VistaPreviaCorreoAccesoView.as_view(), name='correo_acceso_vista_previa'),
     path('correo-acceso/aplicar/', AplicarPoliticaCorreoAccesoView.as_view(), name='correo_acceso_aplicar'),
 ]

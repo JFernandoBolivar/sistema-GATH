@@ -1,6 +1,6 @@
-import MiExpedienteView from "@/modules/autogestion/ui/mi-expediente-view";
+import { MiCarnetView } from "@/modules/autogestion/ui/mi-carnet-view";
 
-/** Acceso directo a la pestaña «Mi carnet» de la ficha de autogestión. */
+/** Vista dedicada a «Mi Carnet» con credencial digital institucional, estado y solicitudes. */
 export default function MiCarnetPage() {
-  return <MiExpedienteView initialTab="carnet" />;
+  return <MiCarnetView />;
 }

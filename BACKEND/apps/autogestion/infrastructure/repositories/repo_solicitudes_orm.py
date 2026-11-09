@@ -21,14 +21,17 @@ from core.domain.exceptions import ConflictError
 
 
 class RepoSolicitudesORM:
-    def crear(self, solicitud: SolicitudActualizacion) -> SolicitudActualizacion:
+    def crear(
+        self, solicitud: SolicitudActualizacion, reservar: bool = True,
+    ) -> SolicitudActualizacion:
         try:
             with transaction.atomic():  # savepoint: un choque no envenena la transacción de la petición
                 modelo = SolicitudActualizacionModel.objects.create(cedula=solicitud.cedula, **campos_de_solicitud(solicitud))
-                SeccionAbiertaModel.objects.bulk_create([
-                    SeccionAbiertaModel(solicitud=modelo, cedula=solicitud.cedula, seccion=s)
-                    for s in solicitud.secciones_solicitadas
-                ])
+                if reservar:
+                    SeccionAbiertaModel.objects.bulk_create([
+                        SeccionAbiertaModel(solicitud=modelo, cedula=solicitud.cedula, seccion=s)
+                        for s in solicitud.secciones_solicitadas
+                    ])
         except IntegrityError:
             raise ConflictError(
                 "Ya existe una solicitud abierta para alguna de esas secciones. Espere su resolución."

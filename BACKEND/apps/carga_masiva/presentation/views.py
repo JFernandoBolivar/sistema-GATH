@@ -31,7 +31,7 @@ from apps.carga_masiva.infrastructure.adaptadores import (
     AnalizadorCargaORM,
     AplicadorCargaORM,
 )
-from apps.carga_masiva.infrastructure.models import CargaMasivaModel
+from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel
 from apps.carga_masiva.infrastructure.plantilla_excel import generar_plantilla
 from apps.carga_masiva.presentation.permissions import APLICAR, APROBAR, REVERTIR
 from apps.carga_masiva.presentation.serializers import (
@@ -313,4 +313,13 @@ def _resumen(carga: CargaMasivaModel) -> dict:
         'tipos': carga.tipos, 'filas_total': carga.filas_total, 'filas_validas': carga.filas_validas,
         'filas_error': carga.filas_error, 'filas_confirmacion': carga.filas_confirmacion,
         'filas_confirmadas': carga.filas_confirmadas, 'creada_en': carga.created_at,
+        # FIX-CARGA3: conteos de altas, actualizaciones y posibles duplicados
+        # que el usuario ve antes de aplicar.
+        'filas_nuevo': carga.filas.filter(estado=CargaMasivaFilaModel.Estado.NUEVO).count(),
+        'filas_actualizar': carga.filas.filter(
+            estado=CargaMasivaFilaModel.Estado.ACTUALIZAR,
+        ).count(),
+        'filas_posible_duplicado': carga.filas.filter(
+            estado=CargaMasivaFilaModel.Estado.POSIBLE_DUPLICADO,
+        ).count(),
     }

@@ -7,6 +7,18 @@ export interface OpcionParametroDTO {
   etiqueta: string;
 }
 
+export interface DependeDeDTO {
+  clave: string;
+  valor: string;
+}
+
+export interface TrabajadorParametroDTO {
+  cedula: string;
+  nombre: string;
+  tiene_cuenta: boolean;
+  cuenta_activa: boolean;
+}
+
 export interface ParametroDTO {
   clave: string;
   etiqueta: string;
@@ -21,6 +33,7 @@ export interface ParametroDTO {
   actualizadoEn: string | null;
   /** Si no está vacío, el valor se elige de esta lista (p. ej. retención). */
   opciones: OpcionParametroDTO[];
+  depende_de?: DependeDeDTO | null;
 }
 
 export interface CambioParametroDTO {
@@ -29,6 +42,9 @@ export interface CambioParametroDTO {
   valorPrevio: string;
   valorNuevo: string;
   resultado: string;
+  agregados?: string[];
+  quitados?: string[];
+  resumen_cambio?: string | null;
 }
 
 export interface PaginaCambiosDTO {

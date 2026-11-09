@@ -18,9 +18,9 @@ import {
   PLAZO_MIN_DIAS,
 } from "../../application/use-cases/gestionar-solicitud-bienestar";
 
-// Acepta la cédula real y la sintética que el servidor genera para un hijo(a) menor de 9
-// años (`<cédula del titular>-<orden>`), que se conserva al editar ese familiar.
-export const CEDULA_FAMILIAR = /^(?:[A-Za-z]?-?\d{5,9}|\d{5,9}-\d+)$/;
+// Acepta la cédula real (V-12345678 o 12345678). La cédula sintética de hijos menores
+// (<titular>-<orden>) se genera exclusivamente en el servidor y no puede escribirse a mano.
+export const CEDULA_FAMILIAR = /^[A-Za-z]?-?\d{5,9}$/;
 export const CEDULA_FAMILIAR_MSG = "Cédula inválida. Ejemplo: V-12345678";
 
 const _textoRequerido = (nombre: string, max = 150) =>
@@ -187,8 +187,6 @@ export const familiarSchema = z.object({
 export type FamiliarValores = z.infer<typeof familiarSchema>;
 
 // ── Identidad (D19/D21) ──
-export const CEDULA_EMPLEADO = /^\d{5,9}$/;
-export const CEDULA_EMPLEADO_MSG = "La cédula debe tener entre 5 y 9 dígitos";
 
 const fechaNacimientoSchema = z
   .string()
@@ -206,10 +204,7 @@ export const identidadSchema = z.object({
   nombres: nombreRequerido("Los nombres"),
   apellidos: nombreRequerido("Los apellidos"),
   fecha_nacimiento: fechaNacimientoSchema,
-  cedulaidentidad: z
-    .string({ required_error: "La cédula es obligatoria" })
-    .trim()
-    .regex(CEDULA_EMPLEADO, CEDULA_EMPLEADO_MSG),
+  // O49-BLOQUEO: la cédula del trabajador no es editable en Autogestión.
   estadoCivil_id: idCatalogoOpcional,
   carnet_patria: z
     .string()

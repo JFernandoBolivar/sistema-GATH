@@ -16,6 +16,7 @@ class ParametroSistema:
     actualizado_por_id: int | None = None
     actualizado_en: str | None = None
     opciones: tuple[tuple[int, str], ...] = ()
+    depende_de: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -25,3 +26,6 @@ class CambioParametro:
     valor_previo: str
     valor_nuevo: str
     resultado: str = 'SUCCESS'
+    agregados: tuple[str, ...] = ()
+    quitados: tuple[str, ...] = ()
+    resumen_cambio: str | None = None

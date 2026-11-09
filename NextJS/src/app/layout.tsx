@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { SessionProvider } from "next-auth/react";
 import "@fontsource-variable/source-sans-3";
 import "driver.js/dist/driver.css";
@@ -35,12 +36,20 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
+  const [session, cookieStore] = await Promise.all([auth(), cookies()]);
+  // El servidor debe renderizar la misma clase que aplica `next-themes` antes
+  // de hidratar; si no, React reporta #418 en <html>. La cookie la mantiene
+  // `SincronizarTemaCookie`.
+  const tema = cookieStore.get("gath-tema")?.value === "dark" ? "dark" : "light";
 
   return (
-    <html lang="es-VE" className="h-full w-full" suppressHydrationWarning>
+    <html
+      lang="es-VE"
+      className={`h-full w-full ${tema}`}
+      suppressHydrationWarning
+    >
       <body className="h-dvh overflow-hidden bg-background text-foreground antialiased">
-        <TemaProvider>
+        <TemaProvider temaInicial={tema}>
           <SessionProvider session={session}>
             <AuthController />
             <PwaRegister />

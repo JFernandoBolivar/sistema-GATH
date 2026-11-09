@@ -14,6 +14,7 @@ describe("itemsVisibles", () => {
     expect(ids(permisos, "ACTIVO")).toEqual([
       "inicio",
       "ficha",
+      "mi-carnet",
       "solicitar",
       "solicitudes",
       "censo",
@@ -26,9 +27,27 @@ describe("itemsVisibles", () => {
       "autogestion.censo_ver_propio",
     ];
     // O12: las solicitudes ya no dependen de la condición, sino de la configuración.
-    expect(ids(permisos, "PASIVO")).toEqual(["inicio", "ficha", "solicitar", "solicitudes"]);
-    expect(ids(permisos, "SIN_ASIGNACION")).toEqual(["inicio", "ficha", "solicitar", "solicitudes"]);
-    expect(ids(permisos, null)).toEqual(["inicio", "ficha", "solicitar", "solicitudes"]);
+    expect(ids(permisos, "PASIVO")).toEqual([
+      "inicio",
+      "ficha",
+      "mi-carnet",
+      "solicitar",
+      "solicitudes",
+    ]);
+    expect(ids(permisos, "SIN_ASIGNACION")).toEqual([
+      "inicio",
+      "ficha",
+      "mi-carnet",
+      "solicitar",
+      "solicitudes",
+    ]);
+    expect(ids(permisos, null)).toEqual([
+      "inicio",
+      "ficha",
+      "mi-carnet",
+      "solicitar",
+      "solicitudes",
+    ]);
   });
 
   it("con la configuración apagada se ocultan solicitar y mis solicitudes", () => {
@@ -36,7 +55,7 @@ describe("itemsVisibles", () => {
     const visibles = itemsVisibles(permisos, "PASIVO", { autogestionHabilitada: false }).map(
       (i) => i.id,
     );
-    expect(visibles).toEqual(["inicio", "ficha"]);
+    expect(visibles).toEqual(["inicio", "ficha", "mi-carnet"]);
   });
   it("sin permisos solo queda Inicio y no se usa el nombre del rol", () => {
     expect(ids([], "ACTIVO")).toEqual(["inicio"]);
@@ -53,6 +72,21 @@ describe("itemsVisibles", () => {
     expect(ids(["notificaciones.ver_propias"], null)).toEqual(["inicio", "notificaciones"]);
     expect(ids(["autogestion.ver_propio"], "ACTIVO")).not.toContain("notificaciones");
     expect(ids(["notificaciones.*"], null)).toContain("notificaciones");
+  });
+});
+
+describe("acceso a Mi carnet (D3/FIX-O46)", () => {
+  const permisos = ["autogestion.ver_propio"];
+
+  it("oculta el ítem cuando el backend no habilita el carnet", () => {
+    const visibles = itemsVisibles(permisos, "ACTIVO", { miCarnetHabilitado: false });
+    expect(visibles.map((i) => i.id)).not.toContain("mi-carnet");
+    expect(visibles.map((i) => i.id)).toContain("ficha");
+  });
+
+  it("lo muestra cuando el backend lo habilita", () => {
+    const visibles = itemsVisibles(permisos, "ACTIVO", { miCarnetHabilitado: true });
+    expect(visibles.map((i) => i.id)).toContain("mi-carnet");
   });
 });
 

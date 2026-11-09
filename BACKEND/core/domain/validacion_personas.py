@@ -97,3 +97,20 @@ def formatear_telefono(valor: str | None) -> str:
     if not phonenumbers.is_valid_number(numero):
         return texto
     return phonenumbers.format_number(numero, phonenumbers.PhoneNumberFormat.INTERNATIONAL).replace('-', ' ')
+
+
+MAX_LONGITUD_CIUDAD_REGION = 120
+
+
+def normalizar_ciudad_region(valor: str | None) -> str:
+    """
+    Normaliza el texto de ciudad o región para residencia en el exterior:
+    - Elimina espacios exteriores y colapsa secuencias de espacios a uno solo.
+    - Convierte a MAYÚSCULAS.
+    - Trunca a MAX_LONGITUD_CIUDAD_REGION (120 caracteres).
+    """
+    if not valor:
+        return ""
+    colapsado = " ".join(str(valor).split())
+    return colapsado.upper()[:MAX_LONGITUD_CIUDAD_REGION]
+

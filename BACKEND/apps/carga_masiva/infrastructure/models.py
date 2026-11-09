@@ -56,6 +56,9 @@ class CargaMasivaFilaModel(BaseModel):
         SIN_CAMBIOS = 'SIN_CAMBIOS'
         ADVERTENCIA = 'ADVERTENCIA'
         REQUIERE_CONFIRMACION = 'REQUIERE_CONFIRMACION'
+        # FIX-CARGA3: alta que coincide con otra persona (mismos nombres,
+        # apellidos y nacimiento, otra cédula). Solo se aplica confirmada.
+        POSIBLE_DUPLICADO = 'POSIBLE_DUPLICADO'
         ERROR = 'ERROR'
 
     carga = models.ForeignKey(CargaMasivaModel, on_delete=models.CASCADE, related_name='filas')

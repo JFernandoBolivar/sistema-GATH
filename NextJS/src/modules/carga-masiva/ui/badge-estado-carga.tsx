@@ -87,6 +87,12 @@ export function BadgeEstadoFila({ estado }: PropsEstadoFila) {
           Requiere confirmación
         </Badge>
       );
+    case "POSIBLE_DUPLICADO":
+      return (
+        <Badge variant="outline" className="border-orange-500 text-orange-700 dark:text-orange-300 bg-orange-100/70 dark:bg-orange-950/40 text-xs font-semibold">
+          Posible duplicado
+        </Badge>
+      );
     case "ERROR":
       return (
         <Badge variant="destructive" className="text-xs">

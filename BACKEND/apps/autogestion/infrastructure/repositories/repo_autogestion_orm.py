@@ -25,6 +25,7 @@ from apps.autogestion.infrastructure.services.censo_report_service import (
     construir_grafico_barras,
 )
 from apps.autogestion.infrastructure.services.excel_service import generar_excel_censo
+from core.domain.validacion_personas import normalizar_ciudad_region
 
 
 class RepoAutogestionORM:
@@ -318,7 +319,7 @@ class RepoAutogestionORM:
             if 'pais_id' in datos_vivienda:
                 vivienda_defaults['pais_id'] = datos_vivienda.get('pais_id')
             if 'ciudad_region' in datos_vivienda:
-                vivienda_defaults['ciudad_region'] = datos_vivienda.get('ciudad_region') or ''
+                vivienda_defaults['ciudad_region'] = normalizar_ciudad_region(datos_vivienda.get('ciudad_region'))
             if 'estado_id' in datos_vivienda:
                 vivienda_defaults['estado_id'] = datos_vivienda.get('estado_id')
             if 'municipio_id' in datos_vivienda:

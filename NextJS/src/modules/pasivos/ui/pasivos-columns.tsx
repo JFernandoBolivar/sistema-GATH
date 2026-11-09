@@ -105,6 +105,22 @@ export function construirColumnasPasivos(acciones: AccionesPasivo): ColumnDef<Pa
       cell: ({ getValue }) => <Badge variant="secondary">{getValue() as string}</Badge>,
     },
     {
+      accessorKey: "motivoEgreso",
+      header: "Tipo de jubilación / pensión",
+      cell: ({ getValue, row }) => (
+        <span className="font-medium text-xs">
+          {(getValue() as string | null) || row.original.tipoPasivo || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "fechaEgreso",
+      header: "F. Vigencia",
+      cell: ({ getValue }) => (
+        <span className="whitespace-nowrap">{formatearFecha(getValue() as string | null, "—")}</span>
+      ),
+    },
+    {
       id: "actions",
       header: "Acciones",
       cell: ({ row }) => <AccionesCell pasivo={row.original} acciones={acciones} />,

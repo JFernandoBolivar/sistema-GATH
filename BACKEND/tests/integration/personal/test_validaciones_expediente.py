@@ -153,7 +153,8 @@ def test_vivienda_condicional_por_pais():
     })
     assert exterior.is_valid(), exterior.errors
     assert exterior.validated_data['estado'] is None
-    assert exterior.validated_data['ciudad_region'] == 'Santiago de Chile'
+    # P11: ciudad o región se normaliza a mayúsculas y se acota a 120.
+    assert exterior.validated_data['ciudad_region'] == 'SANTIAGO DE CHILE'
 
     exterior_sin_ciudad = DatosViviendaEscrituraSerializer(data={
         **base, 'pais': extranjero.pk,

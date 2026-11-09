@@ -128,22 +128,25 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
       <span role="status" aria-live="polite" className="sr-only">
         {textoConteo(noLeidas)}
       </span>
-      <PopoverContent align="end" className="w-[min(24rem,calc(100vw-1.5rem))] p-3">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold">Notificaciones</h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="min-h-11"
-              disabled={pendiente || noLeidas === 0}
-              onClick={marcarTodas}
-            >
-              <CheckCheck aria-hidden /> Marcar todas como leídas
-            </Button>
-          </div>
+      <PopoverContent
+        align="end"
+        className="flex max-h-[min(70dvh,560px)] w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-hidden border bg-popover p-0 text-popover-foreground shadow-lg"
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-popover p-3 pb-2.5">
+          <h2 className="text-base font-bold sm:text-lg">Notificaciones</h2>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-9 min-h-9 px-2 text-xs sm:text-sm"
+            disabled={pendiente || noLeidas === 0}
+            onClick={marcarTodas}
+          >
+            <CheckCheck aria-hidden className="size-4" /> Marcar todas como leídas
+          </Button>
+        </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:p-3">
           {isLoading ? (
             <VistaCargando mensaje="Cargando notificaciones…" className="p-4" />
           ) : error ? (
@@ -154,24 +157,24 @@ function CampanaActiva({ variante = "clara", className, modulo, rutaBandeja }: P
           ) : !recientes?.length ? (
             <VistaVacia titulo="No tiene notificaciones sin leer" className="p-4" />
           ) : (
-            <ScrollArea className="max-h-[60svh]">
-              <ul className="flex flex-col gap-2 p-1">
-                {recientes.map((n) => (
-                  <NotificacionItem
-                    key={n.id}
-                    notificacion={n}
-                    compacta
-                    deshabilitado={pendiente}
-                    onMarcarLeida={marcarLeida}
-                    onNavegar={() => setAbierto(false)}
-                    puedeAbrirEnlace={puedeAbrirEnlace}
-                  />
-                ))}
-              </ul>
-            </ScrollArea>
+            <ul className="flex flex-col gap-2">
+              {recientes.map((n) => (
+                <NotificacionItem
+                  key={n.id}
+                  notificacion={n}
+                  compacta
+                  deshabilitado={pendiente}
+                  onMarcarLeida={marcarLeida}
+                  onNavegar={() => setAbierto(false)}
+                  puedeAbrirEnlace={puedeAbrirEnlace}
+                />
+              ))}
+            </ul>
           )}
+        </div>
 
-          <Button asChild variant="outline" className="min-h-11">
+        <div className="shrink-0 border-t border-border bg-card p-2 sm:p-3">
+          <Button asChild variant="outline" className="h-10 min-h-10 w-full text-sm">
             <Link href={rutaBandeja} onClick={() => setAbierto(false)}>
               Ver todas
             </Link>

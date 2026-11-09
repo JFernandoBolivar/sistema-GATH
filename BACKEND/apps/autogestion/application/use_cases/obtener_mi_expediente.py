@@ -26,7 +26,7 @@ class MiExpedienteDTO:
 
     @property
     def carnet_activo(self):
-        return next((c for c in self.carnets if getattr(c, 'activo', False)), (self.carnets[0] if self.carnets else None))
+        return next((c for c in self.carnets if getattr(c, 'activo', False)), None)
 
 
 def _cedula_limpia(cedula: str) -> str:

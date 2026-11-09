@@ -13,7 +13,26 @@ import { useMemo, useState, useTransition } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { AlertTriangle, Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, GripVertical, Info, Lock, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import PageLayout from "@/components/layout/page-layout";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +112,7 @@ import {
   eliminarParentescoAction,
   eliminarTipoSoporteAction,
   obtenerReglasCatalogosAction,
+  reordenarTiposSoporteAction,
 } from "../infrastructure/actions/reglas-catalogos-actions";
 import { ChecklistSoporteSeccion } from "./checklist-soporte-seccion";
 import { PERMISO_CONFIGURACION } from "../domain/value-objects/permisos-configuracion";
@@ -104,6 +124,167 @@ const PERMISO_CATALOGOS_CREAR = "catalogos.crear";
 
 function esError(resultado: unknown): resultado is { error: string; errores?: Record<string, string[]> } {
   return typeof resultado === "object" && resultado !== null && "error" in resultado;
+}
+
+/** FIX-FAM2: campos de la regla del parentesco en el formulario (números como texto). */
+type ReglaParentescoForm = {
+  esHijo: boolean;
+  menorACargo: boolean;
+  sinCedulaHastaEdad: string;
+  edadMinima: string;
+  diferenciaMinima: string;
+  diferenciaTipo: "NINGUNA" | "MENOR" | "MAYOR";
+  sexoPermitido: "" | "M" | "F";
+  soporteSugerido: string;
+  activo: boolean;
+};
+
+function reglaFormDe(p?: ReglaParentescoDTO | null): ReglaParentescoForm {
+  return {
+    esHijo: p?.es_hijo ?? false,
+    menorACargo: p?.menor_a_cargo ?? false,
+    sinCedulaHastaEdad: p?.sin_cedula_hasta_edad != null ? String(p.sin_cedula_hasta_edad) : "",
+    edadMinima: p?.edad_minima != null ? String(p.edad_minima) : "",
+    diferenciaMinima: p?.diferencia_minima != null ? String(p.diferencia_minima) : "",
+    diferenciaTipo: p?.diferencia_tipo ?? "NINGUNA",
+    sexoPermitido: p?.sexo_permitido ?? "",
+    soporteSugerido: p?.soporte_sugerido ?? "",
+    activo: p?.activo ?? true,
+  };
+}
+
+function numeroDeTexto(valor: string): number | null {
+  const limpio = valor.trim();
+  if (!limpio) return null;
+  const numero = Number(limpio);
+  return Number.isFinite(numero) ? numero : null;
+}
+
+function reglaPayload(f: ReglaParentescoForm) {
+  return {
+    es_hijo: f.esHijo,
+    menor_a_cargo: f.menorACargo,
+    sin_cedula_hasta_edad: f.esHijo || f.menorACargo ? numeroDeTexto(f.sinCedulaHastaEdad) : null,
+    edad_minima: numeroDeTexto(f.edadMinima),
+    diferencia_minima: f.diferenciaTipo === "NINGUNA" ? null : numeroDeTexto(f.diferenciaMinima),
+    diferencia_tipo: f.diferenciaTipo,
+    sexo_permitido: f.sexoPermitido,
+    soporte_sugerido: f.soporteSugerido.trim(),
+    activo: f.activo,
+  };
+}
+
+function resumenReglas(p: ReglaParentescoDTO): string[] {
+  const items: string[] = [];
+  if (p.es_hijo) items.push("Hijo");
+  if (p.menor_a_cargo) items.push("Menor a cargo");
+  if (p.sin_cedula_hasta_edad != null) items.push(`Sin cédula < ${p.sin_cedula_hasta_edad}`);
+  if (p.edad_minima != null) items.push(`Edad ≥ ${p.edad_minima}`);
+  if (p.diferencia_minima != null && p.diferencia_tipo !== "NINGUNA") {
+    items.push(`Dif. ≥ ${p.diferencia_minima} ${p.diferencia_tipo === "MENOR" ? "menor" : "mayor"}`);
+  }
+  if (p.sexo_permitido) items.push(`Sexo ${p.sexo_permitido}`);
+  return items;
+}
+
+interface FilaTipoSoporteSortableProps {
+  tipo: ReglaTipoSoporteDTO;
+  posicion: number;
+  puedeEditar: boolean;
+  isPending: boolean;
+  onEditar: () => void;
+  onEliminar: () => void;
+}
+
+function FilaTipoSoporteSortable({
+  tipo,
+  posicion,
+  puedeEditar,
+  isPending,
+  onEditar,
+  onEliminar,
+}: FilaTipoSoporteSortableProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: tipo.id, disabled: !puedeEditar || isPending });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.6 : undefined,
+  };
+
+  const protegido = tipo.es_reservado || tipo.es_protegido;
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className={isDragging ? "bg-muted/50" : undefined}
+    >
+      <TableCell className="w-[180px]">
+        <div className="flex items-center gap-2">
+          {puedeEditar ? (
+            <button
+              type="button"
+              className="cursor-grab active:cursor-grabbing p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground touch-none focus:outline-none focus:ring-2 focus:ring-ring"
+              aria-label={`Reordenar ${tipo.nombre}. Posición actual ${posicion}. Pulse espacio o enter para arrastrar con flechas.`}
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="size-4" aria-hidden="true" />
+            </button>
+          ) : null}
+          <span className="text-xs font-mono text-muted-foreground font-semibold">
+            #{posicion}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="font-mono text-xs">{tipo.codigo}</TableCell>
+      <TableCell className="font-medium">{tipo.nombre}</TableCell>
+      <TableCell>
+        {protegido ? (
+          <Badge variant="secondary" className="text-xs">
+            <Lock className="mr-1 size-3" aria-hidden /> Reservado
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Configurable
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Editar ${tipo.nombre}`}
+            disabled={!puedeEditar || isPending}
+            onClick={onEditar}
+          >
+            <Pencil className="size-4" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Eliminar ${tipo.nombre}`}
+            disabled={!puedeEditar || isPending || protegido}
+            onClick={onEliminar}
+          >
+            <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function ConfiguracionReglasCatalogosPage() {
@@ -161,6 +342,7 @@ export function ConfiguracionReglasCatalogosPage() {
     parentesco: ReglaParentescoDTO | null;
     descripcion: string;
     aplicaFamiliar: boolean;
+    regla: ReglaParentescoForm;
   } | null>(null);
   const [errorDialogoParentesco, setErrorDialogoParentesco] = useState<string | null>(null);
   const [eliminarParentesco, setEliminarParentesco] = useState<ReglaParentescoDTO | null>(null);
@@ -173,6 +355,11 @@ export function ConfiguracionReglasCatalogosPage() {
   } | null>(null);
   const [errorDialogoPais, setErrorDialogoPais] = useState<string | null>(null);
   const [eliminarPais, setEliminarPais] = useState<ReglaPaisDTO | null>(null);
+
+  // Paginación y búsqueda para catálogo de Países
+  const [busquedaPais, setBusquedaPais] = useState("");
+  const [paginaPais, setPaginaPais] = useState(1);
+  const [tamanoPaginaPais, setTamanoPaginaPais] = useState<10 | 25 | 50>(10);
 
   const [dialogoNomina, setDialogoNomina] = useState<{
     modo: "crear" | "editar";
@@ -194,6 +381,26 @@ export function ConfiguracionReglasCatalogosPage() {
   } | null>(null);
   const [errorDialogoTipoSoporte, setErrorDialogoTipoSoporte] = useState<string | null>(null);
   const [eliminarTipoSoporte, setEliminarTipoSoporte] = useState<ReglaTipoSoporteDTO | null>(null);
+  // FIX-DIS3/CORTE-1: el orden local solo guarda los ids; la lista se deriva
+  // de los datos del servidor para no actualizar estado dentro de un efecto.
+  const [ordenTiposLocal, setOrdenTiposLocal] = useState<number[] | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const { data, isLoading, mutate } = useSWR(
     puedeVer ? "configuracion-reglas-catalogos" : null,
@@ -204,6 +411,26 @@ export function ConfiguracionReglasCatalogosPage() {
     },
   );
 
+  // FIX-DIS3/CORTE-1: el orden local solo guarda los ids; la lista se deriva
+  // de los datos del servidor para no actualizar estado dentro de un efecto.
+  const tiposSoporteOrdenados = useMemo(() => {
+    const base = data?.tipos_soporte ?? [];
+    if (!ordenTiposLocal) return base;
+    const porId = new Map(base.map((tipo) => [tipo.id, tipo]));
+    const vistos = new Set<number>();
+    const ordenados: ReglaTipoSoporteDTO[] = [];
+    for (const id of ordenTiposLocal) {
+      const tipo = porId.get(id);
+      if (!tipo) continue;
+      ordenados.push(tipo);
+      vistos.add(id);
+    }
+    for (const tipo of base) {
+      if (!vistos.has(tipo.id)) ordenados.push(tipo);
+    }
+    return ordenados;
+  }, [data?.tipos_soporte, ordenTiposLocal]);
+
   // Agrupar motivos por categoría
   const motivosPorCategoria = useMemo(() => {
     if (!data?.motivos || !data?.categorias_motivo) return [];
@@ -212,6 +439,30 @@ export function ConfiguracionReglasCatalogosPage() {
       motivos: data.motivos.filter((m) => m.categoria_id === cat.id),
     }));
   }, [data]);
+
+  // Filtrado y paginación para Países
+  const paisesFiltrados = useMemo(() => {
+    const todos = data?.paises ?? [];
+    const q = busquedaPais.trim().toLowerCase();
+    const filtrados = q
+      ? todos.filter(
+          (p) =>
+            p.nombre.toLowerCase().includes(q) ||
+            p.codigo.toLowerCase().includes(q),
+        )
+      : todos;
+    return [...filtrados].sort((a, b) => {
+      if (a.es_venezuela && !b.es_venezuela) return -1;
+      if (!a.es_venezuela && b.es_venezuela) return 1;
+      return a.nombre.localeCompare(b.nombre, "es");
+    });
+  }, [data?.paises, busquedaPais]);
+
+  const totalPaginasPais = Math.max(1, Math.ceil(paisesFiltrados.length / tamanoPaginaPais));
+  const paisesPaginados = useMemo(() => {
+    const inicio = (paginaPais - 1) * tamanoPaginaPais;
+    return paisesFiltrados.slice(inicio, inicio + tamanoPaginaPais);
+  }, [paisesFiltrados, paginaPais, tamanoPaginaPais]);
 
   // Manejadores de acciones
   const handleGuardarParentesco = () => {
@@ -348,14 +599,18 @@ export function ConfiguracionReglasCatalogosPage() {
       return;
     }
     setErrorDialogoParentesco(null);
-    const { modo, parentesco, aplicaFamiliar } = dialogoParentesco;
+    const { modo, parentesco, aplicaFamiliar, regla } = dialogoParentesco;
+    const reglaDatos = reglaPayload(regla);
     startTransition(async () => {
       const res =
         modo === "crear"
-          ? await crearParentescoAction(nombre, aplicaFamiliar)
+          ? await crearParentescoAction(nombre, aplicaFamiliar, reglaDatos)
           : await editarParentescoAction(parentesco?.id ?? 0, {
-              descripcion: nombre,
+              ...(parentesco?.descripcion.trim().toUpperCase() === "HIJO (A)"
+                ? {}
+                : { descripcion: nombre }),
               aplica_familiar: aplicaFamiliar,
+              ...reglaDatos,
             });
       if (esError(res)) {
         setErrorDialogoParentesco(res.error);
@@ -365,6 +620,12 @@ export function ConfiguracionReglasCatalogosPage() {
       setDialogoParentesco(null);
       mutate();
     });
+  };
+
+  const actualizarReglaParentesco = (cambios: Partial<ReglaParentescoForm>) => {
+    setDialogoParentesco((previo) =>
+      previo ? { ...previo, regla: { ...previo.regla, ...cambios } } : previo,
+    );
   };
 
   const handleEliminarParentesco = () => {
@@ -469,11 +730,38 @@ export function ConfiguracionReglasCatalogosPage() {
     });
   };
 
+  const handleDragEndTiposSoporte = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = tiposSoporteOrdenados.findIndex((t) => t.id === active.id);
+    const newIndex = tiposSoporteOrdenados.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const nuevaLista = arrayMove(tiposSoporteOrdenados, oldIndex, newIndex);
+    setOrdenTiposLocal(nuevaLista.map((item) => item.id));
+
+    startTransition(async () => {
+      const ordenes = nuevaLista.map((item, idx) => ({ id: item.id, orden: idx + 1 }));
+      const res = await reordenarTiposSoporteAction(ordenes);
+      if (esError(res)) {
+        setOrdenTiposLocal(null);
+        toast.error(res.error);
+        mutate();
+      } else {
+        toast.success("Posición en la lista actualizada.");
+        mutate();
+      }
+    });
+  };
+
   const handleGuardarDialogoTipoSoporte = () => {
     if (!dialogoTipoSoporte) return;
     const codigo = dialogoTipoSoporte.codigo.trim().toUpperCase();
     const nombre = dialogoTipoSoporte.nombre.trim();
-    const orden = Number.parseInt(dialogoTipoSoporte.orden || "0", 10) || 0;
+    const { modo, tipo } = dialogoTipoSoporte;
+    const orden = modo === "crear"
+      ? (data?.tipos_soporte.length ?? 0) + 1
+      : (tipo?.orden ?? 0);
     if (!/^[A-Z0-9_]{2,40}$/.test(codigo)) {
       setErrorDialogoTipoSoporte(
         "El código debe tener entre 2 y 40 letras, números o guion bajo.",
@@ -485,7 +773,6 @@ export function ConfiguracionReglasCatalogosPage() {
       return;
     }
     setErrorDialogoTipoSoporte(null);
-    const { modo, tipo } = dialogoTipoSoporte;
     startTransition(async () => {
       const res =
         modo === "crear"
@@ -612,6 +899,7 @@ export function ConfiguracionReglasCatalogosPage() {
                       parentesco: null,
                       descripcion: "",
                       aplicaFamiliar: true,
+                      regla: reglaFormDe(null),
                     });
                   }}
                 >
@@ -631,11 +919,11 @@ export function ConfiguracionReglasCatalogosPage() {
                   <Table className="min-w-[560px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[100px]">ID</TableHead>
                         <TableHead>Descripción del Parentesco</TableHead>
-                        <TableHead className="text-center w-[220px]">
+                        <TableHead className="text-center w-[180px]">
                           Permitido para Familiares
                         </TableHead>
+                        <TableHead className="w-[320px]">Reglas configuradas</TableHead>
                         <TableHead className="text-right w-[120px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -644,7 +932,6 @@ export function ConfiguracionReglasCatalogosPage() {
                         const reservado = p.descripcion.trim().toUpperCase() === "HIJO (A)";
                         return (
                           <TableRow key={p.id}>
-                            <TableCell className="font-mono text-xs">{p.id}</TableCell>
                             <TableCell className="font-medium">
                               <span className="inline-flex items-center gap-2">
                                 {p.descripcion}
@@ -672,6 +959,33 @@ export function ConfiguracionReglasCatalogosPage() {
                                 </span>
                               </div>
                             </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap items-center gap-1">
+                                {p.activo ? null : (
+                                  <Badge variant="outline" className="border-rose-400 text-rose-700 dark:text-rose-300 text-[10px]">
+                                    Inactivo
+                                  </Badge>
+                                )}
+                                {resumenReglas(p).length === 0 ? (
+                                  <span className="text-xs text-muted-foreground">Sin reglas</span>
+                                ) : (
+                                  resumenReglas(p).map((texto) => (
+                                    <Badge key={texto} variant="secondary" className="text-[10px] font-normal">
+                                      {texto}
+                                    </Badge>
+                                  ))
+                                )}
+                                {p.soporte_sugerido ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-normal"
+                                    title={`Soporte sugerido: ${p.soporte_sugerido}`}
+                                  >
+                                    Soporte: {p.soporte_sugerido}
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <Button
@@ -679,7 +993,7 @@ export function ConfiguracionReglasCatalogosPage() {
                                   variant="ghost"
                                   size="icon"
                                   aria-label={`Editar ${p.descripcion}`}
-                                  disabled={!puedeEditar || isPending || reservado}
+                                  disabled={!puedeEditar || isPending}
                                   onClick={() => {
                                     setErrorDialogoParentesco(null);
                                     setDialogoParentesco({
@@ -687,6 +1001,7 @@ export function ConfiguracionReglasCatalogosPage() {
                                       parentesco: p,
                                       descripcion: p.descripcion,
                                       aplicaFamiliar: p.aplica_familiar,
+                                      regla: reglaFormDe(p),
                                     });
                                   }}
                                 >
@@ -766,7 +1081,6 @@ export function ConfiguracionReglasCatalogosPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[70px]">ID</TableHead>
                             <TableHead>Nombre del Motivo</TableHead>
                             <TableHead className="w-[180px]">Tipo / Restricción</TableHead>
                             <TableHead className="w-[200px]">Categoría Asignada</TableHead>
@@ -777,14 +1091,13 @@ export function ConfiguracionReglasCatalogosPage() {
                         <TableBody>
                           {grupo.motivos.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-xs text-muted-foreground py-4">
+                              <TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4">
                                 Sin motivos asignados a esta categoría.
                               </TableCell>
                             </TableRow>
                           ) : (
                             grupo.motivos.map((m) => (
                               <TableRow key={m.id} className={m.activo === false ? "opacity-60 bg-muted/10" : undefined}>
-                                <TableCell className="font-mono text-xs">{m.id}</TableCell>
                                 <TableCell className="font-medium flex items-center gap-2">
                                   <span>{m.movimiento}</span>
                                   {m.es_reservado && (
@@ -947,7 +1260,6 @@ export function ConfiguracionReglasCatalogosPage() {
                   <Table className="min-w-[720px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[80px]">ID</TableHead>
                         <TableHead>Nombre de Nómina</TableHead>
                         <TableHead className="text-center w-[180px]">Nómina Activa</TableHead>
                         <TableHead className="text-center w-[180px]">Requiere Código</TableHead>
@@ -959,7 +1271,6 @@ export function ConfiguracionReglasCatalogosPage() {
                         const reservada = n.es_reservada;
                         return (
                           <TableRow key={n.id}>
-                            <TableCell className="font-mono text-xs">{n.id}</TableCell>
                             <TableCell className="font-medium">
                               <span className="inline-flex items-center gap-2">
                                 {n.nomina}
@@ -1080,7 +1391,65 @@ export function ConfiguracionReglasCatalogosPage() {
                 </Button>
               )}
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Barra de búsqueda y controles de paginación */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" aria-hidden="true" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar país o código…"
+                    value={busquedaPais}
+                    onChange={(e) => {
+                      setBusquedaPais(e.target.value);
+                      setPaginaPais(1);
+                    }}
+                    className="pl-9 pr-8 h-9"
+                    aria-label="Buscar país por nombre o código"
+                  />
+                  {busquedaPais ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBusquedaPais("");
+                        setPaginaPais(1);
+                      }}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-auto text-sm">
+                  <span className="text-muted-foreground whitespace-nowrap">Mostrar:</span>
+                  <Select
+                    value={String(tamanoPaginaPais)}
+                    onValueChange={(val) => {
+                      setTamanoPaginaPais(Number(val) as 10 | 25 | 50);
+                      setPaginaPais(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[70px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground whitespace-nowrap">
+                    {paisesFiltrados.length === 0
+                      ? "0 países"
+                      : `${(paginaPais - 1) * tamanoPaginaPais + 1} - ${Math.min(
+                          paginaPais * tamanoPaginaPais,
+                          paisesFiltrados.length,
+                        )} de ${paisesFiltrados.length}`}
+                  </span>
+                </div>
+              </div>
+
               {isLoading ? (
                 <div className="space-y-3">
                   <Skeleton className="h-8 w-full" />
@@ -1088,80 +1457,121 @@ export function ConfiguracionReglasCatalogosPage() {
                   <Skeleton className="h-8 w-full" />
                 </div>
               ) : (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table className="min-w-[560px]">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[80px]">ID</TableHead>
-                        <TableHead>País</TableHead>
-                        <TableHead className="w-[120px]">Código</TableHead>
-                        <TableHead className="w-[160px]">Condición</TableHead>
-                        <TableHead className="text-right w-[120px]">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(data?.paises ?? []).map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-mono text-xs">{p.id}</TableCell>
-                          <TableCell className="font-medium">
-                            <span className="inline-flex items-center gap-2">
-                              {p.nombre}
-                              {p.es_venezuela && (
-                                <span title="País por defecto del sistema">
-                                  <Lock className="size-3.5 text-amber-500" aria-hidden="true" />
-                                </span>
-                              )}
-                            </span>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{p.codigo}</TableCell>
-                          <TableCell>
-                            {p.es_venezuela ? (
-                              <Badge variant="secondary" className="text-xs">
-                                Por defecto
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs text-muted-foreground">
-                                Otro país
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Editar ${p.nombre}`}
-                                disabled={!puedeEditar || isPending}
-                                onClick={() => {
-                                  setErrorDialogoPais(null);
-                                  setDialogoPais({
-                                    modo: "editar",
-                                    pais: p,
-                                    nombre: p.nombre,
-                                    codigo: p.codigo,
-                                  });
-                                }}
-                              >
-                                <Pencil className="size-4" aria-hidden="true" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                aria-label={`Eliminar ${p.nombre}`}
-                                disabled={!puedeEditar || isPending || p.es_venezuela}
-                                onClick={() => setEliminarPais(p)}
-                              >
-                                <Trash2 className="size-4 text-destructive" aria-hidden="true" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                <>
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table className="min-w-[560px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>País</TableHead>
+                          <TableHead className="w-[120px]">Código</TableHead>
+                          <TableHead className="w-[160px]">Condición</TableHead>
+                          <TableHead className="text-right w-[120px]">Acciones</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {paisesPaginados.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                              {busquedaPais
+                                ? `No se encontraron países que coincidan con «${busquedaPais}».`
+                                : "No hay países registrados."}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          paisesPaginados.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell className="font-medium">
+                                <span className="inline-flex items-center gap-2">
+                                  {p.nombre}
+                                  {p.es_venezuela && (
+                                    <span title="País por defecto del sistema">
+                                      <Lock className="size-3.5 text-amber-500" aria-hidden="true" />
+                                    </span>
+                                  )}
+                                </span>
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">{p.codigo}</TableCell>
+                              <TableCell>
+                                {p.es_venezuela ? (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Por defecto
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs text-muted-foreground">
+                                    Otro país
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Editar ${p.nombre}`}
+                                    disabled={!puedeEditar || isPending}
+                                    onClick={() => {
+                                      setErrorDialogoPais(null);
+                                      setDialogoPais({
+                                        modo: "editar",
+                                        pais: p,
+                                        nombre: p.nombre,
+                                        codigo: p.codigo,
+                                      });
+                                    }}
+                                  >
+                                    <Pencil className="size-4" aria-hidden="true" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Eliminar ${p.nombre}`}
+                                    disabled={!puedeEditar || isPending || p.es_venezuela}
+                                    onClick={() => setEliminarPais(p)}
+                                  >
+                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Paginación */}
+                  {totalPaginasPais > 1 && (
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        Página {paginaPais} de {totalPaginasPais}
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={paginaPais <= 1}
+                          onClick={() => setPaginaPais((p) => Math.max(1, p - 1))}
+                          className="h-8 px-2.5"
+                        >
+                          <ChevronLeft className="size-4 mr-1" /> Anterior
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={paginaPais >= totalPaginasPais}
+                          onClick={() => setPaginaPais((p) => Math.min(totalPaginasPais, p + 1))}
+                          className="h-8 px-2.5"
+                        >
+                          Siguiente <ChevronRight className="size-4 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
@@ -1208,83 +1618,69 @@ export function ConfiguracionReglasCatalogosPage() {
                 </div>
               ) : (
                 <div className="rounded-md border overflow-x-auto">
-                  <Table className="min-w-[720px]">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[70px]">ID</TableHead>
-                        <TableHead className="w-[190px]">Código</TableHead>
-                        <TableHead>Nombre</TableHead>
-                        <TableHead className="w-[170px]">Protección</TableHead>
-                        <TableHead className="w-[90px]">Orden</TableHead>
-                        <TableHead className="text-right w-[120px]">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(data?.tipos_soporte ?? []).length === 0 ? (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEndTiposSoporte}
+                  >
+                    <Table className="min-w-[720px]">
+                      <TableHeader>
                         <TableRow>
-                          <TableCell colSpan={6} className="py-4 text-center text-xs text-muted-foreground">
-                            No hay tipos de documento configurados.
-                          </TableCell>
+                          <TableHead className="w-[180px]">
+                            <div className="flex items-center gap-1.5">
+                              <span>Posición en la lista</span>
+                              <span
+                                className="inline-flex cursor-help text-muted-foreground hover:text-foreground"
+                                title="Define en qué posición aparece en las listas; el número más bajo va primero."
+                                aria-label="Ayuda: Define en qué posición aparece en las listas; el número más bajo va primero."
+                              >
+                                <Info className="size-3.5" aria-hidden="true" />
+                              </span>
+                            </div>
+                          </TableHead>
+                          <TableHead className="w-[190px]">Código</TableHead>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead className="w-[170px]">Protección</TableHead>
+                          <TableHead className="text-right w-[120px]">Acciones</TableHead>
                         </TableRow>
-                      ) : (
-                        data?.tipos_soporte.map((tipo) => {
-                          const protegido = tipo.es_reservado || tipo.es_protegido;
-                          return (
-                            <TableRow key={tipo.id}>
-                              <TableCell className="font-mono text-xs">{tipo.id}</TableCell>
-                              <TableCell className="font-mono text-xs">{tipo.codigo}</TableCell>
-                              <TableCell className="font-medium">{tipo.nombre}</TableCell>
-                              <TableCell>
-                                {protegido ? (
-                                  <Badge variant="secondary" className="text-xs">
-                                    <Lock className="mr-1 size-3" aria-hidden /> Reservado
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-xs text-muted-foreground">
-                                    Configurable
-                                  </Badge>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">{tipo.orden}</TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={`Editar ${tipo.nombre}`}
-                                    disabled={!puedeEditar || isPending}
-                                    onClick={() => {
-                                      setErrorDialogoTipoSoporte(null);
-                                      setDialogoTipoSoporte({
-                                        modo: "editar",
-                                        tipo,
-                                        codigo: tipo.codigo,
-                                        nombre: tipo.nombre,
-                                        orden: String(tipo.orden),
-                                      });
-                                    }}
-                                  >
-                                    <Pencil className="size-4" aria-hidden="true" />
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={`Eliminar ${tipo.nombre}`}
-                                    disabled={!puedeEditar || isPending || protegido}
-                                    onClick={() => setEliminarTipoSoporte(tipo)}
-                                  >
-                                    <Trash2 className="size-4 text-destructive" aria-hidden="true" />
-                                  </Button>
-                                </div>
+                      </TableHeader>
+                      <SortableContext
+                        items={tiposSoporteOrdenados.map((t) => t.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <TableBody>
+                          {tiposSoporteOrdenados.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={5} className="py-4 text-center text-xs text-muted-foreground">
+                                No hay tipos de documento configurados.
                               </TableCell>
                             </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
+                          ) : (
+                            tiposSoporteOrdenados.map((tipo, idx) => (
+                              <FilaTipoSoporteSortable
+                                key={tipo.id}
+                                tipo={tipo}
+                                posicion={idx + 1}
+                                puedeEditar={puedeEditar}
+                                isPending={isPending}
+                                onEditar={() => {
+                                  setErrorDialogoTipoSoporte(null);
+                                  setDialogoTipoSoporte({
+                                    modo: "editar",
+                                    tipo,
+                                    codigo: tipo.codigo,
+                                    nombre: tipo.nombre,
+                                    orden: String(tipo.orden),
+                                  });
+                                }}
+                                onEliminar={() => setEliminarTipoSoporte(tipo)}
+                              />
+                            ))
+                          )}
+                        </TableBody>
+                      </SortableContext>
+                    </Table>
+                  </DndContext>
                 </div>
               )}
             </CardContent>
@@ -1351,6 +1747,10 @@ export function ConfiguracionReglasCatalogosPage() {
                 id="parentesco-nombre"
                 value={dialogoParentesco?.descripcion ?? ""}
                 maxLength={100}
+                disabled={
+                  dialogoParentesco?.modo === "editar" &&
+                  dialogoParentesco.parentesco?.descripcion.trim().toUpperCase() === "HIJO (A)"
+                }
                 onChange={(e) =>
                   setDialogoParentesco((previo) =>
                     previo ? { ...previo, descripcion: e.target.value } : previo,
@@ -1373,6 +1773,124 @@ export function ConfiguracionReglasCatalogosPage() {
                 }
               />
               <Label htmlFor="parentesco-aplica">Permitido para familiares</Label>
+            </div>
+
+            <div className="rounded-lg border p-3">
+              <p className="text-sm font-semibold">Reglas del parentesco</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Se aplican al registrar o editar un familiar. El soporte sugerido solo
+                orienta al trabajador; no bloquea el registro.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="parentesco-es-hijo"
+                    checked={dialogoParentesco?.regla.esHijo ?? false}
+                    onCheckedChange={(valor) => actualizarReglaParentesco({ esHijo: valor })}
+                  />
+                  <Label htmlFor="parentesco-es-hijo">Es hijo(a)</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="parentesco-menor-cargo"
+                    checked={dialogoParentesco?.regla.menorACargo ?? false}
+                    onCheckedChange={(valor) => actualizarReglaParentesco({ menorACargo: valor })}
+                  />
+                  <Label htmlFor="parentesco-menor-cargo">Es menor a cargo</Label>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentesco-sin-cedula">Sin cédula hasta (años)</Label>
+                  <Input
+                    id="parentesco-sin-cedula"
+                    type="number"
+                    min={0}
+                    max={120}
+                    placeholder="9"
+                    disabled={!(dialogoParentesco?.regla.esHijo || dialogoParentesco?.regla.menorACargo)}
+                    value={dialogoParentesco?.regla.sinCedulaHastaEdad ?? ""}
+                    onChange={(e) => actualizarReglaParentesco({ sinCedulaHastaEdad: e.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentesco-edad-minima">Edad mínima (años)</Label>
+                  <Input
+                    id="parentesco-edad-minima"
+                    type="number"
+                    min={0}
+                    max={120}
+                    placeholder="Sin restricción"
+                    value={dialogoParentesco?.regla.edadMinima ?? ""}
+                    onChange={(e) => actualizarReglaParentesco({ edadMinima: e.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentesco-diferencia-tipo">Diferencia con el titular</Label>
+                  <Select
+                    value={dialogoParentesco?.regla.diferenciaTipo ?? "NINGUNA"}
+                    onValueChange={(valor: "NINGUNA" | "MENOR" | "MAYOR") =>
+                      actualizarReglaParentesco({ diferenciaTipo: valor })
+                    }
+                  >
+                    <SelectTrigger id="parentesco-diferencia-tipo" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NINGUNA">Sin diferencia mínima</SelectItem>
+                      <SelectItem value="MENOR">Debe ser menor que el titular</SelectItem>
+                      <SelectItem value="MAYOR">Debe ser mayor que el titular</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentesco-diferencia-minima">Diferencia mínima (años)</Label>
+                  <Input
+                    id="parentesco-diferencia-minima"
+                    type="number"
+                    min={0}
+                    max={120}
+                    placeholder="12"
+                    disabled={(dialogoParentesco?.regla.diferenciaTipo ?? "NINGUNA") === "NINGUNA"}
+                    value={dialogoParentesco?.regla.diferenciaMinima ?? ""}
+                    onChange={(e) => actualizarReglaParentesco({ diferenciaMinima: e.target.value })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentesco-sexo">Sexo permitido</Label>
+                  <Select
+                    value={dialogoParentesco?.regla.sexoPermitido || "CUALQUIERA"}
+                    onValueChange={(valor) =>
+                      actualizarReglaParentesco({ sexoPermitido: valor === "CUALQUIERA" ? "" : valor as "M" | "F" })
+                    }
+                  >
+                    <SelectTrigger id="parentesco-sexo" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CUALQUIERA">Cualquiera</SelectItem>
+                      <SelectItem value="F">Femenino</SelectItem>
+                      <SelectItem value="M">Masculino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="parentesco-soporte">Soporte sugerido</Label>
+                  <Input
+                    id="parentesco-soporte"
+                    maxLength={120}
+                    placeholder="PARTIDA DE NACIMIENTO"
+                    value={dialogoParentesco?.regla.soporteSugerido ?? ""}
+                    onChange={(e) => actualizarReglaParentesco({ soporteSugerido: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  <Switch
+                    id="parentesco-activo"
+                    checked={dialogoParentesco?.regla.activo ?? true}
+                    onCheckedChange={(valor) => actualizarReglaParentesco({ activo: valor })}
+                  />
+                  <Label htmlFor="parentesco-activo">Parentesco activo en el catálogo</Label>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -1586,20 +2104,6 @@ export function ConfiguracionReglasCatalogosPage() {
                   )
                 }
                 aria-invalid={!!errorDialogoTipoSoporte}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="tipo-soporte-orden">Orden</Label>
-              <Input
-                id="tipo-soporte-orden"
-                type="number"
-                min={0}
-                value={dialogoTipoSoporte?.orden ?? "0"}
-                onChange={(e) =>
-                  setDialogoTipoSoporte((previo) =>
-                    previo ? { ...previo, orden: e.target.value } : previo,
-                  )
-                }
               />
             </div>
             {errorDialogoTipoSoporte && (

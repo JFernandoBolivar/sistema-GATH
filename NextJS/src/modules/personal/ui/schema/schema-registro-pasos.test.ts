@@ -125,6 +125,7 @@ describe("Formulario «Actualizar Información Básica»", () => {
     fechaNacimiento: "1990-01-01",
     sexoId: 1,
     nacionalidadId: 1,
+    estadoCivilId: 1,
     correo: "juan@conatel.gob.ve",
     correoAlternativo: "",
     telefonoMovil: "",

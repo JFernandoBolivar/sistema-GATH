@@ -4,6 +4,10 @@ Representa la carga familiar de un empleado o pasivo.
 """
 from dataclasses import dataclass
 
+# Longitud máxima de la cédula del familiar en la BD (varchar(10)). Incluye la
+# cédula sintética `<cédula del titular>-<orden>` de los hijos menores.
+CEDULA_FAMILIAR_MAX = 10
+
 
 @dataclass(frozen=True)
 class Familiar:

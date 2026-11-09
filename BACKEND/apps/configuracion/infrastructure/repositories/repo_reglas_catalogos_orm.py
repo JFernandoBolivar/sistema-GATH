@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from django.db import transaction
+
 from apps.catalogos.infrastructure.models.catalogo_models import (
     CategoriaMovimientoModel,
     PaisModel,
@@ -27,6 +29,11 @@ from apps.configuracion.domain.reglas_catalogos import (
     ReglaParentesco,
     ReglaTipoSoporte,
     es_motivo_reservado,
+    normalizar_regla_parentesco,
+    regla_parentesco_por_defecto,
+)
+from apps.configuracion.infrastructure.models.regla_parentesco_model import (
+    ReglaParentescoModel,
 )
 from core.domain.categorias_motivo import normalizar_nombre_motivo
 from core.domain.exceptions import NotFoundError, ValidationError
@@ -103,30 +110,46 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
         invalidar_catalogos()
         return resultado
 
+    @staticmethod
+    def _valores_regla(regla, descripcion: str) -> dict:
+        valores = regla_parentesco_por_defecto(descripcion)
+        if regla is not None:
+            for campo in (
+                'es_hijo', 'menor_a_cargo', 'sin_cedula_hasta_edad', 'edad_minima',
+                'diferencia_minima', 'diferencia_tipo', 'sexo_permitido',
+                'soporte_sugerido', 'activo',
+            ):
+                valores[campo] = getattr(regla, campo)
+        return valores
+
+    @classmethod
+    def _parentesco_a_entidad(cls, p, regla=None) -> ReglaParentesco:
+        valores = cls._valores_regla(regla, p.descripcion_parentesco)
+        return ReglaParentesco(
+            id=p.id,
+            descripcion=p.descripcion_parentesco,
+            aplica_familiar=bool(getattr(p, 'aplica_familiar', True)),
+            **valores,
+        )
+
     def listar_parentescos(self) -> Sequence[ReglaParentesco]:
         qs = ParentescoModel.objects.all().order_by('descripcion_parentesco')
-        return [
-            ReglaParentesco(
-                id=p.id,
-                descripcion=p.descripcion_parentesco,
-                aplica_familiar=bool(getattr(p, 'aplica_familiar', True)),
-            )
-            for p in qs
-        ]
+        reglas = {
+            r.parentesco_id: r for r in ReglaParentescoModel.objects.all()
+        }
+        return [self._parentesco_a_entidad(p, reglas.get(p.id)) for p in qs]
 
     def obtener_parentesco(self, parentesco_id: int) -> ReglaParentesco:
         try:
             p = ParentescoModel.objects.get(id=parentesco_id)
         except ParentescoModel.DoesNotExist:
             raise NotFoundError(f'Parentesco con id {parentesco_id} no encontrado.')
-        return ReglaParentesco(
-            id=p.id,
-            descripcion=p.descripcion_parentesco,
-            aplica_familiar=bool(getattr(p, 'aplica_familiar', True)),
-        )
+        regla = ReglaParentescoModel.objects.filter(parentesco_id=parentesco_id).first()
+        return self._parentesco_a_entidad(p, regla)
 
     def actualizar_parentesco(
         self, parentesco_id: int, aplica_familiar: bool, descripcion: str | None = None,
+        regla: dict | None = None,
     ) -> ReglaParentesco:
         try:
             p = ParentescoModel.objects.get(id=parentesco_id)
@@ -144,26 +167,43 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             p.descripcion_parentesco = descripcion
             fields.append('descripcion_parentesco')
         p.save(update_fields=fields)
+        guardada = ReglaParentescoModel.objects.filter(
+            parentesco_id=parentesco_id,
+        ).first()
+        if regla is not None:
+            base = regla_parentesco_por_defecto(p.descripcion_parentesco)
+            if guardada is not None:
+                for campo in (
+                    'es_hijo', 'menor_a_cargo', 'sin_cedula_hasta_edad', 'edad_minima',
+                    'diferencia_minima', 'diferencia_tipo', 'sexo_permitido',
+                    'soporte_sugerido', 'activo',
+                ):
+                    base[campo] = getattr(guardada, campo)
+            base.update(regla)
+            limpia = normalizar_regla_parentesco(base)
+            guardada, _ = ReglaParentescoModel.objects.update_or_create(
+                parentesco_id=parentesco_id, defaults=limpia,
+            )
         invalidar_catalogos()
-        return ReglaParentesco(
-            id=p.id,
-            descripcion=p.descripcion_parentesco,
-            aplica_familiar=p.aplica_familiar,
-        )
+        return self._parentesco_a_entidad(p, guardada)
 
-    def crear_parentesco(self, descripcion: str, aplica_familiar: bool) -> ReglaParentesco:
+    def crear_parentesco(
+        self, descripcion: str, aplica_familiar: bool, regla: dict | None = None,
+    ) -> ReglaParentesco:
         if ParentescoModel.objects.filter(descripcion_parentesco__iexact=descripcion).exists():
             raise ValidationError(f'Ya existe un parentesco «{descripcion}».', campo='descripcion')
         p = ParentescoModel.objects.create(
             descripcion_parentesco=descripcion,
             aplica_familiar=bool(aplica_familiar),
         )
-        invalidar_catalogos()
-        return ReglaParentesco(
-            id=p.id,
-            descripcion=p.descripcion_parentesco,
-            aplica_familiar=bool(p.aplica_familiar),
+        valores = normalizar_regla_parentesco(
+            regla if regla is not None else regla_parentesco_por_defecto(descripcion),
         )
+        guardada = ReglaParentescoModel.objects.create(
+            parentesco_id=p.id, **valores,
+        )
+        invalidar_catalogos()
+        return self._parentesco_a_entidad(p, guardada)
 
     def parentesco_tiene_referencias(self, parentesco_id: int) -> bool:
         from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
@@ -175,13 +215,12 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             p = ParentescoModel.objects.get(id=parentesco_id)
         except ParentescoModel.DoesNotExist:
             raise NotFoundError(f'Parentesco con id {parentesco_id} no encontrado.')
-        resultado = ReglaParentesco(
-            id=p.id,
-            descripcion=p.descripcion_parentesco,
-            aplica_familiar=bool(getattr(p, 'aplica_familiar', True)),
-        )
+        regla = ReglaParentescoModel.objects.filter(parentesco_id=parentesco_id).first()
+        resultado = self._parentesco_a_entidad(p, regla)
         try:
-            p.delete()
+            with transaction.atomic():
+                ReglaParentescoModel.objects.filter(parentesco_id=parentesco_id).delete()
+                p.delete()
         except Exception:
             raise ValidationError(
                 'No es posible eliminar el parentesco porque está asignado a familiares registrados.',
@@ -598,6 +637,15 @@ class RepoReglasCatalogosORM(RepoReglasCatalogos):
             )
         invalidar_catalogos()
         return resultado
+
+    def reordenar_tipos_soporte(
+        self, ordenes: Sequence[tuple[int, int]],
+    ) -> Sequence[ReglaTipoSoporte]:
+        with transaction.atomic():
+            for tipo_id, nuevo_orden in ordenes:
+                TipoSoporteDocumentoModel.objects.filter(pk=tipo_id).update(orden=nuevo_orden)
+        invalidar_catalogos()
+        return self.listar_tipos_soporte()
 
     def listar_checklist_soporte(
         self, seccion: str | None = None,

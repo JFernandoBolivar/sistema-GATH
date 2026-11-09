@@ -90,12 +90,18 @@ export function PasoSubirArchivo({
       });
 
       const data = await response.json();
-      if (!response.ok || !data.ok) {
+      const exitoso =
+        response.ok &&
+        data.status !== "error" &&
+        data.status !== "fail" &&
+        data.ok !== false;
+
+      if (!exitoso) {
         throw new Error(data.message || data.error || "Error al analizar el archivo.");
       }
 
       toast.success("Archivo analizado exitosamente. Revise los resultados.");
-      onCargaAnalizada(data.data);
+      onCargaAnalizada(data.data ?? data);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Error al subir y analizar");
     } finally {

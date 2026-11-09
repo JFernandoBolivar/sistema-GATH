@@ -188,10 +188,41 @@ def guardar_borrador(
         raise ValidationError(f"Máximo {MAX_CAMBIOS} cambios por solicitud.")
     vistos: set = set()
     cambios = [c for c in (_preparar_cambio(i, solicitud, lector, vistos) for i in items) if c is not None]
+    _validar_familiares_agrupados(solicitud.cedula, cambios, lector)
     _validar_limite_contactos(solicitud.cedula, cambios, lector)
     _validar_vivienda_del_borrador(solicitud.cedula, cambios, lector)
     repo_cambios.reemplazar(ORIGEN_ACTUALIZACION, solicitud.id, cambios, conservar_secciones=(Seccion.FOTO.value,))
     return repo.guardar(solicitud, solicitud.version)  # sube la versión: el borrador cambió
+
+
+_CAMPOS_FAMILIAR_DEPENDIENTES = frozenset({
+    'parentesco_id', 'fecha_nacimiento', 'sexo_id', 'cedula_familiar',
+})
+
+
+def _validar_familiares_agrupados(
+    cedula: str, cambios: list[CambioPropuesto], lector: LectorFicha,
+) -> None:
+    """FIX-FAM2: valida el estado final de cada familiar con todos sus cambios juntos.
+
+    Validar cada campo aislado contra el dato guardado rechaza combinaciones válidas
+    (p. ej. cambiar a MADRE y corregir su fecha de nacimiento en el mismo guardado).
+    """
+    validador = getattr(lector, 'validar_familiar_cambio', None)
+    if not callable(validador):
+        return
+    grupos: dict[str, dict] = {}
+    for cambio in cambios:
+        if (
+            cambio.accion != Accion.MODIFICAR.value
+            or cambio.entidad_destino != 'familiar'
+            or cambio.entidad_id in (None, '')
+            or cambio.campo not in _CAMPOS_FAMILIAR_DEPENDIENTES
+        ):
+            continue
+        grupos.setdefault(str(cambio.entidad_id), {})[cambio.campo] = cambio.valor_propuesto
+    for entidad_id, valores in grupos.items():
+        validador(cedula, entidad_id, valores)
 
 
 _CAMPOS_VIVIENDA = (

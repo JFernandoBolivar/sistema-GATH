@@ -27,6 +27,7 @@ import { PasoDwelling } from "@/modules/personal/ui/registrar/paso-dwelling";
 import { PasoHealth } from "@/modules/personal/ui/registrar/paso-health";
 import { PasoPhysicalProfile } from "@/modules/personal/ui/registrar/paso-physical-profile";
 import { PasoSupplementaryTraining } from "@/modules/personal/ui/registrar/paso-supplementary-training";
+import { MotivoSelect } from "@/modules/cargos/ui/components/motivo-select";
 
 import type { CatalogoPasivoDTO } from "../application/dtos/pasivos-dto";
 import {
@@ -73,6 +74,8 @@ export default function RegistrarPasivoDirectoPage() {
   const router = useRouter();
   const [paso, setPaso] = useState(0);
   const [tipoNominaId, setTipoNominaId] = useState(0);
+  const [motivoId, setMotivoId] = useState(0);
+  const [fechaVigencia, setFechaVigencia] = useState(new Date().toISOString().split("T")[0]);
   const [tiposNomina, setTiposNomina] = useState<CatalogoPasivoDTO[]>([]);
   const [valores, setValores] = useState<RegistroPasosType>(valoresIniciales);
   const [catalogos, setCatalogos] = useState<CatalogosExpedienteDTO | null>(null);
@@ -137,7 +140,7 @@ export default function RegistrarPasivoDirectoPage() {
           conIds = aplicar(altas.ok.map((a) => a.id));
         }
         const dto = registroPasosADTO(conIds);
-        const resultado = await registrarPasivoCompletoAction(dto, tipoNominaId);
+        const resultado = await registrarPasivoCompletoAction(dto, tipoNominaId, motivoId, fechaVigencia);
         if (resultado && typeof resultado === "object" && "error" in resultado) {
           toast.error((resultado as { error: string }).error);
           return;
@@ -224,10 +227,42 @@ export default function RegistrarPasivoDirectoPage() {
                 No hay nóminas de pasivo configuradas. Contacte a Administración del sistema.
               </p>
             ) : null}
+
+            <div className="flex flex-col gap-1.5 mt-2">
+              <label htmlFor="motivo-pase-pasivo" className="text-sm font-medium">
+                Tipo de jubilación o pensión <span className="text-danger">*</span>
+              </label>
+              <MotivoSelect
+                operacion="pase_a_pasivo"
+                value={motivoId || null}
+                onChange={(id) => setMotivoId(id)}
+                id="motivo-pase-pasivo"
+                placeholder="Seleccione el tipo de jubilación o pensión"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5 mt-2">
+              <label htmlFor="fecha-vigencia-pasivo" className="text-sm font-medium">
+                Fecha de vigencia de la jubilación o pensión <span className="text-danger">*</span>
+              </label>
+              <input
+                type="date"
+                id="fecha-vigencia-pasivo"
+                className="h-11 w-full rounded-md border bg-transparent px-3 text-base"
+                value={fechaVigencia}
+                max={new Date().toISOString().split("T")[0]}
+                onChange={(e) => setFechaVigencia(e.target.value)}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Fecha de pase a pasivo o egreso del servicio activo (obligatoria, no puede ser futura).
+              </p>
+            </div>
+
             <button
               type="button"
-              className="mt-2 h-11 rounded-md bg-primary px-4 font-medium text-primary-foreground disabled:opacity-50"
-              disabled={!tipoNominaId}
+              className="mt-4 h-11 rounded-md bg-primary px-4 font-medium text-primary-foreground disabled:opacity-50"
+              disabled={!tipoNominaId || !motivoId || !fechaVigencia || fechaVigencia > new Date().toISOString().split("T")[0]}
               onClick={() => setPaso(1)}
             >
               Continuar

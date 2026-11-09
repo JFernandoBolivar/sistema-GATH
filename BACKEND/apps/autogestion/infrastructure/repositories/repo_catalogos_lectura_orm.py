@@ -30,7 +30,7 @@ class RepoCatalogosLecturaORM:
         if clave == 'paises':
             return [
                 _item(p.pk, p.nombre, codigo=p.codigo, es_venezuela=bool(p.es_venezuela))
-                for p in PaisModel.objects.all().order_by('nombre')
+                for p in PaisModel.objects.all().order_by('-es_venezuela', 'nombre')
             ]
         if clave == 'condiciones-vivienda':
             return [_item(i.pk, i.condicion) for i in r.listar_condiciones_vivienda()]

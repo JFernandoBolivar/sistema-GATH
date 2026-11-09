@@ -69,6 +69,10 @@ def campos_faltantes(direccion: str, valores: dict) -> tuple[str, ...]:
 
 def puede_confirmarse(estado: str, movimiento: dict | None) -> tuple[bool, str]:
     """Una fila solo se confirma si es de cambio de condición y su movimiento está completo."""
+    if str(estado) == 'POSIBLE_DUPLICADO':
+        # FIX-CARGA3: la confirmación es la decisión de registrar a pesar de la
+        # coincidencia; no hay movimiento laboral que validar.
+        return True, ''
     if str(estado) != 'REQUIERE_CONFIRMACION':
         return False, 'La fila no requiere confirmación.'
     if not movimiento:
@@ -81,7 +85,7 @@ def puede_confirmarse(estado: str, movimiento: dict | None) -> tuple[bool, str]:
 
 def puede_aplicarse(estado: str, confirmada: bool) -> bool:
     """Sin confirmación explícita, una fila de cambio de condición no se aplica."""
-    if str(estado) == 'REQUIERE_CONFIRMACION':
+    if str(estado) in ('REQUIERE_CONFIRMACION', 'POSIBLE_DUPLICADO'):
         return bool(confirmada)
     return str(estado) not in ('ERROR', 'SIN_CAMBIOS')
 

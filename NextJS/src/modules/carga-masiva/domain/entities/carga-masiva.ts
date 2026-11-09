@@ -17,6 +17,7 @@ export type EstadoFila =
   | "SIN_CAMBIOS"
   | "ADVERTENCIA"
   | "REQUIERE_CONFIRMACION"
+  | "POSIBLE_DUPLICADO"
   | "ERROR";
 
 export type ModoCarga = "obligatorios" | "completo";
@@ -84,7 +85,7 @@ export const TIPOS_CARGA_DISPONIBLES: TipoCargaCatalogo[] = [
   {
     clave: "antecedentes_laborales",
     nombre: "Antecedentes laborales",
-    descripcion: "Organismos anteriores, cargos ocupados y fechas de ingreso/egreso.",
+    descripcion: "Organismos anteriores en la Administración Pública y fechas de ingreso/egreso.",
     poblaciones: ["ACTIVOS", "PASIVOS"],
   },
 ];
@@ -122,6 +123,10 @@ export interface CargaMasivaResumen {
   filas_error: number;
   filas_confirmacion: number;
   filas_confirmadas: number;
+  /** FIX-CARGA3: conteos antes de aplicar. */
+  filas_nuevo?: number;
+  filas_actualizar?: number;
+  filas_posible_duplicado?: number;
   creada_en: string;
 }
 

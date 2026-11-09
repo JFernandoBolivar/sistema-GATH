@@ -10,6 +10,7 @@ from datetime import timedelta
 from io import BytesIO
 from typing import Any
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Count, Max, Q
@@ -120,28 +121,47 @@ class RepoCarnetizacionORM:
 
     # --- Plantillas de Carnet (Motor por capas) ---
     def _asegurar_plantilla_semilla(self) -> None:
-        """Garantiza al menos una plantilla publicada y activa para trabajador."""
+        """Garantiza al menos una plantilla publicada y activa para trabajador y pasivo."""
         self._asegurar_catalogos_semilla()
-        if not PlantillaCarnetModel.objects.filter(tipo_credencial_id='trabajador', activa=True).exists():
-            tipo_trabajador = TipoCredencialModel.objects.filter(codigo='trabajador').first()
-            if tipo_trabajador:
-                def_trabajador = plantilla_defecto_trabajador()
-                p = PlantillaCarnetModel.objects.create(
-                    nombre='Plantilla Institucional Estándar',
-                    tipo_credencial=tipo_trabajador,
-                    ancho_mm=def_trabajador['dimensiones']['ancho_mm'],
-                    alto_mm=def_trabajador['dimensiones']['alto_mm'],
-                    orientacion=def_trabajador['orientacion'],
-                    regla_criterio='todos',
-                    regla_valor='*',
-                    estado='publicada',
-                    activa=True,
-                    version=1,
-                    definicion=def_trabajador,
-                    descripcion='Plantilla oficial institucional con franjas azul marino y anverso/reverso.',
-                )
-                p.plantilla_raiz = p
-                p.save(update_fields=['plantilla_raiz'])
+        tipo_trabajador = TipoCredencialModel.objects.filter(codigo='trabajador').first()
+        if tipo_trabajador and not PlantillaCarnetModel.objects.filter(tipo_credencial_id='trabajador', activa=True).exists():
+            def_trabajador = plantilla_defecto_trabajador()
+            p = PlantillaCarnetModel.objects.create(
+                nombre='Plantilla Institucional Activos',
+                tipo_credencial=tipo_trabajador,
+                ancho_mm=def_trabajador['dimensiones']['ancho_mm'],
+                alto_mm=def_trabajador['dimensiones']['alto_mm'],
+                orientacion=def_trabajador['orientacion'],
+                regla_criterio='nomina',
+                regla_valor='*',
+                estado='publicada',
+                activa=True,
+                version=1,
+                definicion=def_trabajador,
+                descripcion='Plantilla oficial institucional para personal activo con franja de color según tipo de nómina.',
+            )
+            p.plantilla_raiz = p
+            p.save(update_fields=['plantilla_raiz'])
+
+        tipo_pasivo = TipoCredencialModel.objects.filter(codigo='pasivo').first()
+        if tipo_pasivo and not PlantillaCarnetModel.objects.filter(tipo_credencial_id='pasivo', activa=True).exists():
+            def_pasivo = plantilla_defecto_pasivo()
+            p_pas = PlantillaCarnetModel.objects.create(
+                nombre='Plantilla Institucional Pasivos',
+                tipo_credencial=tipo_pasivo,
+                ancho_mm=def_pasivo['dimensiones']['ancho_mm'],
+                alto_mm=def_pasivo['dimensiones']['alto_mm'],
+                orientacion=def_pasivo['orientacion'],
+                regla_criterio='unico',
+                regla_valor='*',
+                estado='publicada',
+                activa=True,
+                version=1,
+                definicion=def_pasivo,
+                descripcion='Plantilla oficial institucional para personal jubilado y pensionado con franjas verdes y anverso/reverso.',
+            )
+            p_pas.plantilla_raiz = p_pas
+            p_pas.save(update_fields=['plantilla_raiz'])
 
     def listar_plantillas(
         self,
@@ -228,6 +248,13 @@ class RepoCarnetizacionORM:
                 version = max_v + 1
                 raiz = raiz_objetivo
 
+        creado_por_val = None
+        if creado_por is not None and str(creado_por).strip() not in ('', 'None'):
+            try:
+                creado_por_val = int(creado_por)
+            except (ValueError, TypeError):
+                creado_por_val = None
+
         obj = PlantillaCarnetModel.objects.create(
             nombre=nombre,
             tipo_credencial=tipo,
@@ -241,7 +268,7 @@ class RepoCarnetizacionORM:
             version=version,
             definicion=definicion,
             descripcion=descripcion,
-            creado_por_id=creado_por,
+            creado_por_id=creado_por_val,
             plantilla_raiz=raiz,
         )
         if not raiz:
@@ -504,6 +531,43 @@ class RepoCarnetizacionORM:
         carnet.save(update_fields=['activo'])
         return carnet_a_entidad(carnet)
 
+    def _definicion_plantilla_emitida(self, fila: Any) -> dict[str, Any] | None:
+        """Resuelve la definición congelada de un carnet emitido sin snapshot.
+
+        `CarnetEmitidoModel.plantilla_version` guarda el número de versión y
+        `plantilla_id` el id (UUID en texto) de la plantilla raíz. Los carnets
+        anteriores al snapshot pueden no tenerlo; en ese caso se busca la
+        versión exacta y, como respaldo, la última versión de la plantilla.
+        """
+        try:
+            candidatas = []
+            if fila.plantilla_version:
+                candidatas.append(
+                    PlantillaCarnetModel.objects.filter(
+                        pk=fila.plantilla_id, version=fila.plantilla_version
+                    ).first()
+                )
+                candidatas.append(
+                    PlantillaCarnetModel.objects.filter(
+                        plantilla_raiz_id=fila.plantilla_id,
+                        version=fila.plantilla_version,
+                    ).first()
+                )
+            candidatas.append(
+                PlantillaCarnetModel.objects.filter(pk=fila.plantilla_id).first()
+            )
+            candidatas.append(
+                PlantillaCarnetModel.objects.filter(plantilla_raiz_id=fila.plantilla_id)
+                .order_by('-version')
+                .first()
+            )
+        except (ValueError, DjangoValidationError):
+            return None
+        for plantilla in candidatas:
+            if plantilla and plantilla.definicion:
+                return plantilla.definicion
+        return None
+
     def generar_pdf(self, carnet_id: int, nombre_override: str | None = None) -> bytes:
         fila = (
             CarnetEmitidoModel.objects.select_related('employee', 'motivo')
@@ -534,8 +598,12 @@ class RepoCarnetizacionORM:
                 logger.warning("No se pudo leer la foto del empleado para el carnet.", exc_info=True)
                 foto_bytes = None
 
-        # Si el carnet emitido tiene su propia plantilla snapshot, se usa esa versión inmutable (O44 - E3, E8)
-        definicion = fila.plantilla_snapshot or (fila.plantilla_version.definicion if fila.plantilla_version else None)
+        # Si el carnet emitido tiene su propia plantilla snapshot, se usa esa versión
+        # inmutable (O44 - E3, E8). `plantilla_version` es un entero (número de
+        # versión), no la entidad: se resuelve contra el motor de plantillas.
+        definicion = fila.plantilla_snapshot
+        if not definicion and fila.plantilla_id:
+            definicion = self._definicion_plantilla_emitida(fila)
 
         plantilla_path = None
         plantilla = CarnetTemplateModel.objects.filter(activo=True).first()

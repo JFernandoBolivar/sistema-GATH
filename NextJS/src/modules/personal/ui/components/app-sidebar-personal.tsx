@@ -65,6 +65,8 @@ type SubMenuItem = {
   icon: LucideIcon;
   /** Código de permiso requerido (sin él, visible para todos). */
   permiso?: string;
+  /** Subtítulo o separador visual previo a este ítem. */
+  subtituloPrevio?: string;
 };
 
 type MenuItem = {
@@ -107,12 +109,6 @@ const items: MenuItem[] = [
         permiso: "personal.ver",
       },
       {
-        title: "Carga Masiva",
-        url: "/personal/carga-masiva",
-        icon: FileSpreadsheet,
-        permiso: "personal.carga_masiva",
-      },
-      {
         title: "Agregar Familiar",
         url: "/familiares/registrar",
         icon: ContactRound,
@@ -123,6 +119,13 @@ const items: MenuItem[] = [
         url: "/familiares/consultar",
         icon: BookUser,
         permiso: "familiares.ver",
+      },
+      {
+        title: "Carga Masiva",
+        url: "/personal/carga-masiva",
+        icon: FileSpreadsheet,
+        permiso: "personal.carga_masiva",
+        subtituloPrevio: "Procesos masivos",
       },
     ],
   },
@@ -428,21 +431,29 @@ export function AppSidebarPersonal() {
                         {openSubmenu === item.title && (
                           <div className="pl-8 py-1 gap-1 text-sm">
                             {item.subMenu.map((subItem) => (
-                              <SidebarMenuButton
-                                key={subItem.title}
-                                asChild
-                                isActive={
-                                  pathname === subItem.url ||
-                                  (subItem.url === "/organizacion/listado-ubicacion-administrativa" &&
-                                    pathname === "/organizacion")
-                                }
-                                className="mt-2 text-sm"
-                              >
-                                <Link href={subItem.url} className="text-sm">
-                                  <subItem.icon className="h-[32px]" />
-                                  {subItem.title}
-                                </Link>
-                              </SidebarMenuButton>
+                              <div key={subItem.title}>
+                                {subItem.subtituloPrevio ? (
+                                  <div className="mt-3 mb-1 pt-2 border-t border-sidebar-border/60">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
+                                      {subItem.subtituloPrevio}
+                                    </span>
+                                  </div>
+                                ) : null}
+                                <SidebarMenuButton
+                                  asChild
+                                  isActive={
+                                    pathname === subItem.url ||
+                                    (subItem.url === "/organizacion/listado-ubicacion-administrativa" &&
+                                      pathname === "/organizacion")
+                                  }
+                                  className="mt-2 text-sm"
+                                >
+                                  <Link href={subItem.url} className="text-sm">
+                                    <subItem.icon className="h-[32px]" />
+                                    {subItem.title}
+                                  </Link>
+                                </SidebarMenuButton>
+                              </div>
                             ))}
                           </div>
                         )}

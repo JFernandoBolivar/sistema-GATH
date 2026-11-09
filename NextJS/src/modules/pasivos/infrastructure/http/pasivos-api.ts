@@ -15,8 +15,11 @@ export interface PasivoApiItem {
   apellidos: string;
   nombre_completo: string;
   tipo_pasivo: string;
+  tipoNominaId?: number | null;
   tipo_nomina_id: number | null;
   fecha_egreso: string | null;
+  motivo_egreso_id?: number | null;
+  motivo_egreso?: string | null;
   apn_antecedentes?: { years: number; months: number; days: number } | null;
   apn_en_curso?: { years: number; months: number; days: number } | null;
   apn_total?: { years: number; months: number; days: number } | null;
@@ -57,6 +60,7 @@ export interface FiltrosPasivosApi {
   nombre?: string;
   codigo?: string;
   tipo_nomina_id?: number;
+  motivo_id?: number;
   fecha_desde?: string;
   fecha_hasta?: string;
   sin_cuenta?: boolean;
@@ -85,6 +89,8 @@ export interface RegistrarPasivoApiBody {
   sexo_id: number;
   fecha_nacimiento: string;
   tipo_nomina_id: number;
+  motivo_id: number;
+  fecha_vigencia: string;
   estado_civil_id?: number | null;
   nacionalidad_id?: number | null;
   correo?: string | null;

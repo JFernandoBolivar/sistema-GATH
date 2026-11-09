@@ -101,7 +101,8 @@ def test_plantilla_completa_y_validaciones_de_entrada(catalogos):
         generar_plantilla(None, 'otro')
     contenido = generar_plantilla(None, 'completo')
     libro = load_workbook(io.BytesIO(contenido))
-    assert len(libro.sheetnames) == 11  # Instrucciones + Catalogos + 9 tipos
+    # Instrucciones + Catalogos + 2 hojas ocultas de código postal + 9 tipos
+    assert len(libro.sheetnames) == 13
 
 
 def test_endpoint_descarga_la_plantilla_y_exige_permiso(catalogos):

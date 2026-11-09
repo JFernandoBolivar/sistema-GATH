@@ -127,6 +127,8 @@ export function pasivoApiAEntidad(raw: PasivoApiItem): Pasivo {
     tipoPasivo: raw.tipo_pasivo,
     tipoNominaId: raw.tipo_nomina_id ?? null,
     fechaEgreso: raw.fecha_egreso,
+    motivoEgresoId: (raw.motivo_egreso_id as number | null) ?? null,
+    motivoEgreso: (raw.motivo_egreso as string | null) ?? null,
     apnAntecedentes: raw.apn_antecedentes ?? null,
     apnEnCurso: raw.apn_en_curso ?? null,
     apnTotal: raw.apn_total ?? null,

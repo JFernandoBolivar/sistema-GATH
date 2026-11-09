@@ -336,7 +336,7 @@ describe("BandejaNotificacionesPage", () => {
     render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
     await screen.findByText("Ventana habilitada");
     const antes = acciones.listarNotificacionesAction.mock.calls.length;
-    await user.type(screen.getByLabelText("Buscar"), "venta");
+    await user.type(screen.getByRole("searchbox"), "venta");
     // Mientras se escribe no se consulta en cada pulsación.
     expect(acciones.listarNotificacionesAction.mock.calls.length).toBe(antes);
     await waitFor(() => expect(ultimaLlamadaListar().q).toBe("venta"), { timeout: 2000 });
@@ -385,5 +385,33 @@ describe("BandejaNotificacionesPage", () => {
     await screen.findByText("Ventana habilitada");
     await user.click(screen.getByRole("button", { name: /Marcar todas como leídas/ }));
     await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith());
+  });
+
+  it("CampanaNotificaciones (Punto 10): panel tiene max-h, scroll interno y pie Ver todas fijo sin solapamiento", async () => {
+    const user = userEvent.setup();
+    acciones.contarNoLeidasAction.mockResolvedValue({ exito: true, datos: 3 });
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([
+        n({ id: "n-1", titulo: "Notificación 1" }),
+        n({ id: "n-2", titulo: "Notificación 2" }),
+        n({ id: "n-3", titulo: "Notificación 3" }),
+      ]),
+    );
+
+    render(
+      <CampanaNotificaciones modulo="personal" rutaBandeja="/personal/notificaciones" />,
+      { wrapper: Envoltorio },
+    );
+
+    const botonCampana = screen.getByRole("button", { name: /Notificaciones:/i });
+    await user.click(botonCampana);
+
+    expect(await screen.findByText("Notificación 1")).toBeInTheDocument();
+    expect(screen.getByText("Notificación 2")).toBeInTheDocument();
+    expect(screen.getByText("Notificación 3")).toBeInTheDocument();
+
+    const enlaceVerTodas = screen.getByRole("link", { name: /Ver todas/i });
+    expect(enlaceVerTodas).toBeInTheDocument();
+    expect(enlaceVerTodas.closest("div")).toHaveClass("border-t");
   });
 });

@@ -140,10 +140,11 @@ class SeccionAutogestionableModel(BaseModel):
     nombre = models.CharField(max_length=120)
     requiere_soporte = models.BooleanField(default=False)
     activa = models.BooleanField(default=True)
+    orden = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = 'autogestion_seccion_autogestionable'
-        ordering = ['created_at', 'codigo']
+        ordering = ['orden', 'created_at', 'codigo']
 
 
 class DatosComplementariosTrabajadorModel(BaseModel):

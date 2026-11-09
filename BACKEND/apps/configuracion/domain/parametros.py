@@ -17,6 +17,11 @@ from core.domain.configuracion import (
     CLAVE_AUTOGESTION_MAX_PRORROGAS,
     CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
     CLAVE_AUTOGESTION_PASIVOS_SECCIONES,
+    CLAVE_AUTOGESTION_BLOQUEO_PENDIENTE,
+    CLAVE_AUTOGESTION_ESPERA_ACCIONES,
+    CLAVE_AUTOGESTION_ESPERA_CONTACTO,
+    CLAVE_AUTOGESTION_ESPERA_FORMACION,
+    CLAVE_AUTOGESTION_ESPERA_IDENTIDAD,
     CLAVE_AVISAR_CUENTA_CREADA_POR_CORREO,
     CLAVE_CARGA_MASIVA_APROBACION,
     CLAVE_CARNETIZACION_MI_CARNET_ALCANCE,
@@ -57,6 +62,12 @@ GRUPOS = (
     (GRUPO_AUTOGESTION, 'Autogestión'),
     (GRUPO_RETENCION, 'Retención de datos'),
     (GRUPO_PUNTOS_CUENTA, 'Puntos de cuenta'),
+)
+
+OPCIONES_BLOQUEO_PENDIENTE: tuple[tuple[str, str], ...] = (
+    ('registro', 'Por registro (campo concreto)'),
+    ('seccion', 'Por sección'),
+    ('desactivado', 'Desactivado'),
 )
 
 OPCIONES_MI_CARNET_ALCANCE: tuple[tuple[str, str], ...] = (
@@ -103,6 +114,7 @@ class ParametroDefinicion:
     maximo: int | None = None
     # (valor, etiqueta); si no está vacío, solo se aceptan esos valores.
     opciones: tuple[tuple[int, str], ...] = ()
+    depende_de: tuple[str, str] | None = None
 
 
 DEFINICIONES = (
@@ -128,6 +140,7 @@ DEFINICIONES = (
         grupo=GRUPO_AUTOGESTION,
         tipo=TIPO_TEXTO,
         defecto=SECCIONES_AUTOGESTION_DEFECTO,
+        depende_de=(CLAVE_AUTOGESTION_ACTIVOS_HABILITADO, 'true'),
     ),
     ParametroDefinicion(
         clave=CLAVE_AUTOGESTION_PASIVOS_HABILITADO,
@@ -151,6 +164,61 @@ DEFINICIONES = (
         grupo=GRUPO_AUTOGESTION,
         tipo=TIPO_TEXTO,
         defecto=SECCIONES_AUTOGESTION_DEFECTO,
+        depende_de=(CLAVE_AUTOGESTION_PASIVOS_HABILITADO, 'true'),
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_BLOQUEO_PENDIENTE,
+        etiqueta='Bloqueo por solicitud pendiente',
+        descripcion=(
+            'Qué impide crear una nueva solicitud mientras hay otra abierta: '
+            '«registro» solo el mismo campo/registro, «sección» toda la sección, '
+            '«desactivado» no bloquea.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_TEXTO,
+        defecto='registro',
+        opciones=OPCIONES_BLOQUEO_PENDIENTE,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_CONTACTO,
+        etiqueta='Espera tras aprobación: Contactos (días)',
+        descripcion='Días antes de volver a solicitar cambios de contacto. 0 = sin espera.',
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_ENTERO,
+        defecto='30',
+        minimo=0,
+        maximo=365,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_FORMACION,
+        etiqueta='Espera tras aprobación: Formación (días)',
+        descripcion='Días antes de volver a solicitar cambios de formación. 0 = sin espera.',
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_ENTERO,
+        defecto='90',
+        minimo=0,
+        maximo=365,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_IDENTIDAD,
+        etiqueta='Espera tras aprobación: Datos personales (días)',
+        descripcion='Días antes de volver a solicitar cambios de identidad. 0 = sin espera.',
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_ENTERO,
+        defecto='180',
+        minimo=0,
+        maximo=365,
+    ),
+    ParametroDefinicion(
+        clave=CLAVE_AUTOGESTION_ESPERA_ACCIONES,
+        etiqueta='Acciones sujetas a la espera tras aprobación',
+        descripcion=(
+            'Acciones que respetan la espera: corregir, quitar y/o agregar. '
+            'Sepárelas con coma.'
+        ),
+        grupo=GRUPO_AUTOGESTION,
+        tipo=TIPO_TEXTO,
+        defecto='corregir,quitar',
     ),
     ParametroDefinicion(
         clave=CLAVE_GENERAR_PUNTOS_CUENTA,
@@ -360,6 +428,7 @@ DEFINICIONES = (
         grupo=GRUPO_CARNETIZACION,
         tipo=TIPO_TEXTO,
         defecto='',
+        depende_de=(CLAVE_CARNETIZACION_MI_CARNET_ALCANCE, 'usuarios_especificos'),
     ),
     ParametroDefinicion(
         clave=CLAVE_CARNETIZACION_VENCIMIENTO_MESES,
@@ -449,9 +518,13 @@ def validar_valor(
             raise ValidationError(f'No se pueden configurar más de {MAX_RECORDATORIOS} días.')
         return ','.join(str(dia) for dia in dias)
     if definicion.clave == CLAVE_CARNETIZACION_MI_CARNET_USUARIOS:
-        if len(texto) > 255:
-            raise ValidationError(f'«{definicion.etiqueta}» no puede superar 255 caracteres.')
-        return texto
+        if not texto:
+            return ''
+        cedulas = [c.strip() for c in texto.replace(';', ',').split(',') if c.strip()]
+        for c in cedulas:
+            if not c.isdigit():
+                raise ValidationError(f'«{c}» no es una cédula válida.')
+        return ','.join(cedulas)
     if definicion.opciones:
         permitidos = {str(valor) for valor, _ in definicion.opciones}
         if texto not in permitidos and texto != (valor_actual or '').strip():

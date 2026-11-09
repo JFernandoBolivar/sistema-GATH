@@ -29,6 +29,13 @@ CLAVE_AUTOGESTION_ACTIVOS_SECCIONES = 'autogestion.activos_secciones'
 CLAVE_AUTOGESTION_PASIVOS_HABILITADO = 'autogestion.pasivos_habilitado'
 CLAVE_AUTOGESTION_PASIVOS_SECCIONES = 'autogestion.pasivos_secciones'
 
+# O48: bloqueo por solicitud pendiente y espera tras aprobación.
+CLAVE_AUTOGESTION_BLOQUEO_PENDIENTE = 'autogestion.bloqueo_solicitud_pendiente'
+CLAVE_AUTOGESTION_ESPERA_CONTACTO = 'autogestion.espera_dias_contacto'
+CLAVE_AUTOGESTION_ESPERA_FORMACION = 'autogestion.espera_dias_formacion'
+CLAVE_AUTOGESTION_ESPERA_IDENTIDAD = 'autogestion.espera_dias_identidad'
+CLAVE_AUTOGESTION_ESPERA_ACCIONES = 'autogestion.espera_acciones'
+
 # E5: retencion de datos operativos (nunca auditoria ni constancias).
 CLAVE_RETENCION_EVIDENCIAS_DIAS = 'retencion.evidencias_dias'
 CLAVE_RETENCION_SOPORTES_DIAS = 'retencion.soportes_dias'

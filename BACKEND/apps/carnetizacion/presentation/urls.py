@@ -21,6 +21,7 @@ from apps.carnetizacion.presentation.views.evento_views import (
     EventoInvitadoDetalleView,
     EventoInvitadosImportarView,
     EventoInvitadosListView,
+    EventoInvitadosPlantillaExcelView,
     EventoPanelView,
     EventosListView,
     EventoZonasView,
@@ -111,6 +112,7 @@ urlpatterns = [
     path('public/qr/<str:security_hash>/imagen/', CarnetQrImagenView.as_view(), name='carnet-qr-imagen'),
 
     # Eventos, Invitados y Control de Entrada con QR (O45-B)
+    path('eventos/plantilla-invitados-excel/', EventoInvitadosPlantillaExcelView.as_view(), name='plantilla_invitados_excel'),
     path('eventos/', EventosListView.as_view(), name='eventos-list'),
     path('eventos/<str:pk>/', EventoDetalleView.as_view(), name='evento-detalle'),
     path('eventos/<str:evento_id>/categorias/', EventoCategoriasView.as_view(), name='evento-categorias'),

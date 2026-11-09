@@ -65,7 +65,11 @@ class RepoCatalogosORM:
         return [parroquia_a_entidad(p) for p in qs]
 
     def listar_paises(self) -> list[CatalogoItem]:
-        return [pais_a_entidad(p) for p in PaisModel.objects.all().order_by('nombre')]
+        # Venezuela primero; el resto por nombre (D4/FIX-O46).
+        return [
+            pais_a_entidad(p)
+            for p in PaisModel.objects.all().order_by('-es_venezuela', 'nombre')
+        ]
 
     def listar_sexos(self) -> list[CatalogoItem]:
         return [sexo_a_entidad(s) for s in SexoModel.objects.all().order_by('sexo')]

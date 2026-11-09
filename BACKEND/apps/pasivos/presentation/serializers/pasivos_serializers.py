@@ -58,6 +58,8 @@ class PasivoSerializer(serializers.Serializer):
     tipo_pasivo = serializers.CharField(read_only=True)
     tipo_nomina_id = serializers.IntegerField(read_only=True, allow_null=True)
     fecha_egreso = serializers.CharField(read_only=True, allow_null=True)
+    motivo_egreso_id = serializers.IntegerField(read_only=True, allow_null=True)
+    motivo_egreso = serializers.CharField(read_only=True, allow_null=True)
     resolucion = serializers.CharField(read_only=True, allow_null=True)
     observaciones = serializers.CharField(read_only=True, allow_null=True)
     correo = serializers.CharField(read_only=True, allow_null=True)
@@ -141,6 +143,8 @@ class PasivoCrearInputSerializer(serializers.Serializer):
     sexo_id = serializers.IntegerField(required=True)
     fecha_nacimiento = serializers.DateField(required=True)
     tipo_nomina_id = serializers.IntegerField(required=True)
+    motivo_id = serializers.IntegerField(required=True)
+    fecha_vigencia = serializers.DateField(required=True)
     estado_civil_id = serializers.IntegerField(required=False, allow_null=True)
     nacionalidad_id = serializers.IntegerField(required=False, allow_null=True)
     correo = serializers.EmailField(required=False, allow_null=True, allow_blank=True)
@@ -160,6 +164,12 @@ class PasivoCrearInputSerializer(serializers.Serializer):
 
     def validate_cedula(self, value):
         return _validar(validar_cedula, value)
+
+    def validate_fecha_vigencia(self, value):
+        from django.utils import timezone
+        if value > timezone.now().date():
+            raise serializers.ValidationError('La fecha de vigencia no puede ser futura.')
+        return value
 
     def validate(self, attrs):
         correo = (attrs.get('correo') or '').strip().lower()
@@ -195,6 +205,7 @@ class PasivoListaInputSerializer(serializers.Serializer):
     nombre = serializers.CharField(required=False, allow_blank=True)
     codigo = serializers.CharField(required=False, allow_blank=True)
     tipo_nomina_id = serializers.IntegerField(required=False, allow_null=True)
+    motivo_id = serializers.IntegerField(required=False, allow_null=True)
     fecha_desde = serializers.DateField(required=False, allow_null=True)
     fecha_hasta = serializers.DateField(required=False, allow_null=True)
     sin_cuenta = serializers.BooleanField(required=False, allow_null=True)

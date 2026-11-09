@@ -395,6 +395,17 @@ class RepoPersonalORM:
             obj = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
             if not obj:
                 raise NotFoundError(f"Empleado con cédula {cedula} no encontrado")
+            # O49-BLOQUEO: segunda barrera, incluso para llamadas internas que
+            # no pasan por el serializer. `cedula` solo identifica al empleado.
+            if 'cedulaidentidad' in datos:
+                propuesta = datos.pop('cedulaidentidad')
+                if str(propuesta).strip() != str(obj.cedulaidentidad).strip():
+                    raise ValidationError(
+                        'La cédula de identidad no puede modificarse. '
+                        'Si hay un error, use «Reportar error» para que RRHH la corrija.',
+                        campo='cedulaidentidad',
+                    )
+            datos.pop('cedula', None)
             if datos.get('correo') and datos['correo'].strip().lower() != (obj.correo or '').strip().lower():
                 self._validar_correo_libre(datos['correo'], excluir_cedula=obj.cedulaidentidad)
             if escribe_alternativo and (correo_alternativo or '').strip().lower() != (self._correo_alternativo_de(obj.cedulaidentidad) or '').strip().lower():

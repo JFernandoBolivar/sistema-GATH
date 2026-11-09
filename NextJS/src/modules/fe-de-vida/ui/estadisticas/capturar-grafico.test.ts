@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { agregarLeyendaSvg } from "./capturar-grafico";
+import {
+  MAX_LADO_GRAFICO,
+  agregarLeyendaSvg,
+  dimensionesCanvas,
+} from "./capturar-grafico";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -50,5 +54,28 @@ describe("agregarLeyendaSvg", () => {
     agregarLeyendaSvg(svg, [{ nombre: "Faltan por responder: 1234", color: "#000" }], 480, 100);
     const x = Number(svg.querySelector("g[data-leyenda] rect")?.getAttribute("x"));
     expect(x).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("dimensionesCanvas", () => {
+  it("reduce la escala para no superar MAX_LADO_GRAFICO conservando la proporción", () => {
+    const grandes = dimensionesCanvas(1366, 420, 3);
+    expect(Math.max(grandes.ancho, grandes.alto)).toBeLessThanOrEqual(MAX_LADO_GRAFICO);
+    expect(grandes.ancho / grandes.alto).toBeCloseTo(1366 / 420, 1);
+  });
+
+  it("mantiene la escala cuando el gráfico ya cabe", () => {
+    expect(dimensionesCanvas(640, 320, 3)).toEqual({ ancho: 1920, alto: 960 });
+  });
+
+  it("acota también una captura a escala 1 con ancho excesivo", () => {
+    const ancho = dimensionesCanvas(3200, 400, 1);
+    expect(ancho.ancho).toBe(MAX_LADO_GRAFICO);
+    expect(ancho.alto).toBeLessThanOrEqual(MAX_LADO_GRAFICO);
+  });
+
+  it.each([1366, 1517, 1920, 360])("acota el ancho de pantalla %i px", (viewport) => {
+    const resultado = dimensionesCanvas(viewport, 420, 3);
+    expect(Math.max(resultado.ancho, resultado.alto)).toBeLessThanOrEqual(MAX_LADO_GRAFICO);
   });
 });

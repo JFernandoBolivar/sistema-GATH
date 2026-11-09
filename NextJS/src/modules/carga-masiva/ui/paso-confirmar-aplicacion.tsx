@@ -36,7 +36,11 @@ export function PasoConfirmarAplicacion({
   const [resultado, setResultado] = useState<CargaMasivaResumen | null>(null);
 
   const filasConfirmacion = useMemo(
-    () => detalle.filas.filter((f) => f.estado === "REQUIERE_CONFIRMACION"),
+    () =>
+      detalle.filas.filter(
+        (f) =>
+          f.estado === "REQUIERE_CONFIRMACION" || f.estado === "POSIBLE_DUPLICADO",
+      ),
     [detalle.filas],
   );
   const pendientes = filasConfirmacion.filter((f) => !f.confirmada).length;
@@ -55,6 +59,12 @@ export function PasoConfirmarAplicacion({
         } else {
           toast.success("Carga masiva aplicada exitosamente en el sistema.");
         }
+      } else if (res.error && /requiere.*aprobación/i.test(res.error)) {
+        toast.info(res.error);
+        setResultado({
+          ...detalle,
+          estado: "PENDIENTE_APROBACION",
+        });
       } else {
         toast.error(res.error || "No se pudo aplicar la carga.");
       }

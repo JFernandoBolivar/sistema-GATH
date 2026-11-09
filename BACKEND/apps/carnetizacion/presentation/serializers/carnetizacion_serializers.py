@@ -77,7 +77,7 @@ class PlantillaMotorDetalleSerializer(serializers.Serializer):
 class CrearPlantillaBorradorInputSerializer(serializers.Serializer):
     nombre = serializers.CharField(required=True, min_length=2, max_length=150, trim_whitespace=True)
     codigo_tipo = serializers.CharField(required=False, default='trabajador', max_length=50)
-    definicion = serializers.JSONField(required=True)
+    definicion = serializers.JSONField(required=False, default=dict)
     ancho_mm = serializers.FloatField(required=False, default=54.0)
     alto_mm = serializers.FloatField(required=False, default=85.6)
     orientacion = serializers.ChoiceField(choices=['vertical', 'horizontal'], default='vertical')

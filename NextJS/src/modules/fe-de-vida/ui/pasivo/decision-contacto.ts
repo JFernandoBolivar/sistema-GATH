@@ -26,7 +26,7 @@ export function resolverOpcionesContacto(entrada: EntradaContacto): ResultadoCon
     const justificacion = entrada.justificacion.trim();
     if (justificacion.length < MIN_JUSTIFICACION_SIN_CORREO) {
       return {
-        error: `Indique la justificación de por qué no tiene correo (mínimo ${MIN_JUSTIFICACION_SIN_CORREO} caracteres).`,
+        error: `La justificación de «sin correo» debe tener al menos ${MIN_JUSTIFICACION_SIN_CORREO} caracteres.`,
       };
     }
     return { opciones: { sinCorreoAlternativo: true, justificacionSinCorreo: justificacion } };

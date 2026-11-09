@@ -524,7 +524,7 @@ def test_quitar_contacto_aprobado_lo_elimina_de_la_ficha(trabajador, analista):
 
 
 def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analista):
-    """D19: la identidad exige copia de cédula y el cambio de cédula arrastra sus referencias.
+    """D19: la identidad exige copia de cédula; la cédula es inmutable (O49).
     D21: estado civil, carnet, salud y tallas entran sin documento."""
     estado = EstadoCivilModel.objects.get_or_create(estadoCivil='O10 PRUEBA')[0]
     categoria = CategoriaAlergiaModel.objects.get_or_create(nombre_categoria='O10 PRUEBA')[0]
@@ -533,13 +533,11 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
     region = RegionTallaModel.objects.get_or_create(codigo='O10', defaults={'descripcion': 'O10'})[0]
     prenda = TipoPrendaModel.objects.get_or_create(categoria='Camisa')[0]
     talla = TallaModel.objects.create(valor='O10', region=region, tipo_prenda=prenda)
-    nueva_cedula = '20999999'
 
     sid = solicitar(trabajador, ('identidad', 'salud'))
     habilitar(analista, sid)
     cambios = [
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'nombres', 'valor': 'MARIA ELENA'},
-        {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'cedulaidentidad', 'valor': nueva_cedula},
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'fecha_nacimiento', 'valor': '1990-05-04'},
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'estadoCivil_id', 'valor': estado.pk},
         {'seccion': 'identidad', 'entidad': 'employee', 'accion': 'MODIFICAR', 'campo': 'carnet_patria', 'valor': '123-4567890-1'},
@@ -564,8 +562,7 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
                       {'version': comparativo['version'], 'decisiones': decisiones}, format='json')
     assert r.status_code == 200, r.content
 
-    assert not EmployeeModel.objects.filter(cedulaidentidad=TRABAJADOR).exists()
-    empleado = EmployeeModel.objects.get(cedulaidentidad=nueva_cedula)
+    empleado = EmployeeModel.objects.get(cedulaidentidad=TRABAJADOR)
     assert empleado.nombres == 'MARIA ELENA'
     assert empleado.fecha_nacimiento.isoformat() == '1990-05-04'
     assert empleado.estadoCivil_id == estado.pk
@@ -573,8 +570,8 @@ def test_identidad_con_copia_de_cedula_y_salud_sin_documento(trabajador, analist
     salud = PerfilSaludModel.objects.get(empleado=empleado)
     assert list(salud.alergias.values_list('pk', flat=True)) == [alergia.pk]
     assert PerfilFisicoModel.objects.get(empleado=empleado).tallaCamisa_id == talla.pk
-    # La solicitud y sus reservas siguen a la nueva cédula.
-    assert SolicitudActualizacionModel.objects.get(pk=sid).cedula == nueva_cedula
+    # O49: la cédula no cambia; la solicitud conserva la cédula del trabajador.
+    assert SolicitudActualizacionModel.objects.get(pk=sid).cedula == TRABAJADOR
 
 
 def _parametro(clave, valor, tipo='texto'):

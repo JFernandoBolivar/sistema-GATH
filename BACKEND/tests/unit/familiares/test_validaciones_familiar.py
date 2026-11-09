@@ -34,7 +34,7 @@ def test_resolver_cedula_familiar_usa_la_cedula_dada():
 
 
 def test_resolver_cedula_familiar_rechaza_igual_al_empleado():
-    with pytest.raises(ValueError, match="no puede ser igual"):
+    with pytest.raises(ValueError, match="No se puede generar la cédula del hijo"):
         resolver_cedula_familiar(
             cedula_familiar="12345678",
             cedula_empleado="12345678",
@@ -67,7 +67,7 @@ def test_resolver_cedula_familiar_exige_orden_para_hijo_menor():
 
 
 def test_resolver_cedula_familiar_rechaza_orden_duplicado():
-    with pytest.raises(ValueError, match="ya tiene un hijo registrado con el orden"):
+    with pytest.raises(ValueError, match="ya tiene un hijo o menor a cargo con el orden"):
         resolver_cedula_familiar(
             cedula_familiar=None,
             cedula_empleado="12345678",
@@ -120,3 +120,11 @@ def test_validar_heredero_unico_ok_sin_heredero_previo():
 def test_validar_heredero_unico_falla_si_ya_existe():
     with pytest.raises(ValueError, match="ya posee un familiar registrado como heredero"):
         validar_heredero_unico(True, True)
+
+def test_longitud_maxima_cedula_familiar_es_una_constante():
+    from apps.familiares.domain.entities.familiar import CEDULA_FAMILIAR_MAX
+    from apps.familiares.infrastructure.models.familiar_models import EmployeefamilyModel
+
+    campo = EmployeefamilyModel._meta.get_field('cedulaFamiliar')
+    assert CEDULA_FAMILIAR_MAX == 10
+    assert campo.max_length == CEDULA_FAMILIAR_MAX

@@ -7,10 +7,13 @@ from apps.configuracion.domain.parametros import DEFINICIONES
 from django.db import connection
 from rest_framework.test import APIClient
 
+from apps.catalogos.infrastructure.models.catalogo_models import NacionalidadModel, SexoModel
 from apps.configuracion.application.use_cases.gestionar_parametros import listar_parametros
 from apps.configuracion.infrastructure.lector_configuracion import LectorConfiguracionORM
 from apps.configuracion.infrastructure.models.parametro_model import ParametroSistemaModel
 from apps.configuracion.infrastructure.repositories.repo_parametros_orm import RepoParametrosORM
+from apps.identidad.infrastructure.models.cuenta_models import CuentaModel, RolModel
+from apps.personal.infrastructure.models.empleado_model import EmployeeModel
 from core.domain.configuracion import (
     CLAVE_AUTOGESTION_AVISO_DIAS,
     CLAVE_FE_DE_VIDA_RECORDATORIOS,
@@ -188,7 +191,11 @@ def test_el_listado_expone_las_opciones_de_retencion():
     for p in retencion:
         assert p['opciones'][0] == {'valor': 30, 'etiqueta': '1 mes'}
         assert p['opciones'][-1] == {'valor': 0, 'etiqueta': 'Nunca'}
-    assert all(p['opciones'] == [] for p in parametros if p['grupo'] not in ('retencion', 'carnetizacion'))
+    assert all(
+        p['opciones'] == []
+        for p in parametros
+        if p['grupo'] not in ('retencion', 'carnetizacion', 'autogestion')
+    )
 
     # O44 (E1): opciones de alcance de carnetizacion
     carnet_alcance = next(p for p in parametros if p['clave'] == 'carnetizacion.mi_carnet_alcance')
@@ -204,15 +211,32 @@ def test_parametro_mi_carnet_alcance_y_usuarios():
     # Valor inválido en alcance
     assert api.put(url_alcance, {'valor': 'invalido'}, format='json').status_code == 400
 
-    # Cambiar alcance a usuarios_especificos
+    # FIX-PARAM1: no se activa «usuarios específicos» sin trabajadores con cuenta activa.
+    sin_usuarios = api.put(url_alcance, {'valor': 'usuarios_especificos'}, format='json')
+    assert sin_usuarios.status_code == 400
+    assert 'al menos un trabajador' in sin_usuarios.json()['message']
+
+    NacionalidadModel.objects.get_or_create(
+        pk=1, defaults={'codigo': 'V', 'nombre': 'VENEZOLANO'},
+    )
+    sexo, _ = SexoModel.objects.get_or_create(sexo='FEMENINO')
+    empleado = EmployeeModel.objects.create(
+        cedulaidentidad='12345678', nombres='ANA', apellidos='PEREZ',
+        sexoid=sexo, nacionalidad_id=1,
+    )
+    rol, _ = RolModel.objects.get_or_create(
+        nombre_rol='TRABAJADOR', defaults={'nombre_visible': 'Trabajador'},
+    )
+    CuentaModel.objects.create(cedula=empleado, rol=rol, is_active=True, password='!')
+
+    # Guardar primero la lista válida y luego activar el alcance.
+    resp_u = api.put(url_usuarios, {'valor': '12345678'}, format='json')
+    assert resp_u.status_code == 200
+    assert data(resp_u)['valor'] == '12345678'
+
     resp = api.put(url_alcance, {'valor': 'usuarios_especificos'}, format='json')
     assert resp.status_code == 200
     assert data(resp)['valor'] == 'usuarios_especificos'
-
-    # Guardar lista de usuarios específicos
-    resp_u = api.put(url_usuarios, {'valor': '12345678, 87654321'}, format='json')
-    assert resp_u.status_code == 200
-    assert data(resp_u)['valor'] == '12345678, 87654321'
 
 
 def test_retencion_rechaza_un_valor_fuera_de_la_lista_y_acepta_nunca():

@@ -91,6 +91,20 @@ export default function FormPhysicalProfileUpdateDialog({
   }, [open, empleado.perfilFisico, setValue]);
 
   const onSubmit: Parameters<typeof handleSubmit>[0] = (data) => {
+    // FIX-CARGA3: las tres tallas básicas son obligatorias al editar vestimenta.
+    const faltantes: Array<["tallaCamisaId" | "tallaPantalonId" | "tallaZapatosId", string]> = [
+      ["tallaCamisaId", "Seleccione una talla de camisa."],
+      ["tallaPantalonId", "Seleccione una talla de pantalón."],
+      ["tallaZapatosId", "Seleccione una talla de zapatos."],
+    ];
+    let invalido = false;
+    for (const [campo, mensaje] of faltantes) {
+      if (!data[campo]) {
+        form.setError(campo, { type: "required", message: mensaje });
+        invalido = true;
+      }
+    }
+    if (invalido) return;
     startTransition(async () => {
       setError(null);
       try {

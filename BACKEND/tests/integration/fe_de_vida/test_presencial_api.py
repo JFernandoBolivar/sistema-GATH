@@ -534,3 +534,226 @@ def test_borrador_presencial_rechaza_celular_vacio(datos):
     r = cli.put(f'{BASE}/presencial/solicitudes/{sid}/borrador/', {'cambios': []}, format='json')
     assert r.status_code == 400
     assert 'celular' in r.content.decode().lower()
+
+
+def test_borrador_presencial_registro_nuevo_vivienda_pais_extranjero(datos):
+    """PRUEBAS-USUARIO P12: Pasivo sin vivienda registra vivienda en país extranjero."""
+    from apps.catalogos.infrastructure.models.catalogo_models import PaisModel
+    from apps.personal.infrastructure.models.catalogos_soporte_models import CondicionViviendaModel
+
+    pais_ext = PaisModel.objects.filter(es_venezuela=False).first()
+    if not pais_ext:
+        pais_ext = PaisModel.objects.create(codigo='DEU', nombre='ALEMANIA', es_venezuela=False)
+    cond = CondicionViviendaModel.objects.first()
+    if not cond:
+        cond = CondicionViviendaModel.objects.create(condicion='PROPIA')
+
+    cli, sid = _iniciar_sin_celular(datos)
+    cambios = [
+        {
+            'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR',
+            'campo': 'telefono_movil', 'valor': '+584147574312', 'entidad_id': None,
+        },
+        {
+            'seccion': 'vivienda', 'entidad': 'datos_vivienda', 'accion': 'CREAR',
+            'campo': '*',
+            'valor': {
+                'pais_id': pais_ext.id,
+                'ciudad_region': 'BERLÍN',
+                'direccion_exacta': 'ALEXANDERPLATZ 1',
+                'condicion_vivienda_id': cond.id,
+            },
+            'entidad_id': None,
+        },
+    ]
+    r = cli.put(f'{BASE}/presencial/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json')
+    assert r.status_code == 200, r.content
+    res_cambios = _cuerpo(r)['cambios']
+    viv = next(c for c in res_cambios if c['entidad'] == 'datos_vivienda')
+    assert viv['accion'] == 'CREAR'
+    assert viv['valor_propuesto']['ciudad_region'] == 'BERLÍN'
+    assert viv['valor_propuesto']['pais_id'] == pais_ext.id
+
+
+def test_borrador_presencial_vivienda_venezuela_exige_ubicacion_con_nombres_legibles(datos):
+    """PRUEBAS-USUARIO P12: Con Venezuela, los campos faltantes se listan con etiquetas legibles."""
+    from apps.catalogos.infrastructure.models.catalogo_models import PaisModel
+    from apps.personal.infrastructure.models.catalogos_soporte_models import CondicionViviendaModel
+
+    pais_vzla = PaisModel.objects.filter(es_venezuela=True).first()
+    if not pais_vzla:
+        pais_vzla = PaisModel.objects.create(codigo='VEN', nombre='VENEZUELA', es_venezuela=True)
+    cond = CondicionViviendaModel.objects.first()
+    if not cond:
+        cond = CondicionViviendaModel.objects.create(condicion='PROPIA')
+
+    cli, sid = _iniciar_sin_celular(datos)
+    cambios = [
+        {
+            'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR',
+            'campo': 'telefono_movil', 'valor': '+584147574312', 'entidad_id': None,
+        },
+        {
+            'seccion': 'vivienda', 'entidad': 'datos_vivienda', 'accion': 'CREAR',
+            'campo': '*',
+            'valor': {
+                'pais_id': pais_vzla.id,
+                'direccion_exacta': 'CALLE PRINCIPAL 123',
+                'condicion_vivienda_id': cond.id,
+            },
+            'entidad_id': None,
+        },
+    ]
+    r = cli.put(f'{BASE}/presencial/solicitudes/{sid}/borrador/', {'cambios': cambios}, format='json')
+    assert r.status_code == 400
+    contenido = r.content.decode()
+    assert 'codigo_postal_id' not in contenido
+    assert 'estado_id' not in contenido
+    assert 'municipio_id' not in contenido
+    assert 'parroquia_id' not in contenido
+    assert 'Estado' in contenido
+    assert 'Municipio' in contenido
+    assert 'Parroquia' in contenido
+
+
+def _abrir_proceso(cli_admin, nombre='FE DE VIDA CONCURRENTE'):
+    r_proc = cli_admin.post(f'{BASE}/procesos/', {
+        'nombre': nombre,
+        'fecha_apertura': '2026-01-01T00:00:00Z',
+        'fecha_cierre': '2026-12-31T23:59:59Z',
+    }, format='json')
+    pid = _cuerpo(r_proc)['id']
+    cli_admin.post(f'{BASE}/procesos/{pid}/abrir/')
+    return pid
+
+
+def _cli_pasivo():
+    return _cliente(PASIVO, {'fe_de_vida.solicitar', 'fe_de_vida.ver_propia'}, pk=2)
+
+
+def _cambios_contacto(valor='04141234567'):
+    # O39: el correo alternativo es obligatorio para enviar la fe de vida.
+    return [
+        {
+            'seccion': 'contacto', 'entidad': 'employee', 'accion': 'MODIFICAR',
+            'campo': 'telefono_movil', 'valor': valor,
+        },
+        {
+            'seccion': 'contacto', 'entidad': 'datos_complementarios', 'accion': 'MODIFICAR',
+            'campo': 'correo_alternativo', 'valor': 'pasivo.alterno@correo.test',
+        },
+    ]
+
+
+def test_presencial_y_autogestion_comparten_la_misma_solicitud_y_no_duplican(datos):
+    """A9: si Bienestar inicia la presencial, el pasivo ve y edita ESA misma solicitud."""
+    cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})
+    pid = _abrir_proceso(cli_admin)
+    cli_bienestar = _cliente(ANALISTA, {'fe_de_vida.registrar_presencial'})
+    cli_pasivo = _cli_pasivo()
+
+    r_ini = cli_bienestar.post(f'{BASE}/presencial/solicitudes/', {'cedula': PASIVO}, format='json')
+    assert r_ini.status_code == 200, r_ini.content
+    sid = _cuerpo(r_ini)['solicitud']['id']
+
+    # El pasivo entra a Autogestión y ve exactamente la solicitud presencial.
+    r_vig = cli_pasivo.get(f'{BASE}/procesos/vigente/')
+    assert r_vig.status_code == 200, r_vig.content
+    vigente = _cuerpo(r_vig)
+    assert vigente['solicitud']['id'] == sid
+    assert vigente['solicitud']['canal'] == 'PRESENCIAL'
+
+    # Ambos guardan el mismo borrador (se bloquea la fila; gana la última escritura).
+    r_online = cli_pasivo.put(
+        f'{BASE}/mis-solicitudes/{sid}/borrador/',
+        {'cambios': _cambios_contacto('04141111111')}, format='json',
+    )
+    assert r_online.status_code == 200, r_online.content
+    r_pres = cli_bienestar.put(
+        f'{BASE}/presencial/solicitudes/{sid}/borrador/',
+        {'cambios': _cambios_contacto('04142222222')}, format='json',
+    )
+    assert r_pres.status_code == 200, r_pres.content
+
+    from apps.autogestion.infrastructure.models.actualizacion_models import CambioPropuestoModel
+    valores = list(CambioPropuestoModel.objects.filter(
+        origen_id=sid, origen_tipo='FE_DE_VIDA', campo='telefono_movil',
+    ).values_list('valor_propuesto', flat=True))
+    assert valores == ['+584142222222']
+
+    assert SolicitudFeDeVidaModel.objects.filter(proceso_id=pid, cedula=PASIVO).count() == 1
+
+
+def test_pasivo_envia_y_el_presencial_ya_no_puede_guardar(datos):
+    """En cuanto el pasivo envía, el borrador presencial queda bloqueado y no se duplica."""
+    cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})
+    pid = _abrir_proceso(cli_admin)
+    cli_bienestar = _cliente(ANALISTA, {'fe_de_vida.registrar_presencial'})
+    cli_pasivo = _cli_pasivo()
+
+    sid = _cuerpo(cli_bienestar.post(
+        f'{BASE}/presencial/solicitudes/', {'cedula': PASIVO}, format='json',
+    ))['solicitud']['id']
+
+    # El pasivo corrige el borrador desde Autogestión (misma solicitud) y envía.
+    r_online = cli_pasivo.put(
+        f'{BASE}/mis-solicitudes/{sid}/borrador/',
+        {'cambios': _cambios_contacto()}, format='json',
+    )
+    assert r_online.status_code == 200, r_online.content
+    r_foto = cli_pasivo.post(
+        f'{BASE}/mis-solicitudes/{sid}/evidencia/',
+        {'file': _foto_jpeg(), 'origen': 'CAMARA'}, format='multipart',
+    )
+    assert r_foto.status_code == 200, r_foto.content
+    r_env = cli_pasivo.post(f'{BASE}/mis-solicitudes/{sid}/enviar/', {}, format='json')
+    assert r_env.status_code == 200, r_env.content
+    assert _cuerpo(r_env)['estado'] == 'PENDIENTE_REVISION'
+
+    r_pres = cli_bienestar.put(
+        f'{BASE}/presencial/solicitudes/{sid}/borrador/',
+        {'cambios': _cambios_contacto()}, format='json',
+    )
+    assert r_pres.status_code == 400
+    assert 'ya no admite cambios' in str(r_pres.json())
+
+    r_ini = cli_bienestar.post(f'{BASE}/presencial/solicitudes/', {'cedula': PASIVO}, format='json')
+    assert _cuerpo(r_ini)['solicitud']['id'] == sid
+    assert _cuerpo(r_ini)['solicitud']['estado'] == 'PENDIENTE_REVISION'
+    assert SolicitudFeDeVidaModel.objects.filter(proceso_id=pid, cedula=PASIVO).count() == 1
+
+
+def test_presencial_envia_y_la_autogestion_ya_no_puede_guardar(datos):
+    """Al revés: enviada en sede, el portal del pasivo ya no edita el borrador."""
+    cli_admin = _cliente(ADMINISTRADORA, {'fe_de_vida.gestionar_procesos'})
+    _abrir_proceso(cli_admin)
+    cli_bienestar = _cliente(ANALISTA, {'fe_de_vida.registrar_presencial'})
+    cli_pasivo = _cli_pasivo()
+
+    r_ini = cli_bienestar.post(f'{BASE}/presencial/solicitudes/', {'cedula': PASIVO}, format='json')
+    sid = _cuerpo(r_ini)['solicitud']['id']
+    assert cli_bienestar.put(
+        f'{BASE}/presencial/solicitudes/{sid}/borrador/',
+        {'cambios': _cambios_contacto()}, format='json',
+    ).status_code == 200
+    assert cli_bienestar.post(
+        f'{BASE}/presencial/solicitudes/{sid}/evidencia/',
+        {'file': _foto_jpeg(), 'origen': 'ARCHIVO'}, format='multipart',
+    ).status_code == 200
+    r_env = cli_bienestar.post(
+        f'{BASE}/presencial/solicitudes/{sid}/enviar/',
+        {'declaracion_presencial': True}, format='json',
+    )
+    assert r_env.status_code == 200, r_env.content
+    assert _cuerpo(r_env)['estado'] == 'PENDIENTE_REVISION'
+
+    r_online = cli_pasivo.put(
+        f'{BASE}/mis-solicitudes/{sid}/borrador/',
+        {'cambios': _cambios_contacto()}, format='json',
+    )
+    assert r_online.status_code == 400
+    assert 'ya no admite cambios' in str(r_online.json())
+
+    vigente = _cuerpo(cli_pasivo.get(f'{BASE}/procesos/vigente/'))
+    assert vigente['solicitud']['id'] == sid
+    assert vigente['solicitud']['estado'] == 'PENDIENTE_REVISION'

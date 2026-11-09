@@ -7,6 +7,8 @@ Verifica:
 4. Alta de motivo en una categoría con validación de longitud y sin HTML.
 5. Actualización de marcas de nómina (es_activo, requiere_codig).
 """
+from dataclasses import replace
+
 import pytest
 
 from apps.configuracion.application.use_cases.gestionar_reglas_catalogos import (
@@ -94,19 +96,26 @@ class RepoReglasCatalogosMemoria(RepoReglasCatalogos):
             raise NotFoundError('No encontrado')
         return self.parentescos[parentesco_id]
 
-    def actualizar_parentesco(self, parentesco_id: int, aplica_familiar: bool, descripcion: str | None = None):
+    def actualizar_parentesco(
+        self, parentesco_id: int, aplica_familiar: bool,
+        descripcion: str | None = None, regla: dict | None = None,
+    ):
         actual = self.obtener_parentesco(parentesco_id)
-        nuevo = ReglaParentesco(
-            id=actual.id,
-            descripcion=descripcion if descripcion is not None else actual.descripcion,
-            aplica_familiar=aplica_familiar,
-        )
+        cambios = dict(regla or {})
+        cambios['descripcion'] = descripcion if descripcion is not None else actual.descripcion
+        cambios['aplica_familiar'] = aplica_familiar
+        nuevo = replace(actual, **cambios)
         self.parentescos[parentesco_id] = nuevo
         return nuevo
 
-    def crear_parentesco(self, descripcion: str, aplica_familiar: bool):
+    def crear_parentesco(
+        self, descripcion: str, aplica_familiar: bool, regla: dict | None = None,
+    ):
         nuevo_id = max(self.parentescos.keys(), default=0) + 1
-        nuevo = ReglaParentesco(id=nuevo_id, descripcion=descripcion, aplica_familiar=aplica_familiar)
+        nuevo = ReglaParentesco(
+            id=nuevo_id, descripcion=descripcion, aplica_familiar=aplica_familiar,
+            **(regla or {}),
+        )
         self.parentescos[nuevo_id] = nuevo
         return nuevo
 

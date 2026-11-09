@@ -20,14 +20,16 @@ class RepoSolicitudesMem:
     def __init__(self):
         self.filas, self.reservas, self.prorrogas = {}, {}, []
 
-    def crear(self, solicitud):
-        for s in solicitud.secciones_solicitadas:
-            if (solicitud.cedula, s) in self.reservas:
-                raise ConflictError('Ya existe una solicitud abierta')
+    def crear(self, solicitud, reservar=True):
+        if reservar:
+            for s in solicitud.secciones_solicitadas:
+                if (solicitud.cedula, s) in self.reservas:
+                    raise ConflictError('Ya existe una solicitud abierta')
         nueva = replace(solicitud, id=uuid.uuid4().hex, fecha_solicitud=AHORA)
         self.filas[nueva.id] = nueva
-        for s in nueva.secciones_solicitadas:
-            self.reservas[(nueva.cedula, s)] = nueva.id
+        if reservar:
+            for s in nueva.secciones_solicitadas:
+                self.reservas[(nueva.cedula, s)] = nueva.id
         return nueva
 
     def obtener(self, solicitud_id, bloquear=False):

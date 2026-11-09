@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { SWRConfig } from "swr";
 import type { ReporteErrorLaboralApiItem } from "../../infrastructure/http/personal-api";
 
@@ -56,5 +56,45 @@ describe("ReportesErrorLaboralPageView (FIX-QA3)", () => {
     mockGet.mockRejectedValue(new Error("sin conexión"));
     renderPagina();
     expect(await screen.findByText(/No se pudieron cargar los reportes de error laboral/)).toBeInTheDocument();
+  });
+
+  it("filtra reportes con BarraFiltros, muestra chips y permite limpiar filtros (FIX-DIS1)", async () => {
+    const OTRO_REPORTE: ReporteErrorLaboralApiItem = {
+      id: "rep-2",
+      trabajador_cedula: "22222222",
+      trabajador_nombre: "Carlos Perez",
+      dato: "cargo",
+      descripcion: "Cargo incorrecto en sistema.",
+      estado: "ATENDIDO",
+      creado_el: "2026-11-03T10:00:00Z",
+      actualizado_el: "2026-11-03T10:00:00Z",
+    };
+    mockGet.mockResolvedValue([REPORTE, OTRO_REPORTE]);
+    renderPagina();
+
+    expect(await screen.findByText("Maria Gonzalez")).toBeInTheDocument();
+    expect(screen.getByText("Carlos Perez")).toBeInTheDocument();
+    // Conteo en badge de BarraFiltros
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("reportes")).toBeInTheDocument();
+
+    // Búsqueda rápida
+    const inputBusqueda = screen.getByPlaceholderText(/Buscar por cédula, nombre o descripción/i);
+    fireEvent.change(inputBusqueda, { target: { value: "Carlos" } });
+
+    // Ahora sólo debe verse Carlos
+    expect(screen.getByText("Carlos Perez")).toBeInTheDocument();
+    expect(screen.queryByText("Maria Gonzalez")).not.toBeInTheDocument();
+
+    // Debe mostrarse el chip de búsqueda activa
+    expect(screen.getByText("Búsqueda:")).toBeInTheDocument();
+
+    // Remover chip de búsqueda
+    const botonQuitarChip = screen.getByRole("button", { name: /Quitar filtro Búsqueda/i });
+    fireEvent.click(botonQuitarChip);
+
+    // Vuelven a verse ambos reportes
+    expect(screen.getByText("Maria Gonzalez")).toBeInTheDocument();
+    expect(screen.getByText("Carlos Perez")).toBeInTheDocument();
   });
 });

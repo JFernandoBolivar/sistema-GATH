@@ -21,6 +21,9 @@ class Campo:
     etiqueta: str
     tipo: str = 'texto'          # texto | entero | decimal | fecha | booleano | catalogo
     obligatorio: bool = False
+    # FIX-CARGA3: obligatorio solo para ciertas poblaciones (p. ej. las tallas
+    # de los activos). Si está vacío se usa `obligatorio` para todas.
+    obligatorio_poblaciones: tuple[str, ...] = ()
     obligatorio_completo: bool = False
     max_length: int | None = None
     catalogo: str = ''
@@ -31,6 +34,11 @@ class Campo:
 
     def aplica_a(self, poblacion: str) -> bool:
         return poblacion in self.poblaciones
+
+    def es_obligatorio(self, poblacion: str) -> bool:
+        if self.obligatorio_poblaciones:
+            return poblacion in self.obligatorio_poblaciones
+        return self.obligatorio
 
 
 @dataclass(frozen=True)
@@ -64,7 +72,7 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
         Campo('sexo_id', 'Sexo', tipo='catalogo', catalogo='sexo', obligatorio=True),
         Campo('fecha_nacimiento', 'Fecha de nacimiento', tipo='fecha', obligatorio=True, formato='AAAA-MM-DD'),
         Campo('nacionalidad_id', 'Nacionalidad', tipo='catalogo', catalogo='nacionalidad', obligatorio=True),
-        Campo('estado_civil_id', 'Estado civil', tipo='catalogo', catalogo='estado_civil'),
+        Campo('estado_civil_id', 'Estado civil', tipo='catalogo', catalogo='estado_civil', obligatorio=True),
         Campo('correo', 'Correo', max_length=150, formato='correo@dominio'),
         Campo('telefono_movil', 'Teléfono móvil', max_length=20),
         Campo('telefono_habitacion', 'Teléfono de habitación', max_length=20),
@@ -118,44 +126,80 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
     ), ('cedula_titular', 'nombres', 'apellidos')),
     TipoCarga('formacion_academica', 'Formación académica', 'Formación académica', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
-        Campo('titulo', 'Título', obligatorio=True, max_length=160),
-        Campo('institucion', 'Institución', obligatorio=True, max_length=160),
-        Campo('nivel_academico_id', 'Nivel académico', tipo='catalogo', catalogo='nivel_academico'),
-        Campo('fecha_inicio', 'Fecha de inicio', tipo='fecha', formato='AAAA-MM-DD'),
-        Campo('fecha_fin', 'Fecha de fin', tipo='fecha', formato='AAAA-MM-DD'),
-    ), ('cedula', 'titulo', 'institucion')),
+        Campo('nivel_academico_id', 'Nivel académico', tipo='catalogo', catalogo='nivel_academico', obligatorio=True),
+        Campo('titulo', 'Título / Carrera', tipo='catalogo', catalogo='carrera', max_length=200, ayuda='Opcional; si se indica, exige institución.'),
+        Campo('institucion', 'Institución', tipo='catalogo', catalogo='institucion', max_length=200, ayuda='Exigida si se indica título/carrera.'),
+    ), ('cedula', 'nivel_academico_id')),
     TipoCarga('formacion_complementaria', 'Formación complementaria', 'Formación complementaria', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         Campo('curso', 'Curso', obligatorio=True, max_length=160),
-        Campo('institucion', 'Institución', obligatorio=True, max_length=160),
+        Campo('institucion', 'Institución', tipo='catalogo', catalogo='institucion', obligatorio=True, max_length=200),
         Campo('fecha_inicio', 'Fecha de inicio', tipo='fecha', formato='AAAA-MM-DD'),
         Campo('fecha_fin', 'Fecha de fin', tipo='fecha', formato='AAAA-MM-DD'),
         Campo('horas', 'Horas', tipo='entero'),
     ), ('cedula', 'curso', 'institucion')),
     TipoCarga('vivienda', 'Vivienda', 'Vivienda', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
-        Campo('estado_id', 'Estado', tipo='catalogo', catalogo='estado', obligatorio=True),
-        Campo('municipio_id', 'Municipio', tipo='catalogo', catalogo='municipio'),
-        Campo('parroquia_id', 'Parroquia', tipo='catalogo', catalogo='parroquia'),
+        # ACTIVOS: el país está fijo en Venezuela; la ubicación completa es obligatoria
+        Campo('estado_id', 'Estado', tipo='catalogo', catalogo='estado', obligatorio=True, poblaciones=(POBLACION_ACTIVOS,)),
+        Campo('municipio_id', 'Municipio', tipo='catalogo', catalogo='municipio', obligatorio=True, poblaciones=(POBLACION_ACTIVOS,)),
+        Campo('parroquia_id', 'Parroquia', tipo='catalogo', catalogo='parroquia', obligatorio=True, poblaciones=(POBLACION_ACTIVOS,)),
+        # PASIVOS: pueden residir fuera de Venezuela; país obligatorio y ubicación condicional
+        Campo('pais_id', 'País', tipo='catalogo', catalogo='pais', obligatorio=True, poblaciones=(POBLACION_PASIVOS,)),
+        Campo(
+            'ciudad_region', 'Ciudad o región', max_length=120,
+            ayuda='Obligatoria para pasivos que residen fuera de Venezuela.',
+            poblaciones=(POBLACION_PASIVOS,),
+        ),
+        Campo(
+            'estado_id', 'Estado', tipo='catalogo', catalogo='estado',
+            ayuda='Obligatorio si el país es Venezuela.',
+            poblaciones=(POBLACION_PASIVOS,),
+        ),
+        Campo(
+            'municipio_id', 'Municipio', tipo='catalogo', catalogo='municipio',
+            ayuda='Obligatorio si el país es Venezuela.',
+            poblaciones=(POBLACION_PASIVOS,),
+        ),
+        Campo(
+            'parroquia_id', 'Parroquia', tipo='catalogo', catalogo='parroquia',
+            ayuda='Obligatoria si el país es Venezuela.',
+            poblaciones=(POBLACION_PASIVOS,),
+        ),
+        # COMUNES:
+        Campo(
+            'codigo_postal', 'Código postal', tipo='catalogo', catalogo='codigo_postal',
+            obligatorio_poblaciones=(POBLACION_ACTIVOS,), max_length=5,
+            ayuda='Obligatorio si el país es Venezuela; vacío si es otro país.',
+        ),
         Campo('direccion_exacta', 'Dirección exacta', obligatorio=True, max_length=300),
-        Campo('condicion_vivienda_id', 'Condición de la vivienda', tipo='catalogo', catalogo='condicion_vivienda'),
+        Campo('condicion_vivienda_id', 'Condición de la vivienda', tipo='catalogo', catalogo='condicion_vivienda', obligatorio=True),
     ), ('cedula',)),
     TipoCarga('salud_tallas', 'Salud y tallas', 'Salud y tallas', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
         Campo('discapacidad_id', 'Discapacidad', tipo='catalogo', catalogo='discapacidad'),
         Campo('alergia_id', 'Alergia', tipo='catalogo', catalogo='alergia'),
         Campo('patologia_id', 'Patología crónica', tipo='catalogo', catalogo='patologia'),
-        Campo('talla_camisa', 'Talla de camisa', max_length=20),
-        Campo('talla_pantalon', 'Talla de pantalón', max_length=20),
-        Campo('talla_zapato', 'Talla de zapato', max_length=20),
+        # FIX-CARGA3: obligatorias solo para activos; un pasivo puede no tenerlas.
+        Campo(
+            'talla_camisa', 'Talla de camisa', tipo='catalogo', catalogo='talla_camisa',
+            max_length=20, obligatorio_poblaciones=(POBLACION_ACTIVOS,),
+        ),
+        Campo(
+            'talla_pantalon', 'Talla de pantalón', tipo='catalogo', catalogo='talla_pantalon',
+            max_length=20, obligatorio_poblaciones=(POBLACION_ACTIVOS,),
+        ),
+        Campo(
+            'talla_zapato', 'Talla de zapato', tipo='catalogo', catalogo='talla_zapato',
+            max_length=20, obligatorio_poblaciones=(POBLACION_ACTIVOS,),
+        ),
     ), ('cedula',)),
     TipoCarga('antecedentes_laborales', 'Antecedentes laborales', 'Antecedentes laborales', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
-        Campo('organismo', 'Organismo', obligatorio=True, max_length=160),
-        Campo('cargo', 'Cargo', obligatorio=True, max_length=160),
+        Campo('organismo', 'Organismo', tipo='catalogo', catalogo='organismo', obligatorio=True, max_length=160),
         Campo('fecha_ingreso', 'Fecha de ingreso', tipo='fecha', obligatorio=True, formato='AAAA-MM-DD'),
-        Campo('fecha_egreso', 'Fecha de egreso', tipo='fecha', formato='AAAA-MM-DD'),
-    ), ('cedula', 'organismo', 'cargo', 'fecha_ingreso')),
+        Campo('fecha_egreso', 'Fecha de egreso', tipo='fecha', obligatorio=True, formato='AAAA-MM-DD'),
+    ), ('cedula', 'organismo', 'fecha_ingreso')),
 )
 
 TIPOS_POR_CLAVE = {t.clave: t for t in TIPOS_CARGA}

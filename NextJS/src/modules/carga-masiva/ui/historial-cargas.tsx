@@ -136,13 +136,20 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
     try {
       const res = await aplicarCargaAction(id);
       if (res.success) {
-        toast.success("Carga procesada correctamente.");
-        await cargarHistorial();
+        toast.success(
+          res.data?.estado === "PENDIENTE_APROBACION"
+            ? "Carga enviada a aprobación."
+            : "Carga procesada correctamente.",
+        );
+      } else if (res.error && /requiere.*aprobación/i.test(res.error)) {
+        toast.info(res.error);
       } else {
         toast.error(res.error || "No se pudo aplicar la carga.");
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Error al aplicar");
+    } finally {
+      await cargarHistorial();
     }
   };
 
@@ -151,12 +158,13 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
       const res = await aprobarCargaAction(id);
       if (res.success) {
         toast.success("Carga aprobada y aplicada exitosamente.");
-        await cargarHistorial();
       } else {
         toast.error(res.error || "No se pudo aprobar la carga.");
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Error al aprobar");
+    } finally {
+      await cargarHistorial();
     }
   };
 
@@ -172,7 +180,6 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
         toast.success("Carga rechazada exitosamente.");
         setCargaARechazar(null);
         setMotivoRechazo("");
-        await cargarHistorial();
       } else {
         toast.error(res.error || "No se pudo rechazar la carga.");
       }
@@ -180,6 +187,7 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
       toast.error(err instanceof Error ? err.message : "Error al rechazar");
     } finally {
       setProcesandoRechazo(false);
+      await cargarHistorial();
     }
   };
 
@@ -191,7 +199,6 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
       if (res.success) {
         toast.success("Carga masiva revertida exitosamente.");
         setCargaARevertir(null);
-        await cargarHistorial();
       } else {
         toast.error(res.error || "No se pudo revertir la carga.");
       }
@@ -199,6 +206,7 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
       toast.error(err instanceof Error ? err.message : "Error al revertir");
     } finally {
       setProcesandoReversion(false);
+      await cargarHistorial();
     }
   };
 
@@ -514,7 +522,7 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
             <div className="space-y-3 py-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-xs font-semibold text-muted-foreground mr-1">Filtrar:</span>
-                {["TODAS", "ERROR", "REQUIERE_CONFIRMACION", "NUEVO", "ACTUALIZAR", "SIN_CAMBIOS", "ADVERTENCIA"].map((est) => (
+                {["TODAS", "ERROR", "REQUIERE_CONFIRMACION", "POSIBLE_DUPLICADO", "NUEVO", "ACTUALIZAR", "SIN_CAMBIOS", "ADVERTENCIA"].map((est) => (
                   <Button
                     key={est}
                     variant={filtroEstadoFila === est ? "default" : "outline"}
@@ -526,6 +534,8 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
                       ? "Todas"
                       : est === "REQUIERE_CONFIRMACION"
                       ? "Requiere confirmación"
+                      : est === "POSIBLE_DUPLICADO"
+                      ? "Posible duplicado"
                       : est}
                   </Button>
                 ))}
@@ -546,7 +556,8 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
                       <TableRow
                         key={f.id}
                         className={
-                          f.estado === "REQUIERE_CONFIRMACION"
+                          f.estado === "REQUIERE_CONFIRMACION" ||
+                          f.estado === "POSIBLE_DUPLICADO"
                             ? f.confirmada
                               ? "bg-emerald-50/40 dark:bg-emerald-950/20"
                               : "bg-amber-50/60 dark:bg-amber-950/25"
@@ -560,7 +571,8 @@ export function HistorialCargas({ poblacionFija }: { poblacionFija?: PoblacionCa
                         <TableCell className="text-center">
                           <div className="flex flex-col items-center gap-1">
                             <BadgeEstadoFila estado={f.estado} />
-                            {f.estado === "REQUIERE_CONFIRMACION" && (
+                            {(f.estado === "REQUIERE_CONFIRMACION" ||
+                              f.estado === "POSIBLE_DUPLICADO") && (
                               <span
                                 className={`text-[10px] font-semibold ${
                                   f.confirmada

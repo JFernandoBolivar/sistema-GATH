@@ -98,6 +98,10 @@ export function PasoContacto({
   const [sinCorreo, setSinCorreo] = useState(sinCorreoInicial);
   const [justificacion, setJustificacion] = useState(justificacionInicial);
   const [errorLocal, setErrorLocal] = useState<string | null>(null);
+  // El error del servidor se deriva de las props; solo el error de validación
+  // local necesita estado (CORTE-1: sin setState dentro del efecto).
+  const errorServidorLocal = erroresServidor?.justificacion_sin_correo?.[0] ?? null;
+  const errorVisible = errorLocal ?? errorServidorLocal;
 
   const form = useForm<DatosContactoValores>({
     resolver: zodResolver(datosContactoSchema),
@@ -270,13 +274,13 @@ export function PasoContacto({
               maxLength={MAX_JUSTIFICACION_SIN_CORREO}
               rows={3}
               placeholder="Explique por qué el pasivo no tiene correo (mínimo 10 caracteres)."
-              aria-invalid={errorLocal ? true : undefined}
+              aria-invalid={errorVisible ? true : undefined}
             />
             <p className="text-xs text-muted-foreground">
               Solo se permite en el registro presencial y queda en el acta para la revisión.
             </p>
-            {errorLocal ? (
-              <p role="alert" className="text-sm font-medium text-danger">{errorLocal}</p>
+            {errorVisible ? (
+              <p role="alert" className="text-sm font-medium text-danger">{errorVisible}</p>
             ) : null}
           </div>
         ) : (
@@ -290,7 +294,7 @@ export function PasoContacto({
               type="email"
               autoComplete="email"
               placeholder="ejemplo@correo.com"
-              aria-invalid={errors.correoAlternativo || errorLocal ? true : undefined}
+              aria-invalid={errors.correoAlternativo || errorVisible ? true : undefined}
               aria-describedby={errors.correoAlternativo ? "fv-correo-error" : "fv-correo-ayuda"}
               {...register("correoAlternativo")}
             />
@@ -301,8 +305,8 @@ export function PasoContacto({
               <p id="fv-correo-error" role="alert" className="text-sm font-medium text-danger">
                 {errors.correoAlternativo.message}
               </p>
-            ) : errorLocal ? (
-              <p role="alert" className="text-sm font-medium text-danger">{errorLocal}</p>
+            ) : errorVisible ? (
+              <p role="alert" className="text-sm font-medium text-danger">{errorVisible}</p>
             ) : null}
           </div>
         )}

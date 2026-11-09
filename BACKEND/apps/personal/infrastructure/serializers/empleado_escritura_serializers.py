@@ -34,8 +34,14 @@ from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
     DiscapacidadModel,
+    InstitucionModel,
     PatologiaCronicaModel,
     PoliticaModel,
+    TallaModel,
+)
+from apps.personal.domain.value_objects.vivienda import (
+    MAX_LONGITUD_CIUDAD_REGION,
+    normalizar_ciudad_region,
 )
 from apps.personal.infrastructure.models.expediente_models import (
     AntecedenteServicioModel,
@@ -125,18 +131,15 @@ class DatosViviendaEscrituraSerializer(serializers.ModelSerializer):
                     })
             attrs['ciudad_region'] = ''
         else:
-            ciudad = ' '.join(
-                (attrs.get('ciudad_region') or getattr(
-                    instance, 'ciudad_region', '',
-                ) or '').split()
-            )
+            raw_ciudad = attrs.get('ciudad_region') or getattr(instance, 'ciudad_region', '') or ''
+            ciudad = normalizar_ciudad_region(raw_ciudad)
             if not ciudad:
                 raise serializers.ValidationError({
                     'ciudad_region': 'Indique la ciudad o región.',
                 })
-            if len(ciudad) > 120:
+            if len(raw_ciudad.strip()) > MAX_LONGITUD_CIUDAD_REGION:
                 raise serializers.ValidationError({
-                    'ciudad_region': 'La ciudad o región no puede superar 120 caracteres.',
+                    'ciudad_region': f'La ciudad o región no puede superar {MAX_LONGITUD_CIUDAD_REGION} caracteres.',
                 })
             attrs['ciudad_region'] = ciudad
             for campo in ('estado', 'municipio', 'parroquia', 'codigo_postal'):
@@ -174,12 +177,25 @@ class PerfilSaludEscrituraSerializer(serializers.ModelSerializer):
 
 
 class PerfilFisicoEscrituraSerializer(serializers.ModelSerializer):
+    # FIX-CARGA3: las tres tallas básicas son obligatorias al guardar el perfil
+    # físico (el alta es de activos). La chaqueta sigue siendo opcional.
+    tallaCamisa = serializers.PrimaryKeyRelatedField(queryset=TallaModel.objects.all())
+    tallaPantalon = serializers.PrimaryKeyRelatedField(queryset=TallaModel.objects.all())
+    tallaZapatos = serializers.PrimaryKeyRelatedField(queryset=TallaModel.objects.all())
+    tallaChaqueta = serializers.PrimaryKeyRelatedField(
+        queryset=TallaModel.objects.all(), required=False, allow_null=True,
+    )
+
     class Meta:
         model = PerfilFisicoModel
         fields = ['tallaCamisa', 'tallaPantalon', 'tallaZapatos', 'tallaChaqueta']
 
 
 class FormacionComplementariaEscrituraSerializer(serializers.ModelSerializer):
+    institucion = serializers.PrimaryKeyRelatedField(
+        queryset=InstitucionModel.objects.all(),
+    )
+
     class Meta:
         model = FormacionComplementariaModel
         fields = ['capacitacion', 'institucion', 'fechaInicio', 'fechaFin', 'dias_completados', 'horas_completadas', 'procedencia', 'grupo']
@@ -207,6 +223,10 @@ class ContactoEmergenciaEscrituraSerializer(serializers.ModelSerializer):
 
 
 class AntecedenteServicioEscrituraSerializer(serializers.ModelSerializer):
+    # FIX-CARGA3: la fecha de egreso es obligatoria (siempre posterior o igual
+    # a la de ingreso) al guardar la sección de antecedentes.
+    fecha_egreso = serializers.DateField(required=True)
+
     class Meta:
         model = AntecedenteServicioModel
         fields = ['organismo', 'fecha_ingreso', 'fecha_egreso']
@@ -257,11 +277,14 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
     )
     telefono_movil = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     telefono_habitacion = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
+    # FIX-CARGA3: no se puede guardar vacío. En el alta son obligatorios (ver
+    # `EmpleadoCrearSerializer`); en edición solo viajan cuando se cambian,
+    # pero un null explícito se rechaza.
     estado_civil_id = serializers.PrimaryKeyRelatedField(
-        queryset=EstadoCivilModel.objects.all(), required=False, allow_null=True,
+        queryset=EstadoCivilModel.objects.all(), required=False, allow_null=False,
     )
     nacionalidad_id = serializers.PrimaryKeyRelatedField(
-        queryset=NacionalidadModel.objects.all(), required=False, allow_null=True,
+        queryset=NacionalidadModel.objects.all(), required=False, allow_null=False,
     )
     carnet_patria = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=30)
     carnet_patria_serial = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=30)
@@ -277,8 +300,19 @@ class EmpleadoEscrituraSerializer(CleanZerosMixin, serializers.Serializer):
     contrato = ContratoEscrituraSerializer(many=True, required=False)
 
     def validate_cedula(self, value):
-        if self.instance and self.instance.cedulaidentidad != value:
-            raise serializers.ValidationError('La cédula de identidad no puede ser modificada.')
+        # O49-BLOQUEO: la cédula es inmutable tras el registro. En edición el
+        # serializador se construye sin `instance`, así que la cédula actual se
+        # toma del contexto (`context['cedula']`, la de la URL).
+        actual = None
+        if self.instance is not None:
+            actual = self.instance.cedulaidentidad
+        elif self.context.get('cedula'):
+            actual = str(self.context['cedula']).strip()
+        if actual is not None and str(actual).strip() != str(value).strip():
+            raise serializers.ValidationError(
+                'La cédula de identidad no puede modificarse. '
+                'Si hay un error, use «Reportar error» para que RRHH la corrija.'
+            )
         return value
 
     def validate_carnet_patria_serial(self, value):
@@ -414,6 +448,13 @@ class EmpleadoCrearSerializer(EmpleadoEscrituraSerializer):
     apellidos = serializers.CharField(required=True, max_length=NOMBRE_MAX)
     sexo_id = serializers.PrimaryKeyRelatedField(queryset=SexoModel.objects.all())
     fecha_nacimiento = serializers.DateField(required=True)
+    # FIX-CARGA3: nacionalidad y estado civil obligatorios en el alta.
+    estado_civil_id = serializers.PrimaryKeyRelatedField(
+        queryset=EstadoCivilModel.objects.all(),
+    )
+    nacionalidad_id = serializers.PrimaryKeyRelatedField(
+        queryset=NacionalidadModel.objects.all(),
+    )
 
     def validate_cedula(self, value):
         return _validar_cedula_6_9(super().validate_cedula(value))

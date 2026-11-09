@@ -4,6 +4,8 @@ Vistas del TRABAJADOR en la autogestión por solicitud (B4, PLAN_PRIORIDAD §2.1
 Delgadas: validan entrada, invocan casos de uso (que reciben repositorios por inyección) y
 responden por el sobre C-1. La cédula sale siempre de la sesión (Zero-IDOR).
 """
+from datetime import date
+
 from django.db import transaction
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -31,6 +33,12 @@ from apps.autogestion.application.use_cases.edicion_trabajador import (
 from apps.autogestion.application.use_cases.solicitud_ciclo import solicitar_actualizacion
 from apps.autogestion.domain.value_objects.secciones import CODIGOS_SECCIONES, SECCIONES_CATALOGO_INICIAL
 from apps.autogestion.infrastructure.politica_autogestion import obtener_politica
+from apps.autogestion.infrastructure.politica_solicitudes import (
+    bloqueo_alcance,
+    bloqueos,
+    espera_acciones,
+    esperas,
+)
 from apps.autogestion.infrastructure.repositories.lector_ficha_orm import LectorFichaORM
 from apps.autogestion.infrastructure.repositories.repo_cambios_soportes_orm import (
     RepoCambiosPropuestosORM,
@@ -134,10 +142,16 @@ class SolicitudesView(APIView):
         datos = validar_entrada(SolicitarActualizacionSerializer, request.data)
         cedula = cedula_de_sesion(request)
         with transaction.atomic():
+            alcance = bloqueo_alcance()
+            hasta = {
+                e['seccion']: date.fromisoformat(e['hasta'])
+                for e in esperas(cedula)
+            }
             solicitud = solicitar_actualizacion(
                 RepoSolicitudesORM(), RepoSeccionesORM(), PublicadorSenales(),
                 cedula=cedula, campos=datos.get('campos'), secciones=datos.get('secciones'), motivo=datos['motivo'],
                 politica=obtener_politica(cedula),
+                bloqueo=alcance, esperas_hasta=hasta, espera_acciones=espera_acciones(),
             )
             auditar(request, 'SOLICITUD_CREADA', solicitud.id, None,
                     {**resumen(solicitud), 'secciones': list(solicitud.secciones_solicitadas),
@@ -269,7 +283,7 @@ class SeccionesView(APIView):
     def get(self, request):
         secciones = listar_secciones(RepoSeccionesORM(), solo_activas=True)
         return ok(SeccionAutogestionableSerializer(
-            [{'codigo': s.codigo, 'nombre': s.nombre, 'requiere_soporte': s.requiere_soporte, 'activa': s.activa} for s in secciones],
+            [{'codigo': s.codigo, 'nombre': s.nombre, 'requiere_soporte': s.requiere_soporte, 'activa': s.activa, 'orden': getattr(s, 'orden', 0)} for s in secciones],
             many=True,
         ).data)
 
@@ -294,6 +308,11 @@ class MiPoliticaAutogestionView(APIView):
                 for codigo, nombre in _NOMBRES_SECCIONES.items()
                 if codigo in politica.secciones
             ],
+            # O48: bloqueo por solicitud pendiente y espera tras aprobación.
+            'bloqueo_alcance': bloqueo_alcance(),
+            'bloqueos': bloqueos(cedula_de_sesion(request), bloqueo_alcance()),
+            'esperas': esperas(cedula_de_sesion(request)),
+            'espera_acciones': sorted(espera_acciones()),
         })
 
 

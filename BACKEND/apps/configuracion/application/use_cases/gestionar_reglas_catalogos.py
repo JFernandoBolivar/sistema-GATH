@@ -35,6 +35,8 @@ from apps.configuracion.domain.reglas_catalogos import (
     normalizar_codigo_pais,
     normalizar_codigo_tipo_soporte,
     normalizar_nombre_catalogo,
+    normalizar_regla_parentesco,
+    REGLAS_PARENTESCO_CAMPOS,
     LARGO_MAXIMO_NOMBRE_SOPORTE,
     LARGO_MAXIMO_NOMINA,
     LARGO_MAXIMO_PAIS,
@@ -148,10 +150,12 @@ def crear_parentesco(
     repo: RepoReglasCatalogos,
     descripcion: str,
     aplica_familiar: bool = True,
+    regla: dict | None = None,
 ) -> ReglaParentesco:
     """Alta de parentesco (O36): nombre único sin distinguir mayúsculas."""
     nombre, aplica = preparar_nuevo_parentesco(descripcion, aplica_familiar)
-    return repo.crear_parentesco(nombre, aplica)
+    limpia = normalizar_regla_parentesco(regla) if regla is not None else None
+    return repo.crear_parentesco(nombre, aplica, regla=limpia)
 
 
 def editar_parentesco(
@@ -159,8 +163,9 @@ def editar_parentesco(
     parentesco_id: int,
     descripcion: str | None,
     aplica_familiar: bool | None,
+    regla: dict | None = None,
 ) -> tuple[ReglaParentesco, ReglaParentesco]:
-    """Edición de nombre/marca del parentesco, protegiendo el reservado."""
+    """Edición de nombre/marca/reglas del parentesco, protegiendo el reservado."""
     anterior = repo.obtener_parentesco(parentesco_id)
     nombre = None
     if descripcion is not None:
@@ -168,10 +173,16 @@ def editar_parentesco(
             descripcion, campo='descripcion', maximo=LARGO_MAXIMO_PARENTESCO,
         )
         validar_edicion_parentesco(anterior, nombre)
+    limpia = None
+    if regla is not None:
+        base = {campo: getattr(anterior, campo) for campo in REGLAS_PARENTESCO_CAMPOS}
+        base.update(regla)
+        limpia = normalizar_regla_parentesco(base)
     actualizado = repo.actualizar_parentesco(
         parentesco_id,
         anterior.aplica_familiar if aplica_familiar is None else aplica_familiar,
         descripcion=nombre,
+        regla=limpia,
     )
     return anterior, actualizado
 
@@ -329,6 +340,14 @@ def eliminar_tipo_soporte(
     tiene_secciones = repo.tipo_soporte_tiene_secciones(tipo_id)
     validar_eliminacion_tipo_soporte(actual, tiene_secciones)
     return repo.eliminar_tipo_soporte(tipo_id)
+
+
+def reordenar_tipos_soporte(
+    repo: RepoReglasCatalogos,
+    ordenes: Sequence[tuple[int, int]],
+) -> Sequence[ReglaTipoSoporte]:
+    """Actualiza en bloque las posiciones en la lista de tipos de soporte."""
+    return repo.reordenar_tipos_soporte(ordenes)
 
 
 def actualizar_checklist_soporte(

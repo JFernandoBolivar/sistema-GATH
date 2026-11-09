@@ -83,7 +83,15 @@ export function EditorBorrador({ detalle, secciones, onActualizar }: Props) {
   }
 
   const sucio = JSON.stringify(items) !== guardado;
-  const habilitadas = detalle.seccionesHabilitadas.filter(esSeccionConocida);
+  const ordenMap = useMemo(() => {
+    return new Map<string, number>(secciones.map((s, i) => [s.codigo, (s as { orden?: number }).orden ?? i]));
+  }, [secciones]);
+
+  const habilitadas = useMemo(() => {
+    return [...detalle.seccionesHabilitadas]
+      .filter(esSeccionConocida)
+      .sort((a, b) => (ordenMap.get(a) ?? 99) - (ordenMap.get(b) ?? 99));
+  }, [detalle.seccionesHabilitadas, ordenMap]);
 
   function guardar(): Promise<boolean> {
     return new Promise((resolver) => {

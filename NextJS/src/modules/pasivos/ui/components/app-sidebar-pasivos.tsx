@@ -50,6 +50,8 @@ type SubMenuItem = {
   url: string;
   icon: typeof Home;
   permiso?: string;
+  /** Subtítulo o separador visual previo a este ítem. */
+  subtituloPrevio?: string;
 };
 
 type MenuItem = {
@@ -102,6 +104,7 @@ const items: MenuItem[] = [
         url: "/pasivos/carga-masiva",
         icon: FileSpreadsheet,
         permiso: "pasivos.carga_masiva",
+        subtituloPrevio: "Procesos masivos",
       },
     ],
   },
@@ -253,17 +256,26 @@ export function AppSidebarPasivos() {
                         {openSubmenu === item.title && (
                           <div className="pl-8 py-1 gap-1 text-sm">
                             {item.subMenu.map((subItem) => (
-                              <SidebarMenuButton
-                                key={subItem.title}
-                                asChild
-                                isActive={pathname === subItem.url}
-                                className="mt-2 text-sm"
-                              >
-                                <Link href={subItem.url} className="text-sm">
-                                  <subItem.icon className="h-[32px]" />
-                                  {subItem.title}
-                                </Link>
-                              </SidebarMenuButton>
+                              <div key={subItem.title}>
+                                {subItem.subtituloPrevio ? (
+                                  <div className="mt-3 mb-1 pt-2 border-t border-sidebar-border/60">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 block">
+                                      {subItem.subtituloPrevio}
+                                    </span>
+                                  </div>
+                                ) : null}
+                                <SidebarMenuButton
+                                  key={subItem.title}
+                                  asChild
+                                  isActive={pathname === subItem.url}
+                                  className="mt-2 text-sm"
+                                >
+                                  <Link href={subItem.url} className="text-sm">
+                                    <subItem.icon className="h-[32px]" />
+                                    {subItem.title}
+                                  </Link>
+                                </SidebarMenuButton>
+                              </div>
                             ))}
                           </div>
                         )}
