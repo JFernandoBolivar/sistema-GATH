@@ -26,9 +26,28 @@ export type PasswordVO = {
 };
 
 /**
- * Construye un PasswordVO válido. En login no se exige la política completa de
- * complejidad (PASSWORD) para no bloquear cuentas creadas antes de la política;
- * se valida presencia, longitud acotada y ausencia de HTML/caracteres de control.
+ * Construye un PasswordVO de una **contraseña existente** (login o contraseña
+ * actual). No impone la longitud mínima de la política: la clave inicial de una
+ * cuenta es la cédula y hay cédulas de 5 o 6 dígitos. Solo exige presencia,
+ * cota máxima y ausencia de HTML/caracteres de control.
+ */
+export function crearPasswordExistenteVO(valor: string): PasswordVO {
+  if (!valor || valor.trim().length === 0) {
+    throw new Error(ERROR.REQUIRED);
+  }
+  if (valor.length > 128) {
+    throw new Error(ERROR.MAX_LENGTH(128));
+  }
+  if (!NO_HTML.test(valor)) {
+    throw new Error(NO_HTML_MSG);
+  }
+  return { value: valor };
+}
+
+/**
+ * Construye un PasswordVO de una **contraseña nueva**. Exige la longitud mínima
+ * de la política (8) y la máxima (32); además no admite HTML/caracteres de
+ * control.
  */
 export function crearPasswordVO(valor: string): PasswordVO {
   if (!valor || valor.trim().length === 0) {
