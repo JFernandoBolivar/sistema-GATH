@@ -320,3 +320,20 @@ def test_crear_plantilla_borrador_sin_definicion_explicita(datos_base):
     assert data["nombre"] == "Plantilla Prueba Alta API"
     assert data["definicion"]["bg"] == {"anverso": "#ffffff", "reverso": "#ffffff"}
 
+
+def test_generar_carnet_devuelve_pdf_binario(datos_base):
+    """O46-A: /generar/ debe responder el PDF, no el sobre JSON con base64."""
+    api = datos_base["api"]
+    resp = api.post(
+        f"{BASE}/generar/V-1/",
+        {
+            "motivo_id": datos_base["carnet"].motivo_id,
+            "observaciones": "O46-A",
+            "datos_editados": {"nombre": "ANA API", "cedula": "V-1"},
+        },
+        format="json",
+    )
+    assert resp.status_code == 200, resp.content
+    assert resp["Content-Type"].startswith("application/pdf")
+    assert resp.content[:5] == b"%PDF-"
+

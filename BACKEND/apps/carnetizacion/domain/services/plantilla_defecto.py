@@ -28,7 +28,7 @@ def plantilla_defecto_trabajador() -> dict[str, Any]:
                 'texto': '#ffffff',
             },
             'valores': {
-                'FUNCIONARIO': {'primario': '#1f3a5f', 'acento': '#1273bd', 'texto': '#ffffff'},
+                'FUNCIONARIO': {'primario': '#16264a', 'acento': '#d9121f', 'texto': '#ffffff'},
                 'ALTO_NIVEL': {'primario': '#1f3a5f', 'acento': '#1273bd', 'texto': '#ffffff'},
                 'EMPLEADO_FIJO': {'primario': '#16264a', 'acento': '#1273bd', 'texto': '#ffffff'},
                 'CONTRATADO': {'primario': '#c79a12', 'acento': '#16264a', 'texto': '#ffffff'},
@@ -44,7 +44,7 @@ def plantilla_defecto_trabajador() -> dict[str, Any]:
         'anverso': [
             {'id': 'f-sup', 'tipo': 'diag', 'nombre': 'Franja superior', 'x': 0, 'y': 0, 'w': 45, 'h': 15, 'props': {'fill': p}},
             {'id': 'ac-sup', 'tipo': 'diagr', 'nombre': 'Acento superior', 'x': 36, 'y': 0, 'w': 18, 'h': 8, 'props': {'fill': a}},
-            {'id': 'logo', 'tipo': 'image', 'nombre': 'Logo institucional', 'x': 4, 'y': 4, 'w': 22, 'h': 7, 'props': {'label': 'LOGO', 'fill': t}},
+            {'id': 'logo', 'tipo': 'image', 'nombre': 'Logo institucional', 'x': 4, 'y': 4, 'w': 22, 'h': 7, 'props': {'label': 'LOGO', 'fill': t, 'asset': 'logo01.png'}},
             {'id': 'foto', 'tipo': 'photo', 'nombre': 'Foto del titular', 'x': 15, 'y': 18, 'w': 24, 'h': 24, 'props': {'fill': '#d7dbe2', 'radius': 2}},
             {'id': 'nombre', 'tipo': 'field', 'campo': 'nombre_completo', 'nombre': 'Nombre completo', 'x': 5, 'y': 44, 'w': 44, 'h': 6, 'fontSize': 10, 'bold': True, 'align': 'center'},
             {'id': 'cedula', 'tipo': 'field', 'campo': 'cedula', 'nombre': 'Cédula de identidad', 'x': 5, 'y': 50, 'w': 44, 'h': 4.5, 'fontSize': 8, 'bold': True, 'align': 'center'},
@@ -95,7 +95,7 @@ def plantilla_defecto_pasivo() -> dict[str, Any]:
         'anverso': [
             {'id': 'f-sup', 'tipo': 'diag', 'nombre': 'Franja superior', 'x': 0, 'y': 0, 'w': 45, 'h': 15, 'props': {'fill': p}},
             {'id': 'ac-sup', 'tipo': 'diagr', 'nombre': 'Acento superior', 'x': 36, 'y': 0, 'w': 18, 'h': 8, 'props': {'fill': a}},
-            {'id': 'logo', 'tipo': 'image', 'nombre': 'Logo institucional', 'x': 4, 'y': 4, 'w': 22, 'h': 7, 'props': {'label': 'LOGO', 'fill': t}},
+            {'id': 'logo', 'tipo': 'image', 'nombre': 'Logo institucional', 'x': 4, 'y': 4, 'w': 22, 'h': 7, 'props': {'label': 'LOGO', 'fill': t, 'asset': 'logo01.png'}},
             {'id': 'tipo-badge', 'tipo': 'text', 'nombre': 'Etiqueta de pasivo', 'texto': 'PERSONAL JUBILADO / PENSIONADO', 'x': 4, 'y': 12, 'w': 46, 'h': 4, 'fontSize': 5, 'bold': True, 'color': '#ffffff', 'align': 'center'},
             {'id': 'foto', 'tipo': 'photo', 'nombre': 'Foto del titular', 'x': 15, 'y': 18, 'w': 24, 'h': 24, 'props': {'fill': '#d7dbe2', 'radius': 2}},
             {'id': 'nombre', 'tipo': 'field', 'campo': 'nombre_completo', 'nombre': 'Nombre completo', 'x': 5, 'y': 44, 'w': 44, 'h': 6, 'fontSize': 10, 'bold': True, 'align': 'center'},
@@ -150,7 +150,7 @@ def plantilla_defecto_evento() -> dict[str, Any]:
         },
         'anverso': [
             {'id': 'ev-sup', 'tipo': 'rect', 'nombre': 'Fondo superior', 'x': 0, 'y': 0, 'w': 90, 'h': 34, 'props': {'fill': p}},
-            {'id': 'ev-logo', 'tipo': 'image', 'nombre': 'Logo institucional', 'x': 8, 'y': 5, 'w': 30, 'h': 10, 'props': {'label': 'LOGO', 'fill': t}},
+            {'id': 'ev-logo', 'tipo': 'image', 'nombre': 'Logo institucional', 'x': 8, 'y': 5, 'w': 30, 'h': 10, 'props': {'label': 'LOGO', 'fill': t, 'asset': 'logo01.png'}},
             {'id': 'ev-nombre', 'tipo': 'field', 'campo': 'nombre_evento', 'nombre': 'Nombre del evento', 'x': 8, 'y': 17, 'w': 74, 'h': 14, 'fontSize': 14, 'bold': True, 'color': t},
             {'id': 'asist-nombre', 'tipo': 'field', 'campo': 'nombre_completo', 'nombre': 'Nombre del asistente', 'x': 8, 'y': 38, 'w': 74, 'h': 16, 'fontSize': 14, 'bold': True, 'align': 'center'},
             {'id': 'asist-org', 'tipo': 'field', 'campo': 'organizacion', 'nombre': 'Organización', 'x': 8, 'y': 56, 'w': 74, 'h': 8, 'fontSize': 9, 'bold': False, 'align': 'center', 'color': '#4B5563'},
