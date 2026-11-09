@@ -39,11 +39,25 @@ describe("cambiarPassword", () => {
     expect(repo.cambiarPassword).not.toHaveBeenCalled();
   });
 
+  it("acepta una contraseña actual corta (la cédula inicial de 5 o 6 dígitos)", async () => {
+    const repo = fakeRepo();
+
+    await cambiarPassword(repo, {
+      passwordActual: "47185",
+      passwordNuevo: "Clave*Nueva12",
+    });
+
+    expect(repo.cambiarPassword).toHaveBeenCalledWith({
+      passwordActual: "47185",
+      passwordNuevo: "Clave*Nueva12",
+    });
+  });
+
   it("rechaza una contraseña nueva demasiado corta sin invocar al repositorio", async () => {
     const repo = fakeRepo();
 
     await expect(
-      cambiarPassword(repo, { passwordActual: "Clave*Actual1", passwordNuevo: "corta" }),
+      cambiarPassword(repo, { passwordActual: "4718565", passwordNuevo: "corta" }),
     ).rejects.toThrow();
     expect(repo.cambiarPassword).not.toHaveBeenCalled();
   });
