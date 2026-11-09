@@ -19,8 +19,13 @@ from apps.carga_masiva.domain.registro_campos import (
     TipoCarga,
     tipos_para,
 )
+from apps.cargos.infrastructure.models.cargo_models import (
+    DenominacionCargoEspecificoModel,
+    DenominacionCargoModel,
+)
 from apps.catalogos.infrastructure.models.catalogo_models import (
     EstadoCivilModel,
+    GradoModel,
     NacionalidadModel,
     PaisModel,
     ParentescoModel,
@@ -31,7 +36,13 @@ from apps.catalogos.infrastructure.models.geografia_models import EstadoModel, M
 from apps.catalogos.infrastructure.repositories.motivos_por_categoria import (
     listar_motivos_de_operacion,
 )
-from apps.organizacion.infrastructure.models.organizacion_models import OrganismoAdscritoModel
+from apps.organizacion.infrastructure.models.organizacion_models import (
+    CoordinacionModel,
+    DependenciaModel,
+    DireccionGeneralModel,
+    DireccionLineaModel,
+    OrganismoAdscritoModel,
+)
 from apps.personal.infrastructure.models.catalogos_soporte_models import (
     AlergiaModel,
     CarreraModel,
@@ -153,6 +164,34 @@ def _catalogo(nombre: str) -> tuple[str, ...]:
         return tuple(dict.fromkeys(
             c.strip() for c in CodigoPostalModel.objects.values_list('codigo', flat=True) if c
         ))
+    if nombre == 'denominacion_cargo':
+        return tuple(dict.fromkeys(
+            c.strip() for c in DenominacionCargoModel.objects.values_list('cargo', flat=True) if c
+        ))
+    if nombre == 'denominacion_cargo_especifica':
+        return tuple(dict.fromkeys(
+            c.strip() for c in DenominacionCargoEspecificoModel.objects.values_list('cargo', flat=True) if c
+        ))
+    if nombre == 'dependencia':
+        return tuple(dict.fromkeys(
+            d.strip() for d in DependenciaModel.objects.values_list('dependencia', flat=True) if d
+        ))
+    if nombre == 'direccion_general':
+        return tuple(dict.fromkeys(
+            d.strip() for d in DireccionGeneralModel.objects.values_list('direccion_general', flat=True) if d
+        ))
+    if nombre == 'direccion_linea':
+        return tuple(dict.fromkeys(
+            d.strip() for d in DireccionLineaModel.objects.values_list('direccion_linea', flat=True) if d
+        ))
+    if nombre == 'coordinacion':
+        return tuple(dict.fromkeys(
+            c.strip() for c in CoordinacionModel.objects.values_list('coordinacion', flat=True) if c
+        ))
+    if nombre == 'grado':
+        return tuple(dict.fromkeys(
+            g.strip() for g in GradoModel.objects.values_list('grado', flat=True) if g
+        ))
     return ()
 
 
@@ -268,12 +307,128 @@ def _hoja_codigos_postales(libro: Workbook, tipos: list[TipoCarga], poblacion: s
     return len(estados)
 
 
+HOJA_NIVELES_DG = 'NivelesDirecciones'
+HOJA_DG_LINEAS = 'DireccionesLineas'
+HOJA_LINEA_COORD = 'LineasCoordinaciones'
+
+
+def _hoja_dependencias(libro: Workbook, tipos: list[TipoCarga], poblacion: str) -> dict | None:
+    """Hojas ocultas con la jerarquía nivel → dirección → línea → coordinación.
+
+    Devuelve los conteos para las fórmulas INDIRECT (o None si la plantilla no
+    incluye cargo y asignación).
+    """
+    if not any(t.clave == 'cargo_asignacion' and t.aplica_a(poblacion) for t in tipos):
+        return None
+
+    dependencias = list(
+        DependenciaModel.objects.order_by('dependencia').values_list('id', 'dependencia')
+    )
+    dgs = list(
+        DireccionGeneralModel.objects.order_by('direccion_general').values_list(
+            'id', 'direccion_general',
+        )
+    )
+    lineas = list(
+        DireccionLineaModel.objects.order_by('direccion_linea').values_list(
+            'id', 'direccion_linea',
+        )
+    )
+    dg_por_dependencia: dict[int, list[str]] = {}
+    for _dg_id, nombre, dependencia_id in DireccionGeneralModel.objects.order_by(
+        'direccion_general',
+    ).values_list('id', 'direccion_general', 'dependenciaId_id'):
+        dg_por_dependencia.setdefault(dependencia_id, []).append(nombre)
+    lineas_por_dg: dict[int, list[str]] = {}
+    for _dl_id, nombre, dg_id in DireccionLineaModel.objects.order_by(
+        'direccion_linea',
+    ).values_list('id', 'direccion_linea', 'direccionGeneral_id'):
+        lineas_por_dg.setdefault(dg_id, []).append(nombre)
+    coords_por_linea: dict[int, list[str]] = {}
+    for _co_id, nombre, linea_id in CoordinacionModel.objects.order_by(
+        'coordinacion',
+    ).values_list('id', 'coordinacion', 'direccionLinea_id'):
+        coords_por_linea.setdefault(linea_id, []).append(nombre)
+
+    hoja_niveles = libro.create_sheet(HOJA_NIVELES_DG)
+    hoja_dg = libro.create_sheet(HOJA_DG_LINEAS)
+    hoja_linea = libro.create_sheet(HOJA_LINEA_COORD)
+    for hoja, titulo in (
+        (hoja_niveles, 'Nivel / Dependencia'),
+        (hoja_dg, 'Dirección general'),
+        (hoja_linea, 'Dirección de línea'),
+    ):
+        hoja.sheet_state = 'hidden'
+        hoja.cell(row=1, column=1, value=titulo)
+
+    def sembrar(hoja, base, hijos, prefijo):
+        for indice, (padre_id, padre_nombre) in enumerate(base, start=1):
+            hoja.cell(row=indice + 1, column=1, value=padre_nombre)
+            letra = get_column_letter(indice + 1)
+            valores = hijos.get(padre_id, [])
+            for fila, valor in enumerate(valores, start=2):
+                hoja.cell(row=fila, column=indice + 1, value=valor)
+            fin = max(len(valores), 1) + 1
+            libro.defined_names.add(DefinedName(
+                f'{prefijo}_{indice}',
+                attr_text=f"'{hoja.title}'!${letra}$2:${letra}${fin}",
+            ))
+
+    sembrar(hoja_niveles, dependencias, dg_por_dependencia, 'DG')
+    sembrar(hoja_dg, dgs, lineas_por_dg, 'DL')
+    sembrar(hoja_linea, lineas, coords_por_linea, 'CO')
+    return {
+        'niveles': len(dependencias),
+        'dgs': len(dgs),
+        'lineas': len(lineas),
+    }
+
+
 def _validaciones(
     hoja, campos: tuple[Campo, ...], fila_datos: int, rangos: dict[str, str],
-    poblacion: str, estados_cp: int,
+    poblacion: str, estados_cp: int, dependencias: dict | None = None,
 ):
     ultima = fila_datos + 4999
     for indice, campo in enumerate(campos, start=1):
+        if dependencias and campo.catalogo in (
+            'direccion_general', 'direccion_linea', 'coordinacion',
+        ):
+            config = {
+                'direccion_general': (
+                    'dependencia_id', HOJA_NIVELES_DG, 'DG', dependencias['niveles'],
+                ),
+                'direccion_linea': (
+                    'direccion_general_id', HOJA_DG_LINEAS, 'DL', dependencias['dgs'],
+                ),
+                'coordinacion': (
+                    'direccion_linea_id', HOJA_LINEA_COORD, 'CO', dependencias['lineas'],
+                ),
+            }[campo.catalogo]
+            padre, hoja_dependencia, prefijo, total = config
+            indice_padre = next(
+                (i for i, c in enumerate(campos, start=1) if c.clave == padre),
+                None,
+            )
+            if indice_padre is not None and total:
+                letra = get_column_letter(indice)
+                letra_padre = get_column_letter(indice_padre)
+                formula = (
+                    f'=INDIRECT("{prefijo}_"&MATCH(${letra_padre}{fila_datos},'
+                    f"'{hoja_dependencia}'!$A$2:$A${total + 1},0))"
+                )
+                validacion = DataValidation(
+                    type='list', formula1=formula,
+                    allow_blank=not campo.es_obligatorio(poblacion),
+                )
+                validacion.error = (
+                    f'Elija {campo.etiqueta.lower()} del listado del padre seleccionado.'
+                )
+                validacion.errorTitle = f'{campo.etiqueta} no válido'
+                validacion.prompt = 'Seleccione primero el nivel superior.'
+                validacion.promptTitle = campo.etiqueta
+                hoja.add_data_validation(validacion)
+                validacion.add(f'{letra}{fila_datos}:{letra}{ultima}')
+            continue
         if campo.catalogo == 'codigo_postal' and estados_cp:
             # La lista depende del estado de la misma fila: `INDIRECT` al rango
             # nombrado del estado elegido (CP_1, CP_2, ...).
@@ -386,6 +541,7 @@ def generar_plantilla(
     libro.remove(libro.active)
     rangos = _hoja_catalogos(libro, tipos, poblacion)
     estados_cp = _hoja_codigos_postales(libro, tipos, poblacion)
+    dependencias = _hoja_dependencias(libro, tipos, poblacion)
     _instrucciones(libro, tipos, modo, poblacion)
     for tipo in tipos:
         campos = tipo.campos_para(poblacion)
@@ -395,7 +551,7 @@ def generar_plantilla(
         _fila_ejemplo(hoja, campos, fila=4)
         _validaciones(
             hoja, campos, fila_datos=4, rangos=rangos,
-            poblacion=poblacion, estados_cp=estados_cp,
+            poblacion=poblacion, estados_cp=estados_cp, dependencias=dependencias,
         )
         _anchos(hoja, campos)
         for indice in range(1, len(campos) + 1):

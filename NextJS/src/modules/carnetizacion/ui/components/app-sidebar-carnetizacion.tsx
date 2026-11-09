@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Home,
   IdCard,
-  Search,
   BarChart3,
   Palette,
   UserCheck,
@@ -13,6 +12,7 @@ import {
   Printer,
   CalendarDays,
   QrCode,
+  FileCheck,
   LucideIcon,
 } from "lucide-react";
 
@@ -71,9 +71,15 @@ const items: MenuItem[] = [
     icon: IdCard,
     subMenu: [
       {
-        title: "Buscar Personal",
-        url: "/carnetizacion/buscar",
-        icon: Search,
+        title: "Consola de Emisión",
+        url: "/carnetizacion/emision",
+        icon: Printer,
+        permiso: "carnetizacion.ver",
+      },
+      {
+        title: "Solicitudes",
+        url: "/carnetizacion/solicitudes",
+        icon: FileCheck,
         permiso: "carnetizacion.ver",
       },
     ],

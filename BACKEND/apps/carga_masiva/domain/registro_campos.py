@@ -98,7 +98,39 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
     ), ('cedula',)),
     TipoCarga('cargo_asignacion', 'Cargo y asignación', 'Cargo y asignación', (
         Campo('cedula', 'Cédula', obligatorio=True, max_length=15),
-        Campo('codigo_cargo', 'Código de cargo', obligatorio=True, max_length=40),
+        Campo(
+            'denominacion_id', 'Denominación del cargo', tipo='catalogo',
+            catalogo='denominacion_cargo', obligatorio=True,
+        ),
+        Campo(
+            'especifica_id', 'Denominación específica', tipo='catalogo',
+            catalogo='denominacion_cargo_especifica', obligatorio=True,
+        ),
+        Campo(
+            'dependencia_id', 'Nivel / Dependencia', tipo='catalogo',
+            catalogo='dependencia', obligatorio=True,
+            ayuda='Primer nivel de la ubicación; filtra las direcciones generales.',
+        ),
+        Campo(
+            'direccion_general_id', 'Dirección / Gerencia / Oficina', tipo='catalogo',
+            catalogo='direccion_general', obligatorio=True,
+            ayuda='Debe pertenecer al nivel seleccionado.',
+        ),
+        Campo(
+            'direccion_linea_id', 'Dirección de línea / División', tipo='catalogo',
+            catalogo='direccion_linea',
+            ayuda='Opcional; debe pertenecer a la dirección general.',
+        ),
+        Campo(
+            'coordinacion_id', 'Coordinación', tipo='catalogo',
+            catalogo='coordinacion',
+            ayuda='Opcional; debe pertenecer a la dirección de línea.',
+        ),
+        Campo('grado_id', 'Grado', tipo='catalogo', catalogo='grado'),
+        Campo(
+            'organismo_id', 'Organismo adscrito', tipo='catalogo',
+            catalogo='organismo',
+        ),
         Campo('tipo_nomina_id', 'Tipo de nómina', tipo='catalogo', catalogo='tipo_nomina_activo', obligatorio=True),
         Campo('fecha_ingreso', 'Fecha de ingreso o reingreso', tipo='fecha', obligatorio=True, formato='AAAA-MM-DD'),
         Campo(
@@ -106,7 +138,7 @@ TIPOS_CARGA: tuple[TipoCarga, ...] = (
             catalogo='motivo_ingreso',
             ayuda='Obligatorio si el trabajador está PASIVO y la carga es de ACTIVOS.',
         ),
-    ), ('cedula', 'codigo_cargo'), poblaciones=(POBLACION_ACTIVOS,)),
+    ), ('cedula', 'denominacion_id', 'dependencia_id', 'fecha_ingreso'), poblaciones=(POBLACION_ACTIVOS,)),
     TipoCarga('familiares', 'Familiares', 'Familiares', (
         Campo('cedula_titular', 'Cédula del titular', obligatorio=True, max_length=15),
         Campo('cedula_familiar', 'Cédula del familiar', max_length=15, ayuda='Obligatoria salvo hijo(a) menor de 9 años.'),

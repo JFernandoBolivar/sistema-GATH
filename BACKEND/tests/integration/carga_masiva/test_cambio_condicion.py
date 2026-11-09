@@ -229,7 +229,10 @@ def test_pasivo_a_activo_requiere_confirmacion_y_revierte(escenario):
     contenido = generar_plantilla(['cargo_asignacion'], 'obligatorios', 'ACTIVOS')
     contenido = _llenar(contenido, 'Cargo y asignación', {
         'Cédula': '77000002',
-        'Código de cargo': 'A-200',
+        'Denominación del cargo': 'ANALISTA',
+        'Denominación específica': 'ANALISTA I',
+        'Nivel / Dependencia': 'CONATEL',
+        'Dirección / Gerencia / Oficina': 'GESTION HUMANA',
         'Tipo de nómina': 'OBREROS',
         'Fecha de ingreso o reingreso': '2026-07-01',
         'Motivo del ingreso o reingreso': 'REINGRESO',
@@ -241,7 +244,8 @@ def test_pasivo_a_activo_requiere_confirmacion_y_revierte(escenario):
     assert fila.estado == 'REQUIERE_CONFIRMACION'
     assert fila.movimiento['tipo'] == 'PASIVO_A_ACTIVO'
     assert fila.movimiento['completo'] is True
-    assert fila.movimiento['cargo_codigo'] == 'A-200'
+    codigo_previsto = fila.movimiento['cargo_codigo']
+    assert codigo_previsto
 
     aplicar_carga(carga, '1', 1)
     assert RepoCondicionTrabajadorORM().condicion_por_cedula('77000002') is CondicionTrabajador.PASIVO
@@ -255,7 +259,10 @@ def test_pasivo_a_activo_requiere_confirmacion_y_revierte(escenario):
     assert not fila.error_aplicacion, fila.error_aplicacion
     assert fila.aplicada is True
     assert RepoCondicionTrabajadorORM().condicion_por_cedula('77000002') is CondicionTrabajador.ACTIVO
-    assert AsigTrabajoModel.objects.get(pk=vacante.pk).employee_id == '77000002'
+    creado = AsigTrabajoModel.objects.get(employee_id='77000002')
+    assert creado.codigo == codigo_previsto
+    assert creado.denominacioncargoid.cargo == 'ANALISTA'
+    assert AsigTrabajoModel.objects.get(pk=vacante.pk).employee_id is None
     assert AsigTrabajoModel.objects.get(pk=pasivo.pk).employee_id is None
     assert EmployeeMovementHistoryModel.objects.filter(
         empleado=empleado, tipo_movimiento='INGRESO',
@@ -264,6 +271,7 @@ def test_pasivo_a_activo_requiere_confirmacion_y_revierte(escenario):
     revertir_carga(carga)
     assert RepoCondicionTrabajadorORM().condicion_por_cedula('77000002') is CondicionTrabajador.PASIVO
     assert AsigTrabajoModel.objects.get(pk=pasivo.pk).employee_id == '77000002'
+    assert not AsigTrabajoModel.objects.filter(codigo=codigo_previsto).exists()
     assert AsigTrabajoModel.objects.get(pk=vacante.pk).employee_id is None
 
 

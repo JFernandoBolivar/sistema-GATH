@@ -16,6 +16,10 @@ from apps.carga_masiva.domain.registro_campos import (
     TIPOS_POR_CLAVE,
     TipoCarga,
 )
+from apps.carga_masiva.infrastructure.cargo_resolucion import (
+    previsualizar_codigo,
+    resolver_datos_cargo,
+)
 from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel
 from apps.carga_masiva.infrastructure.plantilla_excel import _catalogo
 from apps.catalogos.infrastructure.models.catalogo_models import (
@@ -35,6 +39,7 @@ from apps.identidad.infrastructure.repositories.repo_condicion_trabajador_orm im
 )
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from core.domain.categorias_motivo import Operacion
+from core.domain.exceptions import ValidationError
 from django.utils import timezone
 
 
@@ -142,14 +147,6 @@ def _tipo_nomina(nombre: str, es_activo: bool) -> TipoNominaModel | None:
     ).first()
 
 
-def _cargo(codigo: str):
-    from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
-
-    if not codigo:
-        return None
-    return AsigTrabajoModel.objects.filter(codigo=codigo.strip()).first()
-
-
 def _movimiento_activo_a_pasivo(datos: dict) -> dict:
     motivo = _motivo(datos.get('motivo_id', ''), Operacion.PASE_A_PASIVO)
     nomina = _tipo_nomina(datos.get('tipo_nomina_id', ''), es_activo=False)
@@ -186,7 +183,13 @@ def _movimiento_activo_a_pasivo(datos: dict) -> dict:
 
 def _movimiento_pasivo_a_activo(datos: dict) -> dict:
     motivo = _motivo(datos.get('motivo_id', ''), Operacion.ASIGNAR_CARGO)
-    cargo = _cargo(datos.get('codigo_cargo', ''))
+    try:
+        datos_cargo = resolver_datos_cargo(datos)
+        codigo = previsualizar_codigo(datos_cargo)
+        error_cargo = ''
+    except ValidationError as exc:
+        datos_cargo, codigo, error_cargo = None, '', str(exc)
+
     faltantes = [
         clave for clave in CAMPOS_REQUERIDOS_POR_DIRECCION[DireccionCambio.PASIVO_A_ACTIVO.value]
         if not {
@@ -194,11 +197,16 @@ def _movimiento_pasivo_a_activo(datos: dict) -> dict:
             'motivo_id': motivo['id'] if motivo else None,
         }.get(clave)
     ]
-    if cargo is None:
-        faltantes.append('codigo_cargo')
+    if datos_cargo is None:
+        faltantes.append('datos del cargo')
     fecha = datos.get('fecha_ingreso', '')
     motivo_nombre = motivo['nombre'] if motivo else ''
-    codigo = datos.get('codigo_cargo', '')
+    descripcion = (
+        f'Reingreso como activo con fecha {fecha or "sin fecha"} con el cargo '
+        f'{codigo or "sin código"} (se creará) por «{motivo_nombre or "sin motivo"}».'
+    )
+    if error_cargo:
+        descripcion = f'{descripcion} {error_cargo}'
     return {
         'tipo': DireccionCambio.PASIVO_A_ACTIVO.value,
         'condicion_actual': CondicionTrabajador.PASIVO.value,
@@ -209,11 +217,10 @@ def _movimiento_pasivo_a_activo(datos: dict) -> dict:
         'tipo_nomina': '',
         'tipo_nomina_id': None,
         'cargo_codigo': codigo,
-        'cargo_id': cargo.pk if cargo else None,
-        'descripcion': (
-            f'Reingreso como activo con fecha {fecha or "sin fecha"} al cargo {codigo or "sin código"} '
-            f'por «{motivo_nombre or "sin motivo"}».'
-        ),
+        'cargo_id': None,
+        'cargo_datos': datos_cargo,
+        'cargo_error': error_cargo,
+        'descripcion': descripcion,
         'faltantes': faltantes,
         'completo': not faltantes,
     }
@@ -231,6 +238,7 @@ def _cedula_de(datos: dict) -> str:
 
 def _analizar_fila(
     tipo: TipoCarga, datos: dict, fila: int, poblacion: str,
+    carga: CargaMasivaModel | None = None,
 ) -> tuple[str, str, dict]:
     """Devuelve (estado, detalle, anteriores)."""
     detalle: list[str] = []
@@ -258,7 +266,17 @@ def _analizar_fila(
     cedula = _cedula_de(datos)
     empleado = _empleado(cedula)
     if not empleado and tipo.clave != 'datos_personales':
-        return CargaMasivaFilaModel.Estado.ERROR, 'El trabajador no existe en el sistema.', {}
+        # FIX-CARGA4: un alta nueva puede traer su fila de cargo; el alta se
+        # aplica primero y luego se crea/asigna el cargo.
+        alta_en_carga = (
+            tipo.clave == 'cargo_asignacion'
+            and carga is not None
+            and carga.filas.filter(
+                tipo='datos_personales', datos__cedula=cedula,
+            ).exclude(estado=CargaMasivaFilaModel.Estado.ERROR).exists()
+        )
+        if not alta_en_carga:
+            return CargaMasivaFilaModel.Estado.ERROR, 'El trabajador no existe en el sistema.', {}
     if not empleado:
         if poblacion == POBLACION_PASIVOS:
             return (
@@ -281,13 +299,20 @@ def _analizar_fila(
                         'duplicado_nombre': f'{duplicado.nombres} {duplicado.apellidos}'.strip(),
                     },
                 )
-        return CargaMasivaFilaModel.Estado.NUEVO, 'Registro nuevo (alta de trabajador).', {}
+            return CargaMasivaFilaModel.Estado.NUEVO, 'Registro nuevo (alta de trabajador).', {}
+        if tipo.clave != 'cargo_asignacion':
+            return CargaMasivaFilaModel.Estado.NUEVO, 'Registro nuevo (alta de trabajador).', {}
     if tipo.clave == 'cargo_asignacion':
-        asignacion = _cargo(datos.get('codigo_cargo', ''))
-        if asignacion is None:
-            return CargaMasivaFilaModel.Estado.ERROR, 'El código de cargo no existe.', {}
-        if asignacion.employee_id is not None and str(asignacion.employee_id) != str(cedula):
-            return CargaMasivaFilaModel.Estado.ERROR, 'El código de cargo ya está ocupado por otro trabajador.', {}
+        try:
+            datos_cargo = resolver_datos_cargo(datos)
+            codigo = previsualizar_codigo(datos_cargo)
+        except ValidationError as exc:
+            return CargaMasivaFilaModel.Estado.ERROR, str(exc), {}
+        return (
+            CargaMasivaFilaModel.Estado.ACTUALIZAR,
+            f'Se creará el cargo {codigo} y se asignará al trabajador.',
+            {'cargo_nuevo': True, 'cargo_codigo': codigo, 'cargo_datos': datos_cargo},
+        )
 
     if tipo.clave == 'datos_personales':
         anteriores = {
@@ -534,7 +559,7 @@ def analizar_archivo(carga: CargaMasivaModel, contenido: bytes, tipos: list[str]
                 )
             else:
                 vistas_tipo.add(clave_fila)
-                estado, detalle, anteriores = _analizar_fila(tipo, datos, numero, poblacion)
+                estado, detalle, anteriores = _analizar_fila(tipo, datos, numero, poblacion, carga)
             if estado == CargaMasivaFilaModel.Estado.ERROR:
                 errores += 1
             else:

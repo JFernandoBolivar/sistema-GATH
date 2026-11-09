@@ -12,7 +12,10 @@ from django.utils import timezone
 
 from apps.carga_masiva.domain.condicion import puede_aplicarse, puede_confirmarse
 from apps.carga_masiva.domain.registro_campos import POBLACION_ACTIVOS, POBLACION_PASIVOS
+from apps.carga_masiva.infrastructure.cargo_resolucion import resolver_datos_cargo
 from apps.carga_masiva.infrastructure.models import CargaMasivaFilaModel, CargaMasivaModel
+from apps.cargos.application.dtos.cargos_dtos import CrearCargoDTO
+from apps.cargos.application.use_cases.crear_cargo import crear_cargo
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
 from apps.cargos.infrastructure.repositories.repo_cargos_orm import RepoCargosORM
 from apps.catalogos.infrastructure.models.catalogo_models import (
@@ -199,24 +202,45 @@ def _aplicar_cargo(fila: CargaMasivaFilaModel, usuario_id: int | None):
     empleado = EmployeeModel.objects.filter(cedulaidentidad=datos.get('cedula', '')).first()
     if empleado is None:
         raise ValidationError('El trabajador no existe.', campo='cedula')
-    asignacion = AsigTrabajoModel.objects.filter(codigo=datos.get('codigo_cargo', '')).first()
-    if asignacion is None:
-        raise ValidationError('El código de cargo no existe.', campo='codigo_cargo')
-    ya_asignado = asignacion.employee_id == empleado.cedulaidentidad
-    if not ya_asignado:
-        RepoCargosORM().asignar_cargo_a_empleado(
-            asignacion.pk, empleado.cedulaidentidad,
-            motivo_id=fila.movimiento.get('motivo_id') if fila.movimiento else None,
-            usuario_id=usuario_id,
-        )
+
+    datos_cargo = (fila.anteriores or {}).get('cargo_datos') or resolver_datos_cargo(datos)
+    motivo_id = datos_cargo.get('motivo_id') or (fila.movimiento or {}).get('motivo_id')
+    repo = RepoCargosORM()
+    # FIX-CARGA4: se reutiliza el MISMO caso de uso de crear cargo y la
+    # asignación por Movimientos, sin duplicar la generación del código.
+    nuevo = crear_cargo(repo, CrearCargoDTO(
+        denominacion_id=datos_cargo['denominacion_id'],
+        especifica_id=datos_cargo['especifica_id'],
+        tipo_nomina_id=datos_cargo['tipo_nomina_id'],
+        dependencia_id=datos_cargo.get('dependencia_id'),
+        direccion_general_id=datos_cargo.get('direccion_general_id'),
+        direccion_linea_id=datos_cargo.get('direccion_linea_id'),
+        coordinacion_id=datos_cargo.get('coordinacion_id'),
+        organismo_id=datos_cargo.get('organismo_id'),
+        grado_id=datos_cargo.get('grado_id'),
+        observaciones=datos_cargo.get('observaciones') or '',
+    ))
+    repo.asignar_cargo_a_empleado(
+        nuevo.id, empleado.cedulaidentidad,
+        motivo_id=motivo_id,
+        usuario_id=usuario_id,
+    )
     fecha_ingreso = datos.get('fecha_ingreso')
+    antecedente = None
+    antecedente_creado = False
     if fecha_ingreso:
-        AntecedenteServicioModel.objects.get_or_create(
+        antecedente, antecedente_creado = AntecedenteServicioModel.objects.get_or_create(
             empleado_id=empleado.pk,
             fecha_ingreso=fecha_ingreso,
             defaults={'fecha_egreso': None},
         )
-    return {'cargo_id': asignacion.pk, 'cargo_codigo': asignacion.codigo}
+    return {
+        'cargo_id': nuevo.id,
+        'cargo_codigo': nuevo.codigo,
+        'cargo_creado': True,
+        'antecedente_id': antecedente.pk if antecedente else None,
+        'antecedente_creado': antecedente_creado,
+    }
 
 
 def _aplicar_salud_tallas(fila: CargaMasivaFilaModel):
@@ -627,7 +651,14 @@ def aplicar_carga(
         filas = list(carga.filas.select_for_update())
         # Los movimientos de condición se resuelven primero para que las demás
         # filas de la misma cédula encuentren el movimiento ya ejecutado.
-        filas.sort(key=lambda f: (0 if _es_origen_movimiento(f) else 1, f.numero_fila))
+        # Las altas de datos personales van primero: el cargo y las demás
+        # secciones de una cédula nueva necesitan que el empleado exista.
+        filas.sort(key=lambda f: (
+            0 if f.tipo == 'datos_personales' else (
+                1 if _es_origen_movimiento(f) else 2
+            ),
+            f.numero_fila,
+        ))
         movimientos_hechos: set[str] = set()
         for fila in filas:
             if not puede_aplicarse(fila.estado, fila.confirmada):
@@ -839,6 +870,20 @@ def revertir_carga(carga: CargaMasivaModel, actor_id: int | None = None) -> Carg
                 if familiar:
                     if fila.anteriores.get('creado'):
                         familiar.delete()
+            elif fila.tipo == 'cargo_asignacion' and fila.anteriores.get('cargo_creado'):
+                # FIX-CARGA4: la reversión elimina el cargo creado por la carga.
+                cargo_id = fila.anteriores.get('cargo_id')
+                asignacion = AsigTrabajoModel.objects.filter(pk=cargo_id).first()
+                if asignacion is not None:
+                    if asignacion.employee_id:
+                        RepoCargosORM().desasignar_cargo(
+                            asignacion.pk, usuario_id=actor_id,
+                        )
+                    asignacion.delete()
+                if fila.anteriores.get('antecedente_creado') and fila.anteriores.get('antecedente_id'):
+                    AntecedenteServicioModel.objects.filter(
+                        pk=fila.anteriores['antecedente_id'],
+                    ).delete()
             fila.aplicada = False
             fila.save(update_fields=['aplicada', 'movimiento'])
         carga.estado = CargaMasivaModel.Estado.REVERTIDA

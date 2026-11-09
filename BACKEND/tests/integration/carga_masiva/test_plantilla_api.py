@@ -101,8 +101,9 @@ def test_plantilla_completa_y_validaciones_de_entrada(catalogos):
         generar_plantilla(None, 'otro')
     contenido = generar_plantilla(None, 'completo')
     libro = load_workbook(io.BytesIO(contenido))
-    # Instrucciones + Catalogos + 2 hojas ocultas de código postal + 9 tipos
-    assert len(libro.sheetnames) == 13
+    # Instrucciones + Catalogos + hojas ocultas (código postal + jerarquía de
+    # cargo) + 9 tipos de carga.
+    assert len(libro.sheetnames) == 16
 
 
 def test_endpoint_descarga_la_plantilla_y_exige_permiso(catalogos):
@@ -135,3 +136,16 @@ def test_plantilla_depende_de_la_poblacion(catalogos):
         activos['Datos personales'].cell(row=3, column=col).value
         for col in range(1, activos['Datos personales'].max_column + 1)
     ]
+
+def test_plantilla_cargo_trae_columnas_nuevas_y_listas_dependientes(catalogos):
+    """FIX-CARGA4: se crea el cargo; no se pide un código existente."""
+    libro = load_workbook(io.BytesIO(
+        generar_plantilla(['cargo_asignacion'], 'obligatorios', 'ACTIVOS'),
+    ))
+    hoja = libro['Cargo y asignaci\u00f3n']
+    encabezados = [str(c.value) for c in hoja[3] if c.value]
+    assert any('Denominaci\u00f3n del cargo' in e for e in encabezados)
+    assert any('Nivel / Dependencia' in e for e in encabezados)
+    assert any('Direcci\u00f3n / Gerencia / Oficina' in e for e in encabezados)
+    assert not any('C\u00f3digo de cargo' in e for e in encabezados)
+    assert {'NivelesDirecciones', 'DireccionesLineas', 'LineasCoordinaciones'} <= set(libro.sheetnames)

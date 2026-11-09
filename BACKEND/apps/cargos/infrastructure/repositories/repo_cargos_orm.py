@@ -235,25 +235,15 @@ class RepoCargosORM(RepoPrestamosCargoORM):
         )
         return siguiente_codigo_especial(prefijo, ultimo)
 
-    @transaction.atomic
-    def crear_cargo(self, datos: dict) -> CargoAsignacion:
-        """
-        Crea un código de posición VACANTE (sin empleado asignado), réplica
-        funcional de la pantalla "Crear Nuevo Código" del legado. Usa el
-        esquema de código NORMAL (6 dígitos de ubicación + 2 de tipo de
-        cargo) en vez del prefijo especial de `crear_cargo_especial_y_asignar`.
-        """
-        denominacion = DenominacionCargoModel.objects.filter(pk=datos['denominacion_id']).first()
+    def _codigo_para(self, datos: dict) -> str:
+        """Código normal que corresponde a la ubicación y al cargo (sin crear)."""
+        denominacion = DenominacionCargoModel.objects.filter(
+            pk=datos.get('denominacion_id'),
+        ).first()
         if not denominacion:
-            raise NotFoundError(f"Denominación de cargo {datos['denominacion_id']} no encontrada")
-        if not TipoNominaModel.objects.filter(pk=datos['tipo_nomina_id']).exists():
-            raise NotFoundError(f"Tipo de nómina {datos['tipo_nomina_id']} no encontrado")
-
-        try:
-            estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
-            tipo_personal_activo = TipoPersonalModel.objects.get(tipo_personal__iexact='ACTIVO')
-        except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:
-            raise ValidationError(f"Error de configuración: {exc}") from exc
+            raise NotFoundError(
+                f"Denominación de cargo {datos.get('denominacion_id')} no encontrada"
+            )
 
         dependencia_id = datos.get('dependencia_id')
         direccion_general_id = datos.get('direccion_general_id')
@@ -290,7 +280,7 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             }
 
         try:
-            codigo = generar_codigo_normal(
+            return generar_codigo_normal(
                 codigo_coordinacion=codigo_coordinacion,
                 codigo_direccion_linea=codigo_direccion_linea,
                 codigo_direccion_general=codigo_direccion_general,
@@ -300,6 +290,36 @@ class RepoCargosORM(RepoPrestamosCargoORM):
             )
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
+
+    def previsualizar_codigo(self, datos: dict) -> str:
+        """Código que generará `crear_cargo` para estos datos (sin escribir)."""
+        return self._codigo_para(datos)
+
+    @transaction.atomic
+    def crear_cargo(self, datos: dict) -> CargoAsignacion:
+        """
+        Crea un código de posición VACANTE (sin empleado asignado), réplica
+        funcional de la pantalla "Crear Nuevo Código" del legado. Usa el
+        esquema de código NORMAL (6 dígitos de ubicación + 2 de tipo de
+        cargo) en vez del prefijo especial de `crear_cargo_especial_y_asignar`.
+        """
+        denominacion = DenominacionCargoModel.objects.filter(pk=datos['denominacion_id']).first()
+        if not denominacion:
+            raise NotFoundError(f"Denominación de cargo {datos['denominacion_id']} no encontrada")
+        if not TipoNominaModel.objects.filter(pk=datos['tipo_nomina_id']).exists():
+            raise NotFoundError(f"Tipo de nómina {datos['tipo_nomina_id']} no encontrado")
+
+        try:
+            estatus_vacante = EstatusModel.objects.get(estatus__iexact='VACANTE')
+            tipo_personal_activo = TipoPersonalModel.objects.get(tipo_personal__iexact='ACTIVO')
+        except (EstatusModel.DoesNotExist, TipoPersonalModel.DoesNotExist) as exc:
+            raise ValidationError(f"Error de configuración: {exc}") from exc
+
+        codigo = self._codigo_para(datos)
+        dependencia_id = datos.get('dependencia_id')
+        direccion_general_id = datos.get('direccion_general_id')
+        direccion_linea_id = datos.get('direccion_linea_id')
+        coordinacion_id = datos.get('coordinacion_id')
 
         fila = AsigTrabajoModel.objects.create(
             codigo=codigo,
