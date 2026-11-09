@@ -692,7 +692,11 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
         {/* Dictamen y actividad */}
         <div className="space-y-4 lg:col-span-5">
           {resultado && tono ? (
-            <div className={cn("space-y-4 rounded-xl border p-5", tono.panel)}>
+            <div
+              className={cn("space-y-4 rounded-xl border p-5", tono.panel)}
+              role="status"
+              aria-live="polite"
+            >
               <div className="flex items-start gap-3">
                 <span
                   className={cn(
