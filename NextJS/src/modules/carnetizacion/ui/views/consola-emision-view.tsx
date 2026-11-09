@@ -687,120 +687,124 @@ export function ConsolaEmisionView() {
                 </CardHeader>
 
                 <CardContent className="pt-6 pb-6 flex flex-col items-center w-full">
-                  {/* Tarjeta de Carnet Fiel (Renderizado vector/raster con alta fidelidad) */}
-                  <div
-                    className="w-[240px] h-[380px] bg-white rounded-xl shadow-xl border border-slate-300 relative overflow-hidden flex flex-col transition-all duration-300 select-none text-slate-900"
-                    aria-label={`Vista previa del carnet: ${caraPreview}`}
-                  >
-                    {caraPreview === "anverso" ? (
-                      <>
-                        {/* Franja Superior Institucional Azul Marino CONATEL */}
-                        <div className="h-14 bg-[#001f3f] relative flex items-center px-3 justify-between overflow-hidden">
-                          <div className="z-10">
-                            <span className="text-[10px] font-black text-white tracking-widest block leading-tight">
-                              CONATEL
-                            </span>
-                            <span className="text-[6px] text-slate-200 tracking-wider block uppercase">
-                              República Bolivariana de Venezuela
-                            </span>
-                          </div>
-                          {/* Acento dorado angular */}
-                          <div className="h-full w-8 bg-[#ffd700] skew-x-[-20deg] absolute right-4 top-0 opacity-80" />
-                        </div>
-
-                        {/* Cuerpo Anverso */}
-                        <div className="flex-1 flex flex-col items-center pt-2.5 px-3 text-center">
-                          {/* Marco de Foto */}
-                          <div className="size-20 rounded-lg bg-slate-100 border-2 border-[#001f3f] overflow-hidden mb-2 shadow-inner flex items-center justify-center">
-                            {vistaPreviaRaster ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img
-                                src={vistaPreviaRaster}
-                                alt="Foto carnet"
-                                className="size-full object-cover"
-                              />
-                            ) : (
-                              <User className="size-10 text-slate-400" />
-                            )}
-                          </div>
-
-                          {/* Nombre */}
-                          <h4 className="text-[11px] font-black text-slate-900 leading-tight line-clamp-2 px-1">
-                            {truncarNombre(trabajadorSeleccionado.nombre_completo).toUpperCase()}
-                          </h4>
-                          <p className="text-[10px] font-bold text-slate-700 mt-0.5">
-                            C.I. V-{trabajadorSeleccionado.cedula}
-                          </p>
-                          <p className="text-[9px] font-medium text-slate-600 mt-0.5 line-clamp-1">
-                            {trabajadorSeleccionado.cargo || "FUNCIONARIO"}
-                          </p>
-
-                          {/* Línea divisoria dorada */}
-                          <div className="w-3/4 h-0.5 bg-[#d4af37] my-1.5" />
-
-                          <p className="text-[8px] text-slate-500 line-clamp-1">
-                            {trabajadorSeleccionado.departamento || "Gerencia de Operaciones"}
-                          </p>
-
-                          {/* Pie de Anverso con QR y Vigencia */}
-                          <div className="mt-auto mb-2 flex items-center justify-between w-full px-1">
-                            <div className="size-8 bg-slate-50 border border-slate-300 p-0.5 rounded flex items-center justify-center">
-                              <QrCode className="size-full text-slate-800" />
-                            </div>
-                            <div className="text-right">
-                              <span className="text-[7px] text-slate-400 block font-medium">Vigencia</span>
-                              <span className="text-[8px] font-bold text-slate-800">
-                                {new Date().getFullYear() + 2}
+                  {caraPreview === "anverso" && vistaPreviaRaster ? (
+                    /* La vista previa raster del backend ya contiene la plantilla, la foto y los
+                       datos con las proporciones reales del carnet. */
+                    <div className="w-[240px] h-[380px] overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={vistaPreviaRaster}
+                        alt={`Vista previa del carnet de ${trabajadorSeleccionado.nombre_completo}`}
+                        className="size-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    /* Tarjeta de Carnet Fiel (Renderizado vector/raster con alta fidelidad) */
+                    <div
+                      className="w-[240px] h-[380px] bg-white rounded-xl shadow-xl border border-slate-300 relative overflow-hidden flex flex-col transition-all duration-300 select-none text-slate-900"
+                      aria-label={`Vista previa del carnet: ${caraPreview}`}
+                    >
+                      {caraPreview === "anverso" ? (
+                        <>
+                          {/* Franja Superior Institucional Azul Marino CONATEL */}
+                          <div className="h-14 bg-[#001f3f] relative flex items-center px-3 justify-between overflow-hidden">
+                            <div className="z-10">
+                              <span className="text-[10px] font-black text-white tracking-widest block leading-tight">
+                                CONATEL
+                              </span>
+                              <span className="text-[6px] text-slate-200 tracking-wider block uppercase">
+                                República Bolivariana de Venezuela
                               </span>
                             </div>
-                          </div>
-                        </div>
-
-                        {/* Franja Inferior Azul Marino */}
-                        <div className="h-4 bg-[#001f3f]" />
-                      </>
-                    ) : (
-                      <>
-                        {/* Cara Reverso Oficial */}
-                        <div className="h-10 bg-[#001f3f] flex items-center px-3 justify-center">
-                          <span className="text-[9px] font-bold text-white tracking-wider">
-                            CONDICIONES DE USO
-                          </span>
-                        </div>
-
-                        <div className="flex-1 flex flex-col items-center p-3 text-center text-slate-800">
-                          <p className="text-[7px] text-justify leading-tight text-slate-600 mb-2">
-                            • Esta credencial es de uso estrictamente oficial, intransferible y personal.
-                            <br />
-                            • Debe portarse visible en todas las instalaciones de CONATEL.
-                            <br />
-                            • En caso de pérdida o extravío, notifique inmediatamente a Gestión Humana.
-                            <br />• Válida únicamente con sello institucional y código QR activo.
-                          </p>
-
-                          <div className="size-20 bg-slate-50 border border-slate-300 p-1 rounded-lg flex items-center justify-center mb-1.5">
-                            <QrCode className="size-full text-slate-900" />
+                            {/* Acento dorado angular */}
+                            <div className="h-full w-8 bg-[#ffd700] skew-x-[-20deg] absolute right-4 top-0 opacity-80" />
                           </div>
 
-                          <span className="text-[8px] font-bold text-slate-700">
-                            Validación Criptográfica QR
-                          </span>
-                          <span className="text-[6.5px] text-slate-400">
-                            Algoritmo SHA-256 Verificado
-                          </span>
+                          {/* Cuerpo Anverso */}
+                          <div className="flex-1 flex flex-col items-center pt-2.5 px-3 text-center">
+                            {/* Marco de Foto */}
+                            <div className="size-20 rounded-lg bg-slate-100 border-2 border-[#001f3f] overflow-hidden mb-2 shadow-inner flex items-center justify-center">
+                              <User className="size-10 text-slate-400" />
+                            </div>
 
-                          <div className="mt-auto border-t border-slate-300 w-36 pt-1 text-center">
-                            <span className="text-[7px] text-slate-600 font-bold block">
-                              Dirección General CONATEL
+                            {/* Nombre */}
+                            <h4 className="text-[11px] font-black text-slate-900 leading-tight line-clamp-2 px-1">
+                              {truncarNombre(trabajadorSeleccionado.nombre_completo).toUpperCase()}
+                            </h4>
+                            <p className="text-[10px] font-bold text-slate-700 mt-0.5">
+                              C.I. V-{trabajadorSeleccionado.cedula}
+                            </p>
+                            <p className="text-[9px] font-medium text-slate-600 mt-0.5 line-clamp-1">
+                              {trabajadorSeleccionado.cargo || "FUNCIONARIO"}
+                            </p>
+
+                            {/* Línea divisoria dorada */}
+                            <div className="w-3/4 h-0.5 bg-[#d4af37] my-1.5" />
+
+                            <p className="text-[8px] text-slate-500 line-clamp-1">
+                              {trabajadorSeleccionado.departamento || "Gerencia de Operaciones"}
+                            </p>
+
+                            {/* Pie de Anverso con QR y Vigencia */}
+                            <div className="mt-auto mb-2 flex items-center justify-between w-full px-1">
+                              <div className="size-8 bg-slate-50 border border-slate-300 p-0.5 rounded flex items-center justify-center">
+                                <QrCode className="size-full text-slate-800" />
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[7px] text-slate-400 block font-medium">Vigencia</span>
+                                <span className="text-[8px] font-bold text-slate-800">
+                                  {new Date().getFullYear() + 2}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Franja Inferior Azul Marino */}
+                          <div className="h-4 bg-[#001f3f]" />
+                        </>
+                      ) : (
+                        <>
+                          {/* Cara Reverso Oficial */}
+                          <div className="h-10 bg-[#001f3f] flex items-center px-3 justify-center">
+                            <span className="text-[9px] font-bold text-white tracking-wider">
+                              CONDICIONES DE USO
                             </span>
-                            <span className="text-[6px] text-slate-400">Gestión Humana</span>
                           </div>
-                        </div>
 
-                        <div className="h-3 bg-[#001f3f]" />
-                      </>
-                    )}
-                  </div>
+                          <div className="flex-1 flex flex-col items-center p-3 text-center text-slate-800">
+                            <p className="text-[7px] text-justify leading-tight text-slate-600 mb-2">
+                              • Esta credencial es de uso estrictamente oficial, intransferible y personal.
+                              <br />
+                              • Debe portarse visible en todas las instalaciones de CONATEL.
+                              <br />
+                              • En caso de pérdida o extravío, notifique inmediatamente a Gestión Humana.
+                              <br />• Válida únicamente con sello institucional y código QR activo.
+                            </p>
+
+                            <div className="size-20 bg-slate-50 border border-slate-300 p-1 rounded-lg flex items-center justify-center mb-1.5">
+                              <QrCode className="size-full text-slate-900" />
+                            </div>
+
+                            <span className="text-[8px] font-bold text-slate-700">
+                              Validación Criptográfica QR
+                            </span>
+                            <span className="text-[6.5px] text-slate-400">
+                              Algoritmo SHA-256 Verificado
+                            </span>
+
+                            <div className="mt-auto border-t border-slate-300 w-36 pt-1 text-center">
+                              <span className="text-[7px] text-slate-600 font-bold block">
+                                Dirección General CONATEL
+                              </span>
+                              <span className="text-[6px] text-slate-400">Gestión Humana</span>
+                            </div>
+                          </div>
+
+                          <div className="h-3 bg-[#001f3f]" />
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   <p className="text-[11px] text-muted-foreground mt-3 text-center">
                     Resolución: 300 DPI estándar para tarjetas de identificación PVC.
