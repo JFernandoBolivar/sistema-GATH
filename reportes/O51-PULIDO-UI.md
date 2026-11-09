@@ -75,4 +75,8 @@ Se comparó el prototipo HTML con el sistema y se adoptó la propuesta híbrida:
   en la tarjeta, el diálogo de confirmación y el historial (nunca `true`/`false`).
 - **QR del carnet:** el contenido ahora es `FRONTEND_URL/carnet/<hash>` para que
   la cámara del teléfono abra la ficha pública de verificación.
+- **Escáner de eventos:** además del check-in de invitados, si el QR es de un
+  **carnet de trabajador** (URL `/carnet/<hash>`, `GATH-ID` o hash suelto) se
+  valida contra la ficha pública y se ofrece **Abrir expediente** en
+  `/personal/consultar?cedula=<cédula>`. No registra ingreso al evento.
 

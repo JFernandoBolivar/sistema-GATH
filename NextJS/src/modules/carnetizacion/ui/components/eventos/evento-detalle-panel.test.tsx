@@ -12,9 +12,13 @@ const acciones = vi.hoisted(() => ({
   crearZonaEventoAction: vi.fn(),
   checkInAccesoAction: vi.fn(),
   getEventosAction: vi.fn(),
+  consultarFichaQrAction: vi.fn(),
 }));
 
 vi.mock("@/modules/carnetizacion/infrastructure/actions/eventos-actions", () => acciones);
+vi.mock("@/modules/carnetizacion/infrastructure/actions/carnetizacion-actions", () => ({
+  consultarFichaQrAction: acciones.consultarFichaQrAction,
+}));
 
 import { EventoDetallePanel } from "./evento-detalle-panel";
 

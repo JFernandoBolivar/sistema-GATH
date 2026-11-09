@@ -5,9 +5,13 @@ const acciones = vi.hoisted(() => ({
   getEventosAction: vi.fn(),
   getZonasEventoAction: vi.fn(),
   checkInAccesoAction: vi.fn(),
+  consultarFichaQrAction: vi.fn(),
 }));
 
 vi.mock("@/modules/carnetizacion/infrastructure/actions/eventos-actions", () => acciones);
+vi.mock("@/modules/carnetizacion/infrastructure/actions/carnetizacion-actions", () => ({
+  consultarFichaQrAction: acciones.consultarFichaQrAction,
+}));
 
 import { ControlEntradaQrView } from "./control-entrada-qr-view";
 
@@ -37,6 +41,7 @@ describe("ControlEntradaQrView", () => {
       codigo_credencial: "INV-1",
       hora_ingreso_formateada: "10:00",
     });
+    acciones.consultarFichaQrAction.mockReset();
   });
 
   it("renderiza y abre el selector de zonas sin value vacío", async () => {
@@ -81,5 +86,40 @@ describe("ControlEntradaQrView", () => {
         }),
       );
     });
+  });
+
+  it("valida el carnet de un trabajador y ofrece abrir su expediente", async () => {
+    acciones.consultarFichaQrAction.mockResolvedValue({
+      esValido: true,
+      estado: "VIGENTE",
+      mensaje: "Credencial vigente.",
+      nivelAcceso: "ADMINISTRADOR",
+      datos: {
+        nombre: "JOSE FERNANDO BOLIVAR HURTADO",
+        cedula: "30799436",
+        cargo: "ANALISTA",
+        ubicacion: "CONATEL",
+        contactos_emergencia: [],
+      },
+      saludDisponible: false,
+    });
+
+    render(<ControlEntradaQrView />);
+
+    const triggerManual = await screen.findByText(/Entrada manual de código o lector USB/i);
+    fireEvent.click(triggerManual);
+    const inputCodigo = screen.getByPlaceholderText(/Ingrese código de credencial o hash/i);
+    fireEvent.change(inputCodigo, {
+      target: { value: `https://gath.local/carnet/${"a".repeat(64)}` },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Validar/i }));
+
+    expect(await screen.findByText("Credencial válida")).toBeInTheDocument();
+    expect(acciones.consultarFichaQrAction).toHaveBeenCalledWith("a".repeat(64));
+    expect(acciones.checkInAccesoAction).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: /Abrir expediente/i })).toHaveAttribute(
+      "href",
+      "/personal/consultar?cedula=30799436",
+    );
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   Camera,
@@ -8,11 +9,13 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  FolderOpen,
   Keyboard,
   Maximize2,
   Minimize2,
   QrCode,
   Scan,
+  ShieldCheck,
   Usb,
   Volume2,
   VolumeX,
@@ -37,11 +40,13 @@ import {
   getEventosAction,
   getZonasEventoAction,
 } from "@/modules/carnetizacion/infrastructure/actions/eventos-actions";
+import { consultarFichaQrAction } from "@/modules/carnetizacion/infrastructure/actions/carnetizacion-actions";
 import type {
   CheckInResponse,
   Evento,
   EventoZona,
 } from "@/modules/carnetizacion/domain/entities/evento";
+import type { FichaQr } from "@/modules/carnetizacion/domain/entities/carnet";
 
 interface ControlEntradaQrViewProps {
   initialEventoId?: string;
@@ -89,6 +94,16 @@ function reproducirTono(tipo: "permitido" | "ya_ingreso" | "denegado") {
   } catch {
     // Si el navegador bloquea audio sin interacción de usuario, no bloquea la UI
   }
+}
+
+/** Extrae el hash de un QR de carnet (URL nueva, texto GATH-ID o hash suelto). */
+function hashDeCarnet(codigo: string): string | null {
+  const texto = codigo.trim();
+  const enUrl = texto.match(/\/carnet\/([a-f0-9]{64})/i);
+  if (enUrl) return enUrl[1];
+  const enTexto = texto.match(/GATH-ID:\s*([a-f0-9]{64})/i);
+  if (enTexto) return enTexto[1];
+  return /^[a-f0-9]{64}$/i.test(texto) ? texto : null;
 }
 
 function dispararVibracion(tipo: "permitido" | "ya_ingreso" | "denegado") {
@@ -144,6 +159,8 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
   const [mostrarEntradaManual, setMostrarEntradaManual] = useState(false);
   const [codigoInput, setCodigoInput] = useState("");
   const [resultado, setResultado] = useState<CheckInResponse | null>(null);
+  const [fichaTrabajador, setFichaTrabajador] = useState<FichaQr | null>(null);
+  const [errorFicha, setErrorFicha] = useState<string | null>(null);
   const [historialReciente, setHistorialReciente] = useState<CheckInResponse[]>([]);
   const [isPending, startTransition] = useTransition();
   const [errorAcceso, setErrorAcceso] = useState<string | null>(null);
@@ -312,9 +329,40 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
     const code = codigoParaValidar.trim();
     if (!code) return;
 
+    // Un carnet de trabajador (URL /carnet/<hash>, GATH-ID o hash suelto) se
+    // valida contra la ficha pública y permite abrir su expediente. No registra
+    // ingreso a ningún evento.
+    const hash = hashDeCarnet(code);
+    if (hash) {
+      startTransition(async () => {
+        try {
+          setErrorAcceso(null);
+          setErrorFicha(null);
+          setResultado(null);
+          const ficha = await consultarFichaQrAction(hash);
+          setFichaTrabajador(ficha);
+          setCodigoInput("");
+          if (ficha.esValido) {
+            if (audioHabilitado) reproducirTono("permitido");
+            dispararVibracion("permitido");
+          } else {
+            if (audioHabilitado) reproducirTono("denegado");
+            dispararVibracion("denegado");
+          }
+        } catch {
+          setErrorFicha("No se pudo validar la credencial del trabajador.");
+          if (audioHabilitado) reproducirTono("denegado");
+          dispararVibracion("denegado");
+        }
+      });
+      return;
+    }
+
     startTransition(async () => {
       try {
         setErrorAcceso(null);
+        setFichaTrabajador(null);
+        setErrorFicha(null);
         const resp = await checkInAccesoAction({
           codigo_o_hash: code,
           evento_id: eventoId || undefined,
@@ -406,6 +454,8 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
 
     setResultado(mockResp);
     setHistorialReciente((prev) => [mockResp, ...prev.slice(0, 9)]);
+    setFichaTrabajador(null);
+    setErrorFicha(null);
   };
 
   const tono = resultado ? TONO_DICTAMEN[resultado.resultado] ?? TONO_DICTAMEN.NO_VALIDA : null;
@@ -691,6 +741,101 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
 
         {/* Dictamen y actividad */}
         <div className="space-y-4 lg:col-span-5">
+          {fichaTrabajador && (
+            <Card
+              className={cn(
+                "overflow-hidden border shadow-none",
+                fichaTrabajador.esValido
+                  ? "border-success/30 bg-success-soft"
+                  : "border-danger/30 bg-danger-soft",
+              )}
+              role="status"
+              aria-live="polite"
+            >
+              <CardContent className="space-y-4 p-5">
+                <div className="flex items-start gap-3">
+                  <span
+                    className={cn(
+                      "flex size-11 shrink-0 items-center justify-center rounded-full border border-border bg-card",
+                      fichaTrabajador.esValido ? "text-success" : "text-danger",
+                    )}
+                  >
+                    {fichaTrabajador.esValido ? (
+                      <ShieldCheck className="size-6" aria-hidden />
+                    ) : (
+                      <XCircle className="size-6" aria-hidden />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p
+                      className={cn(
+                        "text-sm font-medium",
+                        fichaTrabajador.esValido ? "text-success" : "text-danger",
+                      )}
+                    >
+                      {fichaTrabajador.esValido ? "Credencial válida" : "Credencial no válida"}
+                    </p>
+                    <h3 className="text-xl font-bold leading-tight text-foreground">
+                      {fichaTrabajador.datos?.nombre || "Trabajador"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{fichaTrabajador.mensaje}</p>
+                  </div>
+                </div>
+
+                {fichaTrabajador.datos && (
+                  <dl className="grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Cédula</dt>
+                      <dd className="font-medium tabular-nums text-foreground">
+                        {fichaTrabajador.datos.cedula || "No disponible"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-muted-foreground">Cargo</dt>
+                      <dd className="font-medium text-foreground">
+                        {fichaTrabajador.datos.cargo || "—"}
+                      </dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs font-medium text-muted-foreground">Ubicación</dt>
+                      <dd className="font-medium text-foreground">
+                        {fichaTrabajador.datos.ubicacion || "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
+
+                <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+                  {fichaTrabajador.datos?.cedula && (
+                    <Button asChild className="min-h-11">
+                      <Link href={`/personal/consultar?cedula=${fichaTrabajador.datos.cedula}`}>
+                        <FolderOpen className="size-4" aria-hidden />
+                        Abrir expediente
+                      </Link>
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setFichaTrabajador(null)}
+                    className="min-h-11"
+                  >
+                    Cerrar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {errorFicha && (
+            <p
+              role="alert"
+              className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger"
+            >
+              {errorFicha}
+            </p>
+          )}
+
           {resultado && tono ? (
             <div
               className={cn("space-y-4 rounded-xl border p-5", tono.panel)}
@@ -764,7 +909,7 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
                 <span>{audioHabilitado ? "Sonido activo" : "Sonido silenciado"}</span>
               </div>
             </div>
-          ) : (
+          ) : !fichaTrabajador ? (
             <Card className="border-border bg-card shadow-none">
               <CardContent className="flex flex-col items-center gap-3 px-6 py-10 text-center">
                 <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -777,9 +922,9 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
                 </p>
               </CardContent>
             </Card>
-          )}
+          ) : null}
 
-          {historialReciente.length === 0 && (
+          {historialReciente.length === 0 && !fichaTrabajador && (
             <Card className="border-border bg-card shadow-none">
               <CardContent className="space-y-3 p-4">
                 <h3 className="text-sm font-semibold text-foreground">Cómo funciona</h3>
@@ -791,6 +936,10 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
                   <li className="flex gap-2">
                     <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
                     El dictamen aparece aquí y se acompaña con sonido y vibración.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    Escanee el carnet de un trabajador para validarlo y abrir su expediente.
                   </li>
                   <li className="flex gap-2">
                     <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
