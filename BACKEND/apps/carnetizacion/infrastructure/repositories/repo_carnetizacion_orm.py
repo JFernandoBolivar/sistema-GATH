@@ -510,6 +510,7 @@ class RepoCarnetizacionORM:
             {
                 'cedula': str(e.cedulaidentidad),
                 'nombre_completo': f"{e.nombres} {e.apellidos}".strip(),
+                'correo': (e.correo or '').strip(),
                 'tipo_personal': str(getattr(e, 'tipo_trabajador', '') or 'Activo'),
                 'tiene_carnet_activo': CarnetEmitidoModel.objects.filter(employee=e, activo=True).exists(),
             }

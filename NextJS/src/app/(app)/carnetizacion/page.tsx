@@ -1,7 +1,7 @@
 "use client";
 
-import CarnetizacionPage from "@/modules/carnetizacion/ui/carnetizacion-page";
+import { CarnetizacionHome } from "@/modules/carnetizacion/ui/carnetizacion-home";
 
 export default function Page() {
-  return <CarnetizacionPage />;
+  return <CarnetizacionHome />;
 }

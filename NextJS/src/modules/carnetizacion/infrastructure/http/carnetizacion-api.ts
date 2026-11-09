@@ -148,6 +148,8 @@ export interface EmpleadoCarnetApiItem {
   departamento?: string;
   codigo?: string;
   codigo_empleado?: string;
+  correo?: string;
+  telefono?: string;
   foto_url?: string | null;
 }
 

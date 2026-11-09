@@ -5,21 +5,31 @@
  * Formulario + listado + PDF + devolución/anulación + envío por correo.
  */
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { Download, Mail, Plus, RotateCcw, Search, UserX } from "lucide-react";
+import { Check, ChevronsUpDown, Download, Mail, Plus, RotateCcw, Search, UserX } from "lucide-react";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
 import PageLayout from "@/components/layout/page-layout";
 import { Badge } from "@/shared/ui/components/badge";
 import { Button } from "@/shared/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/shared/ui/components/command";
 import { Input } from "@/shared/ui/components/input";
 import { Label } from "@/shared/ui/components/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/components/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/shared/ui/components/table";
 
-import type { TipoCredencial } from "../../domain/entities/carnet";
+import type { EmployeeCarnet, TipoCredencial } from "../../domain/entities/carnet";
 import type { CredencialExternaApiItem } from "../../infrastructure/http/credenciales-externas-api";
 import {
   anularCredencialExternaAction,
@@ -79,7 +89,14 @@ export default function CredencialesExternasView({ grupo }: Props) {
     horas: "8",
   });
   const [busqueda, setBusqueda] = useState("");
-  const [empleado, setEmpleado] = useState<{ cedula: string; nombre: string } | null>(null);
+  const [empleado, setEmpleado] = useState<{ cedula: string; nombre: string; correo?: string } | null>(null);
+
+  // Persona visitada: debe ser un trabajador registrado en el sistema.
+  const [personaEmpleado, setPersonaEmpleado] = useState<EmployeeCarnet | null>(null);
+  const [busquedaPersona, setBusquedaPersona] = useState("");
+  const [resultadosPersona, setResultadosPersona] = useState<EmployeeCarnet[]>([]);
+  const [buscandoPersona, setBuscandoPersona] = useState(false);
+  const [personaAbierta, setPersonaAbierta] = useState(false);
 
   const etiquetas = useMemo(
     () => new Map(tipos.map((t) => [t.codigo, t.nombre])),
@@ -112,13 +129,50 @@ export default function CredencialesExternasView({ grupo }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grupo]);
 
+  // Búsqueda de la persona visitada entre los trabajadores registrados.
+  useEffect(() => {
+    if (temporal || busquedaPersona.trim().length < 2) {
+      setResultadosPersona([]);
+      return;
+    }
+    let activo = true;
+    const timer = setTimeout(async () => {
+      setBuscandoPersona(true);
+      try {
+        const res = await buscarPersonalCarnetAction(busquedaPersona.trim());
+        if (activo && Array.isArray(res)) setResultadosPersona(res as EmployeeCarnet[]);
+      } catch {
+        if (activo) setResultadosPersona([]);
+      } finally {
+        if (activo) setBuscandoPersona(false);
+      }
+    }, 300);
+    return () => {
+      activo = false;
+      clearTimeout(timer);
+    };
+  }, [busquedaPersona, temporal]);
+
+  const seleccionarPersona = (emp: EmployeeCarnet) => {
+    setPersonaEmpleado(emp);
+    setForm((f) => ({ ...f, persona: `${emp.nombre_completo} (C.I. ${emp.cedula})` }));
+    setBusquedaPersona(emp.nombre_completo);
+    setPersonaAbierta(false);
+  };
+
   const buscarTrabajador = () => {
     startTransition(async () => {
       const resultado = await buscarPersonalCarnetAction(busqueda.trim());
       if (Array.isArray(resultado) && resultado.length > 0) {
         const emp = resultado[0];
-        setEmpleado({ cedula: emp.cedula, nombre: emp.nombre_completo || `${emp.nombres ?? ""} ${emp.apellidos ?? ""}`.trim() });
-        setForm((f) => ({ ...f, nombre: emp.nombre_completo || `${emp.nombres ?? ""} ${emp.apellidos ?? ""}`.trim(), documento: emp.cedula }));
+        const nombre = emp.nombre_completo || `${emp.nombres ?? ""} ${emp.apellidos ?? ""}`.trim();
+        setEmpleado({ cedula: emp.cedula, nombre, correo: emp.correo });
+        setForm((f) => ({
+          ...f,
+          nombre,
+          documento: emp.cedula,
+          correo: emp.correo || f.correo,
+        }));
       } else {
         setEmpleado(null);
         toast.error("No se encontró un trabajador con esa cédula.");
@@ -137,6 +191,10 @@ export default function CredencialesExternasView({ grupo }: Props) {
     }
     if (!temporal && (!form.nombre.trim() || !form.documento.trim() || !form.motivo.trim())) {
       toast.error("Complete nombre, documento y motivo.");
+      return;
+    }
+    if (!temporal && !personaEmpleado) {
+      toast.error("Seleccione la persona visitada del listado de trabajadores.");
       return;
     }
     startTransition(async () => {
@@ -165,6 +223,9 @@ export default function CredencialesExternasView({ grupo }: Props) {
       setForm((f) => ({ ...f, nombre: "", documento: "", correo: "", empresa: "", contrato: "", persona: "", motivo: "", observaciones: "" }));
       setEmpleado(null);
       setBusqueda("");
+      setPersonaEmpleado(null);
+      setBusquedaPersona("");
+      setResultadosPersona([]);
       cargar();
     });
   };
@@ -363,13 +424,75 @@ export default function CredencialesExternasView({ grupo }: Props) {
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="cred-persona">Persona visitada</Label>
-                      <Input
-                        id="cred-persona"
-                        value={form.persona}
-                        onChange={(e) => setForm({ ...form, persona: e.target.value })}
-                        placeholder="A quién visita"
-                        className="h-11"
-                      />
+                      <Popover open={personaAbierta} onOpenChange={setPersonaAbierta}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="cred-persona"
+                            type="button"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={personaAbierta}
+                            className="h-11 w-full justify-between gap-2 text-sm font-normal"
+                          >
+                            <span
+                              className={cn(
+                                "truncate text-left",
+                                !personaEmpleado && "text-muted-foreground",
+                              )}
+                            >
+                              {personaEmpleado
+                                ? `${personaEmpleado.nombre_completo} · V-${personaEmpleado.cedula}`
+                                : "Buscar trabajador por nombre o cédula…"}
+                            </span>
+                            <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-(--radix-popover-trigger-width) min-w-[320px] p-0"
+                          align="start"
+                        >
+                          <Command shouldFilter={false}>
+                            <CommandInput
+                              placeholder="Buscar trabajador…"
+                              value={busquedaPersona}
+                              onValueChange={setBusquedaPersona}
+                            />
+                            <CommandList className="max-h-64 overflow-y-auto">
+                              <CommandEmpty>
+                                {buscandoPersona
+                                  ? "Buscando…"
+                                  : "No se encontraron trabajadores."}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {resultadosPersona.map((emp) => (
+                                  <CommandItem
+                                    key={emp.cedula}
+                                    value={emp.cedula}
+                                    onSelect={() => seleccionarPersona(emp)}
+                                    className="cursor-pointer"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-medium">
+                                        {emp.nombre_completo}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        C.I. {emp.cedula}
+                                        {emp.cargo ? ` · ${emp.cargo}` : ""}
+                                      </p>
+                                    </div>
+                                    {personaEmpleado?.cedula === emp.cedula && (
+                                      <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                                    )}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <p className="text-xs text-muted-foreground">
+                        Solo se aceptan trabajadores registrados en el sistema.
+                      </p>
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="cred-desde">Desde</Label>
@@ -396,21 +519,10 @@ export default function CredencialesExternasView({ grupo }: Props) {
               </>
             )}
 
-            <section className="space-y-3 border-t border-border pt-5">
-              <h3 className="text-sm font-semibold text-foreground">Notificación</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="cred-correo">Correo (opcional)</Label>
-                  <Input
-                    id="cred-correo"
-                    type="email"
-                    value={form.correo}
-                    onChange={(e) => setForm({ ...form, correo: e.target.value })}
-                    placeholder="correo@ejemplo.com"
-                    className="h-11"
-                  />
-                </div>
-                {temporal && (
+            {temporal ? (
+              <section className="space-y-3 border-t border-border pt-5">
+                <h3 className="text-sm font-semibold text-foreground">Detalle de la emisión</h3>
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="cred-motivo-temporal">Motivo</Label>
                     <Input
@@ -421,9 +533,35 @@ export default function CredencialesExternasView({ grupo }: Props) {
                       className="h-11"
                     />
                   </div>
-                )}
-              </div>
-            </section>
+                  <div className="space-y-1.5">
+                    <Label>Correo del trabajador</Label>
+                    <p className="flex h-11 items-center rounded-md border border-border bg-muted/40 px-3 text-sm text-foreground">
+                      {empleado?.correo || "Sin correo registrado"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Se toma de la ficha del trabajador; no se edita aquí.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className="space-y-3 border-t border-border pt-5">
+                <h3 className="text-sm font-semibold text-foreground">Notificación</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cred-correo">Correo (opcional)</Label>
+                    <Input
+                      id="cred-correo"
+                      type="email"
+                      value={form.correo}
+                      onChange={(e) => setForm({ ...form, correo: e.target.value })}
+                      placeholder="correo@ejemplo.com"
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
 
             <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
