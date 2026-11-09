@@ -10,7 +10,7 @@ test.describe("Suite 03: Validaciones de Errores y Casos Borde", () => {
   });
 
   // Helper para subir archivo en el Asistente
-  async function subirArchivoEnAsistente(page: any, nombreArchivo: string) {
+  async function subirArchivoEnAsistente(page: any, nombreArchivo: string, esperaMs = 8000) {
     const btnListo = page.getByRole("button", { name: /ya tengo el archivo listo/i });
     if (await btnListo.isVisible()) {
       await btnListo.click();
@@ -22,7 +22,7 @@ test.describe("Suite 03: Validaciones de Errores y Casos Borde", () => {
     await expect(btnAnalizar).toBeEnabled();
     await btnAnalizar.click();
     // Espaciamiento para evitar sobrecargar upload throttle (20/min)
-    await page.waitForTimeout(3500);
+    await page.waitForTimeout(esperaMs);
   }
 
   // Helper para ir a Historial y abrir detalle de la última carga
@@ -58,7 +58,9 @@ test.describe("Suite 03: Validaciones de Errores y Casos Borde", () => {
     const isMobile = testInfo.project.name === "telefono";
     const prefix = isMobile ? "tel" : "pc";
 
-    await subirArchivoEnAsistente(page, "c03_formato_no_excel.xlsx");
+    // El error de formato se muestra en un toast breve: no esperar el
+    // espaciamiento largo de los casos exitosos.
+    await subirArchivoEnAsistente(page, "c03_formato_no_excel.xlsx", 0);
     await tomarCaptura(page, `c03-${prefix}-01-error-formato.png`);
     expect(await verificarSinDesborde(page, "C03 Error Formato")).toBeTruthy();
 

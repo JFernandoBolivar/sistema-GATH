@@ -29,6 +29,8 @@ test.describe("Suite 04: Casos de Negocio Avanzados", () => {
     const btnAnalizar = page.getByRole("button", { name: /analizar archivo/i });
     await expect(btnAnalizar).toBeEnabled();
     await btnAnalizar.click();
+    // Espaciar subidas para no agotar el throttle de 20/min.
+    await page.waitForTimeout(8000);
   }
 
   test("C11 - Archivo grande (~1000 filas sintéticas) y medición de rendimiento", async ({
