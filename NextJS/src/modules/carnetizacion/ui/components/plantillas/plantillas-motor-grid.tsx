@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock, History, Loader2, Palette, PlusCircle, Sparkles, Star } from "lucide-react";
+import { CheckCircle2, Clock, Copy, History, Loader2, Palette, PlusCircle, Sparkles, Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ interface PlantillasMotorGridProps {
   onAbrirHistorialVersiones: (plantilla: PlantillaMotor) => void;
   onPublicarMotor: (id: string, version: number) => void;
   onActivarMotor: (id: string) => void;
+  onDuplicarMotor: (plantilla: PlantillaMotor) => void;
 }
 
 export function PlantillasMotorGrid({
@@ -33,6 +34,7 @@ export function PlantillasMotorGrid({
   onAbrirHistorialVersiones,
   onPublicarMotor,
   onActivarMotor,
+  onDuplicarMotor,
 }: PlantillasMotorGridProps) {
   return (
     <div className="space-y-6">
@@ -141,13 +143,31 @@ export function PlantillasMotorGrid({
                 </CardHeader>
 
                 <CardContent className="space-y-3 pb-3 text-sm">
-                  <div className="rounded-lg border border-border bg-muted/30 p-2">
-                    <PlantillaMiniatura
-                      definicion={p.definicion}
-                      anchoMm={p.ancho_mm}
-                      altoMm={p.alto_mm}
-                      etiqueta={p.nombre}
-                    />
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-muted/30 p-2">
+                    <div className="space-y-1">
+                      <PlantillaMiniatura
+                        definicion={p.definicion}
+                        anchoMm={p.ancho_mm}
+                        altoMm={p.alto_mm}
+                        etiqueta={p.nombre}
+                        cara="anverso"
+                      />
+                      <p className="text-center text-[11px] font-medium text-muted-foreground">
+                        Anverso
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <PlantillaMiniatura
+                        definicion={p.definicion}
+                        anchoMm={p.ancho_mm}
+                        altoMm={p.alto_mm}
+                        etiqueta={p.nombre}
+                        cara="reverso"
+                      />
+                      <p className="text-center text-[11px] font-medium text-muted-foreground">
+                        Reverso
+                      </p>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/30 p-2.5 text-xs">
@@ -199,17 +219,28 @@ export function PlantillasMotorGrid({
                     <Button size="sm" variant="default" className="min-h-9 gap-1.5" asChild>
                       <Link href={`/carnetizacion/disenador?plantilla=${p.id}`}>
                         <Palette className="size-3.5" aria-hidden />
-                        Abrir diseñador
+                        Editar
                       </Link>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-9 gap-1.5"
+                      disabled={isPending}
+                      onClick={() => onDuplicarMotor(p)}
+                    >
+                      <Copy className="size-3.5" aria-hidden />
+                      Duplicar
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="min-h-9 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
                       onClick={() => onAbrirHistorialVersiones(p)}
+                      title="Historial de versiones"
                     >
                       <History className="size-3.5" aria-hidden />
-                      Historial
+                      <span className="sr-only">Historial</span>
                     </Button>
                   </div>
 

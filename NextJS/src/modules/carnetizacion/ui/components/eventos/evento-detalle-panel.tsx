@@ -398,19 +398,19 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid grid-cols-2 sm:grid-cols-5 h-auto p-1 bg-muted/60 border border-border/60 rounded-xl gap-1">
             <TabsTrigger value="resumen" className="text-xs py-2.5 font-semibold">
-              1. Resumen y Cifras
+              Resumen
             </TabsTrigger>
             <TabsTrigger value="invitados" className="text-xs py-2.5 font-semibold">
-              2. Nómina de Invitados ({invitados.length})
+              Invitados ({invitados.length})
             </TabsTrigger>
             <TabsTrigger value="emision" className="text-xs py-2.5 font-semibold">
-              3. Emisión de Gafetes
+              Gafetes
             </TabsTrigger>
             <TabsTrigger value="control" className="text-xs py-2.5 font-semibold">
-              4. Control en Puertas
+              Control
             </TabsTrigger>
             <TabsTrigger value="configuracion" className="text-xs py-2.5 font-semibold">
-              5. Configuración
+              Configuración
             </TabsTrigger>
           </TabsList>
 
@@ -418,69 +418,204 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
           {/* PESTAÑA 1: RESUMEN Y CIFRAS CANÓNICAS                         */}
           {/* ============================================================== */}
           <TabsContent value="resumen" className="space-y-6">
-            {/* 4 Tarjetas de Métricas Canónicas (O45-B / O51) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="border-border/60 bg-card shadow-xs">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-medium flex items-center justify-between">
-                    <span>Total Registrados</span>
-                    <Users className="size-4 text-muted-foreground" />
-                  </CardDescription>
-                  <CardTitle className="text-2xl sm:text-3xl font-black text-foreground">
-                    {panel?.total_invitados ?? invitados.length}
-                  </CardTitle>
+            {/* Banda de cifras y acciones (portada del evento) */}
+            <Card className="border-border bg-card shadow-none">
+              <CardContent className="space-y-5 p-5">
+                <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Invitados</p>
+                    <p className="mt-1 text-3xl font-bold text-foreground sm:text-4xl">
+                      {panel?.total_invitados ?? invitados.length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Aforo registrado</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Credenciales emitidas</p>
+                    <p className="mt-1 text-3xl font-bold text-primary sm:text-4xl">
+                      {panel?.credenciales_emitidas ?? 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Con QR criptográfico</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Entraron</p>
+                    <p className="mt-1 text-3xl font-bold text-success sm:text-4xl">
+                      {panel?.entraron ?? 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {panel?.porcentaje_asistencia ?? 0}% de asistencia
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Faltan</p>
+                    <p className="mt-1 text-3xl font-bold text-warning sm:text-4xl">
+                      {panel?.faltan ?? Math.max(0, (panel?.total_invitados ?? 0) - (panel?.entraron ?? 0))}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Pendientes en garita</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpenImportarInvitados(true)}
+                    className="min-h-10"
+                  >
+                    <UploadCloud className="size-4" aria-hidden />
+                    Importar lista
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpenCrearInvitado(true)}
+                    className="min-h-10"
+                  >
+                    <Plus className="size-4" aria-hidden />
+                    Agregar invitado
+                  </Button>
+                  <Button variant="outline" className="min-h-10" asChild>
+                    <a
+                      href={`/api/v1/carnetizacion/eventos/${evento.id}/pdf/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Printer className="size-4" aria-hidden />
+                      Imprimir en lote
+                    </a>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleEnviarCorreo}
+                    disabled={isPending}
+                    className="min-h-10"
+                  >
+                    <Mail className="size-4" aria-hidden />
+                    Enviar por correo
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              {/* Vista rápida de la nómina */}
+              <Card className="border-border bg-card shadow-none xl:col-span-2">
+                <CardHeader className="flex flex-row items-center justify-between gap-3 border-b border-border pb-3">
+                  <div>
+                    <CardTitle className="text-base font-semibold">Nómina de invitados</CardTitle>
+                    <CardDescription>Primeros registros del evento.</CardDescription>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab("invitados")}
+                    className="min-h-9 shrink-0"
+                  >
+                    Ver toda la nómina
+                  </Button>
                 </CardHeader>
-                <CardContent>
-                  <span className="text-[11px] text-muted-foreground font-medium">Aforo oficial registrado</span>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow>
+                          <TableHead className="p-3 text-xs">Invitado</TableHead>
+                          <TableHead className="p-3 text-xs">Categoría</TableHead>
+                          <TableHead className="p-3 text-xs">Zona</TableHead>
+                          <TableHead className="p-3 text-xs">Estado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {invitados.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="p-6 text-center text-sm text-muted-foreground">
+                              Aún no hay invitados registrados.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          invitados.slice(0, 6).map((inv) => {
+                            const ingreso = inv.estado === "ingreso";
+                            const emitido =
+                              ingreso ||
+                              inv.estado === "emitido" ||
+                              Boolean(inv.codigo_credencial || inv.fecha_emision);
+                            return (
+                              <TableRow key={inv.id} className="text-sm">
+                                <TableCell className="p-3">
+                                  <div className="font-medium text-foreground">{inv.nombre_completo}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {inv.documento_identidad ? `C.I. ${inv.documento_identidad}` : ""}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="p-3 text-muted-foreground">
+                                  {inv.categoria_nombre || "General"}
+                                </TableCell>
+                                <TableCell className="p-3 text-muted-foreground">
+                                  {inv.zona_nombre || "General"}
+                                </TableCell>
+                                <TableCell className="p-3">
+                                  {ingreso ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-success/30 bg-success-soft text-success"
+                                    >
+                                      Entró
+                                    </Badge>
+                                  ) : emitido ? (
+                                    <Badge variant="outline" className="border-primary/30 bg-secondary text-primary">
+                                      Emitido
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-muted-foreground">
+                                      Pendiente
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-border/60 bg-card shadow-xs">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-medium flex items-center justify-between">
-                    <span>Gafetes Emitidos</span>
-                    <IdCard className="size-4 text-primary" />
-                  </CardDescription>
-                  <CardTitle className="text-2xl sm:text-3xl font-black text-primary">
-                    {panel?.credenciales_emitidas ?? 0}
-                  </CardTitle>
+              {/* Ayuda de escaneo */}
+              <Card className="border-border bg-card shadow-none">
+                <CardHeader className="border-b border-border pb-3">
+                  <CardTitle className="text-base font-semibold">Al escanear en la entrada</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <span className="text-[11px] text-muted-foreground font-medium">
-                    Con código QR criptográfico
-                  </span>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card shadow-xs">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-medium flex items-center justify-between">
-                    <span>Accesos Confirmados</span>
-                    <CheckCircle2 className="size-4 text-emerald-600" />
-                  </CardDescription>
-                  <CardTitle className="text-2xl sm:text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                    {panel?.entraron ?? 0}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    {panel?.porcentaje_asistencia ?? 0}% de asistencia en sala
-                  </span>
-                </CardContent>
-              </Card>
-
-              <Card className="border-border/60 bg-card shadow-xs">
-                <CardHeader className="pb-2">
-                  <CardDescription className="text-xs font-medium flex items-center justify-between">
-                    <span>Pendientes por Ingresar</span>
-                    <Clock className="size-4 text-amber-500" />
-                  </CardDescription>
-                  <CardTitle className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400">
-                    {panel?.faltan ?? Math.max(0, (panel?.total_invitados ?? 0) - (panel?.entraron ?? 0))}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <span className="text-[11px] text-muted-foreground font-medium">Restante en espera en garita</span>
+                <CardContent className="space-y-4 p-4 text-sm">
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="border-success/30 bg-success-soft text-success">
+                      Acceso permitido
+                    </Badge>
+                    <p className="text-muted-foreground">
+                      Muestra nombre, categoría y zona, y registra la hora de ingreso.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="border-warning/30 bg-warning-soft text-warning">
+                      Ya ingresó
+                    </Badge>
+                    <p className="text-muted-foreground">
+                      Avisa la hora de entrada para evitar credenciales copiadas.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="border-danger/30 bg-danger-soft text-danger">
+                      No válida
+                    </Badge>
+                    <p className="text-muted-foreground">
+                      Credencial anulada, vencida o de otro evento o zona.
+                    </p>
+                  </div>
+                  <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+                    Quien controla la entrada usa su teléfono con un permiso propio del evento.
+                    El QR de un invitado deja de funcionar cuando termina el evento.
+                  </p>
                 </CardContent>
               </Card>
             </div>

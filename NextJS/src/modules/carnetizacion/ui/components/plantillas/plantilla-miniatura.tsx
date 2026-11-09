@@ -20,6 +20,7 @@ interface PlantillaMiniaturaProps {
   anchoMm: number;
   altoMm: number;
   etiqueta: string;
+  cara?: "anverso" | "reverso";
 }
 
 type Reglas = {
@@ -53,11 +54,15 @@ function leerReglas(definicion: Record<string, unknown>): Reglas {
   };
 }
 
-function elementosDe(definicion: Record<string, unknown>): ElementoPlano[] {
+function elementosDe(
+  definicion: Record<string, unknown>,
+  cara: "anverso" | "reverso",
+): ElementoPlano[] {
   const konva = definicion.elementos;
   if (Array.isArray(konva)) {
     return konva
       .filter((e): e is Record<string, unknown> => !!e && typeof e === "object")
+      .filter((e) => !e.cara || e.cara === cara)
       .map((e) => ({
         t: String(e.t ?? e.tipo ?? "rect"),
         x: Number(e.x ?? 0),
@@ -72,9 +77,9 @@ function elementosDe(definicion: Record<string, unknown>): ElementoPlano[] {
       }));
   }
 
-  const anverso = definicion.anverso;
-  if (Array.isArray(anverso)) {
-    return anverso
+  const capa = definicion[cara] ?? definicion.anverso;
+  if (Array.isArray(capa)) {
+    return capa
       .filter((e): e is Record<string, unknown> => !!e && typeof e === "object")
       .map((e) => {
         const props = (e.props ?? {}) as Record<string, unknown>;
@@ -107,25 +112,28 @@ export function PlantillaMiniatura({
   anchoMm,
   altoMm,
   etiqueta,
+  cara = "anverso",
 }: PlantillaMiniaturaProps) {
   const reglas = leerReglas(definicion);
-  const elementos = elementosDe(definicion);
+  const elementos = elementosDe(definicion, cara);
   const ancho = anchoMm > 0 ? anchoMm : 54;
   const alto = altoMm > 0 ? altoMm : 85.6;
   const estilo: CSSProperties = { aspectRatio: `${ancho} / ${alto}` };
+  const fondoConfig = (definicion.bg as Record<string, unknown> | undefined)?.[cara];
+  const fondo = typeof fondoConfig === "string" ? fondoConfig : "#ffffff";
 
   return (
     <div
-      className="mx-auto h-48 w-auto overflow-hidden rounded-md border border-border bg-white"
+      className="mx-auto h-52 w-auto overflow-hidden rounded-md border border-border bg-white"
       style={estilo}
     >
       <svg
         viewBox={`0 0 ${ancho} ${alto}`}
         className="size-full"
         role="img"
-        aria-label={`Vista previa de ${etiqueta}`}
+        aria-label={`Vista previa de ${etiqueta} (${cara})`}
       >
-        <rect x={0} y={0} width={ancho} height={alto} fill="#ffffff" />
+        <rect x={0} y={0} width={ancho} height={alto} fill={fondo} />
         {elementos.length === 0 && (
           <>
             <rect x={0} y={0} width={ancho} height={alto} fill="#f1f5f9" />

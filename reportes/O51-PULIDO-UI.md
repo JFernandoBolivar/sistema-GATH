@@ -59,3 +59,20 @@ Se revisaron y corrigieron las pantallas señaladas en las pruebas de usuario:
 
 - `vitest` de carnetización + notificaciones: **102 passed**.
 - `tsc --noEmit`: 0 errores · `eslint`: 0.
+
+## Ajustes posteriores (híbrido HTML + sistema)
+
+Se comparó el prototipo HTML con el sistema y se adoptó la propuesta híbrida:
+
+- **Plantillas:** tarjeta con **anverso y reverso** renderizados, estado y acciones
+  **Editar** y **Duplicar** (esta última crea un borrador con la misma definición).
+- **Eventos:** la pestaña Resumen ahora tiene una **banda de cifras grandes**
+  (invitados, emitidas, entraron, faltan), acciones directas (importar, agregar,
+  imprimir lote, enviar), una **vista rápida de la nómina** y el panel
+  «Al escanear en la entrada». Las pestañas conservan la operación completa y
+  pierden la numeración.
+- **Parámetros:** los valores booleanos se muestran como **Activado/Desactivado**
+  en la tarjeta, el diálogo de confirmación y el historial (nunca `true`/`false`).
+- **QR del carnet:** el contenido ahora es `FRONTEND_URL/carnet/<hash>` para que
+  la cámara del teléfono abra la ficha pública de verificación.
+

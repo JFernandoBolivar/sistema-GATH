@@ -47,7 +47,7 @@ export function validarValorParametro(parametro: ParametroDTO, valor: string): s
   if (parametro.tipo === "booleano") {
     return texto === "true" || texto === "false"
       ? null
-      : "Seleccione verdadero o falso.";
+      : "Seleccione activado o desactivado.";
   }
   if (parametro.opciones.length > 0) {
     const permitido =
@@ -89,6 +89,11 @@ export function validarValorParametro(parametro: ParametroDTO, valor: string): s
  * valor guardado no está en la lista, «N días (personalizado)».
  */
 export function etiquetaValorParametro(parametro: ParametroDTO, valor: string): string {
+  if (parametro.tipo === "booleano") {
+    if (valor === "true") return "Activado";
+    if (valor === "false") return "Desactivado";
+    return valor;
+  }
   if (parametro.opciones.length === 0) return valor;
   const opcion = parametro.opciones.find((o) => o.valor === valor);
   if (opcion) return opcion.etiqueta;

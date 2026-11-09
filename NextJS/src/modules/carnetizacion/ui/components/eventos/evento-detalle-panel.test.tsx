@@ -116,17 +116,17 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
     expect(screen.getByText("Poliedro de Caracas")).toBeInTheDocument();
 
     // 5 Pestañas canónicas
-    expect(screen.getByText("1. Resumen y Cifras")).toBeInTheDocument();
-    expect(screen.getByText(/2\. Nómina de Invitados/)).toBeInTheDocument();
-    expect(screen.getByText(/3\. Emisión de Gafetes/)).toBeInTheDocument();
-    expect(screen.getByText("4. Control en Puertas")).toBeInTheDocument();
-    expect(screen.getByText("5. Configuración")).toBeInTheDocument();
+    expect(screen.getByText("Resumen")).toBeInTheDocument();
+    expect(screen.getByText(/Invitados \(\d+\)/)).toBeInTheDocument();
+    expect(screen.getByText("Gafetes")).toBeInTheDocument();
+    expect(screen.getByText("Control")).toBeInTheDocument();
+    expect(screen.getByText("Configuración")).toBeInTheDocument();
 
     // Métricas en la pestaña Resumen
-    expect(await screen.findByText("Total Registrados")).toBeInTheDocument();
-    expect(screen.getByText("Gafetes Emitidos")).toBeInTheDocument();
-    expect(screen.getByText("Accesos Confirmados")).toBeInTheDocument();
-    expect(screen.getByText("Pendientes por Ingresar")).toBeInTheDocument();
+    expect(await screen.findByText("Invitados")).toBeInTheDocument();
+    expect(screen.getByText("Credenciales emitidas")).toBeInTheDocument();
+    expect(screen.getByText("Entraron")).toBeInTheDocument();
+    expect(screen.getByText("Faltan")).toBeInTheDocument();
   });
 
   it("permite navegar a la pestaña Nómina de Invitados y buscar", async () => {
@@ -134,7 +134,7 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
 
     expect(await screen.findByText("Expo Fitelven 2026")).toBeInTheDocument();
 
-    const tabNomina = screen.getByRole("tab", { name: /2\. Nómina de Invitados/i });
+    const tabNomina = screen.getByRole("tab", { name: /Invitados/i });
     fireEvent.pointerDown(tabNomina, { button: 0, pointerType: "mouse" });
     fireEvent.click(tabNomina);
     fireEvent.keyDown(tabNomina, { key: "Enter" });
@@ -156,7 +156,7 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
     expect(await screen.findByText("Expo Fitelven 2026")).toBeInTheDocument();
 
     // 1. Ir a Nómina
-    const tabNomina = screen.getByRole("tab", { name: /2\. Nómina de Invitados/i });
+    const tabNomina = screen.getByRole("tab", { name: /Invitados/i });
     fireEvent.pointerDown(tabNomina, { button: 0, pointerType: "mouse" });
     fireEvent.click(tabNomina);
     fireEvent.keyDown(tabNomina, { key: "Enter" });
@@ -169,7 +169,7 @@ describe("EventoDetallePanel - Hub Integral de Eventos", () => {
     expect(screen.getByText(/Seleccionados:/i)).toBeInTheDocument();
 
     // 3. Ir a Emisión de Gafetes
-    const tabEmision = screen.getByRole("tab", { name: /3\. Emisión de Gafetes/i });
+    const tabEmision = screen.getByRole("tab", { name: /Gafetes/i });
     fireEvent.pointerDown(tabEmision, { button: 0, pointerType: "mouse" });
     fireEvent.click(tabEmision);
     fireEvent.keyDown(tabEmision, { key: "Enter" });

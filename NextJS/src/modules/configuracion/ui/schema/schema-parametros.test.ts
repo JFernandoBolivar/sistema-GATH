@@ -64,6 +64,12 @@ describe("validarValorParametro", () => {
     expect(validarValorParametro(p, "sí")).not.toBeNull();
   });
 
+  it("muestra Activado/Desactivado en lugar de true/false", () => {
+    const p = parametro({ tipo: "booleano", minimo: null, maximo: null });
+    expect(etiquetaValorParametro(p, "true")).toBe("Activado");
+    expect(etiquetaValorParametro(p, "false")).toBe("Desactivado");
+  });
+
   it("valida la lista de días de recordatorio y la normaliza", () => {
     const p = parametro({
       clave: "fe_de_vida.dias_recordatorio",
