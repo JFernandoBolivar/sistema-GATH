@@ -13,6 +13,7 @@ from typing import Any
 
 import qrcode
 import qrcode.constants
+from django.conf import settings
 from PIL import Image
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
 from core.infrastructure.pdf.pdf_components import ruta_asset
@@ -73,11 +74,17 @@ def _dibujar_qr(c: canvas.Canvas, datos: DatosCarnetPdf | dict[str, Any], x: flo
     cedula = getattr(datos, 'cedula', None) or (datos.get('cedula') if isinstance(datos, dict) else '')
     nombre = getattr(datos, 'nombre_completo', None) or (datos.get('nombre_completo') if isinstance(datos, dict) else '')
 
-    contenido = (
-        f"GATH-ID: {sec_hash}\n"
-        f"CI: {cedula}\n"
-        f"Titular: {str(nombre)[:30]}\n"
-    )
+    base_frontend = str(getattr(settings, 'FRONTEND_URL', '') or '').rstrip('/')
+    if base_frontend:
+        # La cámara del teléfono abre directamente la ficha pública de verificación.
+        contenido = f"{base_frontend}/carnet/{sec_hash}"
+    else:
+        # Respaldo legible para entornos sin FRONTEND_URL configurada.
+        contenido = (
+            f"GATH-ID: {sec_hash}\n"
+            f"CI: {cedula}\n"
+            f"Titular: {str(nombre)[:30]}\n"
+        )
     qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=3, border=1)
     qr.add_data(contenido)
     qr.make(fit=True)
