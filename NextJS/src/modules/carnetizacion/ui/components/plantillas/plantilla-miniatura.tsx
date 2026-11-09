@@ -116,7 +116,7 @@ export function PlantillaMiniatura({
 
   return (
     <div
-      className="mx-auto h-40 w-auto overflow-hidden rounded-md border border-border bg-white"
+      className="mx-auto h-48 w-auto overflow-hidden rounded-md border border-border bg-white"
       style={estilo}
     >
       <svg
@@ -229,7 +229,7 @@ export function PlantillaMiniatura({
             );
           }
           if (el.t === "text" || el.t === "field") {
-            const tamano = Math.max(2.4, Math.min(el.size ?? 6, 10));
+            const tamano = Math.max(2.4, Math.min((el.size ?? 6) * 0.3528, 10));
             const texto = el.texto
               ? el.texto.length > 26
                 ? `${el.texto.slice(0, 26)}…`

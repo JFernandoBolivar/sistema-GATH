@@ -348,7 +348,7 @@ export function SolicitudesCarnetView() {
           onLimpiarFiltros={handleLimpiarFiltros}
           chipsActivos={chipsActivos}
         >
-          <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex flex-col gap-1.5 min-w-0 lg:col-span-2">
             <Label className="text-sm font-medium text-foreground block">
               Estado de la Solicitud
             </Label>
@@ -371,7 +371,7 @@ export function SolicitudesCarnetView() {
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="flex flex-col gap-1.5 min-w-0 lg:col-span-2">
             <Label className="text-sm font-medium text-foreground block">
               Población
             </Label>

@@ -779,6 +779,28 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
             </Card>
           )}
 
+          {historialReciente.length === 0 && (
+            <Card className="border-border bg-card shadow-none">
+              <CardContent className="space-y-3 p-4">
+                <h3 className="text-sm font-semibold text-foreground">Cómo funciona</h3>
+                <ul className="space-y-2.5 text-sm text-muted-foreground">
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    Acerque el QR a la cámara o pase la credencial por el lector USB.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    El dictamen aparece aquí y se acompaña con sonido y vibración.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    Si la cámara no está disponible, valide el código desde la entrada manual.
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           {historialReciente.length > 0 && (
             <Card className="border-border bg-card shadow-none">
               <CardContent className="p-4">
