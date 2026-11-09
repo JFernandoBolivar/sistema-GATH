@@ -1,13 +1,7 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "./ui/form";
+import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { Calendar } from "./ui/calendar";
@@ -26,7 +20,11 @@ export default function FormDate<T extends FieldValues>({
   className,
 }: Props<T>) {
   const [today, setToday] = useState<Date | null>(null);
-  useEffect(() => { setToday(new Date()); }, []);
+  // La fecha se fija tras montar para evitar desajuste de hidratación SSR/cliente.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setToday(new Date());
+  }, []);
   return (
     <FormField
       control={form.control}
@@ -37,13 +35,13 @@ export default function FormDate<T extends FieldValues>({
           <Popover>
             <PopoverTrigger asChild>
               <FormControl>
-                <Button variant={"outline"} className="font-light">
+                <Button variant={"outline"} className="w-full min-h-11 justify-between font-light">
                   {field.value ? (
                     formatInTimeZone(field.value, "UTC", "dd/MM/yyy")
                   ) : (
                     <span>Selecciona una fecha</span>
                   )}
-                  <CalendarIcon className="ml-auto size-4 opacity-50" />
+                  <CalendarIcon className="size-4 opacity-50" aria-hidden />
                 </Button>
               </FormControl>
             </PopoverTrigger>

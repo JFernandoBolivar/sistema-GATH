@@ -1,0 +1,130 @@
+"use server";
+
+/**
+ * Server Actions de Configuración Visual (Regla R7).
+ * Zero-trust: se revalida la entrada con el schema Zod antes de invocar el
+ * caso de uso. Captura errores y llama `handleSessionExpired`.
+ */
+import type { ZodError } from "zod";
+
+import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
+import { logAudit } from "@/shared/infrastructure/logging/logger-server";
+import { errorDeAccion, handleSessionExpired } from "@/shared/infrastructure/http/errors";
+import type { ActualizarConfiguracionVisualInputDTO } from "../../application/dtos/configuracion-visual-dto";
+import {
+  actualizarConfiguracionVisual,
+  obtenerConfiguracionVisual,
+  listarVersionesImagen,
+  restaurarVersionImagen,
+  subirLogoConfiguracion,
+} from "../../application/use-cases/gestionar-configuracion-visual";
+import { repoConfiguracionVisualApi } from "../repositories/repo-configuracion-visual-api";
+import { actualizarConfiguracionVisualSchema, campoLogoSchema } from "../../ui/schema/schema-configuracion-visual";
+
+const TAMANO_MAXIMO_LOGO_BYTES = 5 * 1024 * 1024; // 5MB, mismo límite que el resto de subidas del sistema.
+
+/** Convierte los issues de Zod en `{ campo: ["mensaje"] }` para el formulario. */
+function erroresDeZod(error: ZodError): Record<string, string[]> {
+  const salida: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const ruta = issue.path.join(".");
+    if (!ruta) continue;
+    (salida[ruta] ??= []).push(issue.message);
+  }
+  return salida;
+}
+
+export async function getConfiguracionVisualAction() {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await obtenerConfiguracionVisual(repoConfiguracionVisualApi);
+    await logAudit({ traceId, action: "getConfiguracionVisualAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "getConfiguracionVisualAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    throw error;
+  }
+}
+
+export async function actualizarConfiguracionVisualAction(input: ActualizarConfiguracionVisualInputDTO) {
+  const validation = actualizarConfiguracionVisualSchema.safeParse(input);
+  if (!validation.success) {
+    return {
+      error: "Datos de configuración inválidos. Revise los campos marcados en rojo.",
+      errores: erroresDeZod(validation.error),
+    };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await actualizarConfiguracionVisual(repoConfiguracionVisualApi, validation.data);
+    await logAudit({ traceId, action: "actualizarConfiguracionVisualAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "actualizarConfiguracionVisualAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible actualizar la configuración.");
+  }
+}
+
+export async function subirLogoConfiguracionAction(campo: string, archivo: File) {
+  const validacionCampo = campoLogoSchema.safeParse(campo);
+  if (!validacionCampo.success) {
+    return { error: `Imagen inválida: ${campo}.` };
+  }
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    return { error: "Seleccione un archivo válido.", errores: { archivo: ["Seleccione una imagen válida."] } };
+  }
+  if (archivo.size > TAMANO_MAXIMO_LOGO_BYTES) {
+    return {
+      error: "El tamaño máximo de la imagen es 5MB.",
+      errores: { archivo: ["El tamaño máximo de la imagen es 5MB."] },
+    };
+  }
+
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await subirLogoConfiguracion(repoConfiguracionVisualApi, validacionCampo.data, archivo);
+    await logAudit({ traceId, action: "subirLogoConfiguracionAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "subirLogoConfiguracionAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible subir la imagen.");
+  }
+}
+
+export async function listarVersionesImagenAction(campo: string) {
+  const validacionCampo = campoLogoSchema.safeParse(campo);
+  if (!validacionCampo.success) {
+    return { error: `Imagen inválida: ${campo}.` };
+  }
+  try {
+    return await listarVersionesImagen(repoConfiguracionVisualApi, validacionCampo.data);
+  } catch (error) {
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible cargar las versiones.");
+  }
+}
+
+export async function restaurarVersionImagenAction(campo: string, versionId: string) {
+  const validacionCampo = campoLogoSchema.safeParse(campo);
+  if (!validacionCampo.success || !/^[0-9a-f-]{36}$/i.test(versionId)) {
+    return { error: "Versión de imagen inválida." };
+  }
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    const result = await restaurarVersionImagen(repoConfiguracionVisualApi, validacionCampo.data, versionId);
+    await logAudit({ traceId, action: "restaurarVersionImagenAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return result;
+  } catch (error) {
+    await logAudit({ traceId, action: "restaurarVersionImagenAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return errorDeAccion(error, "No fue posible restaurar la imagen.");
+  }
+}

@@ -1,0 +1,1776 @@
+"use client";
+
+import { ContadorCaracteres } from "@/components/contador-caracteres";
+import {
+  ETIQUETA_CODIGO_CARNET_PATRIA,
+  ETIQUETA_SERIAL_CARNET_PATRIA,
+} from "@/shared/domain/etiquetas-carnet-patria";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
+import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import useSWR from "swr";
+import { toast } from "sonner";
+import {
+  User,
+  Building2,
+  Users,
+  GraduationCap,
+  HeartPulse,
+  Home,
+  Briefcase,
+  Phone,
+  Mail,
+  Calendar,
+  ShieldAlert,
+  Clock,
+  Shirt,
+  CreditCard,
+  Download,
+  PlusCircle,
+  CheckCircle2,
+  AlertCircle,
+  BookOpen,
+  Award,
+  Scale,
+  FileText,
+  Sparkles,
+  RefreshCw,
+  FileCheck,
+  ShieldCheck,
+} from "lucide-react";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/shared/ui/components/card";
+import { Badge } from "@/shared/ui/components/badge";
+import { Button } from "@/shared/ui/components/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/components/tabs";
+import { ScrollArea, ScrollBar } from "@/shared/ui/components/scroll-area";
+import { VistaCargando, VistaError, VistaVacia } from "@/shared/ui/components/vista-estados";
+import { InfoRow } from "@/shared/ui/components/info-row";
+import { formatearFecha, formatearFechaConEdad } from "@/shared/lib/formato-fecha";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/ui/components/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/components/dialog";
+import { BotonSolicitarActualizacion } from "./solicitudes/boton-solicitar-actualizacion";
+import { ModalReportarErrorLaboral } from "./components/modal-reportar-error-laboral";
+import { formatearTelefono } from "@/shared/domain/validation/telefono";
+import { formatearTiempoServicio } from "../domain/formatear-tiempo-servicio";
+import { tieneFechaIngresoApn } from "../domain/tiene-fecha-ingreso";
+import { CarnetVistaPrevia } from "@/shared/ui/components/carnet-vista-previa";
+import { useGuia } from "@/shared/ui/guias";
+import { GUIA_AUTOGESTION_INICIO, GUIA_MI_FICHA } from "./guias/definiciones-guias";
+import { useRegistrarGuia } from "./guias/contexto-guia";
+
+import {
+  getMiExpedienteAction,
+  solicitarCarnetAction,
+  descargarMiCarnetPdfAction,
+} from "../infrastructure/actions/autogestion-actions";
+import type {
+  FormacionAcademicaItem,
+  FormacionComplementariaItem,
+  ContactoEmergenciaItem,
+  ContratoItem,
+} from "../application/dtos/mi-expediente-dto";
+
+/**
+ * Valor de una asignación o catálogo: el «N/A» que devuelve el backend es una
+ * ausencia de dato, no un valor, así que se muestra como raya.
+ */
+function valorODash(valor?: string | null): string {
+  const limpio = (valor ?? "").trim();
+  return limpio === "" || limpio.toUpperCase() === "N/A" ? "—" : limpio;
+}
+
+/** Antecedentes de servicio: duración legible a partir de las fechas. */
+function duracionServicio(ingreso?: string | null, egreso?: string | null): string {
+  if (!ingreso) return "—";
+  const inicio = new Date(ingreso);
+  const fin = egreso ? new Date(egreso) : new Date();
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) return "—";
+  let meses =
+    (fin.getFullYear() - inicio.getFullYear()) * 12 + (fin.getMonth() - inicio.getMonth());
+  if (fin.getDate() < inicio.getDate()) meses -= 1;
+  if (meses < 1) return "Menos de 1 mes";
+  const anios = Math.floor(meses / 12);
+  const resto = meses % 12;
+  const partes: string[] = [];
+  if (anios > 0) partes.push(`${anios} ${anios === 1 ? "año" : "años"}`);
+  if (resto > 0) partes.push(`${resto} ${resto === 1 ? "mes" : "meses"}`);
+  return partes.join(" y ");
+}
+
+
+function formatearLista(items: unknown[] | undefined): string {
+  if (!items || items.length === 0) return "Ninguna reportada";
+  return items
+    .map((item) => {
+      if (typeof item === "object" && item !== null && "nombre" in item) {
+        return String((item as { nombre: unknown }).nombre);
+      }
+      return String(item);
+    })
+    .join(", ");
+}
+
+interface MiExpedienteViewProps {
+  initialTab?: string;
+}
+
+export default function MiExpedienteView({ initialTab = "personal" }: MiExpedienteViewProps) {
+  const { data, error, isLoading, mutate } = useSWR("mi-expediente-trabajador", () =>
+    getMiExpedienteAction(),
+  );
+
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [modalCarnetAbierto, setModalCarnetAbierto] = useState(false);
+  const [motivoSeleccionado, setMotivoSeleccionado] = useState<number>(2);
+  const [observacionesSolicitud, setObservacionesSolicitud] = useState("");
+  const [solicitandoCarnet, setSolicitandoCarnet] = useState(false);
+  const [descargandoPdf, setDescargandoPdf] = useState(false);
+  const [fotoError, setFotoError] = useState(false);
+
+  const pathname = usePathname() ?? "";
+  const esFicha = pathname.includes("/ficha");
+  const guiaActual = esFicha ? GUIA_MI_FICHA : GUIA_AUTOGESTION_INICIO;
+
+  const { iniciarGuia } = useGuia({
+    guia: guiaActual,
+    autoIniciar: true,
+  });
+  useRegistrarGuia(iniciarGuia);
+
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 max-w-7xl mx-auto">
+        <VistaCargando mensaje="Cargando su ficha…" onReintentar={() => mutate()} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 md:p-6 max-w-4xl mx-auto">
+        <VistaError mensaje="No se pudo cargar su ficha." onReintentar={() => mutate()} />
+      </div>
+    );
+  }
+
+  if (!data || !data.empleado) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto mt-10">
+        <Card className="border-danger/40 bg-danger-soft text-center p-8 rounded-2xl shadow-xl">
+          <CardHeader>
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-danger/10 border border-danger/30 flex items-center justify-center mb-3">
+              <ShieldAlert className="w-7 h-7 text-danger" aria-hidden />
+            </div>
+            <CardTitle className="text-xl font-bold text-foreground">
+              Expediente no disponible
+            </CardTitle>
+            <CardDescription className="text-muted-foreground max-w-md mx-auto pt-2">
+              No fue posible recuperar su expediente de trabajador. Verifique que su cuenta
+              institucional esté vinculada a su cédula en el sistema o comuníquese con la Gerencia
+              de Gestión del Talento Humano.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  // Entrada directa a /autogestion/mi-carnet sin acceso: estado vacío claro,
+  // nunca la ficha "sin pestaña" ni un error. La regla la decide el backend.
+  if (initialTab === "carnet" && !data.puede_ver_carnet) {
+    return (
+      <div className="p-4 md:p-6 max-w-4xl mx-auto mt-6">
+        <VistaVacia
+          titulo="Tu carnet digital aún no está habilitado"
+          descripcion="La consulta del carnet digital no está habilitada para tu usuario. Puedes seguir consultando tu ficha, tus solicitudes y tu fe de vida."
+          accion={
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href="/autogestion">Volver a mi ficha</Link>
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  const { empleado, familiares, carnet_activo, carnets = [], motivos_carnet = [] } = data;
+  const mostrarCarnet = Boolean(data.puede_ver_carnet);
+  const vivienda = empleado.datos_vivienda;
+  const salud = empleado.perfil_salud;
+  const fisico = empleado.perfil_fisico;
+  const contratoActual = empleado.contrato_actual;
+  // FIX-AUD7: sin fecha de ingreso el APN no es calculable; se muestra «—».
+  const conFechaIngresoApn = tieneFechaIngresoApn(
+    contratoActual?.fecha_ingreso,
+    empleado.antecedentes,
+  );
+  const contratos = (empleado.contratos || []) as ContratoItem[];
+  const formacion = (empleado.formacion_academica || []) as FormacionAcademicaItem[];
+  const complementaria = (empleado.formacion_complementaria || []) as FormacionComplementariaItem[];
+  const contactos = (empleado.contacto_emergencia || []) as ContactoEmergenciaItem[];
+
+  const antecedentes = empleado.antecedentes || [];
+  const asignacion = empleado.asignaciones?.[0];
+
+  const cargoPrincipal =
+    contratoActual?.politica_nombre ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.denominacion_cargo_especifico) ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.denominacion_cargo) ||
+    "Servidor Público CONATEL";
+
+  // «Oficina» = dirección general/linea; la dependencia («NIVEL DE APOYO») es
+  // el nivel jerárquico y no debe ocupar el lugar de la ubicación real.
+  const oficinaPrincipal =
+    (empleado.asignaciones && empleado.asignaciones[0]?.direccion_general) ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.direccion_linea) ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.coordinacion) ||
+    (empleado.asignaciones && empleado.asignaciones[0]?.dependencia) ||
+    "Comisión Nacional de Telecomunicaciones";
+
+  const dependenciaPrincipal =
+    (empleado.asignaciones && empleado.asignaciones[0]?.dependencia) ||
+    "Comisión Nacional de Telecomunicaciones";
+
+  const handleDescargarCarnetPdf = async () => {
+    try {
+      setDescargandoPdf(true);
+      const blob = await descargarMiCarnetPdfAction();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `carnet_conatel_${empleado.cedula}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      // Liberar después de que el navegador inicie la descarga (D7).
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+    } catch {
+      toast.error(
+        "No se pudo descargar el carnet en PDF. Verifique que posee un carnet activo emitido.",
+      );
+    } finally {
+      setDescargandoPdf(false);
+    }
+  };
+
+  const largoObservaciones = observacionesSolicitud.trim().length;
+  const errorObservaciones =
+    largoObservaciones > 0 && largoObservaciones < LIMITES_TEXTO.observacion.min
+      ? `Las observaciones deben tener al menos ${LIMITES_TEXTO.observacion.min} caracteres`
+      : null;
+
+  const handleSolicitarCarnet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (errorObservaciones) return;
+    setSolicitandoCarnet(true);
+    try {
+      const res = await solicitarCarnetAction({
+        motivo_id: motivoSeleccionado,
+        observaciones: observacionesSolicitud.trim() || undefined,
+      });
+
+      if (res.success) {
+        toast.success("Solicitud de carnet enviada. Recursos Humanos la revisará.");
+        setModalCarnetAbierto(false);
+        setObservacionesSolicitud("");
+        await mutate();
+      } else {
+        toast.error(res.message || "Ocurrió un error al procesar la solicitud del carnet.");
+      }
+    } catch {
+      toast.error("Error de comunicación al solicitar el carnet institucional.");
+    } finally {
+      setSolicitandoCarnet(false);
+    }
+  };
+
+  return (
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+
+      {/* Cabecera Institucional CONATEL */}
+      <Card
+        data-guia-id="inicio-cabecera"
+        className="min-w-0 overflow-hidden border-border/50 shadow-2xl bg-card rounded-2xl border-t-4 border-t-amber-500 py-0 gap-0"
+      >
+        <div className="bg-gradient-to-r from-[#001737] via-[#002b5c] to-[#0a1e3f] p-4 sm:p-6 md:p-8 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 h-1.5 w-48 bg-gradient-to-r from-amber-400 via-blue-500 to-red-500 rounded-bl-full opacity-80" />
+
+          <div className="relative z-10 flex min-w-0 flex-col items-stretch justify-between gap-5 sm:gap-6 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 flex-col items-center sm:items-start gap-4 sm:flex-row sm:gap-6 text-center sm:text-left">
+              <div className="relative shrink-0 mx-auto sm:mx-0">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br from-blue-600/40 to-slate-900/60 border-2 border-amber-400/40 flex items-center justify-center shadow-xl backdrop-blur-sm overflow-hidden">
+                  {empleado.foto_url && !fotoError ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={empleado.foto_url}
+                      alt={`Fotografía del trabajador ${empleado.nombre_completo || ""}`.trim()}
+                      className="w-full h-full object-cover rounded-2xl"
+                      onError={() => setFotoError(true)}
+                    />
+                  ) : (
+                    <User className="w-12 h-12 sm:w-14 sm:h-14 text-amber-300" />
+                  )}
+                </div>
+                {mostrarCarnet && carnet_activo?.activo && (
+                  <span
+                    title="Carnet Digital Activo"
+                    className="absolute -bottom-1 -right-1 bg-emerald-500 text-white rounded-full p-1 shadow-md border-2 border-[#001737]"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  </span>
+                )}
+              </div>
+
+              <div className="min-w-0 space-y-2.5 w-full flex flex-col items-center sm:items-start text-center sm:text-left">
+                {/* TLF6: En teléfono el nombre se agrupa como bloque principal junto a la foto */}
+                <h1 className="order-1 sm:order-2 break-words text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm text-center sm:text-left">
+                  {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`}
+                </h1>
+
+                {/* TLF6: Chips de CONATEL y C.I. juntos sin interferencia del botón Ver guía */}
+                <div className="order-2 sm:order-1 flex items-center justify-center sm:justify-start gap-2 flex-wrap">
+                  <span className="text-[11px] sm:text-xs font-bold tracking-wider text-amber-300 uppercase px-2.5 py-1 rounded-md bg-amber-400/15 border border-amber-400/30">
+                    CONATEL • GATH
+                  </span>
+                  <Badge
+                    variant="secondary"
+                    className="bg-white/15 text-white hover:bg-white/25 text-xs sm:text-sm font-mono px-2.5 py-0.5"
+                  >
+                    C.I. {empleado.cedula}
+                  </Badge>
+                  {mostrarCarnet &&
+                    (carnet_activo ? (
+                      <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600 text-xs sm:text-sm gap-1.5 py-0.5 px-2.5">
+                        <FileCheck className="w-3.5 h-3.5" /> Carnet Vigente
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="border-amber-400/50 text-amber-300 text-xs sm:text-sm py-0.5 px-2.5"
+                      >
+                        Sin carnet emitido
+                      </Badge>
+                    ))}
+                </div>
+
+                {/* TLF6: Cargo y oficina en filas limpias: maletín nunca huérfano y sin punto sobrante en móvil */}
+                <div className="order-3 flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-1 sm:gap-2 text-xs sm:text-base font-medium text-blue-100">
+                  <div className="flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2">
+                    <Briefcase className="w-4 h-4 text-amber-300 shrink-0" aria-hidden />
+                    <span className="font-semibold text-white">{cargoPrincipal}</span>
+                  </div>
+                  <span className="hidden sm:inline text-blue-300/70" aria-hidden>•</span>
+                  <div className="text-blue-200 text-center sm:text-left sm:text-blue-100">
+                    <span>{oficinaPrincipal}</span>
+                  </div>
+                </div>
+
+                <div className="order-4 flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 sm:gap-x-5 text-xs sm:text-sm text-blue-100 pt-1">
+                  {empleado.correo && (
+                    <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                      <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-amber-300" />{" "}
+                      <span className="break-all">{empleado.correo}</span>
+                    </span>
+                  )}
+                  {empleado.telefono_movil && (
+                    <span className="flex items-center gap-1.5 sm:gap-2">
+                      <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
+                      {formatearTelefono(empleado.telefono_movil)}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1.5 sm:gap-2 font-semibold text-amber-200">
+                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-300 shrink-0" />{" "}
+                    {conFechaIngresoApn && empleado.total_anos_apn !== undefined
+                      ? formatearTiempoServicio(empleado.total_anos_apn)
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {mostrarCarnet && (
+              <div className="flex w-full shrink-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center lg:w-auto lg:flex-col lg:items-end">
+                <Button
+                  data-guia-id="ficha-carnet"
+                  onClick={() => setActiveTab("carnet")}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-lg text-sm h-11 px-5 gap-2 sm:flex-1 lg:w-auto lg:flex-none"
+                >
+                  <CreditCard className="w-4 h-4" /> Mi Carnet Digital
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      <BotonSolicitarActualizacion />
+
+      {/* Navegación por Pestañas con ScrollArea de shadcn */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-6">
+        <ScrollArea
+          role="region"
+          aria-label="Secciones de la ficha"
+          tabIndex={0}
+          className="w-full whitespace-nowrap pb-2"
+        >
+          <TabsList
+            data-guia-id="inicio-pestanas"
+            className="inline-flex h-auto p-1.5 bg-muted/80 rounded-xl border border-border/50 min-w-full sm:min-w-0 justify-start sm:justify-center gap-1.5"
+          >
+            <TabsTrigger
+              data-guia-id="ficha-datos-personales"
+              value="personal"
+              className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <User className="w-4 h-4 text-blue-500" /> Datos Personales
+            </TabsTrigger>
+            <TabsTrigger
+              data-guia-id="ficha-datos-laborales"
+              value="laboral"
+              className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <Briefcase className="w-4 h-4 text-indigo-500" /> Ubicación Laboral
+            </TabsTrigger>
+            <TabsTrigger
+              value="formacion"
+              className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <GraduationCap className="w-4 h-4 text-emerald-500" /> Formación & Cursos (
+              {formacion.length + complementaria.length})
+            </TabsTrigger>
+            {mostrarCarnet && (
+              <TabsTrigger
+                value="carnet"
+                className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+              >
+                <CreditCard className="w-4 h-4 text-amber-500" /> Carnet Institucional
+              </TabsTrigger>
+            )}
+            <TabsTrigger
+              value="salud"
+              className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <HeartPulse className="w-4 h-4 text-rose-500" /> Salud & Dotación
+            </TabsTrigger>
+            <TabsTrigger
+              value="familiares"
+              className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <Users className="w-4 h-4 text-violet-500" /> Cargas Familiares ({familiares.length})
+            </TabsTrigger>
+            <TabsTrigger
+              value="legal"
+              className="shrink-0 py-2.5 px-3 sm:px-4 text-sm font-medium gap-2 rounded-lg data-[state=active]:bg-card data-[state=active]:shadow-sm"
+            >
+              <Scale className="w-4 h-4 text-amber-600" /> Marco Legal
+            </TabsTrigger>
+          </TabsList>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+
+        {/* TAB 1: DATOS PERSONALES & HABITACIÓN */}
+        <TabsContent value="personal" className="space-y-6 focus-visible:outline-none">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 border-b bg-muted/20">
+                <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <User className="w-5 h-5 text-blue-600" /> Identificación & Datos de Contacto
+                </CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">
+                  Datos biográficos oficiales registrados en CONATEL.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="divide-y divide-border/40 pt-2">
+                <InfoRow
+                  label="Cédula de Identidad"
+                  value={
+                    empleado.cedula
+                      ? empleado.nacionalidad_codigo
+                        ? `${empleado.nacionalidad_codigo}-${empleado.cedula}`
+                        : empleado.cedula
+                      : "No posee"
+                  }
+                />
+                <InfoRow label="Nombres" value={empleado.nombres} />
+                <InfoRow label="Apellidos" value={empleado.apellidos} />
+                <InfoRow label="Sexo" value={empleado.sexo_nombre} />
+                <InfoRow
+                  label="Fecha de Nacimiento"
+                  value={formatearFechaConEdad(empleado.fecha_nacimiento)}
+                />
+                <InfoRow label="Estado Civil" value={empleado.estado_civil_nombre} />
+                <InfoRow
+                  label={ETIQUETA_CODIGO_CARNET_PATRIA}
+                  value={empleado.carnet_patria}
+                  emptyText="No reportado"
+                />
+                <InfoRow
+                  label={ETIQUETA_SERIAL_CARNET_PATRIA}
+                  value={empleado.carnet_patria_serial}
+                  emptyText="No reportado"
+                />
+                <InfoRow
+                  label="Teléfono Móvil"
+                  value={formatearTelefono(empleado.telefono_movil)}
+                  emptyText="No posee"
+                />
+                <InfoRow
+                  label="Teléfono Habitación"
+                  value={formatearTelefono(empleado.telefono_habitacion)}
+                  emptyText="No posee"
+                />
+                <InfoRow
+                  label="Correo Institucional"
+                  value={empleado.correo}
+                  emptyText="No posee"
+                />
+                <InfoRow
+                  label="Correo alternativo"
+                  value={data.datos_complementarios?.correo_alternativo}
+                  emptyText="No declarado"
+                />
+                <InfoRow
+                  label="¿Tiene hijos?"
+                  value={
+                    data.datos_complementarios?.tiene_hijos === null ||
+                    data.datos_complementarios?.tiene_hijos === undefined
+                      ? null
+                      : data.datos_complementarios.tiene_hijos
+                        ? "Sí"
+                        : "No"
+                  }
+                  emptyText="No declarado"
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 border-b bg-muted/20">
+                <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <Home className="w-5 h-5 text-blue-600" /> Datos de Domicilio & Vivienda
+                </CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">
+                  Residencia habitual vinculada al expediente institucional.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="divide-y divide-border/40 pt-2">
+                {vivienda?.pais && (!vivienda.pais.es_venezuela || vivienda.ciudad_region) ? (
+                  <>
+                    <InfoRow label="País" value={vivienda.pais.nombre} />
+                    <InfoRow label="Ciudad o Región" value={vivienda.ciudad_region || null} />
+                  </>
+                ) : null}
+                <InfoRow
+                  label="Estado"
+                  value={
+                    vivienda?.estado_nombre ||
+                    (vivienda?.estado_id ? `Estado #${vivienda.estado_id}` : null)
+                  }
+                />
+                <InfoRow
+                  label="Municipio"
+                  value={
+                    vivienda?.municipio_nombre ||
+                    (vivienda?.municipio_id ? `Municipio #${vivienda.municipio_id}` : null)
+                  }
+                />
+                <InfoRow
+                  label="Parroquia"
+                  value={
+                    vivienda?.parroquia_nombre ||
+                    (vivienda?.parroquia_id ? `Parroquia #${vivienda.parroquia_id}` : null)
+                  }
+                />
+                <InfoRow
+                  label="Código Postal"
+                  value={
+                    vivienda?.codigo_postal_nombre ||
+                    (vivienda?.codigo_postal_id ? String(vivienda.codigo_postal_id) : null)
+                  }
+                />
+                <InfoRow
+                  label="Condición de Vivienda"
+                  value={
+                    vivienda?.condicion_vivienda_nombre ||
+                    (vivienda?.condicion_vivienda_id
+                      ? `Tipo #${vivienda.condicion_vivienda_id}`
+                      : null)
+                  }
+                />
+                <InfoRow label="Dirección Exacta" value={vivienda?.direccion_exacta || null} />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                <Phone className="w-5 h-5 text-blue-600" /> Contactos para Casos de Emergencia
+              </CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Personas de enlace en caso de contingencias médicas o laborales.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {contactos.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  No se registran contactos de emergencia en el expediente.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {contactos.map((c, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 border rounded-xl space-y-2 bg-card hover:border-blue-300 transition-colors shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold text-base text-foreground">
+                          {c.nombres} {c.apellidos}
+                        </div>
+                        <Badge variant="outline" className="text-xs font-semibold px-2.5 py-0.5">
+                          {c.relacion_nombre || "Contacto"}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground flex items-center gap-2 pt-1">
+                        <Phone className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span>
+                          Teléfono:{" "}
+                          <strong className="text-foreground font-semibold">
+                            {formatearTelefono(c.telefono) || "Sin teléfono registrado"}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 2: TRAYECTORIA LABORAL & CARGO */}
+        <TabsContent value="laboral" className="space-y-6 focus-visible:outline-none">
+          <div className="flex justify-end" data-guia-id="ficha-reportar-error">
+            <ModalReportarErrorLaboral />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 border-b bg-muted/20">
+                <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <Building2 className="w-5 h-5 text-indigo-600" /> Estructura y Ubicación
+                  Administrativa
+                </CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">
+                  Adscripción formal del servidor dentro de CONATEL.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="divide-y divide-border/40 pt-2">
+                <InfoRow label="Dependencia" value={dependenciaPrincipal} />
+                <InfoRow label="Oficina / Gerencia" value={oficinaPrincipal} />
+                <InfoRow
+                  label="Dirección de Línea"
+                  value={valorODash(asignacion?.direccion_linea)}
+                />
+                <InfoRow label="Coordinación" value={valorODash(asignacion?.coordinacion)} />
+                <InfoRow label="Tipo de Nómina" value={valorODash(asignacion?.tipo_nomina)} />
+                <InfoRow label="Grado / Escala" value={valorODash(asignacion?.grado)} />
+                <InfoRow
+                  label="Modalidad de Ingreso al Cargo"
+                  value={
+                    valorODash(asignacion?.tipo_procedencia) === "—"
+                      ? "—"
+                      : `${asignacion?.tipo_procedencia} (CONATEL)`
+                  }
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 border-b bg-muted/20">
+                <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <Briefcase className="w-5 h-5 text-indigo-600" /> Cargo y Estatus Contractual
+                  Vigente
+                </CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">
+                  Régimen de relación laboral y condiciones de contratación.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="divide-y divide-border/40 pt-2">
+                <InfoRow label="Denominación del Cargo" value={cargoPrincipal} />
+                <InfoRow label="Código de Cargo" value={valorODash(asignacion?.codigo)} />
+                <InfoRow label="N° Contrato Activo" value={contratoActual?.n_contrato || "—"} />
+                <InfoRow
+                  label="Política de Contratación"
+                  value={
+                    contratoActual?.politica_nombre ||
+                    (contratoActual?.es_fijo ? "PERSONAL FIJO" : "—")
+                  }
+                />
+                <InfoRow
+                  label="Fecha de Ingreso"
+                  value={
+                    contratoActual?.fecha_ingreso
+                      ? formatearFecha(contratoActual.fecha_ingreso)
+                      : "—"
+                  }
+                />
+                <InfoRow
+                  label="Fecha de Culminación"
+                  value={
+                    contratoActual?.fecha_culminacion
+                      ? formatearFecha(contratoActual.fecha_culminacion)
+                      : "—"
+                  }
+                />
+                <InfoRow
+                  label="Tiempo de Servicio APN"
+                  value={
+                    conFechaIngresoApn && empleado.total_anos_apn !== undefined
+                      ? formatearTiempoServicio(empleado.total_anos_apn)
+                      : "—"
+                  }
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                    <Building2 className="w-5 h-5 text-indigo-600" /> Antecedentes de Servicio
+                  </CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    Organismos y períodos en los que el servidor prestó servicio antes del cargo
+                    actual.
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5 w-fit">
+                  {antecedentes.length} {antecedentes.length === 1 ? "registro" : "registros"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {antecedentes.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  No se registran antecedentes de servicio en el expediente.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border/40">
+                  {antecedentes.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground break-words">
+                          {a.organismo_nombre || "Organismo no especificado"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {a.fecha_ingreso
+                            ? formatearFecha(a.fecha_ingreso)
+                            : "Sin fecha de ingreso"}
+                          {" — "}
+                          {a.fecha_egreso ? formatearFecha(a.fecha_egreso) : "Actual"}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="w-fit shrink-0 text-xs font-semibold px-2.5 py-0.5"
+                      >
+                        {duracionServicio(a.fecha_ingreso, a.fecha_egreso)}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                    <Calendar className="w-5 h-5 text-indigo-600" /> Historial de Contratos en la
+                    Institución
+                  </CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    Registro cronológico de renovaciones contractuales y asignaciones.
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5">
+                  {contratos.length} {contratos.length === 1 ? "contrato" : "contratos"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {contratos.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  No se registran contratos anteriores en el expediente.
+                </div>
+              ) : (
+                <div className="w-full overflow-x-auto">
+                  <Table className="min-w-[560px]">
+                    <TableHeader>
+                      <TableRow className="text-sm">
+                        <TableHead className="font-semibold text-foreground">N° Contrato</TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Régimen / Política
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Fecha Ingreso
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Fecha Culminación
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">Condición</TableHead>
+                        <TableHead className="font-semibold text-foreground">Estatus</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="text-sm">
+                      {contratos.map((con, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-mono font-semibold text-foreground">
+                            {con.n_contrato}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {con.politica_nombre || "CONTRATO GENERAL"}
+                          </TableCell>
+                          <TableCell>{formatearFecha(con.fecha_ingreso, "-")}</TableCell>
+                          <TableCell>
+                            {formatearFecha(con.fecha_culminacion, "Permanente")}
+                          </TableCell>
+                          <TableCell>
+                            {con.es_fijo ? (
+                              <Badge className="bg-blue-600 text-white text-xs font-semibold px-2.5 py-0.5">
+                                FIJO
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="text-xs font-semibold px-2.5 py-0.5"
+                              >
+                                DETERMINADO
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={con.estatus_nombre === "ACTIVO" ? "default" : "secondary"}
+                              className={`text-xs font-semibold px-2.5 py-0.5 ${con.estatus_nombre === "ACTIVO" ? "bg-emerald-600 text-white" : ""}`}
+                            >
+                              {con.estatus_nombre || "ACTIVO"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 3: FORMACIÓN ACADÉMICA & CURSOS */}
+        <TabsContent value="formacion" className="space-y-6 focus-visible:outline-none">
+          <Card className="border-border/60 shadow-sm border-t-2 border-t-emerald-500">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                    <Award className="w-5 h-5 text-emerald-600" /> Formación Complementaria, Cursos
+                    & Capacitaciones
+                  </CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    Cursos certificados, talleres institucionales y adiestramiento profesional
+                    completado.
+                  </CardDescription>
+                </div>
+                <Badge className="bg-emerald-600 text-white text-sm font-semibold px-3 py-0.5 w-fit">
+                  {complementaria.length}{" "}
+                  {complementaria.length === 1
+                    ? "capacitación registrada"
+                    : "capacitaciones registradas"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {complementaria.length === 0 ? (
+                <div className="p-8 text-center space-y-3 bg-muted/20 rounded-xl border border-dashed border-border/80">
+                  <GraduationCap className="w-10 h-10 text-muted-foreground mx-auto opacity-40" />
+                  <p className="text-base font-semibold text-foreground">
+                    Sin cursos de formación complementaria registrados actualmente
+                  </p>
+                  <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+                    La Comisión Nacional de Telecomunicaciones promueve la capacitación permanente.
+                    Para consignar certificados de cursos o solicitar inclusión de adiestramiento,
+                    presente sus credenciales ante el área de Capacitación y Desarrollo de Talento
+                    Humano.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {complementaria.map((fc, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 border border-border/70 rounded-xl bg-card hover:border-emerald-400/70 hover:shadow-md transition-all space-y-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <h4 className="font-bold text-base text-foreground leading-snug">
+                            {fc.capacitacion_nombre || "Curso / Taller de Capacitación"}
+                          </h4>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                            <Building2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>{fc.institucion_nombre || "Institución Acreditada"}</span>
+                          </p>
+                        </div>
+                        {fc.horas_completadas && (
+                          <Badge
+                            variant="secondary"
+                            className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-mono text-xs font-semibold px-2.5 py-0.5 shrink-0"
+                          >
+                            {fc.horas_completadas} hrs
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground pt-2 border-t border-border/40">
+                        {fc.fecha_inicio && (
+                          <span className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                            Desde: {formatearFecha(fc.fecha_inicio)}{" "}
+                            {fc.fecha_fin ? `hasta ${formatearFecha(fc.fecha_fin)}` : ""}
+                          </span>
+                        )}
+                        {fc.dias_completados && (
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                            Duración: {fc.dias_completados} días
+                          </span>
+                        )}
+                        {fc.procedencia_nombre && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs font-semibold px-2 py-0.5 uppercase"
+                          >
+                            {fc.procedencia_nombre}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                    <GraduationCap className="w-5 h-5 text-emerald-600" /> Títulos Académicos y
+                    Educación Formal
+                  </CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    Niveles de instrucción superior, pregrado, postgrado y especializaciones.
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5 w-fit">
+                  {formacion.length} títulos
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {formacion.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground text-sm">
+                  Sin registros académicos en el expediente.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {formacion.map((fa, idx) => (
+                    <div
+                      key={idx}
+                      className="p-4 border border-border/70 rounded-xl bg-card hover:border-emerald-300 transition-colors space-y-2 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-base text-foreground">
+                            {fa.carrera_nombre || "Carrera Profesional"}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {fa.institucion_nombre ||
+                              "Universidad / Instituto de Educación Superior"}
+                          </p>
+                        </div>
+                        <Badge className="bg-blue-600/90 text-white text-xs font-semibold px-2.5 py-0.5">
+                          {fa.nivel_academico_nombre || "SUPERIOR"}
+                        </Badge>
+                      </div>
+
+                      {fa.mencion_nombre && (
+                        <p className="text-sm text-muted-foreground pt-1.5 border-t border-border/40">
+                          Mención:{" "}
+                          <strong className="text-foreground font-semibold">
+                            {fa.mencion_nombre}
+                          </strong>
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 4: MI CARNET INSTITUCIONAL (controlado por el alcance configurado) */}
+        {mostrarCarnet && (
+          <TabsContent value="carnet" className="space-y-6 focus-visible:outline-none">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              <div className="lg:col-span-5 flex flex-col items-center justify-center space-y-4 bg-muted/20 p-6 rounded-2xl border border-border/60 shadow-sm">
+                <div className="text-center space-y-1">
+                  <h3 className="font-bold text-sm text-foreground flex items-center justify-center gap-1.5">
+                    <CreditCard className="w-4 h-4 text-amber-500" /> Credencial Digital Oficial
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Formato estándar CR80 con código QR criptográfico de autenticidad.
+                  </p>
+                </div>
+
+                <div className="transform hover:scale-[1.02] transition-transform duration-300">
+                  <CarnetVistaPrevia
+                    cedula={empleado.cedula}
+                    nombreCompleto={
+                      empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`
+                    }
+                    cargo={cargoPrincipal}
+                    departamento={dependenciaPrincipal}
+                    codigo={
+                      (empleado.asignaciones && empleado.asignaciones[0]?.codigo) || undefined
+                    }
+                    fotoUrl={empleado.foto_url}
+                  />
+                </div>
+
+                <div className="text-center pt-2">
+                  <span className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 text-amber-500" /> Documento oficial de
+                    identificación institucional CONATEL
+                  </span>
+                </div>
+              </div>
+
+              <div className="lg:col-span-7 space-y-6">
+                <Card className="border-border/60 shadow-sm">
+                  <CardHeader className="pb-4 border-b bg-muted/20">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                          <Sparkles className="w-5 h-5 text-amber-500" /> Estado de Carnetización
+                        </CardTitle>
+                        <CardDescription className="text-sm text-muted-foreground">
+                          Acreditación activa de seguridad física e institucional.
+                        </CardDescription>
+                      </div>
+                      {carnet_activo ? (
+                        <Badge className="bg-emerald-600 text-white gap-1.5 py-1 px-3.5 text-sm font-semibold">
+                          <CheckCircle2 className="w-4 h-4" /> Activo y Vigente
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500 text-amber-500 py-1 px-3.5 text-sm font-semibold"
+                        >
+                          Requiere Emisión
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-4">
+                    {carnet_activo ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                          <div className="p-3.5 bg-muted/40 rounded-xl space-y-1">
+                            <span className="text-muted-foreground block text-xs font-medium">
+                              Motivo de Emisión:
+                            </span>
+                            <span className="font-bold text-base text-foreground">
+                              {carnet_activo.motivo_nombre || "PRIMERA EMISIÓN"}
+                            </span>
+                          </div>
+                          <div className="p-3.5 bg-muted/40 rounded-xl space-y-1">
+                            <span className="text-muted-foreground block text-xs font-medium">
+                              Fecha de Expedición:
+                            </span>
+                            <span className="font-bold text-base text-foreground">
+                              {carnet_activo.fecha_emision
+                                ? new Date(carnet_activo.fecha_emision).toLocaleDateString(
+                                    "es-VE",
+                                    {
+                                      day: "2-digit",
+                                      month: "long",
+                                      year: "numeric",
+                                    },
+                                  )
+                                : "Fecha oficial registrada"}
+                            </span>
+                          </div>
+                        </div>
+
+
+                        {carnet_activo.security_hash && (
+                          <div className="flex flex-col items-center gap-4 rounded-xl border border-border/60 bg-muted/30 p-4 sm:flex-row">
+                            {/* QR servido por el backend; el titular ya está autorizado por el parámetro Mi carnet. */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/v1/carnetizacion/public/qr/${carnet_activo.security_hash}/imagen/`}
+                              alt="Código QR de verificación del carnet"
+                              className="size-36 shrink-0 rounded-lg border bg-white p-2 shadow-sm"
+                            />
+                            <div className="space-y-1 text-center sm:text-left">
+                              <p className="text-sm font-semibold text-foreground">
+                                Tu carnet en el teléfono
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Muestra este QR desde tu teléfono para verificar tu credencial.
+                                La información visible depende del parámetro de privacidad de Mi carnet.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {carnet_activo.observaciones && (
+                          <div className="text-sm text-muted-foreground italic">
+                            Observaciones: {carnet_activo.observaciones}
+                          </div>
+                        )}
+
+                        {/* Información de entrega física vs descarga digital */}
+                        <div className="p-4 bg-muted/40 border border-border/60 rounded-xl space-y-2.5 text-sm">
+                          <div className="font-semibold text-foreground flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-primary" /> Modalidades de Entrega
+                            y Emisión:
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-muted-foreground">
+                            <div className="p-3 bg-card rounded-lg border border-border/50">
+                              <strong className="text-foreground block mb-1">
+                                1. Retiro Impreso en CONATEL
+                              </strong>
+                              Talento Humano imprime el carnet institucional oficial tras la
+                              aprobación para su entrega presencial en la sede.
+                            </div>
+                            <div className="p-3 bg-card rounded-lg border border-border/50">
+                              <strong className="text-foreground block mb-1">
+                                2. Descarga Digital (Auto-impresión)
+                              </strong>
+                              También puede descargar el archivo digital en PDF para imprimirlo por
+                              su cuenta cuando lo requiera.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-muted/40 border border-border rounded-xl text-sm space-y-2 text-foreground">
+                        <p className="font-bold text-foreground text-base">
+                          Aún no posee una credencial física o digital activa registrada.
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed">
+                          Presione el botón a continuación para solicitar la emisión formal de su
+                          carnet institucional avalado por la Gerencia de Gestión del Talento Humano
+                          de CONATEL. Deberá esperar la aprobación institucional para retirarlo
+                          impreso en sede o descargarlo en PDF.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                      {carnet_activo && (
+                        <Button
+                          onClick={handleDescargarCarnetPdf}
+                          disabled={descargandoPdf}
+                          className="w-full sm:w-auto text-white gap-2 font-semibold text-sm h-11 px-6 shadow"
+                        >
+                          {descargandoPdf ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
+                          Descargar Carnet PDF (Imprimible)
+                        </Button>
+                      )}
+
+                      <Button
+                        onClick={() => setModalCarnetAbierto(true)}
+                        variant={carnet_activo ? "outline" : "default"}
+                        className="w-full sm:w-auto gap-2 font-bold text-sm h-11 px-6 shadow-md"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        {carnet_activo ? "Solicitar Renovación de Carnet" : "Solicitar Mi Carnet"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {carnets.length > 0 && (
+                  <Card className="border-border/60 shadow-sm">
+                    <CardHeader className="pb-3 border-b bg-muted/20">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2 text-foreground">
+                        <FileText className="w-4 h-4 text-primary" /> Registro de Credenciales
+                        Emitidas
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-3">
+                      <div className="divide-y divide-border/40 text-sm">
+                        {carnets.map((c) => (
+                          <div key={c.id} className="py-3 flex items-center justify-between gap-2">
+                            <div>
+                              <span className="font-bold text-foreground text-sm">
+                                {c.motivo_nombre || "Emisión de Carnet"}
+                              </span>
+                              <span className="text-muted-foreground block text-xs mt-0.5">
+                                Emitido el:{" "}
+                                {c.fecha_emision
+                                  ? new Date(c.fecha_emision).toLocaleDateString("es-VE")
+                                  : "N/A"}
+                              </span>
+                            </div>
+                            <div>
+                              {c.activo ? (
+                                <Badge className="bg-emerald-600 text-white text-xs font-semibold px-2.5 py-0.5">
+                                  ACTIVO
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-xs font-semibold px-2.5 py-0.5"
+                                >
+                                  INACTIVO / RENOVADO
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        )}
+
+        {/* TAB 5: SALUD & BIENESTAR / TALLAS */}
+        <TabsContent value="salud" className="space-y-6 focus-visible:outline-none">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 border-b bg-muted/20">
+                <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <HeartPulse className="w-5 h-5 text-rose-600" /> Ficha Médica y Condiciones de
+                  Salud
+                </CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">
+                  Información médica confidencial para atención y primeros auxilios.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="divide-y divide-border/40 pt-2">
+                <InfoRow
+                  label="Grupo Sanguíneo"
+                  value={salud?.grupo_sanguineo_nombre || "No reportado"}
+                />
+                <InfoRow
+                  label="Alergias Conocidas"
+                  value={
+                    salud?.alergias_nombres && salud.alergias_nombres.length > 0
+                      ? salud.alergias_nombres.join(", ")
+                      : formatearLista(salud?.alergias as unknown[] | undefined)
+                  }
+                />
+                <InfoRow
+                  label="Patologías Crónicas"
+                  value={
+                    salud?.patologias_cronicas_nombres &&
+                    salud.patologias_cronicas_nombres.length > 0
+                      ? salud.patologias_cronicas_nombres.join(", ")
+                      : formatearLista(salud?.patologias_cronicas as unknown[] | undefined)
+                  }
+                />
+                <InfoRow
+                  label="Discapacidades"
+                  value={
+                    salud?.discapacidades_nombres && salud.discapacidades_nombres.length > 0
+                      ? salud.discapacidades_nombres.join(", ")
+                      : formatearLista(salud?.discapacidades as unknown[] | undefined)
+                  }
+                />
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 border-b bg-muted/20">
+                <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                  <Shirt className="w-5 h-5 text-rose-600" /> Tallas y Dotación de Uniforme
+                </CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">
+                  Parámetros para suministro de dotación laboral institucional.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="divide-y divide-border/40 pt-2">
+                <InfoRow
+                  label="Talla de Camisa / Chemise"
+                  value={
+                    fisico?.talla_camisa_nombre ||
+                    (fisico?.talla_camisa_id ? `Talla #${fisico.talla_camisa_id}` : "Sin registrar")
+                  }
+                />
+                <InfoRow
+                  label="Talla de Pantalón"
+                  value={
+                    fisico?.talla_pantalon_nombre ||
+                    (fisico?.talla_pantalon_id
+                      ? `Talla #${fisico.talla_pantalon_id}`
+                      : "Sin registrar")
+                  }
+                />
+                <InfoRow
+                  label="Calzado (Zapatos)"
+                  value={
+                    fisico?.talla_zapatos_nombre ||
+                    (fisico?.talla_zapatos_id
+                      ? `Talla #${fisico.talla_zapatos_id}`
+                      : "Sin registrar")
+                  }
+                />
+                <InfoRow
+                  label="Talla de Chaqueta / Abrigo"
+                  value={
+                    fisico?.talla_chaqueta_nombre ||
+                    (fisico?.talla_chaqueta_id
+                      ? `Talla #${fisico.talla_chaqueta_id}`
+                      : "Sin registrar")
+                  }
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* TAB 6: CARGAS FAMILIARES */}
+        <TabsContent value="familiares" className="space-y-6 focus-visible:outline-none">
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-4 border-b bg-muted/20">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="text-lg font-bold flex items-center gap-2 text-foreground">
+                    <Users className="w-5 h-5 text-violet-600" /> Cargas Familiares Registradas
+                  </CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    Hijos, cónyuge o ascendientes vinculados formalmente a su expediente laboral.
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="text-sm font-semibold px-3 py-0.5 w-fit">
+                  {familiares.length} {familiares.length === 1 ? "dependiente" : "dependientes"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {familiares.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No posee cargas familiares registradas en su expediente.
+                </div>
+              ) : (
+                <div className="w-full overflow-x-auto">
+                  <Table className="min-w-[720px]">
+                    <TableHeader>
+                      <TableRow className="text-sm">
+                        <TableHead className="font-semibold text-foreground">Parentesco</TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Nombres y Apellidos
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">Cédula</TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Fecha Nacimiento
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">Sexo</TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Heredero Legal
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          ¿Labora en CONATEL?
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="text-sm">
+                      {familiares.map((f) => (
+                        <TableRow key={f.id}>
+                          <TableCell className="font-bold text-violet-600 dark:text-violet-400">
+                            {f.parentesco_nombre}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {f.primer_nombre} {f.segundo_nombre || ""} {f.primer_apellido}{" "}
+                            {f.segundo_apellido || ""}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {f.cedula_familiar || "Menor / S.C."}
+                          </TableCell>
+                          <TableCell>{formatearFechaConEdad(f.fecha_nacimiento)}</TableCell>
+                          <TableCell>{f.sexo_nombre}</TableCell>
+                          <TableCell>
+                            {f.heredero ? (
+                              <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-2.5 py-0.5">
+                                SÍ
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">No</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {f.mismo_ente ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs font-semibold px-2.5 py-0.5 text-blue-600 dark:text-blue-400"
+                              >
+                                CONATEL
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">No</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 7: MARCO LEGAL INSTITUCIONAL CONATEL */}
+        <TabsContent value="legal" className="space-y-6 focus-visible:outline-none">
+          <Card className="border-border/60 shadow-sm border-l-4 border-l-amber-500">
+            <CardHeader className="pb-3 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <Scale className="w-5 h-5 text-amber-600" />
+                <div>
+                  <CardTitle className="text-lg font-bold text-foreground">
+                    Fundamentos Jurídicos y Bases Legales de CONATEL
+                  </CardTitle>
+                  <CardDescription className="text-sm text-muted-foreground">
+                    Marco normativo que rige la relación de empleo público, las telecomunicaciones y
+                    la seguridad social.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-4">
+              <div className="space-y-3">
+                <h4 className="font-bold text-base text-foreground flex items-center gap-2 border-b pb-1.5">
+                  <BookOpen className="w-4 h-4 text-blue-600" /> Constitución de la República
+                  Bolivariana de Venezuela (CRBV)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-1.5">
+                    <strong className="text-primary font-semibold block text-base">
+                      Artículo 86 (Seguridad Social)
+                    </strong>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Toda persona tiene derecho a la seguridad social como servicio público de
+                      carácter no lucrativo, que garantice la salud y asegure protección en
+                      contingencias de maternidad, paternidad, enfermedad, invalidez, enfermedades
+                      catastróficas, desempleo, vejez y cargas de familia.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-1.5">
+                    <strong className="text-primary font-semibold block text-base">
+                      Artículo 87 (Derecho y Deber al Trabajo)
+                    </strong>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Toda persona tiene derecho al trabajo y el deber de trabajar. El Estado
+                      garantizará la adopción de las medidas necesarias para que toda persona pueda
+                      obtener una ocupación productiva bajo condiciones dignas, seguras e
+                      higiénicas.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-1.5">
+                    <strong className="text-primary font-semibold block text-base">
+                      Artículo 89 (Principios Laborales)
+                    </strong>
+                    <p className="text-muted-foreground leading-relaxed">
+                      El trabajo es un hecho social y gozará de la protección del Estado. Principios
+                      de intangibilidad y progresividad de los derechos laborales; primacía de la
+                      realidad sobre formas o apariencias, e irrenunciabilidad de los derechos del
+                      trabajador.
+                    </p>
+                  </div>
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-1.5">
+                    <strong className="text-primary font-semibold block text-base">
+                      Artículos 108 y 110 (Telecomunicaciones y Soberanía)
+                    </strong>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Los medios de comunicación social públicos y privados coadyuvarán en la
+                      difusión de los valores. El Estado reconoce el interés público de la ciencia,
+                      la tecnología, el conocimiento, la innovación y los servicios de información
+                      indispensables para la soberanía del país.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-bold text-base text-foreground flex items-center gap-2 border-b pb-1.5">
+                  <FileText className="w-4 h-4 text-indigo-600" /> Leyes Rectoras del Régimen
+                  Institucional
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-2">
+                    <div className="font-bold text-foreground flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-xs font-semibold px-2 py-0.5"
+                      >
+                        LOTEL
+                      </Badge>
+                      <span>Ley Orgánica de Telecomunicaciones</span>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Gaceta Oficial N° 36.970 / N° 39.610. Norma matriz que establece el régimen
+                      general de las telecomunicaciones y crea a la Comisión Nacional de
+                      Telecomunicaciones (CONATEL) como instituto rector con personería jurídica y
+                      patrimonio propio.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-2">
+                    <div className="font-bold text-foreground flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-xs font-semibold px-2 py-0.5"
+                      >
+                        LEFP
+                      </Badge>
+                      <span>Ley del Estatuto de la Función Pública</span>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Rige las relaciones de empleo público entre los funcionarios y la
+                      Administración Pública Nacional. Garantiza la estabilidad, evaluación de
+                      desempeño por mérito, capacitación continua y deberes de probidad en el
+                      servicio público.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-xl border border-border/50 space-y-2">
+                    <div className="font-bold text-foreground flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="font-mono text-xs font-semibold px-2 py-0.5"
+                      >
+                        LOTTT
+                      </Badge>
+                      <span>Ley Orgánica del Trabajo</span>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Garantiza los derechos irrenunciables de los trabajadores y trabajadoras:
+                      prestaciones sociales, régimen de vacaciones, beneficios de alimentación,
+                      salud ocupacional y convenciones colectivas vigentes en el sector público.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm space-y-2">
+                <div className="font-bold text-amber-500 flex items-center gap-2 text-base">
+                  <ShieldAlert className="w-5 h-5" /> Reglamentos Internos y Acreditación
+                  Institucional
+                </div>
+                <p className="text-muted-foreground leading-relaxed">
+                  El uso del Carnet Institucional es personal e intransferible, de portación
+                  obligatoria dentro de las instalaciones de CONATEL y en el ejercicio de comisiones
+                  de servicio oficiales. La falsificación, alteración o préstamo de credenciales
+                  constituye falta grave sujeta a los procedimientos disciplinarios de la Ley del
+                  Estatuto de la Función Pública.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal Dialog: Solicitar / Renovar Carnet (controlado por el alcance configurado) */}
+      {mostrarCarnet && (
+        <Dialog open={modalCarnetAbierto} onOpenChange={setModalCarnetAbierto}>
+          <DialogContent className="sm:max-w-lg">
+            <form onSubmit={handleSolicitarCarnet}>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-foreground text-lg font-bold">
+                  <CreditCard className="w-5 h-5 text-amber-500" />
+                  {carnet_activo
+                    ? "Solicitud de Renovación de Carnet Institucional"
+                    : "Solicitud de Carnet Institucional"}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Consigne los datos correspondientes para tramitar formalmente su credencial ante
+                  la Gerencia de Gestión del Talento Humano.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4 text-sm">
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-foreground block text-sm">
+                    Titular del Carnet:
+                  </label>
+                  <div className="p-3 bg-muted/40 rounded-lg text-foreground font-semibold text-sm">
+                    {empleado.nombre_completo || `${empleado.nombres} ${empleado.apellidos}`} (C.I.{" "}
+                    {empleado.cedula})
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="motivo_id"
+                    className="font-semibold text-foreground block text-sm"
+                  >
+                    Motivo de la Emisión / Solicitud:
+                  </label>
+                  <select
+                    id="motivo_id"
+                    value={motivoSeleccionado}
+                    onChange={(e) => setMotivoSeleccionado(Number(e.target.value))}
+                    className="w-full h-11 px-3 bg-background border border-border rounded-lg text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                  >
+                    {motivos_carnet.length > 0 ? (
+                      motivos_carnet.map((m) => {
+                        const esRepetido =
+                          !m.descripcion ||
+                          m.nombre.trim().toUpperCase() === m.descripcion.trim().toUpperCase();
+                        const texto = esRepetido ? m.nombre : `${m.nombre} — ${m.descripcion}`;
+                        return (
+                          <option key={m.id} value={m.id}>
+                            {texto}
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <>
+                        <option value={1}>PRIMERA EMISIÓN — Nuevo ingreso a CONATEL</option>
+                        <option value={2}>RENOVACIÓN — Vencimiento de credencial</option>
+                        <option value={3}>PÉRDIDA — Extravío de credencial previa</option>
+                        <option value={4}>DAÑO — Deterioro del material físico</option>
+                        <option value={5}>ACTUALIZACIÓN — Cambio de cargo o adscripción</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="observaciones"
+                    className="font-semibold text-foreground block text-sm"
+                  >
+                    Observaciones / Justificación (Opcional):
+                  </label>
+                  <textarea
+                    id="observaciones"
+                    rows={3}
+                    maxLength={LIMITES_TEXTO.observacion.max}
+                    aria-invalid={errorObservaciones ? true : undefined}
+                    value={observacionesSolicitud}
+                    onChange={(e) => setObservacionesSolicitud(e.target.value)}
+                    placeholder="Indique detalles relevantes (ej. carnet deteriorado, vencimiento o cambio de adscripción)..."
+                    className="w-full p-3 bg-background border border-border rounded-lg text-foreground text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none resize-none aria-invalid:border-destructive"
+                  />
+                  <ContadorCaracteres valor={observacionesSolicitud} max={LIMITES_TEXTO.observacion.max} />
+                  {errorObservaciones ? (
+                    <p role="alert" className="text-sm font-medium text-destructive">
+                      {errorObservaciones}
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* Información sobre el proceso de aprobación y modalidades de entrega */}
+                <div className="p-4 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 rounded-xl space-y-2 text-sm text-blue-900 dark:text-blue-200">
+                  <div className="font-bold flex items-center gap-2 text-blue-800 dark:text-blue-300">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                    Información sobre el proceso de aprobación y entrega:
+                  </div>
+                  <ul className="list-disc pl-5 space-y-1.5 leading-relaxed text-xs sm:text-sm">
+                    <li>
+                      <strong>Requiere Aprobación:</strong> El carnet no se emite en el acto; debe
+                      esperar la validación y aprobación por parte de la Gerencia de Gestión del
+                      Talento Humano.
+                    </li>
+                    <li>
+                      <strong>Retiro Impreso en CONATEL:</strong> Una vez aprobada la solicitud, el
+                      organismo emite el carnet impreso oficial para que pueda retirarlo
+                      personalmente en la sede.
+                    </li>
+                    <li>
+                      <strong>Descarga Digital (Auto-impresión):</strong> Si lo prefiere o lo
+                      requiere con inmediatez tras la aprobación, también tendrá habilitada la
+                      descarga del PDF de alta resolución con código QR para imprimirlo por su
+                      cuenta.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <DialogFooter className="flex gap-2 justify-end pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={solicitandoCarnet}
+                  onClick={() => setModalCarnetAbierto(false)}
+                  className="text-sm font-medium"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={solicitandoCarnet}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm gap-2 shadow-md h-11 px-6"
+                >
+                  {solicitandoCarnet ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4" />
+                  )}
+                  {solicitandoCarnet
+                    ? "Enviando Solicitud..."
+                    : carnet_activo
+                      ? "Solicitar Renovación de Carnet"
+                      : "Enviar Solicitud de Carnet"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+}

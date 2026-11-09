@@ -30,7 +30,7 @@ export default function NotFound() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-dvh bg-gradient-to-b from-blue-900 to-blue-800 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Partículas animadas de fondo */}
       <div className="absolute inset-0 overflow-hidden" suppressHydrationWarning>
         {[...Array(20)].map((_, i) => (
@@ -59,17 +59,17 @@ export default function NotFound() {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer"></div>
           <div className="transform hover:scale-110 transition-transform duration-500 hover:rotate-3">
             <Image
-              src="/images/image.png"
-              width={300} // Correcto: Ancho fijo
-              height={300} // Correcto: Alto fijo
-              alt="Logo Reportes"
+              src="/logoLogin.png"
+              width={300}
+              height={120}
+              alt="Logo de CONATEL"
               className="object-contain" // Mantiene la proporción dentro de los 300x150
               priority // Agrega esto para que cargue rápido en reportes
             />
           </div>
         </div>
 
-        <CardContent className="p-8 text-center gap-6">
+        <CardContent className="p-5 sm:p-8 text-center gap-6">
           {/* Mensaje principal con animaciones */}
           <div className="gap-3">
             <h1
@@ -117,15 +117,14 @@ export default function NotFound() {
                 : "translate-y-10 opacity-0"
             }`}
           >
-            {/* <Image
-              width={300}
-              height={150}
+            <Image
               src="/image.png"
-              alt="Edificio del Ministerio"
+              alt="Sede principal de CONATEL"
               fill
+              sizes="(max-width: 768px) 100vw, 600px"
               style={{ objectFit: "cover" }}
               className="group-hover:scale-110 transition-transform duration-700 ease-out"
-            /> */}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-blue-900/70 to-transparent group-hover:from-blue-900/50 transition-all duration-500"></div>
             <div className="absolute bottom-4 left-4 text-white text-sm font-medium transform group-hover:translate-x-2 transition-transform duration-300">
               Sede Principal
@@ -145,7 +144,7 @@ export default function NotFound() {
           >
             <Button
               asChild
-              className="bg-blue-800 hover:bg-blue-900 text-white flex-1 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
+              className="bg-blue-800 hover:bg-primary/90 text-white flex-1 min-h-11 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
             >
               <Link href="/">
                 <Home className="size-4 mr-2 " />
@@ -155,7 +154,7 @@ export default function NotFound() {
             <Button
               variant="outline"
               onClick={() => window.history.back()}
-              className="border-blue-200 text-blue-800 hover:bg-blue-50 flex-1 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
+              className="border-blue-200 text-blue-800 hover:bg-blue-50 flex-1 min-h-11 transform hover:scale-105 hover:-translate-y-1 transition-all duration-200 hover:shadow-lg"
             >
               <ArrowLeft className="size-4 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
               Volver atrás

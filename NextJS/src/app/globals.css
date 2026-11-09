@@ -7,11 +7,24 @@
     width: 90vw;
     max-width: 600px;
   }
+
+  /*
+   * El ScrollArea raíz de la app (src/app/layout.tsx) envuelve el contenido en
+   * un `div` con `display: table; min-width: 100%` (Radix). Ese wrapper crece
+   * hasta el ancho mínimo del contenido, de modo que una tabla ancha empujaba
+   * el shell completo (sidebar incluido) a 2420 px con un viewport de 1182 px.
+   * Con `display: block` el contenido queda acotado al ancho visible y cada
+   * tabla o panel gestiona su propio scroll horizontal.
+   */
+  .scroll-app > [data-slot="scroll-area-viewport"] > div {
+    display: block !important;
+    min-width: 0 !important;
+  }
 }
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: "Source Sans 3 Variable", "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -42,6 +55,18 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-red: var(--brand-red);
+  --color-control: var(--border-control);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -50,89 +75,327 @@
 
 :root {
   --radius: 0.625rem;
-  
-  --background: oklch(98.202% 0.00934 243.166);
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(96.416% 0.00011 271.152);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.55 0.2 250);
-  --primary-foreground: oklch(100% 0 0);
-  --secondary: oklch(0.95 0.02 250);
-  --secondary-foreground: oklch(0.25 0.05 250);
-  --muted: oklch(0.96 0.01 250);
-  --muted-foreground: oklch(0.45 0.02 250);
-  --accent: oklch(0.92 0.03 250);
-  --accent-foreground: oklch(0.2 0.1 250);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.85 0.01 250);
-  --input: oklch(0.85 0.01 250);
-  --ring: oklch(0.55 0.2 250);
+
+  /* Paleta institucional CONATEL (provisional hasta recibir el manual de identidad).
+     Contrastes WCAG 2.x medidos en PLAN_REDISENO_AUTOGESTION_PWA_2026-10-29.md, sección 2.2. */
+  --background: #f6f8fb;
+  --foreground: #101a33;
+  --card: #ffffff;
+  --card-foreground: #101a33;
+  --popover: #ffffff;
+  --popover-foreground: #101a33;
+  --primary: #0b4a9e;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f0fc;
+  --secondary-foreground: #0a2a5e;
+  --muted: #eef2f7;
+  --muted-foreground: #475467;
+  --accent: #e8f0fc;
+  --accent-foreground: #0a2a5e;
+  --destructive: #a8201a;
+  --border: #d5dce8;
+  --border-control: #6b7a90;
+  --input: #6b7a90;
+  --ring: #0b4a9e;
+  --brand-deep: #0a2a5e;
+  --brand-gold: #f2b705;
+  --brand-red: #b3122b;
+  --success: #17703a;
+  --success-soft: #e8f5ec;
+  --warning: #7a4b00;
+  --warning-soft: #fff3d1;
+  --danger: #a8201a;
+  --danger-soft: #fdecea;
+  --info: #0b4a9e;
+  --info-soft: #e8f0fc;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #101a33;
+  --sidebar-primary: #0b4a9e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f0fc;
+  --sidebar-accent-foreground: #0a2a5e;
+  --sidebar-border: #d5dce8;
+  --sidebar-ring: #0b4a9e;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  color-scheme: dark;
+  --background: #0b1220;
+  --foreground: #e8edf7;
+  --card: #131d31;
+  --card-foreground: #e8edf7;
+  --popover: #131d31;
+  --popover-foreground: #e8edf7;
+  --primary: #8db8ff;
+  --primary-foreground: #0b1220;
+  --secondary: #1b2a47;
+  --secondary-foreground: #e8edf7;
+  --muted: #1a2640;
+  --muted-foreground: #a9b4c8;
+  --accent: #1b2a47;
+  --accent-foreground: #e8edf7;
+  --destructive: #ff8a80;
+  --border: #2a3a5a;
+  --border-control: #8593ab;
+  --input: #8593ab;
+  --ring: #8db8ff;
+  --brand-deep: #07152f;
+  --brand-gold: #f2b705;
+  --brand-red: #ff8a80;
+  --success: #6fd08c;
+  --success-soft: #11291a;
+  --warning: #f5c451;
+  --warning-soft: #33280b;
+  --danger: #ff8a80;
+  --danger-soft: #3a1512;
+  --info: #8db8ff;
+  --info-soft: #14284a;
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: #131d31;
+  --sidebar-foreground: #e8edf7;
+  --sidebar-primary: #8db8ff;
+  --sidebar-primary-foreground: #0b1220;
+  --sidebar-accent: #1b2a47;
+  --sidebar-accent-foreground: #e8edf7;
+  --sidebar-border: #2a3a5a;
+  --sidebar-ring: #8db8ff;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  /* Lectura ampliada (usuarios mayores): escala todo el texto basado en rem. */
+  html.text-scale-lg {
+    font-size: 18px;
+  }
+  html.text-scale-xl {
+    font-size: 20px;
+  }
   body {
     @apply bg-background text-foreground;
+    line-height: 1.5;
   }
-  /* Esto hará que todos los inputs tengan un borde un poco más visible al hacer foco */
+  /* Foco visible global (WCAG 2.4.7): anillo de 3 px con separación. */
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
   input,
   textarea,
   select {
-    @apply transition-all duration-200;
+    @apply transition-colors duration-200;
   }
-  input:focus,
-  textarea:focus {
-    @apply border-primary/50 ring-2 ring-primary/20;
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Mobile-native: sin destello, sin zoom de inputs y sin rebote de página. */
+html {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button,
+a,
+[role="button"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+button,
+[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+@media (max-width: 1023px) {
+  /* Zona táctil de 44px solo para controles de acción. Se excluyen las piezas
+     geométricas (checkbox, radio, switch) y los botones compactos de Sonner,
+     que quedaban ovalados o deformados. */
+  button:not([role="checkbox"]):not([role="radio"]):not([role="switch"]):not([data-close-button]):not([data-button]):not([data-cancel]),
+  [role="button"]:not([role="checkbox"]):not([role="radio"]):not([role="switch"]):not([data-close-button]) {
+    min-height: 44px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"] {
+    min-height: 0;
+  }
+  /* El control sigue siendo pequeño, pero conserva el área táctil. */
+  button[role="checkbox"],
+  button[role="radio"],
+  button[role="switch"] {
+    position: relative;
+  }
+  button[role="checkbox"]::after,
+  button[role="radio"]::after,
+  button[role="switch"]::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+  }
+  form .grid-cols-2,
+  form .grid-cols-3,
+  form .grid-cols-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .overflow-x-auto {
+    overscroll-behavior-x: contain;
+  }
+}
+
+/* FIX-TLF10: un solo estilo para todas las fechas nativas (date y datetime-local):
+   el ícono de calendario queda visible, con el mismo tamaño relativo y una
+   zona táctil cómoda en teléfono. No se oculta el selector nativo. */
+input[type="date"],
+input[type="datetime-local"] {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.25;
+  padding-right: 0.5rem;
+}
+input[type="date"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit {
+  padding: 0;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-inline-start: 0.5rem;
+  padding: 0;
+  /* FIX-AUD8: la flecha nativa de Android se sustituye por el mismo glifo de
+     calendario en todos los navegadores; currentColor respeta tema claro/oscuro
+     y el selector nativo sigue abriendo el calendario. */
+  background-color: currentColor;
+  -webkit-mask: url("/icons/calendario.svg") center / contain no-repeat;
+  mask: url("/icons/calendario.svg") center / contain no-repeat;
+  -webkit-mask-origin: content-box;
+  mask-origin: content-box;
+  background-clip: content-box;
+  opacity: 0.7;
+  cursor: pointer;
+}
+input[type="date"]:not(:focus):invalid::-webkit-datetime-edit,
+input[type="datetime-local"]:not(:focus):invalid::-webkit-datetime-edit {
+  color: var(--muted-foreground);
+}
+@media (max-width: 1023px) {
+  /* Área táctil de 44 px para el selector nativo (sin ocultarlo). */
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    padding: 0.75rem;
+    margin-inline-end: -0.5rem;
+  }
+}
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (max-width: 1023px) {
+  td .truncate,
+  th .truncate,
+  dd .truncate {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+  td {
+    overflow-wrap: anywhere;
+  }
+}
+
+main { min-width: 0; }
+
+/* FIX-TLF14: Radix envuelve el contenido del ScrollArea en un `div` con
+   `display: table`; dentro de un diálogo eso permite que el texto y los
+   campos crezcan más allá del ancho visible y se recorten contra la barra
+   vertical. Con `block` y `min-width: 0` el contenido se ajusta al ancho del
+   diálogo en cualquier tamaño de pantalla (no solo en móvil). */
+[data-slot="dialog-content"] [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  min-width: 0 !important;
+}
+
+
+@media (max-width: 1023px) { [data-sidebar="trigger"] { min-width: 44px; min-height: 44px; } }
+
+
+[data-slot="sidebar-inset"], [data-slot="sidebar-wrapper"] { min-width: 0; }
+
+
+/* Móvil: el ancho lo manda el viewport. Antes se recortaba todo a
+   `calc(100vw - 3rem)` y eso dejaba una franja blanca a la derecha y pantallas
+   cortadas (fichas, sheets, filtros, Reglas de Catálogos, Identidad visual,
+   vista previa de correo). Cada tabla conserva su propio scroll. */
+@media (max-width: 1023px) {
+  main {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  [data-slot="table-container"],
+  .overflow-x-auto {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Radix envuelve el contenido del ScrollArea en un `div` con
+     `display: table` EN LÍNEA; por eso hace falta `!important`, igual que en
+     la regla de `.scroll-app` (línea 19). Sin él, el wrapper crece con el
+     contenido (447–927 px con viewport de 360) y `main` lo recorta en
+     silencio. Con `block` el ancho queda acotado y cada tabla conserva su
+     propio scroll. */
+  [data-slot="scroll-area"] > [data-slot="scroll-area-viewport"] > div {
+    display: block !important;
+    min-width: 0 !important;
+  }
+  /* Un hijo de grid no debe imponer su ancho mínimo (correos y rutas largas)
+     al ancho de la pantalla. */
+  main .grid > * {
+    min-width: 0;
+  }
+}
+
+
+@media (max-width: 1023px) {
+  [data-slot="dialog-content"] {
+    max-height: calc(100dvh - 2rem);
+    width: calc(100% - 2rem);
+    overflow-y: auto;
+  }
+  [data-slot="sheet-content"] {
+    max-height: 100dvh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

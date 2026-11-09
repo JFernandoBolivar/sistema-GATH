@@ -1,0 +1,417 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { configure, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { SWRConfig } from "swr";
+import type { MouseEventHandler, ReactNode } from "react";
+import type { NotificacionDTO } from "../application/dtos/notificacion-dto";
+
+// La suite completa corre en paralelo y a veces lenta: margen amplio para esperas asíncronas.
+configure({ asyncUtilTimeout: 5000 });
+vi.setConfig({ testTimeout: 20_000 });
+
+const acciones = vi.hoisted(() => ({
+  contarNoLeidasAction: vi.fn(),
+  listarNotificacionesAction: vi.fn(),
+  marcarLeidaAction: vi.fn(),
+  marcarTodasLeidasAction: vi.fn(),
+}));
+vi.mock("../infrastructure/actions/notificaciones-actions", () => acciones);
+
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  refresh: vi.fn(),
+  replace: vi.fn(),
+  back: vi.fn(),
+  prefetch: vi.fn(),
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    onClick,
+    children,
+  }: {
+    href: string;
+    onClick?: MouseEventHandler<HTMLAnchorElement>;
+    children: ReactNode;
+  }) => (
+    <a href={String(href)} onClick={onClick}>
+      {children}
+    </a>
+  ),
+}));
+
+const toasts = vi.hoisted(() => ({
+  info: vi.fn(),
+  error: vi.fn(),
+  success: vi.fn(),
+  warning: vi.fn(),
+}));
+vi.mock("sonner", () => ({ toast: toasts }));
+
+const sesion = vi.hoisted(() => ({ permisos: ["notificaciones.ver_propias"] as string[] }));
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: { user: { permisos: sesion.permisos } } }),
+}));
+
+import { CampanaNotificaciones } from "./campana-notificaciones";
+import BandejaNotificacionesPage from "./bandeja-notificaciones-page";
+import { claveBandeja, claveConteo, claveRecientes } from "./notificaciones-swr";
+
+const ID = (i: number) => `${String(i).padStart(8, "0")}-1111-4111-8111-111111111111`;
+
+const n = (sobre: Partial<NotificacionDTO> = {}): NotificacionDTO => ({
+  id: ID(1),
+  tipo: "x.y",
+  titulo: "Ventana habilitada",
+  mensaje: "Puede actualizar sus datos",
+  enlace: "/autogestion/solicitudes",
+  leida: false,
+  fechaLectura: null,
+  creadaEn: "2026-10-29T15:00:00Z",
+  ...sobre,
+});
+
+const muchas = (cantidad: number) =>
+  Array.from({ length: cantidad }, (_, i) => n({ id: ID(i + 1), titulo: `Aviso ${i + 1}` }));
+
+const pagina = (resultados: NotificacionDTO[], total = resultados.length, desplazamiento = 0) => ({
+  ok: true as const,
+  mensaje: "",
+  datos: { total, limite: 10, desplazamiento, resultados },
+});
+
+const ultimaLlamadaListar = () => {
+  const llamadas = acciones.listarNotificacionesAction.mock.calls;
+  return llamadas[llamadas.length - 1][0];
+};
+
+function Envoltorio({ children }: { children: ReactNode }) {
+  return (
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  sesion.permisos = ["notificaciones.ver_propias"];
+  window.history.replaceState({}, "", "/");
+  acciones.contarNoLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 2 });
+  acciones.listarNotificacionesAction.mockResolvedValue(pagina([n()]));
+  acciones.marcarLeidaAction.mockResolvedValue({ ok: true, mensaje: "", datos: undefined });
+  acciones.marcarTodasLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 2 });
+});
+
+const campana = (props: { modulo?: "autogestion" | "personal"; ruta?: string } = {}) => (
+  <CampanaNotificaciones
+    modulo={props.modulo ?? "autogestion"}
+    rutaBandeja={props.ruta ?? "/autogestion/notificaciones"}
+  />
+);
+
+// jsdom no implementa estas APIs que usa el Select de Radix al abrirse.
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => undefined;
+Element.prototype.scrollIntoView ??= () => undefined;
+
+/** Las listas son Select de Radix (no <select> nativo): se abre y se elige la opción. */
+async function elegir(user: ReturnType<typeof userEvent.setup>, etiqueta: string, opcion: string) {
+  await user.click(screen.getByLabelText(etiqueta));
+  await user.click(await screen.findByRole("option", { name: new RegExp(`^${opcion}$`) }));
+}
+
+describe("Claves compartidas de notificaciones", () => {
+  it("son las mismas para todos los módulos (lectura por usuario)", () => {
+    expect(claveConteo()).toBe("notificaciones/conteo");
+    expect(claveRecientes()).toBe("notificaciones/recientes");
+    expect(claveBandeja({ limite: 10 })).toBe(
+      'notificaciones/bandeja/{"limite":10}',
+    );
+  });
+});
+
+describe("CampanaNotificaciones", () => {
+  it("muestra el conteo del módulo en el nombre accesible del botón", async () => {
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    expect(
+      await screen.findByRole("button", { name: "Notificaciones: 2 notificaciones sin leer" }),
+    ).toBeDefined();
+    expect(screen.getByRole("status").textContent).toBe("2 notificaciones sin leer");
+    expect(acciones.contarNoLeidasAction).toHaveBeenCalledWith();
+  });
+
+  it("sin el permiso no se muestra ni se consulta nada", () => {
+    sesion.permisos = ["autogestion.ver_propio"];
+    const { container } = render(campana(), { wrapper: Envoltorio });
+    expect(container.innerHTML).toBe("");
+    expect(acciones.contarNoLeidasAction).not.toHaveBeenCalled();
+  });
+
+  it("muestra como máximo las 4 últimas no leídas del módulo", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(pagina(muchas(7), 7));
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    expect(await screen.findByText("Aviso 1")).toBeDefined();
+    expect(screen.getAllByText(/^Aviso \d$/)).toHaveLength(4);
+    expect(acciones.listarNotificacionesAction).toHaveBeenCalledWith({
+      leida: false,
+      limite: 4,
+    });
+  });
+
+  it("«Ver todas» es un enlace a la bandeja del módulo actual", async () => {
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    const enlace = await screen.findByRole("link", { name: "Ver todas" });
+    expect(enlace.getAttribute("href")).toBe("/personal/notificaciones");
+  });
+
+  it("«Marcar todas como leídas» marca las del usuario y refresca el conteo", async () => {
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    expect(await screen.findByText("Ventana habilitada")).toBeDefined();
+    acciones.contarNoLeidasAction.mockResolvedValue({ ok: true, mensaje: "", datos: 0 });
+    await user.click(screen.getByRole("button", { name: /Marcar todas como leídas/ }));
+    await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith());
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Notificaciones: Sin notificaciones nuevas" }),
+      ).toBeDefined(),
+    );
+  });
+
+  it("sin permiso de Autogestión no se ofrece «Ver detalle» de un enlace a ese módulo", async () => {
+    const user = userEvent.setup();
+    render(campana(), { wrapper: Envoltorio });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await screen.findByText("Ventana habilitada");
+    expect(screen.queryByRole("link", { name: /Ver detalle/ })).toBeNull();
+  });
+
+  it("con permiso de Autogestión sí se ofrece «Ver detalle»", async () => {
+    sesion.permisos = ["notificaciones.ver_propias", "autogestion.ver_propio"];
+    const user = userEvent.setup();
+    render(campana(), { wrapper: Envoltorio });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    expect(await screen.findByRole("link", { name: /Ver detalle/ })).toBeDefined();
+  });
+
+  it("«Ver detalle» navega a la ruta notificada y marca leída", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([n({ enlace: "/personal/consultar" })]),
+    );
+    window.history.replaceState({}, "", "/personal/notificaciones");
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await user.click(await screen.findByRole("link", { name: /Ver detalle/ }));
+
+    expect(router.push).toHaveBeenCalledWith("/personal/consultar");
+    expect(router.refresh).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(acciones.marcarLeidaAction).toHaveBeenCalledWith(ID(1)),
+    );
+  });
+
+  it("si ya está en la ruta, recarga y avisa en vez de quedarse en silencio", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([n({ enlace: "/personal/consultar" })]),
+    );
+    window.history.replaceState({}, "", "/personal/consultar");
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await user.click(await screen.findByRole("link", { name: /Ver detalle/ }));
+
+    expect(router.refresh).toHaveBeenCalledTimes(1);
+    expect(router.push).not.toHaveBeenCalled();
+    expect(toasts.info).toHaveBeenCalled();
+  });
+
+  it("con un enlace inválido avisa y no navega", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([n({ enlace: "javascript:alert(1)" })]),
+    );
+    const user = userEvent.setup();
+    render(campana({ modulo: "personal", ruta: "/personal/notificaciones" }), {
+      wrapper: Envoltorio,
+    });
+    await user.click(await screen.findByRole("button", { name: /Notificaciones: 2/ }));
+    await user.click(await screen.findByRole("link", { name: /Ver detalle/ }));
+
+    expect(toasts.error).toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("BandejaNotificacionesPage", () => {
+  it("pide la bandeja del módulo con 10 por página y sin filtros", async () => {
+    render(<BandejaNotificacionesPage modulo="personal" />, { wrapper: Envoltorio });
+    await screen.findByText("Ventana habilitada");
+    expect(ultimaLlamadaListar()).toEqual({
+      limite: 10,
+      desplazamiento: 0,
+    });
+  });
+
+  it("muestra el estado vacío", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(pagina([]));
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    expect(await screen.findByText("No tiene notificaciones")).toBeDefined();
+  });
+
+  it("lista las notificaciones con estado en texto y enlace", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([n(), n({ id: ID(2), titulo: "Vieja", leida: true })]),
+    );
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    expect(await screen.findByText("Ventana habilitada")).toBeDefined();
+    expect(screen.getByText("Nueva")).toBeDefined();
+    expect(screen.getByText("Leída")).toBeDefined();
+  });
+
+  it("marcar como leída llama a la acción con el id", async () => {
+    const user = userEvent.setup();
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    await user.click(await screen.findByRole("button", { name: "Marcar como leída" }));
+    await waitFor(() => expect(acciones.marcarLeidaAction).toHaveBeenCalledWith(ID(1)));
+  });
+
+  it("muestra el error con opción de reintentar", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue({ ok: false, mensaje: "Falla" });
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    expect(await screen.findByRole("alert")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeDefined();
+  });
+
+  it("pagina con Anterior/Siguiente y muestra el total", async () => {
+    acciones.listarNotificacionesAction.mockImplementation(async (f: { desplazamiento: number }) =>
+      pagina(muchas(10), 25, f.desplazamiento),
+    );
+    const user = userEvent.setup();
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    expect(await screen.findByText(/Mostrando 1–10 de 25/)).toBeDefined();
+    const anterior = screen.getByRole("button", { name: /Anterior/ }) as HTMLButtonElement;
+    expect(anterior.disabled).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: /Siguiente/ }));
+    expect(await screen.findByText(/Mostrando 11–20 de 25/)).toBeDefined();
+    await waitFor(() => expect(ultimaLlamadaListar().desplazamiento).toBe(10));
+    await waitFor(() =>
+      expect(
+        (screen.getByRole("button", { name: /Siguiente/ }) as HTMLButtonElement).disabled,
+      ).toBe(false),
+    );
+
+    await user.click(screen.getByRole("button", { name: /Siguiente/ }));
+    await waitFor(() =>
+      expect(screen.getByRole("navigation", { name: /Paginación/ }).textContent).toContain("21–25"),
+    );
+    expect((screen.getByRole("button", { name: /Siguiente/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Anterior/ }));
+    expect(await screen.findByText(/Mostrando 11–20 de 25/)).toBeDefined();
+  });
+
+  it("la búsqueda de texto espera (debounce) y vuelve a la primera página", async () => {
+    const user = userEvent.setup();
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    await screen.findByText("Ventana habilitada");
+    const antes = acciones.listarNotificacionesAction.mock.calls.length;
+    await user.type(screen.getByRole("searchbox"), "venta");
+    // Mientras se escribe no se consulta en cada pulsación.
+    expect(acciones.listarNotificacionesAction.mock.calls.length).toBe(antes);
+    await waitFor(() => expect(ultimaLlamadaListar().q).toBe("venta"), { timeout: 2000 });
+    expect(ultimaLlamadaListar().desplazamiento).toBe(0);
+  });
+
+  it("los filtros de tipo, estado y fechas llegan a la acción", async () => {
+    const user = userEvent.setup();
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    await screen.findByText("Ventana habilitada");
+
+    await elegir(user, "Tipo", "Plazo vencido");
+    await waitFor(() => expect(ultimaLlamadaListar().tipo).toBe("autogestion.ventana_expirada"));
+
+    await elegir(user, "Estado", "No leídas");
+    await waitFor(() => expect(ultimaLlamadaListar().leida).toBe(false));
+    await elegir(user, "Estado", "Leídas");
+    await waitFor(() => expect(ultimaLlamadaListar().leida).toBe(true));
+
+    fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-10-01" } });
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-10-29" } });
+    await waitFor(() => {
+      const f = ultimaLlamadaListar();
+      expect(f.desde).toBe("2026-10-01");
+      expect(f.hasta).toBe("2026-10-29");
+    });
+  });
+
+  it("con filtros sin resultados lo dice y con fechas invertidas no consulta", async () => {
+    acciones.listarNotificacionesAction.mockResolvedValue(pagina([]));
+    const user = userEvent.setup();
+    render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
+    await elegir(user, "Estado", "No leídas");
+    expect(await screen.findByText("Ninguna notificación coincide con los filtros")).toBeDefined();
+
+    const llamadas = acciones.listarNotificacionesAction.mock.calls.length;
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-10-01" } });
+    fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-10-20" } });
+    expect(await screen.findByText(/no puede ser posterior/)).toBeDefined();
+    expect(acciones.listarNotificacionesAction.mock.calls.length).toBeLessThanOrEqual(llamadas + 1);
+  });
+
+  it("«Marcar todas como leídas» marca todas las del usuario", async () => {
+    const user = userEvent.setup();
+    render(<BandejaNotificacionesPage modulo="personal" />, { wrapper: Envoltorio });
+    await screen.findByText("Ventana habilitada");
+    await user.click(screen.getByRole("button", { name: /Marcar todas como leídas/ }));
+    await waitFor(() => expect(acciones.marcarTodasLeidasAction).toHaveBeenCalledWith());
+  });
+
+  it("CampanaNotificaciones (Punto 10): panel tiene max-h, scroll interno y pie Ver todas fijo sin solapamiento", async () => {
+    const user = userEvent.setup();
+    acciones.contarNoLeidasAction.mockResolvedValue({ exito: true, datos: 3 });
+    acciones.listarNotificacionesAction.mockResolvedValue(
+      pagina([
+        n({ id: "n-1", titulo: "Notificación 1" }),
+        n({ id: "n-2", titulo: "Notificación 2" }),
+        n({ id: "n-3", titulo: "Notificación 3" }),
+      ]),
+    );
+
+    render(
+      <CampanaNotificaciones modulo="personal" rutaBandeja="/personal/notificaciones" />,
+      { wrapper: Envoltorio },
+    );
+
+    const botonCampana = screen.getByRole("button", { name: /Notificaciones:/i });
+    await user.click(botonCampana);
+
+    expect(await screen.findByText("Notificación 1")).toBeInTheDocument();
+    expect(screen.getByText("Notificación 2")).toBeInTheDocument();
+    expect(screen.getByText("Notificación 3")).toBeInTheDocument();
+
+    const enlaceVerTodas = screen.getByRole("link", { name: /Ver todas/i });
+    expect(enlaceVerTodas).toBeInTheDocument();
+    expect(enlaceVerTodas.closest("div")).toHaveClass("border-t");
+  });
+});

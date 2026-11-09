@@ -6,13 +6,15 @@ import { ReactNode } from "react";
 interface EmployeeSummary {
   nombres: string;
   apellidos?: string;
-  cedulaidentidad: string;
+  cedulaidentidad?: string;
+  cedula?: string;
 }
 
 interface EmployeeInfoBannerProps {
   employee: EmployeeSummary | null;
   hasSearched: boolean;
   isLoading: boolean;
+  errorMessage?: string;
   extraFields?: { label: string; value: string }[];
   children?: ReactNode;
 }
@@ -21,6 +23,7 @@ export function EmployeeInfoBanner({
   employee,
   hasSearched,
   isLoading,
+  errorMessage,
   extraFields,
   children,
 }: EmployeeInfoBannerProps) {
@@ -30,7 +33,7 @@ export function EmployeeInfoBanner({
     return (
       <div className="border-2 border-red-400/45 bg-red-200/40 rounded-sm p-2 flex items-center gap-2">
         <CircleAlert className="size-4 text-red-600" />
-        <span className="text-red-700">Cédula Inválida</span>
+        <span className="text-red-700">{errorMessage || "Trabajador no encontrado"}</span>
       </div>
     );
   }
@@ -40,7 +43,7 @@ export function EmployeeInfoBanner({
       <div className="flex flex-row gap-2 flex-wrap">
         <p>Nombres: {employee.nombres}</p>
         {employee.apellidos && <p>Apellidos: {employee.apellidos}</p>}
-        <p>Cédula: {employee.cedulaidentidad}</p>
+        <p>Cédula: {employee.cedulaidentidad ?? employee.cedula}</p>
       </div>
       {extraFields?.map(
         (field, i) =>

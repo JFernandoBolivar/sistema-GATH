@@ -1,0 +1,30 @@
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { HeaderLayout } from "@/components/layout/header";
+import { AppSidebarPersonal } from "@/modules/personal/ui/components/app-sidebar-personal";
+
+export default function FamiliaresLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <SidebarProvider>
+      <AppSidebarPersonal />
+      <SidebarInset className="min-w-0 bg-transparent">
+        <HeaderLayout
+          title="Gestión Administrativa de Talento Humano - GATH"
+          subtitle="Cargas Familiares de los Trabajadores"
+          moduloNotificaciones="personal"
+          rutaNotificaciones="/personal/notificaciones"
+        >
+          <SidebarTrigger className="text-white scale-110" />
+        </HeaderLayout>
+        <main id="contenido-principal" tabIndex={-1} className="w-full h-full">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}

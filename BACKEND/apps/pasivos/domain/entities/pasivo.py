@@ -1,0 +1,55 @@
+"""
+Entidad de Dominio `Pasivo` (Regla B1).
+Representa a un trabajador jubilado, pensionado o sobreviviente.
+"""
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class Pasivo:
+    id: int
+    cedula: str
+    nombres: str
+    apellidos: str
+    tipo_pasivo: str
+    tipo_nomina_id: int | None = None
+    fecha_egreso: str | None = None
+    motivo_egreso_id: int | None = None
+    motivo_egreso: str | None = None
+    resolucion: str | None = None
+    observaciones: str | None = None
+    correo: str | None = None
+    correo_alternativo: str | None = None
+    telefono_movil: str | None = None
+    telefono_habitacion: str | None = None
+    carnet_patria: str | None = None
+    carnet_patria_serial: str | None = None
+    fecha_nacimiento: str | None = None
+    sexo_nombre: str | None = None
+    fecha_ingreso_organismo: str | None = None
+    estado_civil_id: int | None = None
+    nacionalidad_id: int | None = None
+    # Expediente anidado (Fase 2.1/2.2 del plan de reparación): reutiliza el
+    # mismo expediente de `apps.personal` (un pasivo también es un
+    # `Employee`) — solo se puebla en `obtener_por_cedula` (detalle).
+    datos_vivienda: dict | None = None
+    perfil_salud: dict | None = None
+    perfil_fisico: dict | None = None
+    formacion_academica: list = field(default_factory=list)
+    formacion_complementaria: list = field(default_factory=list)
+    contacto_emergencia: list = field(default_factory=list)
+    antecedentes: list = field(default_factory=list)
+    apn_antecedentes: dict | None = None
+    apn_en_curso: dict | None = None
+    apn_total: dict | None = None
+    apn_incompleto: bool = False
+    fecha_ingreso_apn: str | None = None
+    contrato_actual: dict | None = None
+    cargos_historial: list = field(default_factory=list)
+    contratos: list = field(default_factory=list)
+    asignaciones: list = field(default_factory=list)
+    encargadurias: list = field(default_factory=list)
+
+    @property
+    def nombre_completo(self) -> str:
+        return f"{self.nombres} {self.apellidos}".strip()

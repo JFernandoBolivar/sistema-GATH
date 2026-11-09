@@ -1,0 +1,317 @@
+"use client";
+
+/**
+ * Paso 7 del wizard de registro: Datos Socio-económicos / Vivienda (paridad
+ * con `form-dwelling.tsx` del legado). Cascada Estado -> Municipio ->
+ * Parroquia y Estado -> Código Postal con los filtros del backend.
+ */
+import { ContadorCampo } from "@/components/contador-caracteres";
+import { LIMITES_TEXTO } from "@/shared/validation/limites-texto";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import { Button } from "@/shared/ui/components/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/shared/ui/components/card";
+import { Combobox } from "@/shared/ui/components/combobox";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/ui/components/form";
+import { Input } from "@/shared/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/components/select";
+
+import type { CatalogosExpedienteDTO } from "../../application/dtos/empleado-dto";
+import { crearPasoDwellingSchema, type PasoDwellingType } from "../schema/schema-registro-pasos";
+import { useCatalogoDependiente } from "../use-catalogo-dependiente";
+import { useErroresDelPaso, type ErroresServidor } from "./errores-registro";
+
+export function PasoDwelling({
+  defaultValues,
+  onSubmit,
+  catalogos,
+  isLoadingCatalogos,
+  isPending,
+  erroresServidor,
+  permitirPais = false,
+}: {
+  defaultValues: PasoDwellingType;
+  onSubmit: (values: PasoDwellingType) => void;
+  catalogos: CatalogosExpedienteDTO | null;
+  isLoadingCatalogos: boolean;
+  isPending: boolean;
+  erroresServidor?: ErroresServidor | null;
+  /** O40: solo pasivos. Los activos conservan el formulario venezolano. */
+  permitirPais?: boolean;
+}) {
+  const esVenezuelaRef = useRef(true);
+  const resolver = useCallback<Resolver<PasoDwellingType>>(
+    (values, context, options) =>
+      zodResolver(crearPasoDwellingSchema(esVenezuelaRef.current))(values, context, options),
+    [],
+  );
+  const form = useForm<PasoDwellingType>({
+    resolver,
+    defaultValues,
+  });
+  useErroresDelPaso(form, erroresServidor, 6);
+  const paisId = useWatch({ control: form.control, name: "datos_vivienda.pais_id" });
+  const paisElegido = useMemo(
+    () => catalogos?.paises.find((p) => p.id === paisId),
+    [catalogos, paisId],
+  );
+  const esVenezuela = paisId ? (paisElegido?.esVenezuela ?? true) : true;
+  const estadoId = useWatch({ control: form.control, name: "datos_vivienda.estado_id" });
+  const municipioId = useWatch({ control: form.control, name: "datos_vivienda.municipio_id" });
+
+  useEffect(() => {
+    esVenezuelaRef.current = esVenezuela;
+  }, [esVenezuela]);
+
+  // País por defecto: Venezuela, si el catálogo ya está disponible.
+  useEffect(() => {
+    if (!permitirPais || paisId) return;
+    const venezuela = catalogos?.paises.find((p) => p.esVenezuela);
+    if (venezuela) form.setValue("datos_vivienda.pais_id", venezuela.id);
+  }, [catalogos, form, paisId, permitirPais]);
+
+  const { opciones: municipios, isLoading: isLoadingMunicipios } = useCatalogoDependiente("municipios", estadoId);
+  const { opciones: parroquias, isLoading: isLoadingParroquias } = useCatalogoDependiente("parroquias", municipioId);
+  const { opciones: codigosPostales, isLoading: isLoadingCodigosPostales } = useCatalogoDependiente(
+    "codigosPostales",
+    estadoId,
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Datos Socio-economicos</CardTitle>
+      </CardHeader>
+      <CardContent className="gap-3">
+        <CardAction className="text-gray-500">Paso 6: Datos De Vivienda</CardAction>
+        <div>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
+              {permitirPais || (!esVenezuela && paisId) ? (
+                <FormField
+                  control={form.control}
+                  name="datos_vivienda.pais_id"
+                  render={({ field }) => (
+                    <FormItem className="min-w-0">
+                      <FormLabel>País *</FormLabel>
+                      <FormControl>
+                        <Select
+                          value={field.value ? `${field.value}` : undefined}
+                          onValueChange={(v) => {
+                            const id = Number.parseInt(v);
+                            field.onChange(id);
+                            const elegido = catalogos?.paises.find((p) => p.id === id);
+                            if (elegido?.esVenezuela) {
+                              form.setValue("datos_vivienda.ciudad_region", "");
+                            } else {
+                              form.setValue("datos_vivienda.estado_id", 0);
+                              form.setValue("datos_vivienda.municipio_id", 0);
+                              form.setValue("datos_vivienda.parroquia", 0);
+                              form.setValue("datos_vivienda.codigo_postal_id", 0);
+                            }
+                          }}
+                          disabled={isLoadingCatalogos}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full truncate">
+                              <SelectValue
+                                placeholder={
+                                  isLoadingCatalogos ? "Cargando Países" : "Seleccione un País"
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(catalogos?.paises ?? []).map((p) => (
+                              <SelectItem key={p.id} value={`${p.id}`}>
+                                {p.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+              {!esVenezuela ? (
+                <FormField
+                  control={form.control}
+                  name="datos_vivienda.ciudad_region"
+                  render={({ field }) => (
+                    <FormItem className="min-w-0">
+                      <FormLabel>Ciudad o Región *</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ciudad, estado o región del país de residencia"
+                          maxLength={120}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+              {esVenezuela ? (
+                <>
+              <FormField
+                control={form.control}
+                name="datos_vivienda.estado_id"
+                render={({ field }) => (
+                  <FormItem className="min-w-0">
+                    <FormLabel>Estado *</FormLabel>
+                    <FormControl>
+                      <Combobox
+                        options={(catalogos?.estados ?? []).map((e) => ({ value: `${e.id}`, label: e.nombre }))}
+                        value={field.value ? `${field.value}` : ""}
+                        onChange={(value) => {
+                          field.onChange(Number.parseInt(value));
+                          form.setValue("datos_vivienda.municipio_id", 0);
+                          form.setValue("datos_vivienda.parroquia", 0);
+                          form.setValue("datos_vivienda.codigo_postal_id", 0);
+                        }}
+                        disabled={isLoadingCatalogos}
+                        placeholder={isLoadingCatalogos ? "Cargando Estados" : "Seleccione un Estado"}
+                        searchPlaceholder="Buscar estado..."
+                      />
+                    </FormControl>
+                    <FormDescription>Esta Información Sera Publica</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="datos_vivienda.municipio_id"
+                render={({ field }) => (
+                  <FormItem className="min-w-0">
+                    <FormLabel>Municipio *</FormLabel>
+                    <FormControl>
+                      <Combobox
+                        options={municipios.map((m) => ({ value: `${m.id}`, label: m.nombre }))}
+                        value={field.value ? `${field.value}` : ""}
+                        onChange={(value) => {
+                          field.onChange(Number.parseInt(value));
+                          form.setValue("datos_vivienda.parroquia", 0);
+                        }}
+                        disabled={isLoadingMunicipios}
+                        placeholder={isLoadingMunicipios ? "Cargando Municipios" : "Seleccione un Municpio"}
+                        searchPlaceholder="Buscar municipio..."
+                      />
+                    </FormControl>
+                    <FormDescription>Esta Información Sera Publica</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="datos_vivienda.parroquia"
+                render={({ field }) => (
+                  <FormItem className="min-w-0">
+                    <FormLabel>Parroquia *</FormLabel>
+                    <FormControl>
+                      <Combobox
+                        options={parroquias.map((p) => ({ value: `${p.id}`, label: p.nombre }))}
+                        value={field.value ? `${field.value}` : ""}
+                        onChange={(value) => field.onChange(Number.parseInt(value))}
+                        disabled={isLoadingParroquias}
+                        placeholder={isLoadingParroquias ? "Cargando Parroquias" : "Seleccione una Parroquia"}
+                        searchPlaceholder="Buscar parroquia..."
+                      />
+                    </FormControl>
+                    <FormDescription>Esta Información Sera Publica</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+                </>
+              ) : null}
+              <FormField
+                control={form.control}
+                name="datos_vivienda.condicion_vivienda_id"
+                render={({ field }) => (
+                  <FormItem className="min-w-0">
+                    <FormLabel>Condicion De Vivienda *</FormLabel>
+                    <Select
+                      value={field.value ? `${field.value}` : undefined}
+                      onValueChange={(v) => field.onChange(Number.parseInt(v))}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full truncate">
+                          <SelectValue
+                            placeholder={`${isLoadingCatalogos ? "Cargando Condiciones De Vivienda" : "Seleccione una Condicion De Vivienda"}`}
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(catalogos?.condicionesVivienda ?? []).map((c) => (
+                          <SelectItem key={c.id} value={`${c.id}`}>
+                            {c.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>Esta Información Sera Publica</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="datos_vivienda.direccion_exacta"
+                render={({ field }) => (
+                  <FormItem className="min-w-0 md:col-span-2">
+                    <FormLabel>Direccion Exacta *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Calle, Casa, Apartamento, Sector" maxLength={LIMITES_TEXTO.direccion.max} {...field} />
+                    </FormControl>
+                    <ContadorCampo control={form.control} name="datos_vivienda.direccion_exacta" max={LIMITES_TEXTO.direccion.max} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {esVenezuela ? (
+                <FormField
+                  control={form.control}
+                  name="datos_vivienda.codigo_postal_id"
+                  render={({ field }) => (
+                    <FormItem className="min-w-0">
+                      <FormLabel>Código Postal *</FormLabel>
+                      <FormControl>
+                        <Combobox
+                          options={codigosPostales.map((cp) => ({ value: `${cp.id}`, label: cp.nombre }))}
+                          value={field.value ? `${field.value}` : ""}
+                          onChange={(v) => field.onChange(Number.parseInt(v))}
+                          placeholder={isLoadingCodigosPostales ? "Cargando Códigos Postales" : "Seleccione un Código Postal"}
+                          searchPlaceholder="Buscar código postal..."
+                          emptyText="No hay coincidencias."
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
+              <Button className="w-full md:col-span-2" disabled={isPending}>
+                Siguiente
+              </Button>
+            </form>
+          </Form>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

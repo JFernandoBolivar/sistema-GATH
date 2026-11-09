@@ -1,0 +1,67 @@
+"""
+Jerarquía de excepciones de dominio (B2.1).
+
+Puras: sin dependencias de Django ni DRF (regla B1). La traducción a
+respuestas HTTP ocurre exclusivamente en `core/presentation/exception_handler.py`
+(regla B10) — nunca en las vistas ni aquí.
+"""
+
+
+class DomainError(Exception):
+    """Raíz de toda excepción de negocio en GATH."""
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args)
+        self.campo = campo
+
+
+class NotFoundError(DomainError):
+    """El recurso solicitado no existe."""
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args, campo=campo)
+
+
+class ValidationError(DomainError):
+    """Un Value Object o una regla de negocio detecta un dato inválido.
+
+    `campo` (opcional) es el nombre del dato que falló, tal como llega en la
+    petición (p. ej. 'cedulaidentidad' o 'contacto_emergencia.0.telefono'), para
+    que el formulario lo marque en rojo.
+    """
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args, campo=campo)
+
+
+class PermissionDeniedError(DomainError):
+    """El actor no tiene el permiso o la propiedad requerida sobre el recurso."""
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args, campo=campo)
+
+
+class ConflictError(DomainError):
+    """La operación entra en conflicto con el estado actual del recurso (409)."""
+
+    def __init__(self, *args, campo: str | None = None):
+        super().__init__(*args, campo=campo)
+
+
+class AlmacenamientoNoDisponible(DomainError):
+    """
+    El backend de almacenamiento de archivos (S3/SeaweedFS) no está disponible
+    o una operación de subida/descarga/firma de URL falló (503).
+
+    Corrige CRIT-01 de AUDITORIA_CALIDAD_BACKEND_2026-09-15.md: antes de esta
+    excepción, `SeaweedFSStorage` fallaba en silencio (cliente no disponible)
+    y devolvía valores que aparentaban éxito sin persistir ningún dato.
+    """
+
+
+class ColaTareasNoDisponible(DomainError):
+    """
+    La cola de tareas asíncronas (Celery/RabbitMQ) no está configurada o no
+    acepta tareas (503). Se lanza en vez de simular un éxito: encolar una
+    tarea que nadie ejecutará es un fallo silencioso.
+    """

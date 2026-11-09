@@ -1,0 +1,47 @@
+{
+  "//": "GATH Fase 2 · identidades S3 de SeaweedFS (§12.4).",
+  "//1": "PLANTILLA. Genera el archivo real con ./generar-secretos.sh — nunca",
+  "//2": "escribas claves aquí ni versiones seaweedfs/identities.json.",
+  "//3": "Ninguna identidad tiene 'Admin', y ninguna puede borrar de",
+  "//4": "gath-documentos: un documento firmado no se elimina desde la app.",
+
+  "identities": [
+    {
+      "name": "gath-app",
+      "//": "La usan Django y los workers. Lectura y escritura, sin borrado.",
+      "credentials": [
+        { "accessKey": "__GATH_APP_KEY__", "secretKey": "__GATH_APP_SECRET__" }
+      ],
+      "actions": [
+        "Read:gath-fotos",       "Write:gath-fotos",       "List:gath-fotos",
+        "Read:gath-documentos",  "Write:gath-documentos",  "List:gath-documentos",
+        "Read:gath-soportes",    "Write:gath-soportes",    "List:gath-soportes",
+        "Read:gath-plantillas",  "Write:gath-plantillas",  "List:gath-plantillas"
+      ]
+    },
+    {
+      "name": "gath-lector",
+      "//": "Reportes y conciliación. Sólo lectura.",
+      "credentials": [
+        { "accessKey": "__GATH_LECTOR_KEY__", "secretKey": "__GATH_LECTOR_SECRET__" }
+      ],
+      "actions": [
+        "Read:gath-documentos", "List:gath-documentos",
+        "Read:gath-fotos",      "List:gath-fotos"
+      ]
+    },
+    {
+      "name": "gath-respaldo",
+      "//": "El trabajo de respaldo (§12.10). Sólo lectura sobre todo.",
+      "credentials": [
+        { "accessKey": "__GATH_RESPALDO_KEY__", "secretKey": "__GATH_RESPALDO_SECRET__" }
+      ],
+      "actions": [
+        "Read:gath-fotos",      "List:gath-fotos",
+        "Read:gath-documentos", "List:gath-documentos",
+        "Read:gath-soportes",   "List:gath-soportes",
+        "Read:gath-plantillas", "List:gath-plantillas"
+      ]
+    }
+  ]
+}

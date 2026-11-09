@@ -1,0 +1,52 @@
+from django.urls import path
+
+from apps.reportes.presentation.views.reportes_views import (
+    ReporteCodigosExcelView,
+    ReporteCodigosPdfView,
+    ReporteCodigosView,
+    ReporteDistribucionNominaExcelView,
+    ReporteDistribucionNominaPdfView,
+    ReporteDistribucionNominaView,
+    ReporteFamiliaresExcelView,
+    ReporteFamiliaresPdfView,
+    ReporteFamiliaresView,
+    ReportePasivosExcelView,
+    ReportePasivosPdfView,
+    ReportePasivosView,
+    ReportePersonalActivoExcelView,
+    ReportePersonalActivoPdfView,
+    ReportePersonalActivoView,
+    ReporteTendenciasExcelView,
+    ReporteTendenciasPdfView,
+    ReporteTendenciasView,
+    ReporteVacantesExcelView,
+    ReporteVacantesPdfView,
+    ReporteVacantesView,
+)
+
+app_name = 'reportes'
+
+urlpatterns = [
+    path('personal-activo/', ReportePersonalActivoView.as_view(), name='reporte-personal-activo'),
+    path('personal-activo/pdf/', ReportePersonalActivoPdfView.as_view(), name='reporte-personal-activo-pdf'),
+    path('personal-activo/excel/', ReportePersonalActivoExcelView.as_view(), name='reporte-personal-activo-excel'),
+    path('excel/', ReportePersonalActivoExcelView.as_view(), name='reporte-excel'),
+    path('pasivos/', ReportePasivosView.as_view(), name='reporte-pasivos'),
+    path('pasivos/pdf/', ReportePasivosPdfView.as_view(), name='reporte-pasivos-pdf'),
+    path('pasivos/excel/', ReportePasivosExcelView.as_view(), name='reporte-pasivos-excel'),
+    path('cargos-vacantes/', ReporteVacantesView.as_view(), name='reporte-vacantes'),
+    path('cargos-vacantes/pdf/', ReporteVacantesPdfView.as_view(), name='reporte-vacantes-pdf'),
+    path('cargos-vacantes/excel/', ReporteVacantesExcelView.as_view(), name='reporte-vacantes-excel'),
+    path('familiares/', ReporteFamiliaresView.as_view(), name='reporte-familiares'),
+    path('familiares/pdf/', ReporteFamiliaresPdfView.as_view(), name='reporte-familiares-pdf'),
+    path('familiares/excel/', ReporteFamiliaresExcelView.as_view(), name='reporte-familiares-excel'),
+    path('codigos/', ReporteCodigosView.as_view(), name='reporte-codigos'),
+    path('codigos/pdf/', ReporteCodigosPdfView.as_view(), name='reporte-codigos-pdf'),
+    path('codigos/excel/', ReporteCodigosExcelView.as_view(), name='reporte-codigos-excel'),
+    path('tendencias/', ReporteTendenciasView.as_view(), name='reporte-tendencias'),
+    path('tendencias/pdf/', ReporteTendenciasPdfView.as_view(), name='reporte-tendencias-pdf'),
+    path('tendencias/excel/', ReporteTendenciasExcelView.as_view(), name='reporte-tendencias-excel'),
+    path('distribucion-nomina/', ReporteDistribucionNominaView.as_view(), name='reporte-distribucion-nomina'),
+    path('distribucion-nomina/pdf/', ReporteDistribucionNominaPdfView.as_view(), name='reporte-distribucion-nomina-pdf'),
+    path('distribucion-nomina/excel/', ReporteDistribucionNominaExcelView.as_view(), name='reporte-distribucion-nomina-excel'),
+]

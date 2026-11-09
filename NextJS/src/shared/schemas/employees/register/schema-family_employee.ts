@@ -1,3 +1,4 @@
+import { LIMITES_TEXTO, textoLibreOpcional } from "@/shared/validation/limites-texto";
 import z from "zod";
 
 export const schemaFamilyEmployee = z.object({
@@ -39,7 +40,7 @@ export const schemaFamilyEmployee = z.object({
     .optional(),
   sexo: z.number().optional(),
   estadoCivil: z.number().optional(),
-  observaciones: z.string().optional(),
+  observaciones: textoLibreOpcional("Las observaciones", LIMITES_TEXTO.observacion).optional(),
   mismo_ente: z.boolean().optional(),
   heredero: z.boolean().optional(),
   perfil_salud_familiar: z

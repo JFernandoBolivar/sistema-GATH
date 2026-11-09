@@ -1,0 +1,74 @@
+"""
+Caso de uso: alta automática de la cuenta de un trabajador (decisión F, D8).
+
+- ACTIVO: cuando su `Employee.correo` es institucional (dominio de `DOMINIO_CORREO_INSTITUCIONAL`).
+- PASIVO / sobreviviente: cuando RRHH le carga un correo (cualquier dominio).
+Sin autorregistro. Si ya tiene cuenta no se duplica. Rol AUTOGESTION; contraseña inicial = la cédula,
+con vencimiento a 7 días (los validadores de fortaleza no se aplican a esa clave inicial). Puro (B4).
+"""
+from datetime import datetime
+from typing import Callable
+
+from apps.identidad.application.dtos.cuenta_dto import RegistrarCuentaDTO
+from apps.identidad.application.use_cases.registrar_usuario import registrar_usuario
+from apps.identidad.domain.entities.cuenta import Cuenta
+from apps.identidad.domain.events import EventoIdentidad, TipoEventoIdentidad
+from apps.identidad.domain.ports.repo_condicion_trabajador import RepoCondicionTrabajador
+from apps.identidad.domain.ports.repo_correo_acceso import RepoCorreoAcceso
+from apps.identidad.domain.ports.repo_cuentas import RepoCuentas
+from apps.identidad.domain.ports.repo_password_inicial import RepoPasswordInicial
+from apps.identidad.domain.services.politica_password_inicial import (
+    DIAS_VIGENCIA_PASSWORD_INICIAL,
+    ROL_AUTOGESTION_ID,
+    vencimiento_desde,
+)
+from apps.identidad.domain.value_objects.condicion_trabajador import CondicionTrabajador
+
+
+def aprovisionar_cuenta_trabajador(
+    repo_cuentas: RepoCuentas,
+    repo_correo: RepoCorreoAcceso,
+    repo_condicion: RepoCondicionTrabajador,
+    repo_password_inicial: RepoPasswordInicial,
+    publicar: Callable[[EventoIdentidad], None],
+    cedula: str,
+    dominio_institucional: str,
+    ahora: datetime,
+    permitir_pasivo: bool = False,
+    dias_vigencia: int = DIAS_VIGENCIA_PASSWORD_INICIAL,
+) -> Cuenta | None:
+    """Crea la cuenta si corresponde; devuelve la cuenta nueva o None si no hacía falta/no aplica.
+
+    Regla (decisión del usuario, 2026-11-03): cuando RRHH asigna un correo a un trabajador sin cuenta,
+    activo o pasivo, la cuenta se crea al momento, con cualquier dominio de correo. Es la misma regla
+    que ya aplicaba la sincronización diaria (`sincronizar_cuentas_trabajadores`), ahora inmediata.
+    `permitir_pasivo=False` conserva el comportamiento anterior para pasivos (no crea su cuenta)."""
+    cedula = str(cedula or '').strip()
+    if not cedula:
+        return None
+    correo = repo_correo.correo_de(cedula)
+    if not correo or repo_cuentas.existe_cuenta_para_cedula(cedula):
+        return None
+
+    condicion = repo_condicion.condicion_por_cedula(cedula)
+    if condicion is CondicionTrabajador.PASIVO and not permitir_pasivo:
+        return None
+    if condicion not in (CondicionTrabajador.ACTIVO, CondicionTrabajador.PASIVO) or '@' not in correo:
+        return None
+
+    rol_resolver = getattr(repo_cuentas, 'resolver_rol_autogestion_id', None)
+    if callable(rol_resolver):
+        rol_id = rol_resolver()
+    else:
+        rol_id = ROL_AUTOGESTION_ID
+    if rol_id is None:
+        return None
+
+    cuenta = registrar_usuario(
+        repo_cuentas, RegistrarCuentaDTO(cedula=cedula, password=cedula, rol_id=rol_id)
+    )
+    repo_password_inicial.emitir(cuenta.id, vencimiento_desde(ahora, dias_vigencia))
+    publicar(EventoIdentidad(
+        tipo=TipoEventoIdentidad.CUENTA_CREADA, cedula=cedula, dias_vigencia=dias_vigencia,
+    ))
+    return cuenta

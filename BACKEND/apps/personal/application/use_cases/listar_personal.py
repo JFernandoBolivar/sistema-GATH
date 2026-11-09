@@ -1,0 +1,99 @@
+"""
+Casos de uso para consultar la lista de empleados.
+"""
+from apps.personal.application.dtos.personal_dtos import EmpleadoDTO
+from apps.personal.domain.entities.empleado import Empleado
+from apps.personal.domain.ports.repo_personal import RepoPersonal
+
+
+def _empleado_a_dto(e: Empleado) -> EmpleadoDTO:
+    return EmpleadoDTO(
+        id=e.id,
+        cedula=e.cedula,
+        nombres=e.nombres,
+        apellidos=e.apellidos,
+        nombre_completo=e.nombre_completo,
+        sexo_id=e.sexo_id,
+        sexo_nombre=e.sexo_nombre,
+        correo=e.correo,
+        correo_alternativo=e.correo_alternativo,
+        telefono_movil=e.telefono_movil,
+        telefono_habitacion=e.telefono_habitacion,
+        fecha_nacimiento=e.fecha_nacimiento,
+        estado_civil_id=e.estado_civil_id,
+        estado_civil_nombre=e.estado_civil_nombre,
+        carnet_patria=e.carnet_patria,
+        carnet_patria_serial=e.carnet_patria_serial,
+        nacionalidad_id=e.nacionalidad_id,
+        nacionalidad_codigo=e.nacionalidad_codigo,
+        nacionalidad_nombre=e.nacionalidad_nombre,
+        total_anos_apn=e.total_anos_apn,
+        apn_antecedentes=e.apn_antecedentes,
+        apn_en_curso=e.apn_en_curso,
+        apn_total=e.apn_total,
+        apn_incompleto=e.apn_incompleto,
+        fecha_ingreso_apn=e.fecha_ingreso_apn,
+        profile=e.profile,
+        foto_url=e.foto_url,
+        datos_vivienda=e.datos_vivienda,
+        perfil_salud=e.perfil_salud,
+        perfil_fisico=e.perfil_fisico,
+        formacion_academica=e.formacion_academica,
+        formacion_complementaria=e.formacion_complementaria,
+        contacto_emergencia=e.contacto_emergencia,
+        antecedentes=e.antecedentes,
+        contrato_actual=e.contrato_actual,
+        contratos=e.contratos,
+        asignaciones=e.asignaciones,
+        encargadurias=e.encargadurias,
+    )
+
+
+def listar_personal(
+    repo: RepoPersonal,
+    busqueda: str | None = None,
+    codigo: str | None = None,
+    tipo_nomina: str | int | None = None,
+    dependencia_id: int | None = None,
+    direccion_general_id: int | None = None,
+    direccion_linea_id: int | None = None,
+    coordinacion_id: int | None = None,
+) -> list[EmpleadoDTO]:
+    entidades = repo.listar_empleados(
+        busqueda=busqueda,
+        codigo=codigo,
+        tipo_nomina=tipo_nomina,
+        dependencia_id=dependencia_id,
+        direccion_general_id=direccion_general_id,
+        direccion_linea_id=direccion_linea_id,
+        coordinacion_id=coordinacion_id,
+    )
+    return [_empleado_a_dto(e) for e in entidades]
+
+
+def listar_personal_paginado(
+    repo: RepoPersonal,
+    *,
+    page: int = 1,
+    page_size: int = 10,
+    busqueda: str | None = None,
+    codigo: str | None = None,
+    tipo_nomina: str | int | None = None,
+    dependencia_id: int | None = None,
+    direccion_general_id: int | None = None,
+    direccion_linea_id: int | None = None,
+    coordinacion_id: int | None = None,
+) -> tuple[list[EmpleadoDTO], int]:
+    """Una página del listado y el total; los filtros se aplican en el repositorio."""
+    entidades, total = repo.listar_empleados_paginados(
+        limit=page_size,
+        offset=(page - 1) * page_size,
+        busqueda=busqueda,
+        codigo=codigo,
+        tipo_nomina=tipo_nomina,
+        dependencia_id=dependencia_id,
+        direccion_general_id=direccion_general_id,
+        direccion_linea_id=direccion_linea_id,
+        coordinacion_id=coordinacion_id,
+    )
+    return [_empleado_a_dto(e) for e in entidades], total

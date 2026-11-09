@@ -1,0 +1,331 @@
+"""Consultas de fe de vida: propia del pasivo, historial, bandeja de Bienestar, evidencia, constancia y cobertura."""
+import uuid
+from dataclasses import replace
+from datetime import date, datetime
+
+from apps.fe_de_vida.application.dtos.fe_de_vida_dtos import (
+    CambioComparado,
+    DetalleRevision,
+    DetalleSolicitud,
+    EvidenciaLeible,
+    ItemPasivoPresencial,
+    ProcesoVigente,
+    VerificacionConstancia,
+)
+from apps.fe_de_vida.application.use_cases._comun import (
+    evento,
+    normalizar_pagina,
+    obtener_proceso,
+    obtener_solicitud,
+    obtener_solicitud_propia,
+    paginar,
+)
+from apps.fe_de_vida.domain.entities.constancia import ConstanciaFeDeVida
+from apps.fe_de_vida.domain.entities.filtros import FiltroBandeja, FiltroCobertura
+from apps.fe_de_vida.domain.entities.pasivo import PasivoCobertura
+from apps.fe_de_vida.domain.entities.proceso import ProcesoFeDeVida, ProrrogaProceso
+from apps.fe_de_vida.domain.entities.solicitud import ActorRevision, PermisosRevision, SolicitudFeDeVida
+from apps.fe_de_vida.domain.events import PublicadorEventos, PublicadorNulo, TipoEvento
+from apps.fe_de_vida.domain.ports.repos import (
+    BuscadorPasivosPresencial,
+    LectorAlcance,
+    LectorFichaPasivo,
+    LectorPasivos,
+    LectorValorActual,
+    RepoCambiosActa,
+    RepoCobertura,
+    RepoConstancias,
+    RepoProcesos,
+    RepoSolicitudesFeDeVida,
+)
+from apps.fe_de_vida.domain.services.reglas_proceso import puede_enviar
+from apps.fe_de_vida.domain.services.verificacion import codigo_con_formato_valido, enmascarar_cedula
+from apps.fe_de_vida.domain.value_objects.estados import EstadoProceso, EstadoSolicitud
+from core.domain.exceptions import NotFoundError, ValidationError
+
+
+# ── Pasivo ──
+def obtener_proceso_vigente(
+    repo_proc: RepoProcesos, repo_sol: RepoSolicitudesFeDeVida, alcance: LectorAlcance, *, cedula: str,
+    ahora: datetime,
+) -> ProcesoVigente | None:
+    """
+    El proceso en que el pasivo puede actuar hoy: abierto y en plazo, o con prórroga vigente que lo alcance,
+    y cuyo alcance (tipos de pensión) lo incluya.
+    """
+    candidatos = {p.id: p for p in repo_proc.listar('ABIERTO') if p.en_plazo(ahora)}
+    candidatos.update({p.id: p for p in repo_proc.listar_con_prorroga_vigente(cedula, ahora)})
+    tipo = alcance.tipo_nomina_de(cedula)
+    candidatos = {i: p for i, p in candidatos.items() if p.aplica_a(tipo)}
+    if not candidatos:
+        return None
+    proceso = max(candidatos.values(), key=lambda p: p.fecha_apertura)
+    habilitado = puede_enviar(proceso, repo_proc.listar_prorrogas(proceso.id), cedula, ahora)
+    guia_vista = repo_proc.ha_visto_guia(proceso.id, cedula) if hasattr(repo_proc, 'ha_visto_guia') else False
+    return ProcesoVigente(proceso, repo_sol.obtener_de(proceso.id, cedula), habilitado, guia_vista)
+
+
+def marcar_guia_proceso_vista(
+    repo_proc: RepoProcesos, *, proceso_id: str, cedula: str,
+) -> None:
+    """Registra en el servidor que el pasivo ha visto la guía interactiva en este proceso (O22)."""
+    repo_proc.marcar_guia_vista(proceso_id, cedula)
+
+
+
+def obtener_mi_solicitud(
+    repo_sol: RepoSolicitudesFeDeVida, repo_cambios: RepoCambiosActa, *, solicitud_id: str, cedula: str,
+) -> DetalleSolicitud:
+    solicitud = obtener_solicitud_propia(repo_sol, solicitud_id, cedula)
+    return DetalleSolicitud(solicitud, repo_cambios.listar(solicitud.id))
+
+
+def listar_mis_solicitudes(
+    repo_sol: RepoSolicitudesFeDeVida, *, cedula: str, estado: str | None = None, limite: int | None = None,
+    desplazamiento: int | None = None,
+) -> tuple[list[SolicitudFeDeVida], int]:
+    """Historial del pasivo: una solicitud por proceso (la más reciente primero)."""
+    propias = [s for s in repo_sol.listar_de_cedula(cedula) if not estado or s.estado.value == estado]
+    return paginar(propias, limite, desplazamiento)
+
+
+def obtener_mi_constancia(
+    repo_sol: RepoSolicitudesFeDeVida, repo_const: RepoConstancias, *, solicitud_id: str, cedula: str,
+) -> ConstanciaFeDeVida:
+    solicitud = obtener_solicitud_propia(repo_sol, solicitud_id, cedula)
+    constancia = repo_const.obtener_de_solicitud(solicitud.id)
+    if constancia is None or not constancia.clave_pdf:
+        raise NotFoundError("La constancia aún no está disponible.")
+    return constancia
+
+
+# ── Bienestar ──
+def normalizar_filtro_bandeja(datos) -> FiltroBandeja:
+    """Valida los filtros de la bandeja (pantalla y exportación) con 400 por campo."""
+    datos = datos or {}
+
+    def _texto(clave):
+        valor = datos.get(clave)
+        texto = str(valor).strip() if valor is not None else ''
+        return texto or None
+
+    proceso_id = _texto('proceso_id')
+    if proceso_id:
+        try:
+            uuid.UUID(proceso_id)
+        except ValueError as exc:
+            raise ValidationError('El proceso indicado no es válido.', campo='proceso_id') from exc
+    estado = _texto('estado')
+    if estado and estado not in {e.value for e in EstadoSolicitud}:
+        raise ValidationError('El estado de la fe de vida no es válido.', campo='estado')
+
+    def _fecha(clave):
+        valor = _texto(clave)
+        if not valor:
+            return None
+        try:
+            return date.fromisoformat(valor)
+        except ValueError as exc:
+            raise ValidationError('La fecha debe tener el formato AAAA-MM-DD.', campo=clave) from exc
+
+    desde, hasta = _fecha('desde'), _fecha('hasta')
+    if desde and hasta and desde > hasta:
+        raise ValidationError('El rango de fechas es inválido: "desde" es posterior a "hasta".', campo='desde')
+    return FiltroBandeja(
+        proceso_id=proceso_id, estado=estado, texto=_texto('texto'), desde=desde, hasta=hasta,
+        historico=str(datos.get('historico', '')).lower() in ('1', 'true', 'si', 'sí'),
+    )
+
+
+def bandeja_revision(
+    repo_sol: RepoSolicitudesFeDeVida, lector: LectorPasivos, *, filtro: FiltroBandeja, limite: int | None = None,
+    desplazamiento: int | None = None, repo_proc: RepoProcesos | None = None,
+) -> tuple[list[tuple[SolicitudFeDeVida, str]], int]:
+    """Página de la bandeja con el nombre de cada pasivo."""
+    limite, desplazamiento = normalizar_pagina(limite, desplazamiento)
+    filtro_efectivo = filtro
+    if repo_proc is not None:
+        if filtro.historico:
+            cerrados = repo_proc.listar(EstadoProceso.CERRADO.value)
+            cerrados_ids = {p.id for p in cerrados}
+            if filtro.proceso_id:
+                if filtro.proceso_id not in cerrados_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=(filtro.proceso_id,))
+            else:
+                if not cerrados_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=tuple(cerrados_ids))
+        else:
+            abiertos = repo_proc.listar(EstadoProceso.ABIERTO.value)
+            abiertos_ids = {p.id for p in abiertos}
+            if filtro.proceso_id:
+                if filtro.proceso_id not in abiertos_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=(filtro.proceso_id,))
+            else:
+                if not abiertos_ids:
+                    return [], 0
+                filtro_efectivo = replace(filtro, proceso_ids=tuple(abiertos_ids))
+
+    solicitudes, total = repo_sol.listar(filtro_efectivo, limite, desplazamiento)
+    nombres = lector.nombres_de([s.cedula for s in solicitudes])
+    return [(s, nombres.get(s.cedula, s.cedula)) for s in solicitudes], total
+
+
+def detalle_para_revision(
+    repo_sol: RepoSolicitudesFeDeVida, repo_cambios: RepoCambiosActa, lector_valor: LectorValorActual,
+    lector_pasivos: LectorPasivos, *, solicitud_id: str, lector_ficha: LectorFichaPasivo | None = None,
+    actor: ActorRevision | None = None, permisos: PermisosRevision | None = None, repo_procesos: RepoProcesos | None = None,
+    registrador_puede_checar: bool = False, registrador_puede_aprobar_directo: bool = False,
+) -> DetalleRevision:
+    """
+    Solicitud con cada respuesta frente al dato real de hoy (comparativo), la ficha completa del pasivo (si se
+    entrega un lector: el permiso lo decide la vista) y las acciones que el revisor puede ejecutar.
+    """
+    solicitud = obtener_solicitud(repo_sol, solicitud_id)
+    cambios = []
+    for c in repo_cambios.listar(solicitud.id):
+        actual = lector_valor.valor_actual(solicitud.cedula, c)
+        cambios.append(CambioComparado(c, actual, c.accion == 'MODIFICAR' and actual != c.valor_anterior))
+    proceso = repo_procesos.obtener(solicitud.proceso_id) if repo_procesos else None
+    acciones = (
+        solicitud.acciones_disponibles(
+            actor, permisos or PermisosRevision(), registrador_puede_checar=registrador_puede_checar,
+            registrador_puede_aprobar_directo=registrador_puede_aprobar_directo,
+            proceso_cerrado=proceso is not None and proceso.estado is EstadoProceso.CERRADO,
+        )
+        if actor else ()
+    )
+    actores = {d.actor_cedula for d in solicitud.decisiones}
+    return DetalleRevision(
+        solicitud, cambios, lector_pasivos.nombre_de(solicitud.cedula),
+        ficha=lector_ficha.ficha(solicitud.cedula) if lector_ficha else None, acciones=acciones,
+        nombres_actores=lector_pasivos.nombres_de(sorted(actores)) if actores else {},
+        proceso_nombre=proceso.nombre if proceso else '',
+    )
+
+
+def evidencia_para_revision(
+    repo_sol: RepoSolicitudesFeDeVida, publicador: PublicadorEventos | None = None,
+    *, solicitud_id: str, actor_cedula: str,
+) -> EvidenciaLeible:
+    """Clave y tipo de la foto vigente para quien tenga `fe_de_vida.ver_evidencia`; registra el acceso (auditoría)."""
+    solicitud = obtener_solicitud(repo_sol, solicitud_id)
+    if not solicitud.evidencia_clave:
+        raise NotFoundError("La solicitud no tiene foto vigente.")
+    (publicador or PublicadorNulo()).publicar(evento(TipoEvento.EVIDENCIA_CONSULTADA, solicitud, actor_cedula))
+    return EvidenciaLeible(solicitud.evidencia_clave, solicitud.evidencia_mime)
+
+
+MENSAJE_CONSTANCIA_NO_ENCONTRADA = "No se encontró una constancia válida con ese código."
+
+
+def _verificacion(
+    repo_sol: RepoSolicitudesFeDeVida, repo_proc: RepoProcesos, lector_pasivos: LectorPasivos,
+    constancia: ConstanciaFeDeVida, *, enmascarar: bool,
+) -> VerificacionConstancia:
+    solicitud = obtener_solicitud(repo_sol, constancia.solicitud_id)
+    proceso = obtener_proceso(repo_proc, solicitud.proceso_id)
+    return VerificacionConstancia(
+        numero=constancia.numero, emitida_en=constancia.emitida_en, proceso_nombre=proceso.nombre,
+        nombre_completo=lector_pasivos.nombre_de(solicitud.cedula),
+        cedula=enmascarar_cedula(solicitud.cedula) if enmascarar else solicitud.cedula,
+        estado=solicitud.estado.value, solicitud_id='' if enmascarar else solicitud.id,
+        certificada_por=() if enmascarar else constancia.certificada_por,
+    )
+
+
+def verificar_constancia(
+    repo_const: RepoConstancias, repo_sol: RepoSolicitudesFeDeVida, repo_proc: RepoProcesos,
+    lector_pasivos: LectorPasivos, *, codigo: str,
+) -> VerificacionConstancia:
+    """Verificación interna (permiso `fe_de_vida.verificar_constancia`): datos completos y certificantes."""
+    constancia = repo_const.obtener_por_codigo(codigo)
+    if constancia is None:
+        raise NotFoundError("No existe una constancia con ese código de verificación.")
+    return _verificacion(repo_sol, repo_proc, lector_pasivos, constancia, enmascarar=False)
+
+
+def verificar_constancia_publica(
+    repo_const: RepoConstancias, repo_sol: RepoSolicitudesFeDeVida, repo_proc: RepoProcesos,
+    lector_pasivos: LectorPasivos, *, codigo: str,
+) -> VerificacionConstancia:
+    """
+    Verificación pública (sin sesión): solo constancias de solicitudes VALIDADA, con la cédula enmascarada.
+    Código malformado, inexistente o de solicitud no validada responden idéntico, sin revelar si existe.
+    """
+    constancia = repo_const.obtener_por_codigo(codigo) if codigo_con_formato_valido(codigo) else None
+    solicitud = repo_sol.obtener(constancia.solicitud_id) if constancia else None
+    if solicitud is None or solicitud.estado is not EstadoSolicitud.VALIDADA:
+        raise NotFoundError(MENSAJE_CONSTANCIA_NO_ENCONTRADA)
+    return _verificacion(repo_sol, repo_proc, lector_pasivos, constancia, enmascarar=True)
+
+
+# ── Procesos ──
+def listar_procesos(
+    repo: RepoProcesos, *, estado: str | None = None, limite: int | None = None, desplazamiento: int | None = None,
+) -> tuple[list[ProcesoFeDeVida], int]:
+    return paginar(repo.listar(estado), limite, desplazamiento)
+
+
+def listar_prorrogas(
+    repo: RepoProcesos, *, proceso_id: str, limite: int | None = None, desplazamiento: int | None = None,
+) -> tuple[list[ProrrogaProceso], int]:
+    obtener_proceso(repo, proceso_id)
+    return paginar(repo.listar_prorrogas(proceso_id), limite, desplazamiento)
+
+
+# ── Cobertura (C16) ──
+def listar_cobertura(
+    repo: RepoCobertura, *, filtro: FiltroCobertura, limite: int | None = None, desplazamiento: int | None = None,
+) -> tuple[list[PasivoCobertura], int]:
+    limite, desplazamiento = normalizar_pagina(limite, desplazamiento)
+    return repo.listar(filtro, limite, desplazamiento)
+
+
+# ── Presencial (Bienestar Social) ──
+def buscar_pasivos_presencial(
+    buscador: BuscadorPasivosPresencial,
+    repo_proc: RepoProcesos,
+    repo_sol: RepoSolicitudesFeDeVida,
+    alcance: LectorAlcance,
+    repo_const: RepoConstancias,
+    *,
+    texto: str,
+    limite: int,
+    desplazamiento: int,
+    ahora: datetime,
+) -> tuple[list[ItemPasivoPresencial], int]:
+    candidatos, total = buscador.buscar(texto, limite, desplazamiento)
+    resultados: list[ItemPasivoPresencial] = []
+    for c in candidatos:
+        vigente = obtener_proceso_vigente(repo_proc, repo_sol, alcance, cedula=c.cedula, ahora=ahora)
+        solicitud = vigente.solicitud if vigente else repo_sol.listar_de_cedula(c.cedula)
+        if isinstance(solicitud, list):
+            solicitud = solicitud[0] if solicitud else None
+
+        constancia_numero: str | None = None
+        if solicitud and solicitud.estado is EstadoSolicitud.VALIDADA:
+            constancia = repo_const.obtener_de_solicitud(solicitud.id)
+            if constancia:
+                constancia_numero = constancia.numero
+
+        puede_iniciar = bool(vigente and vigente.puede_enviar and not solicitud)
+        puede_continuar = bool(vigente and vigente.puede_enviar and solicitud and solicitud.editable)
+        puede_imprimir = bool(solicitud and solicitud.estado is EstadoSolicitud.VALIDADA and constancia_numero)
+
+        resultados.append(ItemPasivoPresencial(
+            cedula=c.cedula,
+            nombre_completo=c.nombre_completo,
+            tipo_nomina=c.tipo_nomina,
+            correo=c.correo,
+            tiene_cuenta=c.tiene_cuenta,
+            proceso_vigente=vigente,
+            solicitud=solicitud,
+            constancia_numero=constancia_numero,
+            puede_iniciar=puede_iniciar,
+            puede_continuar=puede_continuar,
+            puede_imprimir=puede_imprimir,
+        ))
+    return resultados, total

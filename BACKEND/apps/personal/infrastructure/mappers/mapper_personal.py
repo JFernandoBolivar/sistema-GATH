@@ -1,0 +1,437 @@
+"""
+Mappers de Personal.
+"""
+import logging
+from datetime import date
+
+from django.urls import reverse
+
+from apps.personal.domain.entities.empleado import Empleado
+from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
+    ContactoEmergenciaModel,
+    ContratoModel,
+    DatosViviendaModel,
+    FormacionAcademicaModel,
+    FormacionComplementariaModel,
+    PerfilFisicoModel,
+    PerfilSaludModel,
+)
+from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from apps.personal.shared.domain.services.tiempo_servicio import (
+    anios_fraccionarios,
+    calcular_total_apn,
+)
+
+logger = logging.getLogger('gath.personal')
+
+_EXT_FOTO = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
+
+
+def apn_oficial(antecedentes, *, fecha_corte=None, fecha_ingreso_respaldo=None, fecha_egreso=None) -> dict:
+    """Desglose APN oficial (cerrados + CONATEL en curso) con la fórmula de RRHH."""
+    return calcular_total_apn(
+        antecedentes or [],
+        fecha_corte=fecha_corte or date.today(),
+        fecha_ingreso_en_curso=fecha_ingreso_respaldo,
+        fecha_egreso_en_curso=fecha_egreso,
+    )
+
+
+def _total_anos_apn_calculado(apn: dict) -> float:
+    """
+    D-05 (Entrada #035/#036): decisión de negocio confirmada — el método
+    comercial 30/360 de `calcular_total_apn` (Python) es la fuente
+    autoritativa de la antigüedad del empleado, NO la columna
+    `Employee.total_anos_apn` que mantiene el trigger PL/pgSQL
+    `trg_actualizar_apn`/`calcular_total_apn()` sobre `antecedentes_servicio`
+    (días calendario/365.25, incluye antecedentes abiertos — una regla de
+    negocio distinta y divergente, confirmada con evidencia real de la BD
+    de producción). Este mapper deja de leer esa columna.
+    """
+    total = apn.get("total_anos_apn") or apn
+    return anios_fraccionarios(
+        years=total["years"],
+        months=total["months"],
+        days=total["days"],
+    )
+
+
+def _clean_str(val: str | None) -> str | None:
+    if val is None:
+        return None
+    s = str(val).strip()
+    if s.lower() in ("nan", "none", "null", "undefined"):
+        return None
+    return s
+
+
+def ruta_foto(cedula: str, clave: str) -> str:
+    """Ruta de la API (autenticada) que sirve la foto del empleado."""
+    version = clave.rsplit('/', 1)[-1].split('.')[0]
+    return reverse('personal:empleado-foto', kwargs={'cedula': cedula}) + f"?v={version}"
+
+
+def empleado_a_entidad(
+    modelo: EmployeeModel,
+    antecedentes=None,
+    expediente: dict | None = None,
+    apn: dict | None = None,
+) -> Empleado:
+    profile_val = getattr(modelo, 'profile', None)
+    foto_url = None
+    if profile_val and isinstance(profile_val, str):
+        p_clean = profile_val.strip()
+        if p_clean.startswith('data:image/'):
+            foto_url = p_clean
+        elif any(p_clean.lower().endswith(ext) for ext in _EXT_FOTO) or '/' in p_clean:
+            # Ruta de la API que sirve la foto (autenticada, por Django). `v`
+            # cambia con la clave (UUID) para que el navegador no use una foto
+            # vieja tras actualizarla. No se descarga nada de SeaweedFS aquí:
+            # este mapper corre una vez por empleado en los listados.
+            foto_url = ruta_foto(modelo.cedulaidentidad, p_clean)
+
+    nac_id = getattr(modelo, 'nacionalidad_id', 1) or 1
+    nac_obj = getattr(modelo, 'nacionalidad', None)
+    nac_codigo = getattr(nac_obj, 'codigo', 'V') if nac_obj else 'V'
+    nac_nombre = getattr(nac_obj, 'nombre', 'VENEZOLANA') if nac_obj else 'VENEZOLANA'
+    apn = apn or apn_oficial(antecedentes or [])
+
+    return Empleado(
+        id=modelo.pk,
+        cedula=modelo.cedulaidentidad,
+        nombres=modelo.nombres,
+        apellidos=modelo.apellidos,
+        sexo_id=modelo.sexoid_id,
+        sexo_nombre=modelo.sexoid.sexo if modelo.sexoid else "",
+        correo=_clean_str(modelo.correo),
+        telefono_movil=_clean_str(modelo.telefono_movil),
+        telefono_habitacion=_clean_str(modelo.telefono_habitacion),
+        fecha_nacimiento=str(modelo.fecha_nacimiento) if modelo.fecha_nacimiento else None,
+        estado_civil_id=modelo.estadoCivil_id,
+        estado_civil_nombre=modelo.estadoCivil.estadoCivil if modelo.estadoCivil else None,
+        carnet_patria=_clean_str(modelo.carnet_patria),
+        carnet_patria_serial=_clean_str(modelo.carnet_patria_serial),
+        nacionalidad_id=nac_id,
+        nacionalidad_codigo=nac_codigo,
+        nacionalidad_nombre=nac_nombre,
+        total_anos_apn=_total_anos_apn_calculado(apn),
+        apn_antecedentes=apn.get("antecedentes"),
+        apn_en_curso=apn.get("en_curso"),
+        apn_total={
+            "years": apn["years"], "months": apn["months"], "days": apn["days"],
+        },
+        apn_incompleto=not apn.get("completo", True),
+        fecha_ingreso_apn=(
+            str(apn.get("inicio_curso")) if apn.get("inicio_curso") else None
+        ),
+        profile=profile_val,
+        foto_url=foto_url,
+        **(expediente or {}),
+    )
+
+
+# ----------------------------------------------------------------------
+# Expediente anidado (Fase 2.2 del plan de reparación): réplica del
+# `EmployeeDetailSerializer` legado, pero solo con los campos ya soportados
+# por la escritura (`empleado_escritura_serializers.py`) — mismo alcance
+# NO cubierto documentado en `expediente_models.py` (perfil_fisico,
+# formacion_complementaria, M2M de salud).
+# ----------------------------------------------------------------------
+def vivienda_a_dict(v) -> dict | None:
+    if not v:
+        return None
+    return {
+        'pais_id': v.pais_id,
+        'pais_nombre': v.pais.nombre if getattr(v, 'pais', None) else None,
+        'pais_codigo': v.pais.codigo if getattr(v, 'pais', None) else None,
+        'pais_es_venezuela': (
+            bool(v.pais.es_venezuela) if getattr(v, 'pais', None) else None
+        ),
+        'ciudad_region': v.ciudad_region,
+        'estado_id': v.estado_id,
+        'estado_nombre': v.estado.estado if getattr(v, 'estado', None) else None,
+        'municipio_id': v.municipio_id,
+        'municipio_nombre': v.municipio.municipio if getattr(v, 'municipio', None) else None,
+        'parroquia_id': v.parroquia_id,
+        'parroquia_nombre': v.parroquia.parroquia if getattr(v, 'parroquia', None) else None,
+        'direccion_exacta': v.direccion_exacta,
+        'condicion_vivienda_id': v.condicion_vivienda_id,
+        'condicion_vivienda_nombre': v.condicion_vivienda.condicion if getattr(v, 'condicion_vivienda', None) else None,
+        'codigo_postal_id': v.codigo_postal_id,
+        'codigo_postal_nombre': v.codigo_postal.codigo if getattr(v, 'codigo_postal', None) else None,
+    }
+
+
+def salud_a_dict(s) -> dict | None:
+    if not s:
+        return None
+    alergias = list(s.alergias.all()) if hasattr(s, 'alergias') else []
+    patologias = list(s.patologiaCronica.all()) if hasattr(s, 'patologiaCronica') else []
+    discapacidades = list(s.discapacidad.all()) if hasattr(s, 'discapacidad') else []
+    return {
+        'grupo_sanguineo_id': s.grupo_sanguineo_id,
+        'grupo_sanguineo_nombre': s.grupo_sanguineo.GrupoSanguineo if getattr(s, 'grupo_sanguineo', None) else None,
+        'alergias': [a.pk for a in alergias],
+        'alergias_nombres': [a.alergia for a in alergias],
+        'patologias_cronicas': [p.pk for p in patologias],
+        'patologias_cronicas_nombres': [p.patologia for p in patologias],
+        'discapacidades': [d.pk for d in discapacidades],
+        'discapacidades_nombres': [d.discapacidad for d in discapacidades],
+    }
+
+
+def perfil_fisico_a_dict(p) -> dict | None:
+    if not p:
+        return None
+    return {
+        'talla_camisa_id': p.tallaCamisa_id,
+        'talla_camisa_nombre': p.tallaCamisa.valor if getattr(p, 'tallaCamisa', None) else None,
+        'talla_pantalon_id': p.tallaPantalon_id,
+        'talla_pantalon_nombre': p.tallaPantalon.valor if getattr(p, 'tallaPantalon', None) else None,
+        'talla_zapatos_id': p.tallaZapatos_id,
+        'talla_zapatos_nombre': p.tallaZapatos.valor if getattr(p, 'tallaZapatos', None) else None,
+        'talla_chaqueta_id': p.tallaChaqueta_id,
+        'talla_chaqueta_nombre': p.tallaChaqueta.valor if getattr(p, 'tallaChaqueta', None) else None,
+    }
+
+
+def formacion_complementaria_a_dict(f) -> dict:
+    return {
+        'id': f.pk,
+        'capacitacion_id': f.capacitacion_id,
+        'capacitacion_nombre': f.capacitacion.nombre_capacitacion if getattr(f, 'capacitacion', None) else None,
+        'institucion_id': f.institucion_id,
+        'institucion_nombre': f.institucion.nombre_institucion if getattr(f, 'institucion', None) else None,
+        'fecha_inicio': f.fechaInicio.isoformat() if f.fechaInicio else None,
+        'fecha_fin': f.fechaFin.isoformat() if f.fechaFin else None,
+        'dias_completados': f.dias_completados,
+        'horas_completadas': f.horas_completadas,
+        'procedencia_id': f.procedencia_id,
+        'procedencia_nombre': f.procedencia.tipo_procedencia if getattr(f, 'procedencia', None) else None,
+        'grupo_id': f.grupo_id,
+        'grupo_nombre': f.grupo.nombre_grupo if getattr(f, 'grupo', None) else None,
+    }
+
+
+def formacion_a_dict(f) -> dict:
+    return {
+        'id': f.pk,
+        'nivel_academico_id': f.nivel_academico_id,
+        'nivel_academico_nombre': f.nivel_academico.nivelacademico if getattr(f, 'nivel_academico', None) else None,
+        'carrera_id': f.carrera_id,
+        'carrera_nombre': f.carrera.nombre_carrera if getattr(f, 'carrera', None) else None,
+        'mencion_id': f.mencion_id,
+        'mencion_nombre': f.mencion.nombre_mencion if getattr(f, 'mencion', None) else None,
+        'institucion_id': f.institucion_id,
+        'institucion_nombre': f.institucion.nombre_institucion if getattr(f, 'institucion', None) else None,
+    }
+
+
+def contacto_emergencia_a_dict(c) -> dict:
+    return {
+        'id': c.pk,
+        'nombres': c.nombres,
+        'apellidos': c.apellidos,
+        'telefono': c.telefono,
+        'relacion_id': c.relacion_id,
+        'relacion_nombre': c.relacion.descripcion_parentesco if getattr(c, 'relacion', None) else None,
+    }
+
+
+def antecedente_a_dict(a) -> dict:
+    return {
+        'id': a.pk,
+        'organismo_id': a.organismo_id,
+        'organismo_nombre': a.organismo.Organismoadscrito if getattr(a, 'organismo', None) else None,
+        'fecha_ingreso': str(a.fecha_ingreso) if a.fecha_ingreso else None,
+        'fecha_egreso': str(a.fecha_egreso) if a.fecha_egreso else None,
+    }
+
+
+def contrato_a_dict(c) -> dict | None:
+    if not c:
+        return None
+    f_ingreso = None
+    if hasattr(c, 'fecha_ingreso') and c.fecha_ingreso:
+        f_ingreso = str(c.fecha_ingreso)
+    elif getattr(c, 'antecedente', None) and c.antecedente.fecha_ingreso:
+        f_ingreso = str(c.antecedente.fecha_ingreso)
+    return {
+        'id': c.pk,
+        'n_contrato': c.n_contrato,
+        'fecha_ingreso': f_ingreso,
+        'fecha_culminacion': str(c.fecha_culminacion) if c.fecha_culminacion else None,
+        'politica_id': c.politica_id,
+        'politica_nombre': c.politica.tipo_politica if getattr(c, 'politica', None) else None,
+        'antecedente_id': c.antecedente_id,
+        'estatus_id': c.estatus_id,
+        'estatus_nombre': c.estatus.estatus if getattr(c, 'estatus', None) else None,
+        'es_fijo': c.es_fijo,
+    }
+
+
+def construir_expediente(empleado: EmployeeModel, antecedentes=None) -> dict:
+    """
+    Arma el expediente anidado completo de un `EmployeeModel` (Fase 2.1/2.2
+    del plan de reparación). Reutilizado tanto por `RepoPersonalORM` como por
+    `RepoPasivosORM` (un pasivo también es un `Employee`) para no duplicar
+    esta consulta en dos módulos.
+
+    `antecedentes` permite reutilizar la lista ya cargada por el llamador
+    (el detalle la necesita también para el total APN) y evitar la consulta
+    duplicada que había antes.
+    """
+    antecedentes_qs = (
+        list(antecedentes)
+        if antecedentes is not None
+        else list(
+            AntecedenteServicioModel.objects.filter(empleado=empleado)
+            .select_related('organismo')
+            .order_by('fecha_ingreso')
+        )
+    )
+    contratos_todos = [
+        contrato_a_dict(c)
+        for c in ContratoModel.objects.filter(antecedente__empleado=empleado).select_related('estatus', 'politica', 'antecedente').order_by('-pk')
+    ]
+    antecedente_abierto = next((a for a in antecedentes_qs if a.fecha_egreso is None), None)
+    contrato_actual = None
+    if antecedente_abierto:
+        # `contratos_todos` ya viene ordenado por `-pk`: el primero del
+        # antecedente abierto es el contrato vigente (sin consulta extra).
+        contrato_actual = next(
+            (c for c in contratos_todos if c and c.get('antecedente_id') == antecedente_abierto.pk),
+            None,
+        )
+    if not contrato_actual and contratos_todos:
+        contrato_actual = contratos_todos[0]
+
+    asignaciones_data = []
+    encargadurias_data = []
+    try:
+        from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+        from apps.cargos.infrastructure.models.prestamo_models import PrestamoCargoModel
+
+        asigs = list(
+            AsigTrabajoModel.objects.filter(employee=empleado)
+            .select_related(
+                'denominacioncargoid',
+                'denominacioncargoespecificoid',
+                'tiponominaid',
+                'Dependencia',
+                'DireccionGeneral',
+                'DireccionLinea',
+                'Coordinacion',
+                'gradoid',
+                'estatusid',
+                'OrganismoAdscritoid',
+                'tipo_procedencia',
+            )
+        )
+        prestamos_cargos_ids = set(
+            PrestamoCargoModel.objects.filter(
+                cargo_encargado__in=asigs,
+                estatus__estatus__in=['ACTIVO', 'POR VENCER']
+            ).values_list('cargo_encargado_id', flat=True)
+        )
+        for a in asigs:
+            asignaciones_data.append({
+                'id': a.pk,
+                'codigo': a.codigo,
+                'denominacion_cargo': a.denominacioncargoid.cargo if a.denominacioncargoid else 'N/A',
+                'denominacion_cargo_especifico': a.denominacioncargoespecificoid.cargo if a.denominacioncargoespecificoid else 'N/A',
+                'tipo_nomina': a.tiponominaid.nomina if a.tiponominaid else 'N/A',
+                'dependencia': a.Dependencia.dependencia if a.Dependencia else 'N/A',
+                'direccion_general': a.DireccionGeneral.direccion_general if a.DireccionGeneral else 'N/A',
+                'direccion_linea': a.DireccionLinea.direccion_linea if a.DireccionLinea else 'N/A',
+                'coordinacion': a.Coordinacion.coordinacion if a.Coordinacion else 'N/A',
+                'grado': a.gradoid.grado if a.gradoid else 'N/A',
+                'estatus': a.estatusid.estatus if a.estatusid else 'ACTIVO',
+                'organismo_adscrito': a.OrganismoAdscritoid.Organismoadscrito if a.OrganismoAdscritoid else 'N/A',
+                'tipo_procedencia': a.tipo_procedencia.tipo_procedencia if a.tipo_procedencia else 'N/A',
+                'cargo_cubierto_encargaduria': a.pk in prestamos_cargos_ids,
+            })
+
+        prestamos_empleado = list(
+            PrestamoCargoModel.objects.filter(empleado_encargado=empleado)
+            .select_related(
+                'cargo_encargado',
+                'cargo_encargado__denominacioncargoid',
+                'cargo_encargado__denominacioncargoespecificoid',
+                'cargo_encargado__employee',
+                'estatus',
+                'motivo',
+            )
+            .order_by('-fecha_inicio')
+        )
+        for p in prestamos_empleado:
+            cargo = p.cargo_encargado
+            titular = cargo.employee if cargo else None
+            cargo_especifico_nom = cargo.denominacioncargoespecificoid.cargo if (cargo and cargo.denominacioncargoespecificoid) else 'N/A'
+            cargo_nom = cargo.denominacioncargoid.cargo if (cargo and cargo.denominacioncargoid) else 'N/A'
+            titular_nom = f"{titular.nombres} {titular.apellidos}".strip() if titular else 'Vacante'
+            titular_ced = titular.cedulaidentidad if titular else 'N/A'
+            encargadurias_data.append({
+                'id': p.pk,
+                'cargo_encargado_id': p.cargo_encargado_id,
+                'cargo_encargado_codigo': cargo.codigo if cargo else 'N/A',
+                'cargo_encargado': cargo_especifico_nom if cargo_especifico_nom != 'N/A' else cargo_nom,
+                'cargo_info': {
+                    'codigo': cargo.codigo if cargo else 'N/A',
+                    'denominacioncargo': {'cargo': cargo_nom},
+                    'denominacioncargoespecifico': {'cargo': cargo_especifico_nom},
+                } if cargo else None,
+                'titular_cedula': titular_ced,
+                'titular_nombre': titular_nom,
+                'empleado_cedula': titular_ced,
+                'empleado_nombre': titular_nom,
+                'motivo_id': p.motivo_id,
+                'motivo_nombre': p.motivo.movimiento if p.motivo else 'N/A',
+                'estatus_id': p.estatus_id,
+                'estatus_nombre': p.estatus.estatus if p.estatus else 'ACTIVO',
+                'fecha_inicio': str(p.fecha_inicio) if p.fecha_inicio else None,
+                'fecha_fin': str(p.fecha_fin) if p.fecha_fin else None,
+            })
+    except Exception:
+        # El expediente se entrega sin el bloque de préstamos de cargo, pero el fallo debe quedar registrado.
+        logger.exception("No fue posible armar los préstamos de cargo del expediente.")
+
+    return {
+        'datos_vivienda': vivienda_a_dict(
+            DatosViviendaModel.objects.filter(empleado=empleado)
+            .select_related('estado', 'municipio', 'parroquia', 'condicion_vivienda', 'codigo_postal', 'pais')
+            .first()
+        ),
+        'perfil_salud': salud_a_dict(
+            PerfilSaludModel.objects.filter(empleado=empleado)
+            .select_related('grupo_sanguineo')
+            .prefetch_related('alergias', 'patologiaCronica', 'discapacidad')
+            .first()
+        ),
+        'perfil_fisico': perfil_fisico_a_dict(
+            PerfilFisicoModel.objects.filter(empleado=empleado)
+            .select_related('tallaCamisa', 'tallaPantalon', 'tallaZapatos', 'tallaChaqueta')
+            .first()
+        ),
+        'formacion_academica': [
+            formacion_a_dict(f)
+            for f in FormacionAcademicaModel.objects.filter(empleado=empleado)
+            .select_related('nivel_academico', 'carrera', 'mencion', 'institucion')
+        ],
+        'formacion_complementaria': [
+            formacion_complementaria_a_dict(f)
+            for f in FormacionComplementariaModel.objects.filter(empleado=empleado)
+            .select_related('capacitacion', 'institucion', 'procedencia', 'grupo')
+        ],
+        'contacto_emergencia': [
+            contacto_emergencia_a_dict(c)
+            for c in ContactoEmergenciaModel.objects.filter(empleado=empleado)
+            .select_related('relacion')
+        ],
+        'antecedentes': [antecedente_a_dict(a) for a in antecedentes_qs],
+        'contrato_actual': contrato_actual,
+        'contratos': contratos_todos,
+        'asignaciones': asignaciones_data,
+        'encargadurias': encargadurias_data,
+    }

@@ -9,10 +9,7 @@ declare module "next-auth" {
       role: {
         id: number;
         nombre_rol: string;
-      };
-      department: {
-        id: number;
-        nombre_departamento: string;
+        nombre_visible?: string;
       };
       cedula: string;
       phone: string;
@@ -31,6 +28,9 @@ declare module "next-auth" {
         nombre: string;
       };
       debeCambiarPassword: boolean;
+      permisos: string[];
+      /** ACTIVO | PASIVO | SIN_ASIGNACION: dato derivado en servidor, no un rol. */
+      condicionTrabajador: string;
     } & DefaultSession["user"];
   }
   interface User {
@@ -39,10 +39,7 @@ declare module "next-auth" {
     role: {
       id: number;
       nombre_rol: string;
-    };
-    department: {
-      id: number;
-      nombre_departamento: string;
+      nombre_visible?: string;
     };
     cedula: string;
     phone: string;
@@ -63,6 +60,8 @@ declare module "next-auth" {
     debeCambiarPassword?: boolean;
     djAccess: string;
     djRefresh: string;
+    permisos?: string[];
+    condicionTrabajador?: string;
   }
 }
 
@@ -73,10 +72,7 @@ declare module "next-auth/jwt" {
     role: {
       id: number;
       nombre_rol: string;
-    };
-    department: {
-      id: number;
-      nombre_departamento: string;
+      nombre_visible?: string;
     };
     cedula: string;
     phone: string;
@@ -95,5 +91,7 @@ declare module "next-auth/jwt" {
       nombre: string;
     };
     debeCambiarPassword?: boolean;
+    permisos?: string[];
+    condicionTrabajador?: string;
   }
 }

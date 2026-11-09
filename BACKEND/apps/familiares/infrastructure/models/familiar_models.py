@@ -1,0 +1,80 @@
+"""
+Modelos ORM de Cargas Familiares (Regla B26).
+"""
+from django.db import models
+
+from apps.familiares.domain.entities.familiar import CEDULA_FAMILIAR_MAX
+
+
+class EmployeefamilyModel(models.Model):
+    id = models.AutoField(primary_key=True)
+    employeecedula = models.ForeignKey(
+        'personal.EmployeeModel',
+        models.PROTECT,
+        db_column='employeeCedula',
+        # Inverso `Employee.carga_familiar` (nombre del legado), usado por la
+        # categoría "familiares" de `ReportFieldRegistry`. managed=False.
+        related_name='carga_familiar',
+        to_field='cedulaidentidad',
+    )
+    cedulaFamiliar = models.CharField(
+        max_length=CEDULA_FAMILIAR_MAX, db_column='cedulaFamiliar', blank=True, null=True,
+    )
+    # Orden de nacimiento elegido para hijos menores sin cédula propia. Nullable:
+    # las 578 cédulas sintéticas ya generadas quedan con NULL (sin backfill).
+    orden_hijo = models.PositiveSmallIntegerField(
+        db_column='ordenHijo', null=True, blank=True,
+        help_text='Orden de nacimiento del hijo; solo para menores sin cédula propia.',
+    )
+
+    primer_nombre = models.CharField(max_length=150)
+    segundo_nombre = models.CharField(null=True, blank=True, max_length=150)
+    primer_apellido = models.CharField(max_length=150)
+    segundo_apellido = models.CharField(null=True, blank=True, max_length=150)
+    parentesco = models.ForeignKey(
+        'catalogos.ParentescoModel',
+        models.PROTECT,
+        db_column='parentescoId',
+    )
+    fechanacimiento = models.DateField(db_column='fechaNacimiento')
+    mismo_ente = models.BooleanField(db_column='mismo_ente', default=False)
+    heredero = models.BooleanField(db_column='heredero', default=False)
+    sexo = models.ForeignKey(
+        'catalogos.SexoModel',
+        models.PROTECT,
+        db_column='sexoId',
+    )
+    observaciones = models.TextField(blank=True, null=True)
+    createdat = models.DateTimeField(auto_now_add=True, db_column='createdAt')
+    updatedat = models.DateTimeField(auto_now=True, db_column='updatedAt')
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_employeefamily'
+        ordering = ['-updatedat']
+        verbose_name = 'familiar de empleado'
+        verbose_name_plural = 'familiares de empleados'
+
+    def __str__(self) -> str:
+        return f"{self.primer_nombre} {self.primer_apellido} ({self.parentesco})"
+
+
+class FamilyDocumentModel(models.Model):
+    familymember = models.ForeignKey(
+        EmployeefamilyModel,
+        on_delete=models.CASCADE,
+        related_name='documentos',
+    )
+    document_type = models.CharField(max_length=30)
+    file = models.FileField(upload_to='familiares/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        managed = False
+        db_table = 'RAC_familydocument'
+        ordering = ['-uploaded_at']
+        verbose_name = 'documento familiar'
+        verbose_name_plural = 'documentos familiares'
+
+    def __str__(self) -> str:
+        return f"{self.document_type} - {self.familymember_id}"

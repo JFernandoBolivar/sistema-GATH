@@ -1,0 +1,4 @@
+# Secretos generados — nunca se versionan (§12.3, hallazgo 2)
+seaweedfs/identities.json
+.env.fase2.generado
+.env.fase2

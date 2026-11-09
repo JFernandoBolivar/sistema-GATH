@@ -1,0 +1,54 @@
+import type { ModuloNotificaciones } from "../domain/entities/notificacion";
+
+export interface TipoNotificacion {
+  codigo: string;
+  etiqueta: string;
+}
+
+const AUTOGESTION: TipoNotificacion[] = [
+  { codigo: "autogestion.ventana_habilitada", etiqueta: "Actualización habilitada" },
+  { codigo: "autogestion.ventana_prorrogada", etiqueta: "Plazo extendido" },
+  { codigo: "autogestion.ventana_por_expirar", etiqueta: "Plazo por vencer" },
+  { codigo: "autogestion.ventana_expirada", etiqueta: "Plazo vencido" },
+  { codigo: "autogestion.actualizacion_aprobada", etiqueta: "Actualización aprobada" },
+  { codigo: "autogestion.solicitud_rechazada", etiqueta: "Solicitud rechazada" },
+  { codigo: "fe_de_vida.solicitud_recibida", etiqueta: "Fe de vida recibida" },
+  { codigo: "fe_de_vida.devuelta", etiqueta: "Fe de vida devuelta" },
+  { codigo: "fe_de_vida.validada", etiqueta: "Fe de vida validada" },
+  { codigo: "fe_de_vida.rechazada", etiqueta: "Fe de vida rechazada" },
+  { codigo: "fe_de_vida.recordatorio_cierre", etiqueta: "Recordatorio de fe de vida" },
+  { codigo: "identidad.cuenta_creada", etiqueta: "Cuenta creada" },
+  { codigo: "identidad.password_cambiada", etiqueta: "Contraseña cambiada" },
+  { codigo: "identidad.correo_acceso_cambiado", etiqueta: "Correo de acceso cambiado" },
+  { codigo: "movimiento.ingreso", etiqueta: "Ingreso registrado" },
+  { codigo: "movimiento.traslado", etiqueta: "Traslado registrado" },
+  { codigo: "movimiento.cambio_estatus", etiqueta: "Cambio de estatus registrado" },
+];
+
+/** Tipos conocidos por bandeja, para el filtro «Tipo». */
+export const TIPOS_POR_MODULO: Record<ModuloNotificaciones, TipoNotificacion[]> = {
+  autogestion: AUTOGESTION,
+  personal: [
+    { codigo: "autogestion.solicitud_creada", etiqueta: "Solicitud por habilitar" },
+    { codigo: "autogestion.solicitud_enviada", etiqueta: "Solicitud por revisar" },
+    { codigo: "fe_de_vida.solicitud_enviada", etiqueta: "Fe de vida por revisar" },
+    { codigo: "fe_de_vida.primer_check", etiqueta: "Fe de vida pendiente de segundo check" },
+    { codigo: "movimiento.ingreso", etiqueta: "Ingreso de personal" },
+    { codigo: "movimiento.traslado", etiqueta: "Traslado de personal" },
+    { codigo: "movimiento.cambio_estatus", etiqueta: "Cambio de estatus" },
+    { codigo: "movimiento.egreso", etiqueta: "Egreso de personal" },
+    { codigo: "movimiento.sobreviviente", etiqueta: "Alta de sobreviviente" },
+  ],
+  carnetizacion: [{ codigo: "autogestion.foto_aprobada", etiqueta: "Reemisión de carnet" }],
+  pasivos: [],
+  seguridad: [],
+};
+
+/** Unión sin duplicados de todos los tipos, para la bandeja única del usuario. */
+export const TIPOS_NOTIFICACION: TipoNotificacion[] = Array.from(
+  new Map(
+    Object.values(TIPOS_POR_MODULO)
+      .flat()
+      .map((tipo) => [tipo.codigo, tipo]),
+  ).values(),
+).sort((a, b) => a.etiqueta.localeCompare(b.etiqueta, "es"));

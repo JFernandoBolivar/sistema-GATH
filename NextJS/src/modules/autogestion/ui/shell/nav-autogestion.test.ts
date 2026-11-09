@@ -1,0 +1,119 @@
+import { describe, expect, it } from "vitest";
+import { ITEMS_NAV_AUTOGESTION, itemActivo, itemsVisibles } from "./nav-autogestion";
+
+const ids = (permisos: string[], condicion: string | null) =>
+  itemsVisibles(permisos, condicion).map((i) => i.id);
+
+describe("itemsVisibles", () => {
+  it("el trabajador activo ve ficha, solicitudes y censo por permiso + condición", () => {
+    const permisos = [
+      "autogestion.ver_propio",
+      "autogestion.solicitar_actualizacion",
+      "autogestion.censo_ver_propio",
+    ];
+    expect(ids(permisos, "ACTIVO")).toEqual([
+      "inicio",
+      "ficha",
+      "mi-carnet",
+      "solicitar",
+      "solicitudes",
+      "censo",
+    ]);
+  });
+  it("sin condición ACTIVO se ocultan solo las entradas propias de activos (censo)", () => {
+    const permisos = [
+      "autogestion.ver_propio",
+      "autogestion.solicitar_actualizacion",
+      "autogestion.censo_ver_propio",
+    ];
+    // O12: las solicitudes ya no dependen de la condición, sino de la configuración.
+    expect(ids(permisos, "PASIVO")).toEqual([
+      "inicio",
+      "ficha",
+      "mi-carnet",
+      "solicitar",
+      "solicitudes",
+    ]);
+    expect(ids(permisos, "SIN_ASIGNACION")).toEqual([
+      "inicio",
+      "ficha",
+      "mi-carnet",
+      "solicitar",
+      "solicitudes",
+    ]);
+    expect(ids(permisos, null)).toEqual([
+      "inicio",
+      "ficha",
+      "mi-carnet",
+      "solicitar",
+      "solicitudes",
+    ]);
+  });
+
+  it("con la configuración apagada se ocultan solicitar y mis solicitudes", () => {
+    const permisos = ["autogestion.ver_propio", "autogestion.solicitar_actualizacion"];
+    const visibles = itemsVisibles(permisos, "PASIVO", { autogestionHabilitada: false }).map(
+      (i) => i.id,
+    );
+    expect(visibles).toEqual(["inicio", "ficha", "mi-carnet"]);
+  });
+  it("sin permisos solo queda Inicio y no se usa el nombre del rol", () => {
+    expect(ids([], "ACTIVO")).toEqual(["inicio"]);
+  });
+  it("las entradas administrativas del censo viven ahora en Gestión de Trabajadores", () => {
+    expect(ids(["autogestion.censo_ver_todos"], null)).toEqual(["inicio"]);
+  });
+  it("el comodín del módulo concede todo lo de autogestión (Notificaciones y Fe de vida son de otros módulos)", () => {
+    expect(ids(["autogestion.*"], "ACTIVO")).toHaveLength(ITEMS_NAV_AUTOGESTION.length - 2);
+    expect(ids(["autogestion.*"], "ACTIVO")).not.toContain("fe-de-vida");
+    expect(ids(["autogestion.*"], "ACTIVO")).not.toContain("notificaciones");
+  });
+  it("Notificaciones solo aparece con el permiso notificaciones.ver_propias", () => {
+    expect(ids(["notificaciones.ver_propias"], null)).toEqual(["inicio", "notificaciones"]);
+    expect(ids(["autogestion.ver_propio"], "ACTIVO")).not.toContain("notificaciones");
+    expect(ids(["notificaciones.*"], null)).toContain("notificaciones");
+  });
+});
+
+describe("acceso a Mi carnet (D3/FIX-O46)", () => {
+  const permisos = ["autogestion.ver_propio"];
+
+  it("oculta el ítem cuando el backend no habilita el carnet", () => {
+    const visibles = itemsVisibles(permisos, "ACTIVO", { miCarnetHabilitado: false });
+    expect(visibles.map((i) => i.id)).not.toContain("mi-carnet");
+    expect(visibles.map((i) => i.id)).toContain("ficha");
+  });
+
+  it("lo muestra cuando el backend lo habilita", () => {
+    const visibles = itemsVisibles(permisos, "ACTIVO", { miCarnetHabilitado: true });
+    expect(visibles.map((i) => i.id)).toContain("mi-carnet");
+  });
+});
+
+describe("itemActivo", () => {
+  const por = (id: string) => ITEMS_NAV_AUTOGESTION.find((i) => i.id === id)!;
+  it("Inicio solo coincide exacto", () => {
+    expect(itemActivo(por("inicio"), "/autogestion")).toBe(true);
+    expect(itemActivo(por("inicio"), "/autogestion/ficha")).toBe(false);
+  });
+  it("Mis solicitudes incluye el detalle pero no «nueva»", () => {
+    expect(itemActivo(por("solicitudes"), "/autogestion/solicitudes")).toBe(true);
+    expect(itemActivo(por("solicitudes"), "/autogestion/solicitudes/abc")).toBe(true);
+    expect(itemActivo(por("solicitudes"), "/autogestion/solicitudes/nueva")).toBe(false);
+    expect(itemActivo(por("solicitar"), "/autogestion/solicitudes/nueva")).toBe(true);
+  });
+});
+
+describe("entrada «Fe de vida» (permiso + condición PASIVO)", () => {
+  const permisos = ["autogestion.ver_propio", "fe_de_vida.solicitar", "fe_de_vida.ver_propia"];
+  it("el pasivo con el permiso la ve", () => {
+    expect(ids(permisos, "PASIVO")).toContain("fe-de-vida");
+  });
+  it("un activo con los mismos permisos no la ve (la condición manda, no el rol)", () => {
+    expect(ids(permisos, "ACTIVO")).not.toContain("fe-de-vida");
+    expect(ids(permisos, null)).not.toContain("fe-de-vida");
+  });
+  it("un pasivo sin el permiso tampoco", () => {
+    expect(ids(["autogestion.ver_propio"], "PASIVO")).not.toContain("fe-de-vida");
+  });
+});

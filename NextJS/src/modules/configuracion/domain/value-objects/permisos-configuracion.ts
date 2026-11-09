@@ -1,0 +1,14 @@
+/** Permisos por código del módulo de configuración (D9). */
+export const PERMISO_CONFIGURACION = {
+  editar: "configuracion.editar",
+} as const;
+
+/** Grupos de la pantalla de parámetros, en el orden en que se muestran. */
+export const GRUPOS_PARAMETROS = [
+  { clave: "notificaciones", etiqueta: "Notificaciones" },
+  { clave: "plazos", etiqueta: "Plazos" },
+  { clave: "fe_de_vida", etiqueta: "Fe de vida" },
+  { clave: "carnetizacion", etiqueta: "Carnetización" },
+  { clave: "retencion", etiqueta: "Retención de datos" },
+  { clave: "puntocuenta", etiqueta: "Puntos de cuenta" },
+] as const;

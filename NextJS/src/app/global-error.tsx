@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { clearAuthCookies } from "#/actions/auth-actions";
+import { AlertTriangle } from "lucide-react";
+
+import { limpiarCookiesAuthAction } from "@/modules/auth/infrastructure/actions/auth-actions";
 
 export default function GlobalError({
   error,
@@ -15,45 +17,49 @@ export default function GlobalError({
       error.name === "AuthSessionExpiredError" ||
       error.message?.includes("Sesión expirada")
     ) {
-      clearAuthCookies().then(() => {
+      limpiarCookiesAuthAction().then(() => {
         window.location.href = "/login";
       });
     }
   }, [error]);
 
   const handleClearAndReload = async () => {
-    await clearAuthCookies();
+    await limpiarCookiesAuthAction();
     window.location.href = "/login";
   };
 
   return (
-    <html>
+    <html lang="es">
       <body>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-          <div className="max-w-md w-full mx-4">
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-8 text-center">
+        <div className="min-h-dvh flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+          <div className="max-w-md w-full p-4">
+            <div
+              role="alert"
+              className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 p-5 sm:p-8 text-center"
+            >
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
-                <span className="text-4xl">⚠️</span>
+                <AlertTriangle className="size-8 text-red-300" aria-hidden="true" />
               </div>
               <h1 className="text-2xl font-bold text-white mb-2">
-                Error al cargar la aplicación
+                No pudimos cargar la aplicación
               </h1>
               <p className="text-slate-300 mb-6 text-sm">
-                Ocurrió un error inesperado al cargar la aplicación. Puede ser
-                causado por una sesión expirada o datos inconsistentes.
+                Ocurrió un error inesperado al cargar la aplicación. Puede
+                deberse a una sesión expirada o a datos inconsistentes. Intente
+                de nuevo; si el problema continúa, vuelva a iniciar sesión.
               </p>
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => reset()}
-                  className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                  className="w-full min-h-11 flex items-center justify-center px-4 py-2.5 bg-blue-600 hover:bg-primary text-white rounded-lg font-medium transition-colors"
                 >
                   Reintentar
                 </button>
                 <button
                   onClick={handleClearAndReload}
-                  className="w-full px-4 py-2.5 bg-red-600/80 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                  className="w-full min-h-11 flex items-center justify-center px-4 py-2.5 bg-red-600/80 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                 >
-                  Limpiar cookies y volver al inicio
+                  Cerrar sesión y volver al inicio
                 </button>
               </div>
               {process.env.NODE_ENV === "development" && (
@@ -63,7 +69,7 @@ export default function GlobalError({
                   </summary>
                   <pre className="mt-2 text-xs text-red-300 bg-black/30 p-3 rounded-lg overflow-auto max-h-32">
                     {error.message}
-                    {error.digest && `\nDigest: ${error.digest}`}
+                    {error.digest && `\nReferencia: ${error.digest}`}
                   </pre>
                 </details>
               )}

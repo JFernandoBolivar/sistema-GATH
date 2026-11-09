@@ -1,0 +1,66 @@
+/**
+ * DTOs de Reportes (Regla R5).
+ */
+export interface ReporteItemPersonalDTO {
+  cedula: string;
+  nombreCompleto: string;
+  dependencia: string;
+  cargo: string;
+  tipoPersonal: string;
+  fechaIngreso: string;
+  totalAnosApn: number;
+  /** `true` cuando el trabajador no tiene fecha de ingreso: el APN se muestra «—». */
+  sinFechaApn: boolean;
+}
+
+export interface ReporteItemPasivoDTO {
+  cedula: string;
+  nombreCompleto: string;
+  nombres?: string;
+  apellidos?: string;
+  tipoPersonal: string;
+  tipoPasivo: string;
+  pais: string;
+  fechaEgreso: string;
+  motivoEgreso?: string;
+  contacto: string;
+}
+
+export interface ReporteItemVacanteDTO {
+  id: number;
+  codigoNomina: string | null;
+  denominacionCargo: string;
+  dependencia: string;
+  direccionGeneral: string;
+}
+
+export interface ReporteItemFamiliarDTO {
+  cedulaFamiliar: string;
+  nombres: string;
+  apellidos: string;
+  parentesco: string;
+  sexo: string;
+  fechaNacimiento: string;
+  cedulaEmpleado: string;
+}
+
+export interface ReporteItemCodigoDTO {
+  codigo: string;
+  cargo: string;
+  cargoEspecifico: string;
+  tipoNomina: string;
+  dependencia: string;
+  direccionGeneral: string;
+  estatus: string;
+}
+
+export interface TendenciaPeriodoDTO {
+  periodo: string;
+  ingresos: number;
+  egresos: number;
+}
+
+export interface DistribucionNominaDTO {
+  tipoNomina: string;
+  total: number;
+}

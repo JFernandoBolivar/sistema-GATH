@@ -2,9 +2,8 @@ asgiref==3.9.2
 attrs==25.3.0
 certifi==2025.8.3
 charset-normalizer==3.4.3
-Django==5.2.7
+Django==5.2.8
 django-cors-headers==4.9.0
-django-simple-history==3.10.1
 djangorestframework==3.16.1
 djangorestframework_simplejwt==5.5.1
 drf-spectacular==0.28.0
@@ -32,9 +31,30 @@ sqlparse==0.5.3
 tzdata==2025.2
 uritemplate==4.2.0
 urllib3==2.5.0
-celery==5.3.4
+# 5.6.x: primera serie con soporte oficial de Python 3.14 (5.3.4 no lo tiene).
+celery==5.6.3
 reportlab==4.4.9
 django-filter==25.1
+phonenumbers==9.0.38
 Pillow==12.1.0
 qrcode==8.2
 pdf2image==1.17.0
+argon2-cffi>=23.1
+# boto3/botocore: cliente S3 usado por core/infrastructure/storage/seaweedfs_storage.py
+# (D-01) para hablar con el Gateway S3 de SeaweedFS (ver compose.yml/infra-fase2/compose.fase2.yml,
+# donde SeaweedFS es un servicio real desplegado, no un plan a futuro). Hallazgo CRIT-01 de
+# AUDITORIA_CALIDAD_BACKEND_2026-09-15.md: esta librería faltaba aquí pese a ser requerida.
+boto3==1.35.36
+# redis: cliente que usa django.core.cache.backends.redis.RedisCache (D-11, caché de throttling).
+redis==5.2.1
+
+# --- Tooling de calidad (B1.4, D-12) ---
+# pytest + pytest-django: suite de pruebas (tests unitarios de dominio sin BD).
+pytest>=8.0
+pytest-django>=4.8
+# ruff: linter/formateador (regla B14: F403/F405 contra import *).
+ruff>=0.6
+# import-linter: verificación automática de los contratos Onion B1/B3/B16.
+import-linter>=2.0
+# mypy: tipado estático estricto en firmas de casos de uso y puertos.
+mypy>=1.10

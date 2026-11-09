@@ -1,0 +1,269 @@
+"""
+Dobles en memoria de los puertos de la solicitud de actualización (D-09): las reglas de negocio
+se prueban sin Django ni PostgreSQL.
+"""
+import uuid
+from dataclasses import replace
+from datetime import datetime, timezone
+
+from apps.autogestion.domain.entities.solicitud_actualizacion import SeccionAutogestionable
+from apps.autogestion.domain.value_objects.estado_solicitud import ESTADOS_EDITABLES, EstadoSolicitud
+from core.domain.exceptions import ConflictError
+from core.domain.tipos_soporte import ChecklistSoporteConfigurado, TipoSoporteConfigurado
+
+AHORA = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
+TRABAJADOR = '20111234'
+BIENESTAR = '20222222'
+
+
+class RepoSolicitudesMem:
+    def __init__(self):
+        self.filas, self.reservas, self.prorrogas = {}, {}, []
+
+    def crear(self, solicitud, reservar=True):
+        if reservar:
+            for s in solicitud.secciones_solicitadas:
+                if (solicitud.cedula, s) in self.reservas:
+                    raise ConflictError('Ya existe una solicitud abierta')
+        nueva = replace(solicitud, id=uuid.uuid4().hex, fecha_solicitud=AHORA)
+        self.filas[nueva.id] = nueva
+        if reservar:
+            for s in nueva.secciones_solicitadas:
+                self.reservas[(nueva.cedula, s)] = nueva.id
+        return nueva
+
+    def obtener(self, solicitud_id, bloquear=False):
+        return self.filas.get(solicitud_id)
+
+    def guardar(self, solicitud, version_esperada):
+        if self.filas[solicitud.id].version != version_esperada:
+            raise ConflictError('versión')
+        guardada = replace(solicitud, version=version_esperada + 1)
+        self.filas[solicitud.id] = guardada
+        return guardada
+
+    def liberar_secciones(self, solicitud_id, secciones=None):
+        for clave, sid in list(self.reservas.items()):
+            if sid == solicitud_id and (secciones is None or clave[1] in secciones):
+                del self.reservas[clave]
+
+    def listar(self, estado, cedula, limite, desplazamiento, desde=None, hasta=None):
+        items = [
+            s for s in self.filas.values()
+            if (not estado or s.estado.value == estado) and (not cedula or s.cedula == cedula)
+            and (not desde or s.fecha_solicitud.date() >= desde) and (not hasta or s.fecha_solicitud.date() <= hasta)
+        ]
+        return items[desplazamiento:desplazamiento + limite], len(items)
+
+    def listar_habilitadas_vencidas(self, ahora):
+        return [s for s in self.filas.values() if s.estado in ESTADOS_EDITABLES and s.ventana_fin < ahora]
+
+    def listar_habilitadas_por_vencer(self, ahora, hasta):
+        return [s for s in self.filas.values() if s.estado in ESTADOS_EDITABLES and ahora <= s.ventana_fin <= hasta]
+
+    def agregar_prorroga(self, prorroga):
+        self.prorrogas.append(prorroga)
+        return prorroga
+
+    def listar_prorrogas(self, solicitud_id):
+        return [p for p in self.prorrogas if p.solicitud_id == solicitud_id]
+
+
+class RepoCambiosMem:
+    def __init__(self):
+        self.filas = {}
+
+    def reemplazar(self, origen_tipo, origen_id, cambios, conservar_secciones=()):
+        for cid, c in list(self.filas.items()):
+            if c.origen_id == origen_id and c.seccion not in conservar_secciones:
+                del self.filas[cid]
+        for c in cambios:
+            nuevo = replace(c, id=uuid.uuid4().hex)
+            self.filas[nuevo.id] = nuevo
+
+    def listar(self, origen_tipo, origen_id):
+        return [c for c in self.filas.values() if c.origen_id == origen_id]
+
+    def guardar_decisiones(self, cambios):
+        for c in cambios:
+            self.filas[c.id] = c
+
+    def eliminar_de_seccion(self, origen_tipo, origen_id, seccion):
+        for cid, c in list(self.filas.items()):
+            if c.origen_id == origen_id and c.seccion == seccion:
+                del self.filas[cid]
+
+    def guardar(self, cambio):
+        nuevo = replace(cambio, id=uuid.uuid4().hex)
+        self.filas[nuevo.id] = nuevo
+        return nuevo
+
+
+class RepoSoportesMem:
+    def __init__(self):
+        self.filas = {}
+
+    def agregar(self, soporte):
+        nuevo = replace(soporte, id=uuid.uuid4().hex)
+        self.filas[nuevo.id] = nuevo
+        return nuevo
+
+    def obtener(self, soporte_id):
+        return self.filas.get(soporte_id)
+
+    def listar(self, origen_tipo, origen_id):
+        return [s for s in self.filas.values() if s.origen_id == origen_id]
+
+    def eliminar(self, soporte_id):
+        self.filas.pop(soporte_id, None)
+
+
+class RepoSeccionesMem:
+    def __init__(self):
+        self.filas = {
+            'identidad': SeccionAutogestionable('identidad', 'Identidad', False),
+            'contacto': SeccionAutogestionable('contacto', 'Contacto', False),
+            'vivienda': SeccionAutogestionable('vivienda', 'Vivienda', False),
+            'formacion': SeccionAutogestionable('formacion', 'Formación', True),
+            'complementaria': SeccionAutogestionable('complementaria', 'Formación complementaria', True),
+            'familiar': SeccionAutogestionable('familiar', 'Familiares', True),
+            'salud': SeccionAutogestionable('salud', 'Salud y tallas', False),
+            'foto': SeccionAutogestionable('foto', 'Foto', False),
+            'antecedentes': SeccionAutogestionable('antecedentes', 'Antecedentes de servicio', True),
+        }
+
+    def listar(self, solo_activas=True):
+        return [s for s in self.filas.values() if s.activa or not solo_activas]
+
+    def obtener(self, codigo):
+        return self.filas.get(codigo)
+
+    def guardar(self, seccion):
+        self.filas[seccion.codigo] = seccion
+        return seccion
+
+
+class RepoSoporteConfiguracionMem:
+    """Doble del catálogo configurable con la misma semilla histórica (O41)."""
+
+    _TIPOS = (
+        ('TITULO', 'Título', 10), ('ACTA_NACIMIENTO', 'Partida de nacimiento', 20),
+        ('CEDULA', 'Copia de la cédula', 30), ('CONSTANCIA', 'Constancia', 40),
+        ('FOTO', 'Foto', 50), ('OTRO', 'Otro documento', 60),
+    )
+    _CHECKLIST = {
+        'identidad': ('CEDULA',),
+        'contacto': ('CONSTANCIA', 'OTRO'),
+        'vivienda': ('CONSTANCIA', 'OTRO'),
+        'formacion': ('TITULO', 'CONSTANCIA', 'OTRO'),
+        'complementaria': ('CONSTANCIA', 'OTRO'),
+        'familiar': ('CEDULA', 'ACTA_NACIMIENTO', 'CONSTANCIA', 'OTRO'),
+        'foto': ('FOTO',),
+        'antecedentes': ('CONSTANCIA', 'OTRO'),
+    }
+
+    def __init__(self):
+        self.tipos = [
+            TipoSoporteConfigurado(
+                id=i, codigo=codigo, nombre=nombre, es_reservado=True,
+                es_protegido=True, orden=orden,
+            )
+            for i, (codigo, nombre, orden) in enumerate(self._TIPOS, start=1)
+        ]
+        self.filas = []
+        for seccion, codigos in self._CHECKLIST.items():
+            for orden, codigo in enumerate(codigos, start=1):
+                tipo = next(t for t in self.tipos if t.codigo == codigo)
+                self.filas.append(ChecklistSoporteConfigurado(
+                    id=len(self.filas) + 1, seccion=seccion, tipo_soporte_id=tipo.id,
+                    codigo=tipo.codigo, nombre=tipo.nombre, etiqueta=tipo.nombre,
+                    permitido=True, requerido=True, orden=orden,
+                ))
+
+    def listar_tipos(self):
+        return list(self.tipos)
+
+    def listar_checklist(self):
+        return list(self.filas)
+
+    def checklist_de_seccion(self, seccion):
+        return [f for f in self.filas if f.seccion == seccion]
+
+
+class FichaMem:
+    """Ficha vigente simulada: lector (solo lectura) y aplicador (único que escribe)."""
+
+    def __init__(self):
+        self.datos = {
+            ('employee', None): {'telefono_movil': '04141111111', 'telefono_habitacion': '02121111111', 'profile': 'perfiles/viejo.jpg'},
+            ('familiar', '7'): {'primer_nombre': 'ANA', 'parentesco_id': 3},
+            ('datos_complementarios', None): {'correo_alternativo': None},
+        }
+        self.aplicaciones = []
+
+    # LectorFicha
+    def valor_actual(self, cedula, entidad, entidad_id, campo):
+        return self.datos.get((entidad, entidad_id), {}).get(campo)
+
+    def pertenece_al_trabajador(self, cedula, entidad, entidad_id):
+        return (entidad, entidad_id) in self.datos
+
+    def existe_registro_unico(self, cedula, entidad):
+        return (entidad, None) in self.datos
+
+    def validar_referencias(self, valores):
+        return None
+
+    def contar_registros(self, cedula, entidad):
+        return sum(1 for (e, _) in self.datos if e == entidad)
+
+    def datos_registro(self, cedula, entidad, entidad_id):
+        return dict(self.datos.get((entidad, entidad_id), {}))
+
+    def es_parentesco_hijo(self, parentesco_id):
+        return parentesco_id == 3
+
+    def validar_familiar_alta(self, cedula, valores):
+        return None
+
+    # AplicadorCambios
+    def aplicar(self, cedula, cambios, soportes, actor_cedula):
+        self.aplicaciones.append([c.campo for c in cambios])
+        for c in cambios:
+            if c.accion == 'ELIMINAR':
+                self.datos.pop((c.entidad_destino, c.entidad_id), None)
+                continue
+            self.datos.setdefault((c.entidad_destino, c.entidad_id), {})[c.campo] = c.valor_propuesto
+
+
+class AlmacenMem:
+    def __init__(self):
+        self.objetos = {}
+
+    def subir(self, clave, contenido, mime_type):
+        self.objetos[clave] = contenido
+        return clave
+
+    def eliminar(self, clave):
+        self.objetos.pop(clave, None)
+
+
+class PublicadorMem:
+    def __init__(self):
+        self.eventos = []
+
+    def publicar(self, evento):
+        self.eventos.append(evento)
+
+    @property
+    def tipos(self):
+        return [e.tipo.value.split('.')[1] for e in self.eventos]
+
+
+class Mundo:
+    """Un escenario completo con todos los puertos en memoria."""
+
+    def __init__(self):
+        self.solicitudes, self.cambios, self.soportes = RepoSolicitudesMem(), RepoCambiosMem(), RepoSoportesMem()
+        self.secciones, self.ficha, self.almacen, self.publicador = RepoSeccionesMem(), FichaMem(), AlmacenMem(), PublicadorMem()
+        self.soporte_config = RepoSoporteConfiguracionMem()

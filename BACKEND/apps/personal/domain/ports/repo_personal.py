@@ -1,0 +1,52 @@
+"""
+Puerto del Repositorio de Personal (Reglas B1, B21).
+"""
+from typing import Protocol
+
+from apps.personal.domain.entities.empleado import Empleado
+
+
+class RepoPersonal(Protocol):
+    def listar_empleados(
+        self,
+        busqueda: str | None = None,
+        codigo: str | None = None,
+        tipo_nomina: str | int | None = None,
+        dependencia_id: int | None = None,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+    ) -> list[Empleado]:
+        ...
+
+    def listar_empleados_paginados(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        busqueda: str | None = None,
+        codigo: str | None = None,
+        tipo_nomina: str | int | None = None,
+        dependencia_id: int | None = None,
+        direccion_general_id: int | None = None,
+        direccion_linea_id: int | None = None,
+        coordinacion_id: int | None = None,
+    ) -> tuple[list[Empleado], int]:
+        """Página de empleados activos y total de coincidencias."""
+        ...
+
+    def obtener_por_cedula(self, cedula: str) -> Empleado | None:
+        ...
+
+    def crear_empleado(self, datos: dict) -> Empleado:
+        ...
+
+    def actualizar_empleado(self, cedula: str, datos: dict) -> Empleado:
+        ...
+
+    def guardar_foto(self, cedula: str, clave: str) -> None:
+        ...
+
+    def obtener_clave_foto(self, cedula: str) -> str | None:
+        """Clave del objeto de la foto del empleado, o None si no tiene/no existe."""
+        ...

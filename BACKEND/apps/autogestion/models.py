@@ -1,0 +1,40 @@
+"""
+Re-exportador de modelos ORM del módulo autogestión (Regla B26).
+"""
+from apps.autogestion.infrastructure.models.actualizacion_models import (
+    CambioPropuestoModel,
+    DatosComplementariosTrabajadorModel,
+    ProrrogaVentanaModel,
+    SeccionAbiertaModel,
+    SeccionAutogestionableModel,
+    SoporteDocumentalModel,
+    SolicitudActualizacionModel,
+)
+from apps.autogestion.infrastructure.models.autogestion_models import (
+    OpcionesPreguntaModel,
+    PreguntasEncuestasModel,
+    RespuestasEncuestaModel,
+    TipoPreguntaModel,
+)
+from apps.autogestion.infrastructure.models.guia_vista_models import GuiaVistaModel
+from apps.autogestion.infrastructure.models.soporte_config_models import (
+    ChecklistSoporteSeccionModel,
+    TipoSoporteDocumentoModel,
+)
+
+__all__ = [
+    'TipoPreguntaModel',
+    'PreguntasEncuestasModel',
+    'OpcionesPreguntaModel',
+    'RespuestasEncuestaModel',
+    'SolicitudActualizacionModel',
+    'SeccionAbiertaModel',
+    'ProrrogaVentanaModel',
+    'CambioPropuestoModel',
+    'SoporteDocumentalModel',
+    'SeccionAutogestionableModel',
+    'DatosComplementariosTrabajadorModel',
+    'GuiaVistaModel',
+    'TipoSoporteDocumentoModel',
+    'ChecklistSoporteSeccionModel',
+]

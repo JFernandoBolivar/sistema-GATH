@@ -332,26 +332,33 @@ export interface InfoCode {
 }
 export interface Depart {
   id: number;
-  nombre_departamento: string;
+  nombre: string;
+  descripcion?: string;
 }
 export interface Role {
   id: number;
   nombre_rol: string;
+  /** Etiqueta que ve el usuario; `nombre_rol` es el código interno. */
+  nombre_visible?: string;
+  descripcion_rol?: string;
 }
+/**
+ * Alineado a `CuentaLecturaSerializer` real (Fase 1 del plan de reparación):
+ * el backend expone `departamento_id`/`rol_id` planos, no objetos anidados,
+ * y todavía no expone dependencia/dirección general/línea/coordinación (ver
+ * nota de alcance en `cuenta_lectura_serializers.py`).
+ */
 export interface UserSystem {
-  id: 7;
+  id: number;
   cedula: string;
   nombres: string;
   apellidos: string;
-  correo: null;
-  telefono: null;
-  departamento: Depart;
-  rol: Role;
+  correo: string | null;
+  telefono: string | null;
+  departamento_id: number | null;
+  rol_id: number | null;
   is_active: boolean;
-  dependencia: Dependency;
-  direccion_general: DireccionGeneral | null;
-  direccion_linea: DireccionLinea | null;
-  coordinacion: Coordination | null;
+  debe_cambiar_password?: boolean | null;
 }
 export interface Politica {
   id: number;
@@ -414,6 +421,7 @@ export interface EmployeeData {
   encargadurias: PrestamoCargoData[];
   correo: string | null;
   carnet_patria: string | null;
+  carnet_patria_serial: string | null;
   telefono_habitacion: string | null;
   telefono_movil: string | null;
 }
@@ -443,6 +451,7 @@ export interface EmployeeInfo {
   antecedentes: Background[];
   formacion_complementaria: SupplementaryTraining[];
   carnet_patria: string | null;
+  carnet_patria_serial: string | null;
   fecha_actualizacion: string;
 }
 export interface Code {

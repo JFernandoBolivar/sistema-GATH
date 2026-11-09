@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototipo UX O51 — Carnetización Centralizada CONATEL</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              800: '#0c4a6e',
+              900: '#0B4A9E', // Azul institucional CONATEL
+              950: '#082f49',
+            },
+            accent: {
+              400: '#fbbf24',
+              500: '#F59E0B', // Ámbar institucional
+              600: '#d97706',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .card-shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05); }
+    .scan-beam {
+      animation: scanAnim 2s infinite ease-in-out alternate;
+    }
+    @keyframes scanAnim {
+      0% { top: 10%; }
+      100% { top: 85%; }
+    }
+  </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased flex flex-col">
+
+  <!-- BARRA SUPERIOR DE CONTROL DEL PROTOTIPO -->
+  <header class="bg-brand-900 text-white border-b border-brand-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="bg-white/10 p-1.5 rounded-lg border border-white/20">
+        <svg class="size-5 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight">CONATEL · Prototipo de Arquitectura O51</h1>
+        <p class="text-xs text-brand-100">Rediseño Integral de Carnetización y Control de Entrada</p>
+      </div>
+    </div>
+
+    <!-- Controles de Modo y Dispositivo -->
+    <div class="flex items-center gap-2">
+      <div class="bg-brand-950/60 p-1 rounded-lg flex items-center border border-white/10 text-xs">
+        <button id="btn-pc" onclick="setDevice('pc')" class="px-2.5 py-1 rounded bg-brand-600 font-medium text-white transition-colors">
+          PC (1366x768)
+        </button>
+        <button id="btn-movil" onclick="setDevice('movil')" class="px-2.5 py-1 rounded text-slate-300 hover:text-white font-medium transition-colors">
+          Móvil (360x740)
+        </button>
+      </div>
+
+      <button onclick="toggleDarkMode()" class="p-1.5 rounded-lg bg-brand-950/60 border border-white/10 text-slate-200 hover:text-white text-xs flex items-center gap-1.5" title="Alternar Modo Oscuro">
+        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <span id="theme-text">Oscuro</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL EMBEBIDO -->
+  <main class="flex-1 overflow-auto flex items-center justify-center p-2 sm:p-6 transition-all duration-300">
+    <div id="device-frame" class="w-full max-w-[1366px] h-[820px] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 flex overflow-hidden transition-all duration-300">
+
+      <!-- SIDEBAR INSTITUCIONAL CENTRALIZADO -->
+      <aside id="app-sidebar" class="w-64 bg-slate-900 text-slate-200 flex flex-col shrink-0 border-r border-slate-800 transition-all duration-300">
+        <div class="p-4 border-b border-slate-800 flex items-center gap-3">
+          <div class="size-8 rounded-lg bg-brand-700 flex items-center justify-center text-white font-bold text-sm">
+            C
+          </div>
+          <div class="leading-tight">
+            <span class="font-bold text-sm text-white tracking-wide block">GATH CARNETS</span>
+            <span class="text-[11px] text-slate-400">Dirección de Talento</span>
+          </div>
+        </div>
+
+        <nav class="flex-1 p-3 space-y-5 overflow-y-auto text-xs">
+          <div>
+            <div class="px-3 pb-1.5 font-semibold text-[10px] text-slate-400 uppercase tracking-wider">
+              1. Operación Central
+            </div>
+            <div class="space-y-1">
+              <button onclick="switchTab('emision')" id="nav-emision" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-brand-900 text-white font-medium">
+                <svg class="size-4 shrink-0 text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span>Búsqueda y Emisión</span>
+              </button>
+              <button onclick="switchTab('solicitudes')" id="nav-solicitudes" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+                <div class="flex items-center gap-2.5">
+                  <svg class="size-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <span>Solicitudes Portal</span>
+                </div>
+                <span class="px-1.5 py-0.5 rounded-full bg-accent-500/20 text-accent-400 font-bold text-[10px]">2</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="px-3 pb-1.5 font-semibold text-[10px] text-slate-400 uppercase tracking-wider">
+              2. Eventos y Acceso
+            </div>
+            <div class="space-y-1">
+              <button onclick="switchTab('eventos')" id="nav-eventos" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+                <svg class="size-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Gestor de Eventos</span>
+              </button>
+              <button onclick="switchTab('acceso')" id="nav-acceso" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+                <svg class="size-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                <span class="font-medium">Escáner de Entrada (QR)</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="px-3 pb-1.5 font-semibold text-[10px] text-slate-400 uppercase tracking-wider">
+              3. Externos y Temporales
+            </div>
+            <div class="space-y-1">
+              <button class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors opacity-80">
+                <svg class="size-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span>Visitantes y Proveedores</span>
+              </button>
+              <button class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors opacity-80">
+                <svg class="size-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Gafetes Provisionales</span>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <div class="px-3 pb-1.5 font-semibold text-[10px] text-slate-400 uppercase tracking-wider">
+              4. Marca y Diseño
+            </div>
+            <div class="space-y-1">
+              <button onclick="switchTab('diseno')" id="nav-diseno" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors">
+                <svg class="size-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+                <span>Plantillas y Diseñador</span>
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <div class="p-3 border-t border-slate-800 text-[11px] text-slate-400 text-center">
+          Versión 2.5 (Norma CONATEL)
+        </div>
+      </aside>
+
+      <!-- ÁREA DE CONTENIDO DE LA PANTALLA -->
+      <section class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto">
+
+        <!-- VISTA 1: BÚSQUEDA Y EMISIÓN UNIFICADA (BUSCAR + GENERAR) -->
+        <div id="view-emision" class="view-panel p-4 sm:p-6 space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900 dark:text-white">Consola de Emisión de Credenciales</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Localice al titular y confirme la emisión con vista previa en tiempo real.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                <span class="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Motor Activo v2.4
+              </span>
+            </div>
+          </div>
+
+          <!-- Barra de Búsqueda Viva -->
+          <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow space-y-3">
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input type="text" id="input-busqueda" oninput="filtrarPersona()" value="18456789" placeholder="Buscar por cédula, nombre o código de cargo (ej. 18456789 o Bolívar)..." class="w-full h-11 pl-11 pr-4 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span class="font-medium text-slate-500">Filtros rápidos:</span>
+              <button class="px-2.5 py-1 rounded-md bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800 font-medium">Todos</button>
+              <button class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">Activos</button>
+              <button class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">Pasivos</button>
+              <button class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">Sin carnet vigente</button>
+            </div>
+          </div>
+
+          <!-- Cuadrícula de Operación: Ficha del Trabajador + Vista Previa del Carnet -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Columna Izquierda: Datos del titular (solo lectura y sin inputs grises) -->
+            <div class="lg:col-span-7 space-y-4">
+              <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow space-y-4">
+                <div class="flex items-start gap-4">
+                  <div class="size-16 rounded-xl bg-slate-200 dark:bg-slate-800 border-2 border-brand-600 overflow-hidden flex items-center justify-center shrink-0">
+                    <svg class="size-10 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                    </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      <h3 class="text-base font-bold text-slate-900 dark:text-white truncate">BOLÍVAR HERNÁNDEZ, JOSÉ FERNANDO</h3>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-100 text-brand-800 dark:bg-brand-950 dark:text-brand-300 border border-brand-200 dark:border-brand-800">ACTIVO</span>
+                    </div>
+                    <p class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-0.5">C.I. V-18.456.789 · Código GATH-0042</p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Especialista en Seguridad de Telecomunicaciones</p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
+                  <div>
+                    <span class="text-slate-400 block font-medium">Dependencia</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">Gerencia de Operaciones y Redes</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block font-medium">Tipo de Nómina</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">Empleado Fijo (Azul Marino)</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block font-medium">Estado del Carnet Actual</span>
+                    <span class="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-accent-400">
+                      <span class="size-1.5 rounded-full bg-amber-500"></span>
+                      Vencido (Reemisión requerida)
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block font-medium">Fecha de Ingreso</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">15 de Enero de 2020</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Formulario de Emisión Simple (2 pasos) -->
+              <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow space-y-4">
+                <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Parámetros de Emisión</h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Motivo de Emisión *</label>
+                    <select class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white">
+                      <option>RENOVACIÓN POR VENCIMIENTO</option>
+                      <option>EXTRAVÍO O PÉRDIDA</option>
+                      <option>DETERIORO O DAÑO FÍSICO</option>
+                      <option>CAMBIO DE CARGO O GERENCIA</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Plantilla Institucional *</label>
+                    <select class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-medium text-slate-900 dark:text-white">
+                      <option>Plantilla Institucional Activos (Oficial)</option>
+                      <option>Plantilla Protocolar Especial</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Observaciones Administrativas</label>
+                  <textarea rows="2" class="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs resize-none" placeholder="Indique detalles de respaldo o entrega..."></textarea>
+                </div>
+
+                <div class="pt-2 flex flex-wrap items-center justify-between gap-3">
+                  <span class="text-xs text-slate-500">Se invalidará automáticamente el carnet previo emitido.</span>
+                  <div class="flex items-center gap-2">
+                    <button class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800">
+                      Vista previa PDF
+                    </button>
+                    <button onclick="simularEmision()" class="px-5 py-2 rounded-lg bg-brand-900 hover:bg-brand-800 text-white text-xs font-semibold shadow-sm flex items-center gap-2">
+                      <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Emitir y Generar Carnet
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Columna Derecha: Vista previa en vivo del carnet (Anverso / Reverso) -->
+            <div class="lg:col-span-5 space-y-4">
+              <div class="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow flex flex-col items-center">
+                <div class="w-full flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <span class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Vista Previa Oficial (54x85.6 mm)</span>
+                  <div class="flex items-center gap-1 text-[11px]">
+                    <button onclick="toggleCara('anverso')" id="btn-cara-anverso" class="px-2.5 py-0.5 rounded bg-brand-900 text-white font-medium">Anverso</button>
+                    <button onclick="toggleCara('reverso')" id="btn-cara-reverso" class="px-2.5 py-0.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800">Reverso</button>
+                  </div>
+                </div>
+
+                <!-- Simulación gráfica fiel del carnet CONATEL -->
+                <div id="carnet-preview-card" class="w-[240px] h-[380px] bg-white rounded-xl shadow-xl border border-slate-300 relative overflow-hidden flex flex-col transition-all duration-300">
+                  <!-- Franja superior azul marino con acento -->
+                  <div class="h-14 bg-brand-900 relative flex items-center px-3 justify-between">
+                    <span class="text-[11px] font-black text-white tracking-widest">CONATEL</span>
+                    <div class="h-full w-8 bg-accent-500 skew-x-[-20deg] absolute right-6 top-0 opacity-80"></div>
+                  </div>
+
+                  <!-- Contenido central Anverso -->
+                  <div id="cara-anverso-content" class="flex-1 flex flex-col items-center pt-3 px-3 text-center">
+                    <div class="size-20 rounded-lg bg-slate-200 border-2 border-brand-900 overflow-hidden mb-2 shadow-inner">
+                      <svg class="size-full text-slate-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                      </svg>
+                    </div>
+                    <h5 class="text-xs font-black text-slate-900 leading-tight">JOSÉ FERNANDO BOLÍVAR</h5>
+                    <p class="text-[10px] font-bold text-slate-700 mt-0.5">C.I. V-18.456.789</p>
+                    <p class="text-[9px] font-medium text-slate-600 mt-1">Especialista de Redes</p>
+                    <div class="w-3/4 h-0.5 bg-accent-500 my-2"></div>
+                    <p class="text-[8px] text-slate-500">Gerencia de Operaciones y Redes</p>
+
+                    <div class="mt-auto mb-2 flex items-center justify-between w-full px-2">
+                      <div class="size-9 bg-slate-100 border border-slate-300 p-0.5 rounded flex items-center justify-center">
+                        <svg class="size-full text-slate-800" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <rect x="3" y="3" width="7" height="7" stroke-width="2"/>
+                          <rect x="14" y="3" width="7" height="7" stroke-width="2"/>
+                          <rect x="3" y="14" width="7" height="7" stroke-width="2"/>
+                          <path d="M14 14h2v2h-2zm3 0h2v2h-2zm-3 3h2v2h-2zm3 3h4v-1h-2v-2h-2z" fill="currentColor"/>
+                        </svg>
+                      </div>
+                      <div class="text-right">
+                        <span class="text-[7px] text-slate-400 block">Vigencia</span>
+                        <span class="text-[8px] font-bold text-slate-700">11/2028</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Contenido Reverso (oculto por defecto) -->
+                  <div id="cara-reverso-content" class="hidden flex-1 flex flex-col items-center p-3 text-center text-slate-800">
+                    <p class="text-[7px] text-justify leading-tight text-slate-600 mb-3">
+                      • Esta credencial es de uso estrictamente oficial y personal.<br>
+                      • Debe portarse en lugar visible en todas las instalaciones.<br>
+                      • En caso de pérdida, notifique a Gestión Humana.<br>
+                      • Válida únicamente con sello y código QR activo.
+                    </p>
+                    <div class="size-20 bg-slate-100 border border-slate-300 p-1 rounded-lg flex items-center justify-center mb-2">
+                      <svg class="size-full text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <rect x="3" y="3" width="7" height="7" stroke-width="2"/>
+                        <rect x="14" y="3" width="7" height="7" stroke-width="2"/>
+                        <rect x="3" y="14" width="7" height="7" stroke-width="2"/>
+                        <path d="M14 14h2v2h-2zm3 0h2v2h-2zm-3 3h2v2h-2zm3 3h4v-1h-2v-2h-2z" fill="currentColor"/>
+                      </svg>
+                    </div>
+                    <span class="text-[8px] font-bold text-slate-700">Validación Criptográfica QR</span>
+                    <div class="mt-auto border-t border-slate-300 w-32 pt-1 text-center">
+                      <span class="text-[7px] text-slate-500 block">Dirección General CONATEL</span>
+                    </div>
+                  </div>
+
+                  <!-- Franja inferior -->
+                  <div class="h-5 bg-brand-900"></div>
+                </div>
+
+                <p class="text-[11px] text-slate-400 mt-3 text-center">Resolución: 300 DPI estándar para tarjetas PVC.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- VISTA 2: ESCÁNER UNIVERSAL DE ENTRADA (CONTROL DE ACCESO 21f) -->
+        <div id="view-acceso" class="view-panel hidden p-4 sm:p-6 space-y-6">
+          <div class="border-b border-slate-200 dark:border-slate-800 pb-4">
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white">Control de Acceso y Verificación QR</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Escaneo continuo con cámara trasera o lector USB/Bluetooth para control de garitas y eventos.</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- Visor de Cámara y Lector -->
+            <div class="lg:col-span-7 space-y-4">
+              <div class="relative bg-slate-950 rounded-2xl overflow-hidden aspect-[4/3] flex flex-col items-center justify-center border-2 border-slate-800 shadow-2xl">
+                <!-- Marco de Escaneo con Luz Láser -->
+                <div class="relative size-64 border-2 border-dashed border-emerald-500/80 rounded-2xl flex items-center justify-center overflow-hidden">
+                  <div class="scan-beam absolute w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#10b981]"></div>
+                  <svg class="size-28 text-slate-700/60" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect x="3" y="3" width="7" height="7" stroke-width="2"/>
+                    <rect x="14" y="3" width="7" height="7" stroke-width="2"/>
+                    <rect x="3" y="14" width="7" height="7" stroke-width="2"/>
+                  </svg>
+                </div>
+
+                <!-- Barra de estado de cámara -->
+                <div class="absolute bottom-4 inset-x-4 bg-slate-900/80 backdrop-blur border border-white/10 p-3 rounded-xl flex items-center justify-between text-xs text-slate-200">
+                  <div class="flex items-center gap-2">
+                    <span class="size-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span>Cámara Trasera Activa (Autoenfoque continuo)</span>
+                  </div>
+                  <span class="text-[11px] text-slate-400">Lector USB: En espera</span>
+                </div>
+              </div>
+
+              <!-- Simulador de Pruebas Rápidas del Escáner -->
+              <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow space-y-2">
+                <span class="text-xs font-semibold text-slate-500 block">Probar respuestas del escáner en vivo:</span>
+                <div class="flex flex-wrap gap-2 text-xs">
+                  <button onclick="simularCheckin('permitido')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
+                    Simular Acceso Permitido
+                  </button>
+                  <button onclick="simularCheckin('ya_ingreso')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold">
+                    Simular «Ya Ingresó»
+                  </button>
+                  <button onclick="simularCheckin('denegado')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold">
+                    Simular Credencial No Válida
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel de Dictamen Grande (Colores Inequívocos y Legibles) -->
+            <div class="lg:col-span-5 space-y-4">
+              <div id="resultado-acceso-panel" class="p-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500 text-slate-900 dark:text-white space-y-4 transition-all duration-300">
+                <div class="flex items-center gap-3">
+                  <div id="resultado-icono" class="size-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-md">
+                    ✓
+                  </div>
+                  <div>
+                    <span id="resultado-subtitulo" class="text-xs font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider block">Verificación de Identidad</span>
+                    <h3 id="resultado-titulo" class="text-2xl font-black text-emerald-900 dark:text-emerald-100">ACCESO PERMITIDO</h3>
+                  </div>
+                </div>
+
+                <div id="resultado-detalles" class="p-4 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200 dark:border-emerald-800 space-y-2 text-xs">
+                  <div>
+                    <span class="text-slate-400 block font-medium">Titular de la Credencial</span>
+                    <span class="text-sm font-bold text-slate-900 dark:text-white">Bolívar Hernández, José Fernando</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <div>
+                      <span class="text-slate-400 block">Cédula</span>
+                      <span class="font-bold text-slate-800 dark:text-slate-200">V-18.456.789</span>
+                    </div>
+                    <div>
+                      <span class="text-slate-400 block">Tipo / Nómina</span>
+                      <span class="font-bold text-brand-600 dark:text-brand-400">Funcionario Fijo</span>
+                    </div>
+                  </div>
+                  <div class="pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span class="text-slate-400 block">Zona Autorizada</span>
+                    <span class="font-semibold text-slate-800 dark:text-slate-200">Torre Principal · Puerta A</span>
+                  </div>
+                </div>
+
+                <div class="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium flex items-center justify-between">
+                  <span>Registro: 09/11/2026, 03:30 a. m.</span>
+                  <span>Bip sonoro: OK</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- VISTA 3: HUB INTEGRAL DE EVENTOS (TODO EN UNA PANTALLA) -->
+        <div id="view-eventos" class="view-panel hidden p-4 sm:p-6 space-y-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900 dark:text-white">I Encuentro de Telecomunicaciones CONATEL 2026</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Gestión integral de invitados, acreditaciones y reportes sin pantallas intermedias.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800">
+                Cambiar de evento
+              </button>
+              <button class="px-3 py-1.5 rounded-lg bg-brand-900 text-white text-xs font-semibold hover:bg-brand-800">
+                + Nuevo Invitado
+              </button>
+            </div>
+          </div>
+
+          <!-- Pestañas internas del Evento -->
+          <div class="border-b border-slate-200 dark:border-slate-800 flex gap-6 text-xs font-semibold">
+            <button class="pb-3 border-b-2 border-brand-900 text-brand-900 dark:text-brand-400">1. Resumen y Cifras</button>
+            <button class="pb-3 text-slate-500 hover:text-slate-900 dark:hover:text-white">2. Nómina de Invitados (Paginada)</button>
+            <button class="pb-3 text-slate-500 hover:text-slate-900 dark:hover:text-white">3. Emisión de Gafetes (Lote)</button>
+            <button class="pb-3 text-slate-500 hover:text-slate-900 dark:hover:text-white">4. Control en Puertas</button>
+          </div>
+
+          <!-- Cuadrícula de Métricas -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow">
+              <span class="text-xs font-medium text-slate-400 block">Total Registrados</span>
+              <span class="text-2xl font-black text-slate-900 dark:text-white">1,250</span>
+              <span class="text-[10px] text-emerald-600 font-semibold mt-1 block">100% capacidad</span>
+            </div>
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow">
+              <span class="text-xs font-medium text-slate-400 block">Gafetes Emitidos</span>
+              <span class="text-2xl font-black text-brand-600 dark:text-brand-400">1,180</span>
+              <span class="text-[10px] text-slate-500 mt-1 block">94.4% del total</span>
+            </div>
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow">
+              <span class="text-xs font-medium text-slate-400 block">Accesos Confirmados</span>
+              <span class="text-2xl font-black text-emerald-600 dark:text-emerald-400">892</span>
+              <span class="text-[10px] text-slate-500 mt-1 block">En sala en este momento</span>
+            </div>
+            <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow">
+              <span class="text-xs font-medium text-slate-400 block">Pendientes por Llegar</span>
+              <span class="text-2xl font-black text-accent-500">358</span>
+              <span class="text-[10px] text-slate-500 mt-1 block">28.6% restante</span>
+            </div>
+          </div>
+
+          <!-- Tabla Central con BarraFiltros y Paginación en Servidor -->
+          <div class="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 card-shadow space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex-1 min-w-[240px]">
+                <input type="text" placeholder="Filtrar invitados por nombre, cédula o institución..." class="w-full h-10 px-3 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-xs">
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800">
+                  Exportar Excel
+                </button>
+                <button class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">
+                  Imprimir Lote Seleccionado (PDF)
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+                <thead class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold border-y border-slate-200 dark:border-slate-700">
+                  <tr>
+                    <th class="p-2.5 w-8"><input type="checkbox" class="rounded"></th>
+                    <th class="p-2.5">Invitado</th>
+                    <th class="p-2.5">Institución</th>
+                    <th class="p-2.5">Categoría</th>
+                    <th class="p-2.5">Zona</th>
+                    <th class="p-2.5">Estado Gafete</th>
+                    <th class="p-2.5 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tr>
+                    <td class="p-2.5"><input type="checkbox" checked class="rounded"></td>
+                    <td class="p-2.5 font-bold text-slate-900 dark:text-white">Dra. Coromoto Godoy</td>
+                    <td class="p-2.5">Ministerio de Relaciones Exteriores</td>
+                    <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-brand-100 text-brand-900 font-semibold">Autoridad VIP</span></td>
+                    <td class="p-2.5 font-medium">Salón Simón Bolívar</td>
+                    <td class="p-2.5"><span class="text-emerald-600 font-semibold">✓ Emitido</span></td>
+                    <td class="p-2.5 text-right"><button class="text-brand-600 hover:underline font-medium">Reimprimir</button></td>
+                  </tr>
+                  <tr>
+                    <td class="p-2.5"><input type="checkbox" class="rounded"></td>
+                    <td class="p-2.5 font-bold text-slate-900 dark:text-white">Ing. Marcos Rivas</td>
+                    <td class="p-2.5">CANTV · Operaciones</td>
+                    <td class="p-2.5"><span class="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-semibold">Ponente</span></td>
+                    <td class="p-2.5 font-medium">Auditorio General</td>
+                    <td class="p-2.5"><span class="text-emerald-600 font-semibold">✓ Emitido</span></td>
+                    <td class="p-2.5 text-right"><button class="text-brand-600 hover:underline font-medium">Reimprimir</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginación 10/25/50 -->
+            <div class="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <span>Mostrando 1 - 2 de 1,250 registros</span>
+              <div class="flex items-center gap-2">
+                <span>Por página:</span>
+                <select class="h-8 px-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded text-xs">
+                  <option>10</option>
+                  <option>25</option>
+                  <option>50</option>
+                </select>
+                <div class="flex gap-1 ml-2">
+                  <button class="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700">Anterior</button>
+                  <button class="px-2.5 py-1 rounded bg-brand-900 text-white font-bold">1</button>
+                  <button class="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700">2</button>
+                  <button class="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700">Siguiente</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.classList.remove('bg-brand-900', 'text-white');
+        btn.classList.add('text-slate-300');
+      });
+
+      const activeView = document.getElementById(`view-${tabId}`);
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      if (activeView) activeView.classList.remove('hidden');
+      if (activeNav) {
+        activeNav.classList.add('bg-brand-900', 'text-white');
+        activeNav.classList.remove('text-slate-300');
+      }
+    }
+
+    function toggleCara(cara) {
+      const anverso = document.getElementById('cara-anverso-content');
+      const reverso = document.getElementById('cara-reverso-content');
+      const btnAnv = document.getElementById('btn-cara-anverso');
+      const btnRev = document.getElementById('btn-cara-reverso');
+
+      if (cara === 'anverso') {
+        anverso.classList.remove('hidden');
+        reverso.classList.add('hidden');
+        btnAnv.className = 'px-2.5 py-0.5 rounded bg-brand-900 text-white font-medium';
+        btnRev.className = 'px-2.5 py-0.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800';
+      } else {
+        anverso.classList.add('hidden');
+        reverso.classList.remove('hidden');
+        btnRev.className = 'px-2.5 py-0.5 rounded bg-brand-900 text-white font-medium';
+        btnAnv.className = 'px-2.5 py-0.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800';
+      }
+    }
+
+    function setDevice(device) {
+      const frame = document.getElementById('device-frame');
+      const sidebar = document.getElementById('app-sidebar');
+      const btnPc = document.getElementById('btn-pc');
+      const btnMovil = document.getElementById('btn-movil');
+
+      if (device === 'movil') {
+        frame.style.maxWidth = '360px';
+        frame.style.height = '740px';
+        sidebar.classList.add('hidden');
+        btnMovil.className = 'px-2.5 py-1 rounded bg-brand-600 font-medium text-white transition-colors';
+        btnPc.className = 'px-2.5 py-1 rounded text-slate-300 hover:text-white font-medium transition-colors';
+      } else {
+        frame.style.maxWidth = '1366px';
+        frame.style.height = '820px';
+        sidebar.classList.remove('hidden');
+        btnPc.className = 'px-2.5 py-1 rounded bg-brand-600 font-medium text-white transition-colors';
+        btnMovil.className = 'px-2.5 py-1 rounded text-slate-300 hover:text-white font-medium transition-colors';
+      }
+    }
+
+    function toggleDarkMode() {
+      const html = document.documentElement;
+      const themeText = document.getElementById('theme-text');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        themeText.innerText = 'Oscuro';
+      } else {
+        html.classList.add('dark');
+        themeText.innerText = 'Claro';
+      }
+    }
+
+    function simularCheckin(tipo) {
+      const panel = document.getElementById('resultado-acceso-panel');
+      const icono = document.getElementById('resultado-icono');
+      const titulo = document.getElementById('resultado-titulo');
+      const sub = document.getElementById('resultado-subtitulo');
+
+      if (tipo === 'permitido') {
+        panel.className = 'p-6 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500 text-slate-900 dark:text-white space-y-4 transition-all duration-300';
+        icono.className = 'size-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black text-xl shadow-md';
+        icono.innerText = '✓';
+        titulo.className = 'text-2xl font-black text-emerald-900 dark:text-emerald-100';
+        titulo.innerText = 'ACCESO PERMITIDO';
+        sub.innerText = 'Verificación de Identidad';
+      } else if (tipo === 'ya_ingreso') {
+        panel.className = 'p-6 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-500 text-slate-900 dark:text-white space-y-4 transition-all duration-300';
+        icono.className = 'size-12 rounded-xl bg-amber-600 text-white flex items-center justify-center font-black text-xl shadow-md';
+        icono.innerText = '!';
+        titulo.className = 'text-2xl font-black text-amber-900 dark:text-amber-100';
+        titulo.innerText = 'YA HABÍA INGRESADO';
+        sub.innerText = 'Alerta de Duplicidad';
+      } else {
+        panel.className = 'p-6 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-500 text-slate-900 dark:text-white space-y-4 transition-all duration-300';
+        icono.className = 'size-12 rounded-xl bg-rose-600 text-white flex items-center justify-center font-black text-xl shadow-md';
+        icono.innerText = '✕';
+        titulo.className = 'text-2xl font-black text-rose-900 dark:text-rose-100';
+        titulo.innerText = 'CREDENCIAL NO VÁLIDA';
+        sub.innerText = 'Acceso Denegado';
+      }
+    }
+
+    function simularEmision() {
+      alert("¡Carnet generado exitosamente! Se guardó la emisión oficial en base de datos y se descargó el PDF a 300 DPI.");
+    }
+  </script>
+</body>
+</html>

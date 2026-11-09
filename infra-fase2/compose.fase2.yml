@@ -1,0 +1,239 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# GATH · Fase 2 — SeaweedFS + RabbitMQ + Celery
+#
+# Fragmento para fusionar con ./compose.yml. Endurece la configuración base
+# según §12.3 del documento FASE2_PROPUESTA_TECNICA.md.
+#
+#   docker compose -f compose.yml -f infra-fase2/compose.fase2.yml up -d
+#
+# REGLA QUE ORDENA ESTE ARCHIVO:
+#   ningún servicio de almacenamiento ni el broker publica puertos al host.
+#   El volume server (8080) entrega contenido por fid SIN autenticación y el
+#   filer (8888) expone CRUD completo SIN autenticación. Publicarlos reproduce
+#   CRIT-06/CRIT-07 saltándose Django por completo.
+#   Sólo `sw_s3` es alcanzable, y sólo desde la red interna `storage`.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── SeaweedFS ──────────────────────────────────────────────────────────────
+  sw_master:
+    image: chrislusf/seaweedfs:3.80          # etiqueta fija, nunca :latest
+    container_name: sw_master
+    restart: always
+    command: >
+      master -ip=sw_master -port=9333
+      -volumeSizeLimitMB=1024
+      -defaultReplication=000
+    # SIN ports: no se publica al host (§12.3, hallazgo 1)
+    volumes:
+      - sw_master_data:/data
+    networks: [storage]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9333/cluster/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+    logging: &log
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  sw_volume:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_volume
+    restart: always
+    command: >
+      volume -mserver=sw_master:9333 -ip=sw_volume -port=8080
+      -max=64 -dir=/data
+    # SIN ports
+    volumes:
+      - /opt/gath/seaweedfs/data:/data
+    networks: [storage]
+    depends_on:
+      sw_master: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+    logging: *log
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  sw_filer:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_filer
+    restart: always
+    command: >
+      filer -master=sw_master:9333 -ip=sw_filer -port=8888
+    # SIN ports — el filer no autentica nada
+    volumes:
+      # Índice del namespace. Si se pierde, los objetos quedan sin nombre
+      # aunque el contenido esté intacto (§12.10).
+      - /opt/gath/seaweedfs/metadata:/data
+    networks: [storage]
+    depends_on:
+      sw_master: { condition: service_healthy }
+      sw_volume: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8888/?limit=1"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    logging: *log
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  sw_s3:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_s3
+    restart: always
+    # Identidades acotadas por bucket en lugar de una única llave de
+    # administrador vía AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY (§12.4).
+    command: >
+      s3 -filer=sw_filer:8888 -port=8333
+      -config=/etc/seaweedfs/identities.json
+      -allowEmptyFolder=false
+    volumes:
+      - ./infra-fase2/seaweedfs/identities.json:/etc/seaweedfs/identities.json:ro
+    # SIN ports: Django lo alcanza por la red `storage`.
+    # Publicar 8333 sólo si más adelante se usan URLs prefirmadas (§12.5),
+    # y en ese caso detrás de nginx con TLS, nunca directo.
+    networks: [storage]
+    depends_on:
+      sw_filer: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8333/status"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    logging: *log
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  # Crea los cuatro buckets y termina. Idempotente.
+  sw_init:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_init
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      'for b in gath-fotos gath-documentos gath-soportes gath-plantillas; do
+         echo "s3.bucket.create -name $$b" | weed shell -master=sw_master:9333 || true;
+       done; echo "buckets listos"'
+    networks: [storage]
+    depends_on:
+      sw_s3: { condition: service_healthy }
+
+  # ── RabbitMQ ───────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: gath_rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?falta RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?falta RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_VHOST: gath
+    # SIN ports: ni 5672 ni 15672. La consola de administración no tiene por
+    # qué ser alcanzable desde el host (§12.6).
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks: [broker]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
+    logging: *log
+    deploy:
+      resources:
+        limits: { memory: 768M }
+
+  # ── Celery ─────────────────────────────────────────────────────────────────
+  # Colas separadas para que un ETL lento no retrase la emisión de un carnet.
+  worker_sync: &worker
+    build: { context: ./BACKEND, dockerfile: django.dockerfile }
+    image: gath-backend:fase2
+    container_name: gath_worker_sync
+    restart: always
+    env_file: [./BACKEND/.env]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    # -Ofair + prefetch 1: entrega en orden y sin acaparar mensajes (§12.6)
+    command: celery -A SIGEP worker -Q sync -c 2 -Ofair --prefetch-multiplier=1 -l INFO
+    networks: [backend, broker, storage]
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      sw_s3:    { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A SIGEP inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 40s
+    logging: *log
+
+  worker_docs:
+    <<: *worker
+    container_name: gath_worker_docs
+    command: celery -A SIGEP worker -Q docs -c 4 -l INFO
+
+  worker_mail:
+    <<: *worker
+    container_name: gath_worker_mail
+    command: celery -A SIGEP worker -Q mail -c 4 -l INFO
+
+  beat:
+    <<: *worker
+    container_name: gath_beat
+    # Calendario en la base: se ajusta sin desplegar (§12.7)
+    command: >
+      celery -A SIGEP beat -l INFO
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid || exit 0"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  # ── Django: se suma a las redes nuevas ─────────────────────────────────────
+  # Hoy `django` sólo está en `backend`, por lo que no alcanza al almacén.
+  #
+  # OJO: Compose REEMPLAZA la clave `networks` en lugar de fusionarla, así que
+  # hay que repetir el alias `djangoapp` de compose.yml. No es cosmético:
+  # NextJS/.env apunta a http://djangoapp:8000/api/ y sin el alias el frontend
+  # deja de alcanzar al backend dentro de Docker.
+  django:
+    networks:
+      backend:
+        aliases:
+          - djangoapp
+      broker:
+      storage:
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+      sw_s3:    { condition: service_healthy }
+
+volumes:
+  sw_master_data: { name: gath_sw_master }
+  rabbitmq_data:  { name: gath_rabbitmq }
+
+networks:
+  # `internal: true` deja estas redes sin salida a internet: el almacén y el
+  # broker no necesitan alcanzar el exterior.
+  storage:
+    driver: bridge
+    internal: true
+  broker:
+    driver: bridge
+    internal: true

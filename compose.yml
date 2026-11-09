@@ -1,4 +1,33 @@
+x-backend-env: &backend-env
+  DJANGO_DB_HOST: ${DJANGO_DB_HOST:-host.docker.internal}
+  # FRONTEND_URL se toma de BACKEND/.env (env_file) para no pisar la URL real.
+  REDIS_URL: redis://:${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}@redis:6379/0
+  # Celery (A1): broker RabbitMQ (vhost gath) y resultados en Redis db 1.
+  CELERY_BROKER_URL: amqp://${RABBITMQ_USER:?RABBITMQ_USER no definido (ver .env.example)}:${RABBITMQ_PASS:?RABBITMQ_PASS no definido (ver .env.example)}@rabbitmq:5672/gath
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASS}@redis:6379/1
+
 services:
+  # ── Bootstrap (una sola vez por base): permisos, roles, cuentas y superadmin ──
+  # Comparte la imagen del backend y corre el entrypoint (espera Postgres y migra).
+  # La marca `core_bootstrap_state` evita repetir los pasos pesados en cada arranque.
+  bootstrap:
+    container_name: gath_bootstrap
+    build:
+      context: ./BACKEND
+      dockerfile: django.dockerfile
+    env_file:
+      - ./BACKEND/.env
+    image: gath-backend:latest
+    environment: *backend-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [backend, broker, storage, cache]
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["sh", "-c", "./docker-entrypoint.sh python manage.py preparar_produccion --automatico"]
+    restart: "no"
+
   django:
     container_name: django-App
     build:
@@ -6,38 +35,93 @@ services:
       dockerfile: django.dockerfile
     env_file:
       - ./BACKEND/.env
-    # En Linux 'host.docker.internal' no resuelve solo: hay que mapearlo al
-    # gateway del host para que el contenedor alcance el PostgreSQL local.
+    image: gath-backend:latest
+    environment: *backend-env
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
       backend:
         aliases:
           - djangoapp
+      broker:
+      storage:
+      cache:
+    depends_on:
+      redis:
+        condition: service_healthy
+      bootstrap:
+        condition: service_completed_successfully
     ports:
-      - "8000:8000"
+      - "${PUERTO_DJANGO:-8001}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/', timeout=3)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     volumes:
       - staticfiles:/app/Django/staticfiles
-      - "/opt/gath/BACKEND/media:/app/Django/media"
-      - "/opt/gath/BACKEND/staticfiles:/app/Django/staticfiles"
+      - "${GATH_MEDIA_DIR:-/opt/gath/BACKEND/media}:/app/Django/media"
+      - "${GATH_STATICFILES_DIR:-/opt/gath/BACKEND/staticfiles}:/app/Django/staticfiles"
     restart: always
 
-  nestjs:
-    container_name: NestFS
+  # ── Celery (A1): misma imagen que django, sin puertos al host ───────────────
+  # No corren `migrate` (SKIP_MIGRATE=1): solo django aplica migraciones.
+  celery_worker:
+    container_name: gath_celery_worker
+    image: gath-backend:latest
     build:
-      context: ./NestJS-Files
-      dockerfile: nestjs.dockerfile
+      context: ./BACKEND
+      dockerfile: django.dockerfile
     env_file:
-      - ./NestJS-Files/.env
-    volumes:
-      - "/var/www/backup/uploadsNestFS:/app/NestFS/uploads"
-    networks:
-      file_manager:
-        aliases:
-          - file_managerapp
-    ports:
-      - "5000:5000"
+      - ./BACKEND/.env
+    environment:
+      <<: *backend-env
+      SKIP_MIGRATE: "1"
+    command: ["celery", "-A", "GATH", "worker", "-Q", "gath", "-l", "info", "--concurrency=${CELERY_CONCURRENCY:-2}"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [backend, broker, storage, cache]
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/celery_worker_heartbeat && test $$(( $$(date +%s) - $$(stat -c %Y /tmp/celery_worker_heartbeat) )) -lt 60"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     restart: always
+
+  celery_beat:
+    container_name: gath_celery_beat
+    image: gath-backend:latest
+    build:
+      context: ./BACKEND
+      dockerfile: django.dockerfile
+    env_file:
+      - ./BACKEND/.env
+    environment:
+      <<: *backend-env
+      SKIP_MIGRATE: "1"
+    command: ["celery", "-A", "GATH", "beat", "-l", "info", "-s", "/tmp/celerybeat-schedule", "--pidfile=/tmp/celerybeat.pid"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [backend, broker, cache]
+    depends_on:
+      - celery_worker
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/celerybeat.pid && kill -0 $$(cat /tmp/celerybeat.pid)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: always
+
   nextjs:
     container_name: nextjs-App
     build:
@@ -45,15 +129,122 @@ services:
       dockerfile: nextjs.dockerfile
     env_file:
       - ./NextJS/.env
+    environment:
+      - DJANGO_API_SERVER=http://djangoapp:8000
     ports:
-      - "3000:3000"
+      - "${PUERTO_NEXTJS:-3001}:3000"
     networks:
       backend:
-      file_manager:
     depends_on:
       - django
-      - nestjs
     restart: always
+
+  # ── SeaweedFS ──────────────────────────────────────────────────────────────
+  sw_master:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_master
+    restart: always
+    command: >
+      master -ip=sw_master -port=9333
+      -volumeSizeLimitMB=1024
+      -defaultReplication=000
+    volumes:
+      - sw_master_data:/data
+    networks: [storage]
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  sw_volume:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_volume
+    restart: always
+    command: >
+      volume -mserver=sw_master:9333 -ip=sw_volume -port=8080
+      -max=64 -dir=/data
+    volumes:
+      - sw_volume_data:/data
+    networks: [storage]
+    depends_on:
+      - sw_master
+    deploy:
+      resources:
+        limits: { memory: 1G }
+
+  sw_filer:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_filer
+    restart: always
+    command: >
+      filer -master=sw_master:9333 -ip=sw_filer -port=8888
+    volumes:
+      - sw_filer_data:/data
+    networks: [storage]
+    depends_on:
+      - sw_master
+      - sw_volume
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  sw_s3:
+    image: chrislusf/seaweedfs:3.80
+    container_name: sw_s3
+    restart: always
+    command: >
+      s3 -filer=sw_filer:8888 -port=8333
+      -ip.bind=0.0.0.0
+      -allowEmptyFolder=false
+    networks:
+      storage:
+        aliases:
+          - sw-s3
+    depends_on:
+      - sw_filer
+    deploy:
+      resources:
+        limits: { memory: 512M }
+
+  # ── RabbitMQ ───────────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: gath_rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER no definido (fallo cerrado, ver infra-fase2/.env.fase2.example)}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:?RABBITMQ_PASS no definido (fallo cerrado, ver infra-fase2/.env.fase2.example)}
+      RABBITMQ_DEFAULT_VHOST: gath
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks: [broker]
+    deploy:
+      resources:
+        limits: { memory: 768M }
+
+  # ── Redis (caché de Django / throttling, D-11) ─────────────────────────────
+  # Sin puertos al host y en red interna, igual que el broker. Sin persistencia:
+  # solo guarda contadores de ventanas cortas, perderlos al reiniciar no importa.
+  redis:
+    image: redis:7.4-alpine
+    container_name: gath_redis
+    restart: always
+    environment:
+      # redis-cli toma la clave de REDISCLI_AUTH (lo usa el healthcheck).
+      REDISCLI_AUTH: ${REDIS_PASS:?REDIS_PASS no definido (ver .env.example)}
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$REDISCLI_AUTH" --maxmemory 256mb --maxmemory-policy volatile-lru --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [cache]
+    deploy:
+      resources:
+        limits: { memory: 384M }
+
   portainer:
     container_name: portainer
     image: portainer/portainer-ce:latest
@@ -62,18 +253,37 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     ports:
-      - "9443:9443"
+      # Solo desde el propio servidor (túnel SSH/VPN): Portainer monta docker.sock
+      # y quien entre controla el host. No publicar a la red.
+      - "127.0.0.1:9443:9443"
+
 volumes:
   portainer_data:
     name: portainer_data
+    external: true
   staticfiles:
     name: staticfiles
+  sw_master_data:
+    name: gath_sw_master
+  sw_volume_data:
+    name: gath_sw_volume
+  sw_filer_data:
+    name: gath_sw_filer
+  rabbitmq_data:
+    name: gath_rabbitmq
+
 networks:
   default:
     name: portainer_network
+    external: true
   backend:
     driver: bridge
-  file_manager:
+  storage:
     driver: bridge
-  postgres:
+    internal: true
+  broker:
     driver: bridge
+    internal: true
+  cache:
+    driver: bridge
+    internal: true

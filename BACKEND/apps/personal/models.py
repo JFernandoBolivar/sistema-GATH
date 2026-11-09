@@ -1,0 +1,68 @@
+"""
+Re-exportador de modelos ORM del módulo personal (Regla B26).
+"""
+from apps.personal.infrastructure.models.personal_models import EmployeeModel
+from apps.personal.infrastructure.models.reporte_error_models import ReporteErrorDatoLaboralModel
+from apps.personal.infrastructure.models.catalogos_soporte_models import (
+    AlergiaModel,
+    CarreraModel,
+    CapacitacionModel,
+    CategoriaAlergiaModel,
+    CategoriaDiscapacidadModel,
+    CategoriaPatologiaModel,
+    CodigoPostalModel,
+    CondicionViviendaModel,
+    DiscapacidadModel,
+    GrupoCapacitacionModel,
+    GrupoSanguineoModel,
+    InstitucionModel,
+    MencionModel,
+    NivelAcademicoModel,
+    PatologiaCronicaModel,
+    PoliticaModel,
+    RegionTallaModel,
+    TallaModel,
+    TipoPrendaModel,
+)
+from apps.personal.infrastructure.models.expediente_models import (
+    AntecedenteServicioModel,
+    ContactoEmergenciaModel,
+    ContratoModel,
+    DatosViviendaModel,
+    FormacionAcademicaModel,
+    FormacionComplementariaModel,
+    PerfilFisicoModel,
+    PerfilSaludModel,
+)
+
+__all__ = [
+    'EmployeeModel',
+    'PoliticaModel',
+    'CondicionViviendaModel',
+    'CodigoPostalModel',
+    'GrupoSanguineoModel',
+    'NivelAcademicoModel',
+    'CarreraModel',
+    'MencionModel',
+    'InstitucionModel',
+    'TipoPrendaModel',
+    'RegionTallaModel',
+    'TallaModel',
+    'CapacitacionModel',
+    'GrupoCapacitacionModel',
+    'AlergiaModel',
+    'CategoriaAlergiaModel',
+    'CategoriaDiscapacidadModel',
+    'CategoriaPatologiaModel',
+    'PatologiaCronicaModel',
+    'DiscapacidadModel',
+    'AntecedenteServicioModel',
+    'ContratoModel',
+    'DatosViviendaModel',
+    'PerfilSaludModel',
+    'PerfilFisicoModel',
+    'FormacionAcademicaModel',
+    'FormacionComplementariaModel',
+    'ContactoEmergenciaModel',
+    'ReporteErrorDatoLaboralModel',
+]

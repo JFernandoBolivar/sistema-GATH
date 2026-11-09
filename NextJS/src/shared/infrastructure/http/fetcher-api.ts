@@ -1,0 +1,255 @@
+import { cookies } from "next/headers";
+import { auth } from "#/auth";
+import { refreshTokens } from "@/lib/api-client";
+import { DJANGO_API_SERVER } from "@/shared/commons/api";
+import { SessionExpiredError, ApiHttpError } from "./errors";
+import { generateTraceId } from "@/shared/infrastructure/logging/trace-context";
+
+/**
+ * Cliente HTTP canónico del kernel compartido (F2.10). Reemplaza gradualmente a
+ * `@/lib/api-client.ts`: delega en él únicamente `refreshTokens()` (rotación de
+ * `dj_access`/`dj_refresh` vía cookies httpOnly) para no duplicar esa lógica mientras
+ * dura la migración, pero corrige su falla de origen — ALTA-01: el legado devolvía
+ * `response.json()` para cualquier status distinto de 401, incluyendo 403/404/500.
+ * Aquí toda respuesta pasa por `response.ok` antes de intentar parsear el cuerpo.
+ *
+ * Además inyecta `X-Trace-Id` en cada petición (C-5) para correlacionar con
+ * `logs/frontend/audit_frontend.txt` y `logs/backend/audit_backend.txt`.
+ */
+
+export interface RequestOptions {
+  headers?: Record<string, string>;
+  traceId?: string;
+  /**
+   * Parámetros de query string. Bug corregido en la Fase 1 del plan de
+   * reparación: este campo existía en las llamadas de varios módulos
+   * (`cargos-api.ts`, `catalogos-api.ts`, `organizacion-api.ts`,
+   * `reportes-api.ts`, `personal-api.ts`...) pero `RequestOptions` nunca lo
+   * declaró ni `request()` lo usaba — el query string jamás se construía, así
+   * que los filtros de búsqueda nunca llegaban al backend.
+   */
+  params?: Record<string, string | number | boolean | undefined | null>;
+  skipAuth?: boolean;
+}
+
+function construirRuta(path: string, params?: RequestOptions["params"]): string {
+  if (!params) return path;
+  const entradas = Object.entries(params).filter(
+    ([, valor]) => valor !== undefined && valor !== null && valor !== "",
+  );
+  if (entradas.length === 0) return path;
+  const queryString = new URLSearchParams(
+    entradas.map(([clave, valor]) => [clave, String(valor)]),
+  ).toString();
+  return path.includes("?") ? `${path}&${queryString}` : `${path}?${queryString}`;
+}
+
+async function getAccessToken(): Promise<string | null> {
+  const session = await auth();
+  if (!session?.user) return null;
+
+  const cookieStore = await cookies();
+  const existing = cookieStore.get("dj_access")?.value;
+  if (existing) return existing;
+
+  return refreshTokens();
+}
+
+async function buildHeaders(
+  extra: Record<string, string> | undefined,
+  traceId: string,
+  isForm: boolean,
+  skipAuth = false,
+): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    "X-Trace-Id": traceId,
+    ...extra,
+  };
+
+  if (!skipAuth) {
+    const token = await getAccessToken();
+    if (!token) throw new SessionExpiredError();
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  if (!isForm) headers["Content-Type"] = "application/json";
+  return headers;
+}
+
+async function extractError(
+  response: Response,
+  fallback: string,
+): Promise<{ message: string; errores?: Record<string, string[]> }> {
+  try {
+    const body = (await response.json()) as { message?: unknown; data?: { errores?: unknown } | null };
+    const message =
+      typeof body?.message === "string" && body.message.trim().length > 0 ? body.message : fallback;
+    const errores = body?.data?.errores;
+    if (errores && typeof errores === "object" && !Array.isArray(errores)) {
+      return { message, errores: errores as Record<string, string[]> };
+    }
+    return { message };
+  } catch {
+    // Respuesta sin cuerpo JSON: se usa el mensaje de reserva.
+  }
+  return { message: fallback };
+}
+
+async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+  return (await extractError(response, fallback)).message;
+}
+
+async function doFetch(
+  path: string,
+  init: RequestInit,
+  headers: Record<string, string>,
+): Promise<Response> {
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  return fetch(`${DJANGO_API_SERVER}${cleanPath}`, { ...init, headers, cache: "no-store" });
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit,
+  options: RequestOptions = {},
+  isForm = false,
+): Promise<T> {
+  const traceId = options.traceId ?? generateTraceId();
+  let headers = await buildHeaders(options.headers, traceId, isForm, options.skipAuth);
+  let response = await doFetch(path, init, headers);
+
+  if (response.status === 401 && !options.skipAuth) {
+    const newToken = await refreshTokens();
+    if (!newToken) throw new SessionExpiredError();
+    headers = { ...headers, Authorization: `Bearer ${newToken}` };
+    response = await doFetch(path, init, headers);
+  }
+
+  if (response.status === 403) {
+    throw new ApiHttpError("No tienes permiso para ejecutar esta acción", 403);
+  }
+
+  if (!response.ok) {
+    const { message, errores } = await extractError(
+      response,
+      `Error ${response.status} al comunicarse con el servidor`,
+    );
+    throw new ApiHttpError(message, response.status, errores);
+  }
+
+  if (response.status === 204) return undefined as T;
+
+  return (await response.json()) as T;
+}
+
+async function requestBlobConRespuesta(
+  path: string,
+  init: RequestInit = { method: "GET" },
+  options: RequestOptions = {},
+): Promise<{ blob: Blob; headers: Headers; status: number }> {
+  const traceId = options.traceId ?? generateTraceId();
+  const headers = await buildHeaders(
+    options.headers,
+    traceId,
+    init.body instanceof FormData,
+    options.skipAuth,
+  );
+  if (init.body && !(init.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  let response = await doFetch(path, init, headers);
+
+  if (response.status === 401 && !options.skipAuth) {
+    const newToken = await refreshTokens();
+    if (!newToken) throw new SessionExpiredError();
+    response = await doFetch(path, init, { ...headers, Authorization: `Bearer ${newToken}` });
+  }
+
+  if (!response.ok) {
+    // El mensaje del backend (400/403/5xx) es el que debe ver el usuario; el
+    // de reserva solo se usa si el cuerpo no trae uno.
+    const mensaje = await extractErrorMessage(
+      response,
+      response.status === 403
+        ? "No tienes permiso para ejecutar esta acción"
+        : `Error ${response.status} al descargar el recurso`,
+    );
+    throw new ApiHttpError(mensaje, response.status);
+  }
+
+  return { blob: await response.blob(), headers: response.headers, status: response.status };
+}
+
+async function requestBlob(
+  path: string,
+  init: RequestInit = { method: "GET" },
+  options: RequestOptions = {},
+): Promise<Blob> {
+  const { blob } = await requestBlobConRespuesta(path, init, options);
+  return blob;
+}
+
+type JsonBody = Record<string, unknown> | unknown[];
+
+export const apiClient = {
+  get: <T>(path: string, options?: RequestOptions): Promise<T> =>
+    request<T>(construirRuta(path, options?.params), { method: "GET" }, options),
+
+  post: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
+    request<T>(
+      construirRuta(path, options?.params),
+      { method: "POST", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
+
+  put: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
+    request<T>(
+      construirRuta(path, options?.params),
+      { method: "PUT", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
+
+  patch: <T>(path: string, body?: JsonBody, options?: RequestOptions): Promise<T> =>
+    request<T>(
+      construirRuta(path, options?.params),
+      { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
+
+  delete: <T>(path: string, options?: RequestOptions): Promise<T> =>
+    request<T>(construirRuta(path, options?.params), { method: "DELETE" }, options),
+
+  postForm: <T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> =>
+    request<T>(
+      construirRuta(path, options?.params),
+      { method: "POST", body: formData },
+      options,
+      true,
+    ),
+
+  patchForm: <T>(path: string, formData: FormData, options?: RequestOptions): Promise<T> =>
+    request<T>(
+      construirRuta(path, options?.params),
+      { method: "PATCH", body: formData },
+      options,
+      true,
+    ),
+
+  getBlob: (path: string, options?: RequestOptions): Promise<Blob> =>
+    requestBlob(construirRuta(path, options?.params), { method: "GET" }, options),
+
+  /**
+   * Como `getBlob`, pero devuelve también las cabeceras de la respuesta para
+   * poder trasladar metadatos (p. ej. `X-Reporte-Truncado` de los reportes).
+   */
+  getBlobConRespuesta: (path: string, options?: RequestOptions) =>
+    requestBlobConRespuesta(construirRuta(path, options?.params), { method: "GET" }, options),
+
+  postBlob: (path: string, body?: JsonBody, options?: RequestOptions): Promise<Blob> =>
+    requestBlob(
+      construirRuta(path, options?.params),
+      { method: "POST", body: body != null ? JSON.stringify(body) : undefined },
+      options,
+    ),
+};

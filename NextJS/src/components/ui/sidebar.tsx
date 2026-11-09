@@ -4,7 +4,7 @@ import * as React from "react";
 import { use } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
+import { PanelLeftIcon, XIcon } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -140,7 +140,7 @@ function SidebarProvider({
             } as React.CSSProperties
           }
           className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full min-w-0",
             className,
           )}
           {...props}
@@ -188,7 +188,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) max-w-[calc(100vw-3rem)] gap-0 p-0 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -200,7 +200,25 @@ function Sidebar({
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="flex h-full w-full flex-col overflow-hidden">
+            <div className="sticky top-0 z-40 flex items-center justify-between border-b border-sidebar-border bg-sidebar px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Menú
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpenMobile(false)}
+                className="min-h-[44px] min-w-[44px] gap-1.5 px-3 font-medium text-sidebar-foreground hover:bg-sidebar-accent touch-manipulation"
+                aria-label="Cerrar menú de navegación"
+              >
+                <XIcon className="size-4 shrink-0" aria-hidden="true" />
+                <span>Cerrar</span>
+              </Button>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col [&_[data-slot=sidebar-footer]]:sticky [&_[data-slot=sidebar-footer]]:bottom-0 [&_[data-slot=sidebar-footer]]:z-10 [&_[data-slot=sidebar-footer]]:bg-sidebar">{children}</div>
+          </div>
         </SheetContent>
       </Sheet>
     );
@@ -310,7 +328,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "bg-background relative flex w-full flex-1 flex-col",
+        "bg-background relative flex w-full min-w-0 flex-1 flex-col",
         "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className,
       )}
@@ -369,7 +387,7 @@ function SidebarSeparator({
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({ className, children, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="sidebar-content"
@@ -379,7 +397,9 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </div>
   );
 }
 
