@@ -335,10 +335,10 @@ DEFINICIONES = (
         clave=CLAVE_FE_DE_VIDA_ADMIN_REGISTRADORA_PUEDE_APROBAR,
         etiqueta='Permitir que la Administradora que registró una fe de vida presencial la apruebe de forma directa',
         descripcion=(
-            'Si está activo, la Administradora que registró la fe de vida presencial puede aprobarla de forma '
+            'Si está activo, la Administradora que registró la fe de vida presencial puede revisarla como '
+            'cualquier otra (dar su check, devolverla o rechazarla), retirar su check y aprobarla de forma '
             'directa, con justificación obligatoria y sin check previo de una Analista; queda marcado que quien '
-            'registró también aprobó. No le permite dar check, devolver, rechazar ni retirar check de su propio '
-            'registro. Apagado por defecto.'
+            'registró también aprobó. Apagado por defecto.'
         ),
         grupo=GRUPO_FE_DE_VIDA,
         tipo=TIPO_BOOLEANO,

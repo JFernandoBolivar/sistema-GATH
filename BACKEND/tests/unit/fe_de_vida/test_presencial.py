@@ -164,38 +164,84 @@ def test_administradora_registradora_apagado_no_decide(puede_checar):
 
 
 @pytest.mark.parametrize('puede_checar', [False, True])
-def test_administradora_registradora_encendido_solo_aprueba_directo(puede_checar):
-    """El interruptor de analistas no la habilita: con el suyo encendido solo queda la aprobación directa."""
+def test_administradora_registradora_encendido_habilita_flujo_completo(puede_checar):
+    """Con su interruptor encendido revisa su propio registro y además puede aprobar de forma directa."""
     sol = _solicitud_presencial_enviada(registrador_cedula=ADMINISTRADORA.cedula)
     permisos = PermisosRevision(revisar=True, check=True, aprobar_directo=True)
     assert sol.acciones_disponibles(
         ADMINISTRADORA, permisos, registrador_puede_checar=puede_checar, registrador_puede_aprobar_directo=True,
-    ) == ('aprobar_directo',)
+    ) == ('dar_check', 'aprobar_directo', 'devolver', 'rechazar')
     sin_permiso = PermisosRevision(revisar=True, check=True, aprobar_directo=False)
     assert sol.acciones_disponibles(
         ADMINISTRADORA, sin_permiso, registrador_puede_checar=puede_checar, registrador_puede_aprobar_directo=True,
-    ) == ()
+    ) == ('dar_check', 'devolver', 'rechazar')
+
+
+@pytest.mark.parametrize('llamada', ['check', 'devolver', 'rechazar', 'retirar'])
+def test_administradora_registradora_con_interruptor_revisa_su_registro(llamada):
+    """Con el parámetro encendido puede dar check, devolver, rechazar y retirar su propio registro."""
+    m, s_pres = _presencial_registrada_por(ADMINISTRADORA)
+    if llamada == 'retirar':
+        s_pres = replace(
+            s_pres, estado=EstadoSolicitud.PENDIENTE_SEGUNDO_CHECK,
+            decisiones=(
+                DecisionFeDeVida(
+                    TipoDecision.CHECK, ADMINISTRADORA.rol, ADMINISTRADORA.cedula, s_pres.envios, AHORA,
+                ),
+            ),
+        )
+        m.solicitudes.filas[s_pres.id] = s_pres
+    kwargs = dict(solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA)
+
+    if llamada == 'check':
+        res = revision.dar_check(
+            m.solicitudes, m.aplicador, m.publicador, **kwargs,
+            admin_registradora_puede_decidir=True,
+        )
+        assert res.estado is EstadoSolicitud.PENDIENTE_SEGUNDO_CHECK
+        assert res.registrador_tambien_aprobo is True
+    elif llamada == 'devolver':
+        res = revision.devolver(
+            m.solicitudes, m.publicador, **kwargs,
+            motivo='Corrija el teléfono', admin_registradora_puede_decidir=True,
+        )
+        assert res.estado is EstadoSolicitud.DEVUELTA
+    elif llamada == 'rechazar':
+        res = revision.rechazar(
+            m.solicitudes, m.publicador, **kwargs,
+            motivo='Documentación ilegible', admin_registradora_puede_decidir=True,
+        )
+        assert res.estado is EstadoSolicitud.RECHAZADA
+    else:
+        res = revision.retirar_check(
+            m.solicitudes, m.publicador, **kwargs,
+            motivo='Di el check por error', admin_registradora_puede_decidir=True,
+        )
+        assert res.estado is EstadoSolicitud.PENDIENTE_REVISION
 
 
 @pytest.mark.parametrize('puede_checar', [False, True])
-def test_administradora_registradora_no_da_check_devuelve_rechaza_ni_retira(puede_checar):
+def test_administradora_registradora_sin_interruptor_no_revisa(puede_checar):
     m, s_pres = _presencial_registrada_por(ADMINISTRADORA)
     llamadas = (
         lambda: revision.dar_check(
             m.solicitudes, m.aplicador, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
-            registrador_puede_checar=puede_checar,
+            registrador_puede_checar=puede_checar, admin_registradora_puede_decidir=False,
         ),
         lambda: revision.devolver(
             m.solicitudes, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
             motivo='Corrija el teléfono', registrador_puede_checar=puede_checar,
+            admin_registradora_puede_decidir=False,
         ),
         lambda: revision.rechazar(
             m.solicitudes, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
             motivo='Documentación ilegible', registrador_puede_checar=puede_checar,
+            admin_registradora_puede_decidir=False,
         ),
         lambda: revision.retirar_check(
             m.solicitudes, m.publicador, solicitud_id=s_pres.id, actor=ADMINISTRADORA, ahora=AHORA,
             motivo='Di el check por error', registrador_puede_checar=puede_checar,
+            admin_registradora_puede_decidir=False,
         ),
     )
     for llamada in llamadas:
