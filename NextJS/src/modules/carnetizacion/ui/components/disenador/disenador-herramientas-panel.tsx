@@ -1,17 +1,31 @@
 "use client";
 
-import { AlertTriangle, Image as ImageIcon, QrCode, Shapes, Square, Type, User } from "lucide-react";
+import { useState } from "react";
+import {
+  AlertTriangle,
+  ChevronsUpDown,
+  Image as ImageIcon,
+  QrCode,
+  Shapes,
+  Slash,
+  Square,
+  Triangle,
+  Type,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { CampoCredencial } from "../../../domain/entities/carnet";
 import type { ElementoKonva } from "../../../domain/entities/disenador";
 
@@ -28,23 +42,62 @@ export function DisenadorHerramientasPanel({
   onAnadirElemento,
   onAbrirBiblioteca,
 }: DisenadorHerramientasPanelProps) {
+  const [campoAbierto, setCampoAbierto] = useState(false);
+  const [busquedaCampo, setBusquedaCampo] = useState("");
+
+  const insertarCampo = (campo: CampoCredencial) => {
+    onAnadirElemento({
+      t: "field",
+      field: campo.codigo,
+      name: campo.etiqueta,
+      cara: caraActual,
+      x: 5,
+      y: 25,
+      w: 40,
+      h: 6,
+      r: 0,
+      fill: "#111827",
+      stroke: "",
+      sw: 0,
+      rad: 0,
+      shadow: 0,
+      op: 100,
+      font: "Source Sans 3, Arial",
+      size: 8.5,
+      bold: campo.codigo === "nombre" || campo.codigo === "cedula",
+      align: "left",
+    });
+    if (campo.sensible) {
+      toast.warning(`Aviso: '${campo.etiqueta}' es un dato sensible y quedará impreso.`);
+    }
+    setCampoAbierto(false);
+    setBusquedaCampo("");
+  };
+
+  const consulta = busquedaCampo.trim().toLowerCase();
+  const camposFiltrados = consulta
+    ? camposDisponibles.filter((c) =>
+        `${c.etiqueta} ${c.codigo} ${c.grupo}`.toLowerCase().includes(consulta),
+      )
+    : camposDisponibles;
+
   return (
-    <Card className="shadow-xs border">
-      <CardHeader className="p-3 pb-2 border-b">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Shapes className="size-4 text-primary" />
-          Elementos e Inserción
+    <Card className="border-border bg-card shadow-none">
+      <CardHeader className="border-b border-border p-3 pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <Shapes className="size-4 text-primary" aria-hidden />
+          Elementos e inserción
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3 space-y-4">
-        {/* Formas Básicas */}
-        <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground block">Formas</span>
+      <CardContent className="space-y-4 p-3">
+        {/* Formas */}
+        <div className="space-y-2">
+          <span className="block text-xs font-medium text-muted-foreground">Formas</span>
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="justify-start gap-2 h-8 text-xs"
+              className="h-10 justify-start gap-2 text-xs"
               onClick={() =>
                 onAnadirElemento({
                   t: "rect",
@@ -64,13 +117,13 @@ export function DisenadorHerramientasPanel({
                 })
               }
             >
-              <Square className="size-3.5" />
+              <Square className="size-4" aria-hidden />
               Rectángulo
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="justify-start gap-2 h-8 text-xs"
+              className="h-10 justify-start gap-2 text-xs"
               onClick={() =>
                 onAnadirElemento({
                   t: "circle",
@@ -90,20 +143,72 @@ export function DisenadorHerramientasPanel({
                 })
               }
             >
-              <div className="size-3.5 rounded-full border border-current" />
+              <span className="size-4 rounded-full border-2 border-current" aria-hidden />
               Círculo
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 justify-start gap-2 text-xs"
+              onClick={() =>
+                onAnadirElemento({
+                  t: "tri",
+                  name: "Triángulo",
+                  cara: caraActual,
+                  x: 10,
+                  y: 10,
+                  w: 18,
+                  h: 16,
+                  r: 0,
+                  fill: "rule:acento",
+                  stroke: "",
+                  sw: 0,
+                  rad: 0,
+                  shadow: 0,
+                  op: 100,
+                })
+              }
+            >
+              <Triangle className="size-4" aria-hidden />
+              Triángulo
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 justify-start gap-2 text-xs"
+              onClick={() =>
+                onAnadirElemento({
+                  t: "diag",
+                  name: "Franja diagonal",
+                  cara: caraActual,
+                  x: 0,
+                  y: 0,
+                  w: 40,
+                  h: 12,
+                  r: 0,
+                  fill: "rule:primario",
+                  stroke: "",
+                  sw: 0,
+                  rad: 0,
+                  shadow: 0,
+                  op: 100,
+                })
+              }
+            >
+              <Slash className="size-4" aria-hidden />
+              Franja diagonal
             </Button>
           </div>
         </div>
 
-        {/* Textos y Campos de Expediente */}
-        <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground block">Texto y Datos</span>
+        {/* Texto y campos */}
+        <div className="space-y-2">
+          <span className="block text-xs font-medium text-muted-foreground">Texto y datos</span>
           <div className="flex flex-col gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="justify-start gap-2 h-8 text-xs"
+              className="h-10 justify-start gap-2 text-xs"
               onClick={() =>
                 onAnadirElemento({
                   t: "text",
@@ -127,68 +232,76 @@ export function DisenadorHerramientasPanel({
                 })
               }
             >
-              <Type className="size-3.5" />
-              Texto Estático
+              <Type className="size-4" aria-hidden />
+              Texto estático
             </Button>
 
-            {/* Desplegable de Campos Autorizados */}
-            <Select
-              onValueChange={(cod) => {
-                const campo = camposDisponibles.find((c) => c.codigo === cod);
-                if (!campo) return;
-                onAnadirElemento({
-                  t: "field",
-                  field: campo.codigo,
-                  name: campo.etiqueta,
-                  cara: caraActual,
-                  x: 5,
-                  y: 25,
-                  w: 40,
-                  h: 6,
-                  r: 0,
-                  fill: "#111827",
-                  stroke: "",
-                  sw: 0,
-                  rad: 0,
-                  shadow: 0,
-                  op: 100,
-                  font: "Source Sans 3, Arial",
-                  size: 8.5,
-                  bold: campo.codigo === "nombre" || campo.codigo === "cedula",
-                  align: "left",
-                });
-                if (campo.sensible) {
-                  toast.warning(`Aviso: '${campo.etiqueta}' es un dato sensible y quedará impreso.`);
-                }
-              }}
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Insertar Campo del Expediente..." />
-              </SelectTrigger>
-              <SelectContent>
-                {camposDisponibles.map((c) => (
-                  <SelectItem key={c.codigo} value={c.codigo}>
-                    <div className="flex items-center gap-1.5">
-                      {c.sensible && <AlertTriangle className="size-3 text-amber-500 shrink-0" />}
-                      <span>{c.etiqueta}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Selector con búsqueda de campos del expediente */}
+            <Popover open={campoAbierto} onOpenChange={setCampoAbierto}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={campoAbierto}
+                  className="h-10 w-full justify-between gap-2 text-xs font-normal"
+                >
+                  <span className="truncate text-muted-foreground">
+                    Insertar campo del expediente…
+                  </span>
+                  <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-(--radix-popover-trigger-width) min-w-[280px] p-0"
+                align="start"
+              >
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Buscar campo del expediente…"
+                    value={busquedaCampo}
+                    onValueChange={setBusquedaCampo}
+                  />
+                  <CommandList className="max-h-64 overflow-y-auto">
+                    <CommandEmpty>No hay campos que coincidan.</CommandEmpty>
+                    <CommandGroup>
+                      {camposFiltrados.map((c) => (
+                        <CommandItem
+                          key={c.codigo}
+                          value={c.codigo}
+                          onSelect={() => insertarCampo(c)}
+                          className="cursor-pointer"
+                        >
+                          <span className="flex-1 truncate">{c.etiqueta}</span>
+                          <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                            {c.grupo}
+                          </span>
+                          {c.sensible && (
+                            <AlertTriangle
+                              className="ml-1.5 size-3.5 shrink-0 text-warning"
+                              aria-label="Dato sensible"
+                            />
+                          )}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
-        {/* Gráficos Institucionales */}
-        <div className="space-y-1.5">
-          <span className="text-xs font-medium text-muted-foreground block">
-            Gráficos y Seguridad
+        {/* Gráficos y seguridad */}
+        <div className="space-y-2">
+          <span className="block text-xs font-medium text-muted-foreground">
+            Gráficos y seguridad
           </span>
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="justify-start gap-1.5 h-8 text-xs"
+              className="h-10 justify-start gap-2 text-xs"
               onClick={() =>
                 onAnadirElemento({
                   t: "photo",
@@ -208,13 +321,13 @@ export function DisenadorHerramientasPanel({
                 })
               }
             >
-              <User className="size-3.5" />
+              <User className="size-4" aria-hidden />
               Fotografía
             </Button>
             <Button
               variant="outline"
               size="sm"
-              className="justify-start gap-1.5 h-8 text-xs"
+              className="h-10 justify-start gap-2 text-xs"
               onClick={() =>
                 onAnadirElemento({
                   t: "qr",
@@ -234,7 +347,7 @@ export function DisenadorHerramientasPanel({
                 })
               }
             >
-              <QrCode className="size-3.5" />
+              <QrCode className="size-4" aria-hidden />
               Código QR
             </Button>
           </div>
@@ -242,11 +355,11 @@ export function DisenadorHerramientasPanel({
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 h-8 text-xs mt-1"
+            className="mt-1 h-10 w-full justify-start gap-2 text-xs"
             onClick={onAbrirBiblioteca}
           >
-            <ImageIcon className="size-3.5" />
-            Elegir de Biblioteca de Medios
+            <ImageIcon className="size-4" aria-hidden />
+            Elegir de biblioteca de medios
           </Button>
         </div>
       </CardContent>

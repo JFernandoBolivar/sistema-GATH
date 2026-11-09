@@ -331,12 +331,17 @@ export async function subirFotoCarnetAction(cedula: string, nombre: string, foto
   }
 }
 
-export async function generarCarnetPdfAction(cedula: string, motivoId: number, nombre: string) {
+export async function generarCarnetPdfAction(
+  cedula: string,
+  motivoId: number,
+  nombre: string,
+  plantillaId?: string,
+) {
   const traceId = generateTraceId();
   const startedAt = Date.now();
   try {
     const { carnetizacionApi } = await import("../http/carnetizacion-api");
-    const blob = await carnetizacionApi.generarCarnetPdf(cedula, motivoId, nombre);
+    const blob = await carnetizacionApi.generarCarnetPdf(cedula, motivoId, nombre, plantillaId);
     const arrayBuffer = await blob.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString("base64");
     await logAudit({ traceId, action: "generarCarnetPdfAction", status: "SUCCESS", durationMs: Date.now() - startedAt });

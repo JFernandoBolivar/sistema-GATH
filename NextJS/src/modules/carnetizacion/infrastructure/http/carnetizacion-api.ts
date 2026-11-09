@@ -348,10 +348,11 @@ export const carnetizacionApi = {
     };
   },
 
-  generarCarnetPdf: async (cedula: string, motivoId: number, nombre: string) => {
+  generarCarnetPdf: async (cedula: string, motivoId: number, nombre: string, plantillaId?: string) => {
     return apiClient.postBlob(`/api/v1/carnetizacion/generar/${cedula}/`, {
       motivo_id: motivoId,
       observaciones: "",
+      plantilla_id: plantillaId,
       datos_editados: { nombre, cedula },
     });
   },

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlantillaMotor, TipoCredencial } from "../../../domain/entities/carnet";
+import { PlantillaMiniatura } from "./plantilla-miniatura";
 
 interface PlantillasMotorGridProps {
   tipoActivo: string;
@@ -107,8 +108,8 @@ export function PlantillasMotorGrid({
             return (
               <Card
                 key={p.id}
-                className={`flex flex-col justify-between transition-all shadow-xs border ${
-                  esActiva ? "ring-2 ring-emerald-500 border-emerald-300 bg-emerald-50/10" : ""
+                className={`flex flex-col justify-between border shadow-none transition-all ${
+                  esActiva ? "border-primary/40 ring-2 ring-primary/20" : ""
                 }`}
               >
                 <CardHeader className="pb-3">
@@ -117,21 +118,21 @@ export function PlantillasMotorGrid({
                       <CardTitle className="text-base font-semibold leading-tight line-clamp-1">
                         {p.nombre}
                       </CardTitle>
-                      <CardDescription className="text-xs mt-1">
+                      <CardDescription className="mt-1 text-xs">
                         Tipo: <span className="font-medium text-foreground">{p.codigo_tipo}</span>
                       </CardDescription>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      <Badge variant="secondary" className="font-mono text-xs">
+                      <Badge variant="secondary" className="tabular-nums text-xs">
                         v{p.version}
                       </Badge>
                       {esActiva ? (
-                        <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1">
-                          <Star className="size-3 fill-current" />
+                        <Badge className="gap-1 bg-primary text-primary-foreground">
+                          <Star className="size-3 fill-current" aria-hidden />
                           Activa
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
                           Inactiva
                         </Badge>
                       )}
@@ -140,39 +141,48 @@ export function PlantillasMotorGrid({
                 </CardHeader>
 
                 <CardContent className="space-y-3 pb-3 text-sm">
-                  <div className="grid grid-cols-2 gap-2 p-2.5 rounded-md bg-muted/30 border text-xs">
+                  <div className="rounded-lg border border-border bg-muted/30 p-2">
+                    <PlantillaMiniatura
+                      definicion={p.definicion}
+                      anchoMm={p.ancho_mm}
+                      altoMm={p.alto_mm}
+                      etiqueta={p.nombre}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 rounded-md border border-border bg-muted/30 p-2.5 text-xs">
                     <div>
-                      <span className="text-muted-foreground block">Dimensiones</span>
+                      <span className="block text-muted-foreground">Dimensiones</span>
                       <span className="font-semibold text-foreground">
                         {p.ancho_mm} × {p.alto_mm} mm
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block">Orientación</span>
+                      <span className="block text-muted-foreground">Orientación</span>
                       <span className="font-semibold capitalize text-foreground">
                         {p.orientacion}
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block">Estado</span>
+                      <span className="block text-muted-foreground">Estado</span>
                       <span
                         className={`font-semibold capitalize ${
-                          esBorrador ? "text-amber-600" : "text-emerald-700"
+                          esBorrador ? "text-warning" : "text-success"
                         }`}
                       >
                         {p.estado}
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block">Regla</span>
-                      <span className="font-semibold text-foreground truncate block">
+                      <span className="block text-muted-foreground">Regla</span>
+                      <span className="block truncate font-semibold text-foreground">
                         {p.regla_criterio}: {p.regla_valor}
                       </span>
                     </div>
                   </div>
 
-                  <div className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
-                    <Clock className="size-3.5" />
+                  <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+                    <Clock className="size-3.5" aria-hidden />
                     <span>
                       Modificado:{" "}
                       {new Date(p.actualizado || p.creado).toLocaleDateString("es-ES", {
@@ -184,26 +194,21 @@ export function PlantillasMotorGrid({
                   </div>
                 </CardContent>
 
-                <div className="p-4 pt-0 mt-auto flex items-center justify-between gap-2 border-t pt-3">
+                <div className="mt-auto flex items-center justify-between gap-2 border-t border-border p-4 pt-3">
                   <div className="flex items-center gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs h-8 gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
-                      asChild
-                    >
+                    <Button size="sm" variant="default" className="min-h-9 gap-1.5" asChild>
                       <Link href={`/carnetizacion/disenador?plantilla=${p.id}`}>
-                        <Palette className="size-3.5" />
-                        Diseñar
+                        <Palette className="size-3.5" aria-hidden />
+                        Abrir diseñador
                       </Link>
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-xs h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
+                      className="min-h-9 gap-1.5 px-2 text-muted-foreground hover:text-foreground"
                       onClick={() => onAbrirHistorialVersiones(p)}
                     >
-                      <History className="size-3.5" />
+                      <History className="size-3.5" aria-hidden />
                       Historial
                     </Button>
                   </div>
@@ -213,11 +218,11 @@ export function PlantillasMotorGrid({
                       <Button
                         size="sm"
                         variant="secondary"
-                        className="text-xs h-8 gap-1"
+                        className="min-h-9 gap-1"
                         disabled={isPending}
                         onClick={() => onPublicarMotor(p.id, p.version)}
                       >
-                        <Sparkles className="size-3.5" />
+                        <Sparkles className="size-3.5" aria-hidden />
                         Publicar
                       </Button>
                     )}
@@ -225,11 +230,11 @@ export function PlantillasMotorGrid({
                       <Button
                         size="sm"
                         variant="outline"
-                        className="text-xs h-8 gap-1 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50"
+                        className="min-h-9 gap-1 border-primary/40 text-primary hover:bg-secondary"
                         disabled={isPending}
                         onClick={() => onActivarMotor(p.id)}
                       >
-                        <CheckCircle2 className="size-3.5" />
+                        <CheckCircle2 className="size-3.5" aria-hidden />
                         Activar
                       </Button>
                     )}

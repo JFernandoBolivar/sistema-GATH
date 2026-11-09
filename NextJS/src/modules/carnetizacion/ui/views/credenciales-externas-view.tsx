@@ -213,92 +213,227 @@ export default function CredencialesExternasView({ grupo }: Props) {
   return (
     <PageLayout title={titulo} description={descripcion}>
       <div className="flex flex-col gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="size-4" /> {temporal ? "Nueva credencial temporal" : "Nueva credencial de visita"}
+        <Card className="border-border bg-card shadow-none">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Plus className="size-5 text-primary" aria-hidden />
+              {temporal ? "Nueva credencial temporal" : "Nueva credencial de visita"}
             </CardTitle>
             <CardDescription>
               {temporal
                 ? "La credencial se anula sola al cumplir la vigencia."
-                : "Los tipos de credencial salen del catálogo configurable."}
+                : "Registre la visita y emita la credencial con su vigencia."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label>Tipo de credencial</Label>
-              <Select value={tipoCodigo} onValueChange={setTipoCodigo}>
-                <SelectTrigger><SelectValue placeholder="Seleccione un tipo" /></SelectTrigger>
-                <SelectContent>
-                  {tipos.map((t) => <SelectItem key={t.codigo} value={t.codigo}>{t.nombre}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          <CardContent className="space-y-6 p-4 sm:p-6">
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">Credencial</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cred-tipo">Tipo de credencial</Label>
+                  <Select value={tipoCodigo} onValueChange={setTipoCodigo}>
+                    <SelectTrigger id="cred-tipo" className="h-11 w-full">
+                      <SelectValue placeholder="Seleccione un tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tipos.map((t) => (
+                        <SelectItem key={t.codigo} value={t.codigo}>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!temporal && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cred-motivo">Motivo de la visita</Label>
+                    <Input
+                      id="cred-motivo"
+                      value={form.motivo}
+                      onChange={(e) => setForm({ ...form, motivo: e.target.value })}
+                      placeholder="Ej.: reunión, mantenimiento, entrevista"
+                      className="h-11"
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
 
             {temporal ? (
-              <>
-                <div className="grid gap-1.5">
-                  <Label>Cédula del trabajador</Label>
-                  <div className="flex gap-2">
-                    <Input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="buscar cédula..." />
-                    <Button type="button" variant="outline" onClick={buscarTrabajador} disabled={isPending}>
-                      <Search className="size-4" />
-                    </Button>
+              <section className="space-y-3 border-t border-border pt-5">
+                <h3 className="text-sm font-semibold text-foreground">Trabajador</h3>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cred-cedula">Cédula del trabajador</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="cred-cedula"
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                        placeholder="Buscar cédula…"
+                        className="h-11"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={buscarTrabajador}
+                        disabled={isPending}
+                        className="min-h-11"
+                        aria-label="Buscar trabajador"
+                      >
+                        <Search className="size-4" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cred-trabajador">Trabajador</Label>
+                    <Input
+                      id="cred-trabajador"
+                      value={empleado?.nombre ?? ""}
+                      readOnly
+                      placeholder="Sin seleccionar"
+                      className="h-11 bg-muted/40"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cred-horas">Vigencia (horas)</Label>
+                    <Input
+                      id="cred-horas"
+                      type="number"
+                      min={1}
+                      max={72}
+                      value={form.horas}
+                      onChange={(e) => setForm({ ...form, horas: e.target.value })}
+                      className="h-11"
+                    />
                   </div>
                 </div>
-                <div className="grid gap-1.5">
-                  <Label>Trabajador</Label>
-                  <Input value={empleado?.nombre ?? ""} readOnly placeholder="sin seleccionar" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Vigencia (horas)</Label>
-                  <Input type="number" min={1} max={72} value={form.horas} onChange={(e) => setForm({ ...form, horas: e.target.value })} />
-                </div>
-              </>
+              </section>
             ) : (
               <>
-                <div className="grid gap-1.5">
-                  <Label>Nombre completo</Label>
-                  <Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Documento</Label>
-                  <Input value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Empresa</Label>
-                  <Input value={form.empresa} onChange={(e) => setForm({ ...form, empresa: e.target.value })} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Contrato / referencia</Label>
-                  <Input value={form.contrato} onChange={(e) => setForm({ ...form, contrato: e.target.value })} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Persona visitada</Label>
-                  <Input value={form.persona} onChange={(e) => setForm({ ...form, persona: e.target.value })} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Desde</Label>
-                  <Input type="datetime-local" value={form.desde} onChange={(e) => setForm({ ...form, desde: e.target.value })} />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>Hasta</Label>
-                  <Input type="datetime-local" value={form.hasta} onChange={(e) => setForm({ ...form, hasta: e.target.value })} />
-                </div>
+                <section className="space-y-3 border-t border-border pt-5">
+                  <h3 className="text-sm font-semibold text-foreground">Datos del visitante</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cred-nombre">Nombre completo</Label>
+                      <Input
+                        id="cred-nombre"
+                        value={form.nombre}
+                        onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                        placeholder="Nombres y apellidos"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cred-documento">Documento</Label>
+                      <Input
+                        id="cred-documento"
+                        value={form.documento}
+                        onChange={(e) => setForm({ ...form, documento: e.target.value })}
+                        placeholder="Cédula o pasaporte"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cred-empresa">Empresa</Label>
+                      <Input
+                        id="cred-empresa"
+                        value={form.empresa}
+                        onChange={(e) => setForm({ ...form, empresa: e.target.value })}
+                        placeholder="Empresa u organización"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cred-contrato">Contrato / referencia</Label>
+                      <Input
+                        id="cred-contrato"
+                        value={form.contrato}
+                        onChange={(e) => setForm({ ...form, contrato: e.target.value })}
+                        placeholder="Contrato, orden o referencia"
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="space-y-3 border-t border-border pt-5">
+                  <h3 className="text-sm font-semibold text-foreground">Detalle de la visita</h3>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cred-persona">Persona visitada</Label>
+                      <Input
+                        id="cred-persona"
+                        value={form.persona}
+                        onChange={(e) => setForm({ ...form, persona: e.target.value })}
+                        placeholder="A quién visita"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cred-desde">Desde</Label>
+                      <Input
+                        id="cred-desde"
+                        type="datetime-local"
+                        value={form.desde}
+                        onChange={(e) => setForm({ ...form, desde: e.target.value })}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="cred-hasta">Hasta</Label>
+                      <Input
+                        id="cred-hasta"
+                        type="datetime-local"
+                        value={form.hasta}
+                        onChange={(e) => setForm({ ...form, hasta: e.target.value })}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+                </section>
               </>
             )}
 
-            <div className="grid gap-1.5">
-              <Label>Correo (opcional)</Label>
-              <Input type="email" value={form.correo} onChange={(e) => setForm({ ...form, correo: e.target.value })} />
-            </div>
-            <div className="grid gap-1.5 md:col-span-2">
-              <Label>Motivo</Label>
-              <Input value={form.motivo} onChange={(e) => setForm({ ...form, motivo: e.target.value })} />
-            </div>
-            <div className="md:col-span-2 flex justify-end">
-              <Button onClick={emitir} disabled={isPending}>
-                <Plus className="size-4 mr-1" /> Emitir
+            <section className="space-y-3 border-t border-border pt-5">
+              <h3 className="text-sm font-semibold text-foreground">Notificación</h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cred-correo">Correo (opcional)</Label>
+                  <Input
+                    id="cred-correo"
+                    type="email"
+                    value={form.correo}
+                    onChange={(e) => setForm({ ...form, correo: e.target.value })}
+                    placeholder="correo@ejemplo.com"
+                    className="h-11"
+                  />
+                </div>
+                {temporal && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cred-motivo-temporal">Motivo</Label>
+                    <Input
+                      id="cred-motivo-temporal"
+                      value={form.motivo}
+                      onChange={(e) => setForm({ ...form, motivo: e.target.value })}
+                      placeholder="Motivo de la emisión temporal"
+                      className="h-11"
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                {temporal
+                  ? "La credencial temporal se anula sola al cumplir las horas indicadas."
+                  : "La credencial se emite con la vigencia indicada y queda registrada en el control de visitantes."}
+              </p>
+              <Button onClick={emitir} disabled={isPending} className="min-h-11 shrink-0">
+                <Plus className="size-4" aria-hidden />
+                Emitir credencial
               </Button>
             </div>
           </CardContent>

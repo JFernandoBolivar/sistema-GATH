@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff, Layers, Lock, MoveDown, MoveUp, QrCode, Square, Type, User, Image as ImageIcon } from "lucide-react";
+import { Eye, EyeOff, Layers, Lock, MoveDown, MoveUp, QrCode, Slash, Square, Triangle, Type, User, Image as ImageIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,6 +76,8 @@ export function DisenadorCapasPanel({
                 {el.t === "circle" && (
                   <div className="size-3 rounded-full border border-current shrink-0" />
                 )}
+                {el.t === "tri" && <Triangle className="size-3.5 shrink-0" />}
+                {el.t === "diag" && <Slash className="size-3.5 shrink-0" />}
                 {(el.t === "text" || el.t === "field") && <Type className="size-3.5 shrink-0" />}
                 {el.t === "photo" && <User className="size-3.5 shrink-0" />}
                 {el.t === "qr" && <QrCode className="size-3.5 shrink-0" />}

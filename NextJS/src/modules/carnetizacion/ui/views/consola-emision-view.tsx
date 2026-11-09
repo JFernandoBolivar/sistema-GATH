@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  ArrowRight,
   Award,
   Eye,
   IdCard,
@@ -81,7 +82,7 @@ export function ConsolaEmisionView() {
   const [caraPreview, setCaraPreview] = useState<"anverso" | "reverso">("anverso");
 
   const [motivoId, setMotivoId] = useState<number>(0);
-  const [plantillaId, setPlantillaId] = useState<string>("oficial-activos");
+  const [plantillaId, setPlantillaId] = useState<string>("activa");
   const [observaciones, setObservaciones] = useState("");
   const [vistaPreviaRaster, setVistaPreviaRaster] = useState<string>("");
   const [isPendingEmision, startTransitionEmision] = useTransition();
@@ -228,7 +229,12 @@ export function ConsolaEmisionView() {
       const nombre = truncarNombre(trabajadorSeleccionado.nombre_completo);
 
       try {
-        const result = await generarCarnetPdfAction(cedula, motivoEfectivoId, nombre);
+        const result = await generarCarnetPdfAction(
+          cedula,
+          motivoEfectivoId,
+          nombre,
+          plantillaId === "activa" ? undefined : plantillaId,
+        );
         if (!result.success || !result.data) {
           toast.error(result.message || "No fue posible generar el carnet oficial.");
           return;
@@ -353,9 +359,9 @@ export function ConsolaEmisionView() {
 
             {/* Desplegable de Resultados de Búsqueda cuando no hay selección fija */}
             {!trabajadorSeleccionado && debouncedQuery.length >= 2 && (
-              <div className="border border-border/80 rounded-lg overflow-hidden bg-background shadow-md mt-2 max-h-72 overflow-y-auto">
+              <div className="mt-2 max-h-72 overflow-y-auto rounded-lg border border-border bg-card">
                 {isLoadingBusqueda && (
-                  <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                  <div className="flex items-center justify-center gap-2 p-4 text-center text-sm text-muted-foreground">
                     <Loader2 className="size-4 animate-spin text-primary" />
                     Buscando en GATH…
                   </div>
@@ -373,34 +379,40 @@ export function ConsolaEmisionView() {
                       key={emp.cedula}
                       type="button"
                       onClick={() => handleSeleccionarTrabajador(emp)}
-                      className="w-full text-left p-3 hover:bg-muted/50 border-b border-border/40 last:border-b-0 flex items-center justify-between gap-3 transition-colors"
+                      className="group flex w-full items-center justify-between gap-4 border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/50 focus-visible:bg-muted/50"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="size-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                          <User className="size-4" />
-                        </div>
-                        <div className="truncate">
-                          <p className="text-sm font-semibold text-foreground truncate">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
+                          <User className="size-5" aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">
                             {emp.nombre_completo}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            C.I. V-{emp.cedula} · {emp.cargo || "Sin cargo registrado"}
+                          <p className="truncate text-sm text-muted-foreground">
+                            C.I. V-{emp.cedula}
+                            {emp.cargo ? ` · ${emp.cargo}` : " · Sin cargo registrado"}
                           </p>
                         </div>
                       </div>
 
-                      <div className="shrink-0 flex items-center gap-2">
-                        {emp.tiene_carnet ? (
-                          <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
-                            Carnet Activo
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground border-border">
-                            Sin carnet
-                          </Badge>
-                        )}
-                        <span className="text-xs text-primary font-medium hover:underline">
-                          Seleccionar →
+                      <div className="flex shrink-0 items-center gap-3">
+                        <Badge
+                          variant="outline"
+                          className={
+                            emp.tiene_carnet
+                              ? "border-success/30 bg-success-soft text-success"
+                              : "border-border text-muted-foreground"
+                          }
+                        >
+                          {emp.tiene_carnet ? "Carnet activo" : "Sin carnet"}
+                        </Badge>
+                        <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                          Seleccionar
+                          <ArrowRight
+                            className="size-4 transition-transform group-hover:translate-x-0.5"
+                            aria-hidden
+                          />
                         </span>
                       </div>
                     </button>
@@ -553,26 +565,26 @@ export function ConsolaEmisionView() {
 
                     <div>
                       <Label htmlFor="plantilla-emision" className="text-xs font-semibold">
-                        Plantilla Institucional *
+                        Plantilla del PDF
                       </Label>
                       <Select value={plantillaId} onValueChange={setPlantillaId}>
-                        <SelectTrigger id="plantilla-emision" className="h-10 mt-1 text-xs">
-                          <SelectValue placeholder="Seleccione plantilla" />
+                        <SelectTrigger id="plantilla-emision" className="mt-1 h-10 text-sm">
+                          <SelectValue placeholder="Plantilla activa" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="oficial-activos" className="text-xs">
-                            Plantilla Oficial Activos (Azul Marino CONATEL)
-                          </SelectItem>
-                          <SelectItem value="oficial-pasivos" className="text-xs">
-                            Plantilla Oficial Pasivos (Verde Institucional)
-                          </SelectItem>
+                          <SelectItem value="activa">Plantilla activa del sistema</SelectItem>
                           {plantillasLegacy?.map((p) => (
-                            <SelectItem key={p.id} value={String(p.id)} className="text-xs">
+                            <SelectItem key={p.id} value={String(p.id)}>
                               {p.nombre}
+                              {p.activo ? "" : " (inactiva)"}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        La vista previa usa la plantilla activa. El PDF se emite con la plantilla
+                        elegida aquí.
+                      </p>
                     </div>
                   </div>
 

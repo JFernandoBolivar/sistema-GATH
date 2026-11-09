@@ -10,6 +10,8 @@ export type TipoElementoKonva =
   | "text"
   | "rect"
   | "circle"
+  | "tri"
+  | "diag"
   | "photo"
   | "qr"
   | "image";
