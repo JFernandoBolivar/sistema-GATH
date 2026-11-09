@@ -348,65 +348,49 @@ export function SolicitudesCarnetView() {
           onLimpiarFiltros={handleLimpiarFiltros}
           chipsActivos={chipsActivos}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground block mb-1">
-                Estado de la Solicitud
-              </Label>
-              <Select
-                value={filtroEstado}
-                onValueChange={(val) => {
-                  setFiltroEstado(val);
-                  setPaginaActual(1);
-                }}
-              >
-                <SelectTrigger className="h-10 text-xs">
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TODOS" className="text-xs">
-                    Todos los estados
-                  </SelectItem>
-                  <SelectItem value="PENDIENTE" className="text-xs">
-                    Pendientes de revisión
-                  </SelectItem>
-                  <SelectItem value="APROBADA" className="text-xs">
-                    Aprobadas y emitidas
-                  </SelectItem>
-                  <SelectItem value="RECHAZADA" className="text-xs">
-                    Rechazadas
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label className="text-sm font-medium text-foreground block">
+              Estado de la Solicitud
+            </Label>
+            <Select
+              value={filtroEstado}
+              onValueChange={(val) => {
+                setFiltroEstado(val);
+                setPaginaActual(1);
+              }}
+            >
+              <SelectTrigger className="h-11 w-full min-w-0 text-sm">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos los estados</SelectItem>
+                <SelectItem value="PENDIENTE">Pendientes de revisión</SelectItem>
+                <SelectItem value="APROBADA">Aprobadas y emitidas</SelectItem>
+                <SelectItem value="RECHAZADA">Rechazadas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div>
-              <Label className="text-xs font-medium text-muted-foreground block mb-1">
-                Población
-              </Label>
-              <Select
-                value={filtroPoblacion}
-                onValueChange={(val) => {
-                  setFiltroPoblacion(val);
-                  setPaginaActual(1);
-                }}
-              >
-                <SelectTrigger className="h-10 text-xs">
-                  <SelectValue placeholder="Población" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TODAS" className="text-xs">
-                    Todas las poblaciones
-                  </SelectItem>
-                  <SelectItem value="ACTIVO" className="text-xs">
-                    Personal Activo
-                  </SelectItem>
-                  <SelectItem value="PASIVO" className="text-xs">
-                    Personal Pasivo (Jubilados)
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label className="text-sm font-medium text-foreground block">
+              Población
+            </Label>
+            <Select
+              value={filtroPoblacion}
+              onValueChange={(val) => {
+                setFiltroPoblacion(val);
+                setPaginaActual(1);
+              }}
+            >
+              <SelectTrigger className="h-11 w-full min-w-0 text-sm">
+                <SelectValue placeholder="Población" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODAS">Todas las poblaciones</SelectItem>
+                <SelectItem value="ACTIVO">Personal Activo</SelectItem>
+                <SelectItem value="PASIVO">Personal Pasivo (Jubilados)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </BarraFiltros>
 
