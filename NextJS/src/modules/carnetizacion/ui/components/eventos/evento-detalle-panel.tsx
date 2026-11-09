@@ -312,7 +312,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
                 variant="outline"
                 className={
                   evento.estado === "ACTIVO"
-                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] font-bold"
+                    ? "bg-success-soft text-success border-success/30 text-[10px] font-bold"
                     : "bg-muted text-muted-foreground border-border text-[10px] font-bold"
                 }
               >
@@ -367,7 +367,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
               variant="default"
               size="sm"
               onClick={() => setActiveTab("control")}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold h-10 px-4 shadow-sm"
+              className="text-xs font-semibold h-10 px-4"
             >
               <QrCode className="size-4 mr-1.5" />
               Control en Puertas
@@ -903,7 +903,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
 
                             <TableCell className="p-3">
                               {inv.estado === "emitido" || inv.estado === "ingreso" || Boolean(inv.codigo_credencial || inv.fecha_emision) ? (
-                                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 text-[10px]">
+                                <Badge variant="outline" className="border-success/30 bg-success-soft text-success text-[10px]">
                                   Emitido
                                 </Badge>
                               ) : (
@@ -915,7 +915,7 @@ export function EventoDetallePanel({ eventoId }: EventoDetallePanelProps) {
 
                             <TableCell className="p-3">
                               {inv.estado === "ingreso" || Boolean(inv.fecha_ingreso) ? (
-                                <span className="text-emerald-600 font-semibold flex items-center gap-1 font-mono text-[11px]">
+                                <span className="flex items-center gap-1 font-mono text-[11px] font-semibold text-success">
                                   <CheckCircle2 className="size-3" />
                                   {inv.hora_ingreso_formateada || "Sí"}
                                 </span>
