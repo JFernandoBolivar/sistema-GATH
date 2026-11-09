@@ -41,6 +41,5 @@ Administradora.
 
 - `tests/unit/fe_de_vida/test_presencial.py` +
   `tests/integration/fe_de_vida/test_presencial_api.py`: **44 passed**.
-- Suite completa de fe de vida: **246 passed** (antes de ajustar la última
-  prueba extremo a extremo, que ya quedó alineada con la nueva regla).
+- Suite completa de fe de vida (unit + integración): **247 passed**.
 - `lint-imports`: 91 contratos, 0 rotos.
