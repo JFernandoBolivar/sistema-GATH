@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Propuesta Visual Refinada — Bandeja de Notificaciones (/autogestion/notificaciones)</title>
+  <style>
+    /* ==========================================================================
+       TOKENS INSTITUCIONALES GATH (NextJS/src/app/globals.css - Modo Claro Oficial)
+       ========================================================================== */
+    :root {
+      --radius: 0.625rem;
+      --radius-sm: calc(var(--radius) - 4px);
+      --radius-md: calc(var(--radius) - 2px);
+      --radius-lg: var(--radius);
+      --radius-xl: calc(var(--radius) + 4px);
+
+      --background: #f6f8fb;
+      --foreground: #101a33;
+      --card: #ffffff;
+      --card-foreground: #101a33;
+      --popover: #ffffff;
+      --popover-foreground: #101a33;
+      --primary: #0b4a9e;
+      --primary-hover: #083776;
+      --primary-foreground: #ffffff;
+      --secondary: #e8f0fc;
+      --secondary-foreground: #0a2a5e;
+      --muted: #eef2f7;
+      --muted-foreground: #475467;
+      --accent: #e8f0fc;
+      --accent-foreground: #0a2a5e;
+      --destructive: #a8201a;
+      --border: #d5dce8;
+      --border-control: #6b7a90;
+      --input: #6b7a90;
+      --ring: #0b4a9e;
+      --success: #17703a;
+      --success-soft: #e8f5ec;
+      --warning: #7a4b00;
+      --warning-soft: #fff3d1;
+      --danger: #a8201a;
+      --danger-soft: #fdecea;
+      --info: #0b4a9e;
+      --info-soft: #e8f0fc;
+      --shadow-xs: 0 1px 2px 0 rgba(16, 26, 51, 0.05);
+      --shadow-sm: 0 1px 3px 0 rgba(16, 26, 51, 0.08), 0 1px 2px -1px rgba(16, 26, 51, 0.08);
+      --shadow-md: 0 4px 6px -1px rgba(16, 26, 51, 0.08), 0 2px 4px -2px rgba(16, 26, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: "Source Sans 3 Variable", "Source Sans 3", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--background);
+      color: var(--foreground);
+      line-height: 1.5;
+      padding: 0;
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    /* ==========================================================================
+       BARRA SUPERIOR DE CONTROL DEL PROTOTIPO
+       ========================================================================== */
+    .prototype-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .proto-branding {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .proto-tag {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--secondary);
+      color: var(--secondary-foreground);
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .proto-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--foreground);
+    }
+
+    .proto-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .proto-group {
+      display: inline-flex;
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .proto-btn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--muted-foreground);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: calc(var(--radius-md) - 2px);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .proto-btn:hover {
+      color: var(--foreground);
+    }
+    .proto-btn.active {
+      background: var(--card);
+      color: var(--foreground);
+      box-shadow: var(--shadow-xs);
+    }
+
+    /* Iconos SVG inline */
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .icon-sm { width: 14px; height: 14px; }
+    .icon-lg { width: 20px; height: 20px; }
+
+    /* ==========================================================================
+       CONTENEDOR PRINCIPAL Y MARCO DE DISPOSITIVO
+       ========================================================================== */
+    .app-viewport {
+      padding: 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+      transition: max-width 0.3s ease;
+    }
+
+    /* Simulación Mobile (390px) */
+    .viewport-mobile {
+      max-width: 414px;
+      padding: 24px 12px;
+    }
+    .viewport-mobile .device-frame {
+      background: var(--card);
+      border: 10px solid #1e293b;
+      border-radius: 40px;
+      padding: 16px 14px 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+      position: relative;
+    }
+    .device-speaker {
+      width: 80px;
+      height: 4px;
+      background: #475569;
+      border-radius: 4px;
+      margin: 0 auto 16px;
+    }
+
+    /* Encabezado de la Pantalla */
+    .page-header {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (min-width: 640px) {
+      .page-header {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+
+    .page-title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .page-title {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--foreground);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.02em;
+    }
+    .unread-counter-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 9999px;
+      letter-spacing: normal;
+    }
+    .page-desc {
+      font-size: 14px;
+      color: var(--muted-foreground);
+    }
+
+    /* Botón Institucional Primario / Secundario */
+    .btn {
+      appearance: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      padding: 0 16px;
+      min-height: 44px; /* WCAG 2.5.5 Touch Target */
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-outline {
+      background: var(--card);
+      border-color: var(--border);
+      color: var(--foreground);
+    }
+    .btn-outline:hover {
+      background: var(--muted);
+      border-color: var(--border-control);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted-foreground);
+    }
+    .btn-ghost:hover {
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    .btn-sm {
+      min-height: 36px;
+      padding: 0 12px;
+      font-size: 12px;
+    }
+
+    /* ==========================================================================
+       BARRA DE FILTROS REFINADA (BARRAFILTROS + COMBOBOX CON BÚSQUEDA + FECHAS)
+       ========================================================================== */
+    .filters-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-xs);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .filters-top-row {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    @media (min-width: 768px) {
+      .filters-top-row {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+
+    .search-box-wrapper {
+      position: relative;
+      flex: 1;
+      min-width: 240px;
+    }
+    .search-icon-pos {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted-foreground);
+      pointer-events: none;
+    }
+    .search-input {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--card);
+      color: var(--foreground);
+      font-size: 13px;
+      font-family: inherit;
+      padding: 8px 12px 8px 36px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .search-input:focus {
+      border-color: var(--ring);
+      box-shadow: 0 0 0 3px rgba(11, 74, 158, 0.15);
+    }
+
+    /* Chips Segmentados de Estado (Todas · No leídas · Leídas) */
+    .segmented-status-tabs {
+      display: inline-flex;
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 3px;
+      gap: 2px;
+      width: 100%;
+    }
+    @media (min-width: 640px) {
+      .segmented-status-tabs {
+        width: auto;
+      }
+    }
+    .segment-tab {
+      flex: 1;
+      appearance: none;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted-foreground);
+      padding: 7px 14px;
+      border-radius: calc(var(--radius-md) - 2px);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .segment-tab:hover {
+      color: var(--foreground);
+    }
+    .segment-tab.active {
+      background: var(--card);
+      color: var(--foreground);
+      box-shadow: var(--shadow-xs);
+    }
+    .segment-count {
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--secondary);
+      color: var(--secondary-foreground);
+      padding: 1px 6px;
+      border-radius: 9999px;
+    }
+    .segment-tab.active .segment-count {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+
+    /* FILA 2: COMBOBOX TIPO CON BUSCADOR + FECHAS ESPECÍFICAS */
+    .filters-params-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--muted);
+    }
+
+    /* Simulación Combobox con Buscador (Pop-over) */
+    .combobox-container {
+      position: relative;
+      flex: 1;
+      min-width: 250px;
+    }
+    .combobox-trigger {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--foreground);
+      border-radius: var(--radius-md);
+      padding: 0 12px;
+      font-size: 13px;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+      text-align: left;
+    }
+    .combobox-trigger:hover {
+      border-color: var(--border-control);
+    }
+    .combobox-trigger:focus {
+      outline: none;
+      border-color: var(--ring);
+      box-shadow: 0 0 0 3px rgba(11, 74, 158, 0.15);
+    }
+
+    .combobox-popover {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      width: 100%;
+      min-width: 300px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .combobox-search-box {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--muted);
+    }
+    .combobox-search-input {
+      width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      background: var(--card);
+      color: var(--foreground);
+    }
+    .combobox-list {
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 4px;
+      list-style: none;
+    }
+    .combobox-group-header {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 6px 8px 3px;
+    }
+    .combobox-item {
+      padding: 7px 10px;
+      font-size: 12.5px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--foreground);
+    }
+    .combobox-item:hover {
+      background: var(--secondary);
+      color: var(--secondary-foreground);
+    }
+    .combobox-item.selected {
+      background: var(--secondary);
+      font-weight: 700;
+    }
+
+    /* Rango de Fechas Específicas */
+    .date-filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .date-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted-foreground);
+    }
+    .date-input {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0 10px;
+      min-height: 40px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--foreground);
+      background: var(--card);
+      outline: none;
+    }
+    .date-input:focus {
+      border-color: var(--ring);
+      box-shadow: 0 0 0 3px rgba(11, 74, 158, 0.15);
+    }
+
+    /* Chips Activos */
+    .active-chips-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding-top: 4px;
+    }
+    .active-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--secondary);
+      color: var(--secondary-foreground);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      padding: 3px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .chip-remove {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      opacity: 0.7;
+    }
+    .chip-remove:hover {
+      opacity: 1;
+    }
+
+    /* ==========================================================================
+       VARIANTE A: BANDEJA ENFOCADA (RECOMENDADA)
+       ========================================================================== */
+    .notification-group-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted-foreground);
+      padding: 14px 4px 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .notification-group-title::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .notifications-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      list-style: none;
+    }
+
+    .notif-card-a {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: var(--shadow-xs);
+      display: flex;
+      gap: 14px;
+      position: relative;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      color: inherit;
+    }
+    .notif-card-a:hover {
+      border-color: var(--border-control);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Estado No Leída: Borde lateral 4px + suave tinte institucional */
+    .notif-card-a.unread {
+      border-left: 4px solid var(--primary);
+      background: linear-gradient(to right, rgba(232, 240, 252, 0.45), var(--card) 45%);
+    }
+
+    /* Estado Leída */
+    .notif-card-a.read {
+      opacity: 0.90;
+      background: var(--card);
+    }
+    .notif-card-a.read:hover {
+      opacity: 1;
+    }
+
+    /* Icono temático del módulo */
+    .module-icon-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .icon-autogestion { background: var(--secondary); color: var(--primary); }
+    .icon-fe-de-vida { background: var(--success-soft); color: var(--success); }
+    .icon-seguridad { background: var(--warning-soft); color: var(--warning); }
+    .icon-carnet { background: var(--info-soft); color: var(--info); }
+    .icon-movimientos { background: var(--secondary); color: var(--secondary-foreground); }
+
+    .notif-content-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .notif-header-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .notif-meta-tags {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chip-module {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--muted-foreground);
+    }
+    .chip-status-new {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      padding: 2px 7px;
+      border-radius: 9999px;
+    }
+    .chip-status-read {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--muted);
+      color: var(--muted-foreground);
+      padding: 2px 7px;
+      border-radius: 9999px;
+    }
+    .notif-timestamp {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .notif-title {
+      font-size: 15px;
+      color: var(--foreground);
+      line-height: 1.35;
+    }
+    .notif-card-a.unread .notif-title {
+      font-weight: 700;
+    }
+    .notif-card-a.read .notif-title {
+      font-weight: 600;
+    }
+
+    .notif-body {
+      font-size: 13.5px;
+      color: var(--muted-foreground);
+      line-height: 1.45;
+    }
+
+    .notif-actions-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border);
+    }
+    .notif-left-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Estados secundarios */
+    .state-view-card {
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 48px 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .state-icon-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--muted);
+      color: var(--muted-foreground);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    /* Paginación al Pie */
+    .pagination-bar {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    @media (min-width: 640px) {
+      .pagination-bar {
+        flex-direction: row;
+      }
+    }
+    .pagination-counter {
+      font-size: 13px;
+      color: var(--muted-foreground);
+    }
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       BARRA DE CONTROL DEL PROTOTIPO
+       ======================================================================== -->
+  <header class="prototype-bar">
+    <div class="proto-branding">
+      <span class="proto-tag">Propuesta A Refinada</span>
+      <h1 class="proto-title">/autogestion/notificaciones (Modo Claro Oficial)</h1>
+    </div>
+
+    <div class="proto-controls">
+      <!-- Selector de Ancho: Escritorio (1440px) vs Móvil (390px) -->
+      <div class="proto-group">
+        <button type="button" class="proto-btn active" id="btn-view-desktop" onclick="setDevice('desktop')">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+          Escritorio (1440px)
+        </button>
+        <button type="button" class="proto-btn" id="btn-view-mobile" onclick="setDevice('mobile')">
+          <svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
+          Móvil (390px)
+        </button>
+      </div>
+
+      <div class="proto-group">
+        <button type="button" class="proto-btn active" id="btn-state-normal" onclick="switchState('normal')">
+          Con Datos
+        </button>
+        <button type="button" class="proto-btn" id="btn-state-empty" onclick="switchState('empty')">
+          Vista Vacía
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       CONTENIDO PRINCIPAL DE LA BANDEJA
+       ======================================================================== -->
+  <main class="app-viewport" id="viewport-container">
+    <div class="device-frame-wrapper" id="device-wrapper">
+      <div class="device-speaker hidden" id="device-speaker"></div>
+
+      <!-- 1. Cabecera Institucional (data-guia-id="notificaciones-cabecera") -->
+      <div class="page-header" data-guia-id="notificaciones-cabecera">
+        <div class="page-title-block">
+          <h2 class="page-title">
+            Notificaciones
+            <span class="unread-counter-badge" id="header-unread-counter">4 nuevas</span>
+          </h2>
+          <p class="page-desc">
+            Avisos de trámites, fe de vida, movimientos de personal y seguridad de su cuenta.
+          </p>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="btn-marcar-todas" onclick="markAllAsRead()">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg>
+          Marcar todas como leídas
+        </button>
+      </div>
+
+      <!-- 2. Barra de Filtros Refinada (data-guia-id="notificaciones-filtros") -->
+      <section class="filters-card" data-guia-id="notificaciones-filtros">
+        <!-- Fila 1: Búsqueda Universal + Chips Segmentados de Estado -->
+        <div class="filters-top-row">
+          <div class="search-box-wrapper">
+            <svg class="icon icon-sm search-icon-pos" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input
+              type="text"
+              class="search-input"
+              id="search-input"
+              placeholder="Buscar por título, asunto o contenido del aviso…"
+              oninput="handleSearch(this.value)"
+            />
+          </div>
+
+          <!-- Segmented Control de Estado Inmediato -->
+          <div class="segmented-status-tabs" role="tablist">
+            <button type="button" class="segment-tab active" id="tab-status-todas" onclick="filterStatus('todas')">
+              Todas
+              <span class="segment-count" id="count-todas">12</span>
+            </button>
+            <button type="button" class="segment-tab" id="tab-status-unread" onclick="filterStatus('unread')">
+              No leídas
+              <span class="segment-count" id="count-unread">4</span>
+            </button>
+            <button type="button" class="segment-tab" id="tab-status-read" onclick="filterStatus('read')">
+              Leídas
+              <span class="segment-count" id="count-read">8</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Fila 2: Select con Buscador (ComboboxTipoNotificacion) + Fechas Específicas (Desde / Hasta) -->
+        <div class="filters-params-row">
+          <!-- Combobox con buscador de Tipo de Notificación -->
+          <div class="combobox-container" id="combobox-wrapper">
+            <button type="button" class="combobox-trigger" onclick="toggleCombobox()">
+              <span style="display: flex; align-items: center; gap: 8px;" id="combobox-selected-text">
+                <svg class="icon icon-sm text-muted-foreground" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                Todos los tipos
+              </span>
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5-5"/></svg>
+            </button>
+
+            <!-- Menú Desplegable con buscador interno -->
+            <div class="combobox-popover hidden" id="combobox-popover">
+              <div class="combobox-search-box">
+                <input
+                  type="text"
+                  class="combobox-search-input"
+                  id="combobox-search-input"
+                  placeholder="Buscar tipo de aviso..."
+                  oninput="handleComboboxSearch(this.value)"
+                />
+              </div>
+              <ul class="combobox-list" id="combobox-list">
+                <!-- Ítems generados dinámicamente -->
+              </ul>
+            </div>
+          </div>
+
+          <!-- Fechas Específicas: Desde y Hasta -->
+          <div class="date-filter-group">
+            <div class="date-input-wrap">
+              <span>Desde:</span>
+              <input type="date" class="date-input" id="filter-desde" onchange="handleDateChange()" />
+            </div>
+            <div class="date-input-wrap">
+              <span>Hasta:</span>
+              <input type="date" class="date-input" id="filter-hasta" onchange="handleDateChange()" />
+            </div>
+
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-limpiar" onclick="resetFilters()">
+              Limpiar
+            </button>
+          </div>
+        </div>
+
+        <!-- Fila 3: Chips Activos (Removibles con X) -->
+        <div class="active-chips-bar" id="active-chips-container">
+          <!-- Renderizado dinámico -->
+        </div>
+      </section>
+
+      <!-- Estado Vacío -->
+      <div class="state-view-card hidden" id="state-empty-view">
+        <div class="state-icon-circle">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 700; color: var(--foreground);">No se encontraron notificaciones</h3>
+        <p style="font-size: 14px; color: var(--muted-foreground); max-width: 420px;">
+          No hay avisos que coincidan con los criterios de búsqueda o filtros seleccionados.
+        </p>
+        <button type="button" class="btn btn-outline btn-sm" onclick="resetFilters()">
+          Restablecer todos los filtros
+        </button>
+      </div>
+
+      <!-- ====================================================================
+           3. LISTA DE NOTIFICACIONES AGRUPADAS POR FECHA (data-guia-id="notificaciones-lista")
+           ==================================================================== -->
+      <div id="notifications-stream-wrapper">
+        <!-- Grupo: Hoy -->
+        <div class="notif-date-group" id="group-hoy">
+          <h3 class="notification-group-title">Hoy</h3>
+          <ul class="notifications-stream" id="stream-hoy"></ul>
+        </div>
+
+        <!-- Grupo: Ayer -->
+        <div class="notif-date-group" id="group-ayer" style="margin-top: 16px;">
+          <h3 class="notification-group-title">Ayer</h3>
+          <ul class="notifications-stream" id="stream-ayer"></ul>
+        </div>
+
+        <!-- Grupo: Esta Semana -->
+        <div class="notif-date-group" id="group-semana" style="margin-top: 16px;">
+          <h3 class="notification-group-title">Esta semana</h3>
+          <ul class="notifications-stream" id="stream-semana"></ul>
+        </div>
+
+        <!-- Grupo: Anteriores -->
+        <div class="notif-date-group" id="group-anteriores" style="margin-top: 16px;">
+          <h3 class="notification-group-title">Anteriores</h3>
+          <ul class="notifications-stream" id="stream-anteriores"></ul>
+        </div>
+      </div>
+
+      <!-- 4. Paginación Estandarizada (data-guia-id="notificaciones-paginacion") -->
+      <footer class="pagination-bar" data-guia-id="notificaciones-paginacion">
+        <span class="pagination-counter" id="pagination-text">
+          Mostrando 1 a 10 de 12 notificaciones
+        </span>
+        <div class="pagination-controls">
+          <button type="button" class="btn btn-outline btn-sm" disabled>
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+            Anterior
+          </button>
+          <button type="button" class="btn btn-outline btn-sm active" style="min-width: 34px;">1</button>
+          <button type="button" class="btn btn-outline btn-sm" style="min-width: 34px;">2</button>
+          <button type="button" class="btn btn-outline btn-sm">
+            Siguiente
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+      </footer>
+
+    </div>
+  </main>
+
+  <!-- ========================================================================
+       DATOS Y LÓGICA INTERACTIVA DEL PROTOTIPO
+       ======================================================================== -->
+  <script>
+    // Catálogo completo de Tipos de Notificación GATH (agrupados por módulo)
+    const TIPOS_CATALOGO = [
+      { codigo: "", etiqueta: "Todos los tipos", modulo: "General" },
+      // Fe de Vida
+      { codigo: "fe_de_vida.recordatorio_cierre", etiqueta: "Recordatorio de fe de vida", modulo: "Fe de Vida" },
+      { codigo: "fe_de_vida.validada", etiqueta: "Fe de vida validada", modulo: "Fe de Vida" },
+      { codigo: "fe_de_vida.solicitud_recibida", etiqueta: "Fe de vida recibida", modulo: "Fe de Vida" },
+      { codigo: "fe_de_vida.devuelta", etiqueta: "Fe de vida devuelta", modulo: "Fe de Vida" },
+      { codigo: "fe_de_vida.rechazada", etiqueta: "Fe de vida rechazada", modulo: "Fe de Vida" },
+      // Autogestión
+      { codigo: "autogestion.actualizacion_aprobada", etiqueta: "Actualización de expediente aprobada", modulo: "Autogestión" },
+      { codigo: "autogestion.solicitud_rechazada", etiqueta: "Solicitud rechazada / observaciones", modulo: "Autogestión" },
+      { codigo: "autogestion.ventana_habilitada", etiqueta: "Apertura de censo socioeconómico", modulo: "Autogestión" },
+      { codigo: "autogestion.ventana_por_expirar", etiqueta: "Plazo de carga familiar por expirar", modulo: "Autogestión" },
+      // Carnetización
+      { codigo: "carnet.emision_lista", etiqueta: "Carnet institucional disponible", modulo: "Carnetización" },
+      // Cuentas y Seguridad
+      { codigo: "identidad.password_cambiada", etiqueta: "Contraseña cambiada", modulo: "Cuentas y Seguridad" },
+      { codigo: "identidad.correo_acceso_cambiado", etiqueta: "Correo de acceso cambiado", modulo: "Cuentas y Seguridad" },
+      // Movimientos
+      { codigo: "movimiento.traslado", etiqueta: "Traslado registrado", modulo: "Movimientos" },
+      { codigo: "movimiento.cambio_estatus", etiqueta: "Ascenso / cambio de estatus registrado", modulo: "Movimientos" }
+    ];
+
+    // Datos realistas representativos de los flujos de GATH con fechas ISO
+    const NOTIFICACIONES_DATA = [
+      {
+        id: "notif-1",
+        grupo: "hoy",
+        tipoCodigo: "fe_de_vida.recordatorio_cierre",
+        modulo: "fe_de_vida",
+        moduloEtiqueta: "Fe de Vida",
+        iconoClase: "icon-fe-de-vida",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>',
+        titulo: "Recordatorio: Jornada de Fe de Vida 2026 próxima a finalizar",
+        mensaje: "Su declaración de supervivencia para el período 2026-II cierra el 15 de noviembre. Por favor complete su registro presencial o digital antes de la fecha límite para evitar demoras.",
+        fechaIso: "2026-11-09",
+        hora: "10:15 AM",
+        leida: false,
+        enlace: "/autogestion/fe-de-vida",
+        enlaceTexto: "Ir a Fe de Vida"
+      },
+      {
+        id: "notif-2",
+        grupo: "hoy",
+        tipoCodigo: "autogestion.actualizacion_aprobada",
+        modulo: "autogestion",
+        moduloEtiqueta: "Autogestión",
+        iconoClase: "icon-autogestion",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/></svg>',
+        titulo: "Solicitud de actualización de expediente aprobada",
+        mensaje: "La Dirección de Gestión Humana ha validado y aplicado sus cambios de datos personales, carga familiar y formación académica consignados en la plataforma.",
+        fechaIso: "2026-11-09",
+        hora: "08:30 AM",
+        leida: false,
+        enlace: "/autogestion/mi-expediente",
+        enlaceTexto: "Ver mi expediente"
+      },
+      {
+        id: "notif-3",
+        grupo: "hoy",
+        tipoCodigo: "carnet.emision_lista",
+        modulo: "carnet",
+        moduloEtiqueta: "Carnetización",
+        iconoClase: "icon-carnet",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+        titulo: "Carnet institucional disponible para retiro",
+        mensaje: "Su credencial oficial CONATEL (código CAR-2026-084) ha sido emitida e impresa. Puede retirarla en la Gerencia de Gestión Humana, piso 3, de 8:30 am a 3:30 pm.",
+        fechaIso: "2026-11-09",
+        hora: "07:45 AM",
+        leida: false,
+        enlace: "/autogestion/mi-carnet",
+        enlaceTexto: "Ver credencial digital"
+      },
+      {
+        id: "notif-4",
+        grupo: "ayer",
+        tipoCodigo: "fe_de_vida.validada",
+        modulo: "fe_de_vida",
+        moduloEtiqueta: "Fe de Vida",
+        iconoClase: "icon-fe-de-vida",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+        titulo: "Fe de vida presencial verificada",
+        mensaje: "Se ha registrado con éxito su validación presencial de supervivencia en la sede principal. Su estatus como jubilado/pensionado se encuentra solvente.",
+        fechaIso: "2026-11-08",
+        hora: "04:20 PM",
+        leida: true,
+        enlace: "/autogestion/fe-de-vida",
+        enlaceTexto: "Descargar constancia"
+      },
+      {
+        id: "notif-5",
+        grupo: "ayer",
+        tipoCodigo: "identidad.password_cambiada",
+        modulo: "seguridad",
+        moduloEtiqueta: "Cuentas y Seguridad",
+        iconoClase: "icon-seguridad",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>',
+        titulo: "Cambio de contraseña exitoso",
+        mensaje: "Se ha actualizado la contraseña de acceso a su cuenta institucional desde la dirección IP 192.168.10.45. Si no fue usted, comuníquese de inmediato con Seguridad.",
+        fechaIso: "2026-11-08",
+        hora: "11:10 AM",
+        leida: true,
+        enlace: "/autogestion/seguridad",
+        enlaceTexto: "Gestionar seguridad"
+      },
+      {
+        id: "notif-6",
+        grupo: "ayer",
+        tipoCodigo: "autogestion.solicitud_rechazada",
+        modulo: "autogestion",
+        moduloEtiqueta: "Autogestión",
+        iconoClase: "icon-autogestion",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+        titulo: "Constancia de trabajo: observaciones registradas",
+        mensaje: "Su solicitud de constancia con membrete especial requiere adjuntar el memorando de asignación de cargo. Revise el trámite para subsanar y continuar.",
+        fechaIso: "2026-11-08",
+        hora: "09:15 AM",
+        leida: false,
+        enlace: "/autogestion/solicitudes/SOL-4412",
+        enlaceTexto: "Revisar trámite"
+      },
+      {
+        id: "notif-7",
+        grupo: "semana",
+        tipoCodigo: "movimiento.traslado",
+        modulo: "movimientos",
+        moduloEtiqueta: "Movimientos",
+        iconoClase: "icon-movimientos",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="m21 3-7 7"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>',
+        titulo: "Resolución de traslado administrativo formalizada",
+        mensaje: "Se ha registrado su adscripción formal a la Gerencia de Operaciones y Redes mediante el punto de cuenta institucional RRHH-2026-118.",
+        fechaIso: "2026-11-05",
+        hora: "05 nov, 03:00 PM",
+        leida: true,
+        enlace: "/autogestion/mi-expediente",
+        enlaceTexto: "Ver datos de adscripción"
+      },
+      {
+        id: "notif-8",
+        grupo: "semana",
+        tipoCodigo: "identidad.correo_acceso_cambiado",
+        modulo: "seguridad",
+        moduloEtiqueta: "Cuentas y Seguridad",
+        iconoClase: "icon-seguridad",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>',
+        titulo: "Actualización de correo electrónico de respaldo",
+        mensaje: "Su dirección de correo secundaria ha sido verificada y asociada correctamente para recuperación de accesos institucionales.",
+        fechaIso: "2026-11-04",
+        hora: "04 nov, 02:15 PM",
+        leida: true,
+        enlace: "/autogestion/seguridad",
+        enlaceTexto: "Ver configuración"
+      },
+      {
+        id: "notif-9",
+        grupo: "semana",
+        tipoCodigo: "autogestion.ventana_habilitada",
+        modulo: "autogestion",
+        moduloEtiqueta: "Autogestión",
+        iconoClase: "icon-autogestion",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
+        titulo: "Apertura del censo de actualización socioeconómica",
+        mensaje: "Se encuentra abierta la ventana anual de actualización para el beneficio de dotación escolar, juguetes y subsidio de transporte.",
+        fechaIso: "2026-11-03",
+        hora: "03 nov, 08:00 AM",
+        leida: true,
+        enlace: "/autogestion/censo",
+        enlaceTexto: "Llenar censo"
+      },
+      {
+        id: "notif-10",
+        grupo: "anteriores",
+        tipoCodigo: "fe_de_vida.solicitud_recibida",
+        modulo: "fe_de_vida",
+        moduloEtiqueta: "Fe de Vida",
+        iconoClase: "icon-fe-de-vida",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+        titulo: "Comprobante de carga de fe de vida digital",
+        mensaje: "Se recibieron con éxito los recaudos digitales consignados para la validación de supervivencia. Su caso se encuentra en espera de revisión técnica.",
+        fechaIso: "2026-10-28",
+        hora: "28 oct, 10:00 AM",
+        leida: true,
+        enlace: "/autogestion/fe-de-vida",
+        enlaceTexto: "Ver estado del trámite"
+      },
+      {
+        id: "notif-11",
+        grupo: "anteriores",
+        tipoCodigo: "movimiento.cambio_estatus",
+        modulo: "movimientos",
+        moduloEtiqueta: "Movimientos",
+        iconoClase: "icon-movimientos",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+        titulo: "Ascenso de escalafón salarial formalizado",
+        mensaje: "Ha sido acreditado en el grado 14 del tabulador técnico general de telecomunicaciones con fecha efectiva del mes en curso.",
+        fechaIso: "2026-10-24",
+        hora: "24 oct, 04:45 PM",
+        leida: true,
+        enlace: "/autogestion/mi-expediente",
+        enlaceTexto: "Ver nómina"
+      },
+      {
+        id: "notif-12",
+        grupo: "anteriores",
+        tipoCodigo: "autogestion.ventana_por_expirar",
+        modulo: "autogestion",
+        moduloEtiqueta: "Autogestión",
+        iconoClase: "icon-autogestion",
+        iconoSvg: '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        titulo: "Aviso de cierre de carga de carga familiar",
+        mensaje: "Restan 48 horas para adjuntar las partidas de nacimiento de los nuevos dependientes registrados en el censo anual.",
+        fechaIso: "2026-10-19",
+        hora: "19 oct, 09:30 AM",
+        leida: true,
+        enlace: "/autogestion/carga-familiar",
+        enlaceTexto: "Subir recaudos"
+      }
+    ];
+
+    // Estado reactivo
+    let currentFilterStatus = "todas"; // todas | unread | read
+    let currentSearchQuery = "";
+    let selectedTipoCodigo = "";
+    let filterFechaDesde = "";
+    let filterFechaHasta = "";
+    let comboboxFilterSearch = "";
+
+    // Inicializar
+    renderComboboxList();
+    renderAll();
+
+    function renderAll() {
+      updateCounters();
+      renderStream();
+      renderActiveChips();
+    }
+
+    function updateCounters() {
+      const total = NOTIFICACIONES_DATA.length;
+      const unread = NOTIFICACIONES_DATA.filter(n => !n.leida).length;
+      const read = total - unread;
+
+      document.getElementById("count-todas").textContent = total;
+      document.getElementById("count-unread").textContent = unread;
+      document.getElementById("count-read").textContent = read;
+      document.getElementById("header-unread-counter").textContent = unread > 0 ? `${unread} nuevas` : "Al día";
+      document.getElementById("btn-marcar-todas").disabled = unread === 0;
+    }
+
+    function getFilteredData() {
+      return NOTIFICACIONES_DATA.filter(n => {
+        // 1. Filtro por estado
+        if (currentFilterStatus === "unread" && n.leida) return false;
+        if (currentFilterStatus === "read" && !n.leida) return false;
+
+        // 2. Filtro por tipo específico (Combobox)
+        if (selectedTipoCodigo && n.tipoCodigo !== selectedTipoCodigo) return false;
+
+        // 3. Filtro por fecha específica Desde / Hasta
+        if (filterFechaDesde && n.fechaIso < filterFechaDesde) return false;
+        if (filterFechaHasta && n.fechaIso > filterFechaHasta) return false;
+
+        // 4. Búsqueda por texto (título, mensaje o módulo)
+        if (currentSearchQuery) {
+          const q = currentSearchQuery.toLowerCase();
+          const matchTitle = n.titulo.toLowerCase().includes(q);
+          const matchMsg = n.mensaje.toLowerCase().includes(q);
+          const matchMod = n.moduloEtiqueta.toLowerCase().includes(q);
+          if (!matchTitle && !matchMsg && !matchMod) return false;
+        }
+
+        return true;
+      });
+    }
+
+    function renderStream() {
+      const filtered = getFilteredData();
+      const grupos = ["hoy", "ayer", "semana", "anteriores"];
+
+      grupos.forEach(g => {
+        const items = filtered.filter(n => n.grupo === g);
+        const groupEl = document.getElementById(`group-${g}`);
+        const streamEl = document.getElementById(`stream-${g}`);
+
+        if (items.length === 0) {
+          groupEl.classList.add("hidden");
+        } else {
+          groupEl.classList.remove("hidden");
+          streamEl.innerHTML = items.map(n => `
+            <li class="notif-card-a ${n.leida ? 'read' : 'unread'}" id="card-${n.id}">
+              <div class="module-icon-badge ${n.iconoClase}">
+                ${n.iconoSvg}
+              </div>
+              <div class="notif-content-col">
+                <div class="notif-header-row">
+                  <div class="notif-meta-tags">
+                    <span class="chip-module">${n.moduloEtiqueta}</span>
+                    ${n.leida
+                      ? '<span class="chip-status-read">Leída</span>'
+                      : '<span class="chip-status-new">Nueva</span>'}
+                  </div>
+                  <time class="notif-timestamp">
+                    <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    ${n.hora}
+                  </time>
+                </div>
+
+                <h4 class="notif-title">${n.titulo}</h4>
+                <p class="notif-body">${n.mensaje}</p>
+
+                <div class="notif-actions-row">
+                  <div class="notif-left-actions">
+                    <a href="${n.enlace}" class="btn btn-outline btn-sm">
+                      <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                      ${n.enlaceTexto}
+                    </a>
+                  </div>
+
+                  <div>
+                    ${!n.leida ? `
+                      <button type="button" class="btn btn-ghost btn-sm" onclick="markOneAsRead('${n.id}', event)">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                        Marcar leída
+                      </button>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            </li>
+          `).join("");
+        }
+      });
+
+      // Estado vacío condicional
+      const emptyView = document.getElementById("state-empty-view");
+      const streamWrapper = document.getElementById("notifications-stream-wrapper");
+      if (filtered.length === 0) {
+        emptyView.classList.remove("hidden");
+        streamWrapper.classList.add("hidden");
+      } else {
+        emptyView.classList.add("hidden");
+        streamWrapper.classList.remove("hidden");
+      }
+    }
+
+    function renderActiveChips() {
+      const container = document.getElementById("active-chips-container");
+      const chips = [];
+
+      if (currentSearchQuery) {
+        chips.push({
+          label: `Búsqueda: "${currentSearchQuery}"`,
+          remover: () => {
+            currentSearchQuery = "";
+            document.getElementById("search-input").value = "";
+            renderAll();
+          }
+        });
+      }
+
+      if (currentFilterStatus !== "todas") {
+        chips.push({
+          label: `Estado: ${currentFilterStatus === 'unread' ? 'No leídas' : 'Leídas'}`,
+          remover: () => filterStatus('todas')
+        });
+      }
+
+      if (selectedTipoCodigo) {
+        const t = TIPOS_CATALOGO.find(item => item.codigo === selectedTipoCodigo);
+        if (t) {
+          chips.push({
+            label: `Tipo: ${t.etiqueta}`,
+            remover: () => selectTipo("")
+          });
+        }
+      }
+
+      if (filterFechaDesde) {
+        chips.push({
+          label: `Desde: ${filterFechaDesde}`,
+          remover: () => {
+            filterFechaDesde = "";
+            document.getElementById("filter-desde").value = "";
+            renderAll();
+          }
+        });
+      }
+
+      if (filterFechaHasta) {
+        chips.push({
+          label: `Hasta: ${filterFechaHasta}`,
+          remover: () => {
+            filterFechaHasta = "";
+            document.getElementById("filter-hasta").value = "";
+            renderAll();
+          }
+        });
+      }
+
+      container.innerHTML = chips.map((c, i) => `
+        <span class="active-chip">
+          ${c.label}
+          <span class="chip-remove" onclick="chipsAction[${i}]()">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </span>
+        </span>
+      `).join("");
+
+      window.chipsAction = chips.map(c => c.remover);
+      document.getElementById("btn-limpiar").style.display = chips.length > 0 ? "inline-flex" : "none";
+    }
+
+    // --------------------------------------------------------------------------
+    // COMBOBOX CON BÚSQUEDA INTERNA
+    // --------------------------------------------------------------------------
+    function toggleCombobox() {
+      const popover = document.getElementById("combobox-popover");
+      popover.classList.toggle("hidden");
+      if (!popover.classList.contains("hidden")) {
+        document.getElementById("combobox-search-input").focus();
+      }
+    }
+
+    function handleComboboxSearch(query) {
+      comboboxFilterSearch = query.trim().toLowerCase();
+      renderComboboxList();
+    }
+
+    function selectTipo(codigo) {
+      selectedTipoCodigo = codigo;
+      const t = TIPOS_CATALOGO.find(item => item.codigo === codigo);
+      document.getElementById("combobox-selected-text").innerHTML = `
+        <svg class="icon icon-sm text-muted-foreground" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        ${t ? t.etiqueta : "Todos los tipos"}
+      `;
+      document.getElementById("combobox-popover").classList.add("hidden");
+      renderAll();
+    }
+
+    function renderComboboxList() {
+      const listEl = document.getElementById("combobox-list");
+      const filtered = TIPOS_CATALOGO.filter(t => {
+        if (!comboboxFilterSearch) return true;
+        return t.etiqueta.toLowerCase().includes(comboboxFilterSearch) || t.modulo.toLowerCase().includes(comboboxFilterSearch);
+      });
+
+      // Agrupar por módulo
+      const grupos = {};
+      filtered.forEach(t => {
+        if (!grupos[t.modulo]) grupos[t.modulo] = [];
+        grupos[t.modulo].push(t);
+      });
+
+      let html = "";
+      for (const [mod, items] of Object.entries(grupos)) {
+        html += `<li class="combobox-group-header">${mod}</li>`;
+        items.forEach(t => {
+          const isSelected = t.codigo === selectedTipoCodigo;
+          html += `
+            <li class="combobox-item ${isSelected ? 'selected' : ''}" onclick="selectTipo('${t.codigo}')">
+              <span>${t.etiqueta}</span>
+              ${isSelected ? '<svg class="icon icon-sm text-primary" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+            </li>
+          `;
+        });
+      }
+
+      listEl.innerHTML = html || `<li style="padding: 12px; font-size: 12px; color: var(--muted-foreground); text-align: center;">Sin resultados</li>`;
+    }
+
+    // Cerrar popover al hacer clic fuera
+    document.addEventListener("click", (e) => {
+      const wrapper = document.getElementById("combobox-wrapper");
+      if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById("combobox-popover").classList.add("hidden");
+      }
+    });
+
+    // --------------------------------------------------------------------------
+    // FILTROS Y EVENTOS
+    // --------------------------------------------------------------------------
+    function filterStatus(status) {
+      currentFilterStatus = status;
+      document.querySelectorAll(".segment-tab").forEach(tab => tab.classList.remove("active"));
+      document.getElementById(`tab-status-${status}`).classList.add("active");
+      renderAll();
+    }
+
+    function handleSearch(q) {
+      currentSearchQuery = q.trim();
+      renderAll();
+    }
+
+    function handleDateChange() {
+      filterFechaDesde = document.getElementById("filter-desde").value;
+      filterFechaHasta = document.getElementById("filter-hasta").value;
+      renderAll();
+    }
+
+    function resetFilters() {
+      currentFilterStatus = "todas";
+      currentSearchQuery = "";
+      selectedTipoCodigo = "";
+      filterFechaDesde = "";
+      filterFechaHasta = "";
+      document.getElementById("search-input").value = "";
+      document.getElementById("filter-desde").value = "";
+      document.getElementById("filter-hasta").value = "";
+      document.getElementById("combobox-selected-text").innerHTML = `
+        <svg class="icon icon-sm text-muted-foreground" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Todos los tipos
+      `;
+      document.querySelectorAll(".segment-tab").forEach(tab => tab.classList.remove("active"));
+      document.getElementById("tab-status-todas").classList.add("active");
+      renderAll();
+    }
+
+    function markOneAsRead(id, event) {
+      if (event) event.stopPropagation();
+      const item = NOTIFICACIONES_DATA.find(n => n.id === id);
+      if (item) {
+        item.leida = true;
+        renderAll();
+      }
+    }
+
+    function markAllAsRead() {
+      NOTIFICACIONES_DATA.forEach(n => n.leida = true);
+      renderAll();
+    }
+
+    function setDevice(device) {
+      const viewport = document.getElementById("viewport-container");
+      const speaker = document.getElementById("device-speaker");
+      const btnDesk = document.getElementById("btn-view-desktop");
+      const btnMob = document.getElementById("btn-view-mobile");
+
+      if (device === "mobile") {
+        viewport.classList.add("viewport-mobile");
+        speaker.classList.remove("hidden");
+        btnDesk.classList.remove("active");
+        btnMob.classList.add("active");
+      } else {
+        viewport.classList.remove("viewport-mobile");
+        speaker.classList.add("hidden");
+      }
+    }
+
+    function switchState(state) {
+      const emptyView = document.getElementById("state-empty-view");
+      const streamWrapper = document.getElementById("notifications-stream-wrapper");
+      document.getElementById("btn-state-normal").classList.toggle("active", state === "normal");
+      document.getElementById("btn-state-empty").classList.toggle("active", state === "empty");
+
+      if (state === "empty") {
+        emptyView.classList.remove("hidden");
+        streamWrapper.classList.add("hidden");
+      } else {
+        renderStream();
+      }
+    }
+  </script>
+</body>
+</html>
