@@ -120,6 +120,16 @@ async function elegir(user: ReturnType<typeof userEvent.setup>, etiqueta: string
   await user.click(await screen.findByRole("option", { name: new RegExp(`^${opcion}$`) }));
 }
 
+/** El estado de lectura es un grupo segmentado, no un Select. */
+function elegirEstado(
+  user: ReturnType<typeof userEvent.setup>,
+  etiqueta: RegExp,
+) {
+  // `BarraFiltros` renderiza los filtros dos veces (móvil colapsable y
+  // escritorio); ambas copias comparten el mismo estado, así que sirve la primera.
+  return user.click(screen.getAllByRole("button", { name: etiqueta })[0]);
+}
+
 describe("Claves compartidas de notificaciones", () => {
   it("son las mismas para todos los módulos (lectura por usuario)", () => {
     expect(claveConteo()).toBe("notificaciones/conteo");
@@ -351,9 +361,9 @@ describe("BandejaNotificacionesPage", () => {
     await elegir(user, "Tipo", "Plazo vencido");
     await waitFor(() => expect(ultimaLlamadaListar().tipo).toBe("autogestion.ventana_expirada"));
 
-    await elegir(user, "Estado", "No leídas");
+    await elegirEstado(user, /No leídas/);
     await waitFor(() => expect(ultimaLlamadaListar().leida).toBe(false));
-    await elegir(user, "Estado", "Leídas");
+    await elegirEstado(user, /^Leídas/);
     await waitFor(() => expect(ultimaLlamadaListar().leida).toBe(true));
 
     fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-10-01" } });
@@ -369,7 +379,7 @@ describe("BandejaNotificacionesPage", () => {
     acciones.listarNotificacionesAction.mockResolvedValue(pagina([]));
     const user = userEvent.setup();
     render(<BandejaNotificacionesPage modulo="autogestion" />, { wrapper: Envoltorio });
-    await elegir(user, "Estado", "No leídas");
+    await elegirEstado(user, /No leídas/);
     expect(await screen.findByText("Ninguna notificación coincide con los filtros")).toBeDefined();
 
     const llamadas = acciones.listarNotificacionesAction.mock.calls.length;

@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ExternalLink } from "lucide-react";
+import {
+  ArrowLeftRight,
+  Bell,
+  Check,
+  ClipboardList,
+  ExternalLink,
+  HeartPulse,
+  IdCard,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/shared/ui/components/status-badge";
@@ -10,6 +20,17 @@ import { cn } from "@/lib/utils";
 import type { NotificacionDTO } from "../application/dtos/notificacion-dto";
 import { destinoInterno, rutaActual } from "./enlace-notificacion";
 import { formatearFechaNotificacion } from "./formato-notificacion";
+
+const ICONOS_MODULO: Record<string, { Icono: LucideIcon; clases: string; etiqueta: string }> = {
+  fe_de_vida: { Icono: HeartPulse, clases: "bg-success-soft text-success", etiqueta: "Fe de Vida" },
+  autogestion: { Icono: ClipboardList, clases: "bg-secondary text-primary", etiqueta: "Autogestión" },
+  identidad: { Icono: ShieldCheck, clases: "bg-warning-soft text-warning", etiqueta: "Cuentas y Seguridad" },
+  carnetizacion: { Icono: IdCard, clases: "bg-info-soft text-info", etiqueta: "Carnetización" },
+  movimiento: { Icono: ArrowLeftRight, clases: "bg-secondary text-primary", etiqueta: "Movimientos" },
+};
+
+const ICONO_POR_DEFECTO = { Icono: Bell, clases: "bg-muted text-muted-foreground", etiqueta: "Aviso" };
+
 
 interface Props {
   notificacion: NotificacionDTO;
@@ -70,73 +91,119 @@ export function NotificacionItem({
     router.push(destino);
   };
 
+  const modulo = (n.tipo.split(".")[0] || "").trim();
+  const meta = ICONOS_MODULO[modulo] ?? ICONO_POR_DEFECTO;
+  const enlaceVisible = n.enlace && (puedeAbrirEnlace?.(n.enlace) ?? true);
+
+  const acciones = (
+    <>
+      {enlaceVisible ? (
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className={cn(compacta ? "h-9 min-h-9 shrink-0 px-2.5 text-xs" : "min-h-10")}
+        >
+          <Link href={n.enlace!} onClick={manejarEnlace}>
+            <ExternalLink aria-hidden className={compacta ? "size-3.5" : "size-4"} /> Ver detalle
+          </Link>
+        </Button>
+      ) : null}
+      {!n.leida ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(compacta ? "h-9 min-h-9 shrink-0 px-2 text-xs" : "min-h-10")}
+          disabled={deshabilitado}
+          onClick={() => onMarcarLeida(n.id)}
+        >
+          <Check aria-hidden className={compacta ? "size-3.5" : "size-4"} /> Marcar como leída
+        </Button>
+      ) : null}
+    </>
+  );
+
+  if (compacta) {
+    return (
+      <li
+        className={cn(
+          "flex flex-col gap-1.5 rounded-lg border p-2.5",
+          n.leida ? "bg-card" : "border-info/40 bg-info-soft/40",
+        )}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <StatusBadge texto={n.leida ? "Leída" : "Nueva"} tono={n.leida ? "neutral" : "info"} />
+          <time dateTime={n.creadaEn} className="text-xs text-muted-foreground">
+            {formatearFechaNotificacion(n.creadaEn)}
+          </time>
+        </div>
+        <p
+          className={cn(
+            "text-sm leading-snug text-foreground",
+            n.leida ? "font-medium" : "font-bold",
+          )}
+        >
+          {n.titulo}
+        </p>
+        <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pt-0.5">
+          {acciones}
+        </div>
+      </li>
+    );
+  }
+
   return (
     <li
       className={cn(
-        "flex flex-col rounded-lg border",
-        compacta ? "gap-1.5 p-2.5" : "gap-2 p-3",
-        n.leida ? "bg-card" : "border-info/40 bg-info-soft/40",
+        "flex gap-3 rounded-lg border p-4",
+        n.leida
+          ? "border-border bg-card"
+          : "border-border border-l-4 border-l-primary bg-info-soft/40",
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <StatusBadge texto={n.leida ? "Leída" : "Nueva"} tono={n.leida ? "neutral" : "info"} />
-        <time dateTime={n.creadaEn} className="text-xs text-muted-foreground sm:text-sm">
-          {formatearFechaNotificacion(n.creadaEn)}
-        </time>
-      </div>
-      <p
+      <span
         className={cn(
-          "text-foreground",
-          compacta ? "text-sm leading-snug" : "text-base",
-          n.leida ? "font-medium" : "font-bold",
+          "mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg",
+          meta.clases,
         )}
       >
-        {n.titulo}
-      </p>
-      {n.mensaje && !compacta ? (
-        <p className="text-base text-muted-foreground">{n.mensaje}</p>
-      ) : null}
-      <div
-        className={cn(
-          "flex items-center gap-1.5",
-          compacta ? "flex-nowrap overflow-x-auto pt-0.5" : "flex-wrap gap-2 pt-1",
-        )}
-      >
-        {n.enlace && (puedeAbrirEnlace?.(n.enlace) ?? true) ? (
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className={cn(
-              compacta
-                ? "h-9 min-h-9 shrink-0 px-2.5 text-xs"
-                : "min-h-11",
-            )}
-          >
-            <Link
-              href={n.enlace}
-              onClick={manejarEnlace}
+        <meta.Icono className="size-5" aria-hidden />
+      </span>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <p
+              className={cn(
+                "min-w-0 text-base leading-snug text-foreground",
+                n.leida ? "font-semibold" : "font-bold",
+              )}
             >
-              <ExternalLink aria-hidden className={compacta ? "size-3.5" : undefined} /> Ver detalle
-            </Link>
-          </Button>
-        ) : null}
-        {!n.leida ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(
-              compacta
-                ? "h-9 min-h-9 shrink-0 px-2 text-xs"
-                : "min-h-11",
-            )}
-            disabled={deshabilitado}
-            onClick={() => onMarcarLeida(n.id)}
+              {n.titulo}
+            </p>
+            <StatusBadge texto={n.leida ? "Leída" : "Nueva"} tono={n.leida ? "neutral" : "info"} />
+          </div>
+          <time
+            dateTime={n.creadaEn}
+            className="shrink-0 text-sm text-muted-foreground tabular-nums"
           >
-            <Check aria-hidden className={compacta ? "size-3.5" : undefined} /> Marcar como leída
-          </Button>
+            {formatearFechaNotificacion(n.creadaEn)}
+          </time>
+        </div>
+
+        {n.mensaje ? (
+          <p
+            className={cn(
+              "text-sm leading-relaxed",
+              n.leida ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {n.mensaje}
+          </p>
         ) : null}
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">{acciones}</div>
       </div>
     </li>
   );
