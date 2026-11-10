@@ -46,6 +46,7 @@ export interface RepoCarnetizacion {
   obtenerPlantillaMotor(id: string): Promise<PlantillaMotor>;
   crearPlantillaBorrador(input: CrearPlantillaBorradorInput): Promise<PlantillaMotor>;
   actualizarPlantillaBorrador(id: string, input: Partial<CrearPlantillaBorradorInput>): Promise<PlantillaMotor>;
+  eliminarPlantillaMotor(id: string): Promise<void>;
   publicarPlantilla(id: string, activar?: boolean): Promise<PlantillaMotor>;
   activarPlantillaMotor(id: string): Promise<PlantillaMotor>;
   listarVersionesPlantilla(raizId: string): Promise<PlantillaMotor[]>;

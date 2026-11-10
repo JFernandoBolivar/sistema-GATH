@@ -17,8 +17,8 @@ def test_plantilla_trabajador_usa_logo_oficial_y_acento_aprobado():
     definicion = plantilla_defecto_trabajador()
     assert _logo(definicion)['props']['asset'] == 'logo01.png'
     assert definicion['reglas']['valores']['FUNCIONARIO'] == {
-        'primario': '#16264a',
-        'acento': '#d9121f',
+        'primario': '#14284b',
+        'acento': '#c8102e',
         'texto': '#ffffff',
     }
 

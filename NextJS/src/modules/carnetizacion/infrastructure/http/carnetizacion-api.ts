@@ -210,6 +210,10 @@ export const carnetizacionApi = {
     return envelope.data;
   },
 
+  eliminarPlantillaMotor: async (id: string | number) => {
+    await apiClient.delete<ApiResponse<null>>(`/api/v1/carnetizacion/plantillas-motor/${id}/`);
+  },
+
   publicarPlantillaMotor: async (id: string | number, activar: boolean = true) => {
     const envelope = await apiClient.post<ApiResponse<PlantillaMotorApiItem>>(`/api/v1/carnetizacion/plantillas-motor/${id}/publicar/`, {
       activar,
@@ -361,12 +365,19 @@ export const carnetizacionApi = {
 
   // --- QR y Privacidad por Dato (O44 - E9) ---
   consultarFichaQr: async (securityHash: string) => {
-    const envelope = await apiClient.get<ApiResponse<FichaQrApiItem>>(`/api/v1/carnetizacion/public/qr/${securityHash}/`);
+    const envelope = await apiClient.get<ApiResponse<FichaQrApiItem>>(
+      `/api/v1/carnetizacion/public/qr/${securityHash}/`,
+      { authOpcional: true },
+    );
     return envelope.data;
   },
 
   consultarSaludEmergencia: async (securityHash: string) => {
-    const envelope = await apiClient.post<ApiResponse<FichaQrApiItem>>(`/api/v1/carnetizacion/public/qr/${securityHash}/medica/`);
+    const envelope = await apiClient.post<ApiResponse<FichaQrApiItem>>(
+      `/api/v1/carnetizacion/public/qr/${securityHash}/medica/`,
+      undefined,
+      { authOpcional: true },
+    );
     return envelope.data;
   },
 

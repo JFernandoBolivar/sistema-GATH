@@ -62,6 +62,7 @@ from apps.configuracion.infrastructure.models.parametro_model import ParametroSi
 # Import entre módulos en infrastructure (apps.cargos y apps.personal): mismo patrón ya
 # establecido en `apps.reportes`/`apps.autogestion`/`apps.pasivos`.
 from apps.cargos.infrastructure.models.cargo_models import AsigTrabajoModel
+from apps.pasivos.infrastructure.models.pasivo_models import EmployeeEgresadoModel
 from apps.personal.infrastructure.models.personal_models import EmployeeModel
 from apps.personal.infrastructure.models.expediente_models import (
     ContactoEmergenciaModel,
@@ -414,6 +415,16 @@ class RepoCarnetizacionORM:
         ).order_by('version')
         return [plantilla_motor_a_entidad(p) for p in qs]
 
+    def eliminar_plantilla(self, plantilla_id: str | int) -> None:
+        obj = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
+        if obj is None:
+            raise NotFoundError(f"Plantilla con id {plantilla_id} no encontrada")
+        if obj.activa:
+            raise ValidationError(
+                "No se puede eliminar la plantilla activa. Actívela otra versión o archívela primero."
+            )
+        obj.delete()
+
     def crear_plantilla(self, nombre: str, imagen: object, activar: bool = False) -> PlantillaCarnet:
         """Soporte legacy para subida de imagen física."""
         if activar:
@@ -476,7 +487,21 @@ class RepoCarnetizacionORM:
         if plantilla_id:
             plantilla_obj = PlantillaCarnetModel.objects.filter(pk=plantilla_id).first()
         if not plantilla_obj:
-            plantilla_obj = PlantillaCarnetModel.objects.filter(tipo_credencial_id='trabajador', activa=True).first()
+            es_pasivo = (
+                AsigTrabajoModel.objects.filter(
+                    employee=empleado,
+                    Tipo_personal__tipo_personal__iexact='PASIVO',
+                ).exists()
+                or EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
+            )
+            tipo_plantilla = 'pasivo' if es_pasivo else 'trabajador'
+            plantilla_obj = (
+                PlantillaCarnetModel.objects.filter(
+                    tipo_credencial_id=tipo_plantilla, activa=True,
+                )
+                .order_by('-version')
+                .first()
+            )
 
         p_id = str(plantilla_obj.id) if plantilla_obj else None
         p_version = plantilla_obj.version if plantilla_obj else 1
@@ -501,21 +526,81 @@ class RepoCarnetizacionORM:
         return EmployeeModel.objects.filter(cedulaidentidad=cedula).exists()
 
     def buscar_personal(self, query: str = "") -> list[dict[str, Any]]:
-        qs = EmployeeModel.objects.filter(
-            Q(cedulaidentidad__icontains=query) |
-            Q(nombres__icontains=query) |
-            Q(apellidos__icontains=query)
-        ).select_related('sexoid', 'nacionalidad')[:20]
-        return [
-            {
+        qs = list(
+            EmployeeModel.objects.filter(
+                Q(cedulaidentidad__icontains=query) |
+                Q(nombres__icontains=query) |
+                Q(apellidos__icontains=query)
+            ).select_related('sexoid', 'nacionalidad')[:20]
+        )
+        cedulas = [e.cedulaidentidad for e in qs]
+
+        # Asignación vigente (o la más reciente) de cada titular, en una sola consulta.
+        asignaciones_activas: dict[str, Any] = {}
+        asignaciones_recientes: dict[str, Any] = {}
+        for asig in (
+            AsigTrabajoModel.objects
+            .filter(employee_id__in=cedulas)
+            .select_related(
+                'denominacioncargoid', 'denominacioncargoespecificoid',
+                'Dependencia', 'DireccionGeneral', 'DireccionLinea', 'Coordinacion',
+                'tiponominaid', 'estatusid',
+            )
+            .order_by('-pk')
+        ):
+            asignaciones_recientes.setdefault(asig.employee_id, asig)
+            if asig.estatusid and (asig.estatusid.estatus or '').upper() == 'ACTIVO':
+                asignaciones_activas.setdefault(asig.employee_id, asig)
+
+        totales = dict(
+            CarnetEmitidoModel.objects
+            .filter(employee__cedulaidentidad__in=cedulas)
+            .values_list('employee__cedulaidentidad')
+            .annotate(total=Count('pk'))
+        )
+        activos = set(
+            CarnetEmitidoModel.objects
+            .filter(employee__cedulaidentidad__in=cedulas, activo=True)
+            .values_list('employee__cedulaidentidad', flat=True)
+        )
+
+        filas = []
+        for e in qs:
+            asig = asignaciones_activas.get(e.cedulaidentidad) or asignaciones_recientes.get(e.cedulaidentidad)
+            cargo = ''
+            departamento = ''
+            codigo = ''
+            if asig:
+                cargo = (
+                    (asig.denominacioncargoespecificoid.cargo if asig.denominacioncargoespecificoid_id else '')
+                    or (asig.denominacioncargoid.cargo if asig.denominacioncargoid_id else '')
+                    or ''
+                )
+                departamento = (
+                    (asig.DireccionGeneral.direccion_general if asig.DireccionGeneral_id else '')
+                    or (asig.DireccionLinea.direccion_linea if asig.DireccionLinea_id else '')
+                    or (asig.Coordinacion.coordinacion if asig.Coordinacion_id else '')
+                    or (asig.Dependencia.dependencia if asig.Dependencia_id else '')
+                    or ''
+                )
+                codigo = asig.codigo or ''
+
+            tiene_carnet = e.cedulaidentidad in activos
+            filas.append({
+                'id': e.pk,
                 'cedula': str(e.cedulaidentidad),
                 'nombre_completo': f"{e.nombres} {e.apellidos}".strip(),
+                'cargo': cargo or 'No especificado',
+                'departamento': departamento or 'CONATEL',
+                'codigo': codigo,
                 'correo': (e.correo or '').strip(),
+                'telefono': (e.telefono_movil or e.telefono_habitacion or '').strip(),
                 'tipo_personal': str(getattr(e, 'tipo_trabajador', '') or 'Activo'),
-                'tiene_carnet_activo': CarnetEmitidoModel.objects.filter(employee=e, activo=True).exists(),
-            }
-            for e in qs
-        ]
+                'total_solicitudes': totales.get(e.cedulaidentidad, 0),
+                'tiene_carnet': tiene_carnet,
+                'tiene_carnet_activo': tiene_carnet,
+            })
+        return filas
 
     def registrar_foto_perfil(self, cedula: str, clave: str) -> None:
         fila = EmployeeModel.objects.filter(cedulaidentidad=cedula).first()
@@ -651,13 +736,37 @@ class RepoCarnetizacionORM:
             except Exception:
                 logger.warning("No se pudo leer la foto del empleado para el carnet.", exc_info=True)
 
-        plantilla = CarnetTemplateModel.objects.filter(activo=True).first()
+        # Preferir la plantilla por capas activa (con su versión más reciente).
+        # El fondo fijo legado solo se usa si no hay definición por capas.
+        es_pasivo = (
+            AsigTrabajoModel.objects.filter(
+                employee=empleado,
+                Tipo_personal__tipo_personal__iexact='PASIVO',
+            ).exists()
+            or EmployeeEgresadoModel.objects.filter(employee=empleado).exists()
+        )
+        tipo_plantilla = 'pasivo' if es_pasivo else 'trabajador'
+        plantilla_motor = (
+            PlantillaCarnetModel.objects.filter(
+                tipo_credencial_id=tipo_plantilla, activa=True,
+            )
+            .order_by('-version')
+            .first()
+        )
+        definicion = (
+            plantilla_motor.definicion
+            if plantilla_motor and isinstance(plantilla_motor.definicion, dict) and plantilla_motor.definicion
+            else None
+        )
+
         plantilla_path = None
-        if plantilla and plantilla.imagen:
-            try:
-                plantilla_path = plantilla.imagen.path
-            except Exception:
-                plantilla_path = None
+        if definicion is None:
+            plantilla = CarnetTemplateModel.objects.filter(activo=True).first()
+            if plantilla and plantilla.imagen:
+                try:
+                    plantilla_path = plantilla.imagen.path
+                except Exception:
+                    plantilla_path = None
 
         nombre = nombre_override or f"{empleado.nombres} {empleado.apellidos}".strip()
         sec_hash = hashlib.sha256(f"PREVIEW|{cedula}|{timezone.now().date()}".encode()).hexdigest()
@@ -671,7 +780,7 @@ class RepoCarnetizacionORM:
             plantilla_path=plantilla_path,
             foto_bytes=foto_bytes,
         )
-        pdf_bytes = generar_carnet_pdf(datos)
+        pdf_bytes = generar_carnet_pdf(datos, definicion=definicion)
         images = convert_from_bytes(pdf_bytes, first_page=1, last_page=1, fmt='png')
         if not images:
             raise ValidationError("No se pudo rasterizar la vista previa del carnet")

@@ -11,8 +11,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
 
-import qrcode
-import qrcode.constants
+from apps.carnetizacion.infrastructure.qr_institucional import generar_qr_png
 from django.conf import settings
 from PIL import Image
 from core.infrastructure.pdf.fuentes import FUENTE, FUENTE_NEGRITA
@@ -68,8 +67,15 @@ def _hex_seguro(valor: str | None, defecto: str = '#111827') -> HexColor:
         return HexColor(defecto)
 
 
-def _dibujar_qr(c: canvas.Canvas, datos: DatosCarnetPdf | dict[str, Any], x: float, y: float, tamano: float = 1.2 * cm) -> None:
-    """Genera y dibuja el código QR seguro con el security_hash criptográfico."""
+def _dibujar_qr(
+    c: canvas.Canvas,
+    datos: DatosCarnetPdf | dict[str, Any],
+    x: float,
+    y: float,
+    tamano: float = 1.2 * cm,
+    con_logo: bool = True,
+) -> None:
+    """Genera y dibuja el código QR seguro con el logo institucional al centro."""
     sec_hash = getattr(datos, 'security_hash', None) or (datos.get('security_hash') if isinstance(datos, dict) else '')
     cedula = getattr(datos, 'cedula', None) or (datos.get('cedula') if isinstance(datos, dict) else '')
     nombre = getattr(datos, 'nombre_completo', None) or (datos.get('nombre_completo') if isinstance(datos, dict) else '')
@@ -85,14 +91,11 @@ def _dibujar_qr(c: canvas.Canvas, datos: DatosCarnetPdf | dict[str, Any], x: flo
             f"CI: {cedula}\n"
             f"Titular: {str(nombre)[:30]}\n"
         )
-    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=3, border=1)
-    qr.add_data(contenido)
-    qr.make(fit=True)
 
-    qr_buffer = BytesIO()
-    qr.make_image(fill_color="black", back_color="white").save(qr_buffer, format="PNG")
-    qr_buffer.seek(0)
-    c.drawImage(ImageReader(qr_buffer), x, y, tamano, tamano)
+    c.drawImage(
+        ImageReader(BytesIO(generar_qr_png(contenido, box_size=4, border=1, con_logo=con_logo))),
+        x, y, tamano, tamano,
+    )
 
 
 def _dibujar_placeholder_foto(c: canvas.Canvas, x: float, y: float, ancho: float, alto: float, rad: float = 0) -> None:
@@ -159,6 +162,120 @@ def _extraer_valor_campo(campo: str, datos: DatosCarnetPdf | dict[str, Any]) -> 
     if isinstance(datos, dict):
         return str(datos.get(campo, '') or '')
     return ''
+
+
+def _dibujar_svg_path(
+    c: canvas.Canvas,
+    datos: str | None,
+    x_pt: float,
+    y_pt: float,
+    w_pt: float,
+    h_pt: float,
+    fill_color,
+    stroke_color,
+    sw_pt: float,
+) -> None:
+    """Dibuja una forma libre SVG normalizada en una caja de 0..100.
+
+    Soporta M, L, H, V, C, Q y Z (absolutos o relativos), suficiente para las
+    ondas, cortes diagonales y blobs del diseñador.
+    """
+    import re
+
+    tokens = re.findall(r'[A-Za-z]|-?\d*\.?\d+(?:[eE][-+]?\d+)?', str(datos or ''))
+    if not tokens:
+        return
+
+    def px(valor: float) -> float:
+        return x_pt + (valor / 100.0) * w_pt
+
+    def py(valor: float) -> float:
+        return y_pt + h_pt - (valor / 100.0) * h_pt
+
+    path = c.beginPath()
+    i = 0
+    comando = None
+    inicio = (0.0, 0.0)
+    actual = (0.0, 0.0)
+
+    while i < len(tokens):
+        token = tokens[i]
+        if token.isalpha():
+            comando = token
+            i += 1
+            if comando.upper() == 'Z':
+                path.close()
+                actual = inicio
+                continue
+        if comando is None:
+            i += 1
+            continue
+
+        relativo = comando.islower()
+        operacion = comando.upper()
+        try:
+            if operacion == 'M':
+                x, y = float(tokens[i]), float(tokens[i + 1])
+                i += 2
+                if relativo:
+                    x, y = x + actual[0], y + actual[1]
+                actual = (x, y)
+                inicio = actual
+                path.moveTo(px(x), py(y))
+                comando = 'l' if relativo else 'L'
+            elif operacion == 'L':
+                x, y = float(tokens[i]), float(tokens[i + 1])
+                i += 2
+                if relativo:
+                    x, y = x + actual[0], y + actual[1]
+                actual = (x, y)
+                path.lineTo(px(x), py(y))
+            elif operacion == 'H':
+                x = float(tokens[i])
+                i += 1
+                if relativo:
+                    x += actual[0]
+                actual = (x, actual[1])
+                path.lineTo(px(actual[0]), py(actual[1]))
+            elif operacion == 'V':
+                y = float(tokens[i])
+                i += 1
+                if relativo:
+                    y += actual[1]
+                actual = (actual[0], y)
+                path.lineTo(px(actual[0]), py(actual[1]))
+            elif operacion == 'C':
+                x1, y1 = float(tokens[i]), float(tokens[i + 1])
+                x2, y2 = float(tokens[i + 2]), float(tokens[i + 3])
+                x, y = float(tokens[i + 4]), float(tokens[i + 5])
+                i += 6
+                if relativo:
+                    x1, y1 = x1 + actual[0], y1 + actual[1]
+                    x2, y2 = x2 + actual[0], y2 + actual[1]
+                    x, y = x + actual[0], y + actual[1]
+                path.curveTo(px(x1), py(y1), px(x2), py(y2), px(x), py(y))
+                actual = (x, y)
+            elif operacion == 'Q':
+                x1, y1 = float(tokens[i]), float(tokens[i + 1])
+                x, y = float(tokens[i + 2]), float(tokens[i + 3])
+                i += 4
+                if relativo:
+                    x1, y1 = x1 + actual[0], y1 + actual[1]
+                    x, y = x + actual[0], y + actual[1]
+                c1 = (actual[0] + 2 / 3 * (x1 - actual[0]), actual[1] + 2 / 3 * (y1 - actual[1]))
+                c2 = (x + 2 / 3 * (x1 - x), y + 2 / 3 * (y1 - y))
+                path.curveTo(px(c1[0]), py(c1[1]), px(c2[0]), py(c2[1]), px(x), py(y))
+                actual = (x, y)
+            else:
+                i += 1
+        except (IndexError, ValueError):
+            break
+
+    c.setFillColor(fill_color)
+    if sw_pt > 0 and stroke_color:
+        c.setStrokeColor(stroke_color)
+        c.setLineWidth(sw_pt)
+    c.drawPath(path, fill=1, stroke=1 if (sw_pt > 0 and stroke_color) else 0)
 
 
 def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | dict[str, Any]) -> bytes:
@@ -304,6 +421,16 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 path.close()
                 c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
 
+            elif tipo == 'path':
+                _dibujar_svg_path(
+                    c,
+                    el.get('path') or props.get('d'),
+                    x_pt, y_pt, w_pt, h_pt,
+                    fill_color,
+                    stroke_raw if tiene_stroke else None,
+                    sw_pt,
+                )
+
             elif tipo in ('line', 'signline'):
                 c.setLineWidth(max(h_pt, 0.4))
                 c.setStrokeColor(fill_color)
@@ -313,7 +440,11 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 _dibujar_foto(c, foto_bytes, x_pt, y_pt, w_pt, h_pt, rad_pt)
 
             elif tipo == 'qr':
-                _dibujar_qr(c, datos_dict, x_pt, y_pt, tamano=min(w_pt, h_pt))
+                _dibujar_qr(
+                    c, datos_dict, x_pt, y_pt,
+                    tamano=min(w_pt, h_pt),
+                    con_logo=bool(props.get('logo', True)),
+                )
 
             elif tipo == 'image':
                 # Logo o firma: si el elemento trae un asset institucional, se
@@ -353,6 +484,19 @@ def generar_carnet_pdf_fiel(definicion: dict[str, Any], datos: DatosCarnetPdf | 
                 font_size = float(el.get('fontSize') or el.get('size') or 7.5)
                 bold = bool(el.get('bold', False))
                 fuente_elegida = FUENTE_NEGRITA if bold else FUENTE
+
+                # Ajuste automático: si el texto no cabe en el ancho declarado, se
+                # reduce el tamaño (mínimo 3.5 pt) en vez de desbordar la tarjeta.
+                def _tamano_ajustado(texto: str, tamano: float) -> float:
+                    if not texto or w_pt <= 0:
+                        return tamano
+                    ancho_texto = stringWidth(texto, fuente_elegida, tamano)
+                    if ancho_texto <= w_pt:
+                        return tamano
+                    return max(3.5, tamano * (w_pt / ancho_texto))
+
+                if '\n' not in texto_render:
+                    font_size = _tamano_ajustado(texto_render, font_size)
                 c.setFont(fuente_elegida, font_size)
                 c.setFillColor(fill_color)
 

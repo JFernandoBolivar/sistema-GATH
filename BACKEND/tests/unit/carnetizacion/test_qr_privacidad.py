@@ -37,6 +37,13 @@ def test_validacion_preferencias_niveles_permitidos():
         validar_preferencias_privacidad({'salud': 'NIVEL_INVENTADO'})
 
 
+def test_validacion_preferencias_ubicacion_siempre_publica():
+    """La ubicación administrativa se muestra siempre y no es configurable por el titular."""
+    prefs = validar_preferencias_privacidad({'ubicacion': 'SOLO_PERSONAL'})
+    assert prefs['ubicacion'] == 'PUBLICO'
+    assert PRIVACIDAD_POR_DEFECTO['ubicacion'] == 'PUBLICO'
+
+
 def test_cabeceras_anti_rastreo():
     """El endpoint QR debe bloquear indexación de motores de búsqueda."""
     resp = HttpResponse()

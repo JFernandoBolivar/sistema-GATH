@@ -17,6 +17,7 @@ from apps.carnetizacion.infrastructure.pdf.carnet_pdf import (
     MM_A_PT,
     _dibujar_foto,
     _dibujar_qr,
+    _dibujar_svg_path,
     _extraer_valor_campo,
     _hex_seguro,
 )
@@ -126,6 +127,15 @@ def _dibujar_cara(
             path.lineTo(x_pt, y_pt)
             path.close()
             c.drawPath(path, fill=1, stroke=1 if tiene_stroke else 0)
+        elif tipo == 'path':
+            _dibujar_svg_path(
+                c,
+                el.get('path') or props.get('d'),
+                x_pt, y_pt, w_pt, h_pt,
+                relleno,
+                stroke_raw if tiene_stroke else None,
+                sw_pt,
+            )
         elif tipo in ('line', 'signline'):
             c.setLineWidth(max(h_pt, 0.4))
             c.setStrokeColor(relleno)
@@ -133,7 +143,11 @@ def _dibujar_cara(
         elif tipo == 'photo':
             _dibujar_foto(c, foto_bytes, x_pt, y_pt, w_pt, h_pt, rad_pt)
         elif tipo == 'qr':
-            _dibujar_qr(c, datos, x_pt, y_pt, tamano=min(w_pt, h_pt))
+            _dibujar_qr(
+                c, datos, x_pt, y_pt,
+                tamano=min(w_pt, h_pt),
+                con_logo=bool(props.get('logo', True)),
+            )
         elif tipo == 'image':
             label = props.get('label') or el.get('name') or 'LOGO'
             ruta = ruta_asset(props.get('asset')) if props.get('asset') else None

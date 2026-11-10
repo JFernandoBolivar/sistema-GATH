@@ -102,6 +102,23 @@ export function DisenadorPropiedadesPanel({
           </div>
         )}
 
+        {/* Forma libre: SVG path normalizado en una caja de 0..100 */}
+        {el.t === "path" && (
+          <div className="space-y-1">
+            <Label className="text-[11px]">Forma SVG (caja 0–100)</Label>
+            <textarea
+              className="w-full min-h-24 rounded-md border border-input bg-background p-2 font-mono text-[11px] leading-relaxed focus:outline-none focus:ring-1 focus:ring-ring"
+              value={el.path || ""}
+              onChange={(e) => onActualizarElemento(el.id, { path: e.target.value })}
+              placeholder="M 0 0 H 100 V 40 C 70 60 30 20 0 50 Z"
+              spellCheck={false}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Comandos M, L, H, V, C, Q y Z. Se escala al ancho y alto del elemento.
+            </p>
+          </div>
+        )}
+
         {/* Coordenadas, Dimensiones y Alineación */}
         <DisenadorPropiedadesGeometria
           elemento={el}

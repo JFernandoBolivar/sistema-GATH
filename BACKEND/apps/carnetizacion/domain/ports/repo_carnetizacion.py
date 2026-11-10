@@ -101,6 +101,10 @@ class RepoCarnetizacion(Protocol):
         """Obtiene el historial cronológico de versiones de una plantilla."""
         ...
 
+    def eliminar_plantilla(self, plantilla_id: str | int) -> None:
+        """Elimina una plantilla no activa (la activa está protegida)."""
+        ...
+
     def crear_plantilla(self, nombre: str, imagen: object, activar: bool = False) -> PlantillaCarnet:
         """Compatibilidad con subida legacy de imagen de fondo."""
         ...

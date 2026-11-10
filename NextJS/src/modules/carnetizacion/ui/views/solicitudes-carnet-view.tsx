@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -129,6 +129,44 @@ function downloadPdfBase64(base64: string, filename: string) {
   document.body.removeChild(a);
 }
 
+function normalizarMotivo(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/gi, " ")
+    .trim()
+    .toUpperCase();
+}
+
+/**
+ * La solicitud ya trae el motivo declarado por el trabajador; se traduce al
+ * motivo oficial del catálogo para no obligar al dictaminador a elegirlo.
+ */
+export function resolverMotivoDeclarado(
+  declarado: string,
+  motivos?: MotivoOption[] | null,
+): number {
+  if (!motivos?.length || !declarado?.trim()) return 0;
+  const objetivo = normalizarMotivo(declarado);
+
+  const exacto = motivos.find((m) => normalizarMotivo(m.nombre) === objetivo);
+  if (exacto) return exacto.id;
+
+  const contenido = motivos.find((m) => {
+    const nombre = normalizarMotivo(m.nombre);
+    return nombre && (objetivo.includes(nombre) || nombre.includes(objetivo));
+  });
+  if (contenido) return contenido.id;
+
+  const palabras = objetivo.split(" ").filter((p) => p.length >= 4);
+  const porPalabra = motivos.find((m) =>
+    normalizarMotivo(m.nombre)
+      .split(" ")
+      .some((p) => p.length >= 4 && palabras.includes(p)),
+  );
+  return porPalabra?.id ?? 0;
+}
+
 export function SolicitudesCarnetView() {
   const router = useRouter();
 
@@ -144,6 +182,7 @@ export function SolicitudesCarnetView() {
   // Modal de dictamen
   const [solicitudEnDictamen, setSolicitudEnDictamen] = useState<SolicitudCarnetItem | null>(null);
   const [motivoDictamenId, setMotivoDictamenId] = useState<number>(0);
+  const [editandoMotivo, setEditandoMotivo] = useState(false);
   const [observacionesDictamen, setObservacionesDictamen] = useState("");
   const [isPendingDictamen, startTransitionDictamen] = useTransition();
 
@@ -156,6 +195,23 @@ export function SolicitudesCarnetView() {
       return [];
     },
     { revalidateOnFocus: false },
+  );
+
+  // Si el catálogo llega después de abrir el dictamen, se resuelve el motivo
+  // declarado sin que el usuario tenga que elegirlo.
+  useEffect(() => {
+    if (!solicitudEnDictamen || solicitudEnDictamen.estado !== "PENDIENTE") return;
+    if (!listaMotivos?.length) return;
+    const resuelto = resolverMotivoDeclarado(
+      solicitudEnDictamen.motivoSolicitud,
+      listaMotivos,
+    );
+    setMotivoDictamenId((actual) => actual || resuelto);
+  }, [solicitudEnDictamen, listaMotivos]);
+
+  const motivoOficial = useMemo(
+    () => listaMotivos?.find((m) => m.id === motivoDictamenId) ?? null,
+    [listaMotivos, motivoDictamenId],
   );
 
   // Filtrado de solicitudes
@@ -247,19 +303,23 @@ export function SolicitudesCarnetView() {
   const handleAbrirDictamen = (item: SolicitudCarnetItem) => {
     setSolicitudEnDictamen(item);
     setObservacionesDictamen("");
-    if (listaMotivos && listaMotivos.length > 0) {
-      setMotivoDictamenId(listaMotivos[0].id);
-    }
+    setEditandoMotivo(false);
+    setMotivoDictamenId(resolverMotivoDeclarado(item.motivoSolicitud, listaMotivos));
   };
 
   const handleAprobarYEmitir = () => {
     if (!solicitudEnDictamen) return;
+    if (!motivoDictamenId) {
+      toast.error("No se pudo identificar el motivo oficial. Selecciónelo antes de aprobar.");
+      setEditandoMotivo(true);
+      return;
+    }
 
     startTransitionDictamen(async () => {
       try {
         const cedula = solicitudEnDictamen.cedula;
         const nombre = solicitudEnDictamen.nombreCompleto;
-        const motivo = motivoDictamenId || 1;
+        const motivo = motivoDictamenId;
 
         // Intentar generar el PDF directamente si la API responde
         const result = await generarCarnetPdfAction(cedula, motivo, nombre);
@@ -639,24 +699,65 @@ export function SolicitudesCarnetView() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <Label htmlFor="motivo-dictamen" className="text-xs font-semibold">
-                          Motivo de Emisión Registrado
-                        </Label>
-                        <Select
-                          value={motivoDictamenId ? String(motivoDictamenId) : "1"}
-                          onValueChange={(val) => setMotivoDictamenId(Number(val))}
-                        >
-                          <SelectTrigger id="motivo-dictamen" className="h-10 mt-1 text-xs">
-                            <SelectValue placeholder="Motivo oficial" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {listaMotivos?.map((m) => (
-                              <SelectItem key={m.id} value={String(m.id)} className="text-xs">
-                                {m.nombre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="motivo-dictamen" className="text-xs font-semibold">
+                            Motivo de Emisión
+                          </Label>
+                          {!editandoMotivo && motivoDictamenId ? (
+                            <button
+                              type="button"
+                              onClick={() => setEditandoMotivo(true)}
+                              className="text-[11px] font-medium text-primary underline decoration-dotted underline-offset-2"
+                            >
+                              Corregir
+                            </button>
+                          ) : null}
+                          {editandoMotivo && motivoDictamenId ? (
+                            <button
+                              type="button"
+                              onClick={() => setEditandoMotivo(false)}
+                              className="text-[11px] font-medium text-muted-foreground underline decoration-dotted underline-offset-2"
+                            >
+                              Usar el declarado
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {editandoMotivo || !motivoDictamenId ? (
+                          <>
+                            <Select
+                              value={motivoDictamenId ? String(motivoDictamenId) : ""}
+                              onValueChange={(val) => setMotivoDictamenId(Number(val))}
+                            >
+                              <SelectTrigger id="motivo-dictamen" className="h-10 mt-1 text-xs">
+                                <SelectValue placeholder="Seleccione el motivo oficial" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {listaMotivos?.map((m) => (
+                                  <SelectItem key={m.id} value={String(m.id)} className="text-xs">
+                                    {m.nombre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {!motivoDictamenId && (
+                              <p className="mt-1 text-[11px] text-warning">
+                                No se pudo identificar automáticamente el motivo declarado.
+                                Seleccione el motivo oficial para emitir.
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <Input
+                            id="motivo-dictamen"
+                            disabled
+                            value={motivoOficial?.nombre ?? ""}
+                            className="h-10 mt-1 text-xs bg-muted/50 font-medium"
+                          />
+                        )}
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Se tomó del motivo declarado por el trabajador en su solicitud.
+                        </p>
                       </div>
 
                       <div>

@@ -12,6 +12,7 @@ import {
   activarPlantillaCarnetAction,
   activarPlantillaMotorAction,
   crearPlantillaBorradorAction,
+  eliminarPlantillaMotorAction,
   getPlantillasCarnetAction,
   getPlantillasMotorAction,
   getTiposCredencialAction,
@@ -206,6 +207,18 @@ export function usePlantillasGestor() {
     });
   };
 
+  const eliminarMotor = (plantilla: PlantillaMotor) => {
+    startTransition(async () => {
+      const res = await eliminarPlantillaMotorAction(plantilla.id);
+      if (res.success) {
+        toast.success(`Plantilla «${plantilla.nombre}» eliminada`);
+        mutateMotor();
+      } else {
+        toast.error(res.error || "No se pudo eliminar la plantilla");
+      }
+    });
+  };
+
   const abrirHistorialVersiones = async (p: PlantillaMotor) => {
     setPlantillaSeleccionada(p);
     setModalVersionesOpen(true);
@@ -249,6 +262,7 @@ export function usePlantillasGestor() {
     duplicarMotor,
     activarMotor,
     publicarMotor,
+    eliminarMotor,
     abrirHistorialVersiones,
     listaClasicas,
     listaMotor,

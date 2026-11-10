@@ -56,6 +56,7 @@ export function PlantillasView() {
             onPublicarMotor={gestor.publicarMotor}
             onActivarMotor={gestor.activarMotor}
             onDuplicarMotor={gestor.duplicarMotor}
+            onEliminarMotor={gestor.eliminarMotor}
           />
         </TabsContent>
 

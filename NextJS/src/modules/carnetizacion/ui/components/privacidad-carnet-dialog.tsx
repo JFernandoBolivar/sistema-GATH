@@ -58,12 +58,6 @@ const FILAS_CONFIG: FilaConfigPrivacidad[] = [
     permitePublico: true,
   },
   {
-    clave: "ubicacion",
-    etiqueta: "Ubicación administrativa",
-    descripcion: "Oficina, gerencia o coordinación de adscripción.",
-    permitePublico: true,
-  },
-  {
     clave: "contactos_emergencia",
     etiqueta: "Contactos de emergencia",
     descripcion: "Nombres y teléfonos de contacto para auxilio o accidentes.",

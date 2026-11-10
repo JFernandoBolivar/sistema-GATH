@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ChevronsUpDown,
   Image as ImageIcon,
+  PenTool,
   QrCode,
   Shapes,
   Slash,
@@ -197,6 +198,87 @@ export function DisenadorHerramientasPanel({
             >
               <Slash className="size-4" aria-hidden />
               Franja diagonal
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 justify-start gap-2 text-xs"
+              onClick={() =>
+                onAnadirElemento({
+                  t: "path",
+                  name: "Onda superior",
+                  cara: caraActual,
+                  x: 0,
+                  y: 0,
+                  w: 54,
+                  h: 20,
+                  r: 0,
+                  fill: "rule:primario",
+                  stroke: "",
+                  sw: 0,
+                  rad: 0,
+                  shadow: 0,
+                  op: 100,
+                  path: "M 0 0 H 100 V 38 C 74 62 26 22 0 52 Z",
+                })
+              }
+            >
+              <PenTool className="size-4" aria-hidden />
+              Onda superior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 justify-start gap-2 text-xs"
+              onClick={() =>
+                onAnadirElemento({
+                  t: "path",
+                  name: "Corte diagonal",
+                  cara: caraActual,
+                  x: 0,
+                  y: 40,
+                  w: 54,
+                  h: 30,
+                  r: 0,
+                  fill: "rule:primario",
+                  stroke: "",
+                  sw: 0,
+                  rad: 0,
+                  shadow: 0,
+                  op: 100,
+                  path: "M 0 0 H 100 V 100 L 0 62 Z",
+                })
+              }
+            >
+              <PenTool className="size-4" aria-hidden />
+              Corte diagonal
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 justify-start gap-2 text-xs"
+              onClick={() =>
+                onAnadirElemento({
+                  t: "path",
+                  name: "Forma libre",
+                  cara: caraActual,
+                  x: 10,
+                  y: 10,
+                  w: 30,
+                  h: 30,
+                  r: 0,
+                  fill: "rule:primario",
+                  stroke: "",
+                  sw: 0,
+                  rad: 0,
+                  shadow: 0,
+                  op: 100,
+                  path: "M 0 100 C 0 32 32 0 100 0 V 100 Z",
+                })
+              }
+            >
+              <PenTool className="size-4" aria-hidden />
+              Forma SVG
             </Button>
           </div>
         </div>

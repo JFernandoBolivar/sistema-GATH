@@ -409,6 +409,23 @@ export async function publicarPlantillaMotorAction(plantillaId: string, activar:
   }
 }
 
+export async function eliminarPlantillaMotorAction(plantillaId: string) {
+  const traceId = generateTraceId();
+  const startedAt = Date.now();
+  try {
+    await repoCarnetizacionApi.eliminarPlantillaMotor(plantillaId);
+    await logAudit({ traceId, action: "eliminarPlantillaMotorAction", status: "SUCCESS", durationMs: Date.now() - startedAt });
+    return { success: true as const };
+  } catch (error) {
+    await logAudit({ traceId, action: "eliminarPlantillaMotorAction", status: "FAILED", durationMs: Date.now() - startedAt });
+    handleSessionExpired(error);
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "No fue posible eliminar la plantilla.",
+    };
+  }
+}
+
 export async function crearPlantillaBorradorAction(data: {
   nombre: string;
   codigo_tipo?: string;

@@ -1,11 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock, Copy, History, Loader2, Palette, PlusCircle, Sparkles, Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Copy,
+  History,
+  Loader2,
+  Palette,
+  PlusCircle,
+  Search,
+  Sparkles,
+  Star,
+  Trash2,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { PlantillaMotor, TipoCredencial } from "../../../domain/entities/carnet";
 import { PlantillaMiniatura } from "./plantilla-miniatura";
 
@@ -21,6 +53,7 @@ interface PlantillasMotorGridProps {
   onPublicarMotor: (id: string, version: number) => void;
   onActivarMotor: (id: string) => void;
   onDuplicarMotor: (plantilla: PlantillaMotor) => void;
+  onEliminarMotor: (plantilla: PlantillaMotor) => void;
 }
 
 export function PlantillasMotorGrid({
@@ -35,7 +68,32 @@ export function PlantillasMotorGrid({
   onPublicarMotor,
   onActivarMotor,
   onDuplicarMotor,
+  onEliminarMotor,
 }: PlantillasMotorGridProps) {
+  const [busqueda, setBusqueda] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const [porPagina] = useState(6);
+  const [plantillaAEliminar, setPlantillaAEliminar] = useState<PlantillaMotor | null>(null);
+
+  const filtradas = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return plantillasMotor;
+    return plantillasMotor.filter((p) =>
+      `${p.nombre} ${p.codigo_tipo} ${p.estado} ${p.version}`.toLowerCase().includes(q),
+    );
+  }, [plantillasMotor, busqueda]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / porPagina));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const inicio = (paginaActual - 1) * porPagina;
+  const visibles = filtradas.slice(inicio, inicio + porPagina);
+
+  const confirmarEliminacion = () => {
+    if (!plantillaAEliminar) return;
+    onEliminarMotor(plantillaAEliminar);
+    setPlantillaAEliminar(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Selector de Tipo de Credencial */}
@@ -81,30 +139,57 @@ export function PlantillasMotorGrid({
         </Button>
       </div>
 
+      {/* Buscador de plantillas */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            value={busqueda}
+            onChange={(e) => {
+              setBusqueda(e.target.value);
+              setPagina(1);
+            }}
+            placeholder="Buscar plantilla por nombre, tipo o versión…"
+            className="pl-9 h-10 text-sm"
+            aria-label="Buscar plantilla"
+          />
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {filtradas.length} plantilla{filtradas.length === 1 ? "" : "s"}
+          {busqueda.trim() ? " encontradas" : " registradas"}
+        </span>
+      </div>
+
       {/* Listado de Plantillas Motor */}
       {cargandoMotor ? (
         <div className="flex justify-center items-center py-20">
           <Loader2 className="size-8 animate-spin text-primary" />
         </div>
-      ) : plantillasMotor.length === 0 ? (
+      ) : filtradas.length === 0 ? (
         <Card className="shadow-xs border border-dashed">
           <CardContent className="text-center py-12">
             <Palette className="size-12 mx-auto text-muted-foreground/40" />
             <h3 className="text-base font-semibold text-foreground mt-4">
-              No hay plantillas registradas para este tipo
+              {busqueda.trim()
+                ? "No hay plantillas que coincidan con la búsqueda"
+                : "No hay plantillas registradas para este tipo"}
             </h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-              Crea una nueva plantilla en borrador para configurar las dimensiones y capas oficiales.
+              {busqueda.trim()
+                ? "Pruebe con otro nombre, tipo o versión."
+                : "Crea una nueva plantilla en borrador para configurar las dimensiones y capas oficiales."}
             </p>
-            <Button onClick={onAbrirModalNuevo} className="mt-4 gap-2" variant="outline">
-              <PlusCircle className="size-4" />
-              Crear plantilla
-            </Button>
+            {!busqueda.trim() && (
+              <Button onClick={onAbrirModalNuevo} className="mt-4 gap-2" variant="outline">
+                <PlusCircle className="size-4" />
+                Crear plantilla
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {plantillasMotor.map((p) => {
+          {visibles.map((p) => {
             const esActiva = p.activa;
             const esBorrador = p.estado === "borrador";
             return (
@@ -242,6 +327,21 @@ export function PlantillasMotorGrid({
                       <History className="size-3.5" aria-hidden />
                       <span className="sr-only">Historial</span>
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="min-h-9 gap-1.5 px-2 text-muted-foreground hover:text-destructive disabled:opacity-40"
+                      disabled={isPending || esActiva}
+                      onClick={() => setPlantillaAEliminar(p)}
+                      title={
+                        esActiva
+                          ? "No se puede eliminar la plantilla activa"
+                          : "Eliminar esta versión"
+                      }
+                    >
+                      <Trash2 className="size-3.5" aria-hidden />
+                      <span className="sr-only">Eliminar</span>
+                    </Button>
                   </div>
 
                   <div className="flex items-center gap-1.5">
@@ -276,6 +376,64 @@ export function PlantillasMotorGrid({
           })}
         </div>
       )}
+
+      {totalPaginas > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
+          <span>
+            Mostrando {filtradas.length ? inicio + 1 : 0}–
+            {Math.min(inicio + porPagina, filtradas.length)} de {filtradas.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              disabled={paginaActual <= 1}
+              onClick={() => setPagina((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="size-3.5" />
+              Anterior
+            </Button>
+            <span className="px-2 font-medium">
+              {paginaActual} / {totalPaginas}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              disabled={paginaActual >= totalPaginas}
+              onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+            >
+              Siguiente
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <AlertDialog
+        open={!!plantillaAEliminar}
+        onOpenChange={(open) => !open && setPlantillaAEliminar(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta plantilla?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará «{plantillaAEliminar?.nombre}» v{plantillaAEliminar?.version}.
+              Esta acción no se puede deshacer. La plantilla activa está protegida.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmarEliminacion}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -102,6 +102,10 @@ export const repoCarnetizacionApi: RepoCarnetizacion = {
     return plantillaMotorApiAEntidad(raw);
   },
 
+  async eliminarPlantillaMotor(id) {
+    await carnetizacionApi.eliminarPlantillaMotor(id);
+  },
+
   async publicarPlantilla(id, activar = true) {
     const raw = await carnetizacionApi.publicarPlantillaMotor(id, activar);
     return plantillaMotorApiAEntidad(raw);

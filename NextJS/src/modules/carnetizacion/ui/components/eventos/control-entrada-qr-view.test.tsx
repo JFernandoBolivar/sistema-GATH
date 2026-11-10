@@ -8,6 +8,14 @@ const acciones = vi.hoisted(() => ({
   consultarFichaQrAction: vi.fn(),
 }));
 
+const router = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+  refresh: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+
 vi.mock("@/modules/carnetizacion/infrastructure/actions/eventos-actions", () => acciones);
 vi.mock("@/modules/carnetizacion/infrastructure/actions/carnetizacion-actions", () => ({
   consultarFichaQrAction: acciones.consultarFichaQrAction,
@@ -22,6 +30,7 @@ if (!Element.prototype.scrollIntoView) {
 
 describe("ControlEntradaQrView", () => {
   beforeEach(() => {
+    router.push.mockReset();
     acciones.getEventosAction.mockReset().mockResolvedValue([
       { id: "ev-1", nombre: "Evento de prueba" },
     ]);
@@ -88,7 +97,7 @@ describe("ControlEntradaQrView", () => {
     });
   });
 
-  it("valida el carnet de un trabajador y ofrece abrir su expediente", async () => {
+  it("valida el carnet de un trabajador y redirige a su ficha pública", async () => {
     acciones.consultarFichaQrAction.mockResolvedValue({
       esValido: true,
       estado: "VIGENTE",
@@ -114,12 +123,10 @@ describe("ControlEntradaQrView", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /Validar/i }));
 
-    expect(await screen.findByText("Credencial válida")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith(`/carnet/${"a".repeat(64)}`),
+    );
     expect(acciones.consultarFichaQrAction).toHaveBeenCalledWith("a".repeat(64));
     expect(acciones.checkInAccesoAction).not.toHaveBeenCalled();
-    expect(screen.getByRole("link", { name: /Abrir expediente/i })).toHaveAttribute(
-      "href",
-      "/personal/consultar?cedula=30799436",
-    );
   });
 });

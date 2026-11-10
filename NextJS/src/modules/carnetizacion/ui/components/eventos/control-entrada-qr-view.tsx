@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Camera,
@@ -143,6 +144,7 @@ const TONO_DICTAMEN = {
 } as const;
 
 export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }: ControlEntradaQrViewProps) {
+  const router = useRouter();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [eventoId, setEventoId] = useState<string>(initialEventoId || "");
   const [zonas, setZonas] = useState<EventoZona[]>([]);
@@ -340,15 +342,17 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
           setErrorFicha(null);
           setResultado(null);
           const ficha = await consultarFichaQrAction(hash);
-          setFichaTrabajador(ficha);
           setCodigoInput("");
           if (ficha.esValido) {
             if (audioHabilitado) reproducirTono("permitido");
             dispararVibracion("permitido");
-          } else {
-            if (audioHabilitado) reproducirTono("denegado");
-            dispararVibracion("denegado");
+            // El detalle vive siempre en la ficha pública del carnet.
+            router.push(`/carnet/${hash}`);
+            return;
           }
+          setFichaTrabajador(ficha);
+          if (audioHabilitado) reproducirTono("denegado");
+          dispararVibracion("denegado");
         } catch {
           setErrorFicha("No se pudo validar la credencial del trabajador.");
           if (audioHabilitado) reproducirTono("denegado");
@@ -806,11 +810,11 @@ export function ControlEntradaQrView({ initialEventoId, embeddedInHub = false }:
                 )}
 
                 <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                  {fichaTrabajador.datos?.cedula && (
+                  {fichaTrabajador.securityHash && (
                     <Button asChild className="min-h-11">
-                      <Link href={`/personal/consultar?cedula=${fichaTrabajador.datos.cedula}`}>
+                      <Link href={`/carnet/${fichaTrabajador.securityHash}`}>
                         <FolderOpen className="size-4" aria-hidden />
-                        Abrir expediente
+                        Ver ficha pública
                       </Link>
                     </Button>
                   )}

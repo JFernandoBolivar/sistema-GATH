@@ -1,6 +1,6 @@
 "use client";
 
-import { Circle, Group, Image as KonvaImage, Line, Rect, Text } from "react-konva";
+import { Circle, Group, Image as KonvaImage, Line, Path, Rect, Text } from "react-konva";
 import type Konva from "konva";
 
 import type { ElementoKonva, PersonaMuestra } from "../../../domain/entities/disenador";
@@ -135,7 +135,7 @@ export function KonvaElementoItem({
     );
   }
 
-  // 3. Triángulo / Franja diagonal
+  // 3. Triángulo / Franja diagonal / Forma SVG personalizada
   if (el.t === "tri" || el.t === "diag") {
     const puntos =
       el.t === "tri"
@@ -150,6 +150,24 @@ export function KonvaElementoItem({
         fill={colorRelleno}
         stroke={bordeColor || undefined}
         strokeWidth={bordeGrosor}
+      />
+    );
+  }
+
+  // 3b. Forma libre definida por un SVG path en una caja de 0..100
+  if (el.t === "path") {
+    const datos = el.path || "M 0 0 H 100 V 100 H 0 Z";
+    return (
+      <Path
+        key={el.id}
+        {...propiedadesComunes}
+        data={datos}
+        scaleX={w / 100}
+        scaleY={h / 100}
+        fill={colorRelleno}
+        stroke={bordeColor || undefined}
+        strokeWidth={bordeGrosor}
+        strokeScaleEnabled={false}
       />
     );
   }
